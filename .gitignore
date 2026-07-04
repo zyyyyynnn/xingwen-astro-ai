@@ -1,0 +1,38 @@
+# Env
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+.nuxt/
+.output/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project outputs
+samples/outputs/*
+!samples/outputs/.gitkeep
+exports/
+logs/
+tmp/
+
