@@ -34,6 +34,8 @@
 }
 ```
 
+`used_cache` 是结果来源标记，不是任务状态。任务实时运行失败但成功使用缓存兜底时，状态仍应进入 `completed`，并由 `used_cache`、`SourceRecord.cached` 和响应 `meta.cached` 表达缓存命中。
+
 ## 3. TaskStep
 
 ```json
@@ -141,12 +143,31 @@
   "target_type": "field",
   "target_id": "pl_orbper",
   "content": "Field pl_orbper retrieved from source query result.",
+  "locator": {
+    "kind": "column",
+    "value": "pl_orbper"
+  },
+  "quote_or_value": "pl_orbper returned by TAP query",
+  "extraction_method": "rule_based_mapping",
+  "source_snapshot": {
+    "retrieved_at": "2026-07-04T10:01:00Z",
+    "query_hash": "sha256:example"
+  },
   "confidence": 0.95,
   "created_at": "2026-07-04T10:03:00Z"
 }
 ```
 
 `Evidence.type` 可选：`database_query`、`paper_text`、`model_extraction`、`user_feedback`、`cache_record`。
+
+增强字段说明：
+
+| 字段 | 用途 |
+| --- | --- |
+| `locator` | 指向证据在来源中的位置，如字段名、表格列、段落、页码、URL 片段 |
+| `quote_or_value` | 保留可核验的短文本、字段值或查询返回依据 |
+| `extraction_method` | 说明证据来自规则映射、模型抽取、人工反馈或缓存记录 |
+| `source_snapshot` | 记录查询时间、查询 hash、缓存版本或文献版本，便于复现 |
 
 ## 10. GraphNode
 
@@ -180,6 +201,8 @@
 ```
 
 `GraphEdge.type` 可选：`uses_dataset`、`provides_field`、`supports_finding`、`cites`、`derived_from`、`corrected_by_feedback`。
+
+MVP 图谱优先实现少量强证据关系：`provides_field`、`supports_finding`、`derived_from`。不追求大图规模。
 
 ## 12. QualityScore
 
