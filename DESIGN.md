@@ -55,7 +55,7 @@ flowchart TB
 4. 数据 Pipeline 获取并清洗主案例数据，输出 `Dataset`、`FieldDictionary`、`SourceRecord`、`QualityScore`。
 5. 文献 Pipeline 输出 `PaperSummary` 和引用证据。
 6. 图谱 Pipeline 合并数据证据和文献证据，输出 `GraphNode`、`GraphEdge`、`Evidence`。
-7. 后端聚合结果，前端按任务状态展示。
+7. 后端聚合结果，前端按任务状态和缓存元信息展示。
 8. 用户反馈进入 `UserFeedback`，触发字段、单位或来源的局部修正。
 
 ## 5. 任务状态机
@@ -64,14 +64,17 @@ flowchart TB
 | --- | --- | --- |
 | `pending` | 任务已创建 | `planning` |
 | `planning` | 正在解析目标和生成计划 | `fetching_data` / `failed` |
-| `fetching_data` | 正在获取天文数据 | `cleaning_data` / `using_cache` / `failed` |
+| `fetching_data` | 正在获取天文数据 | `cleaning_data` / `failed` |
 | `cleaning_data` | 正在字段对齐、单位统一、质量评分 | `summarizing_papers` / `failed` |
 | `summarizing_papers` | 正在生成文献结构化总结 | `building_graph` / `failed` |
 | `building_graph` | 正在构建证据图谱 | `completed` / `failed` |
-| `using_cache` | 实时链路失败，使用真实运行缓存 | `completed` / `failed` |
 | `completed` | 任务完成 | `revising` |
 | `revising` | 根据用户反馈局部修正 | `completed` / `failed` |
 | `failed` | 任务失败 | 人工排查或缓存兜底 |
+
+`using_cache` 不作为主任务状态。缓存命中通过响应 `meta.cached`、`ResearchTask.used_cache`、`SourceRecord.cached` 和页面提示表达，避免任务流和兜底策略混在一起。
+
+M1 可先实现状态子集 `pending`、`planning`、`completed`、`failed`，细粒度步骤通过 `TaskStep` Mock 展示；M2 后再逐步接入完整状态流转。
 
 ## 6. 证据链原则
 
@@ -93,6 +96,8 @@ flowchart TB
 | 模型结果缓存 | Qwen 调用失败时展示 | 记录 prompt 版本、模型名、生成时间 |
 | 演示样例缓存 | 公网 Demo 稳定演示 | 必须来自真实运行，不允许手写假结果 |
 
+缓存只能作为结果来源和展示元信息，不改变主状态机语义。缓存结果必须有 `Evidence(type=cache_record)` 或对应 `SourceRecord.cached=true`。
+
 ## 8. 安全约束
 
 - API Key 只允许存在于后端环境变量或部署平台 Secrets。
@@ -102,7 +107,9 @@ flowchart TB
 
 ## 9. 实现顺序
 
-1. 先跑通 `POST /api/tasks` 和 `GET /api/tasks/{task_id}`。
-2. 再接入数据 Pipeline，输出可导出数据集。
-3. 再接入文献 Pipeline 和图谱 Pipeline。
-4. 最后做反馈修正、公网 Demo 和材料交接。
+1. 先完成 `X-00`：冻结 MVP 字段清单、文献清单和 Graph 最小关系类型。
+2. A/B 并行初始化前后端，C/D 提供最小真实依据，不等待完整数据链路。
+3. B 先交付 `POST /api/v1/tasks`、`GET /api/v1/tasks/{task_id}` 和 Mock 聚合结果。
+4. A 基于 Mock API 展示任务流、数据、文献和图谱页面。
+5. 再接入数据 Pipeline、文献 Pipeline、图谱 Pipeline。
+6. 最后做反馈修正、公网 Demo 和材料交接。
