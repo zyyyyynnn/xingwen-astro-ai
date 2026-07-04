@@ -36,12 +36,14 @@ Base URL: `/api/v1`
 }
 ```
 
+`meta.cached=true` 表示本次响应使用真实运行缓存。缓存不是任务主状态，任务状态仍按 `task_status` 表达。
+
 ## 2. 枚举
 
 | 字段 | 可选值 |
 | --- | --- |
 | `case_key` | `exoplanet_host_star` |
-| `task_status` | `pending`, `planning`, `fetching_data`, `cleaning_data`, `summarizing_papers`, `building_graph`, `using_cache`, `completed`, `revising`, `failed` |
+| `task_status` | `pending`, `planning`, `fetching_data`, `cleaning_data`, `summarizing_papers`, `building_graph`, `completed`, `revising`, `failed` |
 | `step_status` | `pending`, `running`, `completed`, `failed`, `skipped` |
 | `feedback_type` | `field_unit_error`, `field_mapping_error`, `source_error`, `paper_summary_error`, `graph_relation_error`, `other` |
 | `source_type` | `database`, `paper`, `cache`, `manual_review` |
@@ -91,6 +93,7 @@ Base URL: `/api/v1`
     "case_key": "exoplanet_host_star",
     "status": "cleaning_data",
     "progress": 45,
+    "used_cache": false,
     "created_at": "2026-07-04T10:00:00Z",
     "updated_at": "2026-07-04T10:02:30Z",
     "steps": [
@@ -241,7 +244,20 @@ Base URL: `/api/v1`
     "id": "evidence_001",
     "type": "database_query",
     "source_id": "source_nasa_exoplanet_archive",
+    "paper_id": null,
+    "target_type": "field",
+    "target_id": "pl_orbper",
     "content": "Field pl_orbper retrieved from NASA Exoplanet Archive query result.",
+    "locator": {
+      "kind": "column",
+      "value": "pl_orbper"
+    },
+    "quote_or_value": "pl_orbper returned by TAP query",
+    "extraction_method": "rule_based_mapping",
+    "source_snapshot": {
+      "retrieved_at": "2026-07-04T10:01:00Z",
+      "query_hash": "sha256:example"
+    },
     "confidence": 0.95
   },
   "error": null,
