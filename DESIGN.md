@@ -1,114 +1,108 @@
-# DESIGN：系统设计说明
+# DESIGN
 
 ## 1. 设计目标
 
-星文智析 AI 科研工具的设计目标是：将数据分析、文献总结和学术图谱整合成一条稳定、可信、可展示的科研工作流。
+系统设计服务三个目标：
 
-系统需要同时满足：
-
-- 比赛展示效果：流程清晰、页面完整、图谱可视化有冲击力。
-- 科研可信性：数据来源明确、处理过程可追踪、结果可导出。
-- 工程稳定性：接口统一、任务状态明确、缓存兜底可靠。
+| 目标 | 要求 |
+| --- | --- |
+| 科研可信 | 数据、文献、图谱均可溯源，缓存结果明确标记 |
+| 演示稳定 | 主案例公网 Demo 可在外部服务失败时完整展示 |
+| 协作清晰 | 前端、后端、数据、文献图谱模块通过固定契约协作 |
 
 ## 2. 总体架构
 
 ```mermaid
-flowchart TD
-    A[用户输入科研目标] --> B[任务编排 API]
-    B --> C[Qwen 目标解析]
-    B --> D[数据分析 Pipeline]
-    B --> E[文献总结 Pipeline]
-    D --> F[标准化数据集]
-    E --> G[结构化文献总结]
-    F --> H[图谱构建 Pipeline]
-    G --> H
-    H --> I[学术图谱 JSON]
-    F --> J[CSV / 数据字典 / 溯源报告]
-    I --> K[Vue 前端展示]
-    J --> K
-    K --> L[用户反馈修正]
-    L --> B
+flowchart TB
+  Web["apps/web\nVue 3 + TypeScript"]
+  API["apps/api\nFastAPI Task Orchestrator"]
+  Data["services/data_pipeline\nData Fetch / Clean / Export"]
+  Paper["services/paper_pipeline\nPaper Summary"]
+  Graph["services/graph_pipeline\nEvidence Graph"]
+  Schemas["packages/schemas\nShared Contracts"]
+  DB["PostgreSQL\nTasks / Results / Sources"]
+  Qwen["Qwen / DashScope"]
+
+  Web --> API
+  API --> Data
+  API --> Paper
+  API --> Graph
+  API --> Qwen
+  API --> DB
+  Data --> Schemas
+  Paper --> Schemas
+  Graph --> Schemas
 ```
 
-## 3. 模块设计
+## 3. 模块边界
 
-### 3.1 前端模块
+| 模块 | 负责 | 不负责 |
+| --- | --- | --- |
+| `apps/web` | 页面、状态展示、图谱交互、反馈提交 | 直接调用 Qwen、直接访问外部数据源 |
+| `apps/api` | 任务编排、API、缓存、导出、鉴权预留 | 具体清洗规则和图谱算法细节 |
+| `services/data_pipeline` | 数据源查询、字段映射、单位统一、溯源、质量评分 | 页面展示和用户交互 |
+| `services/paper_pipeline` | 文献输入、结构化总结、事实校验提示 | 生成无法溯源的结论 |
+| `services/graph_pipeline` | 图谱节点、边、证据链构建 | 只为视觉效果生成无证据边 |
+| `packages/schemas` | 共享类型、枚举、JSON Schema | 业务流程实现 |
 
-负责科研目标输入、任务状态展示、数据结果展示、文献总结展示、图谱可视化和用户反馈。
+详细边界见 [docs/architecture/MODULES.md](docs/architecture/MODULES.md)。
 
-前端不直接调用 Qwen 或外部数据源，所有请求通过后端 API。
+## 4. 数据流
 
-### 3.2 后端任务编排模块
+1. 前端提交 `goal` 和 `case_key`。
+2. 后端创建 `ResearchTask`，状态为 `pending`。
+3. Qwen 解析科研目标，生成结构化任务计划。
+4. 数据 Pipeline 获取并清洗主案例数据，输出 `Dataset`、`FieldDictionary`、`SourceRecord`、`QualityScore`。
+5. 文献 Pipeline 输出 `PaperSummary` 和引用证据。
+6. 图谱 Pipeline 合并数据证据和文献证据，输出 `GraphNode`、`GraphEdge`、`Evidence`。
+7. 后端聚合结果，前端按任务状态展示。
+8. 用户反馈进入 `UserFeedback`，触发字段、单位或来源的局部修正。
 
-负责创建任务、推进任务状态、调用 Qwen、协调数据分析、文献总结和图谱构建模块。
+## 5. 任务状态机
 
-后端统一保存：
+| 状态 | 含义 | 下一步 |
+| --- | --- | --- |
+| `pending` | 任务已创建 | `planning` |
+| `planning` | 正在解析目标和生成计划 | `fetching_data` / `failed` |
+| `fetching_data` | 正在获取天文数据 | `cleaning_data` / `using_cache` / `failed` |
+| `cleaning_data` | 正在字段对齐、单位统一、质量评分 | `summarizing_papers` / `failed` |
+| `summarizing_papers` | 正在生成文献结构化总结 | `building_graph` / `failed` |
+| `building_graph` | 正在构建证据图谱 | `completed` / `failed` |
+| `using_cache` | 实时链路失败，使用真实运行缓存 | `completed` / `failed` |
+| `completed` | 任务完成 | `revising` |
+| `revising` | 根据用户反馈局部修正 | `completed` / `failed` |
+| `failed` | 任务失败 | 人工排查或缓存兜底 |
 
-- 用户输入。
-- 任务状态。
-- 模型调用结果。
-- 外部数据源响应。
-- 清洗后的数据。
-- 文献总结。
-- 图谱数据。
-- 用户反馈。
+## 6. 证据链原则
 
-### 3.3 数据分析 Pipeline
+每个可展示结果必须满足至少一条证据链：
 
-负责围绕系外行星主案例获取数据，完成字段清洗、单位统一、来源标注和质量评分。
+```text
+展示字段/结论/图谱边 -> evidence_id -> source_id / paper_id -> url/query/retrieved_at
+```
 
-输出：
+禁止将无法追踪的模型输出作为事实展示。模型输出只能作为候选结构，必须经过 schema 校验和来源绑定。
 
-- 标准化数据集。
-- 字段字典。
-- 溯源报告。
-- 数据质量评分。
+## 7. 缓存兜底
 
-### 3.4 文献总结 Pipeline
+缓存分三类：
 
-负责解析主案例相关文献或文献摘要，输出结构化总结。
+| 类型 | 用途 | 要求 |
+| --- | --- | --- |
+| 数据源缓存 | 外部天文数据源不可用时展示 | 记录原查询、获取时间、来源 URL |
+| 模型结果缓存 | Qwen 调用失败时展示 | 记录 prompt 版本、模型名、生成时间 |
+| 演示样例缓存 | 公网 Demo 稳定演示 | 必须来自真实运行，不允许手写假结果 |
 
-输出字段：
+## 8. 安全约束
 
-- 研究背景。
-- 研究目标。
-- 方法。
-- 数据集。
-- 实验结论。
-- 局限。
-- 未来方向。
+- API Key 只允许存在于后端环境变量或部署平台 Secrets。
+- 前端不保存密钥、不拼接模型请求、不直连外部模型服务。
+- 公网 Demo 限制主案例和调用频率。
+- 日志不得输出完整密钥、原始用户敏感输入或过长模型响应。
 
-### 3.5 学术图谱 Pipeline
+## 9. 实现顺序
 
-负责将论文、数据源、字段和证据连接成图谱数据。
-
-图谱不是装饰图，节点必须能追溯到来源。
-
-## 4. 数据流原则
-
-1. 每个模块输入输出都使用 JSON。
-2. 每个结果都记录来源。
-3. 每次任务都记录执行时间、参数和版本。
-4. 前端展示内容必须来自后端真实数据或明确标注的缓存数据。
-5. 用户反馈只触发局部修正，避免重跑所有流程。
-
-## 5. 任务状态
-
-| 状态 | 说明 |
-| --- | --- |
-| pending | 任务已创建 |
-| parsing | 正在解析科研目标 |
-| fetching_data | 正在获取数据 |
-| cleaning | 正在清洗和对齐字段 |
-| summarizing_papers | 正在总结文献 |
-| building_graph | 正在构建图谱 |
-| completed | 任务完成 |
-| failed | 任务失败 |
-
-## 6. 关键设计约束
-
-- API Key 只允许放在后端环境变量中。
-- 公网 Demo 必须限流或限制主案例，避免模型 Key 被滥用。
-- 缓存结果必须来自真实运行，不允许手写假结果冒充系统输出。
-- 资料和视频中不得宣传未实现能力。
-
+1. 先跑通 `POST /api/tasks` 和 `GET /api/tasks/{task_id}`。
+2. 再接入数据 Pipeline，输出可导出数据集。
+3. 再接入文献 Pipeline 和图谱 Pipeline。
+4. 最后做反馈修正、公网 Demo 和材料交接。
