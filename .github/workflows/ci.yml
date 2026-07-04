@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repository foundation check
+        run: |
+          test -f README.md
+          test -f AGENTS.md
+          test -f DESIGN.md
+          test -f PRD.md
+          test -f docs/architecture/API_CONTRACT.md
+          test -f docs/architecture/DATA_MODEL.md
