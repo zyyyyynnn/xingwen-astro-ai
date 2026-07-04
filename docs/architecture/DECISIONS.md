@@ -53,3 +53,30 @@ MVP 固定为“系外行星候选体与宿主恒星参数整合”。
 GraphEdge 必须包含 `evidence_ids`。
 
 原因：图谱是科研证据组织能力，不是装饰性可视化。
+
+## ADR-007：缓存是元信息，不是主任务状态
+
+| 状态 | Accepted |
+| --- | --- |
+
+缓存命中通过 `meta.cached`、`ResearchTask.used_cache`、`SourceRecord.cached` 和页面提示表达，不再使用 `using_cache` 作为 `task_status`。
+
+原因：任务状态描述流程阶段，缓存描述结果来源。两者混用会让前端状态流、验收截图和后端状态机都变复杂。
+
+## ADR-008：Evidence 必须可定位、可核验、可复现
+
+| 状态 | Accepted |
+| --- | --- |
+
+`Evidence` 除 `source_id` / `paper_id` 外，还需要记录 `locator`、`quote_or_value`、`extraction_method` 和 `source_snapshot`。
+
+原因：比赛评审关注“可溯源”时，不只看有没有来源链接，还会看证据能否定位到字段、文本、查询或缓存版本。
+
+## ADR-009：P0 先对齐最小真实依据，再并行推进
+
+| 状态 | Accepted |
+| --- | --- |
+
+P0 第一步是 `X-00`：冻结 MVP 字段清单、5-8 篇文献清单和 Graph 最小关系类型。随后 A/B 并行初始化前后端，C/D 提供最小真实依据。
+
+原因：纯 Mock 会削弱科研可信度；完全串行又会拖慢开发节奏。
