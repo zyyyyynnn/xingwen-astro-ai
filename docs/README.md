@@ -8,6 +8,7 @@
 | [../PRD.md](../PRD.md) | MVP 范围、用户、功能、验收口径 |
 | [../DESIGN.md](../DESIGN.md) | 总体架构、状态机、数据流、缓存和安全约束 |
 | [../AGENTS.md](../AGENTS.md) | 岗位边界、Git 工作流、PR 和验证要求 |
+| [setup.md](setup.md) | 本地环境、启动入口、常见问题 |
 
 ## 产品与推进
 
@@ -45,5 +46,6 @@
 2. `PRD.md`
 3. `DESIGN.md`
 4. `AGENTS.md`
-5. 自己岗位对应的 `BACKLOG.md` 任务
-6. 涉及接口或数据时阅读 `API_CONTRACT.md` 和 `DATA_MODEL.md`
+5. `docs/setup.md`
+6. 自己岗位对应的 `BACKLOG.md` 任务
+7. 涉及接口或数据时阅读 `API_CONTRACT.md` 和 `DATA_MODEL.md`
