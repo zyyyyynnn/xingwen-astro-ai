@@ -4,22 +4,26 @@
 
 ## P0：先跑通骨架
 
+P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00` 对齐后，A/B 并行初始化，C/D 提供最小真实依据，避免 Mock 工作流变成空壳。
+
 | ID | 任务 | 负责人 | 产出 | 依赖 |
 | --- | --- | --- | --- | --- |
-| A-01 | 初始化 Vue 3 + TypeScript + Vite | A | `apps/web` 可启动 | 无 |
+| X-00 | 冻结 MVP 最小真实依据 | A + B + C + D | 字段清单、文献清单、Graph 最小关系类型 | 无 |
+| C-01 | 确定 MVP 字段清单 | C | 字段名、含义、单位、来源优先级 | X-00 |
+| D-01 | 确定主案例文献清单 | D | 5-8 篇主案例文献 seed list | X-00 |
+| A-01 | 初始化 Vue 3 + TypeScript + Vite | A | `apps/web` 可启动 | X-00 |
+| B-01 | 初始化 FastAPI 项目 | B | `apps/api` 可启动 | X-00 |
+| B-02 | 定义 Pydantic Schema 初版 | B | 与 DATA_MODEL 对齐 | B-01, C-01, D-01 |
+| B-03 | 创建任务/查询任务接口 | B | `/api/v1/health`、`/api/v1/tasks` 可用 | B-02 |
+| B-04 | Mock 任务结果聚合 | B | dataset/papers/graph/evidence 返回样例 | B-03, C-01, D-01 |
 | A-02 | 搭建页面路由和基础布局 | A | 首页、任务页、数据页、文献页、图谱页 | A-01 |
-| A-03 | 任务进度时间线组件 | A | 支持 step 状态展示 | B-03 |
-| B-01 | 初始化 FastAPI 项目 | B | `apps/api` 可启动 | 无 |
-| B-02 | 定义 Pydantic Schema 初版 | B | 与 DATA_MODEL 对齐 | B-01 |
-| B-03 | 创建任务/查询任务接口 | B | `/api/v1/tasks` 可用 | B-02 |
-| B-04 | Mock 任务结果聚合 | B | dataset/papers/graph 返回样例 | B-03 |
+| A-03 | 基于 Mock 展示完整任务流 | A | 任务流、数据、文献、图谱页面可展示 | A-02, B-04 |
 | X-01 | 前后端 Mock 联调 | A + B | 页面可展示完整 Mock 工作流 | A-03, B-04 |
 
 ## P1：数据主链路
 
 | ID | 任务 | 负责人 | 产出 | 依赖 |
 | --- | --- | --- | --- | --- |
-| C-01 | 确定 MVP 字段清单 | C | 字段名、含义、单位、来源优先级 | DATA_MODEL |
 | C-02 | 接入主数据源查询 | C | 原始查询结果和 SourceRecord | C-01 |
 | C-03 | 接入补充来源或缓存来源 | C | 第二来源说明 | C-02 |
 | C-04 | 字段映射和单位统一 | C | FieldDefinition + 清洗后 rows | C-02 |
@@ -31,7 +35,6 @@
 
 | ID | 任务 | 负责人 | 产出 | 依赖 |
 | --- | --- | --- | --- | --- |
-| D-01 | 确定主案例文献清单 | D | paper seed list | PRD |
 | D-02 | 文献总结 Prompt 与 Schema | D | PaperSummary JSON | D-01 |
 | B-06 | 文献总结 API 对接 | B + D | `/papers` 接口 | D-02 |
 | A-05 | 文献总结页 | A | 结构化总结展示 | B-06 |
