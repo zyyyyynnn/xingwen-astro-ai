@@ -1,90 +1,96 @@
-# AGENTS：开发协作规范
+# AGENTS
 
-## 1. 项目原则
+## 1. 协作原则
 
-本项目以稳定交付国赛级 MVP 为优先目标。所有开发工作必须服务于主案例：**系外行星候选体与宿主恒星参数整合**。
+本项目按国赛级 MVP 标准推进。所有开发必须服务主案例：**系外行星候选体与宿主恒星参数整合**。
 
-不做无关扩展，不提前扩散到多个天文方向。
+优先级：主链路稳定 > 证据可信 > 演示完整 > 功能扩展。
 
-## 2. 岗位分工
+## 2. 岗位边界
 
-| 岗位 | 职责 |
-| --- | --- |
-| A 前端与产品流程 | Vue 前端、流程展示、数据页、文献页、图谱页、反馈入口 |
-| B 后端与任务编排 | FastAPI、Qwen 调用、任务状态、API、Postgres、缓存兜底 |
-| C 数据分析与数据源 | 数据源接入、清洗、字段对齐、CSV、数据字典、溯源、质量评分 |
-| D 文献总结与学术图谱 | 文献总结、图谱节点/边、证据链、图谱 JSON |
+| 岗位 | 负责目录 | 核心职责 | 必须交付 |
+| --- | --- | --- | --- |
+| A 前端与产品流程 | `apps/web` | 工作流页面、数据页、文献页、图谱页、反馈入口 | 可录屏页面、错误/加载/空状态、前端联调说明 |
+| B 后端与任务编排 | `apps/api`, `packages/schemas` | FastAPI、任务状态、Qwen Client、缓存、导出、数据库 | API、状态机、统一错误、OpenAPI 文档 |
+| C 数据分析与数据源 | `services/data_pipeline`, `samples/outputs` | 数据源接入、字段映射、单位统一、质量评分、导出 | CSV、字段字典、来源记录、质量评分 |
+| D 文献总结与学术图谱 | `services/paper_pipeline`, `services/graph_pipeline` | 文献结构化总结、证据链、图谱节点和边 | PaperSummary JSON、Graph JSON、证据映射 |
 
 ## 3. Git 工作流
 
-- `main` 分支必须始终保持可运行。
-- 每个功能从 `main` 新建 feature 分支。
-- 分支命名格式：
-  - `feat/a-task-timeline`
-  - `feat/b-qwen-client`
-  - `feat/c-data-cleaning`
-  - `feat/d-paper-summary`
-- 所有代码通过 Pull Request 合并。
-- 不允许直接推送到 `main`。
-- 每个 PR 至少 1 人 Review。
+- `main` 始终保持可运行。
+- 所有改动通过 Pull Request 合并。
+- 每个任务从 `main` 新建分支。
+- 分支命名：`feat/a-task-timeline`、`feat/b-qwen-client`、`feat/c-data-cleaning`、`feat/d-graph-json`。
+- PR 至少 1 人 Review 后合并。
+- 直接推送 `main` 禁止。
 
-## 4. Issue 规范
+## 4. 文档同步规则
 
-Issue 标题建议：
+| 改动类型 | 必须同步更新 |
+| --- | --- |
+| 新增/修改接口 | `docs/architecture/API_CONTRACT.md` |
+| 新增/修改数据结构 | `docs/architecture/DATA_MODEL.md` |
+| 修改模块职责 | `DESIGN.md`, `docs/architecture/MODULES.md` |
+| 修改 MVP 范围 | `PRD.md`, `docs/product/ACCEPTANCE.md` |
+| 修改部署方式 | `DEPLOYMENT.md`, `.env.example` |
+| 新增风险或技术债 | `docs/quality/RISK_REGISTER.md` |
 
-```text
-[A] 实现任务进度时间线组件
-[B] 封装 Qwen 百炼调用层
-[C] 实现系外行星字段映射规则
-[D] 输出文献总结结构化 JSON
-```
+## 5. Issue 要求
 
 Issue 必须包含：
 
-- 背景。
-- 目标。
-- 验收标准。
-- 影响模块。
+- 背景：为什么做。
+- 目标：完成后用户或系统得到什么。
+- 验收标准：怎么判断完成。
+- 影响范围：前端、后端、数据、文献、图谱、文档。
 
-## 5. PR 规范
+标题格式：
+
+```text
+[A] 实现任务进度时间线
+[B] 封装 Qwen 调用层
+[C] 输出字段映射与质量评分
+[D] 构建论文-数据-证据图谱 JSON
+```
+
+## 6. PR 要求
 
 PR 必须说明：
 
 - 改了什么。
 - 为什么改。
 - 如何验证。
-- 是否影响接口。
+- 是否改接口或数据结构。
 - 是否需要前后端联调。
+- 是否影响材料组截图或演示口径。
 
-如果改动涉及接口，必须同步更新 `docs/architecture/API_CONTRACT.md`。
+PR 不接受：
 
-如果改动涉及数据结构，必须同步更新 `docs/architecture/DATA_MODEL.md`。
-
-## 6. 接口约定
-
-- 后端统一返回 JSON。
-- 错误必须有明确 `error_code` 和 `message`。
-- 前端不得依赖临时字段。
-- 模块间数据结构先写文档，再实现。
+- 无验收说明。
+- 接口变化但不改 API 文档。
+- 数据结构变化但不改数据模型。
+- 前端直连模型或暴露 API Key。
+- 无来源的模型结论直接展示。
 
 ## 7. 模型调用约定
 
-- 统一通过后端 Qwen Client 调用模型。
-- 不允许在前端写 API Key。
-- Prompt 需要集中管理，避免散落在业务代码里。
-- 模型输出必须做 JSON 校验，不能直接信任自然语言结果。
+- 所有模型调用统一走后端 Qwen Client。
+- Prompt 集中管理，记录版本。
+- 模型输出必须经过 JSON Schema 校验。
+- 文献总结必须绑定文献来源。
+- 图谱边必须绑定 `evidence_ids`。
 
 ## 8. 验证要求
 
-每个模块至少提供一种验证方式：
+| 模块 | 最低验证 |
+| --- | --- |
+| 前端 | 页面截图或录屏，覆盖加载、成功、失败状态 |
+| 后端 | 接口请求示例和响应 JSON |
+| 数据 | 样例输入、输出 CSV、字段字典、来源记录 |
+| 文献 | PaperSummary JSON 和对应来源 |
+| 图谱 | Graph JSON 和证据详情 |
+| 部署 | 公网 URL、环境变量清单、缓存兜底验证 |
 
-- 前端：页面截图或本地运行说明。
-- 后端：接口请求示例。
-- 数据：样例输入和输出 CSV。
-- 文献：样例文献总结 JSON。
-- 图谱：样例图谱 JSON。
+## 9. 材料交接规则
 
-## 9. 材料组交付
-
-开发组提供真实系统截图、接口说明和样例输出。材料组不得使用未实现功能作为“已实现能力”描述。
-
+开发组只交付真实系统素材。未实现能力只能写为“规划/预留/后续扩展”，不得写成“已实现”。
