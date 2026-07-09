@@ -50,7 +50,7 @@ MVP 固定为“系外行星候选体与宿主恒星参数整合”。
 | 状态 | Accepted |
 | --- | --- |
 
-GraphEdge 必须包含 `evidence_ids`。跨文献关系边还必须包含 `relation_id` 或 `reasoning_trace_id`。
+GraphEdge 必须包含 `evidence_ids`。跨文献关系边还必须包含 `relation_id` 和 `reasoning_trace_id`。
 
 原因：图谱是科研证据组织能力，不是装饰性可视化。
 
