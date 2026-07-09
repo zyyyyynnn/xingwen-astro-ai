@@ -103,7 +103,31 @@ uv run uvicorn app.main:app --reload
 
 禁止使用裸 `pip install -r requirements.txt` 作为主流程。需要导出 requirements 时只能作为部署兼容产物，不能替代 `pyproject.toml` 和 `uv.lock`。
 
-## 6. 本地验收顺序
+## 6. CI 与依赖漂移检查
+
+`X-05` 完成后，PR 必须通过最小 CI 卡口。卡口至少覆盖：
+
+```text
+package-lock.json / yarn.lock / bun.lock 不存在
+pnpm-lock.yaml 存在
+uv.lock 存在
+.env 未提交
+.env.example 关键变量存在
+```
+
+`X-04`、`A-01`、`B-01` 完成后，CI 继续补齐：
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm build
+uv sync --locked
+uv run pytest
+docker compose config
+```
+
+如当前阶段尚无前端、后端或 Compose 文件，CI 可以先做静态漂移检查，并在 PR 说明中写明暂未启用的检查项。
+
+## 7. 本地验收顺序
 
 1. `docker compose up --build` 成功。
 2. 前端首页可打开。
@@ -114,8 +138,9 @@ uv run uvicorn app.main:app --reload
 7. 页面能标注缓存状态。
 8. `.env` 未被 Git 跟踪。
 9. 未出现 npm/yarn/bun lockfile。
+10. X-05 完成后，PR CI 通过。
 
-## 7. 常见问题
+## 8. 常见问题
 
 | 问题 | 处理 |
 | --- | --- |
