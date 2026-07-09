@@ -11,9 +11,15 @@
 | `Dataset` | 标准化数据集 | 数据页、导出 |
 | `FieldDefinition` | 字段字典 | 数据页、质量评分 |
 | `SourceRecord` | 来源记录 | 溯源报告、图谱 |
-| `Paper` | 文献信息 | 文献页、图谱 |
+| `PaperSearchQuery` | 记录论文检索条件 | 论文获取页、复现 |
+| `PaperAcquisitionRun` | 记录一次论文获取过程 | 论文获取页、缓存 |
+| `PaperCandidate` | 自动获取的论文候选 | 论文获取页、文献总结 |
+| `Paper` | 入选文献信息 | 文献页、图谱 |
 | `PaperSummary` | 文献结构化总结 | 文献页 |
-| `Evidence` | 数据/文献/图谱证据 | 图谱、溯源详情 |
+| `LiteratureClaim` | 从论文中抽取的研究主张 | 推理页、图谱 |
+| `LiteratureRelation` | 跨文献逻辑关系 | 推理页、图谱 |
+| `ReasoningTrace` | 跨文献推理链路 | 推理页、证据详情 |
+| `Evidence` | 数据/文献/推理/图谱证据 | 图谱、溯源详情 |
 | `GraphNode` | 图谱节点 | 图谱页 |
 | `GraphEdge` | 图谱边 | 图谱页 |
 | `QualityScore` | 质量评分 | 数据页、验收 |
@@ -42,10 +48,10 @@
 {
   "id": "step_001",
   "task_id": "task_001",
-  "key": "fetching_data",
-  "label": "获取天文数据",
+  "key": "searching_papers",
+  "label": "获取主案例论文",
   "status": "running",
-  "message": "正在查询主数据源",
+  "message": "正在检索主案例相关论文候选",
   "started_at": "2026-07-04T10:01:00Z",
   "finished_at": null
 }
@@ -99,21 +105,86 @@
 }
 ```
 
-## 7. Paper
+`SourceRecord.type` 可选：`database`、`paper_source`、`paper`、`cache`、`manual_review`。
+
+## 7. PaperSearchQuery
 
 ```json
 {
-  "id": "paper_001",
+  "id": "paper_query_001",
+  "task_id": "task_001",
+  "case_key": "exoplanet_host_star",
+  "keywords": ["exoplanet candidate", "host star", "orbital period"],
+  "source_types": ["paper_source"],
+  "filters": {
+    "year_from": 2015,
+    "max_results": 20
+  },
+  "query_string": "exoplanet candidate host star orbital period",
+  "created_at": "2026-07-04T10:04:00Z"
+}
+```
+
+## 8. PaperAcquisitionRun
+
+```json
+{
+  "id": "paper_run_001",
+  "task_id": "task_001",
+  "query_id": "paper_query_001",
+  "status": "completed",
+  "candidate_count": 12,
+  "selected_count": 6,
+  "dedupe_rule": "doi_or_title_year",
+  "used_cache": false,
+  "started_at": "2026-07-04T10:04:00Z",
+  "finished_at": "2026-07-04T10:05:30Z"
+}
+```
+
+## 9. PaperCandidate
+
+```json
+{
+  "id": "paper_candidate_001",
+  "task_id": "task_001",
+  "run_id": "paper_run_001",
+  "source_record_id": "source_ads_or_arxiv",
+  "external_id": "string",
   "title": "string",
   "authors": ["string"],
   "year": 2024,
   "doi": "string",
+  "arxiv_id": "string",
   "url": "string",
-  "source_ids": ["source_arxiv_001"]
+  "abstract": "string",
+  "relevance_score": 0.86,
+  "dedupe_key": "doi:string",
+  "selected": true,
+  "selection_reason": "Matches host-star parameter integration case"
 }
 ```
 
-## 8. PaperSummary
+`PaperCandidate` 来自自动检索或真实运行缓存。手写 seed list 只能作为评测基准、fallback 或人工校验，不得冒充自动获取结果。
+
+## 10. Paper
+
+```json
+{
+  "id": "paper_001",
+  "candidate_id": "paper_candidate_001",
+  "task_id": "task_001",
+  "title": "string",
+  "authors": ["string"],
+  "year": 2024,
+  "doi": "string",
+  "arxiv_id": "string",
+  "url": "string",
+  "source_ids": ["source_ads_or_arxiv"]
+}
+```
+
+## 11. PaperSummary
 
 ```json
 {
@@ -131,80 +202,143 @@
 }
 ```
 
-## 9. Evidence
+## 12. LiteratureClaim
+
+```json
+{
+  "id": "claim_001",
+  "task_id": "task_001",
+  "paper_id": "paper_001",
+  "claim_type": "finding",
+  "text": "string",
+  "normalized_text": "string",
+  "evidence_ids": ["evidence_001"],
+  "confidence": 0.82
+}
+```
+
+`claim_type` 可选：`goal`、`method`、`dataset`、`finding`、`limitation`、`future_work`。
+
+## 13. LiteratureRelation
+
+```json
+{
+  "id": "relation_001",
+  "task_id": "task_001",
+  "source_claim_id": "claim_001",
+  "target_claim_id": "claim_002",
+  "relation_type": "supports",
+  "reasoning_trace_id": "trace_001",
+  "evidence_ids": ["evidence_001", "evidence_002"],
+  "confidence": 0.78
+}
+```
+
+`relation_type` 可选：`supports`、`extends`、`derived_from`、`limits`、`contradicts`、`uses_same_dataset`、`compares_method`。
+
+## 14. ReasoningTrace
+
+```json
+{
+  "id": "trace_001",
+  "task_id": "task_001",
+  "relation_id": "relation_001",
+  "steps": [
+    {
+      "order": 1,
+      "claim_id": "claim_001",
+      "rationale": "Paper A reports the same host-star parameter dependency."
+    },
+    {
+      "order": 2,
+      "claim_id": "claim_002",
+      "rationale": "Paper B extends the analysis to a newer candidate set."
+    }
+  ],
+  "evidence_ids": ["evidence_001", "evidence_002"],
+  "model_name": "qwen-plus",
+  "prompt_version": "literature-reasoning-v1"
+}
+```
+
+`ReasoningTrace` 是跨文献逻辑推理的可审查记录。没有 `evidence_ids` 的推理只能作为候选，不进入最终图谱。
+
+## 15. Evidence
 
 ```json
 {
   "id": "evidence_001",
   "task_id": "task_001",
-  "type": "database_query",
-  "source_id": "source_nasa_exoplanet_archive",
-  "paper_id": null,
-  "target_type": "field",
-  "target_id": "pl_orbper",
-  "content": "Field pl_orbper retrieved from source query result.",
+  "type": "paper_text",
+  "source_id": "source_ads_or_arxiv",
+  "paper_id": "paper_001",
+  "target_type": "claim",
+  "target_id": "claim_001",
+  "content": "Claim extracted from paper abstract or accessible text.",
   "locator": {
-    "kind": "column",
-    "value": "pl_orbper"
+    "kind": "abstract",
+    "value": "abstract"
   },
-  "quote_or_value": "pl_orbper returned by TAP query",
-  "extraction_method": "rule_based_mapping",
+  "quote_or_value": "short verifiable quote or value",
+  "extraction_method": "model_extraction",
   "source_snapshot": {
-    "retrieved_at": "2026-07-04T10:01:00Z",
+    "retrieved_at": "2026-07-04T10:05:00Z",
     "query_hash": "sha256:example"
   },
   "confidence": 0.95,
-  "created_at": "2026-07-04T10:03:00Z"
+  "created_at": "2026-07-04T10:06:00Z"
 }
 ```
 
-`Evidence.type` 可选：`database_query`、`paper_text`、`model_extraction`、`user_feedback`、`cache_record`。
+`Evidence.type` 可选：`database_query`、`paper_search`、`paper_metadata`、`paper_text`、`model_extraction`、`reasoning_trace`、`user_feedback`、`cache_record`。
 
 增强字段说明：
 
 | 字段 | 用途 |
 | --- | --- |
-| `locator` | 指向证据在来源中的位置，如字段名、表格列、段落、页码、URL 片段 |
+| `locator` | 指向证据在来源中的位置，如字段名、表格列、摘要、段落、页码、URL 片段 |
 | `quote_or_value` | 保留可核验的短文本、字段值或查询返回依据 |
-| `extraction_method` | 说明证据来自规则映射、模型抽取、人工反馈或缓存记录 |
+| `extraction_method` | 说明证据来自规则映射、自动检索、模型抽取、人工反馈或缓存记录 |
 | `source_snapshot` | 记录查询时间、查询 hash、缓存版本或文献版本，便于复现 |
 
-## 10. GraphNode
+## 16. GraphNode
 
 ```json
 {
-  "id": "field_pl_orbper",
+  "id": "claim_001",
   "task_id": "task_001",
-  "type": "field",
-  "label": "Orbital Period",
-  "ref_id": "pl_orbper",
+  "type": "claim",
+  "label": "Host-star parameter finding",
+  "ref_id": "claim_001",
   "metadata": {
-    "unit": "day"
+    "paper_id": "paper_001"
   }
 }
 ```
 
-`GraphNode.type` 可选：`research_goal`、`dataset`、`field`、`source`、`paper`、`finding`、`evidence`。
+`GraphNode.type` 可选：`research_goal`、`dataset`、`field`、`source`、`paper`、`finding`、`claim`、`relation`、`reasoning_trace`、`evidence`。
 
-## 11. GraphEdge
+## 17. GraphEdge
 
 ```json
 {
   "id": "edge_001",
   "task_id": "task_001",
-  "source": "source_nasa_exoplanet_archive",
-  "target": "field_pl_orbper",
-  "type": "provides_field",
-  "evidence_ids": ["evidence_001"],
+  "source": "claim_001",
+  "target": "claim_002",
+  "type": "supports",
+  "relation_id": "relation_001",
+  "reasoning_trace_id": "trace_001",
+  "evidence_ids": ["evidence_001", "evidence_002"],
   "confidence": 0.95
 }
 ```
 
-`GraphEdge.type` 可选：`uses_dataset`、`provides_field`、`supports_finding`、`cites`、`derived_from`、`corrected_by_feedback`。
+`GraphEdge.type` 可选：`uses_dataset`、`provides_field`、`supports_finding`、`cites`、`derived_from`、`supports`、`extends`、`limits`、`contradicts`、`corrected_by_feedback`。
 
-MVP 图谱优先实现少量强证据关系：`provides_field`、`supports_finding`、`derived_from`。不追求大图规模。
+MVP 图谱优先实现少量强证据关系：`provides_field`、`supports_finding`、`derived_from`、`supports`、`extends`、`limits`。跨文献关系必须绑定 `LiteratureRelation`、`ReasoningTrace` 和 `evidence_ids`。
 
-## 12. QualityScore
+## 18. QualityScore
 
 ```json
 {
@@ -213,35 +347,43 @@ MVP 图谱优先实现少量强证据关系：`provides_field`、`supports_findi
   "missing_rate": 0.14,
   "source_completeness": 1.0,
   "unit_consistency": 1.0,
+  "paper_acquisition_reproducibility": 1.0,
   "paper_summary_completeness": 0.85,
+  "literature_relation_evidence_rate": 1.0,
   "graph_evidence_completeness": 0.92,
   "reproducibility": 0.9
 }
 ```
 
-## 13. UserFeedback
+## 19. UserFeedback
 
 ```json
 {
   "id": "fb_001",
   "task_id": "task_001",
-  "type": "field_unit_error",
-  "target_type": "field",
-  "target_id": "pl_orbper",
-  "message": "需要明确轨道周期单位",
+  "type": "literature_relation_error",
+  "target_type": "literature_relation",
+  "target_id": "relation_001",
+  "message": "该关系更像 limits 而不是 supports",
   "status": "accepted",
-  "resolution": "unit set to day based on source metadata",
+  "resolution": "relation_type updated after evidence review",
   "created_at": "2026-07-04T10:10:00Z",
   "resolved_at": "2026-07-04T10:12:00Z"
 }
 ```
 
-## 14. 证据链最低要求
+## 20. 证据链最低要求
 
 任何展示结果至少满足：
 
 ```text
 result_id -> evidence_id -> source_id / paper_id -> url/query/retrieved_at
+```
+
+跨文献推理结果还必须满足：
+
+```text
+literature_relation_id -> reasoning_trace_id -> claim_ids -> evidence_ids -> paper_ids
 ```
 
 缺少证据链的内容只能作为“候选结果”展示，不能作为最终结论。

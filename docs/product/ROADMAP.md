@@ -7,8 +7,8 @@
 | M0 仓库基础 | 文档、协作、保护规则、任务池就绪 | 新成员能按文档开始开发 |
 | M1 骨架跑通 | Vue + FastAPI + 任务 API + Mock 数据 | 前后端可联调，任务流程页可展示 Mock 结果 |
 | M2 数据主链路 | 主案例数据获取、清洗、导出 | 真实数据进入 CSV、字段字典、溯源报告 |
-| M3 文献总结 | 主案例文献结构化总结 | PaperSummary JSON 可展示并绑定来源 |
-| M4 学术图谱 | 论文-数据-字段-证据图谱 | 图谱节点可点击，边绑定 evidence |
+| M3 论文获取与文献总结 | 自动获取主案例论文并生成结构化总结 | PaperAcquisition 和 PaperSummary 可展示并绑定来源 |
+| M4 跨文献推理与学术图谱 | Claim/Relation/Trace 和证据图谱 | 推理关系可展示，图谱边绑定 evidence 和 trace |
 | M5 反馈与公网 Demo | 反馈修正、缓存兜底、公网访问 | 演示链路稳定，可交付截图和录屏素材 |
 
 ## M0：仓库基础
@@ -22,15 +22,15 @@
 
 ## M1：项目骨架与接口跑通
 
-M1 先做 `X-00`，再并行推进 A/B。C/D 在 M1 不需要完成完整数据链路和文献总结，但必须给出最小真实依据，供 Schema、Mock API 和页面结构使用。
+M1 先做 `X-00`，再并行推进 A/B。C/D 在 M1 不需要完成完整数据链路、论文获取和推理链路，但必须给出最小真实依据，供 Schema、Mock API 和页面结构使用。
 
 | 产出 | 负责人 | 验收 |
 | --- | --- | --- |
-| MVP 最小真实依据 | A + B + C + D | 字段清单、5-8 篇文献清单、Graph 最小关系类型已冻结 |
-| Vue 项目骨架 | A | 首页、任务页、数据页占位可访问 |
+| MVP 最小真实依据 | A + B + C + D | 字段清单、论文获取来源、检索关键词、5-8 篇 seed list、Claim/Relation 样例、Graph 最小关系类型已冻结 |
+| Vue 项目骨架 | A | 首页、任务页、数据页、论文获取页、文献页、推理页、图谱页占位可访问 |
 | FastAPI 项目骨架 | B | `/api/v1/health`、`/api/v1/tasks` 可用 |
-| 共享 Schema 初版 | B | 前后端使用同一字段命名，Evidence 字段符合 DATA_MODEL |
-| Mock 任务流程 | A + B | 创建任务后可看到任务流、数据、文献、图谱 Mock 结果 |
+| 共享 Schema 初版 | B | 前后端字段命名一致，PaperAcquisition、Claim、Relation、Trace、Evidence 字段符合 DATA_MODEL |
+| Mock 任务流程 | A + B | 创建任务后可看到任务流、数据、论文获取、文献、推理、图谱 Mock 结果 |
 | 本地启动文档 | A + B | 新成员 30 分钟内可跑起来 |
 
 ## M2：自动化数据分析主链路
@@ -43,21 +43,27 @@ M1 先做 `X-00`，再并行推进 A/B。C/D 在 M1 不需要完成完整数据�
 | 数据质量评分 | C + B | API 返回质量指标 |
 | CSV / 数据字典 / 溯源报告 | C + B | 前端可下载 |
 
-## M3：智能文献总结
+## M3：自动论文获取与智能文献总结
 
 | 产出 | 负责人 | 验收 |
 | --- | --- | --- |
-| 文献输入清单 | D | 主案例文献可复现 |
+| 论文获取来源与检索策略 | D | 主案例内可复现，不依赖手写列表冒充自动获取 |
+| PaperAcquisition Pipeline | D | 返回 PaperSearchQuery、PaperAcquisitionRun、PaperCandidate |
+| PaperAcquisition API | B + D | 前端可展示检索参数、候选论文、去重、相关性排序 |
 | 总结 Prompt 与 JSON Schema | D + B | 输出稳定通过校验 |
 | PaperSummary API | B + D | 前端可展示结构化结果 |
-| 文献来源与证据 | D | 每条核心结论绑定来源 |
+| 文献来源与证据 | D | 每条核心结论绑定 paper/source/evidence |
 
-## M4：学术图谱可视化
+## M4：跨文献逻辑推理与学术图谱可视化
 
 | 产出 | 负责人 | 验收 |
 | --- | --- | --- |
-| Graph JSON | D | 节点、边、证据结构符合 DATA_MODEL |
-| 图谱页面 | A | 节点可点击，详情可读 |
+| LiteratureClaim | D | 从多篇论文中抽取目标、方法、数据、发现、局限 |
+| LiteratureRelation | D | 至少支持 `supports`、`extends`/`derived_from`、`limits`/`contradicts` 中 3 类关系 |
+| ReasoningTrace | D + B | 每条最终关系有 trace 和 evidence |
+| Reasoning API | B + D | `/literature-reasoning` 可返回 claims、relations、traces |
+| Graph JSON | D | 节点、边、证据、推理关系符合 DATA_MODEL |
+| 图谱页面 | A | 节点可点击，详情可读，推理链可查看 |
 | 证据详情接口 | B + D | 点击边或节点可看到来源依据 |
 | 图谱展示优化 | A + D | 适合答辩截图和录屏 |
 
@@ -65,15 +71,16 @@ M1 先做 `X-00`，再并行推进 A/B。C/D 在 M1 不需要完成完整数据�
 
 | 产出 | 负责人 | 验收 |
 | --- | --- | --- |
-| 反馈入口 | A | 用户可提交字段、单位、来源问题 |
+| 反馈入口 | A | 用户可提交字段、单位、来源、文献总结、推理关系问题 |
 | 局部修正接口 | B + C + D | 修正后结果有记录 |
-| 缓存兜底 | B | 外部 API 失败时仍可完整演示，缓存作为 meta 标记 |
+| 缓存兜底 | B | 外部 API、论文源或模型失败时仍可完整演示，缓存作为 meta 标记 |
 | 公网 Demo | A + B | 可访问、可演示、密钥不暴露 |
 | 材料交接包 | 全员 | 截图、导出文件、说明文档齐全 |
 
 ## 节奏建议
 
 - M1 必须先完成 `X-00`，再让 A/B 并行推进，C/D 给最小真实依据。
-- M2 是主链路，优先级高于文献和图谱美化。
-- M3/M4 可以并行，但必须共用 `Evidence` 和 `Graph` 数据模型。
+- M2 是数据主链路，M3/M4 是核心差异化能力，不能降级为后续扩展。
+- 自动论文获取优先做主案例内可运行闭环，开放式全文解析后置。
+- 跨文献推理必须共用 `Evidence`、`LiteratureRelation` 和 `ReasoningTrace` 数据模型。
 - M5 不等于最后才开始；缓存兜底和导出设计从 M2 就要预留。
