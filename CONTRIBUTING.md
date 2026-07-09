@@ -1,60 +1,105 @@
 # Contributing
 
+本文件只说明 Git、Issue、PR 与合并流程。Agent 执行纪律见 [AGENTS.md](AGENTS.md)。
+
 ## 1. 开发流程
 
 1. 从 `main` 拉取最新代码。
-2. 从 Issue 新建 feature 分支。
-3. 完成开发、自测和必要文档更新。
-4. 提交 Pull Request。
-5. 至少 1 人 Review。
-6. Squash merge 后删除分支。
+2. 选择或创建 Issue。
+3. 从 `main` 新建分支。
+4. 完成开发、自测和必要文档同步。
+5. 提交 Pull Request。
+6. 通过 Review 后 Squash merge。
+7. 删除已合并分支。
+
+`main` 必须保持可运行；禁止直接推送 `main`。
 
 ## 2. 分支命名
 
 ```text
 feat/a-task-timeline
-feat/b-qwen-client
-feat/c-data-cleaning
-feat/d-graph-json
-docs/project-foundation-audit
+feat/b-task-api
+feat/c-field-dictionary
+feat/d-evidence-graph
+docs/design-baseline
 fix/api-task-status
 ```
+
+规则：
+
+- `feat/`：功能或模块任务。
+- `fix/`：缺陷修复。
+- `docs/`：文档调整。
+- 分支名优先体现岗位或模块，不使用无意义临时名。
 
 ## 3. Commit 格式
 
 ```text
 feat: add task timeline component
 fix: handle qwen timeout
-docs: update api contract
+docs: update design baseline
 chore: initialize backend structure
 ```
 
-## 4. PR 前检查
+一个 commit 只表达一个主要目的。
 
-- 是否关联 Issue。
-- 是否说明改动范围和验证方式。
-- 是否更新相关文档。
-- 是否改动 API 或数据结构。
-- 是否需要前后端联调。
-- 是否涉及密钥、模型调用、外部数据源或公网 Demo。
+## 4. Issue 要求
 
-## 5. 文档同步
+Issue 至少包含：
+
+- 背景：为什么做。
+- 目标：完成后交付什么。
+- 验收标准：如何判断完成。
+- 影响范围：前端、后端、数据、文献、图谱、文档。
+
+标题格式：
+
+```text
+[A] 实现任务进度时间线
+[B] 初始化任务 API
+[C] 确定 MVP 字段清单
+[D] 构建证据图谱 JSON
+[X] 前后端 Mock 联调
+```
+
+## 5. PR 要求
+
+PR 必须说明：
+
+- 关联 Issue。
+- 改动范围。
+- 验证方式和结果。
+- 是否改接口、数据结构、UI 基线、部署或安全口径。
+- 是否影响演示截图、导出物或材料交接口径。
+
+PR 不接受：
+
+- 无明确任务目标。
+- 无可复现验证说明。
+- 接口变化但不改 `API_CONTRACT.md`。
+- 数据结构变化但不改 `DATA_MODEL.md`。
+- UI 基线变化但不改 `DESIGN.md`。
+- 暴露密钥或宣传未实现能力。
+
+## 6. 文档同步
 
 | 改动 | 同步文档 |
 | --- | --- |
-| 接口 | `docs/architecture/API_CONTRACT.md` |
-| 数据结构 | `docs/architecture/DATA_MODEL.md` |
-| 模块边界 | `DESIGN.md`, `docs/architecture/MODULES.md` |
-| MVP 范围 | `PRD.md`, `docs/product/ACCEPTANCE.md` |
-| 部署 | `DEPLOYMENT.md`, `.env.example` |
-| 风险 | `docs/quality/RISK_REGISTER.md` |
+| 接口、错误码、响应结构 | `docs/architecture/API_CONTRACT.md` |
+| 数据实体、字段、枚举 | `docs/architecture/DATA_MODEL.md` |
+| 模块职责、系统流程、UI 基线 | `DESIGN.md`, `docs/architecture/MODULES.md` |
+| MVP 范围、验收口径 | `PRD.md`, `docs/product/ACCEPTANCE.md` |
+| 部署、环境变量 | `DEPLOYMENT.md`, `.env.example` |
+| 安全、密钥、日志 | `SECURITY.md` |
+| 风险或技术债 | `docs/quality/RISK_REGISTER.md` |
 
-## 6. 合并标准
+## 7. 合并标准
 
 PR 同时满足以下条件才可合并：
 
-- 主链路或任务目标明确。
+- 只解决一个明确任务。
 - 验证方式可复现。
-- 文档没有明显过期。
-- 未引入密钥泄露风险。
-- 不宣传未实现能力。
+- 文档未明显过期。
+- 不引入密钥泄露风险。
+- 不扩大 MVP 承诺。
+- Review 通过且分支可合并。
