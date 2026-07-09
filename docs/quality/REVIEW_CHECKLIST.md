@@ -11,6 +11,7 @@
 | 文档 | 接口、数据、UI、部署、技术栈或范围变化已同步对应文档 |
 | 安全 | 未提交 `.env`、API Key、Token、连接串、论文源凭据或完整密钥日志 |
 | 包管理 | 前端不新增 `package-lock.json`、`yarn.lock`、`bun.lock`；后端不以 requirements.txt 替代 uv 主流程 |
+| CI | X-05 完成后，PR 必须通过依赖漂移、环境变量、构建或 Docker 相关卡口；失败时不得绕过合并 |
 | Docker | 影响本地启动时已同步 `docker-compose.yml`、Dockerfile、`.env.example` 和 `docs/setup.md` |
 | 接口 | 响应结构符合 `API_CONTRACT.md` |
 | 数据 | 字段命名、枚举和证据链符合 `DATA_MODEL.md` |
@@ -53,7 +54,17 @@
 - 前端地址、后端地址和数据库端口与 `.env.example` 一致。
 - 容器内不得依赖成员本机全局 Node、Python、PostgreSQL。
 
-## 5. 数据自测
+## 5. CI 与依赖漂移自测
+
+- 仓库不存在 `package-lock.json`、`yarn.lock`、`bun.lock`。
+- 前端存在并提交 `pnpm-lock.yaml`。
+- 后端存在并提交 `uv.lock`。
+- `.env` 未被提交。
+- `.env.example` 保留 `VITE_API_BASE_URL`、`DATABASE_URL`、`DASHSCOPE_API_KEY`、`POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD`。
+- X-04、A-01、B-01 完成后，CI 至少运行 `pnpm install --frozen-lockfile`、`uv sync --locked` 和 `docker compose config`。
+- CI 失败原因能区分包管理、环境变量、前端构建、后端依赖或 Docker 配置。
+
+## 6. 数据自测
 
 - MVP 字段清单包含字段名、含义、单位、来源优先级。
 - 原始来源、清洗结果、字段字典可复现。
@@ -61,7 +72,7 @@
 - CSV、字段字典、溯源报告可导出并被常见工具打开。
 - 数据结果能追溯到 SourceRecord 和 Evidence。
 
-## 6. 论文、文献、推理与图谱自测
+## 7. 论文、文献、推理与图谱自测
 
 - 主案例论文获取来源、检索关键词、检索参数可复现。
 - PaperAcquisitionRun 记录候选数量、入选数量、去重规则和缓存状态。
@@ -75,7 +86,7 @@
 - 每条 GraphEdge 绑定 `evidence_ids`，跨文献边绑定 `reasoning_trace_id`。
 - 无证据内容只作为候选，不作为最终结论。
 
-## 7. 演示前检查
+## 8. 演示前检查
 
 | 检查项 | 必须满足 |
 | --- | --- |
@@ -89,13 +100,14 @@
 | 证据 | 字段、结论、关系、图谱边可打开证据详情 |
 | 材料 | 交接口径不超过已实现能力 |
 
-## 8. 文档审查
+## 9. 文档审查
 
 - `README.md` 是否仍是清晰入口。
 - `PRD.md` 是否仍只承诺固定主案例范围。
 - `DESIGN.md` 是否与实际架构、技术栈和 UI 代码一致。
 - `docs/setup.md` 是否与 Docker Compose 和本地命令一致。
 - `DEPLOYMENT.md` 和 `.env.example` 是否与容器和部署变量一致。
+- CI 相关文档是否与实际 workflow、lockfile 和 Docker 配置一致。
 - `API_CONTRACT.md` 是否与后端接口一致。
 - `DATA_MODEL.md` 是否与数据库、Schema 和前端类型一致。
 - `ACCEPTANCE.md` 是否覆盖当前演示目标。

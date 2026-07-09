@@ -5,7 +5,7 @@
 | 阶段 | 目标 | 退出标准 |
 | --- | --- | --- |
 | M0 仓库基础 | 文档、协作、保护规则、任务池就绪 | 新成员能按文档开始开发 |
-| M1 Web 与骨架跑通 | Docker Compose + Web 页面 + FastAPI + Mock 数据 | `web/api/postgres` 可一键启动，Web 端可展示完整 Mock 工作流 |
+| M1 Web 与骨架跑通 | Docker Compose + Web 页面 + FastAPI + Mock 数据 + CI 卡口 | `web/api/postgres` 可一键启动，Web 端可展示完整 Mock 工作流，PR 可拦截依赖漂移 |
 | M2 数据主链路 | 主案例数据获取、清洗、导出 | 真实数据进入 CSV、字段字典、溯源报告 |
 | M3 论文获取与文献总结 | 自动获取主案例论文并生成结构化总结 | PaperAcquisition 和 PaperSummary 可展示并绑定来源 |
 | M4 跨文献推理与学术图谱 | Claim/Relation/Trace 和证据图谱 | 推理关系可展示，图谱边绑定 evidence 和 trace |
@@ -22,7 +22,7 @@
 
 ## M1：Web-first + Docker-first 骨架
 
-M1 先做 `X-00` 和 `X-04`。C/D 在 M1 不需要完成完整数据链路、论文获取和推理链路，但必须给出最小真实依据，供 Schema、Mock API 和页面结构使用。A 优先跑通 Web 端页面和 Mock 闭环，B 同步交付 FastAPI 与 Mock API。
+M1 先做 `X-00` 和 `X-04`。C/D 在 M1 不需要完成完整数据链路、论文获取和推理链路，但必须给出最小真实依据，供 Schema、Mock API 和页面结构使用。A 优先跑通 Web 端页面和 Mock 闭环，B 同步交付 FastAPI 与 Mock API；A/B/X-04 初步完成后，由 `X-05` 建立最小 CI 与依赖漂移卡口。
 
 | 产出 | 负责人 | 验收 |
 | --- | --- | --- |
@@ -30,6 +30,7 @@ M1 先做 `X-00` 和 `X-04`。C/D 在 M1 不需要完成完整数据链路、论
 | Docker Compose 本地基线 | A + B | `web`、`api`、`postgres` 三容器可 `docker compose up --build` 启动 |
 | Web 项目骨架 | A | Vue 3 + TypeScript + Vite + pnpm + shadcn-vue + Tailwind CSS 4 可启动 |
 | FastAPI 项目骨架 | B | Python 3.13 + uv + FastAPI 可启动，`/api/v1/health`、`/api/v1/tasks` 可用 |
+| CI 与依赖漂移卡口 | A + B | PR 可检查错误 lockfile、`.env` 泄露、关键环境变量、pnpm/uv/Docker 基线 |
 | 共享 Schema 初版 | B | 前后端字段命名一致，PaperAcquisition、Claim、Relation、Trace、Evidence 字段符合 DATA_MODEL |
 | Mock 任务流程 | A + B | 创建任务后可看到任务流、数据、论文获取、文献、推理、图谱 Mock 结果 |
 | 本地启动文档 | A + B | 新成员 30 分钟内可通过 Docker 跑起来 |
@@ -81,6 +82,7 @@ M1 先做 `X-00` 和 `X-04`。C/D 在 M1 不需要完成完整数据链路、论
 ## 节奏建议
 
 - M1 必须先完成 `X-00` 和 `X-04`，再让 A/B 并行推进，C/D 给最小真实依据。
+- `X-05` 在 A/B/X-04 初步完成后建立最小 CI，先卡住依赖漂移，再逐步加入构建和 Docker 检查。
 - Web-first 不等于脱离契约；前端 fixtures 必须对齐 `API_CONTRACT.md`。
 - Docker-first 不等于一开始引入复杂中间件；M1 只保留 `web`、`api`、`postgres`。
 - M2 是数据主链路，M3/M4 是核心差异化能力，不能降级为后续扩展。

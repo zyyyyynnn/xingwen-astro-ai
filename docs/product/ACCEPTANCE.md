@@ -15,6 +15,7 @@
 | G-09 | 反馈可修正 | 反馈前后结果差异和修正记录 |
 | G-10 | 缓存兜底可用 | 模拟外部失败时仍能演示主案例，页面标注 cached |
 | G-11 | 本地环境可复现 | Docker Compose 可启动 `web`、`api`、`postgres` |
+| G-12 | 技术基线可约束 | CI 能拦截错误 lockfile、`.env` 泄露、关键变量缺失和依赖漂移 |
 
 ## 2. A 前端验收
 
@@ -42,7 +43,7 @@
 | 缓存 | 外部数据源、论文源或模型失败时可返回最近一次真实运行结果 |
 | 安全 | API Key、论文源凭据不进前端、不进日志、不进仓库 |
 
-## 4. X Docker 基线验收
+## 4. X Docker 与 CI 基线验收
 
 | 项目 | 标准 |
 | --- | --- |
@@ -51,6 +52,8 @@
 | API 容器 | Python 3.13 基线，使用 uv |
 | 数据库容器 | 使用 `postgres:17-alpine` 并持久化数据卷 |
 | 环境变量 | 与 `.env.example` 一致，敏感项不进入前端构建变量 |
+| CI 静态卡口 | 拦截 `package-lock.json`、`yarn.lock`、`bun.lock`、`.env` 和关键变量缺失 |
+| CI 构建卡口 | A/B/X-04 完成后运行 pnpm、uv 和 Docker Compose 检查 |
 | 禁止项 | 不引入 Redis、Celery、MinIO、Nginx、RabbitMQ 作为 M1 必需项 |
 
 ## 5. C 数据验收
@@ -89,6 +92,7 @@
 | DATA_MODEL | 数据、论文、文献、推理、图谱、证据字段一致 |
 | ROADMAP/BACKLOG | 能直接拆 Issue 和排优先级 |
 | setup/DEPLOYMENT | Docker、本地启动、密钥、部署和公网 Demo 风险明确 |
+| REVIEW_CHECKLIST | 覆盖 CI、包管理、Docker、UI、接口、证据链和材料口径 |
 
 ## 8. 一票否决项
 
@@ -103,3 +107,4 @@
 - 宣传材料把未实现能力写成已实现。
 - API 或数据模型与文档明显不一致。
 - 本地环境依赖成员个人电脑版本，无法通过 Docker Compose 复现。
+- X-05 完成后，PR 绕过失败的 CI 或依赖漂移卡口合并。
