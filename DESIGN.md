@@ -195,9 +195,9 @@ M1 可先实现 `pending`、`planning`、`completed`、`failed` 子集；细粒�
 | `--radius-md` | `10px` | Button、Input、Dropdown item |
 | `--radius-lg` | `14px` | 卡片、表格容器 |
 | `--radius-xl` | `20px` | 页面主面板、Dialog |
-| `--shadow-soft` | 低透明柔和阴影 | 卡片和弱浮层 |
-| `--shadow-popover` | 中低透明阴影 | Select、Dropdown、Tooltip |
-| `--shadow-modal` | 稍强但不硬 | Dialog、Confirm |
+| `--shadow-soft` | `0 8px 24px color-mix(in srgb, #2F3136 8%, transparent)` | 卡片和弱浮层 |
+| `--shadow-popover` | `0 10px 30px color-mix(in srgb, #2F3136 12%, transparent)` | Select、Dropdown、Tooltip |
+| `--shadow-modal` | `0 18px 48px color-mix(in srgb, #2F3136 18%, transparent)` | Dialog、Confirm |
 
 禁止：
 
