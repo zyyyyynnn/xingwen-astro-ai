@@ -361,7 +361,7 @@ MVP 图谱优先实现少量强证据关系：`provides_field`、`supports_findi
 {
   "id": "fb_001",
   "task_id": "task_001",
-  "type": "graph_relation_error",
+  "type": "literature_relation_error",
   "target_type": "literature_relation",
   "target_id": "relation_001",
   "message": "该关系更像 limits 而不是 supports",
