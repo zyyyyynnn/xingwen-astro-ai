@@ -6,12 +6,14 @@
 
 | 目标 | 要求 |
 | --- | --- |
-| 科研可信 | 数据、文献、图谱均可溯源，关键结果绑定 `Evidence` |
+| 科研可信 | 数据、论文获取、文献总结、跨文献关系和图谱均可溯源，关键结果绑定 `Evidence` |
 | 演示稳定 | 主案例公网 Demo 可在外部服务失败时使用真实运行缓存 |
-| 协作清晰 | 前端、后端、数据、文献、图谱通过固定契约协作 |
+| 协作清晰 | 前端、后端、数据、文献、推理、图谱通过固定契约协作 |
 | 视觉克制 | 米白纸感、低饱和灰、低饱和靛灰强调，避免炫技和包装感 |
 
 MVP 固定主案例：**系外行星候选体与宿主恒星参数整合**。
+
+MVP 必须纳入主案例内的自动论文获取与跨文献逻辑推理；边界是不做任意天文方向、任意 PDF 全文高精度解析或无证据科学发现。
 
 ## 2. 总体架构
 
@@ -21,7 +23,8 @@ flowchart TB
   Web["apps/web\nVue 3 + TypeScript"]
   API["apps/api\nFastAPI Task Orchestrator"]
   Data["services/data_pipeline\nData Fetch / Clean / Export"]
-  Paper["services/paper_pipeline\nPaper Summary"]
+  Paper["services/paper_pipeline\nPaper Search / Acquire / Summary"]
+  Reason["services/graph_pipeline\nClaim / Relation / ReasoningTrace"]
   Graph["services/graph_pipeline\nEvidence Graph"]
   Schemas["packages/schemas\nShared Contracts"]
   DB["PostgreSQL\nTasks / Results / Sources"]
@@ -31,23 +34,28 @@ flowchart TB
   Web --> API
   API --> Data
   API --> Paper
+  API --> Reason
   API --> Graph
   API --> Qwen
   API --> DB
   Data --> Schemas
   Paper --> Schemas
+  Reason --> Schemas
   Graph --> Schemas
+  Paper --> Reason
+  Data --> Graph
+  Reason --> Graph
 ```
 
 ## 3. 模块边界
 
 | 模块 | 负责 | 不负责 |
 | --- | --- | --- |
-| `apps/web` | 页面、状态展示、图谱交互、反馈提交、UI token 落地 | 直接调用 Qwen、直接访问外部数据源 |
-| `apps/api` | 任务编排、API、缓存、导出、统一错误、鉴权预留 | 具体清洗规则和图谱算法细节 |
+| `apps/web` | 页面、状态展示、论文获取过程、文献总结、跨文献推理、图谱交互、反馈提交、UI token 落地 | 直接调用 Qwen、直接访问外部数据源 |
+| `apps/api` | 任务编排、API、缓存、导出、统一错误、鉴权预留 | 具体清洗规则、论文检索策略和图谱算法细节 |
 | `services/data_pipeline` | 数据源查询、字段映射、单位统一、溯源、质量评分 | 页面展示和用户交互 |
-| `services/paper_pipeline` | 文献输入、结构化总结、事实校验提示 | 生成无法溯源的结论 |
-| `services/graph_pipeline` | 图谱节点、边、证据链构建 | 只为视觉效果生成无证据边 |
+| `services/paper_pipeline` | 论文检索、候选获取、去重、相关性排序、结构化总结、来源绑定 | 绕过付费全文或生成无法溯源的结论 |
+| `services/graph_pipeline` | Claim 抽取、LiteratureRelation、ReasoningTrace、图谱节点、边、证据链构建 | 只为视觉效果生成无证据边或无证据推理 |
 | `packages/schemas` | 共享类型、枚举、JSON Schema | 业务流程实现 |
 
 详细边界见 `docs/architecture/MODULES.md`。
@@ -59,18 +67,23 @@ flowchart TB
 -> 创建 ResearchTask
 -> 解析任务计划
 -> 获取并清洗主案例数据
+-> 自动检索并获取主案例相关论文候选
+-> 去重、相关性排序、选择用于总结的论文
 -> 生成文献结构化总结
+-> 抽取 LiteratureClaim 并构建 LiteratureRelation
+-> 生成 ReasoningTrace
 -> 构建证据图谱
 -> 聚合展示与导出
--> 字段 / 单位 / 来源局部反馈修正
+-> 字段 / 单位 / 来源 / 文献关系局部反馈修正
 ```
 
 关键要求：
 
 - 前端只提交 `goal`、`case_key` 和反馈，不直接调用模型或外部数据源。
-- 后端统一聚合 `Dataset`、`PaperSummary`、`Graph`、`Evidence`。
+- 后端统一聚合 `Dataset`、`PaperAcquisitionRun`、`PaperSummary`、`LiteratureClaim`、`LiteratureRelation`、`ReasoningTrace`、`Graph`、`Evidence`。
 - 所有展示结果至少满足 `result -> evidence -> source/paper -> url/query/retrieved_at`。
-- 反馈修正只做字段单位、字段映射、来源标注三类，不做复杂自然语言重规划。
+- 跨文献逻辑推理必须落到可核验的 `LiteratureRelation` 和 `ReasoningTrace`，不能只输出自然语言结论。
+- 反馈修正只做字段单位、字段映射、来源标注、文献总结和图谱关系局部修正，不做开放式科学发现闭环。
 
 ## 5. 任务状态机
 
@@ -79,8 +92,10 @@ flowchart TB
 | `pending` | 任务已创建 | `planning` |
 | `planning` | 正在解析目标和生成计划 | `fetching_data` / `failed` |
 | `fetching_data` | 正在获取天文数据 | `cleaning_data` / `failed` |
-| `cleaning_data` | 正在字段对齐、单位统一、质量评分 | `summarizing_papers` / `failed` |
-| `summarizing_papers` | 正在生成文献结构化总结 | `building_graph` / `failed` |
+| `cleaning_data` | 正在字段对齐、单位统一、质量评分 | `searching_papers` / `failed` |
+| `searching_papers` | 正在检索、获取、筛选主案例相关论文 | `summarizing_papers` / `failed` |
+| `summarizing_papers` | 正在生成文献结构化总结 | `reasoning_literature` / `failed` |
+| `reasoning_literature` | 正在抽取 Claim、构建跨文献关系和推理链 | `building_graph` / `failed` |
 | `building_graph` | 正在构建证据图谱 | `completed` / `failed` |
 | `completed` | 任务完成 | `revising` |
 | `revising` | 根据用户反馈局部修正 | `completed` / `failed` |
@@ -88,16 +103,16 @@ flowchart TB
 
 `using_cache` 不作为主任务状态。缓存命中通过 `meta.cached`、`ResearchTask.used_cache`、`SourceRecord.cached` 和页面提示表达。
 
-M1 可先实现 `pending`、`planning`、`completed`、`failed` 子集；细粒度过程用 `TaskStep` 展示。
+M1 可先实现 `pending`、`planning`、`completed`、`failed` 子集；细粒度过程用 `TaskStep` 展示，TaskStep 必须预留 `searching_papers` 和 `reasoning_literature`。
 
-## 6. 证据与缓存原则
+## 6. 证据、论文获取与缓存原则
 
 ### 6.1 Evidence
 
 每条关键展示结果必须能定位证据：
 
 ```text
-展示字段 / 结论 / 图谱边
+展示字段 / 文献结论 / 跨文献关系 / 图谱边
 -> evidence_id
 -> source_id / paper_id
 -> locator / quote_or_value / source_snapshot
@@ -107,14 +122,43 @@ M1 可先实现 `pending`、`planning`、`completed`、`failed` 子集；细粒�
 
 - `locator`：字段名、表格列、段落、页码或 URL 片段。
 - `quote_or_value`：可核验短文本、字段值或查询依据。
-- `extraction_method`：规则映射、模型抽取、人工反馈或缓存记录。
+- `extraction_method`：规则映射、模型抽取、自动检索、人工反馈或缓存记录。
 - `source_snapshot`：查询时间、查询 hash、缓存版本或文献版本。
 
-### 6.2 Cache
+### 6.2 Paper Acquisition
+
+自动论文获取是 MVP 主链路，不是后续扩展。
+
+| 项 | 要求 |
+| --- | --- |
+| 检索范围 | 固定主案例内，围绕目标、字段、对象类型和 seed keywords |
+| 来源 | 至少 1 个可运行论文来源；seed list 只能作为兜底、评测基准和演示缓存 |
+| 候选处理 | 记录检索参数、来源、获取时间、去重规则、相关性分数 |
+| 文本边界 | MVP 优先使用元数据、摘要、开放可访问文本片段，不绕过付费全文 |
+| 失败兜底 | 外部源失败时使用真实运行缓存并明确标注 |
+
+### 6.3 Literature Reasoning
+
+跨文献逻辑推理必须工程化为结构化关系：
+
+```text
+PaperSummary -> LiteratureClaim -> LiteratureRelation -> ReasoningTrace -> Evidence
+```
+
+MVP 至少支持 3 类关系：
+
+- `supports`：一篇或多篇文献支持同一发现。
+- `extends` / `derived_from`：后续工作扩展或派生前置结论、数据或方法。
+- `limits` / `contradicts`：文献对结论适用范围、数据可靠性或解释提出限制或矛盾。
+
+每条 `LiteratureRelation` 必须绑定 `evidence_ids` 和 `reasoning_trace_id`。无证据关系只能作为候选，不进入最终图谱。
+
+### 6.4 Cache
 
 | 类型 | 用途 | 要求 |
 | --- | --- | --- |
 | 数据源缓存 | 外部天文数据源不可用时展示 | 记录原查询、来源 URL、获取时间 |
+| 论文获取缓存 | 论文源不可用时展示候选论文 | 记录检索参数、来源、获取时间、去重版本 |
 | 模型结果缓存 | Qwen 调用失败时展示 | 记录 prompt 版本、模型名、生成时间 |
 | 演示样例缓存 | 公网 Demo 稳定演示 | 必须来自真实运行，不允许手写假结果 |
 
@@ -243,20 +287,22 @@ M1 可先实现 `pending`、`planning`、`completed`、`failed` 子集；细粒�
 | 页面 | 关键要求 |
 | --- | --- |
 | 首页 | 明确主案例和工作流，不宣传任意科研问题 |
-| 任务页 | 展示状态、步骤、失败原因、缓存提示 |
+| 任务页 | 展示状态、步骤、失败原因、缓存提示，包含论文获取和跨文献推理步骤 |
 | 数据页 | 表格、字段字典、来源、质量评分同屏可理解 |
+| 论文获取页 | 展示检索参数、候选论文、去重、相关性分数和获取来源 |
 | 文献页 | 结构化总结优先，结论必须能打开证据 |
+| 推理页 | 展示 Claim、Relation、ReasoningTrace，不把无证据推理作为事实 |
 | 图谱页 | 小而硬；节点少但边有证据，不追求大图装饰 |
 | 证据面板 | 展示来源、locator、quote/value、snapshot、confidence |
-| 反馈入口 | 只支持字段单位、字段映射、来源标注三类 |
+| 反馈入口 | 支持字段单位、字段映射、来源标注、文献总结、图谱关系反馈 |
 
 ### 7.8 图谱视觉
 
-- 节点类型至少区分：research_goal、dataset、field、source、paper、finding、evidence。
-- 边类型优先：`provides_field`、`supports_finding`、`derived_from`。
+- 节点类型至少区分：research_goal、dataset、field、source、paper、finding、claim、relation、evidence。
+- 边类型优先：`provides_field`、`supports_finding`、`derived_from`、`supports`、`extends`、`limits`、`contradicts`。
 - 边必须绑定 `evidence_ids`；无证据边不得作为最终图谱展示。
 - 图谱默认控制规模，避免满屏节点影响可信度。
-- 点击节点或边时，右侧或浮层展示证据详情。
+- 点击节点或边时，右侧或浮层展示证据详情和 ReasoningTrace。
 
 ### 7.9 可访问性与状态
 
@@ -268,15 +314,15 @@ M1 可先实现 `pending`、`planning`、`completed`、`failed` 子集；细粒�
 ## 8. 安全约束
 
 - API Key 只允许存在于后端环境变量或部署平台 Secrets。
-- 前端不保存密钥、不拼接模型请求、不直连外部模型服务。
+- 前端不保存密钥、不拼接模型请求、不直连外部模型服务、论文源或天文数据源。
 - 公网 Demo 限制主案例和调用频率。
-- 日志不得输出完整密钥、原始用户敏感输入或过长模型响应。
+- 日志不得输出完整密钥、原始用户敏感输入、过长模型响应或论文源访问凭据。
 
 ## 9. 实现顺序
 
-1. 完成 `X-00`：冻结 MVP 字段清单、文献清单和 Graph 最小关系类型。
+1. 完成 `X-00`：冻结 MVP 字段清单、论文获取来源、检索关键词、seed list、跨文献关系类型和 Graph 最小关系类型。
 2. A/B 并行初始化前后端，C/D 提供最小真实依据。
 3. B 交付 `/api/v1/health`、`POST /api/v1/tasks`、`GET /api/v1/tasks/{task_id}` 和 Mock 聚合结果。
-4. A 基于 Mock API 展示任务流、数据、文献和图谱页面，并落地 UI token。
-5. 接入数据 Pipeline、文献 Pipeline、图谱 Pipeline。
+4. A 基于 Mock API 展示任务流、数据、论文获取、文献、推理和图谱页面，并落地 UI token。
+5. 接入数据 Pipeline、论文获取与总结 Pipeline、Claim/Relation 推理 Pipeline、图谱 Pipeline。
 6. 完成反馈修正、公网 Demo 和材料交接。
