@@ -4,7 +4,7 @@
 
 ## P0：先跑通 Web 与本地环境
 
-P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00` 对齐真实依据，`X-04` 固定 Docker 本地开发基线，随后 A/B 并行初始化，C/D 提供最小真实依据，避免 Mock 工作流变成空壳。
+P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00` 对齐真实依据，`X-04` 固定 Docker 本地开发基线，A/B 并行初始化后由 `X-05` 建立最小 CI 与依赖漂移卡口，避免技术基线只停留在文档中。
 
 | ID | 任务 | 负责人 | 产出 | 依赖 |
 | --- | --- | --- | --- | --- |
@@ -14,12 +14,13 @@ P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00
 | D-01 | 确定论文获取与推理基准 | D | 论文源候选、检索关键词、5-8 篇 seed list、Claim/Relation 样例 | X-00 |
 | A-01 | 初始化 Web 端骨架 | A | Vue 3 + TypeScript + Vite + pnpm + shadcn-vue + Tailwind CSS 4 可启动 | X-04 |
 | B-01 | 初始化 FastAPI 与 uv 后端骨架 | B | FastAPI + Python 3.13 + uv 可启动，Docker API 服务可运行 | X-04 |
+| X-05 | 建立基础 CI 与依赖漂移卡口 | A + B | 禁止错误 lockfile、检查 `.env.example`、校验 pnpm/uv/Docker 基线；A/B/X-04 完成后补构建和 compose 检查 | X-04, A-01, B-01 |
 | B-02 | 定义 Pydantic Schema 初版 | B | 与 DATA_MODEL 对齐，包含 PaperAcquisition、Claim、Relation、Trace | B-01, C-01, D-01 |
 | B-03 | 创建任务/查询任务接口 | B | `/api/v1/health`、`/api/v1/tasks` 可用 | B-02 |
 | B-04 | Mock 任务结果聚合 | B | dataset/paper-acquisition/papers/literature-reasoning/graph/evidence 返回样例 | B-03, C-01, D-01 |
 | A-02 | 搭建页面路由和基础布局 | A | 首页、任务页、数据页、论文获取页、文献页、推理页、图谱页 | A-01 |
 | A-03 | 基于 Mock 展示完整任务流 | A | 任务流、数据、论文获取、文献、推理、图谱页面可展示；API 不可用时仅开发模式使用 fixtures | A-02, B-04 |
-| X-01 | 前后端 Mock 联调 | A + B | Docker Compose 下页面可展示完整 Mock 工作流 | A-03, B-04 |
+| X-01 | 前后端 Mock 联调 | A + B | Docker Compose 下页面可展示完整 Mock 工作流 | A-03, B-04, X-05 |
 
 ## P1：数据主链路
 
