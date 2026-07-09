@@ -77,9 +77,9 @@ GraphEdge 必须包含 `evidence_ids`。跨文献关系边还必须包含 `relat
 | 状态 | Accepted |
 | --- | --- |
 
-P0 第一步是 `X-00`：冻结 MVP 字段清单、论文获取来源、检索关键词、5-8 篇 seed list、跨文献关系类型和 Graph 最小关系类型。随后 A/B 并行初始化前后端，C/D 提供最小真实依据。
+P0 第一步是 `X-00`：冻结 MVP 字段清单、论文获取来源、检索关键词、5-8 篇 seed list、跨文献关系类型和 Graph 最小关系类型。随后先完成 `X-04` Docker Compose 本地开发基线，再让 A/B 并行初始化前后端，C/D 提供最小真实依据。
 
-原因：纯 Mock 会削弱科研可信度；完全串行又会拖慢开发节奏。
+原因：纯 Mock 会削弱科研可信度；完全串行又会拖慢开发节奏；没有统一 Docker 基线会造成成员本机依赖和版本漂移。
 
 ## ADR-010：自动论文获取纳入 MVP 主链路
 
@@ -98,3 +98,39 @@ MVP 必须在固定主案例内实现自动论文获取，输出 `PaperSearchQue
 跨文献逻辑推理必须落到 `LiteratureClaim`、`LiteratureRelation` 和 `ReasoningTrace`，并绑定 `Evidence`。无证据关系只能作为候选，不进入最终图谱。
 
 原因：“逻辑推理”如果只输出自然语言解释，无法审查、无法复现，也无法支撑答辩中的可信性追问。
+
+## ADR-012：Web-first 与 shadcn-vue 优先
+
+| 状态 | Accepted |
+| --- | --- |
+
+前端先完成 `apps/web` 页面、路由、状态、Mock 工作流和 UI token 落地。UI 组件优先采用 shadcn-vue / reka-ui 体系，图谱主库采用 Vue Flow，统计图表按需使用 ECharts。
+
+原因：先形成可演示 Web 闭环，再抽象复用组件，能降低早期不确定性；成熟组件库能减少基础控件成本，同时保持视觉一致性。
+
+## ADR-013：Docker-first 本地开发基线
+
+| 状态 | Accepted |
+| --- | --- |
+
+M1 本地环境统一使用 Docker Compose 管理 `web`、`api`、`postgres` 三个服务，固定 `node:24-alpine`、`python:3.13-slim`、`postgres:17-alpine`。
+
+原因：4 人团队设备和本机依赖不一致，Docker Compose 可以把运行时、网络、端口和数据库版本固定为同一基线。
+
+## ADR-014：依赖管理工具固定
+
+| 状态 | Accepted |
+| --- | --- |
+
+前端统一使用 pnpm，后端统一使用 uv。提交 `pnpm-lock.yaml` 和 `uv.lock`；禁止混用 npm/yarn/bun lockfile 或用 requirements.txt 替代 uv 主流程。
+
+原因：pnpm 更适合 Web-first 和后续 workspace；uv 统一 Python 版本、依赖和 lockfile。两者配合 Docker 能降低“本机可运行、他人不可运行”的风险。
+
+## ADR-015：Celery / Redis 后置
+
+| 状态 | Accepted |
+| --- | --- |
+
+M1 不引入 Redis、Celery、RabbitMQ。任务链路先用 FastAPI、数据库任务状态和 BackgroundTasks 支撑；当论文获取、模型调用或图谱构建耗时明显影响稳定性时，再评估 Redis + Celery/RQ。
+
+原因：MVP 任务规模可控，过早引入任务队列会增加部署、调试和成员协作成本。
