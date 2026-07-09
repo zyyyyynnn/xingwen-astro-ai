@@ -20,7 +20,7 @@
 
 - 页面可启动或构建通过。
 - 首页说明主案例，不写任意科研问题。
-- 任务页覆盖 pending、running/step、completed、failed 状态。
+- 任务页覆盖 `pending`、`planning`、`completed`、`failed`，并展示 `TaskStep` 过程信息。
 - 数据、文献、图谱页面覆盖加载、成功、失败、空状态。
 - 表格、证据面板和图谱详情不溢出、不遮挡核心信息。
 - UI 使用 token，不散落高饱和颜色、强阴影或硬编码动效。
