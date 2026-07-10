@@ -107,15 +107,7 @@ PR 不接受：
 
 ## 6. 文档同步
 
-| 改动 | 同步文档 |
-| --- | --- |
-| 接口、错误码、响应结构 | `docs/architecture/API_CONTRACT.md` |
-| 数据实体、字段、枚举 | `docs/architecture/DATA_MODEL.md` |
-| 模块职责、系统流程、UI 基线 | `DESIGN.md`, `docs/architecture/MODULES.md` |
-| MVP 范围、验收口径 | `PRD.md`, `docs/product/ACCEPTANCE.md` |
-| 部署、环境变量 | `DEPLOYMENT.md`, `.env.example` |
-| 安全、密钥、日志 | `SECURITY.md` |
-| 风险或技术债 | `docs/quality/RISK_REGISTER.md` |
+文档同步红线见 [AGENTS.md](AGENTS.md) 第 6 节，PR 涉及接口、数据、技术栈、模块、启动、范围、风险或安全变化时必须按该表同步对应文档。
 
 ## 7. 合并标准
 

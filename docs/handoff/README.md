@@ -29,11 +29,9 @@
 
 | 阶段 | 交接物 |
 | --- | --- |
-| M1 | Mock 工作流截图、API 初版说明 |
-| M2 | 数据结果截图、CSV、字段字典、溯源报告 |
-| M3 | 论文获取截图、PaperCandidate JSON、文献总结截图、PaperSummary JSON |
-| M4 | 跨文献推理截图、ReasoningTrace JSON、图谱截图、Graph JSON、证据详情 |
-| M5 | 公网 Demo URL、完整演示脚本、最终截图包 |
+| M1 开发基线 | Mock 工作流截图、API 初版说明、本地启动验证 |
+| M2 核心功能 | 数据结果截图、CSV、字段字典、溯源报告、论文获取截图、PaperCandidate JSON、文献总结截图、PaperSummary JSON、跨文献推理截图、ReasoningTrace JSON、图谱截图、Graph JSON、证据详情 |
+| M3 反馈与交付 | 公网 Demo URL、完整演示脚本、反馈修正截图、缓存兜底验证、最终截图包 |
 
 ## 4. 禁止事项
 
