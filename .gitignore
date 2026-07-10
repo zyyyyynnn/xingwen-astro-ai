@@ -36,3 +36,5 @@ exports/
 logs/
 tmp/
 
+# CodeGraph
+.codegraph/
