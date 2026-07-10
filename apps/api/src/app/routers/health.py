@@ -1,0 +1,14 @@
+"""Health check endpoint."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter
+
+from app.config import settings
+
+router = APIRouter(tags=["system"])
+
+
+@router.get("/api/v1/health")
+async def health():
+    return {"status": "ok", "version": settings.APP_VERSION, "env": settings.APP_ENV}
