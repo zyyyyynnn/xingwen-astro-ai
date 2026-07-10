@@ -1,13 +1,12 @@
 ---
-name: Bug
-about: 缺陷修复
-title: "[Bug] "
-labels: type:bug
-assignees: ""
+name: Bug Report
+about: 报告缺陷
+labels: ["bug"]
 ---
 
-## 问题描述
+## 背景
 
+描述缺陷发生的场景和预期行为。
 
 ## 复现步骤
 
@@ -15,12 +14,14 @@ assignees: ""
 2.
 3.
 
-## 预期结果
+## 实际行为
 
-
-## 实际结果
-
+## 预期行为
 
 ## 影响范围
 
+前端 / 后端 / 数据 / 文献 / 图谱 / 文档。
 
+---
+
+**Label 要求：** 至少打上 `bug` + 一个 `area:*` 标签。如有明确优先级，打上 `priority:p0/p1/p2` 并归入对应 Milestone（P0→M1，P1→M2，P2→M3）。
