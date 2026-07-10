@@ -50,6 +50,8 @@ Issue 至少包含：
 - 背景：为什么做。
 - 目标：完成后交付什么。
 - 验收标准：如何判断完成。
+- 依赖：前置任务。
+- 边界：不做什么。
 - 影响范围：前端、后端、数据、文献、图谱、文档。
 
 标题格式：
@@ -61,6 +63,28 @@ Issue 至少包含：
 [D] 构建证据图谱 JSON
 [X] 前后端 Mock 联调
 ```
+
+### Label 规范
+
+每个 Issue 必须打上以下三类标签：
+
+| 类别 | 可选值 | 说明 |
+| --- | --- | --- |
+| area | `area:frontend`、`area:backend`、`area:data`、`area:pipeline`、`area:graph`、`area:infra` | 工作领域 |
+| priority | `priority:p0`、`priority:p1`、`priority:p2` | 优先级 |
+| type | `type:task`、`type:docs`、`type:feature`、`bug`、`enhancement` | 任务类型 |
+
+### Milestone 规范
+
+Milestone 与 Priority 严格 1:1 对应：
+
+| Priority | Milestone | 内容 |
+| --- | --- | --- |
+| P0 | M1 开发基线 | 骨架、Docker、CI、Mock 闭环 |
+| P1 | M2 核心功能 | 数据/论文/文献/推理/图谱主链路 |
+| P2 | M3 反馈与交付 | 缓存兜底、反馈修正、公网部署、材料交接 |
+
+创建 Issue 时根据 Priority 自动归入对应 Milestone，不使用 `milestone:*` 标签。
 
 ## 5. PR 要求
 
