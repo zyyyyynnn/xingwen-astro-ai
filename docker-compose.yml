@@ -1,0 +1,42 @@
+# Docker Compose 本地开发编排
+# AGENTS 红线：本地环境为 web / api / postgres 三服务
+# 当前阶段：postgres + api 已就绪；web 待 A-01 完成后补齐
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: xingwen-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-xingwen_astro_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-xingwen_astro_ai}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: xingwen-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # 容器内通过服务名访问 postgres
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-xingwen_astro_ai}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

@@ -36,7 +36,7 @@ PAPER_SOURCE_API_KEY=
 
 ## 3. Docker Compose 启动
 
-`X-04` 完成后，本地统一入口为：
+本地统一入口为：
 
 ```powershell
 docker compose up --build
@@ -44,13 +44,15 @@ docker compose up --build
 
 默认服务：
 
-| 服务 | 容器职责 | 地址 |
-| --- | --- | --- |
-| `web` | Vue 3 + Vite + shadcn-vue 前端 | `http://127.0.0.1:5173` |
-| `api` | FastAPI 后端 | `http://127.0.0.1:8000` |
-| `postgres` | PostgreSQL 17 | `127.0.0.1:5432` |
+| 服务 | 容器职责 | 地址 | 状态 |
+| --- | --- | --- | --- |
+| `api` | FastAPI 后端 | `http://127.0.0.1:8000` | 已就绪 |
+| `postgres` | PostgreSQL 17 | `127.0.0.1:5432` | 已就绪 |
+| `web` | Vue 3 + Vite + shadcn-vue 前端 | `http://127.0.0.1:5173` | 待 A-01 完成后补入 Compose |
 
-API 文档：`http://127.0.0.1:8000/docs`
+当前 `docker-compose.yml` 只编排 `postgres` + `api`；`web` 服务在 A-01 完成后补齐，届时前端开发用 `pnpm dev` 本机调试，或补入 Compose。
+
+API 文档：`http://127.0.0.1:8000/api/v1/docs`
 
 停止服务：
 
