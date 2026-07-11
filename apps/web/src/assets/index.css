@@ -1,0 +1,201 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* =========================================================================
+   DESIGN.md UI Tokens (raw design system source of truth)
+   视觉方向：米白纸感、低饱和灰、低饱和靛灰强调
+   ========================================================================= */
+:root {
+  /* 颜色 */
+  --color-bg: #F7F3EA; /* 米白背景 */
+  --color-surface: #FFFCF5; /* 卡片面板 */
+  --color-surface-muted: #EEE9DF; /* 次级卡片 */
+  --color-surface-hover: #E8E3D8; /* hover */
+  --color-text-primary: #2F3136; /* 正文标题 */
+  --color-text-secondary: #626873; /* 辅助说明 */
+  --color-text-tertiary: #8A9099; /* 占位弱标签 */
+  --color-border: #D8D1C5; /* 默认边界 */
+  --color-border-subtle: #E7E0D5; /* 弱边界 */
+  --color-brand: #4F5D7A; /* 低饱和靛灰主强调 */
+  --color-brand-muted: #E2E6F0; /* 品牌弱底色 */
+  --color-focus: #7482A4; /* focus ring */
+  --color-success: #5F7F6C;
+  --color-warning: #9A7B41;
+  --color-error: #9B5B5B;
+
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 20px;
+  --spacing-xl: 32px;
+
+  /* 圆角 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* 阴影 */
+  --shadow-soft: 0 8px 24px color-mix(in srgb, #2F3136 8%, transparent);
+  --shadow-popover: 0 10px 30px color-mix(in srgb, #2F3136 12%, transparent);
+  --shadow-modal: 0 18px 48px color-mix(in srgb, #2F3136 18%, transparent);
+
+  /* 动效 */
+  --motion-duration-fast: 120ms;
+  --motion-duration-base: 180ms;
+  --motion-duration-slow: 260ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* 字体 */
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", "Consolas", "Liberation Mono",
+    Menlo, monospace;
+
+  /* =========================================================================
+     shadcn-vue 语义变量（映射到上述 DESIGN.md token）
+     ========================================================================= */
+  --radius: 0.625rem; /* 10px，shadcn 基础圆角 */
+
+  --background: var(--color-bg);
+  --foreground: var(--color-text-primary);
+
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text-primary);
+
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-text-primary);
+
+  --primary: var(--color-brand);
+  --primary-foreground: var(--color-surface);
+
+  --secondary: var(--color-surface-muted);
+  --secondary-foreground: var(--color-text-primary);
+
+  --muted: var(--color-surface-muted);
+  --muted-foreground: var(--color-text-secondary);
+
+  --accent: var(--color-surface-hover);
+  --accent-foreground: var(--color-text-primary);
+
+  --destructive: var(--color-error);
+  --destructive-foreground: #ffffff;
+
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--color-focus);
+
+  /* 图表色（映射到品牌/状态色） */
+  --chart-1: var(--color-brand);
+  --chart-2: var(--color-success);
+  --chart-3: var(--color-warning);
+  --chart-4: var(--color-error);
+  --chart-5: var(--color-focus);
+}
+
+/* Dark 模式（保留纸感设计的低饱和暗色映射） */
+.dark {
+  --background: #2F3136;
+  --foreground: #F7F3EA;
+
+  --card: #3A3D44;
+  --card-foreground: #F7F3EA;
+
+  --popover: #3A3D44;
+  --popover-foreground: #F7F3EA;
+
+  --primary: var(--color-brand);
+  --primary-foreground: #F7F3EA;
+
+  --secondary: #454850;
+  --secondary-foreground: #F7F3EA;
+
+  --muted: #454850;
+  --muted-foreground: var(--color-text-tertiary);
+
+  --accent: #454850;
+  --accent-foreground: #F7F3EA;
+
+  --destructive: var(--color-error);
+  --destructive-foreground: #ffffff;
+
+  --border: #4A4E57;
+  --input: #4A4E57;
+  --ring: var(--color-focus);
+
+  --chart-1: var(--color-brand);
+  --chart-2: var(--color-success);
+  --chart-3: var(--color-warning);
+  --chart-4: var(--color-error);
+  --chart-5: var(--color-focus);
+}
+
+/* =========================================================================
+   @theme inline：将 shadcn 语义变量映射为 Tailwind 工具类
+   组件统一使用 bg-primary / text-muted-foreground / border-border 等语义类
+   ========================================================================= */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* 圆角（DESIGN.md 显式值） */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* 阴影（DESIGN.md） */
+  --shadow-soft: 0 8px 24px color-mix(in srgb, #2F3136 8%, transparent);
+  --shadow-popover: 0 10px 30px color-mix(in srgb, #2F3136 12%, transparent);
+  --shadow-modal: 0 18px 48px color-mix(in srgb, #2F3136 18%, transparent);
+
+  /* 字体 */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
