@@ -130,59 +130,7 @@ uv run uvicorn app.main:app --reload
 
 ## 文档入口
 
-### 必读
-
-| 文档 | 用途 |
-| --- | --- |
-| [PRD.md](PRD.md) | MVP 范围、用户、成功标准 |
-| [DESIGN.md](DESIGN.md) | 系统架构、状态机、证据链、缓存、UI 设计基线 |
-| [AGENTS.md](AGENTS.md) | Agent 操作协议、协作红线、验证要求 |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Git 分支、Issue、PR、合并流程 |
-| [docs/setup.md](docs/setup.md) | 本地启动、Docker Compose、环境变量 |
-
-### 架构
-
-| 文档 | 用途 |
-| --- | --- |
-| [docs/architecture/API_CONTRACT.md](docs/architecture/API_CONTRACT.md) | 14 个端点定义、错误码、响应信封 |
-| [docs/architecture/DATA_MODEL.md](docs/architecture/DATA_MODEL.md) | 19 个实体定义、证据链最低要求 |
-| [docs/architecture/MODULES.md](docs/architecture/MODULES.md) | A/B/C/D/X 五岗模块边界与交付物 |
-| [docs/architecture/DECISIONS.md](docs/architecture/DECISIONS.md) | 架构决策记录 (ADR) |
-
-### 产品
-
-| 文档 | 用途 |
-| --- | --- |
-| [docs/product/PROJECT_CHARTER.md](docs/product/PROJECT_CHARTER.md) | 项目章程、范围边界 |
-| [docs/product/ROADMAP.md](docs/product/ROADMAP.md) | M0-M3 四个里程碑 |
-| [docs/product/BACKLOG.md](docs/product/BACKLOG.md) | P0/P1/P2 完整任务池 |
-| [docs/product/ACCEPTANCE.md](docs/product/ACCEPTANCE.md) | 验收标准 |
-
-### 质量
-
-| 文档 | 用途 |
-| --- | --- |
-| [docs/quality/RISK_REGISTER.md](docs/quality/RISK_REGISTER.md) | 高/中/低风险登记 |
-| [docs/quality/REVIEW_CHECKLIST.md](docs/quality/REVIEW_CHECKLIST.md) | 评审检查清单 |
-
-### 部署与安全
-
-| 文档 | 用途 |
-| --- | --- |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | 三环境部署方案、环境变量清单 |
-| [SECURITY.md](SECURITY.md) | 密钥管理、日志、安全红线 |
-
-### 参考资料
-
-| 文档 | 用途 |
-| --- | --- |
-| [docs/references/README.md](docs/references/README.md) | 三份参考资料导航（AutoAstro / mavis / InnoSum） |
-| [docs/references/赛题要求.md](docs/references/赛题要求.md) | 赛题整理版全文 |
-| [docs/references/项目简报.md](docs/references/项目简报.md) | 团队、技术栈、预算、进度 |
-
-### 推荐阅读顺序
-
-新成员依次读：README → PRD → DESIGN → AGENTS → CONTRIBUTING → docs/setup.md → 当前 Issue 对应的契约文档。
+完整文档索引见 [docs/README.md](docs/README.md)。新成员依次读：README → PRD → DESIGN → AGENTS → CONTRIBUTING → docs/setup.md → 当前 Issue 对应的契约文档。
 
 ## 开发红线
 
