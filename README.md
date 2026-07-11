@@ -130,7 +130,23 @@ uv run uvicorn app.main:app --reload
 
 ## 文档入口
 
-完整文档索引见 [docs/README.md](docs/README.md)。新成员依次读：README → PRD → DESIGN → AGENTS → CONTRIBUTING → docs/setup.md → 当前 Issue 对应的契约文档。
+### 必读
+
+| 文档 | 用途 |
+| --- | --- |
+| [PRD.md](PRD.md) | MVP 范围、用户、成功标准 |
+| [DESIGN.md](DESIGN.md) | 系统架构、状态机、证据链、缓存、UI 设计基线 |
+| [AGENTS.md](AGENTS.md) | Agent 操作协议、协作红线、验证要求 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Git 分支、Issue、PR、合并流程 |
+| [docs/setup.md](docs/setup.md) | 本地启动、Docker Compose、环境变量 |
+
+### 完整索引
+
+架构、产品、质量、部署安全、参考资料等文档分类见 [docs/README.md](docs/README.md)。
+
+### 推荐阅读顺序
+
+新成员依次读：README → PRD → DESIGN → AGENTS → CONTRIBUTING → docs/setup.md → 当前 Issue 对应的契约文档。
 
 ## 开发红线
 
