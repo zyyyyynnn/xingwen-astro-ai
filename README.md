@@ -94,7 +94,7 @@ docs                      架构、产品、质量、交接文档
 
 ## 快速开始
 
-本地开发以 Docker Compose 为主。`X-04` 完成后固定入口为：
+本地开发以 Docker Compose 为主，固定入口为：
 
 ```powershell
 Copy-Item .env.example .env
@@ -107,7 +107,7 @@ docker compose up --build
 | --- | --- |
 | 前端 | `http://127.0.0.1:5173` |
 | 后端 API | `http://127.0.0.1:8000` |
-| API 文档 | `http://127.0.0.1:8000/docs` |
+| API 文档 | `http://127.0.0.1:8000/api/v1/docs` |
 | PostgreSQL | `127.0.0.1:5432` |
 
 前端本地命令只允许使用 pnpm：
@@ -130,14 +130,23 @@ uv run uvicorn app.main:app --reload
 
 ## 文档入口
 
-| 目标 | 文档 |
+### 必读
+
+| 文档 | 用途 |
 | --- | --- |
-| 项目范围 | [PRD.md](PRD.md) |
-| 架构、技术栈与 UI 基线 | [DESIGN.md](DESIGN.md) |
-| Agent 操作协议 | [AGENTS.md](AGENTS.md) |
-| Git 与 PR 流程 | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| 完整文档索引 | [docs/README.md](docs/README.md) |
-| 本地启动 | [docs/setup.md](docs/setup.md) |
+| [PRD.md](PRD.md) | MVP 范围、用户、成功标准 |
+| [DESIGN.md](DESIGN.md) | 系统架构、状态机、证据链、缓存、UI 设计基线 |
+| [AGENTS.md](AGENTS.md) | Agent 操作协议、协作红线、验证要求 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Git 分支、Issue、PR、合并流程 |
+| [docs/setup.md](docs/setup.md) | 本地启动、Docker Compose、环境变量 |
+
+### 完整索引
+
+架构、产品、质量、部署安全、参考资料等文档分类见 [docs/README.md](docs/README.md)。
+
+### 推荐阅读顺序
+
+新成员依次读：README → PRD → DESIGN → AGENTS → CONTRIBUTING → docs/setup.md → 当前 Issue 对应的契约文档。
 
 ## 开发红线
 
