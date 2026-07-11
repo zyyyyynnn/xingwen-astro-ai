@@ -26,6 +26,7 @@
 | 查架构决策 | [architecture/DECISIONS.md](architecture/DECISIONS.md) |
 | 查风险 | [quality/RISK_REGISTER.md](quality/RISK_REGISTER.md) |
 | 部署和安全 | [../DEPLOYMENT.md](../DEPLOYMENT.md), [../SECURITY.md](../SECURITY.md) |
+| 查参考资料 | [references/README.md](references/README.md), [references/赛题要求.md](references/赛题要求.md) |
 | 材料交接 | [handoff/README.md](handoff/README.md) |
 
 ## 推荐阅读顺序
