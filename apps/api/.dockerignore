@@ -1,0 +1,12 @@
+# Docker build context 忽略项
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+tests/
+*.egg-info/
+.git/
+.gitignore
+.python-version

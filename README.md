@@ -4,7 +4,7 @@
 
 _面向天文科研场景的数据分析、文献获取、跨文献推理与证据图谱工作流_
 
-![Vue](https://img.shields.io/badge/Vue-3-brightgreen) ![Vite](https://img.shields.io/badge/Vite-TypeScript-646CFF) ![FastAPI](https://img.shields.io/badge/FastAPI-Python%203.13-009688) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED) ![Qwen](https://img.shields.io/badge/Qwen-DashScope-blue) [![License](https://img.shields.io/github/license/zyyyyynnn/xingwen-astro-ai?style=flat&label=license&color=64748b)](LICENSE)
+![Vue](https://img.shields.io/badge/Vue-3-brightgreen) ![Vite](https://img.shields.io/badge/Vite-TypeScript-646CFF) ![FastAPI](https://img.shields.io/badge/FastAPI-Python%203.13-009688) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED) ![Qwen](https://img.shields.io/badge/Qwen-DashScope-blue) [![License: MIT](https://img.shields.io/badge/license-MIT-64748b)](LICENSE)
 
 </div>
 
