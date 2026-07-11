@@ -48,9 +48,9 @@ docker compose up --build
 | --- | --- | --- | --- |
 | `api` | FastAPI 后端 | `http://127.0.0.1:8000` | 已就绪 |
 | `postgres` | PostgreSQL 17 | `127.0.0.1:5432` | 已就绪 |
-| `web` | Vue 3 + Vite + shadcn-vue 前端 | `http://127.0.0.1:5173` | 待 A-01 完成后补入 Compose |
+| `web` | Vue 3 + Vite + shadcn-vue 前端 | `http://127.0.0.1:5173` | 已就绪 |
 
-当前 `docker-compose.yml` 只编排 `postgres` + `api`；`web` 服务在 A-01 完成后补齐，届时前端开发用 `pnpm dev` 本机调试，或补入 Compose。
+三服务均通过 `docker compose up --build` 启动。前端开发也可用 `pnpm dev` 本机调试。
 
 API 文档：`http://127.0.0.1:8000/api/v1/docs`
 
