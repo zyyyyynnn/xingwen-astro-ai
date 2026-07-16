@@ -1,34 +1,46 @@
 ---
 name: Feature
-about: 新功能或任务
+about: 新功能或跨模块任务
 labels: ["type:feature"]
 ---
 
 ## 背景
 
-为什么做这个任务。
+说明问题、用户/系统影响和现有事实。区分 Current、Target 与 Pending。
 
 ## 目标
 
-完成后交付什么。
+描述完成后可观察、可验证的交付结果。
+
+## 用户或技术范围
+
+- 
 
 ## 验收标准
 
-- [ ] 验收项 1
-- [ ] 验收项 2
+- [ ] 可执行验收项 1
+- [ ] 可执行验收项 2
 
 ## 依赖
 
-前置任务。
+- 前置 Issue、Contract、Artifact 或外部条件。
 
 ## 边界
 
-不做什么。
+- 明确本 Issue 不负责的内容。
 
 ## 影响范围
 
-前端 / 后端 / 数据 / 文献 / 图谱 / 文档。
+- 代码目录：
+- API / Data / Workflow / Version：
+- UI / Deployment / Security：
+- 文档 / 材料：
+
+## 验证
+
+- 命令、测试、Benchmark、E2E 或复现证据。
+- 需要覆盖的失败、权限、来源或版本场景。
 
 ---
 
-**Label 要求：** 打上 `type:task` 或 `type:feature` + 一个 `area:*` 标签 + 一个 `priority:p0/p1/p2` 标签，并归入对应 Milestone（P0→M1 开发基线，P1→M2 核心功能，P2→M3 反馈与交付）。
+**治理要求：** 添加一个 `priority:p0/p1/p2`、一个或多个 `area:*`，并归入对应 Milestone。实时范围与状态只维护在 GitHub Issue；相关文档按 `docs/DOCUMENTATION_GOVERNANCE.md` 同步唯一事实来源。
