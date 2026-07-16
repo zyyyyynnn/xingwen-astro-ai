@@ -33,12 +33,23 @@ class Settings(BaseSettings):
             return self
 
         errors: list[str] = []
+        database_url = self._secret_value(self.DATABASE_URL)
+        postgres_password = self._secret_value(self.POSTGRES_PASSWORD)
+        dashscope_api_key = self._secret_value(self.DASHSCOPE_API_KEY)
+        cors_origins = {origin.strip() for origin in self.CORS_ORIGINS.split(",")}
+
         if self.DEBUG:
             errors.append("DEBUG must be false in production")
-        if self._secret_value(self.POSTGRES_PASSWORD) in {"", "postgres"}:
-            errors.append("POSTGRES_PASSWORD must override the local default")
-        if self._secret_value(self.DASHSCOPE_API_KEY) in {"", "replace_me"}:
+        if not database_url:
+            errors.append("DATABASE_URL must be configured in production")
+        elif "://postgres:postgres@" in database_url:
+            errors.append("DATABASE_URL must not use the local default credentials")
+        if postgres_password == "postgres":
+            errors.append("POSTGRES_PASSWORD must not use the local default")
+        if dashscope_api_key in {"", "replace_me"}:
             errors.append("DASHSCOPE_API_KEY must be configured")
+        if "*" in cors_origins:
+            errors.append("CORS_ORIGINS must not contain '*' in production")
 
         if errors:
             raise ValueError("; ".join(errors))
