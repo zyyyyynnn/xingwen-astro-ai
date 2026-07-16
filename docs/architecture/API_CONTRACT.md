@@ -4,7 +4,7 @@
 | --- | --- |
 | Status | Accepted for implementation |
 | Implementation | Pending |
-| Current API | 已实现的 `/api/v1` Task / Mock 契约 |
+| Current API | 已实现的 `/api/v1` Task / Fixture-backed 契约 |
 | Target API | `/api/v2` Project / Run / Artifact / Version 契约 |
 | Authoring source | 实施期由 FastAPI / Pydantic 生成 OpenAPI 3.1 与 JSON Schema |
 
@@ -439,6 +439,6 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 ## 19. 当前 v1 边界
 
-当前实现仍提供 `/api/v1/health`、`/api/v1/tasks` 及 dataset、sources、paper-acquisition、papers、literature-reasoning、graph、evidence 等 Task 子资源。它们是 Phase 0 Mock 契约，不支持本文件的 Project、Run、ArtifactVersion、WorkspaceSnapshot 或 ShareSnapshot。
+当前实现仍提供 `/api/v1/health`、`/api/v1/tasks` 及 dataset、sources、paper-acquisition、papers、literature-reasoning、graph、evidence 等 Task 子资源。它们是 Phase 0 Fixture-backed 契约，不支持本文件的 Project、Run、ArtifactVersion、WorkspaceSnapshot 或 ShareSnapshot。
 
 README、PR、演示材料必须保持这一“当前实现 / 目标契约”区分，直到 v2 有可执行代码和验证证据。

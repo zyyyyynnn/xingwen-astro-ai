@@ -238,23 +238,11 @@ React View / Feature
 
 切换 Adapter 不得改变页面组件和业务判断。Fixture、Demo Replay、Live、Cached、Revised 必须在 UI 中显式标识。
 
-## 10. 任务状态机
+## 10. Run 状态摘要
 
-| 状态 | 含义 | 下一步 |
-| --- | --- | --- |
-| `pending` | 任务已创建 | `planning` |
-| `planning` | 解析契约并生成计划 | `fetching_data` / `failed` |
-| `fetching_data` | 获取天文数据 | `cleaning_data` / `failed` |
-| `cleaning_data` | 字段对齐、单位统一、质量评分 | `searching_papers` / `failed` |
-| `searching_papers` | 检索、获取和筛选论文 | `summarizing_papers` / `failed` |
-| `summarizing_papers` | 生成结构化文献总结 | `reasoning_literature` / `failed` |
-| `reasoning_literature` | 构建 Claim、Relation 与 Trace | `building_graph` / `failed` |
-| `building_graph` | 构建证据图谱 | `completed` / `failed` |
-| `completed` | 运行完成 | `revising` |
-| `revising` | 根据反馈生成新版本 | `completed` / `failed` |
-| `failed` | 运行失败 | 重试、检查输入或选择可用缓存 |
+状态机唯一详细定义见 `docs/architecture/WORKFLOW_DESIGN.md`。目标 Run 从 `queued` 进入 planning / data / paper / reasoning / graph 阶段，终止于 `completed`、`failed` 或 `cancelled`；需要用户输入时进入 `waiting_for_input`。
 
-`using_cache` 不是任务状态。缓存属于运行来源元信息。
+`completed` 是当前 Run 的终态。自动瞬态重试留在当前 Run 并新增 StepAttempt；用户触发的终态重试、修订与分叉创建带 parent / derivation 关系的新 Run，不让原 Run 进入 `revising`。`cached`、`fixture`、`revised` 与 `using_cache` 都不是 Run 状态，而是产物来源或过渡元信息。
 
 ## 11. 证据与版本原则
 

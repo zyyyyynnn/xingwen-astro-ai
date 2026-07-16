@@ -56,8 +56,8 @@
 | --- | --- | --- | --- | --- |
 | B-10 | 缓存兜底机制 | B | data/paper/model/reasoning cache record + cached meta | B-05, B-07, B-08, B-09 |
 | A-09 | 建立运行来源、缓存、版本与质量状态系统 | A | Live/Cached/Fixture/Revised、version、retrieved_at、SourceSnapshot 跨页面一致 | A-03, B-10, version/cache Contract |
-| A-10 | 建立上下文反馈与局部修正体验 | A | Field/Source/Paper/Claim/Relation/Trace/GraphEdge 反馈、RevisionPlan 和新 ArtifactVersion 状态 | A-04, A-06, A-07, A-08, feedback Contract |
-| B-11 | 反馈修正接口 | B | `/feedback` + revising 状态 | A-10 |
+| A-10 | 建立上下文反馈与局部修正体验 | A | Field/Source/Paper/Claim/Relation/Trace/GraphEdge 反馈、RevisionPlan 和新 ArtifactVersion 状态 | A-04, A-06, A-07, A-08, B-11, feedback Contract |
+| B-11 | 反馈修正接口 | B | Feedback / Revision API；修正创建派生 Run 与新 ArtifactVersion | target Feedback / Revision Contract |
 | C-06 | 字段/单位局部修正 | C | 修正记录和重导出 | B-11 |
 | D-06 | 文献/推理/图谱局部修正 | D | evidence、relation、trace 更新 | B-11 |
 | X-02 | 公网 Demo 部署 | A + B | URL、环境变量、缓存验证 | 核心链路完成 |

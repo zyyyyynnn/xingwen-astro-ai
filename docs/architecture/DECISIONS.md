@@ -166,10 +166,10 @@ Phase 0 以 `apps/api/src/app/schemas` 作为契约编写源，通过 `scripts/e
 
 ## ADR-019：科研产物采用追加式版本治理
 
-| 状态 | Accepted |
+| 状态 | Superseded in part by ADR-027 |
 | --- | --- |
 
-Dataset、Summary、Claim、Trace、Graph 和 Export 的修正通过新 ArtifactVersion 表达；模型/算法运行通过 ExperimentRun 表达。Phase 0 先冻结契约，Phase 1–3 分步落库。
+Dataset、Summary、Claim、Trace、Graph 和 Export 的修正通过新 ArtifactVersion 表达。追加式治理原则继续有效；原 `ExperimentRun` 名称仅代表当前迁移源，目标模型由 ADR-027 的 ResearchRun 负责工作流编排、ProducerExecution 记录具体模型或算法执行。Phase 0 先冻结契约，Phase 1–3 分步落库。
 
 原因：只保存当前结果无法解释历史截图、模型升级差异、缓存来源和用户修正。
 

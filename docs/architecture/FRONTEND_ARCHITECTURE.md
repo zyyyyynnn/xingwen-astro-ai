@@ -495,7 +495,7 @@ interface CelestialVisualModel {
 - `site`: 静态 HTML、CSS、预渲染资源和按需 JS Islands。
 - `workspace`: SPA 静态资源。
 - 同域部署时由平台将 `/workspace/*`、`/tour/*` 和 `/share/*` fallback 到 workspace entry。
-- API 保持 `/api/v1` 或后续契约路径。
+- 目标工作台只以 `/api/v2` 为默认 Contract；`/api/v1` 仅能通过显式迁移 Adapter 服务当前回退基线，在 A-03 Contract / E2E 门禁通过前不得删除，但不得成为新页面的目标路径。
 
 ### 14.2 Docker
 

@@ -149,7 +149,7 @@ CI 失败时先按 job 区分：Foundation、Backend、Frontend。
 5. 后端 `/api/v1/health` 正常。
 6. API 文档可打开。
 7. 创建任务接口返回 `task_id`。
-8. 页面可展示数据、论文获取、文献、推理、图谱 Mock 或真实结果。
+8. 页面可展示明确标注的 Fixture 样例结果或真实结果，二者不得混淆。
 9. 页面能区分实时、失败和缓存状态。
 10. `.env` 未被 Git 跟踪，无额外 lockfile。
 

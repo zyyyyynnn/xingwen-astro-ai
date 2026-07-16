@@ -95,7 +95,7 @@ M2 包含三个子阶段，按依赖关系串行推进，但同一子阶段内 A
 
 | 产出 | 负责人 | 验收 |
 | --- | --- | --- |
-| ArtifactVersion / ExperimentRun | B + D | 关键产物和模型运行可定位版本 |
+| ArtifactVersion / ResearchRun / ProducerExecution | B + D | 关键产物、工作流运行和具体模型执行均可定位版本 |
 | 来源与版本状态系统（A-09） | A | Live / Cached / Fixture / Revised、版本、时间和 SourceSnapshot 跨页面一致 |
 | 上下文反馈（A-10） | A | 字段、来源、论文、Claim、Relation、Trace、GraphEdge 可定位反馈 |
 | 局部修正接口 | B + C + D | 修正产生新版本并保留记录 |

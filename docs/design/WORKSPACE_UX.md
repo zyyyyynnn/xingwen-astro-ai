@@ -114,7 +114,7 @@ Research Atlas 是左侧研究项目与阶段导航，不是聊天历史。
 ```text
 Recent Research
 ├─ ResearchProject A
-│  ├─ Run 03 / Live / running
+│  ├─ Run 03 / Live / searching_papers
 │  ├─ Run 02 / Revised
 │  └─ Run 01 / Cached
 ├─ ResearchProject B
@@ -143,13 +143,14 @@ History
 多个运行可并行，但界面通过“运行轨道”表达，不使用聊天未读数量：
 
 - `queued`
-- `running`
+- `planning` / `fetching_data` / `cleaning_data` / `searching_papers`
+- `summarizing_papers` / `reasoning_literature` / `building_graph`
 - `waiting_for_input`
 - `completed`
 - `failed`
-- `cached_available`
+- `cancelled`
 
-运行轨道显示当前阶段、耗时和来源，不显示原始模型思维过程。
+运行轨道显示当前阶段、耗时和来源，不显示原始模型思维过程。`cached`、`fixture`、`revised` 是 Artifact 来源，不是 Run 状态。
 
 ## 6. Research Contract
 
