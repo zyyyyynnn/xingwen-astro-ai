@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+function collectRuntimeErrors(page: import("@playwright/test").Page) {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  return errors;
+}
+
 test("brand site remains useful without client-side JavaScript", async ({
   browser,
 }) => {
@@ -22,6 +31,14 @@ test("brand site exposes a clear not-found page", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "页面未找到" })).toBeVisible();
 });
 
+test("brand site has no runtime console errors", async ({ page }) => {
+  const errors = collectRuntimeErrors(page);
+
+  await page.goto("http://127.0.0.1:4321/");
+  await expect(page.getByRole("heading", { name: "星文智析" })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 for (const entry of [
   ["/", "科研工作台入口"],
   ["/tour", "引导入口"],
@@ -31,8 +48,7 @@ for (const entry of [
   test(`workspace route ${entry[0]} is directly addressable`, async ({
     page,
   }) => {
-    const errors: string[] = [];
-    page.on("pageerror", (error) => errors.push(error.message));
+    const errors = collectRuntimeErrors(page);
 
     await page.goto(`http://127.0.0.1:5173${entry[0]}`);
 
