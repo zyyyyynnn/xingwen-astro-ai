@@ -1,413 +1,315 @@
 # Architecture Decisions
 
+| 元数据    | 值                                   |
+| --------- | ------------------------------------ |
+| Status    | Accepted                             |
+| Authority | 已批准架构决策、替代关系与不可逆取舍 |
+
+本文保留决策历史。`Accepted` 表示决策有效，不表示代码已经全部实现；目标能力的实施状态以对应规范、Issue 和运行证据为准。
+
+## 1. 状态索引
+
+| ADR     | 状态                           | 当前含义                                               |
+| ------- | ------------------------------ | ------------------------------------------------------ |
+| 001     | Accepted                       | MVP 固定主案例                                         |
+| 002     | Superseded in model by ADR-027 | 单一科研链原则保留，ResearchTask 模型被取代            |
+| 003     | Accepted                       | 模型调用统一走后端                                     |
+| 004     | Accepted                       | 模块使用生成的结构化 Contract                          |
+| 005     | Refined by ADR-023/027         | 真实历史缓存可兜底，但按 Run/Version 规则选择          |
+| 006     | Accepted                       | GraphEdge 必须有 Evidence                              |
+| 007     | Superseded by ADR-023/027      | 缓存非状态原则保留，旧字段表达被取代                   |
+| 008     | Accepted                       | Evidence 可定位、核验和复现                            |
+| 009     | Refined                        | C-01/D-01 先产出，X-00 再集成冻结                      |
+| 010     | Accepted                       | 自动论文获取属于 MVP 主链路                            |
+| 011     | Accepted                       | 跨文献推理必须结构化                                   |
+| 013     | Accepted                       | Docker Compose 使用 Site、Workspace、API 与 PostgreSQL |
+| 014     | Accepted                       | pnpm 与 uv 固定                                        |
+| 015     | Accepted                       | 队列和复杂中间件后置                                   |
+| 016     | Superseded in model by ADR-027 | 显式状态机原则保留，目标对象改为 ResearchRun           |
+| 017     | Accepted                       | Pydantic / OpenAPI 为 Transport Contract 编写源        |
+| 018     | Accepted                       | Prompt 不可变版本化                                    |
+| 019     | Superseded in part by ADR-027  | 追加式版本原则保留，运行对象重新分层                   |
+| 020     | Accepted                       | 暂不引入通用图数据库和万能实体层                       |
+| 021     | Implemented                    | Astro Brand Site + React Workspace Monorepo 运行时     |
+| 022–028 | Accepted；Pending              | 产品体验、领域、安全和视觉方案                         |
+
 ## ADR-001：MVP 固定主案例
 
-| 状态 | Accepted |
-| --- | --- |
+**Status:** Accepted
 
-MVP 固定为“系外行星候选体与宿主恒星参数整合”。
+**Decision:** MVP 固定为“系外行星候选体与宿主恒星参数整合”。
 
-原因：主案例越稳定，越容易形成真实数据、论文获取、文献总结、跨文献推理、证据图谱和演示闭环。任意天文方向支持后置。
+**Rationale:** 稳定案例才能形成真实数据、论文、推理、图谱和复现闭环。
 
-## ADR-002：核心功能串成一条科研工作流
+**Consequence:** 其他天文方向只作为后续扩展，不影响当前 Contract 和验收。
 
-| 状态 | Accepted |
-| --- | --- |
+## ADR-002：核心功能形成单一科研链
 
-自动化数据分析、自动论文获取、智能文献总结、跨文献逻辑推理和学术图谱可视化围绕同一个 `ResearchTask` 串联，不做孤立功能页。
+**Status:** Superseded in model by ADR-027
 
-原因：比赛评审更关注完整科研支撑能力，而不是功能堆叠。
+**Decision:** 数据、论文、总结、推理和图谱围绕同一研究上下文串联，不做孤立功能页。
+
+**Rationale:** 完整可核验链路比功能堆叠更有产品和科研价值。
+
+**Replacement:** 原 `ResearchTask` 聚合模型由 Project / Contract / Run / Artifact / Version 分层取代。
 
 ## ADR-003：模型调用统一走后端
 
-| 状态 | Accepted |
-| --- | --- |
+**Status:** Accepted
 
-所有 Qwen / 百炼调用必须经过后端 Qwen Client。
+**Decision:** 所有生产模型调用经过后端 Model Client、Application Service 和准入流程。
 
-原因：保护 API Key，统一超时、重试、缓存、日志和 JSON Schema 校验。
+**Rationale:** 统一认证、超时、重试、日志、Schema、Evidence 和版本记录。
 
-## ADR-004：模块间统一结构化契约
+**Rejected:** 前端直连模型；Router 或临时脚本维护生产调用。
 
-| 状态 | Accepted |
-| --- | --- |
+## ADR-004：模块间使用结构化 Contract
 
-前端、后端、数据、文献、推理、图谱模块共享 `API_CONTRACT.md` 和 `DATA_MODEL.md`。
+**Status:** Accepted
 
-原因：允许 4 人并行开发，减少联调时字段漂移。
+**Decision:** Transport Contract 由 Pydantic / OpenAPI / JSON Schema 生成；前端映射为稳定 Domain Model。
 
-## ADR-005：公网 Demo 必须有真实运行缓存兜底
+**Rationale:** 减少 A/B/C/D 并行开发中的字段和错误语义漂移。
 
-| 状态 | Accepted |
-| --- | --- |
+**Consequence:** 不允许组件、Pipeline 或测试各自维护第二套同名生产类型。
 
-外部数据源、论文源或模型失败时，Demo 可展示最近一次真实运行缓存，并明确标注缓存状态。
+## ADR-005：公网体验允许真实历史缓存兜底
 
-原因：保证演示稳定，同时不把手写假数据包装成真实结果。
+**Status:** Refined by ADR-023 and ADR-027
 
-## ADR-006：图谱边必须绑定证据
+**Decision:** Live 发生可恢复失败时，可以展示与当前 Contract、输入、质量和 Evidence 匹配的真实历史 ArtifactVersion。
 
-| 状态 | Accepted |
-| --- | --- |
+**Rationale:** 保证演示稳定，同时不伪造实时科研结果。
 
-GraphEdge 必须包含 `evidence_ids`。跨文献关系边还必须包含 `relation_id` 和 `reasoning_trace_id`。
+**Consequence:** CacheRecord 必须绑定 origin Run、Version、SourceSnapshot 和选择原因；Fixture/seed 不属于缓存。
 
-原因：图谱是科研证据组织能力，不是装饰性可视化。
+## ADR-006：GraphEdge 必须绑定 Evidence
 
-## ADR-007：缓存是元信息，不是主任务状态
+**Status:** Accepted
 
-| 状态 | Accepted |
-| --- | --- |
+**Decision:** 所有 GraphEdge 绑定 Evidence；跨文献边额外绑定 Accepted Relation 和 ReasoningTrace。
 
-缓存命中通过 `meta.cached`、`ResearchTask.used_cache`、`SourceRecord.cached` 和页面提示表达，不再使用 `using_cache` 作为 `task_status`。
+**Rationale:** Graph 是科研证据组织，不是装饰性可视化。
 
-原因：任务状态描述流程阶段，缓存描述结果来源。两者混用会让前端状态流、验收截图和后端状态机都变复杂。
+**Consequence:** 无完整引用的边不得发布到最终 Graph ArtifactVersion。
 
-## ADR-008：Evidence 必须可定位、可核验、可复现
+## ADR-007：缓存不是 Run 状态
 
-| 状态 | Accepted |
-| --- | --- |
+**Status:** Superseded in representation by ADR-023 and ADR-027
 
-`Evidence` 除 `source_id` / `paper_id` 外，还需要记录 `locator`、`quote_or_value`、`extraction_method` 和 `source_snapshot`。
+**Decision:** 流程状态、执行方式、产物来源和修订关系分别表达。
 
-原因：比赛评审关注“可溯源”时，不只看有没有来源链接，还会看证据能否定位到字段、文本、查询、论文获取记录或缓存版本。
+**Rationale:** 把缓存写入状态机会混淆运行事实和结果来源。
 
-## ADR-009：P0 先对齐最小真实依据，再并行推进
+**Replacement:** 目标模型使用 ResearchRun.status、execution_mode、ArtifactVersion.source_mode 和派生关系。
 
-| 状态 | Accepted |
-| --- | --- |
+## ADR-008：Evidence 必须可定位、核验、复现
 
-P0 第一步是 `X-00`：冻结 MVP 字段清单、论文获取来源、检索关键词、5-8 篇 seed list、跨文献关系类型和 Graph 最小关系类型。随后先完成 `X-04` Docker Compose 本地开发基线，再让 A/B 并行初始化前后端，C/D 提供最小真实依据。
+**Status:** Accepted
 
-原因：纯手写 Fixture 会削弱科研可信度；完全串行又会拖慢开发节奏；没有统一 Docker 基线会造成成员本机依赖和版本漂移。
+**Decision:** Evidence 记录 target、SourceSnapshot、locator、quote/value、extraction method、confidence 和版本关系。
 
-## ADR-010：自动论文获取纳入 MVP 主链路
+**Rationale:** 单一来源链接不足以复现字段值、论文结论或推理关系。
 
-| 状态 | Accepted |
-| --- | --- |
+**Consequence:** Evidence 创建和引用完整性属于 Artifact 发布门。
 
-MVP 必须在固定主案例内实现自动论文获取，输出 `PaperSearchQuery`、`PaperAcquisitionRun` 和 `PaperCandidate`。seed list 只能作为兜底、评测基准和人工校验。
+## ADR-009：先产出基准，再集成冻结
 
-原因：自动论文获取是“智能文献总结”的前置核心能力，不能只依赖手写文献清单冒充系统能力。
+**Status:** Refined
 
-## ADR-011：跨文献逻辑推理必须结构化
+**Decision:** C-01 产出 Case / Field Manifest，D-01 产出论文与推理 Benchmark，X-00 负责跨模块集成冻结。
 
-| 状态 | Accepted |
-| --- | --- |
+**Rationale:** 避免循环依赖，同时让数据和论文团队可并行形成机器可校验输入。
 
-跨文献逻辑推理必须落到 `LiteratureClaim`、`LiteratureRelation` 和 `ReasoningTrace`，并绑定 `Evidence`。无证据关系只能作为候选，不进入最终图谱。
+**Consequence:** B-04、A-03 和后续 Pipeline 消费 X-00 冻结版本，不自行复制基准。
 
-原因：“逻辑推理”如果只输出自然语言解释，无法审查、无法复现，也无法支撑自主评审或终审展示中的可信性追问。
+## ADR-010：自动论文获取属于 MVP 主链路
 
-## ADR-012：Web-first 与 shadcn-vue 优先
+**Status:** Accepted
 
-| 状态 | Superseded by ADR-021 |
-| --- | --- |
+**Decision:** 固定主案例内实现可复现论文检索、候选 canonicalization、去重、排序和选择依据。
 
-前端先完成 `apps/web` 页面、路由、状态、Mock 工作流和 UI token 落地。UI 组件优先采用 shadcn-vue / reka-ui 体系，图谱主库采用 Vue Flow，统计图表按需使用 ECharts。
+**Rationale:** 智能文献总结不能依赖手写清单冒充自动能力。
 
-原因：先形成可演示 Web 闭环，再抽象复用组件，能降低早期不确定性；成熟组件库能减少基础控件成本，同时保持视觉一致性。
+**Boundary:** Seed 只用于 Benchmark、Fixture 或人工校验。
 
-历史说明：该决策已完成当前 `apps/web` Vue 骨架使命。目标前端不再以 Vue、shadcn-vue、Vue Router、Pinia 或 Vue Flow 作为未来方案；迁移完成前它们仍是当前可运行实现事实。
+## ADR-011：跨文献推理必须结构化
 
-## ADR-013：Docker-first 本地开发基线
+**Status:** Accepted
 
-| 状态 | Accepted |
-| --- | --- |
+**Decision:** 推理落到 Claim、candidate/accepted/rejected Relation、ReasoningTrace 和 Evidence。
 
-M1 本地环境统一使用 Docker Compose 管理 `web`、`api`、`postgres` 三个服务，固定 `node:24-alpine`、`python:3.13-slim`、`postgres:17-alpine`。
+**Rationale:** 自然语言解释无法稳定审查、评测、版本化或生成可信 Graph。
 
-原因：4 人团队设备和本机依赖不一致，Docker Compose 可以把运行时、网络、端口和数据库版本固定为同一基线。
+**Boundary:** 不记录模型私有 chain-of-thought。
+
+## ADR-013：Docker-first 本地基线
+
+**Status:** Accepted
+
+**Decision:** 当前本地统一使用 `site`、`workspace`、`api`、`postgres` Compose 服务；前端固定 Node.js 24.18.0 与 pnpm 11.13.1，后端固定 Python 3.13 与 uv。
+
+**Rationale:** 降低成员本机版本和网络差异。
+
+**Consequence:** Site 与 Workspace 分别健康检查；公网拓扑仍由独立部署 Issue 验证。
 
 ## ADR-014：依赖管理工具固定
 
-| 状态 | Accepted |
-| --- | --- |
+**Status:** Accepted
 
-前端统一使用 pnpm，后端统一使用 uv。提交 `pnpm-lock.yaml` 和 `uv.lock`；禁止混用 npm/yarn/bun lockfile 或用 requirements.txt 替代 uv 主流程。
+**Decision:** 前端使用 pnpm 和单一 lockfile；后端使用 uv、`pyproject.toml` 和 `uv.lock`。
 
-原因：pnpm 更适合 Web-first 和后续 workspace；uv 统一 Python 版本、依赖和 lockfile。两者配合 Docker 能降低“本机可运行、他人不可运行”的风险。
+**Rationale:** 统一依赖解析、缓存、CI 和复现方式。
 
-## ADR-015：Celery / Redis 后置
+**Rejected:** npm/yarn/bun lockfile 混用；以 requirements.txt 替代 uv 主流程。
 
-| 状态 | Accepted |
-| --- | --- |
+## ADR-015：队列与复杂中间件后置
 
-M1 不引入 Redis、Celery、RabbitMQ。任务链路先用 FastAPI、数据库任务状态和 BackgroundTasks 支撑；当论文获取、模型调用或图谱构建耗时明显影响稳定性时，再评估 Redis + Celery/RQ。
+**Status:** Accepted
 
-原因：MVP 任务规模可控，过早引入任务队列会增加部署、调试和成员协作成本。
+**Decision:** 在真实负载证明必要前，不将 Redis、Celery、RabbitMQ、对象存储、图数据库或向量数据库设为 MVP 前置。
 
-## ADR-016：工作流必须由显式状态机驱动
+**Rationale:** 当前主要风险是可信链路和集成，而非基础设施容量。
 
-| 状态 | Accepted |
-| --- | --- |
+**Consequence:** 新基础设施需要独立 ADR、负载证据和迁移/回滚计划。
 
-`ResearchTask` 的状态转换由 `app.workflow` 集中声明和校验。Router 不直接串联多个 Pipeline，Pipeline 不自行推进任务状态。
+## ADR-016：工作流由显式状态机驱动
 
-原因：把编排散落在 Router/Service 会导致非法跳转、失败记录丢失、缓存语义混乱和巨型业务文件。
+**Status:** Superseded in model by ADR-027; principle remains accepted
 
-## ADR-017：Pydantic 是 Phase 0 Schema authoring source
+**Decision:** 状态转换集中定义和校验；Router 不串联 Pipeline，Pipeline 不推进主状态。
 
-| 状态 | Accepted |
-| --- | --- |
+**Rationale:** 防止非法跳转、失败丢失和缓存/修订语义混乱。
 
-Phase 0 以 `apps/api/src/app/schemas` 作为契约编写源，通过 `scripts/export_schemas.py` 导出 JSON Schema 到 `packages/schemas` 或临时构建目录。前端和 Pipeline 不维护第二套同名字段。
+**Replacement:** 目标状态机围绕 ResearchRun、RunStep、StepAttempt 和 RunEvent。
 
-原因：当前 Pydantic 模型已经存在，立即搬迁会制造双写和回归风险；先建立可重复导出，再按实际 codegen 需求评估独立 IDL。
+## ADR-017：Pydantic 是 Contract 编写源
+
+**Status:** Accepted
+
+**Decision:** 后端 Pydantic 模型生成 OpenAPI 3.1 / JSON Schema 和前端 Transport Type。
+
+**Rationale:** 避免并行手写 DTO，保留可重复导出和 stale check。
+
+**Consequence:** `packages/schemas` 记录导出边界；A-01 已建立 `packages/contracts` 公开入口，生成 Type、validation 与 mapper 由 A-03 实现。
 
 ## ADR-018：Prompt 文件不可变版本化
 
-| 状态 | Accepted |
-| --- | --- |
+**Status:** Accepted
 
-生产 Prompt 统一放在 `packages/prompts/<name>/vN.md`，由 registry 指定默认版本。已被真实运行或缓存引用的版本不原地改写。
+**Decision:** 生产 Prompt 位于 `packages/prompts/<name>/vN.md`，由 registry 选择默认版本。
 
-原因：Prompt 是科研结果的生成条件，散落字符串和“最新版本”无法复现，也会造成缓存结果口径失真。
+**Rationale:** Prompt 是科研产物的生成条件，必须可复现和回滚。
+
+**Consequence:** 已被运行、Version、Benchmark 或 CacheRecord 引用的 Prompt 不原地改写。
 
 ## ADR-019：科研产物采用追加式版本治理
 
-| 状态 | Superseded in part by ADR-027 |
-| --- | --- |
+**Status:** Superseded in part by ADR-027
 
-Dataset、Summary、Claim、Trace、Graph 和 Export 的修正通过新 ArtifactVersion 表达。追加式治理原则继续有效；原 `ExperimentRun` 名称仅代表当前迁移源，目标模型由 ADR-027 的 ResearchRun 负责工作流编排、ProducerExecution 记录具体模型或算法执行。Phase 0 先冻结契约，Phase 1–3 分步落库。
+**Decision:** Dataset、Summary、Claim、Trace、Graph 和 Export 的修订创建新 ArtifactVersion。
 
-原因：只保存当前结果无法解释历史截图、模型升级差异、缓存来源和用户修正。
+**Rationale:** 原地覆盖无法解释历史截图、缓存、模型升级和人工修订。
 
-## ADR-020：MVP 暂不引入通用图数据库与万能实体层
+**Replacement:** ResearchRun 管理工作流；ProducerExecution 记录具体模型/算法；ArtifactVersion 管理内容。
 
-| 状态 | Accepted |
-| --- | --- |
+## ADR-020：暂不引入通用图数据库与万能实体层
 
-MVP 继续使用 PostgreSQL/JSON 与现有 GraphNode/GraphEdge 契约。只有当真实图规模、查询模式或跨案例复用证明需要时，才评估 Neo4j、通用 Entity/Relation 或向量数据库。
+**Status:** Accepted
 
-原因：当前风险是可信闭环未跑通，而不是图存储性能。过早抽象会增加迁移和联调成本。
+**Decision:** MVP 使用 PostgreSQL/JSON 和明确 Graph Contract；只有真实规模和查询模式证明需要时再评估专用图存储。
 
-## ADR-021：前端迁移为 Astro 品牌站 + React 工作台
+**Rationale:** 过早抽象增加迁移和联调成本，不能解决当前 Evidence 完整性问题。
 
-### Status
+## ADR-021：Astro Brand Site + React Workspace
 
-Accepted for implementation；Implementation Pending。Supersedes ADR-012 的目标前端部分。
+**Status:** Implemented for A-01 runtime
 
-### Context
+**Context:** 品牌静态首屏、SEO、WebGL 场景和桌面级工作台具有不同运行特征。
 
-当前 Vue 骨架能验证基础构建和 API 边界，但品牌静态首屏、SEO、React Three Fiber 实时视觉、桌面级多面板工作台与未来 Tauri 复用对运行时提出了不同要求。长期维护两套业务前端会造成契约和视觉漂移。
+**Decision:** pnpm Monorepo；`apps/site` 使用 Astro 静态输出，`apps/workspace` 使用 React 与 Vite；共享 `design-tokens`、`ui`、`domain`、`contracts`、`data-access`、`workspace-core`、`visual-engine` 和 `testing`。
 
-### Decision
+**Consequences:** Brand Site 与 Research Workspace 分离构建，共享包依赖方向由自动门禁约束；A-02/A-03 继续在该边界内实现。
 
-目标前端采用 pnpm Monorepo：`apps/site` 使用 Astro 静态输出，`apps/workspace` 使用 React + TypeScript；共享能力进入 `packages/design-tokens`、`ui`、`visual-engine`、`domain`、`contracts`、`data-access`、`workspace-core` 和 `testing`。旧 `apps/web` 仅作为迁移期回退基线，完成验收后删除。
+**Rejected:** 无明确需求的全站 Next.js；用 Astro Islands 承载完整工作台。
 
-### Consequences
+**Boundary:** A-01 只实现运行时、最小路由、共享包、CI 和 Compose，不代表 A-02 视觉系统或 A-03 业务行为完成。
 
-- 正向：静态首屏与复杂工作台职责分离；WebGL、React Flow 和未来 Tauri 共享 React 核心。
-- 负向：团队需要承担一次性迁移和新工具链学习成本；迁移期 CI 需要短暂构建两套入口。
-- 运维：仍输出静态站点与现有 FastAPI，不引入前端服务端渲染或新基础设施。
+## ADR-022：工作台采用科研产物优先
 
-### Rejected alternatives
+**Status:** Accepted for implementation; Pending
 
-- 继续扩展单体 Vue：短期成本低，但会把品牌、工作台、视觉引擎和迁移适配耦合在一个应用。
-- 全站 Next.js：当前没有服务端渲染和 React Server Components 的明确需求，运行与部署复杂度更高。
-- Astro 承载完整工作台：Island 模型不适合统一管理高密度桌面状态。
+**Decision:** Research Atlas、最多三面板 Research Canvas、Provenance Observatory 和 Research Console 构成核心工作台；中央默认显示科研产物。
 
-### Implementation boundary
+**Rationale:** 聊天线程和工具日志无法稳定承载高密度数据、Evidence 和版本对照。
 
-由 A-01 建立新运行时和共享包，不实现业务页面；迁移完成前不在新旧前端重复开发同一业务功能。本 RFC 不创建应用、不安装依赖、不修改 Docker。
+**Rejected:** 聊天气泡主界面；IDE / terminal 模仿；无限自由窗口。
 
-## ADR-022：工作台采用科研产物优先，而非聊天优先
+## ADR-023：Fixture / HTTP 通过 Repository Port 共享 Domain
 
-### Status
+**Status:** Accepted for implementation; Pending
 
-Accepted for implementation；Implementation Pending。
+**Decision:** UI 通过 Application Service 和 Repository Port 获取 Domain；Fixture 与 HTTP Adapter 校验同一 Contract。execution、source 和 revision 分离。
 
-### Context
+**Rationale:** Demo、测试和 Live 复用组件，真实性语义可自动测试。
 
-聊天线程和工具日志适合通用 Agent，但无法稳定承载 Dataset、Paper、Claim、Relation、ReasoningTrace、Graph、Evidence 与版本对照，也会弱化自主评审时的可信性。
+**Boundary:** Fixture 带 scenario、Schema 和 provenance；Cached 只引用真实历史 Run。
 
-### Decision
+## ADR-024：ASCII / Dither 使用 GPU 实时渲染和确定性降级
 
-工作台以 Research Atlas、最多三面板 Research Canvas、Provenance Observatory 和底部 Research Console 组成。中央默认显示科研产物；自然语言交互只负责生成 ResearchContractDraft、确认 ResearchContract、结构化解释、运行或修订请求。
+**Status:** Accepted for implementation; Pending
 
-### Consequences
+**Decision:** Three.js、React Three Fiber、自定义 GLSL、glyph atlas 和 instancing；使用 deterministic seed、质量档和 Poster fallback。
 
-- 正向：核心结果可对照、可定位、可分享；产品不依赖对话历史才能理解。
-- 负向：需要专门设计每类 Artifact 的视图与选择模型，初期组件数量高于聊天界面。
+**Rationale:** 大量 DOM glyph 不可控，纯预渲染视频无法响应状态。
 
-### Rejected alternatives
+**Boundary:** WebGL 不承载唯一信息，不阻塞 LCP；页面隐藏暂停，卸载释放资源。
 
-- 聊天气泡作为中央界面：无法支持高密度表格和证据并排审查。
-- IDE / terminal 模仿：与科研产物领域不一致，增加无关认知负担。
+## ADR-025：Web 当前交付，Tauri 后置
 
-### Implementation boundary
+**Status:** Accepted for implementation; Pending
 
-Research Console 不保存模型私有思维过程；原始执行日志仅用于诊断，不作为主要产物。
+**Decision:** 当前只交付 Web；文件、通知、本地缓存和深链接通过 Platform Port 注入，未来 Tauri 替换 Adapter。
 
-## ADR-023：Fixture / HTTP 双通道通过 Repository Port 共享领域契约
+**Rationale:** 避免当前扩大构建、签名、权限和发布风险。
 
-### Status
+**Boundary:** 未经独立 Issue 不创建 `apps/desktop` 或引入 Tauri。
 
-Accepted for implementation；Implementation Pending。
+## ADR-026：免登录隔离 Session 与只读分享
 
-### Context
+**Status:** Accepted for implementation; Pending
 
-作品提交需要确定性 Demo Replay，真实运行又必须容纳网络失败、等待和缓存。页面直接读取 Fixture 或后端 DTO 会形成两套行为和真实性口径。
+**Decision:** 匿名 ResearchSession 使用安全 Cookie 和服务端 ownership；ShareSnapshot 锁定 Version/Evidence，token 高熵、可撤销、可过期且服务端只存 hash。
 
-### Decision
+**Rationale:** 降低评审进入门槛，同时隔离私有研究和编辑权限。
 
-UI 经 Application Service 调用 Repository Port；Fixture Adapter 与 HTTP Adapter 均校验 Transport Contract、映射为同一 Domain Model。`execution_mode` 只属于 Run/启动状态；`source_mode` 仅为 `fixture | live | cached`，Fixture 固定标记 `fixture`。修订由派生 Run 或 supersedes 关系推导，不是来源值。
+**Rejected:** 强制账号；把 Session id 放入分享 URL；分享动态 latest。
 
-### Consequences
+## ADR-027：Project / Run / Artifact / Version 分层
 
-- 正向：Demo、测试和 Live 复用组件；Adapter 一致性可自动测试。
-- 负向：需要维护 Mapper 与版本化 Fixture，不能直接把响应交给页面。
+**Status:** Accepted for implementation; Pending
 
-### Rejected alternatives
+**Decision:** Project 表示持续上下文，Contract 表示不可变输入，Run 表示一次执行，Artifact 表示逻辑身份，ArtifactVersion 表示不可变内容；retry/revision/fork 创建派生 Run。
 
-- 组件内 `fetch` 与条件分支：难以隔离错误和来源语义。
-- 将手写 Fixture 标为缓存：破坏真实运行缓存的可信性。
+**Rationale:** 支持并行运行、失败重试、缓存、修订、分享和历史对照。
 
-### Implementation boundary
-
-Fixture 必须包含 scenario、schema version、生成说明和证据边界；Cached 只能引用真实历史 Run。
-
-## ADR-024：ASCII / Dither 视觉引擎使用 GPU 实时渲染与确定性降级
-
-### Status
-
-Accepted for implementation；Implementation Pending。
-
-### Context
-
-品牌需要近看可辨 ASCII、远看形成连续半色调的天体纹理。大量 DOM glyph 会造成布局、性能和无障碍问题，WebGL 又可能因设备、驱动或 Reduced Motion 不可用。
-
-### Decision
-
-使用 Three.js、React Three Fiber、自定义 GLSL、glyph atlas 与 instancing 构建 `packages/visual-engine`。输入是可测试的 Visual Model，使用 deterministic seed；High / Medium / Low 档位和静态 Poster 保证降级。
-
-### Consequences
-
-- 正向：性能和品牌一致性可控；视觉回归可冻结 seed 与时间。
-- 负向：Shader、GPU 生命周期与跨设备测试增加实施成本。
-
-### Rejected alternatives
-
-- 成千上万个 DOM 字符：性能、读屏和缩放不可控。
-- 预渲染视频作为唯一表现：不能响应状态，也无法保证移动端与 Reduced Motion 的语义完整。
-- Canvas 承载业务文字：静态 HTML、SEO 和可访问性不可接受。
-
-### Implementation boundary
-
-WebGL 不承载唯一信息，不是 LCP 前置条件；页面隐藏时暂停，卸载时 dispose，失败时保留完整 DOM 与 Poster。
-
-## ADR-025：Web 当前交付，Tauri 通过 Platform Adapter 后置
-
-### Status
-
-Accepted for implementation；Implementation Pending。
-
-### Context
-
-当前主要交付是公网 Web；未来桌面端可能需要文件系统、通知、窗口、本地缓存和深链接。现在引入 Tauri 会扩大构建、签名和安全面。
-
-### Decision
-
-当前只交付 Web。平台能力通过 FileExport、Notification、LocalCache、DeepLink 等 Port 注入；浏览器提供 Web Adapter，未来 `apps/desktop` 提供 Tauri Adapter。
-
-### Consequences
-
-- 正向：核心工作台不依赖平台 API，可在证明需求后封装桌面端。
-- 负向：初期需要保持 Port 边界，即使只有一个 Web 实现。
-
-### Rejected alternatives
-
-- 本轮同时实现 Tauri：超出竞赛 Web 主路径，增加发布与权限风险。
-- 组件直接调用浏览器 API：未来桌面复用时会散落条件分支。
-
-### Implementation boundary
-
-本轮不创建 `apps/desktop`，不安装 Tauri，不定义签名或自动更新流程。
-
-## ADR-026：免登录隔离会话与只读分享链接
-
-### Status
-
-Accepted for implementation；Implementation Pending。
-
-### Context
-
-评审需要无注册进入 Demo 和临时 Live Run，同时 Project、Run、用户输入和未公开 Evidence 必须隔离；分享结果只能读取冻结版本，不能复用编辑会话凭据。
-
-### Decision
-
-后端创建有过期时间和资源配额的匿名 ResearchSession，通过 Secure、HttpOnly、SameSite Cookie 标识。所有私有资源按服务端会话授权。分享创建 ShareSnapshot，锁定公开 ArtifactVersion 与 Evidence 范围，并生成高熵、可撤销、可过期的只读 token；服务端只保存 token hash。
-
-### Consequences
-
-- 正向：降低首次体验门槛；分享内容稳定且不泄露编辑权限。
-- 负向：匿名会话仍需速率限制、CSRF、防枚举和清理策略，不能等同于“无安全要求”。
-
-### Rejected alternatives
-
-- 强制账号：增加初审体验摩擦，当前没有团队权限需求。
-- 把 session id 放入分享 URL：会形成水平越权风险。
-- 分享 latest 指针：后续修订会悄然改变已提交材料。
-
-### Implementation boundary
-
-MVP 不实现账号、团队角色或公开编辑；分享默认 no-store、最小字段、可撤销，并过滤受限全文、密钥、内部错误和未授权输入。
-
-## ADR-027：Project / Run / Artifact / Version 分层领域模型
-
-### Status
-
-Accepted for implementation；Implementation Pending。
-
-### Context
-
-当前 `ResearchTask` 同时承担用户目标、执行状态和结果容器，无法表达同一问题的多次运行、失败重试、局部修订、只读分享与历史对照。
-
-### Decision
-
-`ResearchProject` 表示持续研究上下文，`ResearchRun` 表示一次不可变契约驱动执行，`ResearchArtifact` 表示稳定产物身份，`ArtifactVersion` 表示追加式内容快照。ResearchContract 不保存执行方式；创建 Run 时选择 `execution_mode`。重试、修订和派生创建带 `parent_run_id` 与 `derivation_kind` 的新 Run；版本不原地覆盖，修订版本继续记录其真实来源。
-
-### Consequences
-
-- 正向：并行运行、缓存、修订、分享和复现拥有统一语义。
-- 负向：API 和存储对象增加，迁移期需要把 v1 Task DTO 映射到目标模型。
-
-### Rejected alternatives
-
-- 为每次修订覆盖 Task 结果：无法审计历史截图与证据。
-- 把聊天线程作为项目：领域语义错误，无法定义产物生命周期。
-- 只给产物增加 `version` 字符串：缺少 Run、来源和父子关系。
-
-### Implementation boundary
-
-目标 API 使用 `/api/v2`；当前 `/api/v1/tasks` 保留到新工作台通过契约与 E2E 门禁后再宣布弃用。
+**Rejected:** 覆盖 Task 结果；以聊天线程作为项目；只增加字符串 version。
 
 ## ADR-028：纯浅色雾霾蓝视觉体系
 
-### Status
+**Status:** Accepted for implementation; Pending
 
-Accepted for implementation；Implementation Pending。
+**Decision:** 冷淡灰基底、低饱和雾霾蓝品牌色、深蓝灰文字和独立状态色；只实现浅色系统，使用 OKLCH Raw Scale 与语义 Token。
 
-### Context
+**Rationale:** 提高文献、数据和 Evidence 阅读质量，控制视觉与回归范围。
 
-黑色宇宙背景、霓虹蓝紫和通用 SaaS 卡片会削弱材料阅读与品牌差异；MVP 资源不足以同时完成高质量双主题。
+**Rejected:** 同期深浅双主题；黑底星空；大面积霓虹、渐变和发光。
 
-### Decision
+**Boundary:** 业务组件不硬编码 Raw Color；状态不只靠颜色；字体资产提交前验证许可、来源、字符覆盖和加载策略。
 
-只实现浅色系统：冷淡灰基底、低饱和雾霾蓝品牌色、深蓝灰文字和独立状态色。使用 OKLCH Raw Scale 与语义 Token；ASCII / Dither 强度按首页、工作台、正文分层。
+## 2. 新增与修改规则
 
-### Consequences
-
-- 正向：视觉和科研阅读统一，Token 与视觉回归范围可控。
-- 负向：暂不支持完整深色主题；需要验证雾霾蓝与状态色对比度。
-
-### Rejected alternatives
-
-- 同期深浅双主题：增加 Token、WebGL、图表和视觉回归矩阵。
-- 黑底星空：与高密度文献、数据和 Evidence 阅读冲突。
-- 大面积渐变和发光：降低可信度并增加视觉疲劳。
-
-### Implementation boundary
-
-业务组件不得硬编码 Raw Color；状态不能只靠颜色表达。字体二进制必须完成许可证、来源、中文覆盖和离线策略记录后才能提交。
+- 新的不可逆、高迁移成本或跨模块决策使用下一个 ADR 编号。
+- 修改现行决策时优先新增 ADR 并标记 `Superseded by`，不重写历史。
+- 状态变化同步相关规范、Backlog、Issue 和迁移说明。
+- ADR 不替代实现证据；只有代码、测试和运行通过后，能力才可标记为 Implemented。

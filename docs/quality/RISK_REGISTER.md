@@ -1,56 +1,68 @@
 # Risk Register
 
-## 高风险
+| 元数据    | 值                                         |
+| --------- | ------------------------------------------ |
+| Status    | Accepted                                   |
+| Authority | 当前有效风险、触发信号、缓解措施和关闭条件 |
 
-| 风险 | 影响 | 应对 |
-| --- | --- | --- |
-| 外部数据源不稳定 | Demo 中断、数据无法刷新 | 真实运行缓存兜底，展示 cached 标识 |
-| 论文来源不稳定或限流 | 自动论文获取失败，核心能力无法展示 | 限定主案例、保留真实运行缓存、记录检索参数和来源状态 |
-| 模型输出编造或格式不稳定 | 文献总结和图谱可信度下降 | JSON Schema 校验、Evidence 校验、无效输出不得直出 |
-| 跨文献关系幻觉 | 推理能力被评审质疑 | LiteratureRelation 必须绑定 Evidence 和 ReasoningTrace，无证据关系只作候选 |
-| API Key、数据库或论文源凭据泄露 | 账号、费用与数据风险 | Secret 仅在后端/部署平台，生产启动校验，日志脱敏 |
-| 匿名会话或分享令牌越权 | 未授权读取或修改项目、产物和证据 | 服务端会话所有权校验、CSRF 防护、限流；分享令牌仅存 hash，默认只读、可撤销、可过期 |
-| 三大功能割裂 | 作品像功能拼盘，竞争力下降 | 所有页面围绕同一 Project、Run、Artifact、Evidence 和 ReasoningTrace 链 |
-| 主案例范围扩散 | 进度失控 | MVP 固定 `exoplanet_host_star` |
-| 工作流编排散落在 Router/Pipeline | 非法跳转、失败状态和重试不可控 | 显式状态机、Workflow Executor、数据库 Hooks 边界 |
-| 产物无版本或原地覆盖 | 无法复现提交结果、缓存和人工修正 | `ArtifactVersion` / `Run` 契约，追加式修正 |
-| Fixture、缓存、实时结果与修订关系混淆 | 演示数据被误认为实时科研结果，或把修订误写成来源 | `execution_mode` 只属于 Run；`source_mode` 仅为 fixture/live/cached；修订由派生关系推导，所有产物展示来源与版本 |
+本文只记录仍需主动管理的风险。已解决问题应关闭或降级，并在相关 Issue / PR 留下证据；一般编码规则不在这里重复。
 
-## 中风险
+## 1. 评分
 
-| 风险 | 影响 | 应对 |
-| --- | --- | --- |
-| 前后端字段不一致 | 联调成本上升 | Pydantic authoring source + JSON Schema/OpenAPI 导出 |
-| `/api/v1` 与目标 `/api/v2` 迁移期漂移 | 新旧前端行为不一致，回退困难 | v1 保持冻结兼容；v2 以契约测试和端到端卡口验证，通过后再切换工作台 |
-| Vue 与 Astro + React 双前端长期并存 | 重复实现、路由和视觉规则漂移 | 当前 Vue 仅作可运行基线；目标栈确认后按 A-01～A-03 单向迁移，禁止双写新功能 |
-| Schema 导出未进入 CI | 共享契约名义存在但持续漂移 | CI 每次导出全部 Pydantic Model，后续启用 stale check |
-| Prompt 散落或原地修改 | 模型结果和缓存不可复现 | `packages/prompts` registry + 不可变版本 |
-| seed list 冒充自动获取 | 材料口径失真，演示可信度下降 | seed list 只作为兜底、评测基准和人工校验，自动获取必须有 run 记录 |
-| 图谱只好看但无证据 | 评审质疑科研价值 | 每条边必须有 `evidence_ids`，跨文献边必须有 `reasoning_trace_id` |
-| 文献总结缺少引用脉络 | 难以体现科研工具价值 | PaperSummary 绑定 paper/source/evidence |
-| 论文候选相关性差 | 总结和推理质量下降 | 固定检索基准，候选保留 relevance_score 和 selection_reason |
-| Docker 内前端使用 `api` 服务名 | 浏览器无法访问 API | `VITE_API_BASE_URL` 使用宿主机/公网可访问 URL |
-| localhost 与 127.0.0.1 CORS 口径不一致 | 本地页面请求被阻止 | `.env.example` 同时列入两个本地 origin |
-| WebGL 上下文丢失或低性能设备卡顿 | 科研画布不可用、结果呈现不一致 | 统一 Visual Engine 生命周期、预算上限、`prefers-reduced-motion` 与确定性 Canvas/DOM 降级 |
-| 品牌字体许可或字符覆盖不足 | Web/Tauri 发布受阻，中文或科研符号缺字 | 入库前记录许可证与来源，验证中文、拉丁、希腊字母和数学符号，保留系统字体回退 |
-| CI 仅检查文件存在 | 错误依赖、构建失败仍显示通过 | frozen install、pytest、schema export、frontend build、compose config |
-| 部署平台限制 | 公网 Demo 不稳定 | 前端、后端、数据库分离部署，保留缓存模式 |
-| 成员任务边界不清 | 重复开发或遗漏 | 按 `MODULES.md`、Phase Issue 和 `BACKLOG.md` 认领 |
+- **Critical**：可能导致来源失真、数据泄露、不可恢复版本损坏或作品失效。
+- **High**：可能阻塞核心链路或使关键科研结论不可审查。
+- **Medium**：会显著增加迁移、联调、性能或材料成本。
+- **Low**：影响体验或维护效率，但存在清晰绕行路径。
 
-## 低风险
+## 2. Active risks
 
-| 风险 | 影响 | 应对 |
-| --- | --- | --- |
-| UI 细节不统一 | 展示专业度下降 | DESIGN 和前端 token 规范 |
-| 导出格式不够美观 | 材料复用成本增加 | 先保证 CSV/JSON 正确，再补报告模板 |
-| 文档过期 | 新成员误解项目 | PR 改接口/模型/范围时必须同步文档 |
-| 过早引入通用图数据库/向量库 | 基建复杂度上升 | 真实规模和查询需求出现后再 ADR 评估 |
+| ID   | Severity | 风险                                   | 触发信号                                             | 主要缓解                                                             | 关闭条件 / Owner                |
+| ---- | -------- | -------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------- |
+| R-01 | Critical | Fixture、Live、Cached 或 Revision 失真 | 页面/材料无法定位来源 Run 或把 seed 当自动结果       | 分离 execution/source/derivation；CacheRecord 与 provenance manifest | X-08、A-09、B-10 通过           |
+| R-02 | Critical | Session / Share 越权                   | 跨会话 ID 可读取；分享暴露编辑能力或动态 latest      | 服务端 ownership、CSRF、token hash、冻结 ShareSnapshot               | B-04、B-11、X-02 安全测试通过   |
+| R-03 | Critical | ArtifactVersion 原地覆盖或版本链损坏   | 历史截图无法复现；supersedes 环或 latest 指向不一致  | 追加式版本、事务约束、RevisionPlan、冲突测试                         | X-08 版本与并发测试通过         |
+| R-04 | High     | 外部数据/论文来源不稳定                | 超时、限流、Schema 漂移、空结果显著增加              | Adapter、重试分类、SourceSnapshot、真实缓存建议                      | X-06 真实/录制源与失败测试通过  |
+| R-05 | High     | 模型输出无效或编造                     | Schema 失败、Evidence 缺失、unsupported 增加         | 结构校验、Evidence 门、Benchmark、禁止自由文本直出                   | D-03/D-04 与 X-07 指标达标      |
+| R-06 | High     | Relation / Graph 产生无证据关系        | Accepted Relation 无双方 Evidence；Graph 悬空引用    | candidate/accepted/rejected、Trace、Graph 完整性门                   | X-07 Benchmark 与完整性测试通过 |
+| R-07 | High     | Case Manifest 与实现漂移               | 字段、单位、来源或 taxonomy 在代码中出现第二套定义   | C-01/D-01/X-00 单一版本、Contract 校验和 hash                        | X-00 冻结且 stale check 进入 CI |
+| R-08 | High     | v1/v2 Contract 与实现状态漂移          | v1 DTO 被当作 v2 目标，或 Pending 资源被写成 Current | 版本边界、生成 Contract、状态口径与集成测试                          | B-04、A-03、X-01 通过           |
+| R-09 | Medium   | WebGL 性能或 context loss 破坏主体验   | 低端设备卡顿、页面隐藏仍渲染、Canvas 崩溃后空白      | 质量档、Poster、Reduced Motion、pause/dispose                        | A-02 与 X-02 降级测试通过       |
+| R-10 | Medium   | 数据 crossmatch 或单位规则错误         | 匹配冲突率高、单位不可转换、误差/limit 丢失          | 版本化规则、人工样例、冲突保留、Evidence                             | C-03～C-05 固定样例通过         |
+| R-11 | Medium   | Prompt / model 变更导致结果不可复现    | 使用“最新版本”、历史缓存无法定位生成条件             | Prompt registry、ProducerExecution、input/output hash                | D-03/D-04 和 X-08 版本链通过    |
+| R-12 | Medium   | 部署配置与本地基线漂移                 | 深链接 404、Cookie/CORS 失败、migration 不一致       | Preview smoke、路由 fallback、环境隔离、发布记录                     | X-02 发布检查通过               |
+| R-13 | Medium   | 文档、Issue 与实现再次漂移             | Backlog 标题/依赖过期；同一规则多处冲突              | 文档治理、唯一事实源、索引和 PR 检查                                 | 文档 CI / Review 持续执行       |
+| R-14 | Medium   | 第三方许可或字体来源不清               | 无许可证、受限全文或不可分发资产进入发布物           | 来源/许可记录、Reference 隔离、资产审查                              | A-02、X-03 资产清单通过         |
+| R-15 | Low      | 材料与系统版本不一致                   | 视频、PDF、截图和网页展示不同结果                    | provenance manifest、固定 Run/Version、content hash                  | X-03 自主走读通过               |
 
-## 风险处理原则
+## 3. 风险处理流程
 
-1. 影响 Demo 稳定性的风险优先处理。
-2. 影响科研可信性的风险优先处理。
-3. 影响自动论文获取和跨文献推理主链路的风险不得后置为“展示优化”。
-4. 影响密钥、版本与证据链的风险必须有机器校验或运行时防线。
-5. 影响美观但不影响主链路的风险后置。
-6. 无法本周解决的风险必须写明兜底方案、责任 Issue 和验收条件。
+1. 在 Issue / PR 中引用 Risk ID。
+2. 记录触发信号、影响范围和临时缓解。
+3. Critical / High 风险必须有明确 Owner Issue 和验证计划。
+4. 缓解措施进入代码、Contract、测试或运行门禁，不能只写说明。
+5. 关闭风险时附 Commit、测试、运行或材料证据。
+6. 风险条件变化时调整 Severity，不删除历史讨论。
+
+## 4. 接受与例外
+
+风险接受必须说明：
+
+- 为什么当前不修；
+- 暴露范围和最长接受时间；
+- 用户/评审可见影响；
+- 监测信号和触发修复条件；
+- 负责人批准。
+
+不能接受的例外包括：来源伪装、密钥暴露、跨会话越权、历史版本破坏、无 Evidence 最终关系和绕过必要 CI。
+
+## 5. Review 要求
+
+PR 审查时检查：
+
+- 是否新增或显著改变风险；
+- 是否使已有缓解失效；
+- 是否需要更新 Severity、Owner 或关闭条件；
+- 是否引入未经 ADR 的基础设施或权限面；
+- 是否有可重复的风险验证证据。
+
+没有活跃风险变化时，不为形式修改本文件。

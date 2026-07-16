@@ -1,147 +1,177 @@
 # Module Boundaries
 
-| 项目状态 | 口径 |
-| --- | --- |
-| Status | Accepted for implementation |
-| Implementation | Pending for target frontend and v2 contracts |
-| Current runtime | `apps/web` Vue 骨架 + `apps/api` FastAPI |
-| Target runtime | `apps/site` Astro + `apps/workspace` React + shared packages |
+| 元数据         | 值                                                            |
+| -------------- | ------------------------------------------------------------- |
+| Status         | Accepted                                                      |
+| Authority      | 跨模块职责、输入输出、依赖方向和交接边界                      |
+| Implementation | A-01 frontend runtime current；A-02/A-03 与 `/api/v2` Pending |
 
-本文件同时标明当前实现与目标边界，避免把计划目录写成已存在。当前 Docker、启动命令和 v1 API 继续以 `README.md`、`docs/setup.md` 和代码为准。
+本文不维护完整前端目录、技术选型或任务顺序。前端包结构见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)，实时任务依赖见 [Backlog](../product/BACKLOG.md)。
 
-## 1. 当前与目标目录
-
-| 目录 | 状态 | 职责 |
-| --- | --- | --- |
-| `apps/web` | Current, migration source | Vue / Vite 骨架；目标迁移完成后删除 |
-| `apps/site` | Target, pending | Astro 静态品牌站、首页四幕、SEO、React visual island |
-| `apps/workspace` | Target, pending | React Guided Tour 与 Research Workspace |
-| `apps/desktop` | Documentation only | 未来 Tauri 壳；本轮不创建 |
-| `apps/api` | Current, evolving | FastAPI、v1 基线、目标 v2 Application Service 与 Workflow |
-| `packages/design-tokens` | Target, pending | OKLCH Raw / Semantic Token、字体、motion、visual token |
-| `packages/ui` | Target, pending | React UI primitives 与产品组件，不调用 HTTP |
-| `packages/visual-engine` | Target, pending | Three.js / R3F / GLSL、ASCII atlas、质量与生命周期 |
-| `packages/domain` | Target, pending | Project / Run / Artifact / Version 稳定领域模型 |
-| `packages/contracts` | Target, pending | 生成 Transport Type、OpenAPI / JSON Schema 校验 |
-| `packages/data-access` | Target, pending | Repository Port、HTTP / Fixture Adapter、Mapper、错误归一化 |
-| `packages/workspace-core` | Target, pending | 面板、选择、命令、Research Console 上下文、分享状态 |
-| `packages/testing` | Target, pending | 版本化 Fixture、测试工具、a11y 与视觉基线 |
-| `packages/schemas` | Current transition | Pydantic 导出的 Phase 0 JSON Schema；迁移时并入 contracts 流程 |
-| `packages/prompts` | Current | 不可变生产 Prompt 与 registry |
-| `services/data_pipeline` | Planned implementation | 数据获取、清洗、字段映射、质量和导出 |
-| `services/paper_pipeline` | Planned implementation | 论文检索、获取、去重、总结和来源绑定 |
-| `services/graph_pipeline` | Planned implementation | Claim、Relation、Trace 和 Graph 构建 |
-
-## 2. 依赖方向
+## 1. 依赖方向
 
 ```mermaid
 flowchart LR
-  Site["apps/site"] --> UI["packages/ui"]
-  Site --> Visual["packages/visual-engine"]
-  Workspace["apps/workspace"] --> UI
-  Workspace --> Core["packages/workspace-core"]
-  Workspace --> Access["packages/data-access"]
-  Core --> Domain["packages/domain"]
-  Access --> Domain
-  Access --> Contracts["packages/contracts"]
-  API["apps/api"] --> Workflow["workflow"]
-  Workflow --> Data["data pipeline"]
-  Workflow --> Paper["paper pipeline"]
-  Workflow --> Graph["graph pipeline"]
+  Experience["Site / Tour / Workspace"] --> App["Frontend Application Services"]
+  App --> Access["Repository Ports / Adapters"]
+  Access --> API["API Application Services"]
+  API --> Workflow["ResearchRun Workflow"]
+  Workflow --> Data["Data Pipeline"]
+  Workflow --> Paper["Paper Pipeline"]
+  Workflow --> Reasoning["Reasoning / Graph Pipeline"]
+  Data --> Artifacts["ArtifactVersion / Evidence / SourceSnapshot"]
+  Paper --> Artifacts
+  Reasoning --> Artifacts
+  Artifacts --> API
 ```
 
-禁止：
+禁止反向依赖：
 
-- Domain 依赖 React、Astro、HTTP 或平台 API。
-- UI、Visual Engine 或页面直接调用 HTTP。
-- Visual Engine 读取 Transport DTO 或成为科研数据来源。
-- Pipeline 调用 Router 或推进 Run 主状态。
-- 前端直连模型、天文数据源或论文源。
-- Prompt 散落在 Router、组件或临时脚本。
-- generated Schema 成为手工 authoring source。
+- Domain 依赖 React、Astro、HTTP 或平台 API；
+- UI、Visual Engine 或页面直接调用 HTTP 或外部科研来源；
+- Pipeline 调用 Router 或推进 ResearchRun 主状态；
+- Workflow 内嵌字段映射、论文检索、Prompt 或图谱算法；
+- generated Contract 成为手工编写源；
+- Prompt 散落在 Router、组件或临时脚本；
+- 前端状态替代服务端 Run、ArtifactVersion 或权限事实。
 
-## 3. A 前端与产品体验
+## 2. A：前端与产品体验
 
-### 3.1 负责范围
+### 输入
 
-- `apps/site`、`apps/workspace`；
-- `packages/design-tokens`、`ui`、`visual-engine`、`domain`、`contracts`、`data-access`、`workspace-core`、`testing` 的前端部分；
-- 首页四幕、Guided Tour、Research Contract、科研产物工作台、分享与状态体验。
+- PRD、DESIGN、Visual Language 和 Workspace UX；
+- 生成 Transport Contract 与稳定 Domain Model；
+- Run、ArtifactVersion、Evidence、SourceSnapshot 和可执行动作；
+- 版本化 Fixture 与测试基准。
 
-### 3.2 必须交付
+### 输出
 
-- 静态首屏、SEO、WebGL Poster / Reduced Motion 降级；
-- Research Atlas、最多三面板 Canvas、Provenance Observatory、Research Console；
-- Fixture / HTTP Adapter 同一 Domain Model 与一致性测试；
-- Dataset、Paper、Summary、Reasoning、Graph、Evidence、Feedback 的完整状态；
-- 键盘、a11y、视觉回归和性能门禁。
+- Brand Site、Guided Tour 和 Research Workspace；
+- Research Contract、项目/运行导航和最多三面板 Research Canvas；
+- Provenance Observatory、Research Console、分享和反馈体验；
+- Fixture / HTTP Adapter、Domain mapper 和前端状态模型；
+- a11y、visual、E2E、性能和降级测试。
 
-### 3.3 禁止
+### 不负责
 
-- 在迁移期同时向 Vue 与 React 增加同一业务功能；
-- 让 Fixture 冒充 Live / Cached，或自行补造后端科研结果；
-- 使用聊天流、IDE 或无限自由窗口作为核心模型；
-- 在业务组件散落 Raw Color、裸 URL、组件内 fetch 或未经净化 HTML。
+- 直接调用模型、数据源或论文源；
+- 决定 Run 状态、缓存选择、版本发布或访问权限；
+- 自行补造后端未返回的科研事实；
+- 在 Site 与 Workspace 重复维护同一业务状态。
 
-## 4. B 后端与 Workflow
+## 3. B：API、Application 与 Workflow
 
-负责 `apps/api`、Pydantic authoring source、v1 稳定性与 v2 资源 API。
+### 输入
 
-必须：
+- ResearchContract、用户动作和 Session；
+- Pipeline 的结构化产物；
+- Pydantic Schema、Prompt registry 和部署配置。
 
-- Router 只处理传输、授权和 Application Service 调用；
-- Workflow 管理 Run / Step / Attempt / Event，Pipeline 管理业务算法；
-- PostgreSQL 成为状态事实来源；
-- OpenAPI / JSON Schema 可重复生成并驱动 `packages/contracts`；
-- 匿名 Session、CSRF、Share token hash、授权、限流与安全错误可测试；
-- ArtifactVersion、Evidence、SourceSnapshot、CacheRecord 与 Feedback 关系可审查。
+### 输出
 
-不得返回模型自由文本作为科研事实，不得保存私有 chain-of-thought，不得在日志暴露密钥或受限全文。
+- `/api/v1` 回归稳定性与 Pending `/api/v2` 资源 API；
+- Session、Project、Contract、Run、Event、Artifact、Version、Workspace 和 Share；
+- Workflow、幂等、取消、重试、CacheSelector、Feedback 与 RevisionPlan；
+- OpenAPI / JSON Schema、Problem Details 和授权语义；
+- PostgreSQL 持久化、事务、版本登记和导出。
 
-## 5. C 数据 Pipeline
+### 不负责
 
-输入：ResearchContract、已校验来源配置、父 Run 可复用版本。
+- 具体数据清洗、论文检索、Relation 算法或图谱布局；
+- 在 Router 中串联完整科研链路；
+- 返回未经校验的模型自由文本；
+- 保存密钥、受限全文或模型私有推理。
 
-输出：Dataset、FieldDefinition、QualityScore、SourceSnapshot、Evidence、Export content。
+## 4. C：数据 Pipeline
 
-必须记录单位、来源、转换规则、query hash、producer version 与关键值 Evidence。不得手写无来源字段或把 Fixture 当真实数据。
+### 输入
 
-## 6. D 论文与总结 Pipeline
+- Case / Field Manifest；
+- ResearchContract 的对象、字段、来源和质量约束；
+- 数据源配置、父 Run 可复用 ArtifactVersion 和 RevisionPlan。
 
-输入：ResearchContract、数据 ArtifactVersion、论文来源、版本化 Prompt。
+### 输出
 
-输出：PaperCollection、PaperCandidate、PaperSummary、SourceSnapshot、Evidence。
+- 原始查询和 SourceSnapshot；
+- crossmatch 与匹配 Evidence；
+- Dataset、FieldDictionary、SourceCollection 和 Quality 内容；
+- mapping / unit / quality rule version、input/output hash；
+- 数据修订内容和 Export 输入。
 
-必须记录 Query、来源、去重、排序、选择依据和许可边界；seed 仅用于 benchmark、Fixture 或人工校验。
+### 不负责
 
-## 7. D 推理与图谱 Pipeline
+- 推进 Run 状态、发布 HTTP DTO 或选择缓存；
+- 使用缓存代替第二真实来源；
+- 把缺失值、低置信匹配或质量分解释为科学事实。
 
-输入：已校验 Summary、Claim、Evidence 与数据 ArtifactVersion。
+## 5. D：论文、推理与图谱 Pipeline
 
-输出：Claim、候选/最终 Relation、ReasoningTrace、Graph 与 Evidence。
+### 输入
 
-Accepted Relation 需要 Evidence、显式条件和 ReasoningTrace；GraphEdge 全部绑定 Evidence，跨文献边再绑定 Relation / Trace。不得为装饰制造节点或边。
+- Benchmark Package、ResearchContract 和数据 ArtifactVersion；
+- 论文来源、版本化 Prompt、已校验 Summary / Claim / Evidence；
+- 父 Run 可复用 ArtifactVersion 和 RevisionPlan。
 
-## 8. X 基建
+### 输出
 
-当前负责 Compose、CI、env、版本锁定和验证脚本。前端迁移实施前更新 ADR、Issue 与 target command；实施完成前不改 `docs/setup.md` 当前命令。
+- PaperCollection、PaperSummary 和 SourceSnapshot；
+- Claim、candidate/accepted/rejected Relation、ReasoningTrace；
+- 通过完整性门的 Graph 内容；
+- Prompt/model/producer、input/output hash 和评测报告；
+- 文献、推理和 Graph 修订内容。
 
-MVP 不因 Monorepo 引入 Redis、Celery、MinIO、Nginx、RabbitMQ、Neo4j 或向量数据库。Turborepo 只有在任务图和缓存收益明确时使用。
+### 不负责
 
-## 9. Platform Adapter
+- 绕过来源许可、付费全文或安全边界；
+- 让 seed 冒充自动检索；
+- 让无 Evidence / Trace 的关系进入最终 Graph；
+- 记录模型私有 chain-of-thought；
+- 为视觉效果制造科研节点和边。
 
-Web 实现 FileExport、Notification、LocalCache、DeepLink 等 Port。未来 Tauri 只替换这些 Adapter；Feature、Domain、Repository 与 Workspace Core 不 import Tauri API。本轮不创建桌面应用。
+## 6. X：基建、集成与交付
 
-## 10. 联调顺序
+### 输入
 
-1. 文档、ADR、v2 Contract 与 A-01～A-10 Issue 冻结。
-2. A-01 建立应用/共享包空骨架、依赖边界和 lint/typecheck/test/build 门禁，不实现产品组件或 Shader。
-3. A-02 建立 Token、primitive、BrandMark、Visual Engine runtime、首页静态/视觉框架和静态 Workspace Shell，不绑定领域状态。
-4. A-03 在 A-02 Shell 上绑定 Research Contract、Project / Run、Fixture / HTTP Adapter、Guided Tour FSM、WorkspaceSnapshot 与交互，不重建 Shell。
-5. B / C / D 分阶段实现 v2、真实数据、论文、推理和图谱，A-04～A-08 接入。
-6. A-09 / A-10 对齐来源、版本、缓存和修订；完成分享与交付。
-7. 新前端通过 Contract、E2E、a11y、visual、fallback 和部署门禁后删除 `apps/web`。
+- A/B/C/D 的可运行模块、Contract、测试和部署要求。
 
-## 11. 交接标准
+### 输出
 
-每个模块交接必须提供：输入/输出 Schema、错误与权限场景、Fixture / Live 样例、Evidence/版本要求、验证命令与结果、契约/风险/材料影响。未实现内容明确标记 Pending，不得写成已完成。
+- Compose、CI、环境变量、版本锁定和生成物门禁；
+- X-01、X-06、X-07、X-08 阶段集成验收；
+- 公网 Site / Workspace / API / DB 部署；
+- START HERE、材料 provenance 和复现入口。
+
+### 不负责
+
+- 替代原子 Issue 实现业务；
+- 在没有 ADR 和真实负载依据时引入复杂基础设施；
+- 用部署成功替代科研链路和 Evidence 验收。
+
+## 7. 共享事实的所有权
+
+| 事实                             | 唯一所有者                                 |
+| -------------------------------- | ------------------------------------------ |
+| Product scope and flow           | PRD                                        |
+| Experience and design principles | DESIGN / design docs                       |
+| Transport Contract               | API Contract + generated OpenAPI/Schema    |
+| Domain entities                  | Data Model                                 |
+| Run lifecycle                    | Workflow Design                            |
+| Version/cache/revision/share     | Data Versioning                            |
+| Prompt content and version       | `packages/prompts` + Prompt Versioning     |
+| Relation admission               | Reasoning Protocol                         |
+| Current task state               | GitHub Issue / Milestone                   |
+| Runtime status                   | Code, deployment and verified run evidence |
+
+## 8. 交接标准
+
+跨模块交接至少提供：
+
+- 输入/输出 Schema 和版本；
+- 示例及其数据等级；
+- Evidence、SourceSnapshot、hash 和 producer 要求；
+- 错误、权限、空结果和失败场景；
+- 可执行验证命令和结果；
+- Contract、风险、部署和材料影响；
+- 明确的非目标和未实现项。
+
+缺少这些信息时，消费者不得根据字段名或示例自行推断生产语义。

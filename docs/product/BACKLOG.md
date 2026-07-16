@@ -1,86 +1,75 @@
-# Backlog
+# Backlog Dependency Map
 
-任务编号前缀：`A` 前端，`B` 后端，`C` 数据，`D` 文献/图谱，`X` 跨模块。
+| 元数据    | 值                                  |
+| --------- | ----------------------------------- |
+| Status    | Accepted                            |
+| Authority | Open Issue 的职责、依赖与交付物索引 |
 
-## P0：冻结目标前端并保持当前基线可运行
+GitHub Open Issues 是标题、正文、标签、Milestone 和实时状态的唯一来源。本文只维护 `ID / 标题 / Owner / Dependency / Deliverable`，不复制验收清单或完成百分比。
 
-当前 `X-00`、`X-04`、Vue / FastAPI 骨架与 `X-05` 已形成 Phase 0 基线。A 线按新的 Astro + React、科研产物优先和 ASCII / Dither 方案继续，迁移期保持当前命令可运行，不向旧 Vue 增加业务功能。
+## M1 开发基线
 
-| ID | 任务 | 负责人 | 产出 | 依赖 |
-| --- | --- | --- | --- | --- |
-| X-00 | 冻结 MVP 最小真实依据 | A + B + C + D | 字段清单、论文获取来源、检索关键词、seed list、跨文献关系类型、Graph 最小关系类型 | 无 |
-| X-04 | 建立 Docker Compose 本地开发基线 | A + B | `web`、`api`、`postgres` 三容器，固定 Node 24、Python 3.13、PostgreSQL 17、pnpm、uv | X-00 |
-| C-01 | 确定 MVP 字段清单 | C | 字段名、含义、单位、来源优先级 | X-00 |
-| D-01 | 确定论文获取与推理基准 | D | 论文源候选、检索关键词、5-8 篇 seed list、Claim/Relation 样例 | X-00 |
-| A-01 | 重构前端 Monorepo 与运行时基线 | A | 应用/共享包空骨架、依赖边界、strict TS、lint/typecheck/test/build 与旧前端迁移策略；不实现产品组件或 Shader | X-04 |
-| B-01 | 初始化 FastAPI 与 uv 后端骨架 | B | FastAPI + Python 3.13 + uv 可启动，Docker API 服务可运行 | X-04 |
-| X-05 | 建立基础 CI 与依赖漂移卡口 | A + B | foundation check、frozen install、前端构建、后端测试、Schema 导出、Compose 校验 | X-04, A-01, B-01 |
-| B-02 | 定义 Pydantic Schema 初版 | B | 与 DATA_MODEL 对齐，包含 PaperAcquisition、Claim、Relation、Trace；可导出 JSON Schema | B-01, C-01, D-01 |
-| B-03 | 创建任务/查询任务接口 | B | `/api/v1/health`、`/api/v1/tasks` 可用 | B-02 |
-| B-04 | 实现 `/api/v2` 最小领域与传输契约 | B | ResearchSession、ResearchProject、ResearchContractDraft、ResearchContract、ResearchRun、RunEvent、ResearchArtifact、ArtifactVersion、WorkspaceSnapshot、ShareSnapshot 的最小 Schema、资源与生成 Contract | B-02, C-01, D-01 |
-| A-02 | 建立品牌视觉系统、首页与科研工作台静态框架 | A | Token、primitive、BrandMark、视觉运行时、首页静态/视觉框架、静态 Workspace Shell 与 fallback；不绑定领域状态 | A-01 |
-| A-03 | 建立 Research Contract、Guided Tour 与契约驱动双通道 | A | 在 A-02 Shell 上绑定 Project/Run、Contract、Repository Port、Fixture/HTTP、Tour FSM、WorkspaceSnapshot、交互与分享；不重建 Shell | A-01, A-02, B-04 |
-| X-01 | 完成真实 `/api/v2` Contract 集成 | A + B | HTTP Adapter 接入 B-04 生成 Contract，Fixture / HTTP 返回同一 Domain Model，一致性和主流程集成测试通过 | A-03, B-04, X-05 |
+| ID  | 标题                                                      | Owner | Dependency    | Deliverable                                                                            |
+| --- | --------------------------------------------------------- | ----- | ------------- | -------------------------------------------------------------------------------------- |
+| #2  | X-00 集成并冻结 MVP Case Manifest 与科研基准              | X     | #5、#6        | 冻结 Case Manifest、Source Policy、论文/推理 Benchmark 与 Graph taxonomy               |
+| #3  | A-01 完成 Astro + React Monorepo 运行时硬切换             | A     | —             | Astro Site、React Workspace、八个共享包、根工具链、CI 与 Compose                       |
+| #5  | C-01 冻结主案例 Case / Field Manifest                     | C     | —             | 版本化字段、单位、来源、crossmatch 与 Evidence locator 规则                            |
+| #6  | D-01 冻结论文获取与推理 Benchmark Package                 | D     | —             | Search、Paper、Claim/Relation、Evidence 与 Graph 基准                                  |
+| #28 | B-04 实现 `/api/v2` 最小领域与传输契约                    | B     | #2、#4、#26   | Session、Project、Contract、Run、Event、Artifact、Version、Workspace 与 Share Contract |
+| #29 | A-02 建立品牌视觉系统、首页与科研工作台框架               | A     | #3            | Token、BrandMark、Visual Engine runtime、静态 Site 与 Workspace Shell                  |
+| #30 | A-03 建立 Research Contract、Guided Tour 与契约驱动双通道 | A     | #3、#28、#29  | Project/Run、Contract、Repository、Fixture/HTTP、Tour、WorkspaceSnapshot 与 Share      |
+| #31 | X-01 完成真实 `/api/v2` Contract 集成                     | X     | #23、#28、#30 | 生成 Contract、Adapter 一致性、Session、Workspace 与 Share 主流程                      |
 
-## P1：数据主链路
+## M2 数据 Artifact 主链路
 
-| ID | 任务 | 负责人 | 产出 | 依赖 |
-| --- | --- | --- | --- | --- |
-| C-02 | 接入主数据源查询 | C | 原始查询结果和 SourceRecord | C-01 |
-| C-03 | 接入补充来源或缓存来源 | C | 第二来源说明 | C-02 |
-| C-04 | 字段映射和单位统一 | C | FieldDefinition + 清洗后 rows | C-02 |
-| C-05 | 数据质量评分 | C | QualityScore | C-04 |
-| B-05 | 数据结果 API 对接 | B + C | dataset/sources/export 接口 | C-04 |
-| A-04 | 构建数据产物研究画布 | A | 虚拟化数据表、字段字典、来源、质量、对照、导出、Evidence 与完整状态 | A-03, B-05 |
+| ID  | 标题                                             | Owner | Dependency    | Deliverable                                   |
+| --- | ------------------------------------------------ | ----- | ------------- | --------------------------------------------- |
+| #32 | C-02 接入主数据源 Adapter 与 SourceSnapshot      | C     | #2、#5        | 主数据源查询、原始响应快照与来源记录          |
+| #33 | C-03 接入补充来源并实现跨源实体对齐              | C     | #5、#32       | 补充来源、crossmatch 结果与匹配 Evidence      |
+| #34 | C-04 实现版本化字段映射、单位统一与数据 Artifact | C     | #32、#33      | Dataset、FieldDictionary、规则版本与 hash     |
+| #35 | C-05 实现分层数据质量与 Evidence 覆盖评估        | C     | #34           | Quality Artifact、覆盖率与冲突结果            |
+| #36 | B-05 实现数据 Artifact、分页与导出 API           | B     | #28、#32～#35 | 数据 Artifact、分页、Evidence 与导出 Contract |
+| #37 | A-04 构建数据产物研究画布                        | A     | #30、#36      | 数据表、字段、质量、来源与 Evidence 对照体验  |
 
-## P1：论文获取、文献总结与跨文献推理
+## M2 论文与 Summary Artifact
 
-| ID | 任务 | 负责人 | 产出 | 依赖 |
-| --- | --- | --- | --- | --- |
-| D-02 | 论文自动获取 Pipeline | D | PaperSearchQuery、PaperAcquisitionRun、PaperCandidate | D-01 |
-| B-06 | 论文获取 API 对接 | B + D | `/paper-acquisition` 接口 | D-02 |
-| A-05 | 构建论文获取与候选审查工作区 | A | 检索参数、来源、候选、去重、排序、选择依据、运行来源和 Evidence 对照 | A-03, B-06 |
-| D-03 | 文献总结 Prompt 与 Schema | D | PaperSummary JSON + Evidence | D-02 |
-| B-07 | 文献总结 API 对接 | B + D | `/papers` 接口 | D-03 |
-| A-06 | 构建文献总结与 Evidence 阅读工作区 | A | 目标、方法、数据、结论、局限、locator、短引用/值与文献对照 | A-03, A-05, B-07 |
-| D-04 | Claim/Relation/ReasoningTrace 构建 | D | LiteratureClaim、LiteratureRelation、ReasoningTrace | D-03 |
-| B-08 | 跨文献推理 API 对接 | B + D | `/literature-reasoning` 接口 | D-04 |
-| A-07 | 构建跨文献推理与 Trace 对照工作区 | A | Claim、候选/最终 Relation、Trace、条件、Evidence 与三面板对照 | A-06, B-08 |
-| D-05 | 图谱节点/边生成 | D | Graph JSON，包含跨文献关系 | C-04, D-04 |
-| B-09 | 证据详情和图谱 API | B + D | `/graph`, `/evidence/{id}` | D-05 |
-| A-08 | 构建学术图谱与溯源观测台 | A | React Flow 证据图谱、Provenance Observatory、产物联动和规模控制 | A-07, B-09 |
+| ID  | 标题                                                         | Owner | Dependency    | Deliverable                                               |
+| --- | ------------------------------------------------------------ | ----- | ------------- | --------------------------------------------------------- |
+| #38 | D-02 实现论文检索、去重与 PaperCollection Pipeline           | D     | #2、#6        | Query、canonicalization、排序、选择依据与 PaperCollection |
+| #39 | B-06 实现论文检索与 PaperCollection Artifact API             | B     | #28、#38      | PaperCollection、Run/Version 与来源 API                   |
+| #40 | A-05 构建论文获取与候选审查工作区                            | A     | #30、#39      | 论文候选、检索依据、来源和选择状态体验                    |
+| #41 | D-03 实现版本化 PaperSummary Prompt、Schema 与 Evidence 校验 | D     | #6、#38       | PaperSummary、Prompt 版本与 Evidence 校验                 |
+| #42 | B-07 实现 PaperSummary Artifact 与 Evidence API              | B     | #28、#41      | PaperSummary、Evidence 与版本 API                         |
+| #43 | A-06 构建文献总结与 Evidence 阅读工作区                      | A     | #30、#40、#42 | Summary、引用、局限与 Evidence 对照体验                   |
 
-## P2：反馈、缓存、部署
+## M2 推理与 Graph Artifact
 
-| ID | 任务 | 负责人 | 产出 | 依赖 |
-| --- | --- | --- | --- | --- |
-| B-10 | 缓存兜底机制 | B | data/paper/model/reasoning cache record + cached meta | B-05, B-07, B-08, B-09 |
-| A-09 | 建立运行来源、缓存、版本与质量状态系统 | A | Fixture/Live/Cached 来源、派生修订、version、retrieved_at、SourceSnapshot 跨页面一致 | A-03, B-10, version/cache Contract |
-| A-10 | 建立上下文反馈与局部修正体验 | A | Field/Source/Paper/Claim/Relation/Trace/GraphEdge 反馈、RevisionPlan 和新 ArtifactVersion 状态 | A-04, A-06, A-07, A-08, B-11, feedback Contract |
-| B-11 | 反馈修正接口 | B | Feedback / Revision API；修正创建派生 Run 与新 ArtifactVersion | target Feedback / Revision Contract |
-| C-06 | 字段/单位局部修正 | C | 修正记录和重导出 | B-11 |
-| D-06 | 文献/推理/图谱局部修正 | D | evidence、relation、trace 更新 | B-11 |
-| X-02 | 公网 Demo 部署 | A + B | URL、环境变量、缓存验证 | 核心链路完成 |
-| X-03 | 材料交接包 | 全员 | 截图、CSV、论文候选、推理图谱、说明 | X-02 |
+| ID  | 标题                                                      | Owner | Dependency | Deliverable                                       |
+| --- | --------------------------------------------------------- | ----- | ---------- | ------------------------------------------------- |
+| #44 | D-04 实现 Claim / Relation / ReasoningTrace 准入与评测    | D     | #6、#41    | Claim、Relation、Trace、准入结果与 Benchmark      |
+| #45 | B-08 实现 Claim、Relation 与 Trace Artifact API           | B     | #28、#44   | 推理 Artifact、Evidence 与 Trace API              |
+| #46 | A-07 构建跨文献推理与 Trace 对照工作区                    | A     | #43、#45   | Claim、Relation、条件、Trace 与 Evidence 对照体验 |
+| #47 | D-05 生成版本化证据图谱并执行完整性校验                   | D     | #34、#44   | Graph Artifact、taxonomy 与完整性报告             |
+| #48 | B-09 实现 Graph Artifact 与 Evidence / SourceSnapshot API | B     | #28、#47   | Graph、Evidence、SourceSnapshot 与版本 API        |
+| #49 | A-08 构建学术图谱与溯源观测台                             | A     | #46、#48   | Graph、推理、来源和版本联动体验                   |
 
-## 跨阶段集成 Issue
+## M3 版本、缓存与修订
 
-这些 Issue 是阶段级验收与集成门，不替代上面的 A/B/C/D 原子任务。
+| ID  | 标题                                                  | Owner | Dependency                   | Deliverable                                      |
+| --- | ----------------------------------------------------- | ----- | ---------------------------- | ------------------------------------------------ |
+| #50 | B-10 实现 CacheRecord 与 CacheSelector                | B     | #36、#39、#42、#45、#48      | 缓存登记、匹配、选择原因与失败语义               |
+| #51 | A-09 建立运行来源、缓存、版本与质量状态系统           | A     | #30、#50                     | 来源、质量、版本和缓存状态体验                   |
+| #52 | A-10 建立上下文反馈与局部修正体验                     | A     | #37、#43、#46、#49、#53      | Feedback、RevisionPlan 与版本对照体验            |
+| #53 | B-11 实现 Feedback、RevisionPlan 与 revision Run API  | B     | #28、#36、#39、#42、#45、#48 | Feedback、影响闭包、冲突与 revision Run Contract |
+| #54 | C-06 执行数据 RevisionPlan 并生成新 ArtifactVersion   | C     | #34、#35、#53                | 数据派生 Run、新版本与 supersedes 链             |
+| #55 | D-06 执行文献 / 推理 / 图谱 RevisionPlan 并生成新版本 | D     | #41、#44、#47、#53           | 文献、推理与 Graph 派生版本                      |
 
-| ID | 阶段 | 目标 | 聚合依赖 |
-| --- | --- | --- | --- |
-| X-06 | Phase 1 | 真实数据、自动论文获取、结构化总结与 Evidence 主链路 | C-02~C-05、D-02~D-03、B-05~B-07、A-04~A-06 |
-| X-07 | Phase 2 | Claim/Relation/Trace、Graph 与证据查看闭环 | D-04~D-05、B-08~B-09、A-07~A-08 |
-| X-08 | Phase 3 | 版本/实验治理、缓存、反馈、部署与材料交付 | B-10~B-11、A-09~A-10、C-06、D-06、X-02~X-03 |
+## M3 部署、材料与阶段门
 
-## 暂缓任务
-
-| 任务 | 暂缓原因 |
-| --- | --- |
-| 任意天文方向支持 | 会削弱主案例稳定性 |
-| 全网无限制论文爬取 | 来源合规和稳定性不可控，MVP 限定主案例和可运行来源 |
-| 任意 PDF 全文高精度解析 | 成本高，MVP 优先元数据、摘要和开放可访问文本片段 |
-| Redis / Celery | MVP 先用 FastAPI + DB 状态机 / BackgroundTasks，任务变重后再评估 |
-| MinIO / Nginx / RabbitMQ | M1 不需要，过早引入会增加团队环境复杂度 |
-| 多用户权限系统 | 比赛演示不是核心风险 |
-| Neo4j / 通用 Entity 层 / 向量数据库 | 真实规模和查询需求尚未证明需要 |
+| ID  | 标题                                                   | Owner | Dependency               | Deliverable                                               |
+| --- | ------------------------------------------------------ | ----- | ------------------------ | --------------------------------------------------------- |
+| #56 | X-02 部署公网 Brand Site、Workspace 与 API             | X     | #50、#51、#52、#53、#63  | 公网 Site、Workspace、API、数据库与发布验证               |
+| #57 | X-03 构建可复现的作品提交与材料交接包                  | X     | #51、#52、#56、#62、#63  | START HERE、材料 provenance 与复现入口                    |
+| #62 | X-06 Phase 1：打通 v2 数据、论文与总结 Artifact 主链路 | X     | #28、#31～#43 中相关任务 | Dataset、PaperCollection、PaperSummary 与 Evidence 集成门 |
+| #63 | X-07 Phase 2：打通 v2 推理与证据图谱 Artifact 闭环     | X     | #44～#49、#62            | Claim、Relation、Trace、Graph 与 Evidence 集成门          |
+| #64 | X-08 Phase 3：完成版本、缓存、修订与稳定交付闭环       | X     | #50～#57、#63            | 版本、缓存、修订、部署与材料退出门                        |

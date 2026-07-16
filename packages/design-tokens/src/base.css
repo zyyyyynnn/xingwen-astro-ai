@@ -1,0 +1,25 @@
+:root {
+  color-scheme: light;
+  --raw-paper-0: oklch(0.995 0.002 230);
+  --raw-paper-50: oklch(0.978 0.004 230);
+  --raw-gray-200: oklch(0.84 0.012 235);
+  --raw-gray-600: oklch(0.47 0.02 235);
+  --raw-gray-900: oklch(0.21 0.026 235);
+  --raw-haze-50: oklch(0.97 0.012 235);
+  --raw-haze-500: oklch(0.59 0.062 235);
+  --raw-haze-600: oklch(0.5 0.058 235);
+  --color-canvas: var(--raw-paper-50);
+  --color-surface: color-mix(
+    in oklch,
+    var(--raw-paper-0) 86%,
+    var(--raw-haze-50)
+  );
+  --color-ink-primary: var(--raw-gray-900);
+  --color-ink-secondary: var(--raw-gray-600);
+  --color-border: var(--raw-gray-200);
+  --color-brand: var(--raw-haze-600);
+  --color-focus: var(--raw-haze-500);
+  --xw-font-sans: "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  --xw-font-serif: Georgia, "Noto Serif CJK SC", "Songti SC", serif;
+  --xw-font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+}

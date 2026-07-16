@@ -1,0 +1,22 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { resolvePublicHttpUrl } from "../lib/public-url";
+
+const workspaceUrl = resolvePublicHttpUrl(
+  import.meta.env.PUBLIC_WORKSPACE_URL,
+  "http://localhost:5173/workspace",
+);
+const description = "面向天文科研证据整合与可复现分析的智能工作平台。";
+---
+
+<BaseLayout title="星文智析｜天文科研智能工作平台" description={description}>
+  <section class="intro" aria-labelledby="site-title">
+    <p class="eyebrow">Astronomical research workspace</p>
+    <h1 id="site-title">星文智析</h1>
+    <p class="lede">
+      面向天文科研证据整合与可复现分析的智能工作平台。当前页面提供 A-01
+      运行时入口，完整视觉语言与工作台交互将在后续事项中实现。
+    </p>
+    <a class="primary-link" href={workspaceUrl}>进入科研工作台</a>
+  </section>
+</BaseLayout>

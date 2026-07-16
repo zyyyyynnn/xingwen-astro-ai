@@ -1,25 +1,38 @@
-# Prompt Registry
+# Prompt Registry Package
 
-Prompt 是受版本控制的科研产物，不允许散落在 Router、Pipeline 或临时脚本中。
+| 元数据    | 值                                        |
+| --------- | ----------------------------------------- |
+| Status    | Implemented                               |
+| Authority | `packages/prompts` 目录结构与本地使用方式 |
 
-## 目录约定
+全局 Prompt 生命周期、版本和发布规则见 [Prompt Versioning](../../docs/ai/PROMPT_VERSIONING.md)。本文件不重复模型准入、Evidence 或评测政策。
+
+## 目录
 
 ```text
 packages/prompts/
-├── registry.json
-├── paper_summary/
-│   └── v1.md
-└── literature_reasoning/
-    └── v1.md
+├─ README.md
+├─ registry.json
+├─ paper_summary/
+│  └─ v1.md
+└─ literature_reasoning/
+   └─ v1.md
 ```
 
-## 规则
+## 使用规则
 
-1. 已被真实运行或缓存引用的 Prompt 文件只读，不原地改写。
-2. 修改语义、输出字段、证据要求或安全边界时新建版本。
-3. `registry.json` 的 `current` 只表示默认版本，不删除旧版本。
-4. 每次模型调用记录 `prompt_name`、`prompt_version`、`model_name`、输入/输出 hash。
-5. Prompt 输出必须通过 Pydantic/JSON Schema 校验后才能持久化。
-6. Prompt 不允许要求模型伪造引用、补写不可访问全文或隐藏不确定性。
+- 业务代码通过 registry 选择 Prompt；公共加载器由对应实现 Issue 提供后才能作为 Current 能力使用。
+- 文件名使用稳定版本 `vN.md`，不创建 `latest.md`。
+- 已被 Run、ArtifactVersion、Benchmark 或 CacheRecord 引用的版本不原地改写。
+- `registry.json` 的默认版本变化必须通过 PR 和回归验证。
+- 新 Prompt 或新版本包含完整 front matter，并与目标输出 Schema 对齐。
+- 包内文件不保存运行凭据、用户数据、受限全文或实际模型响应。
 
-详细规则见 `docs/ai/PROMPT_VERSIONING.md`。
+## 变更验证
+
+- registry 与文件路径、名称和版本一致；
+- front matter 可解析；
+- Prompt hash 稳定且唯一；
+- 目标 JSON/Schema、Evidence 和领域准入测试通过；
+- 旧版本仍可加载；
+- 相关 Benchmark 和生成物无未解释漂移。

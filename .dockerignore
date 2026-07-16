@@ -1,0 +1,12 @@
+.codegraph
+.git
+.github
+.turbo
+**/.astro
+**/.venv
+**/dist
+**/node_modules
+.env
+docs
+samples
+services

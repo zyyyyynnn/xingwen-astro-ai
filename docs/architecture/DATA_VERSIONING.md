@@ -2,7 +2,8 @@
 
 | 项目状态 | 口径 |
 | --- | --- |
-| Status | Accepted for implementation |
+| Status | Accepted |
+| Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
 | Implementation | Pending for v2 persistence |
 | Current runtime | v1 DTO、Prompt registry 与 Phase 0 版本字段 |
 | Target runtime | Project / Run / Artifact / ArtifactVersion 追加式治理 |

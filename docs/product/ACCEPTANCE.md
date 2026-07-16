@@ -1,124 +1,123 @@
 # Acceptance Criteria
 
-> Current runtime：`apps/web` + FastAPI `/api/v1`。目标前端与 `/api/v2` 为 Accepted for implementation / Pending，不能用文档通过代替代码和运行证据。完整技术方案以 [FRONTEND_ARCHITECTURE.md](../architecture/FRONTEND_ARCHITECTURE.md) 为准。
+| 元数据    | 值                               |
+| --------- | -------------------------------- |
+| Status    | Accepted                         |
+| Authority | 里程碑、阶段和作品发布的退出标准 |
 
-## 1. MVP 总验收
+本文回答“一个阶段何时可以宣布完成”。单个 PR 的检查见 [Review Checklist](../quality/REVIEW_CHECKLIST.md)，测试设计见 [Test Strategy](../engineering/TEST_STRATEGY.md)，实时任务状态以 GitHub Issues 为准。
 
-| 编号 | 标准 | 必须证明 |
-| --- | --- | --- |
-| G-01 | 公网 Web 可访问且无人讲解可理解 | URL、静态首屏、Guided Tour 与主入口 |
-| G-02 | 主案例形成连续产物链 | Contract、Run、Dataset、Paper、Summary、Relation、Graph、Evidence、Export |
-| G-03 | Demo Replay 与 Live Run 可区分 | execution/source mode 截图、状态测试、Fixture provenance |
-| G-04 | 真实数据和论文获取可复现 | Query、来源、时间、去重、排序、SourceSnapshot |
-| G-05 | 推理与图谱可审查 | Claim、Relation、ReasoningTrace、GraphEdge 与 Evidence |
-| G-06 | Project / Run / Artifact / Version 可定位 | 聚合接口、版本链、派生 Run 和历史对照 |
-| G-07 | 失败、缓存和修订不失真 | Live 失败、真实缓存来源、Feedback、RevisionPlan、新版本 |
-| G-08 | 分享与导出安全 | 冻结 ShareSnapshot、撤销/过期、脱敏、CSV/JSON/报告 |
-| G-09 | WebGL 和设备降级 | Poster、Reduced Motion、High/Medium/Low、移动端 |
-| G-10 | 本地和 CI 可复现 | frozen install、build、test、Compose、Contract 与架构门禁 |
+## 1. 证据要求
 
-## 2. 首页与 Guided Tour
+任何退出结论必须提供可复现证据，至少包含：
 
-| 项目 | 标准 |
-| --- | --- |
-| 静态首屏 | HTML 中存在中文主标题、说明、主 CTA 和可信性入口；WebGL 不是 LCP 前置条件 |
-| 四幕 | SIGNAL、QUESTION、EVIDENCE、WORKSPACE 顺序完整，总时长约 60–90 秒 |
-| 控制 | 可暂停、返回、跳过，不做强制滚动劫持 |
-| Research Contract | ACT 02 可编辑 ResearchContractDraft；确认后生成不可变 ResearchContract |
-| 来源语义 | Demo Replay 显示 Fixture；Live Run 说明等待、失败、重试和真实缓存 |
-| SEO | 静态 title、description、canonical、Open Graph 与社交预览可检查 |
-| 稳定性 | 无 WebGL 时完整静态首屏，无明显 CLS，首个主动作可键盘操作 |
-| 移动端 | 可使用 Poster 或简化场景，但四幕核心信息和入口完整 |
+- 对应 Commit / PR / Issue；
+- 验证命令和结果；
+- 运行环境、应用版本和 Contract 版本；
+- 使用 Fixture、recorded、Live 或 Cached 的真实数据等级；
+- 关键 Run、ArtifactVersion、SourceSnapshot 或导出引用；
+- 未执行项、已知限制和风险。
 
-## 3. Research Workspace
+文档声明、截图或“页面看起来正确”不能单独证明实现完成。
 
-| 项目 | 标准 |
-| --- | --- |
-| 布局 | Top Rail、Research Atlas、Research Canvas、Provenance Observatory、Research Console |
-| 科研产物优先 | 中央默认不是聊天流，不用工具日志或 IDE 模型组织产品 |
-| 视口 | `1440×900`、`1920×1080` 完整；`1280px` 宽仍可完成主流程 |
-| Canvas | 最多三个受控拆分面板，不提供无限悬浮窗口 |
-| 对照 | 数据+来源、Summary+Evidence、Relation+Trace+Evidence、Graph+Evidence 可组合 |
-| Observatory | 当前对象、source mode、locator、quote/value、confidence、query hash、版本可见 |
-| Console | 不遮挡核心产物；提交前显示 Project、Run、选中对象和影响范围 |
-| 多项目/Run | Project、并行 Run、Artifact、Version 明确，不用聊天线程替代 |
-| 恢复与分享 | WorkspaceSnapshot 可恢复；ShareSnapshot 冻结版本且只读 |
-| 键盘 | 无鼠标可确认 Contract、切换产物、定位 Evidence、取消/重试和打开帮助 |
-| 状态 | empty、loading、partial、success、failed 完整；Fixture、Live、Cached 与派生修订标识可区分 |
+## 2. M1：开发基线
 
-## 4. Visual Engine 与设计系统
+M1 完成需要同时满足：
 
-| 项目 | 标准 |
-| --- | --- |
-| Token | OKLCH Raw Scale 与语义 Token；业务组件无散落 Raw Color |
-| 字体 | 衬线/无衬线/等宽层级；许可证、来源、中文覆盖、Web/Tauri 策略有记录 |
-| 品牌 | ASCII 字符与 Dither 近看可辨、远看连续；不是满屏滤镜 |
-| 渲染 | GPU glyph atlas / instancing，不用大量 DOM glyph |
-| 档位 | High、Medium、Low 根据 WebGL、GPU、DPR、viewport、frame time、Reduced Motion 决定 |
-| 生命周期 | 页面隐藏暂停；卸载 dispose geometry/material/texture/render target |
-| 可复现 | deterministic seed，可冻结时间和 viewport 做视觉回归 |
-| 降级 | Context loss / 无 GPU 自动 Poster；DOM 内容和操作保持完整 |
-| 可访问 | 状态不只靠颜色，200% 字体缩放、焦点、读屏和 Reduced Motion 通过 |
+### Current runtime baseline
 
-## 5. Contract、Adapter 与来源状态
+- 当前 Docker Compose 可启动并健康检查 `site`、`workspace`、`api`、`postgres`；
+- `/api/v1` 健康检查和回归测试通过；
+- Node.js 24.18.0、pnpm 11.13.1、根 lockfile、uv、Schema 导出和 Foundation CI 通过；
+- A-01 Astro Site、React Workspace、共享包、根工具链与最小路由通过 build、E2E、architecture 和 retirement checks；
+- 运行时退役扫描通过，历史应用目录、专用依赖和环境变量不存在。
 
-- `/api/v2` 明确 Project、Contract、Run、Event、ArtifactVersion、Evidence、WorkspaceSnapshot、ShareSnapshot。
-- Fixture / HTTP Adapter 校验同一 Transport Schema 并返回同一 Domain Model。
-- `execution_mode=demo_replay|live` 只属于 Run/启动状态；`source_mode=fixture|live|cached`；修订由派生 Run 或 supersedes 关系推导。
-- Fixture 版本化并带 scenario、schema version、provenance note；不能标记 Cached。
-- Cached 绑定真实历史 Run、ArtifactVersion、SourceSnapshot、时间、input hash 和本次失败。
-- 页面和组件不读取原始 DTO、不在组件内 fetch、不拼接裸 API URL。
-- Collection cursor、错误 Problem Details、幂等、取消、重试、派生和版本冲突有 Contract 测试。
+### Pending M1 capabilities
 
-## 6. A 系列工作区验收
+- Case / Field Manifest 和论文/推理 Benchmark 可机器校验并版本化；
+- X-00 已冻结主案例事实包；
+- `/api/v2` 最小 Session、Project、Contract、Run、Event、Artifact、Version、Workspace 和 Share Contract 可测试；
+- A-02 静态首页与 Workspace Shell 支持键盘、移动端和实时视觉降级；
+- A-03 的 Fixture / HTTP Adapter 返回同一 Domain Model；
+- X-01 的 Session、Contract、Run、Event、WorkspaceSnapshot 和 ShareSnapshot 主流程通过；
+- Current、Implemented 和 Pending 在页面、文档和材料中无混淆。
 
-| Issue | 最低产物 |
-| --- | --- |
-| A-01 | 应用与共享包空骨架、依赖边界、strict typecheck、lint/test/build 目标和旧前端迁移策略；无产品组件或 Shader |
-| A-02 | Token、primitive、BrandMark、Visual Engine runtime、首页静态/视觉框架、静态 Workspace Shell 与 fallback；无领域状态或业务交互 |
-| A-03 | 在 A-02 Shell 上绑定 Project/Run、Research Contract、Repository Port、Fixture/HTTP、Guided Tour FSM、WorkspaceSnapshot、分享与交互；不重建 Shell |
-| A-04 | 虚拟化数据表、字段字典、来源、质量、对照、CSV/JSON、Evidence 和完整状态 |
-| A-05 | Query、来源、Candidate、去重、排序、选择依据、Demo/Live/Cached 与 Evidence |
-| A-06 | 目标、方法、数据、结论、局限、跨文献对照、Evidence locator/quote/value |
-| A-07 | Claim、候选/最终 Relation、Trace、条件、Evidence、最多三面板 |
-| A-08 | 证据图谱、Observatory 联动、规模控制、无装饰性节点/边 |
-| A-09 | Fixture/Live/Cached 来源、派生修订、version、retrieved_at、SourceSnapshot 与质量状态统一 |
-| A-10 | Field/Source/Paper/Claim/Relation/Trace/GraphEdge 反馈、新 ArtifactVersion 和冲突状态 |
+## 3. X-06：数据、论文与 Summary 主链路
 
-## 7. B 后端与安全验收
+X-06 完成需要证明：
 
-- 当前 `/api/v1` 在迁移门禁前保持可用；v2 不以修改 v1 响应伪装实现。
-- FastAPI / Pydantic 生成 OpenAPI 3.1 / JSON Schema；`packages/contracts` 生成类型无漂移。
-- PostgreSQL 是 Run、Step、Event、ArtifactVersion、Evidence 与 Share 的事实来源。
-- 匿名 Session 使用 Secure/HttpOnly/SameSite Cookie、CSRF、ownership、配额和限流。
-- Share token 高熵、只存 hash、可撤销/过期、最小范围、无法写入或跨 Project 扩权。
-- 错误不暴露密钥、堆栈、连接串、受限全文或模型私有推理。
-- Cancel、自动 retry、用户 retry、revision、fork 和 CacheSelector 有集成测试。
+- Project → Contract → Live Run 可复现；
+- PostgreSQL 是 Run、Step、Event 和 ArtifactVersion 的事实来源；
+- 至少一个主数据源和一个补充真实来源可运行；
+- 跨源实体对齐、字段映射、单位统一和分层质量通过固定样例验证；
+- Dataset、FieldDictionary、PaperCollection 和 PaperSummary 以 ArtifactVersion 发布；
+- 数据和论文 Query、来源、时间、规则版本、hash 与 SourceSnapshot 可定位；
+- PaperSummary 核心 finding / limitation 逐项绑定 Evidence；
+- A-04～A-06 可从关键值或结论定位 Evidence；
+- 空结果、上游失败、Schema 无效、Evidence 不足和授权场景通过；
+- Fixture、Live、Cached、Run status 和 view state 没有语义混用。
 
-## 8. C / D 科研可信验收
+## 4. X-07：推理与证据图谱
 
-- 至少一个主数据源真实可运行；字段、单位、转换、来源和质量可复现。
-- 论文候选带 Query、来源、时间、去重、排序和入选/排除依据。
-- PaperSummary 核心内容绑定 Evidence；不把模型总结当无条件事实。
-- Accepted Relation 绑定 Evidence、条件和 ReasoningTrace，候选与最终分离。
-- 每条 GraphEdge 绑定 Evidence；跨文献边绑定 Relation / Trace。
-- ReasoningTrace 只含显式可审查依据，不保存 chain-of-thought。
+X-07 完成需要证明：
 
-## 9. 测试与治理门禁
+- Claim、Relation、ReasoningTrace 和 Graph 均以明确 ArtifactVersion 发布；
+- candidate、accepted、rejected Relation 可区分；
+- Accepted Relation 绑定双方 Evidence、显式条件和 ReasoningTrace；
+- ReasoningTrace 只保存可审查依据，不包含模型私有推理；
+- Graph 不存在悬空引用；所有边有 Evidence，跨文献边有 Relation 和 Trace；
+- 科学关系与 layout hint 分离；
+- A-07/A-08 可在最多三个面板中完成推理、Graph 和 Evidence 对照；
+- 固定 Benchmark 报告 Relation 人工正确率、Evidence 覆盖、无证据拦截、Graph 完整性和 Schema 通过率；
+- 从 X-06 Summary 版本到 Graph 版本的 E2E 可复现。
 
-目标实现至少覆盖：Token、Contract、Fixture/HTTP 一致性、Domain Mapper、组件、E2E、a11y、visual regression、WebGL fallback、Reduced Motion、执行/来源/修订语义、Graph Evidence、Session/Share 安全。
+## 5. X-08：版本、缓存、修订与交付
 
-文档 PR 至少执行 `git diff --check`、`python scripts/check_foundation.py`、Markdown 链接/标题/Mermaid 结构检查（工具存在时），并证明未修改禁止范围。
+X-08 完成需要证明：
 
-## 10. 一票否决项
+- 关键科研产物均使用不可变 ArtifactVersion；
+- ResearchRun 与 ProducerExecution 的职责、父子关系和 hash 可定位；
+- CacheRecord 只引用真实历史 Run、Version 和 SourceSnapshot；
+- CacheSelector 仅在 Live 可恢复失败且质量/Evidence 仍满足时使用缓存；
+- Feedback 绑定明确对象和基线版本，RevisionPlan 展示影响闭包；
+- revision Run 只重算受影响步骤，生成新版本并保留历史；
+- A-09/A-10 可正确表达来源、质量、版本、冲突和修订；
+- ShareSnapshot 和 Export 固定引用 Version，不跟随动态 latest；
+- 公网 Site、Tour、Workspace、Share 和 API 可访问且生产安全配置通过；
+- WebGL 或外部来源失败时核心内容和操作仍可用；
+- START HERE、短片、Web、PDF、源码/API/测试和 provenance manifest 使用同一事实版本。
 
-- 公网入口无法使用或只有 WebGL Canvas 没有静态内容。
-- Fixture、seed 或手写数据冒充 Live / Cached。
-- 数据、论文、Summary、Relation 或 GraphEdge 无法追溯 Evidence。
-- 分享 token 泄露编辑会话、无法撤销、动态指向 latest 或暴露受限内容。
-- 前端直连模型/外部来源、暴露密钥或渲染未经净化的外部 HTML。
-- 保存或展示模型私有 chain-of-thought。
-- 工作台以聊天流、IDE 或工具日志为核心，科研产物退居次要。
-- WebGL 失败导致首页或工作台不可用。
-- API / Data Model / Workflow / Issue 与实现明显不一致。
-- 宣传任意天文方向、任意 PDF、任意图表或无证据科学发现已经实现。
+## 6. 产品级最低标准
+
+| 维度   | 必须达到                                                 |
+| ------ | -------------------------------------------------------- |
+| 可理解 | 无现场讲解可识别产品目标、主流程和可信边界               |
+| 可运行 | Demo Replay 稳定；Live Run 有明确等待、失败和恢复        |
+| 可复现 | 关键结果可定位 Contract、Run、Version、来源和生成条件    |
+| 可溯源 | 关键数据、Summary、Relation 和 GraphEdge 可定位 Evidence |
+| 可对照 | 工作台最多三面板可完成核心审查任务                       |
+| 可降级 | 图形、字体或外部服务失败不阻断核心流程                   |
+| 可分享 | 只读分享最小范围、可撤销、可过期、不泄露编辑会话         |
+| 可提交 | 网页、视频、PDF、导出和源码描述一致                      |
+
+## 7. 一票否决
+
+出现以下任一情况，不得宣布对应阶段或作品完成：
+
+- Fixture、seed、录制响应或无来源数据冒充 Live / Cached；
+- 数据、Summary、Accepted Relation 或 GraphEdge 无法追溯 Evidence；
+- 保存或展示模型私有 chain-of-thought；
+- ArtifactVersion 被原地覆盖，或 Share / Export 指向动态 latest；
+- 前端暴露密钥、直连受控外部来源或渲染未净化外部 HTML；
+- 跨会话资源可枚举或读取，分享泄露编辑凭据；
+- WebGL 失败导致首页或工作台不可用；
+- API、Data Model、Workflow、Version、Issue 与实现明显冲突；
+- 宣传未实现的任意方向、全文解析、图表解析或无证据科学发现；
+- 必要 CI、测试或部署验证被绕过。
+
+## 8. 关联文档
+
+- 单个 PR 检查：[Review Checklist](../quality/REVIEW_CHECKLIST.md)
+- 测试方法和数据等级：[Test Strategy](../engineering/TEST_STRATEGY.md)
+- 材料提交和 provenance：[Handoff](../handoff/README.md)
+- 风险与例外：[Risk Register](../quality/RISK_REGISTER.md)

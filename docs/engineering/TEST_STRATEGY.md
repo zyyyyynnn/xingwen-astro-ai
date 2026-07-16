@@ -1,107 +1,178 @@
 # Test Strategy
 
-测试优先保护科研可信链路和可演示主路径，而不是追求无差别覆盖率。
+| 元数据    | 值                                           |
+| --------- | -------------------------------------------- |
+| Status    | Accepted                                     |
+| Authority | 测试分层、测试数据等级、环境、门禁和证据格式 |
 
-## 1. 分层
+测试优先保护科研可信链路、领域不变量和自主评审主路径。本文不定义产品何时完成；阶段退出见 [Acceptance](../product/ACCEPTANCE.md)，单个 PR 检查见 [Review Checklist](../quality/REVIEW_CHECKLIST.md)。
+
+## 1. 测试原则
+
+- 先测试不可逆数据损坏、来源失真、权限越权和版本覆盖风险。
+- 领域规则优先于页面快照数量。
+- 外部服务不作为每个 PR 的稳定前置，但必须有可选 Live smoke。
+- Fixture、recorded、Live 和 Cached 必须使用相同 Contract，并明确真实等级。
+- 无法自动判断的论文相关性、Summary 事实性和 Relation 正确性使用版本化人工 Benchmark。
+- 测试失败不得通过降低 Evidence、Schema、安全或质量要求规避。
+
+## 2. 测试分层
 
 ### Unit
 
-覆盖：
+覆盖纯规则和边界：
 
-- 状态转换；
-- 字段/单位规则；
-- 论文去重和相关性规则；
-- Schema 校验；
-- Evidence/Relation 准入；
-- hash 与版本规则。
+- Case / Field Manifest 与单位转换；
+- crossmatch、去重、排序和质量公式；
+- Run 状态转换、retry policy 和 CacheSelector；
+- Schema、mapper、hash、版本与 supersedes；
+- Evidence、Relation 和 Graph 完整性准入；
+- 前端 selector、quality tier 和 Visual Model mapper。
+
+### Component
+
+覆盖可访问的 UI 行为：
+
+- Research Contract 编辑与确认；
+- Atlas、受控 Split Panels、Observatory 和 Console；
+- Dataset、Paper、Summary、Reasoning、Graph 和 Feedback 状态；
+- Fixture/Live/Cached/Revision、错误、空和部分结果；
+- 键盘、焦点、读屏、Reduced Motion 和 Poster fallback。
 
 ### Integration
 
-覆盖：
+覆盖模块协作：
 
-- FastAPI + application service；
-- repository + PostgreSQL；
-- Qwen/Paper/Data Client 的 stub；
-- WorkflowHooks 状态持久化；
-- 错误结构和 request_id。
+- FastAPI Router → Application Service → Repository；
+- Workflow → Pipeline Adapter → ArtifactVersion 发布；
+- PostgreSQL transaction、lease、Event 和版本登记；
+- Qwen/Data/Paper Client 的 stub 或 recorded response；
+- Session、CSRF、ownership、Share 和 Problem Details；
+- Fixture / HTTP Repository Adapter 的 Domain 一致性。
 
 ### Contract
 
-覆盖：
+覆盖跨边界稳定性：
 
-- Pydantic JSON Schema 可导出；
-- OpenAPI 与前端生成类型无漂移；
-- fixtures 符合 Schema；
-- API_CONTRACT/DATA_MODEL 变更对应测试更新。
+- Pydantic 生成 OpenAPI 3.1 / JSON Schema；
+- operationId、错误、cursor、幂等和授权说明完整；
+- generated Transport Type 无 stale diff；
+- Fixture 与 recorded payload 通过同一 Schema；
+- DTO → Domain mapper 覆盖日期、ID、枚举、版本和错误；
+- v1 回归 Contract 未被静默破坏。
 
-### Pipeline
+### Pipeline and evaluation
 
-使用固定主案例样例，验证：
+使用冻结 Case Manifest 与 Benchmark 验证：
 
 ```text
-goal
--> Dataset
--> PaperCandidate
+Contract
+-> Dataset / FieldDictionary / Quality
+-> PaperCollection
 -> PaperSummary
--> Claim/Relation/Trace
--> Graph/Evidence
+-> Claim / Relation / ReasoningTrace
+-> Graph / Evidence
 ```
 
-外部服务默认使用录制或 stub；另设可选 live smoke，不作为每个 PR 的稳定门槛。
+报告至少包括：
 
-### Evaluation
+- 数据匹配覆盖率、冲突率、单位和 Evidence 覆盖；
+- 论文候选召回、去重和选择依据完整性；
+- Summary Schema 通过率、Evidence 覆盖和 unsupported 拦截；
+- Relation 人工正确率、无证据拦截率和置信度分布；
+- Graph 悬空引用、Evidence 完整性和稳定 hash。
 
-人工标注小样例集，评估：
+### End-to-end
 
-- 论文相关率；
-- Summary 事实一致性；
-- Evidence 覆盖率；
-- Relation 正确率；
-- 无证据候选拦截率；
-- 缓存标识准确率。
+覆盖核心用户路径：
 
-## 2. CI 门槛
+- Brand Site 静态首屏与 Guided Tour；
+- Demo Replay 完整流程；
+- Project → Draft → Contract → Live Run；
+- Dataset / Summary / Relation / Graph 到 Evidence；
+- Run Event 断线恢复；
+- Feedback → RevisionPlan → revision Run → 新 Version；
+- ShareSnapshot、Export、会话过期和授权失败；
+- 外部服务失败、缓存建议和无缓存失败。
 
-每个 PR 至少执行：
+### Visual and performance
 
-1. repository foundation check；
-2. 前端 frozen install + build；
-3. 后端 frozen sync + pytest；
-4. Pydantic Schema 导出；
-5. `docker compose config`。
+- 固定 viewport、seed、时间和数据版本的视觉回归；
+- High / Medium / Low 图形质量；
+- WebGL/context loss、Poster 和 Reduced Motion；
+- 页面隐藏暂停与资源释放 smoke；
+- 大表虚拟化、Graph 规模和关键 Web Vitals 预算。
 
-进入 Phase 1 后增加数据库集成测试；Phase 2 增加 Pipeline/Evaluation；Phase 3 增加缓存、修正和部署 smoke。
+## 3. 测试数据等级
 
-## 3. 测试数据分级
+| 等级              | 用途                              | 能否表述为真实结果                      |
+| ----------------- | --------------------------------- | --------------------------------------- |
+| Fixture           | Unit、组件、Demo Replay、视觉回归 | 否；必须标记 scenario 与 schema version |
+| Recorded response | 稳定集成测试                      | 否；只能说明为录制的外部响应            |
+| Benchmark / seed  | 人工评测、回归、校验              | 否；不能冒充自动获取                    |
+| Live result       | 可选 Live smoke 或真实运行        | 是；必须保留来源、时间和参数            |
+| Real run cache    | Live 失败后的可审查兜底           | 是，但必须标记 Cached 并定位 origin Run |
 
-| 类型 | 用途 | 可否作为真实结果 |
-| --- | --- | --- |
-| fixture | 单元、前端联调、Demo Replay | 否，必须明确标注 |
-| recorded response | 稳定集成测试 | 仅标注为录制来源 |
-| seed list | 评测基准、fallback | 不可冒充自动获取 |
-| real run cache | Demo 兜底 | 可以，但必须 cached |
-| live result | 实时链路 | 可以，保留来源 |
+测试数据不得从低等级静默升级为高等级。Recorded response 和 Benchmark 不进入 CacheSelector。
 
-## 4. 最低覆盖门槛
+## 4. 环境矩阵
 
-Phase 0 不设置虚假的全局百分比门槛，但以下代码必须有测试：
+| 环境             | 主要用途                              | 外部服务                          |
+| ---------------- | ------------------------------------- | --------------------------------- |
+| local            | 快速开发、Unit、Component             | 默认 stub/Fixture                 |
+| CI               | 稳定 Contract、Integration、E2E smoke | stub/recorded，禁止依赖不稳定公网 |
+| preview          | 浏览器、路由、安全和部署 smoke        | 受控 Live 或专用测试凭据          |
+| production smoke | 发布后关键路径                        | 限制主案例和调用额度              |
 
-- 状态机；
-- Evidence 准入；
-- Relation 准入；
-- 数据单位转换；
-- 缓存选择；
-- 安全配置校验。
+敏感凭据只存在于受控环境，不写入 Fixture、录制数据或测试日志。
 
-新增关键规则没有对应测试时不得合并。
+## 5. 阶段门禁
 
-## 5. 可复现报告
+### M1
 
-PR 验证说明必须写：
+- Foundation、frozen install/sync、lint、typecheck、unit、build；
+- Schema/OpenAPI 生成和 stale check；
+- 当前 v1 回归、A-01 Site/Workspace 入口与共享包 smoke；
+- Fixture/HTTP Domain 一致性；
+- 静态首屏、键盘和 WebGL fallback。
 
-- 命令；
-- 环境；
-- 通过/失败结果；
+### X-06
+
+增加数据库 Integration、数据/论文 Pipeline、Artifact/Evidence、A-04～A-06 E2E 和固定 Benchmark。
+
+### X-07
+
+增加 Relation 准入、Trace 安全、Graph 完整性、A-07/A-08 E2E 和评测指标。
+
+### X-08
+
+增加版本事务、并发冲突、CacheSelector、RevisionPlan、Session/Share 安全、部署 smoke、材料 provenance 和降级验证。
+
+## 6. 覆盖策略
+
+不以单一全局覆盖率代替关键风险测试。以下能力缺少对应测试时不得合并：
+
+- 状态机、幂等、取消和派生 Run；
+- Contract 与 Domain mapper；
+- Evidence / Relation / Graph 准入；
+- 字段、单位、crossmatch 和质量规则；
+- ArtifactVersion、CacheSelector 和 RevisionPlan；
+- Session、Share、CSRF 和跨会话授权；
+- Visual Engine fallback 与资源释放。
+
+包级覆盖率阈值可在实现 Issue 中冻结，但不得通过排除关键文件虚增指标。
+
+## 7. 测试证据格式
+
+PR 或阶段报告至少记录：
+
+- 命令和环境；
+- Commit、Contract、Fixture/Benchmark 版本；
+- 通过、失败和跳过数量；
 - 未执行项及原因；
-- 是否使用 stub、recorded、cache 或 live；
-- 外部服务失败时的降级行为。
+- 使用的数据等级；
+- Live 依赖和降级行为；
+- 失败日志或报告位置；
+- 性能/评测指标及与基线的差异。
+
+“本地通过”但没有命令、版本和结果摘要，不构成可复现证据。
