@@ -1,436 +1,431 @@
 # API Contract
 
-Base URL: `/api/v1`
+| 项目状态 | 口径 |
+| --- | --- |
+| Status | Accepted for implementation |
+| Implementation | Pending |
+| Current API | 已实现的 `/api/v1` Task / Fixture-backed 契约 |
+| Target API | `/api/v2` Project / Run / Artifact / Version 契约 |
+| Authoring source | 实施期由 FastAPI / Pydantic 生成 OpenAPI 3.1 与 JSON Schema |
 
-## 1. 通用响应
+本文冻结目标 API，不表示 `/api/v2` 已实现。当前 `/api/v1` 在新工作台通过 Contract、Adapter 与 E2E 门禁前保持可用；不得原地修改 v1 响应来伪装 v2 完成。
 
-成功：
+## 1. 设计原则
+
+- URI 使用复数资源名与 snake_case JSON 字段。
+- Project、Run、Artifact、ArtifactVersion 是独立资源，不以聊天线程或页面为资源。
+- 成功响应使用统一 Envelope；v2 错误使用 `application/problem+json`。
+- 集合接口使用不透明 cursor，默认 20、最大 100。
+- 写操作通过 `Idempotency-Key`、版本前置条件或唯一约束避免重复。
+- `execution_mode` 与 `source_mode` 分离；Fixture 不能冒充 Cached。
+- 前端组件不得直接依赖 Transport DTO，必须经 Repository Adapter 校验与映射。
+- API 不返回模型私有思维过程；ReasoningTrace 只含可审查依据、条件和引用。
+
+```mermaid
+flowchart LR
+  Session["ResearchSession"] --> Project["ResearchProject"]
+  Project --> Contract["ResearchContract"]
+  Project --> Run["ResearchRun"]
+  Contract --> Run
+  Run --> Artifact["ResearchArtifact"]
+  Artifact --> Version["ArtifactVersion"]
+  Version --> Evidence["Evidence"]
+  Evidence --> Snapshot["SourceSnapshot"]
+  Project --> Workspace["WorkspaceSnapshot"]
+  Project --> Share["ShareSnapshot"]
+  Share --> Version
+```
+
+## 2. 版本与迁移
+
+| 版本 | 状态 | 说明 |
+| --- | --- | --- |
+| `/api/v1` | Current runtime | 当前 Vue 骨架与后端 Contract；仅维护安全和阻塞性修复 |
+| `/api/v2` | Accepted, pending | Astro / React 工作台的目标契约 |
+
+迁移规则：
+
+1. v2 先以 Pydantic 模型和生成 OpenAPI 落地。
+2. `packages/contracts` 从 OpenAPI / JSON Schema 生成 Transport Type 与校验器。
+3. Fixture / HTTP Adapter 一致性测试通过后，新工作台接入 v2。
+4. 新工作台主流程、分享、安全和 E2E 通过前，不宣布 v1 deprecated。
+5. 宣布弃用时使用 `Deprecation`、`Sunset` 和 successor `Link` 响应头；本 RFC 不冻结下线日期。
+
+## 3. 会话、安全与授权
+
+### 3.1 匿名会话
+
+- `POST /api/v2/sessions` 创建隔离临时会话。
+- 服务端通过 Secure、HttpOnly、SameSite Cookie 识别会话，不把编辑凭据放入 URL 或 localStorage。
+- 响应返回会话过期时间、资源配额和内存态 CSRF token；所有非安全方法发送 `X-CSRF-Token`。
+- 所有私有资源按服务端 session ownership 授权，客户端传入的 project/run id 不能替代授权检查。
+- 会话创建、Run 创建、分享和反馈分别限流；返回标准 `RateLimit-*` 与 `Retry-After`。
+
+### 3.2 只读分享
+
+- 分享 token 至少 128 bit 随机熵，服务端只保存 hash。
+- ShareSnapshot 锁定明确的 ArtifactVersion、允许公开的 Evidence 与脱敏规则，不指向动态 latest。
+- 分享可设置过期时间并可撤销；公开读取不授予 Project、Run 或反馈写权限。
+- 分享响应过滤受限全文、密钥、内部错误堆栈、会话信息和未授权用户输入。
+- 分享页使用严格 CSP、`Referrer-Policy: no-referrer` 与默认 `Cache-Control: no-store`。
+
+## 4. 通用成功响应
 
 ```json
 {
-  "success": true,
   "data": {},
-  "error": null,
   "meta": {
-    "request_id": "req_001",
-    "cached": false
-  }
-}
-```
-
-失败：
-
-```json
-{
-  "success": false,
-  "data": null,
-  "error": {
-    "code": "TASK_NOT_FOUND",
-    "message": "Task not found",
-    "detail": {}
+    "request_id": "req_01J...",
+    "schema_version": "2.0.0",
+    "generated_at": "2026-07-16T08:00:00Z"
   },
-  "meta": {
-    "request_id": "req_001",
-    "cached": false
+  "links": {
+    "self": "/api/v2/projects/proj_01J..."
   }
 }
 ```
 
-`meta.cached=true` 表示本次响应使用真实运行缓存。缓存不是任务主状态，任务状态仍按 `task_status` 表达。
+规则：
 
-## 2. 枚举
+- `request_id` 同时写入 `X-Request-Id` 响应头。
+- 单个 ArtifactVersion 的执行和来源信息放在 Artifact Envelope，不放在全局 UI 状态。
+- 创建资源返回 `201 Created` 与 `Location`；异步导出返回 `202 Accepted`。
+- 删除或撤销成功可返回 `204 No Content`。
 
-| 字段 | 可选值 |
-| --- | --- |
-| `case_key` | `exoplanet_host_star` |
-| `task_status` | `pending`, `planning`, `fetching_data`, `cleaning_data`, `searching_papers`, `summarizing_papers`, `reasoning_literature`, `building_graph`, `completed`, `revising`, `failed` |
-| `step_status` | `pending`, `running`, `completed`, `failed`, `skipped` |
-| `feedback_type` | `field_unit_error`, `field_mapping_error`, `source_error`, `paper_acquisition_error`, `paper_summary_error`, `literature_relation_error`, `graph_relation_error`, `other` |
-| `source_type` | `database`, `paper_source`, `paper`, `cache`, `manual_review` |
-| `paper_acquisition_status` | `pending`, `running`, `completed`, `failed`, `cached` |
-| `claim_type` | `goal`, `method`, `dataset`, `finding`, `limitation`, `future_work` |
-| `literature_relation_type` | `supports`, `extends`, `derived_from`, `limits`, `contradicts`, `uses_same_dataset`, `compares_method` |
-
-## 3. 创建任务
-
-`POST /api/v1/tasks`
-
-请求：
+集合额外包含：
 
 ```json
 {
-  "goal": "我想研究热木星候选体的轨道周期、半径、质量与宿主恒星温度之间的关系",
-  "case_key": "exoplanet_host_star",
-  "options": {
-    "use_cache_if_failed": true,
-    "max_rows": 200,
-    "paper_search": {
-      "max_candidates": 20,
-      "max_selected": 8
+  "page": {
+    "next_cursor": "opaque-cursor-or-null",
+    "has_more": false,
+    "limit": 20
+  }
+}
+```
+
+## 5. 错误响应
+
+v2 错误使用 RFC 9457 Problem Details：
+
+```json
+{
+  "type": "https://xingwen.example/errors/contract-invalid",
+  "title": "Research Contract is invalid",
+  "status": 422,
+  "detail": "requested_fields must contain at least one supported field",
+  "instance": "/api/v2/research-contract-drafts/rcd_01J...",
+  "code": "CONTRACT_INVALID",
+  "request_id": "req_01J...",
+  "errors": [
+    {
+      "field": "requested_fields",
+      "code": "MIN_ITEMS",
+      "message": "Select at least one field"
     }
-  }
+  ]
 }
 ```
 
-响应：
+| HTTP | `code` | 场景 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | 语法、cursor 或不支持参数 |
+| 401 | `SESSION_REQUIRED` | 会话缺失或过期 |
+| 403 | `ACTION_FORBIDDEN` / `CSRF_INVALID` | 已明确识别的当前主体无权执行该动作，或写请求 CSRF 校验失败 |
+| 404 | `PROJECT_NOT_FOUND` / `RUN_NOT_FOUND` / `ARTIFACT_NOT_FOUND` / `SHARE_NOT_FOUND` | 资源不存在，或私有资源不属于当前会话；不得泄露其存在性 |
+| 409 | `RUN_STATE_CONFLICT` / `VERSION_CONFLICT` / `IDEMPOTENCY_CONFLICT` | 状态、版本或幂等键冲突 |
+| 410 | `SHARE_EXPIRED` | 分享已过期或被撤销 |
+| 422 | `CONTRACT_INVALID` / `SCHEMA_VALIDATION_FAILED` | 业务或 Schema 校验失败 |
+| 429 | `RATE_LIMITED` / `QUOTA_EXCEEDED` | 请求频率或匿名配额超限 |
+| 502 | `UPSTREAM_INVALID_RESPONSE` | 外部来源返回不可校验内容 |
+| 503 | `UPSTREAM_UNAVAILABLE` | 外部来源暂不可用，可能存在真实缓存建议 |
+| 504 | `UPSTREAM_TIMEOUT` | 外部来源或模型超时 |
+
+公开错误不得包含密钥、数据库信息、堆栈、受限全文或模型原始长输出。
+
+授权错误口径冻结为：会话缺失或过期返回 `401`；私有资源不属于当前会话返回不泄露存在性的 `404`；CSRF 失败或已明确识别的当前主体无权执行允许列表中的动作返回 `403`。
+
+## 6. 枚举
+
+### 6.1 执行与来源
+
+```text
+execution_mode = demo_replay | live
+source_mode    = fixture | live | cached
+derivation_kind = original | retry | revision | fork
+```
+
+`execution_mode` 只出现在 ResearchRun、创建 Run 请求和 Guided Tour 启动状态中，不进入 ResearchContract 或 ResearchContractDraft。HTTP Adapter 在 MVP 只创建 `execution_mode=live` 的 Run；Fixture Adapter 在浏览器内返回相同 Domain Model，并标记 `execution_mode=demo_replay`、`source_mode=fixture`。修订由 `derivation_kind=revision` 或 `supersedes_version_id` 非空推导，不新增 `source_mode` 值。
+
+### 6.2 Run 状态
+
+传输字段 `ResearchRun.status` 使用 `RunStatus`；完整状态集合和转换规则只在 [WORKFLOW_DESIGN.md](WORKFLOW_DESIGN.md) 冻结。`cached`、`fixture` 和修订关系不是 Run 状态。
+
+### 6.3 Artifact 类型
+
+```text
+dataset
+field_dictionary
+source_collection
+paper_collection
+paper_summary
+literature_claims
+literature_relations
+reasoning_traces
+graph
+export
+```
+
+## 7. Research Contract Draft
+
+### `POST /api/v2/research-contract-drafts`
+
+根据自然语言意图创建可编辑草案，不启动 Run。
 
 ```json
 {
-  "success": true,
+  "intent": "整合系外行星候选体与宿主恒星参数，并追踪字段和论文证据",
+  "case_key": "exoplanet_host_star"
+}
+```
+
+返回 `201`：
+
+```json
+{
   "data": {
-    "task_id": "task_001",
-    "status": "pending",
-    "case_key": "exoplanet_host_star"
+    "id": "rcd_01J...",
+    "status": "draft",
+    "contract": {
+      "research_goal": "整合系外行星候选体与宿主恒星关键参数",
+      "target_objects": ["exoplanet_candidate", "host_star"],
+      "data_requirements": {"unit_policy": "canonical"},
+      "requested_fields": ["pl_orbper", "pl_rade", "pl_bmass", "st_teff"],
+      "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+      "paper_search_scope": {"year_from": 2015, "max_candidates": 20},
+      "output_requirements": ["dataset", "field_dictionary", "graph"],
+      "evidence_requirements": {"require_locator": true},
+      "quality_constraints": {"source_completeness_min": 1.0}
+    },
+    "warnings": []
   },
-  "error": null,
-  "meta": { "request_id": "req_001", "cached": false }
+  "meta": {"request_id": "req_01J...", "schema_version": "2.0.0", "generated_at": "2026-07-16T08:00:00Z"},
+  "links": {"self": "/api/v2/research-contract-drafts/rcd_01J..."}
 }
 ```
 
-## 4. 查询任务状态
+### `PATCH /api/v2/research-contract-drafts/{draft_id}`
 
-`GET /api/v1/tasks/{task_id}`
+更新草案字段。请求携带 `If-Match` 或 `version`，防止多个编辑器静默覆盖。
+
+## 8. Project 与不可变 Contract
+
+| Method | Path | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/v2/projects?cursor=&limit=` | 当前会话的 Project 列表 |
+| `POST` | `/api/v2/projects` | 创建临时 ResearchProject |
+| `GET` | `/api/v2/projects/{project_id}` | Project 聚合：当前 Contract、Run 摘要、Artifact 摘要 |
+| `PATCH` | `/api/v2/projects/{project_id}` | 修改名称、描述等非科研产物元信息 |
+| `POST` | `/api/v2/projects/{project_id}/contracts` | 从 draft 创建不可变 ResearchContract |
+| `GET` | `/api/v2/projects/{project_id}/contracts?cursor=&limit=` | Contract 历史 |
+
+创建 Contract 请求：
 
 ```json
 {
-  "success": true,
-  "data": {
-    "task_id": "task_001",
-    "goal": "...",
-    "case_key": "exoplanet_host_star",
-    "status": "searching_papers",
-    "progress": 55,
-    "used_cache": false,
-    "created_at": "2026-07-04T10:00:00Z",
-    "updated_at": "2026-07-04T10:02:30Z",
-    "steps": [
-      {
-        "key": "searching_papers",
-        "label": "获取主案例论文",
-        "status": "running",
-        "message": "正在检索主案例相关论文候选"
-      }
-    ]
-  },
-  "error": null,
-  "meta": { "request_id": "req_002", "cached": false }
+  "draft_id": "rcd_01J...",
+  "expected_draft_version": 3
 }
 ```
 
-## 5. 获取数据集
+确认后 Contract 不原地修改；改变科研范围必须创建新 Contract，并由新 Run 引用。
 
-`GET /api/v1/tasks/{task_id}/dataset`
+## 9. Run 与进度
+
+| Method | Path | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/v2/projects/{project_id}/runs?cursor=&limit=` | Run 列表，默认按创建时间倒序 |
+| `POST` | `/api/v2/projects/{project_id}/runs` | 创建 Live Run；要求 `Idempotency-Key` |
+| `GET` | `/api/v2/runs/{run_id}` | Run 状态快照、steps、产物摘要和可用动作 |
+| `GET` | `/api/v2/runs/{run_id}/events?cursor=&limit=` | 有序进度事件；可协商 `text/event-stream` |
+| `POST` | `/api/v2/runs/{run_id}/cancellations` | 创建取消请求；重复请求幂等 |
+
+创建 Run：
 
 ```json
 {
-  "success": true,
+  "contract_id": "rc_01J...",
+  "execution_mode": "live",
+  "parent_run_id": null,
+  "derivation_kind": "original",
+  "feedback_ids": [],
+  "retry_from_step": null,
+  "cache_policy": "fallback_on_recoverable_failure"
+}
+```
+
+Run Snapshot 至少返回：
+
+```json
+{
+  "id": "run_01J...",
+  "project_id": "proj_01J...",
+  "contract_id": "rc_01J...",
+  "status": "searching_papers",
+  "progress": 55,
+  "execution_mode": "live",
+  "parent_run_id": null,
+  "derivation_kind": "original",
+  "steps": [],
+  "latest_event_sequence": 18,
+  "artifact_summaries": [],
+  "available_actions": ["cancel"],
+  "created_at": "2026-07-16T08:00:00Z",
+  "updated_at": "2026-07-16T08:02:30Z"
+}
+```
+
+事件必须有单调递增 `sequence`、`occurred_at`、`run_id`、`step_key`、公开消息和可选进度；不得包含 chain-of-thought。
+
+## 10. 重试、修订与派生
+
+用户发起的 retry、revision、fork 均通过 `POST /projects/{project_id}/runs` 创建新 Run：
+
+- `retry`：引用失败 `parent_run_id`，可指定 `retry_from_step`，复用经过 hash 校验的完成产物。
+- `revision`：引用 Feedback 与父 Run，只重算受影响步骤，生成新的 ArtifactVersion。
+- `fork`：引用父 Run 与新 Contract，表示研究范围或约束变化。
+- 自动瞬态重试留在同一 Run 的 StepAttempt 中，每次 attempt 都保留；终态失败不得静默回到 running。
+
+## 11. Artifact 与统一 Envelope
+
+| Method | Path | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/v2/runs/{run_id}/artifacts?kind=&cursor=&limit=` | Run 的 Artifact 摘要 |
+| `GET` | `/api/v2/artifacts/{artifact_id}` | Artifact 身份和版本列表摘要 |
+| `GET` | `/api/v2/artifact-versions/{version_id}` | 统一 ArtifactVersion Envelope |
+| `GET` | `/api/v2/evidence/{evidence_id}` | Evidence 与 SourceSnapshot |
+| `GET` | `/api/v2/source-snapshots/{snapshot_id}` | 可公开的来源快照信息 |
+
+ArtifactVersion Envelope：
+
+```json
+{
   "data": {
-    "dataset_id": "dataset_001",
-    "name": "exoplanet_host_star_dataset",
-    "columns": [
-      {
-        "name": "pl_orbper",
-        "label": "Orbital Period",
-        "unit": "day",
-        "source_ids": ["source_nasa_exoplanet_archive"],
-        "missing_rate": 0.08
-      }
-    ],
-    "rows": [
-      {
-        "object_id": "toi_001",
-        "pl_orbper": 3.52,
-        "hostname": "Host Star A"
-      }
-    ],
-    "quality_score": {
-      "field_coverage": 0.86,
-      "source_completeness": 1.0,
-      "unit_consistency": 1.0
+    "artifact": {
+      "id": "art_01J...",
+      "project_id": "proj_01J...",
+      "kind": "dataset",
+      "title": "系外行星与宿主恒星参数数据集"
+    },
+    "version": {
+      "id": "artv_01J...",
+      "version_number": 2,
+      "schema_version": "2.0.0",
+      "content_hash": "sha256:...",
+      "source_mode": "live",
+      "created_by_run_id": "run_01J...",
+      "supersedes_version_id": "artv_01H...",
+      "created_at": "2026-07-16T08:08:00Z"
+    },
+    "content": {},
+    "evidence_refs": ["ev_01J..."],
+    "provenance": {
+      "source_snapshot_ids": ["srcs_01J..."],
+      "producer": {"type": "pipeline", "version": "data-pipeline@1"}
     }
   },
-  "error": null,
-  "meta": { "request_id": "req_003", "cached": false }
+  "meta": {"request_id": "req_01J...", "schema_version": "2.0.0", "generated_at": "2026-07-16T08:08:00Z"},
+  "links": {"self": "/api/v2/artifact-versions/artv_01J..."}
 }
 ```
 
-## 6. 获取来源记录
+`content` 根据 `artifact.kind` 使用判别联合 Schema；页面不得把任意 JSON 当作已校验产物。
 
-`GET /api/v1/tasks/{task_id}/sources`
+上例的 `source_mode=live` 表示实际来源；`supersedes_version_id` 非空表示它是修订版本。界面可组合显示 `LIVE · REVISED`，但不得把 `revised` 写回来源枚举。
+
+## 12. Workspace 恢复
+
+| Method | Path | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/v2/projects/{project_id}/workspace-snapshot` | 当前会话的工作台恢复状态 |
+| `PUT` | `/api/v2/projects/{project_id}/workspace-snapshot` | 幂等保存布局、打开产物和选择对象 |
+
+WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文本、会话 token、模型内部状态或无限自由窗口位置。
+
+## 13. 分享
+
+| Method | Path | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/v2/projects/{project_id}/shares?cursor=&limit=` | 私有分享记录，不返回原 token |
+| `POST` | `/api/v2/projects/{project_id}/shares` | 创建冻结的 ShareSnapshot 与一次性可见 URL |
+| `DELETE` | `/api/v2/projects/{project_id}/shares/{share_id}` | 撤销分享 |
+| `GET` | `/api/v2/shares/{share_token}` | 无编辑权限的公开快照 |
+
+创建请求必须列出 `artifact_version_ids`、可公开 Evidence 范围、`expires_at` 和 redaction policy。公开响应只能包含 ShareSnapshot 锁定内容。
+
+## 14. Feedback 与修订计划
+
+| Method | Path | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/v2/feedback` | 针对 Field、Source、Paper、Claim、Relation、Trace 或 GraphEdge 提交反馈 |
+| `GET` | `/api/v2/feedback/{feedback_id}` | 反馈状态、影响范围与 RevisionPlan |
 
 ```json
 {
-  "success": true,
-  "data": {
-    "sources": [
-      {
-        "id": "source_nasa_exoplanet_archive",
-        "type": "database",
-        "name": "NASA Exoplanet Archive",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/",
-        "query": "...",
-        "retrieved_at": "2026-07-04T10:01:00Z",
-        "cached": false
-      },
-      {
-        "id": "source_ads_or_arxiv",
-        "type": "paper_source",
-        "name": "paper source",
-        "url": "string",
-        "query": "exoplanet candidate host star orbital period",
-        "retrieved_at": "2026-07-04T10:05:00Z",
-        "cached": false
-      }
-    ]
+  "target": {
+    "object_type": "literature_relation",
+    "object_id": "rel_01J...",
+    "artifact_version_id": "artv_01J..."
   },
-  "error": null,
-  "meta": { "request_id": "req_004", "cached": false }
+  "category": "evidence_mismatch",
+  "message": "该关系缺少温度范围条件",
+  "proposed_change": {"add_condition": "st_teff >= 6000 K"}
 }
 ```
 
-## 7. 获取论文获取结果
+反馈本身不修改产物。确认 RevisionPlan 后创建 `derivation_kind=revision` 的新 Run。
 
-`GET /api/v1/tasks/{task_id}/paper-acquisition`
+## 15. 导出
 
-```json
-{
-  "success": true,
-  "data": {
-    "query": {
-      "query_id": "paper_query_001",
-      "keywords": ["exoplanet candidate", "host star", "orbital period"],
-      "query_string": "exoplanet candidate host star orbital period",
-      "filters": {
-        "year_from": 2015,
-        "max_results": 20
-      }
-    },
-    "run": {
-      "run_id": "paper_run_001",
-      "status": "completed",
-      "candidate_count": 12,
-      "selected_count": 6,
-      "dedupe_rule": "doi_or_title_year",
-      "used_cache": false
-    },
-    "candidates": [
-      {
-        "candidate_id": "paper_candidate_001",
-        "title": "string",
-        "authors": ["string"],
-        "year": 2024,
-        "doi": "string",
-        "arxiv_id": "string",
-        "url": "string",
-        "abstract": "string",
-        "source_record_id": "source_ads_or_arxiv",
-        "relevance_score": 0.86,
-        "selected": true,
-        "selection_reason": "Matches host-star parameter integration case"
-      }
-    ]
-  },
-  "error": null,
-  "meta": { "request_id": "req_005", "cached": false }
-}
-```
+| Method | Path | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/v2/artifact-versions/{version_id}/exports` | 创建 CSV、JSON 或溯源报告导出任务 |
+| `GET` | `/api/v2/exports/{export_id}` | 查询状态与短期下载 URL |
 
-## 8. 获取文献总结
+导出必须锁定 ArtifactVersion、内容 hash、生成时间与 provenance；下载 URL 短期有效且不暴露底层文件路径。
 
-`GET /api/v1/tasks/{task_id}/papers`
+## 16. Cache 语义
 
-```json
-{
-  "success": true,
-  "data": {
-    "papers": [
-      {
-        "paper_id": "paper_001",
-        "candidate_id": "paper_candidate_001",
-        "title": "string",
-        "year": 2024,
-        "url": "string",
-        "summary": {
-          "research_goal": "string",
-          "method": "string",
-          "dataset": "string",
-          "findings": ["string"],
-          "limitations": ["string"],
-          "future_work": ["string"]
-        },
-        "evidence_ids": ["evidence_001"]
-      }
-    ]
-  },
-  "error": null,
-  "meta": { "request_id": "req_006", "cached": false }
-}
-```
+- Cache 不是 Run 状态。
+- 只有来自真实历史 Run、可定位 ArtifactVersion 与 SourceSnapshot 的结果才能标记 `source_mode=cached`。
+- 使用缓存前记录本次 Live 失败、匹配 input hash、来源 Run、适用范围和选择原因。
+- 缓存不满足 Contract 或 Evidence 要求时返回失败，不以“尽量展示”覆盖科研约束。
 
-## 9. 获取跨文献推理结果
+## 17. OpenAPI、Schema 与 Adapter 门禁
 
-`GET /api/v1/tasks/{task_id}/literature-reasoning`
+实施时必须：
 
-```json
-{
-  "success": true,
-  "data": {
-    "claims": [
-      {
-        "claim_id": "claim_001",
-        "paper_id": "paper_001",
-        "claim_type": "finding",
-        "text": "string",
-        "evidence_ids": ["evidence_001"],
-        "confidence": 0.82
-      }
-    ],
-    "relations": [
-      {
-        "relation_id": "relation_001",
-        "source_claim_id": "claim_001",
-        "target_claim_id": "claim_002",
-        "relation_type": "supports",
-        "reasoning_trace_id": "trace_001",
-        "evidence_ids": ["evidence_001", "evidence_002"],
-        "confidence": 0.78
-      }
-    ],
-    "traces": [
-      {
-        "trace_id": "trace_001",
-        "relation_id": "relation_001",
-        "steps": [
-          {
-            "order": 1,
-            "claim_id": "claim_001",
-            "rationale": "string"
-          }
-        ],
-        "evidence_ids": ["evidence_001", "evidence_002"]
-      }
-    ]
-  },
-  "error": null,
-  "meta": { "request_id": "req_007", "cached": false }
-}
-```
+1. FastAPI / Pydantic 生成 OpenAPI 3.1 与 JSON Schema；不得并行手写第二套生产 Schema。
+2. OpenAPI 暴露唯一 operationId、完整错误、Cookie / CSRF 安全说明、请求和响应示例。
+3. 所有集合声明 cursor 与 limit，所有写入声明幂等或版本冲突语义。
+4. `packages/contracts` 生成 Transport Type 和运行时校验；`packages/domain` 不依赖 HTTP。
+5. Fixture 与 HTTP Adapter 对同一 Contract Fixture 运行一致性测试。
+6. OpenAPI lint、Schema export diff 和生成类型漂移检查进入 CI。
 
-## 10. 获取学术图谱
+本轮未创建 OpenAPI 文件，因为当前 Pydantic 仍是唯一 authoring source，且用户明确禁止修改后端实现。目标 v2 Pydantic 模型落地后，生成的 `/api/v2/openapi.json` 才是机器可验证事实。
 
-`GET /api/v1/tasks/{task_id}/graph`
+## 18. 非功能与安全验证
 
-```json
-{
-  "success": true,
-  "data": {
-    "nodes": [
-      {
-        "id": "claim_001",
-        "type": "claim",
-        "label": "Host-star parameter finding",
-        "ref_id": "claim_001"
-      }
-    ],
-    "edges": [
-      {
-        "id": "edge_001",
-        "source": "claim_001",
-        "target": "claim_002",
-        "type": "supports",
-        "relation_id": "relation_001",
-        "reasoning_trace_id": "trace_001",
-        "evidence_ids": ["evidence_001", "evidence_002"]
-      }
-    ]
-  },
-  "error": null,
-  "meta": { "request_id": "req_008", "cached": false }
-}
-```
+- 跨会话 Project / Run / Artifact ID 访问统一返回不泄露存在性的 `404`；会话缺失或过期返回 `401`；CSRF 失败或已知主体缺少允许动作返回 `403`。
+- 会话固定攻击、过期 Cookie、无效 CSRF、撤销/过期 Share、token 枚举和水平越权必须有测试。
+- 用户输入、论文文本和外部摘要默认按文本输出；渲染 HTML 前严格净化。
+- 外部 URL 只允许 `https` 和配置的来源 host，防止 SSRF 与恶意协议。
+- 请求体、Research Contract、Feedback 与导出设大小上限。
+- API 与前端部署定义 CSP、HSTS、MIME sniffing、Referrer Policy、Permissions Policy 和最小 CORS allowlist。
+- Rate limit 与匿名配额数值由部署配置冻结，并在 OpenAPI / `.env.example` 实施时同步；本 RFC 不编造未经容量测试的阈值。
 
-## 11. 获取证据详情
+## 19. 当前 v1 边界
 
-`GET /api/v1/tasks/{task_id}/evidence/{evidence_id}`
+当前实现仍提供 `/api/v1/health`、`/api/v1/tasks` 及 dataset、sources、paper-acquisition、papers、literature-reasoning、graph、evidence 等 Task 子资源。它们是 Phase 0 Fixture-backed 契约，不支持本文件的 Project、Run、ArtifactVersion、WorkspaceSnapshot 或 ShareSnapshot。
 
-```json
-{
-  "success": true,
-  "data": {
-    "id": "evidence_001",
-    "type": "paper_text",
-    "source_id": "source_ads_or_arxiv",
-    "paper_id": "paper_001",
-    "target_type": "claim",
-    "target_id": "claim_001",
-    "content": "Claim extracted from paper abstract or accessible text.",
-    "locator": {
-      "kind": "abstract",
-      "value": "abstract"
-    },
-    "quote_or_value": "short verifiable quote or value",
-    "extraction_method": "model_extraction",
-    "source_snapshot": {
-      "retrieved_at": "2026-07-04T10:05:00Z",
-      "query_hash": "sha256:example"
-    },
-    "confidence": 0.95
-  },
-  "error": null,
-  "meta": { "request_id": "req_009", "cached": false }
-}
-```
-
-## 12. 提交反馈
-
-`POST /api/v1/tasks/{task_id}/feedback`
-
-请求：
-
-```json
-{
-  "type": "literature_relation_error",
-  "target_type": "literature_relation",
-  "target_id": "relation_001",
-  "message": "该关系更像 limits 而不是 supports"
-}
-```
-
-响应：
-
-```json
-{
-  "success": true,
-  "data": {
-    "feedback_id": "fb_001",
-    "status": "accepted",
-    "next_status": "revising"
-  },
-  "error": null,
-  "meta": { "request_id": "req_010", "cached": false }
-}
-```
-
-## 13. 导出
-
-| 接口 | 输出 |
-| --- | --- |
-| `GET /api/v1/tasks/{task_id}/export/csv` | 标准化数据集 CSV |
-| `GET /api/v1/tasks/{task_id}/export/data-dictionary` | 字段字典 JSON/CSV |
-| `GET /api/v1/tasks/{task_id}/export/provenance-report` | 溯源报告 Markdown/JSON |
-| `GET /api/v1/tasks/{task_id}/export/papers` | 论文候选、入选论文和总结 JSON |
-| `GET /api/v1/tasks/{task_id}/export/literature-reasoning` | Claim、Relation、ReasoningTrace JSON |
-
-## 14. 错误码
-
-| code | 含义 |
-| --- | --- |
-| `INVALID_REQUEST` | 请求参数无效 |
-| `TASK_NOT_FOUND` | 任务不存在 |
-| `TASK_NOT_READY` | 结果尚未生成 |
-| `MODEL_CALL_FAILED` | 模型调用失败 |
-| `DATA_SOURCE_FAILED` | 外部数据源失败 |
-| `PAPER_SOURCE_FAILED` | 论文来源失败 |
-| `REASONING_TRACE_INVALID` | 推理链缺少证据或结构不合法 |
-| `CACHE_NOT_AVAILABLE` | 无可用缓存 |
-| `SCHEMA_VALIDATION_FAILED` | 模型或模块输出不符合 schema |
+README、PR、演示材料必须保持这一“当前实现 / 目标契约”区分，直到 v2 有可执行代码和验证证据。

@@ -42,7 +42,7 @@
 - Python 模块/函数使用 snake_case，类使用 PascalCase。
 - Issue/任务编号出现在 PR，而不是大量写入业务代码。
 - Prompt 文件使用 `<name>/vN.md`。
-- 样例文件名体现 case、版本和是否 cached/mock。
+- 样例文件名体现 case、版本和 `fixture` / `cached` 来源，二者不得混用。
 
 ## 6. Review 最低项
 
