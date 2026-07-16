@@ -134,3 +134,48 @@ M1 本地环境统一使用 Docker Compose 管理 `web`、`api`、`postgres` 三
 M1 不引入 Redis、Celery、RabbitMQ。任务链路先用 FastAPI、数据库任务状态和 BackgroundTasks 支撑；当论文获取、模型调用或图谱构建耗时明显影响稳定性时，再评估 Redis + Celery/RQ。
 
 原因：MVP 任务规模可控，过早引入任务队列会增加部署、调试和成员协作成本。
+
+## ADR-016：工作流必须由显式状态机驱动
+
+| 状态 | Accepted |
+| --- | --- |
+
+`ResearchTask` 的状态转换由 `app.workflow` 集中声明和校验。Router 不直接串联多个 Pipeline，Pipeline 不自行推进任务状态。
+
+原因：把编排散落在 Router/Service 会导致非法跳转、失败记录丢失、缓存语义混乱和巨型业务文件。
+
+## ADR-017：Pydantic 是 Phase 0 Schema authoring source
+
+| 状态 | Accepted |
+| --- | --- |
+
+Phase 0 以 `apps/api/src/app/schemas` 作为契约编写源，通过 `scripts/export_schemas.py` 导出 JSON Schema 到 `packages/schemas` 或临时构建目录。前端和 Pipeline 不维护第二套同名字段。
+
+原因：当前 Pydantic 模型已经存在，立即搬迁会制造双写和回归风险；先建立可重复导出，再按实际 codegen 需求评估独立 IDL。
+
+## ADR-018：Prompt 文件不可变版本化
+
+| 状态 | Accepted |
+| --- | --- |
+
+生产 Prompt 统一放在 `packages/prompts/<name>/vN.md`，由 registry 指定默认版本。已被真实运行或缓存引用的版本不原地改写。
+
+原因：Prompt 是科研结果的生成条件，散落字符串和“最新版本”无法复现，也会造成缓存结果口径失真。
+
+## ADR-019：科研产物采用追加式版本治理
+
+| 状态 | Accepted |
+| --- | --- |
+
+Dataset、Summary、Claim、Trace、Graph 和 Export 的修正通过新 ArtifactVersion 表达；模型/算法运行通过 ExperimentRun 表达。Phase 0 先冻结契约，Phase 1–3 分步落库。
+
+原因：只保存当前结果无法解释历史截图、模型升级差异、缓存来源和用户修正。
+
+## ADR-020：MVP 暂不引入通用图数据库与万能实体层
+
+| 状态 | Accepted |
+| --- | --- |
+
+MVP 继续使用 PostgreSQL/JSON 与现有 GraphNode/GraphEdge 契约。只有当真实图规模、查询模式或跨案例复用证明需要时，才评估 Neo4j、通用 Entity/Relation 或向量数据库。
+
+原因：当前风险是可信闭环未跑通，而不是图存储性能。过早抽象会增加迁移和联调成本。

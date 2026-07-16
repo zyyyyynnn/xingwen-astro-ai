@@ -29,13 +29,25 @@ services:
     env_file:
       - .env
     environment:
-      # 容器内通过服务名访问 postgres
+      # 容器内通过服务名访问 postgres；生产环境必须覆盖默认凭据。
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-xingwen_astro_ai}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   web:
     build:
@@ -44,7 +56,9 @@ services:
     container_name: xingwen-web
     restart: unless-stopped
     environment:
-      VITE_API_BASE_URL: http://api:8000/api/v1
+      # Compose 自动读取根目录 .env 进行插值；不要把后端密钥注入 Web 容器。
+      # VITE_* 在浏览器执行，必须使用宿主机可访问地址，不能使用 Docker 服务名 api。
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
     ports:
       - "${WEB_PORT:-5173}:5173"
     volumes:
@@ -52,7 +66,8 @@ services:
       - ./apps/web/src:/app/src
       - ./apps/web/public:/app/public
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   postgres_data:

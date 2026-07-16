@@ -14,8 +14,8 @@ P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00
 | D-01 | 确定论文获取与推理基准 | D | 论文源候选、检索关键词、5-8 篇 seed list、Claim/Relation 样例 | X-00 |
 | A-01 | 初始化 Web 端骨架 | A | Vue 3 + TypeScript + Vite + pnpm + shadcn-vue + Tailwind CSS 4 可启动 | X-04 |
 | B-01 | 初始化 FastAPI 与 uv 后端骨架 | B | FastAPI + Python 3.13 + uv 可启动，Docker API 服务可运行 | X-04 |
-| X-05 | 建立基础 CI 与依赖漂移卡口 | A + B | 禁止错误 lockfile、检查 `.env.example`、校验 pnpm/uv/Docker 基线；A/B/X-04 完成后补构建和 compose 检查 | X-04, A-01, B-01 |
-| B-02 | 定义 Pydantic Schema 初版 | B | 与 DATA_MODEL 对齐，包含 PaperAcquisition、Claim、Relation、Trace | B-01, C-01, D-01 |
+| X-05 | 建立基础 CI 与依赖漂移卡口 | A + B | foundation check、frozen install、前端构建、后端测试、Schema 导出、Compose 校验 | X-04, A-01, B-01 |
+| B-02 | 定义 Pydantic Schema 初版 | B | 与 DATA_MODEL 对齐，包含 PaperAcquisition、Claim、Relation、Trace；可导出 JSON Schema | B-01, C-01, D-01 |
 | B-03 | 创建任务/查询任务接口 | B | `/api/v1/health`、`/api/v1/tasks` 可用 | B-02 |
 | B-04 | Mock 任务结果聚合 | B | dataset/paper-acquisition/papers/literature-reasoning/graph/evidence 返回样例 | B-03, C-01, D-01 |
 | A-02 | 搭建页面路由和基础布局 | A | 首页、任务页、数据页、论文获取页、文献页、推理页、图谱页 | A-01 |
@@ -63,6 +63,16 @@ P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00
 | X-02 | 公网 Demo 部署 | A + B | URL、环境变量、缓存验证 | 核心链路完成 |
 | X-03 | 材料交接包 | 全员 | 截图、CSV、论文候选、推理图谱、说明 | X-02 |
 
+## 跨阶段集成 Issue
+
+这些 Issue 是阶段级验收与集成门，不替代上面的 A/B/C/D 原子任务。
+
+| ID | 阶段 | 目标 | 聚合依赖 |
+| --- | --- | --- | --- |
+| X-06 | Phase 1 | 真实数据、自动论文获取、结构化总结与 Evidence 主链路 | C-02~C-05、D-02~D-03、B-05~B-07、A-04~A-06 |
+| X-07 | Phase 2 | Claim/Relation/Trace、Graph 与证据查看闭环 | D-04~D-05、B-08~B-09、A-07~A-08 |
+| X-08 | Phase 3 | 版本/实验治理、缓存、反馈、部署与材料交付 | B-10~B-11、A-09~A-10、C-06、D-06、X-02~X-03 |
+
 ## 暂缓任务
 
 | 任务 | 暂缓原因 |
@@ -73,4 +83,4 @@ P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00
 | Redis / Celery | MVP 先用 FastAPI + DB 状态机 / BackgroundTasks，任务变重后再评估 |
 | MinIO / Nginx / RabbitMQ | M1 不需要，过早引入会增加团队环境复杂度 |
 | 多用户权限系统 | 比赛演示不是核心风险 |
-| 大规模图谱存储 | MVP 图谱规模可由 JSON 支撑 |
+| Neo4j / 通用 Entity 层 / 向量数据库 | 真实规模和查询需求尚未证明需要 |
