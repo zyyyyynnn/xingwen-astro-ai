@@ -1,18 +1,26 @@
 # Local Setup
 
-本地开发采用 Docker-first。成员默认通过 Docker Compose 启动 `web`、`api`、`postgres`，避免 Windows 本机依赖和版本不一致。
+| 元数据 | 值 |
+| --- | --- |
+| Status | Implemented |
+| Authority | 当前本地启动、调试、验证命令和故障排查 |
+| Applies to | `apps/web` Vue baseline、FastAPI `/api/v1`、PostgreSQL Compose |
+
+本文只描述当前可运行基线。目标 Astro/React Monorepo 的命令在 A-01 实施并验证后再加入；当前文档不得预告尚不可运行的目标命令。
 
 ## 1. 环境要求
 
-| 工具 | 固定口径 |
+| 工具 | 当前基线 |
 | --- | --- |
-| Windows | Windows 11 + PowerShell 7+ + UTF-8 |
+| Windows | Windows 11、PowerShell 7+、UTF-8 |
 | Docker | Docker Desktop + Docker Compose |
 | Node.js | 24 LTS，仅用于本机前端调试 |
-| pnpm | 10.x，通过 Corepack 或项目 `packageManager` 固定 |
+| pnpm | 10.x，通过 Corepack / `packageManager` 固定 |
 | Python | 3.13，仅用于本机后端调试 |
-| uv | 0.7.8 基线，Python 依赖和虚拟环境管理 |
-| PostgreSQL | Docker 使用 `postgres:17-alpine` |
+| uv | 由 `uv.lock` 和项目配置约束 |
+| PostgreSQL | Compose 使用 `postgres:17-alpine` |
+
+Docker Compose 是默认入口；裸机命令只用于调试。
 
 ## 2. 环境变量
 
@@ -20,43 +28,35 @@
 Copy-Item .env.example .env
 ```
 
-本地必须填写：
+当前 Fixture-backed v1 基线可使用模板占位配置启动。只有执行真实模型或论文来源调用时，才需要填写对应凭据。
 
-```text
-DASHSCOPE_API_KEY=
-```
+规则：
 
-按论文源是否需要鉴权决定：
+- 不提交 `.env`；
+- `VITE_*` 会进入浏览器，只允许非敏感配置；
+- 本地允许模板数据库密码，Production 必须覆盖；
+- `VITE_API_BASE_URL` 是浏览器可访问地址，不能使用 Docker 内部服务名 `api`；
+- 真实模型、论文和数据源配置只提供给后端。
 
-```text
-PAPER_SOURCE_API_KEY=
-```
-
-本地模板允许 `POSTGRES_PASSWORD=postgres`，但生产环境会拒绝默认密码。禁止提交 `.env`。
-
-`VITE_API_BASE_URL` 是浏览器地址。本地默认：
+本地默认 API base：
 
 ```text
 http://localhost:8000/api/v1
 ```
 
-不能写成 `http://api:8000/...`，因为浏览器无法解析 Docker 内部服务名。
+## 3. Docker Compose
 
-## 3. Docker Compose 启动
+启动：
 
 ```powershell
 docker compose up --build
 ```
 
-默认服务：
-
-| 服务 | 容器职责 | 地址 |
+| 服务 | 当前职责 | 地址 |
 | --- | --- | --- |
-| `api` | FastAPI 后端 | `http://127.0.0.1:8000` |
+| `web` | Vue 3 + Vite 回退前端 | `http://127.0.0.1:5173` |
+| `api` | FastAPI `/api/v1` | `http://127.0.0.1:8000` |
 | `postgres` | PostgreSQL 17 | `127.0.0.1:5432` |
-| `web` | Vue 3 + Vite 前端 | `http://127.0.0.1:5173` |
-
-启动顺序由 healthcheck 控制：PostgreSQL → API → Web。
 
 API 文档：`http://127.0.0.1:8000/api/v1/docs`
 
@@ -72,16 +72,14 @@ docker compose down
 docker compose up --build --force-recreate
 ```
 
-仅校验 Compose：
+只验证配置：
 
 ```powershell
 Copy-Item .env.example .env
 docker compose config
 ```
 
-## 4. 前端本机调试
-
-包管理器只允许 pnpm。
+## 4. 当前前端调试
 
 ```powershell
 cd apps/web
@@ -90,18 +88,14 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-禁止 `npm install`、`yarn install`、`bun install`。
+- 只使用 pnpm；
+- 当前 Vue 应用是迁移回退基线，不新增目标业务；
+- Fixture 必须通过当前共享 Schema，并明确不是 Live/Cached；
+- 前端不直连模型、论文源或数据源。
 
-前端必须遵守：
+目标前端结构和迁移边界见 [Frontend Architecture](architecture/FRONTEND_ARCHITECTURE.md)。
 
-- Vue 3 + TypeScript + Vite。
-- shadcn-vue + reka-ui + Tailwind CSS 4。
-- Pinia + Vue Router。
-- Vue Flow 用于证据图谱。
-- fixtures 只在开发模式使用，并通过共享契约校验。
-- 前端不直连模型、论文源或天文数据源。
-
-## 5. 后端本机调试
+## 5. 后端调试
 
 ```powershell
 cd apps/api
@@ -110,60 +104,58 @@ uv run pytest
 uv run uvicorn app.main:app --reload
 ```
 
-导出 Schema：
+导出当前 Schema：
 
 ```powershell
 uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated
 ```
 
-禁止使用裸 `pip install -r requirements.txt` 作为主流程。
+不手改 generated Schema，不以裸 `pip install -r requirements.txt` 替代 uv。
 
-## 6. CI 与基建检查
-
-本地可先执行：
+## 6. 基础验证
 
 ```powershell
 python scripts/check_foundation.py
+docker compose config
 ```
 
-PR CI 当前覆盖：
+当前 CI 覆盖：
 
 ```text
-required files / forbidden lockfiles / .env / env keys
-pnpm install --frozen-lockfile
-pnpm build
-uv sync --frozen
-uv run pytest
+foundation and forbidden files
+pnpm frozen install + build
+uv frozen sync + pytest
 Pydantic JSON Schema export
 docker compose config
 ```
 
-CI 失败时先按 job 区分：Foundation、Backend、Frontend。
+测试层级和后续阶段门见 [Test Strategy](engineering/TEST_STRATEGY.md)。
 
-## 7. 本地验收顺序
+## 7. 本地 Smoke
 
-1. `python scripts/check_foundation.py` 通过。
-2. `docker compose config` 通过。
+1. Foundation check 通过。
+2. Compose config 通过。
 3. `docker compose up --build` 成功。
-4. 前端首页可打开。
-5. 后端 `/api/v1/health` 正常。
-6. API 文档可打开。
-7. 创建任务接口返回 `task_id`。
-8. 页面可展示明确标注的 Fixture 样例结果或真实结果，二者不得混淆。
-9. 页面能区分实时、失败和缓存状态。
-10. `.env` 未被 Git 跟踪，无额外 lockfile。
+4. 首页可访问。
+5. `/api/v1/health` 返回成功。
+6. `/api/v1/docs` 可访问。
+7. 创建 Task 返回 `task_id`。
+8. Fixture 页面明确标记，不冒充 Live 或 Cached。
+9. `.env` 未被 Git 跟踪，仓库无额外 lockfile。
+
+当前 Smoke 不证明目标 `/api/v2`、真实 Pipeline 或新前端已实现。
 
 ## 8. 常见问题
 
 | 问题 | 处理 |
 | --- | --- |
-| Docker 启动失败 | `docker compose down` 后重新 build |
-| Web 请求 `api` 域名失败 | 将 `VITE_API_BASE_URL` 改为 localhost/宿主机/公网 URL |
-| API Key 报错 | 检查后端 `.env`，不要写入前端 |
-| 论文源报错 | 检查 source URL/key，必要时使用真实运行缓存 |
-| CORS 报错 | 同时检查 `localhost`、`127.0.0.1` 或实际前端域名 |
-| 数据库连不上 | 检查 `DATABASE_URL`、容器健康和端口 |
-| 前端依赖异常 | 删除 node_modules，重新 frozen install |
-| 后端依赖异常 | 使用 `uv sync --frozen` 重建 |
-| Schema 漂移 | 修正 `app.schemas` 后重新导出，不手改 generated |
-| Demo 需要稳定展示 | 开启缓存并准备真实运行缓存及来源记录 |
+| Compose 启动失败 | `docker compose down` 后重新 build，查看具体 service 日志 |
+| 浏览器请求 `api` 域名失败 | 使用 localhost、宿主机地址或公网 API URL |
+| 模型调用失败 | 检查后端环境与来源配置，不把凭据写入前端 |
+| 论文来源失败 | 检查 endpoint、访问范围和后端配置；不要用 seed 冒充结果 |
+| CORS 失败 | 检查实际浏览器 origin 与 `CORS_ORIGINS` |
+| 数据库连接失败 | 检查 `DATABASE_URL`、容器健康和 migration 状态 |
+| 前端依赖异常 | 清理本地安装目录后重新 frozen install |
+| 后端依赖异常 | 使用 `uv sync --frozen` 重建环境 |
+| Schema 漂移 | 修正 Pydantic 编写源后重新导出，不改 generated |
+| Demo 需要稳定复现 | 使用明确 Fixture；真实缓存必须来自可定位历史 Run |
