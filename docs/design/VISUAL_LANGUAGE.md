@@ -1,5 +1,12 @@
 # Visual Language
 
+| 项目状态 | 口径 |
+| --- | --- |
+| Status | Accepted for implementation |
+| Implementation | Pending |
+| Current runtime | `apps/web` 中的 Vue 3 / shadcn-vue 骨架 |
+| Target runtime | `packages/design-tokens` + React UI + GPU Visual Engine |
+
 本文定义星文智析的品牌视觉、配色 Token、字体、排版、ASCII / Dither、动效与组件外观。实现不得从参考产品复制界面皮肤，也不得在业务页面临时追加独立色值和视觉规则。
 
 ## 1. 核心概念
@@ -82,39 +89,39 @@
 ```css
 :root {
   /* Cold paper */
-  --raw-paper-0: #fbfcfc;
-  --raw-paper-50: #f5f7f8;
-  --raw-paper-100: #eef1f3;
-  --raw-paper-200: #e3e8eb;
+  --raw-paper-0: oklch(0.995 0.002 230);
+  --raw-paper-50: oklch(0.978 0.004 230);
+  --raw-paper-100: oklch(0.955 0.006 230);
+  --raw-paper-200: oklch(0.925 0.008 230);
 
   /* Lunar gray */
-  --raw-gray-100: #d8dfe3;
-  --raw-gray-200: #c7d0d6;
-  --raw-gray-300: #acb8c0;
-  --raw-gray-400: #8f9ca6;
-  --raw-gray-500: #707e89;
-  --raw-gray-600: #56646f;
-  --raw-gray-700: #3e4b55;
-  --raw-gray-800: #29353e;
-  --raw-gray-900: #18232b;
+  --raw-gray-100: oklch(0.89 0.010 235);
+  --raw-gray-200: oklch(0.84 0.012 235);
+  --raw-gray-300: oklch(0.76 0.014 235);
+  --raw-gray-400: oklch(0.67 0.016 235);
+  --raw-gray-500: oklch(0.57 0.018 235);
+  --raw-gray-600: oklch(0.47 0.020 235);
+  --raw-gray-700: oklch(0.38 0.022 235);
+  --raw-gray-800: oklch(0.29 0.024 235);
+  --raw-gray-900: oklch(0.21 0.026 235);
 
   /* Haze blue */
-  --raw-haze-50: #f0f5f7;
-  --raw-haze-100: #e2ebf0;
-  --raw-haze-200: #cedde6;
-  --raw-haze-300: #afc7d5;
-  --raw-haze-400: #8eacbf;
-  --raw-haze-500: #7192a9;
-  --raw-haze-600: #58798f;
-  --raw-haze-700: #425f73;
-  --raw-haze-800: #304858;
-  --raw-haze-900: #22343f;
+  --raw-haze-50: oklch(0.97 0.012 235);
+  --raw-haze-100: oklch(0.93 0.020 235);
+  --raw-haze-200: oklch(0.87 0.032 235);
+  --raw-haze-300: oklch(0.78 0.045 235);
+  --raw-haze-400: oklch(0.68 0.055 235);
+  --raw-haze-500: oklch(0.59 0.062 235);
+  --raw-haze-600: oklch(0.50 0.058 235);
+  --raw-haze-700: oklch(0.41 0.050 235);
+  --raw-haze-800: oklch(0.33 0.042 235);
+  --raw-haze-900: oklch(0.26 0.034 235);
 
   /* Semantic */
-  --raw-success-500: #5f8074;
-  --raw-warning-500: #987e54;
-  --raw-danger-500: #9a6264;
-  --raw-info-500: #6686a1;
+  --raw-success-500: oklch(0.56 0.070 165);
+  --raw-warning-500: oklch(0.60 0.075 80);
+  --raw-error-500: oklch(0.56 0.085 25);
+  --raw-info-500: oklch(0.57 0.060 245);
 }
 ```
 
@@ -125,38 +132,42 @@
 ```css
 :root {
   --color-canvas: var(--raw-paper-50);
-  --color-canvas-elevated: var(--raw-paper-0);
-  --color-surface: color-mix(in srgb, var(--raw-paper-0) 86%, var(--raw-haze-50));
-  --color-surface-subtle: var(--raw-paper-100);
-  --color-surface-selected: var(--raw-haze-100);
+  --color-surface: color-mix(in oklch, var(--raw-paper-0) 86%, var(--raw-haze-50));
+  --color-surface-raised: var(--raw-paper-0);
+  --color-surface-muted: var(--raw-paper-100);
   --color-surface-hover: color-mix(in srgb, var(--raw-haze-100) 68%, var(--raw-paper-0));
 
-  --color-text-primary: var(--raw-gray-900);
-  --color-text-secondary: var(--raw-gray-600);
-  --color-text-tertiary: var(--raw-gray-500);
-  --color-text-inverse: var(--raw-paper-0);
+  --color-ink-primary: var(--raw-gray-900);
+  --color-ink-secondary: var(--raw-gray-600);
+  --color-ink-tertiary: var(--raw-gray-500);
 
   --color-border: var(--raw-gray-200);
   --color-border-subtle: var(--raw-gray-100);
-  --color-border-strong: var(--raw-gray-400);
 
   --color-brand: var(--raw-haze-600);
-  --color-brand-strong: var(--raw-haze-700);
-  --color-brand-soft: var(--raw-haze-100);
+  --color-brand-hover: var(--raw-haze-700);
+  --color-brand-muted: var(--raw-haze-100);
   --color-focus: var(--raw-haze-500);
 
   --color-success: var(--raw-success-500);
   --color-warning: var(--raw-warning-500);
-  --color-danger: var(--raw-danger-500);
-  --color-info: var(--raw-info-500);
+  --color-error: var(--raw-error-500);
+  --color-live: var(--raw-success-500);
+  --color-cached: var(--raw-warning-500);
+  --color-revised: var(--raw-info-500);
+  --color-demo: var(--raw-haze-600);
 
-  --color-ascii-ink: var(--raw-haze-700);
-  --color-ascii-mid: var(--raw-haze-500);
-  --color-ascii-soft: var(--raw-haze-200);
-  --color-orbit: color-mix(in srgb, var(--raw-haze-700) 25%, transparent);
-  --color-grid: color-mix(in srgb, var(--raw-gray-600) 10%, transparent);
+  --color-visual-paper: var(--raw-paper-50);
+  --color-visual-celestial-ink: var(--raw-haze-700);
+  --color-visual-celestial-deep: var(--raw-haze-900);
+  --color-visual-celestial-soft: var(--raw-haze-200);
+  --color-visual-orbit: color-mix(in oklch, var(--raw-haze-700) 25%, transparent);
+  --color-visual-grid: color-mix(in oklch, var(--raw-gray-600) 10%, transparent);
+  --color-visual-particle: var(--raw-haze-500);
 }
 ```
+
+实现可提供兼容别名，但业务组件只能使用语义 Token；Raw Token 仅允许出现在 `packages/design-tokens`。
 
 ### 3.4 色彩使用比例
 
@@ -189,6 +200,17 @@
 | Brand Serif | 中文字标、叙事大标题、章节引语 | 思源宋体 / Noto Serif SC，并对字标定制 |
 | Interface Sans | 正文、控件、表格、Evidence | 思源黑体 / Noto Sans SC + Inter 等拉丁无衬线 |
 | Scientific Mono | ASCII、参数、坐标、ID、Query、Hash | IBM Plex Mono / JetBrains Mono |
+
+字体候选必须先通过许可证、中文覆盖、Web 传输和未来离线封装检查：
+
+| 候选 | 许可证 | 中文覆盖 | Web / Tauri 策略 |
+| --- | --- | --- | --- |
+| Noto Serif SC / 思源宋体 | SIL OFL 1.1 | 完整简体中文 | Web 使用授权明确的 WOFF2 子集；Tauri 可连同许可证离线打包 |
+| Noto Sans SC / 思源黑体 | SIL OFL 1.1 | 完整简体中文 | 正文按字重和字符集拆分；加载失败回退系统无衬线 |
+| Inter | SIL OFL 1.1 | 拉丁、数字 | 仅作为拉丁补充，不承担中文正文 |
+| IBM Plex Mono / JetBrains Mono | SIL OFL 1.1 | 主要为拉丁、符号 | 用于参数与 ASCII；离线包必须保留许可证 |
+
+实施前记录实际字体版本、下载来源、许可证文件与 subset 命令。未完成授权记录前不得提交字体二进制；Web 使用 `font-display: swap`，静态首屏不得等待字体或 WebGL 才可见。
 
 品牌衬线与正文无衬线必须并存，但不能平均混排：
 
@@ -395,11 +417,13 @@ ASCII 粒子不是背景装饰，而是品牌与状态语言：
 
 | 档位 | 目标 | 策略 |
 | --- | --- | --- |
-| High | 可控答辩/录制设备 | 高粒子密度、完整 Shader、适量后处理 |
+| High | 可控终审展示或录制设备 | 高粒子密度、完整 Shader、适量后处理 |
 | Medium | 普通现代笔记本 | 降低 DPR、粒子和采样，保留主要形态 |
 | Low | 集显、移动端、节能模式 | 低帧率或静态 Poster，核心 DOM 完整 |
 
 自动检测只能作为初始建议，用户可手动切换。质量档不能改变科研数据和业务功能。
+
+视觉回归使用固定 viewport、deterministic seed 与可冻结时间；页面隐藏时暂停渲染，卸载场景时必须释放 geometry、material、texture 和 render target。
 
 ## 11. 视觉验收
 

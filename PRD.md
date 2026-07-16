@@ -1,5 +1,14 @@
 # PRD
 
+| 项目状态 | 口径 |
+| --- | --- |
+| Status | Accepted for implementation |
+| Implementation | Pending |
+| Current runtime | `apps/web` 中的 Vue 3 骨架 |
+| Target runtime | Astro 品牌站 + React Research Workspace Monorepo |
+
+本文件冻结目标产品范围，不表示 Astro / React 迁移或目标 API 已经实现。当前可运行命令仍以 `README.md` 与 `docs/setup.md` 的“当前实现基线”为准。
+
 ## 1. 产品目标
 
 星文智析面向天文科研数据整理与证据核验场景，帮助用户从一个研究目标出发，完成研究任务契约确认、数据获取与清洗、自动论文获取、文献总结、跨文献逻辑推理、证据图谱、结果导出和反馈修订。
@@ -62,12 +71,21 @@ MVP 默认主案例为：**系外行星候选体与宿主恒星参数整合**。
 
 ## 6. 运行模式
 
-| 模式 | 用途 | 约束 |
+执行方式与产物来源是两个独立维度，不得用一个 Badge 混合表达：
+
+| `execution_mode` | 用途 | 约束 |
 | --- | --- | --- |
 | `demo_replay` | 首页和 Guided Tour 的确定性主案例回放 | 明确标识，不冒充实时运行 |
 | `live` | 调用真实 API、数据源和模型 | 允许等待、失败、重试和缓存建议 |
-| `cached` | 外部依赖失败时使用可定位的真实历史运行 | 展示来源运行、时间、参数和适用性 |
-| `revised` | 反馈后产生的新版本 | 关联原版本和 UserFeedback |
+
+| `source_mode` | 含义 | 约束 |
+| --- | --- | --- |
+| `fixture` | 版本化演示数据 | 仅用于 Demo Replay、测试和稳定录制，必须带 scenario 与 schema version |
+| `live` | 本次真实运行产物 | 绑定 Run、SourceSnapshot、时间和参数 |
+| `cached` | 可定位的真实历史运行产物 | 展示来源 Run、时间、参数、适用性和实时失败原因 |
+| `revised` | 反馈后生成的新 ArtifactVersion | 关联原版本、Feedback 和修订依据 |
+
+`demo_replay` 通常读取 `fixture`；`live` 执行可以产出 `live`，或在明确失败后选择 `cached`。手写 Fixture 永远不能标记为 `cached`。
 
 ## 7. 用户与会话
 

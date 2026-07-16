@@ -1,5 +1,12 @@
 # Research Workspace UX
 
+| 项目状态 | 口径 |
+| --- | --- |
+| Status | Accepted for implementation |
+| Implementation | Pending |
+| Current runtime | `apps/web` 中的 Vue 3 单页骨架 |
+| Target runtime | Astro Brand Site + React Guided Tour / Research Workspace |
+
 本文定义科研工作台的信息架构、核心交互、页面状态和 Guided Tour。工作台借鉴现代 Agent Desktop 的桌面级组织能力，但不采用“聊天线程 + 工具日志”作为产品核心。
 
 ## 1. 产品差异化原则
@@ -42,6 +49,19 @@
 - 支持分享只读结果链接。
 - 不要求账号登录；使用隔离的临时研究会话。
 
+### 2.4 首页四幕
+
+首页是约 60–90 秒、可跳过的短叙事，不是营销长页，也不使用强制滚动劫持：
+
+| 幕 | 内容 | 交互与可信性要求 |
+| --- | --- | --- |
+| ACT 01 — SIGNAL | 巨型裁切 ASCII / Dither 系外行星、中文主标、核心价值与快速入口 | 标题、说明和 CTA 必须存在于静态 DOM；WebGL 不是 LCP 前置条件 |
+| ACT 02 — QUESTION | 自然语言研究意图重组为可编辑 Research Contract | 用户能暂停、编辑、跳过；不在确认前启动 Live Run |
+| ACT 03 — EVIDENCE | Dataset、Paper、Claim、Evidence、Relation 逐层显现 | 视觉只解释结构，不虚构科研数据或精度 |
+| ACT 04 — WORKSPACE | 场景收束为真实工作台结构 | 允许继续 Demo Replay、切换 Live Run 或直接进入 Workspace |
+
+默认路径读取确定性 Fixture；选择 Live Run 前必须解释外部依赖、等待、失败与缓存语义。移动端可使用静态 Poster 或低复杂度场景，但核心四幕内容不减少。
+
 ## 3. 全局布局
 
 桌面完整布局：
@@ -70,13 +90,15 @@
 
 空间不足时优先收起右栏，其次左栏；中央画布小于最低宽度时切换单焦点视图。
 
+主要设计与视觉回归基准为 `1440×900`、`1920×1080`；`1280px` 宽仍必须可完成 Research Contract、运行、产物审查和 Evidence 定位主流程。
+
 ## 4. Top Status Rail
 
 顶部不是传统营销导航，也不是 IDE 菜单栏。应包含：
 
 - 中文字标缩略版
 - 当前 ResearchProject / ResearchRun 路径
-- 运行来源：Demo Replay / Live / Cached / Revised
+- 执行方式：Demo Replay / Live；产物来源：Fixture / Live / Cached / Revised
 - 当前任务状态与关键步骤
 - 全局搜索 / Command Palette
 - 分享、导出、帮助和质量档
@@ -141,16 +163,20 @@ History
 
 ### 6.2 契约结构
 
-| 区块 | 示例内容 |
+字段名是目标领域契约，不使用仅供展示的同义词替代：
+
+| 字段 | 示例内容 |
 | --- | --- |
-| Goal | 整合候选体与宿主恒星关键参数 |
-| Object Scope | 系外行星候选体、宿主恒星 |
-| Data Fields | 半径、质量、周期、恒星温度、金属丰度等 |
-| Data Sources | 允许的开放天文数据库与补充来源 |
-| Paper Scope | 关键词、年份、最大候选数、选择规则 |
-| Outputs | CSV、字段字典、溯源报告、图谱 |
-| Quality | 来源完整性、单位一致性、证据覆盖率 |
-| Runtime | Demo Replay / Live、缓存策略、预算 |
+| `research_goal` | 整合候选体与宿主恒星关键参数 |
+| `target_objects` | 系外行星候选体、宿主恒星 |
+| `data_requirements` | 单位、时间范围、缺失值和交叉匹配要求 |
+| `requested_fields` | 半径、质量、周期、恒星温度、金属丰度等 |
+| `source_scope` | 允许的开放天文数据库与补充来源 |
+| `paper_search_scope` | 关键词、年份、最大候选数、选择规则 |
+| `output_requirements` | CSV、字段字典、溯源报告、图谱 |
+| `evidence_requirements` | locator、quote/value、SourceSnapshot 和覆盖率 |
+| `quality_constraints` | 来源完整性、单位一致性、证据覆盖率 |
+| `execution_mode` | `demo_replay` 或 `live` |
 
 用户可以逐项编辑、接受建议或恢复默认主案例。
 
@@ -264,7 +290,7 @@ Research Console 位于底部，默认收起为紧凑状态。
 - 当前运行
 - 选中产物
 - 允许影响的范围
-- Live / Demo / Cached 状态
+- execution mode 与 source mode
 
 ### 9.3 输出规则
 
@@ -424,7 +450,8 @@ AI 响应优先生成：
 - `partial`：部分来源或字段可用
 - `success`：产物、来源和版本完整
 - `failed`：错误分类、影响和下一步
-- `cached`：缓存来源、时间和适用性
+- `fixture`：场景版本、schema version 和明确 Demo 标识
+- `cached`：真实历史 Run、缓存时间、适用性与本次 Live 失败原因
 - `revised`：当前修订和原版本关系
 
 ASCII 动效只辅助状态表达，不替代文字和进度。
@@ -469,3 +496,6 @@ ASCII 动效只辅助状态表达，不替代文字和进度。
 - 数据、论文、推理和图谱之间可以通过最多三面板完成对照。
 - Demo Replay、Live、Cached 和 Revised 绝不混淆。
 - 所有失败状态提供可执行下一步。
+- `1440×900`、`1920×1080` 完整布局与 `1280px` 可完成主流程均通过验证。
+- 中央最多三个拆分面板，底部 Research Console 不遮挡当前核心产物。
+- 无鼠标可以确认 Research Contract、切换产物、定位 Evidence、重试或取消运行。

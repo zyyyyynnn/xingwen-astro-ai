@@ -1,14 +1,23 @@
 # Frontend Architecture
 
+| 项目状态 | 口径 |
+| --- | --- |
+| Status | Accepted for implementation |
+| Implementation | Pending |
+| Current runtime | `apps/web` 中的 Vue 3 + Vite 骨架 |
+| Target runtime | Astro 品牌站 + React Research Workspace Monorepo |
+
 本文定义星文智析前端重构后的工程架构。该方案取代现有单体 Vue 3 骨架，目标是同时支撑品牌首页、Guided Tour、科研工作台、实时 WebGL、契约驱动数据访问、视觉回归以及未来 Tauri 桌面封装。
 
 ## 1. 决策摘要
 
 - 使用 pnpm workspace 管理前端应用和共享包。
+- 使用 Node.js 24 LTS、TypeScript strict 与单一 `pnpm-lock.yaml`；Turborepo 仅用于明确的任务图和缓存职责。
 - `apps/site` 使用 Astro 静态输出，负责品牌首页和基础 SEO。
 - `apps/workspace` 使用 React + TypeScript + Vite，负责 Guided Tour 与科研工作台。
 - Astro 通过 React Island 复用 WebGL、Research Contract 和部分交互组件。
 - Three.js + React Three Fiber + 自定义 GLSL 负责 ASCII / Dither 实时渲染。
+- OpenAPI / JSON Schema 与生成 Transport Type 进入 `packages/contracts`，组件只依赖 `packages/domain`。
 - 所有业务页面通过 Repository Interface 获取统一领域模型。
 - Fixture Adapter 与 HTTP Adapter 必须可互换。
 - 当前交付为 Web，平台能力通过 Port / Adapter 为未来 Tauri 预留。
@@ -35,14 +44,16 @@ apps/
 packages/
 ├─ design-tokens/                # CSS Variables、字体、尺寸、动效、图形质量
 ├─ ui/                           # 项目自有 React 组件与 Radix primitives 封装
-├─ visuals/                      # R3F 场景、Shader、ASCII Atlas、质量管理
-├─ domain/                       # 领域类型、Zod schema、枚举、artifact helpers
+├─ visual-engine/                # R3F 场景、Shader、ASCII Atlas、质量管理
+├─ domain/                       # 稳定领域对象、枚举与 artifact helpers
+├─ contracts/                    # OpenAPI/JSON Schema、生成 DTO、transport validation
 ├─ data-access/                  # Repository、HTTP / Fixture adapters、query keys
 ├─ workspace-core/              # 面板布局、命令、selection、context model
-├─ fixtures/                     # 版本化主案例 Demo Replay 数据
-├─ testing/                      # 测试工具、a11y、visual fixtures
+├─ testing/                      # 测试工具、版本化 Fixture、a11y、visual baselines
 └─ config/                       # tsconfig、lint、format、build 共享配置
 ```
+
+`apps/desktop` 只在文档中保留目标边界，本轮不创建目录或实现。迁移实施前不得把上述目标命令写成当前可运行命令。
 
 实际迁移可以分阶段落地，但最终不得继续把品牌站、工作台、领域模型、API 调用和 Shader 混在一个应用目录中。
 
@@ -103,14 +114,15 @@ packages/
 ```text
 apps/site ───────┐
                  ├─> packages/ui
-apps/workspace ──┤   packages/visuals
+apps/workspace ──┤   packages/visual-engine
                  │   packages/domain
                  │   packages/data-access
                  └─> packages/workspace-core
 
 packages/ui ----------> design-tokens
-packages/visuals -----> design-tokens
+packages/visual-engine -> design-tokens
 packages/data-access -> domain
+packages/data-access -> contracts
 workspace-core -------> domain
 ```
 
@@ -118,7 +130,7 @@ workspace-core -------> domain
 
 - `packages/domain` 依赖 React、Astro 或浏览器 API。
 - `packages/ui` 直接调用 HTTP。
-- `packages/visuals` 读取后端响应原始结构。
+- `packages/visual-engine` 读取后端响应原始结构。
 - feature 跨目录导入内部实现；必须经过 feature public API。
 - Astro 页面直接持有工作台全局状态。
 
@@ -139,7 +151,8 @@ workspace-core -------> domain
 | 图谱 | `@xyflow/react` | 可控节点、边和交互，适合 Evidence Graph |
 | 实时图形 | Three.js + React Three Fiber | React 场景组合和自定义 Shader |
 | 测试 | Vitest + Testing Library + Playwright | 单元、交互、E2E、视觉回归 |
-| Mock | MSW 可选 + Repository Fixture Adapter | 网络模拟与领域级 Fixture 分离 |
+| 网络测试替身 | MSW（可选）+ Repository Fixture Adapter | 网络模拟与领域级 Fixture 分离，不作为生产数据源 |
+| 任务图 | Turborepo（可选） | 仅在多应用构建缓存和依赖图产生明确收益时引入 |
 
 选型版本在实施 Issue 中锁定；禁止在本阶段混入第二套路由、状态或 UI 框架。
 
@@ -152,7 +165,8 @@ workspace-core -------> domain
 ```text
 OpenAPI / JSON Schema
 -> generated TypeScript transport types
--> domain parsers / Zod validation
+-> transport validation in packages/contracts
+-> mapper / domain validation
 -> frontend domain model
 ```
 
@@ -177,7 +191,7 @@ Adapter 负责：
 - 日期、枚举和 ID 标准化
 - transport error 转换
 - API pagination / cursor
-- source mode 和版本元信息
+- execution mode、source mode 和版本元信息
 
 组件只接收稳定的领域对象。
 
@@ -204,7 +218,7 @@ FixtureAdapter   HttpAdapter
 要求：
 
 - Fixture 版本化。
-- 包含来源模式 `demo_replay`。
+- 包含 `execution_mode=demo_replay` 与 `source_mode=fixture`。
 - 字段严格通过同一 Schema。
 - 不使用手写无来源数据冒充真实运行缓存。
 - 每个 Fixture 包含 scenario、created_at、schema_version 和 provenance note。
@@ -339,7 +353,7 @@ Zustand 管理：
 
 ### 10.1 包边界
 
-`packages/visuals`：
+`packages/visual-engine`：
 
 ```text
 visuals/
@@ -369,6 +383,7 @@ interface CelestialVisualModel {
   relationStrength: number
   progress: number
   quality: 'high' | 'medium' | 'low'
+  executionMode: 'demo_replay' | 'live'
 }
 ```
 
@@ -439,7 +454,7 @@ interface CelestialVisualModel {
 
 ## 13. 路由建议
 
-### Brand Site
+### 13.1 Brand Site
 
 ```text
 /
@@ -447,7 +462,7 @@ interface CelestialVisualModel {
 /start
 ```
 
-### Guided Tour
+### 13.2 Guided Tour
 
 ```text
 /tour
@@ -455,7 +470,7 @@ interface CelestialVisualModel {
 /tour/:scenarioId/:step
 ```
 
-### Workspace
+### 13.3 Workspace
 
 ```text
 /workspace
@@ -472,6 +487,8 @@ interface CelestialVisualModel {
 路由可通过 URL search params 恢复面板布局与选中对象，但必须限制长度和敏感数据。
 
 ## 14. 构建与部署
+
+本节描述迁移后的目标状态，不改变当前 `apps/web`、Compose 或 `docs/setup.md` 命令。
 
 ### 14.1 构建产物
 
@@ -519,9 +536,24 @@ interface LocalCachePort {
 
 Web 提供 browser adapter；未来 Tauri 提供 native adapter。Feature 不直接 import Tauri API。
 
-## 16. 测试策略
+## 16. 非功能、安全与失败模式
 
-### 16.1 单元与契约
+| 风险或故障 | 目标行为 |
+| --- | --- |
+| WebGL 不可用或上下文丢失 | 静态 Poster 与完整 DOM 内容继续可用，CTA 和工作台不失效 |
+| 外部 API / 模型超时 | Live Run 显示失败、重试或可用真实缓存；不得自动伪装成成功 |
+| Fixture 与 HTTP 漂移 | Adapter 一致性测试失败并阻断合并 |
+| 大数据表或图谱 | 虚拟化、规模上限、渐进加载；不把全部对象一次渲染到 DOM |
+| 多 Run 并发 | Server state 以 project/run/version query key 隔离，取消请求不会污染其他 Run |
+| 临时会话失效 | 明确提示过期并保留可导出的公开结果，不在浏览器持久化敏感令牌 |
+| 分享链接泄露 | 只读、可撤销、可过期、最小范围；服务端存 token hash，不把会话凭据放入 URL |
+| 用户与论文文本 | React 默认转义；禁止直接渲染未净化 HTML，外链和来源 URL 通过协议与 host allowlist 校验 |
+
+静态站和工作台部署必须定义 CSP、HSTS、`X-Content-Type-Options`、`Referrer-Policy` 与最小 CORS allowlist。免登录会话使用 Secure、HttpOnly、SameSite Cookie；写操作采用 CSRF 防护和速率限制。具体接口约束见 `API_CONTRACT.md`。
+
+## 17. 测试策略
+
+### 17.1 单元与契约
 
 - Domain parser / schema
 - DTO to domain mapper
@@ -530,7 +562,7 @@ Web 提供 browser adapter；未来 Tauri 提供 native adapter。Feature 不直
 - state selectors
 - quality tier logic
 
-### 16.2 组件与交互
+### 17.2 组件与交互
 
 - Research Contract
 - Split panes
@@ -539,7 +571,7 @@ Web 提供 browser adapter；未来 Tauri 提供 native adapter。Feature 不直
 - keyboard navigation
 - error / empty / cached states
 
-### 16.3 E2E
+### 17.3 E2E
 
 - 首页四幕与跳过
 - Demo Replay 完整路径
@@ -551,7 +583,7 @@ Web 提供 browser adapter；未来 Tauri 提供 native adapter。Feature 不直
 - 反馈产生修订版本
 - 只读分享
 
-### 16.4 视觉与性能
+### 17.4 视觉与性能
 
 - Playwright screenshot baselines
 - WebGL Poster fallback
@@ -560,7 +592,7 @@ Web 提供 browser adapter；未来 Tauri 提供 native adapter。Feature 不直
 - 关键 Lighthouse / Web Vitals 预算
 - GPU 资源释放 smoke test
 
-## 17. CI 门禁
+## 18. CI 门禁
 
 前端 CI 至少执行：
 
@@ -585,27 +617,27 @@ pnpm verify:tokens
 - 裸 API URL 和组件内 fetch
 - Shader 中硬编码品牌色
 
-## 18. 迁移策略
+## 19. 迁移策略
 
-### Phase 1：平台基线
+### 19.1 Phase 1：平台基线
 
 - 建立 pnpm workspace。
 - 创建 `apps/site`、`apps/workspace` 与共享包。
 - 保留旧 Vue 骨架作为短期参考，不添加新功能。
 - CI 同时构建新应用。
 
-### Phase 2：设计与入口
+### 19.2 Phase 2：设计与入口
 
 - 迁移 Token 和字体。
 - 实现 BrandMark、基础 UI 和 WebGL runtime。
 - 完成首页四幕与 Demo Replay 最小路径。
 
-### Phase 3：Research Desktop
+### 19.3 Phase 3：Research Desktop
 
 - 实现 Shell、Atlas、Canvas、Observatory、Console。
 - 完成 Fixture Adapter 和核心产物视图。
 
-### Phase 4：真实 API 与删除旧前端
+### 19.4 Phase 4：真实 API 与删除旧前端
 
 - HTTP Adapter 接入真实契约。
 - 完成 E2E、视觉和性能门禁。
@@ -614,7 +646,7 @@ pnpm verify:tokens
 
 迁移完成前不得在旧 Vue 和新 React 中重复实现同一业务功能。
 
-## 19. 架构验收
+## 20. 架构验收
 
 - Brand Site 与 Workspace 可以独立构建和部署。
 - 共享包不存在循环依赖。

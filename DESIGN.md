@@ -1,6 +1,15 @@
 # DESIGN
 
+| 项目状态 | 口径 |
+| --- | --- |
+| Status | Accepted for implementation |
+| Implementation | Pending |
+| Current runtime | `apps/web` 中的 Vue 3 骨架 |
+| Target runtime | Astro 品牌站 + React Research Workspace Monorepo |
+
 本文件是星文智析的产品设计、系统边界与前端体验总纲。具体视觉规范见 `docs/design/VISUAL_LANGUAGE.md`，科研工作台交互见 `docs/design/WORKSPACE_UX.md`，前端工程架构见 `docs/architecture/FRONTEND_ARCHITECTURE.md`，接口与数据结构分别见 `docs/architecture/API_CONTRACT.md` 和 `docs/architecture/DATA_MODEL.md`。
+
+本轮只冻结目标方案；现有 Vue 前端、`/api/v1` 与 Docker 启动方式仍是当前实现事实，目标架构不得写成已交付能力。
 
 ## 1. 产品定位
 
@@ -106,6 +115,8 @@ ResearchProject
 └─ ResearchRun
    ├─ ResearchContract
    ├─ TaskStep
+   ├─ ResearchArtifact
+   │  └─ ArtifactVersion
    ├─ Dataset / FieldDefinition / QualityScore
    ├─ PaperAcquisitionRun / PaperCandidate
    ├─ PaperSummary
@@ -114,8 +125,11 @@ ResearchProject
    ├─ ReasoningTrace
    ├─ Graph
    ├─ Evidence
-   ├─ ArtifactVersion
+   ├─ SourceSnapshot
    └─ UserFeedback
+
+WorkspaceSnapshot
+ShareSnapshot
 ```
 
 产品允许一个研究项目包含多个运行、多个版本和多个产物。界面必须能区分 Demo Replay、Live Run、Cached Result、Revised Version 与历史版本。
@@ -222,7 +236,7 @@ React View / Feature
 - `Fixture Adapter`：用于视觉回归、Demo Replay、离线开发和稳定录制；数据必须版本化并标记来源。
 - `HTTP Adapter`：用于真实联调和公网 Live Run。
 
-切换 Adapter 不得改变页面组件和业务判断。Mock、Demo Replay、Live、Cached、Revised 必须在 UI 中显式标识。
+切换 Adapter 不得改变页面组件和业务判断。Fixture、Demo Replay、Live、Cached、Revised 必须在 UI 中显式标识。
 
 ## 10. 任务状态机
 
@@ -272,16 +286,18 @@ React View / Feature
 - `supports`、`extends` / `derived_from`、`limits` / `contradicts` 至少覆盖三类。
 - 无 Evidence 或比较条件不完整的 Relation 只能作为候选。
 
-### 11.3 运行来源
+### 11.3 执行方式与产物来源
 
-| 来源 | 含义 |
-| --- | --- |
-| `demo_replay` | 确定性示例研究回放 |
-| `live` | 当前实时运行 |
-| `cached` | 来自可定位的真实历史运行 |
-| `revised` | 根据反馈生成的新产物版本 |
+| 维度 | 枚举 | 含义 |
+| --- | --- | --- |
+| `execution_mode` | `demo_replay` | 确定性示例研究回放 |
+| `execution_mode` | `live` | 调用真实后端任务链路 |
+| `source_mode` | `fixture` | 版本化演示或测试数据，不是真实运行缓存 |
+| `source_mode` | `live` | 当前真实运行生成的产物 |
+| `source_mode` | `cached` | 来自可定位的真实历史运行 |
+| `source_mode` | `revised` | 根据反馈生成的新产物版本 |
 
-界面必须显示来源、运行时间、版本、关键参数和可用的复现入口。
+界面必须同时显示执行方式、来源、运行时间、版本、关键参数和可用的复现入口。手写 Fixture 不得标记为 Cached。
 
 ## 12. 视觉设计总则
 
