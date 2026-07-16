@@ -1,158 +1,174 @@
 # Deployment
 
+| 元数据 | 值 |
+| --- | --- |
+| Status | Accepted |
+| Authority | 环境拓扑、配置边界、迁移、健康检查和发布验证 |
+| Implementation | Current local baseline; target public topology pending |
+
+本文说明系统如何运行和发布。安全要求由 [Security](SECURITY.md) 定义，产品退出标准由 [Acceptance](docs/product/ACCEPTANCE.md) 定义，本地开发命令由 [Local Setup](docs/setup.md) 维护。
+
 ## 1. 部署目标
 
-MVP 部署目标是提供稳定公网 Demo，而不是生产级大规模服务。
+MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通用 SaaS。部署必须支持：
 
-必须满足：
+- 静态 Brand Site；
+- Guided Tour 与 Research Workspace；
+- FastAPI `/api/v1` 回退和目标 `/api/v2`；
+- PostgreSQL 持久化、迁移和恢复；
+- Demo Replay、Live Run、真实缓存、分享和导出；
+- WebGL 或外部服务失败时的可用降级；
+- 版本、来源、Evidence 和请求追踪。
 
-- 前端公网可访问。
-- 后端 API 可被前端浏览器访问。
-- PostgreSQL 可连接。
-- Qwen / 百炼 API Key 只存在于后端或部署平台 Secrets。
-- 论文源凭据只存在于后端或部署平台 Secrets。
-- 主案例有真实运行缓存兜底，覆盖数据、论文获取、文献总结、跨文献推理和图谱。
-- 关键结果可定位到 Evidence、运行版本与来源快照。
+## 2. Current：本地运行基线
 
-## 2. 技术与镜像基线
+当前 Compose 仍包含：
 
-| 层级 | 固定口径 |
-| --- | --- |
-| 前端容器 | `node:24-alpine` |
-| 前端包管理 | pnpm 10.x，`pnpm-lock.yaml` 必须提交 |
-| 前端构建 | Vue 3 + TypeScript + Vite + shadcn-vue + Tailwind CSS 4 |
-| 后端容器 | `python:3.13-slim` |
-| 后端依赖 | uv + `pyproject.toml` + `uv.lock` |
-| 数据库容器 | `postgres:17-alpine` |
-| 本地编排 | Docker Compose：`web`、`api`、`postgres` |
-
-M1 暂不引入 Redis、Celery、MinIO、Nginx、RabbitMQ。任务链路先由 FastAPI、PostgreSQL 状态机和 BackgroundTasks 支撑。
-
-## 3. 推荐部署方案
-
-| 模块 | 推荐 | 说明 |
+| Service | Runtime | Purpose |
 | --- | --- | --- |
-| 前端 | Vercel / Netlify / 阿里云静态托管 | Vue 静态资源独立部署，浏览器 API URL 指向公网后端 |
-| 后端 | Render / Railway / 阿里云 ECS / 容器服务 | FastAPI 独立部署，隔离密钥和论文源访问 |
-| 数据库 | Supabase Postgres / Neon / 阿里云 RDS | 公网 Demo 优先托管 Postgres；本地使用 Compose |
-| 文件导出 | 后端临时文件或对象存储 | MVP 先保证 CSV/JSON/报告可下载 |
+| `web` | Node.js 24 + pnpm | 当前 Vue / Vite 回退前端 |
+| `api` | Python 3.13 + uv | FastAPI `/api/v1` 和迁移中的目标能力 |
+| `postgres` | PostgreSQL 17 | 本地状态和结果持久化 |
 
-本地 Compose 中 `api` 是容器服务名，只供容器间通信。`VITE_API_BASE_URL` 在浏览器运行，必须使用 `localhost`、宿主机地址或公网后端域名。
+当前启动、端口和故障排查只在 [Local Setup](docs/setup.md) 维护。目标前端迁移完成前，不把未来命令写成已可运行。
 
-Web 服务只接收明确列出的 `VITE_*` 非敏感变量，不通过 `env_file` 注入后端数据库、模型或论文源凭据。
+## 3. Target：公网拓扑
 
-## 4. 环境划分
+```mermaid
+flowchart LR
+  Browser --> Site["Static Brand Site"]
+  Browser --> Workspace["Workspace SPA"]
+  Site --> Workspace
+  Workspace --> API["FastAPI API"]
+  API --> DB["PostgreSQL"]
+  API --> Model["Qwen / model provider"]
+  API --> Data["Astronomy data sources"]
+  API --> Paper["Paper sources"]
+```
 
-| 环境 | 用途 | GitHub Environment |
+目标边界：
+
+- Site 输出静态 HTML/CSS 和按需 Islands；
+- Workspace 输出 SPA 静态资源；
+- `/tour/*`、`/workspace/*`、`/share/*` 必须支持刷新 fallback；
+- API、模型、数据库和外部来源凭据只在后端环境；
+- 浏览器只接收非敏感公共配置；
+- 同域优先简化 Cookie、CSRF 和 CORS；跨域部署必须显式验证凭据策略；
+- MVP 不要求 Nginx、Redis、Celery、对象存储或图数据库作为前置。
+
+具体前端构建产物见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
+
+## 4. 环境
+
+| Environment | Purpose | Data and external calls |
 | --- | --- | --- |
-| local | 本地 Docker Compose 开发 | 不使用 GitHub Secrets |
-| preview | PR 或测试部署 | `preview` |
-| production | 正式公网 Demo | `production` |
+| local | 开发与完整本地复现 | Fixture、stub、recorded，按需 Live |
+| preview | PR 浏览器、路由、安全和部署 smoke | 隔离配置、受控 Live 或测试凭据 |
+| production | 公网作品环境 | 限制主案例、配额和来源范围 |
 
-## 5. 环境变量
+每个环境使用独立配置和数据库边界。Preview 不得复用 Production 的高权限凭据或会话数据。
 
-见 [.env.example](.env.example)。
+## 5. 配置与 Secrets
 
-敏感项：
+配置分类：
 
-```text
-DATABASE_URL
-POSTGRES_PASSWORD
-DASHSCOPE_API_KEY
-PAPER_SOURCE_API_KEY
-```
+### Browser-visible
 
-非敏感项：
+- API public origin；
+- 公开部署标识；
+- 非敏感 feature flag；
+- 静态资源和监测的公开配置。
 
-```text
-APP_ENV
-DEBUG
-DEMO_CASE_KEY
-CORS_ORIGINS
-WEB_PORT
-API_PORT
-POSTGRES_PORT
-VITE_API_BASE_URL
-POSTGRES_DB
-POSTGRES_USER
-QWEN_BASE_URL
-QWEN_MODEL
-QWEN_TIMEOUT_SECONDS
-PAPER_SOURCE_BASE_URL
-PAPER_SEARCH_TIMEOUT_SECONDS
-PAPER_SEARCH_MAX_RESULTS
-ENABLE_DEMO_CACHE
-CACHE_TTL_SECONDS
-```
+Astro 使用明确的 `PUBLIC_` 前缀，Workspace 使用 `VITE_` 前缀。所有此类值都应视为公开信息。
 
-生产要求：
+### Backend-only
 
-- `APP_ENV=production`
-- `DEBUG=false`
-- 必须提供安全的 `DATABASE_URL`，不得使用本地默认凭据 `postgres:postgres`
-- 使用 Compose 或自建 PostgreSQL 时，`POSTGRES_PASSWORD` 不得为空或使用 `postgres`
-- 使用托管 PostgreSQL 时可只使用平台提供的 `DATABASE_URL`，无需重复配置 `POSTGRES_PASSWORD`
-- `DASHSCOPE_API_KEY` 不得为空或使用模板占位值
-- `CORS_ORIGINS` 只包含实际前端域名，不使用 `*`
-- `VITE_API_BASE_URL` 指向浏览器可访问的 HTTPS API
+- 数据库连接和密码；
+- 模型、论文源和数据源凭据；
+- Session / share signing or hashing secrets；
+- 内部服务地址和管理开关。
 
-## 6. 健康与启动顺序
+`.env.example` 只存占位值和说明。生产环境必须拒绝 DEBUG、默认数据库凭据、空/占位密钥和通配 CORS。完整安全要求见 [Security](SECURITY.md)。
 
-本地 Compose：
+## 6. 路由与缓存边界
 
-1. PostgreSQL 通过 `pg_isready`。
-2. API 启动并通过 `/api/v1/health`。
-3. Web 在 API 健康后启动。
+| Path | Owner | Requirement |
+| --- | --- | --- |
+| `/`、`/case/*`、`/start` | Site | 静态输出，核心内容不依赖 JS/WebGL |
+| `/tour/*` | Workspace | SPA fallback，支持直接访问和刷新 |
+| `/workspace/*` | Workspace | SPA fallback，私有 Session 访问 |
+| `/share/*` | Workspace | SPA fallback，只读 ShareSnapshot |
+| `/api/v1/*` | API | 迁移期间回退基线 |
+| `/api/v2/*` | API | 目标资源 Contract |
 
-公网部署至少配置：
+CDN 或平台缓存不得缓存私有 Workspace/API 响应。公开分享默认 `no-store`，除非安全和撤销语义证明可采用其他策略。静态资产可使用内容 hash 长缓存。
 
-- API readiness/liveness；
-- 数据库连接失败告警；
-- 外部模型和论文源超时；
-- 请求 ID；
-- 关键 Workflow Step 失败计数。
+## 7. 数据库迁移与保留
 
-## 7. 部署验收
+- Migration 必须在应用切换前运行，并具有明确失败退出；
+- 破坏性迁移需要备份、回滚或双读/迁移方案；
+- Run、ArtifactVersion、Evidence、SourceSnapshot 和 Share 的事务不变量必须保持；
+- Session 过期、Share 保留和临时导出清理策略需要配置并测试；
+- 生产环境不使用应用启动时的隐式 destructive migration；
+- 回滚应用版本时必须确认 Schema 兼容性。
 
-| 检查项 | 标准 |
-| --- | --- |
-| 首页 | 可打开，无控制台严重报错 |
-| API | `/api/v1/health` 可访问 |
-| CORS | 正式前端域名可请求，其他来源被拒绝 |
-| 任务 | 固定主案例可创建并查询状态 |
-| 数据 | 可展示数据表、来源、质量与版本信息 |
-| 论文获取 | 可展示检索参数、候选论文、去重和排序 |
-| 文献总结 | 可展示 PaperSummary 与 Evidence |
-| 跨文献推理 | 可展示 Claim、Relation、ReasoningTrace |
-| 图谱 | 可展示证据图谱和推理链详情 |
-| 导出 | CSV、数据字典、溯源报告、论文与推理 JSON 可下载 |
-| 缓存 | 外部失败时展示真实缓存，并标注来源与版本 |
-| 安全 | 源码、日志、截图、构建产物不暴露密钥 |
-| 配置 | 生产安全校验通过，默认数据库凭据无法启动 |
+## 8. 健康检查与可观测性
 
-## 8. CI 预检
+### Health
 
-合并前必须通过：
+- Site 静态入口可返回有效 HTML；
+- Workspace 入口和 fallback 可返回应用资源；
+- API liveness 不依赖外部模型；
+- API readiness 验证必要数据库和迁移状态；
+- PostgreSQL 使用平台或 `pg_isready` 等价检查。
 
-```text
-python scripts/check_foundation.py
-pnpm install --frozen-lockfile
-pnpm build
-uv sync --frozen
-uv run pytest
-Pydantic Schema export
-docker compose config
-```
+### Observability
 
-公网部署前补充环境特定 smoke test。
+至少记录：
 
-## 9. 部署前禁止事项
+- request id、Run id、step key 和公开 error code；
+- API latency、错误率和限流；
+- 外部数据/论文/模型超时和无效响应；
+- Run 终态、失败步骤、CacheSelector 选择；
+- migration、部署版本和健康检查结果。
 
-- 不把 `.env` 提交到仓库。
-- 不把 API Key、数据库密码、论文源凭据写入前端构建变量或 Web 容器环境。
-- 不混用 npm/yarn/bun 生成额外 lockfile。
-- 不用 requirements.txt 替代 uv 主流程。
-- 不开放无限制任意模型调用入口。
-- 不开放无限制论文检索入口。
-- 不把手写假数据或 seed list 作为缓存结果。
-- 不在生产启用 DEBUG、默认数据库凭据或通配 CORS。
+日志不得记录密钥、Cookie、share 原 token、受限全文或模型私有推理。
+
+## 9. 发布流程
+
+1. 锁定 Commit、Contract 和数据库 migration。
+2. 执行 frozen install/sync、lint、typecheck、test、build 和生成物检查。
+3. 在 Preview 运行路由、Session、Share、安全、WebGL fallback 和 E2E smoke。
+4. 备份或确认数据库恢复点，执行 migration。
+5. 部署 Site、Workspace 和 API/DB 变更。
+6. 执行 Production smoke 和关键主案例读取。
+7. 记录部署版本、时间、URL、migration 和验证结果。
+8. 失败时停止流量切换或按预案回滚；不得用缓存或 Fixture 掩盖部署故障。
+
+## 10. 发布验证
+
+至少验证：
+
+- 静态首屏、SEO 元信息和无 WebGL fallback；
+- `/tour/*`、`/workspace/*`、`/share/*` 深链接与刷新；
+- `/api/v1` 回归和适用 `/api/v2` Contract；
+- Session、CSRF、401/403/404、Share 撤销/过期；
+- Project、Run、ArtifactVersion、Evidence 和导出读取；
+- Demo Replay 与 Live/Cached 语义；
+- 外部服务失败和无缓存失败；
+- 数据库 migration、readiness 和恢复流程；
+- CSP、HSTS、MIME、Referrer、Permissions Policy 和 CORS；
+- 移动端、Reduced Motion、context loss 和 Poster。
+
+阶段级完整标准见 [Acceptance](docs/product/ACCEPTANCE.md)。
+
+## 11. 禁止事项
+
+- 前端或静态站携带后端 Secrets；
+- 浏览器使用 Docker 内部服务名访问 API；
+- Production 使用 DEBUG、默认密码、占位密钥或通配 CORS；
+- 私有数据或可撤销分享被不可控 CDN 缓存；
+- 未运行 migration/回归验证就切换流量；
+- 把 Fixture、seed 或手写数据当作真实缓存；
+- 用部署成功替代科研产物、Evidence 和版本验收；
+- 未经 ADR 和负载依据引入复杂基础设施。
