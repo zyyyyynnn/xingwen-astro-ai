@@ -131,8 +131,8 @@ v2 错误使用 RFC 9457 Problem Details：
 | --- | --- | --- |
 | 400 | `INVALID_REQUEST` | 语法、cursor 或不支持参数 |
 | 401 | `SESSION_REQUIRED` | 会话缺失或过期 |
-| 403 | `RESOURCE_FORBIDDEN` / `CSRF_INVALID` | 跨会话访问或写请求 CSRF 失败 |
-| 404 | `PROJECT_NOT_FOUND` / `RUN_NOT_FOUND` / `ARTIFACT_NOT_FOUND` / `SHARE_NOT_FOUND` | 资源不存在或不对当前主体公开 |
+| 403 | `ACTION_FORBIDDEN` / `CSRF_INVALID` | 已明确识别的当前主体无权执行该动作，或写请求 CSRF 校验失败 |
+| 404 | `PROJECT_NOT_FOUND` / `RUN_NOT_FOUND` / `ARTIFACT_NOT_FOUND` / `SHARE_NOT_FOUND` | 资源不存在，或私有资源不属于当前会话；不得泄露其存在性 |
 | 409 | `RUN_STATE_CONFLICT` / `VERSION_CONFLICT` / `IDEMPOTENCY_CONFLICT` | 状态、版本或幂等键冲突 |
 | 410 | `SHARE_EXPIRED` | 分享已过期或被撤销 |
 | 422 | `CONTRACT_INVALID` / `SCHEMA_VALIDATION_FAILED` | 业务或 Schema 校验失败 |
@@ -143,36 +143,23 @@ v2 错误使用 RFC 9457 Problem Details：
 
 公开错误不得包含密钥、数据库信息、堆栈、受限全文或模型原始长输出。
 
+授权错误口径冻结为：会话缺失或过期返回 `401`；私有资源不属于当前会话返回不泄露存在性的 `404`；CSRF 失败或已明确识别的当前主体无权执行允许列表中的动作返回 `403`。
+
 ## 6. 枚举
 
 ### 6.1 执行与来源
 
 ```text
 execution_mode = demo_replay | live
-source_mode    = fixture | live | cached | revised
+source_mode    = fixture | live | cached
 derivation_kind = original | retry | revision | fork
 ```
 
-HTTP Adapter 在 MVP 只创建 `execution_mode=live` 的 Run；Fixture Adapter 在浏览器内返回相同 Domain Model，并标记 `execution_mode=demo_replay`、`source_mode=fixture`。
+`execution_mode` 只出现在 ResearchRun、创建 Run 请求和 Guided Tour 启动状态中，不进入 ResearchContract 或 ResearchContractDraft。HTTP Adapter 在 MVP 只创建 `execution_mode=live` 的 Run；Fixture Adapter 在浏览器内返回相同 Domain Model，并标记 `execution_mode=demo_replay`、`source_mode=fixture`。修订由 `derivation_kind=revision` 或 `supersedes_version_id` 非空推导，不新增 `source_mode` 值。
 
 ### 6.2 Run 状态
 
-```text
-queued
-planning
-fetching_data
-cleaning_data
-searching_papers
-summarizing_papers
-reasoning_literature
-building_graph
-waiting_for_input
-completed
-failed
-cancelled
-```
-
-`cached`、`fixture`、`revised` 不是 Run 状态。
+传输字段 `ResearchRun.status` 使用 `RunStatus`；完整状态集合和转换规则只在 [WORKFLOW_DESIGN.md](WORKFLOW_DESIGN.md) 冻结。`cached`、`fixture` 和修订关系不是 Run 状态。
 
 ### 6.3 Artifact 类型
 
@@ -218,8 +205,7 @@ export
       "paper_search_scope": {"year_from": 2015, "max_candidates": 20},
       "output_requirements": ["dataset", "field_dictionary", "graph"],
       "evidence_requirements": {"require_locator": true},
-      "quality_constraints": {"source_completeness_min": 1.0},
-      "execution_mode": "live"
+      "quality_constraints": {"source_completeness_min": 1.0}
     },
     "warnings": []
   },
@@ -336,7 +322,7 @@ ArtifactVersion Envelope：
       "version_number": 2,
       "schema_version": "2.0.0",
       "content_hash": "sha256:...",
-      "source_mode": "revised",
+      "source_mode": "live",
       "created_by_run_id": "run_01J...",
       "supersedes_version_id": "artv_01H...",
       "created_at": "2026-07-16T08:08:00Z"
@@ -345,8 +331,7 @@ ArtifactVersion Envelope：
     "evidence_refs": ["ev_01J..."],
     "provenance": {
       "source_snapshot_ids": ["srcs_01J..."],
-      "producer": {"type": "pipeline", "version": "data-pipeline@1"},
-      "origin_source_mode": "live"
+      "producer": {"type": "pipeline", "version": "data-pipeline@1"}
     }
   },
   "meta": {"request_id": "req_01J...", "schema_version": "2.0.0", "generated_at": "2026-07-16T08:08:00Z"},
@@ -355,6 +340,8 @@ ArtifactVersion Envelope：
 ```
 
 `content` 根据 `artifact.kind` 使用判别联合 Schema；页面不得把任意 JSON 当作已校验产物。
+
+上例的 `source_mode=live` 表示实际来源；`supersedes_version_id` 非空表示它是修订版本。界面可组合显示 `LIVE · REVISED`，但不得把 `revised` 写回来源枚举。
 
 ## 12. Workspace 恢复
 
@@ -429,7 +416,7 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 ## 18. 非功能与安全验证
 
-- 跨会话 Project / Run / Artifact ID 访问统一返回不泄露存在性的 404/403 策略。
+- 跨会话 Project / Run / Artifact ID 访问统一返回不泄露存在性的 `404`；会话缺失或过期返回 `401`；CSRF 失败或已知主体缺少允许动作返回 `403`。
 - 会话固定攻击、过期 Cookie、无效 CSRF、撤销/过期 Share、token 枚举和水平越权必须有测试。
 - 用户输入、论文文本和外部摘要默认按文本输出；渲染 HTML 前严格净化。
 - 外部 URL 只允许 `https` 和配置的来源 host，防止 SSRF 与恶意协议。

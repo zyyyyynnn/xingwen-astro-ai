@@ -135,9 +135,9 @@ Web 实现 FileExport、Notification、LocalCache、DeepLink 等 Port。未来 T
 ## 10. 联调顺序
 
 1. 文档、ADR、v2 Contract 与 A-01～A-10 Issue 冻结。
-2. A-01 建立 Monorepo、Astro / React 空应用、contracts / domain / testing 门禁。
-3. A-02 建立 Token、UI、Visual Engine 基础、首页框架和 Workspace Shell。
-4. A-03 建立 Research Contract、Fixture / HTTP Adapter、Guided Tour 与 Project / Run Shell。
+2. A-01 建立应用/共享包空骨架、依赖边界和 lint/typecheck/test/build 门禁，不实现产品组件或 Shader。
+3. A-02 建立 Token、primitive、BrandMark、Visual Engine runtime、首页静态/视觉框架和静态 Workspace Shell，不绑定领域状态。
+4. A-03 在 A-02 Shell 上绑定 Research Contract、Project / Run、Fixture / HTTP Adapter、Guided Tour FSM、WorkspaceSnapshot 与交互，不重建 Shell。
 5. B / C / D 分阶段实现 v2、真实数据、论文、推理和图谱，A-04～A-08 接入。
 6. A-09 / A-10 对齐来源、版本、缓存和修订；完成分享与交付。
 7. 新前端通过 Contract、E2E、a11y、visual、fallback 和部署门禁后删除 `apps/web`。

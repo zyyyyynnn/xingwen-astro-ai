@@ -12,15 +12,15 @@
 | X-04 | 建立 Docker Compose 本地开发基线 | A + B | `web`、`api`、`postgres` 三容器，固定 Node 24、Python 3.13、PostgreSQL 17、pnpm、uv | X-00 |
 | C-01 | 确定 MVP 字段清单 | C | 字段名、含义、单位、来源优先级 | X-00 |
 | D-01 | 确定论文获取与推理基准 | D | 论文源候选、检索关键词、5-8 篇 seed list、Claim/Relation 样例 | X-00 |
-| A-01 | 重构前端 Monorepo 与运行时基线 | A | pnpm workspace、`apps/site`、`apps/workspace`、共享 packages、strict TS、构建/测试目标与旧 Vue 迁移策略 | X-04 |
+| A-01 | 重构前端 Monorepo 与运行时基线 | A | 应用/共享包空骨架、依赖边界、strict TS、lint/typecheck/test/build 与旧前端迁移策略；不实现产品组件或 Shader | X-04 |
 | B-01 | 初始化 FastAPI 与 uv 后端骨架 | B | FastAPI + Python 3.13 + uv 可启动，Docker API 服务可运行 | X-04 |
 | X-05 | 建立基础 CI 与依赖漂移卡口 | A + B | foundation check、frozen install、前端构建、后端测试、Schema 导出、Compose 校验 | X-04, A-01, B-01 |
 | B-02 | 定义 Pydantic Schema 初版 | B | 与 DATA_MODEL 对齐，包含 PaperAcquisition、Claim、Relation、Trace；可导出 JSON Schema | B-01, C-01, D-01 |
 | B-03 | 创建任务/查询任务接口 | B | `/api/v1/health`、`/api/v1/tasks` 可用 | B-02 |
-| B-04 | v1 Phase 0 结果聚合 | B | dataset/paper-acquisition/papers/literature-reasoning/graph/evidence 返回带明确示例口径的响应 | B-03, C-01, D-01 |
-| A-02 | 建立品牌视觉系统、首页与科研工作台框架 | A | Token、字标/字体层级、ASCII/Dither 基础、四幕首页、Workspace Shell、fallback | A-01 |
-| A-03 | 建立 Research Contract、Guided Tour 与契约驱动双通道 | A | Project/Run Shell、Research Contract、Fixture/HTTP Adapter、Tour、Atlas/Canvas/Observatory/Console、分享入口 | A-01, A-02, target Contract |
-| X-01 | 前后端 Contract 联调 | A + B | HTTP Adapter 与 v2 Contract 可联调，Fixture / HTTP 一致性测试通过 | A-03, target Contract, X-05 |
+| B-04 | 实现 `/api/v2` 最小领域与传输契约 | B | ResearchSession、ResearchProject、ResearchContractDraft、ResearchContract、ResearchRun、RunEvent、ResearchArtifact、ArtifactVersion、WorkspaceSnapshot、ShareSnapshot 的最小 Schema、资源与生成 Contract | B-02, C-01, D-01 |
+| A-02 | 建立品牌视觉系统、首页与科研工作台静态框架 | A | Token、primitive、BrandMark、视觉运行时、首页静态/视觉框架、静态 Workspace Shell 与 fallback；不绑定领域状态 | A-01 |
+| A-03 | 建立 Research Contract、Guided Tour 与契约驱动双通道 | A | 在 A-02 Shell 上绑定 Project/Run、Contract、Repository Port、Fixture/HTTP、Tour FSM、WorkspaceSnapshot、交互与分享；不重建 Shell | A-01, A-02, B-04 |
+| X-01 | 完成真实 `/api/v2` Contract 集成 | A + B | HTTP Adapter 接入 B-04 生成 Contract，Fixture / HTTP 返回同一 Domain Model，一致性和主流程集成测试通过 | A-03, B-04, X-05 |
 
 ## P1：数据主链路
 
@@ -55,7 +55,7 @@
 | ID | 任务 | 负责人 | 产出 | 依赖 |
 | --- | --- | --- | --- | --- |
 | B-10 | 缓存兜底机制 | B | data/paper/model/reasoning cache record + cached meta | B-05, B-07, B-08, B-09 |
-| A-09 | 建立运行来源、缓存、版本与质量状态系统 | A | Live/Cached/Fixture/Revised、version、retrieved_at、SourceSnapshot 跨页面一致 | A-03, B-10, version/cache Contract |
+| A-09 | 建立运行来源、缓存、版本与质量状态系统 | A | Fixture/Live/Cached 来源、派生修订、version、retrieved_at、SourceSnapshot 跨页面一致 | A-03, B-10, version/cache Contract |
 | A-10 | 建立上下文反馈与局部修正体验 | A | Field/Source/Paper/Claim/Relation/Trace/GraphEdge 反馈、RevisionPlan 和新 ArtifactVersion 状态 | A-04, A-06, A-07, A-08, B-11, feedback Contract |
 | B-11 | 反馈修正接口 | B | Feedback / Revision API；修正创建派生 Run 与新 ArtifactVersion | target Feedback / Revision Contract |
 | C-06 | 字段/单位局部修正 | C | 修正记录和重导出 | B-11 |

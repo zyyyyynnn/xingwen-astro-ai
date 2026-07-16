@@ -77,7 +77,7 @@ stateDiagram-v2
   cancelled --> [*]
 ```
 
-`cached`、`fixture`、`revised` 和 `using_cache` 不属于状态。目标 v2 不在原 Run 中使用 `revising -> completed`；人工修订创建新的 revision Run。
+`cached`、`fixture`、修订关系和 `using_cache` 不属于状态。目标 v2 不在原 Run 中使用 `revising -> completed`；人工修订创建新的 `derivation_kind=revision` Run。
 
 ## 3. Step 契约
 
@@ -190,7 +190,7 @@ GraphEdge 修订若影响 Relation、ReasoningTrace 或 Evidence，RevisionPlan 
 
 - 状态转换、并发 lease、幂等、取消、自动重试和派生 Run 均有单元/集成测试。
 - Event 丢失恢复、SSE 断线和 Snapshot 一致性有测试。
-- Cached / Fixture / Live / Revised 状态语义有 Contract 测试。
+- Run 状态、`execution_mode`、`source_mode` 与修订派生关系分别有 Contract 测试，且不会混作同一枚举。
 - RevisionPlan 只重算影响闭包，旧版本保持可读。
 - Graph 发布验证全部 Evidence，跨文献边验证 Relation / Trace。
 - 权限、CSRF、匿名配额和跨会话访问在应用服务层验证。

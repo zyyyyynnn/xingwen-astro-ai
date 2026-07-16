@@ -14,13 +14,9 @@
 
 | 层级 | 当前可运行基线 | 已接受目标（Implementation Pending） |
 | --- | --- | --- |
-| 品牌 / 前端 | `apps/web`：Vue 3 + Vite | `apps/site`：Astro 静态品牌站 |
-| 科研工作台 | Vue 单页骨架 | `apps/workspace`：React + TypeScript |
-| UI / 图谱 | shadcn-vue、reka-ui、Vue Flow | 项目 Token + Radix primitives、`@xyflow/react` |
-| 共享前端 | 当前未建立 | design-tokens、ui、visual-engine、domain、contracts、data-access、workspace-core、testing |
-| API | FastAPI `/api/v1` Task 契约 | `/api/v2` Project / Run / Artifact / Version |
-| 后端 | Python 3.13、Pydantic v2 | 保持 FastAPI / Pydantic，增加 v2 Application / Persistence |
-| 数据库 | PostgreSQL 17 | 保持 PostgreSQL 17 |
+| 前端 | `apps/web` 单页骨架 | 独立品牌站、科研工作台与共享包；完整方案见 [FRONTEND_ARCHITECTURE.md](docs/architecture/FRONTEND_ARCHITECTURE.md) |
+| API | `/api/v1` Task 契约 | `/api/v2` Project / Run / Artifact / Version |
+| 后端与数据 | 当前应用、Pipeline 与 PostgreSQL 基线 | 增加 v2 Application / Persistence，不改变既有科研边界 |
 | 本地环境 | Compose：`web`、`api`、`postgres` | 迁移 Issue 明确更新前保持当前命令 |
 
 规则：
@@ -92,8 +88,8 @@
 | 当前 Compose | `docker compose config`；运行变更时 `docker compose up --build` |
 | 当前前端 | frozen pnpm install + build；命令以 `docs/setup.md` 为准 |
 | 目标 Monorepo | 建立后运行 lint、typecheck、test、build、E2E smoke、architecture/token checks |
-| Astro Site | 静态 HTML 含标题、说明、CTA；SEO、LCP、无 WebGL fallback |
-| React Workspace | Contract、Project/Run、最多三面板、键盘、a11y、恢复与分享 |
+| 目标品牌站 | 静态 HTML 含标题、说明、CTA；SEO、LCP、无实时视觉 fallback |
+| 目标工作台 | Contract、Project/Run、最多三面板、键盘、a11y、恢复与分享 |
 | Visual Engine | High/Medium/Low、deterministic seed、freeze time、pause/dispose、Poster、Reduced Motion |
 | Adapter | Fixture / HTTP 返回同一 Domain Model，一致性测试通过 |
 | 后端 | `uv sync --locked` + pytest；错误与权限场景覆盖 |
@@ -103,18 +99,15 @@
 
 ## 9. UI 与视觉红线
 
-- 只实现浅色系统：冷淡灰基底、低饱和雾霾蓝、深蓝灰文字、独立状态色。
-- Raw Color 只允许在 design-tokens；业务组件使用语义 Token。
-- ASCII / Dither 是分层品牌语言，不是满屏滤镜；不得使用大量 DOM glyph。
+- 只实现浅色系统；Raw Color 只在 design-tokens，业务组件只用语义 Token。
 - 禁止黑底星空、霓虹蓝紫、强发光、大面积渐变、玻璃拟态和通用大圆角 Card 墙。
 - 工作台以科研产物为中心，不以聊天气泡、工具日志、IDE 或无限窗口为中心。
-- 表格、论文、Evidence 正文优先可读；视觉不能承载唯一信息。
-- Canvas 必须有 DOM 内容和 Poster；支持 Reduced Motion、页面隐藏暂停和 GPU dispose。
-- 字体二进制提交前必须记录许可证、来源、中文覆盖、Web 加载和 Tauri 离线策略。
+- Canvas 必须有 DOM 内容和 Poster，支持 Reduced Motion、页面隐藏暂停与 GPU dispose；不得用大量 DOM glyph 实现 ASCII / Dither。
+- 字体二进制提交前必须记录来源、可再分发许可证、中文覆盖与加载策略。
 
 ## 10. Fixture、运行来源与科研可信
 
-- `execution_mode`: `demo_replay | live`；`source_mode`: `fixture | live | cached | revised`。
+- `execution_mode`: `demo_replay | live`，只属于 Run 与启动状态；`source_mode`: `fixture | live | cached`；修订由 revision Run 或 supersedes 关系推导。
 - Fixture 版本化并包含 scenario、schema version 和 provenance note。
 - Cached 只能引用真实历史 Run、ArtifactVersion 与 SourceSnapshot。
 - seed list 仅用于 benchmark、Fixture 或人工校验，不能冒充自动获取。
@@ -123,6 +116,6 @@
 
 ## 11. 材料口径
 
-提交路径为 `START HERE -> 短片 -> Web Guided Tour -> Workspace -> PDF -> 源码/API/测试`。只交付真实系统素材、明确 Fixture 或可定位真实运行缓存。未实现能力只能写 Proposed、Pending、规划或预留。
+唯一提交顺序见 [docs/handoff/README.md](docs/handoff/README.md)。只交付真实系统素材、明确 Fixture 或可定位真实运行缓存；未实现能力只能写 Proposed、Pending、规划或预留。
 
 禁止宣传：任意天文方向、任意 PDF 全文解析、任意图表全自动解析、无边界 AI Scientist、无证据科学发现。

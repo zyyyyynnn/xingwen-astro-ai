@@ -242,7 +242,7 @@ FixtureAdapter   HttpAdapter
 
 - build-time 环境只决定可用能力，不决定某个结果的来源。
 - 用户在 Guided Tour 中切换 Demo Replay / Live Run。
-- 每个领域对象携带 `source_mode`，页面不可仅依赖全局模式判断。
+- 每个 ArtifactVersion 或来源展示模型携带 `source_mode`，页面不可仅依赖全局模式判断。
 
 ## 8. 前端分层
 
@@ -481,7 +481,7 @@ interface CelestialVisualModel {
 /workspace/projects/:projectId/runs/:runId/literature/:artifactId
 /workspace/projects/:projectId/runs/:runId/reasoning/:artifactId
 /workspace/projects/:projectId/runs/:runId/graph/:artifactId
-/share/:shareId
+/share/:shareToken
 ```
 
 路由可通过 URL search params 恢复面板布局与选中对象，但必须限制长度和敏感数据。
@@ -630,18 +630,19 @@ pnpm verify:tokens
 
 - 迁移 Token 和字体。
 - 实现 BrandMark、基础 UI 和 WebGL runtime。
-- 完成首页四幕与 Demo Replay 最小路径。
+- 完成首页静态/视觉框架与静态 Workspace Shell，不绑定领域状态或业务行为。
 
-### 19.3 Phase 3：Research Desktop
+### 19.3 Phase 3：领域行为
 
-- 实现 Shell、Atlas、Canvas、Observatory、Console。
-- 完成 Fixture Adapter 和核心产物视图。
+- 在既有 Shell 上绑定 ResearchContractDraft / ResearchContract、Project / Run、Guided Tour FSM 与 WorkspaceSnapshot。
+- 完成 Repository Port、Fixture / HTTP Adapter、Atlas / Canvas / Observatory / Console 交互，不重建 Shell。
+- 核心科研产物视图由 A-04～A-10 分别实现，不纳入 A-03。
 
-### 19.4 Phase 4：真实 API 与删除旧前端
+### 19.4 Phase 4：真实 Contract 集成与功能迁移
 
-- HTTP Adapter 接入真实契约。
-- 完成 E2E、视觉和性能门禁。
-- 删除 `apps/web`、Vue、Pinia、Vue Router、Vue Flow 和 shadcn-vue 依赖。
+- X-01 使 HTTP Adapter 接入 B-04 生成的真实 `/api/v2` Contract。
+- A-04～A-10 依次迁移科研产物视图、来源版本与反馈能力。
+- 完成 Contract、E2E、视觉和性能门禁后，才删除 `apps/web` 及其旧前端依赖。
 - 更新 Docker、README、setup 与部署文档。
 
 迁移完成前不得在旧 Vue 和新 React 中重复实现同一业务功能。

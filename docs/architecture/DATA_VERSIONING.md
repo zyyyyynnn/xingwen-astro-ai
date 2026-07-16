@@ -35,7 +35,6 @@ schema_version
 content_hash
 input_hash
 source_mode
-origin_source_mode
 producer
 source_snapshot_ids[]
 evidence_ids[]
@@ -49,7 +48,8 @@ created_at
 - 内容不可原地改写，latest 只是可变指针。
 - Evidence、ShareSnapshot 和 Export 固定引用 version id。
 - 修订创建新版本并形成无环 supersedes chain。
-- Cached 引用 origin Run / Version；Revised 保留 origin source mode。
+- `source_mode` 仅允许 `fixture | live | cached`；Cached 引用 origin Run / Version。
+- 修订由创建它的 revision Run 或非空 `supersedes_version_id` 推导；新版本保留自身实际 `source_mode`，不设置 `revised` 来源值。
 
 ## 3. Run 派生与版本发布
 

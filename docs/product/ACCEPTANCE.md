@@ -1,6 +1,6 @@
 # Acceptance Criteria
 
-> Current runtime：Vue `apps/web` + FastAPI `/api/v1`。Target runtime：Astro + React Monorepo + `/api/v2`。目标前端验收为 Accepted for implementation / Pending，不能用文档通过代替代码和运行证据。
+> Current runtime：`apps/web` + FastAPI `/api/v1`。目标前端与 `/api/v2` 为 Accepted for implementation / Pending，不能用文档通过代替代码和运行证据。完整技术方案以 [FRONTEND_ARCHITECTURE.md](../architecture/FRONTEND_ARCHITECTURE.md) 为准。
 
 ## 1. MVP 总验收
 
@@ -24,7 +24,7 @@
 | 静态首屏 | HTML 中存在中文主标题、说明、主 CTA 和可信性入口；WebGL 不是 LCP 前置条件 |
 | 四幕 | SIGNAL、QUESTION、EVIDENCE、WORKSPACE 顺序完整，总时长约 60–90 秒 |
 | 控制 | 可暂停、返回、跳过，不做强制滚动劫持 |
-| Research Contract | ACT 02 可编辑目标、对象、字段、来源、论文、输出、证据和质量约束 |
+| Research Contract | ACT 02 可编辑 ResearchContractDraft；确认后生成不可变 ResearchContract |
 | 来源语义 | Demo Replay 显示 Fixture；Live Run 说明等待、失败、重试和真实缓存 |
 | SEO | 静态 title、description、canonical、Open Graph 与社交预览可检查 |
 | 稳定性 | 无 WebGL 时完整静态首屏，无明显 CLS，首个主动作可键盘操作 |
@@ -44,7 +44,7 @@
 | 多项目/Run | Project、并行 Run、Artifact、Version 明确，不用聊天线程替代 |
 | 恢复与分享 | WorkspaceSnapshot 可恢复；ShareSnapshot 冻结版本且只读 |
 | 键盘 | 无鼠标可确认 Contract、切换产物、定位 Evidence、取消/重试和打开帮助 |
-| 状态 | empty、loading、partial、success、failed、fixture、cached、revised 完整 |
+| 状态 | empty、loading、partial、success、failed 完整；Fixture、Live、Cached 与派生修订标识可区分 |
 
 ## 4. Visual Engine 与设计系统
 
@@ -64,7 +64,7 @@
 
 - `/api/v2` 明确 Project、Contract、Run、Event、ArtifactVersion、Evidence、WorkspaceSnapshot、ShareSnapshot。
 - Fixture / HTTP Adapter 校验同一 Transport Schema 并返回同一 Domain Model。
-- `execution_mode=demo_replay|live` 与 `source_mode=fixture|live|cached|revised` 分离。
+- `execution_mode=demo_replay|live` 只属于 Run/启动状态；`source_mode=fixture|live|cached`；修订由派生 Run 或 supersedes 关系推导。
 - Fixture 版本化并带 scenario、schema version、provenance note；不能标记 Cached。
 - Cached 绑定真实历史 Run、ArtifactVersion、SourceSnapshot、时间、input hash 和本次失败。
 - 页面和组件不读取原始 DTO、不在组件内 fetch、不拼接裸 API URL。
@@ -74,15 +74,15 @@
 
 | Issue | 最低产物 |
 | --- | --- |
-| A-01 | pnpm Monorepo、Astro/React 空基线、strict TS、共享 packages、build/test/CI 目标、旧 Vue 迁移策略 |
-| A-02 | 品牌字标、Token、字体、UI primitive、Visual Engine 基础、四幕框架、Workspace Shell、fallback |
-| A-03 | Research Contract、Guided Tour、Project/Run、Repository Port、Fixture/HTTP、Atlas/Canvas/Observatory/Console、分享入口 |
+| A-01 | 应用与共享包空骨架、依赖边界、strict typecheck、lint/test/build 目标和旧前端迁移策略；无产品组件或 Shader |
+| A-02 | Token、primitive、BrandMark、Visual Engine runtime、首页静态/视觉框架、静态 Workspace Shell 与 fallback；无领域状态或业务交互 |
+| A-03 | 在 A-02 Shell 上绑定 Project/Run、Research Contract、Repository Port、Fixture/HTTP、Guided Tour FSM、WorkspaceSnapshot、分享与交互；不重建 Shell |
 | A-04 | 虚拟化数据表、字段字典、来源、质量、对照、CSV/JSON、Evidence 和完整状态 |
 | A-05 | Query、来源、Candidate、去重、排序、选择依据、Demo/Live/Cached 与 Evidence |
 | A-06 | 目标、方法、数据、结论、局限、跨文献对照、Evidence locator/quote/value |
 | A-07 | Claim、候选/最终 Relation、Trace、条件、Evidence、最多三面板 |
-| A-08 | React Flow 证据图谱、Observatory 联动、规模控制、无装饰性节点/边 |
-| A-09 | Live/Cached/Fixture/Revised、version、retrieved_at、SourceSnapshot 与质量状态统一 |
+| A-08 | 证据图谱、Observatory 联动、规模控制、无装饰性节点/边 |
+| A-09 | Fixture/Live/Cached 来源、派生修订、version、retrieved_at、SourceSnapshot 与质量状态统一 |
 | A-10 | Field/Source/Paper/Claim/Relation/Trace/GraphEdge 反馈、新 ArtifactVersion 和冲突状态 |
 
 ## 7. B 后端与安全验收
@@ -106,7 +106,7 @@
 
 ## 9. 测试与治理门禁
 
-目标实现至少覆盖：Token、Contract、Fixture/HTTP 一致性、Domain Mapper、组件、E2E、a11y、visual regression、WebGL fallback、Reduced Motion、Demo/Live/Cached/Revised、Graph Evidence、Session/Share 安全。
+目标实现至少覆盖：Token、Contract、Fixture/HTTP 一致性、Domain Mapper、组件、E2E、a11y、visual regression、WebGL fallback、Reduced Motion、执行/来源/修订语义、Graph Evidence、Session/Share 安全。
 
 文档 PR 至少执行 `git diff --check`、`python scripts/check_foundation.py`、Markdown 链接/标题/Mermaid 结构检查（工具存在时），并证明未修改禁止范围。
 

@@ -1,6 +1,6 @@
 # Review Checklist
 
-本清单用于 PR、自测和作品交付前检查。Current runtime 为 Vue / v1；Astro / React / v2 是 Accepted for implementation / Pending，只有对应代码、测试与运行证据存在后才能勾选目标项。
+本清单用于 PR、自测和作品交付前检查。Current runtime 为旧前端 / v1；目标前端 / v2 是 Accepted for implementation / Pending，只有对应代码、测试与运行证据存在后才能勾选目标项。完整技术栈以 [FRONTEND_ARCHITECTURE.md](../architecture/FRONTEND_ARCHITECTURE.md) 为准。
 
 ## 1. PR 合并前
 
@@ -12,7 +12,7 @@
 | 契约 | API、Data、Workflow、Version、UI 或安全变化同步对应文档 |
 | 安全 | 无 `.env`、Key、Token、连接串、论文凭据、session/share token 或敏感日志 |
 | 包管理 | 只有 pnpm / uv；无额外 lockfile，frozen/locked 检查通过 |
-| 科研可信 | Fixture、Live、Cached、Revised 准确；Summary/Relation/GraphEdge 证据完整 |
+| 科研可信 | Fixture、Live、Cached 来源与派生修订准确；Summary/Relation/GraphEdge 证据完整 |
 | 口径 | 主案例范围清楚，不宣传任意方向、任意 PDF 或无证据发现 |
 | CI | 适用 build、test、contract、architecture、a11y、visual、Compose 卡口通过 |
 
@@ -48,15 +48,15 @@
 - 从关键字段、结论、Relation 或 GraphEdge 三次交互内定位 Evidence。
 - Project、Run、Artifact、Version、WorkspaceSnapshot、ShareSnapshot 不混淆。
 - 无鼠标可确认 Contract、切换产物、打开 Evidence、取消/重试和分享。
-- empty/loading/partial/success/failed/fixture/cached/revised 状态完整。
+- empty/loading/partial/success/failed 状态完整；Fixture、Live、Cached 与派生修订标识准确。
 
 ## 5. Design Token、UI 与字体
 
 - Raw Color 只在 design-tokens；组件使用 canvas/surface/ink/border/brand/status/visual 语义 Token。
 - 状态颜色可区分，并同时提供文字或图标。
-- 不使用黑底星空、霓虹蓝紫、强发光、大面积渐变、玻璃拟态或大圆角 Card 墙。
+- 通过 `VISUAL_LANGUAGE.md` 的视觉禁止项检查，无新增例外。
 - 不把所有内容塞入 Card；高密度区域用层级、分隔和虚拟化。
-- 字体版本、来源、SIL OFL 许可证、中文覆盖、Web subset 与 Tauri 离线策略有记录。
+- 字体版本、来源、可再分发许可证、中文覆盖、Web subset 与桌面离线策略有记录。
 - 200% 字体缩放、焦点、对比度、触控目标和读屏标签通过。
 - 未净化外部 HTML 不进入 DOM；React 默认转义不被绕过。
 
@@ -76,7 +76,7 @@
 - Pydantic 生成 OpenAPI / JSON Schema；generated Transport Type 无 stale diff。
 - 组件不读取原始 DTO、不拼 URL、不直接 fetch。
 - Fixture / HTTP Adapter 通过同一 Contract 和 Domain 一致性测试。
-- `execution_mode` 与 `source_mode` 分离；Fixture 不能标记 Cached。
+- `execution_mode` 只属于 Run/启动状态；`source_mode` 仅为 Fixture/Live/Cached；派生修订不写入来源枚举。
 - 集合 cursor、错误 Problem Details、Idempotency-Key、版本冲突和 request_id 一致。
 - Run Snapshot / Event 恢复、cancel、retry、revision、fork 语义有测试。
 
@@ -120,7 +120,7 @@
 
 ## 12. 作品提交前
 
-按 `START HERE -> 60–90 秒短片 -> 公网首页 Guided Tour -> Workspace -> PDF -> 源码/API/测试` 自主走读。
+按 [材料交接清单](../handoff/README.md) 中的唯一提交顺序完成自主走读。
 
 - 视频、网页、截图、Fixture version、真实 Run 和文档口径一致。
 - 公网首页、Tour、Workspace、Share 可访问，错误和缓存兜底可演示。
@@ -133,6 +133,6 @@
 - README 是否区分当前实现与目标架构。
 - PRD / DESIGN / VISUAL / WORKSPACE / FRONTEND_ARCHITECTURE 是否分工清楚且不大段复制。
 - API / DATA_MODEL / WORKFLOW / VERSION / MODULES 是否字段和语义一致。
-- ROADMAP / BACKLOG / A-01～A-10 Issue 是否使用目标技术和依赖。
+- ROADMAP / BACKLOG / A-01～A-10 Issue 是否使用一致的交付边界和依赖。
 - `docs/setup.md` 是否仍准确描述当前命令，没有把目标命令写成已可运行。
 - Markdown 链接、标题层级、表格、Mermaid 与 `git diff --check` 是否通过。

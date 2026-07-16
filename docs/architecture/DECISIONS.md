@@ -224,7 +224,7 @@ Accepted for implementation；Implementation Pending。
 
 ### Decision
 
-工作台以 Research Atlas、最多三面板 Research Canvas、Provenance Observatory 和底部 Research Console 组成。中央默认显示科研产物；自然语言交互只负责生成 Research Contract、结构化解释、运行或修订请求。
+工作台以 Research Atlas、最多三面板 Research Canvas、Provenance Observatory 和底部 Research Console 组成。中央默认显示科研产物；自然语言交互只负责生成 ResearchContractDraft、确认 ResearchContract、结构化解释、运行或修订请求。
 
 ### Consequences
 
@@ -252,7 +252,7 @@ Accepted for implementation；Implementation Pending。
 
 ### Decision
 
-UI 经 Application Service 调用 Repository Port；Fixture Adapter 与 HTTP Adapter 均校验 Transport Contract、映射为同一 Domain Model。`execution_mode` 与 `source_mode` 分离，Fixture 固定标记 `source_mode=fixture`。
+UI 经 Application Service 调用 Repository Port；Fixture Adapter 与 HTTP Adapter 均校验 Transport Contract、映射为同一 Domain Model。`execution_mode` 只属于 Run/启动状态；`source_mode` 仅为 `fixture | live | cached`，Fixture 固定标记 `fixture`。修订由派生 Run 或 supersedes 关系推导，不是来源值。
 
 ### Consequences
 
@@ -366,7 +366,7 @@ Accepted for implementation；Implementation Pending。
 
 ### Decision
 
-`ResearchProject` 表示持续研究上下文，`ResearchRun` 表示一次不可变契约驱动执行，`ResearchArtifact` 表示稳定产物身份，`ArtifactVersion` 表示追加式内容快照。重试、修订和派生创建带 `parent_run_id` 与 `derivation_kind` 的新 Run；版本不原地覆盖。
+`ResearchProject` 表示持续研究上下文，`ResearchRun` 表示一次不可变契约驱动执行，`ResearchArtifact` 表示稳定产物身份，`ArtifactVersion` 表示追加式内容快照。ResearchContract 不保存执行方式；创建 Run 时选择 `execution_mode`。重试、修订和派生创建带 `parent_run_id` 与 `derivation_kind` 的新 Run；版本不原地覆盖，修订版本继续记录其真实来源。
 
 ### Consequences
 

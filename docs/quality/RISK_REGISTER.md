@@ -14,7 +14,7 @@
 | 主案例范围扩散 | 进度失控 | MVP 固定 `exoplanet_host_star` |
 | 工作流编排散落在 Router/Pipeline | 非法跳转、失败状态和重试不可控 | 显式状态机、Workflow Executor、数据库 Hooks 边界 |
 | 产物无版本或原地覆盖 | 无法复现提交结果、缓存和人工修正 | `ArtifactVersion` / `Run` 契约，追加式修正 |
-| Fixture、缓存与实时结果混淆 | 演示数据被误认为实时科研结果 | `execution_mode` 与 `source_mode` 分离；Fixture 不得标为 cached，所有产物展示来源与版本 |
+| Fixture、缓存、实时结果与修订关系混淆 | 演示数据被误认为实时科研结果，或把修订误写成来源 | `execution_mode` 只属于 Run；`source_mode` 仅为 fixture/live/cached；修订由派生关系推导，所有产物展示来源与版本 |
 
 ## 中风险
 

@@ -394,7 +394,7 @@ ASCII 粒子不是背景装饰，而是品牌与状态语言：
 
 - 输入区更像研究指令台，不像聊天气泡。
 - 顶部或底部包含当前项目、运行模式和上下文范围。
-- 支持自然语言，但提交后优先生成 Research Contract。
+- 支持自然语言，但提交后优先生成 ResearchContractDraft，用户确认后才形成 ResearchContract。
 
 ### 9.3 Panel
 

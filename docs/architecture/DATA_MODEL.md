@@ -50,11 +50,11 @@ erDiagram
 
 ```text
 execution_mode = demo_replay | live
-source_mode = fixture | live | cached | revised
+source_mode = fixture | live | cached
 derivation_kind = original | retry | revision | fork
 ```
 
-不变量：Fixture Adapter 产生 `demo_replay + fixture`；HTTP Live Run 产生 `execution_mode=live`，其产物可为 `live`、`cached` 或 `revised`。Cached 必须引用真实历史 Run；Revised 必须引用被替代版本和 Feedback。
+不变量：`execution_mode` 只属于 ResearchRun 及创建 Run 的请求，不属于 ResearchContract 或 ResearchContractDraft。Fixture Adapter 产生 `demo_replay + fixture`；HTTP Live Run 产生 `execution_mode=live`，其产物可为 `live` 或 `cached`。Cached 必须引用真实历史 Run。修订不是来源模式：当 `derivation_kind=revision` 或 `supersedes_version_id` 非空时，产物处于修订派生关系，仍保留实际 `source_mode`。
 
 ## 4. ResearchSession
 
@@ -107,7 +107,6 @@ paper_search_scope
 output_requirements[]
 evidence_requirements
 quality_constraints
-execution_mode
 created_from_draft_id
 created_at
 content_hash
@@ -134,7 +133,7 @@ id
 project_id
 contract_id
 execution_mode
-status
+status: RunStatus（定义见 `WORKFLOW_DESIGN.md`）
 progress
 parent_run_id
 derivation_kind
@@ -149,15 +148,7 @@ failure_code
 failure_summary
 ```
 
-状态：
-
-```text
-queued | planning | fetching_data | cleaning_data | searching_papers
-summarizing_papers | reasoning_literature | building_graph
-waiting_for_input | completed | failed | cancelled
-```
-
-`cached`、`fixture`、`revised` 和 `using_cache` 不是 Run 状态。
+Run 状态集合、转换、重试和取消规则只在 [WORKFLOW_DESIGN.md](WORKFLOW_DESIGN.md) 定义。`cached`、`fixture`、修订关系和 `using_cache` 都不是 Run 状态。
 
 RunStep：
 
@@ -209,7 +200,6 @@ content
 content_hash
 input_hash
 source_mode
-origin_source_mode
 producer
 source_snapshot_ids[]
 evidence_ids[]
@@ -221,7 +211,7 @@ created_at
 
 - `(artifact_id, version_number)` 唯一，content 创建后不可原地修改。
 - Evidence、ShareSnapshot 与 Export 固定引用 version id，不引用 latest。
-- Cached 还需 CacheRecord 与 origin Run；Revised 还需 supersedes version 和 Feedback。
+- Cached 还需 CacheRecord 与 origin Run；修订版本还需 supersedes version 和 Feedback，并保留自身实际来源模式。
 - `producer` 包含 type、name、version，以及适用的 model、prompt、parameters hash；不包含密钥或私有推理。
 
 ## 9. 科研 Artifact 内容

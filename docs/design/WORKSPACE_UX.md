@@ -36,7 +36,7 @@
 ### 2.2 Guided Tour
 
 - 默认使用版本化主案例 Demo Replay。
-- 支持在 ACT 02 修改 Research Contract 并切换 Live Run。
+- 支持在 ACT 02 编辑 ResearchContractDraft、确认 ResearchContract，并在启动时选择 Live Run。
 - 通过受控镜头和焦点，依次展示关键科研产物。
 - 允许暂停、跳过、返回和直接进入工作台。
 - 任何回放内容都必须标注为示例研究运行。
@@ -56,7 +56,7 @@
 | 幕 | 内容 | 交互与可信性要求 |
 | --- | --- | --- |
 | ACT 01 — SIGNAL | 巨型裁切 ASCII / Dither 系外行星、中文主标、核心价值与快速入口 | 标题、说明和 CTA 必须存在于静态 DOM；WebGL 不是 LCP 前置条件 |
-| ACT 02 — QUESTION | 自然语言研究意图重组为可编辑 Research Contract | 用户能暂停、编辑、跳过；不在确认前启动 Live Run |
+| ACT 02 — QUESTION | 自然语言研究意图重组为可编辑 ResearchContractDraft | 用户能暂停、编辑、跳过；不在确认 Contract 前启动 Live Run |
 | ACT 03 — EVIDENCE | Dataset、Paper、Claim、Evidence、Relation 逐层显现 | 视觉只解释结构，不虚构科研数据或精度 |
 | ACT 04 — WORKSPACE | 场景收束为真实工作台结构 | 允许继续 Demo Replay、切换 Live Run 或直接进入 Workspace |
 
@@ -98,7 +98,7 @@
 
 - 中文字标缩略版
 - 当前 ResearchProject / ResearchRun 路径
-- 执行方式：Demo Replay / Live；产物来源：Fixture / Live / Cached / Revised
+- 执行方式：Demo Replay / Live；产物来源：Fixture / Live / Cached；修订关系独立显示
 - 当前任务状态与关键步骤
 - 全局搜索 / Command Palette
 - 分享、导出、帮助和质量档
@@ -115,7 +115,7 @@ Research Atlas 是左侧研究项目与阶段导航，不是聊天历史。
 Recent Research
 ├─ ResearchProject A
 │  ├─ Run 03 / Live / searching_papers
-│  ├─ Run 02 / Revised
+│  ├─ Run 02 / Live · Revised
 │  └─ Run 01 / Cached
 ├─ ResearchProject B
 └─ Shared Result Links
@@ -140,17 +140,9 @@ History
 
 ### 5.3 并行状态
 
-多个运行可并行，但界面通过“运行轨道”表达，不使用聊天未读数量：
+多个运行可并行，但界面通过“运行轨道”表达，不使用聊天未读数量。完整 `RunStatus` 集合和转换规则只在 [WORKFLOW_DESIGN.md](../architecture/WORKFLOW_DESIGN.md) 定义；Workspace 直接消费服务端 `status`、当前 step、progress、时间、失败摘要与 `available_actions`，不维护第二套状态枚举。
 
-- `queued`
-- `planning` / `fetching_data` / `cleaning_data` / `searching_papers`
-- `summarizing_papers` / `reasoning_literature` / `building_graph`
-- `waiting_for_input`
-- `completed`
-- `failed`
-- `cancelled`
-
-运行轨道显示当前阶段、耗时和来源，不显示原始模型思维过程。`cached`、`fixture`、`revised` 是 Artifact 来源，不是 Run 状态。
+运行轨道显示状态文本、当前阶段、耗时、执行方式、产物来源和修订关系，不显示原始模型思维过程。`cached`、`fixture` 和修订关系都不是 Run 状态；修订由 revision Run 或被替代版本关系推导。
 
 ## 6. Research Contract
 
@@ -160,9 +152,9 @@ History
 
 > 整合主案例中系外行星候选体与宿主恒星的关键参数，并追踪每个字段的来源和相关论文依据。
 
-系统生成 Research Contract，而不是立即执行。
+系统生成可编辑的 ResearchContractDraft，而不是立即执行；用户确认后才创建不可变 ResearchContract。
 
-### 6.2 契约结构
+### 6.2 Draft 契约结构
 
 字段名是目标领域契约，不使用仅供展示的同义词替代：
 
@@ -177,16 +169,16 @@ History
 | `output_requirements` | CSV、字段字典、溯源报告、图谱 |
 | `evidence_requirements` | locator、quote/value、SourceSnapshot 和覆盖率 |
 | `quality_constraints` | 来源完整性、单位一致性、证据覆盖率 |
-| `execution_mode` | `demo_replay` 或 `live` |
 
-用户可以逐项编辑、接受建议或恢复默认主案例。
+用户可以在 Draft 中逐项编辑、接受建议或恢复默认主案例。
 
 ### 6.3 执行门
 
-- 必填字段不完整时不得执行。
+- Draft 必填字段不完整时不得确认或执行。
 - 系统应展示预计步骤和可能的外部依赖。
-- Demo Replay 和 Live Run 的差异必须在确认前说明。
-- 执行后契约进入只读版本；修改产生新运行或修订版本。
+- Contract 确认后，用户在创建 Run 或启动 Guided Tour 时选择 Demo Replay 或 Live；该选择不写入 Contract。
+- Demo Replay 和 Live Run 的差异必须在启动前说明。
+- Draft 确认后形成只读 Contract；改变科研输入时创建新 Draft/Contract，并由新 Run 引用。
 
 ## 7. Research Canvas
 
@@ -277,7 +269,7 @@ Research Console 位于底部，默认收起为紧凑状态。
 
 - 新建研究目标
 - 追问当前产物
-- 请求修改 Research Contract
+- 请求改变科研输入，并创建新的 ResearchContractDraft / ResearchContract
 - 重试某个 TaskStep
 - 扩展字段或论文范围
 - 生成导出物
@@ -404,7 +396,7 @@ AI 响应优先生成：
 
 ```text
 1. Signal：认识品牌和主案例
-2. Question：查看或编辑 Research Contract
+2. Question：查看或编辑 ResearchContractDraft，并确认 ResearchContract
 3. Acquire：数据与论文来源出现
 4. Resolve：字段、论文和 Evidence 被整理
 5. Reason：Claim、Relation 与 Trace 形成
@@ -453,7 +445,7 @@ AI 响应优先生成：
 - `failed`：错误分类、影响和下一步
 - `fixture`：场景版本、schema version 和明确 Demo 标识
 - `cached`：真实历史 Run、缓存时间、适用性与本次 Live 失败原因
-- `revised`：当前修订和原版本关系
+- `revised`：由 revision Run 或 `supersedes_version_id` 推导，显示当前修订和原版本关系，并与真实来源组合展示
 
 ASCII 动效只辅助状态表达，不替代文字和进度。
 
@@ -495,7 +487,7 @@ ASCII 动效只辅助状态表达，不替代文字和进度。
 - 工作台中央默认不是聊天流。
 - 多项目并行状态可区分，但不会形成通用 Agent 线程列表的外观。
 - 数据、论文、推理和图谱之间可以通过最多三面板完成对照。
-- Demo Replay、Live、Cached 和 Revised 绝不混淆。
+- `execution_mode`、`source_mode` 与修订派生关系分别展示，Demo Replay、Live、Cached 和 Revised 语义不混淆。
 - 所有失败状态提供可执行下一步。
 - `1440×900`、`1920×1080` 完整布局与 `1280px` 可完成主流程均通过验证。
 - 中央最多三个拆分面板，底部 Research Console 不遮挡当前核心产物。
