@@ -1,129 +1,122 @@
-# DESIGN
+# Product Design
 
-| 项目状态     | 口径                                                             |
-| ------------ | ---------------------------------------------------------------- |
-| Status       | Active                                                           |
-| A-01 runtime | Implemented：Astro Brand Site、React Research Workspace 与共享包 |
-| Product UI   | A-02、A-03 Pending                                               |
-| API          | `/api/v1` Current；`/api/v2` Pending                             |
+| 元数据         | 值                                                   |
+| -------------- | ---------------------------------------------------- |
+| Status         | Accepted                                             |
+| Authority      | 产品设计原则、体验域关系、交互模型与设计不变量       |
+| Implementation | A-01 runtime implemented；A-02/A-03 产品体验 Pending |
 
-本文件是星文智析的**产品设计总纲、体验域、系统边界与专项规范入口**。它不重复产品主流程、页面交互、技术栈、Run 状态、视觉细则或验收清单；这些事实由对应专项文档维护。
+本文定义星文智析的设计判断标准，不重复产品主流程、页面规格、技术栈、领域枚举或验收清单。
 
-A-01 只交付前端运行时与最小入口。本文件描述的完整品牌、Guided Tour、科研工作区和 v2 业务能力仍需对应 Issue、代码、测试与运行证据。
+- 产品范围与成功指标见 [PRD](PRD.md)。
+- 视觉规则见 [Visual Language](docs/design/VISUAL_LANGUAGE.md)。
+- 首页、Guided Tour 和工作台交互见 [Workspace UX](docs/design/WORKSPACE_UX.md)。
+- 前端工程方案见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
 
-## 1. 产品设计定位
+## 1. 设计命题
 
-星文智析不是通用聊天 Agent，也不是装饰性的天文数据大屏。产品围绕“从科学问题到可用数据与可核验证据”，建立可运行、可复现、可溯源的天文科研工作环境。
+星文智析不是通用聊天 Agent，也不是装饰性天文数据大屏。产品围绕“从科学问题到可用数据与可核验证据”，把 AI 能力收束为可审查的科研产物、运行和版本。
 
-MVP 固定主案例为 **系外行星候选体与宿主恒星参数整合**。用户、场景、产品范围、成功标准和主流程只在 [PRD.md](PRD.md) 定义。
+产品需要同时建立两个识别面：
 
-产品的两个核心识别面是：
-
-- **艺术化天文入口**：用独立品牌语言建立主题、问题与可信性认知。
-- **科研产物工作台**：以 Project、Run、Contract、Artifact、Version 和 Evidence 为主要对象，不以聊天历史组织研究。
+- **艺术化天文入口**：让用户快速理解主题、主案例和可信边界。
+- **科研产物工作台**：以 Project、Run、Contract、Artifact、Version 和 Evidence 组织研究。
 
 ## 2. 设计原则
 
-| 原则           | 设计要求                                                                                |
-| -------------- | --------------------------------------------------------------------------------------- |
-| 科研产物优先   | 结构化数据、论文、Claim、Relation、Graph 与 Evidence 是主界面对象；对话只提供上下文操作 |
-| Evidence-first | 关键数据、结论、关系和图谱边都能回到来源、证据和明确版本                                |
-| 自主可理解     | 无现场讲解时，品牌入口与引导体验仍能说明价值、过程和可信边界                            |
-| 可复现而不失真 | Demo、实时运行、历史缓存和修订关系分别表达，不把示例包装成真实结论                      |
-| 渐进复杂度     | 先建立问题与主动作，再逐步揭示产物、来源、版本和审查工具                                |
-| 视觉服从阅读   | 强视觉服务品牌与转场；表格、论文、Evidence 和长文本保持高可读性                         |
-| 降级仍可用     | 动效、Canvas 或设备能力下降时，核心内容、状态和操作仍由 DOM 承载                        |
-| 状态明确       | Current、Implemented 与 Pending 始终分别标注                                            |
+| 原则           | 判断标准                                            |
+| -------------- | --------------------------------------------------- |
+| 科研产物优先   | 中央内容以结构化产物为主，对话和日志不得占据主界面  |
+| Evidence-first | 关键数据、结论、关系和图谱边可定位来源、证据和版本  |
+| 自主可理解     | 无现场讲解时，用户仍能理解价值、流程和限制          |
+| 渐进复杂度     | 先说明问题与主动作，再揭示来源、版本和审查工具      |
+| 真实性分层     | Demo、Live、Cached 和 Revision 分别表达，不互相冒充 |
+| 视觉服从阅读   | 强视觉集中在品牌与转场，高密度内容保持克制和可读    |
+| 降级仍可用     | Canvas、字体或动效失败时，DOM 内容和主操作继续可用  |
+| 当前与目标分明 | Current、Target、Pending 和 Archived 不得混写       |
 
-完整视觉规则只在 [VISUAL_LANGUAGE.md](docs/design/VISUAL_LANGUAGE.md) 维护。
+## 3. 体验域
 
-## 3. 体验域关系
+| 体验域             | 核心职责                                           | 不负责                       |
+| ------------------ | -------------------------------------------------- | ---------------------------- |
+| Brand Site         | 建立品牌、主案例和可信性认知                       | 项目管理和复杂运行状态       |
+| Guided Tour        | 用确定性场景解释 Contract、Run、Artifact、Evidence | 代替真实工作台或伪装 Live    |
+| Research Workspace | 管理项目、运行、产物审查、反馈、分享和导出         | 以聊天历史或工具日志组织研究 |
 
-星文智析包含三个连续但职责不同的体验域：
+三个体验域共享领域语言、设计 Token、证据规则和数据访问边界，但不共享不必要的页面状态。
 
-| 体验域             | 设计职责                                                    | 与下一域的关系               |
-| ------------------ | ----------------------------------------------------------- | ---------------------------- |
-| Brand Site         | 建立品牌、主案例和可信性认知，提供明确入口                  | 将用户带入可操作的引导体验   |
-| Guided Tour        | 用确定性场景解释 Contract、Run、Artifact 与 Evidence 的关系 | 保留上下文进入真实工作台     |
-| Research Workspace | 管理研究项目、运行、产物审查、反馈、分享与导出              | 形成可复现、可提交的研究结果 |
+## 4. 核心交互模型
 
-三个体验域共享领域语言、视觉 Token、证据规则和数据访问边界，但不共享不必要的页面状态。首页叙事、Guided Tour 状态机和 Workspace 交互只在 [WORKSPACE_UX.md](docs/design/WORKSPACE_UX.md) 定义。
+```text
+Research intent
+-> editable ResearchContractDraft
+-> immutable ResearchContract
+-> Demo Replay or Live ResearchRun
+-> versioned ResearchArtifacts
+-> Evidence and SourceSnapshot inspection
+-> Export / Share / Feedback
+-> RevisionPlan and derived Run
+```
 
-## 4. 系统边界
+交互要求：
+
+- 用户确认 Contract 后才执行；
+- 工作台中央最多三个受控面板；
+- AI 响应优先产生结构化建议、计划或产物；
+- Provenance Observatory 保持当前上下文并提供来源、证据和版本；
+- Research Console 是命令与协作入口，不是永久聊天时间线；
+- 原始执行日志只用于诊断。
+
+## 5. 系统边界
 
 ```mermaid
 flowchart LR
-  User["研究者 / 评审"]
-  Experience["Brand Site / Guided Tour / Workspace"]
-  App["Application Services + Domain Model"]
-  Port["Repository Port"]
-  Fixture["Fixture Adapter"]
-  Http["HTTP Adapter"]
-  Api["API / Application / Persistence"]
-  Pipelines["Data / Paper / Reasoning / Graph Pipelines"]
-  Versions["ArtifactVersion / Evidence / SourceSnapshot"]
-
-  User --> Experience
-  Experience --> App
-  App --> Port
-  Port --> Fixture
-  Port --> Http
-  Http --> Api
-  Api --> Pipelines
-  Pipelines --> Versions
-  Versions --> Api
+  User["研究者 / 评审"] --> Experience["Brand Site / Tour / Workspace"]
+  Experience --> App["Application Services + Domain Model"]
+  App --> Port["Repository Port"]
+  Port --> Fixture["Fixture Adapter"]
+  Port --> HTTP["HTTP Adapter"]
+  HTTP --> API["API / Workflow / Persistence"]
+  API --> Pipeline["Data / Paper / Reasoning / Graph"]
+  Pipeline --> Artifact["ArtifactVersion / Evidence / SourceSnapshot"]
+  Artifact --> API
 ```
 
 边界规则：
 
-- 体验组件只依赖稳定 Domain Model，不直接读取 Transport DTO、拼接 API URL 或调用外部数据源与模型。
-- Fixture 与 HTTP 通过同一 Repository Port 返回同一领域形状，并接受一致性测试。
-- Workflow、权限、版本发布、缓存选择和分享冻结由服务端负责，浏览器状态不能替代后端事实。
-- Prompt 只位于 `packages/prompts`；模型输出必须先通过 Schema 与 Evidence 校验。
-- ArtifactVersion、Evidence、SourceSnapshot 与 ShareSnapshot 是复现和审查边界，不能以漂移的 latest 代替固定引用。
+- 体验组件只依赖稳定 Domain Model，不读取 Transport DTO 或直接调用外部来源。
+- Fixture 与 HTTP 通过同一 Repository Port 返回同一领域形状。
+- Workflow、权限、版本发布、缓存选择和分享冻结由服务端负责。
+- Prompt 只由版本化 registry 管理；模型输出先通过 Schema 与 Evidence 校验。
+- ArtifactVersion、Evidence、SourceSnapshot 和 ShareSnapshot 是复现边界。
 
-前端技术栈、目录、依赖方向和构建规则只在 [FRONTEND_ARCHITECTURE.md](docs/architecture/FRONTEND_ARCHITECTURE.md) 定义；跨模块职责见 [MODULES.md](docs/architecture/MODULES.md)。
+跨模块职责见 [Module Boundaries](docs/architecture/MODULES.md)。
 
-## 5. 领域设计不变量
+## 6. 设计不变量
 
-- ResearchProject 表示持续研究上下文；ResearchRun 表示一次执行；ResearchArtifact 表示稳定身份；ArtifactVersion 表示不可变内容快照。
-- ResearchContract 固定研究输入和质量约束，不保存执行方式；执行方式在创建 Run 或启动 Guided Tour 时确定。
-- 执行方式、产物来源和修订派生关系是三个独立维度；修订不会成为新的来源枚举值。
-- 用户重试、修订或改变研究范围时创建派生 Run；自动瞬态重试只形成 StepAttempt。
-- 缓存只引用真实历史 Run、ArtifactVersion 与 SourceSnapshot；Fixture 不能冒充缓存。
-- Summary、Accepted Relation、ReasoningTrace 和 GraphEdge 均按契约绑定 Evidence。
-- ReasoningTrace 只记录可审查依据、条件和引用，不保存模型私有 chain-of-thought。
-- WorkspaceSnapshot 是私有恢复状态；ShareSnapshot 是冻结、只读、最小公开范围的投影。
+- Project 表示持续研究上下文，Run 表示一次执行。
+- Artifact 表示稳定身份，ArtifactVersion 表示不可变内容。
+- Contract 固定研究输入和质量约束，不保存执行方式。
+- 执行方式、产物来源和修订派生关系相互独立。
+- 用户重试、修订或改变研究范围时创建派生 Run。
+- 缓存只能引用真实历史 Run、ArtifactVersion 和 SourceSnapshot。
+- Summary、Accepted Relation、ReasoningTrace 和 GraphEdge 按契约绑定 Evidence。
+- ReasoningTrace 只记录可审查依据、条件和引用。
+- WorkspaceSnapshot 是私有恢复状态；ShareSnapshot 是冻结的只读公开投影。
 
-实体与不变量以 [DATA_MODEL.md](docs/architecture/DATA_MODEL.md) 为准；Run 状态与派生规则以 [WORKFLOW_DESIGN.md](docs/architecture/WORKFLOW_DESIGN.md) 为准；版本、缓存、修订与分享以 [DATA_VERSIONING.md](docs/architecture/DATA_VERSIONING.md) 为准。
+精确领域规则分别由 [Data Model](docs/architecture/DATA_MODEL.md)、[Workflow Design](docs/architecture/WORKFLOW_DESIGN.md) 和 [Data Versioning](docs/architecture/DATA_VERSIONING.md) 维护。
 
-## 6. 安全与可信边界
+## 7. 可信与安全边界
 
-- 前端不保存或直传模型、论文源、天文数据源密钥。
-- 私有 Project、Run 和 Artifact 由服务端会话所有权隔离；公开分享不得暴露编辑会话。
-- 用户输入与外部文本默认按文本渲染；外部 URL、HTML、导出参数和分享范围必须校验。
-- 错误信息不得暴露密钥、连接串、堆栈、受限全文或私有推理。
-- Seed、Fixture、缓存、模型推断和真实科研结果必须按真实来源明确标注。
+- 前端不持有模型、论文源或天文数据源密钥。
+- 私有 Project、Run 和 Artifact 必须由服务端会话所有权隔离。
+- 用户输入与外部文本默认按纯文本处理。
+- Seed、Fixture、缓存、模型推断和真实结果必须明确标注。
+- 视觉效果不得承载唯一信息，也不得暗示不存在的科学精度。
+- 未实现能力不得在产品或材料中写成已交付。
 
-HTTP 与授权语义见 [API_CONTRACT.md](docs/architecture/API_CONTRACT.md)，部署安全见 [SECURITY.md](SECURITY.md)，风险治理见 [RISK_REGISTER.md](docs/quality/RISK_REGISTER.md)。
-
-## 7. 专项规范入口
-
-| 事实范围                           | 唯一正文来源                                                           |
-| ---------------------------------- | ---------------------------------------------------------------------- |
-| 用户、场景、范围、成功标准、主流程 | [PRD.md](PRD.md)                                                       |
-| 品牌、颜色、字体、视觉引擎、动效   | [VISUAL_LANGUAGE.md](docs/design/VISUAL_LANGUAGE.md)                   |
-| 首页、Guided Tour、Workspace 交互  | [WORKSPACE_UX.md](docs/design/WORKSPACE_UX.md)                         |
-| 前端技术栈、目录、依赖、构建       | [FRONTEND_ARCHITECTURE.md](docs/architecture/FRONTEND_ARCHITECTURE.md) |
-| HTTP 资源与传输契约                | [API_CONTRACT.md](docs/architecture/API_CONTRACT.md)                   |
-| 领域实体与不变量                   | [DATA_MODEL.md](docs/architecture/DATA_MODEL.md)                       |
-| Run 状态、重试、取消、派生         | [WORKFLOW_DESIGN.md](docs/architecture/WORKFLOW_DESIGN.md)             |
-| 版本、缓存、修订、分享             | [DATA_VERSIONING.md](docs/architecture/DATA_VERSIONING.md)             |
-| 产品退出标准                       | [ACCEPTANCE.md](docs/product/ACCEPTANCE.md)                            |
-| PR 与发布检查                      | [REVIEW_CHECKLIST.md](docs/quality/REVIEW_CHECKLIST.md)                |
-| 材料提交顺序                       | [handoff/README.md](docs/handoff/README.md)                            |
-| Agent 执行纪律与红线               | [AGENTS.md](AGENTS.md)                                                 |
+安全要求见 [Security](SECURITY.md)，HTTP 与授权语义见 [API Contract](docs/architecture/API_CONTRACT.md)。
 
 ## 8. 实施边界
 
-本设计的实施必须由对应 Issue 驱动。A-01 已完成运行时基线；A-02 不得提前实现 A-03 领域行为，A-03 不得把 `/api/v2` 写成当前可调用能力。每项能力只有通过对应 Contract、E2E、可访问性、降级与部署门禁后才能标记为 Implemented。
+设计实现必须由对应 Issue 驱动。A-01 只证明 Astro/React 运行时、路由和共享包边界；A-02/A-03 体验与业务能力保持 Pending。只有代码、测试和运行证据通过后，能力才可标记为 Implemented。

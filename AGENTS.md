@@ -1,6 +1,8 @@
 # AGENTS
 
-本文件是本仓库的 Agent 操作协议。协作流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，产品与设计总纲见 [DESIGN.md](DESIGN.md)。
+本文件是本仓库的 Agent 操作协议。协作流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，产品与设计总纲见 [DESIGN.md](DESIGN.md)，文档权威层级见 [Documentation Governance](docs/DOCUMENTATION_GOVERNANCE.md)。
+
+事实冲突时按以下顺序处理：当前 Issue / PR 已批准范围、L1 核心规范、L2 专项规范、L3 执行治理、L0 摘要、L4 参考资料。代码与验证证据决定 Implementation 状态；发现冲突时修正低权威来源，不自行猜测。
 
 ## 1. 默认基准
 

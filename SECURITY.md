@@ -1,95 +1,134 @@
 # Security
 
-> 状态：本文约束当前 Astro Brand Site、React Research Workspace 与 `/api/v1`；A-02、A-03 和 `/api/v2` 能力保持 Pending，直到对应安全与契约验证通过。
+| 元数据         | 值                                                                    |
+| -------------- | --------------------------------------------------------------------- |
+| Status         | Accepted                                                              |
+| Authority      | 密钥、信任边界、输入、会话、分享、日志和安全响应要求                  |
+| Implementation | Current baseline controls；`/api/v2` Session / Share controls Pending |
 
-## 1. 密钥管理
+本文定义必须满足的安全控制。部署拓扑和发布步骤见 [Deployment](DEPLOYMENT.md)，HTTP 授权与公开错误见 [API Contract](docs/architecture/API_CONTRACT.md)，模型调用准入见 [Model Policy](docs/ai/MODEL_POLICY.md)。
 
-- Qwen / 百炼 API Key 只能放在后端环境变量或部署平台 Secrets。
-- 论文源 API Key、Token 或访问凭据只能放在后端环境变量或部署平台 Secrets。
-- 不允许提交 `.env`、数据库密码、Token、私钥。
-- 不允许在前端代码、构建产物、截图、日志、文档中出现密钥。
-- `.env.example` 只能使用占位值；其中的 `postgres` / `replace_me` 仅限本地模板。
-- `VITE_` 和 `PUBLIC_` 变量会进入浏览器，只允许非敏感 URL、开关和展示配置。
-- Site 与 Workspace 容器不得通过 `env_file` 或等价方式接收后端 Secrets；Compose 变量插值不等于向容器注入全部环境变量。
+## 1. 信任边界
 
-## 2. 生产启动防线
+不可信输入包括：
 
-`APP_ENV=production` 时后端配置必须拒绝：
+- 用户研究意图、项目名称、反馈和导出参数；
+- 浏览器 URL、search params 和分享 token；
+- 外部天文数据、论文元数据、摘要和开放文本；
+- 模型响应；
+- Fixture、recorded response、缓存文件和导入文件；
+- 第三方参考代码和配置示例。
 
-- `DEBUG=true`；
-- 缺失 `DATABASE_URL`，或连接串使用本地默认凭据 `postgres:postgres`；
-- 显式配置 `POSTGRES_PASSWORD=postgres`；
-- `DASHSCOPE_API_KEY=replace_me` 或空值；
-- `CORS_ORIGINS=*`。
+所有不可信输入必须在进入 Domain、持久化、HTML、外部请求或文件系统前完成适用的 Schema、长度、类型、协议、来源和权限校验。
 
-使用托管 PostgreSQL 时可只配置平台提供的安全 `DATABASE_URL`，无需额外设置 `POSTGRES_PASSWORD`。使用 Compose 或自建 PostgreSQL 时必须覆盖本地默认密码。
+## 2. 密钥与配置
 
-部署平台仍需在启动前做 Secret 检查。运行时校验是最后防线，不替代 Secrets 管理。
+- 模型、论文源、数据源、数据库和内部服务凭据只存在于后端环境或部署平台 Secrets。
+- 不提交 `.env`、token、私钥、真实密码或完整连接串。
+- `.env.example` 只使用占位值和说明。
+- `VITE_`、`PUBLIC_` 和所有浏览器构建变量都视为公开信息。
+- 前端或静态站不得通过 `env_file`、构建参数或生成 HTML 接收后端 Secrets。
+- 日志、截图、导出、错误详情和测试 Fixture 不包含原始凭据。
 
-## 3. 模型调用安全
+生产配置必须拒绝 DEBUG、默认数据库凭据、空/占位关键凭据和通配 CORS。
 
-- 所有模型调用统一经过后端 Qwen Client。
-- Prompt 和模型输出记录具体版本、模型名和 hash。
-- 模型输出必须经过 JSON、Schema 和 Evidence 校验。
-- 无来源的模型结论不能作为最终事实展示。
-- 跨文献关系必须绑定 Evidence 和 ReasoningTrace。
-- 用户输入限制长度、来源范围和最大调用成本。
-- 原始模型响应不得在失败时直接降级为最终业务响应。
-- 不记录或展示模型隐藏推理过程；`ReasoningTrace` 只保存可审查的结论、条件、证据引用和转换说明。
+## 3. 匿名 Session 与授权
 
-## 4. 论文源访问安全
+目标 `/api/v2` 的免登录体验仍需要完整授权边界：
 
-- 论文源访问统一经过后端 Paper Pipeline。
-- 前端不得直接调用论文源接口。
-- 只使用合规、可访问的元数据、摘要或开放文本片段。
-- 不绕过付费全文、访问限制或来源许可。
-- 记录检索参数、来源 URL、获取时间、缓存状态和去重规则。
-- 对论文检索接口设置限流，避免公网 Demo 触发来源风控。
+- Session 使用服务端签发的高熵标识和明确过期时间；
+- Cookie 使用 `Secure`、`HttpOnly`、合适的 `SameSite` 与最小 Path/Domain；
+- 所有 Project、Run、Artifact、Version、Feedback、Export 和 Share 管理操作在服务端校验 ownership；
+- 资源 ID、URL 参数或前端隐藏状态不能替代授权；
+- 修改类请求使用 CSRF 防护；
+- 会话固定、过期、撤销、并发和配额场景具有测试；
+- 跨会话私有资源返回不泄露存在性的响应。
 
-## 5. 公网 Demo 安全
+精确的 401/403/404 语义由 API Contract 维护。
 
-- 限制主案例和调用频率。
-- 对模型调用、论文检索、导出和反馈接口设置基础限流。
-- 外部服务失败时只使用真实运行缓存。
-- 当前缓存结果必须标注 `cached: true` 或页面提示；目标契约使用 `source_mode=cached`，且不得把 Fixture 标为缓存。
-- CORS 只配置实际前端域名，不在生产使用通配符。
-- 前端 API URL 必须是浏览器可访问的公网地址，不使用 Docker 内部服务名。
+## 4. 分享安全
 
-## 6. 匿名会话与分享（目标 `/api/v2`，待实现）
+- ShareSnapshot 锁定明确 ArtifactVersion 和可公开 Evidence 范围，不指向动态 latest。
+- 分享默认只读、最小范围、可撤销、可过期。
+- Share token 具有足够随机熵；服务端只保存不可逆 hash。
+- 原 token 只在创建结果中返回一次，不写入日志、分析事件、Referer、错误或 Project 聚合。
+- 分享响应过滤会话信息、未授权用户输入、内部错误、受限全文和敏感来源字段。
+- 分享页面使用严格 CSP、`Referrer-Policy: no-referrer` 和默认 `Cache-Control: no-store`。
+- 无效、撤销和过期 token 不泄露底层 Project 或 Version 是否存在。
 
-- 浏览器会话使用服务端签发的高熵随机标识；Cookie 必须设置 `Secure`、`HttpOnly`、`SameSite` 和明确有效期。
-- 所有项目、运行、产物、版本、反馈和取消操作都必须在服务端校验会话所有权，资源 ID 不得替代授权。
-- 修改类请求使用 CSRF 防护，并对创建运行、重试、导出、反馈和分享设置会话级与 IP 级限流。
-- 分享快照只绑定明确的 ArtifactVersion 集合；默认只读、可撤销、可过期，不得隐式跟随后续版本。
-- 分享令牌只保存不可逆 hash；令牌不得出现在日志、分析事件、Referer 或服务端错误详情中。
-- 无效、过期或越权访问使用统一问题详情响应，不泄露资源是否存在；`401/403/404` 的唯一口径见 `docs/architecture/API_CONTRACT.md`。
+## 5. 外部来源访问
 
-## 7. 数据、日志与前端边界
+- 前端不直连模型、论文源或天文数据源。
+- 外部请求只允许配置的协议和 host；禁止任意 URL fetch、内部网络探测和非预期重定向。
+- 论文访问遵守来源许可，不绕过付费全文、认证或访问限制。
+- 请求记录可复现的 query、来源、时间、版本和错误，但不记录认证头或 Cookie。
+- 对模型、论文检索、数据查询、导出和反馈实施会话级与来源级限流。
+- 上游返回内容按不可信文本处理；未经净化的 HTML 不进入浏览器 DOM。
 
-- 日志不得记录完整 API Key、数据库连接串、论文源凭据或过长模型响应。
-- Secret 使用 `SecretStr` 或等价脱敏类型管理。
-- 外部数据源结果记录来源 URL、查询参数、获取时间。
-- 论文获取结果记录检索参数、候选来源、去重规则和获取时间。
-- 反馈内容按普通文本处理，不执行、不拼接为系统指令。
-- 导出文件不包含内部调试信息、密钥或受限全文。
-- Run 可记录 prompt/model hash、token 用量和 latency，不保存密钥或隐藏推理过程。
-- Astro 静态站点不得携带会话凭据；工作台请求只访问受控 API Origin。
-- 用户提供的名称、检索式、反馈、论文元数据和模型文本按不可信输入处理；前端默认文本渲染，禁止未净化 HTML。
-- 内容安全策略至少限制脚本、连接、图片、字体和 frame 来源；Canvas/WebGL 降级不得放宽 CSP。
-- Visual Engine 在路由离开和组件卸载时释放 WebGL、Canvas、观察器和动画句柄，避免跨项目残留或资源耗尽。
+## 6. 模型与科研内容安全
 
-## 8. CI 与 GitHub 安全
+- 模型输出必须通过结构、Schema、Evidence 和领域准入。
+- 无来源结论不能作为最终事实；无 Evidence / Trace 的关系只能作为 candidate。
+- 原始模型文本不能在校验失败时降级为业务结果。
+- ReasoningTrace 只保存可审查依据、条件和引用，不保存模型私有 chain-of-thought。
+- Prompt、模型、参数、输入和输出通过版本与 hash 定位，不记录无必要的完整内容。
+- 用户输入、论文文本和反馈不得被拼接为更高权限系统指令。
 
-- 所有改动通过分支和 PR。
-- CI 检查 `.env`、错误 lockfile、关键环境变量、构建、测试和 Schema 导出。
-- Secret scanning、依赖漏洞检查、CodeQL 保持启用。
-- 部署密钥只配置在需要的 GitHub Environment。
-- 成员按最小权限原则分配。
+## 7. 浏览器与内容安全
 
-## 9. 发现泄露时
+- React/Astro 默认文本转义不得被绕过；需要 HTML 时先使用受控净化策略。
+- CSP 至少限制 script、connect、img、font、frame、object 和 base URI。
+- 生产环境启用 HSTS、`X-Content-Type-Options`、Referrer Policy、Permissions Policy 和最小 CORS allowlist。
+- 外链使用允许协议，并对新窗口关系设置安全属性。
+- 文件名、MIME、大小和导出格式必须校验；下载 URL 短期有效，不暴露底层路径。
+- Workspace 不在 localStorage 持久化 Session、Share 原 token 或其他敏感凭据。
+- WebGL 降级不得放宽 CSP；路由离开时释放 Canvas、GPU、Observer 和动画资源。
 
-1. 立即撤销对应密钥。
-2. 从部署平台和本地环境重新配置新密钥。
-3. 检查 Git 历史、Actions 日志、截图和文档。
-4. 从缓存和产物中清理泄露内容。
-5. 在 `docs/quality/RISK_REGISTER.md` 记录原因和修复措施。
+## 8. 日志、错误与数据最小化
+
+允许记录：
+
+- request id、Run id、step key、Version id；
+- 公开 error code、状态、时间和延迟；
+- producer、Prompt/model 版本和 hash；
+- 截断、脱敏的诊断摘要。
+
+禁止记录：
+
+- 原始 Session / Share token、API Key、认证头、数据库密码；
+- 完整连接串、受限全文和无必要的用户输入；
+- 原始长模型响应或模型私有推理；
+- 可直接复原凭据的配置快照。
+
+公开错误不得包含堆栈、SQL、内部路径、第三方原始响应或资源存在性信息。
+
+## 9. 缓存、版本与删除
+
+- Cached 产物必须引用真实历史 Run、ArtifactVersion 和 SourceSnapshot。
+- Fixture、seed、recorded response 或手写 JSON 不进入真实 CacheRecord。
+- Revision 创建新 ArtifactVersion，不原地覆盖或删除正常历史。
+- 涉及密钥泄露、侵权或法定删除时执行强制清理；审计信息不得继续保存必须删除的内容。
+- Session、临时导出、过期 Share 和诊断数据具有明确保留与清理策略。
+
+## 10. CI、供应链与仓库
+
+- 所有变更通过分支和 PR；保护规则与必要 CI 不得绕过。
+- CI 检查意外 `.env`、错误 lockfile、Secret 模式、依赖安装、构建、测试和 Schema 生成。
+- 依赖版本锁定；升级需要变更说明和适用回归。
+- Secret scanning、依赖漏洞检查和 CodeQL 在仓库支持范围内保持启用。
+- 部署凭据只授予必要 Environment 和最小权限。
+- 第三方代码、字体、论文和数据在纳入前检查许可与来源。
+
+## 11. 事件响应
+
+发现泄露或越权风险时：
+
+1. 立即停止受影响流量或功能；
+2. 撤销并轮换相关凭据/token；
+3. 检查 Git 历史、Actions、部署日志、截图、导出和缓存；
+4. 清理暴露内容并验证无法继续访问；
+5. 修复根因，增加回归测试和检测门禁；
+6. 在 Risk Register 记录影响、原因、处理和后续责任；
+7. 必要时按来源许可、平台规则或法律要求通知相关方。
+
+安全修复不得通过删除测试、放宽授权或隐藏错误来“恢复可用”。

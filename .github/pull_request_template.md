@@ -1,46 +1,49 @@
-## 变更内容
+## Summary
 
 -
 
-## 关联 Issue
+## Related Issue
 
 Closes #
 
-## 范围与状态
+## Included scope
 
-- Current before：
-- Implemented by this PR：
-- Pending after：
-- 明确不做：
+-
 
-## 验证
+## Non-goals
 
-| 命令 / 证据 | 结果 |
-| ----------- | ---- |
-|             |      |
+-
+
+## Validation
+
+| Check | Result |
+| ----- | ------ |
+|       |        |
 
 未执行项及原因：
 
-## 影响检查
+## Impact review
 
-- [ ] 无接口变化，或已更新 `docs/architecture/API_CONTRACT.md`
-- [ ] 无实体/字段变化，或已更新 `docs/architecture/DATA_MODEL.md`
-- [ ] 无 Workflow/版本变化，或已更新对应架构文档
-- [ ] 无前端架构/UI 变化，或已更新 Frontend/Design/UX 文档
-- [ ] 无部署/环境变量变化，或已更新 `docs/setup.md`、`DEPLOYMENT.md`、`.env.example`
-- [ ] 无安全/风险变化，或已更新 `SECURITY.md`、`RISK_REGISTER.md`
-- [ ] Fixture、Live、Cached 与 Evidence 口径准确
-- [ ] 未把 Proposed/Pending 能力写成 Implemented
+- [ ] API / Data / Workflow / Version 已评估
+- [ ] Product / UI / accessibility 已评估
+- [ ] Environment / migration / deployment 已评估
+- [ ] Test data level and provenance 已说明
+- [ ] Documentation index 已同步（适用时）
 
-## 契约、数据、UI、部署、安全与材料说明
+说明：
 
-- Contract：
-- Data：
-- UI：
-- Deployment：
-- Security：
-- Handoff：
+## Evidence
 
-## 截图 / 输出
+- 测试报告、截图、运行或复现路径：
 
--
+## Migration / rollback
+
+- 不适用，或说明步骤：
+
+## Final checklist
+
+- [ ] Diff 与描述一致
+- [ ] 适用 Review 和 CI 已通过
+- [ ] 不包含无关改动
+- [ ] Current / Target / Pending 无混淆
+- [ ] 未扩大产品承诺

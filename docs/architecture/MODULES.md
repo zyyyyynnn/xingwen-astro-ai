@@ -1,123 +1,177 @@
-# Modules
+# Module Boundaries
 
-| 项目状态         | 口径                                 |
-| ---------------- | ------------------------------------ |
-| Status           | Active                               |
-| Frontend runtime | A-01 Implemented                     |
-| API              | `/api/v1` Current；`/api/v2` Pending |
+| 元数据         | 值                                                            |
+| -------------- | ------------------------------------------------------------- |
+| Status         | Accepted                                                      |
+| Authority      | 跨模块职责、输入输出、依赖方向和交接边界                      |
+| Implementation | A-01 frontend runtime current；A-02/A-03 与 `/api/v2` Pending |
 
-本文维护仓库模块职责与允许依赖方向。前端的精确版本、入口与构建规则见 [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md)。
+本文不维护完整前端目录、技术选型或任务顺序。前端包结构见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)，实时任务依赖见 [Backlog](../product/BACKLOG.md)。
 
-## 1. 目录职责
-
-| 目录                      | 状态               | 职责                                                    |
-| ------------------------- | ------------------ | ------------------------------------------------------- |
-| `apps/site`               | Current            | Astro 静态 Brand Site；只负责品牌入口与静态页面         |
-| `apps/workspace`          | Current            | React Workspace 路由与产品入口；A-03 前无业务行为       |
-| `apps/api`                | Current            | FastAPI `/api/v1`、Schema、Workflow 与服务边界          |
-| `packages/design-tokens`  | Current foundation | 基础 Token 导出；完整设计系统 Pending A-02              |
-| `packages/ui`             | Current foundation | 共享 React UI public entry；完整组件 Pending A-02       |
-| `packages/domain`         | Current boundary   | 无框架、HTTP 或 DOM 依赖的领域类型入口                  |
-| `packages/contracts`      | Current boundary   | Pydantic 生成 Contract 的前端消费边界                   |
-| `packages/data-access`    | Current boundary   | Repository Port；实现 Pending A-03/X-01                 |
-| `packages/workspace-core` | Current boundary   | 工作台编排 Port；实现 Pending A-03                      |
-| `packages/visual-engine`  | Current boundary   | 视觉运行时 Port；实现 Pending A-02                      |
-| `packages/testing`        | Current foundation | 共享测试入口                                            |
-| `packages/schemas`        | Current            | Pydantic JSON Schema 导出说明与产物位置                 |
-| `packages/prompts`        | Current            | 生产 Prompt 注册表与不可变版本                          |
-| `services/data_pipeline`  | Current skeleton   | 数据源、字段映射、单位、质量与导出                      |
-| `services/paper_pipeline` | Current skeleton   | 论文检索、获取与结构化总结                              |
-| `services/graph_pipeline` | Current skeleton   | Claim、Relation、Trace 与 Graph 构建                    |
-| `scripts`                 | Current            | Foundation、前端架构、runtime-retirement 与 Schema 工具 |
-
-## 2. 总依赖方向
+## 1. 依赖方向
 
 ```mermaid
 flowchart LR
-  Site["apps/site"] --> Tokens["design-tokens"]
-  Site --> UI["ui"]
-  Workspace["apps/workspace"] --> Tokens
-  Workspace --> UI
-  Workspace --> Core["workspace-core"]
-  Workspace --> Access["data-access"]
-  Core --> Domain["domain"]
-  Access --> Domain
-  Access --> Contracts["contracts"]
-  Contracts -. generated from .-> Api["apps/api Pydantic"]
-  Api --> Data["data_pipeline"]
-  Api --> Paper["paper_pipeline"]
-  Api --> Graph["graph_pipeline"]
-  Graph --> Prompts["packages/prompts"]
-  Paper --> Prompts
+  Experience["Site / Tour / Workspace"] --> App["Frontend Application Services"]
+  App --> Access["Repository Ports / Adapters"]
+  Access --> API["API Application Services"]
+  API --> Workflow["ResearchRun Workflow"]
+  Workflow --> Data["Data Pipeline"]
+  Workflow --> Paper["Paper Pipeline"]
+  Workflow --> Reasoning["Reasoning / Graph Pipeline"]
+  Data --> Artifacts["ArtifactVersion / Evidence / SourceSnapshot"]
+  Paper --> Artifacts
+  Reasoning --> Artifacts
+  Artifacts --> API
 ```
 
 禁止反向依赖：
 
-- Shared Package 依赖 App。
-- `domain` 依赖 UI、HTTP、Browser API 或传输 DTO。
-- `ui` / `visual-engine` 调用 Repository、API 或 Pipeline。
-- App 读取其他 Package 的内部文件。
-- 前端直连 Qwen、天文数据源或论文源。
-- Python Pipeline 反向依赖前端 App。
+- Domain 依赖 React、Astro、HTTP 或平台 API；
+- UI、Visual Engine 或页面直接调用 HTTP 或外部科研来源；
+- Pipeline 调用 Router 或推进 ResearchRun 主状态；
+- Workflow 内嵌字段映射、论文检索、Prompt 或图谱算法；
+- generated Contract 成为手工编写源；
+- Prompt 散落在 Router、组件或临时脚本；
+- 前端状态替代服务端 Run、ArtifactVersion 或权限事实。
 
-## 3. A 前端与产品体验
+## 2. A：前端与产品体验
 
-职责：
+### 输入
 
-- A-01：维护两个 App、共享包边界、根工具链、CI 与 Compose。
-- A-02（Pending）：品牌视觉、Design Token、静态 Workspace Shell 与 Visual Engine。
-- A-03（Pending）：Research Contract、Guided Tour、Project/Run、Repository Adapter、恢复与分享。
-- A-04～A-10（Pending）：各科研产物工作区、反馈、响应式与发布收口。
+- PRD、DESIGN、Visual Language 和 Workspace UX；
+- 生成 Transport Contract 与稳定 Domain Model；
+- Run、ArtifactVersion、Evidence、SourceSnapshot 和可执行动作；
+- 版本化 Fixture 与测试基准。
 
-红线：
+### 输出
 
-- Site 不持有完整 Workspace 状态。
-- Workspace 不手写生产 Transport Schema。
-- 页面不直接拼接来源 URL 或模型请求。
-- A-01 占位页面不扩展为无 Issue 的业务实现。
+- Brand Site、Guided Tour 和 Research Workspace；
+- Research Contract、项目/运行导航和最多三面板 Research Canvas；
+- Provenance Observatory、Research Console、分享和反馈体验；
+- Fixture / HTTP Adapter、Domain mapper 和前端状态模型；
+- a11y、visual、E2E、性能和降级测试。
 
-## 4. B 后端与 Workflow
+### 不负责
 
-`apps/api` 当前维护 `/api/v1` 稳定性、Pydantic Schema、错误模型、客户端、缓存边界和显式 Workflow。`/api/v2` Project / Run / Artifact / Version、Session 与 Share 能力均为 Pending。
+- 直接调用模型、数据源或论文源；
+- 决定 Run 状态、缓存选择、版本发布或访问权限；
+- 自行补造后端未返回的科研事实；
+- 在 Site 与 Workspace 重复维护同一业务状态。
 
-后端对 Pipeline 只依赖结构化接口，不把路由处理函数当作编排器。模型输出必须先通过 Schema 与 Evidence 校验。
+## 3. B：API、Application 与 Workflow
 
-## 5. C 数据 Pipeline
+### 输入
 
-`services/data_pipeline` 负责 SourceRecord、字段映射、单位统一、质量评分、SourceSnapshot 与导出。它不负责前端展示、用户会话或模型路由。
+- ResearchContract、用户动作和 Session；
+- Pipeline 的结构化产物；
+- Pydantic Schema、Prompt registry 和部署配置。
 
-## 6. D 论文、推理与图谱 Pipeline
+### 输出
 
-- `services/paper_pipeline`：查询、候选、去重、选择依据、摘要与 Evidence。
-- `services/graph_pipeline`：Claim、Relation、ReasoningTrace、GraphEdge 与 Evidence。
-- `packages/prompts`：版本化生产 Prompt；不得散落在 Router、组件或 Notebook。
+- `/api/v1` 回归稳定性与 Pending `/api/v2` 资源 API；
+- Session、Project、Contract、Run、Event、Artifact、Version、Workspace 和 Share；
+- Workflow、幂等、取消、重试、CacheSelector、Feedback 与 RevisionPlan；
+- OpenAPI / JSON Schema、Problem Details 和授权语义；
+- PostgreSQL 持久化、事务、版本登记和导出。
 
-GraphEdge 必须绑定 Evidence；跨文献边还需 Relation / ReasoningTrace。
+### 不负责
 
-## 7. X 基建
+- 具体数据清洗、论文检索、Relation 算法或图谱布局；
+- 在 Router 中串联完整科研链路；
+- 返回未经校验的模型自由文本；
+- 保存密钥、受限全文或模型私有推理。
 
-根目录、`.github` 与 `docs/setup.md` 负责：
+## 4. C：数据 Pipeline
 
-- Node/pnpm 与 Python/uv 版本锁定。
-- 单一前端 lockfile 与 frozen install。
-- Compose 四服务、环境变量和 healthcheck。
-- Foundation、format、lint、typecheck、unit、build、E2E、architecture、runtime-retirement、pytest 与 Schema export。
-- 文档、Issue、PR 与实现状态一致。
+### 输入
 
-## 8. 联调顺序
+- Case / Field Manifest；
+- ResearchContract 的对象、字段、来源和质量约束；
+- 数据源配置、父 Run 可复用 ArtifactVersion 和 RevisionPlan。
 
-1. B/C/D 冻结字段、论文来源、关系与 Evidence 最小契约。
-2. B 由 Pydantic 导出 Transport Contract。
-3. A 在 `contracts` 消费生成 Contract，并在 `data-access` 映射 Domain。
-4. Fixture / HTTP 一致性测试通过后，Workspace 才消费 Repository。
-5. Product E2E、权限、来源、版本与失败路径通过后，能力才可标记 Implemented。
+### 输出
 
-## 9. 交接标准
+- 原始查询和 SourceSnapshot；
+- crossmatch 与匹配 Evidence；
+- Dataset、FieldDictionary、SourceCollection 和 Quality 内容；
+- mapping / unit / quality rule version、input/output hash；
+- 数据修订内容和 Export 输入。
 
-每个模块交付至少包含：
+### 不负责
 
-- 公开输入、输出与错误语义。
-- Fixture / Live / Cached 的真实来源说明。
-- 版本、Evidence 与 ReasoningTrace 规则。
-- 单元、契约或 E2E 证据。
-- 对应架构、产品、风险与启动文档同步。
+- 推进 Run 状态、发布 HTTP DTO 或选择缓存；
+- 使用缓存代替第二真实来源；
+- 把缺失值、低置信匹配或质量分解释为科学事实。
+
+## 5. D：论文、推理与图谱 Pipeline
+
+### 输入
+
+- Benchmark Package、ResearchContract 和数据 ArtifactVersion；
+- 论文来源、版本化 Prompt、已校验 Summary / Claim / Evidence；
+- 父 Run 可复用 ArtifactVersion 和 RevisionPlan。
+
+### 输出
+
+- PaperCollection、PaperSummary 和 SourceSnapshot；
+- Claim、candidate/accepted/rejected Relation、ReasoningTrace；
+- 通过完整性门的 Graph 内容；
+- Prompt/model/producer、input/output hash 和评测报告；
+- 文献、推理和 Graph 修订内容。
+
+### 不负责
+
+- 绕过来源许可、付费全文或安全边界；
+- 让 seed 冒充自动检索；
+- 让无 Evidence / Trace 的关系进入最终 Graph；
+- 记录模型私有 chain-of-thought；
+- 为视觉效果制造科研节点和边。
+
+## 6. X：基建、集成与交付
+
+### 输入
+
+- A/B/C/D 的可运行模块、Contract、测试和部署要求。
+
+### 输出
+
+- Compose、CI、环境变量、版本锁定和生成物门禁；
+- X-01、X-06、X-07、X-08 阶段集成验收；
+- 公网 Site / Workspace / API / DB 部署；
+- START HERE、材料 provenance 和复现入口。
+
+### 不负责
+
+- 替代原子 Issue 实现业务；
+- 在没有 ADR 和真实负载依据时引入复杂基础设施；
+- 用部署成功替代科研链路和 Evidence 验收。
+
+## 7. 共享事实的所有权
+
+| 事实                             | 唯一所有者                                 |
+| -------------------------------- | ------------------------------------------ |
+| Product scope and flow           | PRD                                        |
+| Experience and design principles | DESIGN / design docs                       |
+| Transport Contract               | API Contract + generated OpenAPI/Schema    |
+| Domain entities                  | Data Model                                 |
+| Run lifecycle                    | Workflow Design                            |
+| Version/cache/revision/share     | Data Versioning                            |
+| Prompt content and version       | `packages/prompts` + Prompt Versioning     |
+| Relation admission               | Reasoning Protocol                         |
+| Current task state               | GitHub Issue / Milestone                   |
+| Runtime status                   | Code, deployment and verified run evidence |
+
+## 8. 交接标准
+
+跨模块交接至少提供：
+
+- 输入/输出 Schema 和版本；
+- 示例及其数据等级；
+- Evidence、SourceSnapshot、hash 和 producer 要求；
+- 错误、权限、空结果和失败场景；
+- 可执行验证命令和结果；
+- Contract、风险、部署和材料影响；
+- 明确的非目标和未实现项。
+
+缺少这些信息时，消费者不得根据字段名或示例自行推断生产语义。
