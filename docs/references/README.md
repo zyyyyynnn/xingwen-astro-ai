@@ -1,47 +1,49 @@
-# 参考资料
+# Reference Materials
 
-本目录存放项目参考资料，包括赛题原文、三份参考资料的论文 PDF、核心代码和开发摘要。
+| 元数据 | 值 |
+| --- | --- |
+| Status | Reference |
+| Authority | 无；本目录不定义当前产品或实现 |
 
-## 目录结构
+本目录保存赛题要求、第三方论文、示例代码和研究摘要。内容只用于比较、调研和形成设计输入；任何规则必须先进入 PRD、ADR、Contract 或专项规范，才能成为实现依据。
 
-```
+## 内容
+
+```text
 docs/references/
-├── README.md           # 本文件
-├── 赛题要求.md         # 赛题整理版全文
-├── 项目简报.md         # 最终版项目简报（团队/技术栈/预算/进度）
-├── papers/             # 三份论文 PDF（共 8.4MB）
-│   ├── AutoAstro-天文自动化实验框架.pdf
-│   ├── mavis-天文可视化工具.pdf
-│   └── InnoSum-摘要质量指标构建.pdf
-├── autoastro/          # 功能一：AutoAstro 参考
-│   ├── 摘要.md         # 开发参考卡（架构/接口/迁移要点）
-│   └── code/          # 12 个核心 .py 文件
-├── mavis/              # 功能二：mavis 参考
-│   ├── 摘要.md         # 开发参考卡
-│   └── api/           # 11 个天文工具 API JSON
-└── inosum/             # 功能三：InnoSum 参考
-    ├── 摘要.md         # 开发参考卡
-    └── code/          # 论文解析代码 paper_summary.py
+├─ README.md
+├─ 赛题要求.md
+├─ papers/              third-party papers
+├─ autoastro/           paper summary + selected code
+├─ mavis/               paper summary + selected API examples
+└─ inosum/              paper summary + selected code
 ```
 
-## 三份参考资料与项目模块的映射
+历史项目简报已移至 [Archive](../archive/README.md)，避免与第三方参考资料混合。
 
-| 参考资料 | 对应模块 | 岗位 | 核心复用点 |
-| --- | --- | --- | --- |
-| AutoAstro | `services/data_pipeline` | C-夏铭灿 | 数据交叉匹配、LLM 任务推荐与分解、分析代码自动配置 |
-| mavis | `services/graph_pipeline` | D-梁津浩 | 天文工具 API 封装模式、任务分解结构、WWT 可视化集成 |
-| InnoSum | `services/paper_pipeline` | D-梁津浩 | 论文章节分类、结构化摘要提取、摘要质量评估 |
+## 使用原则
 
-## Qwen 迁移
+- 先理解思路和约束，再根据当前领域模型重新设计；不得机械复制接口或目录。
+- 参考代码的模型、依赖、许可、安全和数据来源必须独立审查。
+- 第三方示例中的 Prompt、工具调用、错误处理和缓存策略不能直接视为适合本项目。
+- 任何涉及模型迁移的改动必须经过 Model Policy、Prompt Versioning、Schema 和 Evidence 验证。
+- 外部 API、论文来源和数据源的访问方式、许可、配额和可用性需要在实施时重新核验。
+- 参考资料中的结果不得被包装为星文智析的真实运行结果。
 
-三份参考代码均使用 DeepSeek V3，赛题要求 Qwen 系列 + 阿里云百炼平台。迁移方式统一：OpenAI 兼容模式，只改 `base_url`（`https://dashscope.aliyuncs.com/compatible-mode/v1`）、`api_key`（`DASHSCOPE_API_KEY`）和 `model`（`qwen-plus` 或 `qwen-max`），Prompt 和工具调用代码不用改。
+## 与当前模块的可能关联
 
-## 未保留的原始文件
+| 参考 | 可研究方向 | 当前权威规范 |
+| --- | --- | --- |
+| AutoAstro | 数据获取、对象匹配、分析任务组织 | Data Model、Module Boundaries、C 系列 Issues |
+| mavis | 天文工具封装、可视化与交互模式 | Frontend Architecture、Workspace UX、Graph Contract |
+| InnoSum | 论文章节识别、结构化摘要和质量评估 | Model Policy、Prompt Versioning、Reasoning Protocol |
 
-以下文件因体积过大或已提取关键内容，未纳入仓库：
+“可研究方向”不表示已采用或已实现。
 
-- 功能一-参考代码.zip（2.5MB，核心 .py 已提取到 autoastro/code/）
-- 功能二-参考代码.zip（372MB，API JSON 已提取到 mavis/api/；JPL 星历表和 benchmark 数据未保留）
-- 星文智析_开发分工表.docx（内容已在 AGENTS.md 第 5 节和 BACKLOG.md 中）
-- 星文智析_项目简报.docx（内容已整合到本目录 项目简报.md）
-- 申报记录.png（报名审核截图，状态已在简报中记录）
+## 赛题要求
+
+[赛题要求.md](赛题要求.md) 是外部要求的仓库整理版。产品范围和提交口径仍由 PRD、Acceptance 与 Handoff 维护；两者冲突时应先核对原始赛题材料，再通过 Issue 修改内部规范。
+
+## 未保留的大型原始文件
+
+部分压缩包、数据集和大体积参考工程未纳入仓库。当前目录只保留完成调研所需的论文、摘要和选定代码。缺失内容不得由文件名或摘要推断。
