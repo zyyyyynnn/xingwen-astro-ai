@@ -18,8 +18,13 @@ build/
 node_modules/
 dist/
 .vite/
+.astro/
+.turbo/
 .nuxt/
 .output/
+coverage/
+playwright-report/
+test-results/
 
 # IDE
 .idea/
