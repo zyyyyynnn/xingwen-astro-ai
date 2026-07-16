@@ -25,7 +25,9 @@ jobs:
           python-version: "3.13"
 
       - name: Validate repository foundation
-        run: python scripts/check_foundation.py
+        run: |
+          python -m unittest scripts.test_check_foundation
+          python scripts/check_foundation.py
 
       - name: Validate Docker Compose contract
         run: |

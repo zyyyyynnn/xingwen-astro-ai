@@ -27,6 +27,7 @@ REQUIRED_FILES = (
     "scripts/check-docs-rules.mjs",
     "scripts/check-docs.test.mjs",
     "scripts/frontend-retirement-rules.json",
+    "scripts/test_check_foundation.py",
     "apps/site/package.json",
     "apps/workspace/package.json",
     "apps/api/pyproject.toml",
