@@ -4,177 +4,162 @@
 
 | 目录 | 负责人 | 职责 | 核心输出 |
 | --- | --- | --- | --- |
-| `apps/web` | A | Vue/Vite 前端页面、流程展示、shadcn-vue 组件、论文获取过程、推理关系、Vue Flow 图谱交互、反馈入口 | 页面、组件、前端 API Client、截图素材 |
-| `apps/api` | B | FastAPI、任务编排、Qwen Client、论文源代理、缓存、导出 | REST API、状态机、数据库访问、OpenAPI |
-| `services/data_pipeline` | C | 天文数据获取、清洗、字段映射、质量评分 | Dataset、FieldDefinition、SourceRecord、QualityScore |
-| `services/paper_pipeline` | D | 论文检索、候选获取、去重、相关性排序、结构化总结、来源绑定 | PaperSearchQuery、PaperAcquisitionRun、PaperCandidate、Paper、PaperSummary、Evidence |
-| `services/graph_pipeline` | D | Claim 抽取、跨文献关系、推理链、图谱节点、边、证据链 | LiteratureClaim、LiteratureRelation、ReasoningTrace、GraphNode、GraphEdge、Evidence |
-| `packages/schemas` | B 主导，全员使用 | 共享类型、枚举、JSON Schema | Pydantic/TypeScript Schema |
-| 根目录 Docker 基建 | A + B | Docker Compose、服务端口、环境变量、版本锁定 | `docker-compose.yml`、Dockerfile、`.env.example`、启动说明 |
-| `samples` | C + D | 可复现样例输入输出 | 示例 CSV、论文候选 JSON、推理关系 JSON、报告 |
-| `docs/handoff` | 全员 | 材料组交接素材 | 截图、导出物、说明 |
+| `apps/web` | A | Vue/Vite 页面、流程展示、图谱交互、反馈入口 | 页面、组件、API Client、截图 |
+| `apps/api` | B | FastAPI、任务编排、模型 Client、缓存、导出 | REST API、状态机、OpenAPI |
+| `apps/api/src/app/workflow` | B | 状态转换、Step 执行、失败与持久化边界 | Executor、Hooks、状态测试 |
+| `services/data_pipeline` | C | 数据获取、清洗、字段映射、质量评分 | Dataset、FieldDefinition、SourceRecord |
+| `services/paper_pipeline` | D | 论文检索、获取、去重、总结、来源绑定 | PaperCandidate、PaperSummary、Evidence |
+| `services/graph_pipeline` | D | Claim、Relation、Trace、图谱构建 | LiteratureRelation、ReasoningTrace、Graph |
+| `packages/schemas` | B 主导 | 共享契约生成产物和说明 | JSON Schema、manifest |
+| `packages/prompts` | B + D | 生产 Prompt registry 与不可变版本 | Prompt 文件、版本映射 |
+| `scripts` | B + X | 基建校验、Schema 导出、可复现工具 | CI/本地命令 |
+| 根目录 Docker 基建 | A + B | Compose、端口、环境变量、版本锁定 | Compose、Dockerfile、env 模板 |
+| `samples` | C + D | 可复现样例与评测输入输出 | CSV、候选、关系、报告 |
+| `docs/handoff` | 全员 | 材料交接素材 | 截图、导出、说明 |
 
-## 2. 模块输入输出
+## 2. 依赖方向
 
-### A 前端
+```text
+apps/web -> apps/api
+apps/api routers -> application services -> workflow
+workflow -> step adapters -> services/*
+services/* -> schemas/contracts
+model client -> packages/prompts
+all persisted results -> Evidence / Source / version metadata
+```
+
+禁止反向依赖：
+
+- Pipeline 不调用 Router。
+- 前端不调用外部模型、数据源或论文源。
+- Prompt 不散落在 Router/组件。
+- Workflow 不嵌入清洗、检索或图谱算法。
+- generated Schema 不作为手工编写源。
+
+## 3. A 前端
 
 输入：
 
-- `API_CONTRACT.md` 定义的接口。
-- `DATA_MODEL.md` 定义的数据结构。
-- `DESIGN.md` 定义的 shadcn-vue、Tailwind token、Vue Flow 规范。
+- API/OpenAPI 和共享契约。
+- DESIGN UI token。
+- 缓存、错误、证据状态。
 
 输出：
 
-- 任务流程页。
-- 数据结果页。
-- 论文获取页。
-- 文献总结页。
-- 跨文献推理页。
-- 图谱页。
-- 反馈修正页。
+- 任务、数据、论文、总结、推理、图谱和反馈页面。
 - 可用于材料组的真实截图。
 
 禁止：
 
-- 前端直接调用 Qwen。
-- 前端直接调用论文源或天文数据源。
-- 前端保存 API Key 或论文源凭据。
-- 前端自行编造后端未返回的数据、论文候选或推理关系。
-- 混用 npm/yarn/bun 安装依赖。
+- 自行编造后端未返回的科研结果。
+- 保存密钥或直连外部来源。
+- 把 cached、mock、candidate 与 final 混淆。
+- 手写重复业务类型而不走统一生成/集中层。
 
-### B 后端
+## 4. B 后端与 Workflow
 
 输入：
 
 - 前端请求。
-- Qwen 配置。
-- 论文源配置。
-- Data/Paper/Graph Pipeline 输出。
+- Pipeline 结构化输出。
+- 模型、论文源、数据库配置。
 
 输出：
 
-- 统一 REST API。
-- 任务状态机。
-- 缓存兜底结果。
-- 导出文件。
-- 错误码和日志。
-- Docker API 服务启动入口。
+- 统一 API 与错误。
+- ResearchTask/TaskStep 状态。
+- 缓存、导出、OpenAPI。
+- Schema 导出。
+- 运行与产物版本关联。
+
+Router 只解析请求和调用 application service。Workflow 只编排，业务规则留在对应 Pipeline。数据库适配通过 Hooks/Repository 接入。
 
 禁止：
 
-- 让不同接口返回互相冲突的字段。
-- 将模型自然语言输出直接返回为最终事实。
-- 在日志中输出完整密钥、论文源凭据或过长模型响应。
-- 用 requirements.txt 替代 uv 主依赖管理流程。
+- Router 直接串联完整科研链路。
+- Pipeline 自行修改任务主状态。
+- 将模型自由文本直接作为最终响应。
+- 在日志输出密钥、连接串或受限全文。
+- 使用进程内状态作为唯一任务事实来源。
 
-### C 数据 Pipeline
+## 5. C 数据 Pipeline
 
-输入：
+输入：case_key、目标、字段需求、外部响应或真实缓存。
 
-- `case_key`。
-- 任务目标和字段需求。
-- 外部数据源响应或缓存。
+输出：标准化 rows、字段字典、来源、质量、导出。
+
+必须：
+
+- 单位、来源、规则版本明确。
+- 外部查询记录 SourceSnapshot/hash。
+- 关键值绑定 Evidence。
+
+禁止无来源字段、单位不明数值和手写假数据冒充真实来源。
+
+## 6. D 论文与总结 Pipeline
+
+输入：case、目标、字段、seed keywords、论文来源或真实缓存。
+
+输出：Query、Run、Candidate、Paper、Summary、Evidence。
+
+必须：
+
+- Prompt 从 `packages/prompts` 加载具体版本。
+- 候选保留来源、检索、去重、相关性。
+- Summary 通过 Schema 和 Evidence 校验。
+
+禁止 seed 冒充自动获取、绕过付费访问或生成无法溯源结论。
+
+## 7. D 推理与图谱 Pipeline
+
+输入：已校验 Summary/Claim/Evidence 和数据产物。
+
+输出：Claim、Relation、ReasoningTrace、GraphNode/Edge、Evidence。
+
+必须按 `REASONING_PROTOCOL.md` 区分候选与最终关系。
+
+禁止：
+
+- 无 Evidence/Trace 的 Relation 进入最终图谱。
+- 把不可审查的自然语言解释当作 Trace。
+- 仅为视觉效果生成边。
+- 在 MVP 未证明需要时引入 Neo4j/通用图抽象。
+
+## 8. X 基建
+
+输入：技术基线、env 模板、A/B 启动方式、契约路径。
 
 输出：
 
-- 标准化 rows。
-- 字段字典。
-- 来源记录。
-- 质量评分。
-- CSV 和溯源报告。
+- Compose 与 healthcheck。
+- CI 与漂移检查。
+- 浏览器可访问的 API URL。
+- 本地和部署验证记录。
 
 禁止：
 
-- 无来源字段进入最终数据集。
-- 单位不明的数值字段进入最终展示。
-- 手写假数据冒充真实来源。
+- M1 强制引入复杂中间件。
+- 容器依赖成员本机全局运行时。
+- 默认生产密码、DEBUG 或通配 CORS。
+- 只检查文件存在却不实际构建/测试。
 
-### D 论文获取与总结 Pipeline
+## 9. 联调顺序
 
-输入：
+1. X：Foundation、CI、Compose、Schema export。
+2. A + B：Mock 任务流。
+3. B + C：数据链路。
+4. B + D：论文获取和总结。
+5. B + D：推理、图谱、证据。
+6. A + B + C + D：主案例端到端。
+7. 全员：版本、缓存、部署、材料。
 
-- `case_key`。
-- 任务目标、字段需求和 seed keywords。
-- 论文来源响应或真实运行缓存。
-- 主案例 seed list，用作兜底、评测基准和人工校验。
+## 10. 交接标准
 
-输出：
+任一模块交接前提供：
 
-- PaperSearchQuery。
-- PaperAcquisitionRun。
-- PaperCandidate。
-- PaperSummary JSON。
-- Evidence。
-
-禁止：
-
-- 将 seed list 冒充自动获取结果。
-- 绕过付费全文或抓取无授权内容。
-- 生成无法溯源的文献结论。
-- 混淆论文结论和模型推断。
-
-### D 图谱与跨文献推理 Pipeline
-
-输入：
-
-- PaperSummary JSON。
-- PaperCandidate / Paper。
-- 数据 Pipeline 输出。
-- Qwen 结构化抽取结果。
-
-输出：
-
-- LiteratureClaim。
-- LiteratureRelation。
-- ReasoningTrace。
-- GraphNode / GraphEdge。
-- Evidence。
-
-禁止：
-
-- 无证据 Claim 或 Relation 进入最终图谱。
-- 把跨文献推理写成不可审查的自然语言结论。
-- 混淆“支持、扩展、限制、矛盾”等关系类型。
-- 把图谱做成纯装饰视效。
-
-### X Docker 基建
-
-输入：
-
-- 技术栈版本基线。
-- `.env.example`。
-- A/B 服务启动方式。
-
-输出：
-
-- `docker-compose.yml`。
-- Web/API Dockerfile 或等价构建入口。
-- 端口、环境变量、数据卷说明。
-- 本地启动验证记录。
-
-禁止：
-
-- 在 M1 强制引入 Redis、Celery、MinIO、Nginx、RabbitMQ。
-- 容器依赖成员本机全局 Node、Python、PostgreSQL。
-- 把密钥写入镜像、Compose 文件或前端构建变量。
-
-## 3. 联调顺序
-
-1. X：Docker Compose 基线联调。
-2. A + B：Mock 任务流联调。
-3. B + C：数据结果接口联调。
-4. B + D：论文获取、文献总结和跨文献推理接口联调。
-5. B + D：图谱与证据详情接口联调。
-6. A + B + C + D：主案例端到端联调。
-7. 全员：公网 Demo、缓存兜底、材料交接。
-
-## 4. 交接标准
-
-任一模块交接给其他成员前必须提供：
-
-- 输入示例。
-- 输出示例。
-- 错误场景。
-- 验证方式。
-- 是否影响文档。
+- 输入/输出示例；
+- 错误场景；
+- Schema 与版本；
+- Evidence/来源要求；
+- 验证命令与结果；
+- 是否影响契约、风险或材料。

@@ -1,0 +1,19 @@
+{
+  "literature_reasoning": {
+    "current": "v1",
+    "output_models": [
+      "LiteratureClaim",
+      "LiteratureRelation",
+      "ReasoningTrace"
+    ],
+    "path": "literature_reasoning/v1.md"
+  },
+  "paper_summary": {
+    "current": "v1",
+    "output_models": [
+      "PaperSummary"
+    ],
+    "path": "paper_summary/v1.md"
+  },
+  "registry_version": 1
+}

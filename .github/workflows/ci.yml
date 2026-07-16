@@ -6,16 +6,84 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  placeholder:
+  foundation:
+    name: Foundation checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repository foundation check
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Validate repository foundation
+        run: python scripts/check_foundation.py
+
+      - name: Validate Docker Compose contract
         run: |
-          test -f README.md
-          test -f AGENTS.md
-          test -f DESIGN.md
-          test -f PRD.md
-          test -f docs/architecture/API_CONTRACT.md
-          test -f docs/architecture/DATA_MODEL.md
+          cp .env.example .env
+          docker compose config --quiet
+
+  backend:
+    name: Backend tests and schema export
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.7.8"
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Sync locked dependencies
+        run: uv sync --frozen
+
+      - name: Run backend tests
+        run: uv run pytest
+
+      - name: Export Pydantic contracts
+        run: >
+          uv run python ../../scripts/export_schemas.py
+          --output ../../.artifacts/schemas
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm build
