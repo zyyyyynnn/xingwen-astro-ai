@@ -39,6 +39,8 @@ M1 暂不引入 Redis、Celery、MinIO、Nginx、RabbitMQ。任务链路先由 F
 
 本地 Compose 中 `api` 是容器服务名，只供容器间通信。`VITE_API_BASE_URL` 在浏览器运行，必须使用 `localhost`、宿主机地址或公网后端域名。
 
+Web 服务只接收明确列出的 `VITE_*` 非敏感变量，不通过 `env_file` 注入后端数据库、模型或论文源凭据。
+
 ## 4. 环境划分
 
 | 环境 | 用途 | GitHub Environment |
@@ -87,9 +89,11 @@ CACHE_TTL_SECONDS
 
 - `APP_ENV=production`
 - `DEBUG=false`
-- `POSTGRES_PASSWORD` 不得为空或使用 `postgres`
+- 必须提供安全的 `DATABASE_URL`，不得使用本地默认凭据 `postgres:postgres`
+- 使用 Compose 或自建 PostgreSQL 时，`POSTGRES_PASSWORD` 不得为空或使用 `postgres`
+- 使用托管 PostgreSQL 时可只使用平台提供的 `DATABASE_URL`，无需重复配置 `POSTGRES_PASSWORD`
 - `DASHSCOPE_API_KEY` 不得为空或使用模板占位值
-- `CORS_ORIGINS` 只包含实际前端域名
+- `CORS_ORIGINS` 只包含实际前端域名，不使用 `*`
 - `VITE_API_BASE_URL` 指向浏览器可访问的 HTTPS API
 
 ## 6. 健康与启动顺序
@@ -124,7 +128,7 @@ CACHE_TTL_SECONDS
 | 导出 | CSV、数据字典、溯源报告、论文与推理 JSON 可下载 |
 | 缓存 | 外部失败时展示真实缓存，并标注来源与版本 |
 | 安全 | 源码、日志、截图、构建产物不暴露密钥 |
-| 配置 | 生产安全校验通过，默认密码无法启动 |
+| 配置 | 生产安全校验通过，默认数据库凭据无法启动 |
 
 ## 8. CI 预检
 
@@ -145,10 +149,10 @@ docker compose config
 ## 9. 部署前禁止事项
 
 - 不把 `.env` 提交到仓库。
-- 不把 API Key、数据库密码、论文源凭据写入前端构建变量。
+- 不把 API Key、数据库密码、论文源凭据写入前端构建变量或 Web 容器环境。
 - 不混用 npm/yarn/bun 生成额外 lockfile。
 - 不用 requirements.txt 替代 uv 主流程。
 - 不开放无限制任意模型调用入口。
 - 不开放无限制论文检索入口。
 - 不把手写假数据或 seed list 作为缓存结果。
-- 不在生产启用 DEBUG、默认数据库密码或通配 CORS。
+- 不在生产启用 DEBUG、默认数据库凭据或通配 CORS。
