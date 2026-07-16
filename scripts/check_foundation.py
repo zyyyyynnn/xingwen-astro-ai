@@ -26,6 +26,7 @@ REQUIRED_FILES = (
     "scripts/check-docs.mjs",
     "scripts/check-docs-rules.mjs",
     "scripts/check-docs.test.mjs",
+    "scripts/frontend-retirement-rules.json",
     "apps/site/package.json",
     "apps/workspace/package.json",
     "apps/api/pyproject.toml",
@@ -69,30 +70,31 @@ REQUIRED_ENV_KEYS = {
     "POSTGRES_PASSWORD",
 }
 
-FRAMEWORK_NAME = "".join(chr(code) for code in (118, 117, 101))
-RETIRED_APP = "apps" + "/web"
+RETIREMENT_RULE_SOURCE = ROOT / "scripts" / "frontend-retirement-rules.json"
+
+
+def load_retirement_rules() -> dict[str, object]:
+    return json.loads(RETIREMENT_RULE_SOURCE.read_text(encoding="utf-8"))
+
+
+RETIREMENT_RULES = load_retirement_rules()
+FRAMEWORK_NAME = "".join(
+    chr(code) for code in RETIREMENT_RULES["frameworkCodePoints"]
+)
+
+
+def expand_rule_parts(parts: list[str]) -> str:
+    return "".join(part.replace("{framework}", FRAMEWORK_NAME) for part in parts)
+
+
+RETIRED_APP = "/".join(RETIREMENT_RULES["retiredAppParts"])
 RETIRED_PACKAGES = {
-    FRAMEWORK_NAME,
-    FRAMEWORK_NAME + "-demi",
-    "@vitejs/" + "plugin-" + FRAMEWORK_NAME,
-    FRAMEWORK_NAME + "-tsc",
-    "shadcn-" + FRAMEWORK_NAME,
-    "reka-" + "ui",
-    "lucide-" + FRAMEWORK_NAME + "-next",
-    FRAMEWORK_NAME + "-router",
-    "pi" + "nia",
+    expand_rule_parts(parts) for parts in RETIREMENT_RULES["exactPackageParts"]
 }
-RETIRED_PACKAGE_PREFIXES = (
-    "@" + FRAMEWORK_NAME + "/",
-    "@" + FRAMEWORK_NAME + "use/",
-    "@" + FRAMEWORK_NAME + "-flow/",
+RETIRED_PACKAGE_PREFIXES = tuple(
+    expand_rule_parts(parts) for parts in RETIREMENT_RULES["packagePrefixParts"]
 )
-DEPENDENCY_FIELDS = (
-    "dependencies",
-    "devDependencies",
-    "peerDependencies",
-    "optionalDependencies",
-)
+DEPENDENCY_FIELDS = tuple(RETIREMENT_RULES["dependencyFields"])
 
 
 def tracked_files() -> list[str]:

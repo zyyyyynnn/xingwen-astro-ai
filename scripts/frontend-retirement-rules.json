@@ -1,0 +1,32 @@
+{
+  "frameworkCodePoints": [118, 117, 101],
+  "retiredAppParts": ["apps", "web"],
+  "dependencyFields": [
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+    "optionalDependencies"
+  ],
+  "exactPackageParts": [
+    ["{framework}"],
+    ["{framework}", "-demi"],
+    ["@vitejs", "/plugin-", "{framework}"],
+    ["{framework}", "-tsc"],
+    ["shadcn-", "{framework}"],
+    ["reka-", "ui"],
+    ["lucide-", "{framework}", "-next"],
+    ["{framework}", "-router"],
+    ["pi", "nia"]
+  ],
+  "packagePrefixParts": [
+    ["@", "{framework}", "/"],
+    ["@", "{framework}", "use/"],
+    ["@", "{framework}", "-flow/"]
+  ],
+  "retiredTextCodePoints": [
+    [26087, 21069, 31471],
+    [36801, 31227, 28304],
+    [22238, 36864, 21069, 31471]
+  ],
+  "retiredTextParts": [["WEB", "_", "PORT"]]
+}

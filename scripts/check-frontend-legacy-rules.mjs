@@ -1,37 +1,34 @@
-export const frameworkName = String.fromCharCode(118, 117, 101);
-const retiredApp = ["apps", "web"].join("/");
+import { readFileSync } from "node:fs";
 
-const dependencyFields = [
-  "dependencies",
-  "devDependencies",
-  "peerDependencies",
-  "optionalDependencies",
-];
-const retiredExactPackages = new Set(
-  [
-    frameworkName,
-    `${frameworkName}-demi`,
-    `@vitejs/plugin-${frameworkName}`,
-    `${frameworkName}-tsc`,
-    `shadcn-${frameworkName}`,
-    `reka-ui`,
-    `lucide-${frameworkName}-next`,
-    `${frameworkName}-router`,
-    `pinia`,
-  ].map((name) => name.toLowerCase()),
+const ruleSource = JSON.parse(
+  readFileSync(
+    new URL("./frontend-retirement-rules.json", import.meta.url),
+    "utf8",
+  ),
 );
-const retiredPackagePrefixes = [
-  `@${frameworkName}/`,
-  `@${frameworkName}use/`,
-  `@${frameworkName}-flow/`,
-];
+
+export const frameworkName = String.fromCharCode(
+  ...ruleSource.frameworkCodePoints,
+);
+const expandRuleParts = (parts) =>
+  parts.join("").replaceAll("{framework}", frameworkName);
+const retiredApp = ruleSource.retiredAppParts.join("/");
+
+const dependencyFields = ruleSource.dependencyFields;
+const retiredExactPackages = new Set(
+  ruleSource.exactPackageParts
+    .map(expandRuleParts)
+    .map((name) => name.toLowerCase()),
+);
+const retiredPackagePrefixes =
+  ruleSource.packagePrefixParts.map(expandRuleParts);
 const retiredTextTerms = [
   frameworkName,
   retiredApp,
-  String.fromCharCode(26087, 21069, 31471),
-  String.fromCharCode(36801, 31227, 28304),
-  String.fromCharCode(22238, 36864, 21069, 31471),
-  ["WEB", "PORT"].join("_"),
+  ...ruleSource.retiredTextCodePoints.map((codes) =>
+    String.fromCharCode(...codes),
+  ),
+  ...ruleSource.retiredTextParts.map((parts) => parts.join("")),
 ];
 
 export function isRetiredPackageName(name) {

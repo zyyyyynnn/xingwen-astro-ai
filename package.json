@@ -18,7 +18,7 @@
     "format:check": "prettier --check \"apps/{site,workspace}/**/*.{astro,css,html,json,ts,tsx}\" \"packages/{design-tokens,ui,domain,contracts,data-access,workspace-core,visual-engine,testing}/**/*.{css,json,ts,tsx}\" \"tests/e2e/**/*.ts\" \"scripts/*.mjs\" \"*.{json,mjs,yaml,yml}\" \".github/**/*.yml\"",
     "check:docs": "node --test scripts/check-docs.test.mjs && node scripts/check-docs.mjs",
     "check:architecture": "node scripts/check-frontend-architecture.mjs",
-    "check:legacy": "node --test scripts/check-frontend-legacy.test.mjs && node scripts/check-frontend-legacy.mjs",
+    "check:legacy": "python -m unittest scripts.test_check_foundation && node --test scripts/check-frontend-legacy.test.mjs && node scripts/check-frontend-legacy.mjs",
     "check": "pnpm format:check && pnpm check:docs && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:architecture && pnpm check:legacy"
   },
   "devDependencies": {
