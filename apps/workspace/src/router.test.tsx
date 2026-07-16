@@ -15,5 +15,5 @@ test("renders a shared deep link without business data access", async () => {
   expect(
     await screen.findByRole("heading", { name: "共享入口" }),
   ).toBeInTheDocument();
-  expect(screen.getByText("入口标识：demo-token")).toBeInTheDocument();
+  expect(screen.queryByText(/demo-token/u)).not.toBeInTheDocument();
 });

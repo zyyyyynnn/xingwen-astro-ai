@@ -1,11 +1,10 @@
 # Research Workspace UX
 
-| 项目状态             | 口径                                                      |
-| -------------------- | --------------------------------------------------------- |
-| Status               | Accepted for implementation                               |
-| A-01 routes          | Implemented：Site 与 Workspace 最小入口                   |
-| A-02/A-03 experience | Pending                                                   |
-| Runtime              | Astro Brand Site + React Guided Tour / Research Workspace |
+| 元数据         | 值                                                      |
+| -------------- | ------------------------------------------------------- |
+| Status         | Accepted                                                |
+| Authority      | 工作台信息架构、核心交互、页面状态与 Guided Tour       |
+| Implementation | A-01 routes Current；A-02/A-03 experience Pending      |
 
 本文定义科研工作台的信息架构、核心交互、页面状态和 Guided Tour。工作台借鉴现代 Agent Desktop 的桌面级组织能力，但不采用“聊天线程 + 工具日志”作为产品核心。
 

@@ -1,10 +1,10 @@
 import type { ContractBoundary } from "@xingwen/contracts";
 import type { DomainEntityId } from "@xingwen/domain";
 
-/** Public Repository boundary only. Implementation starts with issue A-04. */
+/** Public Repository boundary only. Implementation starts with issue A-03. */
 export interface DataAccessBoundary {
   readonly implementationStatus: "pending";
-  readonly trackedIssue: "A-04";
+  readonly trackedIssue: "A-03";
 }
 
 export interface DataAccessTypeDependencies {

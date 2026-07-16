@@ -1,11 +1,10 @@
 # Frontend Architecture
 
-| 项目状态     | 口径                                                    |
-| ------------ | ------------------------------------------------------- |
-| Status       | Active                                                  |
-| A-01 runtime | Implemented                                             |
-| Current apps | Astro Brand Site + React Research Workspace             |
-| Pending      | A-02 视觉系统与静态框架；A-03 Contract 双通道与业务行为 |
+| 元数据         | 值                                                      |
+| -------------- | ------------------------------------------------------- |
+| Status         | Accepted                                                |
+| Authority      | 前端运行时、目录、依赖方向、构建与质量门禁              |
+| Implementation | A-01 runtime Current；A-02 视觉与 A-03 业务行为 Pending |
 
 本文是前端运行时、目录、依赖方向、构建和质量门禁的唯一正文来源。A-01 只证明最小入口与工程边界，不代表完整科研产品界面已交付。
 
@@ -130,7 +129,7 @@ A-01 不实现完整首页叙事、WebGL、字体资产、社交预览或 A-02 �
 | `/`                  | 科研工作台入口                           |
 | `/tour`              | 引导入口                                 |
 | `/workspace`         | 科研工作区                               |
-| `/share/$shareToken` | 共享入口；只显示入口标识，不读取共享数据 |
+| `/share/$shareToken` | 共享入口；不读取共享数据，也不回显 token |
 | 其他                 | Not Found boundary                       |
 
 根布局提供可访问的主要导航和 skip link。Router 提供 Error Boundary、Loading fallback 与 Not Found boundary。每个页面只说明 A-01 基线，不实现真实 Project、Run、Artifact、Repository 或 API 行为。
@@ -181,7 +180,7 @@ pnpm 11 配置位于 `pnpm-workspace.yaml`：
 ## 9. 测试边界
 
 - Unit：Vitest + Testing Library 验证共享深链接能渲染，且无需业务数据访问。
-- E2E：Playwright 验证 Site、无 JavaScript Site、Site 404、Workspace 四个入口、共享深链接、Not Found 与页面错误。
+- E2E：Playwright 验证 Site、无 JavaScript Site、Site 404、Workspace 四个入口、共享深链接、Not Found 与页面控制台错误。
 - Typecheck：两个 App 与全部共享 Package 分别执行。
 - Build：Site 与 Workspace 分别产出 `dist`；共享 Package 产出 JS 与声明文件。
 - Architecture：验证依赖方向、公开入口、Domain 纯度、单 lockfile 与禁止路径别名。

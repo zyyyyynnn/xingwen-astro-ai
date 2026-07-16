@@ -1,8 +1,11 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { resolvePublicHttpUrl } from "../lib/public-url";
 
-const workspaceUrl =
-  import.meta.env.PUBLIC_WORKSPACE_URL ?? "http://localhost:5173/workspace";
+const workspaceUrl = resolvePublicHttpUrl(
+  import.meta.env.PUBLIC_WORKSPACE_URL,
+  "http://localhost:5173/workspace",
+);
 const description = "面向天文科研证据整合与可复现分析的智能工作平台。";
 ---
 

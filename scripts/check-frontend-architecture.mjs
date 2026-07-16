@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { resolve } from "node:path";
 import process from "node:process";
+import ts from "typescript";
 
 const root = process.cwd();
 const packageLocations = new Map([
@@ -45,6 +46,12 @@ const allowedLocalDependencies = new Map([
   ["@xingwen/testing", new Set()],
 ]);
 
+const boundaryRuntimeDependencyAllowlist = new Map([
+  ["@xingwen/domain", new Set()],
+  ["@xingwen/ui", new Set(["react"])],
+  ["@xingwen/visual-engine", new Set()],
+]);
+
 const failures = [];
 const manifests = new Map();
 
@@ -71,6 +78,26 @@ for (const [expectedName, location] of packageLocations) {
   for (const dependency of localDependencies) {
     if (!allowed?.has(dependency)) {
       failures.push(`${expectedName} must not depend on ${dependency}.`);
+    }
+  }
+
+  const allowedRuntimeDependencies =
+    boundaryRuntimeDependencyAllowlist.get(expectedName);
+  if (allowedRuntimeDependencies) {
+    const runtimeDependencies = [
+      manifest.dependencies ?? {},
+      manifest.peerDependencies ?? {},
+      manifest.optionalDependencies ?? {},
+    ]
+      .flatMap((group) => Object.keys(group))
+      .filter((name) => !name.startsWith("@xingwen/"));
+
+    for (const dependency of runtimeDependencies) {
+      if (!allowedRuntimeDependencies.has(dependency)) {
+        failures.push(
+          `${expectedName} must not add presentation or transport dependency ${dependency}.`,
+        );
+      }
     }
   }
 
@@ -142,44 +169,170 @@ for (const file of listedFiles.filter((entry) =>
   }
 }
 
-function checkSourceBoundary(location, forbiddenPatterns, description) {
+const networkAndStorageGlobals = new Set([
+  "EventSource",
+  "WebSocket",
+  "XMLHttpRequest",
+  "fetch",
+  "indexedDB",
+  "localStorage",
+  "sessionStorage",
+]);
+const boundaryRules = new Map([
+  [
+    "packages/domain",
+    {
+      description: "the framework-free domain boundary",
+      allowedBareImports: new Set(),
+      forbiddenIdentifiers: new Set([
+        ...networkAndStorageGlobals,
+        "document",
+        "globalThis",
+        "location",
+        "navigator",
+        "window",
+      ]),
+      forbidRepositorySymbols: false,
+    },
+  ],
+  [
+    "packages/ui",
+    {
+      description: "the presentation-only UI boundary",
+      allowedBareImports: new Set([
+        "react",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+      ]),
+      forbiddenIdentifiers: networkAndStorageGlobals,
+      forbidRepositorySymbols: true,
+    },
+  ],
+  [
+    "packages/visual-engine",
+    {
+      description: "the presentation-only visual boundary",
+      allowedBareImports: new Set(),
+      forbiddenIdentifiers: networkAndStorageGlobals,
+      forbidRepositorySymbols: true,
+    },
+  ],
+]);
+
+function isRelativeImport(specifier) {
+  return specifier.startsWith("./") || specifier.startsWith("../");
+}
+
+function scriptKindFor(file) {
+  if (file.endsWith(".tsx")) return ts.ScriptKind.TSX;
+  if (file.endsWith(".mjs")) return ts.ScriptKind.JS;
+  return ts.ScriptKind.TS;
+}
+
+function collectBoundaryViolations(file, content, rule) {
+  const violations = new Set();
+  const sourceFile = ts.createSourceFile(
+    file,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindFor(file),
+  );
+
+  function checkModuleSpecifier(specifier) {
+    if (
+      !isRelativeImport(specifier) &&
+      !rule.allowedBareImports.has(specifier)
+    ) {
+      violations.add(`forbidden runtime import ${specifier}`);
+    }
+  }
+
+  function visit(node) {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      checkModuleSpecifier(node.moduleSpecifier.text);
+    }
+
+    if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) &&
+          node.expression.text === "require"))
+    ) {
+      const [argument] = node.arguments;
+      if (argument && ts.isStringLiteral(argument)) {
+        checkModuleSpecifier(argument.text);
+      } else {
+        violations.add("non-static runtime import");
+      }
+    }
+
+    if (ts.isIdentifier(node) && rule.forbiddenIdentifiers.has(node.text)) {
+      violations.add(`forbidden browser or transport global ${node.text}`);
+    }
+
+    if (
+      ts.isElementAccessExpression(node) &&
+      node.argumentExpression &&
+      ts.isStringLiteral(node.argumentExpression) &&
+      rule.forbiddenIdentifiers.has(node.argumentExpression.text)
+    ) {
+      violations.add(
+        `forbidden browser or transport member ${node.argumentExpression.text}`,
+      );
+    }
+
+    if (
+      rule.forbidRepositorySymbols &&
+      ts.isIdentifier(node) &&
+      /repository/iu.test(node.text)
+    ) {
+      violations.add(`forbidden Repository symbol ${node.text}`);
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return [...violations].map(
+    (violation) => `${file} violates ${rule.description}: ${violation}.`,
+  );
+}
+
+for (const [location, rule] of boundaryRules) {
   for (const file of sourceFiles.filter((entry) =>
     entry.startsWith(`${location}/src/`),
   )) {
-    const content = readFileSync(resolve(root, file), "utf8").toLowerCase();
-    for (const pattern of forbiddenPatterns) {
-      if (content.includes(pattern)) {
-        failures.push(
-          `${relative(root, resolve(root, file))} violates ${description}: ${pattern}.`,
-        );
-      }
-    }
+    failures.push(
+      ...collectBoundaryViolations(
+        file,
+        readFileSync(resolve(root, file), "utf8"),
+        rule,
+      ),
+    );
   }
 }
 
-checkSourceBoundary(
-  "packages/domain",
-  [
-    "react",
-    "astro",
-    "vite",
-    "fetch(",
-    "xmlhttprequest",
-    "window.",
-    "document.",
-  ],
-  "the framework-free domain boundary",
-);
-checkSourceBoundary(
-  "packages/ui",
-  ["fetch(", "repository"],
-  "the presentation-only UI boundary",
-);
-checkSourceBoundary(
-  "packages/visual-engine",
-  ["fetch(", "repository"],
-  "the presentation-only visual boundary",
-);
+const boundaryRuleFixtures = [
+  ["packages/domain", 'import http from "node:http";'],
+  ["packages/domain", 'localStorage.getItem("token");'],
+  ["packages/ui", 'import axios from "axios";'],
+  ["packages/visual-engine", 'globalThis["fetch"]("/api");'],
+];
+
+for (const [location, content] of boundaryRuleFixtures) {
+  const rule = boundaryRules.get(location);
+  if (
+    !rule ||
+    collectBoundaryViolations("boundary-fixture.ts", content, rule).length === 0
+  ) {
+    failures.push(`Architecture boundary self-test failed for ${location}.`);
+  }
+}
 
 if (failures.length > 0) {
   console.error("Frontend architecture check failed:\n");

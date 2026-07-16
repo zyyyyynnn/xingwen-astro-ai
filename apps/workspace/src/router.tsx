@@ -89,14 +89,11 @@ function WorkspacePage() {
 }
 
 function SharePage() {
-  const { shareToken } = shareRoute.useParams();
-
   return (
     <PageIdentity
       eyebrow="Shared result"
       title="共享入口"
       description="保留共享深链接身份；本轮不读取或展示共享数据。"
-      detail={`入口标识：${shareToken}`}
     />
   );
 }
@@ -110,12 +107,12 @@ function LoadingPage() {
   );
 }
 
-function RouteErrorPage({ error, reset }: ErrorComponentProps) {
+function RouteErrorPage({ reset }: ErrorComponentProps) {
   return (
     <section className="route-identity" role="alert">
       <p className="eyebrow">Route error</p>
       <h1>页面载入失败</h1>
-      <p>{error.message}</p>
+      <p>请重试；若问题持续，请返回工作台入口。</p>
       <button type="button" onClick={reset}>
         重试
       </button>

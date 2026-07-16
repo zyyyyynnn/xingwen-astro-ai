@@ -1,11 +1,10 @@
 # API Contract
 
-| 项目状态         | 口径                                               |
-| ---------------- | -------------------------------------------------- |
-| Status           | Active                                             |
-| Current API      | 已实现的 `/api/v1` Task / Fixture-backed 契约      |
-| Pending API      | `/api/v2` Project / Run / Artifact / Version 契约  |
-| Authoring source | FastAPI / Pydantic 生成 OpenAPI 3.1 与 JSON Schema |
+| 元数据         | 值                                                         |
+| -------------- | ---------------------------------------------------------- |
+| Status         | Accepted                                                   |
+| Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring     |
+| Implementation | `/api/v1` Current；`/api/v2` Project / Run 等契约 Pending |
 
 本文定义 Current 与 Pending API，不表示 `/api/v2` 已实现。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
 
