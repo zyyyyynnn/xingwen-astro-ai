@@ -1,41 +1,114 @@
-# Docs Index
+# Documentation Index
 
-本目录仅提供文档索引。开发、审查或修改时，按任务类型定位对应事实来源。
-
-## 按任务查文档
-
-| 任务 | 文档 |
+| 元数据 | 值 |
 | --- | --- |
-| 本地启动与 CI | [setup.md](setup.md), [engineering/TEST_STRATEGY.md](engineering/TEST_STRATEGY.md) |
-| 拆任务和排期 | [product/BACKLOG.md](product/BACKLOG.md), [product/ROADMAP.md](product/ROADMAP.md) |
-| 判断是否完成 | [product/ACCEPTANCE.md](product/ACCEPTANCE.md), [quality/REVIEW_CHECKLIST.md](quality/REVIEW_CHECKLIST.md) |
-| 查项目边界 | [product/PROJECT_CHARTER.md](product/PROJECT_CHARTER.md), [../PRD.md](../PRD.md) |
-| 查产品设计总纲、体验域、系统边界与专项规范入口 | [../DESIGN.md](../DESIGN.md) |
-| 查模块职责 | [architecture/MODULES.md](architecture/MODULES.md) |
-| 查目标前端架构 | [architecture/FRONTEND_ARCHITECTURE.md](architecture/FRONTEND_ARCHITECTURE.md) |
-| 改品牌、Token、字体或 WebGL | [design/VISUAL_LANGUAGE.md](design/VISUAL_LANGUAGE.md) |
-| 改首页、Guided Tour 或工作台 | [design/WORKSPACE_UX.md](design/WORKSPACE_UX.md) |
-| 查任务编排 | [architecture/WORKFLOW_DESIGN.md](architecture/WORKFLOW_DESIGN.md) |
-| 改接口 | [architecture/API_CONTRACT.md](architecture/API_CONTRACT.md) |
-| 改数据结构 | [architecture/DATA_MODEL.md](architecture/DATA_MODEL.md) |
-| 改版本/缓存治理 | [architecture/DATA_VERSIONING.md](architecture/DATA_VERSIONING.md) |
-| 查架构决策 | [architecture/DECISIONS.md](architecture/DECISIONS.md) |
-| 改模型调用 | [ai/MODEL_POLICY.md](ai/MODEL_POLICY.md) |
-| 改 Prompt | [ai/PROMPT_VERSIONING.md](ai/PROMPT_VERSIONING.md), [../packages/prompts/README.md](../packages/prompts/README.md) |
-| 改跨文献关系 | [ai/REASONING_PROTOCOL.md](ai/REASONING_PROTOCOL.md) |
-| 查编码与错误规则 | [engineering/CODING_STANDARD.md](engineering/CODING_STANDARD.md), [engineering/ERROR_HANDLING.md](engineering/ERROR_HANDLING.md) |
-| 查风险 | [quality/RISK_REGISTER.md](quality/RISK_REGISTER.md) |
-| 部署和安全 | [../DEPLOYMENT.md](../DEPLOYMENT.md), [../SECURITY.md](../SECURITY.md) |
-| 查参考资料 | [references/README.md](references/README.md), [references/赛题要求.md](references/赛题要求.md) |
-| 材料交接 | [handoff/README.md](handoff/README.md) |
+| Status | Accepted |
+| Authority | 文档地图、唯一事实来源与文档类型 |
 
-## 维护原则
+本文件是仓库文档的完整索引。文档层级、状态、合并、拆分和归档规则见 [Documentation Governance](DOCUMENTATION_GOVERNANCE.md)。
 
-- 不新增无明确消费者的文档。
-- 改接口必须同步 `API_CONTRACT.md`。
-- 改数据结构必须同步 `DATA_MODEL.md`。
-- 改状态、步骤或编排必须同步 `WORKFLOW_DESIGN.md` 和测试。
-- 改模型/Prompt/推理准入必须同步 `docs/ai/*`。
-- 改体验域或系统边界同步 `DESIGN.md`；改 UI 细节同步对应专项设计文档和 `REVIEW_CHECKLIST.md`。
-- 所有目标架构文档必须标明 Status、Implementation、Current runtime 和 Target runtime。
-- 未实现能力只能写为规划、预留或后续扩展。
+## 1. L0：入口
+
+| 文档 | 职责 |
+| --- | --- |
+| [README](../README.md) | 项目定位、当前状态、快速启动和最小文档入口 |
+| [Documentation Index](README.md) | 完整文档地图和权威边界 |
+
+入口文档只提供摘要和导航，不维护完整规范正文。
+
+## 2. L1：核心规范
+
+| 权威范围 | 唯一事实来源 |
+| --- | --- |
+| 用户、问题、产品范围、主流程、成功指标 | [PRD](../PRD.md) |
+| 设计原则、体验域、交互模型 | [Product Design](../DESIGN.md) |
+| HTTP 资源、传输结构、错误、授权 | [API Contract](architecture/API_CONTRACT.md) |
+| 领域实体、字段和不变量 | [Data Model](architecture/DATA_MODEL.md) |
+| Run 状态、事件、取消、重试和派生 | [Workflow Design](architecture/WORKFLOW_DESIGN.md) |
+| ArtifactVersion、缓存、修订、分享和保留 | [Data Versioning](architecture/DATA_VERSIONING.md) |
+| 跨模块职责、输入输出和依赖 | [Module Boundaries](architecture/MODULES.md) |
+| 不可逆架构决策与替代关系 | [Architecture Decisions](architecture/DECISIONS.md) |
+
+## 3. L2：专项规范
+
+### Product experience
+
+| 文档 | Authority |
+| --- | --- |
+| [Visual Language](design/VISUAL_LANGUAGE.md) | 品牌、Token、字体、ASCII/Dither、动效和视觉降级 |
+| [Workspace UX](design/WORKSPACE_UX.md) | Brand Site、Guided Tour、Workspace、面板和具体交互 |
+| [Frontend Architecture](architecture/FRONTEND_ARCHITECTURE.md) | Astro/React Monorepo、包边界、数据访问、构建和迁移 |
+
+### AI and reasoning
+
+| 文档 | Authority |
+| --- | --- |
+| [Model Policy](ai/MODEL_POLICY.md) | 模型调用准入、记录、降级与评测 |
+| [Prompt Versioning](ai/PROMPT_VERSIONING.md) | Prompt 不可变版本、registry 和发布流程 |
+| [Reasoning Protocol](ai/REASONING_PROTOCOL.md) | Claim、Relation、ReasoningTrace 准入与修订 |
+
+### Engineering, security and deployment
+
+| 文档 | Authority |
+| --- | --- |
+| [Coding Standard](engineering/CODING_STANDARD.md) | 代码组织、命名和基础实现规范 |
+| [Error Handling](engineering/ERROR_HANDLING.md) | 内部错误分类、公开错误和日志关联 |
+| [Test Strategy](engineering/TEST_STRATEGY.md) | 测试分层、数据等级、环境和测试证据 |
+| [Security](../SECURITY.md) | 密钥、输入、会话、分享、日志和安全要求 |
+| [Deployment](../DEPLOYMENT.md) | 环境拓扑、配置、迁移、健康检查和发布验证 |
+| [Local Setup](setup.md) | 当前本地启动、测试命令和故障排查 |
+
+## 4. L3：执行治理
+
+| 文档 | 职责 |
+| --- | --- |
+| [AGENTS](../AGENTS.md) | Agent 执行顺序、修改纪律、Git 安全和最低验证 |
+| [Contributing](../CONTRIBUTING.md) | Git、Issue、PR、Review 和合并流程 |
+| [Roadmap](product/ROADMAP.md) | 里程碑结果、顺序和阶段退出门 |
+| [Backlog](product/BACKLOG.md) | Issue 范围与依赖地图；GitHub Issue 保存实时状态 |
+| [Acceptance](product/ACCEPTANCE.md) | 里程碑与发布退出标准及所需证据 |
+| [Review Checklist](quality/REVIEW_CHECKLIST.md) | 单个 PR 的审查清单 |
+| [Risk Register](quality/RISK_REGISTER.md) | 有效风险、影响、触发条件和缓解措施 |
+| [Handoff](handoff/README.md) | 唯一作品提交顺序和材料 provenance 要求 |
+| [Documentation Governance](DOCUMENTATION_GOVERNANCE.md) | 文档层级、状态、生命周期和质量门禁 |
+
+## 5. 包级文档与生成物
+
+| 文档 | 类型 | 说明 |
+| --- | --- | --- |
+| [Prompt Registry README](../packages/prompts/README.md) | Package operational | Prompt 文件结构和 registry 用法 |
+| [Schema README](../packages/schemas/README.md) | Generated/transition | 当前 Schema 导出与迁移说明 |
+| `packages/prompts/*/vN.md` | Versioned artifact | 不可变 Prompt 内容，不重复项目规范 |
+
+## 6. L4：参考与归档
+
+| 文档 | 类型 | 使用限制 |
+| --- | --- | --- |
+| [Competition Requirements](references/赛题要求.md) | Reference | 外部要求，不直接定义内部实现 |
+| [Reference Materials](references/README.md) | Reference index | 第三方论文、代码和摘要，仅供研究 |
+| [Archive](archive/README.md) | Archived index | 历史简报和已取代口径，不作为实现依据 |
+
+参考代码、论文或历史简报必须先被 L1/L2 规范明确采纳，才能成为实现约束。
+
+## 7. 按任务定位
+
+| 任务 | 先查 |
+| --- | --- |
+| 调整产品承诺或主流程 | PRD → Acceptance |
+| 修改首页、Tour 或 Workspace | DESIGN → Workspace UX → Visual Language |
+| 修改前端目录、依赖或状态管理 | Frontend Architecture → Module Boundaries → ADR |
+| 修改 API、实体、状态或版本 | API Contract → Data Model → Workflow → Data Versioning |
+| 修改模型、Prompt 或 Relation | Model Policy → Prompt Versioning → Reasoning Protocol |
+| 修改测试、错误或安全 | Test Strategy / Error Handling / Security |
+| 修改本地启动或部署 | Local Setup / Deployment |
+| 拆任务、排期或判断完成 | Backlog / Roadmap / Acceptance |
+| 准备提交材料 | Handoff |
+| 新增、移动、合并或删除文档 | Documentation Governance |
+
+## 8. 维护要求
+
+- 新文档必须有明确 Authority、消费者和更新触发。
+- 同一事实只在一个文档完整定义，其他文件只摘要并链接。
+- 新增、移动、合并、归档或删除文档必须同步本索引。
+- 目标规范必须明确 Implementation 状态；参考和历史文档不得伪装为当前事实。
+- 文档 PR 必须执行链接、标题、代码块、表格、Mermaid 和索引覆盖检查。
