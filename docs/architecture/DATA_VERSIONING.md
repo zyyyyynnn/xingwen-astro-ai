@@ -1,63 +1,84 @@
 # Data and Artifact Versioning
 
-本文定义科研产物的版本治理规则。它是 Phase 1–3 的实现契约，不表示相关数据库表已在 Phase 0 落地。
+| 项目状态 | 口径 |
+| --- | --- |
+| Status | Accepted for implementation |
+| Implementation | Pending for v2 persistence |
+| Current runtime | v1 DTO、Prompt registry 与 Phase 0 版本字段 |
+| Target runtime | Project / Run / Artifact / ArtifactVersion 追加式治理 |
 
-## 1. 为什么需要版本
+本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则，不表示数据库表已落地。
 
-同一个 ResearchTask 可能因以下变化产生不同结果：
+## 1. 版本边界
 
-- 外部数据源快照变化；
-- 论文候选集变化；
-- 清洗或单位映射规则变化；
-- Prompt、模型或参数变化；
-- 人工反馈与局部修正；
-- 图谱构建规则变化。
+| 对象 | 是否不可变 | 用途 |
+| --- | --- | --- |
+| ResearchContract | 确认后不可变 | 固定一次 Run 的研究输入和质量要求 |
+| ResearchRun | 创建后关键输入不可变 | 记录一次执行、失败、取消或派生关系 |
+| ResearchArtifact | 身份可更新 | 表示同一逻辑产物，维护 latest 指针 |
+| ArtifactVersion | 内容不可变 | Evidence、Cache、Share、Export 的绑定单位 |
+| SourceSnapshot | 不可变 | 固定外部来源、查询、时间和许可信息 |
+| WorkspaceSnapshot | 可覆盖、乐观锁 | 私有 UI 恢复状态，不是科研产物 |
+| ShareSnapshot | 创建后不可变 | 冻结公开版本与脱敏范围 |
 
-只保存“当前值”无法复现答辩截图、解释结论来源或比较模型升级效果。
-
-## 2. 版本对象
-
-### ArtifactVersion
-
-统一描述 Dataset、PaperSummary、Claim 集合、ReasoningTrace、Graph、Export 等产物版本。
+## 2. ArtifactVersion
 
 最低字段：
 
 ```text
 id
-task_id
-artifact_type
 artifact_id
-version
+project_id
+created_by_run_id
+version_number
+schema_version
 content_hash
-producer_type
-producer_version
 input_hash
-created_at
+source_mode
+origin_source_mode
+producer
+source_snapshot_ids[]
+evidence_ids[]
 supersedes_version_id
+created_at
 ```
 
 规则：
 
-- `(artifact_type, artifact_id, version)` 唯一；
-- 内容不可原地改写；
-- 局部修正创建新版本并关联前一版本；
-- 展示层可指向 latest，但证据、缓存和导出必须绑定明确版本。
+- `(artifact_id, version_number)` 唯一。
+- 内容不可原地改写，latest 只是可变指针。
+- Evidence、ShareSnapshot 和 Export 固定引用 version id。
+- 修订创建新版本并形成无环 supersedes chain。
+- Cached 引用 origin Run / Version；Revised 保留 origin source mode。
 
-### ExperimentRun
+## 3. Run 派生与版本发布
 
-描述一次模型或算法执行。
+```text
+original Run -> ArtifactVersion 1
+retry Run    -> Version 1（复用）+ 新失败步骤产物
+revision Run -> ArtifactVersion 2 supersedes Version 1
+fork Run     -> 新 Contract 下的新版本或新 Artifact
+```
 
-最低字段：
+自动瞬态重试不创建新 Run，只新增 StepAttempt；用户在终态后重试、修订或改变 Contract 必须创建派生 Run。
+
+版本只有在 Schema、Evidence、SourceSnapshot、质量约束和 content hash 验证通过后才发布。取消后完成的外部输出可以保留为诊断记录，但不得自动提升为 latest。
+
+## 4. ProducerExecution
+
+模型或算法执行的可公开复现元信息：
 
 ```text
 id
-task_id
+run_id
 step_key
+producer_type
+producer_name
+producer_version
 model_name
-model_parameters
 prompt_name
 prompt_version
+parameters_hash
 input_hash
 output_hash
 status
@@ -68,61 +89,92 @@ latency_ms
 error_code
 ```
 
-规则：
+不保存 API Key、认证头、完整受限全文、原始模型长输出或 chain-of-thought。失败执行也保留。
 
-- 不保存密钥；
-- 参数中敏感或超长内容必须脱敏；
-- 同一输出可关联多个 ArtifactVersion；
-- 失败运行也保留记录。
+## 5. SourceSnapshot
 
-### SourceSnapshot
-
-描述外部数据或论文来源在获取时的可复现信息。
-
-最低内容：
+最低字段：
 
 ```text
+id
 source_id
 retrieved_at
 query
 query_hash
 source_version_or_etag
+content_hash
 cache_version
 license_note
+request_metadata
 ```
 
-## 3. Hash 规则
+数据库查询、论文检索、论文元数据和可公开文本使用各自 locator。Snapshot 中的 request metadata 只保留可复现且非敏感字段。
 
-- JSON 在 hash 前必须使用稳定键排序与统一编码；
-- 文本统一 UTF-8 与换行；
-- 二进制文件使用 SHA-256；
-- hash 用于识别内容，不代替业务主键；
-- 模型输入 hash 必须覆盖 Prompt 版本、模型参数和证据 ID/版本。
+## 6. Hash 规则
 
-## 4. 修正与删除
+- JSON hash 前使用稳定键顺序、明确数字/日期编码和 UTF-8。
+- 文本统一 UTF-8 与 LF 后计算；二进制使用 SHA-256。
+- Dataset manifest 包含字段、row count、分页/文件 hash，不依赖显示顺序。
+- 模型输入 hash 覆盖 Prompt 版本、模型参数、Contract hash 和输入 Evidence / ArtifactVersion。
+- hash 识别内容，不替代 Project、Run、Artifact 或 Version 主键。
 
-- 用户反馈生成 `UserFeedback`；
-- 修正生成新 ArtifactVersion；
-- 旧版本默认保留，除非涉及密钥、侵权或依法删除；
-- 图谱边修正必须同步 Relation、ReasoningTrace 和 Evidence 版本；
-- 删除操作保留审计元信息，但不保留必须清除的敏感内容。
+## 7. CacheRecord
 
-## 5. 缓存绑定
+CacheRecord 至少绑定：
 
-缓存记录至少指向：
-
-- 原始 task/run；
+- origin ResearchRun；
 - ArtifactVersion；
 - SourceSnapshot；
-- Prompt/模型版本；
-- 创建时间和适用输入 hash。
+- Contract / input hash；
+- producer / prompt version；
+- created_at 与 validity_scope。
 
-缓存不得只保存一个无来源 JSON 文件。
+CacheSelector 只能在 Live 发生可恢复失败后使用匹配的真实历史产物。Fixture、seed、视觉样例和手写 JSON 不能标记为 Cached。
 
-## 6. MVP 实施顺序
+## 8. Feedback 与修订
 
-1. Phase 1：SourceSnapshot 与关键产物 content hash。
-2. Phase 2：ReasoningTrace/Graph 明确绑定产物版本。
-3. Phase 3：ArtifactVersion、ExperimentRun、ModelCall 落库与比较视图。
+- Feedback 定位 object id 与 ArtifactVersion。
+- RevisionPlan 计算受影响步骤、需复用和需重算版本。
+- 人工确认后创建 revision Run 和新 ArtifactVersion。
+- 旧版本默认保留并可对照；GraphEdge 修订同步 Relation、ReasoningTrace 与 Evidence 影响闭包。
+- 冲突时状态为 conflict，不以后提交静默覆盖先提交。
 
-任何阶段都不得为了版本治理提前引入 Redis、对象存储或图数据库。
+## 9. Workspace 与 Share
+
+WorkspaceSnapshot 使用 `revision` 做乐观锁，可覆盖同一会话的布局，但不进入科研版本链。
+
+ShareSnapshot 固定：
+
+- ArtifactVersion ids；
+- 可公开 Evidence ids；
+- redaction policy；
+- created_at / expires_at；
+- token hash 与撤销状态。
+
+分享不指向 latest，因此后续修订不会改变已提交 URL 的内容。原 token 不进入数据库明文、日志或 Project 聚合响应。
+
+## 10. 删除与保留
+
+- 会话过期按保留策略清理私有 Project 与未分享数据。
+- 活跃 ShareSnapshot 可按政策保留所需最小版本，或在项目清理时同步撤销。
+- 涉及密钥、侵权或依法删除时执行强制删除；审计记录不得继续保留必须清除的敏感内容。
+- 导出和临时下载 URL 有独立过期时间，不作为 ArtifactVersion 的唯一存储。
+
+## 11. 实施顺序
+
+1. v2 Pydantic Schema 与迁移映射。
+2. ResearchProject、ResearchContract、ResearchRun、RunStep / Event 持久化。
+3. ResearchArtifact、ArtifactVersion、SourceSnapshot 和 Evidence 事务边界。
+4. CacheRecord、派生 Run、Feedback / RevisionPlan。
+5. WorkspaceSnapshot 与安全 ShareSnapshot。
+
+任何阶段都不因版本治理提前引入 Redis、对象存储、图数据库或通用事件总线。
+
+## 12. 验收
+
+- 同一输入和 producer version 产生稳定 hash。
+- old / latest / supersedes 关系无环且可回溯。
+- Cache、Share、Export 不引用动态 latest。
+- Revision 保留旧版本并能显示影响范围。
+- Share token 只存 hash、可撤销、可过期、无法跨 Project 扩权。
+- Prompt、模型、来源、Contract 与 Evidence 均能定位明确版本。
