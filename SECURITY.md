@@ -8,14 +8,19 @@
 - 不允许在前端代码、构建产物、截图、日志、文档中出现密钥。
 - `.env.example` 只能使用占位值；其中的 `postgres` / `replace_me` 仅限本地模板。
 - `VITE_` 变量会进入浏览器，只允许非敏感 URL、开关和展示配置。
+- Web 容器不得通过 `env_file` 或等价方式接收后端 Secrets；Compose 变量插值不等于向容器注入全部环境变量。
 
 ## 2. 生产启动防线
 
 `APP_ENV=production` 时后端配置必须拒绝：
 
 - `DEBUG=true`；
-- `POSTGRES_PASSWORD=postgres` 或空密码；
-- `DASHSCOPE_API_KEY=replace_me` 或空值。
+- 缺失 `DATABASE_URL`，或连接串使用本地默认凭据 `postgres:postgres`；
+- 显式配置 `POSTGRES_PASSWORD=postgres`；
+- `DASHSCOPE_API_KEY=replace_me` 或空值；
+- `CORS_ORIGINS=*`。
+
+使用托管 PostgreSQL 时可只配置平台提供的安全 `DATABASE_URL`，无需额外设置 `POSTGRES_PASSWORD`。使用 Compose 或自建 PostgreSQL 时必须覆盖本地默认密码。
 
 部署平台仍需在启动前做 Secret 检查。运行时校验是最后防线，不替代 Secrets 管理。
 
