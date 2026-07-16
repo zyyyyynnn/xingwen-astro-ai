@@ -76,7 +76,7 @@ goal
 
 | 类型 | 用途 | 可否作为真实结果 |
 | --- | --- | --- |
-| fixture/mock | 单元、前端联调 | 否 |
+| fixture | 单元、前端联调、Demo Replay | 否，必须明确标注 |
 | recorded response | 稳定集成测试 | 仅标注为录制来源 |
 | seed list | 评测基准、fallback | 不可冒充自动获取 |
 | real run cache | Demo 兜底 | 可以，但必须 cached |

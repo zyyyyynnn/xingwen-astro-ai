@@ -2,9 +2,9 @@
 
 任务编号前缀：`A` 前端，`B` 后端，`C` 数据，`D` 文献/图谱，`X` 跨模块。
 
-## P0：先跑通 Web 与本地环境
+## P0：冻结目标前端并保持当前基线可运行
 
-P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00` 对齐真实依据，`X-04` 固定 Docker 本地开发基线，A/B 并行初始化后由 `X-05` 建立最小 CI 与依赖漂移卡口，避免技术基线只停留在文档中。
+当前 `X-00`、`X-04`、Vue / FastAPI 骨架与 `X-05` 已形成 Phase 0 基线。A 线按新的 Astro + React、科研产物优先和 ASCII / Dither 方案继续，迁移期保持当前命令可运行，不向旧 Vue 增加业务功能。
 
 | ID | 任务 | 负责人 | 产出 | 依赖 |
 | --- | --- | --- | --- | --- |
@@ -12,15 +12,15 @@ P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00
 | X-04 | 建立 Docker Compose 本地开发基线 | A + B | `web`、`api`、`postgres` 三容器，固定 Node 24、Python 3.13、PostgreSQL 17、pnpm、uv | X-00 |
 | C-01 | 确定 MVP 字段清单 | C | 字段名、含义、单位、来源优先级 | X-00 |
 | D-01 | 确定论文获取与推理基准 | D | 论文源候选、检索关键词、5-8 篇 seed list、Claim/Relation 样例 | X-00 |
-| A-01 | 初始化 Web 端骨架 | A | Vue 3 + TypeScript + Vite + pnpm + shadcn-vue + Tailwind CSS 4 可启动 | X-04 |
+| A-01 | 重构前端 Monorepo 与运行时基线 | A | 应用/共享包空骨架、依赖边界、strict TS、lint/typecheck/test/build 与旧前端迁移策略；不实现产品组件或 Shader | X-04 |
 | B-01 | 初始化 FastAPI 与 uv 后端骨架 | B | FastAPI + Python 3.13 + uv 可启动，Docker API 服务可运行 | X-04 |
 | X-05 | 建立基础 CI 与依赖漂移卡口 | A + B | foundation check、frozen install、前端构建、后端测试、Schema 导出、Compose 校验 | X-04, A-01, B-01 |
 | B-02 | 定义 Pydantic Schema 初版 | B | 与 DATA_MODEL 对齐，包含 PaperAcquisition、Claim、Relation、Trace；可导出 JSON Schema | B-01, C-01, D-01 |
 | B-03 | 创建任务/查询任务接口 | B | `/api/v1/health`、`/api/v1/tasks` 可用 | B-02 |
-| B-04 | Mock 任务结果聚合 | B | dataset/paper-acquisition/papers/literature-reasoning/graph/evidence 返回样例 | B-03, C-01, D-01 |
-| A-02 | 搭建页面路由和基础布局 | A | 首页、任务页、数据页、论文获取页、文献页、推理页、图谱页 | A-01 |
-| A-03 | 基于 Mock 展示完整任务流 | A | 任务流、数据、论文获取、文献、推理、图谱页面可展示；API 不可用时仅开发模式使用 fixtures | A-02, B-04 |
-| X-01 | 前后端 Mock 联调 | A + B | Docker Compose 下页面可展示完整 Mock 工作流 | A-03, B-04, X-05 |
+| B-04 | 实现 `/api/v2` 最小领域与传输契约 | B | ResearchSession、ResearchProject、ResearchContractDraft、ResearchContract、ResearchRun、RunEvent、ResearchArtifact、ArtifactVersion、WorkspaceSnapshot、ShareSnapshot 的最小 Schema、资源与生成 Contract | B-02, C-01, D-01 |
+| A-02 | 建立品牌视觉系统、首页与科研工作台静态框架 | A | Token、primitive、BrandMark、视觉运行时、首页静态/视觉框架、静态 Workspace Shell 与 fallback；不绑定领域状态 | A-01 |
+| A-03 | 建立 Research Contract、Guided Tour 与契约驱动双通道 | A | 在 A-02 Shell 上绑定 Project/Run、Contract、Repository Port、Fixture/HTTP、Tour FSM、WorkspaceSnapshot、交互与分享；不重建 Shell | A-01, A-02, B-04 |
+| X-01 | 完成真实 `/api/v2` Contract 集成 | A + B | HTTP Adapter 接入 B-04 生成 Contract，Fixture / HTTP 返回同一 Domain Model，一致性和主流程集成测试通过 | A-03, B-04, X-05 |
 
 ## P1：数据主链路
 
@@ -31,7 +31,7 @@ P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00
 | C-04 | 字段映射和单位统一 | C | FieldDefinition + 清洗后 rows | C-02 |
 | C-05 | 数据质量评分 | C | QualityScore | C-04 |
 | B-05 | 数据结果 API 对接 | B + C | dataset/sources/export 接口 | C-04 |
-| A-04 | 数据结果页 | A | 数据表、字段字典、来源、质量评分 | B-05 |
+| A-04 | 构建数据产物研究画布 | A | 虚拟化数据表、字段字典、来源、质量、对照、导出、Evidence 与完整状态 | A-03, B-05 |
 
 ## P1：论文获取、文献总结与跨文献推理
 
@@ -39,25 +39,25 @@ P0 不按“后端全部完成后前端再开始”的串行方式推进。`X-00
 | --- | --- | --- | --- | --- |
 | D-02 | 论文自动获取 Pipeline | D | PaperSearchQuery、PaperAcquisitionRun、PaperCandidate | D-01 |
 | B-06 | 论文获取 API 对接 | B + D | `/paper-acquisition` 接口 | D-02 |
-| A-05 | 论文获取页 | A | 检索参数、候选论文、去重、相关性排序展示 | B-06 |
+| A-05 | 构建论文获取与候选审查工作区 | A | 检索参数、来源、候选、去重、排序、选择依据、运行来源和 Evidence 对照 | A-03, B-06 |
 | D-03 | 文献总结 Prompt 与 Schema | D | PaperSummary JSON + Evidence | D-02 |
 | B-07 | 文献总结 API 对接 | B + D | `/papers` 接口 | D-03 |
-| A-06 | 文献总结页 | A | 结构化总结展示 | B-07 |
+| A-06 | 构建文献总结与 Evidence 阅读工作区 | A | 目标、方法、数据、结论、局限、locator、短引用/值与文献对照 | A-03, A-05, B-07 |
 | D-04 | Claim/Relation/ReasoningTrace 构建 | D | LiteratureClaim、LiteratureRelation、ReasoningTrace | D-03 |
 | B-08 | 跨文献推理 API 对接 | B + D | `/literature-reasoning` 接口 | D-04 |
-| A-07 | 跨文献推理页 | A | Claim、Relation、Trace 可展示并打开证据 | B-08 |
+| A-07 | 构建跨文献推理与 Trace 对照工作区 | A | Claim、候选/最终 Relation、Trace、条件、Evidence 与三面板对照 | A-06, B-08 |
 | D-05 | 图谱节点/边生成 | D | Graph JSON，包含跨文献关系 | C-04, D-04 |
 | B-09 | 证据详情和图谱 API | B + D | `/graph`, `/evidence/{id}` | D-05 |
-| A-08 | 学术图谱页 | A | Vue Flow 图谱，可点击节点、关系边和证据面板 | B-09 |
+| A-08 | 构建学术图谱与溯源观测台 | A | React Flow 证据图谱、Provenance Observatory、产物联动和规模控制 | A-07, B-09 |
 
 ## P2：反馈、缓存、部署
 
 | ID | 任务 | 负责人 | 产出 | 依赖 |
 | --- | --- | --- | --- | --- |
 | B-10 | 缓存兜底机制 | B | data/paper/model/reasoning cache record + cached meta | B-05, B-07, B-08, B-09 |
-| A-09 | 缓存模式提示 | A | 页面明确标注缓存结果 | B-10 |
-| A-10 | 反馈入口 | A | 字段/来源/文献/推理/图谱反馈表单 | A-04, A-08 |
-| B-11 | 反馈修正接口 | B | `/feedback` + revising 状态 | A-10 |
+| A-09 | 建立运行来源、缓存、版本与质量状态系统 | A | Fixture/Live/Cached 来源、派生修订、version、retrieved_at、SourceSnapshot 跨页面一致 | A-03, B-10, version/cache Contract |
+| A-10 | 建立上下文反馈与局部修正体验 | A | Field/Source/Paper/Claim/Relation/Trace/GraphEdge 反馈、RevisionPlan 和新 ArtifactVersion 状态 | A-04, A-06, A-07, A-08, B-11, feedback Contract |
+| B-11 | 反馈修正接口 | B | Feedback / Revision API；修正创建派生 Run 与新 ArtifactVersion | target Feedback / Revision Contract |
 | C-06 | 字段/单位局部修正 | C | 修正记录和重导出 | B-11 |
 | D-06 | 文献/推理/图谱局部修正 | D | evidence、relation、trace 更新 | B-11 |
 | X-02 | 公网 Demo 部署 | A + B | URL、环境变量、缓存验证 | 核心链路完成 |
