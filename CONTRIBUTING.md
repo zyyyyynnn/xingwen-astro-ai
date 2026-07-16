@@ -61,7 +61,7 @@ Issue 至少包含：
 [B] 初始化任务 API
 [C] 确定 MVP 字段清单
 [D] 构建证据图谱 JSON
-[X] 前后端 Mock 联调
+[X] 前后端 Fixture 契约联调
 ```
 
 ### Label 规范
@@ -80,7 +80,7 @@ Milestone 与 Priority 严格 1:1 对应：
 
 | Priority | Milestone | 内容 |
 | --- | --- | --- |
-| P0 | M1 开发基线 | 骨架、Docker、CI、Mock 闭环 |
+| P0 | M1 开发基线 | 骨架、Docker、CI、Fixture / Demo Replay 闭环 |
 | P1 | M2 核心功能 | 数据/论文/文献/推理/图谱主链路 |
 | P2 | M3 反馈与交付 | 缓存兜底、反馈修正、公网部署、材料交接 |
 

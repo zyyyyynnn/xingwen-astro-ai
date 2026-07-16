@@ -21,6 +21,9 @@
 | 判断是否完成 | [product/ACCEPTANCE.md](product/ACCEPTANCE.md), [quality/REVIEW_CHECKLIST.md](quality/REVIEW_CHECKLIST.md) |
 | 查项目边界 | [product/PROJECT_CHARTER.md](product/PROJECT_CHARTER.md), [../PRD.md](../PRD.md) |
 | 查模块职责 | [architecture/MODULES.md](architecture/MODULES.md), [../DESIGN.md](../DESIGN.md) |
+| 查目标前端架构 | [architecture/FRONTEND_ARCHITECTURE.md](architecture/FRONTEND_ARCHITECTURE.md) |
+| 改品牌、Token、字体或 WebGL | [design/VISUAL_LANGUAGE.md](design/VISUAL_LANGUAGE.md) |
+| 改首页、Guided Tour 或工作台 | [design/WORKSPACE_UX.md](design/WORKSPACE_UX.md) |
 | 查任务编排 | [architecture/WORKFLOW_DESIGN.md](architecture/WORKFLOW_DESIGN.md) |
 | 改接口 | [architecture/API_CONTRACT.md](architecture/API_CONTRACT.md) |
 | 改数据结构 | [architecture/DATA_MODEL.md](architecture/DATA_MODEL.md) |
@@ -44,7 +47,8 @@
 5. `CONTRIBUTING.md`
 6. `docs/setup.md`
 7. `docs/architecture/WORKFLOW_DESIGN.md`
-8. 当前 Issue 对应的契约文档
+8. 前端任务再读 `docs/design/VISUAL_LANGUAGE.md`、`docs/design/WORKSPACE_UX.md` 与 `docs/architecture/FRONTEND_ARCHITECTURE.md`
+9. 当前 Issue 对应的契约文档
 
 ## 维护原则
 
@@ -53,5 +57,6 @@
 - 改数据结构必须同步 `DATA_MODEL.md`。
 - 改状态、步骤或编排必须同步 `WORKFLOW_DESIGN.md` 和测试。
 - 改模型/Prompt/推理准入必须同步 `docs/ai/*`。
-- 改 UI 基线必须同步 `DESIGN.md` 和 `REVIEW_CHECKLIST.md`。
+- 改 UI 基线必须同步 `DESIGN.md`、对应专项设计文档和 `REVIEW_CHECKLIST.md`。
+- 所有目标架构文档必须标明 Status、Implementation、Current runtime 和 Target runtime。
 - 未实现能力只能写为规划、预留或后续扩展。

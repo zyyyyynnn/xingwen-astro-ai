@@ -10,6 +10,11 @@ _面向天文科研场景的数据分析、文献获取、跨文献推理与证�
 
 ---
 
+> **当前实现基线：** Vue 3 `apps/web` 骨架 + FastAPI `/api/v1` + Docker Compose。
+>
+> **已接受的目标架构：** Astro 品牌站 + React Research Workspace Monorepo + `/api/v2` Project / Run / Artifact / Version 契约。
+> **实施状态：** Pending。本分支的 RFC 不表示迁移已完成，当前启动命令保持不变。
+
 ## 项目定位
 
 星文智析围绕固定主案例 **系外行星候选体与宿主恒星参数整合**，提供一条可复现、可溯源、可展示的科研数据工作流：
@@ -31,9 +36,9 @@ _面向天文科研场景的数据分析、文献获取、跨文献推理与证�
 | 学术图谱可视化 | 论文-数据源-字段-发现-证据关系图谱 | 节点可点击，边绑定 `evidence_ids`，推理链可查看 |
 | 反馈修正 | 字段、单位、来源、文献关系问题局部修正 | 保留修正记录，不做全流程无意义重跑 |
 
-## 技术栈基线
+## 当前实现基线
 
-本项目采用 **Web-first、Docker-first、Contract-first** 的开发方式：先完成 Web 端页面和 Mock 闭环，再逐步接入后端、数据、论文、推理和图谱 Pipeline；成员本地开发统一走 Docker Compose，避免依赖和版本漂移。
+本项目采用 **Web-first、Docker-first、Contract-first、Evidence-first** 的开发方式。当前 Phase 0 基线用于验证本地启动、v1 Contract 和工作流骨架，不代表目标产品体验已经完成。
 
 | 层级 | 技术栈 |
 | --- | --- |
@@ -51,7 +56,20 @@ _面向天文科研场景的数据分析、文献获取、跨文献推理与证�
 | 本地环境 | Docker Compose：`web`、`api`、`postgres` |
 | 暂不进入 M1 | Redis、Celery、MinIO、Nginx、RabbitMQ |
 
-## 技术架构
+## 目标前端架构（待实施）
+
+| 层级 | 已接受目标 |
+| --- | --- |
+| 品牌站 | `apps/site`：Astro 静态输出、四幕式首页、SEO、React visual island |
+| 科研工作台 | `apps/workspace`：React + TypeScript、Guided Tour、Artifact-first Workspace |
+| 共享包 | design-tokens、ui、visual-engine、domain、contracts、data-access、workspace-core、testing |
+| 数据访问 | Repository Port + Fixture / HTTP Adapter，共享同一 Domain Model |
+| 图谱与实时视觉 | `@xyflow/react`；Three.js + React Three Fiber + GLSL |
+| 未来桌面 | Tauri 仅通过 Platform Adapter 预留，本轮不实现 |
+
+目标详情见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。迁移完成前不在 Vue 与 React 中重复实现同一业务功能。
+
+## 当前技术架构
 
 ```mermaid
 flowchart TB
@@ -91,6 +109,8 @@ samples                   可复现输入输出样例
 scripts                   开发、验证、导出脚本
 docs                      架构、产品、质量、交接文档
 ```
+
+目标迁移将新增 `apps/site`、`apps/workspace` 和共享前端 packages；这些目录当前不存在，不能按目标命令启动。`apps/web` 在目标验收完成前仍是当前前端基线。
 
 ## 快速开始
 
@@ -136,6 +156,9 @@ uv run uvicorn app.main:app --reload
 | --- | --- |
 | [PRD.md](PRD.md) | MVP 范围、用户、成功标准 |
 | [DESIGN.md](DESIGN.md) | 系统架构、状态机、证据链、缓存、UI 设计基线 |
+| [docs/design/VISUAL_LANGUAGE.md](docs/design/VISUAL_LANGUAGE.md) | 品牌、Token、字体、ASCII / Dither 与动效规范 |
+| [docs/design/WORKSPACE_UX.md](docs/design/WORKSPACE_UX.md) | 首页四幕、Guided Tour 与 Research Workspace 交互 |
+| [docs/architecture/FRONTEND_ARCHITECTURE.md](docs/architecture/FRONTEND_ARCHITECTURE.md) | Astro / React Monorepo、包边界、迁移与质量门禁 |
 | [AGENTS.md](AGENTS.md) | Agent 操作协议、协作红线、验证要求 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Git 分支、Issue、PR、合并流程 |
 | [docs/setup.md](docs/setup.md) | 本地启动、Docker Compose、环境变量 |
@@ -156,7 +179,7 @@ uv run uvicorn app.main:app --reload
 4. 模型输出必须结构化校验，不能直接作为事实。
 5. 前端不直连 Qwen、论文源或天文数据源。
 6. pnpm / uv / Docker Compose 是团队统一开发基线，不混用包管理器或本机裸环境口径。
-7. 缓存只能作为结果来源元信息，不能冒充实时结果。
+7. Fixture、Live、Cached、Revised 必须准确标识；手写 Fixture 不能冒充真实运行缓存。
 8. 材料交接不得宣传未实现能力。
 
 ## License

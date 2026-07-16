@@ -1,110 +1,124 @@
 # Acceptance Criteria
 
+> Current runtime：Vue `apps/web` + FastAPI `/api/v1`。Target runtime：Astro + React Monorepo + `/api/v2`。目标前端验收为 Accepted for implementation / Pending，不能用文档通过代替代码和运行证据。
+
 ## 1. MVP 总验收
 
 | 编号 | 标准 | 必须证明 |
 | --- | --- | --- |
-| G-01 | 公网 Demo 可访问 | URL、首页截图、主流程截图 |
-| G-02 | 主案例完整跑通 | 从输入到导出的连续录屏或截图链 |
-| G-03 | 数据来自真实来源 | 来源 URL、查询参数、获取时间 |
-| G-04 | 论文自动获取可复现 | 检索参数、论文来源、候选列表、去重和相关性排序记录 |
-| G-05 | 文献总结结构化 | PaperSummary JSON 和页面展示 |
-| G-06 | 跨文献推理可审查 | Claim、Relation、ReasoningTrace、Evidence 可展示 |
-| G-07 | 图谱可溯源 | 节点/边详情能看到 evidence 和 reasoning trace |
-| G-08 | 输出可导出 | CSV、数据字典、溯源报告、论文与推理关系 JSON |
-| G-09 | 反馈可修正 | 反馈前后结果差异和修正记录 |
-| G-10 | 缓存兜底可用 | 模拟外部失败时仍能演示主案例，页面标注 cached |
-| G-11 | 本地环境可复现 | Docker Compose 可启动 `web`、`api`、`postgres` |
-| G-12 | 技术基线可约束 | CI 能拦截错误 lockfile、`.env` 泄露、关键变量缺失和依赖漂移 |
+| G-01 | 公网 Web 可访问且无人讲解可理解 | URL、静态首屏、Guided Tour 与主入口 |
+| G-02 | 主案例形成连续产物链 | Contract、Run、Dataset、Paper、Summary、Relation、Graph、Evidence、Export |
+| G-03 | Demo Replay 与 Live Run 可区分 | execution/source mode 截图、状态测试、Fixture provenance |
+| G-04 | 真实数据和论文获取可复现 | Query、来源、时间、去重、排序、SourceSnapshot |
+| G-05 | 推理与图谱可审查 | Claim、Relation、ReasoningTrace、GraphEdge 与 Evidence |
+| G-06 | Project / Run / Artifact / Version 可定位 | 聚合接口、版本链、派生 Run 和历史对照 |
+| G-07 | 失败、缓存和修订不失真 | Live 失败、真实缓存来源、Feedback、RevisionPlan、新版本 |
+| G-08 | 分享与导出安全 | 冻结 ShareSnapshot、撤销/过期、脱敏、CSV/JSON/报告 |
+| G-09 | WebGL 和设备降级 | Poster、Reduced Motion、High/Medium/Low、移动端 |
+| G-10 | 本地和 CI 可复现 | frozen install、build、test、Compose、Contract 与架构门禁 |
 
-## 2. A 前端验收
+## 2. 首页与 Guided Tour
 
 | 项目 | 标准 |
 | --- | --- |
-| 技术栈 | Vue 3 + TypeScript + Vite + pnpm + shadcn-vue + Tailwind CSS 4 |
-| 页面完整性 | 首页、任务流程、数据结果、论文获取、文献总结、跨文献推理、图谱、反馈页面可访问 |
-| 状态完整性 | 加载、成功、失败、缓存模式均有明确提示 |
-| 数据展示 | 数据表、字段字典、来源、质量评分可读 |
-| 论文获取展示 | 检索参数、候选论文、去重结果、相关性排序和选择原因可读 |
-| 文献展示 | PaperSummary 结构清晰，结论能打开 Evidence |
-| 推理展示 | Claim、Relation、ReasoningTrace 可读，关系类型不混淆 |
-| 图谱交互 | Vue Flow 节点可点击，边或详情面板能展示证据和推理链 |
-| 展示质量 | 页面适合答辩录屏，不像临时后台页面 |
+| 静态首屏 | HTML 中存在中文主标题、说明、主 CTA 和可信性入口；WebGL 不是 LCP 前置条件 |
+| 四幕 | SIGNAL、QUESTION、EVIDENCE、WORKSPACE 顺序完整，总时长约 60–90 秒 |
+| 控制 | 可暂停、返回、跳过，不做强制滚动劫持 |
+| Research Contract | ACT 02 可编辑目标、对象、字段、来源、论文、输出、证据和质量约束 |
+| 来源语义 | Demo Replay 显示 Fixture；Live Run 说明等待、失败、重试和真实缓存 |
+| SEO | 静态 title、description、canonical、Open Graph 与社交预览可检查 |
+| 稳定性 | 无 WebGL 时完整静态首屏，无明显 CLS，首个主动作可键盘操作 |
+| 移动端 | 可使用 Poster 或简化场景，但四幕核心信息和入口完整 |
 
-## 3. B 后端验收
-
-| 项目 | 标准 |
-| --- | --- |
-| 技术栈 | FastAPI + Python 3.13 + uv + Pydantic v2 |
-| API | `API_CONTRACT.md` 中核心接口可用 |
-| 状态机 | 任务状态按 DESIGN 定义流转，包含 `searching_papers` 和 `reasoning_literature` |
-| Qwen Client | 模型调用集中封装，支持超时和错误处理 |
-| 数据库 | PostgreSQL 17 中可持久化任务、来源、数据、论文候选、总结、Claim、Relation、Trace、反馈 |
-| 缓存 | 外部数据源、论文源或模型失败时可返回最近一次真实运行结果 |
-| 安全 | API Key、论文源凭据不进前端、不进日志、不进仓库 |
-
-## 4. X Docker 与 CI 基线验收
+## 3. Research Workspace
 
 | 项目 | 标准 |
 | --- | --- |
-| Compose | `docker compose up --build` 可启动 `web`、`api`、`postgres` |
-| Web 容器 | Node 24 基线，使用 pnpm |
-| API 容器 | Python 3.13 基线，使用 uv |
-| 数据库容器 | 使用 `postgres:17-alpine` 并持久化数据卷 |
-| 环境变量 | 与 `.env.example` 一致，敏感项不进入前端构建变量 |
-| CI 静态卡口 | 拦截 `package-lock.json`、`yarn.lock`、`bun.lock`、`.env` 和关键变量缺失 |
-| CI 构建卡口 | A/B/X-04 完成后运行 pnpm、uv 和 Docker Compose 检查 |
-| 禁止项 | 不引入 Redis、Celery、MinIO、Nginx、RabbitMQ 作为 M1 必需项 |
+| 布局 | Top Rail、Research Atlas、Research Canvas、Provenance Observatory、Research Console |
+| 科研产物优先 | 中央默认不是聊天流，不用工具日志或 IDE 模型组织产品 |
+| 视口 | `1440×900`、`1920×1080` 完整；`1280px` 宽仍可完成主流程 |
+| Canvas | 最多三个受控拆分面板，不提供无限悬浮窗口 |
+| 对照 | 数据+来源、Summary+Evidence、Relation+Trace+Evidence、Graph+Evidence 可组合 |
+| Observatory | 当前对象、source mode、locator、quote/value、confidence、query hash、版本可见 |
+| Console | 不遮挡核心产物；提交前显示 Project、Run、选中对象和影响范围 |
+| 多项目/Run | Project、并行 Run、Artifact、Version 明确，不用聊天线程替代 |
+| 恢复与分享 | WorkspaceSnapshot 可恢复；ShareSnapshot 冻结版本且只读 |
+| 键盘 | 无鼠标可确认 Contract、切换产物、定位 Evidence、取消/重试和打开帮助 |
+| 状态 | empty、loading、partial、success、failed、fixture、cached、revised 完整 |
 
-## 5. C 数据验收
-
-| 项目 | 标准 |
-| --- | --- |
-| 数据源 | 至少 2 类真实来源或 1 个主源 + 1 个可解释补充源 |
-| 字段映射 | 关键字段有名称、含义、单位、来源 |
-| 清洗 | 缺失值、单位、类型转换规则明确 |
-| 质量评分 | 字段覆盖率、缺失率、来源完整性、单位一致性可计算 |
-| 导出 | CSV 和字段字典可复现生成 |
-
-## 6. D 论文、推理与图谱验收
+## 4. Visual Engine 与设计系统
 
 | 项目 | 标准 |
 | --- | --- |
-| 论文获取 | 主案例内至少 1 个论文来源可运行，候选论文带检索参数、来源、获取时间 |
-| 候选处理 | 候选论文有去重规则、相关性排序和入选原因 |
-| 文献总结 | 覆盖研究目标、方法、数据、结论、局限 |
-| 来源绑定 | 核心总结绑定 paper/source/evidence |
-| Claim 抽取 | 从多篇论文中抽取目标、方法、数据、发现、局限等 Claim |
-| Relation 构建 | 至少 3 类跨文献关系可生成并绑定 evidence |
-| ReasoningTrace | 最终跨文献关系有可审查推理链 |
-| 图谱结构 | 节点类型和边类型符合 DATA_MODEL |
-| 证据链 | 图谱边必须有 `evidence_ids`，跨文献边必须有关联 `reasoning_trace_id` |
-| 可信性 | 不把无来源模型输出或无证据推理作为事实 |
+| Token | OKLCH Raw Scale 与语义 Token；业务组件无散落 Raw Color |
+| 字体 | 衬线/无衬线/等宽层级；许可证、来源、中文覆盖、Web/Tauri 策略有记录 |
+| 品牌 | ASCII 字符与 Dither 近看可辨、远看连续；不是满屏滤镜 |
+| 渲染 | GPU glyph atlas / instancing，不用大量 DOM glyph |
+| 档位 | High、Medium、Low 根据 WebGL、GPU、DPR、viewport、frame time、Reduced Motion 决定 |
+| 生命周期 | 页面隐藏暂停；卸载 dispose geometry/material/texture/render target |
+| 可复现 | deterministic seed，可冻结时间和 viewport 做视觉回归 |
+| 降级 | Context loss / 无 GPU 自动 Poster；DOM 内容和操作保持完整 |
+| 可访问 | 状态不只靠颜色，200% 字体缩放、焦点、读屏和 Reduced Motion 通过 |
 
-## 7. 文档验收
+## 5. Contract、Adapter 与来源状态
 
-| 文档 | 标准 |
+- `/api/v2` 明确 Project、Contract、Run、Event、ArtifactVersion、Evidence、WorkspaceSnapshot、ShareSnapshot。
+- Fixture / HTTP Adapter 校验同一 Transport Schema 并返回同一 Domain Model。
+- `execution_mode=demo_replay|live` 与 `source_mode=fixture|live|cached|revised` 分离。
+- Fixture 版本化并带 scenario、schema version、provenance note；不能标记 Cached。
+- Cached 绑定真实历史 Run、ArtifactVersion、SourceSnapshot、时间、input hash 和本次失败。
+- 页面和组件不读取原始 DTO、不在组件内 fetch、不拼接裸 API URL。
+- Collection cursor、错误 Problem Details、幂等、取消、重试、派生和版本冲突有 Contract 测试。
+
+## 6. A 系列工作区验收
+
+| Issue | 最低产物 |
 | --- | --- |
-| README | 能让新成员 5 分钟理解项目、技术栈、入口、文档地图 |
-| PRD | 范围清楚，知道什么做、什么不做 |
-| DESIGN | 架构、技术栈、状态机、模块边界、缓存、安全清楚 |
-| API_CONTRACT | 前后端可据此并行开发 |
-| DATA_MODEL | 数据、论文、文献、推理、图谱、证据字段一致 |
-| ROADMAP/BACKLOG | 能直接拆 Issue 和排优先级 |
-| setup/DEPLOYMENT | Docker、本地启动、密钥、部署和公网 Demo 风险明确 |
-| REVIEW_CHECKLIST | 覆盖 CI、包管理、Docker、UI、接口、证据链和材料口径 |
+| A-01 | pnpm Monorepo、Astro/React 空基线、strict TS、共享 packages、build/test/CI 目标、旧 Vue 迁移策略 |
+| A-02 | 品牌字标、Token、字体、UI primitive、Visual Engine 基础、四幕框架、Workspace Shell、fallback |
+| A-03 | Research Contract、Guided Tour、Project/Run、Repository Port、Fixture/HTTP、Atlas/Canvas/Observatory/Console、分享入口 |
+| A-04 | 虚拟化数据表、字段字典、来源、质量、对照、CSV/JSON、Evidence 和完整状态 |
+| A-05 | Query、来源、Candidate、去重、排序、选择依据、Demo/Live/Cached 与 Evidence |
+| A-06 | 目标、方法、数据、结论、局限、跨文献对照、Evidence locator/quote/value |
+| A-07 | Claim、候选/最终 Relation、Trace、条件、Evidence、最多三面板 |
+| A-08 | React Flow 证据图谱、Observatory 联动、规模控制、无装饰性节点/边 |
+| A-09 | Live/Cached/Fixture/Revised、version、retrieved_at、SourceSnapshot 与质量状态统一 |
+| A-10 | Field/Source/Paper/Claim/Relation/Trace/GraphEdge 反馈、新 ArtifactVersion 和冲突状态 |
 
-## 8. 一票否决项
+## 7. B 后端与安全验收
 
-出现以下情况，MVP 不算完成：
+- 当前 `/api/v1` 在迁移门禁前保持可用；v2 不以修改 v1 响应伪装实现。
+- FastAPI / Pydantic 生成 OpenAPI 3.1 / JSON Schema；`packages/contracts` 生成类型无漂移。
+- PostgreSQL 是 Run、Step、Event、ArtifactVersion、Evidence 与 Share 的事实来源。
+- 匿名 Session 使用 Secure/HttpOnly/SameSite Cookie、CSRF、ownership、配额和限流。
+- Share token 高熵、只存 hash、可撤销/过期、最小范围、无法写入或跨 Project 扩权。
+- 错误不暴露密钥、堆栈、连接串、受限全文或模型私有推理。
+- Cancel、自动 retry、用户 retry、revision、fork 和 CacheSelector 有集成测试。
 
-- 公网 Demo 无法访问。
-- 前端直接暴露 API Key 或论文源凭据。
-- 数据、论文、文献、推理或图谱结果无法追溯来源。
-- 论文候选是手写 seed list 冒充自动获取结果。
-- 跨文献关系没有 `Evidence` 或 `ReasoningTrace`。
-- 缓存数据是手写假数据且未标注。
-- 宣传材料把未实现能力写成已实现。
-- API 或数据模型与文档明显不一致。
-- 本地环境依赖成员个人电脑版本，无法通过 Docker Compose 复现。
-- X-05 完成后，PR 绕过失败的 CI 或依赖漂移卡口合并。
+## 8. C / D 科研可信验收
+
+- 至少一个主数据源真实可运行；字段、单位、转换、来源和质量可复现。
+- 论文候选带 Query、来源、时间、去重、排序和入选/排除依据。
+- PaperSummary 核心内容绑定 Evidence；不把模型总结当无条件事实。
+- Accepted Relation 绑定 Evidence、条件和 ReasoningTrace，候选与最终分离。
+- 每条 GraphEdge 绑定 Evidence；跨文献边绑定 Relation / Trace。
+- ReasoningTrace 只含显式可审查依据，不保存 chain-of-thought。
+
+## 9. 测试与治理门禁
+
+目标实现至少覆盖：Token、Contract、Fixture/HTTP 一致性、Domain Mapper、组件、E2E、a11y、visual regression、WebGL fallback、Reduced Motion、Demo/Live/Cached/Revised、Graph Evidence、Session/Share 安全。
+
+文档 PR 至少执行 `git diff --check`、`python scripts/check_foundation.py`、Markdown 链接/标题/Mermaid 结构检查（工具存在时），并证明未修改禁止范围。
+
+## 10. 一票否决项
+
+- 公网入口无法使用或只有 WebGL Canvas 没有静态内容。
+- Fixture、seed 或手写数据冒充 Live / Cached。
+- 数据、论文、Summary、Relation 或 GraphEdge 无法追溯 Evidence。
+- 分享 token 泄露编辑会话、无法撤销、动态指向 latest 或暴露受限内容。
+- 前端直连模型/外部来源、暴露密钥或渲染未经净化的外部 HTML。
+- 保存或展示模型私有 chain-of-thought。
+- 工作台以聊天流、IDE 或工具日志为核心，科研产物退居次要。
+- WebGL 失败导致首页或工作台不可用。
+- API / Data Model / Workflow / Issue 与实现明显不一致。
+- 宣传任意天文方向、任意 PDF、任意图表或无证据科学发现已经实现。

@@ -9,16 +9,20 @@
 | 模型输出编造或格式不稳定 | 文献总结和图谱可信度下降 | JSON Schema 校验、Evidence 校验、无效输出不得直出 |
 | 跨文献关系幻觉 | 推理能力被评审质疑 | LiteratureRelation 必须绑定 Evidence 和 ReasoningTrace，无证据关系只作候选 |
 | API Key、数据库或论文源凭据泄露 | 账号、费用与数据风险 | Secret 仅在后端/部署平台，生产启动校验，日志脱敏 |
-| 三大功能割裂 | 作品像功能拼盘，竞争力下降 | 所有页面围绕同一 ResearchTask、Evidence 和 ReasoningTrace 链 |
+| 匿名会话或分享令牌越权 | 未授权读取或修改项目、产物和证据 | 服务端会话所有权校验、CSRF 防护、限流；分享令牌仅存 hash，默认只读、可撤销、可过期 |
+| 三大功能割裂 | 作品像功能拼盘，竞争力下降 | 所有页面围绕同一 Project、Run、Artifact、Evidence 和 ReasoningTrace 链 |
 | 主案例范围扩散 | 进度失控 | MVP 固定 `exoplanet_host_star` |
 | 工作流编排散落在 Router/Pipeline | 非法跳转、失败状态和重试不可控 | 显式状态机、Workflow Executor、数据库 Hooks 边界 |
-| 产物无版本或原地覆盖 | 无法复现答辩结果、缓存和人工修正 | ArtifactVersion/ExperimentRun 契约，追加式修正 |
+| 产物无版本或原地覆盖 | 无法复现提交结果、缓存和人工修正 | `ArtifactVersion` / `Run` 契约，追加式修正 |
+| Fixture、缓存与实时结果混淆 | 演示数据被误认为实时科研结果 | `execution_mode` 与 `source_mode` 分离；Fixture 不得标为 cached，所有产物展示来源与版本 |
 
 ## 中风险
 
 | 风险 | 影响 | 应对 |
 | --- | --- | --- |
 | 前后端字段不一致 | 联调成本上升 | Pydantic authoring source + JSON Schema/OpenAPI 导出 |
+| `/api/v1` 与目标 `/api/v2` 迁移期漂移 | 新旧前端行为不一致，回退困难 | v1 保持冻结兼容；v2 以契约测试和端到端卡口验证，通过后再切换工作台 |
+| Vue 与 Astro + React 双前端长期并存 | 重复实现、路由和视觉规则漂移 | 当前 Vue 仅作可运行基线；目标栈确认后按 A-01～A-03 单向迁移，禁止双写新功能 |
 | Schema 导出未进入 CI | 共享契约名义存在但持续漂移 | CI 每次导出全部 Pydantic Model，后续启用 stale check |
 | Prompt 散落或原地修改 | 模型结果和缓存不可复现 | `packages/prompts` registry + 不可变版本 |
 | seed list 冒充自动获取 | 材料口径失真，演示可信度下降 | seed list 只作为兜底、评测基准和人工校验，自动获取必须有 run 记录 |
@@ -27,6 +31,8 @@
 | 论文候选相关性差 | 总结和推理质量下降 | 固定检索基准，候选保留 relevance_score 和 selection_reason |
 | Docker 内前端使用 `api` 服务名 | 浏览器无法访问 API | `VITE_API_BASE_URL` 使用宿主机/公网可访问 URL |
 | localhost 与 127.0.0.1 CORS 口径不一致 | 本地页面请求被阻止 | `.env.example` 同时列入两个本地 origin |
+| WebGL 上下文丢失或低性能设备卡顿 | 科研画布不可用、结果呈现不一致 | 统一 Visual Engine 生命周期、预算上限、`prefers-reduced-motion` 与确定性 Canvas/DOM 降级 |
+| 品牌字体许可或字符覆盖不足 | Web/Tauri 发布受阻，中文或科研符号缺字 | 入库前记录许可证与来源，验证中文、拉丁、希腊字母和数学符号，保留系统字体回退 |
 | CI 仅检查文件存在 | 错误依赖、构建失败仍显示通过 | frozen install、pytest、schema export、frontend build、compose config |
 | 部署平台限制 | 公网 Demo 不稳定 | 前端、后端、数据库分离部署，保留缓存模式 |
 | 成员任务边界不清 | 重复开发或遗漏 | 按 `MODULES.md`、Phase Issue 和 `BACKLOG.md` 认领 |
