@@ -1,0 +1,102 @@
+@import "tailwindcss";
+@import "@xingwen/design-tokens/base.css";
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--xw-color-canvas);
+  color: var(--xw-color-text);
+  font-family: var(--xw-font-sans);
+}
+
+body {
+  min-width: 20rem;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+.site-shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-rows: auto 1fr auto;
+}
+
+.site-header,
+.site-footer {
+  width: min(100% - 2rem, 72rem);
+  margin-inline: auto;
+  padding-block: 1.25rem;
+}
+
+.site-header {
+  border-bottom: 1px solid var(--xw-color-border);
+}
+
+.site-main {
+  display: grid;
+  width: min(100% - 2rem, 72rem);
+  margin-inline: auto;
+  place-items: center start;
+  padding-block: clamp(4rem, 12vw, 9rem);
+}
+
+.intro {
+  max-width: 48rem;
+}
+
+.eyebrow {
+  margin: 0 0 1rem;
+  color: var(--xw-color-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  max-width: 12ch;
+  margin: 0;
+  font-family: var(--xw-font-serif);
+  font-size: clamp(3rem, 9vw, 7rem);
+  font-weight: 520;
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+}
+
+.lede {
+  max-width: 42rem;
+  margin: 2rem 0 0;
+  color: var(--xw-color-muted);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  line-height: 1.75;
+}
+
+.primary-link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  margin-top: 2rem;
+  border-bottom: 2px solid currentColor;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.primary-link:focus-visible {
+  outline: 3px solid var(--xw-color-focus);
+  outline-offset: 4px;
+}
+
+.site-footer {
+  color: var(--xw-color-muted);
+  font-size: 0.875rem;
+}
+
+.product-identity {
+  font-weight: 750;
+  letter-spacing: 0.03em;
+}

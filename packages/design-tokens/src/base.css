@@ -1,0 +1,12 @@
+:root {
+  color-scheme: light;
+  --xw-color-canvas: #f5f2ea;
+  --xw-color-surface: #fffdf8;
+  --xw-color-text: #17201d;
+  --xw-color-muted: #59635f;
+  --xw-color-border: #c8cec9;
+  --xw-color-focus: #2f6f5e;
+  --xw-font-sans: "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  --xw-font-serif: Georgia, "Noto Serif CJK SC", "Songti SC", serif;
+  --xw-font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+}
