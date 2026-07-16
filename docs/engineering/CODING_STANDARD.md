@@ -19,14 +19,15 @@
 - 异步函数只用于真实异步 I/O，不为形式全部 async。
 - 新状态转换必须修改状态机测试和契约文档。
 
-## 3. Vue / TypeScript
+## 3. Astro / React / TypeScript
 
-- 使用 Composition API 与严格 TypeScript。
+- 使用严格 TypeScript；Astro 负责静态 Site，React 负责 Workspace 与共享 UI。
 - API 类型由共享契约/OpenAPI 生成或集中维护，不在组件重复声明。
 - 页面组件不直接调用外部论文源、数据源或模型。
 - 加载、成功、失败、空、缓存状态必须可区分。
 - 图谱和表格优先可读性、可追踪性，不以动效掩盖证据不足。
-- 依赖只通过 pnpm，禁止额外 lockfile。
+- 依赖只通过根 pnpm workspace，禁止额外 lockfile、跨包深层导入或路径别名绕过 public entry。
+- React hooks 遵守 lint 规则；副作用必须可清理，组件不得维护第二套 server state。
 
 ## 4. Pipeline
 

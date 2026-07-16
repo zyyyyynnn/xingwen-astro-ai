@@ -3,7 +3,7 @@
 ## ADR-001：MVP 固定主案例
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 MVP 固定为“系外行星候选体与宿主恒星参数整合”。
 
@@ -12,7 +12,7 @@ MVP 固定为“系外行星候选体与宿主恒星参数整合”。
 ## ADR-002：核心功能串成一条科研工作流
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 自动化数据分析、自动论文获取、智能文献总结、跨文献逻辑推理和学术图谱可视化围绕同一个 `ResearchTask` 串联，不做孤立功能页。
 
@@ -21,7 +21,7 @@ MVP 固定为“系外行星候选体与宿主恒星参数整合”。
 ## ADR-003：模型调用统一走后端
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 所有 Qwen / 百炼调用必须经过后端 Qwen Client。
 
@@ -30,7 +30,7 @@ MVP 固定为“系外行星候选体与宿主恒星参数整合”。
 ## ADR-004：模块间统一结构化契约
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 前端、后端、数据、文献、推理、图谱模块共享 `API_CONTRACT.md` 和 `DATA_MODEL.md`。
 
@@ -39,7 +39,7 @@ MVP 固定为“系外行星候选体与宿主恒星参数整合”。
 ## ADR-005：公网 Demo 必须有真实运行缓存兜底
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 外部数据源、论文源或模型失败时，Demo 可展示最近一次真实运行缓存，并明确标注缓存状态。
 
@@ -48,7 +48,7 @@ MVP 固定为“系外行星候选体与宿主恒星参数整合”。
 ## ADR-006：图谱边必须绑定证据
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 GraphEdge 必须包含 `evidence_ids`。跨文献关系边还必须包含 `relation_id` 和 `reasoning_trace_id`。
 
@@ -57,7 +57,7 @@ GraphEdge 必须包含 `evidence_ids`。跨文献关系边还必须包含 `relat
 ## ADR-007：缓存是元信息，不是主任务状态
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 缓存命中通过 `meta.cached`、`ResearchTask.used_cache`、`SourceRecord.cached` 和页面提示表达，不再使用 `using_cache` 作为 `task_status`。
 
@@ -66,7 +66,7 @@ GraphEdge 必须包含 `evidence_ids`。跨文献关系边还必须包含 `relat
 ## ADR-008：Evidence 必须可定位、可核验、可复现
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 `Evidence` 除 `source_id` / `paper_id` 外，还需要记录 `locator`、`quote_or_value`、`extraction_method` 和 `source_snapshot`。
 
@@ -75,7 +75,7 @@ GraphEdge 必须包含 `evidence_ids`。跨文献关系边还必须包含 `relat
 ## ADR-009：P0 先对齐最小真实依据，再并行推进
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 P0 第一步是 `X-00`：冻结 MVP 字段清单、论文获取来源、检索关键词、5-8 篇 seed list、跨文献关系类型和 Graph 最小关系类型。随后先完成 `X-04` Docker Compose 本地开发基线，再让 A/B 并行初始化前后端，C/D 提供最小真实依据。
 
@@ -84,7 +84,7 @@ P0 第一步是 `X-00`：冻结 MVP 字段清单、论文获取来源、检索�
 ## ADR-010：自动论文获取纳入 MVP 主链路
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 MVP 必须在固定主案例内实现自动论文获取，输出 `PaperSearchQuery`、`PaperAcquisitionRun` 和 `PaperCandidate`。seed list 只能作为兜底、评测基准和人工校验。
 
@@ -93,45 +93,34 @@ MVP 必须在固定主案例内实现自动论文获取，输出 `PaperSearchQue
 ## ADR-011：跨文献逻辑推理必须结构化
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 跨文献逻辑推理必须落到 `LiteratureClaim`、`LiteratureRelation` 和 `ReasoningTrace`，并绑定 `Evidence`。无证据关系只能作为候选，不进入最终图谱。
 
 原因：“逻辑推理”如果只输出自然语言解释，无法审查、无法复现，也无法支撑自主评审或终审展示中的可信性追问。
 
-## ADR-012：Web-first 与 shadcn-vue 优先
-
-| 状态 | Superseded by ADR-021 |
-| --- | --- |
-
-前端先完成 `apps/web` 页面、路由、状态、Mock 工作流和 UI token 落地。UI 组件优先采用 shadcn-vue / reka-ui 体系，图谱主库采用 Vue Flow，统计图表按需使用 ECharts。
-
-原因：先形成可演示 Web 闭环，再抽象复用组件，能降低早期不确定性；成熟组件库能减少基础控件成本，同时保持视觉一致性。
-
-历史说明：该决策已完成当前 `apps/web` Vue 骨架使命。目标前端不再以 Vue、shadcn-vue、Vue Router、Pinia 或 Vue Flow 作为未来方案；迁移完成前它们仍是当前可运行实现事实。
-
 ## ADR-013：Docker-first 本地开发基线
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
-M1 本地环境统一使用 Docker Compose 管理 `web`、`api`、`postgres` 三个服务，固定 `node:24-alpine`、`python:3.13-slim`、`postgres:17-alpine`。
+本地环境统一使用 Docker Compose 管理 `site`、`workspace`、`api`、`postgres` 四个服务，固定 `node:24.18.0-bookworm-slim`、`python:3.13-slim`、`postgres:17-alpine`。
 
 原因：4 人团队设备和本机依赖不一致，Docker Compose 可以把运行时、网络、端口和数据库版本固定为同一基线。
 
 ## ADR-014：依赖管理工具固定
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
-前端统一使用 pnpm，后端统一使用 uv。提交 `pnpm-lock.yaml` 和 `uv.lock`；禁止混用 npm/yarn/bun lockfile 或用 requirements.txt 替代 uv 主流程。
+前端统一使用 pnpm 11.13.1 和单一根 `pnpm-lock.yaml`，后端统一使用 uv 与 `uv.lock`；禁止混用 npm/yarn/bun lockfile 或用 requirements.txt 替代 uv 主流程。
 
 原因：pnpm 更适合 Web-first 和后续 workspace；uv 统一 Python 版本、依赖和 lockfile。两者配合 Docker 能降低“本机可运行、他人不可运行”的风险。
 
 ## ADR-015：Celery / Redis 后置
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 M1 不引入 Redis、Celery、RabbitMQ。任务链路先用 FastAPI、数据库任务状态和 BackgroundTasks 支撑；当论文获取、模型调用或图谱构建耗时明显影响稳定性时，再评估 Redis + Celery/RQ。
 
@@ -140,7 +129,7 @@ M1 不引入 Redis、Celery、RabbitMQ。任务链路先用 FastAPI、数据库�
 ## ADR-016：工作流必须由显式状态机驱动
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 `ResearchTask` 的状态转换由 `app.workflow` 集中声明和校验。Router 不直接串联多个 Pipeline，Pipeline 不自行推进任务状态。
 
@@ -149,7 +138,7 @@ M1 不引入 Redis、Celery、RabbitMQ。任务链路先用 FastAPI、数据库�
 ## ADR-017：Pydantic 是 Phase 0 Schema authoring source
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 Phase 0 以 `apps/api/src/app/schemas` 作为契约编写源，通过 `scripts/export_schemas.py` 导出 JSON Schema 到 `packages/schemas` 或临时构建目录。前端和 Pipeline 不维护第二套同名字段。
 
@@ -158,7 +147,7 @@ Phase 0 以 `apps/api/src/app/schemas` 作为契约编写源，通过 `scripts/e
 ## ADR-018：Prompt 文件不可变版本化
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 生产 Prompt 统一放在 `packages/prompts/<name>/vN.md`，由 registry 指定默认版本。已被真实运行或缓存引用的版本不原地改写。
 
@@ -167,50 +156,49 @@ Phase 0 以 `apps/api/src/app/schemas` 作为契约编写源，通过 `scripts/e
 ## ADR-019：科研产物采用追加式版本治理
 
 | 状态 | Superseded in part by ADR-027 |
-| --- | --- |
+| ---- | ----------------------------- |
 
-Dataset、Summary、Claim、Trace、Graph 和 Export 的修正通过新 ArtifactVersion 表达。追加式治理原则继续有效；原 `ExperimentRun` 名称仅代表当前迁移源，目标模型由 ADR-027 的 ResearchRun 负责工作流编排、ProducerExecution 记录具体模型或算法执行。Phase 0 先冻结契约，Phase 1–3 分步落库。
+Dataset、Summary、Claim、Trace、Graph 和 Export 的修正通过新 ArtifactVersion 表达。追加式治理原则继续有效；ResearchRun 负责工作流编排，ProducerExecution 记录具体模型或算法执行。Phase 0 先冻结契约，Phase 1–3 分步落库。
 
 原因：只保存当前结果无法解释历史截图、模型升级差异、缓存来源和用户修正。
 
 ## ADR-020：MVP 暂不引入通用图数据库与万能实体层
 
 | 状态 | Accepted |
-| --- | --- |
+| ---- | -------- |
 
 MVP 继续使用 PostgreSQL/JSON 与现有 GraphNode/GraphEdge 契约。只有当真实图规模、查询模式或跨案例复用证明需要时，才评估 Neo4j、通用 Entity/Relation 或向量数据库。
 
 原因：当前风险是可信闭环未跑通，而不是图存储性能。过早抽象会增加迁移和联调成本。
 
-## ADR-021：前端迁移为 Astro 品牌站 + React 工作台
+## ADR-021：前端运行时采用 Astro 品牌站 + React 工作台
 
 ### Status
 
-Accepted for implementation；Implementation Pending。Supersedes ADR-012 的目标前端部分。
+Accepted；A-01 Implemented，A-02/A-03 Pending。
 
 ### Context
 
-当前 Vue 骨架能验证基础构建和 API 边界，但品牌静态首屏、SEO、React Three Fiber 实时视觉、桌面级多面板工作台与未来 Tauri 复用对运行时提出了不同要求。长期维护两套业务前端会造成契约和视觉漂移。
+品牌静态首屏、SEO、高密度科研工作台、按需实时视觉与未来 Platform Adapter 对运行时提出不同要求。两个 App 需要共享契约与设计基础，但不能共享整棵应用状态。
 
 ### Decision
 
-目标前端采用 pnpm Monorepo：`apps/site` 使用 Astro 静态输出，`apps/workspace` 使用 React + TypeScript；共享能力进入 `packages/design-tokens`、`ui`、`visual-engine`、`domain`、`contracts`、`data-access`、`workspace-core` 和 `testing`。旧 `apps/web` 仅作为迁移期回退基线，完成验收后删除。
+采用 pnpm Monorepo：`apps/site` 使用 Astro 静态输出，`apps/workspace` 使用 React + TypeScript；共享能力进入 `packages/design-tokens`、`ui`、`visual-engine`、`domain`、`contracts`、`data-access`、`workspace-core` 和 `testing`。
 
 ### Consequences
 
-- 正向：静态首屏与复杂工作台职责分离；WebGL、React Flow 和未来 Tauri 共享 React 核心。
-- 负向：团队需要承担一次性迁移和新工具链学习成本；迁移期 CI 需要短暂构建两套入口。
+- 正向：静态首屏与复杂工作台职责分离；视觉引擎和未来 Platform Adapter 可通过公开边界复用。
+- 负向：两个 App 需要独立构建与 E2E，并要求共享包边界持续受自动门禁约束。
 - 运维：仍输出静态站点与现有 FastAPI，不引入前端服务端渲染或新基础设施。
 
 ### Rejected alternatives
 
-- 继续扩展单体 Vue：短期成本低，但会把品牌、工作台、视觉引擎和迁移适配耦合在一个应用。
 - 全站 Next.js：当前没有服务端渲染和 React Server Components 的明确需求，运行与部署复杂度更高。
 - Astro 承载完整工作台：Island 模型不适合统一管理高密度桌面状态。
 
 ### Implementation boundary
 
-由 A-01 建立新运行时和共享包，不实现业务页面；迁移完成前不在新旧前端重复开发同一业务功能。本 RFC 不创建应用、不安装依赖、不修改 Docker。
+A-01 仅建立运行时、最小入口、共享包、工具链、CI 与 Compose。A-02 负责视觉系统与静态框架；A-03 才实现 Contract、Repository 与业务状态。空接口或占位路由不代表后续能力已实现。
 
 ## ADR-022：工作台采用科研产物优先，而非聊天优先
 

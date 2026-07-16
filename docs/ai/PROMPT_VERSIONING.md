@@ -60,7 +60,7 @@ output_hash
 
 ## 5. 禁止事项
 
-- 在 Router、Vue 组件或 Notebook 中维护生产 Prompt。
+- 在 Router、前端组件或 Notebook 中维护生产 Prompt。
 - 原地重写已用于正式缓存的 Prompt。
 - Prompt 要求模型伪造 DOI、引用、页码或实验结果。
 - 仅凭自然语言输出绕过 Schema。

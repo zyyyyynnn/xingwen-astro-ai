@@ -1,15 +1,15 @@
 # DESIGN
 
-| 项目状态 | 口径 |
-| --- | --- |
-| Status | Accepted for implementation |
-| Implementation | Pending |
-| Current runtime | `apps/web` 中的现有前端骨架 |
-| Target runtime | 独立品牌站、科研工作台与共享前端包 |
+| 项目状态     | 口径                                                             |
+| ------------ | ---------------------------------------------------------------- |
+| Status       | Active                                                           |
+| A-01 runtime | Implemented：Astro Brand Site、React Research Workspace 与共享包 |
+| Product UI   | A-02、A-03 Pending                                               |
+| API          | `/api/v1` Current；`/api/v2` Pending                             |
 
 本文件是星文智析的**产品设计总纲、体验域、系统边界与专项规范入口**。它不重复产品主流程、页面交互、技术栈、Run 状态、视觉细则或验收清单；这些事实由对应专项文档维护。
 
-本轮只冻结目标方案。现有前端、`/api/v1` 与 Docker 启动方式仍是当前实现事实，目标设计不得写成已交付能力。
+A-01 只交付前端运行时与最小入口。本文件描述的完整品牌、Guided Tour、科研工作区和 v2 业务能力仍需对应 Issue、代码、测试与运行证据。
 
 ## 1. 产品设计定位
 
@@ -24,16 +24,16 @@ MVP 固定主案例为 **系外行星候选体与宿主恒星参数整合**。�
 
 ## 2. 设计原则
 
-| 原则 | 设计要求 |
-| --- | --- |
-| 科研产物优先 | 结构化数据、论文、Claim、Relation、Graph 与 Evidence 是主界面对象；对话只提供上下文操作 |
-| Evidence-first | 关键数据、结论、关系和图谱边都能回到来源、证据和明确版本 |
-| 自主可理解 | 无现场讲解时，品牌入口与引导体验仍能说明价值、过程和可信边界 |
-| 可复现而不失真 | Demo、实时运行、历史缓存和修订关系分别表达，不把示例包装成真实结论 |
-| 渐进复杂度 | 先建立问题与主动作，再逐步揭示产物、来源、版本和审查工具 |
-| 视觉服从阅读 | 强视觉服务品牌与转场；表格、论文、Evidence 和长文本保持高可读性 |
-| 降级仍可用 | 动效、Canvas 或设备能力下降时，核心内容、状态和操作仍由 DOM 承载 |
-| 当前与目标分明 | 设计目标、已实现能力和迁移中能力始终分别标注 |
+| 原则           | 设计要求                                                                                |
+| -------------- | --------------------------------------------------------------------------------------- |
+| 科研产物优先   | 结构化数据、论文、Claim、Relation、Graph 与 Evidence 是主界面对象；对话只提供上下文操作 |
+| Evidence-first | 关键数据、结论、关系和图谱边都能回到来源、证据和明确版本                                |
+| 自主可理解     | 无现场讲解时，品牌入口与引导体验仍能说明价值、过程和可信边界                            |
+| 可复现而不失真 | Demo、实时运行、历史缓存和修订关系分别表达，不把示例包装成真实结论                      |
+| 渐进复杂度     | 先建立问题与主动作，再逐步揭示产物、来源、版本和审查工具                                |
+| 视觉服从阅读   | 强视觉服务品牌与转场；表格、论文、Evidence 和长文本保持高可读性                         |
+| 降级仍可用     | 动效、Canvas 或设备能力下降时，核心内容、状态和操作仍由 DOM 承载                        |
+| 状态明确       | Current、Implemented 与 Pending 始终分别标注                                            |
 
 完整视觉规则只在 [VISUAL_LANGUAGE.md](docs/design/VISUAL_LANGUAGE.md) 维护。
 
@@ -41,11 +41,11 @@ MVP 固定主案例为 **系外行星候选体与宿主恒星参数整合**。�
 
 星文智析包含三个连续但职责不同的体验域：
 
-| 体验域 | 设计职责 | 与下一域的关系 |
-| --- | --- | --- |
-| Brand Site | 建立品牌、主案例和可信性认知，提供明确入口 | 将用户带入可操作的引导体验 |
-| Guided Tour | 用确定性场景解释 Contract、Run、Artifact 与 Evidence 的关系 | 保留上下文进入真实工作台 |
-| Research Workspace | 管理研究项目、运行、产物审查、反馈、分享与导出 | 形成可复现、可提交的研究结果 |
+| 体验域             | 设计职责                                                    | 与下一域的关系               |
+| ------------------ | ----------------------------------------------------------- | ---------------------------- |
+| Brand Site         | 建立品牌、主案例和可信性认知，提供明确入口                  | 将用户带入可操作的引导体验   |
+| Guided Tour        | 用确定性场景解释 Contract、Run、Artifact 与 Evidence 的关系 | 保留上下文进入真实工作台     |
+| Research Workspace | 管理研究项目、运行、产物审查、反馈、分享与导出              | 形成可复现、可提交的研究结果 |
 
 三个体验域共享领域语言、视觉 Token、证据规则和数据访问边界，但不共享不必要的页面状态。首页叙事、Guided Tour 状态机和 Workspace 交互只在 [WORKSPACE_UX.md](docs/design/WORKSPACE_UX.md) 定义。
 
@@ -82,7 +82,7 @@ flowchart LR
 - Prompt 只位于 `packages/prompts`；模型输出必须先通过 Schema 与 Evidence 校验。
 - ArtifactVersion、Evidence、SourceSnapshot 与 ShareSnapshot 是复现和审查边界，不能以漂移的 latest 代替固定引用。
 
-前端技术栈、目录、依赖方向、构建和迁移策略只在 [FRONTEND_ARCHITECTURE.md](docs/architecture/FRONTEND_ARCHITECTURE.md) 定义；跨模块职责见 [MODULES.md](docs/architecture/MODULES.md)。
+前端技术栈、目录、依赖方向和构建规则只在 [FRONTEND_ARCHITECTURE.md](docs/architecture/FRONTEND_ARCHITECTURE.md) 定义；跨模块职责见 [MODULES.md](docs/architecture/MODULES.md)。
 
 ## 5. 领域设计不变量
 
@@ -109,21 +109,21 @@ HTTP 与授权语义见 [API_CONTRACT.md](docs/architecture/API_CONTRACT.md)，�
 
 ## 7. 专项规范入口
 
-| 事实范围 | 唯一正文来源 |
-| --- | --- |
-| 用户、场景、范围、成功标准、主流程 | [PRD.md](PRD.md) |
-| 品牌、颜色、字体、视觉引擎、动效 | [VISUAL_LANGUAGE.md](docs/design/VISUAL_LANGUAGE.md) |
-| 首页、Guided Tour、Workspace 交互 | [WORKSPACE_UX.md](docs/design/WORKSPACE_UX.md) |
-| 前端技术栈、目录、依赖、构建、迁移 | [FRONTEND_ARCHITECTURE.md](docs/architecture/FRONTEND_ARCHITECTURE.md) |
-| HTTP 资源与传输契约 | [API_CONTRACT.md](docs/architecture/API_CONTRACT.md) |
-| 领域实体与不变量 | [DATA_MODEL.md](docs/architecture/DATA_MODEL.md) |
-| Run 状态、重试、取消、派生 | [WORKFLOW_DESIGN.md](docs/architecture/WORKFLOW_DESIGN.md) |
-| 版本、缓存、修订、分享 | [DATA_VERSIONING.md](docs/architecture/DATA_VERSIONING.md) |
-| 产品退出标准 | [ACCEPTANCE.md](docs/product/ACCEPTANCE.md) |
-| PR 与发布检查 | [REVIEW_CHECKLIST.md](docs/quality/REVIEW_CHECKLIST.md) |
-| 材料提交顺序 | [handoff/README.md](docs/handoff/README.md) |
-| Agent 执行纪律与红线 | [AGENTS.md](AGENTS.md) |
+| 事实范围                           | 唯一正文来源                                                           |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| 用户、场景、范围、成功标准、主流程 | [PRD.md](PRD.md)                                                       |
+| 品牌、颜色、字体、视觉引擎、动效   | [VISUAL_LANGUAGE.md](docs/design/VISUAL_LANGUAGE.md)                   |
+| 首页、Guided Tour、Workspace 交互  | [WORKSPACE_UX.md](docs/design/WORKSPACE_UX.md)                         |
+| 前端技术栈、目录、依赖、构建       | [FRONTEND_ARCHITECTURE.md](docs/architecture/FRONTEND_ARCHITECTURE.md) |
+| HTTP 资源与传输契约                | [API_CONTRACT.md](docs/architecture/API_CONTRACT.md)                   |
+| 领域实体与不变量                   | [DATA_MODEL.md](docs/architecture/DATA_MODEL.md)                       |
+| Run 状态、重试、取消、派生         | [WORKFLOW_DESIGN.md](docs/architecture/WORKFLOW_DESIGN.md)             |
+| 版本、缓存、修订、分享             | [DATA_VERSIONING.md](docs/architecture/DATA_VERSIONING.md)             |
+| 产品退出标准                       | [ACCEPTANCE.md](docs/product/ACCEPTANCE.md)                            |
+| PR 与发布检查                      | [REVIEW_CHECKLIST.md](docs/quality/REVIEW_CHECKLIST.md)                |
+| 材料提交顺序                       | [handoff/README.md](docs/handoff/README.md)                            |
+| Agent 执行纪律与红线               | [AGENTS.md](AGENTS.md)                                                 |
 
 ## 8. 实施边界
 
-本设计的实施必须由对应 Issue 驱动。迁移启动前不安装目标前端运行时、不修改 Docker 拓扑、不在旧前端新增业务功能；通过 Contract、Adapter、E2E、可访问性与降级门禁后，才可将目标能力标记为 Implemented。
+本设计的实施必须由对应 Issue 驱动。A-01 已完成运行时基线；A-02 不得提前实现 A-03 领域行为，A-03 不得把 `/api/v2` 写成当前可调用能力。每项能力只有通过对应 Contract、E2E、可访问性、降级与部署门禁后才能标记为 Implemented。

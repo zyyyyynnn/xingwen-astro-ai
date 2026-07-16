@@ -1,11 +1,11 @@
 # Research Workspace UX
 
-| 项目状态 | 口径 |
-| --- | --- |
-| Status | Accepted for implementation |
-| Implementation | Pending |
-| Current runtime | `apps/web` 中的 Vue 3 单页骨架 |
-| Target runtime | Astro Brand Site + React Guided Tour / Research Workspace |
+| 项目状态             | 口径                                                      |
+| -------------------- | --------------------------------------------------------- |
+| Status               | Accepted for implementation                               |
+| A-01 routes          | Implemented：Site 与 Workspace 最小入口                   |
+| A-02/A-03 experience | Pending                                                   |
+| Runtime              | Astro Brand Site + React Guided Tour / Research Workspace |
 
 本文定义科研工作台的信息架构、核心交互、页面状态和 Guided Tour。工作台借鉴现代 Agent Desktop 的桌面级组织能力，但不采用“聊天线程 + 工具日志”作为产品核心。
 
@@ -13,14 +13,14 @@
 
 星文智析工作台必须体现以下差异：
 
-| 通用 Agent Desktop | 星文智析 Research Workspace |
-| --- | --- |
-| 项目 / 聊天线程 | ResearchProject / ResearchRun |
-| 消息与工具调用 | 结构化科研产物与 Evidence |
-| 文件变更审查 | 数据、论文、Claim、Relation、Graph 与版本审查 |
-| Agent 日志 | TaskStep、来源快照、运行参数和错误分类 |
-| 环境面板 | Provenance Observatory |
-| 聊天输入框 | Research Console + Research Contract |
+| 通用 Agent Desktop | 星文智析 Research Workspace                   |
+| ------------------ | --------------------------------------------- |
+| 项目 / 聊天线程    | ResearchProject / ResearchRun                 |
+| 消息与工具调用     | 结构化科研产物与 Evidence                     |
+| 文件变更审查       | 数据、论文、Claim、Relation、Graph 与版本审查 |
+| Agent 日志         | TaskStep、来源快照、运行参数和错误分类        |
+| 环境面板           | Provenance Observatory                        |
+| 聊天输入框         | Research Console + Research Contract          |
 
 核心原则：**科研产物优先，AI 对话次之，执行日志降为辅助信息。**
 
@@ -53,12 +53,12 @@
 
 首页是约 60–90 秒、可跳过的短叙事，不是营销长页，也不使用强制滚动劫持：
 
-| 幕 | 内容 | 交互与可信性要求 |
-| --- | --- | --- |
-| ACT 01 — SIGNAL | 巨型裁切 ASCII / Dither 系外行星、中文主标、核心价值与快速入口 | 标题、说明和 CTA 必须存在于静态 DOM；WebGL 不是 LCP 前置条件 |
-| ACT 02 — QUESTION | 自然语言研究意图重组为可编辑 ResearchContractDraft | 用户能暂停、编辑、跳过；不在确认 Contract 前启动 Live Run |
-| ACT 03 — EVIDENCE | Dataset、Paper、Claim、Evidence、Relation 逐层显现 | 视觉只解释结构，不虚构科研数据或精度 |
-| ACT 04 — WORKSPACE | 场景收束为真实工作台结构 | 允许继续 Demo Replay、切换 Live Run 或直接进入 Workspace |
+| 幕                 | 内容                                                           | 交互与可信性要求                                             |
+| ------------------ | -------------------------------------------------------------- | ------------------------------------------------------------ |
+| ACT 01 — SIGNAL    | 巨型裁切 ASCII / Dither 系外行星、中文主标、核心价值与快速入口 | 标题、说明和 CTA 必须存在于静态 DOM；WebGL 不是 LCP 前置条件 |
+| ACT 02 — QUESTION  | 自然语言研究意图重组为可编辑 ResearchContractDraft             | 用户能暂停、编辑、跳过；不在确认 Contract 前启动 Live Run    |
+| ACT 03 — EVIDENCE  | Dataset、Paper、Claim、Evidence、Relation 逐层显现             | 视觉只解释结构，不虚构科研数据或精度                         |
+| ACT 04 — WORKSPACE | 场景收束为真实工作台结构                                       | 允许继续 Demo Replay、切换 Live Run 或直接进入 Workspace     |
 
 默认路径读取确定性 Fixture；选择 Live Run 前必须解释外部依赖、等待、失败与缓存语义。移动端可使用静态 Poster 或低复杂度场景，但核心四幕内容不减少。
 
@@ -80,13 +80,13 @@
 
 推荐尺寸范围：
 
-| 区域 | 默认 | 可调整范围 |
-| --- | --- | --- |
-| Top Status Rail | 44px | 固定 |
-| Research Atlas | 276px | 224–360px |
-| Provenance Observatory | 360px | 300–480px |
-| Research Console | 76px 收起 | 76–280px |
-| Research Canvas | 自适应 | 最小 560px |
+| 区域                   | 默认      | 可调整范围 |
+| ---------------------- | --------- | ---------- |
+| Top Status Rail        | 44px      | 固定       |
+| Research Atlas         | 276px     | 224–360px  |
+| Provenance Observatory | 360px     | 300–480px  |
+| Research Console       | 76px 收起 | 76–280px   |
+| Research Canvas        | 自适应    | 最小 560px |
 
 空间不足时优先收起右栏，其次左栏；中央画布小于最低宽度时切换单焦点视图。
 
@@ -158,17 +158,17 @@ History
 
 字段名是目标领域契约，不使用仅供展示的同义词替代：
 
-| 字段 | 示例内容 |
-| --- | --- |
-| `research_goal` | 整合候选体与宿主恒星关键参数 |
-| `target_objects` | 系外行星候选体、宿主恒星 |
-| `data_requirements` | 单位、时间范围、缺失值和交叉匹配要求 |
-| `requested_fields` | 半径、质量、周期、恒星温度、金属丰度等 |
-| `source_scope` | 允许的开放天文数据库与补充来源 |
-| `paper_search_scope` | 关键词、年份、最大候选数、选择规则 |
-| `output_requirements` | CSV、字段字典、溯源报告、图谱 |
+| 字段                    | 示例内容                                      |
+| ----------------------- | --------------------------------------------- |
+| `research_goal`         | 整合候选体与宿主恒星关键参数                  |
+| `target_objects`        | 系外行星候选体、宿主恒星                      |
+| `data_requirements`     | 单位、时间范围、缺失值和交叉匹配要求          |
+| `requested_fields`      | 半径、质量、周期、恒星温度、金属丰度等        |
+| `source_scope`          | 允许的开放天文数据库与补充来源                |
+| `paper_search_scope`    | 关键词、年份、最大候选数、选择规则            |
+| `output_requirements`   | CSV、字段字典、溯源报告、图谱                 |
 | `evidence_requirements` | locator、quote/value、SourceSnapshot 和覆盖率 |
-| `quality_constraints` | 来源完整性、单位一致性、证据覆盖率 |
+| `quality_constraints`   | 来源完整性、单位一致性、证据覆盖率            |
 
 用户可以在 Draft 中逐项编辑、接受建议或恢复默认主案例。
 
@@ -211,14 +211,14 @@ History
 
 ### 7.3 推荐对照组合
 
-| 场景 | 面板组合 |
-| --- | --- |
-| 字段核验 | 数据表 + Evidence |
-| 论文筛选 | 候选论文 + 检索运行详情 |
-| 文献理解 | PaperSummary + 原文 Evidence |
+| 场景     | 面板组合                                     |
+| -------- | -------------------------------------------- |
+| 字段核验 | 数据表 + Evidence                            |
+| 论文筛选 | 候选论文 + 检索运行详情                      |
+| 文献理解 | PaperSummary + 原文 Evidence                 |
 | 推理审查 | Claim / Relation + ReasoningTrace + Evidence |
-| 图谱审查 | Graph + Relation / Trace + Evidence |
-| 反馈修正 | 当前版本 + 修订草案 + 影响范围 |
+| 图谱审查 | Graph + Relation / Trace + Evidence          |
+| 反馈修正 | 当前版本 + 修订草案 + 影响范围               |
 
 ## 8. Provenance Observatory
 
@@ -407,10 +407,10 @@ AI 响应优先生成：
 
 ### 11.3 Demo Replay 与 Live Run
 
-| 模式 | 行为 |
-| --- | --- |
+| 模式        | 行为                                       |
+| ----------- | ------------------------------------------ |
 | Demo Replay | 确定性数据、稳定时序、可重复录制、明确标识 |
-| Live Run | 调用真实 API，允许等待、失败、缓存和重试 |
+| Live Run    | 调用真实 API，允许等待、失败、缓存和重试   |
 
 两者共享相同领域模型与 UI 组件，不维护两套页面。
 
@@ -453,16 +453,16 @@ ASCII 动效只辅助状态表达，不替代文字和进度。
 
 推荐快捷键：
 
-| 操作 | 快捷键 |
-| --- | --- |
-| Command Palette | `Ctrl/Cmd + K` |
-| Research Console | `Ctrl/Cmd + J` |
-| 新建项目 | `Ctrl/Cmd + Shift + N` |
-| 打开 Evidence | `E`（焦点对象可用时） |
-| 切换左栏 | `Ctrl/Cmd + B` |
-| 切换右栏 | `Ctrl/Cmd + Shift + B` |
-| 聚焦面板 1–3 | `Alt + 1/2/3` |
-| 退出弹层 / Guided Step | `Esc` |
+| 操作                   | 快捷键                 |
+| ---------------------- | ---------------------- |
+| Command Palette        | `Ctrl/Cmd + K`         |
+| Research Console       | `Ctrl/Cmd + J`         |
+| 新建项目               | `Ctrl/Cmd + Shift + N` |
+| 打开 Evidence          | `E`（焦点对象可用时）  |
+| 切换左栏               | `Ctrl/Cmd + B`         |
+| 切换右栏               | `Ctrl/Cmd + Shift + B` |
+| 聚焦面板 1–3           | `Alt + 1/2/3`          |
+| 退出弹层 / Guided Step | `Esc`                  |
 
 快捷键不得阻断浏览器和辅助技术的基础操作。
 

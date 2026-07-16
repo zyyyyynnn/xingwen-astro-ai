@@ -23,6 +23,7 @@ feat/c-field-dictionary
 feat/d-evidence-graph
 docs/design-baseline
 fix/api-task-status
+refactor/frontend-package-boundary
 ```
 
 规则：
@@ -30,6 +31,7 @@ fix/api-task-status
 - `feat/`：功能或模块任务。
 - `fix/`：缺陷修复。
 - `docs/`：文档调整。
+- `refactor/`：不改变产品行为的架构或运行时调整；破坏性变更必须在 PR 标题与正文标明。
 - 分支名优先体现岗位或模块，不使用无意义临时名。
 
 ## 3. Commit 格式
@@ -68,21 +70,21 @@ Issue 至少包含：
 
 每个 Issue 必须打上以下三类标签：
 
-| 类别 | 可选值 | 说明 |
-| --- | --- | --- |
-| area | `area:frontend`、`area:backend`、`area:data`、`area:pipeline`、`area:graph`、`area:infra` | 工作领域 |
-| priority | `priority:p0`、`priority:p1`、`priority:p2` | 优先级 |
-| type | `type:task`、`type:docs`、`type:feature`、`bug`、`enhancement` | 任务类型 |
+| 类别     | 可选值                                                                                    | 说明     |
+| -------- | ----------------------------------------------------------------------------------------- | -------- |
+| area     | `area:frontend`、`area:backend`、`area:data`、`area:pipeline`、`area:graph`、`area:infra` | 工作领域 |
+| priority | `priority:p0`、`priority:p1`、`priority:p2`                                               | 优先级   |
+| type     | `type:task`、`type:docs`、`type:feature`、`bug`、`enhancement`                            | 任务类型 |
 
 ### Milestone 规范
 
 Milestone 与 Priority 严格 1:1 对应：
 
-| Priority | Milestone | 内容 |
-| --- | --- | --- |
-| P0 | M1 开发基线 | 骨架、Docker、CI、Fixture / Demo Replay 闭环 |
-| P1 | M2 核心功能 | 数据/论文/文献/推理/图谱主链路 |
-| P2 | M3 反馈与交付 | 缓存兜底、反馈修正、公网部署、材料交接 |
+| Priority | Milestone     | 内容                                         |
+| -------- | ------------- | -------------------------------------------- |
+| P0       | M1 开发基线   | 骨架、Docker、CI、Fixture / Demo Replay 闭环 |
+| P1       | M2 核心功能   | 数据/论文/文献/推理/图谱主链路               |
+| P2       | M3 反馈与交付 | 缓存兜底、反馈修正、公网部署、材料交接       |
 
 创建 Issue 时根据 Priority 自动归入对应 Milestone，不使用 `milestone:*` 标签。
 
@@ -119,3 +121,5 @@ PR 同时满足以下条件才可合并：
 - 不引入密钥泄露风险。
 - 不扩大 MVP 承诺。
 - Review 通过且分支可合并。
+
+涉及当前前端 workspace 时，至少运行根 `pnpm check`；涉及浏览器入口时再运行 `pnpm test:e2e`；涉及 Compose 时运行 `docker compose config` 和相应 smoke。

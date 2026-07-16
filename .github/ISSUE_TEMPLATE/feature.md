@@ -25,9 +25,19 @@ labels: ["type:feature"]
 
 不做什么。
 
+## 状态口径
+
+- Current：
+- 本 Issue 完成后 Implemented：
+- 仍为 Pending：
+
 ## 影响范围
 
 前端 / 后端 / 数据 / 文献 / 图谱 / 文档。
+
+## 验证命令与证据
+
+-
 
 ---
 

@@ -16,9 +16,19 @@ labels: ["type:task"]
 
 - [ ] 验收项 1
 
+## 状态边界
+
+- Current：
+- 本 Issue 完成后 Implemented：
+- 仍为 Pending：
+
 ## 影响范围
 
 前端 / 后端 / 数据 / 文献 / 图谱 / 文档。
+
+## 验证命令
+
+-
 
 ---
 

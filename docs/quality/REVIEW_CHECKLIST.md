@@ -1,22 +1,22 @@
 # Review Checklist
 
-本清单用于 PR、自测和作品交付前检查。Current runtime 为旧前端 / v1；目标前端 / v2 是 Accepted for implementation / Pending，只有对应代码、测试与运行证据存在后才能勾选目标项。完整技术栈以 [FRONTEND_ARCHITECTURE.md](../architecture/FRONTEND_ARCHITECTURE.md) 为准。
+本清单用于 PR、自测和作品交付前检查。A-01 Astro/React runtime 与 `/api/v1` 是 Current；A-02、A-03 与 `/api/v2` 是 Pending，只有对应代码、测试与运行证据存在后才能勾选。完整技术栈以 [FRONTEND_ARCHITECTURE.md](../architecture/FRONTEND_ARCHITECTURE.md) 为准。
 
 ## 1. PR 合并前
 
-| 检查项 | 必须满足 |
-| --- | --- |
-| 范围 | PR 对应明确 Issue，不混入无关重构 |
-| 当前/目标 | 文档和 PR 明确 Current、Target、Pending，不宣传未实现架构 |
-| 验证 | PR 列出命令、结果和未执行原因 |
-| 契约 | API、Data、Workflow、Version、UI 或安全变化同步对应文档 |
-| 安全 | 无 `.env`、Key、Token、连接串、论文凭据、session/share token 或敏感日志 |
-| 包管理 | 只有 pnpm / uv；无额外 lockfile，frozen/locked 检查通过 |
+| 检查项   | 必须满足                                                                      |
+| -------- | ----------------------------------------------------------------------------- |
+| 范围     | PR 对应明确 Issue，不混入无关重构                                             |
+| 实施状态 | 文档和 PR 明确 Current、Implemented、Pending，不宣传未实现能力                |
+| 验证     | PR 列出命令、结果和未执行原因                                                 |
+| 契约     | API、Data、Workflow、Version、UI 或安全变化同步对应文档                       |
+| 安全     | 无 `.env`、Key、Token、连接串、论文凭据、session/share token 或敏感日志       |
+| 包管理   | 只有 pnpm / uv；无额外 lockfile，frozen/locked 检查通过                       |
 | 科研可信 | Fixture、Live、Cached 来源与派生修订准确；Summary/Relation/GraphEdge 证据完整 |
-| 口径 | 主案例范围清楚，不宣传任意方向、任意 PDF 或无证据发现 |
-| CI | 适用 build、test、contract、architecture、a11y、visual、Compose 卡口通过 |
+| 口径     | 主案例范围清楚，不宣传任意方向、任意 PDF 或无证据发现                         |
+| CI       | 适用 build、test、contract、architecture、a11y、visual、Compose 卡口通过      |
 
-## 2. 目标前端架构
+## 2. 前端架构
 
 - `apps/site` 只承载静态品牌站和按需 Island，不持有完整 Workspace 状态。
 - `apps/workspace` 承载 Guided Tour 与 Workspace，不直连外部来源或模型。
@@ -24,7 +24,7 @@
 - `packages/ui` 和 `packages/visual-engine` 不调用 Repository / fetch。
 - `packages/data-access` 经 contracts 校验 DTO，再映射 Domain。
 - Feature 不跨包深层导入，不维护第二套路由、server state 或 UI framework。
-- 旧 `apps/web` 迁移期只做阻塞性修复，不与 React 双写业务。
+- A-01 只包含最小入口与工程边界；A-02/A-03 能力不得提前写成 Implemented。
 - `apps/desktop` 未经独立 Issue 不创建；Tauri API 只通过 Platform Adapter。
 
 ## 3. Brand Site 与 Guided Tour
@@ -112,10 +112,10 @@
 
 ## 11. 当前 Docker、后端与 CI
 
-- 未进入迁移 Issue 时，`docker compose config` 和当前 `web/api/postgres` 命令保持有效。
-- 当前 web 使用 Node 24 / pnpm，api 使用 Python 3.13 / uv，postgres 使用 17。
+- `docker compose config` 和当前 `site/workspace/api/postgres` 四服务命令保持有效。
+- Site/Workspace 使用 Node 24.18.0 / pnpm 11.13.1，api 使用 Python 3.13 / uv，postgres 使用 17。
 - `/api/v1/health`、当前后端测试和 foundation check 通过。
-- 目标前端建立后，CI 增加 lint、typecheck、test、build、E2E smoke、visual smoke、architecture/token checks。
+- CI 执行 format、lint、typecheck、unit、build、E2E、architecture、runtime-retirement、backend 与 Compose checks；A-02 再增加 visual/token checks。
 - 不引入无 ADR 的 Redis、Celery、MinIO、Nginx、RabbitMQ、Neo4j 或向量数据库。
 
 ## 12. 作品提交前

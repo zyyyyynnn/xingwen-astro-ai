@@ -16,38 +16,38 @@ MVP 部署目标是提供稳定公网 Demo，而不是生产级大规模服务�
 
 ## 2. 技术与镜像基线
 
-| 层级 | 固定口径 |
-| --- | --- |
-| 前端容器 | `node:24-alpine` |
-| 前端包管理 | pnpm 10.x，`pnpm-lock.yaml` 必须提交 |
-| 前端构建 | Vue 3 + TypeScript + Vite + shadcn-vue + Tailwind CSS 4 |
-| 后端容器 | `python:3.13-slim` |
-| 后端依赖 | uv + `pyproject.toml` + `uv.lock` |
-| 数据库容器 | `postgres:17-alpine` |
-| 本地编排 | Docker Compose：`web`、`api`、`postgres` |
+| 层级       | 固定口径                                               |
+| ---------- | ------------------------------------------------------ |
+| 前端容器   | `node:24.18.0-bookworm-slim`                           |
+| 前端包管理 | pnpm 11.13.1，仓库只提交根 `pnpm-lock.yaml`            |
+| 前端构建   | Astro 7 + React 19.2 + Vite 8.1 + Tailwind CSS 4.3     |
+| 后端容器   | `python:3.13-slim`                                     |
+| 后端依赖   | uv + `pyproject.toml` + `uv.lock`                      |
+| 数据库容器 | `postgres:17-alpine`                                   |
+| 本地编排   | Docker Compose：`site`、`workspace`、`api`、`postgres` |
 
 M1 暂不引入 Redis、Celery、MinIO、Nginx、RabbitMQ。任务链路先由 FastAPI、PostgreSQL 状态机和 BackgroundTasks 支撑。
 
 ## 3. 推荐部署方案
 
-| 模块 | 推荐 | 说明 |
-| --- | --- | --- |
-| 前端 | Vercel / Netlify / 阿里云静态托管 | Vue 静态资源独立部署，浏览器 API URL 指向公网后端 |
-| 后端 | Render / Railway / 阿里云 ECS / 容器服务 | FastAPI 独立部署，隔离密钥和论文源访问 |
-| 数据库 | Supabase Postgres / Neon / 阿里云 RDS | 公网 Demo 优先托管 Postgres；本地使用 Compose |
-| 文件导出 | 后端临时文件或对象存储 | MVP 先保证 CSV/JSON/报告可下载 |
+| 模块     | 推荐                                     | 说明                                                                |
+| -------- | ---------------------------------------- | ------------------------------------------------------------------- |
+| 前端     | Vercel / Netlify / 阿里云静态托管        | Site 与 Workspace 分别构建；Workspace 的浏览器 API URL 指向公网后端 |
+| 后端     | Render / Railway / 阿里云 ECS / 容器服务 | FastAPI 独立部署，隔离密钥和论文源访问                              |
+| 数据库   | Supabase Postgres / Neon / 阿里云 RDS    | 公网 Demo 优先托管 Postgres；本地使用 Compose                       |
+| 文件导出 | 后端临时文件或对象存储                   | MVP 先保证 CSV/JSON/报告可下载                                      |
 
 本地 Compose 中 `api` 是容器服务名，只供容器间通信。`VITE_API_BASE_URL` 在浏览器运行，必须使用 `localhost`、宿主机地址或公网后端域名。
 
-Web 服务只接收明确列出的 `VITE_*` 非敏感变量，不通过 `env_file` 注入后端数据库、模型或论文源凭据。
+前端服务只接收明确列出的 `PUBLIC_*` / `VITE_*` 非敏感变量，不通过 `env_file` 注入后端数据库、模型或论文源凭据。
 
 ## 4. 环境划分
 
-| 环境 | 用途 | GitHub Environment |
-| --- | --- | --- |
-| local | 本地 Docker Compose 开发 | 不使用 GitHub Secrets |
-| preview | PR 或测试部署 | `preview` |
-| production | 正式公网 Demo | `production` |
+| 环境       | 用途                     | GitHub Environment    |
+| ---------- | ------------------------ | --------------------- |
+| local      | 本地 Docker Compose 开发 | 不使用 GitHub Secrets |
+| preview    | PR 或测试部署            | `preview`             |
+| production | 正式公网 Demo            | `production`          |
 
 ## 5. 环境变量
 
@@ -69,9 +69,11 @@ APP_ENV
 DEBUG
 DEMO_CASE_KEY
 CORS_ORIGINS
-WEB_PORT
+SITE_PORT
+WORKSPACE_PORT
 API_PORT
 POSTGRES_PORT
+PUBLIC_WORKSPACE_URL
 VITE_API_BASE_URL
 POSTGRES_DB
 POSTGRES_USER
@@ -94,6 +96,7 @@ CACHE_TTL_SECONDS
 - 使用托管 PostgreSQL 时可只使用平台提供的 `DATABASE_URL`，无需重复配置 `POSTGRES_PASSWORD`
 - `DASHSCOPE_API_KEY` 不得为空或使用模板占位值
 - `CORS_ORIGINS` 只包含实际前端域名，不使用 `*`
+- `PUBLIC_WORKSPACE_URL` 指向可访问的 Workspace HTTPS 地址
 - `VITE_API_BASE_URL` 指向浏览器可访问的 HTTPS API
 
 ## 6. 健康与启动顺序
@@ -102,7 +105,8 @@ CACHE_TTL_SECONDS
 
 1. PostgreSQL 通过 `pg_isready`。
 2. API 启动并通过 `/api/v1/health`。
-3. Web 在 API 健康后启动。
+3. Workspace 在 API 健康后启动并通过入口 healthcheck。
+4. Site 独立启动并通过静态入口 healthcheck。
 
 公网部署至少配置：
 
@@ -114,21 +118,21 @@ CACHE_TTL_SECONDS
 
 ## 7. 部署验收
 
-| 检查项 | 标准 |
-| --- | --- |
-| 首页 | 可打开，无控制台严重报错 |
-| API | `/api/v1/health` 可访问 |
-| CORS | 正式前端域名可请求，其他来源被拒绝 |
-| 任务 | 固定主案例可创建并查询状态 |
-| 数据 | 可展示数据表、来源、质量与版本信息 |
-| 论文获取 | 可展示检索参数、候选论文、去重和排序 |
-| 文献总结 | 可展示 PaperSummary 与 Evidence |
-| 跨文献推理 | 可展示 Claim、Relation、ReasoningTrace |
-| 图谱 | 可展示证据图谱和推理链详情 |
-| 导出 | CSV、数据字典、溯源报告、论文与推理 JSON 可下载 |
-| 缓存 | 外部失败时展示真实缓存，并标注来源与版本 |
-| 安全 | 源码、日志、截图、构建产物不暴露密钥 |
-| 配置 | 生产安全校验通过，默认数据库凭据无法启动 |
+| 检查项     | 标准                                                 |
+| ---------- | ---------------------------------------------------- |
+| A-01 入口  | Site、Workspace 与共享深链接可打开，无控制台严重报错 |
+| API        | `/api/v1/health` 可访问                              |
+| CORS       | 正式前端域名可请求，其他来源被拒绝                   |
+| 任务       | 固定主案例可创建并查询状态                           |
+| 数据       | 可展示数据表、来源、质量与版本信息                   |
+| 论文获取   | 可展示检索参数、候选论文、去重和排序                 |
+| 文献总结   | 可展示 PaperSummary 与 Evidence                      |
+| 跨文献推理 | 可展示 Claim、Relation、ReasoningTrace               |
+| 图谱       | 可展示证据图谱和推理链详情                           |
+| 导出       | CSV、数据字典、溯源报告、论文与推理 JSON 可下载      |
+| 缓存       | 外部失败时展示真实缓存，并标注来源与版本             |
+| 安全       | 源码、日志、截图、构建产物不暴露密钥                 |
+| 配置       | 生产安全校验通过，默认数据库凭据无法启动             |
 
 ## 8. CI 预检
 
@@ -137,7 +141,8 @@ CACHE_TTL_SECONDS
 ```text
 python scripts/check_foundation.py
 pnpm install --frozen-lockfile
-pnpm build
+pnpm format:check / lint / typecheck / test / build
+pnpm check:architecture / check:legacy / test:e2e
 uv sync --frozen
 uv run pytest
 Pydantic Schema export

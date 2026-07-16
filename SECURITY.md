@@ -1,6 +1,6 @@
 # Security
 
-> 状态：本文同时约束当前 Vue + `/api/v1` 实现和待确认的 Astro + React + `/api/v2` 目标。目标能力在完成 A-01～A-03 与契约验证前不得写成已实现。
+> 状态：本文约束当前 Astro Brand Site、React Research Workspace 与 `/api/v1`；A-02、A-03 和 `/api/v2` 能力保持 Pending，直到对应安全与契约验证通过。
 
 ## 1. 密钥管理
 
@@ -9,8 +9,8 @@
 - 不允许提交 `.env`、数据库密码、Token、私钥。
 - 不允许在前端代码、构建产物、截图、日志、文档中出现密钥。
 - `.env.example` 只能使用占位值；其中的 `postgres` / `replace_me` 仅限本地模板。
-- `VITE_`（当前）和 `PUBLIC_`（目标 Astro）变量会进入浏览器，只允许非敏感 URL、开关和展示配置。
-- Web 容器不得通过 `env_file` 或等价方式接收后端 Secrets；Compose 变量插值不等于向容器注入全部环境变量。
+- `VITE_` 和 `PUBLIC_` 变量会进入浏览器，只允许非敏感 URL、开关和展示配置。
+- Site 与 Workspace 容器不得通过 `env_file` 或等价方式接收后端 Secrets；Compose 变量插值不等于向容器注入全部环境变量。
 
 ## 2. 生产启动防线
 

@@ -35,6 +35,7 @@ test-results/
 Thumbs.db
 
 # Project outputs
+.artifacts/
 samples/outputs/*
 !samples/outputs/.gitkeep
 exports/
