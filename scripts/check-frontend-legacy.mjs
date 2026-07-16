@@ -1,36 +1,25 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import process from "node:process";
 
+import {
+  findRetiredLockfileDependencies,
+  findRetiredManifestDependencies,
+  findRetiredResolvedDependencies,
+  findRetiredTextTerms,
+  isRetiredPath,
+} from "./check-frontend-legacy-rules.mjs";
+
 const root = process.cwd();
-const frameworkName = String.fromCharCode(118, 117, 101);
-const retiredApp = ["apps", "web"].join("/");
-const retiredTerms = [
-  ["@vitejs", `plugin-${frameworkName}`].join("/"),
-  `${frameworkName}-tsc`,
-  `shadcn-${frameworkName}`,
-  `reka-${"ui"}`,
-  `lucide-${frameworkName}-next`,
-  `@${frameworkName}use/`,
-  `@${frameworkName}-flow/`,
-  `${frameworkName}-router`,
-  `pi${"nia"}`,
-  retiredApp,
-  String.fromCharCode(26087, 21069, 31471),
-  String.fromCharCode(36801, 31227, 28304),
-  String.fromCharCode(22238, 36864, 21069, 31471),
-  ["WEB", "PORT"].join("_"),
-];
-const forbiddenLockNames = [
+const forbiddenLockNames = new Set([
   "package-lock.json",
   "yarn.lock",
   "bun.lock",
   "bun.lockb",
-];
+]);
 const textFilePattern =
   /(?:^|\/)(?:[^/]+\.(?:astro|css|html|js|json|jsx|md|mjs|toml|ts|tsx|txt|yaml|yml)|Dockerfile)$/u;
-
 const files = execFileSync("git", ["ls-files", "-co", "--exclude-standard"], {
   cwd: root,
   encoding: "utf8",
@@ -38,31 +27,71 @@ const files = execFileSync("git", ["ls-files", "-co", "--exclude-standard"], {
   .split(/\r?\n/u)
   .filter(Boolean)
   .map((file) => file.replaceAll("\\", "/"));
-
 const failures = [];
 
 for (const file of files) {
-  if (file === retiredApp || file.startsWith(`${retiredApp}/`)) {
-    failures.push(`${file}: retired application path remains.`);
+  if (isRetiredPath(file)) {
+    failures.push(`${file}: retired application path or component remains.`);
   }
-  if (file.endsWith(`.${frameworkName}`)) {
-    failures.push(`${file}: retired component extension remains.`);
-  }
-  if (forbiddenLockNames.some((name) => file.endsWith(name))) {
+  if (forbiddenLockNames.has(basename(file))) {
     failures.push(`${file}: unsupported dependency lock remains.`);
+  }
+
+  const path = resolve(root, file);
+  if (basename(file) === "package.json") {
+    const manifest = JSON.parse(readFileSync(path, "utf8"));
+    for (const dependency of findRetiredManifestDependencies(manifest)) {
+      failures.push(`${file}: retired dependency ${dependency}.`);
+    }
+    continue;
+  }
+  if (file === "pnpm-lock.yaml") {
+    for (const dependency of findRetiredLockfileDependencies(
+      readFileSync(path, "utf8"),
+    )) {
+      failures.push(`${file}: retired resolved dependency ${dependency}.`);
+    }
+    continue;
   }
   if (!textFilePattern.test(file)) {
     continue;
   }
 
-  const content = readFileSync(resolve(root, file), "utf8");
-  for (const term of retiredTerms) {
-    if (content.includes(term)) {
-      failures.push(
-        `${file}: contains retired runtime term ${JSON.stringify(term)}.`,
-      );
-    }
+  for (const term of findRetiredTextTerms(readFileSync(path, "utf8"))) {
+    failures.push(
+      `${file}: contains retired runtime term ${JSON.stringify(term)}.`,
+    );
   }
+}
+
+try {
+  const executable = process.platform === "win32" ? "pwsh" : "pnpm";
+  const args =
+    process.platform === "win32"
+      ? [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          "pnpm list -r --json --depth Infinity",
+        ]
+      : ["list", "-r", "--json", "--depth", "Infinity"];
+  const tree = JSON.parse(
+    execFileSync(executable, args, {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
+    }),
+  );
+  for (const dependency of findRetiredResolvedDependencies(tree)) {
+    failures.push(
+      `resolved dependency tree: retired dependency ${dependency}.`,
+    );
+  }
+} catch (error) {
+  failures.push(
+    `could not inspect the resolved dependency tree: ${error.message}`,
+  );
 }
 
 if (failures.length > 0) {

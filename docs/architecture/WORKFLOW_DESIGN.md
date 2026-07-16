@@ -2,7 +2,8 @@
 
 | 项目状态 | 口径 |
 | --- | --- |
-| Status | Accepted for implementation |
+| Status | Accepted |
+| Authority | Run 状态、事件、取消、重试、缓存与派生语义 |
 | Implementation | Pending for v2 |
 | Current runtime | `apps/api/src/app/workflow` 的 v1 Phase 0 状态机骨架 |
 | Target runtime | Project / Run / ArtifactVersion 工作流 |

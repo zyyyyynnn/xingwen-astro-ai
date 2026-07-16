@@ -75,6 +75,7 @@ pnpm dev
 
 ```powershell
 pnpm format:check
+pnpm check:docs
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -114,7 +115,7 @@ PR CI 执行：
 python scripts/check_foundation.py
 docker compose config
 pnpm install --frozen-lockfile
-pnpm format:check / lint / typecheck / test / build
+pnpm format:check / check:docs / lint / typecheck / test / build
 pnpm check:architecture / check:legacy / test:e2e
 uv sync --frozen / pytest / Pydantic JSON Schema export
 ```

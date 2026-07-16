@@ -20,7 +20,9 @@ function RootLayout() {
       <header className="workspace-header">
         <ProductIdentity />
         <nav aria-label="主要导航">
-          <Link to="/">入口</Link>
+          <Link to="/" activeOptions={{ exact: true }}>
+            入口
+          </Link>
           <Link to="/tour">引导</Link>
           <Link to="/workspace">工作区</Link>
         </nav>

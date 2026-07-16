@@ -90,6 +90,9 @@ jobs:
       - name: Check formatting
         run: pnpm format:check
 
+      - name: Check documentation governance
+        run: pnpm check:docs
+
       - name: Lint frontend workspace
         run: pnpm lint
 

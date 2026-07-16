@@ -2,7 +2,7 @@
 
 | 元数据    | 值                         |
 | --------- | -------------------------- |
-| Status    | Implemented package guide  |
+| Status    | Implemented                |
 | Authority | 当前 Schema 导出与消费边界 |
 
 本目录记录当前 Pydantic Schema 的导出与消费规则。生成结果是本地或 CI Artifact，默认不提交。HTTP 资源和传输语义见 [API Contract](../../docs/architecture/API_CONTRACT.md)，领域实体见 [Data Model](../../docs/architecture/DATA_MODEL.md)。

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -17,10 +18,14 @@ REQUIRED_FILES = (
     "PRD.md",
     "docker-compose.yml",
     ".env.example",
+    ".gitattributes",
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
     "turbo.json",
+    "scripts/check-docs.mjs",
+    "scripts/check-docs-rules.mjs",
+    "scripts/check-docs.test.mjs",
     "apps/site/package.json",
     "apps/workspace/package.json",
     "apps/api/pyproject.toml",
@@ -67,16 +72,27 @@ REQUIRED_ENV_KEYS = {
 FRAMEWORK_NAME = "".join(chr(code) for code in (118, 117, 101))
 RETIRED_APP = "apps" + "/web"
 RETIRED_PACKAGES = {
+    FRAMEWORK_NAME,
+    FRAMEWORK_NAME + "-demi",
     "@vitejs/" + "plugin-" + FRAMEWORK_NAME,
     FRAMEWORK_NAME + "-tsc",
     "shadcn-" + FRAMEWORK_NAME,
     "reka-" + "ui",
     "lucide-" + FRAMEWORK_NAME + "-next",
-    "@" + FRAMEWORK_NAME + "use/",
-    "@" + FRAMEWORK_NAME + "-flow/",
     FRAMEWORK_NAME + "-router",
     "pi" + "nia",
 }
+RETIRED_PACKAGE_PREFIXES = (
+    "@" + FRAMEWORK_NAME + "/",
+    "@" + FRAMEWORK_NAME + "use/",
+    "@" + FRAMEWORK_NAME + "-flow/",
+)
+DEPENDENCY_FIELDS = (
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+    "optionalDependencies",
+)
 
 
 def tracked_files() -> list[str]:
@@ -100,6 +116,34 @@ def parse_env_keys(path: Path) -> set[str]:
     return keys
 
 
+def is_retired_package(name: str) -> bool:
+    normalized = name.lower()
+    return normalized in RETIRED_PACKAGES or normalized.startswith(
+        RETIRED_PACKAGE_PREFIXES
+    )
+
+
+def lockfile_package_names(content: str) -> set[str]:
+    names: set[str] = set()
+    in_resolution_section = False
+    for line in content.splitlines():
+        top_level = re.fullmatch(r"([a-z][a-zA-Z]*):\s*", line)
+        if top_level:
+            in_resolution_section = top_level.group(1) in {"packages", "snapshots"}
+            continue
+        if not in_resolution_section:
+            continue
+        entry = re.fullmatch(r"  (.+):\s*", line)
+        if not entry:
+            continue
+        key = entry.group(1).strip("'\"").lstrip("/")
+        separator = (
+            key.find("@", key.find("/") + 1) if key.startswith("@") else key.find("@")
+        )
+        names.add(key[:separator] if separator > 0 else key)
+    return names
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -120,13 +164,25 @@ def main() -> int:
             lockfiles.append(normalized)
         if normalized == RETIRED_APP or normalized.startswith(RETIRED_APP + "/"):
             errors.append(f"retired frontend path: {normalized}")
-        if path.suffix == "." + FRAMEWORK_NAME:
+        if path.suffix.lower() == "." + FRAMEWORK_NAME:
             errors.append(f"retired component file: {normalized}")
 
         if path.name == "package.json":
-            content = (ROOT / normalized).read_text(encoding="utf-8")
-            for package_name in RETIRED_PACKAGES:
-                if package_name in content:
+            manifest = json.loads((ROOT / normalized).read_text(encoding="utf-8"))
+            for field in DEPENDENCY_FIELDS:
+                dependencies = manifest.get(field, {})
+                for package_name in dependencies:
+                    if is_retired_package(package_name):
+                        errors.append(
+                            f"retired frontend dependency in {normalized} "
+                            f"({field}): {package_name}"
+                        )
+
+        if normalized == "pnpm-lock.yaml":
+            for package_name in lockfile_package_names(
+                (ROOT / normalized).read_text(encoding="utf-8")
+            ):
+                if is_retired_package(package_name):
                     errors.append(
                         f"retired frontend dependency in {normalized}: {package_name}"
                     )

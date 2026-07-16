@@ -161,12 +161,13 @@ pnpm typecheck
 pnpm test
 pnpm test:e2e
 pnpm format:check
+pnpm check:docs
 pnpm check:architecture
 pnpm check:legacy
 pnpm check
 ```
 
-Turborepo 调度 `build`、`dev`、`lint`、`typecheck` 与 `test`。`pnpm check` 顺序聚合 format、lint、typecheck、unit、build、architecture 和 runtime-retirement gate；E2E 独立运行以便先安装浏览器。
+Turborepo 调度 `build`、`dev`、`lint`、`typecheck` 与 `test`。`pnpm check` 顺序聚合 format、documentation、lint、typecheck、unit、build、architecture 和 runtime-retirement gate；E2E 独立运行以便先安装浏览器。
 
 pnpm 11 配置位于 `pnpm-workspace.yaml`：
 

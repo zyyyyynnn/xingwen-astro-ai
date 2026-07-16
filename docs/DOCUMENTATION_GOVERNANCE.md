@@ -163,10 +163,8 @@
 
 - `git diff --check`；
 - `python scripts/check_foundation.py`；
-- Markdown 标题、代码块、表格和相对链接检查；
-- Mermaid 语法检查（存在 Mermaid 变更时）；
+- `pnpm check:docs`，自动检查 Markdown 标题、代码块、表格、相对链接、索引覆盖、Mermaid 语法、关键元数据和重复 Authority；
 - 术语扫描：Current / Target / Pending、Fixture / Live / Cached、Run / ArtifactVersion；
-- 索引覆盖检查：新增、移动或删除文档已同步 `docs/README.md`；
-- 唯一事实源检查：没有新增大段重复正文。
+- 人工唯一事实源检查：没有新增语义冲突或大段重复正文。
 
 具体 PR 审查项见 [Review Checklist](quality/REVIEW_CHECKLIST.md)。

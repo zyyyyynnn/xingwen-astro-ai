@@ -6,8 +6,8 @@
 }
 
 html {
-  background: var(--xw-color-canvas);
-  color: var(--xw-color-text);
+  background: var(--color-canvas);
+  color: var(--color-ink-primary);
   font-family: var(--xw-font-sans);
 }
 
@@ -34,7 +34,7 @@ a {
 }
 
 .site-header {
-  border-bottom: 1px solid var(--xw-color-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .site-main {
@@ -51,7 +51,7 @@ a {
 
 .eyebrow {
   margin: 0 0 1rem;
-  color: var(--xw-color-muted);
+  color: var(--color-ink-secondary);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -71,7 +71,7 @@ h1 {
 .lede {
   max-width: 42rem;
   margin: 2rem 0 0;
-  color: var(--xw-color-muted);
+  color: var(--color-ink-secondary);
   font-size: clamp(1.05rem, 2vw, 1.3rem);
   line-height: 1.75;
 }
@@ -87,12 +87,12 @@ h1 {
 }
 
 .primary-link:focus-visible {
-  outline: 3px solid var(--xw-color-focus);
+  outline: 3px solid var(--color-focus);
   outline-offset: 4px;
 }
 
 .site-footer {
-  color: var(--xw-color-muted);
+  color: var(--color-ink-secondary);
   font-size: 0.875rem;
 }
 
