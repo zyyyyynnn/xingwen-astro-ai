@@ -63,27 +63,53 @@ jobs:
           --output ../../.artifacts/schemas
 
   frontend:
-    name: Frontend build
+    name: Frontend quality and entrypoint smoke
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.33.2
+          version: 11.13.1
           run_install: false
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "24.18.0"
           cache: pnpm
-          cache-dependency-path: apps/web/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Enable pinned package manager
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.13.1 --activate
 
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build frontend
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint frontend workspace
+        run: pnpm lint
+
+      - name: Typecheck apps and shared packages
+        run: pnpm typecheck
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Build site and workspace
         run: pnpm build
+
+      - name: Check package architecture
+        run: pnpm check:architecture
+
+      - name: Check retired runtime removal
+        run: pnpm check:legacy
+
+      - name: Install browser runtime
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run frontend entrypoint smoke
+        run: pnpm test:e2e
