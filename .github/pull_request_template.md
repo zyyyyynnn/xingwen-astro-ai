@@ -1,26 +1,49 @@
-## 变更内容
+## Summary
 
--
+- 
 
-## 关联 Issue
+## Related Issue
 
 Closes #
 
-## 验证方式
+## Included scope
 
--
+- 
 
-## 是否影响接口
+## Non-goals
 
-- [ ] 否
-- [ ] 是，已更新 `docs/architecture/API_CONTRACT.md`
+- 
 
-## 是否影响数据结构
+## Validation
 
-- [ ] 否
-- [ ] 是，已更新 `docs/architecture/DATA_MODEL.md`
+| Check | Result |
+| --- | --- |
+|  |  |
 
-## 截图 / 输出
+未执行项及原因：
 
--
+## Impact review
 
+- [ ] API / Data / Workflow / Version 已评估
+- [ ] Product / UI / accessibility 已评估
+- [ ] Environment / migration / deployment 已评估
+- [ ] Test data level and provenance 已说明
+- [ ] Documentation index 已同步（适用时）
+
+说明：
+
+## Evidence
+
+- 测试报告、截图、运行或复现路径：
+
+## Migration / rollback
+
+- 不适用，或说明步骤：
+
+## Final checklist
+
+- [ ] Diff 与描述一致
+- [ ] 适用 Review 和 CI 已通过
+- [ ] 不包含无关改动
+- [ ] Current / Target / Pending 无混淆
+- [ ] 未扩大产品承诺
