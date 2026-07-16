@@ -1,14 +1,12 @@
 # API Contract
 
-| 项目状态 | 口径 |
-| --- | --- |
-| Status | Accepted for implementation |
-| Implementation | Pending |
-| Current API | 已实现的 `/api/v1` Task / Fixture-backed 契约 |
-| Target API | `/api/v2` Project / Run / Artifact / Version 契约 |
-| Authoring source | 实施期由 FastAPI / Pydantic 生成 OpenAPI 3.1 与 JSON Schema |
+| 元数据         | 值                                                         |
+| -------------- | ---------------------------------------------------------- |
+| Status         | Accepted                                                   |
+| Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring     |
+| Implementation | `/api/v1` Current；`/api/v2` Project / Run 等契约 Pending |
 
-本文冻结目标 API，不表示 `/api/v2` 已实现。当前 `/api/v1` 在新工作台通过 Contract、Adapter 与 E2E 门禁前保持可用；不得原地修改 v1 响应来伪装 v2 完成。
+本文定义 Current 与 Pending API，不表示 `/api/v2` 已实现。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
 
 ## 1. 设计原则
 
@@ -36,19 +34,19 @@ flowchart LR
   Share --> Version
 ```
 
-## 2. 版本与迁移
+## 2. 版本状态
 
-| 版本 | 状态 | 说明 |
-| --- | --- | --- |
-| `/api/v1` | Current runtime | 当前 Vue 骨架与后端 Contract；仅维护安全和阻塞性修复 |
-| `/api/v2` | Accepted, pending | Astro / React 工作台的目标契约 |
+| 版本      | 状态              | 说明                                                          |
+| --------- | ----------------- | ------------------------------------------------------------- |
+| `/api/v1` | Current           | 当前后端 Task Contract                                        |
+| `/api/v2` | Accepted, Pending | A-03 Workspace 的 Project / Run / Artifact / Version Contract |
 
-迁移规则：
+版本推进规则：
 
 1. v2 先以 Pydantic 模型和生成 OpenAPI 落地。
 2. `packages/contracts` 从 OpenAPI / JSON Schema 生成 Transport Type 与校验器。
-3. Fixture / HTTP Adapter 一致性测试通过后，新工作台接入 v2。
-4. 新工作台主流程、分享、安全和 E2E 通过前，不宣布 v1 deprecated。
+3. Fixture / HTTP Adapter 一致性测试通过后，A-03 Workspace 接入 v2。
+4. Workspace 主流程、分享、安全和 E2E 通过前，不宣布 v1 deprecated。
 5. 宣布弃用时使用 `Deprecation`、`Sunset` 和 successor `Link` 响应头；本 RFC 不冻结下线日期。
 
 ## 3. 会话、安全与授权
@@ -127,19 +125,19 @@ v2 错误使用 RFC 9457 Problem Details：
 }
 ```
 
-| HTTP | `code` | 场景 |
-| --- | --- | --- |
-| 400 | `INVALID_REQUEST` | 语法、cursor 或不支持参数 |
-| 401 | `SESSION_REQUIRED` | 会话缺失或过期 |
-| 403 | `ACTION_FORBIDDEN` / `CSRF_INVALID` | 已明确识别的当前主体无权执行该动作，或写请求 CSRF 校验失败 |
-| 404 | `PROJECT_NOT_FOUND` / `RUN_NOT_FOUND` / `ARTIFACT_NOT_FOUND` / `SHARE_NOT_FOUND` | 资源不存在，或私有资源不属于当前会话；不得泄露其存在性 |
-| 409 | `RUN_STATE_CONFLICT` / `VERSION_CONFLICT` / `IDEMPOTENCY_CONFLICT` | 状态、版本或幂等键冲突 |
-| 410 | `SHARE_EXPIRED` | 分享已过期或被撤销 |
-| 422 | `CONTRACT_INVALID` / `SCHEMA_VALIDATION_FAILED` | 业务或 Schema 校验失败 |
-| 429 | `RATE_LIMITED` / `QUOTA_EXCEEDED` | 请求频率或匿名配额超限 |
-| 502 | `UPSTREAM_INVALID_RESPONSE` | 外部来源返回不可校验内容 |
-| 503 | `UPSTREAM_UNAVAILABLE` | 外部来源暂不可用，可能存在真实缓存建议 |
-| 504 | `UPSTREAM_TIMEOUT` | 外部来源或模型超时 |
+| HTTP | `code`                                                                           | 场景                                                       |
+| ---- | -------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 400  | `INVALID_REQUEST`                                                                | 语法、cursor 或不支持参数                                  |
+| 401  | `SESSION_REQUIRED`                                                               | 会话缺失或过期                                             |
+| 403  | `ACTION_FORBIDDEN` / `CSRF_INVALID`                                              | 已明确识别的当前主体无权执行该动作，或写请求 CSRF 校验失败 |
+| 404  | `PROJECT_NOT_FOUND` / `RUN_NOT_FOUND` / `ARTIFACT_NOT_FOUND` / `SHARE_NOT_FOUND` | 资源不存在，或私有资源不属于当前会话；不得泄露其存在性     |
+| 409  | `RUN_STATE_CONFLICT` / `VERSION_CONFLICT` / `IDEMPOTENCY_CONFLICT`               | 状态、版本或幂等键冲突                                     |
+| 410  | `SHARE_EXPIRED`                                                                  | 分享已过期或被撤销                                         |
+| 422  | `CONTRACT_INVALID` / `SCHEMA_VALIDATION_FAILED`                                  | 业务或 Schema 校验失败                                     |
+| 429  | `RATE_LIMITED` / `QUOTA_EXCEEDED`                                                | 请求频率或匿名配额超限                                     |
+| 502  | `UPSTREAM_INVALID_RESPONSE`                                                      | 外部来源返回不可校验内容                                   |
+| 503  | `UPSTREAM_UNAVAILABLE`                                                           | 外部来源暂不可用，可能存在真实缓存建议                     |
+| 504  | `UPSTREAM_TIMEOUT`                                                               | 外部来源或模型超时                                         |
 
 公开错误不得包含密钥、数据库信息、堆栈、受限全文或模型原始长输出。
 
@@ -199,18 +197,22 @@ export
     "contract": {
       "research_goal": "整合系外行星候选体与宿主恒星关键参数",
       "target_objects": ["exoplanet_candidate", "host_star"],
-      "data_requirements": {"unit_policy": "canonical"},
+      "data_requirements": { "unit_policy": "canonical" },
       "requested_fields": ["pl_orbper", "pl_rade", "pl_bmass", "st_teff"],
-      "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
-      "paper_search_scope": {"year_from": 2015, "max_candidates": 20},
+      "source_scope": { "allowed_sources": ["nasa_exoplanet_archive"] },
+      "paper_search_scope": { "year_from": 2015, "max_candidates": 20 },
       "output_requirements": ["dataset", "field_dictionary", "graph"],
-      "evidence_requirements": {"require_locator": true},
-      "quality_constraints": {"source_completeness_min": 1.0}
+      "evidence_requirements": { "require_locator": true },
+      "quality_constraints": { "source_completeness_min": 1.0 }
     },
     "warnings": []
   },
-  "meta": {"request_id": "req_01J...", "schema_version": "2.0.0", "generated_at": "2026-07-16T08:00:00Z"},
-  "links": {"self": "/api/v2/research-contract-drafts/rcd_01J..."}
+  "meta": {
+    "request_id": "req_01J...",
+    "schema_version": "2.0.0",
+    "generated_at": "2026-07-16T08:00:00Z"
+  },
+  "links": { "self": "/api/v2/research-contract-drafts/rcd_01J..." }
 }
 ```
 
@@ -220,14 +222,14 @@ export
 
 ## 8. Project 与不可变 Contract
 
-| Method | Path | 说明 |
-| --- | --- | --- |
-| `GET` | `/api/v2/projects?cursor=&limit=` | 当前会话的 Project 列表 |
-| `POST` | `/api/v2/projects` | 创建临时 ResearchProject |
-| `GET` | `/api/v2/projects/{project_id}` | Project 聚合：当前 Contract、Run 摘要、Artifact 摘要 |
-| `PATCH` | `/api/v2/projects/{project_id}` | 修改名称、描述等非科研产物元信息 |
-| `POST` | `/api/v2/projects/{project_id}/contracts` | 从 draft 创建不可变 ResearchContract |
-| `GET` | `/api/v2/projects/{project_id}/contracts?cursor=&limit=` | Contract 历史 |
+| Method  | Path                                                     | 说明                                                 |
+| ------- | -------------------------------------------------------- | ---------------------------------------------------- |
+| `GET`   | `/api/v2/projects?cursor=&limit=`                        | 当前会话的 Project 列表                              |
+| `POST`  | `/api/v2/projects`                                       | 创建临时 ResearchProject                             |
+| `GET`   | `/api/v2/projects/{project_id}`                          | Project 聚合：当前 Contract、Run 摘要、Artifact 摘要 |
+| `PATCH` | `/api/v2/projects/{project_id}`                          | 修改名称、描述等非科研产物元信息                     |
+| `POST`  | `/api/v2/projects/{project_id}/contracts`                | 从 draft 创建不可变 ResearchContract                 |
+| `GET`   | `/api/v2/projects/{project_id}/contracts?cursor=&limit=` | Contract 历史                                        |
 
 创建 Contract 请求：
 
@@ -242,13 +244,13 @@ export
 
 ## 9. Run 与进度
 
-| Method | Path | 说明 |
-| --- | --- | --- |
-| `GET` | `/api/v2/projects/{project_id}/runs?cursor=&limit=` | Run 列表，默认按创建时间倒序 |
-| `POST` | `/api/v2/projects/{project_id}/runs` | 创建 Live Run；要求 `Idempotency-Key` |
-| `GET` | `/api/v2/runs/{run_id}` | Run 状态快照、steps、产物摘要和可用动作 |
-| `GET` | `/api/v2/runs/{run_id}/events?cursor=&limit=` | 有序进度事件；可协商 `text/event-stream` |
-| `POST` | `/api/v2/runs/{run_id}/cancellations` | 创建取消请求；重复请求幂等 |
+| Method | Path                                                | 说明                                     |
+| ------ | --------------------------------------------------- | ---------------------------------------- |
+| `GET`  | `/api/v2/projects/{project_id}/runs?cursor=&limit=` | Run 列表，默认按创建时间倒序             |
+| `POST` | `/api/v2/projects/{project_id}/runs`                | 创建 Live Run；要求 `Idempotency-Key`    |
+| `GET`  | `/api/v2/runs/{run_id}`                             | Run 状态快照、steps、产物摘要和可用动作  |
+| `GET`  | `/api/v2/runs/{run_id}/events?cursor=&limit=`       | 有序进度事件；可协商 `text/event-stream` |
+| `POST` | `/api/v2/runs/{run_id}/cancellations`               | 创建取消请求；重复请求幂等               |
 
 创建 Run：
 
@@ -298,13 +300,13 @@ Run Snapshot 至少返回：
 
 ## 11. Artifact 与统一 Envelope
 
-| Method | Path | 说明 |
-| --- | --- | --- |
-| `GET` | `/api/v2/runs/{run_id}/artifacts?kind=&cursor=&limit=` | Run 的 Artifact 摘要 |
-| `GET` | `/api/v2/artifacts/{artifact_id}` | Artifact 身份和版本列表摘要 |
-| `GET` | `/api/v2/artifact-versions/{version_id}` | 统一 ArtifactVersion Envelope |
-| `GET` | `/api/v2/evidence/{evidence_id}` | Evidence 与 SourceSnapshot |
-| `GET` | `/api/v2/source-snapshots/{snapshot_id}` | 可公开的来源快照信息 |
+| Method | Path                                                   | 说明                          |
+| ------ | ------------------------------------------------------ | ----------------------------- |
+| `GET`  | `/api/v2/runs/{run_id}/artifacts?kind=&cursor=&limit=` | Run 的 Artifact 摘要          |
+| `GET`  | `/api/v2/artifacts/{artifact_id}`                      | Artifact 身份和版本列表摘要   |
+| `GET`  | `/api/v2/artifact-versions/{version_id}`               | 统一 ArtifactVersion Envelope |
+| `GET`  | `/api/v2/evidence/{evidence_id}`                       | Evidence 与 SourceSnapshot    |
+| `GET`  | `/api/v2/source-snapshots/{snapshot_id}`               | 可公开的来源快照信息          |
 
 ArtifactVersion Envelope：
 
@@ -331,11 +333,15 @@ ArtifactVersion Envelope：
     "evidence_refs": ["ev_01J..."],
     "provenance": {
       "source_snapshot_ids": ["srcs_01J..."],
-      "producer": {"type": "pipeline", "version": "data-pipeline@1"}
+      "producer": { "type": "pipeline", "version": "data-pipeline@1" }
     }
   },
-  "meta": {"request_id": "req_01J...", "schema_version": "2.0.0", "generated_at": "2026-07-16T08:08:00Z"},
-  "links": {"self": "/api/v2/artifact-versions/artv_01J..."}
+  "meta": {
+    "request_id": "req_01J...",
+    "schema_version": "2.0.0",
+    "generated_at": "2026-07-16T08:08:00Z"
+  },
+  "links": { "self": "/api/v2/artifact-versions/artv_01J..." }
 }
 ```
 
@@ -345,30 +351,30 @@ ArtifactVersion Envelope：
 
 ## 12. Workspace 恢复
 
-| Method | Path | 说明 |
-| --- | --- | --- |
-| `GET` | `/api/v2/projects/{project_id}/workspace-snapshot` | 当前会话的工作台恢复状态 |
-| `PUT` | `/api/v2/projects/{project_id}/workspace-snapshot` | 幂等保存布局、打开产物和选择对象 |
+| Method | Path                                               | 说明                             |
+| ------ | -------------------------------------------------- | -------------------------------- |
+| `GET`  | `/api/v2/projects/{project_id}/workspace-snapshot` | 当前会话的工作台恢复状态         |
+| `PUT`  | `/api/v2/projects/{project_id}/workspace-snapshot` | 幂等保存布局、打开产物和选择对象 |
 
 WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文本、会话 token、模型内部状态或无限自由窗口位置。
 
 ## 13. 分享
 
-| Method | Path | 说明 |
-| --- | --- | --- |
-| `GET` | `/api/v2/projects/{project_id}/shares?cursor=&limit=` | 私有分享记录，不返回原 token |
-| `POST` | `/api/v2/projects/{project_id}/shares` | 创建冻结的 ShareSnapshot 与一次性可见 URL |
-| `DELETE` | `/api/v2/projects/{project_id}/shares/{share_id}` | 撤销分享 |
-| `GET` | `/api/v2/shares/{share_token}` | 无编辑权限的公开快照 |
+| Method   | Path                                                  | 说明                                      |
+| -------- | ----------------------------------------------------- | ----------------------------------------- |
+| `GET`    | `/api/v2/projects/{project_id}/shares?cursor=&limit=` | 私有分享记录，不返回原 token              |
+| `POST`   | `/api/v2/projects/{project_id}/shares`                | 创建冻结的 ShareSnapshot 与一次性可见 URL |
+| `DELETE` | `/api/v2/projects/{project_id}/shares/{share_id}`     | 撤销分享                                  |
+| `GET`    | `/api/v2/shares/{share_token}`                        | 无编辑权限的公开快照                      |
 
 创建请求必须列出 `artifact_version_ids`、可公开 Evidence 范围、`expires_at` 和 redaction policy。公开响应只能包含 ShareSnapshot 锁定内容。
 
 ## 14. Feedback 与修订计划
 
-| Method | Path | 说明 |
-| --- | --- | --- |
-| `POST` | `/api/v2/feedback` | 针对 Field、Source、Paper、Claim、Relation、Trace 或 GraphEdge 提交反馈 |
-| `GET` | `/api/v2/feedback/{feedback_id}` | 反馈状态、影响范围与 RevisionPlan |
+| Method | Path                             | 说明                                                                    |
+| ------ | -------------------------------- | ----------------------------------------------------------------------- |
+| `POST` | `/api/v2/feedback`               | 针对 Field、Source、Paper、Claim、Relation、Trace 或 GraphEdge 提交反馈 |
+| `GET`  | `/api/v2/feedback/{feedback_id}` | 反馈状态、影响范围与 RevisionPlan                                       |
 
 ```json
 {
@@ -379,7 +385,7 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
   },
   "category": "evidence_mismatch",
   "message": "该关系缺少温度范围条件",
-  "proposed_change": {"add_condition": "st_teff >= 6000 K"}
+  "proposed_change": { "add_condition": "st_teff >= 6000 K" }
 }
 ```
 
@@ -387,10 +393,10 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 ## 15. 导出
 
-| Method | Path | 说明 |
-| --- | --- | --- |
+| Method | Path                                             | 说明                              |
+| ------ | ------------------------------------------------ | --------------------------------- |
 | `POST` | `/api/v2/artifact-versions/{version_id}/exports` | 创建 CSV、JSON 或溯源报告导出任务 |
-| `GET` | `/api/v2/exports/{export_id}` | 查询状态与短期下载 URL |
+| `GET`  | `/api/v2/exports/{export_id}`                    | 查询状态与短期下载 URL            |
 
 导出必须锁定 ArtifactVersion、内容 hash、生成时间与 provenance；下载 URL 短期有效且不暴露底层文件路径。
 

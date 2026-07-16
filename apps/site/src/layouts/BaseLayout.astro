@@ -1,0 +1,34 @@
+---
+import { ProductIdentity } from "@xingwen/ui";
+
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="site-header">
+        <ProductIdentity />
+      </header>
+      <main class="site-main">
+        <slot />
+      </main>
+      <footer class="site-footer">A-01 前端运行时基线</footer>
+    </div>
+  </body>
+</html>

@@ -18,8 +18,13 @@ build/
 node_modules/
 dist/
 .vite/
+.astro/
+.turbo/
 .nuxt/
 .output/
+coverage/
+playwright-report/
+test-results/
 
 # IDE
 .idea/
@@ -30,6 +35,7 @@ dist/
 Thumbs.db
 
 # Project outputs
+.artifacts/
 samples/outputs/*
 !samples/outputs/.gitkeep
 exports/

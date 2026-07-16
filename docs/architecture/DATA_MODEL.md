@@ -2,7 +2,8 @@
 
 | 项目状态 | 口径 |
 | --- | --- |
-| Status | Accepted for implementation |
+| Status | Accepted |
+| Authority | 领域实体、字段、枚举与不变量 |
 | Implementation | Pending |
 | Current model | `/api/v1` 的 ResearchTask 与结果 DTO |
 | Target model | Project / Run / Artifact / ArtifactVersion |

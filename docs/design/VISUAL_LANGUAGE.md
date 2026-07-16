@@ -1,11 +1,10 @@
 # Visual Language
 
-| 项目状态 | 口径 |
-| --- | --- |
-| Status | Accepted for implementation |
-| Implementation | Pending |
-| Current runtime | `apps/web` 中的 Vue 3 / shadcn-vue 骨架 |
-| Target runtime | `packages/design-tokens` + React UI + GPU Visual Engine |
+| 元数据         | 值                                                    |
+| -------------- | ----------------------------------------------------- |
+| Status         | Accepted                                              |
+| Authority      | 品牌、Token、字体、排版、视觉引擎、动效与组件外观     |
+| Implementation | A-01 基础浅色 Token Current；A-02 visual system Pending |
 
 本文定义星文智析的品牌视觉、配色 Token、字体、排版、ASCII / Dither、动效与组件外观。实现不得从参考产品复制界面皮肤，也不得在业务页面临时追加独立色值和视觉规则。
 
@@ -77,13 +76,13 @@
 
 ### 3.1 色彩角色
 
-| 色彩角色 | 作用 |
-| --- | --- |
-| Cold Paper | 页面基底、留白和内容承载 |
-| Lunar Gray | 分区、边界、禁用与次级信息 |
-| Haze Blue | 品牌、交互焦点、天体与空间关系 |
+| 色彩角色         | 作用                             |
+| ---------------- | -------------------------------- |
+| Cold Paper       | 页面基底、留白和内容承载         |
+| Lunar Gray       | 分区、边界、禁用与次级信息       |
+| Haze Blue        | 品牌、交互焦点、天体与空间关系   |
 | Deep Observatory | 文字、坐标、关键结构与高对比状态 |
-| Semantic Status | 成功、风险、失败、缓存等独立语义 |
+| Semantic Status  | 成功、风险、失败、缓存等独立语义 |
 
 ### 3.2 基础原色 Token
 
@@ -96,33 +95,33 @@
   --raw-paper-200: oklch(0.925 0.008 230);
 
   /* Lunar gray */
-  --raw-gray-100: oklch(0.89 0.010 235);
+  --raw-gray-100: oklch(0.89 0.01 235);
   --raw-gray-200: oklch(0.84 0.012 235);
   --raw-gray-300: oklch(0.76 0.014 235);
   --raw-gray-400: oklch(0.67 0.016 235);
   --raw-gray-500: oklch(0.57 0.018 235);
-  --raw-gray-600: oklch(0.47 0.020 235);
+  --raw-gray-600: oklch(0.47 0.02 235);
   --raw-gray-700: oklch(0.38 0.022 235);
   --raw-gray-800: oklch(0.29 0.024 235);
   --raw-gray-900: oklch(0.21 0.026 235);
 
   /* Haze blue */
   --raw-haze-50: oklch(0.97 0.012 235);
-  --raw-haze-100: oklch(0.93 0.020 235);
+  --raw-haze-100: oklch(0.93 0.02 235);
   --raw-haze-200: oklch(0.87 0.032 235);
   --raw-haze-300: oklch(0.78 0.045 235);
   --raw-haze-400: oklch(0.68 0.055 235);
   --raw-haze-500: oklch(0.59 0.062 235);
-  --raw-haze-600: oklch(0.50 0.058 235);
-  --raw-haze-700: oklch(0.41 0.050 235);
+  --raw-haze-600: oklch(0.5 0.058 235);
+  --raw-haze-700: oklch(0.41 0.05 235);
   --raw-haze-800: oklch(0.33 0.042 235);
   --raw-haze-900: oklch(0.26 0.034 235);
 
   /* Semantic */
-  --raw-success-500: oklch(0.56 0.070 165);
-  --raw-warning-500: oklch(0.60 0.075 80);
+  --raw-success-500: oklch(0.56 0.07 165);
+  --raw-warning-500: oklch(0.6 0.075 80);
   --raw-error-500: oklch(0.56 0.085 25);
-  --raw-info-500: oklch(0.57 0.060 245);
+  --raw-info-500: oklch(0.57 0.06 245);
 }
 ```
 
@@ -133,10 +132,18 @@
 ```css
 :root {
   --color-canvas: var(--raw-paper-50);
-  --color-surface: color-mix(in oklch, var(--raw-paper-0) 86%, var(--raw-haze-50));
+  --color-surface: color-mix(
+    in oklch,
+    var(--raw-paper-0) 86%,
+    var(--raw-haze-50)
+  );
   --color-surface-raised: var(--raw-paper-0);
   --color-surface-muted: var(--raw-paper-100);
-  --color-surface-hover: color-mix(in srgb, var(--raw-haze-100) 68%, var(--raw-paper-0));
+  --color-surface-hover: color-mix(
+    in srgb,
+    var(--raw-haze-100) 68%,
+    var(--raw-paper-0)
+  );
 
   --color-ink-primary: var(--raw-gray-900);
   --color-ink-secondary: var(--raw-gray-600);
@@ -162,8 +169,16 @@
   --color-visual-celestial-ink: var(--raw-haze-700);
   --color-visual-celestial-deep: var(--raw-haze-900);
   --color-visual-celestial-soft: var(--raw-haze-200);
-  --color-visual-orbit: color-mix(in oklch, var(--raw-haze-700) 25%, transparent);
-  --color-visual-grid: color-mix(in oklch, var(--raw-gray-600) 10%, transparent);
+  --color-visual-orbit: color-mix(
+    in oklch,
+    var(--raw-haze-700) 25%,
+    transparent
+  );
+  --color-visual-grid: color-mix(
+    in oklch,
+    var(--raw-gray-600) 10%,
+    transparent
+  );
   --color-visual-particle: var(--raw-haze-500);
 }
 ```
@@ -196,20 +211,20 @@
 
 ### 4.1 三层字体角色
 
-| 角色 | 用途 | 推荐 |
-| --- | --- | --- |
-| Brand Serif | 中文字标、叙事大标题、章节引语 | 思源宋体 / Noto Serif SC，并对字标定制 |
-| Interface Sans | 正文、控件、表格、Evidence | 思源黑体 / Noto Sans SC + Inter 等拉丁无衬线 |
-| Scientific Mono | ASCII、参数、坐标、ID、Query、Hash | IBM Plex Mono / JetBrains Mono |
+| 角色            | 用途                               | 推荐                                         |
+| --------------- | ---------------------------------- | -------------------------------------------- |
+| Brand Serif     | 中文字标、叙事大标题、章节引语     | 思源宋体 / Noto Serif SC，并对字标定制       |
+| Interface Sans  | 正文、控件、表格、Evidence         | 思源黑体 / Noto Sans SC + Inter 等拉丁无衬线 |
+| Scientific Mono | ASCII、参数、坐标、ID、Query、Hash | IBM Plex Mono / JetBrains Mono               |
 
 字体候选必须先通过许可证、中文覆盖、Web 传输和未来离线封装检查：
 
-| 候选 | 许可证 | 中文覆盖 | Web / Tauri 策略 |
-| --- | --- | --- | --- |
-| Noto Serif SC / 思源宋体 | SIL OFL 1.1 | 完整简体中文 | Web 使用授权明确的 WOFF2 子集；Tauri 可连同许可证离线打包 |
-| Noto Sans SC / 思源黑体 | SIL OFL 1.1 | 完整简体中文 | 正文按字重和字符集拆分；加载失败回退系统无衬线 |
-| Inter | SIL OFL 1.1 | 拉丁、数字 | 仅作为拉丁补充，不承担中文正文 |
-| IBM Plex Mono / JetBrains Mono | SIL OFL 1.1 | 主要为拉丁、符号 | 用于参数与 ASCII；离线包必须保留许可证 |
+| 候选                           | 许可证      | 中文覆盖         | Web / Tauri 策略                                          |
+| ------------------------------ | ----------- | ---------------- | --------------------------------------------------------- |
+| Noto Serif SC / 思源宋体       | SIL OFL 1.1 | 完整简体中文     | Web 使用授权明确的 WOFF2 子集；Tauri 可连同许可证离线打包 |
+| Noto Sans SC / 思源黑体        | SIL OFL 1.1 | 完整简体中文     | 正文按字重和字符集拆分；加载失败回退系统无衬线            |
+| Inter                          | SIL OFL 1.1 | 拉丁、数字       | 仅作为拉丁补充，不承担中文正文                            |
+| IBM Plex Mono / JetBrains Mono | SIL OFL 1.1 | 主要为拉丁、符号 | 用于参数与 ASCII；离线包必须保留许可证                    |
 
 实施前记录实际字体版本、下载来源、许可证文件与 subset 命令。未完成授权记录前不得提交字体二进制；Web 使用 `font-display: swap`，静态首屏不得等待字体或 WebGL 才可见。
 
@@ -291,12 +306,12 @@ ASCII 粒子不是背景装饰，而是品牌与状态语言：
 
 允许映射：
 
-| 数据 | 视觉变量 |
-| --- | --- |
-| 工作流阶段 | 粒子聚合方向、轨道位置、形态转换 |
-| 数据质量 | 字符密度、连续性、缺口比例 |
-| 论文筛选 | 粒子保留 / 消散、轨道层级 |
-| Claim 关系 | 连线类型、路径方向、局部聚合 |
+| 数据       | 视觉变量                             |
+| ---------- | ------------------------------------ |
+| 工作流阶段 | 粒子聚合方向、轨道位置、形态转换     |
+| 数据质量   | 字符密度、连续性、缺口比例           |
+| 论文筛选   | 粒子保留 / 消散、轨道层级            |
+| Claim 关系 | 连线类型、路径方向、局部聚合         |
 | 失败与重试 | 结构断裂、停滞、重建，不使用剧烈抖动 |
 
 不可映射：未经验证的科学事实、无证据关系、虚构观测值。
@@ -331,8 +346,10 @@ ASCII 粒子不是背景装饰，而是品牌与状态语言：
   --radius-lg: 10px;
   --radius-pill: 999px;
 
-  --shadow-float: 0 12px 28px color-mix(in srgb, var(--raw-gray-900) 10%, transparent);
-  --shadow-modal: 0 24px 64px color-mix(in srgb, var(--raw-gray-900) 16%, transparent);
+  --shadow-float: 0 12px 28px
+    color-mix(in srgb, var(--raw-gray-900) 10%, transparent);
+  --shadow-modal: 0 24px 64px
+    color-mix(in srgb, var(--raw-gray-900) 16%, transparent);
 }
 ```
 
@@ -351,11 +368,11 @@ ASCII 粒子不是背景装饰，而是品牌与状态语言：
 
 ### 8.1 三类动效
 
-| 类型 | 作用 | 示例 |
-| --- | --- | --- |
-| Celestial Motion | 品牌与空间感 | 天体自转、凌星、轨道视差 |
-| Assembly Motion | 科研过程 | 字符聚合为数据、论文、Claim、Graph |
-| Interface Motion | 操作反馈 | 面板切换、证据定位、状态变化 |
+| 类型             | 作用         | 示例                               |
+| ---------------- | ------------ | ---------------------------------- |
+| Celestial Motion | 品牌与空间感 | 天体自转、凌星、轨道视差           |
+| Assembly Motion  | 科研过程     | 字符聚合为数据、论文、Claim、Graph |
+| Interface Motion | 操作反馈     | 面板切换、证据定位、状态变化       |
 
 ### 8.2 时长
 
@@ -417,11 +434,11 @@ ASCII 粒子不是背景装饰，而是品牌与状态语言：
 
 ## 10. 性能质量档
 
-| 档位 | 目标 | 策略 |
-| --- | --- | --- |
-| High | 可控终审展示或录制设备 | 高粒子密度、完整 Shader、适量后处理 |
-| Medium | 普通现代笔记本 | 降低 DPR、粒子和采样，保留主要形态 |
-| Low | 集显、移动端、节能模式 | 低帧率或静态 Poster，核心 DOM 完整 |
+| 档位   | 目标                   | 策略                                |
+| ------ | ---------------------- | ----------------------------------- |
+| High   | 可控终审展示或录制设备 | 高粒子密度、完整 Shader、适量后处理 |
+| Medium | 普通现代笔记本         | 降低 DPR、粒子和采样，保留主要形态  |
+| Low    | 集显、移动端、节能模式 | 低帧率或静态 Poster，核心 DOM 完整  |
 
 自动检测只能作为初始建议，用户可手动切换。质量档不能改变科研数据和业务功能。
 

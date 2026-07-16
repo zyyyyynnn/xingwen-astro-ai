@@ -1,0 +1,24 @@
+packages:
+  - apps/site
+  - apps/workspace
+  - packages/*
+
+allowBuilds:
+  esbuild: true
+
+engineStrict: true
+
+linkWorkspacePackages: false
+
+minimumReleaseAgeExclude:
+  - eslint-plugin-astro@3.0.1
+  - vite@8.1.5
+
+nodeVersion: 24.18.0
+
+overrides:
+  vite: 8.1.5
+
+savePrefix: ""
+
+strictPeerDependencies: true
