@@ -1,30 +1,30 @@
-# Shared Schemas
+# Schema Package
 
-本目录承载前后端共享契约的生成产物与使用说明，不在前端、后端之间手工维护两套同名类型。
+| 元数据 | 值 |
+| --- | --- |
+| Status | Implemented transition package |
+| Authority | 当前 Schema 导出目录的生成和消费规则 |
 
-## Phase 0 单一事实来源
+本目录保存当前 Pydantic Schema 的生成产物与过渡说明。HTTP 资源和传输语义见 [API Contract](../../docs/architecture/API_CONTRACT.md)，领域实体见 [Data Model](../../docs/architecture/DATA_MODEL.md)。
 
-当前 authoring source 为：
+## 1. 编写源
+
+当前唯一编写源：
 
 ```text
 apps/api/src/app/schemas
 ```
 
-这些 Pydantic v2 Model 必须与：
+Pydantic v2 模型生成 JSON Schema / OpenAPI。生成目录不得手工编辑，也不得在前端或 Pipeline 复制同名生产类型。
 
-- `docs/architecture/API_CONTRACT.md`
-- `docs/architecture/DATA_MODEL.md`
-
-保持一致。
-
-通过以下命令导出 JSON Schema：
+## 2. 导出
 
 ```powershell
 cd apps/api
 uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated
 ```
 
-CI 使用临时输出目录验证所有 Schema 均可导出。后续需要提交生成产物时，使用：
+需要验证已提交生成物时：
 
 ```powershell
 cd apps/api
@@ -32,14 +32,34 @@ uv run python ../../scripts/export_schemas.py
 uv run python ../../scripts/export_schemas.py --check
 ```
 
-## 消费规则
+CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件由对应实现 Issue 决定。
 
-- 后端：直接引用 `app.schemas`，不得复制字段定义。
-- 前端：Phase 1 起从 JSON Schema/OpenAPI 生成 TypeScript 类型，不手写重复接口。
-- Pipeline：按 Pydantic Model 或其 JSON Schema 输出结构化结果。
-- 任何接口字段变化都必须同步契约文档，并重新导出 Schema。
-- 生成目录不得手工编辑；差异必须从 authoring source 修复。
+## 3. 消费边界
 
-## 迁移方向
+- 后端：引用 Pydantic 编写源和生成 OpenAPI，不复制 DTO。
+- 目标前端：从 OpenAPI / JSON Schema 生成 Transport Type，经 validation 和 mapper 转为 Domain Model。
+- Pipeline：按领域输入输出 Schema 返回结构化内容，不依赖页面 DTO。
+- Fixture / recorded response：通过同一 Schema，并明确数据等级。
+- 文档：描述资源与不变量，不成为机器 Contract 的第二编写源。
 
-当 TypeScript codegen 稳定后，可通过 ADR 决定是否把独立 IDL 提升为 authoring source。在此之前不搬迁现有 Pydantic 模型，避免为“共享目录”制造第二套事实来源。
+## 4. 当前与目标
+
+| 范围 | 状态 |
+| --- | --- |
+| Phase 0 `/api/v1` Schema | Current，继续用于回归 |
+| `/api/v2` Pydantic / OpenAPI | Accepted，待 B-04 实施 |
+| `packages/contracts` | Target frontend package，由生成 Type、validation 和 transport helpers 组成 |
+| 独立手写 IDL | 未采用；需要新 ADR 才能改变编写源 |
+
+目标迁移不通过复制当前 generated 文件完成，而是由后端编写源、生成流程和前端 Contract package 共同落地。
+
+## 5. 变更门禁
+
+Schema 变更至少验证：
+
+- Pydantic 模型和 OpenAPI/JSON Schema 可重复生成；
+- operationId、枚举、错误、cursor 和版本字段完整；
+- generated Type 无 stale diff；
+- Fixture / HTTP Adapter 的 Domain 一致性；
+- `/api/v1` 适用回归；
+- API Contract、Data Model、Workflow 或 Version 文档按职责同步。
