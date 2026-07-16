@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 from app.schemas.enums import StepStatus, TaskStatus
 
-from .state_machine import require_transition
+from .state_machine import can_transition, require_transition
 from .types import WorkflowContext, WorkflowHooks, WorkflowStep
 
 
@@ -40,38 +40,43 @@ class WorkflowExecutor:
                 expected=current,
                 target=step.enter_status,
             )
-            await self._hooks.set_step_status(
-                context.task_id,
-                step.key,
-                StepStatus.running,
-                message=step.label,
-            )
+            current = step.enter_status
 
             try:
+                await self._hooks.set_step_status(
+                    context.task_id,
+                    step.key,
+                    StepStatus.running,
+                    message=step.label,
+                )
+
                 produced = await step.run(context)
                 artifacts = dict(produced or {})
                 if artifacts:
-                    context.artifacts.update(artifacts)
                     await self._hooks.record_artifacts(
                         context.task_id,
                         step.key,
                         artifacts,
                     )
+                    context.artifacts.update(artifacts)
 
-                require_transition(step.enter_status, step.success_status)
-                await self._hooks.set_task_status(
-                    context.task_id,
-                    expected=step.enter_status,
-                    target=step.success_status,
-                )
+                require_transition(current, step.success_status)
+                # Persist the step result before advancing the task. After the task
+                # transition succeeds there are no further awaited writes that can
+                # leave a completed task paired with an incomplete step record.
                 await self._hooks.set_step_status(
                     context.task_id,
                     step.key,
                     StepStatus.completed,
                 )
+                await self._hooks.set_task_status(
+                    context.task_id,
+                    expected=current,
+                    target=step.success_status,
+                )
                 current = step.success_status
             except Exception as exc:
-                await self._fail(context.task_id, step, exc)
+                await self._fail(context.task_id, step, current, exc)
                 raise WorkflowExecutionError(context.task_id, step.key, exc) from exc
 
         return current
@@ -80,20 +85,36 @@ class WorkflowExecutor:
         self,
         task_id: str,
         step: WorkflowStep,
+        current: TaskStatus,
         cause: Exception,
     ) -> None:
-        message = f"{type(cause).__name__}: {cause}"
-        await self._hooks.set_step_status(
-            task_id,
-            step.key,
-            StepStatus.failed,
-            message=message,
-        )
+        """Best-effort failure bookkeeping without masking the root exception."""
 
-        if step.enter_status is not TaskStatus.failed:
-            require_transition(step.enter_status, TaskStatus.failed)
-            await self._hooks.set_task_status(
+        bookkeeping_errors: list[Exception] = []
+        message = f"{type(cause).__name__}: {cause}"
+
+        try:
+            await self._hooks.set_step_status(
                 task_id,
-                expected=step.enter_status,
-                target=TaskStatus.failed,
+                step.key,
+                StepStatus.failed,
+                message=message,
+            )
+        except Exception as error:  # pragma: no cover - adapter-specific safeguard
+            bookkeeping_errors.append(error)
+
+        if can_transition(current, TaskStatus.failed):
+            try:
+                await self._hooks.set_task_status(
+                    task_id,
+                    expected=current,
+                    target=TaskStatus.failed,
+                )
+            except Exception as error:  # pragma: no cover - adapter-specific safeguard
+                bookkeeping_errors.append(error)
+
+        for error in bookkeeping_errors:
+            cause.add_note(
+                "workflow failure bookkeeping also failed: "
+                f"{type(error).__name__}: {error}"
             )
