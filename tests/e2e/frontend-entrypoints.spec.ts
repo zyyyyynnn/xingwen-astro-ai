@@ -20,6 +20,9 @@ test("brand site remains useful without client-side JavaScript", async ({
   await expect(page).toHaveTitle(/星文智析/);
   await expect(page.getByRole("heading", { name: "星文智析" })).toBeVisible();
   await expect(
+    page.getByText(/面向天文科研证据整合与可复现分析的智能工作平台/),
+  ).toBeVisible();
+  await expect(
     page.getByRole("link", { name: "进入科研工作台" }),
   ).toHaveAttribute("href", "http://localhost:5173/workspace");
 
