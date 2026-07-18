@@ -198,7 +198,12 @@ export
       "research_goal": "整合系外行星候选体与宿主恒星关键参数",
       "target_objects": ["exoplanet_candidate", "host_star"],
       "data_requirements": { "unit_policy": "canonical" },
-      "requested_fields": ["pl_orbper", "pl_rade", "pl_bmass", "st_teff"],
+      "requested_fields": [
+        "planet.orbital_period",
+        "planet.radius",
+        "planet.mass",
+        "star.effective_temperature"
+      ],
       "source_scope": { "allowed_sources": ["nasa_exoplanet_archive"] },
       "paper_search_scope": { "year_from": 2015, "max_candidates": 20 },
       "output_requirements": ["dataset", "field_dictionary", "graph"],
