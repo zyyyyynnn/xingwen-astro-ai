@@ -1,0 +1,1355 @@
+{
+  "manifest_id": "exoplanet_host_star.fields",
+  "case_id": "exoplanet_host_star",
+  "name": "Exoplanet candidate and host-star field manifest",
+  "description": "Canonical fields for the fixed TESS exoplanet candidate and host-star research case.",
+  "schema_version": "1.0.0",
+  "manifest_version": "1.0.0",
+  "content_hash": "sha256:b046aeafafeed3463e3623ed6d893fb5ab45996036ebacf3159be2965fc92183",
+  "maintained_at": "2026-07-18",
+  "maintainer": {
+    "module": "C",
+    "role": "data_pipeline"
+  },
+  "sources": [
+    {
+      "source_id": "nasa_exoplanet_archive.ps",
+      "provider": "NASA Exoplanet Archive",
+      "name": "Planetary Systems",
+      "source_table": "ps",
+      "documentation_url": "https://exoplanetarchive.ipac.caltech.edu/docs/API_PS_columns.html",
+      "declaration_mode": "metadata_only"
+    },
+    {
+      "source_id": "nasa_exoplanet_archive.toi",
+      "provider": "NASA Exoplanet Archive",
+      "name": "TESS Objects of Interest",
+      "source_table": "toi",
+      "documentation_url": "https://exoplanetarchive.ipac.caltech.edu/docs/API_TOI_columns.html",
+      "declaration_mode": "metadata_only"
+    },
+    {
+      "source_id": "nasa_exoplanet_archive.pscomppars",
+      "provider": "NASA Exoplanet Archive",
+      "name": "Planetary Systems Composite Parameters",
+      "source_table": "pscomppars",
+      "documentation_url": "https://exoplanetarchive.ipac.caltech.edu/docs/API_PS_columns.html",
+      "declaration_mode": "metadata_only"
+    }
+  ],
+  "units": [
+    {
+      "unit_id": "none",
+      "label": "No physical unit",
+      "symbol": "",
+      "quantity_kind": "none"
+    },
+    {
+      "unit_id": "degree",
+      "label": "Degree",
+      "symbol": "deg",
+      "quantity_kind": "angle"
+    },
+    {
+      "unit_id": "day",
+      "label": "Day",
+      "symbol": "d",
+      "quantity_kind": "time"
+    },
+    {
+      "unit_id": "earth_radius",
+      "label": "Earth radius",
+      "symbol": "R_earth",
+      "quantity_kind": "length"
+    },
+    {
+      "unit_id": "jupiter_radius",
+      "label": "Jupiter radius",
+      "symbol": "R_jupiter",
+      "quantity_kind": "length"
+    },
+    {
+      "unit_id": "earth_mass",
+      "label": "Earth mass",
+      "symbol": "M_earth",
+      "quantity_kind": "mass"
+    },
+    {
+      "unit_id": "jupiter_mass",
+      "label": "Jupiter mass",
+      "symbol": "M_jupiter",
+      "quantity_kind": "mass"
+    },
+    {
+      "unit_id": "kelvin",
+      "label": "Kelvin",
+      "symbol": "K",
+      "quantity_kind": "temperature"
+    },
+    {
+      "unit_id": "dex",
+      "label": "Dex",
+      "symbol": "dex",
+      "quantity_kind": "logarithmic_abundance"
+    },
+    {
+      "unit_id": "solar_radius",
+      "label": "Solar radius",
+      "symbol": "R_sun",
+      "quantity_kind": "length"
+    },
+    {
+      "unit_id": "solar_mass",
+      "label": "Solar mass",
+      "symbol": "M_sun",
+      "quantity_kind": "mass"
+    }
+  ],
+  "conversion_rules": [
+    {
+      "rule_id": "unit.identity.v1",
+      "rule_version": "1.0.0",
+      "declaration_mode": "declaration_only"
+    },
+    {
+      "rule_id": "unit.jupiter_radius_to_earth_radius.v1",
+      "rule_version": "1.0.0",
+      "source_unit": "jupiter_radius",
+      "target_unit": "earth_radius",
+      "declaration_mode": "declaration_only"
+    },
+    {
+      "rule_id": "unit.jupiter_mass_to_earth_mass.v1",
+      "rule_version": "1.0.0",
+      "source_unit": "jupiter_mass",
+      "target_unit": "earth_mass",
+      "declaration_mode": "declaration_only"
+    }
+  ],
+  "evidence_locator_rules": [
+    {
+      "rule_id": "evidence.database_cell.v1",
+      "rule_version": "1.0.0",
+      "locator_type": "database_cell",
+      "required_components": [
+        "source_snapshot_id",
+        "query_hash",
+        "row_key",
+        "raw_field"
+      ],
+      "source_reference_when_available": true
+    }
+  ],
+  "fields": [
+    {
+      "field_id": "planet.toi_id",
+      "meaning_zh": "TESS 候选体标识",
+      "label_en": "TOI ID",
+      "description": "Stable TESS Object of Interest identifier for the candidate.",
+      "object_type": "planet",
+      "data_type": "string",
+      "canonical_unit": "none",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_table": "toi",
+          "raw_field": "toi",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["toi"]
+        }
+      ],
+      "source_priority": ["nasa_exoplanet_archive.toi"],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": false,
+      "null_policy": {
+        "reason_required_when_null": false,
+        "allowed_reasons": []
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": false,
+        "upper_limit_supported": false
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "not_applicable",
+        "preserve_asymmetric_errors": false
+      },
+      "object_identity_key": true,
+      "crossmatch_key": true,
+      "crossmatch_rule_version": "1.0.0",
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "evidence_coverage",
+        "crossmatch_coverage"
+      ]
+    },
+    {
+      "field_id": "planet.name",
+      "meaning_zh": "行星常用名称",
+      "label_en": "Planet Name",
+      "description": "Published planet name when one is available.",
+      "object_type": "planet",
+      "data_type": "string",
+      "canonical_unit": "none",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "pl_name",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "reference_field": "pl_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "pl_name",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": false,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": ["not_in_source", "not_measured"]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": false,
+        "upper_limit_supported": false
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "not_applicable",
+        "preserve_asymmetric_errors": false
+      },
+      "object_identity_key": false,
+      "crossmatch_key": true,
+      "crossmatch_rule_version": "1.0.0",
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "evidence_coverage",
+        "crossmatch_coverage"
+      ]
+    },
+    {
+      "field_id": "planet.disposition",
+      "meaning_zh": "候选体处置状态",
+      "label_en": "Candidate Disposition",
+      "description": "TFOP working-group disposition for the TESS candidate.",
+      "object_type": "planet",
+      "data_type": "string",
+      "canonical_unit": "none",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_table": "toi",
+          "raw_field": "tfopwg_disp",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["toi"],
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": ["nasa_exoplanet_archive.toi"],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": ["not_in_source", "not_measured"]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": false,
+        "upper_limit_supported": false
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "not_applicable",
+        "preserve_asymmetric_errors": false
+      },
+      "object_identity_key": false,
+      "crossmatch_key": false,
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "evidence_coverage"
+      ]
+    },
+    {
+      "field_id": "star.tic_id",
+      "meaning_zh": "TIC 宿主恒星标识",
+      "label_en": "TIC ID",
+      "description": "TESS Input Catalog identifier for the host star.",
+      "object_type": "star",
+      "data_type": "string",
+      "canonical_unit": "none",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_table": "toi",
+          "raw_field": "tid",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["toi"]
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "tic_id",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "reference_field": "pl_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "tic_id",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.toi",
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": false,
+      "null_policy": {
+        "reason_required_when_null": false,
+        "allowed_reasons": []
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": false,
+        "upper_limit_supported": false
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "not_applicable",
+        "preserve_asymmetric_errors": false
+      },
+      "object_identity_key": true,
+      "crossmatch_key": true,
+      "crossmatch_rule_version": "1.0.0",
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "evidence_coverage",
+        "crossmatch_coverage"
+      ]
+    },
+    {
+      "field_id": "star.gaia_dr3_id",
+      "meaning_zh": "Gaia DR3 宿主恒星标识",
+      "label_en": "Gaia DR3 ID",
+      "description": "Gaia DR3 catalog identifier for the host star.",
+      "object_type": "star",
+      "data_type": "string",
+      "canonical_unit": "none",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "gaia_dr3_id",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "reference_field": "pl_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "gaia_dr3_id",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": false,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": ["not_in_source", "not_measured"]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": false,
+        "upper_limit_supported": false
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "not_applicable",
+        "preserve_asymmetric_errors": false
+      },
+      "object_identity_key": true,
+      "crossmatch_key": true,
+      "crossmatch_rule_version": "1.0.0",
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "evidence_coverage",
+        "crossmatch_coverage"
+      ]
+    },
+    {
+      "field_id": "star.name",
+      "meaning_zh": "宿主恒星常用名称",
+      "label_en": "Host Star Name",
+      "description": "Published host-star name when one is available.",
+      "object_type": "star",
+      "data_type": "string",
+      "canonical_unit": "none",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "hostname",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "reference_field": "pl_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "hostname",
+          "source_unit": "none",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": false,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": ["not_in_source", "not_measured"]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": false,
+        "upper_limit_supported": false
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "not_applicable",
+        "preserve_asymmetric_errors": false
+      },
+      "object_identity_key": false,
+      "crossmatch_key": true,
+      "crossmatch_rule_version": "1.0.0",
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "evidence_coverage",
+        "crossmatch_coverage"
+      ]
+    },
+    {
+      "field_id": "system.right_ascension",
+      "meaning_zh": "系统赤经",
+      "label_en": "Right Ascension",
+      "description": "ICRS right ascension of the candidate system in degrees.",
+      "object_type": "system",
+      "data_type": "number",
+      "canonical_unit": "degree",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_table": "toi",
+          "raw_field": "ra",
+          "source_unit": "degree",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["toi"]
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "ra",
+          "source_unit": "degree",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "raerr1",
+          "negative_error_field": "raerr2",
+          "reference_field": "sy_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "ra",
+          "source_unit": "degree",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "raerr1",
+          "negative_error_field": "raerr2",
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.toi",
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": false,
+      "null_policy": {
+        "reason_required_when_null": false,
+        "allowed_reasons": []
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": false,
+        "upper_limit_supported": false
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "asymmetric_source_errors",
+        "preserve_asymmetric_errors": true
+      },
+      "object_identity_key": false,
+      "crossmatch_key": true,
+      "crossmatch_rule_version": "1.0.0",
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage",
+        "crossmatch_coverage"
+      ]
+    },
+    {
+      "field_id": "system.declination",
+      "meaning_zh": "系统赤纬",
+      "label_en": "Declination",
+      "description": "ICRS declination of the candidate system in degrees.",
+      "object_type": "system",
+      "data_type": "number",
+      "canonical_unit": "degree",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_table": "toi",
+          "raw_field": "dec",
+          "source_unit": "degree",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["toi"]
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "dec",
+          "source_unit": "degree",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "decerr1",
+          "negative_error_field": "decerr2",
+          "reference_field": "sy_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "dec",
+          "source_unit": "degree",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "decerr1",
+          "negative_error_field": "decerr2",
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.toi",
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": false,
+      "null_policy": {
+        "reason_required_when_null": false,
+        "allowed_reasons": []
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": false,
+        "upper_limit_supported": false
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "asymmetric_source_errors",
+        "preserve_asymmetric_errors": true
+      },
+      "object_identity_key": false,
+      "crossmatch_key": true,
+      "crossmatch_rule_version": "1.0.0",
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage",
+        "crossmatch_coverage"
+      ]
+    },
+    {
+      "field_id": "planet.orbital_period",
+      "meaning_zh": "行星轨道周期",
+      "label_en": "Orbital Period",
+      "description": "Orbital period of the candidate or published planet.",
+      "object_type": "planet",
+      "data_type": "number",
+      "canonical_unit": "day",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "pl_orbper",
+          "source_unit": "day",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "pl_orbpererr1",
+          "negative_error_field": "pl_orbpererr2",
+          "limit_field": "pl_orbperlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "pl_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_table": "toi",
+          "raw_field": "pl_orbper",
+          "source_unit": "day",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["toi"],
+          "positive_error_field": "pl_orbpererr1",
+          "negative_error_field": "pl_orbpererr2",
+          "limit_field": "pl_orbperlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "pl_orbper",
+          "source_unit": "day",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "pl_orbpererr1",
+          "negative_error_field": "pl_orbpererr2",
+          "limit_field": "pl_orbperlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "pl_orbper_reflink",
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.toi",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured",
+          "unresolved_conflict",
+          "below_detection_limit"
+        ]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": true,
+        "upper_limit_supported": true
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "asymmetric_source_errors",
+        "preserve_asymmetric_errors": true
+      },
+      "object_identity_key": false,
+      "crossmatch_key": false,
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage"
+      ]
+    },
+    {
+      "field_id": "planet.radius",
+      "meaning_zh": "行星半径",
+      "label_en": "Planet Radius",
+      "description": "Planet radius normalized to the declared canonical Earth-radius unit by a later issue.",
+      "object_type": "planet",
+      "data_type": "number",
+      "canonical_unit": "earth_radius",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "pl_rade",
+          "source_unit": "earth_radius",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "pl_radeerr1",
+          "negative_error_field": "pl_radeerr2",
+          "limit_field": "pl_radelim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "pl_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "pl_radj",
+          "source_unit": "jupiter_radius",
+          "conversion_rule_id": "unit.jupiter_radius_to_earth_radius.v1",
+          "priority": 2,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "pl_radjerr1",
+          "negative_error_field": "pl_radjerr2",
+          "limit_field": "pl_radjlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "pl_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_table": "toi",
+          "raw_field": "pl_rade",
+          "source_unit": "earth_radius",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["toi"],
+          "positive_error_field": "pl_radeerr1",
+          "negative_error_field": "pl_radeerr2",
+          "limit_field": "pl_radelim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "pl_rade",
+          "source_unit": "earth_radius",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "pl_radeerr1",
+          "negative_error_field": "pl_radeerr2",
+          "limit_field": "pl_radelim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "pl_rade_reflink",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "pl_radj",
+          "source_unit": "jupiter_radius",
+          "conversion_rule_id": "unit.jupiter_radius_to_earth_radius.v1",
+          "priority": 2,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "pl_radjerr1",
+          "negative_error_field": "pl_radjerr2",
+          "limit_field": "pl_radjlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "pl_radj_reflink",
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.toi",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured",
+          "unresolved_conflict",
+          "below_detection_limit"
+        ]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": true,
+        "upper_limit_supported": true
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "asymmetric_source_errors",
+        "preserve_asymmetric_errors": true
+      },
+      "object_identity_key": false,
+      "crossmatch_key": false,
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage"
+      ]
+    },
+    {
+      "field_id": "planet.mass",
+      "meaning_zh": "行星质量或最佳质量估计",
+      "label_en": "Planet Mass",
+      "description": "Planet mass or best available mass estimate with source provenance preserved.",
+      "object_type": "planet",
+      "data_type": "number",
+      "canonical_unit": "earth_mass",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "pl_bmasse",
+          "source_unit": "earth_mass",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "pl_bmasseerr1",
+          "negative_error_field": "pl_bmasseerr2",
+          "limit_field": "pl_bmasselim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "pl_refname",
+          "provenance_field": "pl_bmassprov"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "pl_bmassj",
+          "source_unit": "jupiter_mass",
+          "conversion_rule_id": "unit.jupiter_mass_to_earth_mass.v1",
+          "priority": 2,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "pl_bmassjerr1",
+          "negative_error_field": "pl_bmassjerr2",
+          "limit_field": "pl_bmassjlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "pl_refname",
+          "provenance_field": "pl_bmassprov"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "pl_bmasse",
+          "source_unit": "earth_mass",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "pl_bmasseerr1",
+          "negative_error_field": "pl_bmasseerr2",
+          "limit_field": "pl_bmasselim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "pl_bmasse_reflink",
+          "provenance_field": "pl_bmassprov"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "pl_bmassj",
+          "source_unit": "jupiter_mass",
+          "conversion_rule_id": "unit.jupiter_mass_to_earth_mass.v1",
+          "priority": 2,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "pl_bmassjerr1",
+          "negative_error_field": "pl_bmassjerr2",
+          "limit_field": "pl_bmassjlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "pl_bmassj_reflink",
+          "provenance_field": "pl_bmassprov"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured",
+          "unresolved_conflict",
+          "below_detection_limit"
+        ]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": true,
+        "upper_limit_supported": true
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "asymmetric_source_errors",
+        "preserve_asymmetric_errors": true
+      },
+      "object_identity_key": false,
+      "crossmatch_key": false,
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage"
+      ]
+    },
+    {
+      "field_id": "star.effective_temperature",
+      "meaning_zh": "恒星有效温度",
+      "label_en": "Stellar Effective Temperature",
+      "description": "Effective temperature of the host star.",
+      "object_type": "star",
+      "data_type": "number",
+      "canonical_unit": "kelvin",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "st_teff",
+          "source_unit": "kelvin",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "st_tefferr1",
+          "negative_error_field": "st_tefferr2",
+          "limit_field": "st_tefflim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "st_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_table": "toi",
+          "raw_field": "st_teff",
+          "source_unit": "kelvin",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["toi"],
+          "positive_error_field": "st_tefferr1",
+          "negative_error_field": "st_tefferr2",
+          "limit_field": "st_tefflim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "st_teff",
+          "source_unit": "kelvin",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "st_tefferr1",
+          "negative_error_field": "st_tefferr2",
+          "limit_field": "st_tefflim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "st_teff_reflink",
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.toi",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured",
+          "unresolved_conflict",
+          "below_detection_limit"
+        ]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": true,
+        "upper_limit_supported": true
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "asymmetric_source_errors",
+        "preserve_asymmetric_errors": true
+      },
+      "object_identity_key": false,
+      "crossmatch_key": false,
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage"
+      ]
+    },
+    {
+      "field_id": "star.metallicity",
+      "meaning_zh": "恒星金属丰度",
+      "label_en": "Stellar Metallicity",
+      "description": "Logarithmic host-star metallicity with the source abundance ratio preserved.",
+      "object_type": "star",
+      "data_type": "number",
+      "canonical_unit": "dex",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "st_met",
+          "source_unit": "dex",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "st_meterr1",
+          "negative_error_field": "st_meterr2",
+          "limit_field": "st_metlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "st_refname",
+          "provenance_field": "st_metratio"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "st_met",
+          "source_unit": "dex",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "st_meterr1",
+          "negative_error_field": "st_meterr2",
+          "limit_field": "st_metlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "st_met_reflink",
+          "provenance_field": "st_metratio"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured",
+          "unresolved_conflict",
+          "below_detection_limit"
+        ]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": true,
+        "upper_limit_supported": true
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "asymmetric_source_errors",
+        "preserve_asymmetric_errors": true
+      },
+      "object_identity_key": false,
+      "crossmatch_key": false,
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage"
+      ]
+    },
+    {
+      "field_id": "star.radius",
+      "meaning_zh": "恒星半径",
+      "label_en": "Stellar Radius",
+      "description": "Radius of the host star in solar radii.",
+      "object_type": "star",
+      "data_type": "number",
+      "canonical_unit": "solar_radius",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "st_rad",
+          "source_unit": "solar_radius",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "st_raderr1",
+          "negative_error_field": "st_raderr2",
+          "limit_field": "st_radlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "st_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.toi",
+          "source_table": "toi",
+          "raw_field": "st_rad",
+          "source_unit": "solar_radius",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["toi"],
+          "positive_error_field": "st_raderr1",
+          "negative_error_field": "st_raderr2",
+          "limit_field": "st_radlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "st_rad",
+          "source_unit": "solar_radius",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "st_raderr1",
+          "negative_error_field": "st_raderr2",
+          "limit_field": "st_radlim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "st_rad_reflink",
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.toi",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured",
+          "unresolved_conflict",
+          "below_detection_limit"
+        ]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": true,
+        "upper_limit_supported": true
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "asymmetric_source_errors",
+        "preserve_asymmetric_errors": true
+      },
+      "object_identity_key": false,
+      "crossmatch_key": false,
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage"
+      ]
+    },
+    {
+      "field_id": "star.mass",
+      "meaning_zh": "恒星质量",
+      "label_en": "Stellar Mass",
+      "description": "Mass of the host star in solar masses.",
+      "object_type": "star",
+      "data_type": "number",
+      "canonical_unit": "solar_mass",
+      "source_aliases": [
+        {
+          "source_id": "nasa_exoplanet_archive.ps",
+          "source_table": "ps",
+          "raw_field": "st_mass",
+          "source_unit": "solar_mass",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name", "pl_refname"],
+          "positive_error_field": "st_masserr1",
+          "negative_error_field": "st_masserr2",
+          "limit_field": "st_masslim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "st_refname",
+          "provenance_field": "rowupdate"
+        },
+        {
+          "source_id": "nasa_exoplanet_archive.pscomppars",
+          "source_table": "pscomppars",
+          "raw_field": "st_mass",
+          "source_unit": "solar_mass",
+          "conversion_rule_id": "unit.identity.v1",
+          "priority": 1,
+          "row_key_fields": ["pl_name"],
+          "positive_error_field": "st_masserr1",
+          "negative_error_field": "st_masserr2",
+          "limit_field": "st_masslim",
+          "limit_flags": {"measured": 0, "lower_limit": 1, "upper_limit": -1},
+          "reference_field": "st_mass_reflink",
+          "provenance_field": "rowupdate"
+        }
+      ],
+      "source_priority": [
+        "nasa_exoplanet_archive.ps",
+        "nasa_exoplanet_archive.pscomppars"
+      ],
+      "conflict_resolution_strategy": "prefer_source_priority_preserve_all",
+      "conflict_resolution_rule_version": "1.0.0",
+      "required": true,
+      "nullable": true,
+      "null_policy": {
+        "reason_required_when_null": true,
+        "allowed_reasons": [
+          "not_in_source",
+          "not_measured",
+          "unresolved_conflict",
+          "below_detection_limit"
+        ]
+      },
+      "limit_policy": {
+        "rule_version": "1.0.0",
+        "lower_limit_supported": true,
+        "upper_limit_supported": true
+      },
+      "uncertainty_policy": {
+        "rule_version": "1.0.0",
+        "mode": "asymmetric_source_errors",
+        "preserve_asymmetric_errors": true
+      },
+      "object_identity_key": false,
+      "crossmatch_key": false,
+      "evidence_locator_rule_id": "evidence.database_cell.v1",
+      "transformation_rule_version": "1.0.0",
+      "quality_metric_inputs": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage"
+      ]
+    }
+  ]
+}

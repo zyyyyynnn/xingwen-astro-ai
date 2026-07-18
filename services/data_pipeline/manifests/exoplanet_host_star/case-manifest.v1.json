@@ -1,0 +1,73 @@
+{
+  "case_id": "exoplanet_host_star",
+  "name": "系外行星候选体与宿主恒星参数整合",
+  "description": "Fixed research case for integrating TESS exoplanet candidate and host-star parameters with reproducible field and provenance declarations.",
+  "schema_version": "1.0.0",
+  "manifest_version": "1.0.0",
+  "content_hash": "sha256:4ed999b10ebdb097d715b2a56a8a8ebda02d77e6a7c60b81b054e7b7fa9e0323",
+  "created_at": "2026-07-18",
+  "maintained_by": {
+    "module": "C",
+    "role": "data_pipeline"
+  },
+  "target_objects": [
+    {
+      "object_type": "planet",
+      "role": "exoplanet_candidate",
+      "identity_fields": ["planet.toi_id"],
+      "crossmatch_fields": [
+        "planet.toi_id",
+        "planet.name",
+        "system.right_ascension",
+        "system.declination"
+      ],
+      "evidence_locator_rule_id": "evidence.database_cell.v1"
+    },
+    {
+      "object_type": "star",
+      "role": "host_star",
+      "identity_fields": ["star.tic_id", "star.gaia_dr3_id"],
+      "crossmatch_fields": [
+        "star.tic_id",
+        "star.gaia_dr3_id",
+        "star.name",
+        "system.right_ascension",
+        "system.declination"
+      ],
+      "evidence_locator_rule_id": "evidence.database_cell.v1"
+    }
+  ],
+  "default_requested_fields": [
+    "planet.toi_id",
+    "planet.name",
+    "planet.disposition",
+    "star.tic_id",
+    "star.gaia_dr3_id",
+    "star.name",
+    "system.right_ascension",
+    "system.declination",
+    "planet.orbital_period",
+    "planet.radius",
+    "planet.mass",
+    "star.effective_temperature",
+    "star.metallicity",
+    "star.radius",
+    "star.mass"
+  ],
+  "allowed_source_ids": [
+    "nasa_exoplanet_archive.ps",
+    "nasa_exoplanet_archive.toi",
+    "nasa_exoplanet_archive.pscomppars"
+  ],
+  "field_manifest": {
+    "manifest_id": "exoplanet_host_star.fields",
+    "manifest_version": "1.0.0",
+    "content_hash": "sha256:b046aeafafeed3463e3623ed6d893fb5ab45996036ebacf3159be2965fc92183"
+  },
+  "minimum_evidence_locator_components": [
+    "source_snapshot_id",
+    "query_hash",
+    "row_key",
+    "raw_field"
+  ]
+}
