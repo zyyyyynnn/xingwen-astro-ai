@@ -4,9 +4,9 @@
   "description": "Fixed research case for integrating TESS exoplanet candidate and host-star parameters with reproducible field and provenance declarations.",
   "schema_version": "1.0.0",
   "manifest_version": "1.0.0",
-  "content_hash": "sha256:dc0730c909388c965227dc112554c1a790edb83f49749e7e807a59a769f94bab",
-  "maintained_at": "2026-07-18",
-  "maintainer": {
+  "content_hash": "sha256:4ed999b10ebdb097d715b2a56a8a8ebda02d77e6a7c60b81b054e7b7fa9e0323",
+  "created_at": "2026-07-18",
+  "maintained_by": {
     "module": "C",
     "role": "data_pipeline"
   },

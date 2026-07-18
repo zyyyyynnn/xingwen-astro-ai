@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from app.schemas.manifest import (
     CaseManifest,
     FieldManifest,
+    ManifestBundle,
     compute_content_hash,
     load_manifest_bundle,
 )
@@ -59,6 +60,30 @@ def test_manifest_bundle_is_valid_and_freezes_the_approved_fields() -> None:
     assert {field.field_id for field in bundle.field_manifest.fields} == APPROVED_FIELD_IDS
     assert set(bundle.case_manifest.default_requested_fields) == APPROVED_FIELD_IDS
     assert len(bundle.field_manifest.fields) == 15
+
+
+def test_case_manifest_uses_created_at_and_maintained_by() -> None:
+    payload = _read_json(CASE_MANIFEST_PATH)
+
+    assert "created_at" in payload
+    assert "maintained_by" in payload
+    assert "maintained_at" not in payload
+    assert "maintainer" not in payload
+
+    manifest = CaseManifest.model_validate(payload)
+    assert manifest.created_at
+    assert manifest.maintained_by.module == "C"
+
+
+@pytest.mark.parametrize("required_field", ["created_at", "maintained_by"])
+def test_case_manifest_rejects_missing_audit_metadata(required_field: str) -> None:
+    payload = _read_json(CASE_MANIFEST_PATH)
+    payload.pop(required_field)
+
+    with pytest.raises(ValidationError) as captured:
+        CaseManifest.model_validate(payload)
+
+    assert required_field in str(captured.value)
 
 
 def test_each_field_contains_the_c01_metadata_contract() -> None:
@@ -222,6 +247,21 @@ def test_content_hash_is_stable_and_detects_tampering() -> None:
         FieldManifest.model_validate(payload)
 
 
+def test_content_hash_normalizes_explicit_and_omitted_defaults() -> None:
+    explicit_default = _read_json(FIELD_MANIFEST_PATH)
+    omitted_default = deepcopy(explicit_default)
+    assert (
+        omitted_default["sources"][0].pop("declaration_mode")
+        == "metadata_only"
+    )
+
+    published_manifest = FieldManifest.model_validate(explicit_default)
+    expected_hash = compute_content_hash(explicit_default)
+
+    assert compute_content_hash(omitted_default) == expected_hash
+    assert compute_content_hash(published_manifest) == expected_hash
+
+
 def test_case_manifest_pins_the_exact_field_manifest_version_and_hash() -> None:
     bundle = load_manifest_bundle(CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH)
     reference = bundle.case_manifest.field_manifest
@@ -229,6 +269,109 @@ def test_case_manifest_pins_the_exact_field_manifest_version_and_hash() -> None:
     assert reference.manifest_id == bundle.field_manifest.manifest_id
     assert reference.manifest_version == bundle.field_manifest.manifest_version
     assert reference.content_hash == bundle.field_manifest.content_hash
+
+
+@pytest.mark.parametrize(
+    ("reference_key", "tampered_value", "expected_message"),
+    [
+        (
+            "manifest_version",
+            "9.9.9",
+            "field manifest version does not match the case reference",
+        ),
+        (
+            "content_hash",
+            f"sha256:{'0' * 64}",
+            "field manifest hash does not match the case reference",
+        ),
+    ],
+)
+def test_bundle_rejects_tampered_field_manifest_reference(
+    reference_key: str,
+    tampered_value: str,
+    expected_message: str,
+) -> None:
+    case_payload = _read_json(CASE_MANIFEST_PATH)
+    case_payload["field_manifest"][reference_key] = tampered_value
+    case_manifest = CaseManifest.model_validate(_rehash(case_payload))
+    field_manifest = FieldManifest.model_validate(_read_json(FIELD_MANIFEST_PATH))
+
+    with pytest.raises(ValidationError, match=expected_message):
+        ManifestBundle(
+            case_manifest=case_manifest,
+            field_manifest=field_manifest,
+        )
+
+
+def test_bundle_rejects_field_alias_source_not_allowed_by_case() -> None:
+    field_payload = _read_json(FIELD_MANIFEST_PATH)
+    field_payload["sources"].append(
+        {
+            "source_id": "review.extra",
+            "provider": "Review fixture",
+            "name": "Unapproved review source",
+            "source_table": "review_extra",
+            "documentation_url": "https://example.com/review-extra",
+            "declaration_mode": "metadata_only",
+        }
+    )
+    planet_name = next(
+        field for field in field_payload["fields"] if field["field_id"] == "planet.name"
+    )
+    planet_name["source_aliases"].append(
+        {
+            "source_id": "review.extra",
+            "source_table": "review_extra",
+            "raw_field": "review_name",
+            "source_unit": planet_name["canonical_unit"],
+            "conversion_rule_id": "unit.identity.v1",
+            "priority": 1,
+            "row_key_fields": ["review_id"],
+        }
+    )
+    planet_name["source_priority"].append("review.extra")
+    field_manifest = FieldManifest.model_validate(_rehash(field_payload))
+
+    case_payload = _read_json(CASE_MANIFEST_PATH)
+    case_payload["allowed_source_ids"] = ["nasa_exoplanet_archive.ps"]
+    case_payload["field_manifest"]["content_hash"] = field_manifest.content_hash
+    case_manifest = CaseManifest.model_validate(_rehash(case_payload))
+
+    with pytest.raises(ValidationError, match="review.extra"):
+        ManifestBundle(
+            case_manifest=case_manifest,
+            field_manifest=field_manifest,
+        )
+
+
+@pytest.mark.parametrize(
+    "manifest_class,path",
+    [(CaseManifest, CASE_MANIFEST_PATH), (FieldManifest, FIELD_MANIFEST_PATH)],
+)
+def test_invalid_schema_version_is_rejected(
+    manifest_class: type[Any],
+    path: Path,
+) -> None:
+    payload = _read_json(path)
+    payload["schema_version"] = "abc"
+
+    with pytest.raises(ValidationError, match="schema_version"):
+        manifest_class.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "manifest_class,path",
+    [(CaseManifest, CASE_MANIFEST_PATH), (FieldManifest, FIELD_MANIFEST_PATH)],
+)
+def test_invalid_content_hash_format_is_rejected(
+    manifest_class: type[Any],
+    path: Path,
+) -> None:
+    payload = _read_json(path)
+    payload["content_hash"] = "not-a-sha256-hash"
+
+    with pytest.raises(ValidationError, match="content_hash"):
+        manifest_class.model_validate(payload)
 
 
 def test_requested_fields_accept_only_canonical_manifest_ids() -> None:

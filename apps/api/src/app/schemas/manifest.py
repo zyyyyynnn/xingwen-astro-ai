@@ -325,8 +325,8 @@ class FieldDefinition(BaseModel):
         return tuple(alias for alias in self.source_aliases if alias.source_id == source_id)
 
 
-class FieldManifest(BaseModel):
-    """Versioned field fact source for one research case."""
+class FieldManifestPayload(BaseModel):
+    """Canonical payload for a versioned field fact source."""
 
     model_config = MODEL_CONFIG
 
@@ -336,7 +336,6 @@ class FieldManifest(BaseModel):
     description: NonEmptyString
     schema_version: SemanticVersion
     manifest_version: SemanticVersion
-    content_hash: ContentHash
     maintained_at: date
     maintainer: MaintainerDefinition
     sources: tuple[SourceDefinition, ...] = Field(min_length=1)
@@ -346,7 +345,7 @@ class FieldManifest(BaseModel):
     fields: tuple[FieldDefinition, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_registry_references_and_hash(self) -> Self:
+    def validate_registry_references(self) -> Self:
         source_by_id = _unique_registry(self.sources, "source_id", "source id")
         source_table_keys: set[tuple[str, str]] = set()
         for source in self.sources:
@@ -442,7 +441,6 @@ class FieldManifest(BaseModel):
 
         if not field_by_id:
             raise ValueError("field manifest must contain at least one field")
-        _validate_content_hash(self)
         return self
 
     def field_by_id(self, field_id: str) -> FieldDefinition:
@@ -452,6 +450,17 @@ class FieldManifest(BaseModel):
             if field.field_id == field_id:
                 return field
         raise KeyError(field_id)
+
+
+class FieldManifest(FieldManifestPayload):
+    """Published Field Manifest with a verified canonical content hash."""
+
+    content_hash: ContentHash
+
+    @model_validator(mode="after")
+    def validate_content_hash(self) -> Self:
+        _validate_content_hash(self)
+        return self
 
 
 class ManifestReference(BaseModel):
@@ -484,8 +493,8 @@ class TargetObjectDefinition(BaseModel):
         return self
 
 
-class CaseManifest(BaseModel):
-    """Versioned declaration of the fixed exoplanet/host-star research case."""
+class CaseManifestPayload(BaseModel):
+    """Canonical payload for the fixed exoplanet/host-star research case."""
 
     model_config = MODEL_CONFIG
 
@@ -494,9 +503,8 @@ class CaseManifest(BaseModel):
     description: NonEmptyString
     schema_version: SemanticVersion
     manifest_version: SemanticVersion
-    content_hash: ContentHash
-    maintained_at: date
-    maintainer: MaintainerDefinition
+    created_at: date
+    maintained_by: MaintainerDefinition
     target_objects: tuple[TargetObjectDefinition, ...] = Field(min_length=1)
     default_requested_fields: tuple[CanonicalFieldId, ...] = Field(min_length=1)
     allowed_source_ids: tuple[Identifier, ...] = Field(min_length=1)
@@ -504,7 +512,7 @@ class CaseManifest(BaseModel):
     minimum_evidence_locator_components: tuple[NonEmptyString, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_case_uniqueness_and_hash(self) -> Self:
+    def validate_case_uniqueness(self) -> Self:
         object_types = [target.object_type for target in self.target_objects]
         if len(object_types) != len(set(object_types)):
             raise ValueError("duplicate target object type")
@@ -514,6 +522,16 @@ class CaseManifest(BaseModel):
             self.minimum_evidence_locator_components,
             "minimum evidence locator component",
         )
+        return self
+
+
+class CaseManifest(CaseManifestPayload):
+    """Published Case Manifest with a verified canonical content hash."""
+
+    content_hash: ContentHash
+
+    @model_validator(mode="after")
+    def validate_content_hash(self) -> Self:
         _validate_content_hash(self)
         return self
 
@@ -545,6 +563,18 @@ class ManifestBundle(BaseModel):
         unknown_sources = set(case.allowed_source_ids) - source_ids
         if unknown_sources:
             raise ValueError(f"case references unsupported sources: {sorted(unknown_sources)}")
+
+        used_source_ids = {
+            alias.source_id
+            for field in fields.fields
+            for alias in field.source_aliases
+        }
+        unauthorized_source_ids = used_source_ids - set(case.allowed_source_ids)
+        if unauthorized_source_ids:
+            raise ValueError(
+                "field aliases use source ids not allowed by the case: "
+                f"{sorted(unauthorized_source_ids)}"
+            )
 
         field_by_id = {field.field_id: field for field in fields.fields}
         self.validate_requested_fields(case.default_requested_fields)
@@ -604,14 +634,19 @@ def compute_content_hash(value: BaseModel | Mapping[str, Any]) -> str:
     """Compute the C-01 canonical SHA-256 hash, excluding ``content_hash``."""
 
     if isinstance(value, BaseModel):
-        payload = value.model_dump(
-            mode="json",
-            exclude={"content_hash"},
-            exclude_none=True,
-        )
+        raw_payload = value.model_dump(mode="json", exclude={"content_hash"})
     else:
-        payload = dict(value)
-        payload.pop("content_hash", None)
+        raw_payload = dict(value)
+        raw_payload.pop("content_hash", None)
+
+    if isinstance(value, FieldManifestPayload) or "fields" in raw_payload:
+        payload_model = FieldManifestPayload.model_validate(raw_payload)
+    elif isinstance(value, CaseManifestPayload) or "target_objects" in raw_payload:
+        payload_model = CaseManifestPayload.model_validate(raw_payload)
+    else:
+        raise TypeError("content hash input must be a Case or Field Manifest payload")
+
+    payload = payload_model.model_dump(mode="json", exclude_none=True)
 
     canonical_json = json.dumps(
         payload,
