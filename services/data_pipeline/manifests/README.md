@@ -25,7 +25,7 @@
 Case Manifest 至少包含：
 
 - `case_id`、中英文名称和描述；
-- `schema_version`、`manifest_version`、`content_hash`、`maintained_at` 和维护责任；
+- `schema_version`、`manifest_version`、`content_hash`、`created_at` 和 `maintained_by`；
 - 支持的对象类型、默认请求字段和允许来源；
 - 对 Field Manifest 的不可漂移引用（manifest id、版本和 hash）；
 - 对象 identity/crossmatch 规则与最低 Evidence locator 要求。
