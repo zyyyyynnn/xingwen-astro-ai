@@ -183,6 +183,8 @@ GraphEdge 修订若影响 Relation、ReasoningTrace 或 Evidence，RevisionPlan 
 
 当前已实现：显式状态转换表、无数据库 Executor、WorkflowHooks Protocol 与单元测试。
 
+当前 v1 `ResearchTask` 快照同时校验顶层状态、进度和 Step 状态：初始 `pending` 快照不得包含已开始 Step，含 `running` Step 的快照不得为 `pending`，`completed` 快照的进度必须为 100。
+
 目标仍待实现：数据库 Repository/Hooks、Project/Run 持久化、RunEvent、取消资源、派生 Run、ArtifactVersion 发布、自动重试、真实 CacheSelector 与 v2 API。
 
 迁移期间 v1 `ResearchTask` 可适配为一个 Project + 一个 Run，但 v2 语义不得回写破坏现有接口。
