@@ -55,3 +55,19 @@ class TaskStatusResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     steps: list[StepInfo]
+
+    @model_validator(mode="after")
+    def status_snapshot_must_be_consistent(self) -> TaskStatusResponse:
+        if (
+            self.status == TaskStatus.pending
+            and any(step.status == StepStatus.running for step in self.steps)
+        ):
+            raise ValueError("task with a running step must not be pending")
+        if (
+            self.status == TaskStatus.pending
+            and any(step.status != StepStatus.pending for step in self.steps)
+        ):
+            raise ValueError("pending task must not contain started steps")
+        if self.status == TaskStatus.completed and self.progress != 100:
+            raise ValueError("completed task must have progress 100")
+        return self

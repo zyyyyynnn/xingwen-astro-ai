@@ -67,18 +67,16 @@ class TaskService:
         record = self._require_task(task_id)
         if task_id == "task_001":
             return mock_task_status()
-        base = mock_task_status()
-        return base.model_copy(
-            update={
-                "task_id": record.task_id,
-                "goal": record.goal,
-                "case_key": record.case_key,
-                "status": record.status,
-                "progress": 0,
-                "used_cache": False,
-                "created_at": record.created_at,
-                "updated_at": record.updated_at,
-            }
+        return TaskStatusResponse(
+            task_id=record.task_id,
+            goal=record.goal,
+            case_key=record.case_key,
+            status=record.status,
+            progress=0,
+            used_cache=False,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+            steps=[],
         )
 
     def get_dataset(self, task_id: str) -> DatasetResponse:
