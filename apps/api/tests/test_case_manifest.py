@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,24 @@ MANIFEST_DIRECTORY = (
 )
 CASE_MANIFEST_PATH = MANIFEST_DIRECTORY / "case-manifest.v1.json"
 FIELD_MANIFEST_PATH = MANIFEST_DIRECTORY / "field-manifest.v1.json"
+SOURCE_EVIDENCE_DIRECTORY = (
+    MANIFEST_DIRECTORY
+    / "source-evidence"
+    / "nasa-exoplanet-archive"
+    / "2026-07-19"
+)
+SOURCE_ADJUDICATION_PATH = (
+    SOURCE_EVIDENCE_DIRECTORY / "column-adjudications.v1.json"
+)
+
+SOURCE_COLUMN_ROLES = (
+    "raw_field",
+    "positive_error_field",
+    "negative_error_field",
+    "limit_field",
+    "reference_field",
+    "provenance_field",
+)
 
 APPROVED_FIELD_IDS = {
     "planet.toi_id",
@@ -52,6 +71,27 @@ def _rehash(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def _adjudicated_source_contracts() -> dict[str, dict[str, Any]]:
+    adjudication = _read_json(SOURCE_ADJUDICATION_PATH)
+    return {
+        contract["source_id"]: contract
+        for contract in adjudication["table_contracts"]
+    }
+
+
+def _source_aliases(payload: dict[str, Any], source_id: str) -> list[dict[str, Any]]:
+    return [
+        alias
+        for field in payload["fields"]
+        for alias in field["source_aliases"]
+        if alias["source_id"] == source_id
+    ]
+
+
+def _file_sha256(path: Path) -> str:
+    return f"sha256:{sha256(path.read_bytes()).hexdigest()}"
+
+
 def test_manifest_bundle_is_valid_and_freezes_the_approved_fields() -> None:
     bundle = load_manifest_bundle(CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH)
 
@@ -73,6 +113,48 @@ def test_case_manifest_uses_created_at_and_maintained_by() -> None:
     manifest = CaseManifest.model_validate(payload)
     assert manifest.created_at
     assert manifest.maintained_by.module == "C"
+
+
+def test_field_manifest_uses_created_at_and_maintained_by() -> None:
+    payload = _read_json(FIELD_MANIFEST_PATH)
+
+    assert "created_at" in payload
+    assert "maintained_by" in payload
+    assert "maintained_at" not in payload
+    assert "maintainer" not in payload
+
+    manifest = FieldManifest.model_validate(payload)
+    assert manifest.created_at
+    assert manifest.maintained_by.module == "C"
+
+
+@pytest.mark.parametrize(
+    ("manifest_class", "path"),
+    [(CaseManifest, CASE_MANIFEST_PATH), (FieldManifest, FIELD_MANIFEST_PATH)],
+)
+@pytest.mark.parametrize(
+    ("legacy_field", "replacement_field"),
+    [("maintained_at", "created_at"), ("maintainer", "maintained_by")],
+)
+def test_manifest_metadata_contract_rejects_legacy_fields(
+    manifest_class: type[Any],
+    path: Path,
+    legacy_field: str,
+    replacement_field: str,
+) -> None:
+    payload = _read_json(path)
+    if "maintained_at" in payload:
+        payload["created_at"] = payload.pop("maintained_at")
+    if "maintainer" in payload:
+        payload["maintained_by"] = payload.pop("maintainer")
+    payload[legacy_field] = deepcopy(payload[replacement_field])
+
+    with pytest.raises(ValidationError) as captured:
+        manifest_class.model_validate(_rehash(payload))
+
+    assert (legacy_field,) in {
+        tuple(error["loc"]) for error in captured.value.errors()
+    }
 
 
 @pytest.mark.parametrize("required_field", ["created_at", "maintained_by"])
@@ -222,6 +304,151 @@ def test_nasa_companion_columns_are_pinned_to_the_correct_source_tables() -> Non
     assert ps_ra.reference_field == "sy_refname"
 
 
+def test_source_definitions_pin_the_adjudicated_column_allowlists() -> None:
+    payload = _read_json(FIELD_MANIFEST_PATH)
+    adjudicated = _adjudicated_source_contracts()
+
+    for source in payload["sources"]:
+        assert "approved_columns" in source
+        contract = adjudicated[source["source_id"]]
+        assert set(source["approved_columns"]) == set(contract["approved_columns"])
+        assert source["row_key_fields"] == contract["row_key_fields"]
+        assert source["reference_columns"] == contract["reference_columns"]
+        assert source["provenance_columns"] == contract["provenance_columns"]
+
+
+def test_every_alias_column_exists_in_its_adjudicated_source_allowlist() -> None:
+    payload = _read_json(FIELD_MANIFEST_PATH)
+    adjudicated = _adjudicated_source_contracts()
+
+    for source_id, contract in adjudicated.items():
+        approved_columns = set(contract["approved_columns"])
+        for alias in _source_aliases(payload, source_id):
+            declared_columns = set(alias["row_key_fields"])
+            declared_columns.update(
+                alias[role]
+                for role in SOURCE_COLUMN_ROLES
+                if alias.get(role) is not None
+            )
+            assert declared_columns <= approved_columns, (
+                source_id,
+                sorted(declared_columns - approved_columns),
+            )
+
+
+def test_row_keys_match_the_adjudicated_source_tables() -> None:
+    payload = _read_json(FIELD_MANIFEST_PATH)
+
+    for source_id, contract in _adjudicated_source_contracts().items():
+        expected = tuple(contract["row_key_fields"])
+        for alias in _source_aliases(payload, source_id):
+            assert tuple(alias["row_key_fields"]) == expected
+
+
+def test_reference_and_provenance_columns_match_the_adjudicated_sources() -> None:
+    payload = _read_json(FIELD_MANIFEST_PATH)
+
+    for source_id, contract in _adjudicated_source_contracts().items():
+        aliases = _source_aliases(payload, source_id)
+        actual_references = {
+            alias["reference_field"]
+            for alias in aliases
+            if alias.get("reference_field")
+        }
+        actual_provenance = {
+            alias["provenance_field"]
+            for alias in aliases
+            if alias.get("provenance_field")
+        }
+        assert actual_references == set(contract["reference_columns"])
+        assert actual_provenance == set(contract["provenance_columns"])
+
+
+@pytest.mark.parametrize(
+    "column_role",
+    ["raw_field", "row_key_fields", *SOURCE_COLUMN_ROLES[1:]],
+)
+def test_unapproved_source_columns_are_rejected(column_role: str) -> None:
+    payload = _read_json(FIELD_MANIFEST_PATH)
+    aliases = [
+        alias
+        for field in payload["fields"]
+        for alias in field["source_aliases"]
+        if column_role in alias
+    ]
+    alias = aliases[0]
+    if column_role == "row_key_fields":
+        alias[column_role] = ["definitely_not_a_real_source_column"]
+    else:
+        alias[column_role] = "definitely_not_a_real_source_column"
+
+    with pytest.raises(ValidationError, match="not an approved source column"):
+        FieldManifest.model_validate(_rehash(payload))
+
+
+@pytest.mark.parametrize(
+    ("column_role", "expected_message"),
+    [
+        ("row_key_fields", "row key fields do not match"),
+        ("reference_field", "not an approved reference column"),
+        ("provenance_field", "not an approved provenance column"),
+    ],
+)
+def test_approved_columns_cannot_be_used_in_the_wrong_source_role(
+    column_role: str,
+    expected_message: str,
+) -> None:
+    payload = _read_json(FIELD_MANIFEST_PATH)
+    ps_aliases = _source_aliases(payload, "nasa_exoplanet_archive.ps")
+    alias = next(item for item in ps_aliases if column_role in item)
+    if column_role == "row_key_fields":
+        alias[column_role] = ["ra"]
+    else:
+        alias[column_role] = "ra"
+
+    with pytest.raises(ValidationError, match=expected_message):
+        FieldManifest.model_validate(_rehash(payload))
+
+
+def test_provider_source_ids_resolve_to_the_existing_table_source_definitions() -> None:
+    case_payload = _read_json(CASE_MANIFEST_PATH)
+    field_payload = _read_json(FIELD_MANIFEST_PATH)
+
+    assert case_payload["allowed_source_ids"] == ["nasa_exoplanet_archive"]
+    assert all("provider_source_id" in source for source in field_payload["sources"])
+    assert {
+        source["provider_source_id"] for source in field_payload["sources"]
+    } == set(case_payload["allowed_source_ids"])
+    assert all(
+        source["source_id"]
+        == f'{source["provider_source_id"]}.{source["source_table"]}'
+        for source in field_payload["sources"]
+    )
+
+    bundle = load_manifest_bundle(CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH)
+    expected_table_ids = tuple(
+        source["source_id"] for source in field_payload["sources"]
+    )
+    assert bundle.resolve_source_scope(["nasa_exoplanet_archive"]) == expected_table_ids
+
+    with pytest.raises(ValueError, match="unsupported provider source"):
+        bundle.resolve_source_scope(["unsupported_provider"])
+
+
+def test_source_definitions_pin_the_versioned_adjudication_record() -> None:
+    payload = _read_json(FIELD_MANIFEST_PATH)
+    adjudication = _read_json(SOURCE_ADJUDICATION_PATH)
+    expected_hash = _file_sha256(SOURCE_ADJUDICATION_PATH)
+
+    for source in payload["sources"]:
+        assert "column_contract" in source
+        reference = source["column_contract"]
+        assert reference["snapshot_id"] == adjudication["snapshot_id"]
+        assert reference["snapshot_version"] == adjudication["snapshot_version"]
+        assert reference["content_hash"] == expected_hash
+        assert REPOSITORY_ROOT / reference["path"] == SOURCE_ADJUDICATION_PATH
+
+
 @pytest.mark.parametrize(
     "manifest_class,path",
     [(CaseManifest, CASE_MANIFEST_PATH), (FieldManifest, FIELD_MANIFEST_PATH)],
@@ -308,11 +535,22 @@ def test_bundle_rejects_field_alias_source_not_allowed_by_case() -> None:
     field_payload["sources"].append(
         {
             "source_id": "review.extra",
+            "provider_source_id": "review",
             "provider": "Review fixture",
             "name": "Unapproved review source",
-            "source_table": "review_extra",
+            "source_table": "extra",
             "documentation_url": "https://example.com/review-extra",
             "declaration_mode": "metadata_only",
+            "approved_columns": ["review_id", "review_name"],
+            "row_key_fields": ["review_id"],
+            "reference_columns": [],
+            "provenance_columns": [],
+            "column_contract": {
+                "snapshot_id": "review.extra.columns",
+                "snapshot_version": "1.0.0",
+                "path": "tests/fixtures/review-extra-columns.json",
+                "content_hash": f"sha256:{'0' * 64}",
+            },
         }
     )
     planet_name = next(
@@ -321,7 +559,7 @@ def test_bundle_rejects_field_alias_source_not_allowed_by_case() -> None:
     planet_name["source_aliases"].append(
         {
             "source_id": "review.extra",
-            "source_table": "review_extra",
+            "source_table": "extra",
             "raw_field": "review_name",
             "source_unit": planet_name["canonical_unit"],
             "conversion_rule_id": "unit.identity.v1",
@@ -333,7 +571,7 @@ def test_bundle_rejects_field_alias_source_not_allowed_by_case() -> None:
     field_manifest = FieldManifest.model_validate(_rehash(field_payload))
 
     case_payload = _read_json(CASE_MANIFEST_PATH)
-    case_payload["allowed_source_ids"] = ["nasa_exoplanet_archive.ps"]
+    case_payload["allowed_source_ids"] = ["nasa_exoplanet_archive"]
     case_payload["field_manifest"]["content_hash"] = field_manifest.content_hash
     case_manifest = CaseManifest.model_validate(_rehash(case_payload))
 
@@ -397,4 +635,8 @@ def test_manifest_models_export_machine_readable_json_schema() -> None:
 
     assert "schema_version" in case_schema["required"]
     assert "fields" in field_schema["required"]
+    assert "created_at" in field_schema["required"]
+    assert "maintained_by" in field_schema["required"]
+    assert "maintained_at" not in field_schema["properties"]
+    assert "maintainer" not in field_schema["properties"]
     assert field_schema["properties"]["fields"]["type"] == "array"

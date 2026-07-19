@@ -155,6 +155,8 @@ derivation_kind = original | retry | revision | fork
 
 `execution_mode` 只出现在 ResearchRun、创建 Run 请求和 Guided Tour 启动状态中，不进入 ResearchContract 或 ResearchContractDraft。HTTP Adapter 在 MVP 只创建 `execution_mode=live` 的 Run；Fixture Adapter 在浏览器内返回相同 Domain Model，并标记 `execution_mode=demo_replay`、`source_mode=fixture`。修订由 `derivation_kind=revision` 或 `supersedes_version_id` 非空推导，不新增 `source_mode` 值。
 
+`source_scope.allowed_sources` 使用稳定的 provider source id（例如 `nasa_exoplanet_archive`），不接受 `nasa_exoplanet_archive.ps` 等 table source id。C-01 通过 Field Manifest 中既有 `SourceDefinition.provider_source_id` 与 `source_table` 派生 table source id；API 不维护第二套来源定义或映射表。未经 Case Manifest `allowed_source_ids` 授权的 provider source id 必须拒绝。
+
 ### 6.2 Run 状态
 
 传输字段 `ResearchRun.status` 使用 `RunStatus`；完整状态集合和转换规则只在 [WORKFLOW_DESIGN.md](WORKFLOW_DESIGN.md) 冻结。`cached`、`fixture` 和修订关系不是 Run 状态。
