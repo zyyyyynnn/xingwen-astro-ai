@@ -13,6 +13,7 @@
 ## 2. 唯一事实源与目录边界
 
 - `services/data_pipeline/manifests/exoplanet_host_star/` 保存 Case Manifest 和 Field Manifest 数据。
+- `services/data_pipeline/manifests/exoplanet_host_star/source-evidence/` 保存官方定义、TAP_SCHEMA 观测和裁决记录；证据解释来源列裁决，但不替代 Manifest 的生产契约。
 - `apps/api/src/app/schemas/manifest.py` 是 Pydantic v2 Schema authoring source，只定义结构、稳定 hash 和静态校验，不新增 API 端点。
 - `packages/schemas/generated/` 只保存现有导出脚本生成的 JSON Schema，不手写第二套生产 Schema。
 - `packages/domain`、`packages/contracts`、前端和 Pipeline 运行时代码只能按版本引用 Manifest，不复制字段清单。
@@ -34,50 +35,36 @@ Case Manifest 至少包含：
 
 Field Manifest 至少包含：
 
-- `manifest_id`、`case_id`、版本、hash 和维护信息；
-- 受控来源、单位和规则标识注册表；
+- `manifest_id`、`case_id`、版本、hash、`created_at` 和 `maintained_by`；
+- 受控来源、来源列 allowlist、来源证据引用、单位和规则标识注册表；
 - 完整字段定义列表；
 - 每个字段的来源别名、来源优先级、冲突策略、缺失/误差/上下限、身份与匹配、Evidence、转换版本及质量指标输入。
 
 Case Manifest 通过版本和 hash 引用 Field Manifest；两份文件分别计算 hash，避免循环引用。
 
-## 4. 冻结字段范围
+## 4. 字段事实读取方式
 
-`required` 表示字段必须存在于默认 Dataset/FieldDictionary 的列定义中；`nullable` 表示单条科学记录可以为空。`required=true` 与 `nullable=true` 可以同时成立，但空值必须携带受控 `null_reason`，不得以默认数值代替观测缺失。
+README 不维护 canonical 字段表或 NASA 原始列清单，避免与 JSON 漂移。唯一生产事实源是：
 
-| canonical field id | 中文含义 | canonical unit | required | nullable | 角色 |
-| --- | --- | --- | --- | --- | --- |
-| `planet.toi_id` | TESS 候选体标识 | `none` | 是 | 否 | 候选体主标识、exact crossmatch |
-| `planet.name` | 行星常用名称 | `none` | 否 | 是 | 显示/别名，不作为唯一标识 |
-| `planet.disposition` | 候选体处置状态 | `none` | 是 | 是 | 候选/确认/误报语义 |
-| `star.tic_id` | TIC 宿主恒星标识 | `none` | 是 | 否 | 宿主恒星主标识、exact crossmatch |
-| `star.gaia_dr3_id` | Gaia DR3 宿主恒星标识 | `none` | 否 | 是 | 外部目录标识、exact crossmatch |
-| `star.name` | 宿主恒星常用名称 | `none` | 否 | 是 | 显示/alias crossmatch，不作为唯一标识 |
-| `system.right_ascension` | 系统赤经 | `degree` | 是 | 否 | coordinate crossmatch |
-| `system.declination` | 系统赤纬 | `degree` | 是 | 否 | coordinate crossmatch |
-| `planet.orbital_period` | 行星轨道周期 | `day` | 是 | 是 | 核心科研参数 |
-| `planet.radius` | 行星半径 | `earth_radius` | 是 | 是 | 核心科研参数 |
-| `planet.mass` | 行星质量或最佳质量估计 | `earth_mass` | 是 | 是 | 核心科研参数，必须保留质量 provenance |
-| `star.effective_temperature` | 恒星有效温度 | `kelvin` | 是 | 是 | 核心宿主恒星参数 |
-| `star.metallicity` | 恒星金属丰度 | `dex` | 是 | 是 | 核心宿主恒星参数 |
-| `star.radius` | 恒星半径 | `solar_radius` | 是 | 是 | 核心宿主恒星参数 |
-| `star.mass` | 恒星质量 | `solar_mass` | 是 | 是 | 核心宿主恒星参数 |
+- Field Manifest 的 `fields[]`：canonical field、单位、可空性、alias 和 companion column；
+- Field Manifest 的 `sources[]`：provider/table 映射、`approved_columns`、row key、reference/provenance 角色和版本化裁决引用；
+- Case Manifest：默认字段集合、provider-level 允许来源以及对 Field Manifest 版本/hash 的固定引用。
 
-字段不覆盖其他天文方向，也不加入仅为页面展示服务的派生字段。
+官方定义和 live TAP_SCHEMA 的差异只记录在 `source-evidence/`。修改字段事实时先更新证据与裁决，再更新 Manifest、测试、版本和 hash；不得手工同步 README 字段表。
 
 ## 5. 来源和优先级声明
 
 C-01 只声明来源元数据和选择规则，不访问来源：
 
-1. `nasa_exoplanet_archive.ps`：有文献引用、同一参数集的 published planet/host solution；存在匹配记录时优先用于对应字段。
-2. `nasa_exoplanet_archive.toi`：TESS 候选体、TIC 身份、处置状态和候选体参数的主来源。
-3. `nasa_exoplanet_archive.pscomppars`：提高字段完整性的后备来源；其跨文献组合特性必须在 provenance 和冲突结果中保留。
+API/Case Manifest 使用 provider source id `nasa_exoplanet_archive`；Field Manifest 复用同一组 `SourceDefinition`，以 `provider_source_id + source_table` 派生 table source id：`nasa_exoplanet_archive.ps`、`nasa_exoplanet_archive.toi` 和 `nasa_exoplanet_archive.pscomppars`。不得为 API 粒度另建第二套来源注册表。
 
-优先级不能静默删除低优先级原值。C-04 后续只能按本 Manifest 的策略选择 canonical value，同时保留全部来源值和 Evidence。
+table source 的选择顺序和字段适用范围直接读取 Field Manifest 的 `source_priority` 与 `source_aliases`，README 不复制这些字段事实。优先级不能静默删除低优先级原值；C-04 后续只能按 Manifest 策略选择 canonical value，同时保留全部来源值和 Evidence。
 
 ## 6. 规则声明
 
 - 来源 alias 的唯一性范围为 `(source_id, source_table, raw_field)`；同一原始列不得指向两个 canonical field。
+- 每个 alias 的 raw、误差、limit、row key、reference 和 provenance 列必须属于对应 `SourceDefinition.approved_columns`；角色列还必须匹配该来源的角色 allowlist。
+- 官方定义存在但 live TAP_SCHEMA 暂缺的列只能依据版本化裁决保留，不能因单次 live 查询删除；live-only 列也不能未经官方定义或裁决直接加入。
 - 定量字段必须引用已注册 canonical unit；每个允许源单位必须与 canonical unit 具有相同 `quantity_kind`，并声明 conversion rule id。
 - 字符串、标识和分类字段使用显式 `none` 单位定义，不用空字符串表示“无单位”。
 - 正负误差分别声明，不把缺失误差解释为零误差。
@@ -107,6 +94,8 @@ Schema/模型校验必须覆盖：
 - schema/manifest version 和 hash 格式；
 - Case 与 Field Manifest 的 case、版本和 hash 引用一致；
 - canonical field id、来源 alias 和注册表 id 不重复；
+- Case 的 provider source id 可由现有 `SourceDefinition` 稳定解析到 table source id，不存在第二套映射注册表；
+- 来源 allowlist、row key、reference/provenance companion column 与固定裁决记录一致；
 - canonical/allowed source unit 存在且 quantity kind 可转换；
 - source priority、uncertainty、limit、Evidence、transformation 和 quality 引用均已定义；
 - `ResearchContract.requested_fields` 非空、只接受当前 Case Manifest 中的 canonical field id；

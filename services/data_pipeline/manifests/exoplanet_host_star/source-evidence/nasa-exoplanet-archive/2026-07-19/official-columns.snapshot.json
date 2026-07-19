@@ -1,0 +1,1054 @@
+{
+  "snapshot_id": "nasa_exoplanet_archive.official_columns.2026-07-19",
+  "snapshot_version": "1.0.0",
+  "captured_at_utc": "2026-07-19T03:20:53.7290389Z",
+  "provider_source_id": "nasa_exoplanet_archive",
+  "retrievals": [
+    {
+      "document_id": "ps_pscomppars_html",
+      "url": "https://exoplanetarchive.ipac.caltech.edu/docs/API_PS_columns.html",
+      "http_method": "GET",
+      "query_parameters": {},
+      "requested_at_utc": "2026-07-19T03:20:51.4745616Z",
+      "http_status": 200,
+      "content_type": "text/html; charset=UTF-8",
+      "response_sha256": "sha256:2bda49c17934cefcb4baf323cd8d8670af3702789325fb52fd48ad4bde990beb",
+      "response_character_count": 112510,
+      "upstream_last_updated": "2026-06-04"
+    },
+    {
+      "document_id": "ps_pscomppars_mapping_csv",
+      "url": "https://exoplanetarchive.ipac.caltech.edu/docs/Exoplanet_Archive_Column_Mapping_CSV.csv",
+      "http_method": "GET",
+      "query_parameters": {},
+      "requested_at_utc": "2026-07-19T03:20:53.0458856Z",
+      "http_status": 200,
+      "content_type": "text/csv",
+      "response_sha256": "sha256:b314a234f5092f5c86e1423e3a6267b33b2f4ce10a923df440c1efef49c5639c",
+      "response_character_count": 81274
+    },
+    {
+      "document_id": "toi_html",
+      "url": "https://exoplanetarchive.ipac.caltech.edu/docs/API_TOI_columns.html",
+      "http_method": "GET",
+      "query_parameters": {},
+      "requested_at_utc": "2026-07-19T03:20:53.3368612Z",
+      "http_status": 200,
+      "content_type": "text/html; charset=UTF-8",
+      "response_sha256": "sha256:e4df3d68558c2df714e49bb7b064e3eda9fa707bbcd299afb54690c6222e8059",
+      "response_character_count": 37539,
+      "upstream_last_updated": "2025-09-22"
+    }
+  ],
+  "tables": [
+    {
+      "source_id": "nasa_exoplanet_archive.ps",
+      "source_table": "ps",
+      "definition_source": "ps_pscomppars_mapping_csv",
+      "requested_columns": [
+        "dec",
+        "decerr1",
+        "decerr2",
+        "gaia_dr3_id",
+        "hostname",
+        "pl_bmasse",
+        "pl_bmasseerr1",
+        "pl_bmasseerr2",
+        "pl_bmasselim",
+        "pl_bmassj",
+        "pl_bmassjerr1",
+        "pl_bmassjerr2",
+        "pl_bmassjlim",
+        "pl_bmassprov",
+        "pl_name",
+        "pl_orbper",
+        "pl_orbpererr1",
+        "pl_orbpererr2",
+        "pl_orbperlim",
+        "pl_rade",
+        "pl_radeerr1",
+        "pl_radeerr2",
+        "pl_radelim",
+        "pl_radj",
+        "pl_radjerr1",
+        "pl_radjerr2",
+        "pl_radjlim",
+        "pl_refname",
+        "ra",
+        "raerr1",
+        "raerr2",
+        "rowupdate",
+        "st_mass",
+        "st_masserr1",
+        "st_masserr2",
+        "st_masslim",
+        "st_met",
+        "st_meterr1",
+        "st_meterr2",
+        "st_metlim",
+        "st_metratio",
+        "st_rad",
+        "st_raderr1",
+        "st_raderr2",
+        "st_radlim",
+        "st_refname",
+        "st_teff",
+        "st_tefferr1",
+        "st_tefferr2",
+        "st_tefflim",
+        "sy_refname",
+        "tic_id"
+      ],
+      "documented_columns": [
+        "st_mass",
+        "st_radlim",
+        "st_raderr2",
+        "st_masslim",
+        "st_masserr2",
+        "st_masserr1",
+        "st_raderr1",
+        "st_tefferr1",
+        "st_teff",
+        "st_refname",
+        "st_rad",
+        "st_tefflim",
+        "st_tefferr2",
+        "raerr2",
+        "raerr1",
+        "dec",
+        "rowupdate",
+        "decerr2",
+        "decerr1",
+        "ra",
+        "st_meterr2",
+        "st_meterr1",
+        "st_met",
+        "sy_refname",
+        "st_metratio",
+        "st_metlim",
+        "pl_rade",
+        "pl_orbperlim",
+        "pl_orbpererr2",
+        "pl_radelim",
+        "pl_radeerr2",
+        "pl_radeerr1",
+        "pl_orbpererr1",
+        "tic_id",
+        "hostname",
+        "pl_name",
+        "pl_orbper",
+        "pl_refname",
+        "gaia_dr3_id",
+        "pl_bmassjerr1",
+        "pl_bmassj",
+        "pl_bmasselim",
+        "pl_bmassprov",
+        "pl_bmassjlim",
+        "pl_bmassjerr2",
+        "pl_bmasseerr2",
+        "pl_radjerr2",
+        "pl_radjerr1",
+        "pl_radj",
+        "pl_bmasseerr1",
+        "pl_bmasse",
+        "pl_radjlim"
+      ],
+      "missing_columns": [],
+      "definitions": [
+        {
+          "column_name": "st_mass",
+          "label": "Stellar Mass [Solar mass]"
+        },
+        {
+          "column_name": "st_radlim",
+          "label": "Stellar Radius Limit Flag"
+        },
+        {
+          "column_name": "st_raderr2",
+          "label": "Stellar Radius Lower Unc. [Solar Radius]"
+        },
+        {
+          "column_name": "st_masslim",
+          "label": "Stellar Mass Limit Flag"
+        },
+        {
+          "column_name": "st_masserr2",
+          "label": "Stellar Mass Lower Unc. [Solar mass]"
+        },
+        {
+          "column_name": "st_masserr1",
+          "label": "Stellar Mass Upper Unc. [Solar mass]"
+        },
+        {
+          "column_name": "st_raderr1",
+          "label": "Stellar Radius Upper Unc. [Solar Radius]"
+        },
+        {
+          "column_name": "st_tefferr1",
+          "label": "Stellar Effective Temperature Upper Unc. [K]"
+        },
+        {
+          "column_name": "st_teff",
+          "label": "Stellar Effective Temperature [K]"
+        },
+        {
+          "column_name": "st_refname",
+          "label": "Stellar Parameter Reference"
+        },
+        {
+          "column_name": "st_rad",
+          "label": "Stellar Radius [Solar Radius]"
+        },
+        {
+          "column_name": "st_tefflim",
+          "label": "Stellar Effective Temperature Limit Flag"
+        },
+        {
+          "column_name": "st_tefferr2",
+          "label": "Stellar Effective Temperature Lower Unc. [K]"
+        },
+        {
+          "column_name": "raerr2",
+          "label": "RA Lower Unc"
+        },
+        {
+          "column_name": "raerr1",
+          "label": "RA Upper Unc"
+        },
+        {
+          "column_name": "dec",
+          "label": "Dec [decimal]"
+        },
+        {
+          "column_name": "rowupdate",
+          "label": "Date of Last Update"
+        },
+        {
+          "column_name": "decerr2",
+          "label": "Dec Lower Unc"
+        },
+        {
+          "column_name": "decerr1",
+          "label": "Dec Upper Unc"
+        },
+        {
+          "column_name": "ra",
+          "label": "RA [decimal]"
+        },
+        {
+          "column_name": "st_meterr2",
+          "label": "Stellar Metallicity Lower Unc. [dex]"
+        },
+        {
+          "column_name": "st_meterr1",
+          "label": "Stellar Metallicity Upper Unc. [dex]"
+        },
+        {
+          "column_name": "st_met",
+          "label": "Stellar Metallicity [dex]"
+        },
+        {
+          "column_name": "sy_refname",
+          "label": "System Parameter Reference"
+        },
+        {
+          "column_name": "st_metratio",
+          "label": "Stellar Metallicity Ratio"
+        },
+        {
+          "column_name": "st_metlim",
+          "label": "Stellar Metallicity Limit Flag"
+        },
+        {
+          "column_name": "pl_rade",
+          "label": "Planet Radius [Earth Radius]"
+        },
+        {
+          "column_name": "pl_orbperlim",
+          "label": "Orbital Period Limit Flag"
+        },
+        {
+          "column_name": "pl_orbpererr2",
+          "label": "Orbital Period Lower Unc. [days]"
+        },
+        {
+          "column_name": "pl_radelim",
+          "label": "Planet Radius Limit Flag"
+        },
+        {
+          "column_name": "pl_radeerr2",
+          "label": "Planet Radius Lower Unc. [Earth Radius]"
+        },
+        {
+          "column_name": "pl_radeerr1",
+          "label": "Planet Radius Upper Unc. [Earth Radius]"
+        },
+        {
+          "column_name": "pl_orbpererr1",
+          "label": "Orbital Period Upper Unc. [days]"
+        },
+        {
+          "column_name": "tic_id",
+          "label": "TIC ID"
+        },
+        {
+          "column_name": "hostname",
+          "label": "Host Name"
+        },
+        {
+          "column_name": "pl_name",
+          "label": "Planet Name"
+        },
+        {
+          "column_name": "pl_orbper",
+          "label": "Orbital Period [days]"
+        },
+        {
+          "column_name": "pl_refname",
+          "label": "Planetary Parameter Reference"
+        },
+        {
+          "column_name": "gaia_dr3_id",
+          "label": "Gaia DR3 ID"
+        },
+        {
+          "column_name": "pl_bmassjerr1",
+          "label": "Planet Mass or Mass*sin(i) [Jupiter Mass] Upper Unc."
+        },
+        {
+          "column_name": "pl_bmassj",
+          "label": "Planet Mass or Mass*sin(i) [Jupiter Mass]"
+        },
+        {
+          "column_name": "pl_bmasselim",
+          "label": "Planet Mass or Mass*sin(i) [Earth Mass] Limit Flag"
+        },
+        {
+          "column_name": "pl_bmassprov",
+          "label": "Planet Mass or Mass*sin(i) Provenance"
+        },
+        {
+          "column_name": "pl_bmassjlim",
+          "label": "Planet Mass or Mass*sin(i) [Jupiter Mass] Limit Flag"
+        },
+        {
+          "column_name": "pl_bmassjerr2",
+          "label": "Planet Mass or Mass*sin(i) [Jupiter Mass] Lower Unc."
+        },
+        {
+          "column_name": "pl_bmasseerr2",
+          "label": "Planet Mass or Mass*sin(i) [Earth Mass] Lower Unc."
+        },
+        {
+          "column_name": "pl_radjerr2",
+          "label": "Planet Radius Lower Unc. [Jupiter Radius]"
+        },
+        {
+          "column_name": "pl_radjerr1",
+          "label": "Planet Radius Upper Unc. [Jupiter Radius]"
+        },
+        {
+          "column_name": "pl_radj",
+          "label": "Planet Radius [Jupiter Radius]"
+        },
+        {
+          "column_name": "pl_bmasseerr1",
+          "label": "Planet Mass or Mass*sin(i) [Earth Mass] Upper Unc."
+        },
+        {
+          "column_name": "pl_bmasse",
+          "label": "Planet Mass or Mass*sin(i) [Earth Mass]"
+        },
+        {
+          "column_name": "pl_radjlim",
+          "label": "Planet Radius Limit Flag"
+        }
+      ]
+    },
+    {
+      "source_id": "nasa_exoplanet_archive.pscomppars",
+      "source_table": "pscomppars",
+      "definition_source": "ps_pscomppars_mapping_csv",
+      "requested_columns": [
+        "dec",
+        "decerr1",
+        "decerr2",
+        "gaia_dr3_id",
+        "hostname",
+        "pl_bmasse",
+        "pl_bmasse_reflink",
+        "pl_bmasseerr1",
+        "pl_bmasseerr2",
+        "pl_bmasselim",
+        "pl_bmassj",
+        "pl_bmassj_reflink",
+        "pl_bmassjerr1",
+        "pl_bmassjerr2",
+        "pl_bmassjlim",
+        "pl_bmassprov",
+        "pl_name",
+        "pl_orbper",
+        "pl_orbper_reflink",
+        "pl_orbpererr1",
+        "pl_orbpererr2",
+        "pl_orbperlim",
+        "pl_rade",
+        "pl_rade_reflink",
+        "pl_radeerr1",
+        "pl_radeerr2",
+        "pl_radelim",
+        "pl_radj",
+        "pl_radj_reflink",
+        "pl_radjerr1",
+        "pl_radjerr2",
+        "pl_radjlim",
+        "ra",
+        "raerr1",
+        "raerr2",
+        "rowupdate",
+        "st_mass",
+        "st_mass_reflink",
+        "st_masserr1",
+        "st_masserr2",
+        "st_masslim",
+        "st_met",
+        "st_met_reflink",
+        "st_meterr1",
+        "st_meterr2",
+        "st_metlim",
+        "st_metratio",
+        "st_rad",
+        "st_rad_reflink",
+        "st_raderr1",
+        "st_raderr2",
+        "st_radlim",
+        "st_teff",
+        "st_teff_reflink",
+        "st_tefferr1",
+        "st_tefferr2",
+        "st_tefflim",
+        "tic_id"
+      ],
+      "documented_columns": [
+        "st_radlim",
+        "st_raderr2",
+        "st_raderr1",
+        "st_rad_reflink",
+        "st_masserr2",
+        "st_masserr1",
+        "st_mass",
+        "st_tefferr1",
+        "st_teff",
+        "pl_bmassprov",
+        "st_tefferr2",
+        "st_rad",
+        "st_teff_reflink",
+        "st_tefflim",
+        "dec",
+        "ra",
+        "st_metratio",
+        "raerr1",
+        "decerr2",
+        "decerr1",
+        "raerr2",
+        "st_met",
+        "st_mass_reflink",
+        "st_masslim",
+        "st_meterr1",
+        "st_met_reflink",
+        "st_metlim",
+        "st_meterr2",
+        "pl_bmassj_reflink",
+        "pl_rade",
+        "pl_orbper_reflink",
+        "pl_orbperlim",
+        "pl_radeerr1",
+        "pl_rade_reflink",
+        "pl_radelim",
+        "pl_radeerr2",
+        "tic_id",
+        "hostname",
+        "pl_name",
+        "gaia_dr3_id",
+        "pl_orbpererr2",
+        "pl_orbpererr1",
+        "pl_orbper",
+        "pl_bmasse_reflink",
+        "pl_bmasselim",
+        "pl_bmasseerr2",
+        "pl_bmassj",
+        "pl_bmassjlim",
+        "pl_bmassjerr2",
+        "pl_bmassjerr1",
+        "pl_radjerr2",
+        "pl_radjerr1",
+        "pl_radj",
+        "pl_radjlim",
+        "pl_bmasseerr1",
+        "pl_bmasse",
+        "pl_radj_reflink"
+      ],
+      "missing_columns": [
+        "rowupdate"
+      ],
+      "definitions": [
+        {
+          "column_name": "st_radlim",
+          "label": "Stellar Radius Limit Flag"
+        },
+        {
+          "column_name": "st_raderr2",
+          "label": "Stellar Radius Lower Unc. [Solar Radius]"
+        },
+        {
+          "column_name": "st_raderr1",
+          "label": "Stellar Radius Upper Unc. [Solar Radius]"
+        },
+        {
+          "column_name": "st_rad_reflink",
+          "label": "Stellar Radius Reference"
+        },
+        {
+          "column_name": "st_masserr2",
+          "label": "Stellar Mass Lower Unc. [Solar mass]"
+        },
+        {
+          "column_name": "st_masserr1",
+          "label": "Stellar Mass Upper Unc. [Solar mass]"
+        },
+        {
+          "column_name": "st_mass",
+          "label": "Stellar Mass [Solar mass]"
+        },
+        {
+          "column_name": "st_tefferr1",
+          "label": "Stellar Effective Temperature Upper Unc. [K]"
+        },
+        {
+          "column_name": "st_teff",
+          "label": "Stellar Effective Temperature [K]"
+        },
+        {
+          "column_name": "pl_bmassprov",
+          "label": "Planet Mass or Mass*sin(i) Provenance"
+        },
+        {
+          "column_name": "st_tefferr2",
+          "label": "Stellar Effective Temperature Lower Unc. [K]"
+        },
+        {
+          "column_name": "st_rad",
+          "label": "Stellar Radius [Solar Radius]"
+        },
+        {
+          "column_name": "st_teff_reflink",
+          "label": "Stellar Effective Temperature Reference"
+        },
+        {
+          "column_name": "st_tefflim",
+          "label": "Stellar Effective Temperature Limit Flag"
+        },
+        {
+          "column_name": "dec",
+          "label": "Dec [decimal]"
+        },
+        {
+          "column_name": "ra",
+          "label": "RA [decimal]"
+        },
+        {
+          "column_name": "st_metratio",
+          "label": "Stellar Metallicity Ratio"
+        },
+        {
+          "column_name": "raerr1",
+          "label": "RA Upper Unc"
+        },
+        {
+          "column_name": "decerr2",
+          "label": "Dec Lower Unc"
+        },
+        {
+          "column_name": "decerr1",
+          "label": "Dec Upper Unc"
+        },
+        {
+          "column_name": "raerr2",
+          "label": "RA Lower Unc"
+        },
+        {
+          "column_name": "st_met",
+          "label": "Stellar Metallicity [dex]"
+        },
+        {
+          "column_name": "st_mass_reflink",
+          "label": "Stellar Mass [Solar mass] Reference"
+        },
+        {
+          "column_name": "st_masslim",
+          "label": "Stellar Mass Limit Flag"
+        },
+        {
+          "column_name": "st_meterr1",
+          "label": "Stellar Metallicity Upper Unc. [dex]"
+        },
+        {
+          "column_name": "st_met_reflink",
+          "label": "Stellar Metallicity Reference"
+        },
+        {
+          "column_name": "st_metlim",
+          "label": "Stellar Metallicity Limit Flag"
+        },
+        {
+          "column_name": "st_meterr2",
+          "label": "Stellar Metallicity Lower Unc. [dex]"
+        },
+        {
+          "column_name": "pl_bmassj_reflink",
+          "label": "Planet Mass or Mass*sin(i) [Jupiter Mass] Reference"
+        },
+        {
+          "column_name": "pl_rade",
+          "label": "Planet Radius [Earth Radius]"
+        },
+        {
+          "column_name": "pl_orbper_reflink",
+          "label": "Orbital Period Reference"
+        },
+        {
+          "column_name": "pl_orbperlim",
+          "label": "Orbital Period Limit Flag"
+        },
+        {
+          "column_name": "pl_radeerr1",
+          "label": "Planet Radius Upper Unc. [Earth Radius]"
+        },
+        {
+          "column_name": "pl_rade_reflink",
+          "label": "Planet Radius Reference"
+        },
+        {
+          "column_name": "pl_radelim",
+          "label": "Planet Radius Limit Flag"
+        },
+        {
+          "column_name": "pl_radeerr2",
+          "label": "Planet Radius Lower Unc. [Earth Radius]"
+        },
+        {
+          "column_name": "tic_id",
+          "label": "TIC ID"
+        },
+        {
+          "column_name": "hostname",
+          "label": "Host Name"
+        },
+        {
+          "column_name": "pl_name",
+          "label": "Planet Name"
+        },
+        {
+          "column_name": "gaia_dr3_id",
+          "label": "Gaia DR3 ID"
+        },
+        {
+          "column_name": "pl_orbpererr2",
+          "label": "Orbital Period Lower Unc. [days]"
+        },
+        {
+          "column_name": "pl_orbpererr1",
+          "label": "Orbital Period Upper Unc. [days]"
+        },
+        {
+          "column_name": "pl_orbper",
+          "label": "Orbital Period [days]"
+        },
+        {
+          "column_name": "pl_bmasse_reflink",
+          "label": "Planet Mass or Mass*sin(i) [Earth Mass] Reference"
+        },
+        {
+          "column_name": "pl_bmasselim",
+          "label": "Planet Mass or Mass*sin(i) [Earth Mass] Limit Flag"
+        },
+        {
+          "column_name": "pl_bmasseerr2",
+          "label": "Planet Mass or Mass*sin(i) [Earth Mass] Lower Unc."
+        },
+        {
+          "column_name": "pl_bmassj",
+          "label": "Planet Mass or Mass*sin(i) [Jupiter Mass]"
+        },
+        {
+          "column_name": "pl_bmassjlim",
+          "label": "Planet Mass or Mass*sin(i) [Jupiter Mass] Limit Flag"
+        },
+        {
+          "column_name": "pl_bmassjerr2",
+          "label": "Planet Mass or Mass*sin(i) [Jupiter Mass] Lower Unc."
+        },
+        {
+          "column_name": "pl_bmassjerr1",
+          "label": "Planet Mass or Mass*sin(i) [Jupiter Mass] Upper Unc."
+        },
+        {
+          "column_name": "pl_radjerr2",
+          "label": "Planet Radius Lower Unc. [Jupiter Radius]"
+        },
+        {
+          "column_name": "pl_radjerr1",
+          "label": "Planet Radius Upper Unc. [Jupiter Radius]"
+        },
+        {
+          "column_name": "pl_radj",
+          "label": "Planet Radius [Jupiter Radius]"
+        },
+        {
+          "column_name": "pl_radjlim",
+          "label": "Planet Radius Limit Flag"
+        },
+        {
+          "column_name": "pl_bmasseerr1",
+          "label": "Planet Mass or Mass*sin(i) [Earth Mass] Upper Unc."
+        },
+        {
+          "column_name": "pl_bmasse",
+          "label": "Planet Mass or Mass*sin(i) [Earth Mass]"
+        },
+        {
+          "column_name": "pl_radj_reflink",
+          "label": "Planet Radius Reference"
+        }
+      ]
+    },
+    {
+      "source_id": "nasa_exoplanet_archive.toi",
+      "source_table": "toi",
+      "definition_source": "toi_html",
+      "requested_columns": [
+        "dec",
+        "pl_orbper",
+        "pl_orbpererr1",
+        "pl_orbpererr2",
+        "pl_orbperlim",
+        "pl_rade",
+        "pl_radeerr1",
+        "pl_radeerr2",
+        "pl_radelim",
+        "ra",
+        "rowupdate",
+        "st_rad",
+        "st_raderr1",
+        "st_raderr2",
+        "st_radlim",
+        "st_teff",
+        "st_tefferr1",
+        "st_tefferr2",
+        "st_tefflim",
+        "tfopwg_disp",
+        "tid",
+        "toi"
+      ],
+      "documented_columns": [
+        "dec",
+        "pl_orbper",
+        "pl_orbpererr1",
+        "pl_orbpererr2",
+        "pl_orbperlim",
+        "pl_rade",
+        "pl_radeerr1",
+        "pl_radeerr2",
+        "pl_radelim",
+        "ra",
+        "rowupdate",
+        "st_rad",
+        "st_raderr1",
+        "st_raderr2",
+        "st_radlim",
+        "st_teff",
+        "st_tefferr1",
+        "st_tefferr2",
+        "st_tefflim",
+        "tfopwg_disp",
+        "tid",
+        "toi"
+      ],
+      "missing_columns": [],
+      "definitions": [
+        {
+          "column_name": "dec",
+          "documented_as": "dec",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "decstr† Dec [sexagesimal] Declination of the planetary system in sexagesimal. (+) decstrerr1 (-) decstrerr2",
+            "dec Dec [deg] Declination of the planetary system in decimal degrees."
+          ]
+        },
+        {
+          "column_name": "pl_orbper",
+          "documented_as": "pl_orbper",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "pl_orbper† Planet Orbital Period [days] Time the planet takes to make a complete orbit around the host star or system. (+) pl_orbpererr1 (-) pl_orbpererr2 pl_orbper lim"
+          ]
+        },
+        {
+          "column_name": "pl_orbpererr1",
+          "documented_as": "pl_orbpererr1",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "pl_orbper† Planet Orbital Period [days] Time the planet takes to make a complete orbit around the host star or system. (+) pl_orbpererr1 (-) pl_orbpererr2 pl_orbper lim"
+          ]
+        },
+        {
+          "column_name": "pl_orbpererr2",
+          "documented_as": "pl_orbpererr2",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "pl_orbper† Planet Orbital Period [days] Time the planet takes to make a complete orbit around the host star or system. (+) pl_orbpererr1 (-) pl_orbpererr2 pl_orbper lim"
+          ]
+        },
+        {
+          "column_name": "pl_orbperlim",
+          "documented_as": "pl_orbper",
+          "match_mode": "normalized_html_companion",
+          "definition_rows": [
+            "pl_orbper† Planet Orbital Period [days] Time the planet takes to make a complete orbit around the host star or system. (+) pl_orbpererr1 (-) pl_orbpererr2 pl_orbper lim"
+          ]
+        },
+        {
+          "column_name": "pl_rade",
+          "documented_as": "pl_rade",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "pl_rade† Planet Radius [R_Earth] Length of a line segment from the center of the planet to its surface, measured in units of radius of the Earth. (+) pl_radeerr1 (-) pl_radeerr2 pl_rade lim"
+          ]
+        },
+        {
+          "column_name": "pl_radeerr1",
+          "documented_as": "pl_radeerr1",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "pl_rade† Planet Radius [R_Earth] Length of a line segment from the center of the planet to its surface, measured in units of radius of the Earth. (+) pl_radeerr1 (-) pl_radeerr2 pl_rade lim"
+          ]
+        },
+        {
+          "column_name": "pl_radeerr2",
+          "documented_as": "pl_radeerr2",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "pl_rade† Planet Radius [R_Earth] Length of a line segment from the center of the planet to its surface, measured in units of radius of the Earth. (+) pl_radeerr1 (-) pl_radeerr2 pl_rade lim"
+          ]
+        },
+        {
+          "column_name": "pl_radelim",
+          "documented_as": "pl_rade",
+          "match_mode": "normalized_html_companion",
+          "definition_rows": [
+            "pl_rade† Planet Radius [R_Earth] Length of a line segment from the center of the planet to its surface, measured in units of radius of the Earth. (+) pl_radeerr1 (-) pl_radeerr2 pl_rade lim"
+          ]
+        },
+        {
+          "column_name": "ra",
+          "documented_as": "ra",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "rastr† RA [sexagesimal] Right ascension of the planetary system in sexagesimal. (+) rastrerr1 (-) rastrerr2",
+            "ra RA [deg] Right Ascension of the planetary system in decimal degrees."
+          ]
+        },
+        {
+          "column_name": "rowupdate",
+          "documented_as": "rowupdate",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "rowupdate† Date of Last Update Date of last update of the planet parameters."
+          ]
+        },
+        {
+          "column_name": "st_rad",
+          "documented_as": "st_rad",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "st_rad† Stellar Radius [R_Sun] Length of a line segment from the center of the star to its surface, measured in units of radius of the Sun as reported in the TESS Input Catalog. (+) st_raderr1 (-) st_raderr2 st_radlim"
+          ]
+        },
+        {
+          "column_name": "st_raderr1",
+          "documented_as": "st_raderr1",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "st_rad† Stellar Radius [R_Sun] Length of a line segment from the center of the star to its surface, measured in units of radius of the Sun as reported in the TESS Input Catalog. (+) st_raderr1 (-) st_raderr2 st_radlim"
+          ]
+        },
+        {
+          "column_name": "st_raderr2",
+          "documented_as": "st_raderr2",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "st_rad† Stellar Radius [R_Sun] Length of a line segment from the center of the star to its surface, measured in units of radius of the Sun as reported in the TESS Input Catalog. (+) st_raderr1 (-) st_raderr2 st_radlim"
+          ]
+        },
+        {
+          "column_name": "st_radlim",
+          "documented_as": "st_radlim",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "st_rad† Stellar Radius [R_Sun] Length of a line segment from the center of the star to its surface, measured in units of radius of the Sun as reported in the TESS Input Catalog. (+) st_raderr1 (-) st_raderr2 st_radlim"
+          ]
+        },
+        {
+          "column_name": "st_teff",
+          "documented_as": "st_teff",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "st_teff† Stellar Effective Temperature [K] Stellar effective temperature value as reported in the TESS Input Catalog. (+) st_tefferr1 (-) st_tefferr2 st_teff lim"
+          ]
+        },
+        {
+          "column_name": "st_tefferr1",
+          "documented_as": "st_tefferr1",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "st_teff† Stellar Effective Temperature [K] Stellar effective temperature value as reported in the TESS Input Catalog. (+) st_tefferr1 (-) st_tefferr2 st_teff lim"
+          ]
+        },
+        {
+          "column_name": "st_tefferr2",
+          "documented_as": "st_tefferr2",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "st_teff† Stellar Effective Temperature [K] Stellar effective temperature value as reported in the TESS Input Catalog. (+) st_tefferr1 (-) st_tefferr2 st_teff lim"
+          ]
+        },
+        {
+          "column_name": "st_tefflim",
+          "documented_as": "st_teff",
+          "match_mode": "normalized_html_companion",
+          "definition_rows": [
+            "st_teff† Stellar Effective Temperature [K] Stellar effective temperature value as reported in the TESS Input Catalog. (+) st_tefferr1 (-) st_tefferr2 st_teff lim"
+          ]
+        },
+        {
+          "column_name": "tfopwg_disp",
+          "documented_as": "tfopwg_disp",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "tfopwg_disp† TFOPWG Disposition TESS Follow-up Observing Program Working Group (TFOPWG) Dispostion: APC =ambiguous planetary candidate CP =confirmed planet FA =false alarm FP =false positive KP =known planet PC =planetary candidate"
+          ]
+        },
+        {
+          "column_name": "tid",
+          "documented_as": "tid",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "tid† TESS Input Catalog ID Target identification number, as listed in the TESS Input Catalog (TIC) ."
+          ]
+        },
+        {
+          "column_name": "toi",
+          "documented_as": "toi",
+          "match_mode": "exact_database_column",
+          "definition_rows": [
+            "toi† TESS Object of Interest A number used to identify and track a TESS Object of Interest (TOI). TOIs are identified and numbered by the TESS Project. A TOI name has an integer and a decimal part of the format TOI-NNNNN.DD. The integer part designates the target star; the two-digit decimal part identifies a unique transiting object associated with that star.",
+            "toipfx TESS Object of Interest Prefix The integer portion of the TOI Identifier, designating the target star. (See toi description above.)",
+            "toi_created† TOI Creation Date Date on which the TESS Project identified the Object of Interest. solnid Planet Candidate Solution Date Date on which the planet candidate solution was generated."
+          ]
+        }
+      ]
+    }
+  ],
+  "critical_column_definitions": {
+    "ps_pscomppars_html_rows": [
+      {
+        "column_name": "raerr1",
+        "definition_rows": [
+          "ra RA [decimal] Right Ascension of the planetary system in decimal degrees (+) raerr1 (-) raerr2 X X"
+        ]
+      },
+      {
+        "column_name": "raerr2",
+        "definition_rows": [
+          "ra RA [decimal] Right Ascension of the planetary system in decimal degrees (+) raerr1 (-) raerr2 X X"
+        ]
+      },
+      {
+        "column_name": "decerr1",
+        "definition_rows": [
+          "dec Dec [decimal] Declination of the planetary system in decimal degrees (+) decerr1 (-) decerr2 X X"
+        ]
+      },
+      {
+        "column_name": "decerr2",
+        "definition_rows": [
+          "dec Dec [decimal] Declination of the planetary system in decimal degrees (+) decerr1 (-) decerr2 X X"
+        ]
+      },
+      {
+        "column_name": "rowupdate",
+        "definition_rows": [
+          "rowupdate† Date of Last Update Date of last update of the planet parameters X"
+        ]
+      }
+    ],
+    "toi_html_rows": [
+      {
+        "column_name": "raerr1",
+        "definition_rows": []
+      },
+      {
+        "column_name": "raerr2",
+        "definition_rows": []
+      },
+      {
+        "column_name": "decerr1",
+        "definition_rows": []
+      },
+      {
+        "column_name": "decerr2",
+        "definition_rows": []
+      },
+      {
+        "column_name": "rowupdate",
+        "definition_rows": [
+          "rowupdate† Date of Last Update Date of last update of the planet parameters."
+        ]
+      }
+    ],
+    "mapping_csv_rows": [
+      {
+        "ps_column": "raerr1",
+        "ps_label": "RA Upper Unc",
+        "pscomppars_column": "raerr1",
+        "pscomppars_label": "RA Upper Unc"
+      },
+      {
+        "ps_column": "raerr2",
+        "ps_label": "RA Lower Unc",
+        "pscomppars_column": "raerr2",
+        "pscomppars_label": "RA Lower Unc"
+      },
+      {
+        "ps_column": "decerr1",
+        "ps_label": "Dec Upper Unc",
+        "pscomppars_column": "decerr1",
+        "pscomppars_label": "Dec Upper Unc"
+      },
+      {
+        "ps_column": "decerr2",
+        "ps_label": "Dec Lower Unc",
+        "pscomppars_column": "decerr2",
+        "pscomppars_label": "Dec Lower Unc"
+      },
+      {
+        "ps_column": "rowupdate",
+        "ps_label": "Date of Last Update",
+        "pscomppars_column": "N/A",
+        "pscomppars_label": "PLANETARY SYSTEMS ONLY"
+      }
+    ]
+  },
+  "extraction_note": "Definitions are a versioned extraction of only the columns referenced by C-01 plus the five review-critical columns. Raw upstream response hashes pin the official documents used."
+}
+
