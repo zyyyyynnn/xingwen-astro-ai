@@ -4,7 +4,7 @@
 
 _面向天文科研场景的数据分析、文献获取、跨文献推理与证据图谱工作流_
 
-![Astro](https://img.shields.io/badge/Astro-7-BC52EE) ![React](https://img.shields.io/badge/React-19.2-149ECA) ![Vite](https://img.shields.io/badge/Vite-8.1-646CFF) ![FastAPI](https://img.shields.io/badge/FastAPI-Python%203.13-009688) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED) [![License: MIT](https://img.shields.io/badge/license-MIT-64748b)](LICENSE)
+<kbd>Astro 7</kbd> <kbd>React 19</kbd> <kbd>Vite 8</kbd> <kbd>FastAPI · Python 3.13</kbd> <kbd>PostgreSQL 17</kbd> <kbd>Docker Compose</kbd> <kbd>MIT</kbd>
 
 </div>
 
