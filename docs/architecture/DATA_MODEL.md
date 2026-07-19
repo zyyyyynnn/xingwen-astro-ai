@@ -118,12 +118,20 @@ content_hash
 | `research_goal` | 4–500 字符，不能只含空白 |
 | `target_objects` | 至少一个受当前 case 支持的对象类型 |
 | `requested_fields` | 至少一个字段，由 case manifest 校验 |
-| `source_scope` | 允许来源、优先级、合规和缓存策略 |
+| `source_scope` | provider-level 允许来源、合规和缓存策略；table 映射由 Field Manifest 解析 |
 | `paper_search_scope` | 关键词、年份、来源、候选上限和选择规则 |
 | `evidence_requirements` | locator、snapshot、引用和最低覆盖要求 |
 | `quality_constraints` | 来源完整性、单位一致性等可验证阈值 |
 
 ResearchContractDraft 是短期可编辑资源，包含 `id`、`session_id`、`version`、`intent`、`contract`、`warnings`、`expires_at`；确认时复制为不可变 Contract。
+
+C-01 Manifest 来源边界：
+
+- Case Manifest 的 `allowed_source_ids` 与 API `source_scope.allowed_sources` 使用 provider source id，例如 `nasa_exoplanet_archive`。
+- Field Manifest 的 `SourceDefinition.provider_source_id` 绑定 provider；table source id 必须等于 `{provider_source_id}.{source_table}`，例如 `nasa_exoplanet_archive.ps`。
+- provider scope 到 table source id 的解析只能从现有 `SourceDefinition` 派生，不维护第二套来源定义。
+- `SourceAlias` 仍引用 table source id；其 raw、误差、limit、row key、reference 和 provenance 列必须属于该表的 evidence-backed allowlist，并满足对应角色约束。
+- Case 与 Field Manifest 的审计字段统一为 `created_at`、`maintained_by`；`maintained_at`、`maintainer` 非法。
 
 ## 7. ResearchRun、Step 与 Event
 

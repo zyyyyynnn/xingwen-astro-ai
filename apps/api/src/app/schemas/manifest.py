@@ -102,17 +102,62 @@ class MaintainerDefinition(BaseModel):
     role: Literal["data_pipeline"]
 
 
+class SourceColumnContractReference(BaseModel):
+    """Immutable reference to the evidence-backed source-column adjudication."""
+
+    model_config = MODEL_CONFIG
+
+    snapshot_id: Identifier
+    snapshot_version: SemanticVersion
+    path: NonEmptyString
+    content_hash: ContentHash
+
+
 class SourceDefinition(BaseModel):
     """An approved source table declaration; it performs no I/O."""
 
     model_config = MODEL_CONFIG
 
     source_id: Identifier
+    provider_source_id: Identifier
     provider: NonEmptyString
     name: NonEmptyString
     source_table: NonEmptyString
     documentation_url: HttpUrl
     declaration_mode: Literal["metadata_only"] = "metadata_only"
+    approved_columns: tuple[NonEmptyString, ...] = Field(min_length=1)
+    row_key_fields: tuple[NonEmptyString, ...] = Field(min_length=1)
+    reference_columns: tuple[NonEmptyString, ...]
+    provenance_columns: tuple[NonEmptyString, ...]
+    column_contract: SourceColumnContractReference
+
+    @model_validator(mode="after")
+    def validate_source_column_contract(self) -> Self:
+        expected_source_id = f"{self.provider_source_id}.{self.source_table}"
+        if self.source_id != expected_source_id:
+            raise ValueError(
+                f"table source id {self.source_id} does not match provider/table "
+                f"mapping {expected_source_id}"
+            )
+
+        _require_unique(self.approved_columns, "approved source column")
+        _require_unique(self.row_key_fields, "source row key field")
+        _require_unique(self.reference_columns, "source reference column")
+        _require_unique(self.provenance_columns, "source provenance column")
+
+        approved = set(self.approved_columns)
+        role_columns = {
+            "row key": set(self.row_key_fields),
+            "reference": set(self.reference_columns),
+            "provenance": set(self.provenance_columns),
+        }
+        for role, columns in role_columns.items():
+            unknown = sorted(columns - approved)
+            if unknown:
+                raise ValueError(
+                    f"{role} columns are not approved for {self.source_id}: {unknown}"
+                )
+        return self
 
 
 class UnitDefinition(BaseModel):
@@ -244,6 +289,22 @@ class SourceAlias(BaseModel):
             raise ValueError("duplicate row key field")
         return self
 
+    def declared_source_columns(self) -> tuple[str, ...]:
+        """Return every raw, row-key, and companion source column."""
+
+        optional_columns = (
+            self.positive_error_field,
+            self.negative_error_field,
+            self.limit_field,
+            self.reference_field,
+            self.provenance_field,
+        )
+        return (
+            self.raw_field,
+            *self.row_key_fields,
+            *(column for column in optional_columns if column is not None),
+        )
+
 
 class FieldDefinition(BaseModel):
     """The complete C-01 contract for one canonical field."""
@@ -336,8 +397,8 @@ class FieldManifestPayload(BaseModel):
     description: NonEmptyString
     schema_version: SemanticVersion
     manifest_version: SemanticVersion
-    maintained_at: date
-    maintainer: MaintainerDefinition
+    created_at: date
+    maintained_by: MaintainerDefinition
     sources: tuple[SourceDefinition, ...] = Field(min_length=1)
     units: tuple[UnitDefinition, ...] = Field(min_length=1)
     conversion_rules: tuple[UnitConversionRule, ...] = Field(min_length=1)
@@ -364,6 +425,8 @@ class FieldManifestPayload(BaseModel):
         field_by_id = _unique_registry(self.fields, "field_id", "canonical field id")
 
         alias_owners: dict[tuple[str, str, str], str] = {}
+        used_reference_columns = {source.source_id: set() for source in self.sources}
+        used_provenance_columns = {source.source_id: set() for source in self.sources}
         for field in self.fields:
             canonical_unit = unit_by_id.get(field.canonical_unit)
             if canonical_unit is None:
@@ -397,6 +460,41 @@ class FieldManifestPayload(BaseModel):
                     raise ValueError(
                         f"source table mismatch for {alias.source_id} on {field.field_id}"
                     )
+
+                unapproved_columns = sorted(
+                    set(alias.declared_source_columns())
+                    - set(source.approved_columns)
+                )
+                if unapproved_columns:
+                    raise ValueError(
+                        f"not an approved source column for {alias.source_id}: "
+                        f"{unapproved_columns}"
+                    )
+                if alias.row_key_fields != source.row_key_fields:
+                    raise ValueError(
+                        f"row key fields do not match {alias.source_id}: "
+                        f"expected {source.row_key_fields}"
+                    )
+                if (
+                    alias.reference_field is not None
+                    and alias.reference_field not in source.reference_columns
+                ):
+                    raise ValueError(
+                        f"not an approved reference column for {alias.source_id}: "
+                        f"{alias.reference_field}"
+                    )
+                if (
+                    alias.provenance_field is not None
+                    and alias.provenance_field not in source.provenance_columns
+                ):
+                    raise ValueError(
+                        f"not an approved provenance column for {alias.source_id}: "
+                        f"{alias.provenance_field}"
+                    )
+                if alias.reference_field is not None:
+                    used_reference_columns[alias.source_id].add(alias.reference_field)
+                if alias.provenance_field is not None:
+                    used_provenance_columns[alias.source_id].add(alias.provenance_field)
 
                 alias_key = (alias.source_id, alias.source_table, alias.raw_field)
                 previous_owner = alias_owners.get(alias_key)
@@ -437,6 +535,20 @@ class FieldManifestPayload(BaseModel):
                     source_unit=alias.source_unit,
                     target_unit=field.canonical_unit,
                     field_id=field.field_id,
+                )
+
+        for source in self.sources:
+            if used_reference_columns[source.source_id] != set(
+                source.reference_columns
+            ):
+                raise ValueError(
+                    f"reference column declarations disagree for {source.source_id}"
+                )
+            if used_provenance_columns[source.source_id] != set(
+                source.provenance_columns
+            ):
+                raise ValueError(
+                    f"provenance column declarations disagree for {source.source_id}"
                 )
 
         if not field_by_id:
@@ -559,17 +671,28 @@ class ManifestBundle(BaseModel):
         if reference.content_hash != fields.content_hash:
             raise ValueError("field manifest hash does not match the case reference")
 
-        source_ids = {source.source_id for source in fields.sources}
-        unknown_sources = set(case.allowed_source_ids) - source_ids
-        if unknown_sources:
-            raise ValueError(f"case references unsupported sources: {sorted(unknown_sources)}")
+        source_by_id = {source.source_id: source for source in fields.sources}
+        provider_source_ids = {
+            source.provider_source_id for source in fields.sources
+        }
+        unknown_providers = set(case.allowed_source_ids) - provider_source_ids
+        if unknown_providers:
+            raise ValueError(
+                "case references unsupported provider sources: "
+                f"{sorted(unknown_providers)}"
+            )
 
         used_source_ids = {
             alias.source_id
             for field in fields.fields
             for alias in field.source_aliases
         }
-        unauthorized_source_ids = used_source_ids - set(case.allowed_source_ids)
+        unauthorized_source_ids = {
+            source_id
+            for source_id in used_source_ids
+            if source_by_id[source_id].provider_source_id
+            not in case.allowed_source_ids
+        }
         if unauthorized_source_ids:
             raise ValueError(
                 "field aliases use source ids not allowed by the case: "
@@ -613,6 +736,29 @@ class ManifestBundle(BaseModel):
                 )
 
         return self
+
+    def resolve_source_scope(
+        self,
+        provider_source_ids: Sequence[str],
+    ) -> tuple[str, ...]:
+        """Resolve API provider-level source scope to existing table source ids."""
+
+        values = tuple(provider_source_ids)
+        if not values:
+            raise ValueError("source_scope must contain at least one provider source")
+        if len(values) != len(set(values)):
+            raise ValueError("source_scope must not contain duplicate provider sources")
+
+        unsupported = sorted(set(values) - set(self.case_manifest.allowed_source_ids))
+        if unsupported:
+            raise ValueError(f"unsupported provider source(s): {unsupported}")
+
+        selected = set(values)
+        return tuple(
+            source.source_id
+            for source in self.field_manifest.sources
+            if source.provider_source_id in selected
+        )
 
     def validate_requested_fields(self, requested_fields: Sequence[str]) -> tuple[str, ...]:
         """Validate ResearchContract.requested_fields against canonical ids."""
