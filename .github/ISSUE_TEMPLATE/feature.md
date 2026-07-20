@@ -1,6 +1,6 @@
 ---
-name: Feature
-about: 新功能或 Epic
+name: Epic
+about: 跨多个原子 Task 的父级范围、边界与退出条件
 labels: ["type:feature"]
 ---
 
@@ -8,42 +8,35 @@ labels: ["type:feature"]
 
 `blocked`
 
-使用 `ready`、`blocked`、`in-progress` 或 `review`。依赖未满足时列出阻塞 Issue，例如 `blocked by #80`。
-
-## 角色
-
-`Epic` 或 `Task`。Epic 必须维护真实子 Issue 清单，不直接关联生产实现 PR；原子实现优先使用 Chore/Task 模板。
+只使用 `ready`、`blocked`、`in-progress` 或 `review`。状态行不得混入 `Epic`、负责人或 `blocked by #...`；阻塞原因写在后续段落。
 
 ## 背景
 
-说明问题、用户/系统影响和现有事实。区分 Current、Target 与 Pending。
+说明为什么需要该 Epic、它解决什么跨任务问题，以及 Current、Target 与 Pending 的边界。
 
 ## 目标
 
-描述完成后可观察、可验证的交付结果。
-
-## 用户或技术范围
-
--
+描述全部必需子 Task 完成后可观察、可验证的总体结果。
 
 ## 子任务
 
-Epic 使用真实 Issue 链接；非 Epic 删除本节。
+只使用真实 Issue 链接；父子层级不等于执行前置依赖。
 
 - [ ] #
 
-## 验收标准
+## 外部依赖
 
-- [ ] 可执行验收项 1
-- [ ] 可执行验收项 2
+- 仅填写子任务之外、真正阻塞该 Epic 退出的 Issue、Contract、Artifact 或外部条件；无依赖时写 `—`。
 
-## 依赖
+## Epic 退出条件
 
-- 前置 Issue、Contract、Artifact 或外部条件；无依赖时写 `—`。
+- [ ] 所有必需子 Task 已完成并提供证据。
+- [ ] 跨任务 Contract、边界和集成结果一致。
 
 ## 边界
 
-- 明确本 Issue 不负责的内容。
+- Epic 不直接承载生产实现，也不能作为生产实现 PR 的唯一 Issue。
+- 不把子 Task 清单重复写入“执行依赖”。
 
 ## 影响范围
 
@@ -54,9 +47,8 @@ Epic 使用真实 Issue 链接；非 Epic 删除本节。
 
 ## 验证
 
-- 命令、测试、Benchmark、E2E 或复现证据。
-- 需要覆盖的失败、权限、来源或版本场景。
+- 汇总子 Task、阶段 Gate、Benchmark、E2E 或复现证据。
 
 ---
 
-**治理要求：** 必须添加一个 `priority:p0/p1/p2`、一个或多个 `area:*`，并归入对应 Milestone。实时范围与状态只维护在 GitHub Issue；相关文档按 `docs/DOCUMENTATION_GOVERNANCE.md` 同步唯一事实来源。
+**治理要求：** 本模板只用于 Epic。必须添加一个 `priority:p0/p1/p2`、一个或多个 `area:*`，并归入对应 Milestone。原子实现统一使用 Chore/Task 模板；不得把本模板改写为 Task。
