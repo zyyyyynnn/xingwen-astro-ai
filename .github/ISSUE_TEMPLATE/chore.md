@@ -1,8 +1,14 @@
 ---
 name: Chore
-about: 杂项、维护或治理任务
+about: 原子任务、维护或治理工作
 labels: ["type:task"]
 ---
+
+## 状态
+
+`blocked`
+
+使用 `ready`、`blocked`、`in-progress` 或 `review`。依赖未满足时列出阻塞 Issue，例如 `blocked by #80`。
 
 ## 背景
 
@@ -22,7 +28,7 @@ labels: ["type:task"]
 
 ## 依赖
 
-- 前置 Issue、文档、环境或生成物。
+- 前置 Issue、文档、环境或生成物；无依赖时写 `—`。
 
 ## 边界
 
@@ -38,4 +44,4 @@ labels: ["type:task"]
 
 ---
 
-**Label 要求：** 添加 `type:task`、适用的 `area:*` 和 `priority:*`，并归入对应 Milestone。文档任务遵守 `docs/DOCUMENTATION_GOVERNANCE.md`。
+**治理要求：** 必须添加 `type:task`、适用的 `area:*`、一个 `priority:p0/p1/p2`，并归入对应 Milestone。一个 Task 只包含一个主要模块、一个主要负责人和一个主要交付物。文档任务遵守 `docs/DOCUMENTATION_GOVERNANCE.md`。
