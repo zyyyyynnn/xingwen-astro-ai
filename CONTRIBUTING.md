@@ -10,10 +10,10 @@ Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [D
 ## 1. 标准流程
 
 1. 从 `main` 获取最新基线。
-2. 选择处于 `ready` 的现有 Task；仅在没有合适任务时创建新 Issue。
+2. 根据工作类型选择处于 `ready` 的现有 Issue：生产实现使用 Task 或 Bug；阶段验证、证据或退出结论使用 Gate。仅在没有合适 Issue 时创建新 Issue。
 3. 从 `main` 创建任务分支。
 4. 实施、测试并同步受影响的权威文档。
-5. 提交 Pull Request，关联 Task Issue。
+5. 提交 Pull Request，关联一个主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。
 6. 处理 Review 和 CI 结果。
 7. 使用 Squash merge，删除已合并分支。
 
@@ -67,10 +67,10 @@ Issue 至少包含：
 
 | Role | 标题与标签 | 职责 | PR 规则 |
 | ---- | ---------- | ---- | ------- |
-| Epic | 标题包含 `Epic`，使用 `type:feature` | 维护子任务、总体边界和退出条件 | 不直接关联生产实现 PR |
-| Task | 标准 `[A/B/C/D/X] ID 标题`，使用 `type:task` | 一个主要模块、一个主要负责人、一个主要交付物 | 原则上对应一个 PR |
-| Gate | `[X] ID Gate：...`，使用 `type:task` 和 `area:infra` | 验证跨模块输入、阶段证据和退出结论 | 不替代 A/B/C/D 实现 |
-| Bug  | 使用 `bug` | 修复 Current 行为与已批准契约的偏差 | 不夹带新能力或架构迁移 |
+| Epic | 标题包含 `Epic`，使用 `type:feature` | 维护子任务、总体边界和退出条件 | 只能作为父级引用，不能作为生产实现 PR 的唯一 Issue |
+| Task | 标准 `[A/B/C/D/X] ID 标题`，使用 `type:task` | 一个主要模块、一个主要负责人、一个主要交付物 | 生产实现 PR 的主要 Issue，原则上对应一个 PR |
+| Gate | `[X] ID Gate：...`，使用 `type:task` 和 `area:infra` | 验证跨模块输入、阶段证据和退出结论 | 阶段验证或证据 PR 的主要 Issue，不替代 A/B/C/D 实现 |
+| Bug  | 使用 `bug` | 修复 Current 行为与已批准契约的偏差 | 修复 PR 的主要 Issue，不夹带新能力或架构迁移 |
 
 Epic 正文使用链接任务清单：
 
@@ -79,7 +79,7 @@ Epic 正文使用链接任务清单：
 - [ ] #81 B-16 实现 Session 安全边界
 ```
 
-Gate 发现实现缺陷时，应回到所属 Task 修复；不得在 Gate PR 中直接接管生产实现。
+Gate 发现实现缺陷时，应回到所属 Task 或 Bug 修复；不得在 Gate PR 中直接接管生产实现。
 
 ### 3.2 标题格式
 
@@ -92,9 +92,9 @@ Gate 发现实现缺陷时，应回到所属 Task 修复；不得在 Gate PR 中
 [B] B-04 Epic：建立 /api/v2 最小领域与传输契约
 ```
 
-### 3.3 Labels
+### 3.3 Labels 与 Milestones
 
-每个 Issue 应有一项 priority、一项 type，并按范围添加一个或多个 area：
+每个 Issue 必须有一项 priority、一项 type，并按范围添加一个或多个 area：
 
 | 类别     | 值                                                                                        |
 | -------- | ----------------------------------------------------------------------------------------- |
@@ -114,7 +114,7 @@ Priority 表达所属交付阶段，不表达 Issue 当前是否可开工：
 
 ### 3.4 Definition of Ready
 
-Task 进入 `ready` 前必须满足：
+Task 或 Bug 进入 `ready` 前必须满足：
 
 - 前置 Issue 已关闭，或提供冻结的版本/hash/Contract；
 - 输入、输出 Schema 和数据等级明确；
@@ -124,20 +124,22 @@ Task 进入 `ready` 前必须满足：
 - 验收标准可执行；
 - Critical / High 风险具有 Owner 和验证计划。
 
+Gate 进入 `ready` 前，其必需输入必须已完成并提供可复现版本和验证证据。
+
 不满足时保持 `blocked`，不得以临时 DTO、Mock 分支或复制规则绕过依赖。
 
 ### 3.5 WIP 限制
 
 每位负责人同时最多维护：
 
-- 一个 `in-progress` 实现 Task；
+- 一个 `in-progress` 实现 Task 或 Bug；
 - 一个 `review` 或 Gate。
 
-同一方向出现多个 P0/P1 Issue 时，只允许依赖图上最靠前且状态为 `ready` 的 Task 开工。需要抢占时必须记录被暂停 Issue、原因和恢复条件。
+同一方向出现多个 P0/P1 Issue 时，只允许依赖图上最靠前且状态为 `ready` 的 Task 或 Bug 开工。需要抢占时必须记录被暂停 Issue、原因和恢复条件。
 
 ### 3.6 Definition of Done
 
-Task 关闭必须提供：
+Task、Bug 或 Gate 关闭必须提供与其角色相符的证据，至少包括：
 
 - 关联 PR / Commit；
 - 实际验证命令和结果；
@@ -148,13 +150,16 @@ Task 关闭必须提供：
 - 受影响风险 ID；
 - 权威文档和 Backlog 同步情况。
 
+Gate 还必须记录输入版本、阶段证据和明确退出结论。
+
 GitHub Issue 是任务状态的实时事实来源；[Backlog](docs/product/BACKLOG.md) 只维护 Open Issue 的角色、范围和依赖地图，不复制实时状态。
 
 ## 4. PR 规范
 
 PR 描述至少包含：
 
-- 关联 Task Issue；
+- 一个主要关联 Issue：生产实现关联 Task 或 Bug；阶段验证、证据或退出结论关联 Gate；
+- 所属 Epic 或上级 Gate 的补充引用（适用时）；
 - 改动范围与明确非目标；
 - 验证命令、结果和未执行原因；
 - API、Data Model、Workflow、Version、UI、部署和安全影响；
@@ -163,7 +168,7 @@ PR 描述至少包含：
 
 PR 不接受：
 
-- 直接关联 Epic 但没有明确 Task；
+- 生产实现只关联 Epic，没有明确 Task 或 Bug；
 - Gate PR 接管 A/B/C/D 生产实现；
 - 没有明确 Issue 或用户授权；
 - 大量无关改动；
@@ -196,7 +201,7 @@ PR 不接受：
 
 PR 同时满足以下条件才可合并：
 
-- 关联明确的 Task，且所属 Epic/Gate 引用关系正确；
+- 生产实现关联明确的 Task 或 Bug；阶段验证或证据 PR 关联明确的 Gate；Epic 只作为父级补充引用；
 - 解决一个清晰目标且边界明确；
 - 适用测试和 CI 通过；
 - Review 阻塞项已处理；
