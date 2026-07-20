@@ -11,11 +11,12 @@ Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [D
 
 1. 从 `main` 获取最新基线。
 2. 根据工作类型选择处于 `ready` 的现有 Issue：生产实现使用 Task 或 Bug；阶段验证、证据或退出结论使用 Gate。仅在没有合适 Issue 时创建新 Issue。
-3. 从 `main` 创建任务分支。
+3. 从 `main` 创建任务分支，并立即将主要 Issue 更新为 `in-progress`。
 4. 实施、测试并同步受影响的权威文档。
 5. 提交 Pull Request，关联一个主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。
-6. 处理 Review 和 CI 结果。
-7. 使用 Squash merge，删除已合并分支。
+6. PR 进入可审查状态时，将主要 Issue 更新为 `review`。
+7. 处理 Review 和 CI 结果。
+8. 使用 Squash merge，删除已合并分支。
 
 `main` 必须保持可运行；禁止直接推送。
 
@@ -49,17 +50,20 @@ chore: update generated contracts
 
 Issue 至少包含：
 
-- **状态**：`ready`、`blocked`、`in-progress` 或 `review`；
+- **状态**：状态行只能是 `ready`、`blocked`、`in-progress` 或 `review`；
 - **背景**：为什么需要该改动；
 - **目标**：交付的可观察结果；
 - **技术或用户范围**：涉及哪些能力；
 - **验收标准**：可执行、可验证的完成条件；
-- **依赖**：前置 Issue、Contract 或 Artifact；
+- **Parent Epic**：仅 Task 属于某个 Epic 时填写；否则为 `—`；
+- **依赖**：真正阻塞执行的前置 Issue、Contract 或 Artifact；
 - **边界**：明确不做什么；
 - **影响范围**：代码、数据、契约、文档和材料；
 - **验证**：预期命令、测试或复现证据。
 
 `open` 只表示 Issue 尚未关闭，不表示可以开工。依赖未满足时必须标记为 `blocked`。
+
+状态行不得写成 `Epic · ready`、`Gate · blocked by #6` 等复合文本。角色由标题和标签表达；阻塞 Issue、分支、PR 和说明写在状态行之后的独立段落。
 
 ### 3.1 Issue 角色
 
@@ -72,12 +76,24 @@ Issue 至少包含：
 | Gate | `[X] ID Gate：...`，使用 `type:task` 和 `area:infra` | 验证跨模块输入、阶段证据和退出结论 | 阶段验证或证据 PR 的主要 Issue，不替代 A/B/C/D 实现 |
 | Bug  | 使用 `bug` | 修复 Current 行为与已批准契约的偏差 | 修复 PR 的主要 Issue，不夹带新能力或架构迁移 |
 
+Feature 模板仅用于 Epic。原子 Task 使用 Chore/Task 模板；不得创建 `Role=Task + type:feature` 的组合。
+
 Epic 正文使用链接任务清单：
 
 ```markdown
 - [ ] #80 B-15 冻结核心 Contract
 - [ ] #81 B-16 实现 Session 安全边界
 ```
+
+Task 正文单独记录 Parent Epic：
+
+```markdown
+## Parent Epic
+
+- #28
+```
+
+**Parent Epic 表示层级归属，不是执行前置依赖。** Task 不得因为父 Epic 尚未关闭而保持 `blocked`；只根据其真正的前置输入决定状态。Epic 的退出依赖子 Task 完成，但子 Task 的 `## 依赖` 不反向包含父 Epic。
 
 Gate 发现实现缺陷时，应回到所属 Task 或 Bug 修复；不得在 Gate PR 中直接接管生产实现。
 
@@ -110,7 +126,7 @@ Priority 表达所属交付阶段，不表达 Issue 当前是否可开工：
 | P1       | M2 核心功能   |
 | P2       | M3 反馈与交付 |
 
-当前可执行性由正文状态和依赖决定。
+当前可执行性由正文状态和执行依赖决定。
 
 ### 3.4 Definition of Ready
 
@@ -124,20 +140,33 @@ Task 或 Bug 进入 `ready` 前必须满足：
 - 验收标准可执行；
 - Critical / High 风险具有 Owner 和验证计划。
 
+Parent Epic 保持 Open 不影响子 Task 进入 `ready`；父子层级不得被当作 prerequisite。
+
 Gate 进入 `ready` 前，其必需输入必须已完成并提供可复现版本和验证证据。
 
 不满足时保持 `blocked`，不得以临时 DTO、Mock 分支或复制规则绕过依赖。
 
-### 3.5 WIP 限制
+### 3.5 状态迁移
+
+```text
+blocked → ready → in-progress → review → closed
+```
+
+- 创建有效工作分支并产生实质改动后，Issue 必须从 `ready` 更新为 `in-progress`。
+- 创建 PR 并准备人工审查后，Issue 更新为 `review`。
+- 分支废弃或工作暂停时，必须记录原因、清理或归档分支，并按真实依赖恢复为 `ready` 或 `blocked`。
+- 状态不得根据计划推测，必须与实际分支、PR 和依赖一致。
+
+### 3.6 WIP 限制
 
 每位负责人同时最多维护：
 
 - 一个 `in-progress` 实现 Task 或 Bug；
 - 一个 `review` 或 Gate。
 
-同一方向出现多个 P0/P1 Issue 时，只允许依赖图上最靠前且状态为 `ready` 的 Task 或 Bug 开工。需要抢占时必须记录被暂停 Issue、原因和恢复条件。
+同一方向出现多个 P0/P1 Issue 时，只允许依赖图上最靠前且状态为 `ready` 的 Task 或 Bug开工。需要抢占时必须记录被暂停 Issue、原因和恢复条件。
 
-### 3.6 Definition of Done
+### 3.7 Definition of Done
 
 Task、Bug 或 Gate 关闭必须提供与其角色相符的证据，至少包括：
 
@@ -152,7 +181,7 @@ Task、Bug 或 Gate 关闭必须提供与其角色相符的证据，至少包括
 
 Gate 还必须记录输入版本、阶段证据和明确退出结论。
 
-GitHub Issue 是任务状态的实时事实来源；[Backlog](docs/product/BACKLOG.md) 只维护 Open Issue 的角色、范围和依赖地图，不复制实时状态。
+GitHub Issue 是任务状态的实时事实来源；[Backlog](docs/product/BACKLOG.md) 只维护 Open Issue 的角色、父级、范围和执行依赖地图，不复制实时状态。
 
 ## 4. PR 规范
 
