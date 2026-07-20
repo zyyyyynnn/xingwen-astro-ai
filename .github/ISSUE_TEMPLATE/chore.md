@@ -1,8 +1,14 @@
 ---
-name: Chore
-about: 杂项、维护或治理任务
+name: Task / Chore
+about: 原子实现、维护或治理工作
 labels: ["type:task"]
 ---
+
+## 状态
+
+`blocked`
+
+只使用 `ready`、`blocked`、`in-progress` 或 `review`。状态行不得混入角色或 `blocked by #...`；阻塞原因写在后续段落。
 
 ## 背景
 
@@ -20,9 +26,13 @@ labels: ["type:task"]
 
 - [ ] 验收项 1
 
+## Parent Epic
+
+- 父 Epic Issue；不属于 Epic 时写 `—`。Parent Epic 仅表示层级归属，不是执行前置依赖。
+
 ## 依赖
 
-- 前置 Issue、文档、环境或生成物。
+- 只填写真正阻塞执行的前置 Issue、Contract、文档、环境或生成物；无依赖时写 `—`。
 
 ## 边界
 
@@ -38,4 +48,4 @@ labels: ["type:task"]
 
 ---
 
-**Label 要求：** 添加 `type:task`、适用的 `area:*` 和 `priority:*`，并归入对应 Milestone。文档任务遵守 `docs/DOCUMENTATION_GOVERNANCE.md`。
+**治理要求：** 必须添加 `type:task`、适用的 `area:*`、一个 `priority:p0/p1/p2`，并归入对应 Milestone。一个 Task 只包含一个主要模块、一个主要负责人和一个主要交付物。创建工作分支并产生实质改动后更新为 `in-progress`；进入 PR 审查后更新为 `review`。
