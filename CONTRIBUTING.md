@@ -11,8 +11,8 @@ Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [D
 
 1. 从 `main` 获取最新基线。
 2. 根据工作类型选择处于 `ready` 的现有 Issue：生产实现使用 Task 或 Bug；阶段验证、证据或退出结论使用 Gate。仅在没有合适 Issue 时创建新 Issue。
-3. 从 `main` 创建任务分支，并立即将主要 Issue 更新为 `in-progress`。
-4. 实施、测试并同步受影响的权威文档。
+3. 从 `main` 创建任务分支；空分支本身不改变 Issue 状态。
+4. 分支产生首个实质改动时，将主要 Issue 更新为 `in-progress`，随后实施、测试并同步受影响的权威文档。
 5. 提交 Pull Request，关联一个主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。
 6. PR 进入可审查状态时，将主要 Issue 更新为 `review`。
 7. 处理 Review 和 CI 结果。
