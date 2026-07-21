@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------------- |
 | Status         | Accepted                                                      |
 | Authority      | 跨模块职责、输入输出、依赖方向和交接边界                      |
-| Implementation | A-01 frontend runtime current；A-02/A-03 与 `/api/v2` Pending |
+| Implementation | A-01 frontend runtime current；A-02/A-03 Pending；`/api/v2` Contract Implemented, Runtime Pending |
 
 本文不维护完整前端目录、技术选型或任务顺序。前端包结构见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)，实时任务依赖见 [Backlog](../product/BACKLOG.md)。
 

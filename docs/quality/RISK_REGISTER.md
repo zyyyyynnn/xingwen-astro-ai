@@ -33,6 +33,7 @@
 | R-13 | Medium   | 文档、Issue 与实现再次漂移             | Backlog 标题/依赖过期；同一规则多处冲突              | 文档治理、唯一事实源、索引和 PR 检查                                 | 文档 CI / Review 持续执行       |
 | R-14 | Medium   | 第三方许可或字体来源不清               | 无许可证、受限全文或不可分发资产进入发布物           | 来源/许可记录、Reference 隔离、资产审查                              | A-02、X-03 资产清单通过         |
 | R-15 | Low      | 材料与系统版本不一致                   | 视频、PDF、截图和网页展示不同结果                    | provenance manifest、固定 Run/Version、content hash                  | X-03 自主走读通过               |
+| R-16 | Medium   | v2 Session/限流/幂等使用内存存储      | API 重启或水平扩容后匿名 Session、限流窗口、幂等键全部丢失 | PostgreSQL 持久化适配器（后续 Issue）；当前仅在单实例本地基线使用 | 持久化 Session 适配器 + 跨实例测试通过 |
 
 ## 3. 风险处理流程
 
