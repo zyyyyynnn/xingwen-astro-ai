@@ -43,4 +43,14 @@ if old not in text:
     raise RuntimeError("approved dependency fixture anchor not found")
 text = text.replace(old, new, 1)
 
+old = '''    pending_objects = deepcopy(payload)
+    for collection_name in ('''
+new = '''    pending_objects = deepcopy(payload)
+    pending_objects["review_status"] = "pending_scientific_review"
+    pending_objects["review_records"] = []
+    for collection_name in ('''
+if old not in text:
+    raise RuntimeError("scientific hash fixture anchor not found")
+text = text.replace(old, new, 1)
+
 TEST_PATH.write_text(text, encoding="utf-8")
