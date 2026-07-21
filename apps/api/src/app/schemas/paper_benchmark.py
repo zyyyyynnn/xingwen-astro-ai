@@ -217,7 +217,7 @@ class BenchmarkEvidence(BaseModel):
         "summary_statement", "claim", "relation", "graph_edge"
     ]
     target_id: Identifier
-    evidence_type: Literal["paper_text", "paper_metadata"]
+    evidence_type: Literal["paper_text"]
     evidence_level: BenchmarkEvidenceLevel
     locator: BenchmarkPaperTextLocator
     quote_or_value: NonEmptyString
@@ -649,8 +649,8 @@ class BenchmarkEvaluationInput(BaseModel):
     schema_items_total: int = Field(ge=0)
     evidence_requirements_satisfied: int = Field(ge=0)
     evidence_requirements_total: int = Field(ge=0)
-    human_reviewed_relations_correct: int = Field(ge=0)
-    human_reviewed_relations_total: int = Field(ge=0)
+    human_reviewed_relations_correct: int = Field(default=0, ge=0)
+    human_reviewed_relations_total: int = Field(default=0, ge=0)
     evidence_less_relations_blocked: int = Field(ge=0)
     evidence_less_relations_total: int = Field(ge=0)
 
@@ -723,6 +723,34 @@ def evaluate_benchmark(
     }
     retrieved = set(evaluation.retrieved_expected_paper_ids)
     candidate_numerator = len(expected_papers & retrieved)
+    approved_relation_count = sum(
+        relation.review_status is BenchmarkReviewStatus.approved
+        for relation in package.relations
+    )
+    relation_accuracy_available = (
+        package.review_status is BenchmarkReviewStatus.approved
+        and approved_relation_count > 0
+    )
+    if not relation_accuracy_available:
+        if (
+            evaluation.human_reviewed_relations_correct != 0
+            or evaluation.human_reviewed_relations_total != 0
+        ):
+            raise ValueError(
+                "relation human accuracy counts must be zero when approved "
+                "benchmark relations are unavailable"
+            )
+        relation_accuracy_counts = (0, 0)
+    else:
+        if evaluation.human_reviewed_relations_total != approved_relation_count:
+            raise ValueError(
+                "relation human accuracy total must equal the package's approved "
+                f"relation count: {approved_relation_count}"
+            )
+        relation_accuracy_counts = (
+            evaluation.human_reviewed_relations_correct,
+            evaluation.human_reviewed_relations_total,
+        )
     counts = (
         (
             BenchmarkMetricId.candidate_recall,
@@ -741,8 +769,7 @@ def evaluate_benchmark(
         ),
         (
             BenchmarkMetricId.relation_human_accuracy,
-            evaluation.human_reviewed_relations_correct,
-            evaluation.human_reviewed_relations_total,
+            *relation_accuracy_counts,
         ),
         (
             BenchmarkMetricId.evidence_less_relation_block_rate,
