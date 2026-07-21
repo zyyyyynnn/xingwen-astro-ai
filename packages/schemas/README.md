@@ -32,6 +32,16 @@ uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas
 uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas --check
 ```
 
+`/api/v2` 核心契约的已提交漂移基线使用独立目录：
+
+```powershell
+Set-Location apps/api
+uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/v2-core --include ResearchProject --include ResearchContractDraft --include ResearchContract --include ResearchRun --include RunEvent --include ResearchArtifact --include ArtifactVersion --check
+uv run python ../../scripts/export_v2_openapi.py --output ../../packages/schemas/generated/v2-core/openapi.json --check
+```
+
+`app.contracts.v2` 仅用于生成目标 OpenAPI，不挂载到当前运行应用；真实 `/api/v2` 路由、Session、持久化和 Workflow 仍由后续 Issue 实现。
+
 CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件由对应实现 Issue 决定。
 
 ## 3. 消费边界
@@ -55,7 +65,7 @@ CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件
 | 范围                         | 状态                                                                               |
 | ---------------------------- | ---------------------------------------------------------------------------------- |
 | Phase 0 `/api/v1` Schema     | Current，继续用于回归                                                              |
-| `/api/v2` Pydantic / OpenAPI | Accepted，待 B-04 实施                                                             |
+| `/api/v2` Pydantic / OpenAPI | 七个核心资源 Contract Implemented；运行 API 与领域内容扩展 Pending                 |
 | `packages/contracts`         | Current A-01 包边界；生成 Type、validation 与 transport helpers 的业务实现 Pending |
 | 独立手写 IDL                 | 未采用；需要新 ADR 才能改变编写源                                                  |
 
