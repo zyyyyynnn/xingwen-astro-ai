@@ -1,25 +1,125 @@
 :root {
   color-scheme: light;
+
+  /* Cold paper — hue 230, canvas / surface only */
   --raw-paper-0: oklch(0.995 0.002 230);
   --raw-paper-50: oklch(0.978 0.004 230);
-  --raw-gray-200: oklch(0.84 0.012 235);
-  --raw-gray-600: oklch(0.47 0.02 235);
-  --raw-gray-900: oklch(0.21 0.026 235);
-  --raw-haze-50: oklch(0.97 0.012 235);
-  --raw-haze-500: oklch(0.59 0.062 235);
-  --raw-haze-600: oklch(0.5 0.058 235);
+  --raw-paper-100: oklch(0.955 0.006 230);
+  --raw-paper-200: oklch(0.925 0.008 230);
+
+  /* Bluegray — hue 235 full scale; brand / ink / border / celestial */
+  --raw-bluegray-50: oklch(0.975 0.006 235);
+  --raw-bluegray-100: oklch(0.945 0.008 235);
+  --raw-bluegray-200: oklch(0.885 0.011 235);
+  --raw-bluegray-300: oklch(0.805 0.014 235);
+  --raw-bluegray-400: oklch(0.685 0.016 235);
+  --raw-bluegray-500: oklch(0.57 0.018 235); /* brand anchor */
+  --raw-bluegray-600: oklch(0.47 0.02 235);
+  --raw-bluegray-700: oklch(0.38 0.022 235);
+  --raw-bluegray-800: oklch(0.29 0.024 235);
+  --raw-bluegray-900: oklch(0.21 0.026 235);
+
+  /* Semantic status — independent hues */
+  --raw-success-500: oklch(0.56 0.07 165);
+  --raw-warning-500: oklch(0.6 0.075 80);
+  --raw-error-500: oklch(0.56 0.085 25);
+  --raw-info-500: oklch(0.57 0.06 245);
+
+  /* Surface */
   --color-canvas: var(--raw-paper-50);
-  --color-surface: color-mix(
+  --color-surface: var(--raw-paper-0);
+  --color-surface-muted: var(--raw-paper-100);
+  --color-surface-hover: var(--raw-paper-200);
+
+  /* Ink */
+  --color-ink-primary: var(--raw-bluegray-900);
+  --color-ink-secondary: var(--raw-bluegray-600);
+  --color-ink-tertiary: var(--raw-bluegray-500);
+
+  /* Border */
+  --color-border: var(--raw-bluegray-200);
+  --color-border-strong: var(--raw-bluegray-400);
+
+  /* Brand */
+  --color-brand: var(--raw-bluegray-500);
+  --color-brand-hover: var(--raw-bluegray-600);
+  --color-brand-pressed: var(--raw-bluegray-700);
+  --color-brand-muted: var(--raw-bluegray-100);
+  --color-brand-on: var(--raw-paper-0);
+
+  /* Focus */
+  --color-focus: var(--raw-bluegray-400);
+
+  /* Status */
+  --color-success: var(--raw-success-500);
+  --color-warning: var(--raw-warning-500);
+  --color-error: var(--raw-error-500);
+  --color-info: var(--raw-info-500);
+  --color-live: var(--raw-success-500);
+  --color-cached: var(--raw-warning-500);
+  --color-revised: var(--raw-info-500);
+  --color-demo: var(--raw-bluegray-600);
+
+  /* Visual */
+  --color-visual-celestial-ink: var(--raw-bluegray-700);
+  --color-visual-celestial-deep: var(--raw-bluegray-900);
+  --color-visual-celestial-soft: var(--raw-bluegray-200);
+  --color-visual-orbit: color-mix(
     in oklch,
-    var(--raw-paper-0) 86%,
-    var(--raw-haze-50)
+    var(--raw-bluegray-700) 25%,
+    transparent
   );
-  --color-ink-primary: var(--raw-gray-900);
-  --color-ink-secondary: var(--raw-gray-600);
-  --color-border: var(--raw-gray-200);
-  --color-brand: var(--raw-haze-600);
-  --color-focus: var(--raw-haze-500);
-  --xw-font-sans: "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-  --xw-font-serif: Georgia, "Noto Serif CJK SC", "Songti SC", serif;
-  --xw-font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --color-visual-grid: color-mix(
+    in oklch,
+    var(--raw-bluegray-600) 10%,
+    transparent
+  );
+  --color-visual-particle: var(--raw-bluegray-500);
+
+  /* Font families */
+  --xw-font-sans:
+    "Inter", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", "Segoe UI",
+    system-ui, sans-serif;
+  --xw-font-serif:
+    "Noto Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+  --xw-font-mono:
+    "IBM Plex Mono", "JetBrains Mono", "Cascadia Code", "SFMono-Regular",
+    Consolas, monospace;
+
+  /* Font sizes */
+  --font-size-00: 0.6875rem;
+  --font-size-0: 0.75rem;
+  --font-size-1: 0.8125rem;
+  --font-size-2: 0.9375rem;
+  --font-size-3: 1rem;
+  --font-size-4: 1.125rem;
+  --font-size-5: 1.375rem;
+  --font-size-6: 1.75rem;
+  --font-size-7: clamp(2.25rem, 4vw, 4.5rem);
+  --font-size-8: clamp(4rem, 10vw, 9rem);
+
+  /* Radius */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  /* Shadow */
+  --shadow-float: 0 12px 28px
+    color-mix(in srgb, var(--raw-bluegray-900) 10%, transparent);
+  --shadow-modal: 0 24px 64px
+    color-mix(in srgb, var(--raw-bluegray-900) 16%, transparent);
+
+  /* Motion */
+  --motion-instant: 90ms;
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-slow: 420ms;
+  --motion-scene: 900ms;
+
+  /* Easing */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
 }
