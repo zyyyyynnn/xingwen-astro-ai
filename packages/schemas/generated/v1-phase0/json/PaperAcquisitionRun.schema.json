@@ -1,0 +1,82 @@
+{
+  "$defs": {
+    "PaperAcquisitionStatus": {
+      "enum": [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "cached"
+      ],
+      "title": "PaperAcquisitionStatus",
+      "type": "string"
+    }
+  },
+  "description": "One reproducible paper acquisition run.",
+  "properties": {
+    "candidate_count": {
+      "minimum": 0,
+      "title": "Candidate Count",
+      "type": "integer"
+    },
+    "dedupe_rule": {
+      "title": "Dedupe Rule",
+      "type": "string"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finished At"
+    },
+    "query_id": {
+      "title": "Query Id",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "selected_count": {
+      "minimum": 0,
+      "title": "Selected Count",
+      "type": "integer"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/PaperAcquisitionStatus"
+    },
+    "task_id": {
+      "title": "Task Id",
+      "type": "string"
+    },
+    "used_cache": {
+      "title": "Used Cache",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "run_id",
+    "task_id",
+    "query_id",
+    "status",
+    "candidate_count",
+    "selected_count",
+    "dedupe_rule",
+    "used_cache",
+    "started_at"
+  ],
+  "title": "PaperAcquisitionRun",
+  "type": "object"
+}

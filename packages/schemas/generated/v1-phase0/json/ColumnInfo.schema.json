@@ -1,0 +1,59 @@
+{
+  "properties": {
+    "data_type": {
+      "title": "Data Type",
+      "type": "string"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "label": {
+      "title": "Label",
+      "type": "string"
+    },
+    "mapping_rule": {
+      "title": "Mapping Rule",
+      "type": "string"
+    },
+    "missing_rate": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Missing Rate",
+      "type": "number"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "required": {
+      "title": "Required",
+      "type": "boolean"
+    },
+    "source_ids": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Source Ids",
+      "type": "array"
+    },
+    "unit": {
+      "title": "Unit",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "label",
+    "unit",
+    "description",
+    "data_type",
+    "required",
+    "source_ids",
+    "missing_rate",
+    "mapping_rule"
+  ],
+  "title": "ColumnInfo",
+  "type": "object"
+}

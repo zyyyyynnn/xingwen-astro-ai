@@ -21,15 +21,16 @@ class SourceSnapshot(BaseModel):
 
 class EvidenceResponse(BaseModel):
     id: str
+    task_id: str
     type: EvidenceType
     source_id: str | None = None
     paper_id: str | None = None
-    target_type: str | None = None
-    target_id: str | None = None
+    target_type: str
+    target_id: str
     content: str | None = None
     locator: Locator | None = None
     quote_or_value: str | None = None
-    extraction_method: str | None = None
-    source_snapshot: SourceSnapshot | None = None
-    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
-    created_at: datetime | None = None
+    extraction_method: str
+    source_snapshot: SourceSnapshot
+    confidence: float = Field(ge=0.0, le=1.0)
+    created_at: datetime
