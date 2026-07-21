@@ -220,6 +220,8 @@ created_at
 
 #76 持久化基线额外保存 `run_step_id`、`step_attempt_id` 与 `producer_execution_id` 外键，用于从不可变版本反向定位实际 Step、Attempt 和 ProducerExecution；这些字段不改变公开 ArtifactVersion 的领域身份。
 
+组合外键强制 Contract、Run、Artifact、Step、Attempt、ProducerExecution 与 ArtifactVersion 留在同一 Project / Run / Artifact 聚合内；`latest_version_id` 与 `supersedes_version_id` 不能跨 Artifact 引用。
+
 不变量：
 
 - `(artifact_id, version_number)` 唯一，content 创建后不可原地修改。

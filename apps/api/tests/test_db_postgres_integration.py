@@ -223,3 +223,25 @@ def test_database_rejects_foreign_key_failure(postgres_engine: Engine) -> None:
         with pytest.raises(IntegrityError):
             uow.commit()
         uow.rollback()
+
+
+def test_database_rejects_cross_project_contract_reference(postgres_engine: Engine) -> None:
+    original_run, _ = _seed_run(postgres_engine)
+    factory = session_factory(postgres_engine)
+    other_project = ResearchProjectModel(
+        id=uuid4(), session_id="session-other", name="Other",
+        case_key="exoplanet_host_star", revision=1
+    )
+    invalid_run = ResearchRunModel(
+        id=uuid4(), project_id=other_project.id, contract_id=original_run.contract_id,
+        execution_mode="live", status="queued", progress=0, derivation_kind="original",
+        cache_policy="disabled", latest_event_sequence=0, revision=1,
+        idempotency_key="cross-project", request_hash="sha256:" + "e" * 64
+    )
+    with UnitOfWork(factory) as uow:
+        uow.session.add(other_project)
+        uow.session.flush()
+        uow.runs.add(invalid_run)
+        with pytest.raises(IntegrityError):
+            uow.commit()
+        uow.rollback()
