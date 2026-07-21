@@ -215,7 +215,7 @@ CI 不允许 App 私有 lockfile、第二套包管理器状态或跨包深层导
 
 ## 12. Pending 边界
 
-- A-02：完整 Design Token、primitive、Brand Site 视觉、静态 Workspace Shell、Visual Engine、Poster 与 Reduced Motion。
+- A-02：完整 bluegray Design Token、primitive、Brand Site 极简单英雄首页、静态 Workspace Shell、Visual Engine（ASCII/Dither Hero）、Poster 与 Reduced Motion。
 - A-03：Research Contract、Guided Tour 状态机、Project/Run、Repository Port、Fixture/HTTP、WorkspaceSnapshot、恢复与分享行为。
 - B-04 / X-01：`/api/v2` 生成 Contract 与真实 HTTP 集成。
 - A-04～A-10：各科研产物工作区、反馈、响应式与发布收口。

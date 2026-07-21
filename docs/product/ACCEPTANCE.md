@@ -37,7 +37,7 @@ M1 完成需要同时满足：
 - Case / Field Manifest 和论文/推理 Benchmark 可机器校验并版本化；
 - X-00 已冻结主案例事实包；
 - `/api/v2` 最小 Session、Project、Contract、Run、Event、Artifact、Version、Workspace 和 Share Contract 可测试；
-- A-02 静态首页与 Workspace Shell 支持键盘、移动端和实时视觉降级；
+- A-02 静态首页为极简单英雄区（Hero + 双 CTA + 一句标题 + 短注），Workspace Shell 支持键盘、移动端和实时视觉降级；Token 为 bluegray 体系且业务组件不消费 Raw；
 - A-03 的 Fixture / HTTP Adapter 返回同一 Domain Model；
 - X-01 的 Session、Contract、Run、Event、WorkspaceSnapshot 和 ShareSnapshot 主流程通过；
 - Current、Implemented 和 Pending 在页面、文档和材料中无混淆。
