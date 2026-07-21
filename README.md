@@ -20,18 +20,6 @@ _面向天文科研场景的数据分析、文献获取、跨文献推理与证�
 
 项目聚焦挑战杯“基于国产开源大模型的 AI Scientist 研发与应用”赛题中“科学数据查找、解析与整合”方向。MVP 不承诺任意天文方向、任意 PDF 全文高精度解析、任意图表全自动处理或无边界科学发现。
 
-## 当前状态
-
-| 范围       | 状态                                                                                        |
-| ---------- | ------------------------------------------------------------------------------------------- |
-| 前端运行时 | A-01 Implemented：Astro Brand Site、React Research Workspace、共享包与根 pnpm 工具链        |
-| 最小入口   | Site `/`、静态 404；Workspace `/`、`/tour`、`/workspace`、`/share/$shareToken` 与 Not Found |
-| API        | FastAPI `/api/v1` Current；`/api/v2` Project / Run / Artifact / Version Pending             |
-| 产品界面   | A-02 视觉系统与静态框架、A-03 Contract 双通道与业务行为均 Pending                           |
-| 本地环境   | Compose：`site`、`workspace`、`api`、`postgres`                                             |
-
-A-01 页面只证明运行时、路由、可访问性和包边界，不包含真实 Project、Run、Artifact 或数据请求行为。完整工程事实见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
-
 ## 快速开始
 
 ```powershell
