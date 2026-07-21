@@ -58,3 +58,16 @@ def test_every_stable_text_state_has_a_database_check_constraint() -> None:
     ):
         constraints = Base.metadata.tables[table_name].constraints
         assert any(isinstance(item, CheckConstraint) for item in constraints), table_name
+
+
+def test_artifact_version_reverse_lookup_paths_are_indexed() -> None:
+    indexes = {
+        tuple(column.name for column in index.columns)
+        for index in Base.metadata.tables["artifact_versions"].indexes
+    }
+    assert {
+        ("created_by_run_id",),
+        ("run_step_id",),
+        ("step_attempt_id",),
+        ("producer_execution_id",),
+    } <= indexes
