@@ -1,0 +1,26 @@
+{
+  "authoring_source": "apps/api/src/app/schemas",
+  "models": [
+    {
+      "module": "app.schemas.v2",
+      "name": "ProblemDetails",
+      "path": "json/ProblemDetails.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "ResearchSession",
+      "path": "json/ResearchSession.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "SessionCreated",
+      "path": "json/SessionCreated.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "SessionQuota",
+      "path": "json/SessionQuota.schema.json"
+    }
+  ],
+  "schema_version": 1
+}

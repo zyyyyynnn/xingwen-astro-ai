@@ -648,3 +648,31 @@ class ConfirmResearchContractRequest(BaseModel):
 
     draft_id: Identifier
     expected_draft_version: int = Field(ge=1)
+
+
+class SessionStatus(StrEnum):
+    active = "active"
+    expired = "expired"
+    revoked = "revoked"
+
+
+class SessionQuota(BaseModel):
+    model_config = V2_MODEL_CONFIG
+
+    max_projects: int = Field(default=10, ge=1)
+    max_runs: int = Field(default=50, ge=1)
+
+
+class ResearchSession(BaseModel):
+    """Public session metadata; the credential and internal id are excluded."""
+
+    model_config = V2_MODEL_CONFIG
+
+    status: SessionStatus
+    created_at: UtcDateTime
+    expires_at: UtcDateTime
+    quota: SessionQuota
+
+
+class SessionCreated(ResearchSession):
+    csrf_token: NonEmptyString

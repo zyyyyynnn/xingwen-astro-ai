@@ -4,7 +4,7 @@
 | -------------- | --------------------------------------------------------------------- |
 | Status         | Accepted                                                              |
 | Authority      | 密钥、信任边界、输入、会话、分享、日志和安全响应要求                  |
-| Implementation | Current baseline controls；`/api/v2` Session / Share controls Pending |
+| Implementation | `/api/v2` Session / CSRF / ownership boundary Current；Share controls Pending |
 
 本文定义必须满足的安全控制。部署拓扑和发布步骤见 [Deployment](DEPLOYMENT.md)，HTTP 授权与公开错误见 [API Contract](docs/architecture/API_CONTRACT.md)，模型调用准入见 [Model Policy](docs/ai/MODEL_POLICY.md)。
 
@@ -33,6 +33,8 @@
 生产配置必须拒绝 DEBUG、默认数据库凭据、空/占位关键凭据和通配 CORS。
 
 ## 3. 匿名 Session 与授权
+
+当前运行基线使用进程内端口适配器保存匿名 Session、幂等与限流状态，重启后失效；这是真实安全边界但不是持久化能力。PostgreSQL 适配器由后续持久化 Issue 实现，不得将当前适配器描述为跨实例 Session。
 
 目标 `/api/v2` 的免登录体验仍需要完整授权边界：
 
