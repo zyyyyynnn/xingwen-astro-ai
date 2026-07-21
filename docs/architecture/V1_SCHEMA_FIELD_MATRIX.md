@@ -1,5 +1,10 @@
 # `/api/v1` Phase 0 Schema Field Matrix
 
+| Metadata | Value |
+| --- | --- |
+| Status | Implemented |
+| Authority | `/api/v1` Phase 0 Schema field mapping and drift decisions |
+
 This matrix compares the frozen [`DATA_MODEL_V1.md`](DATA_MODEL_V1.md) with the
 Pydantic authoring source. `required` refers to JSON Schema requiredness. A dash
 means that no default exists.

@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 | --- | --- |
-| Status | Frozen |
+| Status | Accepted |
 | Authority | `/api/v1` Phase 0 DTO contract |
 | Historical source | `DATA_MODEL.md` at `9dddef0754443e8645e506d705c0f52ef7a165ca` |
 | Authoring source | `apps/api/src/app/schemas` |
