@@ -13,7 +13,9 @@ interface HeroVisualProps {
  * Hero visual: wraps @xingwen/visual-engine for the Brand Site hero.
  *
  * - Renders Poster `<img>` in initial HTML (no-JS fallback)
- * - On client hydration: initializes VisualEngine with Canvas + Poster
+ * - On client hydration: initializes VisualEngine with Canvas
+ * - Poster `<img>` sits beneath Canvas in DOM order — context loss or
+ *   no-JS naturally reveals it without engine involvement
  * - Reduced motion: engine renders single static frame
  * - On unmount: disposes engine resources
  *
@@ -41,7 +43,6 @@ export function HeroVisual({ seed = 42 }: HeroVisualProps) {
       quality: "medium",
       reducedMotion,
       canvas,
-      poster,
       domAnchorLabel: "系外行星 ASCII 视觉",
     });
 
@@ -52,7 +53,7 @@ export function HeroVisual({ seed = 42 }: HeroVisualProps) {
       engine.dispose();
       engineRef.current = null;
     };
-  }, [seed, poster]);
+  }, [seed]);
 
   return (
     <div className="hero-visual">

@@ -48,7 +48,6 @@ export interface VisualEngineConfig {
   quality: Quality;
   reducedMotion: boolean;
   canvas: HTMLCanvasElement;
-  poster: PosterSource;
   domAnchorLabel?: string;
 }
 

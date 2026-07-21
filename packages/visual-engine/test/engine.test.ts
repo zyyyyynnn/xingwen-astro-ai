@@ -1,4 +1,3 @@
-import { createPoster } from "../src/poster";
 import { createVisualEngine } from "../src/engine";
 import type { VisualEngineConfig } from "../src/types";
 
@@ -18,7 +17,6 @@ function createConfig(
     quality: "medium",
     reducedMotion: false,
     canvas: createCanvas(),
-    poster: createPoster({ seed: 42 }),
     ...overrides,
   };
 }
