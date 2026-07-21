@@ -7,9 +7,11 @@
 
 本清单由网页端 GPT Review 使用，回答“这个 PR 是否可以合并”。本地 Codex 自审不能替代该 Review。里程碑和作品是否完成由 [Acceptance](../product/ACCEPTANCE.md) 判断，测试方法由 [Test Strategy](../engineering/TEST_STRATEGY.md) 定义。
 
+阻塞项仅限真实影响当前 PR 正确性或可合并性的问题：标准 CI 失败；代码、数据或 Schema 无法正常工作；hash、版本或契约错误；安全或数据损坏风险；来源或科学内容明显失真；Diff 超出 Issue 范围；文档与实现存在实质冲突；PR 无法合并。风格偏好、非当前范围增强、低概率防御性设计、后续工具改进、不影响当前正确性的理论边界，以及为单次任务增加额外自动化或治理层，默认记录为非阻塞建议。
+
 ## 1. 范围与事实来源
 
-- [ ] PR 关联明确 Issue 或用户授权。
+- [ ] PR 关联明确 Issue。
 - [ ] 改动只解决一个清晰目标，没有混入无关重构、依赖升级或格式化。
 - [ ] Current、Target、Pending、Superseded 和 Archived 没有混写。
 - [ ] 修改前已定位唯一事实来源，没有在低权威文档复制第二套规则。
@@ -115,6 +117,6 @@
 - [ ] 不扩大 MVP 承诺，不隐藏已知风险。
 - [ ] 满足仓库默认 Squash merge 规则。
 
-只有上述条件满足，仓库负责人才能将 Draft 转为 Ready 并 Squash merge。本地 Codex 不得自行转 Ready、合并或关闭 Issue；不存在额外的人工 PR Review 门。
+上述条件满足后，网页端 GPT 或 Codex 均可将 Draft 转为 Ready、执行 Squash merge，并在 `main` 合并结果核对成功后关闭关联 Issue。条件未满足时不得执行；不存在额外人工 PR Review、负责人二次批准或单独授权评论门。
 
 发布或作品提交前，另按 [Acceptance](../product/ACCEPTANCE.md) 和 [Handoff](../handoff/README.md) 完成阶段级验证。

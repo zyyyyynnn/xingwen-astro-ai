@@ -50,12 +50,13 @@
 
 ## 5. Git 与 PR
 
+- 到 GitHub Issues 中查看已明确指派给自己的未关闭任务，即 Assignee 包含自己的 Issue。开始前完整阅读任务的目标、范围、依赖、边界和验收标准；未明确指派的任务不要自行开工。本条约束从 GitHub 任务池自行领取工作，不改变用户在当前会话直接下达明确任务的授权效力。Assignee、任务执行人、模块 Owner 或风险 Owner 不因此获得额外 PR 审查权或合并审批权。
 - 从 `main` 建分支，不直接推送 `main`；不 reset、force push 或改写远端历史。
 - Commit 一个主要目的，使用 `feat` / `fix` / `docs` / `chore` 前缀。
 - PR 关联 Issue，说明范围、验证、契约/数据/UI/部署/安全影响和材料口径。
 - 本地 Codex 完成实现、验证、Commit、Push 并创建或更新 Draft PR 后，必须等待网页端 GPT Review；本地自审不能替代正式 Review。
 - 网页端 GPT Review 必须绑定当前 HEAD，明确 `PASS | BLOCKED` 并保存 GitHub 可见记录；HEAD 变化后旧 Review 自动失效。
-- 只有当前 HEAD 的网页端 GPT `PASS` 与 CI 均通过后，仓库负责人才能将 Draft 转为 Ready 并 Squash merge；Codex 不得自行转 Ready、合并或关闭 Issue，失败卡口不得绕过。
+- 当前 HEAD 的网页端 GPT `pr_technical_review` 为 `PASS`、标准 CI 均通过、PR 可合并且没有未解决的真实阻塞问题后，可由网页端 GPT 或 Codex 将 Draft 转为 Ready 并按默认 Squash merge；合并结果核对成功后可关闭关联 Issue。网页端 GPT 尚未给出有效 `PASS`、CI 尚未通过、HEAD 已变化、PR 不可合并或仍有真实阻塞问题时，不得合并或关闭 Issue。
 - 工作区存在无关修改时不得擅自暂存、清除或提交。
 
 ## 6. 模块边界

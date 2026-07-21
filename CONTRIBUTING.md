@@ -10,13 +10,13 @@ Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [D
 ## 1. 标准流程
 
 1. 从 `main` 获取最新基线。
-2. 根据工作类型选择处于 `ready` 的现有 Issue：生产实现使用 Task 或 Bug；阶段验证、证据或退出结论使用 Gate。仅在没有合适 Issue 时创建新 Issue。
+2. 到 GitHub Issues 中查看已明确指派给自己的未关闭任务，即 Assignee 包含自己的 Issue。开始前完整阅读任务的目标、范围、依赖、边界和验收标准；未明确指派的任务不要自行开工。根据工作类型选择处于 `ready` 的 Task、Bug 或 Gate。
 3. 从 `main` 创建任务分支；空分支本身不改变 Issue 状态。
 4. 分支产生首个实质改动时，将主要 Issue 更新为 `in-progress`，随后实施、测试并同步受影响的权威文档。
 5. 本地 Codex Commit、Push 并创建或更新 Draft Pull Request，关联一个主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。
 6. Draft PR 等待网页端 GPT Review 时，将主要 Issue 更新为 `review`。
 7. 处理网页端 GPT Review 和 CI 结果；新 Commit 会使旧 Review 失效，必须在新 HEAD 上重新审查。
-8. 当前 HEAD 的网页端 GPT `PASS` 与 CI 均通过后，仅由仓库负责人转 Ready 并 Squash merge，随后删除已合并分支。
+8. 当前 HEAD 的网页端 GPT `pr_technical_review` 为 `PASS`、标准 CI 均通过、PR 可合并且没有未解决的真实阻塞问题后，可由网页端 GPT 或 Codex 转 Ready 并 Squash merge；核对 `main` 合并结果后关闭关联 Issue，随后删除已合并分支。
 
 `main` 必须保持可运行；禁止直接推送。
 
@@ -62,6 +62,8 @@ Issue 至少包含：
 - **验证**：预期命令、测试或复现证据。
 
 `open` 只表示 Issue 尚未关闭，不表示可以开工。依赖未满足时必须标记为 `blocked`。
+
+Assignee 只表示任务执行归属，不表示额外审查权或合并审批权；任务执行人、模块 Owner 和风险 Owner 也不构成网页端 GPT Review 之后的第二道授权门。
 
 状态行不得写成 `Epic · ready`、`Gate · blocked by #6` 等复合文本。角色由标题和标签表达；阻塞 Issue、分支、PR 和说明写在状态行之后的独立段落。
 
@@ -199,7 +201,7 @@ PR 不接受：
 
 - 生产实现只关联 Epic，没有明确 Task 或 Bug；
 - Gate PR 接管 A/B/C/D 生产实现；
-- 没有明确 Issue 或用户授权；
+- 没有明确关联 Issue；
 - 大量无关改动；
 - 无可复现验证；
 - 接口、实体或状态改变但未同步权威契约；
@@ -223,6 +225,8 @@ PR 不接受：
 - 区分阻塞问题、建议优化和非本 PR 范围；
 - 不以个人风格偏好扩大范围；
 - 对安全、数据损坏、来源失真和不可逆迁移优先请求修改。
+
+阻塞项与非阻塞建议的唯一完整定义见 [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)。网页端 GPT 只应阻塞真实影响当前 PR 正确性或可合并性的问题，不得以风格偏好、范围外增强或额外治理层扩大范围。
 
 审查结论必须以 GitHub 可见的 Review、评论或线程保存；本地 Codex 实施过程中的自审、测试或总结不能代替网页端 GPT Review。
 
@@ -249,7 +253,7 @@ review_evidence_state: COMMENTED | APPROVED | CHANGES_REQUESTED
 - 同一 purpose/scope 的新 Review 必须显式 supersede 上一轮并使用新的 GitHub Review URL；最新叶节点为有效结论，未解决的 `BLOCKED` scope 阻止通过。
 - 合并门要求最新技术 Review 的 `reviewed_head_sha` 等于 PR 当前 HEAD 且 verdict 为 `PASS`；Review 后新增 Commit 时必须重新 Review。
 - 接受记录前必须通过 GitHub API 读取对应 Review，核对 repository/PR、actor、state、commit id 和包含明确 verdict 的正文；仅匹配 URL 外形不能通过。
-- 本地 Codex 不得自行认定 Review 通过、将 Draft 转 Ready、合并 PR 或关闭关联 Issue；不存在额外的人工 PR Review 门。
+- 本地 Codex 不得伪造或自行认定网页端 GPT `PASS`。当前 HEAD 的 `pr_technical_review` 尚未 `PASS`、标准 CI 未全部成功、HEAD 已变化、PR 不可合并或仍有真实阻塞问题时，Codex 不得转 Ready、合并 PR 或关闭关联 Issue；条件满足后可由网页端 GPT 或 Codex 执行标准合并流程，不存在额外人工 PR Review、负责人二次批准或单独授权评论门。
 
 具体清单见 [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)。
 
@@ -266,4 +270,4 @@ PR 同时满足以下条件才可合并：
 - 不扩大产品承诺；
 - 分支可合并，目标 HEAD 未意外变化。
 
-默认由仓库负责人使用 Squash merge。历史或发布分支需要其他策略时，必须由仓库负责人明确批准。
+默认使用 Squash merge。上述条件满足后，网页端 GPT 或 Codex 均可执行；历史或发布分支如需其他策略，必须在对应 Issue 或 PR 范围中事先明确，不得临时绕过 CI 或改写历史。
