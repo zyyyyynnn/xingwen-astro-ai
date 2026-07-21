@@ -36,6 +36,41 @@ def _read_payload() -> dict[str, Any]:
     return json.loads(BENCHMARK_PATH.read_text(encoding="utf-8"))
 
 
+def _review_fixture(
+    *,
+    package_status: BenchmarkReviewStatus,
+    approved_relation_count: int,
+) -> BenchmarkPackage:
+    payload = _read_payload()
+    payload["review_status"] = package_status.value
+    payload["review_records"][0]["status"] = package_status.value
+    payload["review_records"][0]["reviewer_role"] = "test_human_reviewer"
+    payload["review_records"][0]["notes"] = (
+        "Synthetic review state for relation accuracy tests only."
+    )
+    for index, relation in enumerate(payload["relations"]):
+        relation["review_status"] = (
+            BenchmarkReviewStatus.approved.value
+            if index < approved_relation_count
+            else BenchmarkReviewStatus.pending_human_review.value
+        )
+    payload["content_hash"] = compute_benchmark_content_hash(payload)
+    return BenchmarkPackage.model_validate(payload)
+
+
+def _evaluation_input(**overrides: int) -> BenchmarkEvaluationInput:
+    values = {
+        "schema_items_valid": 0,
+        "schema_items_total": 0,
+        "evidence_requirements_satisfied": 0,
+        "evidence_requirements_total": 0,
+        "evidence_less_relations_blocked": 0,
+        "evidence_less_relations_total": 0,
+    }
+    values.update(overrides)
+    return BenchmarkEvaluationInput(**values)
+
+
 def test_benchmark_package_is_machine_readable_and_versioned() -> None:
     package = load_benchmark_package(BENCHMARK_PATH)
 
@@ -139,6 +174,18 @@ def test_claim_without_evidence_is_rejected() -> None:
     payload["claims"][0]["evidence_ids"] = []
 
     with pytest.raises(ValidationError):
+        BenchmarkPackage.model_validate(payload)
+
+
+def test_paper_metadata_evidence_is_rejected_without_a_supported_locator() -> None:
+    package = load_benchmark_package(BENCHMARK_PATH)
+    assert len(package.evidence) == 18
+    assert {evidence.evidence_type for evidence in package.evidence} == {"paper_text"}
+
+    payload = _read_payload()
+    payload["evidence"][0]["evidence_type"] = "paper_metadata"
+
+    with pytest.raises(ValidationError, match="paper_metadata"):
         BenchmarkPackage.model_validate(payload)
 
 
@@ -265,8 +312,11 @@ def test_graph_uses_only_frozen_taxonomy_types() -> None:
     assert all(edge.edge_type in allowed_edges for edge in package.graph.edges)
 
 
-def test_metrics_are_computed_from_explicit_numerators_and_denominators() -> None:
-    package = load_benchmark_package(BENCHMARK_PATH)
+def test_metrics_are_computed_from_approved_relation_fixture() -> None:
+    package = _review_fixture(
+        package_status=BenchmarkReviewStatus.approved,
+        approved_relation_count=4,
+    )
     expected_papers = tuple(
         dict.fromkeys(
             paper_id
@@ -296,6 +346,101 @@ def test_metrics_are_computed_from_explicit_numerators_and_denominators() -> Non
     assert by_id[BenchmarkMetricId.evidence_coverage].value == 0.8
     assert by_id[BenchmarkMetricId.relation_human_accuracy].value == 0.75
     assert by_id[BenchmarkMetricId.evidence_less_relation_block_rate].value == 1.0
+
+
+def test_relation_human_accuracy_is_not_available_without_approved_relations() -> None:
+    package = _review_fixture(
+        package_status=BenchmarkReviewStatus.approved,
+        approved_relation_count=0,
+    )
+    results = evaluate_benchmark(package, _evaluation_input())
+    by_id = {result.metric_id: result for result in results}
+
+    relation_accuracy = by_id[BenchmarkMetricId.relation_human_accuracy]
+    assert relation_accuracy.numerator == 0
+    assert relation_accuracy.denominator == 0
+    assert relation_accuracy.value is None
+    assert relation_accuracy.status == "not_available"
+
+
+def test_relation_human_accuracy_rejects_nonzero_counts_without_approved_relations() -> None:
+    package = _review_fixture(
+        package_status=BenchmarkReviewStatus.approved,
+        approved_relation_count=0,
+    )
+
+    with pytest.raises(ValueError, match="counts must be zero"):
+        evaluate_benchmark(
+            package,
+            _evaluation_input(
+                human_reviewed_relations_correct=1,
+                human_reviewed_relations_total=1,
+            ),
+        )
+
+
+def test_relation_human_accuracy_total_must_match_approved_relations() -> None:
+    package = _review_fixture(
+        package_status=BenchmarkReviewStatus.approved,
+        approved_relation_count=4,
+    )
+
+    with pytest.raises(ValueError, match="total must equal"):
+        evaluate_benchmark(
+            package,
+            _evaluation_input(
+                human_reviewed_relations_correct=3,
+                human_reviewed_relations_total=3,
+            ),
+        )
+
+
+def test_relation_human_accuracy_rejects_correct_above_total() -> None:
+    with pytest.raises(ValidationError, match="numerator must not exceed denominator"):
+        _evaluation_input(
+            human_reviewed_relations_correct=4,
+            human_reviewed_relations_total=3,
+        )
+
+
+def test_pending_benchmark_does_not_report_relation_accuracy() -> None:
+    package = load_benchmark_package(BENCHMARK_PATH)
+    results = evaluate_benchmark(package, _evaluation_input())
+    by_id = {result.metric_id: result for result in results}
+
+    assert package.review_status is BenchmarkReviewStatus.pending_human_review
+    assert all(
+        relation.review_status is BenchmarkReviewStatus.pending_human_review
+        for relation in package.relations
+    )
+    assert by_id[BenchmarkMetricId.relation_human_accuracy].status == "not_available"
+
+
+def test_pending_package_blocks_accuracy_even_with_approved_relations() -> None:
+    package = _review_fixture(
+        package_status=BenchmarkReviewStatus.pending_human_review,
+        approved_relation_count=4,
+    )
+    results = evaluate_benchmark(package, _evaluation_input())
+    by_id = {result.metric_id: result for result in results}
+
+    assert by_id[BenchmarkMetricId.relation_human_accuracy].status == "not_available"
+
+
+def test_pending_package_rejects_nonzero_relation_accuracy_counts() -> None:
+    package = _review_fixture(
+        package_status=BenchmarkReviewStatus.pending_human_review,
+        approved_relation_count=4,
+    )
+
+    with pytest.raises(ValueError, match="counts must be zero"):
+        evaluate_benchmark(
+            package,
+            _evaluation_input(
+                human_reviewed_relations_correct=3,
+                human_reviewed_relations_total=4,
+            ),
+        )
 
 
 def test_metrics_report_not_available_for_empty_denominators() -> None:
