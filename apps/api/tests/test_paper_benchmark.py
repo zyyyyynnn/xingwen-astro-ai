@@ -43,16 +43,113 @@ def _review_fixture(
 ) -> BenchmarkPackage:
     payload = _read_payload()
     payload["review_status"] = package_status.value
-    payload["review_records"][0]["status"] = package_status.value
-    payload["review_records"][0]["reviewer_role"] = "test_human_reviewer"
-    payload["review_records"][0]["notes"] = (
-        "Synthetic review state for relation accuracy tests only."
-    )
     for index, relation in enumerate(payload["relations"]):
         relation["review_status"] = (
             BenchmarkReviewStatus.approved.value
             if index < approved_relation_count
             else BenchmarkReviewStatus.pending_human_review.value
+        )
+        if relation["review_status"] != BenchmarkReviewStatus.approved.value:
+            continue
+        claim_ids = {relation["source_claim_id"], relation["target_claim_id"]}
+        claims = [claim for claim in payload["claims"] if claim["claim_id"] in claim_ids]
+        for claim in claims:
+            claim["review_status"] = BenchmarkReviewStatus.approved.value
+        related_evidence_ids = {
+            *relation["evidence_ids"],
+            *(evidence_id for claim in claims for evidence_id in claim["evidence_ids"]),
+        }
+        if relation["reasoning_trace_id"] is not None:
+            trace = next(
+                trace
+                for trace in payload["reasoning_traces"]
+                if trace["trace_id"] == relation["reasoning_trace_id"]
+            )
+            trace["review_status"] = BenchmarkReviewStatus.approved.value
+            related_evidence_ids.update(
+                evidence_id
+                for step in trace["steps"]
+                for evidence_id in step["evidence_ids"]
+            )
+        for evidence in payload["evidence"]:
+            if evidence["evidence_id"] in related_evidence_ids:
+                evidence["review_status"] = BenchmarkReviewStatus.approved.value
+
+    if package_status is BenchmarkReviewStatus.approved:
+        assert approved_relation_count == len(payload["relations"])
+        for collection in (
+            payload["paper_summaries"],
+            payload["evidence"],
+            payload["claims"],
+            payload["relations"],
+            payload["reasoning_traces"],
+        ):
+            for item in collection:
+                item["review_status"] = BenchmarkReviewStatus.approved.value
+        payload["review_records"].append(
+            {
+                "review_id": "review.synthetic_human_approval",
+                "reviewed_at": "2026-07-21",
+                "reviewer_type": "human",
+                "reviewer_identity": "github:human-reviewer",
+                "reviewer_role": "scientific_benchmark_reviewer",
+                "status": "approved",
+                "review_evidence_url": "https://github.com/zyyyyynnn/xingwen-astro-ai/pull/999#pullrequestreview-1",
+                "scope": [
+                    {
+                        "target_type": "benchmark_package",
+                        "target_ids": [payload["benchmark_id"]],
+                    },
+                    {
+                        "target_type": "source_policy",
+                        "target_ids": [
+                            source["source_id"] for source in payload["source_policies"]
+                        ],
+                    },
+                    {
+                        "target_type": "seed_paper",
+                        "target_ids": [
+                            paper["paper_id"] for paper in payload["seed_papers"]
+                        ],
+                    },
+                    {
+                        "target_type": "paper_summary",
+                        "target_ids": [
+                            summary["summary_id"]
+                            for summary in payload["paper_summaries"]
+                        ],
+                    },
+                    {
+                        "target_type": "evidence",
+                        "target_ids": [
+                            evidence["evidence_id"] for evidence in payload["evidence"]
+                        ],
+                    },
+                    {
+                        "target_type": "claim",
+                        "target_ids": [claim["claim_id"] for claim in payload["claims"]],
+                    },
+                    {
+                        "target_type": "relation",
+                        "target_ids": [
+                            relation["relation_id"] for relation in payload["relations"]
+                        ],
+                    },
+                    {
+                        "target_type": "reasoning_trace",
+                        "target_ids": [
+                            trace["trace_id"] for trace in payload["reasoning_traces"]
+                        ],
+                    },
+                    {
+                        "target_type": "graph_edge",
+                        "target_ids": [
+                            edge["edge_id"] for edge in payload["graph"]["edges"]
+                        ],
+                    },
+                ],
+                "notes": "Synthetic human approval for metric contract tests only.",
+            }
         )
     payload["content_hash"] = compute_benchmark_content_hash(payload)
     return BenchmarkPackage.model_validate(payload)
@@ -75,8 +172,8 @@ def test_benchmark_package_is_machine_readable_and_versioned() -> None:
     package = load_benchmark_package(BENCHMARK_PATH)
 
     assert package.benchmark_id == "exoplanet_host_star.paper_reasoning"
-    assert package.schema_version == "1.0.0"
-    assert package.benchmark_version == "1.0.0"
+    assert package.schema_version == "1.1.0"
+    assert package.benchmark_version == "1.1.0"
     assert package.case_id == "exoplanet_host_star"
     assert len(package.seed_papers) == 6
     assert len(package.claims) >= 5
@@ -161,6 +258,102 @@ def test_seed_papers_have_verified_identifiers_and_data_boundaries() -> None:
         assert set(paper.intended_uses) <= {"benchmark", "manual_review", "fixture"}
 
 
+def test_verification_sources_use_revalidated_stable_records() -> None:
+    package = load_benchmark_package(BENCHMARK_PATH)
+
+    for paper in package.seed_papers:
+        for source in paper.verification_sources:
+            assert source.verified_at.isoformat() == "2026-07-21"
+            if source.source_id == "crossref":
+                assert str(source.url).startswith("https://api.crossref.org/works/")
+
+    clark = next(
+        paper
+        for paper in package.seed_papers
+        if paper.paper_id == "paper.clark_2021_galah_tess"
+    )
+    assert {source.source_id for source in clark.verification_sources} == {
+        "arxiv",
+        "crossref",
+    }
+
+
+def test_crossref_policy_has_structured_request_class_limits() -> None:
+    package = load_benchmark_package(BENCHMARK_PATH)
+    crossref = next(
+        source for source in package.source_policies if source.source_id == "crossref"
+    )
+
+    assert crossref.crossref_rate_limits is not None
+    assert crossref.crossref_rate_limits.verified_at.isoformat() == "2026-07-21"
+    assert crossref.crossref_rate_limits.rate_limit_unit == "requests_per_second"
+    assert {
+        (limit.pool, limit.request_class)
+        for limit in crossref.crossref_rate_limits.limits
+    } == {
+        ("public", "single_record"),
+        ("public", "list_or_search"),
+        ("polite", "single_record"),
+        ("polite", "list_or_search"),
+    }
+
+
+def test_automation_review_cannot_approve_package() -> None:
+    payload = _read_payload()
+    payload.pop("content_hash")
+    payload["review_status"] = "approved"
+    payload["review_records"][0]["status"] = "approved"
+
+    with pytest.raises(ValidationError, match="approved package requires human review"):
+        BenchmarkPackagePayload.model_validate(payload)
+
+
+def test_non_github_identity_cannot_claim_human_review() -> None:
+    payload = _read_payload()
+    record = payload["review_records"][0]
+    record["reviewer_type"] = "human"
+    record["reviewer_identity"] = "test:fixture-reviewer"
+    record["review_evidence_url"] = (
+        "https://github.com/zyyyyynnn/xingwen-astro-ai/"
+        "pull/999#pullrequestreview-1"
+    )
+
+    with pytest.raises(ValidationError, match="must use the github namespace"):
+        BenchmarkPackagePayload.model_validate(payload)
+
+
+def test_review_records_have_stable_identity_and_machine_readable_scope() -> None:
+    package = load_benchmark_package(BENCHMARK_PATH)
+
+    for record in package.review_records:
+        assert record.reviewer_type.value in {"human", "automation"}
+        assert ":" in record.reviewer_identity
+        assert record.scope
+        assert all(scope.target_ids for scope in record.scope)
+
+
+def test_human_approval_must_cover_every_package_object() -> None:
+    approved = _review_fixture(
+        package_status=BenchmarkReviewStatus.approved,
+        approved_relation_count=4,
+    )
+    payload = approved.model_dump(mode="json", exclude={"content_hash"})
+    human_review = next(
+        record
+        for record in payload["review_records"]
+        if record["reviewer_type"] == "human"
+    )
+    graph_scope = next(
+        scope
+        for scope in human_review["scope"]
+        if scope["target_type"] == "graph_edge"
+    )
+    graph_scope["target_ids"].pop()
+
+    with pytest.raises(ValidationError, match="human review scope is incomplete"):
+        BenchmarkPackagePayload.model_validate(payload)
+
+
 def test_claims_cover_required_types_and_bind_evidence() -> None:
     package = load_benchmark_package(BENCHMARK_PATH)
     claim_types = {claim.claim_type.value for claim in package.claims}
@@ -201,12 +394,131 @@ def test_relations_cover_types_and_all_admission_states() -> None:
     assert statuses == set(BenchmarkAdmissionStatus)
 
 
+def test_directional_relations_use_source_relation_target_order() -> None:
+    package = load_benchmark_package(BENCHMARK_PATH)
+    relations = {relation.relation_id: relation for relation in package.relations}
+    traces = {trace.relation_id: trace for trace in package.reasoning_traces}
+    nodes = {node.node_id: node for node in package.graph.nodes}
+
+    extends = relations["relation.revised_tic_extends_initial_tic"]
+    assert extends.source_claim_id == "claim.stassun_2019_gaia_revision"
+    assert extends.target_claim_id == "claim.stassun_2018_tic_method"
+    assert traces[extends.relation_id].premise_claim_ids == (
+        extends.source_claim_id,
+        extends.target_claim_id,
+    )
+
+    derived = relations["relation.clark_catalog_derived_from_tic"]
+    assert derived.source_claim_id == "claim.clark_crossmatched_catalog"
+    assert derived.target_claim_id == "claim.stassun_2019_gaia_revision"
+    assert traces[derived.relation_id].premise_claim_ids == (
+        derived.source_claim_id,
+        derived.target_claim_id,
+    )
+
+    for edge in package.graph.edges:
+        if edge.cross_document:
+            relation = relations[edge.relation_id]
+            assert nodes[edge.source].ref_id == relation.source_claim_id
+            assert nodes[edge.target].ref_id == relation.target_claim_id
+
+
+def test_trace_premises_cannot_reverse_directional_relation() -> None:
+    payload = _read_payload()
+    trace = payload["reasoning_traces"][0]
+    trace["premise_claim_ids"].reverse()
+
+    with pytest.raises(ValidationError, match="premises must follow relation direction"):
+        BenchmarkPackage.model_validate(payload)
+
+
+def test_approved_relation_requires_approved_dependencies() -> None:
+    payload = _read_payload()
+    payload.pop("content_hash")
+    relation = next(
+        relation for relation in payload["relations"] if relation["status"] == "accepted"
+    )
+    relation["review_status"] = "approved"
+
+    with pytest.raises(ValidationError, match="has unapproved source claim"):
+        BenchmarkPackagePayload.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("dependency", "expected_message"),
+    [
+        ("target_claim", "has unapproved target claim"),
+        ("reasoning_trace", "has unapproved reasoning trace"),
+        ("evidence", "has unapproved evidence"),
+    ],
+)
+def test_approved_relation_rejects_each_unapproved_dependency(
+    dependency: str,
+    expected_message: str,
+) -> None:
+    package = _review_fixture(
+        package_status=BenchmarkReviewStatus.pending_human_review,
+        approved_relation_count=1,
+    )
+    payload = package.model_dump(mode="json", exclude={"content_hash"})
+    relation = next(
+        relation
+        for relation in payload["relations"]
+        if relation["review_status"] == "approved"
+    )
+
+    if dependency == "target_claim":
+        target_claim = next(
+            claim
+            for claim in payload["claims"]
+            if claim["claim_id"] == relation["target_claim_id"]
+        )
+        target_claim["review_status"] = "pending_human_review"
+    elif dependency == "reasoning_trace":
+        trace = next(
+            trace
+            for trace in payload["reasoning_traces"]
+            if trace["trace_id"] == relation["reasoning_trace_id"]
+        )
+        trace["review_status"] = "pending_human_review"
+    else:
+        related_evidence = next(
+            evidence
+            for evidence in payload["evidence"]
+            if evidence["evidence_id"] in relation["evidence_ids"]
+        )
+        related_evidence["review_status"] = "pending_human_review"
+
+    with pytest.raises(ValidationError, match=expected_message):
+        BenchmarkPackagePayload.model_validate(payload)
+
+
+def test_approved_relation_cannot_omit_reasoning_trace() -> None:
+    package = _review_fixture(
+        package_status=BenchmarkReviewStatus.pending_human_review,
+        approved_relation_count=4,
+    )
+    payload = package.model_dump(mode="json", exclude={"content_hash"})
+    rejected = next(
+        relation for relation in payload["relations"] if relation["status"] == "rejected"
+    )
+    rejected["reasoning_trace_id"] = None
+
+    with pytest.raises(ValidationError, match="requires approved reasoning trace"):
+        BenchmarkPackagePayload.model_validate(payload)
+
+
 def test_accepted_relation_requires_trace_and_both_claims_evidence() -> None:
     payload = _read_payload()
     accepted = next(
         relation for relation in payload["relations"] if relation["status"] == "accepted"
     )
-    accepted["evidence_ids"] = [accepted["evidence_ids"][0]]
+    source_claim = next(
+        claim
+        for claim in payload["claims"]
+        if claim["claim_id"] == accepted["source_claim_id"]
+    )
+    accepted["evidence_ids"] = [source_claim["evidence_ids"][0]]
 
     with pytest.raises(ValidationError, match="lacks target evidence"):
         BenchmarkPackage.model_validate(payload)
@@ -350,7 +662,7 @@ def test_metrics_are_computed_from_approved_relation_fixture() -> None:
 
 def test_relation_human_accuracy_is_not_available_without_approved_relations() -> None:
     package = _review_fixture(
-        package_status=BenchmarkReviewStatus.approved,
+        package_status=BenchmarkReviewStatus.pending_human_review,
         approved_relation_count=0,
     )
     results = evaluate_benchmark(package, _evaluation_input())
@@ -365,7 +677,7 @@ def test_relation_human_accuracy_is_not_available_without_approved_relations() -
 
 def test_relation_human_accuracy_rejects_nonzero_counts_without_approved_relations() -> None:
     package = _review_fixture(
-        package_status=BenchmarkReviewStatus.approved,
+        package_status=BenchmarkReviewStatus.pending_human_review,
         approved_relation_count=0,
     )
 

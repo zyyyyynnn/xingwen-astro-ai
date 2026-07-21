@@ -31,13 +31,14 @@ Seed papers 和结构化样例属于 `Benchmark / seed` 数据等级，只允许
 
 它们不是自动获取结果、Live Run 或真实历史缓存。D-02 检索失败时不得直接返回 seed list 并将其描述为自动获取；Benchmark 和 Fixture 也不得进入 CacheSelector。
 
-当前 Package 的 `review_status` 为 `pending_human_review`。其中的 Summary、Claim、Relation 和 Trace 是待负责人科研复核的结构化草案，不是已经通过人工正确性确认的 gold label。只有负责人完成逐项复核、添加批准记录并提升 Benchmark 版本后，才能将相应 Relation 纳入人工正确率分母。
+当前 `1.1.0` Package 的 `review_status` 为 `pending_human_review`。其中的 Summary、Evidence、Claim、Relation 和 Trace 是待负责人科研复核的结构化草案，不是已经通过人工正确性确认的 gold label。只有负责人完成逐项复核、添加真实人类批准记录并提升 Benchmark 版本后，才能将相应 Relation 纳入人工正确率分母。
 
 ## 4. 版本规则
 
 - `schema_version` 表示 Pydantic/JSON 结构版本。
 - `benchmark_version` 表示论文、Evidence、人工标签、Graph 或指标内容版本。
 - 内容或语义变化必须提升 `benchmark_version`，更新 `change_records`、`review_records`、`CHANGELOG.md` 和 `content_hash`。
+- `review_records` 使用 `reviewer_type`、命名空间化 `reviewer_identity`、结构化对象范围、日期、状态和备注；自动化记录不能满足 Package 的人工批准门。
 - 已被评测、Fixture 或下游 Contract 固定引用的版本不得原地改变语义。
 - 消费方固定 `benchmark_id + benchmark_version + content_hash`，不得读取动态 latest。
 
@@ -57,7 +58,7 @@ Benchmark 与 C-01 Manifest 共同调用 `app.schemas._hashing.compute_canonical
 
 ## 6. 论文核验与访问边界
 
-每篇 seed paper 至少记录 DOI、arXiv ID 或官方稳定 URL，并保存核验来源、核验日期和核验字段。优先使用 DOI/publisher、arXiv、NASA/NTRS/IPAC 等稳定记录。
+每篇 seed paper 至少记录 DOI、arXiv ID 或官方稳定 URL，并保存核验来源、核验日期和核验字段。优先使用 DOI/publisher、arXiv、NASA/NTRS/IPAC 等稳定记录。`1.1.0` 在 2026-07-21 重新核验全部记录；无法解析的 Clark NTRS URL 已替换为对应 Crossref 单记录 API，Crossref 核验也统一使用不依赖 publisher 跳转的单记录 API URL。
 
 `authors` 只保存逐名核验的作者，不使用 `et al.` 伪装成作者；`authors_complete` 明确说明作者数组是否为完整名单。当前长作者名单使用经过核验的前三位作者并标记为不完整，消费者不得把它展示成完整署名。
 
@@ -71,6 +72,8 @@ Package 还逐篇记录：
 
 本基准只保存元数据和短 abstract evidence。无法访问或未核验的全文不得生成全文 locator、页码或正文 Quote。来源 API 的实时配额和许可仍需 D-02 在实现时重新核验，D-01 声明不能替代运行时 SourceSnapshot。
 
+Crossref 机器可读的请求类别、限流单位、并发边界、核验日期和官方来源以 JSON `source_policies` 为唯一事实源。运行时仍须以响应头和 `429` 为准，不能从 `rate_limit_policy` 自由文本推导数值。
+
 ## 7. Evidence 等级
 
 当前证据等级包括：
@@ -83,6 +86,10 @@ Package 还逐篇记录：
 
 `manual_transcription_from_verified_source` 表示保存短原文摘录；`manual_paraphrase_from_verified_source` 表示保存人工释义，并仍以 locator 指向可核对的摘要范围。释义不得扩大原文结论，也不得展示成逐字引文。
 
+### 7.1 Relation 方向
+
+Relation 方向语义以 [Reasoning Protocol](../../../docs/ai/REASONING_PROTOCOL.md#4-relation-类型) 为权威来源；本 Package 只保存遵循该语义的实例，并由回归测试约束 Trace 与 GraphEdge 顺序。
+
 ## 8. 人工评审方式
 
 负责人评审至少逐项检查：
@@ -91,12 +98,12 @@ Package 还逐篇记录：
 2. Quote 是否能在 locator 指定的公开来源找到；
 3. Summary/Claim 是否未超出 Quote；
 4. Relation 两端对象、指标、条件和版本是否可比；
-5. Accepted Relation 是否绑定双方 Evidence 和 Trace；
+5. review-approved Relation 是否绑定双方 Evidence 和已批准 Trace；
 6. candidate/rejected 的保留原因是否充分；
 7. Graph 是否只发布 accepted Relation；
-8. 评审人、日期、范围、结果和备注是否进入 `review_records`。
+8. 真实评审人的类型、稳定 identity、结构化对象范围、日期、结果和备注是否进入 `review_records`。
 
-不得把模型输出或自动生成草案直接标记为人工正确答案。任何批准都会改变 hash，必须更新版本和变更记录。
+不得把模型输出、自动生成草案或测试身份直接标记为人工正确答案。Package 只有在批准的人类记录覆盖所有 source policy、seed paper、Summary、Evidence、Claim、Relation、Trace 和 GraphEdge，且所有带审核状态的对象均已批准时才能标为 `approved`。任何批准都会改变 hash，必须更新版本和变更记录。
 
 ## 9. 指标定义
 

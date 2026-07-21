@@ -241,13 +241,21 @@ PaperSummary 包含 paper_id、research_goal、method、dataset、findings、lim
 
 LiteratureClaim：paper_id、claim_type、text、conditions、evidence_ids、confidence、`candidate | accepted | rejected`。
 
-LiteratureRelation：source/target claim、relation_type、conditions、reasoning_trace_id、evidence_ids、confidence、状态。Accepted Relation 必须同时有 Evidence 和 ReasoningTrace。
+LiteratureRelation：source/target claim、relation_type、conditions、reasoning_trace_id、evidence_ids、confidence、状态。方向统一为 `source_claim_id relation_type target_claim_id`；source 是关系主语，target 是关系宾语。Accepted Relation 必须同时有 Evidence 和 ReasoningTrace。
 
-ReasoningTrace：relation_id、premise_claim_ids、显式 steps、conditions、evidence_ids、review_status。Step 只描述引用、比较条件和结构化结论，不记录隐藏 prompt、内部 token 或逐 token 推理。
+ReasoningTrace：relation_id、premise_claim_ids、显式 steps、conditions、evidence_ids、review_status。`premise_claim_ids` 按 Relation 的 source、target 顺序保存。Step 只描述引用、比较条件和结构化结论，不记录隐藏 prompt、内部 token 或逐 token 推理。
 
 ### 9.4 Graph
 
 Graph 包含 nodes、edges、layout_hint 和 filters。每条 GraphEdge 必须有 evidence_ids；跨文献边还必须有 relation_id 和 reasoning_trace_id。不得为装饰生成无科研意义的边。
+
+### 9.5 Benchmark 审核与来源政策
+
+Benchmark ReviewRecord 包含 reviewer type、命名空间化稳定 identity、role、结构化对象类型与对象 id 范围、日期、状态、备注和人工 Review 证据 URL。人类记录使用 GitHub identity，并定位 GitHub Pull Request Review；automation 或测试 identity 不能满足 Package 人工批准门。
+
+Benchmark 的 PaperSummary、Evidence、Claim、Relation 和 ReasoningTrace 分别保存 review status。Package 批准时，人类批准范围覆盖全部 SourcePolicy、SeedPaper、PaperSummary、Evidence、Claim、Relation、ReasoningTrace 和 GraphEdge；review-approved Relation 的两端 Claim、ReasoningTrace 与相关 Evidence 同时为 approved。
+
+Crossref SourcePolicy 以结构化记录分别表达 single-record 与 list/search 请求类别、pool、限流数值与单位、并发上限、核验日期和官方来源 URL；自由文本只描述运行边界，不承载机器判断。
 
 ## 10. Evidence 与 SourceSnapshot
 

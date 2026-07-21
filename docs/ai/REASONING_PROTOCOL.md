@@ -50,20 +50,22 @@ Claim normalization 不得改变结论方向、删除关键限制或合并不可
 
 ## 4. Relation 类型
 
+所有 Relation 使用 `source_claim_id relation_type target_claim_id`：source 是关系主语，target 是关系宾语。ReasoningTrace premises 与 GraphEdge endpoints 必须保持相同方向，不得把两端当作无序集合。
+
 ### supports
 
 两条 Claim 在对象、指标、条件和结论方向上相容。只能表述为“提供支持证据”，不得写成绝对证明。
 
 ### extends / derived_from
 
-- `extends`：后续工作明确扩展对象、数据、方法或适用范围。
-- `derived_from`：存在可核验的前置数据、方法或产物依赖。
+- `A extends B`：source A 明确扩展 target B 的对象、数据、方法或适用范围。
+- `A derived_from B`：source A 对 target B 存在可核验的前置数据、方法或产物依赖。
 
 仅时间更晚或主题相似不构成扩展关系。
 
 ### limits
 
-文献对适用范围、样本偏差、数据质量、方法或解释强度施加限制。
+`A limits B` 表示 source A 对 target B 的适用范围、样本偏差、数据质量、方法或解释强度施加限制。
 
 ### contradicts
 
@@ -90,6 +92,7 @@ Accepted Relation 必须同时满足：
 
 - 两端 Claim 存在且属于明确版本；
 - relation type 合法；
+- source/target 方向与 Relation 类型语义一致；
 - 双方 Evidence 存在并属于对应 Claim；
 - conditions 不冲突且对象可比较；
 - ReasoningTrace 存在并覆盖双方 Evidence；
@@ -97,6 +100,8 @@ Accepted Relation 必须同时满足：
 - 未绕过来源许可、全文或安全边界。
 
 不满足任一条件的记录不得进入最终 Graph。
+
+Relation 的人工 review status 进入 `approved` 时，无论 admission status 是 candidate、accepted 还是 rejected，都必须绑定 review-approved ReasoningTrace；负例 Trace 记录不可比或拒绝依据，不将 rejected 关系发布到 Graph。
 
 ## 6. ReasoningTrace
 
@@ -119,6 +124,7 @@ Trace 只保存公开可核验的依据和结构化转换，不记录模型私�
 
 - 引用 Accepted Relation；
 - relation、source claim、target claim 均存在；
+- edge source/target 与 Relation source/target 方向一致；
 - Evidence 和 ReasoningTrace 引用完整；
 - 版本属于允许的 Project / Run 上下文；
 - edge type 与 Graph taxonomy 一致；

@@ -19,8 +19,11 @@
 | ResearchArtifact | 身份可更新 | 表示同一逻辑产物，维护 latest 指针 |
 | ArtifactVersion | 内容不可变 | Evidence、Cache、Share、Export 的绑定单位 |
 | SourceSnapshot | 不可变 | 固定外部来源、查询、时间和许可信息 |
+| BenchmarkPackage | 已发布版本不可变 | 使用 benchmark id、version 与 content hash 固定静态评测输入 |
 | WorkspaceSnapshot | 可覆盖、乐观锁 | 私有 UI 恢复状态，不是科研产物 |
 | ShareSnapshot | 创建后不可变 | 冻结公开版本与脱敏范围 |
+
+BenchmarkPackage 的 `schema_version` 表示机器结构版本，`benchmark_version` 表示论文、Evidence、审核标签、Graph、来源政策或指标内容版本。任何内容或语义变化都发布新 version 与 content hash，并追加 change/review record；不得在相同 version 下原地改变已发布语义。来源核验日期、稳定 URL 和结构化限流政策属于 hash 绑定内容，运行时 SourceSnapshot 仍另行记录实际响应与请求元数据。
 
 ## 2. ArtifactVersion
 

@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "benchmark_id": "exoplanet_host_star.paper_reasoning",
-  "benchmark_version": "1.0.0",
+  "benchmark_version": "1.1.0",
   "case_id": "exoplanet_host_star",
   "created_at": "2026-07-19",
   "maintainers": [
@@ -15,10 +15,61 @@
     {
       "review_id": "review.initial_technical_preparation",
       "reviewed_at": "2026-07-19",
-      "reviewer_role": "automation_assistant",
+      "reviewer_type": "automation",
+      "reviewer_identity": "openai:codex",
+      "reviewer_role": "benchmark_contract_preparer",
       "status": "pending_human_review",
-      "scope": "Identifier, abstract evidence, reference integrity, and admission-rule preparation",
+      "scope": [
+        {
+          "target_type": "benchmark_package",
+          "target_ids": [
+            "exoplanet_host_star.paper_reasoning"
+          ]
+        }
+      ],
       "notes": "The package is technically validated but is not represented as a human-approved scientific gold standard."
+    },
+    {
+      "review_id": "review.issue_6_contract_repair",
+      "reviewed_at": "2026-07-21",
+      "reviewer_type": "automation",
+      "reviewer_identity": "openai:codex",
+      "reviewer_role": "benchmark_contract_preparer",
+      "status": "pending_human_review",
+      "scope": [
+        {
+          "target_type": "source_policy",
+          "target_ids": [
+            "crossref"
+          ]
+        },
+        {
+          "target_type": "relation",
+          "target_ids": [
+            "relation.revised_tic_extends_initial_tic",
+            "relation.clark_catalog_derived_from_tic",
+            "relation.host_properties_limit_toi_interpretation",
+            "relation.observed_candidates_contradict_expected_planets"
+          ]
+        },
+        {
+          "target_type": "reasoning_trace",
+          "target_ids": [
+            "trace.revised_tic_extends_initial_tic",
+            "trace.clark_catalog_derived_from_tic",
+            "trace.host_properties_limit_toi_interpretation",
+            "trace.observed_candidates_contradict_expected_planets"
+          ]
+        },
+        {
+          "target_type": "graph_edge",
+          "target_ids": [
+            "edge.revised_tic_to_initial_tic",
+            "edge.clark_catalog_to_revised_tic"
+          ]
+        }
+      ],
+      "notes": "Automation revalidated public source records and repaired contract, direction, and release-gate declarations; human scientific review remains required."
     }
   ],
   "change_records": [
@@ -26,6 +77,12 @@
       "version": "1.0.0",
       "changed_at": "2026-07-19",
       "summary": "Initial D-01 search, paper, summary, claim, relation, trace, graph, and metric benchmark declaration.",
+      "affects_content_hash": true
+    },
+    {
+      "version": "1.1.0",
+      "changed_at": "2026-07-21",
+      "summary": "Repair human-review gates, directional Relation semantics, Crossref request limits, and unstable verification sources without claiming human approval.",
       "affects_content_hash": true
     }
   ],
@@ -53,7 +110,42 @@
       "abstracts_public": false,
       "full_text_boundary": "Crossref supplies deposited metadata and links, not a general entitlement to article full text.",
       "license_boundary": "Metadata may be retrieved publicly; linked content remains governed by the publisher or repository license.",
-      "rate_limit_policy": "As verified on 2026-07-19, public access is limited to 5 requests per interval with concurrency 1 and polite access to 10 with concurrency 3; clients must honor response headers and 429 backoff.",
+      "rate_limit_policy": "Use crossref_rate_limits for frozen request-class boundaries; runtime clients must honor response headers and 429 backoff.",
+      "crossref_rate_limits": {
+        "verified_at": "2026-07-21",
+        "official_source_url": "https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/",
+        "rate_limit_unit": "requests_per_second",
+        "limits": [
+          {
+            "pool": "public",
+            "request_class": "single_record",
+            "requests_per_interval": 5,
+            "interval_seconds": 1,
+            "concurrency_limit": 1
+          },
+          {
+            "pool": "public",
+            "request_class": "list_or_search",
+            "requests_per_interval": 5,
+            "interval_seconds": 1,
+            "concurrency_limit": 1
+          },
+          {
+            "pool": "polite",
+            "request_class": "single_record",
+            "requests_per_interval": 10,
+            "interval_seconds": 1,
+            "concurrency_limit": 3
+          },
+          {
+            "pool": "polite",
+            "request_class": "list_or_search",
+            "requests_per_interval": 10,
+            "interval_seconds": 1,
+            "concurrency_limit": 3
+          }
+        ]
+      },
       "public_runtime_risk": "Deposited metadata may be incomplete or updated, and production integrations must identify themselves and cache responsibly."
     },
     {
@@ -173,7 +265,7 @@
         {
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/1406.0151",
-          "verified_at": "2026-07-19",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "authors",
@@ -183,8 +275,8 @@
         },
         {
           "source_id": "crossref",
-          "url": "https://doi.org/10.1117/1.JATIS.1.1.014003",
-          "verified_at": "2026-07-19",
+          "url": "https://api.crossref.org/works/10.1117%2F1.JATIS.1.1.014003",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "year",
@@ -222,7 +314,7 @@
         {
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/1706.00495",
-          "verified_at": "2026-07-19",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "authors",
@@ -232,8 +324,8 @@
         },
         {
           "source_id": "crossref",
-          "url": "https://doi.org/10.3847/1538-3881/aad050",
-          "verified_at": "2026-07-19",
+          "url": "https://api.crossref.org/works/10.3847%2F1538-3881%2Faad050",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "authors",
@@ -271,7 +363,7 @@
         {
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/1905.10694",
-          "verified_at": "2026-07-19",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "authors",
@@ -282,7 +374,7 @@
         {
           "source_id": "nasa_ntrs",
           "url": "https://ntrs.nasa.gov/citations/99611215072524",
-          "verified_at": "2026-07-19",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "authors",
@@ -321,7 +413,7 @@
         {
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/2103.12538",
-          "verified_at": "2026-07-19",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "authors",
@@ -331,8 +423,8 @@
         },
         {
           "source_id": "crossref",
-          "url": "https://doi.org/10.3847/1538-4365/abefe1",
-          "verified_at": "2026-07-19",
+          "url": "https://api.crossref.org/works/10.3847%2F1538-4365%2Fabefe1",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "year",
@@ -369,7 +461,7 @@
         {
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/1307.2944",
-          "verified_at": "2026-07-19",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "authors",
@@ -380,7 +472,7 @@
         {
           "source_id": "caltech_ipac",
           "url": "https://www.ipac.caltech.edu/publication/2013PASP..125..989A",
-          "verified_at": "2026-07-19",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "abstract",
@@ -418,7 +510,7 @@
         {
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/2008.05372",
-          "verified_at": "2026-07-19",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "authors",
@@ -427,9 +519,9 @@
           ]
         },
         {
-          "source_id": "nasa_ntrs",
-          "url": "https://ntrs.nasa.gov/citations/29778864600584",
-          "verified_at": "2026-07-19",
+          "source_id": "crossref",
+          "url": "https://api.crossref.org/works/10.1093%2Fmnras%2Fstab1052",
+          "verified_at": "2026-07-21",
           "verified_fields": [
             "title",
             "authors",
@@ -1107,12 +1199,12 @@
   "relations": [
     {
       "relation_id": "relation.revised_tic_extends_initial_tic",
-      "source_claim_id": "claim.stassun_2018_tic_method",
-      "target_claim_id": "claim.stassun_2019_gaia_revision",
+      "source_claim_id": "claim.stassun_2019_gaia_revision",
+      "target_claim_id": "claim.stassun_2018_tic_method",
       "relation_type": "extends",
       "conditions": [
         "Both claims concern TIC/CTL catalog construction and target ranking",
-        "The target paper explicitly identifies its catalog and ranking as revised"
+        "The source paper explicitly identifies its catalog and ranking as revised"
       ],
       "comparability_note": "The same catalog family and target-selection purpose are compared across two versioned publications.",
       "reasoning_trace_id": "trace.revised_tic_extends_initial_tic",
@@ -1127,14 +1219,14 @@
     },
     {
       "relation_id": "relation.clark_catalog_derived_from_tic",
-      "source_claim_id": "claim.stassun_2019_gaia_revision",
-      "target_claim_id": "claim.clark_crossmatched_catalog",
+      "source_claim_id": "claim.clark_crossmatched_catalog",
+      "target_claim_id": "claim.stassun_2019_gaia_revision",
       "relation_type": "derived_from",
       "conditions": [
         "The Clark catalog explicitly uses the TIC and Gaia DR2 as cross-match inputs",
         "Derived-from refers to dataset construction, not scientific conclusion inheritance"
       ],
-      "comparability_note": "The target catalog names the TIC and Gaia DR2 among its direct data inputs, matching the source claim's catalog scope.",
+      "comparability_note": "The source catalog names the TIC and Gaia DR2 among its direct data inputs, matching the target claim's catalog scope.",
       "reasoning_trace_id": "trace.clark_catalog_derived_from_tic",
       "evidence_ids": [
         "evidence.claim_stassun_2019_revision",
@@ -1147,8 +1239,8 @@
     },
     {
       "relation_id": "relation.host_properties_limit_toi_interpretation",
-      "source_claim_id": "claim.guerrero_prime_toi_dataset",
-      "target_claim_id": "claim.clark_host_property_dependency",
+      "source_claim_id": "claim.clark_host_property_dependency",
+      "target_claim_id": "claim.guerrero_prime_toi_dataset",
       "relation_type": "limits",
       "conditions": [
         "Catalog candidate status and inferred planet parameters are distinct questions",
@@ -1167,14 +1259,14 @@
     },
     {
       "relation_id": "relation.observed_candidates_contradict_expected_planets",
-      "source_claim_id": "claim.ricker_expected_yield",
-      "target_claim_id": "claim.guerrero_prime_toi_dataset",
+      "source_claim_id": "claim.guerrero_prime_toi_dataset",
+      "target_claim_id": "claim.ricker_expected_yield",
       "relation_type": "contradicts",
       "conditions": [
         "A contradiction would require the same population definition and completion window"
       ],
-      "comparability_note": "The source is a pre-launch expectation for planets smaller than Neptune; the target counts TOI candidates including previously known planets.",
-      "reasoning_trace_id": null,
+      "comparability_note": "The source counts TOI candidates including previously known planets; the target is a pre-launch expectation for planets smaller than Neptune.",
+      "reasoning_trace_id": "trace.observed_candidates_contradict_expected_planets",
       "evidence_ids": [
         "evidence.claim_ricker_yield",
         "evidence.claim_guerrero_dataset"
@@ -1190,8 +1282,8 @@
       "trace_id": "trace.revised_tic_extends_initial_tic",
       "relation_id": "relation.revised_tic_extends_initial_tic",
       "premise_claim_ids": [
-        "claim.stassun_2018_tic_method",
-        "claim.stassun_2019_gaia_revision"
+        "claim.stassun_2019_gaia_revision",
+        "claim.stassun_2018_tic_method"
       ],
       "steps": [
         {
@@ -1218,29 +1310,29 @@
       ],
       "uncertainty": "Low structural uncertainty; scientific field-level differences still require full catalog documentation.",
       "provenance": "manual_benchmark_draft",
-      "rule_version": "1.0.0",
+      "rule_version": "1.1.0",
       "review_status": "pending_human_review"
     },
     {
       "trace_id": "trace.clark_catalog_derived_from_tic",
       "relation_id": "relation.clark_catalog_derived_from_tic",
       "premise_claim_ids": [
-        "claim.stassun_2019_gaia_revision",
-        "claim.clark_crossmatched_catalog"
+        "claim.clark_crossmatched_catalog",
+        "claim.stassun_2019_gaia_revision"
       ],
       "steps": [
         {
           "order": 1,
-          "statement": "Locate the revised TIC claim and its Gaia DR2 input scope.",
+          "statement": "Confirm that the source Clark catalog names TIC and Gaia DR2 as direct cross-match inputs.",
           "evidence_ids": [
-            "evidence.claim_stassun_2019_revision"
+            "evidence.claim_clark_dataset"
           ]
         },
         {
           "order": 2,
-          "statement": "Confirm that the Clark catalog names TIC and Gaia DR2 as direct cross-match inputs.",
+          "statement": "Locate the target revised TIC claim and its Gaia DR2 input scope.",
           "evidence_ids": [
-            "evidence.claim_clark_dataset"
+            "evidence.claim_stassun_2019_revision"
           ]
         }
       ],
@@ -1252,15 +1344,15 @@
       ],
       "uncertainty": "Moderate version-lineage uncertainty because the abstract names TIC but not a content hash.",
       "provenance": "manual_benchmark_draft",
-      "rule_version": "1.0.0",
+      "rule_version": "1.1.0",
       "review_status": "pending_human_review"
     },
     {
       "trace_id": "trace.host_properties_limit_toi_interpretation",
       "relation_id": "relation.host_properties_limit_toi_interpretation",
       "premise_claim_ids": [
-        "claim.guerrero_prime_toi_dataset",
-        "claim.clark_host_property_dependency"
+        "claim.clark_host_property_dependency",
+        "claim.guerrero_prime_toi_dataset"
       ],
       "steps": [
         {
@@ -1288,7 +1380,43 @@
       ],
       "uncertainty": "High enough to prevent acceptance without object-level and version-level comparison.",
       "provenance": "manual_benchmark_draft",
-      "rule_version": "1.0.0",
+      "rule_version": "1.1.0",
+      "review_status": "pending_human_review"
+    },
+    {
+      "trace_id": "trace.observed_candidates_contradict_expected_planets",
+      "relation_id": "relation.observed_candidates_contradict_expected_planets",
+      "premise_claim_ids": [
+        "claim.guerrero_prime_toi_dataset",
+        "claim.ricker_expected_yield"
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "statement": "Compare the source observed-candidate count with the target pre-launch expected-planet count and retain both definitions.",
+          "evidence_ids": [
+            "evidence.claim_guerrero_dataset",
+            "evidence.claim_ricker_yield"
+          ]
+        },
+        {
+          "order": 2,
+          "statement": "Reject contradiction because population definitions, selection states, and completion windows are not aligned.",
+          "evidence_ids": [
+            "evidence.claim_guerrero_dataset",
+            "evidence.claim_ricker_yield"
+          ]
+        }
+      ],
+      "conditions": [
+        "Contradiction requires matching population definitions and completion windows"
+      ],
+      "limitations": [
+        "The abstract records do not establish a like-for-like final yield comparison"
+      ],
+      "uncertainty": "The available evidence is sufficient to reject comparability, not to estimate a corrected mission yield.",
+      "provenance": "manual_benchmark_draft",
+      "rule_version": "1.1.0",
       "review_status": "pending_human_review"
     }
   ],
@@ -1305,6 +1433,7 @@
     "integrity_rules": [
       "Every node id is unique and every edge endpoint resolves to a declared node.",
       "Every edge binds at least one declared Evidence id.",
+      "Every directional edge follows source_claim_id relation_type target_claim_id semantics.",
       "Every cross-document edge binds an accepted Relation and its matching ReasoningTrace.",
       "Rejected or candidate Relations cannot be published as cross-document benchmark graph edges."
     ]
@@ -1362,9 +1491,9 @@
         "reasoning_trace_id": null
       },
       {
-        "edge_id": "edge.initial_tic_to_revised_tic",
-        "source": "node.claim_stassun_2018_method",
-        "target": "node.claim_stassun_2019_revision",
+        "edge_id": "edge.revised_tic_to_initial_tic",
+        "source": "node.claim_stassun_2019_revision",
+        "target": "node.claim_stassun_2018_method",
         "edge_type": "extends",
         "evidence_ids": [
           "evidence.claim_stassun_2018_method",
@@ -1375,9 +1504,9 @@
         "reasoning_trace_id": "trace.revised_tic_extends_initial_tic"
       },
       {
-        "edge_id": "edge.revised_tic_to_clark_catalog",
-        "source": "node.claim_stassun_2019_revision",
-        "target": "node.claim_clark_catalog",
+        "edge_id": "edge.clark_catalog_to_revised_tic",
+        "source": "node.claim_clark_catalog",
+        "target": "node.claim_stassun_2019_revision",
         "edge_type": "derived_from",
         "evidence_ids": [
           "evidence.claim_stassun_2019_revision",
@@ -1421,5 +1550,5 @@
       "empty_set_behavior": "report_not_available"
     }
   ],
-  "content_hash": "sha256:10d04344f08b767dda1dbfd84ba229c2114cdc14d7e2f21e4bbcf085e64dd28e"
+  "content_hash": "sha256:0fb405c27f88e4657cf609de5d4e0b5880ebf6ccf20deebd8beda04fa84d7f20"
 }
