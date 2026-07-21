@@ -7,15 +7,15 @@ belong to later C-module issues.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping, Sequence
 from datetime import date
 from enum import StrEnum
-from hashlib import sha256
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
+
+from ._hashing import compute_canonical_model_hash
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -792,16 +792,7 @@ def compute_content_hash(value: BaseModel | Mapping[str, Any]) -> str:
     else:
         raise TypeError("content hash input must be a Case or Field Manifest payload")
 
-    payload = payload_model.model_dump(mode="json", exclude_none=True)
-
-    canonical_json = json.dumps(
-        payload,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    )
-    return f"sha256:{sha256(canonical_json.encode('utf-8')).hexdigest()}"
+    return compute_canonical_model_hash(payload_model)
 
 
 def load_manifest_bundle(
