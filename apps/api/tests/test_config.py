@@ -13,6 +13,7 @@ def test_development_allows_local_defaults() -> None:
 
     assert settings.APP_ENV == "development"
     assert settings.DEBUG is True
+    assert settings.SESSION_COOKIE_SECURE is False
 
 
 def test_production_accepts_managed_database_url_without_postgres_password() -> None:
@@ -23,6 +24,7 @@ def test_production_accepts_managed_database_url_without_postgres_password() -> 
         DATABASE_URL="postgresql+psycopg://app:strong-secret@db.example:5432/xingwen",
         DASHSCOPE_API_KEY="dashscope-secret",
         CORS_ORIGINS="https://astro.example",
+        SESSION_COOKIE_SECURE=True,
     )
 
     assert settings.APP_ENV == "production"
@@ -59,4 +61,17 @@ def test_production_requires_database_url() -> None:
             DEBUG=False,
             DASHSCOPE_API_KEY="dashscope-secret",
             CORS_ORIGINS="https://astro.example",
+        )
+
+
+def test_production_requires_secure_session_cookie() -> None:
+    with pytest.raises(ValidationError, match="SESSION_COOKIE_SECURE must be true"):
+        Settings(
+            _env_file=None,
+            APP_ENV="production",
+            DEBUG=False,
+            DATABASE_URL="postgresql+psycopg://app:secret@db.example/xingwen",
+            DASHSCOPE_API_KEY="dashscope-secret",
+            CORS_ORIGINS="https://astro.example",
+            SESSION_COOKIE_SECURE=False,
         )

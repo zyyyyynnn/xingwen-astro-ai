@@ -94,6 +94,16 @@ jobs:
             --output ../../packages/schemas/generated/v2-core/openapi.json \
             --check
 
+      - name: Check v2 session security contracts
+        run: >
+          uv run python ../../scripts/export_schemas.py
+          --output ../../packages/schemas/generated/v2-security
+          --include ResearchSession
+          --include SessionCreated
+          --include SessionQuota
+          --include ProblemDetails
+          --check
+
   frontend:
     name: Frontend quality and entrypoint smoke
     runs-on: ubuntu-latest

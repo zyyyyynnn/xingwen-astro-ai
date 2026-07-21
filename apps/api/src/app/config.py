@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import SecretStr, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+    SESSION_COOKIE_NAME: str = "xingwen_session"
+    SESSION_TTL_SECONDS: int = Field(default=86400, gt=0)
+    SESSION_COOKIE_SECURE: bool = False
+    SESSION_COOKIE_SAMESITE: str = "lax"
+    SESSION_CREATE_RATE_LIMIT: int = Field(default=30, gt=0)
 
     DATABASE_URL: SecretStr | None = None
     POSTGRES_PASSWORD: SecretStr | None = None
@@ -29,6 +34,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> Settings:
+        if self.SESSION_COOKIE_SAMESITE.lower() not in {"lax", "strict", "none"}:
+            raise ValueError("SESSION_COOKIE_SAMESITE must be lax, strict, or none")
         if self.APP_ENV.lower() != "production":
             return self
 
@@ -50,6 +57,8 @@ class Settings(BaseSettings):
             errors.append("DASHSCOPE_API_KEY must be configured")
         if "*" in cors_origins:
             errors.append("CORS_ORIGINS must not contain '*' in production")
+        if not self.SESSION_COOKIE_SECURE:
+            errors.append("SESSION_COOKIE_SECURE must be true in production")
 
         if errors:
             raise ValueError("; ".join(errors))

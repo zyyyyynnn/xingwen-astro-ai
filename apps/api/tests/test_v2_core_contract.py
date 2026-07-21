@@ -286,6 +286,9 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "listRunEvents",
         "getResearchArtifact",
         "getArtifactVersion",
+        "createAnonymousSession",
+        "getAnonymousSession",
+        "revokeAnonymousSession",
     } == set(operation_ids)
 
     create_run = document["paths"]["/api/v2/projects/{project_id}/runs"]["post"]
