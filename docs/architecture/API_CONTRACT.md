@@ -4,9 +4,9 @@
 | -------------- | ---------------------------------------------------------- |
 | Status         | Accepted                                                   |
 | Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring     |
-| Implementation | `/api/v1` Current；`/api/v2` Project / Run 等契约 Pending |
+| Implementation | `/api/v1` Current；`/api/v2` 核心生成契约 Implemented、运行 API Pending |
 
-本文定义 Current 与 Pending API，不表示 `/api/v2` 已实现。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
+本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema 与契约 OpenAPI 已实现，但契约专用应用不挂载到运行服务；Session、持久化、Workflow 与运行路由仍为 Pending。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
 
 ## 1. 设计原则
 
@@ -39,7 +39,7 @@ flowchart LR
 | 版本      | 状态              | 说明                                                          |
 | --------- | ----------------- | ------------------------------------------------------------- |
 | `/api/v1` | Current           | 当前后端 Task Contract                                        |
-| `/api/v2` | Accepted, Pending | A-03 Workspace 的 Project / Run / Artifact / Version Contract |
+| `/api/v2` | Contract Implemented, Runtime Pending | A-03 Workspace 的 Project / Run / Artifact / Version Contract |
 
 版本推进规则：
 
