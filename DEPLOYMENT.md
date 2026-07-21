@@ -14,7 +14,7 @@ MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通�
 
 - 静态 Brand Site；
 - Guided Tour 与 Research Workspace；
-- FastAPI `/api/v1` 回归接口和 Pending `/api/v2`；
+- FastAPI `/api/v1` 回归接口和 `/api/v2` Contract（Runtime Pending）；
 - PostgreSQL 持久化、迁移和恢复；
 - Demo Replay、Live Run、真实缓存、分享和导出；
 - WebGL 或外部服务失败时的可用降级；
@@ -28,7 +28,7 @@ MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通�
 | ----------- | ------------------------------ | ------------------------------------ |
 | `site`      | Node.js 24.18.0 + pnpm 11.13.1 | Astro Brand Site                     |
 | `workspace` | Node.js 24.18.0 + pnpm 11.13.1 | React Research Workspace             |
-| `api`       | Python 3.13 + uv               | FastAPI `/api/v1`；`/api/v2` Pending |
+| `api`       | Python 3.13 + uv               | FastAPI `/api/v1`；`/api/v2` Contract Implemented, Runtime Pending |
 | `postgres`  | PostgreSQL 17                  | 本地状态和结果持久化                 |
 
 当前启动、端口和故障排查只在 [Local Setup](docs/setup.md) 维护。A-01 入口不代表 A-02/A-03 产品能力已经实现。
