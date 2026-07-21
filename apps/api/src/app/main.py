@@ -5,14 +5,17 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.errors import ApiError
 from app.middleware import (
     RequestIDMiddleware,
+    V2SecurityMiddleware,
     api_error_exception_handler,
     api_http_exception_handler,
     api_validation_exception_handler,
+    v2_security_exception_handler,
 )
 from app.routers import (
     dataset,
@@ -22,9 +25,11 @@ from app.routers import (
     paper_acquisition,
     papers,
     reasoning,
+    sessions,
     sources,
     tasks,
 )
+from app.security import InMemoryRateLimiter, InMemorySessionStore, SecurityProblem, SessionService
 
 
 def create_app() -> FastAPI:
@@ -35,6 +40,18 @@ def create_app() -> FastAPI:
         openapi_url="/api/v1/openapi.json",
     )
 
+    session_service = SessionService(
+        InMemorySessionStore(), ttl_seconds=settings.SESSION_TTL_SECONDS
+    )
+    app.state.session_service = session_service
+    app.state.session_rate_limiter = InMemoryRateLimiter(
+        limit=settings.SESSION_CREATE_RATE_LIMIT
+    )
+    app.add_middleware(
+        V2SecurityMiddleware,
+        sessions=session_service,
+        cookie_name=settings.SESSION_COOKIE_NAME,
+    )
     origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
     app.add_middleware(
         CORSMiddleware,
@@ -47,7 +64,9 @@ def create_app() -> FastAPI:
 
     app.add_exception_handler(ApiError, api_error_exception_handler)
     app.add_exception_handler(HTTPException, api_http_exception_handler)
+    app.add_exception_handler(StarletteHTTPException, api_http_exception_handler)
     app.add_exception_handler(RequestValidationError, api_validation_exception_handler)
+    app.add_exception_handler(SecurityProblem, v2_security_exception_handler)
 
     app.include_router(health.router)
     app.include_router(tasks.router)
@@ -58,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(reasoning.router)
     app.include_router(graph.router)
     app.include_router(evidence.router)
+    app.include_router(sessions.router)
 
     return app
 

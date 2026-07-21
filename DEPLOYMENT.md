@@ -55,6 +55,7 @@ flowchart LR
 - API、模型、数据库和外部来源凭据只在后端环境；
 - 浏览器只接收非敏感公共配置；
 - 同域优先简化 Cookie、CSRF 和 CORS；跨域部署必须显式验证凭据策略；
+- Production 必须设置 `SESSION_COOKIE_SECURE=true`，并通过 HTTPS 验证 HttpOnly、SameSite、CSRF 与跨会话 404 行为；
 - MVP 不要求 Nginx、Redis、Celery、对象存储或图数据库作为前置。
 
 具体前端构建产物见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
