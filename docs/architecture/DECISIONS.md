@@ -318,7 +318,7 @@
 **Decision:**
 
 - 只实现浅色系统。Cold Paper（hue 230）仅服务 canvas / surface；brand、ink、border、celestial 共用 **bluegray** 刻度（hue 235，chroma 约 0.006–0.026）。
-- 主题色锚点 `#6E7981` = `oklch(0.57 0.018 235)` = bluegray-500；删除 haze 色板与雾霾蓝叙事。
+- 主题色锚点 `#6E7981` = `oklch(0.57 0.018 235)` = bluegray-500。
 - 状态色保留独立色相；业务组件只消费语义 Token，Raw 仅在 `packages/design-tokens`。
 - Brand Site 首页为**单英雄区极简入口**：偏轴系外行星 ASCII/Dither Hero、双短 CTA（开始演示 / 进入工作台）、一句主标题、三至四段无标题短注。
 - 多幕叙事职责归属 Guided Tour；Live 仅在 Tour 或启动门选择。
