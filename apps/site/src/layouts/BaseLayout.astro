@@ -23,12 +23,12 @@ const { title, description } = Astro.props;
   <body>
     <div class="site-shell">
       <header class="site-header">
-        <BrandMark />
+        <BrandMark showSubtitle={true} />
       </header>
       <main class="site-main">
         <slot />
       </main>
-      <footer class="site-footer">A-01 前端运行时基线</footer>
+      <footer class="site-footer">星文智析 · 天文科研智能工作平台</footer>
     </div>
   </body>
 </html>
