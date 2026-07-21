@@ -31,7 +31,7 @@ Seed papers 和结构化样例属于 `Benchmark / seed` 数据等级，只允许
 
 它们不是自动获取结果、Live Run 或真实历史缓存。D-02 检索失败时不得直接返回 seed list 并将其描述为自动获取；Benchmark 和 Fixture 也不得进入 CacheSelector。
 
-当前 `1.3.0` Package 的 `review_status` 为 `pending_scientific_review`。其中的 Summary、Evidence、Claim、Relation 和 Trace 是待网页端 GPT 逐项科研复核的结构化草案，不是已批准的 scientific benchmark label。只有实际 `benchmark_scientific_review PASS` 绑定当前 version 与 `scientific_payload_hash` 并覆盖完整对象范围后，才能将相应 Relation 纳入科研审核正确率分母。
+当前 `1.3.0` Package 的 `review_status` 为 `approved`。PR #96 的网页端 GPT 技术与科研 PASS 已绑定最终 reviewed HEAD、`benchmark_version=1.3.0` 与当前 `scientific_payload_hash`，并以完整对象 scope 写入 `review_records`；所有带审核状态的 Summary、Evidence、Claim、Relation 和 Trace 均已批准。
 
 ## 4. 版本规则
 
@@ -57,7 +57,7 @@ Benchmark 与 C-01 Manifest 共同调用 `app.schemas._hashing.compute_canonical
 
 `created_at`、`review_records` 和 `change_records` 均进入完整 `content_hash`，因为它们属于已发布基准的审计内容。测试固定了对象 key 重排不改变 hash、数组重排改变 hash，以及 JSON 重复加载后的 hash 稳定性。
 
-`scientific_payload_hash` 使用相同 canonical JSON 规则，但排除 `content_hash`、自身、`review_records` 和 `change_records`，并递归规范化 Package 与所有对象级 `review_status`。它仍覆盖版本、来源、论文、Summary、Evidence、Claim、Relation、Trace、Graph 和指标，使网页端 GPT 科研 Review 能绑定稳定科研内容，再追加 Review 元数据而不形成 hash 自引用；仅改变批准状态不会改变 scientific hash，但会改变完整 `content_hash`。当前值为 `sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd`；完整 Package hash 为 `sha256:002a4ab3ddd12a178cf339590640f9ac87a7106c43c4f6fda52f1e2b8fdd0a14`。
+`scientific_payload_hash` 使用相同 canonical JSON 规则，但排除 `content_hash`、自身、`review_records` 和 `change_records`，并递归规范化 Package 与所有对象级 `review_status`。它仍覆盖版本、来源、论文、Summary、Evidence、Claim、Relation、Trace、Graph 和指标，使网页端 GPT 科研 Review 能绑定稳定科研内容，再追加 Review 元数据而不形成 hash 自引用；仅改变批准状态不会改变 scientific hash，但会改变完整 `content_hash`。当前值为 `sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd`；批准后的完整 Package hash 为 `sha256:07fa19820cdbd5b908d4f30705bb863fb9a28050caf7bf54f6c01130467b1e2d`。
 
 ## 6. 论文核验与访问边界
 

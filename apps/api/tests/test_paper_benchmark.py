@@ -253,10 +253,36 @@ def test_benchmark_package_is_machine_readable_and_versioned() -> None:
     assert len(package.seed_papers) == 6
     assert len(package.claims) >= 5
     assert len(package.relations) >= 3
-    assert package.review_status is BenchmarkReviewStatus.pending_scientific_review
+    assert package.review_status is BenchmarkReviewStatus.approved
     assert package.scientific_payload_hash == (
         "sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd"
     )
+
+
+
+def test_published_package_records_real_web_gpt_approval() -> None:
+    package = load_benchmark_package(BENCHMARK_PATH)
+    approved_relations = sum(
+        relation.review_status is BenchmarkReviewStatus.approved
+        for relation in package.relations
+    )
+
+    assert package.review_status is BenchmarkReviewStatus.approved
+    assert approved_relations == len(package.relations)
+    results = evaluate_benchmark(
+        package,
+        _evaluation_input(
+            scientifically_reviewed_relations_correct=approved_relations,
+            scientifically_reviewed_relations_total=approved_relations,
+        ),
+    )
+    relation_accuracy = next(
+        result
+        for result in results
+        if result.metric_id is BenchmarkMetricId.relation_scientific_accuracy
+    )
+    assert relation_accuracy.denominator == approved_relations
+    assert relation_accuracy.value == 1.0
 
 
 def test_benchmark_review_labels_name_web_gpt_scientific_review() -> None:
@@ -473,6 +499,7 @@ def test_automation_review_cannot_approve_package() -> None:
 def test_web_gpt_review_requires_explicit_purpose_and_content_binding() -> None:
     payload = _read_payload()
     payload.pop("content_hash")
+    payload["review_status"] = "pending_scientific_review"
     payload["review_records"] = [
         _review_record(_read_payload(), review_id="review.web_gpt_technical_pass")
     ]
@@ -819,7 +846,9 @@ def test_scientific_hash_excludes_all_nested_review_statuses() -> None:
     expected_scientific_hash = compute_benchmark_scientific_payload_hash(payload)
     expected_content_hash = compute_benchmark_content_hash(payload)
 
-    approved_objects = deepcopy(payload)
+    pending_objects = deepcopy(payload)
+    pending_objects["review_status"] = "pending_scientific_review"
+    pending_objects["review_records"] = []
     for collection_name in (
         "paper_summaries",
         "evidence",
@@ -827,14 +856,14 @@ def test_scientific_hash_excludes_all_nested_review_statuses() -> None:
         "relations",
         "reasoning_traces",
     ):
-        for item in approved_objects[collection_name]:
-            item["review_status"] = "approved"
+        for item in pending_objects[collection_name]:
+            item["review_status"] = "pending_scientific_review"
 
     assert (
-        compute_benchmark_scientific_payload_hash(approved_objects)
+        compute_benchmark_scientific_payload_hash(pending_objects)
         == expected_scientific_hash
     )
-    assert compute_benchmark_content_hash(approved_objects) != expected_content_hash
+    assert compute_benchmark_content_hash(pending_objects) != expected_content_hash
 
 
 def test_technical_review_cannot_approve_scientific_benchmark() -> None:
@@ -938,7 +967,12 @@ def test_review_rejects_invalid_enum_identity_and_head_fields(
 def test_review_records_have_stable_identity_and_machine_readable_scope() -> None:
     package = load_benchmark_package(BENCHMARK_PATH)
 
-    assert package.review_records == ()
+    assert {record.review_purpose.value for record in package.review_records} == {
+        "pr_technical_review",
+        "benchmark_scientific_review",
+    }
+    assert all(record.verdict.value == "pass" for record in package.review_records)
+    assert all(record.reviewed_head_sha == "1a541bb84d9d022bca3da137f4ec41bf60b6aab8" for record in package.review_records)
 
 
 def test_review_evidence_must_belong_to_this_repository() -> None:
@@ -1088,6 +1122,17 @@ def test_trace_premises_cannot_reverse_directional_relation() -> None:
 def test_approved_relation_requires_approved_dependencies() -> None:
     payload = _read_payload()
     payload.pop("content_hash")
+    payload["review_status"] = "pending_scientific_review"
+    payload["review_records"] = []
+    for collection_name in (
+        "paper_summaries",
+        "evidence",
+        "claims",
+        "relations",
+        "reasoning_traces",
+    ):
+        for item in payload[collection_name]:
+            item["review_status"] = "pending_scientific_review"
     relation = next(
         relation
         for relation in payload["relations"]
@@ -1397,7 +1442,10 @@ def test_relation_scientific_accuracy_rejects_correct_above_total() -> None:
 
 
 def test_pending_benchmark_does_not_report_relation_accuracy() -> None:
-    package = load_benchmark_package(BENCHMARK_PATH)
+    package = _review_fixture(
+        package_status=BenchmarkReviewStatus.pending_scientific_review,
+        approved_relation_count=0,
+    )
     results = evaluate_benchmark(package, _evaluation_input())
     by_id = {result.metric_id: result for result in results}
 
@@ -1441,7 +1489,10 @@ def test_pending_package_rejects_nonzero_relation_accuracy_counts() -> None:
 
 
 def test_metrics_report_not_available_for_empty_denominators() -> None:
-    package = load_benchmark_package(BENCHMARK_PATH)
+    package = _review_fixture(
+        package_status=BenchmarkReviewStatus.pending_scientific_review,
+        approved_relation_count=0,
+    )
     results = evaluate_benchmark(
         package,
         BenchmarkEvaluationInput(

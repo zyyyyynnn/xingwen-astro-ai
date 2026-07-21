@@ -7,8 +7,8 @@
 - Review evidence 强制 `APPROVED => PASS`、`CHANGES_REQUESTED => BLOCKED`；`COMMENTED` 正文必须含匹配的独立 verdict 行。
 - seed intended use 与 Trace provenance 改为 `scientific_review` / `web_gpt_benchmark_draft`，不再把网页端 GPT 科研审查标为人工 Review。
 - Clark→revised TIC lineage 因摘要未固定 TIC 版本降为 candidate 并撤出 Graph；宿主星物理参数→TOI 候选体计数的 `limits` 关系改为 rejected negative example；Clark limitation 收紧到公开摘要支持的交叉匹配样本范围。
-- Package 保持 `pending_scientific_review`，`relation_scientific_accuracy` 保持 `not_available`，未伪造 PASS。
-- 本版本影响 content hash；scientific payload hash 为 `sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd`，完整 Package hash 为 `sha256:002a4ab3ddd12a178cf339590640f9ac87a7106c43c4f6fda52f1e2b8fdd0a14`。
+- PR #96 的真实 `pr_technical_review PASS` 与 `benchmark_scientific_review PASS` 已写入 ReviewRecord；Package 与全部可审核对象提升为 `approved`。
+- 批准元数据不改变 scientific payload hash；当前值仍为 `sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd`，批准后的完整 Package hash 为 `sha256:07fa19820cdbd5b908d4f30705bb863fb9a28050caf7bf54f6c01130467b1e2d`。
 
 ## exoplanet_host_star 1.2.0 — 2026-07-21
 
