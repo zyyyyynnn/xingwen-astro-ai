@@ -48,4 +48,4 @@ labels: ["type:task"]
 
 ---
 
-**治理要求：** 必须添加 `type:task`、适用的 `area:*`、一个 `priority:p0/p1/p2`，并归入对应 Milestone。一个 Task 只包含一个主要模块、一个主要负责人和一个主要交付物。创建工作分支并产生实质改动后更新为 `in-progress`；进入 PR 审查后更新为 `review`。
+**治理要求：** 必须添加 `type:task`、适用的 `area:*`、一个 `priority:p0/p1/p2`，并归入对应 Milestone。一个 Task 只包含一个主要模块、一个主要负责人和一个主要交付物。创建工作分支并产生实质改动后更新为 `in-progress`；进入网页端 GPT PR 审查后更新为 `review`。

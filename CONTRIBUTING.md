@@ -3,7 +3,7 @@
 | 元数据    | 值                                |
 | --------- | --------------------------------- |
 | Status    | Accepted                          |
-| Authority | Git、Issue、PR、Review 与合并流程 |
+| Authority | Git、Issue、PR、网页端 GPT Review 与合并流程 |
 
 Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [Documentation Governance](docs/DOCUMENTATION_GOVERNANCE.md)。
 
@@ -15,7 +15,7 @@ Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [D
 4. 分支产生首个实质改动时，将主要 Issue 更新为 `in-progress`，随后实施、测试并同步受影响的权威文档。
 5. 提交 Pull Request，关联一个主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。
 6. PR 进入可审查状态时，将主要 Issue 更新为 `review`。
-7. 处理 Review 和 CI 结果。
+7. 处理网页端 GPT Review 和 CI 结果。
 8. 使用 Squash merge，删除已合并分支。
 
 `main` 必须保持可运行；禁止直接推送。
@@ -153,7 +153,7 @@ blocked → ready → in-progress → review → closed
 ```
 
 - 创建有效工作分支并产生实质改动后，Issue 必须从 `ready` 更新为 `in-progress`。
-- 创建 PR 并准备人工审查后，Issue 更新为 `review`。
+- 创建 PR 并准备网页端 GPT 审查后，Issue 更新为 `review`。
 - 分支废弃或工作暂停时，必须记录原因、清理或归档分支，并按真实依赖恢复为 `ready` 或 `blocked`。
 - 状态不得根据计划推测，必须与实际分支、PR 和依赖一致。
 
@@ -208,21 +208,23 @@ PR 不接受：
 - 密钥、token、连接串或受限内容泄露；
 - 将 Pending 能力写成已实现。
 
-## 5. Review 责任
+## 5. 网页端 GPT Review 责任
 
 作者负责：
 
 - 提供可审查的范围和证据；
 - 对已知风险和未验证项保持透明；
-- 处理 Review 线程；
+- 处理网页端 GPT Review 线程；
 - 确保文档与实现同步。
 
-审查者负责：
+网页端 GPT 审查者负责：
 
 - 先检查 Issue 角色、范围、契约、依赖和不变量，再检查局部实现；
 - 区分阻塞问题、建议优化和非本 PR 范围；
 - 不以个人风格偏好扩大范围；
 - 对安全、数据损坏、来源失真和不可逆迁移优先请求修改。
+
+审查结论必须以 GitHub 可见的 Review、评论或线程保存；本地 Codex 实施过程中的自审、测试或总结不能代替网页端 GPT Review。
 
 具体清单见 [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)。
 
@@ -233,7 +235,7 @@ PR 同时满足以下条件才可合并：
 - 生产实现关联明确的 Task 或 Bug；阶段验证或证据 PR 关联明确的 Gate；Epic 只作为父级补充引用；
 - 解决一个清晰目标且边界明确；
 - 适用测试和 CI 通过；
-- Review 阻塞项已处理；
+- 网页端 GPT Review 阻塞项已处理；
 - 契约、生成物、Issue 和文档无明显漂移；
 - 不暴露敏感信息；
 - 不扩大产品承诺；

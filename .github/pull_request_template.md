@@ -43,7 +43,7 @@ Closes #
 ## Final checklist
 
 - [ ] Diff 与描述一致
-- [ ] 适用 Review 和 CI 已通过
+- [ ] 网页端 GPT Review 和适用 CI 已通过
 - [ ] 不包含无关改动
 - [ ] Current / Target / Pending 无混淆
 - [ ] 未扩大产品承诺

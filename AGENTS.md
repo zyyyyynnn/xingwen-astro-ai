@@ -53,7 +53,7 @@
 - 从 `main` 建分支，不直接推送 `main`；不 reset、force push 或改写远端历史。
 - Commit 一个主要目的，使用 `feat` / `fix` / `docs` / `chore` 前缀。
 - PR 关联 Issue，说明范围、验证、契约/数据/UI/部署/安全影响和材料口径。
-- 通过 Review 与 CI 后 Squash merge；失败卡口不得绕过。
+- 通过网页端 GPT Review 与 CI 后 Squash merge；本地 Codex 自审不能替代网页端 GPT Review，失败卡口不得绕过。
 - 工作区存在无关修改时不得擅自暂存、清除或提交。
 
 ## 6. 模块边界

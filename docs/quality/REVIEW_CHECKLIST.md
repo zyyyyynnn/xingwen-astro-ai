@@ -3,9 +3,9 @@
 | 元数据    | 值                                 |
 | --------- | ---------------------------------- |
 | Status    | Accepted                           |
-| Authority | 单个 Pull Request 的审查与合并清单 |
+| Authority | 单个 Pull Request 的网页端 GPT 审查与合并清单 |
 
-本清单回答“这个 PR 是否可以合并”。里程碑和作品是否完成由 [Acceptance](../product/ACCEPTANCE.md) 判断，测试方法由 [Test Strategy](../engineering/TEST_STRATEGY.md) 定义。
+本清单由网页端 GPT Review 使用，回答“这个 PR 是否可以合并”。本地 Codex 自审不能替代该 Review。里程碑和作品是否完成由 [Acceptance](../product/ACCEPTANCE.md) 判断，测试方法由 [Test Strategy](../engineering/TEST_STRATEGY.md) 定义。
 
 ## 1. 范围与事实来源
 
@@ -94,7 +94,7 @@
 
 ## 9. 合并条件
 
-- [ ] 所有阻塞 Review 线程已解决。
+- [ ] 所有阻塞网页端 GPT Review 线程已解决。
 - [ ] 必要 CI 通过，未通过项没有被绕过。
 - [ ] 分支可合并，目标 HEAD 未发生未审查变化。
 - [ ] PR 描述与最终 Diff 一致。
