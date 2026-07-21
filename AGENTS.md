@@ -93,7 +93,7 @@
 | Foundation               | `python scripts/check_foundation.py`                                                           |
 | Compose                  | `docker compose config`；运行变更时 `docker compose up --build --wait`                         |
 | A-01 前端                | frozen root install、format、lint、typecheck、test、build、E2E、architecture、legacy checks    |
-| Brand Site               | 当前静态 HTML 含中文标题、说明、Workspace CTA 与 404；A-02 SEO/视觉细节另行验收                |
+| Brand Site               | 当前静态 HTML 含中文标题、说明、Workspace CTA 与 404；A-02 目标为极简单英雄首页 + bluegray Token，另验收 |
 | Workspace                | 当前四个最小路由、Not Found、Error Boundary、Loading fallback、键盘导航；A-03 业务行为另行验收 |
 | Visual Engine（Pending） | High/Medium/Low、deterministic seed、freeze time、pause/dispose、Poster、Reduced Motion        |
 | Adapter（Pending）       | Fixture / HTTP 返回同一 Domain Model，一致性测试通过                                           |
