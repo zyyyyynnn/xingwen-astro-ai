@@ -1,9 +1,12 @@
 name: D-01 approval closure
 
 on:
-  push:
+  pull_request:
     branches:
-      - chore/d01-approval-closure
+      - main
+    types:
+      - opened
+      - synchronize
 
 permissions:
   contents: write
@@ -15,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: chore/d01-approval-closure
           fetch-depth: 0
 
       - uses: astral-sh/setup-uv@v6
