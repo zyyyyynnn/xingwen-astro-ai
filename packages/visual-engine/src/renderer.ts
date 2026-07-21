@@ -21,10 +21,10 @@ const BAYER_4X4 = [
 
 /**
  * bluegray ink colors inlined (pure TS, no design-tokens dependency).
- * Mirrors ADR-029 raw tokens.
+ * Mirrors ADR-029 raw tokens — same oklch values as base.css.
  */
-const INK_COLOR = "#6e7981";
-const PAPER_COLOR = "#f7f8f9";
+const INK_COLOR = "oklch(0.57 0.018 235)";
+const PAPER_COLOR = "oklch(0.995 0.002 230)";
 
 function getCellSize(quality: RenderConfig["quality"]): number {
   switch (quality) {
