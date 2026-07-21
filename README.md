@@ -52,18 +52,22 @@ pnpm dev
 apps/site                 Astro 静态品牌站
 apps/workspace            React 科研工作台入口
 apps/api                  FastAPI 后端
-packages/design-tokens    A-01 基础 Token 导出
-packages/ui               共享 React UI 公开入口
+packages/design-tokens    原始颜色与语义 Token
+packages/ui               共享 React UI 基元与 BrandMark
 packages/domain           纯 TypeScript 领域边界
 packages/contracts        Pydantic Contract 前端边界
-packages/data-access      Repository 边界（实现 Pending）
-packages/workspace-core   工作台编排边界（实现 Pending）
-packages/visual-engine    视觉运行时边界（实现 Pending）
+packages/data-access      Repository 边界
+packages/workspace-core   工作台编排边界
+packages/visual-engine    纯 TS 视觉运行时（Canvas / Poster / 生命周期）
+packages/schemas          Pydantic Schema 与 JSON Schema 生成产物
+packages/prompts          生产 Prompt 注册中心
 packages/testing          共享测试入口
 services                  数据、论文与图谱 Pipeline
 scripts                   架构、基建与 Schema 脚本
 docs                      架构、产品、质量、交接文档
 ```
+
+实现状态以 [AGENTS](AGENTS.md) §2 的 Current / Pending 表为准。
 
 ## 核心文档
 
