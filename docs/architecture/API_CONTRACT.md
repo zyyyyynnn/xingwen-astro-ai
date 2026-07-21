@@ -441,6 +441,11 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 当前实现仍提供 `/api/v1/health`、`/api/v1/tasks` 及 dataset、sources、paper-acquisition、papers、literature-reasoning、graph、evidence 等 Task 子资源。它们是 Phase 0 Fixture-backed 契约，不支持本文件的 Project、Run、ArtifactVersion、WorkspaceSnapshot 或 ShareSnapshot。
 
+`/api/v1` 的字段、必填性、默认值、枚举和 legacy wire alias 冻结在
+[`DATA_MODEL_V1.md`](DATA_MODEL_V1.md)，逐字段实现决策见
+[`V1_SCHEMA_FIELD_MATRIX.md`](V1_SCHEMA_FIELD_MATRIX.md)。当前 v2 目标契约
+不得隐式改变 v1 Wire Contract。
+
 Phase 0 Task 状态快照必须保持内部一致：新建 `pending` Task 的 `progress=0`，且 `steps` 为空或全部为 `pending`；`pending` Task 不得包含已开始步骤；存在 `running` Step 时顶层状态不得为 `pending`；`completed` Task 的 `progress=100`。固定演示 Task `task_001` 保持其运行中 Fixture 语义。
 
 README、PR、演示材料必须保持这一“当前实现 / 目标契约”区分，直到 v2 有可执行代码和验证证据。

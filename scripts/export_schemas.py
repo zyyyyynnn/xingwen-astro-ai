@@ -118,6 +118,13 @@ def parse_args() -> argparse.Namespace:
         help="directory receiving manifest.json and json/*.schema.json",
     )
     parser.add_argument(
+        "--include",
+        action="append",
+        default=[],
+        metavar="MODEL",
+        help="export only the named model; repeat for multiple models",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="fail when generated files are missing or stale",
@@ -127,7 +134,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    rendered = render_contracts(discover_models())
+    models = discover_models()
+    if args.include:
+        unknown = sorted(set(args.include) - models.keys())
+        if unknown:
+            print(f"unknown schema model(s): {', '.join(unknown)}", file=sys.stderr)
+            return 2
+        models = {name: models[name] for name in sorted(set(args.include))}
+    rendered = render_contracts(models)
     if args.check:
         return check_contracts(args.output, rendered)
 
