@@ -1,5 +1,16 @@
-/** Public visual runtime boundary only. Implementation starts with issue A-02. */
-export interface VisualEngineBoundary {
-  readonly implementationStatus: "pending";
-  readonly trackedIssue: "A-02";
-}
+export { createDeterministicRandom } from "./random";
+export { createPoster } from "./poster";
+export { createAsciiDitherRenderer } from "./renderer";
+export { createVisualEngine } from "./engine";
+export type {
+  Quality,
+  PosterSource,
+  PosterConfig,
+  DeterministicRandom,
+  FrameCell,
+  FrameData,
+  RenderConfig,
+  AsciiDitherRenderer,
+  VisualEngineConfig,
+  VisualEngine,
+} from "./types";
