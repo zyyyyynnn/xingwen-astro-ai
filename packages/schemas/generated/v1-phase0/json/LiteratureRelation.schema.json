@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "LiteratureRelationType": {
+      "enum": [
+        "supports",
+        "extends",
+        "derived_from",
+        "limits",
+        "contradicts",
+        "uses_same_dataset",
+        "compares_method"
+      ],
+      "title": "LiteratureRelationType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "evidence_ids": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "reasoning_trace_id": {
+      "title": "Reasoning Trace Id",
+      "type": "string"
+    },
+    "relation_id": {
+      "title": "Relation Id",
+      "type": "string"
+    },
+    "relation_type": {
+      "$ref": "#/$defs/LiteratureRelationType"
+    },
+    "source_claim_id": {
+      "title": "Source Claim Id",
+      "type": "string"
+    },
+    "target_claim_id": {
+      "title": "Target Claim Id",
+      "type": "string"
+    },
+    "task_id": {
+      "title": "Task Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "relation_id",
+    "task_id",
+    "source_claim_id",
+    "target_claim_id",
+    "relation_type",
+    "reasoning_trace_id",
+    "evidence_ids",
+    "confidence"
+  ],
+  "title": "LiteratureRelation",
+  "type": "object"
+}

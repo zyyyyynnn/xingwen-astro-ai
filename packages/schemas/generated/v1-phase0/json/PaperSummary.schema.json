@@ -1,0 +1,76 @@
+{
+  "properties": {
+    "dataset": {
+      "title": "Dataset",
+      "type": "string"
+    },
+    "evidence_ids": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "findings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "future_work": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Future Work",
+      "type": "array"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "method": {
+      "title": "Method",
+      "type": "string"
+    },
+    "model_name": {
+      "title": "Model Name",
+      "type": "string"
+    },
+    "paper_id": {
+      "title": "Paper Id",
+      "type": "string"
+    },
+    "prompt_version": {
+      "title": "Prompt Version",
+      "type": "string"
+    },
+    "research_goal": {
+      "title": "Research Goal",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "paper_id",
+    "research_goal",
+    "method",
+    "dataset",
+    "findings",
+    "limitations",
+    "future_work",
+    "evidence_ids",
+    "model_name",
+    "prompt_version"
+  ],
+  "title": "PaperSummary",
+  "type": "object"
+}

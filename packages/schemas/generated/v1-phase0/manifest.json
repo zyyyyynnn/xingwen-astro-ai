@@ -1,0 +1,71 @@
+{
+  "authoring_source": "apps/api/src/app/schemas",
+  "models": [
+    {
+      "module": "app.schemas.dataset",
+      "name": "ColumnInfo",
+      "path": "json/ColumnInfo.schema.json"
+    },
+    {
+      "module": "app.schemas.dataset",
+      "name": "DatasetResponse",
+      "path": "json/DatasetResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.evidence",
+      "name": "EvidenceResponse",
+      "path": "json/EvidenceResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.reasoning",
+      "name": "LiteratureClaim",
+      "path": "json/LiteratureClaim.schema.json"
+    },
+    {
+      "module": "app.schemas.reasoning",
+      "name": "LiteratureRelation",
+      "path": "json/LiteratureRelation.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PaperAcquisitionRun",
+      "path": "json/PaperAcquisitionRun.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PaperCandidate",
+      "path": "json/PaperCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PaperSearchQuery",
+      "path": "json/PaperSearchQuery.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PaperSummary",
+      "path": "json/PaperSummary.schema.json"
+    },
+    {
+      "module": "app.schemas.dataset",
+      "name": "QualityScore",
+      "path": "json/QualityScore.schema.json"
+    },
+    {
+      "module": "app.schemas.reasoning",
+      "name": "ReasoningTrace",
+      "path": "json/ReasoningTrace.schema.json"
+    },
+    {
+      "module": "app.schemas.source",
+      "name": "SourceRecordItem",
+      "path": "json/SourceRecordItem.schema.json"
+    },
+    {
+      "module": "app.schemas.evidence",
+      "name": "SourceSnapshot",
+      "path": "json/SourceSnapshot.schema.json"
+    }
+  ],
+  "schema_version": 1
+}

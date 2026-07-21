@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "ClaimType": {
+      "enum": [
+        "goal",
+        "method",
+        "dataset",
+        "finding",
+        "limitation",
+        "future_work"
+      ],
+      "title": "ClaimType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "claim_id": {
+      "title": "Claim Id",
+      "type": "string"
+    },
+    "claim_type": {
+      "$ref": "#/$defs/ClaimType"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "evidence_ids": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "normalized_text": {
+      "title": "Normalized Text",
+      "type": "string"
+    },
+    "paper_id": {
+      "title": "Paper Id",
+      "type": "string"
+    },
+    "task_id": {
+      "title": "Task Id",
+      "type": "string"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "claim_id",
+    "task_id",
+    "paper_id",
+    "claim_type",
+    "text",
+    "normalized_text",
+    "evidence_ids",
+    "confidence"
+  ],
+  "title": "LiteratureClaim",
+  "type": "object"
+}
