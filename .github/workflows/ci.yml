@@ -78,6 +78,22 @@ jobs:
           --include SourceSnapshot
           --check
 
+      - name: Check v2 core contracts
+        run: |
+          uv run python ../../scripts/export_schemas.py \
+            --output ../../packages/schemas/generated/v2-core \
+            --include ResearchProject \
+            --include ResearchContractDraft \
+            --include ResearchContract \
+            --include ResearchRun \
+            --include RunEvent \
+            --include ResearchArtifact \
+            --include ArtifactVersion \
+            --check
+          uv run python ../../scripts/export_v2_openapi.py \
+            --output ../../packages/schemas/generated/v2-core/openapi.json \
+            --check
+
   frontend:
     name: Frontend quality and entrypoint smoke
     runs-on: ubuntu-latest
