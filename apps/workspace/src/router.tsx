@@ -35,7 +35,12 @@ function RootLayout() {
           <p className="region-label">Research Atlas</p>
           <p className="region-placeholder">项目列表占位</p>
         </aside>
-        <main id="research-canvas" className="research-canvas" role="main">
+        <main
+          id="research-canvas"
+          className="research-canvas"
+          role="main"
+          tabIndex={-1}
+        >
           <Outlet />
         </main>
         <aside
