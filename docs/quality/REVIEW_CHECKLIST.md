@@ -3,9 +3,9 @@
 | 元数据    | 值                                 |
 | --------- | ---------------------------------- |
 | Status    | Accepted                           |
-| Authority | 单个 Pull Request 的审查与合并清单 |
+| Authority | 单个 Pull Request 的网页端 GPT 审查与合并清单 |
 
-本清单回答“这个 PR 是否可以合并”。里程碑和作品是否完成由 [Acceptance](../product/ACCEPTANCE.md) 判断，测试方法由 [Test Strategy](../engineering/TEST_STRATEGY.md) 定义。
+本清单由网页端 GPT Review 使用，回答“这个 PR 是否可以合并”。本地 Codex 自审不能替代该 Review。里程碑和作品是否完成由 [Acceptance](../product/ACCEPTANCE.md) 判断，测试方法由 [Test Strategy](../engineering/TEST_STRATEGY.md) 定义。
 
 ## 1. 范围与事实来源
 
@@ -92,13 +92,29 @@
 - [ ] 文档不包含个人本地路径、易失价格、未经核验的当前职位/状态或“最新版”等失效表述。
 - [ ] 新规则具有可执行验收，不使用“合理”“完善”“尽量”等模糊结论。
 
-## 9. 合并条件
+## 9. 网页端 GPT Review 记录
 
-- [ ] 所有阻塞 Review 线程已解决。
+- [ ] GitHub 可见记录包含 `review_type: web_gpt`。
+- [ ] `review_purpose` 明确为 `pr_technical_review` 或 `benchmark_scientific_review`，两者不互相替代。
+- [ ] `pr_technical_review PASS` 的 scope 精确且仅绑定当前 `pull_request: zyyyyynnn/xingwen-astro-ai#number`；单个 SourcePolicy、Claim 或其他对象范围不能通过 PR Gate。
+- [ ] `reviewed_head_sha` 是本次实际审查的 40 位 Commit SHA。
+- [ ] `verdict` 明确为 `PASS` 或 `BLOCKED`；普通无结论评论不满足门禁。
+- [ ] GitHub state 与 verdict 一致：`APPROVED => PASS`、`CHANGES_REQUESTED => BLOCKED`；`COMMENTED` 正文含独立的匹配 verdict 行。
+- [ ] `blocking_findings`、`non_blocking_findings` 和带时区 `reviewed_at` 已记录。
+- [ ] GitHub API 已核对 Review 的 repository/PR、actor、state、commit id 和正文；记录的 `evidence_actor_identity` 与 `review_evidence_state` 一致。
+- [ ] 多轮 Review 的最新记录显式 supersede 同 purpose/scope 的上一轮，不存在分叉、循环或未解决的 `BLOCKED` scope。
+- [ ] Review 后若出现新 Commit，旧记录已视为 stale，并在新 HEAD 上重新 Review。
+
+## 10. 合并条件
+
+- [ ] 所有阻塞网页端 GPT Review 线程已解决。
 - [ ] 必要 CI 通过，未通过项没有被绕过。
+- [ ] 最新 `pr_technical_review` 的 `reviewed_head_sha` 等于 PR 当前 HEAD，且 verdict 为 `PASS`。
 - [ ] 分支可合并，目标 HEAD 未发生未审查变化。
 - [ ] PR 描述与最终 Diff 一致。
 - [ ] 不扩大 MVP 承诺，不隐藏已知风险。
 - [ ] 满足仓库默认 Squash merge 规则。
+
+只有上述条件满足，仓库负责人才能将 Draft 转为 Ready 并 Squash merge。本地 Codex 不得自行转 Ready、合并或关闭 Issue；不存在额外的人工 PR Review 门。
 
 发布或作品提交前，另按 [Acceptance](../product/ACCEPTANCE.md) 和 [Handoff](../handoff/README.md) 完成阶段级验证。
