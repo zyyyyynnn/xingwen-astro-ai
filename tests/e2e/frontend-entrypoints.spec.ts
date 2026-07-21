@@ -18,13 +18,20 @@ test("brand site remains useful without client-side JavaScript", async ({
   await page.goto("http://127.0.0.1:4321/");
 
   await expect(page).toHaveTitle(/星文智析/);
-  await expect(page.getByRole("heading", { name: "星文智析" })).toBeVisible();
   await expect(
-    page.getByText(/面向天文科研证据整合与可复现分析的智能工作平台/),
+    page.getByRole("heading", {
+      name: "让每一颗系外行星候选体都可溯源",
+    }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "进入科研工作台" }),
-  ).toHaveAttribute("href", "http://localhost:5173/workspace");
+  await expect(page.getByRole("link", { name: "开始演示" })).toHaveAttribute(
+    "href",
+    "http://localhost:5173/tour",
+  );
+  await expect(page.getByRole("link", { name: "进入工作台" })).toHaveAttribute(
+    "href",
+    "http://localhost:5173/workspace",
+  );
+  await expect(page.getByText(/整合系外行星候选体与宿主恒星/)).toBeVisible();
 
   await context.close();
 });
@@ -38,15 +45,25 @@ test("brand site has no runtime console errors", async ({ page }) => {
   const errors = collectRuntimeErrors(page);
 
   await page.goto("http://127.0.0.1:4321/");
-  await expect(page.getByRole("heading", { name: "星文智析" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "让每一颗系外行星候选体都可溯源",
+    }),
+  ).toBeVisible();
   expect(errors).toEqual([]);
 });
 
+test("brand site hero has a Poster fallback image", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4321/");
+  const poster = page.locator(".hero-poster");
+  await expect(poster).toBeVisible();
+});
+
 for (const entry of [
-  ["/", "科研工作台入口"],
-  ["/tour", "引导入口"],
-  ["/workspace", "科研工作区"],
-  ["/share/demo-token", "共享入口"],
+  ["/", "科研工作台入口", "入口"],
+  ["/tour", "引导入口", "引导"],
+  ["/workspace", "科研工作区", "工作区"],
+  ["/share/demo-token", "共享入口", null],
 ] as const) {
   test(`workspace route ${entry[0]} is directly addressable`, async ({
     page,

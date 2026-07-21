@@ -20,18 +20,6 @@ _面向天文科研场景的数据分析、文献获取、跨文献推理与证�
 
 项目聚焦挑战杯“基于国产开源大模型的 AI Scientist 研发与应用”赛题中“科学数据查找、解析与整合”方向。MVP 不承诺任意天文方向、任意 PDF 全文高精度解析、任意图表全自动处理或无边界科学发现。
 
-## 当前状态
-
-| 范围       | 状态                                                                                        |
-| ---------- | ------------------------------------------------------------------------------------------- |
-| 前端运行时 | A-01 Implemented：Astro Brand Site、React Research Workspace、共享包与根 pnpm 工具链        |
-| 最小入口   | Site `/`、静态 404；Workspace `/`、`/tour`、`/workspace`、`/share/$shareToken` 与 Not Found |
-| API        | FastAPI `/api/v1` Current；`/api/v2` Project / Run / Artifact / Version Pending             |
-| 产品界面   | A-02 视觉系统与静态框架、A-03 Contract 双通道与业务行为均 Pending                           |
-| 本地环境   | Compose：`site`、`workspace`、`api`、`postgres`                                             |
-
-A-01 页面只证明运行时、路由、可访问性和包边界，不包含真实 Project、Run、Artifact 或数据请求行为。完整工程事实见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
-
 ## 快速开始
 
 ```powershell
@@ -64,18 +52,22 @@ pnpm dev
 apps/site                 Astro 静态品牌站
 apps/workspace            React 科研工作台入口
 apps/api                  FastAPI 后端
-packages/design-tokens    A-01 基础 Token 导出
-packages/ui               共享 React UI 公开入口
+packages/design-tokens    原始颜色与语义 Token
+packages/ui               共享 React UI 基元与 BrandMark
 packages/domain           纯 TypeScript 领域边界
 packages/contracts        Pydantic Contract 前端边界
-packages/data-access      Repository 边界（实现 Pending）
-packages/workspace-core   工作台编排边界（实现 Pending）
-packages/visual-engine    视觉运行时边界（实现 Pending）
+packages/data-access      Repository 边界
+packages/workspace-core   工作台编排边界
+packages/visual-engine    纯 TS 视觉运行时（Canvas / Poster / 生命周期）
+packages/schemas          JSON Schema / OpenAPI 生成产物
+packages/prompts          生产 Prompt 注册中心
 packages/testing          共享测试入口
 services                  数据、论文与图谱 Pipeline
 scripts                   架构、基建与 Schema 脚本
 docs                      架构、产品、质量、交接文档
 ```
+
+实现状态以 [AGENTS](AGENTS.md) §2 的 Current / Pending 表为准。
 
 ## 核心文档
 

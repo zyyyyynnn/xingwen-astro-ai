@@ -14,10 +14,10 @@ import { BrandMark } from "@xingwen/ui";
 function RootLayout() {
   return (
     <div className="workspace-shell">
-      <a className="skip-link" href="#main-content">
-        跳到主要内容
+      <a className="skip-link" href="#research-canvas">
+        跳到研究画布
       </a>
-      <header className="workspace-header">
+      <header className="top-status-rail" role="banner">
         <BrandMark />
         <nav aria-label="主要导航">
           <Link to="/" activeOptions={{ exact: true }}>
@@ -26,84 +26,80 @@ function RootLayout() {
           <Link to="/tour">引导</Link>
           <Link to="/workspace">工作区</Link>
         </nav>
+        <span className="rail-status" aria-label="当前状态">
+          占位状态
+        </span>
       </header>
-      <main id="main-content" className="workspace-main">
-        <Outlet />
-      </main>
+      <div className="workspace-body">
+        <aside className="research-atlas" aria-label="Research Atlas">
+          <p className="region-label">Research Atlas</p>
+          <p className="region-placeholder">项目列表占位</p>
+        </aside>
+        <main id="research-canvas" className="research-canvas" role="main">
+          <Outlet />
+        </main>
+        <aside
+          className="provenance-observatory"
+          aria-label="Provenance Observatory"
+        >
+          <p className="region-label">Provenance Observatory</p>
+          <p className="region-placeholder">证据来源占位</p>
+        </aside>
+      </div>
+      <footer className="research-console" aria-label="Research Console">
+        <p className="region-label">Research Console</p>
+        <p className="region-placeholder">研究指令台占位（收起）</p>
+      </footer>
     </div>
-  );
-}
-
-interface PageIdentityProps {
-  eyebrow: string;
-  title: string;
-  description: string;
-  detail?: string;
-}
-
-function PageIdentity({
-  eyebrow,
-  title,
-  description,
-  detail,
-}: PageIdentityProps) {
-  return (
-    <section className="route-identity" aria-labelledby="route-title">
-      <p className="eyebrow">{eyebrow}</p>
-      <h1 id="route-title">{title}</h1>
-      <p>{description}</p>
-      {detail ? <p className="route-detail">{detail}</p> : null}
-      <p className="baseline-note">
-        当前仅提供 A-01 运行时、路由与可访问性基线，不包含科研业务行为。
-      </p>
-    </section>
   );
 }
 
 function EntryPage() {
   return (
-    <PageIdentity
-      eyebrow="Workspace entry"
-      title="科研工作台入口"
-      description="确认独立 React 应用、路由与共享包边界可运行。"
-    />
+    <section className="route-content" aria-labelledby="route-title">
+      <h1 id="route-title">科研工作台入口</h1>
+      <p>
+        确认独立 React
+        应用、路由与共享包边界可运行。完整科研业务行为由后续事项实现。
+      </p>
+    </section>
   );
 }
 
 function TourPage() {
   return (
-    <PageIdentity
-      eyebrow="Guided tour"
-      title="引导入口"
-      description="保留引导路径身份；完整引导流程由后续事项实现。"
-    />
+    <section className="route-content" aria-labelledby="route-title">
+      <h1 id="route-title">引导入口</h1>
+      <p>保留引导路径身份；完整引导流程由后续事项实现。</p>
+    </section>
   );
 }
 
 function WorkspacePage() {
   return (
-    <PageIdentity
-      eyebrow="Research workspace"
-      title="科研工作区"
-      description="保留工作区路径身份；Project、Run 与 Artifact 行为尚未接入。"
-    />
+    <section className="route-content" aria-labelledby="route-title">
+      <h1 id="route-title">科研工作区</h1>
+      <p>
+        工作台 Shell 五区域已就位：Top Status Rail、Research Atlas、Research
+        Canvas、Provenance Observatory 与 Research Console。Project、Run 与
+        Artifact 行为尚未接入。
+      </p>
+    </section>
   );
 }
 
 function SharePage() {
   return (
-    <PageIdentity
-      eyebrow="Shared result"
-      title="共享入口"
-      description="保留共享深链接身份；本轮不读取或展示共享数据。"
-    />
+    <section className="route-content" aria-labelledby="route-title">
+      <h1 id="route-title">共享入口</h1>
+      <p>保留共享深链接身份；本轮不读取或展示共享数据。</p>
+    </section>
   );
 }
 
 function LoadingPage() {
   return (
-    <section className="route-identity" aria-busy="true" aria-live="polite">
-      <p className="eyebrow">Loading</p>
+    <section className="route-content" aria-busy="true" aria-live="polite">
       <h1>正在载入入口</h1>
     </section>
   );
@@ -111,8 +107,7 @@ function LoadingPage() {
 
 function RouteErrorPage({ reset }: ErrorComponentProps) {
   return (
-    <section className="route-identity" role="alert">
-      <p className="eyebrow">Route error</p>
+    <section className="route-content" role="alert">
       <h1>页面载入失败</h1>
       <p>请重试；若问题持续，请返回工作台入口。</p>
       <button type="button" onClick={reset}>
@@ -124,8 +119,7 @@ function RouteErrorPage({ reset }: ErrorComponentProps) {
 
 function NotFoundPage() {
   return (
-    <section className="route-identity">
-      <p className="eyebrow">404</p>
+    <section className="route-content">
       <h1>页面未找到</h1>
       <p>请求的工作台入口不存在。</p>
       <Link className="text-link" to="/">
