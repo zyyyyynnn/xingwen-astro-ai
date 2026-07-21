@@ -10,11 +10,11 @@ Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [D
 ## 1. 标准流程
 
 1. 从 `main` 获取最新基线。
-2. 到 GitHub Issues 中查看已明确指派给自己的未关闭任务，即 Assignee 包含自己的 Issue。开始前完整阅读任务的目标、范围、依赖、边界和验收标准；未明确指派的任务不要自行开工。根据工作类型选择处于 `ready` 的 Task、Bug 或 Gate。
+2. 到 GitHub Issues 中查看已明确指派给自己的未关闭任务，即 Assignee 包含自己的 Issue。开始前完整阅读任务的目标、范围、依赖、边界和验收标准；未明确指派的任务不要自行开工，用户在当前会话直接明确授权的任务除外。根据工作类型选择处于 `ready` 的 Task、Bug 或 Gate。
 3. 从 `main` 创建任务分支；空分支本身不改变 Issue 状态。
-4. 分支产生首个实质改动时，将主要 Issue 更新为 `in-progress`，随后实施、测试并同步受影响的权威文档。
-5. 本地 Codex Commit、Push 并创建或更新 Draft Pull Request，关联一个主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。
-6. Draft PR 等待网页端 GPT Review 时，将主要 Issue 更新为 `review`。
+4. 分支产生首个实质改动时，如有关联的主要 Issue，将其更新为 `in-progress`；随后实施、测试并同步受影响的权威文档。
+5. 本地 Codex Commit、Push 并创建或更新 Draft Pull Request，原则上关联一个主要 Task、Bug 或 Gate；直接用户授权的单次治理或维护任务可在 PR 描述中记录授权来源。Epic 只能作为父级补充引用。
+6. Draft PR 等待网页端 GPT Review 时，如有关联的主要 Issue，将其更新为 `review`。
 7. 处理网页端 GPT Review 和 CI 结果；新 Commit 会使旧 Review 失效，必须在新 HEAD 上重新审查。
 8. 当前 HEAD 的网页端 GPT `pr_technical_review` 为 `PASS`、标准 CI 均通过、PR 可合并且没有未解决的真实阻塞问题后，可由网页端 GPT 或 Codex 转 Ready 并 Squash merge；核对 `main` 合并结果后关闭关联 Issue，随后删除已合并分支。
 
@@ -189,7 +189,7 @@ GitHub Issue 是任务状态的实时事实来源；[Backlog](docs/product/BACKL
 
 PR 描述至少包含：
 
-- 一个主要关联 Issue：生产实现关联 Task 或 Bug；阶段验证、证据或退出结论关联 Gate；
+- 一个主要关联 Issue，或用户在当前会话直接授权任务的可追溯授权背景；
 - 所属 Epic 或上级 Gate 的补充引用（适用时）；
 - 改动范围与明确非目标；
 - 验证命令、结果和未执行原因；
@@ -201,7 +201,7 @@ PR 不接受：
 
 - 生产实现只关联 Epic，没有明确 Task 或 Bug；
 - Gate PR 接管 A/B/C/D 生产实现；
-- 没有明确关联 Issue；
+- 没有明确 Issue 或可追溯的用户直接授权；
 - 大量无关改动；
 - 无可复现验证；
 - 接口、实体或状态改变但未同步权威契约；
