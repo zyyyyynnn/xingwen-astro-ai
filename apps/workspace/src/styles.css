@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@xingwen/design-tokens/base.css";
+@import "@xingwen/ui/styles.css";
 
 * {
   box-sizing: border-box;
@@ -20,6 +21,12 @@ a {
   color: inherit;
 }
 
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
 .skip-link {
   position: fixed;
   z-index: 10;
@@ -35,126 +42,187 @@ a {
   transform: translateY(0);
 }
 
+/* Workspace Shell — 5 regions per WORKSPACE_UX.md §3 */
 .workspace-shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   min-height: 100vh;
 }
 
-.workspace-header {
+/* Top Status Rail — 44px fixed */
+.top-status-rail {
   display: flex;
-  width: min(100% - 2rem, 76rem);
-  min-height: 4.5rem;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
-  margin-inline: auto;
+  min-height: 2.75rem;
+  padding: 0 1rem;
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
-.product-identity {
-  font-weight: 750;
-  letter-spacing: 0.03em;
-}
-
-nav {
+.top-status-rail nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-nav a {
+.top-status-rail nav a {
   padding-block: 0.35rem;
   color: var(--color-ink-secondary);
   text-decoration: none;
+  font-size: var(--font-size-2);
 }
 
-nav a[aria-current="page"] {
+.top-status-rail nav a[aria-current="page"] {
   border-bottom: 2px solid var(--color-brand);
   color: var(--color-ink-primary);
 }
 
-a:focus-visible,
-button:focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 3px;
-}
-
-.workspace-main {
-  display: grid;
-  width: min(100% - 2rem, 76rem);
-  min-height: calc(100vh - 4.5rem);
-  margin-inline: auto;
-  place-items: center start;
-  padding-block: clamp(3rem, 10vw, 8rem);
-}
-
-.route-identity {
-  max-width: 46rem;
-}
-
-.route-identity h1 {
-  margin: 0;
-  font-family: var(--xw-font-serif);
-  font-size: clamp(2.5rem, 7vw, 5.5rem);
-  font-weight: 520;
-  letter-spacing: -0.05em;
-  line-height: 1;
-}
-
-.route-identity > p:not(.eyebrow) {
-  color: var(--color-ink-secondary);
-  font-size: 1.05rem;
-  line-height: 1.7;
-}
-
-.eyebrow {
-  margin: 0 0 1rem;
-  color: var(--color-ink-secondary);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.baseline-note {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-border);
-  font-size: 0.92rem !important;
-}
-
-.route-detail {
+.rail-status {
+  margin-left: auto;
+  color: var(--color-ink-tertiary);
+  font-size: var(--font-size-1);
   font-family: var(--xw-font-mono);
-  font-size: 0.9rem !important;
+}
+
+/* Workspace body — Atlas | Canvas | Observatory */
+.workspace-body {
+  display: grid;
+  grid-template-columns: 17.25rem 1fr 22.5rem;
+  min-height: 0;
+}
+
+.research-atlas,
+.provenance-observatory {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.research-atlas {
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+
+.provenance-observatory {
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+
+/* Research Canvas — adaptive center */
+.research-canvas {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.route-content {
+  max-width: 42rem;
+}
+
+.route-content h1 {
+  margin: 0 0 1rem;
+  font-family: var(--xw-font-serif);
+  font-size: var(--font-size-6);
+  font-weight: 520;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.route-content p {
+  margin: 0;
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-3);
+  line-height: 1.7;
 }
 
 .text-link {
   display: inline-flex;
   margin-top: 1rem;
   border-bottom: 2px solid currentColor;
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
 }
 
 button {
   min-height: 2.5rem;
   padding-inline: 1rem;
-  border: 1px solid var(--color-ink-primary);
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink-primary);
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 
-@media (max-width: 40rem) {
-  .workspace-header {
-    align-items: flex-start;
-    flex-direction: column;
-    padding-block: 1rem;
+button:hover {
+  background: var(--color-surface-hover);
+}
+
+/* Research Console — 76px collapsed */
+.research-console {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4.75rem;
+  padding: 0 1rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+/* Region labels and placeholders */
+.region-label {
+  margin: 0;
+  color: var(--color-ink-tertiary);
+  font-size: var(--font-size-0);
+  font-family: var(--xw-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.region-placeholder {
+  margin: 0;
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-1);
+}
+
+/* Responsive: collapse right panel first, then left */
+@media (max-width: 80rem) {
+  .workspace-body {
+    grid-template-columns: 17.25rem 1fr;
   }
 
-  .workspace-main {
-    min-height: auto;
+  .provenance-observatory {
+    display: none;
+  }
+}
+
+@media (max-width: 60rem) {
+  .workspace-body {
+    grid-template-columns: 1fr;
+  }
+
+  .research-atlas {
+    display: none;
+  }
+}
+
+@media (max-width: 40rem) {
+  .top-status-rail {
+    flex-wrap: wrap;
+    padding-block: 0.5rem;
+  }
+
+  .rail-status {
+    margin-left: 0;
+  }
+
+  .research-canvas {
+    padding: 1rem;
   }
 }

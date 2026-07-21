@@ -73,6 +73,9 @@ importers:
       "@xingwen/ui":
         specifier: workspace:*
         version: link:../../packages/ui
+      "@xingwen/visual-engine":
+        specifier: workspace:*
+        version: link:../../packages/visual-engine
       astro:
         specifier: 7.0.9
         version: 7.0.9(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.2)(@types/node@24.13.3)(jiti@2.7.0)(yaml@2.9.0)
