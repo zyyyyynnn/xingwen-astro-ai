@@ -53,7 +53,7 @@ evidence_actor_identity:
 review_evidence_state:
 ```
 
-此处只由实际网页端 GPT Review 结果更新。`APPROVED` 只能对应 `PASS`，`CHANGES_REQUESTED` 只能对应 `BLOCKED`；`COMMENTED` 正文必须包含独立的 `verdict: PASS | BLOCKED` 行。新 Commit 会使旧 Review 失效；本地 Codex 不得填写 `PASS`、转 Ready 或合并。
+此处只记录实际网页端 GPT Review 结果。`APPROVED` 只能对应 `PASS`，`CHANGES_REQUESTED` 只能对应 `BLOCKED`；`COMMENTED` 正文必须包含独立的 `verdict: PASS | BLOCKED` 行。新 Commit 会使旧 Review 失效。当前 HEAD 的网页端 GPT `pr_technical_review` 为 `PASS` 且标准 CI 通过前，Codex 不得转 Ready 或合并；其他合并条件也满足后，可由网页端 GPT 或 Codex 执行标准合并流程。
 
 ## Migration / rollback
 
