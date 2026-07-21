@@ -31,7 +31,9 @@
 | 019     | Superseded in part by ADR-027  | 追加式版本原则保留，运行对象重新分层                   |
 | 020     | Accepted                       | 暂不引入通用图数据库和万能实体层                       |
 | 021     | Implemented                    | Astro Brand Site + React Workspace Monorepo 运行时     |
-| 022–028 | Accepted；Pending              | 产品体验、领域、安全和视觉方案                         |
+| 022–027 | Accepted；Pending              | 产品体验、领域与安全方案                               |
+| 028     | Superseded by ADR-029          | 浅色雾霾蓝视觉体系（已由 bluegray 取代）              |
+| 029     | Accepted；Pending              | 浅色 bluegray 视觉 + Brand Site 极简单英雄首页         |
 
 ## ADR-001：MVP 固定主案例
 
@@ -297,7 +299,7 @@
 
 ## ADR-028：纯浅色雾霾蓝视觉体系
 
-**Status:** Accepted for implementation; Pending
+**Status:** Superseded by ADR-029
 
 **Decision:** 冷淡灰基底、低饱和雾霾蓝品牌色、深蓝灰文字和独立状态色；只实现浅色系统，使用 OKLCH Raw Scale 与语义 Token。
 
@@ -306,6 +308,28 @@
 **Rejected:** 同期深浅双主题；黑底星空；大面积霓虹、渐变和发光。
 
 **Boundary:** 业务组件不硬编码 Raw Color；状态不只靠颜色；字体资产提交前验证许可、来源、字符覆盖和加载策略。
+
+**Superseded because:** brand / ink / border / celestial 分属 haze 与 gray 两套色板后易漂移；首页叙事过载。由 ADR-029 统一为 bluegray 单刻度，并收束 Brand Site 信息密度。
+
+## ADR-029：浅色 bluegray 视觉体系与极简单英雄首页
+
+**Status:** Accepted for implementation; Pending
+
+**Decision:**
+
+- 只实现浅色系统。Cold Paper（hue 230）仅服务 canvas / surface；brand、ink、border、celestial 共用 **bluegray** 刻度（hue 235，chroma 约 0.006–0.026）。
+- 主题色锚点 `#6E7981` = `oklch(0.57 0.018 235)` = bluegray-500。
+- 状态色保留独立色相；业务组件只消费语义 Token，Raw 仅在 `packages/design-tokens`。
+- Brand Site 首页为**单英雄区极简入口**：偏轴系外行星 ASCII/Dither Hero、双短 CTA（开始演示 / 进入工作台）、一句主标题、三至四段无标题短注。
+- 多幕叙事职责归属 Guided Tour；Live 仅在 Tour 或启动门选择。
+
+**Rationale:** 单一色相刻度避免配色漂移；首页克制留白提升竞赛场景下的识别与转化；复杂可信说明放到 Tour 与工作台，避免首屏信息堆砌。
+
+**Rejected:** haze 与 gray 双色板并存；黑底星空；高饱和蓝紫网点；首页滚动四幕或 PRD 参数墙；首页 Live 模式开关。
+
+**Boundary:** 文档冻结不等于 Implemented；A-01 运行时 Token 可能仍为旧子集，以代码与测试证据为准。WebGL Hero、完整 Token 落地与视觉回归由 A-02 交付。字体资产提交前验证许可、来源、字符覆盖和加载策略。
+
+**See also:** [Visual Language](../design/VISUAL_LANGUAGE.md), [Workspace UX](../design/WORKSPACE_UX.md) §2.1 / §2.4。
 
 ## 2. 新增与修改规则
 
