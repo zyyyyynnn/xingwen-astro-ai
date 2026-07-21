@@ -26,6 +26,10 @@ ReviewerIdentity = Annotated[
     Field(pattern=r"^[a-z][a-z0-9_]*:[A-Za-z0-9][A-Za-z0-9._-]*$"),
 ]
 GitCommitSha = Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
+PullRequestReference = Annotated[
+    str,
+    Field(pattern=r"^zyyyyynnn/xingwen-astro-ai#[1-9][0-9]*$"),
+]
 Confidence = Annotated[float, Field(ge=0.0, le=1.0)]
 
 
@@ -51,6 +55,7 @@ class BenchmarkReviewVerdict(StrEnum):
 
 
 class BenchmarkReviewTargetType(StrEnum):
+    pull_request = "pull_request"
     benchmark_package = "benchmark_package"
     source_policy = "source_policy"
     seed_paper = "seed_paper"
@@ -99,7 +104,7 @@ class BenchmarkReviewScope(BaseModel):
     model_config = MODEL_CONFIG
 
     target_type: BenchmarkReviewTargetType
-    target_ids: tuple[Identifier, ...] = Field(min_length=1)
+    target_ids: tuple[Identifier | PullRequestReference, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_unique_targets(self) -> Self:
@@ -128,6 +133,7 @@ class BenchmarkReviewRecord(BaseModel):
     notes: NonEmptyString
     evidence_actor_identity: ReviewerIdentity
     review_evidence_state: Literal["COMMENTED", "APPROVED", "CHANGES_REQUESTED"]
+    review_evidence_body: NonEmptyString | None = None
     review_evidence_url: HttpUrl
 
     @model_validator(mode="after")
@@ -158,6 +164,23 @@ class BenchmarkReviewRecord(BaseModel):
             raise ValueError(
                 "review evidence must reference this repository's GitHub pull request review"
             )
+        if (
+            self.review_evidence_state == "APPROVED"
+            and self.verdict is not BenchmarkReviewVerdict.passed
+        ) or (
+            self.review_evidence_state == "CHANGES_REQUESTED"
+            and self.verdict is not BenchmarkReviewVerdict.blocked
+        ):
+            raise ValueError("review evidence state must match the recorded verdict")
+        if self.review_evidence_state == "COMMENTED":
+            expected_verdict = f"verdict: {self.verdict.value.upper()}"
+            body_lines = {
+                line.strip() for line in (self.review_evidence_body or "").splitlines()
+            }
+            if expected_verdict not in body_lines:
+                raise ValueError(
+                    "COMMENTED review evidence body must declare the matching verdict"
+                )
         if self.verdict is BenchmarkReviewVerdict.passed and self.blocking_findings:
             raise ValueError("PASS review must not contain blocking findings")
         if (
@@ -222,6 +245,7 @@ class BenchmarkPrReviewGate(BaseModel):
 
     model_config = MODEL_CONFIG
 
+    pull_request: PullRequestReference
     current_head_sha: GitCommitSha
     current_benchmark_version: SemanticVersion
     current_scientific_payload_hash: ContentHash
@@ -248,13 +272,23 @@ class BenchmarkPrReviewGate(BaseModel):
         )
         if not passed:
             raise ValueError("web GPT technical Review PASS is required")
+        expected_scope = (
+            BenchmarkReviewScope(
+                target_type=BenchmarkReviewTargetType.pull_request,
+                target_ids=(self.pull_request,),
+            ),
+        )
+        full_pr_passes = tuple(record for record in passed if record.scope == expected_scope)
+        if not full_pr_passes:
+            raise ValueError("technical Review PASS must cover the full pull request scope")
         if not any(
-            record.reviewed_head_sha == self.current_head_sha for record in passed
+            record.reviewed_head_sha == self.current_head_sha
+            for record in full_pr_passes
         ):
             raise ValueError("technical Review PASS does not match current HEAD")
         head_matches = tuple(
             record
-            for record in passed
+            for record in full_pr_passes
             if record.reviewed_head_sha == self.current_head_sha
         )
         if not any(
@@ -446,7 +480,9 @@ class BenchmarkSeedPaper(BaseModel):
     arxiv_id: NonEmptyString | None = None
     official_url: HttpUrl
     verification_sources: tuple[BenchmarkVerificationSource, ...] = Field(min_length=1)
-    intended_uses: tuple[Literal["benchmark", "manual_review", "fixture"], ...] = Field(
+    intended_uses: tuple[
+        Literal["benchmark", "scientific_review", "fixture"], ...
+    ] = Field(
         min_length=1
     )
     metadata_public: bool
@@ -571,7 +607,7 @@ class BenchmarkReasoningTrace(BaseModel):
     conditions: tuple[NonEmptyString, ...] = Field(min_length=1)
     limitations: tuple[NonEmptyString, ...] = Field(min_length=1)
     uncertainty: NonEmptyString
-    provenance: Literal["manual_benchmark_draft"]
+    provenance: Literal["web_gpt_benchmark_draft"]
     rule_version: SemanticVersion
     review_status: BenchmarkReviewStatus
 
@@ -745,6 +781,8 @@ class BenchmarkPackagePayload(BaseModel):
             scope_types = tuple(scope.target_type for scope in record.scope)
             _require_unique(scope_types, "review scope target type")
             for scope in record.scope:
+                if scope.target_type is BenchmarkReviewTargetType.pull_request:
+                    continue
                 _require_known(
                     scope.target_ids,
                     review_targets[scope.target_type],
@@ -1180,6 +1218,21 @@ def compute_benchmark_content_hash(
     return compute_canonical_model_hash(payload)
 
 
+def _normalize_review_statuses(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            key: (
+                BenchmarkReviewStatus.pending_scientific_review.value
+                if key == "review_status"
+                else _normalize_review_statuses(item)
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_normalize_review_statuses(item) for item in value]
+    return value
+
+
 def compute_benchmark_scientific_payload_hash(
     value: BenchmarkPackagePayload | BenchmarkPackage | dict[str, object],
 ) -> str:
@@ -1190,8 +1243,11 @@ def compute_benchmark_scientific_payload_hash(
     else:
         raw_payload = dict(value)
     raw_payload.pop("content_hash", None)
+    normalized_statuses = _normalize_review_statuses(raw_payload)
+    if not isinstance(normalized_statuses, dict):
+        raise TypeError("benchmark payload must be an object")
+    raw_payload = normalized_statuses
     raw_payload["scientific_payload_hash"] = f"sha256:{'0' * 64}"
-    raw_payload["review_status"] = BenchmarkReviewStatus.pending_scientific_review.value
     raw_payload["review_records"] = []
     normalized = BenchmarkPackagePayload.model_validate(raw_payload)
     scientific_payload = normalized.model_dump(mode="json", exclude_none=True)

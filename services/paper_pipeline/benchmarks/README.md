@@ -31,14 +31,14 @@ Seed papers 和结构化样例属于 `Benchmark / seed` 数据等级，只允许
 
 它们不是自动获取结果、Live Run 或真实历史缓存。D-02 检索失败时不得直接返回 seed list 并将其描述为自动获取；Benchmark 和 Fixture 也不得进入 CacheSelector。
 
-当前 `1.2.0` Package 的 `review_status` 为 `pending_scientific_review`。其中的 Summary、Evidence、Claim、Relation 和 Trace 是待网页端 GPT 逐项科研复核的结构化草案，不是已批准的 scientific benchmark label。只有实际 `benchmark_scientific_review PASS` 绑定当前 version 与 `scientific_payload_hash` 并覆盖完整对象范围后，才能将相应 Relation 纳入科研审核正确率分母。
+当前 `1.3.0` Package 的 `review_status` 为 `pending_scientific_review`。其中的 Summary、Evidence、Claim、Relation 和 Trace 是待网页端 GPT 逐项科研复核的结构化草案，不是已批准的 scientific benchmark label。只有实际 `benchmark_scientific_review PASS` 绑定当前 version 与 `scientific_payload_hash` 并覆盖完整对象范围后，才能将相应 Relation 纳入科研审核正确率分母。
 
 ## 4. 版本规则
 
 - `schema_version` 表示 Pydantic/JSON 结构版本。
 - `benchmark_version` 表示论文、Evidence、科研审核标签、Graph 或指标内容版本。
 - 内容或语义变化必须提升 `benchmark_version`，更新 `change_records`、`review_records`、`CHANGELOG.md` 和 `content_hash`。
-- `review_records` 使用 `web_gpt | automation` reviewer type、`pr_technical_review | benchmark_scientific_review` purpose、`pass | blocked` verdict、review sequence/supersedes、HEAD、version、scientific payload hash、GitHub 证据和结构化对象范围；automation 不能产生正式 PASS。
+- `review_records` 使用 `web_gpt | automation` reviewer type、`pr_technical_review | benchmark_scientific_review` purpose、`pass | blocked` verdict、review sequence/supersedes、HEAD、version、scientific payload hash、GitHub state/body 证据和结构化对象范围；automation 不能产生正式 PASS。技术 PASS scope 必须精确绑定当前完整 PR，GitHub state 与正文 verdict 必须一致。
 - 技术 Review 与科研 Review 相互独立；Review 链最新叶节点有效，未解决的 blocked scope 阻止通过。
 - 已被评测、Fixture 或下游 Contract 固定引用的版本不得原地改变语义。
 - 消费方固定 `benchmark_id + benchmark_version + content_hash`，不得读取动态 latest。
@@ -57,7 +57,7 @@ Benchmark 与 C-01 Manifest 共同调用 `app.schemas._hashing.compute_canonical
 
 `created_at`、`review_records` 和 `change_records` 均进入完整 `content_hash`，因为它们属于已发布基准的审计内容。测试固定了对象 key 重排不改变 hash、数组重排改变 hash，以及 JSON 重复加载后的 hash 稳定性。
 
-`scientific_payload_hash` 使用相同 canonical JSON 规则，但排除 `content_hash`、自身、`review_status`、`review_records` 和 `change_records`。它仍覆盖版本、来源、论文、Summary、Evidence、Claim、Relation、Trace、Graph 和指标，使网页端 GPT 科研 Review 能绑定稳定科研内容，再追加 Review 元数据而不形成 hash 自引用。当前值为 `sha256:b979a27c0467061f254dec2343a7c205d8e38d861a5530c4249f3cd6d9455f83`；完整 Package hash 为 `sha256:d3b70722a3c30e4f993e093f3900e5c65e13696e8df7c3c3fd98cfe8d0fb810a`。
+`scientific_payload_hash` 使用相同 canonical JSON 规则，但排除 `content_hash`、自身、`review_records` 和 `change_records`，并递归规范化 Package 与所有对象级 `review_status`。它仍覆盖版本、来源、论文、Summary、Evidence、Claim、Relation、Trace、Graph 和指标，使网页端 GPT 科研 Review 能绑定稳定科研内容，再追加 Review 元数据而不形成 hash 自引用；仅改变批准状态不会改变 scientific hash，但会改变完整 `content_hash`。当前值为 `sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd`；完整 Package hash 为 `sha256:002a4ab3ddd12a178cf339590640f9ac87a7106c43c4f6fda52f1e2b8fdd0a14`。
 
 ## 6. 论文核验与访问边界
 
@@ -95,7 +95,7 @@ Relation 方向语义以 [Reasoning Protocol](../../../docs/ai/REASONING_PROTOCO
 
 ## 8. 网页端 GPT 科研评审方式
 
-负责人评审至少逐项检查：
+网页端 GPT 科研审查至少逐项检查：
 
 1. DOI/arXiv/URL、标题、作者引用和年份；
 2. Quote 是否能在 locator 指定的公开来源找到；
@@ -104,7 +104,7 @@ Relation 方向语义以 [Reasoning Protocol](../../../docs/ai/REASONING_PROTOCO
 5. review-approved Relation 是否绑定双方 Evidence 和已批准 Trace；
 6. candidate/rejected 的保留原因是否充分；
 7. Graph 是否只发布 accepted Relation；
-8. `reviewer_type=web_gpt`、稳定 identity、purpose、HEAD、version、scientific payload hash、结构化对象范围、日期、verdict、GitHub evidence actor/state 和 Review URL 是否进入 `review_records`。
+8. `reviewer_type=web_gpt`、稳定 identity、purpose、HEAD、version、scientific payload hash、结构化对象范围、日期、verdict、GitHub evidence actor/state/body 和 Review URL 是否进入 `review_records`。
 
 不得把本地 Codex、自动生成草案或测试 identity 标记为科研 PASS。接受证据前必须通过 GitHub API 核对 Review 的 repository/PR、actor、state、commit id 和明确 verdict 正文；URL 外形校验只是离线 Schema 的第一层。Package 只有在当前 version/hash 的有效 `benchmark_scientific_review PASS` 覆盖所有 source policy、seed paper、Summary、Evidence、Claim、Relation、Trace 和 GraphEdge，且所有带审核状态的对象均已批准时才能标为 `approved`。`pr_technical_review` 不能替代该门；科研 Review 也不能替代 PR 技术门。
 

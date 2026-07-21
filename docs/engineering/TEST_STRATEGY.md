@@ -13,7 +13,7 @@
 - 领域规则优先于页面快照数量。
 - 外部服务不作为每个 PR 的稳定前置，但必须有可选 Live smoke。
 - Fixture、recorded、Live 和 Cached 必须使用相同 Contract，并明确真实等级。
-- 无法自动判断的论文相关性、Summary 事实性和 Relation 正确性使用版本化人工 Benchmark。
+- 无法自动判断的论文相关性、Summary 事实性和 Relation 正确性使用版本化 Benchmark，并由网页端 GPT 科研审查。
 - 测试失败不得通过降低 Evidence、Schema、安全或质量要求规避。
 
 ## 2. 测试分层
@@ -79,7 +79,7 @@ Contract
 - 数据匹配覆盖率、冲突率、单位和 Evidence 覆盖；
 - 论文候选召回、去重和选择依据完整性；
 - Summary Schema 通过率、Evidence 覆盖和 unsupported 拦截；
-- Relation 人工正确率、无证据拦截率和置信度分布；
+- Relation 科研审核正确率、无证据拦截率和置信度分布；
 - Graph 悬空引用、Evidence 完整性和稳定 hash。
 
 ### End-to-end
@@ -109,7 +109,7 @@ Contract
 | ----------------- | --------------------------------- | --------------------------------------- |
 | Fixture           | Unit、组件、Demo Replay、视觉回归 | 否；必须标记 scenario 与 schema version |
 | Recorded response | 稳定集成测试                      | 否；只能说明为录制的外部响应            |
-| Benchmark / seed  | 人工评测、回归、校验              | 否；不能冒充自动获取                    |
+| Benchmark / seed  | 网页端 GPT 科研审查、回归、校验   | 否；不能冒充自动获取                    |
 | Live result       | 可选 Live smoke 或真实运行        | 是；必须保留来源、时间和参数            |
 | Real run cache    | Live 失败后的可审查兜底           | 是，但必须标记 Cached 并定位 origin Run |
 

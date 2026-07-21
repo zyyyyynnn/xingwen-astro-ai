@@ -96,8 +96,10 @@
 
 - [ ] GitHub 可见记录包含 `review_type: web_gpt`。
 - [ ] `review_purpose` 明确为 `pr_technical_review` 或 `benchmark_scientific_review`，两者不互相替代。
+- [ ] `pr_technical_review PASS` 的 scope 精确且仅绑定当前 `pull_request: zyyyyynnn/xingwen-astro-ai#number`；单个 SourcePolicy、Claim 或其他对象范围不能通过 PR Gate。
 - [ ] `reviewed_head_sha` 是本次实际审查的 40 位 Commit SHA。
 - [ ] `verdict` 明确为 `PASS` 或 `BLOCKED`；普通无结论评论不满足门禁。
+- [ ] GitHub state 与 verdict 一致：`APPROVED => PASS`、`CHANGES_REQUESTED => BLOCKED`；`COMMENTED` 正文含独立的匹配 verdict 行。
 - [ ] `blocking_findings`、`non_blocking_findings` 和带时区 `reviewed_at` 已记录。
 - [ ] GitHub API 已核对 Review 的 repository/PR、actor、state、commit id 和正文；记录的 `evidence_actor_identity` 与 `review_evidence_state` 一致。
 - [ ] 多轮 Review 的最新记录显式 supersede 同 purpose/scope 的上一轮，不存在分叉、循环或未解决的 `BLOCKED` scope。

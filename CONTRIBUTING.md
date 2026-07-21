@@ -231,6 +231,9 @@ PR 不接受：
 ```text
 review_type: web_gpt
 review_purpose: pr_technical_review | benchmark_scientific_review
+review_scope:
+  target_type: pull_request | <benchmark object type>
+  target_ids: [<zyyyyynnn/xingwen-astro-ai#PR | object id>]
 reviewed_head_sha: <40-char SHA>
 verdict: PASS | BLOCKED
 blocking_findings:
@@ -240,8 +243,9 @@ evidence_actor_identity: github:<login>
 review_evidence_state: COMMENTED | APPROVED | CHANGES_REQUESTED
 ```
 
-- `pr_technical_review` 审查代码、契约、测试、来源政策、治理文档和可合并性。
+- `pr_technical_review` 审查代码、契约、测试、来源政策、治理文档和可合并性；PASS scope 必须且只能绑定完整 PR，例如 `pull_request: zyyyyynnn/xingwen-astro-ai#96`，单个 Benchmark 对象不能通过 PR Gate。
 - `benchmark_scientific_review` 逐项核验来源标识、Evidence、Summary、Claim、Relation、Trace 和 Graph；它不能替代技术 Review，技术 Review 也不能批准科研 Benchmark。
+- GitHub state 与 verdict 必须一致：`APPROVED => PASS`、`CHANGES_REQUESTED => BLOCKED`；`COMMENTED` 可承载任一结论，但正文必须包含独立一行 `verdict: PASS` 或 `verdict: BLOCKED`。
 - 同一 purpose/scope 的新 Review 必须显式 supersede 上一轮并使用新的 GitHub Review URL；最新叶节点为有效结论，未解决的 `BLOCKED` scope 阻止通过。
 - 合并门要求最新技术 Review 的 `reviewed_head_sha` 等于 PR 当前 HEAD 且 verdict 为 `PASS`；Review 后新增 Commit 时必须重新 Review。
 - 接受记录前必须通过 GitHub API 读取对应 Review，核对 repository/PR、actor、state、commit id 和包含明确 verdict 的正文；仅匹配 URL 外形不能通过。

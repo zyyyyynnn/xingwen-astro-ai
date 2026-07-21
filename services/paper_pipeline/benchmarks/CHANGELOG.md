@@ -1,5 +1,15 @@
 # Paper and Reasoning Benchmark Changelog
 
+## exoplanet_host_star 1.3.0 — 2026-07-21
+
+- `scientific_payload_hash` 递归规范化 Package 与全部对象级 `review_status`；仅批准状态变化不再改变 scientific hash，完整 Package hash 仍会变化。
+- 技术 Review 新增 `pull_request` target；`pr_technical_review PASS` 必须精确且仅绑定完整 `zyyyyynnn/xingwen-astro-ai#number`，其他仓库或单对象 scope 不能通过 PR Gate。
+- Review evidence 强制 `APPROVED => PASS`、`CHANGES_REQUESTED => BLOCKED`；`COMMENTED` 正文必须含匹配的独立 verdict 行。
+- seed intended use 与 Trace provenance 改为 `scientific_review` / `web_gpt_benchmark_draft`，不再把网页端 GPT 科研审查标为人工 Review。
+- Clark→revised TIC lineage 因摘要未固定 TIC 版本降为 candidate 并撤出 Graph；宿主星物理参数→TOI 候选体计数的 `limits` 关系改为 rejected negative example；Clark limitation 收紧到公开摘要支持的交叉匹配样本范围。
+- Package 保持 `pending_scientific_review`，`relation_scientific_accuracy` 保持 `not_available`，未伪造 PASS。
+- 本版本影响 content hash；scientific payload hash 为 `sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd`，完整 Package hash 为 `sha256:002a4ab3ddd12a178cf339590640f9ac87a7106c43c4f6fda52f1e2b8fdd0a14`。
+
 ## exoplanet_host_star 1.2.0 — 2026-07-21
 
 - reviewer type 统一为 `web_gpt | automation`，新增 `pr_technical_review | benchmark_scientific_review` purpose 和 `pass | blocked` verdict；automation 不能产生正式 PASS。

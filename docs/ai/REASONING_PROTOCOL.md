@@ -101,7 +101,7 @@ Accepted Relation 必须同时满足：
 
 不满足任一条件的记录不得进入最终 Graph。
 
-Relation 的人工 review status 进入 `approved` 时，无论 admission status 是 candidate、accepted 还是 rejected，都必须绑定 review-approved ReasoningTrace；负例 Trace 记录不可比或拒绝依据，不将 rejected 关系发布到 Graph。
+Relation 的网页端 GPT 科研 review status 进入 `approved` 时，无论 admission status 是 candidate、accepted 还是 rejected，都必须绑定 review-approved ReasoningTrace；负例 Trace 记录不可比或拒绝依据，不将 rejected 关系发布到 Graph。
 
 ## 6. ReasoningTrace
 

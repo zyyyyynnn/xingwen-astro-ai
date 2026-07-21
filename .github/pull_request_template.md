@@ -41,6 +41,9 @@ Closes #
 ```text
 review_type: web_gpt
 review_purpose: pr_technical_review
+review_scope:
+  target_type: pull_request
+  target_ids: [zyyyyynnn/xingwen-astro-ai#<PR number>]
 reviewed_head_sha:
 verdict: BLOCKED
 blocking_findings:
@@ -50,7 +53,7 @@ evidence_actor_identity:
 review_evidence_state:
 ```
 
-此处只由实际网页端 GPT Review 结果更新。新 Commit 会使旧 Review 失效；本地 Codex 不得填写 `PASS`、转 Ready 或合并。
+此处只由实际网页端 GPT Review 结果更新。`APPROVED` 只能对应 `PASS`，`CHANGES_REQUESTED` 只能对应 `BLOCKED`；`COMMENTED` 正文必须包含独立的 `verdict: PASS | BLOCKED` 行。新 Commit 会使旧 Review 失效；本地 Codex 不得填写 `PASS`、转 Ready 或合并。
 
 ## Migration / rollback
 

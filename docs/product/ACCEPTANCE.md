@@ -68,7 +68,7 @@ X-07 完成需要证明：
 - Graph 不存在悬空引用；所有边有 Evidence，跨文献边有 Relation 和 Trace；
 - 科学关系与 layout hint 分离；
 - A-07/A-08 可在最多三个面板中完成推理、Graph 和 Evidence 对照；
-- 固定 Benchmark 报告 Relation 人工正确率、Evidence 覆盖、无证据拦截、Graph 完整性和 Schema 通过率；
+- 固定 Benchmark 报告 Relation 科研审核正确率、Evidence 覆盖、无证据拦截、Graph 完整性和 Schema 通过率；
 - 从 X-06 Summary 版本到 Graph 版本的 E2E 可复现。
 
 ## 5. X-08：版本、缓存、修订与交付
