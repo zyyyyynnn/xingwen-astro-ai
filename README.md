@@ -59,7 +59,7 @@ packages/contracts        Pydantic Contract 前端边界
 packages/data-access      Repository 边界
 packages/workspace-core   工作台编排边界
 packages/visual-engine    纯 TS 视觉运行时（Canvas / Poster / 生命周期）
-packages/schemas          Pydantic Schema 与 JSON Schema 生成产物
+packages/schemas          JSON Schema / OpenAPI 生成产物
 packages/prompts          生产 Prompt 注册中心
 packages/testing          共享测试入口
 services                  数据、论文与图谱 Pipeline

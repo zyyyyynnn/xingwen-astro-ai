@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   createPoster,
   createVisualEngine,
@@ -23,7 +23,10 @@ export function HeroVisual({ seed = 42 }: HeroVisualProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<VisualEngine | null>(null);
 
-  const poster = createPoster({ seed, width: 480, height: 300 });
+  const poster = useMemo(
+    () => createPoster({ seed, width: 480, height: 300 }),
+    [seed],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
