@@ -35,6 +35,9 @@ jobs:
         working-directory: apps/api
         run: uv run python ../../.github/scripts/close_d01_approval.py
 
+      - name: Adapt pending-only test fixture
+        run: python .github/scripts/fix_d01_closure_tests.py
+
       - name: Validate benchmark and backend
         working-directory: apps/api
         run: |
@@ -52,6 +55,7 @@ jobs:
         run: |
           rm .github/workflows/d01-approval-closure.yml
           rm .github/scripts/close_d01_approval.py
+          rm .github/scripts/fix_d01_closure_tests.py
 
       - name: Commit generated closure
         run: |
