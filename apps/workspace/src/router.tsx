@@ -9,7 +9,7 @@ import type {
   ErrorComponentProps,
   RouterHistory,
 } from "@tanstack/react-router";
-import { ProductIdentity } from "@xingwen/ui";
+import { BrandMark } from "@xingwen/ui";
 
 function RootLayout() {
   return (
@@ -18,7 +18,7 @@ function RootLayout() {
         跳到主要内容
       </a>
       <header className="workspace-header">
-        <ProductIdentity />
+        <BrandMark />
         <nav aria-label="主要导航">
           <Link to="/" activeOptions={{ exact: true }}>
             入口

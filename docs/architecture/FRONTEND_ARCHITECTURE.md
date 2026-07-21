@@ -115,7 +115,7 @@ TypeScript 7.0.2 已发布，但当前不能进入基线：
 - `/`：中文标题“星文智析”、产品说明、Workspace CTA 和基础 metadata。
 - `/404.html`：清晰的 Not Found 内容与返回首页链接。
 - `PUBLIC_WORKSPACE_URL`：控制 CTA 地址，默认 `http://localhost:5173/workspace`。
-- React integration：用于服务端渲染共享 `ProductIdentity`，不增加客户端 hydration。
+- React integration：用于服务端渲染共享 `BrandMark`，不增加客户端 hydration。
 - 无 JavaScript 时：首页标题、说明与 CTA 仍存在于静态 HTML。
 
 A-01 不实现完整首页叙事、WebGL、字体资产、社交预览或 A-02 视觉系统。
@@ -139,7 +139,7 @@ A-01 不实现完整首页叙事、WebGL、字体资产、社交预览或 A-02 �
 | Package          | A-01 内容                                       | 后续 Issue                               |
 | ---------------- | ----------------------------------------------- | ---------------------------------------- |
 | `design-tokens`  | 基础浅色语义变量、字体 fallback、CSS 与 TS 入口 | A-02 冻结完整颜色、字体、间距和动效系统  |
-| `ui`             | 静态 `ProductIdentity`                          | A-02 建立 primitive 与复合组件           |
+| `ui`             | 静态 `BrandMark` 与 UI 基元                      | A-02 建立 primitive 与复合组件           |
 | `domain`         | framework-free ID 与领域边界类型                | A-03 建立前端 Domain Model               |
 | `contracts`      | 声明 Pydantic authoring source 的消费边界       | B-04 / X-01 生成并接入 v2 Contract       |
 | `data-access`    | Repository 边界类型                             | A-03 / X-01 实现 Fixture 与 HTTP Adapter |
