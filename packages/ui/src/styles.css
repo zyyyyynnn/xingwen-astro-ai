@@ -1,0 +1,129 @@
+.xw-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding-inline: 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.xw-button:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.xw-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.xw-button--primary {
+  background: var(--color-brand);
+  color: var(--color-brand-on);
+}
+
+.xw-button--primary:hover:not(:disabled) {
+  background: var(--color-brand-hover);
+}
+
+.xw-button--primary:active:not(:disabled) {
+  background: var(--color-brand-pressed);
+}
+
+.xw-button--secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+  color: var(--color-ink-primary);
+}
+
+.xw-button--secondary:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+.xw-button--ghost {
+  background: transparent;
+  color: var(--color-brand);
+}
+
+.xw-button--ghost:hover:not(:disabled) {
+  background: var(--color-brand-muted);
+}
+
+.xw-link {
+  color: var(--color-brand);
+  text-decoration: none;
+}
+
+.xw-link:hover {
+  color: var(--color-brand-hover);
+  text-decoration: underline;
+}
+
+.xw-link:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.xw-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink-secondary);
+}
+
+.xw-spinner__dot {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--color-visual-celestial-soft);
+  border-top-color: var(--color-ink-secondary);
+  border-radius: var(--radius-pill);
+  animation: xw-spinner-rotate 0.8s linear infinite;
+}
+
+@keyframes xw-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.xw-spinner__label {
+  font-size: var(--font-size-1);
+}
+
+.xw-brand-mark {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.xw-brand-mark__title {
+  font-family: var(--xw-font-serif);
+  font-weight: 520;
+  letter-spacing: -0.02em;
+  color: var(--color-ink-primary);
+}
+
+.xw-brand-mark__subtitle {
+  font-family: var(--xw-font-mono);
+  font-size: var(--font-size-0);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xw-spinner__dot {
+    animation-duration: 2.4s;
+  }
+}
