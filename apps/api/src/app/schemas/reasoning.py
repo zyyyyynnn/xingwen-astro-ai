@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .enums import ClaimType, LiteratureRelationType
 
 
 class LiteratureClaim(BaseModel):
-    claim_id: str
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    id: str = Field(alias="claim_id")
+    task_id: str
     paper_id: str
     claim_type: ClaimType
     text: str
-    evidence_ids: list[str] = Field(default_factory=list)
-    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    normalized_text: str
+    evidence_ids: list[str] = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
 
 
 class TraceStep(BaseModel):
@@ -23,20 +27,28 @@ class TraceStep(BaseModel):
 
 
 class ReasoningTrace(BaseModel):
-    trace_id: str
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    id: str = Field(alias="trace_id")
+    task_id: str
     relation_id: str
     steps: list[TraceStep]
-    evidence_ids: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(min_length=1)
+    model_name: str
+    prompt_version: str
 
 
 class LiteratureRelation(BaseModel):
-    relation_id: str
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    id: str = Field(alias="relation_id")
+    task_id: str
     source_claim_id: str
     target_claim_id: str
     relation_type: LiteratureRelationType
-    reasoning_trace_id: str | None = None
-    evidence_ids: list[str] = Field(default_factory=list)
-    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    reasoning_trace_id: str
+    evidence_ids: list[str] = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
 
 
 class LiteratureReasoningResponse(BaseModel):

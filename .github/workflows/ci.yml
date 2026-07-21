@@ -59,10 +59,24 @@ jobs:
       - name: Run backend tests
         run: uv run pytest
 
-      - name: Export Pydantic contracts
+      - name: Check Phase 0 v1 Pydantic contracts
         run: >
           uv run python ../../scripts/export_schemas.py
-          --output ../../.artifacts/schemas
+          --output ../../packages/schemas/generated/v1-phase0
+          --include DatasetResponse
+          --include ColumnInfo
+          --include QualityScore
+          --include SourceRecordItem
+          --include PaperSearchQuery
+          --include PaperAcquisitionRun
+          --include PaperCandidate
+          --include PaperSummary
+          --include LiteratureClaim
+          --include LiteratureRelation
+          --include ReasoningTrace
+          --include EvidenceResponse
+          --include SourceSnapshot
+          --check
 
   frontend:
     name: Frontend quality and entrypoint smoke

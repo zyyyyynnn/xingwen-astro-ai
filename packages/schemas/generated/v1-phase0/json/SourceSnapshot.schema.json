@@ -1,0 +1,26 @@
+{
+  "properties": {
+    "query_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Query Hash"
+    },
+    "retrieved_at": {
+      "format": "date-time",
+      "title": "Retrieved At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "retrieved_at"
+  ],
+  "title": "SourceSnapshot",
+  "type": "object"
+}
