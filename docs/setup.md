@@ -39,6 +39,16 @@ Copy-Item .env.example .env
 
 这些变量会进入浏览器输出，只能包含非敏感配置。浏览器地址不能使用 Docker 内部服务名。
 
+Session 服务端变量：
+
+| 变量 | 默认值 | 用途 |
+| --- | --- | --- |
+| `SESSION_COOKIE_SECURE` | `false` | 本地 HTTP 默认关闭；Production 必须显式设为 `true` 并使用 HTTPS |
+| `SESSION_TTL_SECONDS` | `86400` | 匿名 Session 有效期 |
+| `SESSION_CREATE_RATE_LIMIT` | `30` | 单客户端每分钟创建 Session 的上限 |
+
+Production 必须保持 `SESSION_COOKIE_SECURE=true`。Session 与 CSRF token 不得写入浏览器持久化存储或日志。
+
 ## 3. Docker Compose
 
 ```powershell

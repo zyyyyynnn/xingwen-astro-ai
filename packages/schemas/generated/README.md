@@ -10,3 +10,4 @@
 
 - `v1-phase0/`：冻结的 `/api/v1` Phase 0 DTO JSON Schema。
 - `v2-core/`：#80 的七个核心资源 JSON Schema、manifest 与契约专用 OpenAPI 3.1；不表示运行路由已经挂载。
+- `v2-security/`：#81 的 Session、CSRF/Problem Details 相关传输 Schema。

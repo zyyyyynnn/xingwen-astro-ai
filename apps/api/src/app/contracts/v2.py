@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Annotated, Any, NoReturn, cast
 
-from fastapi import FastAPI, Header, Path, Query
+from fastapi import FastAPI, Header, Path, Query, Response
 
 from app.schemas.v2 import (
     ArtifactVersion,
@@ -25,6 +25,8 @@ from app.schemas.v2 import (
     ResearchProject,
     ResearchRun,
     RunEvent,
+    ResearchSession,
+    SessionCreated,
     UpdateResearchContractDraftRequest,
 )
 
@@ -34,6 +36,9 @@ PROBLEM_RESPONSES = {
     404: {"model": ProblemDetails},
     409: {"model": ProblemDetails},
     422: {"model": ProblemDetails},
+    401: {"model": ProblemDetails},
+    403: {"model": ProblemDetails},
+    429: {"model": ProblemDetails},
 }
 
 
@@ -50,6 +55,39 @@ def create_v2_contract_app() -> FastAPI:
         redoc_url=None,
         openapi_url=None,
     )
+
+    @app.post(
+        "/api/v2/sessions",
+        operation_id="createAnonymousSession",
+        response_model=Envelope[SessionCreated],
+        status_code=201,
+        responses=PROBLEM_RESPONSES,
+        description="Creates an anonymous session and sets a Secure, HttpOnly, SameSite cookie.",
+    )
+    def create_anonymous_session() -> NoReturn:
+        return _contract_only()
+
+    @app.get(
+        "/api/v2/sessions/current",
+        operation_id="getAnonymousSession",
+        response_model=Envelope[ResearchSession],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_anonymous_session() -> NoReturn:
+        return _contract_only()
+
+    @app.delete(
+        "/api/v2/sessions/current",
+        operation_id="revokeAnonymousSession",
+        status_code=204,
+        response_model=None,
+        responses=PROBLEM_RESPONSES,
+    )
+    def revoke_anonymous_session(
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> Response:
+        _ = csrf_token
+        return _contract_only()
 
     @app.get(
         "/api/v2/projects/{project_id}",
