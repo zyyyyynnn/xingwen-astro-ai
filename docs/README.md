@@ -56,6 +56,7 @@
 | [Coding Standard](engineering/CODING_STANDARD.md) | 代码组织、命名和基础实现规范             |
 | [Error Handling](engineering/ERROR_HANDLING.md)   | 内部错误分类、公开错误和日志关联         |
 | [Test Strategy](engineering/TEST_STRATEGY.md)     | 测试分层、数据等级、环境和测试证据       |
+| [PaperCollection Pipeline](engineering/PAPER_COLLECTION_PIPELINE.md) | D-02 检索、规范化、去重、排序与运行来源 |
 | [Security](../SECURITY.md)                        | 密钥、输入、会话、分享、日志和安全要求   |
 | [Deployment](../DEPLOYMENT.md)                    | 环境拓扑、配置、迁移、健康检查和发布验证 |
 | [Local Setup](setup.md)                           | 当前本地启动、测试命令和故障排查         |

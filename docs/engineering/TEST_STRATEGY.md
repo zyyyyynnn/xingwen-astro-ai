@@ -115,6 +115,8 @@ Contract
 
 测试数据不得从低等级静默升级为高等级。Recorded response 和 Benchmark 不进入 CacheSelector。
 
+D-02 的 Crossref 单元/集成测试使用 fixture 或 recorded response 并标记 `source_mode=fixture`；真实来源测试使用 `live` marker 与 `XINGWEN_RUN_LIVE_PAPER_TEST=1` 显式启用。命令、数据等级和来源记录见 [PaperCollection Pipeline](PAPER_COLLECTION_PIPELINE.md)。
+
 ## 4. 环境矩阵
 
 | 环境             | 主要用途                              | 外部服务                          |

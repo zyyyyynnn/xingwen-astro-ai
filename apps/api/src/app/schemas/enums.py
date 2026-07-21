@@ -39,6 +39,45 @@ class SourceType(StrEnum):
     manual_review = "manual_review"
 
 
+class SourceMode(StrEnum):
+    """Actual origin of an ArtifactVersion-compatible pipeline payload."""
+
+    fixture = "fixture"
+    live = "live"
+    cached = "cached"
+
+
+class PaperDataLevel(StrEnum):
+    """Scientific data level, kept separate from ``source_mode``."""
+
+    live_result = "live_result"
+    real_run_cache = "real_run_cache"
+    fixture = "fixture"
+    recorded_response = "recorded_response"
+    benchmark = "benchmark"
+    manual_review = "manual_review"
+
+
+class PaperSourceExecutionStatus(StrEnum):
+    completed = "completed"
+    failed = "failed"
+
+
+class ProducerExecutionStatus(StrEnum):
+    completed = "completed"
+    failed = "failed"
+
+
+class UpstreamFailureClass(StrEnum):
+    timeout = "timeout"
+    rate_limited = "rate_limited"
+    transport = "transport"
+    upstream_server = "upstream_server"
+    upstream_client = "upstream_client"
+    invalid_response = "invalid_response"
+    policy_violation = "policy_violation"
+
+
 class PaperAcquisitionStatus(StrEnum):
     pending = "pending"
     running = "running"
