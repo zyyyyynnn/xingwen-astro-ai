@@ -15,7 +15,7 @@ from app.schemas.enums import (
     StepStatus,
     TaskStatus,
 )
-from app.schemas.evidence import EvidenceResponse, Locator, SourceSnapshot
+from app.schemas.evidence import EvidenceResponse, Locator, SourceSnapshotSummary
 from app.schemas.graph import GraphEdge, GraphNode, GraphResponse
 from app.schemas.paper import (
     PaperAcquisitionResponse,
@@ -304,7 +304,7 @@ def mock_evidence(eid: str) -> EvidenceResponse | None:
             locator=Locator(kind="query", value="NASA Exoplanet Archive TAP query"),
             quote_or_value="pl_orbper, pl_rade, pl_bmass, hostname, st_teff",
             extraction_method="mock_rule_mapping",
-            source_snapshot=SourceSnapshot(retrieved_at=datetime(2026, 7, 4, 10, 1, 0, tzinfo=timezone.utc), query_hash="sha256:dataset-example"),
+            source_snapshot=SourceSnapshotSummary(retrieved_at=datetime(2026, 7, 4, 10, 1, 0, tzinfo=timezone.utc), query_hash="sha256:dataset-example"),
             confidence=0.95,
             created_at=datetime(2026, 7, 4, 10, 3, 0, tzinfo=timezone.utc),
         ),
@@ -320,7 +320,7 @@ def mock_evidence(eid: str) -> EvidenceResponse | None:
             locator=Locator(kind="abstract", value="abstract"),
             quote_or_value="weak negative correlation",
             extraction_method="mock_model_extraction",
-            source_snapshot=SourceSnapshot(retrieved_at=datetime(2026, 7, 4, 10, 5, 0, tzinfo=timezone.utc), query_hash="sha256:paper-search-example"),
+            source_snapshot=SourceSnapshotSummary(retrieved_at=datetime(2026, 7, 4, 10, 5, 0, tzinfo=timezone.utc), query_hash="sha256:paper-search-example"),
             confidence=0.95,
             created_at=datetime(2026, 7, 4, 10, 6, 0, tzinfo=timezone.utc),
         ),
@@ -336,7 +336,7 @@ def mock_evidence(eid: str) -> EvidenceResponse | None:
             locator=Locator(kind="section", value="4. Discussion"),
             quote_or_value="T_eff > 6000K",
             extraction_method="mock_model_extraction",
-            source_snapshot=SourceSnapshot(retrieved_at=datetime(2026, 7, 4, 10, 5, 0, tzinfo=timezone.utc), query_hash="sha256:paper-search-example"),
+            source_snapshot=SourceSnapshotSummary(retrieved_at=datetime(2026, 7, 4, 10, 5, 0, tzinfo=timezone.utc), query_hash="sha256:paper-search-example"),
             confidence=0.90,
             created_at=datetime(2026, 7, 4, 10, 6, 30, tzinfo=timezone.utc),
         ),
