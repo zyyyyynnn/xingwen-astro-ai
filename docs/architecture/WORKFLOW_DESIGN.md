@@ -125,6 +125,8 @@ MVP 可继续使用 FastAPI BackgroundTasks，但不得以进程内字典作为�
 - 每次自动重试创建 StepAttempt，保留 attempt、时间、上游 request id 和错误分类。
 - 重试不得覆盖失败 Attempt，也不得重复发布相同 ArtifactVersion。
 
+当前 D-02 Paper Adapter 在 Pipeline 边界内执行有界 HTTP request retry，并把 page attempt count、SourceExecution retry count 与错误分类返回给调用方；它不写 Run/Step/Attempt 或推进状态。B-06/Workflow 接入时必须把 Pipeline 返回的执行证据登记到所属 StepAttempt，且不得因 Pipeline 已重试而省略工作流审计。
+
 ## 7. 用户重试与派生 Run
 
 终态 Run 不恢复为 running。用户动作创建新 Run：

@@ -24,3 +24,9 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-name = "app"
+
+[tool.pytest.ini_options]
+pythonpath = ["../.."]
+markers = [
+    "live: opt-in tests that call a real external source",
+]

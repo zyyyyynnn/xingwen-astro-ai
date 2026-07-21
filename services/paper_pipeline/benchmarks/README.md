@@ -124,7 +124,7 @@ Relation 方向语义以 [Reasoning Protocol](../../../docs/ai/REASONING_PROTOCO
 
 ## 10. 下游消费
 
-- D-02：固定 search scenarios、source policy、expected candidates 与 seed identifiers，真实查询结果另建 SourceSnapshot。
+- D-02：已固定消费 search scenarios、source policy、expected candidates 与 seed identifiers，并另建真实 SourceSnapshot；实现规则见 [PaperCollection Pipeline](../../../docs/engineering/PAPER_COLLECTION_PIPELINE.md)。
 - D-03：使用 Summary/Evidence 草案做 Prompt、Schema 和 Evidence 回归，不能直接发布为模型产物。
 - D-04：使用 Claim、Relation、Trace 和负例验证准入与科研评测。
 - D-05：使用同包 Graph taxonomy、accepted Relation 和完整性规则验证 Graph 发布门。

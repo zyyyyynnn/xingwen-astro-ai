@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------------- |
 | Status         | Accepted                                                      |
 | Authority      | 跨模块职责、输入输出、依赖方向和交接边界                      |
-| Implementation | A-01 frontend runtime current；A-02/A-03 Pending；`/api/v2` Contract Implemented, Runtime Pending |
+| Implementation | A-01 frontend runtime 与 D-02 PaperCollection Pipeline current；A-02/A-03 与 Publisher Pending；`/api/v2` Contract Implemented, Runtime Pending |
 
 本文不维护完整前端目录、技术选型或任务顺序。前端包结构见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)，实时任务依赖见 [Backlog](../product/BACKLOG.md)。
 
@@ -119,6 +119,8 @@ flowchart LR
 - 通过完整性门的 Graph 内容；
 - Prompt/model/producer、input/output hash 和评测报告；
 - 文献、推理和 Graph 修订内容。
+
+当前 D-02 仅实现 Crossref metadata 检索到 validated PaperCollection content 的边界；运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。ArtifactVersion 事务、领域读取 API 与 Run 编排仍由 B/Workflow 负责。
 
 ### 不负责
 

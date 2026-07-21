@@ -1,6 +1,6 @@
-"""Paper source client placeholder.
+"""API-side paper source integration boundary.
 
-Real paper acquisition is planned for later B/D tasks. This module exists so
-the B-01 backend skeleton has an explicit home for that integration.
+D-02 acquisition is implemented in ``services.paper_pipeline``.  A later B-06
+application service may call that package and publish its validated content;
+the HTTP client layer must not copy the adapter or publication rules here.
 """
-
