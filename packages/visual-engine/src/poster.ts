@@ -6,11 +6,11 @@ import type { PosterConfig, PosterSource } from "./types";
  * Visual Engine is pure TS (no design-tokens dependency), so raw
  * oklch strings are inlined. These mirror packages/design-tokens/base.css.
  */
-const BLUEGRAY_300 = "oklch(0.72 0.014 235)";
+const BLUEGRAY_300 = "oklch(0.805 0.014 235)";
 const BLUEGRAY_500 = "oklch(0.57 0.018 235)";
-const BLUEGRAY_700 = "oklch(0.43 0.022 235)";
+const BLUEGRAY_700 = "oklch(0.38 0.022 235)";
 const BLUEGRAY_900 = "oklch(0.21 0.026 235)";
-const PAPER_0 = "oklch(0.985 0.004 230)";
+const PAPER_0 = "oklch(0.995 0.002 230)";
 
 const CHAR_RAMP = ["·", ":", "+", "*", "#", "%", "@"] as const;
 const CHAR_COUNT = 48;
