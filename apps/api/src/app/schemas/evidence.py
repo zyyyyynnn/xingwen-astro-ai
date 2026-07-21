@@ -16,15 +16,20 @@ class Locator(BaseModel):
     value: str
 
 
-class SourceSnapshotSummary(BaseModel):
+class SourceSnapshot(BaseModel):
     """Phase 0 Evidence projection retained for the existing v1 response."""
 
     retrieved_at: datetime
     query_hash: str | None = None
 
 
-class SourceSnapshot(BaseModel):
-    """Immutable pipeline source record consumed by the future publisher."""
+class SourceSnapshotRecord(BaseModel):
+    """Immutable pipeline source record consumed by the future publisher.
+
+    Implements the v2 ``SourceSnapshot`` target entity described in
+    ``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen
+    v1 Phase 0 ``SourceSnapshot`` projection above stays unchanged.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -58,7 +63,7 @@ class SourceSnapshot(BaseModel):
             for key in _nested_keys(self.request_metadata)
         }
         if keys & forbidden:
-            raise ValueError("SourceSnapshot request_metadata contains sensitive keys")
+            raise ValueError("SourceSnapshotRecord request_metadata contains sensitive keys")
         return self
 
 

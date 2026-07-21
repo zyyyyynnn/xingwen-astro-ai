@@ -16,7 +16,7 @@ from app.schemas.enums import (
     SourceMode,
     UpstreamFailureClass,
 )
-from app.schemas.evidence import SourceSnapshot
+from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.paper_benchmark import BenchmarkSearchScenario
 from app.schemas.paper_collection import PaperCollection, PaperSourcePage
 from services.paper_pipeline.benchmark import load_frozen_benchmark
@@ -111,7 +111,7 @@ class FixtureAdapter:
         content_hash = compute_canonical_payload_hash(
             {"query_hash": query.query_hash, "records": record_payload}
         )
-        snapshot = SourceSnapshot(
+        snapshot = SourceSnapshotRecord(
             snapshot_id=f"snapshot.crossref.{content_hash[-24:]}",
             source_id="crossref",
             source_type="paper_metadata",
@@ -651,7 +651,7 @@ def test_output_hash_tampering_fails_schema_validation() -> None:
 
 def test_source_snapshot_rejects_sensitive_request_metadata() -> None:
     with pytest.raises(ValidationError, match="sensitive keys"):
-        SourceSnapshot(
+        SourceSnapshotRecord(
             snapshot_id="snapshot.crossref.test",
             source_id="crossref",
             source_type="paper_metadata",

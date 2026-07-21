@@ -20,7 +20,7 @@ from .enums import (
     SourceMode,
     UpstreamFailureClass,
 )
-from .evidence import SourceSnapshot
+from .evidence import SourceSnapshotRecord
 from .manifest import ContentHash, Identifier, SemanticVersion
 
 
@@ -139,12 +139,12 @@ class PaperSourceExecution(BaseModel):
             if self.failure_class or self.failure_code:
                 raise ValueError("completed source execution must not contain failure")
             if self.source_snapshot_id is None:
-                raise ValueError("completed source execution requires SourceSnapshot")
+                raise ValueError("completed source execution requires SourceSnapshotRecord")
         else:
             if self.failure_class is None or not self.failure_code:
                 raise ValueError("failed source execution requires classified failure")
             if self.source_snapshot_id is not None:
-                raise ValueError("failed source execution must not claim SourceSnapshot")
+                raise ValueError("failed source execution must not claim SourceSnapshotRecord")
         if self.source_mode is SourceMode.live and self.data_level is not PaperDataLevel.live_result:
             raise ValueError("live source_mode requires live_result data level")
         if self.source_mode is SourceMode.cached and self.data_level is not PaperDataLevel.real_run_cache:
@@ -323,7 +323,7 @@ class PaperCollectionPayload(BaseModel):
     query: NormalizedPaperQuery
     acquisition_run: PaperCollectionAcquisitionRun
     source_executions: tuple[PaperSourceExecution, ...] = Field(min_length=1)
-    source_snapshots: tuple[SourceSnapshot, ...] = ()
+    source_snapshots: tuple[SourceSnapshotRecord, ...] = ()
     source_snapshot_ids: tuple[Identifier, ...] = ()
     candidates: tuple[PaperCollectionCandidate, ...] = ()
     duplicate_groups: tuple[PaperDuplicateGroup, ...] = ()
@@ -340,11 +340,11 @@ class PaperCollectionPayload(BaseModel):
     def validate_collection_integrity(self) -> Self:
         candidate_by_id = _unique_by(self.candidates, "candidate_id", "candidate")
         group_by_id = _unique_by(self.duplicate_groups, "duplicate_group_id", "duplicate group")
-        snapshot_by_id = _unique_by(self.source_snapshots, "snapshot_id", "SourceSnapshot")
+        snapshot_by_id = _unique_by(self.source_snapshots, "snapshot_id", "SourceSnapshotRecord")
         _unique_by(self.source_executions, "source_id", "source execution")
 
         if self.source_snapshot_ids != tuple(sorted(snapshot_by_id)):
-            raise ValueError("source_snapshot_ids must equal sorted SourceSnapshot ids")
+            raise ValueError("source_snapshot_ids must equal sorted SourceSnapshotRecord ids")
 
         grouped_candidate_ids: list[str] = []
         for group in self.duplicate_groups:
@@ -362,7 +362,7 @@ class PaperCollectionPayload(BaseModel):
 
         for candidate in self.candidates:
             if candidate.raw.source_snapshot_id not in snapshot_by_id:
-                raise ValueError(f"candidate lacks SourceSnapshot: {candidate.candidate_id}")
+                raise ValueError(f"candidate lacks SourceSnapshotRecord: {candidate.candidate_id}")
             if candidate.duplicate_group_id not in group_by_id:
                 raise ValueError(f"candidate has unknown duplicate group: {candidate.candidate_id}")
 
@@ -374,7 +374,7 @@ class PaperCollectionPayload(BaseModel):
 
         for execution in self.source_executions:
             if execution.source_snapshot_id and execution.source_snapshot_id not in snapshot_by_id:
-                raise ValueError("source execution has unknown SourceSnapshot")
+                raise ValueError("source execution has unknown SourceSnapshotRecord")
             if execution.source_mode is SourceMode.cached and execution.source_snapshot_id:
                 snapshot = snapshot_by_id[execution.source_snapshot_id]
                 required_origin = {"origin_run_id", "origin_artifact_version_id"}

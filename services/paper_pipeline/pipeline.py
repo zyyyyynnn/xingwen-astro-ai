@@ -12,7 +12,7 @@ from app.schemas.enums import (
     ProducerExecutionStatus,
     SourceMode,
 )
-from app.schemas.evidence import SourceSnapshot
+from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.paper_benchmark import BenchmarkPackage, BenchmarkSearchScenario
 from app.schemas.paper_collection import (
     PaperBenchmarkReference,
@@ -344,7 +344,7 @@ class PaperCollectionPipeline:
 
 
 def _canonicalize_records(
-    records: list[RawSourceRecord], snapshots: list[SourceSnapshot]
+    records: list[RawSourceRecord], snapshots: list[SourceSnapshotRecord]
 ) -> tuple[CandidateDraft, ...]:
     if not records:
         return ()

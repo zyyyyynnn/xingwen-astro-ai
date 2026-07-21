@@ -33,6 +33,7 @@
       "type": "object"
     },
     "SourceSnapshot": {
+      "description": "Phase 0 Evidence projection retained for the existing v1 response.",
       "properties": {
         "query_hash": {
           "anyOf": [

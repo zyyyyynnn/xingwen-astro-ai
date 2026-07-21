@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Protocol
 
 from app.schemas.enums import PaperDataLevel, SourceMode, UpstreamFailureClass
-from app.schemas.evidence import SourceSnapshot
+from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.paper_collection import NormalizedPaperQuery, PaperSourcePage
 
 
@@ -58,7 +58,7 @@ class RawSourceRecord:
 class SourceSearchResult:
     records: tuple[RawSourceRecord, ...]
     pages: tuple[PaperSourcePage, ...]
-    snapshot: SourceSnapshot
+    snapshot: SourceSnapshotRecord
     retry_count: int
 
 

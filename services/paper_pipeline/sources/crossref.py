@@ -18,7 +18,7 @@ from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import PaperDataLevel, SourceMode, UpstreamFailureClass
-from app.schemas.evidence import SourceSnapshot
+from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.paper_collection import NormalizedPaperQuery, PaperSourcePage
 
 from ..constants import CROSSREF_ADAPTER_VERSION
@@ -241,7 +241,7 @@ class CrossrefAdapter:
                 "content_hash": snapshot_content_hash,
             }
         )
-        snapshot = SourceSnapshot(
+        snapshot = SourceSnapshotRecord(
             snapshot_id=f"snapshot.crossref.{snapshot_id_hash.removeprefix('sha256:')[:24]}",
             source_id=self.source_id,
             source_type="paper_metadata",
