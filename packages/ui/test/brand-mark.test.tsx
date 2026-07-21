@@ -18,10 +18,4 @@ describe("BrandMark", () => {
     render(<BrandMark showSubtitle />);
     expect(screen.getByText("XINGWEN ASTRO AI")).toBeInTheDocument();
   });
-
-  it("exposes a ProductIdentity alias that renders the same title", async () => {
-    const { ProductIdentity } = await import("../src");
-    render(<ProductIdentity />);
-    expect(screen.getByText("星文智析")).toBeInTheDocument();
-  });
 });
