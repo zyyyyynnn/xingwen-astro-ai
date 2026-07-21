@@ -4,7 +4,7 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
-| Implementation | Pending for v2 persistence |
+| Implementation | D-02 SourceSnapshot / ProducerExecution content current；v2 persistence 与 Publisher Pending |
 | Current runtime | v1 DTO、Prompt registry 与 Phase 0 版本字段 |
 | Target runtime | Project / Run / Artifact / ArtifactVersion 追加式治理 |
 
@@ -102,6 +102,8 @@ error_code
 
 不保存 API Key、认证头、完整受限全文、原始模型长输出或 chain-of-thought。失败执行也保留。
 
+D-02 当前在 PaperCollection content 内生成 detached ProducerExecution：记录固定 step key、producer/rule version、parameters/input/output hash、状态、时间、latency 和错误码，但不登记 ResearchRun 或数据库记录。调用方可提供现有 run id；B-06/Workflow 仍负责把该记录绑定 Run/Step 并执行 ArtifactVersion 发布事务。具体稳定 hash 与失败记录见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。
+
 ## 5. SourceSnapshot
 
 最低字段：
@@ -120,6 +122,8 @@ request_metadata
 ```
 
 数据库查询、论文检索、论文元数据和可公开文本使用各自 locator。Snapshot 中的 request metadata 只保留可复现且非敏感字段。
+
+D-02 已为成功 Crossref metadata execution 生成完整不可变 SourceSnapshot；失败请求保存 SourceExecution 的 query/pagination/hash/error，不伪造 Snapshot。Cached PaperCollection 要求 Snapshot 额外绑定真实 `origin_run_id` 与 `origin_artifact_version_id`，但 CacheSelector 与 origin persistence 仍为 Pending。
 
 ## 6. Hash 规则
 
