@@ -136,16 +136,16 @@ Layout、坐标和视觉聚合不能改变 Relation 的科学语义。
 
 固定 Benchmark 至少报告：
 
-- Claim Schema 通过率与人工正确率；
+- Claim Schema 通过率与科研审核正确率；
 - candidate pairing 覆盖；
-- Relation 人工正确率；
+- Relation 科研审核正确率；
 - Evidence 覆盖率；
 - 无 Evidence / 不可比关系拦截率；
 - candidate → accepted / rejected 分布；
 - Graph 完整性；
 - Prompt/model 版本变化带来的差异。
 
-评测样例、版本和人工审查依据必须可复现。
+评测样例、版本和网页端 GPT 科研审查依据必须可复现；PR 技术 Review 与 Benchmark 科研 Review 不互相替代。
 
 ## 9. 人工反馈与修订
 

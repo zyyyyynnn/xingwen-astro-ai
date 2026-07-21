@@ -251,11 +251,13 @@ Graph 包含 nodes、edges、layout_hint 和 filters。每条 GraphEdge 必须�
 
 ### 9.5 Benchmark 审核与来源政策
 
-Benchmark ReviewRecord 包含 reviewer type、命名空间化稳定 identity、role、结构化对象类型与对象 id 范围、日期、状态、备注和人工 Review 证据 URL。人类记录使用 GitHub identity，并定位 GitHub Pull Request Review；automation 或测试 identity 不能满足 Package 人工批准门。
+Benchmark ReviewRecord 的 reviewer type 仅为 `web_gpt | automation`，purpose 为 `pr_technical_review | benchmark_scientific_review`，并包含稳定 identity、role、结构化对象范围、带时区日期、`pass | blocked`、40 位 reviewed HEAD、reviewed benchmark version、reviewed scientific payload hash、GitHub Review URL、GitHub evidence actor/state、阻塞/非阻塞项和备注。automation 不能产生正式 PASS；web GPT 证据必须定位本仓库 GitHub Pull Request Review，并由 GitHub API 核对 repository/PR、actor、state、commit id 和正文。
 
-Benchmark 的 PaperSummary、Evidence、Claim、Relation 和 ReasoningTrace 分别保存 review status。Package 批准时，人类批准范围覆盖全部 SourcePolicy、SeedPaper、PaperSummary、Evidence、Claim、Relation、ReasoningTrace 和 GraphEdge；review-approved Relation 的两端 Claim、ReasoningTrace 与相关 Evidence 同时为 approved。
+多轮 Review 使用 `review_sequence` 和 `supersedes_review_id` 形成单链：同 purpose/scope 才能 supersede，不允许缺失父记录、分叉、循环或复用旧 GitHub Review URL；每条链最新叶节点是有效结论，未解决的 `blocked` scope 阻止批准。`pr_technical_review` 通过独立的最终 HEAD Gate 校验，不能批准科研 Benchmark；`benchmark_scientific_review` 不能替代 PR 技术 Review。
 
-Crossref SourcePolicy 以结构化记录分别表达 single-record 与 list/search 请求类别、pool、限流数值与单位、并发上限、核验日期和官方来源 URL；自由文本只描述运行边界，不承载机器判断。
+Benchmark 的 PaperSummary、Evidence、Claim、Relation 和 ReasoningTrace 分别保存 `pending_scientific_review | approved | changes_requested`。Package 批准时，当前 version 与 `scientific_payload_hash` 的 web GPT scientific PASS 范围覆盖全部 SourcePolicy、SeedPaper、PaperSummary、Evidence、Claim、Relation、ReasoningTrace 和 GraphEdge；review-approved Relation 的两端 Claim、ReasoningTrace 与相关 Evidence 同时为 approved。
+
+Crossref SourcePolicy 分离 `documented_policy` 与 `observed_runtime_limits`：前者版本化保存官方页面声明、适用说明和已知冲突，后者保存显式请求的 endpoint、request class、时间、响应状态与实际 `x-api-pool`、rate-limit、interval、concurrency 响应头。缺失头显式记为 `unavailable`；运行时 Adapter 必须优先服从当前响应头、处理 429/backoff，并在缺失头时使用保守策略。D-01 只保存快照，不实现 Adapter。
 
 ## 10. Evidence 与 SourceSnapshot
 

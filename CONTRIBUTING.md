@@ -13,10 +13,10 @@ Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [D
 2. 根据工作类型选择处于 `ready` 的现有 Issue：生产实现使用 Task 或 Bug；阶段验证、证据或退出结论使用 Gate。仅在没有合适 Issue 时创建新 Issue。
 3. 从 `main` 创建任务分支；空分支本身不改变 Issue 状态。
 4. 分支产生首个实质改动时，将主要 Issue 更新为 `in-progress`，随后实施、测试并同步受影响的权威文档。
-5. 提交 Pull Request，关联一个主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。
-6. PR 进入可审查状态时，将主要 Issue 更新为 `review`。
-7. 处理网页端 GPT Review 和 CI 结果。
-8. 使用 Squash merge，删除已合并分支。
+5. 本地 Codex Commit、Push 并创建或更新 Draft Pull Request，关联一个主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。
+6. Draft PR 等待网页端 GPT Review 时，将主要 Issue 更新为 `review`。
+7. 处理网页端 GPT Review 和 CI 结果；新 Commit 会使旧 Review 失效，必须在新 HEAD 上重新审查。
+8. 当前 HEAD 的网页端 GPT `PASS` 与 CI 均通过后，仅由仓库负责人转 Ready 并 Squash merge，随后删除已合并分支。
 
 `main` 必须保持可运行；禁止直接推送。
 
@@ -226,6 +226,27 @@ PR 不接受：
 
 审查结论必须以 GitHub 可见的 Review、评论或线程保存；本地 Codex 实施过程中的自审、测试或总结不能代替网页端 GPT Review。
 
+正式记录至少使用以下机器可读字段；普通无结论评论不能满足门禁：
+
+```text
+review_type: web_gpt
+review_purpose: pr_technical_review | benchmark_scientific_review
+reviewed_head_sha: <40-char SHA>
+verdict: PASS | BLOCKED
+blocking_findings:
+non_blocking_findings:
+reviewed_at: <timezone-aware timestamp>
+evidence_actor_identity: github:<login>
+review_evidence_state: COMMENTED | APPROVED | CHANGES_REQUESTED
+```
+
+- `pr_technical_review` 审查代码、契约、测试、来源政策、治理文档和可合并性。
+- `benchmark_scientific_review` 逐项核验来源标识、Evidence、Summary、Claim、Relation、Trace 和 Graph；它不能替代技术 Review，技术 Review 也不能批准科研 Benchmark。
+- 同一 purpose/scope 的新 Review 必须显式 supersede 上一轮并使用新的 GitHub Review URL；最新叶节点为有效结论，未解决的 `BLOCKED` scope 阻止通过。
+- 合并门要求最新技术 Review 的 `reviewed_head_sha` 等于 PR 当前 HEAD 且 verdict 为 `PASS`；Review 后新增 Commit 时必须重新 Review。
+- 接受记录前必须通过 GitHub API 读取对应 Review，核对 repository/PR、actor、state、commit id 和包含明确 verdict 的正文；仅匹配 URL 外形不能通过。
+- 本地 Codex 不得自行认定 Review 通过、将 Draft 转 Ready、合并 PR 或关闭关联 Issue；不存在额外的人工 PR Review 门。
+
 具体清单见 [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)。
 
 ## 6. 合并标准
@@ -235,10 +256,10 @@ PR 同时满足以下条件才可合并：
 - 生产实现关联明确的 Task 或 Bug；阶段验证或证据 PR 关联明确的 Gate；Epic 只作为父级补充引用；
 - 解决一个清晰目标且边界明确；
 - 适用测试和 CI 通过；
-- 网页端 GPT Review 阻塞项已处理；
+- 最新网页端 GPT 技术 Review 绑定当前 HEAD、结论为 `PASS`，且所有阻塞项已处理；
 - 契约、生成物、Issue 和文档无明显漂移；
 - 不暴露敏感信息；
 - 不扩大产品承诺；
 - 分支可合并，目标 HEAD 未意外变化。
 
-默认使用 Squash merge。历史或发布分支需要其他策略时，必须由仓库负责人明确批准。
+默认由仓库负责人使用 Squash merge。历史或发布分支需要其他策略时，必须由仓库负责人明确批准。

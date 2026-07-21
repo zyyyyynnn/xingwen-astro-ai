@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "benchmark_id": "exoplanet_host_star.paper_reasoning",
-  "benchmark_version": "1.1.0",
+  "benchmark_version": "1.2.0",
   "case_id": "exoplanet_host_star",
   "created_at": "2026-07-19",
   "maintainers": [
@@ -10,68 +10,9 @@
       "role": "paper_and_graph_pipeline"
     }
   ],
-  "review_status": "pending_human_review",
-  "review_records": [
-    {
-      "review_id": "review.initial_technical_preparation",
-      "reviewed_at": "2026-07-19",
-      "reviewer_type": "automation",
-      "reviewer_identity": "openai:codex",
-      "reviewer_role": "benchmark_contract_preparer",
-      "status": "pending_human_review",
-      "scope": [
-        {
-          "target_type": "benchmark_package",
-          "target_ids": [
-            "exoplanet_host_star.paper_reasoning"
-          ]
-        }
-      ],
-      "notes": "The package is technically validated but is not represented as a human-approved scientific gold standard."
-    },
-    {
-      "review_id": "review.issue_6_contract_repair",
-      "reviewed_at": "2026-07-21",
-      "reviewer_type": "automation",
-      "reviewer_identity": "openai:codex",
-      "reviewer_role": "benchmark_contract_preparer",
-      "status": "pending_human_review",
-      "scope": [
-        {
-          "target_type": "source_policy",
-          "target_ids": [
-            "crossref"
-          ]
-        },
-        {
-          "target_type": "relation",
-          "target_ids": [
-            "relation.revised_tic_extends_initial_tic",
-            "relation.clark_catalog_derived_from_tic",
-            "relation.host_properties_limit_toi_interpretation",
-            "relation.observed_candidates_contradict_expected_planets"
-          ]
-        },
-        {
-          "target_type": "reasoning_trace",
-          "target_ids": [
-            "trace.revised_tic_extends_initial_tic",
-            "trace.clark_catalog_derived_from_tic",
-            "trace.host_properties_limit_toi_interpretation",
-            "trace.observed_candidates_contradict_expected_planets"
-          ]
-        },
-        {
-          "target_type": "graph_edge",
-          "target_ids": [
-            "edge.revised_tic_to_initial_tic",
-            "edge.clark_catalog_to_revised_tic"
-          ]
-        }
-      ],
-      "notes": "Automation revalidated public source records and repaired contract, direction, and release-gate declarations; human scientific review remains required."
-    }
-  ],
+  "review_status": "pending_scientific_review",
+  "scientific_payload_hash": "sha256:b979a27c0467061f254dec2343a7c205d8e38d861a5530c4249f3cd6d9455f83",
+  "review_records": [],
   "change_records": [
     {
       "version": "1.0.0",
@@ -82,7 +23,13 @@
     {
       "version": "1.1.0",
       "changed_at": "2026-07-21",
-      "summary": "Repair human-review gates, directional Relation semantics, Crossref request limits, and unstable verification sources without claiming human approval.",
+      "summary": "Repair review gates, directional Relation semantics, Crossref request limits, and unstable verification sources without claiming scientific approval.",
+      "affects_content_hash": true
+    },
+    {
+      "version": "1.2.0",
+      "changed_at": "2026-07-21",
+      "summary": "Bind independent web GPT technical and scientific reviews to explicit purpose, final HEAD, version, scientific payload hash, deterministic review evolution, and versioned Crossref evidence snapshots.",
       "affects_content_hash": true
     }
   ],
@@ -110,41 +57,121 @@
       "abstracts_public": false,
       "full_text_boundary": "Crossref supplies deposited metadata and links, not a general entitlement to article full text.",
       "license_boundary": "Metadata may be retrieved publicly; linked content remains governed by the publisher or repository license.",
-      "rate_limit_policy": "Use crossref_rate_limits for frozen request-class boundaries; runtime clients must honor response headers and 429 backoff.",
+      "rate_limit_policy": "Treat crossref_rate_limits as a versioned documentation and observation snapshot only; runtime clients must prefer current response headers, handle 429 with backoff, and use conservative limits when headers are absent.",
       "crossref_rate_limits": {
-        "verified_at": "2026-07-21",
-        "official_source_url": "https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/",
-        "rate_limit_unit": "requests_per_second",
-        "limits": [
+        "documented_policy": [
           {
-            "pool": "public",
-            "request_class": "single_record",
-            "requests_per_interval": 5,
-            "interval_seconds": 1,
-            "concurrency_limit": 1
+            "policy_id": "crossref.planned_2025_rate_limits",
+            "official_source_url": "https://www.crossref.org/blog/announcing-changes-to-rest-api-rate-limits/",
+            "verified_at": "2026-07-21",
+            "applicability_note": "Crossref's 2025-11-05 announcement described planned request-class-specific limits for the public and polite pools from 2025-12-01.",
+            "known_conflict_note": "The later implementation update states that request-class differentiation was not yet implemented and reports a different polite concurrency limit.",
+            "limits": [
+              {
+                "pool": "public",
+                "request_class": "single_record",
+                "requests_per_interval": 5,
+                "interval_seconds": 1,
+                "concurrency_limit": 1
+              },
+              {
+                "pool": "public",
+                "request_class": "list_or_search",
+                "requests_per_interval": 1,
+                "interval_seconds": 1,
+                "concurrency_limit": 1
+              },
+              {
+                "pool": "polite",
+                "request_class": "single_record",
+                "requests_per_interval": 10,
+                "interval_seconds": 1,
+                "concurrency_limit": 3
+              },
+              {
+                "pool": "polite",
+                "request_class": "list_or_search",
+                "requests_per_interval": 3,
+                "interval_seconds": 1,
+                "concurrency_limit": 3
+              }
+            ]
           },
           {
-            "pool": "public",
-            "request_class": "list_or_search",
-            "requests_per_interval": 5,
-            "interval_seconds": 1,
-            "concurrency_limit": 1
+            "policy_id": "crossref.implemented_2025_rate_limits",
+            "official_source_url": "https://community.crossref.org/t/updates-to-rest-api-rate-limits/14872",
+            "verified_at": "2026-07-21",
+            "applicability_note": "Crossref's 2025-12-02 implementation update reports pool-wide limits because request-class differentiation was not yet available.",
+            "known_conflict_note": "The implemented polite concurrency value 5 conflicts with the planned announcement and the access documentation value 3.",
+            "limits": [
+              {
+                "pool": "public",
+                "request_class": "all_requests",
+                "requests_per_interval": 5,
+                "interval_seconds": 1,
+                "concurrency_limit": 1
+              },
+              {
+                "pool": "polite",
+                "request_class": "all_requests",
+                "requests_per_interval": 10,
+                "interval_seconds": 1,
+                "concurrency_limit": 5
+              }
+            ]
           },
           {
-            "pool": "polite",
-            "request_class": "single_record",
-            "requests_per_interval": 10,
-            "interval_seconds": 1,
-            "concurrency_limit": 3
-          },
-          {
-            "pool": "polite",
-            "request_class": "list_or_search",
-            "requests_per_interval": 10,
-            "interval_seconds": 1,
-            "concurrency_limit": 3
+            "policy_id": "crossref.access_documentation_2025",
+            "official_source_url": "https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/",
+            "verified_at": "2026-07-21",
+            "applicability_note": "The access documentation lists pool-wide response-header limits and instructs clients to handle 429 responses.",
+            "known_conflict_note": "Its polite concurrency value 3 differs from the 2025-12 implementation update value 5; runtime response headers therefore remain authoritative.",
+            "limits": [
+              {
+                "pool": "public",
+                "request_class": "all_requests",
+                "requests_per_interval": 5,
+                "interval_seconds": 1,
+                "concurrency_limit": 1
+              },
+              {
+                "pool": "polite",
+                "request_class": "all_requests",
+                "requests_per_interval": 10,
+                "interval_seconds": 1,
+                "concurrency_limit": 3
+              }
+            ]
           }
-        ]
+        ],
+        "observed_runtime_limits": [
+          {
+            "endpoint": "https://api.crossref.org/works/10.3847/1538-3881/aad050",
+            "request_class": "single_record",
+            "retrieved_at": "2026-07-21T12:58:49+08:00",
+            "x_api_pool": "public",
+            "x_rate_limit_limit": 5,
+            "x_rate_limit_interval": "1s",
+            "x_concurrency_limit": 1,
+            "response_status": 200,
+            "observation_note": "Headers captured from an explicit public single-record request; this is a dated observation, not a permanent guarantee."
+          },
+          {
+            "endpoint": "https://api.crossref.org/works?rows=0",
+            "request_class": "list_or_search",
+            "retrieved_at": "2026-07-21T12:58:50+08:00",
+            "x_api_pool": "public",
+            "x_rate_limit_limit": 5,
+            "x_rate_limit_interval": "1s",
+            "x_concurrency_limit": 1,
+            "response_status": 200,
+            "observation_note": "Headers captured from an explicit public list request; this is a dated observation, not a permanent guarantee."
+          }
+        ],
+        "runtime_uses_response_headers": true,
+        "handles_429_with_backoff": true,
+        "missing_headers_strategy": "conservative",
+        "observation_boundary": "Only public-pool headers were observed because no real polite-pool contact identity was configured. Polite observations are unavailable and were not fabricated."
       },
       "public_runtime_risk": "Deposited metadata may be incomplete or updated, and production integrations must identify themselves and cache responsibly."
     },
@@ -575,7 +602,7 @@
         }
       ],
       "future_work": [],
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "summary_id": "summary.stassun_2018_tic",
@@ -608,7 +635,7 @@
         }
       ],
       "future_work": [],
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "summary_id": "summary.stassun_2019_revised_tic",
@@ -641,7 +668,7 @@
         }
       ],
       "future_work": [],
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "summary_id": "summary.guerrero_2021_toi",
@@ -674,7 +701,7 @@
         }
       ],
       "future_work": [],
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "summary_id": "summary.clark_2021_galah_tess",
@@ -713,7 +740,7 @@
         }
       ],
       "future_work": [],
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     }
   ],
   "evidence": [
@@ -1060,7 +1087,7 @@
       "confidence": 0.99,
       "status": "accepted",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "claim_id": "claim.ricker_expected_yield",
@@ -1079,7 +1106,7 @@
       "confidence": 0.98,
       "status": "accepted",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "claim_id": "claim.stassun_2018_tic_method",
@@ -1098,7 +1125,7 @@
       "confidence": 0.96,
       "status": "accepted",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "claim_id": "claim.stassun_2018_detection_limits",
@@ -1117,7 +1144,7 @@
       "confidence": 0.93,
       "status": "accepted",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "claim_id": "claim.stassun_2019_gaia_revision",
@@ -1136,7 +1163,7 @@
       "confidence": 0.99,
       "status": "accepted",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "claim_id": "claim.guerrero_prime_toi_dataset",
@@ -1155,7 +1182,7 @@
       "confidence": 0.99,
       "status": "accepted",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "claim_id": "claim.clark_crossmatched_catalog",
@@ -1174,7 +1201,7 @@
       "confidence": 0.98,
       "status": "accepted",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "claim_id": "claim.clark_host_property_dependency",
@@ -1193,7 +1220,7 @@
       "confidence": 0.97,
       "status": "accepted",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     }
   ],
   "relations": [
@@ -1215,7 +1242,7 @@
       "confidence": 0.96,
       "status": "accepted",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "relation_id": "relation.clark_catalog_derived_from_tic",
@@ -1235,7 +1262,7 @@
       "confidence": 0.94,
       "status": "accepted",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "relation_id": "relation.host_properties_limit_toi_interpretation",
@@ -1255,7 +1282,7 @@
       "confidence": 0.62,
       "status": "candidate",
       "rejection_reason": null,
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "relation_id": "relation.observed_candidates_contradict_expected_planets",
@@ -1274,7 +1301,7 @@
       "confidence": 0.99,
       "status": "rejected",
       "rejection_reason": "The quantities are not comparable: expected sub-Neptune planets and observed candidate records have different definitions and selection states.",
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     }
   ],
   "reasoning_traces": [
@@ -1311,7 +1338,7 @@
       "uncertainty": "Low structural uncertainty; scientific field-level differences still require full catalog documentation.",
       "provenance": "manual_benchmark_draft",
       "rule_version": "1.1.0",
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "trace_id": "trace.clark_catalog_derived_from_tic",
@@ -1345,7 +1372,7 @@
       "uncertainty": "Moderate version-lineage uncertainty because the abstract names TIC but not a content hash.",
       "provenance": "manual_benchmark_draft",
       "rule_version": "1.1.0",
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "trace_id": "trace.host_properties_limit_toi_interpretation",
@@ -1381,7 +1408,7 @@
       "uncertainty": "High enough to prevent acceptance without object-level and version-level comparison.",
       "provenance": "manual_benchmark_draft",
       "rule_version": "1.1.0",
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     },
     {
       "trace_id": "trace.observed_candidates_contradict_expected_planets",
@@ -1417,7 +1444,7 @@
       "uncertainty": "The available evidence is sufficient to reject comparability, not to estimate a corrected mission yield.",
       "provenance": "manual_benchmark_draft",
       "rule_version": "1.1.0",
-      "review_status": "pending_human_review"
+      "review_status": "pending_scientific_review"
     }
   ],
   "graph_taxonomy": {
@@ -1538,9 +1565,9 @@
       "empty_set_behavior": "report_not_available"
     },
     {
-      "metric_id": "relation_human_accuracy",
-      "numerator_definition": "Human-reviewed evaluated Relations whose predicted type and admission status match the approved benchmark label.",
-      "denominator_definition": "Evaluated Relations with an approved human benchmark label; pending labels are excluded.",
+      "metric_id": "relation_scientific_accuracy",
+      "numerator_definition": "Scientifically reviewed Relations whose predicted type and admission status match the approved benchmark label.",
+      "denominator_definition": "Evaluated Relations with an approved scientific benchmark label; pending labels are excluded.",
       "empty_set_behavior": "report_not_available"
     },
     {
@@ -1550,5 +1577,5 @@
       "empty_set_behavior": "report_not_available"
     }
   ],
-  "content_hash": "sha256:0fb405c27f88e4657cf609de5d4e0b5880ebf6ccf20deebd8beda04fa84d7f20"
+  "content_hash": "sha256:d3b70722a3c30e4f993e093f3900e5c65e13696e8df7c3c3fd98cfe8d0fb810a"
 }
