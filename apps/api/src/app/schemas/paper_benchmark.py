@@ -7,27 +7,64 @@ resources, or ArtifactVersion publication.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
-from ._hashing import compute_canonical_model_hash
+from ._hashing import compute_canonical_model_hash, compute_canonical_payload_hash
 from .enums import ClaimType, GraphEdgeType, GraphNodeType, LiteratureRelationType
 from .manifest import ContentHash, Identifier, SemanticVersion
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
 NonEmptyString = Annotated[str, Field(min_length=1)]
+ReviewerIdentity = Annotated[
+    str,
+    Field(pattern=r"^[a-z][a-z0-9_]*:[A-Za-z0-9][A-Za-z0-9._-]*$"),
+]
+GitCommitSha = Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
+PullRequestReference = Annotated[
+    str,
+    Field(pattern=r"^zyyyyynnn/xingwen-astro-ai#[1-9][0-9]*$"),
+]
 Confidence = Annotated[float, Field(ge=0.0, le=1.0)]
 
 
 class BenchmarkReviewStatus(StrEnum):
-    pending_human_review = "pending_human_review"
+    pending_scientific_review = "pending_scientific_review"
     approved = "approved"
     changes_requested = "changes_requested"
+
+
+class BenchmarkReviewerType(StrEnum):
+    web_gpt = "web_gpt"
+    automation = "automation"
+
+
+class BenchmarkReviewPurpose(StrEnum):
+    pr_technical_review = "pr_technical_review"
+    benchmark_scientific_review = "benchmark_scientific_review"
+
+
+class BenchmarkReviewVerdict(StrEnum):
+    passed = "pass"
+    blocked = "blocked"
+
+
+class BenchmarkReviewTargetType(StrEnum):
+    pull_request = "pull_request"
+    benchmark_package = "benchmark_package"
+    source_policy = "source_policy"
+    seed_paper = "seed_paper"
+    paper_summary = "paper_summary"
+    evidence = "evidence"
+    claim = "claim"
+    relation = "relation"
+    reasoning_trace = "reasoning_trace"
+    graph_edge = "graph_edge"
 
 
 class BenchmarkAdmissionStatus(StrEnum):
@@ -52,7 +89,7 @@ class BenchmarkMetricId(StrEnum):
     candidate_recall = "candidate_recall"
     schema_pass_rate = "schema_pass_rate"
     evidence_coverage = "evidence_coverage"
-    relation_human_accuracy = "relation_human_accuracy"
+    relation_scientific_accuracy = "relation_scientific_accuracy"
     evidence_less_relation_block_rate = "evidence_less_relation_block_rate"
 
 
@@ -63,15 +100,213 @@ class BenchmarkMaintainer(BaseModel):
     role: Literal["paper_and_graph_pipeline"]
 
 
+class BenchmarkReviewScope(BaseModel):
+    model_config = MODEL_CONFIG
+
+    target_type: BenchmarkReviewTargetType
+    target_ids: tuple[Identifier | PullRequestReference, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_unique_targets(self) -> Self:
+        _require_unique(self.target_ids, "review target id")
+        return self
+
+
 class BenchmarkReviewRecord(BaseModel):
     model_config = MODEL_CONFIG
 
     review_id: Identifier
-    reviewed_at: date
+    review_sequence: int = Field(ge=1)
+    supersedes_review_id: Identifier | None = None
+    reviewed_at: datetime
+    reviewer_type: BenchmarkReviewerType
+    reviewer_identity: ReviewerIdentity
     reviewer_role: NonEmptyString
-    status: BenchmarkReviewStatus
-    scope: NonEmptyString
+    review_purpose: BenchmarkReviewPurpose
+    verdict: BenchmarkReviewVerdict
+    reviewed_head_sha: GitCommitSha
+    reviewed_benchmark_version: SemanticVersion
+    reviewed_content_hash: ContentHash
+    scope: tuple[BenchmarkReviewScope, ...] = Field(min_length=1)
+    blocking_findings: tuple[NonEmptyString, ...] = ()
+    non_blocking_findings: tuple[NonEmptyString, ...] = ()
     notes: NonEmptyString
+    evidence_actor_identity: ReviewerIdentity
+    review_evidence_state: Literal["COMMENTED", "APPROVED", "CHANGES_REQUESTED"]
+    review_evidence_body: NonEmptyString | None = None
+    review_evidence_url: HttpUrl
+
+    @model_validator(mode="after")
+    def validate_review_evidence(self) -> Self:
+        if self.reviewed_at.tzinfo is None:
+            raise ValueError("reviewed_at must include a timezone")
+        if (
+            self.reviewer_type is BenchmarkReviewerType.automation
+            and self.verdict is BenchmarkReviewVerdict.passed
+        ):
+            raise ValueError("automation cannot issue a formal PASS verdict")
+        if (
+            self.reviewer_type is BenchmarkReviewerType.web_gpt
+            and self.reviewer_identity != "openai:web-gpt"
+        ):
+            raise ValueError("web_gpt reviewer identity must be openai:web-gpt")
+        if not self.evidence_actor_identity.startswith("github:"):
+            raise ValueError("review evidence actor must use the github namespace")
+        if (
+            self.review_evidence_url.host != "github.com"
+            or not self.review_evidence_url.path.startswith(
+                "/zyyyyynnn/xingwen-astro-ai/pull/"
+            )
+            or not (self.review_evidence_url.fragment or "").startswith(
+                "pullrequestreview-"
+            )
+        ):
+            raise ValueError(
+                "review evidence must reference this repository's GitHub pull request review"
+            )
+        if (
+            self.review_evidence_state == "APPROVED"
+            and self.verdict is not BenchmarkReviewVerdict.passed
+        ) or (
+            self.review_evidence_state == "CHANGES_REQUESTED"
+            and self.verdict is not BenchmarkReviewVerdict.blocked
+        ):
+            raise ValueError("review evidence state must match the recorded verdict")
+        if self.review_evidence_state == "COMMENTED":
+            expected_verdict = f"verdict: {self.verdict.value.upper()}"
+            body_lines = {
+                line.strip() for line in (self.review_evidence_body or "").splitlines()
+            }
+            if expected_verdict not in body_lines:
+                raise ValueError(
+                    "COMMENTED review evidence body must declare the matching verdict"
+                )
+        if self.verdict is BenchmarkReviewVerdict.passed and self.blocking_findings:
+            raise ValueError("PASS review must not contain blocking findings")
+        if (
+            self.verdict is BenchmarkReviewVerdict.blocked
+            and not self.blocking_findings
+        ):
+            raise ValueError("BLOCKED review requires blocking findings")
+        return self
+
+
+def _effective_review_records(
+    records: tuple[BenchmarkReviewRecord, ...],
+) -> tuple[BenchmarkReviewRecord, ...]:
+    _require_unique_model_ids(records, "review_id", "review record")
+    _require_unique(
+        tuple(str(record.review_evidence_url) for record in records),
+        "review evidence URL",
+    )
+    by_id = {record.review_id: record for record in records}
+    successor_by_id: dict[str, str] = {}
+
+    for record in records:
+        parent_id = record.supersedes_review_id
+        if parent_id is None:
+            continue
+        if parent_id not in by_id:
+            raise ValueError(f"unknown supersedes_review_id: {parent_id}")
+        if parent_id in successor_by_id:
+            raise ValueError(f"review {parent_id} has more than one direct successor")
+        successor_by_id[parent_id] = record.review_id
+
+    for record in records:
+        visited: set[str] = set()
+        current = record
+        while current.supersedes_review_id is not None:
+            if current.review_id in visited:
+                raise ValueError("review supersedes cycle is not allowed")
+            visited.add(current.review_id)
+            current = by_id[current.supersedes_review_id]
+
+    for record in records:
+        parent_id = record.supersedes_review_id
+        if parent_id is None:
+            if record.review_sequence != 1:
+                raise ValueError("root review_sequence must be 1")
+            continue
+        parent = by_id[parent_id]
+        if record.review_sequence != parent.review_sequence + 1:
+            raise ValueError("review_sequence must increment its superseded review")
+        if record.review_purpose is not parent.review_purpose:
+            raise ValueError("a review cannot supersede a different review purpose")
+        if record.scope != parent.scope:
+            raise ValueError("a review cannot supersede a different review scope")
+
+    return tuple(
+        record for record in records if record.review_id not in successor_by_id
+    )
+
+
+class BenchmarkPrReviewGate(BaseModel):
+    """External, GitHub-derived evidence for the final-head PR merge gate."""
+
+    model_config = MODEL_CONFIG
+
+    pull_request: PullRequestReference
+    current_head_sha: GitCommitSha
+    current_benchmark_version: SemanticVersion
+    current_scientific_payload_hash: ContentHash
+    review_records: tuple[BenchmarkReviewRecord, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_final_head_pass(self) -> Self:
+        effective = _effective_review_records(self.review_records)
+        technical = tuple(
+            record
+            for record in effective
+            if record.reviewer_type is BenchmarkReviewerType.web_gpt
+            and record.review_purpose is BenchmarkReviewPurpose.pr_technical_review
+        )
+        if any(
+            record.verdict is BenchmarkReviewVerdict.blocked for record in technical
+        ):
+            raise ValueError("unresolved BLOCKED technical Review prevents approval")
+
+        passed = tuple(
+            record
+            for record in technical
+            if record.verdict is BenchmarkReviewVerdict.passed
+        )
+        if not passed:
+            raise ValueError("web GPT technical Review PASS is required")
+        expected_scope = (
+            BenchmarkReviewScope(
+                target_type=BenchmarkReviewTargetType.pull_request,
+                target_ids=(self.pull_request,),
+            ),
+        )
+        full_pr_passes = tuple(record for record in passed if record.scope == expected_scope)
+        if not full_pr_passes:
+            raise ValueError("technical Review PASS must cover the full pull request scope")
+        if not any(
+            record.reviewed_head_sha == self.current_head_sha
+            for record in full_pr_passes
+        ):
+            raise ValueError("technical Review PASS does not match current HEAD")
+        head_matches = tuple(
+            record
+            for record in full_pr_passes
+            if record.reviewed_head_sha == self.current_head_sha
+        )
+        if not any(
+            record.reviewed_benchmark_version == self.current_benchmark_version
+            for record in head_matches
+        ):
+            raise ValueError("technical Review PASS has a stale benchmark version")
+        version_matches = tuple(
+            record
+            for record in head_matches
+            if record.reviewed_benchmark_version == self.current_benchmark_version
+        )
+        if not any(
+            record.reviewed_content_hash == self.current_scientific_payload_hash
+            for record in version_matches
+        ):
+            raise ValueError("technical Review PASS has a stale content hash")
+        return self
 
 
 class BenchmarkChangeRecord(BaseModel):
@@ -81,6 +316,87 @@ class BenchmarkChangeRecord(BaseModel):
     changed_at: date
     summary: NonEmptyString
     affects_content_hash: bool
+
+
+class BenchmarkCrossrefRateLimit(BaseModel):
+    model_config = MODEL_CONFIG
+
+    pool: Literal["public", "polite"]
+    request_class: Literal["all_requests", "single_record", "list_or_search"]
+    requests_per_interval: int = Field(gt=0)
+    interval_seconds: int = Field(gt=0)
+    concurrency_limit: int = Field(gt=0)
+
+
+class BenchmarkCrossrefDocumentedPolicy(BaseModel):
+    model_config = MODEL_CONFIG
+
+    policy_id: Identifier
+    official_source_url: HttpUrl
+    verified_at: date
+    applicability_note: NonEmptyString
+    known_conflict_note: NonEmptyString
+    limits: tuple[BenchmarkCrossrefRateLimit, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_unique_limits(self) -> Self:
+        _require_unique(
+            tuple((limit.pool, limit.request_class) for limit in self.limits),
+            "Crossref documented limit",
+        )
+        return self
+
+
+ObservedHeaderInt = Annotated[int, Field(gt=0)] | Literal["unavailable"]
+
+
+class BenchmarkCrossrefObservedRuntimeLimit(BaseModel):
+    model_config = MODEL_CONFIG
+
+    endpoint: HttpUrl
+    request_class: Literal["single_record", "list_or_search"]
+    retrieved_at: datetime
+    x_api_pool: Literal["public", "polite", "plus", "unavailable"]
+    x_rate_limit_limit: ObservedHeaderInt
+    x_rate_limit_interval: NonEmptyString
+    x_concurrency_limit: ObservedHeaderInt
+    response_status: int = Field(ge=100, le=599)
+    observation_note: NonEmptyString
+
+    @model_validator(mode="after")
+    def validate_observation_time(self) -> Self:
+        if self.retrieved_at.tzinfo is None:
+            raise ValueError("Crossref observed retrieved_at must include a timezone")
+        return self
+
+
+class BenchmarkCrossrefRateLimits(BaseModel):
+    model_config = MODEL_CONFIG
+
+    documented_policy: tuple[BenchmarkCrossrefDocumentedPolicy, ...] = Field(
+        min_length=2
+    )
+    observed_runtime_limits: tuple[BenchmarkCrossrefObservedRuntimeLimit, ...] = Field(
+        min_length=1
+    )
+    runtime_uses_response_headers: Literal[True]
+    handles_429_with_backoff: Literal[True]
+    missing_headers_strategy: Literal["conservative"]
+    observation_boundary: NonEmptyString
+
+    @model_validator(mode="after")
+    def validate_snapshot_uniqueness(self) -> Self:
+        _require_unique_model_ids(
+            self.documented_policy, "policy_id", "Crossref documented policy"
+        )
+        _require_unique(
+            tuple(
+                (str(observed.endpoint), observed.request_class)
+                for observed in self.observed_runtime_limits
+            ),
+            "Crossref observed runtime limit",
+        )
+        return self
 
 
 class BenchmarkSourcePolicy(BaseModel):
@@ -96,7 +412,16 @@ class BenchmarkSourcePolicy(BaseModel):
     full_text_boundary: NonEmptyString
     license_boundary: NonEmptyString
     rate_limit_policy: NonEmptyString
+    crossref_rate_limits: BenchmarkCrossrefRateLimits | None = None
     public_runtime_risk: NonEmptyString
+
+    @model_validator(mode="after")
+    def validate_crossref_rate_limits(self) -> Self:
+        if self.source_id == "crossref" and self.crossref_rate_limits is None:
+            raise ValueError("Crossref source policy requires structured rate limits")
+        if self.source_id != "crossref" and self.crossref_rate_limits is not None:
+            raise ValueError("structured Crossref rate limits belong only to Crossref")
+        return self
 
 
 class BenchmarkQueryFixture(BaseModel):
@@ -155,7 +480,9 @@ class BenchmarkSeedPaper(BaseModel):
     arxiv_id: NonEmptyString | None = None
     official_url: HttpUrl
     verification_sources: tuple[BenchmarkVerificationSource, ...] = Field(min_length=1)
-    intended_uses: tuple[Literal["benchmark", "manual_review", "fixture"], ...] = Field(
+    intended_uses: tuple[
+        Literal["benchmark", "scientific_review", "fixture"], ...
+    ] = Field(
         min_length=1
     )
     metadata_public: bool
@@ -170,7 +497,9 @@ class BenchmarkSeedPaper(BaseModel):
         if not (self.doi or self.arxiv_id or self.official_url):
             raise ValueError("seed paper requires DOI, arXiv id, or official URL")
         if any(author.casefold().rstrip(".") == "et al" for author in self.authors):
-            raise ValueError("authors must contain verified names, not et al. shorthand")
+            raise ValueError(
+                "authors must contain verified names, not et al. shorthand"
+            )
         _require_unique(self.authors, "paper author citation")
         _require_unique(self.intended_uses, "seed intended use")
         return self
@@ -213,9 +542,7 @@ class BenchmarkEvidence(BaseModel):
 
     evidence_id: Identifier
     paper_id: Identifier
-    target_type: Literal[
-        "summary_statement", "claim", "relation", "graph_edge"
-    ]
+    target_type: Literal["summary_statement", "claim", "relation", "graph_edge"]
     target_id: Identifier
     evidence_type: Literal["paper_text"]
     evidence_level: BenchmarkEvidenceLevel
@@ -226,6 +553,9 @@ class BenchmarkEvidence(BaseModel):
         "manual_paraphrase_from_verified_source",
     ]
     confidence: Confidence
+    review_status: BenchmarkReviewStatus = (
+        BenchmarkReviewStatus.pending_scientific_review
+    )
 
 
 class BenchmarkClaim(BaseModel):
@@ -246,9 +576,15 @@ class BenchmarkClaim(BaseModel):
 
     @model_validator(mode="after")
     def validate_rejection_reason(self) -> Self:
-        if self.status is BenchmarkAdmissionStatus.rejected and not self.rejection_reason:
+        if (
+            self.status is BenchmarkAdmissionStatus.rejected
+            and not self.rejection_reason
+        ):
             raise ValueError("rejected claim requires rejection_reason")
-        if self.status is not BenchmarkAdmissionStatus.rejected and self.rejection_reason:
+        if (
+            self.status is not BenchmarkAdmissionStatus.rejected
+            and self.rejection_reason
+        ):
             raise ValueError("only rejected claim may declare rejection_reason")
         return self
 
@@ -271,7 +607,7 @@ class BenchmarkReasoningTrace(BaseModel):
     conditions: tuple[NonEmptyString, ...] = Field(min_length=1)
     limitations: tuple[NonEmptyString, ...] = Field(min_length=1)
     uncertainty: NonEmptyString
-    provenance: Literal["manual_benchmark_draft"]
+    provenance: Literal["web_gpt_benchmark_draft"]
     rule_version: SemanticVersion
     review_status: BenchmarkReviewStatus
 
@@ -304,11 +640,20 @@ class BenchmarkRelation(BaseModel):
     def validate_admission_fields(self) -> Self:
         if self.source_claim_id == self.target_claim_id:
             raise ValueError("relation source and target claims must differ")
-        if self.status is BenchmarkAdmissionStatus.accepted and not self.reasoning_trace_id:
+        if (
+            self.status is BenchmarkAdmissionStatus.accepted
+            and not self.reasoning_trace_id
+        ):
             raise ValueError("accepted relation requires reasoning_trace_id")
-        if self.status is BenchmarkAdmissionStatus.rejected and not self.rejection_reason:
+        if (
+            self.status is BenchmarkAdmissionStatus.rejected
+            and not self.rejection_reason
+        ):
             raise ValueError("rejected relation requires rejection_reason")
-        if self.status is not BenchmarkAdmissionStatus.rejected and self.rejection_reason:
+        if (
+            self.status is not BenchmarkAdmissionStatus.rejected
+            and self.rejection_reason
+        ):
             raise ValueError("only rejected relation may declare rejection_reason")
         return self
 
@@ -384,7 +729,8 @@ class BenchmarkPackagePayload(BaseModel):
     created_at: date
     maintainers: tuple[BenchmarkMaintainer, ...] = Field(min_length=1)
     review_status: BenchmarkReviewStatus
-    review_records: tuple[BenchmarkReviewRecord, ...] = Field(min_length=1)
+    scientific_payload_hash: ContentHash
+    review_records: tuple[BenchmarkReviewRecord, ...] = ()
     change_records: tuple[BenchmarkChangeRecord, ...] = Field(min_length=1)
     source_policies: tuple[BenchmarkSourcePolicy, ...] = Field(min_length=1)
     search_scenarios: tuple[BenchmarkSearchScenario, ...] = Field(min_length=1)
@@ -400,8 +746,11 @@ class BenchmarkPackagePayload(BaseModel):
 
     @model_validator(mode="after")
     def validate_package_integrity(self) -> Self:
+        _require_unique_model_ids(self.review_records, "review_id", "review record")
         _require_unique_model_ids(self.source_policies, "source_id", "source policy")
-        _require_unique_model_ids(self.search_scenarios, "scenario_id", "search scenario")
+        _require_unique_model_ids(
+            self.search_scenarios, "scenario_id", "search scenario"
+        )
         papers = _unique_model_registry(self.seed_papers, "paper_id", "paper")
         summaries = _unique_model_registry(
             self.paper_summaries, "summary_id", "paper summary"
@@ -414,6 +763,109 @@ class BenchmarkPackagePayload(BaseModel):
         )
         nodes = _unique_model_registry(self.graph.nodes, "node_id", "graph node")
         edges = _unique_model_registry(self.graph.edges, "edge_id", "graph edge")
+
+        review_targets = {
+            BenchmarkReviewTargetType.benchmark_package: {self.benchmark_id},
+            BenchmarkReviewTargetType.source_policy: {
+                source.source_id for source in self.source_policies
+            },
+            BenchmarkReviewTargetType.seed_paper: set(papers),
+            BenchmarkReviewTargetType.paper_summary: set(summaries),
+            BenchmarkReviewTargetType.evidence: set(evidence),
+            BenchmarkReviewTargetType.claim: set(claims),
+            BenchmarkReviewTargetType.relation: set(relations),
+            BenchmarkReviewTargetType.reasoning_trace: set(traces),
+            BenchmarkReviewTargetType.graph_edge: set(edges),
+        }
+        for record in self.review_records:
+            scope_types = tuple(scope.target_type for scope in record.scope)
+            _require_unique(scope_types, "review scope target type")
+            for scope in record.scope:
+                if scope.target_type is BenchmarkReviewTargetType.pull_request:
+                    continue
+                _require_known(
+                    scope.target_ids,
+                    review_targets[scope.target_type],
+                    f"{scope.target_type.value} review target",
+                )
+
+        effective_review_records = _effective_review_records(self.review_records)
+
+        if self.review_status is BenchmarkReviewStatus.approved:
+            scientific_reviews = tuple(
+                record
+                for record in effective_review_records
+                if record.reviewer_type is BenchmarkReviewerType.web_gpt
+                and record.review_purpose
+                is BenchmarkReviewPurpose.benchmark_scientific_review
+            )
+            if any(
+                record.verdict is BenchmarkReviewVerdict.blocked
+                for record in scientific_reviews
+            ):
+                raise ValueError(
+                    "unresolved BLOCKED scientific review prevents package approval"
+                )
+            scientific_passes = tuple(
+                record
+                for record in scientific_reviews
+                if record.verdict is BenchmarkReviewVerdict.passed
+            )
+            if not scientific_passes:
+                raise ValueError("approved package requires scientific Review PASS")
+            version_matches = tuple(
+                record
+                for record in scientific_passes
+                if record.reviewed_benchmark_version == self.benchmark_version
+            )
+            if not version_matches:
+                raise ValueError("scientific Review PASS has a stale benchmark version")
+            current_scientific_passes = tuple(
+                record
+                for record in version_matches
+                if record.reviewed_content_hash == self.scientific_payload_hash
+            )
+            if not current_scientific_passes:
+                raise ValueError(
+                    "scientific Review PASS has a stale scientific payload hash"
+                )
+            scientifically_reviewed_targets = {
+                target_type: {
+                    target_id
+                    for record in current_scientific_passes
+                    for scope in record.scope
+                    if scope.target_type is target_type
+                    for target_id in scope.target_ids
+                }
+                for target_type in BenchmarkReviewTargetType
+            }
+            missing_review_targets = {
+                target_type.value: sorted(
+                    target_ids - scientifically_reviewed_targets[target_type]
+                )
+                for target_type, target_ids in review_targets.items()
+                if target_ids - scientifically_reviewed_targets[target_type]
+            }
+            if missing_review_targets:
+                raise ValueError(
+                    "approved package scientific review scope is incomplete: "
+                    f"{missing_review_targets}"
+                )
+            reviewable_objects = (
+                *self.paper_summaries,
+                *self.evidence,
+                *self.claims,
+                *self.relations,
+                *self.reasoning_traces,
+            )
+            if any(
+                item.review_status is not BenchmarkReviewStatus.approved
+                for item in reviewable_objects
+            ):
+                raise ValueError(
+                    "approved package requires approved review status for all "
+                    "summaries, evidence, claims, relations, and traces"
+                )
 
         source_ids = {source.source_id for source in self.source_policies}
         for paper in self.seed_papers:
@@ -464,9 +916,7 @@ class BenchmarkPackagePayload(BaseModel):
                 key: set(value.evidence_ids)
                 for key, value in summary_statements.items()
             },
-            "claim": {
-                key: set(value.evidence_ids) for key, value in claims.items()
-            },
+            "claim": {key: set(value.evidence_ids) for key, value in claims.items()},
             "relation": {
                 key: set(value.evidence_ids) for key, value in relations.items()
             },
@@ -496,8 +946,12 @@ class BenchmarkPackagePayload(BaseModel):
             if summaries[claim.summary_id].paper_id != claim.paper_id:
                 raise ValueError(f"claim {claim.claim_id} paper/summary mismatch")
             _require_known(claim.evidence_ids, set(evidence), "claim evidence")
-            if any(evidence[eid].paper_id != claim.paper_id for eid in claim.evidence_ids):
-                raise ValueError(f"claim {claim.claim_id} has evidence from another paper")
+            if any(
+                evidence[eid].paper_id != claim.paper_id for eid in claim.evidence_ids
+            ):
+                raise ValueError(
+                    f"claim {claim.claim_id} has evidence from another paper"
+                )
 
         required_claim_types = {
             ClaimType.finding,
@@ -507,7 +961,9 @@ class BenchmarkPackagePayload(BaseModel):
         }
         present_claim_types = {claim.claim_type for claim in self.claims}
         if len(present_claim_types & required_claim_types) < 3:
-            raise ValueError("benchmark claims must cover at least three required claim types")
+            raise ValueError(
+                "benchmark claims must cover at least three required claim types"
+            )
 
         statuses = {relation.status for relation in self.relations}
         if statuses != set(BenchmarkAdmissionStatus):
@@ -523,7 +979,9 @@ class BenchmarkPackagePayload(BaseModel):
         }
         present_relation_types = {relation.relation_type for relation in self.relations}
         if len(present_relation_types & required_relation_types) < 3:
-            raise ValueError("benchmark relations must cover at least three required types")
+            raise ValueError(
+                "benchmark relations must cover at least three required types"
+            )
 
         for relation in self.relations:
             _require_known(
@@ -547,19 +1005,63 @@ class BenchmarkPackagePayload(BaseModel):
                     raise ValueError(
                         f"accepted relation {relation.relation_id} lacks target evidence"
                     )
+            if relation.review_status is BenchmarkReviewStatus.approved:
+                source_claim = claims[relation.source_claim_id]
+                target_claim = claims[relation.target_claim_id]
+                if source_claim.review_status is not BenchmarkReviewStatus.approved:
+                    raise ValueError(
+                        f"approved relation {relation.relation_id} has unapproved "
+                        "source claim"
+                    )
+                if target_claim.review_status is not BenchmarkReviewStatus.approved:
+                    raise ValueError(
+                        f"approved relation {relation.relation_id} has unapproved "
+                        "target claim"
+                    )
+                related_evidence_ids = {
+                    *relation.evidence_ids,
+                    *source_claim.evidence_ids,
+                    *target_claim.evidence_ids,
+                }
+                if relation.reasoning_trace_id is None:
+                    raise ValueError(
+                        f"approved relation {relation.relation_id} requires approved "
+                        "reasoning trace"
+                    )
+                trace = traces[relation.reasoning_trace_id]
+                if trace.review_status is not BenchmarkReviewStatus.approved:
+                    raise ValueError(
+                        f"approved relation {relation.relation_id} has unapproved "
+                        "reasoning trace"
+                    )
+                related_evidence_ids.update(
+                    evidence_id
+                    for step in trace.steps
+                    for evidence_id in step.evidence_ids
+                )
+                if any(
+                    evidence[evidence_id].review_status
+                    is not BenchmarkReviewStatus.approved
+                    for evidence_id in related_evidence_ids
+                ):
+                    raise ValueError(
+                        f"approved relation {relation.relation_id} has unapproved evidence"
+                    )
 
         for trace in self.reasoning_traces:
             _require_known((trace.relation_id,), set(relations), "trace relation")
             _require_known(trace.premise_claim_ids, set(claims), "trace premise claim")
             relation = relations[trace.relation_id]
             if relation.reasoning_trace_id != trace.trace_id:
-                raise ValueError(f"trace {trace.trace_id} is not pinned by its relation")
-            if set(trace.premise_claim_ids) != {
+                raise ValueError(
+                    f"trace {trace.trace_id} is not pinned by its relation"
+                )
+            if trace.premise_claim_ids != (
                 relation.source_claim_id,
                 relation.target_claim_id,
-            }:
+            ):
                 raise ValueError(
-                    f"trace {trace.trace_id} premises do not match relation claims"
+                    f"trace {trace.trace_id} premises must follow relation direction"
                 )
             for step in trace.steps:
                 _require_known(step.evidence_ids, set(evidence), "trace step evidence")
@@ -568,7 +1070,9 @@ class BenchmarkPackagePayload(BaseModel):
         allowed_edge_types = set(self.graph_taxonomy.allowed_edge_types)
         for node in self.graph.nodes:
             if node.node_type not in allowed_node_types:
-                raise ValueError(f"graph node type is outside taxonomy: {node.node_type}")
+                raise ValueError(
+                    f"graph node type is outside taxonomy: {node.node_type}"
+                )
             if node.node_type is GraphNodeType.paper:
                 _require_known((node.ref_id,), set(papers), "graph paper node ref")
             elif node.node_type is GraphNodeType.claim:
@@ -577,9 +1081,13 @@ class BenchmarkPackagePayload(BaseModel):
             _require_known((edge.source, edge.target), set(nodes), "graph edge node")
             _require_known(edge.evidence_ids, set(evidence), "graph edge evidence")
             if edge.edge_type not in allowed_edge_types:
-                raise ValueError(f"graph edge type is outside taxonomy: {edge.edge_type}")
+                raise ValueError(
+                    f"graph edge type is outside taxonomy: {edge.edge_type}"
+                )
             if edge.cross_document:
-                _require_known((edge.relation_id,), set(relations), "graph edge relation")
+                _require_known(
+                    (edge.relation_id,), set(relations), "graph edge relation"
+                )
                 _require_known(
                     (edge.reasoning_trace_id,), set(traces), "graph edge trace"
                 )
@@ -631,6 +1139,12 @@ class BenchmarkPackage(BenchmarkPackagePayload):
 
     @model_validator(mode="after")
     def validate_content_hash(self) -> Self:
+        expected_scientific = compute_benchmark_scientific_payload_hash(self)
+        if self.scientific_payload_hash != expected_scientific:
+            raise ValueError(
+                "scientific_payload_hash does not match canonical scientific "
+                f"content: {expected_scientific}"
+            )
         expected = compute_benchmark_content_hash(self)
         if self.content_hash != expected:
             raise ValueError(
@@ -649,8 +1163,8 @@ class BenchmarkEvaluationInput(BaseModel):
     schema_items_total: int = Field(ge=0)
     evidence_requirements_satisfied: int = Field(ge=0)
     evidence_requirements_total: int = Field(ge=0)
-    human_reviewed_relations_correct: int = Field(default=0, ge=0)
-    human_reviewed_relations_total: int = Field(default=0, ge=0)
+    scientifically_reviewed_relations_correct: int = Field(default=0, ge=0)
+    scientifically_reviewed_relations_total: int = Field(default=0, ge=0)
     evidence_less_relations_blocked: int = Field(ge=0)
     evidence_less_relations_total: int = Field(ge=0)
 
@@ -664,9 +1178,9 @@ class BenchmarkEvaluationInput(BaseModel):
                 "evidence coverage",
             ),
             (
-                self.human_reviewed_relations_correct,
-                self.human_reviewed_relations_total,
-                "relation human accuracy",
+                self.scientifically_reviewed_relations_correct,
+                self.scientifically_reviewed_relations_total,
+                "relation scientific accuracy",
             ),
             (
                 self.evidence_less_relations_blocked,
@@ -704,6 +1218,50 @@ def compute_benchmark_content_hash(
     return compute_canonical_model_hash(payload)
 
 
+def _normalize_review_statuses(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            key: (
+                BenchmarkReviewStatus.pending_scientific_review.value
+                if key == "review_status"
+                else _normalize_review_statuses(item)
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_normalize_review_statuses(item) for item in value]
+    return value
+
+
+def compute_benchmark_scientific_payload_hash(
+    value: BenchmarkPackagePayload | BenchmarkPackage | dict[str, object],
+) -> str:
+    """Hash scientific content without review metadata or approval state."""
+
+    if isinstance(value, BaseModel):
+        raw_payload = value.model_dump(mode="json", exclude_none=True)
+    else:
+        raw_payload = dict(value)
+    raw_payload.pop("content_hash", None)
+    normalized_statuses = _normalize_review_statuses(raw_payload)
+    if not isinstance(normalized_statuses, dict):
+        raise TypeError("benchmark payload must be an object")
+    raw_payload = normalized_statuses
+    raw_payload["scientific_payload_hash"] = f"sha256:{'0' * 64}"
+    raw_payload["review_records"] = []
+    normalized = BenchmarkPackagePayload.model_validate(raw_payload)
+    scientific_payload = normalized.model_dump(mode="json", exclude_none=True)
+    for field in (
+        "content_hash",
+        "scientific_payload_hash",
+        "review_status",
+        "review_records",
+        "change_records",
+    ):
+        scientific_payload.pop(field, None)
+    return compute_canonical_payload_hash(scientific_payload)
+
+
 def load_benchmark_package(path: str | Path) -> BenchmarkPackage:
     """Load and fully validate one D-01 benchmark package."""
 
@@ -733,23 +1291,26 @@ def evaluate_benchmark(
     )
     if not relation_accuracy_available:
         if (
-            evaluation.human_reviewed_relations_correct != 0
-            or evaluation.human_reviewed_relations_total != 0
+            evaluation.scientifically_reviewed_relations_correct != 0
+            or evaluation.scientifically_reviewed_relations_total != 0
         ):
             raise ValueError(
-                "relation human accuracy counts must be zero when approved "
+                "relation scientific accuracy counts must be zero when approved "
                 "benchmark relations are unavailable"
             )
         relation_accuracy_counts = (0, 0)
     else:
-        if evaluation.human_reviewed_relations_total != approved_relation_count:
+        if (
+            evaluation.scientifically_reviewed_relations_total
+            != approved_relation_count
+        ):
             raise ValueError(
-                "relation human accuracy total must equal the package's approved "
+                "relation scientific accuracy total must equal the package's approved "
                 f"relation count: {approved_relation_count}"
             )
         relation_accuracy_counts = (
-            evaluation.human_reviewed_relations_correct,
-            evaluation.human_reviewed_relations_total,
+            evaluation.scientifically_reviewed_relations_correct,
+            evaluation.scientifically_reviewed_relations_total,
         )
     counts = (
         (
@@ -768,7 +1329,7 @@ def evaluate_benchmark(
             evaluation.evidence_requirements_total,
         ),
         (
-            BenchmarkMetricId.relation_human_accuracy,
+            BenchmarkMetricId.relation_scientific_accuracy,
             *relation_accuracy_counts,
         ),
         (
@@ -826,6 +1387,8 @@ def _require_unique(values: tuple[object, ...], label: str) -> None:
 def _require_known(
     references: tuple[str | None, ...], known: set[str], label: str
 ) -> None:
-    unknown = sorted(str(reference) for reference in references if reference not in known)
+    unknown = sorted(
+        str(reference) for reference in references if reference not in known
+    )
     if unknown:
         raise ValueError(f"unknown {label} reference(s): {unknown}")

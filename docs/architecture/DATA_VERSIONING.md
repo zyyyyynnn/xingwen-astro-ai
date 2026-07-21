@@ -19,8 +19,18 @@
 | ResearchArtifact | 身份可更新 | 表示同一逻辑产物，维护 latest 指针 |
 | ArtifactVersion | 内容不可变 | Evidence、Cache、Share、Export 的绑定单位 |
 | SourceSnapshot | 不可变 | 固定外部来源、查询、时间和许可信息 |
+| BenchmarkPackage | 已发布版本不可变 | 使用 benchmark id、version 与 content hash 固定静态评测输入 |
 | WorkspaceSnapshot | 可覆盖、乐观锁 | 私有 UI 恢复状态，不是科研产物 |
 | ShareSnapshot | 创建后不可变 | 冻结公开版本与脱敏范围 |
+
+BenchmarkPackage 的 `schema_version` 表示机器结构版本，`benchmark_version` 表示论文、Evidence、科研审核标签、Graph、来源政策或指标内容版本。任何内容或语义变化都发布新 version 与 content hash，并追加 change record；实际 Review 完成后才追加 review record，不得由 Codex 伪造。不得在相同 version 下原地改变已发布语义。来源核验日期、稳定 URL、文档政策冲突和运行时响应头快照属于 hash 绑定内容，运行时 SourceSnapshot 仍另行记录实际响应与请求元数据。
+
+Benchmark 同时保存两个 hash：
+
+- `scientific_payload_hash` 排除 `content_hash`、`scientific_payload_hash`、`review_records`、`change_records`，并递归规范化 Package、PaperSummary、Evidence、Claim、Relation 和 ReasoningTrace 的全部 `review_status`；其余版本、来源政策、论文、Summary、Evidence、Claim、Relation、Trace、Graph 和指标仍被覆盖。它允许科研 Review 先绑定稳定科研内容，再追加批准记录和状态，避免 hash 自引用。
+- `content_hash` 排除自身但包含 `scientific_payload_hash`、Review 与 Change 元数据，固定完整发布 Package。
+
+Scientific Review 的 `reviewed_benchmark_version` 与 `reviewed_content_hash` 必须分别等于当前 `benchmark_version` 与 `scientific_payload_hash`。PR 技术 Review 属于 GitHub 外部门禁证据，以 PR 当前 HEAD 为比较值，且 PASS scope 必须精确绑定当前 `pull_request: zyyyyynnn/xingwen-astro-ai#number`；不能把必须等于自身 Commit SHA 的记录嵌入同一 Commit。
 
 ## 2. ArtifactVersion
 
