@@ -226,6 +226,8 @@ created_at
 
 #76 持久化基线额外保存 `run_step_id`、`step_attempt_id` 与 `producer_execution_id` 外键，用于从不可变版本反向定位实际 Step、Attempt 和 ProducerExecution；#78 Publisher 使用 `publication_key` 保证同一 Artifact 内的发布幂等。这些字段不改变公开 ArtifactVersion 的领域身份。
 
+`paper_collection` 版本的领域内容直接使用 D-02 `PaperCollection` Pydantic 模型，不复制第二套同名领域 Schema。B-06 的 HTTP 投影在版本元数据外组合该 content、ProducerExecution、SourceSnapshot 与 Evidence；候选分页项组合一个既有 `PaperCollectionCandidate`、其 `PaperDuplicateGroup`、对应 SourceSnapshot 和至少一个 Evidence。分页不改变 content 中冻结的候选顺序与规则版本。
+
 组合外键强制 Contract、Run、Artifact、Step、Attempt、ProducerExecution 与 ArtifactVersion 留在同一 Project / Run / Artifact 聚合内；`latest_version_id` 与 `supersedes_version_id` 不能跨 Artifact 引用。
 
 不变量：

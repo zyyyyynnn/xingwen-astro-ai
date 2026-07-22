@@ -91,6 +91,8 @@ jobs:
             --include ArtifactVersion \
             --include ResearchArtifactDetail \
             --include ArtifactVersionDetail \
+            --include PaperCollectionRead \
+            --include PaperCollectionCandidateRead \
             --include EvidenceRead \
             --include SourceSnapshotDetail \
             --check

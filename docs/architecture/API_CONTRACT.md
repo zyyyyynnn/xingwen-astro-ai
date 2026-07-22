@@ -314,6 +314,8 @@ Run Snapshot 至少返回：
 | `GET`  | `/api/v2/artifact-versions/{version_id}`               | 统一 ArtifactVersion Envelope |
 | `GET`  | `/api/v2/evidence/{evidence_id}`                       | Evidence 与 SourceSnapshot    |
 | `GET`  | `/api/v2/source-snapshots/{snapshot_id}`               | 当前 Project 的脱敏来源快照   |
+| `GET`  | `/api/v2/artifact-versions/{version_id}/paper-collection` | 校验后的 PaperCollection 与完整溯源 |
+| `GET`  | `/api/v2/artifact-versions/{version_id}/paper-candidates?cursor=&limit=` | 稳定排序的候选、去重组、来源与 Evidence |
 
 ArtifactVersion Envelope：
 
@@ -351,6 +353,10 @@ ArtifactVersion Envelope：
 `content` 是 #78 已经 Pydantic 准入并以 hash 固定的发布 payload；通用读取边界不重复执行领域算法。B-05～B-09 必须在各自领域端点继续映射为判别联合读取模型。读取层会删除凭据、认证头、Cookie、受限全文、原始模型长输出和内部堆栈类字段；SourceSnapshot `request_metadata` 只保留明确允许的可复现字段。
 
 Artifact 列表 cursor 同时绑定 `run_id` 和 `kind` 过滤条件；不得跨 Run 或跨过滤条件复用，scope 不匹配时返回 `400 INVALID_CURSOR`。
+
+PaperCollection 领域读取只接受 `kind=paper_collection` 的不可变版本，并重新校验 D-02 Pydantic content、input/output hash、producer output hash、`source_mode`、SourceSnapshot 集合和候选 Evidence 绑定。ArtifactVersion `content_hash` 按 #78 对完整持久化 JSON 计算；D-02 `output_hash` 按科研稳定规则排除 wall-clock 字段，两者分别校验且不得混用。Pipeline snapshot identifier 通过 source/type/query hash/content hash/retrieved time 的稳定指纹一一映射到持久化 SourceSnapshot UUID，不改写已冻结 content。它不执行检索、canonicalization、去重或重新排序。候选 cursor 绑定 ArtifactVersion，并包含既有 `ranking_key`、`canonical_paper_id` 与 `candidate_id`；跨版本复用返回 `400 INVALID_CURSOR`，`limit` 最大为 100。
+
+领域读取的失败语义固定为：`PAPER_SOURCE_RATE_LIMITED`（429）、`PAPER_SOURCE_FAILED`（502）、`PAPER_COLLECTION_EMPTY`（404）、`PAPER_COLLECTION_SCHEMA_INVALID`（422）以及通用 ownership / provenance Problem Details。响应不返回来源凭据、受限全文或未净化 HTML，并统一使用 `Cache-Control: no-store`。
 
 上例的 `source_mode=live` 表示实际来源；`supersedes_version_id` 非空表示它是修订版本。界面可组合显示 `LIVE · REVISED`，但不得把 `revised` 写回来源枚举。
 
