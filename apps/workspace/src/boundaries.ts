@@ -1,7 +1,7 @@
-import type { DataAccessBoundary } from "@xingwen/data-access";
-import type { WorkspaceCoreBoundary } from "@xingwen/workspace-core";
+import type { RepositorySet } from "@xingwen/data-access";
+import type { GuidedTourController } from "@xingwen/workspace-core";
 
 export interface WorkspaceRuntimeBoundaries {
-  readonly core: WorkspaceCoreBoundary;
-  readonly data: DataAccessBoundary;
+  readonly repositories: RepositorySet;
+  readonly tour: GuidedTourController;
 }

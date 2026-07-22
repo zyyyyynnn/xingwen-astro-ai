@@ -1,0 +1,212 @@
+{
+  "$defs": {
+    "CachePolicy": {
+      "enum": [
+        "disabled",
+        "fallback_on_recoverable_failure"
+      ],
+      "title": "CachePolicy",
+      "type": "string"
+    },
+    "DerivationKind": {
+      "enum": [
+        "original",
+        "retry",
+        "revision",
+        "fork"
+      ],
+      "title": "DerivationKind",
+      "type": "string"
+    },
+    "ExecutionMode": {
+      "enum": [
+        "demo_replay",
+        "live"
+      ],
+      "title": "ExecutionMode",
+      "type": "string"
+    },
+    "RunStatus": {
+      "enum": [
+        "queued",
+        "planning",
+        "fetching_data",
+        "cleaning_data",
+        "searching_papers",
+        "summarizing_papers",
+        "reasoning_literature",
+        "building_graph",
+        "waiting_for_input",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "cache_policy": "fallback_on_recoverable_failure",
+      "contract_id": "rc_01JEXAMPLE",
+      "created_at": "2026-07-21T08:00:00Z",
+      "derivation_kind": "original",
+      "execution_mode": "live",
+      "id": "run_01JEXAMPLE",
+      "latest_event_sequence": 0,
+      "parent_run_id": null,
+      "progress": 0,
+      "project_id": "proj_01JEXAMPLE",
+      "retry_from_step": null,
+      "status": "queued",
+      "updated_at": "2026-07-21T08:00:00Z"
+    }
+  ],
+  "properties": {
+    "cache_policy": {
+      "$ref": "#/$defs/CachePolicy"
+    },
+    "contract_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Contract Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "derivation_kind": {
+      "$ref": "#/$defs/DerivationKind"
+    },
+    "execution_mode": {
+      "$ref": "#/$defs/ExecutionMode"
+    },
+    "failure_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Code"
+    },
+    "failure_summary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Summary"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finished At"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "latest_event_sequence": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Latest Event Sequence",
+      "type": "integer"
+    },
+    "parent_run_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Run Id"
+    },
+    "progress": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Progress",
+      "type": "integer"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "retry_from_step": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Retry From Step"
+    },
+    "started_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Started At"
+    },
+    "status": {
+      "$ref": "#/$defs/RunStatus"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "project_id",
+    "contract_id",
+    "execution_mode",
+    "status",
+    "progress",
+    "derivation_kind",
+    "cache_policy",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "ResearchRun",
+  "type": "object"
+}

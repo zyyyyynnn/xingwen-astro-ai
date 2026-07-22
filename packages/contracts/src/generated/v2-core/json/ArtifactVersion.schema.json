@@ -1,0 +1,589 @@
+{
+  "$defs": {
+    "DatasetArtifactContent": {
+      "additionalProperties": false,
+      "properties": {
+        "field_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Field Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "dataset",
+          "title": "Kind",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 128,
+              "minLength": 1
+            },
+            "type": "object"
+          },
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "field_ids",
+        "rows"
+      ],
+      "title": "DatasetArtifactContent",
+      "type": "object"
+    },
+    "ExportArtifactContent": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_version_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Artifact Version Ids",
+          "type": "array"
+        },
+        "format": {
+          "enum": [
+            "csv",
+            "json",
+            "provenance_report"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "kind": {
+          "const": "export",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "format",
+        "artifact_version_ids"
+      ],
+      "title": "ExportArtifactContent",
+      "type": "object"
+    },
+    "FieldDictionaryArtifactContent": {
+      "additionalProperties": false,
+      "properties": {
+        "field_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Field Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "field_dictionary",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "field_ids"
+      ],
+      "title": "FieldDictionaryArtifactContent",
+      "type": "object"
+    },
+    "GraphArtifactContent": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Edge Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "graph",
+          "title": "Kind",
+          "type": "string"
+        },
+        "node_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Node Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "node_ids",
+        "edge_ids"
+      ],
+      "title": "GraphArtifactContent",
+      "type": "object"
+    },
+    "LiteratureClaimsArtifactContent": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "literature_claims",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "claim_ids"
+      ],
+      "title": "LiteratureClaimsArtifactContent",
+      "type": "object"
+    },
+    "LiteratureRelationsArtifactContent": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "literature_relations",
+          "title": "Kind",
+          "type": "string"
+        },
+        "relation_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Relation Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "relation_ids"
+      ],
+      "title": "LiteratureRelationsArtifactContent",
+      "type": "object"
+    },
+    "PaperCollectionArtifactContent": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "paper_collection",
+          "title": "Kind",
+          "type": "string"
+        },
+        "paper_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Paper Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "paper_ids"
+      ],
+      "title": "PaperCollectionArtifactContent",
+      "type": "object"
+    },
+    "PaperSummaryArtifactContent": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "paper_summary",
+          "title": "Kind",
+          "type": "string"
+        },
+        "paper_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Paper Id",
+          "type": "string"
+        },
+        "summary_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Summary Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "paper_id",
+        "summary_id"
+      ],
+      "title": "PaperSummaryArtifactContent",
+      "type": "object"
+    },
+    "ProducerReference": {
+      "additionalProperties": false,
+      "properties": {
+        "model_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Name"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parameters_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameters Hash"
+        },
+        "prompt_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Name"
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Version"
+        },
+        "type": {
+          "enum": [
+            "pipeline",
+            "model",
+            "algorithm"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "version"
+      ],
+      "title": "ProducerReference",
+      "type": "object"
+    },
+    "ReasoningTracesArtifactContent": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "reasoning_traces",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reasoning_trace_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Reasoning Trace Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "reasoning_trace_ids"
+      ],
+      "title": "ReasoningTracesArtifactContent",
+      "type": "object"
+    },
+    "SourceCollectionArtifactContent": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "source_collection",
+          "title": "Kind",
+          "type": "string"
+        },
+        "source_snapshot_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Snapshot Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "source_snapshot_ids"
+      ],
+      "title": "SourceCollectionArtifactContent",
+      "type": "object"
+    },
+    "SourceMode": {
+      "enum": [
+        "fixture",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "artifact_id": "art_01JEXAMPLE",
+      "content": {
+        "field_ids": [
+          "planet.toi_id"
+        ],
+        "kind": "dataset",
+        "rows": []
+      },
+      "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "created_at": "2026-07-21T08:00:00Z",
+      "created_by_run_id": "run_01JEXAMPLE",
+      "evidence_ids": [],
+      "id": "artv_01JEXAMPLE",
+      "input_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "producer": {
+        "name": "data",
+        "type": "pipeline",
+        "version": "1.0.0"
+      },
+      "project_id": "proj_01JEXAMPLE",
+      "schema_version": "2.0.0",
+      "source_mode": "live",
+      "source_snapshot_ids": [],
+      "supersedes_version_id": null,
+      "version_number": 1
+    }
+  ],
+  "properties": {
+    "artifact_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Artifact Id",
+      "type": "string"
+    },
+    "content": {
+      "discriminator": {
+        "mapping": {
+          "dataset": "#/$defs/DatasetArtifactContent",
+          "export": "#/$defs/ExportArtifactContent",
+          "field_dictionary": "#/$defs/FieldDictionaryArtifactContent",
+          "graph": "#/$defs/GraphArtifactContent",
+          "literature_claims": "#/$defs/LiteratureClaimsArtifactContent",
+          "literature_relations": "#/$defs/LiteratureRelationsArtifactContent",
+          "paper_collection": "#/$defs/PaperCollectionArtifactContent",
+          "paper_summary": "#/$defs/PaperSummaryArtifactContent",
+          "reasoning_traces": "#/$defs/ReasoningTracesArtifactContent",
+          "source_collection": "#/$defs/SourceCollectionArtifactContent"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/DatasetArtifactContent"
+        },
+        {
+          "$ref": "#/$defs/FieldDictionaryArtifactContent"
+        },
+        {
+          "$ref": "#/$defs/SourceCollectionArtifactContent"
+        },
+        {
+          "$ref": "#/$defs/PaperCollectionArtifactContent"
+        },
+        {
+          "$ref": "#/$defs/PaperSummaryArtifactContent"
+        },
+        {
+          "$ref": "#/$defs/LiteratureClaimsArtifactContent"
+        },
+        {
+          "$ref": "#/$defs/LiteratureRelationsArtifactContent"
+        },
+        {
+          "$ref": "#/$defs/ReasoningTracesArtifactContent"
+        },
+        {
+          "$ref": "#/$defs/GraphArtifactContent"
+        },
+        {
+          "$ref": "#/$defs/ExportArtifactContent"
+        }
+      ],
+      "title": "Content"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "created_by_run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Created By Run Id",
+      "type": "string"
+    },
+    "evidence_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "producer": {
+      "$ref": "#/$defs/ProducerReference"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_mode": {
+      "$ref": "#/$defs/SourceMode"
+    },
+    "source_snapshot_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Source Snapshot Ids",
+      "type": "array"
+    },
+    "supersedes_version_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Supersedes Version Id"
+    },
+    "version_number": {
+      "minimum": 1,
+      "title": "Version Number",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "artifact_id",
+    "project_id",
+    "created_by_run_id",
+    "version_number",
+    "schema_version",
+    "content",
+    "content_hash",
+    "input_hash",
+    "source_mode",
+    "producer",
+    "created_at"
+  ],
+  "title": "ArtifactVersion",
+  "type": "object"
+}

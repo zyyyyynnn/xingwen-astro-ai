@@ -1,0 +1,41 @@
+{
+  "authoring_source": "apps/api/src/app/schemas",
+  "models": [
+    {
+      "module": "app.schemas.v2",
+      "name": "ArtifactVersion",
+      "path": "json/ArtifactVersion.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "ResearchArtifact",
+      "path": "json/ResearchArtifact.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "ResearchContract",
+      "path": "json/ResearchContract.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "ResearchContractDraft",
+      "path": "json/ResearchContractDraft.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "ResearchProject",
+      "path": "json/ResearchProject.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "ResearchRun",
+      "path": "json/ResearchRun.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "RunEvent",
+      "path": "json/RunEvent.schema.json"
+    }
+  ],
+  "schema_version": 1
+}

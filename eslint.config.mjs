@@ -12,6 +12,7 @@ export default tseslint.config(
       ".codegraph/**",
       ".turbo/**",
       "packages/schemas/generated/**",
+      "packages/contracts/src/generated/**",
     ],
   },
   eslint.configs.recommended,
