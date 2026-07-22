@@ -1,7 +1,7 @@
 /**
  * Runtime validation against the B-15 frozen `/api/v2` JSON Schemas.
  *
- * Each of the seven core entity schemas is compiled once into an ajv
+ * Each core entity and B-18 read schema is compiled once into an ajv
  * validator. The public API exposes type-safe `parse*` / `validate*` helpers
  * so the fixture adapter (and, later, the HTTP adapter) can assert contract
  * conformance before mapping payloads into the domain model.
@@ -11,13 +11,17 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
 import artifactVersionSchema from "./generated/v2-core/json/ArtifactVersion.schema.json";
+import artifactVersionDetailSchema from "./generated/v2-core/json/ArtifactVersionDetail.schema.json";
+import evidenceReadSchema from "./generated/v2-core/json/EvidenceRead.schema.json";
 import manifest from "./generated/v2-core/manifest.json";
 import researchArtifactSchema from "./generated/v2-core/json/ResearchArtifact.schema.json";
+import researchArtifactDetailSchema from "./generated/v2-core/json/ResearchArtifactDetail.schema.json";
 import researchContractDraftSchema from "./generated/v2-core/json/ResearchContractDraft.schema.json";
 import researchContractSchema from "./generated/v2-core/json/ResearchContract.schema.json";
 import researchProjectSchema from "./generated/v2-core/json/ResearchProject.schema.json";
 import researchRunSchema from "./generated/v2-core/json/ResearchRun.schema.json";
 import runEventSchema from "./generated/v2-core/json/RunEvent.schema.json";
+import sourceSnapshotDetailSchema from "./generated/v2-core/json/SourceSnapshotDetail.schema.json";
 
 /** Schema version from the B-15 generation manifest. */
 export const V2_CONTRACT_SCHEMA_VERSION: number = manifest.schema_version;
@@ -25,7 +29,7 @@ export const V2_CONTRACT_SCHEMA_VERSION: number = manifest.schema_version;
 /** Authoring source provenance for auditability. */
 export const V2_CONTRACT_AUTHORING_SOURCE: string = manifest.authoring_source;
 
-/** The seven core entity model names that have standalone JSON Schemas. */
+/** Core entity and generic provenance read models with standalone schemas. */
 export const V2_CORE_MODEL_NAMES = [
   "ResearchProject",
   "ResearchContractDraft",
@@ -34,6 +38,10 @@ export const V2_CORE_MODEL_NAMES = [
   "RunEvent",
   "ArtifactVersion",
   "ResearchArtifact",
+  "ResearchArtifactDetail",
+  "ArtifactVersionDetail",
+  "EvidenceRead",
+  "SourceSnapshotDetail",
 ] as const;
 export type V2CoreModelName = (typeof V2_CORE_MODEL_NAMES)[number];
 
@@ -66,6 +74,10 @@ const schemas: SchemaMap = {
   RunEvent: runEventSchema,
   ArtifactVersion: artifactVersionSchema,
   ResearchArtifact: researchArtifactSchema,
+  ResearchArtifactDetail: researchArtifactDetailSchema,
+  ArtifactVersionDetail: artifactVersionDetailSchema,
+  EvidenceRead: evidenceReadSchema,
+  SourceSnapshotDetail: sourceSnapshotDetailSchema,
 };
 
 /** A compiled ajv validator function with its errors property. */
@@ -154,10 +166,14 @@ export function isV2Dto(model: V2CoreModelName, value: unknown): boolean {
 // Re-export DTO types for adapter consumption.
 export type {
   ArtifactVersion as ArtifactVersionDto,
+  ArtifactVersionDetail as ArtifactVersionDetailDto,
+  EvidenceRead as EvidenceReadDto,
   ResearchArtifact as ResearchArtifactDto,
+  ResearchArtifactDetail as ResearchArtifactDetailDto,
   ResearchContract as ResearchContractDto,
   ResearchContractDraft as ResearchContractDraftDto,
   ResearchProject as ResearchProjectDto,
   ResearchRun as ResearchRunDto,
   RunEvent as RunEventDto,
+  SourceSnapshotDetail as SourceSnapshotDetailDto,
 } from "./generated/v2-core/dto";

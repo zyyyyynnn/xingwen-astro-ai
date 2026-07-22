@@ -288,8 +288,11 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "getResearchRun",
         "createResearchRun",
         "listRunEvents",
+        "listRunArtifacts",
         "getResearchArtifact",
         "getArtifactVersion",
+        "getEvidence",
+        "getSourceSnapshot",
         "createAnonymousSession",
         "getAnonymousSession",
         "revokeAnonymousSession",
@@ -324,6 +327,16 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "application/problem+json"
     }
     assert "ProblemDetails" in document["components"]["schemas"]
+    artifacts = document["paths"]["/api/v2/runs/{run_id}/artifacts"]["get"]
+    assert {item["name"] for item in artifacts["parameters"]} == {
+        "run_id",
+        "kind",
+        "cursor",
+        "limit",
+    }
+    assert artifacts["parameters"][-1]["schema"]["maximum"] == 100
+    assert "/api/v2/evidence/{evidence_id}" in document["paths"]
+    assert "/api/v2/source-snapshots/{snapshot_id}" in document["paths"]
 
     workspace_put = document["paths"][
         "/api/v2/projects/{project_id}/workspace-snapshot"
