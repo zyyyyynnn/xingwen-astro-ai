@@ -27,7 +27,6 @@ from app.routers import (
     papers,
     reasoning,
     sessions,
-    snapshots,
     sources,
     tasks,
 )
@@ -115,7 +114,6 @@ def create_app() -> FastAPI:
     app.include_router(graph.router)
     app.include_router(evidence.router)
     app.include_router(sessions.router)
-    app.include_router(snapshots.router)
 
     return app
 

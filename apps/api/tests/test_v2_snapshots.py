@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from app.config import settings
 from app.main import create_app
+from app.routers import snapshots
 from app.schemas.v2 import (
     CreateShareSnapshotRequest,
     PublicArtifactVersion,
@@ -76,6 +77,7 @@ def _workspace_payload(*, layout_preset: str = "research-default") -> dict[str, 
 
 def _session_client() -> tuple[FastAPI, TestClient, str, str]:
     app = create_app()
+    app.include_router(snapshots.router)
     client = TestClient(app, base_url="https://testserver")
     created = client.post("/api/v2/sessions")
     assert created.status_code == 201
@@ -84,6 +86,17 @@ def _session_client() -> tuple[FastAPI, TestClient, str, str]:
     assert credential is not None
     session_id = app.state.session_service.authenticate(credential).id
     return app, client, session_id, csrf_token
+
+
+def test_snapshot_runtime_remains_unmounted_until_resource_sources_are_wired() -> None:
+    app = create_app()
+    client = TestClient(app, base_url="https://testserver")
+    created = client.post("/api/v2/sessions")
+    assert created.status_code == 201
+
+    response = client.get("/api/v2/projects/proj_01/workspace-snapshot")
+
+    assert response.status_code == 404
 
 
 def _seed_project(

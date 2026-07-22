@@ -4,7 +4,7 @@
 | -------------- | --------------------------------------------------------------------- |
 | Status         | Accepted                                                              |
 | Authority      | 密钥、信任边界、输入、会话、分享、日志和安全响应要求                  |
-| Implementation | `/api/v2` Session / CSRF / ownership、Workspace revision 与 Share token/read-only controls Current |
+| Implementation | `/api/v2` Session / CSRF / ownership Current；Workspace revision 与 Share token/read-only application controls Implemented, runtime Pending |
 
 本文定义必须满足的安全控制。部署拓扑和发布步骤见 [Deployment](DEPLOYMENT.md)，HTTP 授权与公开错误见 [API Contract](docs/architecture/API_CONTRACT.md)，模型调用准入见 [Model Policy](docs/ai/MODEL_POLICY.md)。
 
@@ -34,7 +34,7 @@
 
 ## 3. 匿名 Session 与授权
 
-当前运行基线使用进程内端口适配器保存匿名 Session、幂等、限流、WorkspaceSnapshot 与 ShareSnapshot 状态，重启后失效；这是真实安全边界但不是持久化能力。PostgreSQL 适配器由后续持久化 Issue 实现，不得将当前适配器描述为跨实例 Session 或 Snapshot。
+当前运行基线使用进程内端口适配器保存匿名 Session、幂等与限流状态，重启后失效。WorkspaceSnapshot 与 ShareSnapshot 已实现进程内 application adapter、安全控制与传输契约，但在 Project / Run / ArtifactVersion / Evidence 生产事实源接入前不挂载运行路由。PostgreSQL 适配器由后续持久化 Issue 实现，不得将当前适配器描述为跨实例 Session 或 Snapshot。
 
 Session 创建按客户端地址限流，ShareSnapshot 创建按 Session 独立限流。当前进程内限流状态在重启后清空；多实例生产部署需在边界层配置共享限流。
 
