@@ -22,6 +22,7 @@ interface HeroVisualProps {
  * DOM anchor provides accessible text (AGENTS §9).
  */
 export function HeroVisual({ seed = 42 }: HeroVisualProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<VisualEngine | null>(null);
 
@@ -32,11 +33,17 @@ export function HeroVisual({ seed = 42 }: HeroVisualProps) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
     const reducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
+
+    const initialWidth = Math.max(300, container.clientWidth || 800);
+    const initialHeight = Math.max(200, container.clientHeight || 450);
+    canvas.width = initialWidth;
+    canvas.height = initialHeight;
 
     const engine = createVisualEngine({
       seed,
@@ -49,14 +56,30 @@ export function HeroVisual({ seed = 42 }: HeroVisualProps) {
     engineRef.current = engine;
     engine.start();
 
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        const newWidth = Math.max(300, Math.floor(width));
+        const newHeight = Math.max(200, Math.floor(height));
+        if (canvas.width !== newWidth || canvas.height !== newHeight) {
+          canvas.width = newWidth;
+          canvas.height = newHeight;
+          engine.resize(newWidth, newHeight);
+        }
+      }
+    });
+
+    resizeObserver.observe(container);
+
     return () => {
+      resizeObserver.disconnect();
       engine.dispose();
       engineRef.current = null;
     };
   }, [seed]);
 
   return (
-    <div className="hero-visual">
+    <div ref={containerRef} className="hero-visual">
       <img
         className="hero-poster"
         src={poster.dataUrl}
@@ -64,13 +87,7 @@ export function HeroVisual({ seed = 42 }: HeroVisualProps) {
         width={480}
         height={300}
       />
-      <canvas
-        ref={canvasRef}
-        className="hero-canvas"
-        width={480}
-        height={300}
-        aria-hidden="true"
-      />
+      <canvas ref={canvasRef} className="hero-canvas" aria-hidden="true" />
     </div>
   );
 }

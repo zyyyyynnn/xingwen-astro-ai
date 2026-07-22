@@ -112,6 +112,14 @@ export function createVisualEngine(config: VisualEngineConfig): VisualEngine {
     rafId = requestAnimationFrame(loop);
   }
 
+  function resize(width: number, height: number): void {
+    if (disposed) return;
+    renderer.resize(width, height);
+    if (!running && reducedMotion) {
+      renderer.render(config.freezeTime ?? 0);
+    }
+  }
+
   function dispose(): void {
     if (disposed) return;
     disposed = true;
@@ -169,6 +177,7 @@ export function createVisualEngine(config: VisualEngineConfig): VisualEngine {
     start,
     pause,
     resume,
+    resize,
     dispose,
     setQuality,
     onContextLoss,
