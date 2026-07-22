@@ -219,18 +219,23 @@ export function createFixtureRepositories(
     { readonly request: string; readonly run: ResearchRun }
   >();
 
-  function toPublicVersion(versionId: DomainEntityId): PublicArtifactVersion {
+  function toPublicVersion(
+    projectId: DomainEntityId,
+    versionId: DomainEntityId,
+  ): PublicArtifactVersion {
     const version = versions.get(versionId);
-    if (version === null) {
-      throw new FixtureValidationError("ArtifactVersion", [
-        `ArtifactVersion ${versionId} not found for share`,
-      ]);
+    if (version === null || version.projectId !== projectId) {
+      throw new NotFoundError(
+        `ArtifactVersion ${versionId} not found for Project ${projectId}`,
+        "ARTIFACT_VERSION_NOT_FOUND",
+      );
     }
     const artifact = artifacts.get(version.artifactId);
-    if (artifact === null) {
-      throw new FixtureValidationError("ResearchArtifact", [
-        `Artifact ${version.artifactId} not found for share`,
-      ]);
+    if (artifact === null || artifact.projectId !== projectId) {
+      throw new NotFoundError(
+        `Artifact ${version.artifactId} not found for Project ${projectId}`,
+        "ARTIFACT_NOT_FOUND",
+      );
     }
     return {
       id: version.id,
@@ -243,6 +248,90 @@ export function createFixtureRepositories(
       sourceMode: version.sourceMode,
       createdAt: version.createdAt,
     };
+  }
+
+  function toPublicEvidence(
+    projectId: DomainEntityId,
+    allowedVersionIds: ReadonlySet<DomainEntityId>,
+    evidenceId: DomainEntityId,
+  ): PublicEvidence {
+    const entity = evidenceStore.get(evidenceId);
+    const version = entity ? versions.get(entity.artifactVersionId) : null;
+    if (
+      entity === null ||
+      entity.sourceSnapshotId === null ||
+      version === null ||
+      version.projectId !== projectId
+    ) {
+      throw new NotFoundError(
+        `Evidence ${evidenceId} not found for Project ${projectId}`,
+        "EVIDENCE_NOT_FOUND",
+      );
+    }
+    if (!allowedVersionIds.has(entity.artifactVersionId)) {
+      throw new FixtureValidationError("CreateShareSnapshotRequest", [
+        `Evidence ${evidenceId} must belong to a selected ArtifactVersion`,
+      ]);
+    }
+    return {
+      id: entity.id,
+      artifactVersionId: entity.artifactVersionId,
+      sourceSnapshotId: entity.sourceSnapshotId,
+    };
+  }
+
+  function validateShareRequest(
+    request: CreateShareSnapshotRequest,
+    now: UtcIsoTimestamp,
+  ): void {
+    const errors: string[] = [];
+    const title = request.title.trim();
+    if (title.length === 0 || title.length > 200) {
+      errors.push("title must contain between 1 and 200 characters");
+    }
+    if (request.artifactVersionIds.length === 0) {
+      errors.push("artifactVersionIds must contain at least one value");
+    }
+    if (request.artifactVersionIds.length > 100) {
+      errors.push("artifactVersionIds must contain at most 100 values");
+    }
+    if (
+      request.artifactVersionIds.length !==
+      new Set(request.artifactVersionIds).size
+    ) {
+      errors.push("artifactVersionIds must not contain duplicates");
+    }
+    if (request.evidenceIds.length !== new Set(request.evidenceIds).size) {
+      errors.push("evidenceIds must not contain duplicates");
+    }
+    if (request.evidenceIds.length > 500) {
+      errors.push("evidenceIds must contain at most 500 values");
+    }
+    if (request.redactionPolicy !== "public_metadata_only") {
+      errors.push('redactionPolicy must be "public_metadata_only"');
+    }
+    const expiry = Date.parse(request.expiresAt);
+    if (Number.isNaN(expiry) || !/(?:Z|[+-]00:00)$/u.test(request.expiresAt)) {
+      errors.push("expiresAt must be a UTC datetime");
+    } else if (expiry <= Date.parse(now)) {
+      errors.push("expiresAt must be in the future");
+    }
+    if (errors.length > 0) {
+      throw new FixtureValidationError("CreateShareSnapshotRequest", errors);
+    }
+  }
+
+  function shareStatus(
+    snapshot: ShareSnapshot,
+    now: UtcIsoTimestamp,
+  ): ShareSnapshot {
+    const status =
+      snapshot.revokedAt !== null
+        ? "revoked"
+        : Date.parse(snapshot.expiresAt) <= Date.parse(now)
+          ? "expired"
+          : "active";
+    return snapshot.status === status ? snapshot : { ...snapshot, status };
   }
 
   return {
@@ -261,6 +350,12 @@ export function createFixtureRepositories(
           throw new FixtureValidationError("ResearchContractDraft", [
             `Draft ${draftId} not found`,
           ]);
+        }
+        if (draft.status !== "draft") {
+          throw new ConflictError(
+            "Only a draft in the draft state can be updated",
+            "DRAFT_NOT_EDITABLE",
+          );
         }
         if (draft.version !== expectedVersion) {
           throw new ConflictError(
@@ -285,22 +380,40 @@ export function createFixtureRepositories(
             `Draft ${draftId} not found`,
           ]);
         }
+        if (draft.status !== "draft") {
+          throw new ConflictError(
+            "Only a draft in the draft state can be confirmed",
+            "DRAFT_NOT_EDITABLE",
+          );
+        }
         if (draft.version !== expectedDraftVersion) {
           throw new ConflictError(
             `Draft revision conflict: expected ${expectedDraftVersion}, got ${draft.version}`,
             "VERSION_CONFLICT",
           );
         }
+        const now = clock();
         const contract: ResearchContract = {
           ...draft.contract,
           id: nextId("rc"),
           projectId,
-          version: 1,
+          version:
+            Math.max(
+              0,
+              ...contracts
+                .filter((existing) => existing.projectId === projectId)
+                .map((existing) => existing.version),
+            ) + 1,
           createdFromDraftId: draft.id,
-          createdAt: clock(),
+          createdAt: now,
           contentHash: ("sha256:" + "0".repeat(64)) as ContentHash,
         };
         contracts.upsert(contract);
+        drafts.upsert({ ...draft, status: "confirmed", updatedAt: now });
+        const project = projects.get(projectId);
+        if (project !== null) {
+          projects.upsert({ ...project, activeContractId: contract.id });
+        }
         return contract;
       },
       getContractById: async (id) => contracts.get(id),
@@ -434,33 +547,40 @@ export function createFixtureRepositories(
       },
     },
     shares: {
-      list: async (projectId) =>
-        [...shares.values()]
-          .filter((r) => r.snapshot.projectId === projectId)
-          .map((r) => r.snapshot),
+      list: async (projectId) => {
+        if (projects.get(projectId) === null) {
+          throw new NotFoundError(
+            `Project ${projectId} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
+        const now = clock();
+        return [...shares.values()]
+          .filter((record) => record.snapshot.projectId === projectId)
+          .map((record) => shareStatus(record.snapshot, now));
+      },
       create: async (projectId, request: CreateShareSnapshotRequest) => {
+        if (projects.get(projectId) === null) {
+          throw new NotFoundError(
+            `Project ${projectId} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
         const id = nextId("share");
         const token = `token_${id}`;
         const now = clock();
-        const artifactVersions = request.artifactVersionIds.map((v) =>
-          toPublicVersion(v),
+        validateShareRequest(request, now);
+        const artifactVersions = request.artifactVersionIds.map((versionId) =>
+          toPublicVersion(projectId, versionId),
         );
         const allowed = new Set(request.artifactVersionIds);
-        const evidence: PublicEvidence[] = [];
-        for (const evidenceId of request.evidenceIds) {
-          const entity = evidenceStore.get(evidenceId);
-          if (entity === null || entity.sourceSnapshotId === null) continue;
-          if (!allowed.has(entity.artifactVersionId)) continue;
-          evidence.push({
-            id: entity.id,
-            artifactVersionId: entity.artifactVersionId,
-            sourceSnapshotId: entity.sourceSnapshotId,
-          });
-        }
+        const evidence = request.evidenceIds.map((evidenceId) =>
+          toPublicEvidence(projectId, allowed, evidenceId),
+        );
         const snapshot: ShareSnapshot = {
           id,
           projectId,
-          title: request.title,
+          title: request.title.trim() as typeof request.title,
           status: "active",
           redactionPolicy: request.redactionPolicy,
           artifactVersionIds: request.artifactVersionIds,
@@ -475,23 +595,34 @@ export function createFixtureRepositories(
       },
       revoke: async (projectId, shareId) => {
         const record = shares.get(shareId);
-        if (record && record.snapshot.projectId === projectId) {
-          shares.set(shareId, {
-            ...record,
-            snapshot: {
-              ...record.snapshot,
-              status: "revoked",
-              revokedAt: clock(),
-            },
-          });
+        if (
+          projects.get(projectId) === null ||
+          record === undefined ||
+          record.snapshot.projectId !== projectId
+        ) {
+          throw new NotFoundError(
+            `Share ${shareId} not found for Project ${projectId}`,
+            "SHARE_NOT_FOUND",
+          );
         }
+        if (record.snapshot.revokedAt !== null) return;
+        shares.set(shareId, {
+          ...record,
+          snapshot: {
+            ...record.snapshot,
+            status: "revoked",
+            revokedAt: clock(),
+          },
+        });
       },
       getPublic: async (shareToken): Promise<PublicShareSnapshot | null> => {
         const shareId = shareByToken.get(shareToken);
         if (!shareId) return null;
         const record = shares.get(shareId);
-        if (!record || record.snapshot.status !== "active") return null;
-        if (Date.parse(record.snapshot.expiresAt) <= Date.parse(clock())) {
+        if (
+          !record ||
+          shareStatus(record.snapshot, clock()).status !== "active"
+        ) {
           return null;
         }
         return {

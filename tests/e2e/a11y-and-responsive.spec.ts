@@ -91,15 +91,19 @@ test.describe("mobile viewport @ 375px", () => {
     expect(scrollWidth).toBeLessThanOrEqual(375);
   });
 
-  test("workspace collapses panels and stays usable", async ({ page }) => {
+  test("workspace keeps collapsible side regions and stays usable", async ({
+    page,
+  }) => {
     await page.goto("http://127.0.0.1:5173/workspace");
 
     await expect(
       page.getByRole("heading", { name: "科研工作区" }),
     ).toBeVisible();
 
-    // Side panels hidden on mobile (≤60rem), main canvas visible
+    // Both regions remain reachable through their native disclosure controls.
     await expect(page.locator("#research-canvas")).toBeVisible();
+    await expect(page.locator(".research-atlas summary")).toBeVisible();
+    await expect(page.locator(".provenance-observatory summary")).toBeVisible();
 
     // No horizontal scroll
     const scrollWidth = await page.evaluate(

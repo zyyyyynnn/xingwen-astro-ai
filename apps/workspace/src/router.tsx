@@ -9,104 +9,92 @@ import type {
   ErrorComponentProps,
   RouterHistory,
 } from "@tanstack/react-router";
-import { BrandMark } from "@xingwen/ui";
+
 import type { WorkspaceRuntimeBoundaries } from "./boundaries";
+import { EntryPage } from "./pages/entry-page";
+import { SharePage } from "./pages/share-page";
+import { TourPage } from "./pages/tour-page";
+import { WorkspacePage } from "./pages/workspace-page";
+
+interface TourSearch {
+  readonly projectId?: string;
+  readonly draftId?: string;
+  readonly contractId?: string;
+  readonly runId?: string;
+}
+
+interface WorkspaceSearch {
+  readonly projectId?: string;
+  readonly draftId?: string;
+  readonly contractId?: string;
+  readonly runId?: string;
+}
+
+function optionalIdentifier(
+  search: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = search[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !value.trim() || value.length > 128) {
+    throw new Error(`Invalid ${key} search parameter.`);
+  }
+  return value;
+}
+
+function validateTourSearch(search: Record<string, unknown>): TourSearch {
+  return {
+    projectId: optionalIdentifier(search, "projectId"),
+    draftId: optionalIdentifier(search, "draftId"),
+    contractId: optionalIdentifier(search, "contractId"),
+    runId: optionalIdentifier(search, "runId"),
+  };
+}
+
+function validateWorkspaceSearch(
+  search: Record<string, unknown>,
+): WorkspaceSearch {
+  return {
+    projectId: optionalIdentifier(search, "projectId"),
+    draftId: optionalIdentifier(search, "draftId"),
+    contractId: optionalIdentifier(search, "contractId"),
+    runId: optionalIdentifier(search, "runId"),
+  };
+}
 
 function RootLayout() {
+  return <Outlet />;
+}
+
+function TourRoute() {
+  const search = tourRoute.useSearch();
   return (
-    <div className="workspace-shell">
-      <a className="skip-link" href="#research-canvas">
-        跳到研究画布
-      </a>
-      <header className="top-status-rail" role="banner">
-        <BrandMark />
-        <nav aria-label="主要导航">
-          <Link to="/" activeOptions={{ exact: true }}>
-            入口
-          </Link>
-          <Link to="/tour">引导</Link>
-          <Link to="/workspace">工作区</Link>
-        </nav>
-        <span className="rail-status" aria-label="当前状态">
-          占位状态
-        </span>
-      </header>
-      <div className="workspace-body">
-        <aside className="research-atlas" aria-label="Research Atlas">
-          <p className="region-label">Research Atlas</p>
-          <p className="region-placeholder">项目列表占位</p>
-        </aside>
-        <main
-          id="research-canvas"
-          className="research-canvas"
-          role="main"
-          tabIndex={-1}
-        >
-          <Outlet />
-        </main>
-        <aside
-          className="provenance-observatory"
-          aria-label="Provenance Observatory"
-        >
-          <p className="region-label">Provenance Observatory</p>
-          <p className="region-placeholder">证据来源占位</p>
-        </aside>
-      </div>
-      <footer className="research-console" aria-label="Research Console">
-        <p className="region-label">Research Console</p>
-        <p className="region-placeholder">研究指令台占位（收起）</p>
-      </footer>
-    </div>
+    <TourPage
+      key={`${search.projectId ?? ""}:${search.draftId ?? ""}:${search.contractId ?? ""}:${search.runId ?? ""}`}
+      {...search}
+    />
   );
 }
 
-function EntryPage() {
+function WorkspaceRoute() {
+  const search = workspaceRoute.useSearch();
   return (
-    <section className="route-content" aria-labelledby="route-title">
-      <h1 id="route-title">科研工作台入口</h1>
-      <p>
-        确认独立 React
-        应用、路由与共享包边界可运行。完整科研业务行为由后续事项实现。
-      </p>
-    </section>
+    <WorkspacePage
+      key={`${search.projectId ?? ""}:${search.draftId ?? ""}:${search.contractId ?? ""}:${search.runId ?? ""}`}
+      {...search}
+    />
   );
 }
 
-function TourPage() {
-  return (
-    <section className="route-content" aria-labelledby="route-title">
-      <h1 id="route-title">引导入口</h1>
-      <p>保留引导路径身份；完整引导流程由后续事项实现。</p>
-    </section>
-  );
-}
-
-function WorkspacePage() {
-  return (
-    <section className="route-content" aria-labelledby="route-title">
-      <h1 id="route-title">科研工作区</h1>
-      <p>
-        工作台 Shell 五区域已就位：Top Status Rail、Research Atlas、Research
-        Canvas、Provenance Observatory 与 Research Console。Project、Run 与
-        Artifact 行为尚未接入。
-      </p>
-    </section>
-  );
-}
-
-function SharePage() {
-  return (
-    <section className="route-content" aria-labelledby="route-title">
-      <h1 id="route-title">共享入口</h1>
-      <p>保留共享深链接身份；本轮不读取或展示共享数据。</p>
-    </section>
-  );
+function ShareRoute() {
+  const { shareToken } = shareRoute.useParams();
+  return <SharePage key={shareToken} shareToken={shareToken} />;
 }
 
 function LoadingPage() {
   return (
     <section className="route-content" aria-busy="true" aria-live="polite">
-      <h1>正在载入入口</h1>
+      <h1>正在载入</h1>
     </section>
   );
 }
@@ -150,19 +138,21 @@ const indexRoute = createRoute({
 const tourRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/tour",
-  component: TourPage,
+  validateSearch: validateTourSearch,
+  component: TourRoute,
 });
 
 const workspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/workspace",
-  component: WorkspacePage,
+  validateSearch: validateWorkspaceSearch,
+  component: WorkspaceRoute,
 });
 
 const shareRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/share/$shareToken",
-  component: SharePage,
+  component: ShareRoute,
 });
 
 const routeTree = rootRoute.addChildren([

@@ -22,7 +22,11 @@ a {
 }
 
 a:focus-visible,
-button:focus-visible {
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;
 }
@@ -79,16 +83,24 @@ button:focus-visible {
 }
 
 .rail-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
   margin-left: auto;
   color: var(--color-ink-tertiary);
   font-size: var(--font-size-1);
   font-family: var(--xw-font-mono);
 }
 
+.rail-status > span {
+  white-space: nowrap;
+}
+
 /* Workspace body — Atlas | Canvas | Observatory */
 .workspace-body {
   display: grid;
   grid-template-columns: 17.25rem 1fr 22.5rem;
+  grid-template-areas: "atlas canvas observatory";
   min-height: 0;
 }
 
@@ -102,17 +114,20 @@ button:focus-visible {
 }
 
 .research-atlas {
+  grid-area: atlas;
   border-right: 1px solid var(--color-border);
   background: var(--color-surface-muted);
 }
 
 .provenance-observatory {
+  grid-area: observatory;
   border-left: 1px solid var(--color-border);
   background: var(--color-surface-muted);
 }
 
 /* Research Canvas — adaptive center */
 .research-canvas {
+  grid-area: canvas;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -129,7 +144,7 @@ button:focus-visible {
   font-family: var(--xw-font-serif);
   font-size: var(--font-size-6);
   font-weight: 520;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   line-height: 1.2;
 }
 
@@ -164,6 +179,11 @@ button:hover {
   background: var(--color-surface-hover);
 }
 
+button:disabled {
+  color: var(--color-ink-tertiary);
+  cursor: not-allowed;
+}
+
 /* Research Console — 76px collapsed */
 .research-console {
   display: flex;
@@ -189,26 +209,225 @@ button:hover {
   margin: 0;
   color: var(--color-ink-secondary);
   font-size: var(--font-size-1);
+  overflow-wrap: anywhere;
 }
 
-/* Responsive: collapse right panel first, then left */
+.region-details {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.region-details > summary {
+  color: var(--color-ink-primary);
+  cursor: pointer;
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+
+.status-line {
+  margin-block: 0.5rem 1rem;
+  color: var(--color-ink-secondary);
+  font-family: var(--xw-font-mono);
+  font-size: var(--font-size-1);
+}
+
+.work-panel,
+.alert-panel {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-block: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.alert-panel {
+  padding-inline-start: 0.875rem;
+  border-inline-start: 3px solid var(--color-focus);
+}
+
+.work-panel h2,
+.alert-panel h2,
+.public-share-page h2 {
+  margin: 0;
+  color: var(--color-ink-primary);
+  font-size: var(--font-size-4);
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.work-panel label,
+.layout-control,
+.run-control {
+  display: grid;
+  gap: 0.375rem;
+  color: var(--color-ink-primary);
+  font-size: var(--font-size-2);
+  font-weight: 600;
+}
+
+.layout-control {
+  max-width: 18rem;
+  margin-top: 1rem;
+}
+
+.run-control {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink-primary);
+  font: inherit;
+}
+
+input,
+select {
+  min-height: 2.5rem;
+  padding-inline: 0.75rem;
+}
+
+textarea {
+  min-height: 6rem;
+  padding: 0.75rem;
+  resize: vertical;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-tertiary);
+}
+
+.mode-control {
+  display: grid;
+  gap: 0.625rem;
+  margin: 1rem 0;
+  padding: 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.mode-control legend {
+  padding-inline: 0.25rem;
+  color: var(--color-ink-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+
+.mode-control label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-2);
+}
+
+.mode-control input {
+  width: auto;
+  min-height: 1rem;
+}
+
+.action-row,
+.console-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  align-items: center;
+}
+
+.console-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  color: var(--color-ink-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+
+.atlas-item {
+  width: 100%;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.event-list,
+.share-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.event-list li,
+.share-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-2);
+  overflow-wrap: anywhere;
+}
+
+.share-list li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.public-share-page {
+  max-width: 54rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.public-share-page h1 {
+  margin: 0.25rem 0 0.75rem;
+  font-family: var(--xw-font-serif);
+  font-size: var(--font-size-6);
+  font-weight: 520;
+  letter-spacing: 0;
+}
+
+.public-share-page section {
+  margin-top: 1.5rem;
+}
+
+/* Responsive: preserve both side regions as native disclosure controls. */
 @media (max-width: 80rem) {
   .workspace-body {
-    grid-template-columns: 17.25rem 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "atlas"
+      "canvas"
+      "observatory";
   }
 
+  .research-atlas,
   .provenance-observatory {
-    display: none;
-  }
-}
-
-@media (max-width: 60rem) {
-  .workspace-body {
-    grid-template-columns: 1fr;
+    min-width: 0;
+    padding: 0.875rem 1rem;
+    overflow: visible;
   }
 
   .research-atlas {
-    display: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .provenance-observatory {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
   }
 }
 
@@ -224,5 +443,19 @@ button:hover {
 
   .research-canvas {
     padding: 1rem;
+  }
+
+  .research-console {
+    align-items: flex-start;
+    padding-block: 0.75rem;
+  }
+
+  .console-actions,
+  .console-actions > * {
+    width: 100%;
+  }
+
+  .public-share-page {
+    padding: 1.25rem 1rem;
   }
 }
