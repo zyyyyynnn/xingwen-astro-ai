@@ -20,7 +20,9 @@ describe("WorkspaceController", () => {
     updatedAt: "2026-07-22T00:00:00Z" as never,
   };
 
-  const createMockRepositories = (initialSnapshot: WorkspaceSnapshot | null = mockSnapshot) => {
+  const createMockRepositories = (
+    initialSnapshot: WorkspaceSnapshot | null = mockSnapshot,
+  ) => {
     let current = initialSnapshot;
     return {
       workspaces: {
@@ -53,9 +55,9 @@ describe("WorkspaceController", () => {
   it("loads existing snapshot", async () => {
     const repos = createMockRepositories();
     const controller = createWorkspaceController(repos);
-    
+
     await controller.load(mockProjectId);
-    
+
     const state = controller.getState();
     expect(state.status).toBe("ready");
     if (state.status === "ready") {
@@ -66,9 +68,9 @@ describe("WorkspaceController", () => {
   it("initializes default snapshot if none exists", async () => {
     const repos = createMockRepositories(null);
     const controller = createWorkspaceController(repos);
-    
+
     await controller.load(mockProjectId);
-    
+
     const state = controller.getState();
     expect(state.status).toBe("ready");
     if (state.status === "ready") {
@@ -81,9 +83,9 @@ describe("WorkspaceController", () => {
     const repos = createMockRepositories();
     const controller = createWorkspaceController(repos);
     await controller.load(mockProjectId);
-    
+
     await controller.setLayoutPreset("focus");
-    
+
     const state = controller.getState();
     expect(state.status).toBe("ready");
     if (state.status === "ready") {
@@ -96,20 +98,20 @@ describe("WorkspaceController", () => {
     const repos = createMockRepositories();
     const controller = createWorkspaceController(repos);
     await controller.load(mockProjectId);
-    
+
     // Simulate someone else updating the snapshot directly in the DB
     // by calling the mock save function to increment the revision.
     await repos.workspaces.save(
       mockProjectId,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { layoutPreset: "grid" } as any,
-      1
+      1,
     );
 
     // Now our controller has revision 1, but DB has revision 2.
     // Our update should fail on revision 1, fetch latest (rev 2), and retry automatically.
     await controller.setLayoutPreset("focus");
-    
+
     const state = controller.getState();
     expect(state.status).toBe("ready");
     if (state.status === "ready") {

@@ -297,7 +297,7 @@ export function createFixtureRepositories(
       save: async (projectId, snapshotInput, expectedRevision) => {
         const existing = workspaces.filter((w) => w.projectId === projectId)[0];
         const currentRevision = existing ? existing.revision : 0;
-        
+
         if (currentRevision !== expectedRevision) {
           const { ConflictError } = await import("./http-errors");
           throw new ConflictError(
@@ -346,7 +346,7 @@ export function createFixtureRepositories(
         return {
           ...snapshot,
           shareToken: token,
-          shareUrl: `https://example.com/share/${token}`
+          shareUrl: `https://example.com/share/${token}`,
         };
       },
       getByProjectIdAndShareId: async (projectId, shareId) => {
@@ -363,7 +363,9 @@ export function createFixtureRepositories(
       },
       getPublicShare: async (shareToken) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const share = shares.filter((s) => (s as any).shareToken === shareToken)[0];
+        const share = shares.filter(
+          (s) => (s as any).shareToken === shareToken,
+        )[0];
         if (!share || share.status !== "active") return null;
         // In fixture we just return a stubbed PublicShareSnapshot
         // Since we don't have the artifact inline in fixture share, we'd need to mock it if requested.

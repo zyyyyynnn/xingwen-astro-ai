@@ -143,7 +143,10 @@ export function createWorkspaceController(
         state = { status: "ready", snapshot };
         notify();
       } catch (err) {
-        state = { status: "error", error: err instanceof Error ? err : new Error(String(err)) };
+        state = {
+          status: "error",
+          error: err instanceof Error ? err : new Error(String(err)),
+        };
         notify();
       }
     },
@@ -154,7 +157,9 @@ export function createWorkspaceController(
       })),
     setPanelSlot: (slot: WorkspacePanelSlot) =>
       updateSnapshot((input) => {
-        const otherSlots = input.panelSlots.filter((s) => s.slotId !== slot.slotId);
+        const otherSlots = input.panelSlots.filter(
+          (s) => s.slotId !== slot.slotId,
+        );
         return {
           ...input,
           panelSlots: [...otherSlots, slot],
@@ -171,7 +176,9 @@ export function createWorkspaceController(
     unpinEvidence: (evidenceId: DomainEntityId) =>
       updateSnapshot((input) => ({
         ...input,
-        pinnedEvidenceIds: input.pinnedEvidenceIds.filter((id) => id !== evidenceId),
+        pinnedEvidenceIds: input.pinnedEvidenceIds.filter(
+          (id) => id !== evidenceId,
+        ),
       })),
     setActiveRun: (runId: DomainEntityId | null) =>
       updateSnapshot((input) => ({

@@ -727,7 +727,11 @@ export function createHttpRepositories(
         { "If-Match": `"${expectedRevision}"` },
       );
       if (!payload) {
-        throw new UnexpectedHttpError("Workspace save returned no data", 200, null);
+        throw new UnexpectedHttpError(
+          "Workspace save returned no data",
+          200,
+          null,
+        );
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return mapWorkspaceSnapshot(payload as any);
