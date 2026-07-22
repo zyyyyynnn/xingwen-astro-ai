@@ -1,0 +1,304 @@
+{
+  "$defs": {
+    "ArtifactKind": {
+      "enum": [
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+        "paper_collection",
+        "paper_summary",
+        "literature_claims",
+        "literature_relations",
+        "reasoning_traces",
+        "graph",
+        "export"
+      ],
+      "title": "ArtifactKind",
+      "type": "string"
+    },
+    "DataRequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "unit_policy": {
+          "$ref": "#/$defs/UnitPolicy",
+          "default": "canonical"
+        }
+      },
+      "title": "DataRequirements",
+      "type": "object"
+    },
+    "EvidenceRequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "minimum_coverage": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Minimum Coverage",
+          "type": "number"
+        },
+        "require_locator": {
+          "default": true,
+          "title": "Require Locator",
+          "type": "boolean"
+        },
+        "require_source_snapshot": {
+          "default": true,
+          "title": "Require Source Snapshot",
+          "type": "boolean"
+        }
+      },
+      "title": "EvidenceRequirements",
+      "type": "object"
+    },
+    "PaperSearchScope": {
+      "additionalProperties": false,
+      "properties": {
+        "keywords": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Keywords",
+          "type": "array"
+        },
+        "max_candidates": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Max Candidates",
+          "type": "integer"
+        },
+        "source_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "year_from": {
+          "anyOf": [
+            {
+              "maximum": 9999,
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year From"
+        },
+        "year_to": {
+          "anyOf": [
+            {
+              "maximum": 9999,
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year To"
+        }
+      },
+      "title": "PaperSearchScope",
+      "type": "object"
+    },
+    "QualityConstraints": {
+      "additionalProperties": false,
+      "properties": {
+        "source_completeness_min": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Source Completeness Min",
+          "type": "number"
+        },
+        "unit_consistency_min": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Unit Consistency Min",
+          "type": "number"
+        }
+      },
+      "title": "QualityConstraints",
+      "type": "object"
+    },
+    "SourceScope": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_sources": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Allowed Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "allowed_sources"
+      ],
+      "title": "SourceScope",
+      "type": "object"
+    },
+    "UnitPolicy": {
+      "enum": [
+        "canonical"
+      ],
+      "title": "UnitPolicy",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "created_at": "2026-07-21T08:00:00Z",
+      "created_from_draft_id": "rcd_01JEXAMPLE",
+      "data_requirements": {
+        "unit_policy": "canonical"
+      },
+      "evidence_requirements": {},
+      "id": "rc_01JEXAMPLE",
+      "output_requirements": [
+        "dataset",
+        "graph"
+      ],
+      "paper_search_scope": {
+        "max_candidates": 20
+      },
+      "project_id": "proj_01JEXAMPLE",
+      "quality_constraints": {},
+      "requested_fields": [
+        "planet.toi_id",
+        "star.tic_id"
+      ],
+      "research_goal": "Integrate exoplanet candidates and host-star parameters",
+      "source_scope": {
+        "allowed_sources": [
+          "nasa_exoplanet_archive"
+        ]
+      },
+      "target_objects": [
+        "exoplanet_candidate",
+        "host_star"
+      ],
+      "version": 1
+    }
+  ],
+  "properties": {
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "created_from_draft_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Created From Draft Id",
+      "type": "string"
+    },
+    "data_requirements": {
+      "$ref": "#/$defs/DataRequirements"
+    },
+    "evidence_requirements": {
+      "$ref": "#/$defs/EvidenceRequirements"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "output_requirements": {
+      "items": {
+        "$ref": "#/$defs/ArtifactKind"
+      },
+      "minItems": 1,
+      "title": "Output Requirements",
+      "type": "array"
+    },
+    "paper_search_scope": {
+      "$ref": "#/$defs/PaperSearchScope"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "quality_constraints": {
+      "$ref": "#/$defs/QualityConstraints"
+    },
+    "requested_fields": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Requested Fields",
+      "type": "array"
+    },
+    "research_goal": {
+      "maxLength": 500,
+      "minLength": 4,
+      "title": "Research Goal",
+      "type": "string"
+    },
+    "source_scope": {
+      "$ref": "#/$defs/SourceScope"
+    },
+    "target_objects": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Target Objects",
+      "type": "array"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "research_goal",
+    "target_objects",
+    "data_requirements",
+    "requested_fields",
+    "source_scope",
+    "paper_search_scope",
+    "output_requirements",
+    "evidence_requirements",
+    "quality_constraints",
+    "id",
+    "project_id",
+    "version",
+    "created_from_draft_id",
+    "created_at",
+    "content_hash"
+  ],
+  "title": "ResearchContract",
+  "type": "object"
+}

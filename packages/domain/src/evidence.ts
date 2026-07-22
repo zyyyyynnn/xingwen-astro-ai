@@ -1,0 +1,101 @@
+/**
+ * Evidence domain model and locator discriminated union.
+ *
+ * The entity shape follows [Data Model §10](../../docs/architecture/DATA_MODEL.md).
+ * Evidence is a frontend domain entity without a standalone `/api/v2` transport
+ * schema; it is projected from ArtifactVersion evidence ids and source
+ * snapshots. Repository adapters (including the fixture adapter) produce
+ * Evidence instances directly in domain form.
+ *
+ * The `evidenceType` enum reuses the canonical values defined by the v1
+ * `EvidenceType` contract so the vocabulary stays consistent across phases.
+ */
+
+import type { DomainEntityId } from "./identifiers";
+import type { UtcIsoTimestamp } from "./value-types";
+
+export const EVIDENCE_TYPES = [
+  "database_query",
+  "paper_search",
+  "paper_metadata",
+  "paper_text",
+  "model_extraction",
+  "reasoning_trace",
+  "user_feedback",
+  "cache_record",
+] as const;
+export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
+
+/**
+ * The kind of domain object an Evidence record locates. Mirrors the feedback
+ * target set in [Data Model §11](../../docs/architecture/DATA_MODEL.md).
+ */
+export const EVIDENCE_TARGET_TYPES = [
+  "field",
+  "source",
+  "paper",
+  "paper_summary",
+  "claim",
+  "relation",
+  "reasoning_trace",
+  "graph_edge",
+] as const;
+export type EvidenceTargetType = (typeof EVIDENCE_TARGET_TYPES)[number];
+
+/** Discriminator for the {@link EvidenceLocator} union. */
+export const LOCATOR_KINDS = [
+  "database_cell",
+  "paper_text",
+  "model_extraction",
+  "reasoning_trace",
+] as const;
+export type LocatorKind = (typeof LOCATOR_KINDS)[number];
+
+export interface DatabaseCellLocator {
+  readonly kind: "database_cell";
+  readonly queryHash: string;
+  readonly rowKey: string;
+  readonly field: DomainEntityId;
+}
+
+export interface PaperTextLocator {
+  readonly kind: "paper_text";
+  readonly section: string;
+  readonly page: number | null;
+  readonly paragraph: number | null;
+  readonly range: string | null;
+}
+
+export interface ModelExtractionLocator {
+  readonly kind: "model_extraction";
+  readonly inputEvidenceId: DomainEntityId;
+  readonly promptName: string;
+  readonly modelVersion: string;
+}
+
+export interface ReasoningTraceLocator {
+  readonly kind: "reasoning_trace";
+  readonly relationId: DomainEntityId;
+  readonly stepKey: DomainEntityId;
+}
+
+export type EvidenceLocator =
+  | DatabaseCellLocator
+  | PaperTextLocator
+  | ModelExtractionLocator
+  | ReasoningTraceLocator;
+
+export interface Evidence {
+  readonly id: DomainEntityId;
+  readonly artifactVersionId: DomainEntityId;
+  readonly targetType: EvidenceTargetType;
+  readonly targetId: DomainEntityId;
+  readonly evidenceType: EvidenceType;
+  readonly sourceSnapshotId: DomainEntityId | null;
+  readonly paperId: DomainEntityId | null;
+  readonly locator: EvidenceLocator | null;
+  readonly quoteOrValue: string | null;
+  readonly extractionMethod: string;
+  readonly confidence: number;
+  readonly createdAt: UtcIsoTimestamp;
+}

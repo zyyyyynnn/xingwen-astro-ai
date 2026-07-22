@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------- |
 | Status         | Accepted                                                |
 | Authority      | 前端运行时、目录、依赖方向、构建与质量门禁              |
-| Implementation | A-01 runtime Current；A-02 视觉与 A-03 业务行为 Pending |
+| Implementation | A-01 runtime Current；A-14 Domain/Fixture/Tour FSM Current；A-02 视觉与 A-03 业务行为 Pending |
 
 本文是前端运行时、目录、依赖方向、构建和质量门禁的唯一正文来源。A-01 只证明最小入口与工程边界，不代表完整科研产品界面已交付。
 
@@ -136,14 +136,14 @@ A-01 不实现完整首页叙事、WebGL、字体资产、社交预览或 A-02 �
 
 ## 7. Shared Package 当前边界
 
-| Package          | A-01 内容                                       | 后续 Issue                               |
+| Package          | 当前内容                                        | 后续 Issue                               |
 | ---------------- | ----------------------------------------------- | ---------------------------------------- |
 | `design-tokens`  | 基础浅色语义变量、字体 fallback、CSS 与 TS 入口 | A-02 冻结完整颜色、字体、间距和动效系统  |
 | `ui`             | 静态 `BrandMark` 与 UI 基元                      | A-02 建立 primitive 与复合组件           |
-| `domain`         | framework-free ID 与领域边界类型                | A-03 建立前端 Domain Model               |
-| `contracts`      | 声明 Pydantic authoring source 的消费边界       | B-04 / X-01 生成并接入 v2 Contract       |
-| `data-access`    | Repository 边界类型                             | A-03 / X-01 实现 Fixture 与 HTTP Adapter |
-| `workspace-core` | 工作台编排边界类型                              | A-03 实现 Contract、Tour 与状态编排      |
+| `domain`         | A-14 前端 Domain Model（Project、Contract、Run、ArtifactVersion、Evidence、ProvenanceState） | A-04～A-08 各科研工作区消费 |
+| `contracts`      | A-14 vendored B-15 JSON Schema + ajv 校验 + 生成 DTO 类型 | B-04 / X-01 生成并接入 v2 Contract |
+| `data-access`    | A-14 Repository Port + 版本化 Fixture Adapter   | A-15 HTTP Adapter                        |
+| `workspace-core` | A-14 Guided Tour FSM（八阶段状态机）            | A-03 Contract、Tour UI 与状态编排        |
 | `visual-engine`  | A-02 公开边界类型                               | A-02 实现生命周期与降级                  |
 | `testing`        | 共享入口地址                                    | 各前端 Issue 按实际测试需要扩展          |
 

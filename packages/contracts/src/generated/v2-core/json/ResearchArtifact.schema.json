@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "ArtifactKind": {
+      "enum": [
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+        "paper_collection",
+        "paper_summary",
+        "literature_claims",
+        "literature_relations",
+        "reasoning_traces",
+        "graph",
+        "export"
+      ],
+      "title": "ArtifactKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "created_at": "2026-07-21T08:00:00Z",
+      "id": "art_01JEXAMPLE",
+      "kind": "dataset",
+      "latest_version_id": "artv_01JEXAMPLE",
+      "logical_key": "dataset.primary",
+      "project_id": "proj_01JEXAMPLE",
+      "title": "Exoplanet host-star dataset"
+    }
+  ],
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/ArtifactKind"
+    },
+    "latest_version_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Latest Version Id"
+    },
+    "logical_key": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Logical Key",
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "project_id",
+    "kind",
+    "title",
+    "logical_key",
+    "created_at"
+  ],
+  "title": "ResearchArtifact",
+  "type": "object"
+}
