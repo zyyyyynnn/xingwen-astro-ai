@@ -133,7 +133,19 @@ def test_any_failed_admission_gate_prevents_candidate_creation() -> None:
 
 @pytest.mark.parametrize(
     "sensitive_key",
-    ("api_key", "openai_api_key", "proxy_authorization", "raw_model_output"),
+    (
+        "api_key",
+        "api_token",
+        "api_tokens",
+        "apitoken",
+        "auth_header",
+        "bearer_token",
+        "openai_api_key",
+        "private_key",
+        "privatekey",
+        "proxy_authorization",
+        "raw_model_output",
+    ),
 )
 def test_producer_parameters_reject_secret_and_raw_content_fields_before_storage(
     sensitive_key: str,
@@ -157,6 +169,33 @@ def test_producer_parameters_reject_secret_and_raw_content_fields_before_storage
     )
 
     with pytest.raises(ValueError, match="forbidden"):
+        ledger.start_producer_execution(
+            request,
+            token=uuid4(),
+            generation=1,
+            expected_status="planning",
+            expected_revision=3,
+        )
+
+
+def test_producer_parameters_do_not_reject_normal_token_count_settings() -> None:
+    def unused_factory() -> Callable[[], None]:
+        raise AssertionError("safe parameters reached the database boundary")
+
+    ledger = ProducerExecutionStore(unused_factory)  # type: ignore[arg-type]
+    request = ProducerExecutionRequest(
+        run_id=uuid4(),
+        step_key="planning",
+        attempt_id=uuid4(),
+        idempotency_key="producer-safe-token-count",
+        producer_type="model",
+        producer_name="qwen",
+        producer_version="1.0.0",
+        input_hash="sha256:" + "a" * 64,
+        parameters={"max_tokens": 4096},
+    )
+
+    with pytest.raises(AssertionError, match="database boundary"):
         ledger.start_producer_execution(
             request,
             token=uuid4(),

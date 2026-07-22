@@ -32,11 +32,16 @@ _PARAMETER_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _SENSITIVE_PARAMETER_KEY_FRAGMENTS = frozenset(
     {
         "api_key",
+        "apikey",
+        "apitoken",
+        "authheader",
         "authorization",
+        "bearertoken",
         "cookie",
         "credential",
         "database_url",
         "password",
+        "privatekey",
         "raw_model_output",
         "refresh_token",
         "restricted_full_text",
@@ -45,6 +50,24 @@ _SENSITIVE_PARAMETER_KEY_FRAGMENTS = frozenset(
         "access_token",
         "chain_of_thought",
     }
+)
+_TOKEN_CREDENTIAL_QUALIFIERS = frozenset(
+    {
+        "access",
+        "api",
+        "auth",
+        "authentication",
+        "authorization",
+        "bearer",
+        "refresh",
+        "session",
+    }
+)
+_KEY_CREDENTIAL_QUALIFIERS = frozenset(
+    {"api", "credential", "encryption", "private", "secret", "signing"}
+)
+_HEADER_CREDENTIAL_QUALIFIERS = frozenset(
+    {"auth", "authentication", "authorization", "bearer", "credential", "proxy"}
 )
 _PRODUCER_TYPES = frozenset({"pipeline", "model", "algorithm"})
 _PRODUCER_TERMINAL_STATUSES = frozenset(
@@ -742,7 +765,22 @@ def _validated_parameters(
 
 
 def _parameter_key_is_sensitive(key: str) -> bool:
-    return any(fragment in key for fragment in _SENSITIVE_PARAMETER_KEY_FRAGMENTS)
+    segments = frozenset(key.split("_"))
+    return (
+        any(fragment in key for fragment in _SENSITIVE_PARAMETER_KEY_FRAGMENTS)
+        or (
+            bool(segments & {"token", "tokens"})
+            and bool(segments & _TOKEN_CREDENTIAL_QUALIFIERS)
+        )
+        or (
+            bool(segments & {"key", "keys"})
+            and bool(segments & _KEY_CREDENTIAL_QUALIFIERS)
+        )
+        or (
+            bool(segments & {"header", "headers"})
+            and bool(segments & _HEADER_CREDENTIAL_QUALIFIERS)
+        )
+    )
 
 
 def _validated_usage(usage: Mapping[str, int] | None) -> dict[str, int] | None:
