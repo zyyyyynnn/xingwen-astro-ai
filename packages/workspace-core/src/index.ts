@@ -1,8 +1,24 @@
-import type { DomainBoundary } from "@xingwen/domain";
+/**
+ * @xingwen/workspace-core — workspace orchestration boundary.
+ *
+ * Currently provides the Guided Tour finite state machine that drives the
+ * Demo Replay / Live Run guided experience. The FSM is framework-free (depends
+ * only on `@xingwen/domain`); UI bindings are added by `apps/workspace`.
+ */
 
-/** Public workspace orchestration boundary only. Implementation starts with issue A-03. */
-export interface WorkspaceCoreBoundary {
-  readonly domain: DomainBoundary;
-  readonly implementationStatus: "pending";
-  readonly trackedIssue: "A-03";
-}
+export {
+  GUIDED_TOUR_STAGES,
+  INITIAL_TOUR_STATE,
+  canTransition,
+  createGuidedTourController,
+  transitionGuidedTour,
+} from "./guided-tour";
+export type {
+  GuidedTourController,
+  GuidedTourEvent,
+  GuidedTourStage,
+  GuidedTourState,
+  GuidedTourStatus,
+  GuidedTourTransitionError,
+  TourListener,
+} from "./guided-tour";
