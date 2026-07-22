@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | Run 状态、事件、取消、重试、缓存与派生语义 |
-| Implementation | #76 PostgreSQL baseline、#77 lease/fencing/recovery store 与 #78 ArtifactVersion atomic publisher Implemented；runtime adapter integration Pending |
-| Current runtime | `apps/api/src/app/workflow` 的 v1 Phase 0 状态机骨架 |
+| Implementation | #76 PostgreSQL baseline、#77 lease/fencing/recovery store、#78 ArtifactVersion atomic publisher 与 M1 v2 Run/Event Runtime Implemented；生产 Pipeline wiring Pending |
+| Current runtime | v1 Phase 0 状态机与 `/api/v2` M1 PersistentWorkflowStore Application |
 | Target runtime | Project / Run / ArtifactVersion 工作流 |
 
-本文定义目标 ResearchRun 编排、事件、取消、重试、缓存、修订与派生语义。当前 v1 Executor、Hooks 与测试继续作为可运行基线；本文不表示数据库 Hooks、真实 Pipeline 或 v2 API 已实现。
+本文定义 ResearchRun 编排、事件、取消、重试、缓存、修订与派生语义。当前 v1 Executor、Hooks 与测试继续作为兼容基线；M1 v2 Run 创建/读取与 Event 读取已接入 PersistentWorkflowStore，但数据库 Hooks、真实 Pipeline、对外取消资源、CacheSelector 与自动执行仍为 Pending。
 
 ## 1. 职责边界
 
@@ -191,7 +191,7 @@ GraphEdge 修订若影响 Relation、ReasoningTrace 或 Evidence，RevisionPlan 
 
 当前 v1 `ResearchTask` 快照同时校验顶层状态、进度和 Step 状态：初始 `pending` 快照不得包含已开始 Step，含 `running` Step 的快照不得为 `pending`，`completed` 快照的进度必须为 100。
 
-当前已实现 #76 的 PostgreSQL Schema、Alembic migration 和最小 Repository / Unit of Work 基线，#77 的 lease、条件状态事务、Attempt 自动重试账本、失败/取消、Event cursor 与一致性 Snapshot，以及 #78 的 ProducerExecution 账本、ArtifactVersion 原子发布与 Step/Run 成功推进。仍待实现：对外取消资源、派生 Run、真实 CacheSelector、各 Pipeline 的生产接线与 v2 API。
+当前已实现 #76 的 PostgreSQL Schema、Alembic migration 和最小 Repository / Unit of Work 基线，#77 的 lease、条件状态事务、Attempt 自动重试账本、失败/取消、Event cursor 与一致性 Snapshot，#78 的 ProducerExecution 账本、ArtifactVersion 原子发布与 Step/Run 成功推进，以及 M1 v2 Run/Event Application。仍待实现：对外取消资源、真实 CacheSelector、各 Pipeline 的生产接线与自动执行。
 
 迁移期间 v1 `ResearchTask` 可适配为一个 Project + 一个 Run，但 v2 语义不得回写破坏现有接口。
 

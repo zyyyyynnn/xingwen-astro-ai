@@ -441,7 +441,7 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 5. Fixture 与 HTTP Adapter 对同一 Contract Fixture 运行一致性测试。
 6. OpenAPI lint、Schema export diff 和生成类型漂移检查进入 CI。
 
-本轮未创建 OpenAPI 文件，因为当前 Pydantic 仍是唯一 authoring source，且用户明确禁止修改后端实现。目标 v2 Pydantic 模型落地后，生成的 `/api/v2/openapi.json` 才是机器可验证事实。
+当前 v2 OpenAPI 已由 Pydantic 唯一 authoring source 生成并提交，Runtime parity 自动核对冻结 operation 的 method、path、operationId、必需 Header 与成功响应 Schema；生成物漂移检查已进入 CI。
 
 ## 18. 非功能与安全验证
 
