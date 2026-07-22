@@ -1,3 +1,4 @@
+
 """Static contract tests for the PostgreSQL workflow model baseline."""
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ def test_workflow_tables_and_unique_invariants_are_declared() -> None:
     } <= set(Base.metadata.tables)
     assert ("project_id", "idempotency_key") in _unique_columns("research_runs")
     assert ("run_id", "key") in _unique_columns("run_steps")
+    assert ("run_id", "position") in _unique_columns("run_steps")
     assert ("run_step_id", "attempt_number") in _unique_columns("step_attempts")
     assert ("run_id", "sequence") in _unique_columns("run_events")
     assert ("artifact_id", "version_number") in _unique_columns("artifact_versions")
@@ -46,6 +48,12 @@ def test_models_compile_to_postgresql_uuid_jsonb_and_timestamptz() -> None:
     assert "TIMESTAMP WITH TIME ZONE" in version_sql
     assert "ck_artifact_versions_source_mode" in version_sql
     assert "ck_research_runs_status" in run_sql
+    assert "lease_generation" in run_sql
+    assert "lease_expires_at" in run_sql
+    assert "steps_frozen_at" in run_sql
+    assert "ck_run_steps_canonical_transition" in str(
+        CreateTable(Base.metadata.tables["run_steps"]).compile(dialect=dialect)
+    )
 
 
 def test_every_stable_text_state_has_a_database_check_constraint() -> None:

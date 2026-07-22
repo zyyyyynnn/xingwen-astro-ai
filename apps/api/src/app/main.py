@@ -1,3 +1,4 @@
+
 """FastAPI application entry point."""
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
+from app.db.session import create_engine_from_url, session_factory
 from app.errors import ApiError
 from app.middleware import (
     RequestIDMiddleware,
@@ -30,6 +32,8 @@ from app.routers import (
     tasks,
 )
 from app.security import InMemoryRateLimiter, InMemorySessionStore, SecurityProblem, SessionService
+from app.workflow.persistent_executor import PersistentWorkflowExecutor
+from app.workflow.store import PersistentWorkflowStore
 
 
 def create_app() -> FastAPI:
@@ -47,6 +51,17 @@ def create_app() -> FastAPI:
     app.state.session_rate_limiter = InMemoryRateLimiter(
         limit=settings.SESSION_CREATE_RATE_LIMIT
     )
+    app.state.workflow_store = None
+    app.state.workflow_executor = None
+    if settings.PERSISTENT_WORKFLOW_ENABLED:
+        if settings.DATABASE_URL is None:
+            raise RuntimeError(
+                "DATABASE_URL is required when PERSISTENT_WORKFLOW_ENABLED is true"
+            )
+        workflow_engine = create_engine_from_url(settings.DATABASE_URL.get_secret_value())
+        app.state.workflow_store = PersistentWorkflowStore(session_factory(workflow_engine))
+        app.state.workflow_executor = PersistentWorkflowExecutor(app.state.workflow_store)
+        app.router.add_event_handler("shutdown", workflow_engine.dispose)
     app.add_middleware(
         V2SecurityMiddleware,
         sessions=session_service,

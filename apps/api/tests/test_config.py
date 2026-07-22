@@ -1,3 +1,4 @@
+
 """Tests for production configuration guards."""
 
 from __future__ import annotations
@@ -14,6 +15,13 @@ def test_development_allows_local_defaults() -> None:
     assert settings.APP_ENV == "development"
     assert settings.DEBUG is True
     assert settings.SESSION_COOKIE_SECURE is False
+    assert settings.PERSISTENT_WORKFLOW_ENABLED is False
+
+
+def test_persistent_workflow_requires_explicit_feature_flag() -> None:
+    settings = Settings(_env_file=None, PERSISTENT_WORKFLOW_ENABLED=True)
+
+    assert settings.PERSISTENT_WORKFLOW_ENABLED is True
 
 
 def test_production_accepts_managed_database_url_without_postgres_password() -> None:
