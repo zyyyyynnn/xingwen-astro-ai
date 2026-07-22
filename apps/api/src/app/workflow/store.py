@@ -375,7 +375,6 @@ class PersistentWorkflowStore:
                 )
                 .values(
                     lease_expires_at=now + lease_duration,
-                    revision=ResearchRunModel.revision + 1,
                     updated_at=now,
                 )
                 .returning(ResearchRunModel.revision, ResearchRunModel.lease_expires_at)
