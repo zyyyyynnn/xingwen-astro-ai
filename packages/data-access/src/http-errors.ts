@@ -180,3 +180,23 @@ export function mapProblemDetails(
       return new UnexpectedHttpError(detail, status, code);
   }
 }
+
+/** Parse an HTTP error response and map it to the stable adapter error model. */
+export async function errorFromResponse(response: Response): Promise<Error> {
+  let problem: ProblemDetails | null = null;
+  try {
+    const text = await response.clone().text();
+    if (text) problem = JSON.parse(text) as ProblemDetails;
+  } catch {
+    // Invalid or empty error bodies fall back to the HTTP status metadata.
+  }
+
+  return mapProblemDetails(
+    {
+      ...problem,
+      status: problem?.status ?? response.status,
+      detail: problem?.detail ?? problem?.title ?? response.statusText,
+    },
+    response.headers,
+  );
+}

@@ -14,6 +14,9 @@ import type {
   DataCell,
   DomainEntityId,
   Evidence,
+  EvidenceLocator,
+  EvidenceTargetType,
+  EvidenceType,
   ExecutionMode,
   NonEmptyString,
   ProducerReference,
@@ -40,10 +43,13 @@ import { asEntityId } from "@xingwen/domain";
 
 import type {
   ArtifactVersion as ArtifactVersionDto,
+  ArtifactVersionDetail as ArtifactVersionDetailDto,
   DataRequirements as DataRequirementsDto,
+  EvidenceRead as EvidenceReadDto,
   PaperSearchScope as PaperSearchScopeDto,
   ProducerReference as ProducerReferenceDto,
   ResearchArtifact as ResearchArtifactDto,
+  ResearchArtifactDetail as ResearchArtifactDetailDto,
   ResearchContract as ResearchContractDto,
   ResearchContractDraft as ResearchContractDraftDto,
   ResearchContractInput as ResearchContractInputDto,
@@ -306,6 +312,47 @@ export function mapResearchArtifact(
   };
 }
 
+/**
+ * Map the richer `ResearchArtifactDetail` read projection down to the domain
+ * `ResearchArtifact`. The extra `versions` summaries are validated by the
+ * contract but not part of the base identity the workspace consumes.
+ */
+export function mapResearchArtifactDetail(
+  dto: ResearchArtifactDetailDto,
+): ResearchArtifact {
+  return mapResearchArtifact(dto);
+}
+
+/**
+ * Map the unified `ArtifactVersionDetail` read projection to the domain
+ * `ArtifactVersion`. Detail types `content` as a loose object, so it is
+ * narrowed to the discriminated union after schema validation.
+ */
+export function mapArtifactVersionDetail(
+  dto: ArtifactVersionDetailDto,
+): ArtifactVersion {
+  return {
+    id: mapId(dto.id),
+    artifactId: mapId(dto.artifact_id),
+    projectId: mapId(dto.project_id),
+    createdByRunId: mapId(dto.created_by_run_id),
+    versionNumber: dto.version_number,
+    schemaVersion: dto.schema_version,
+    content: mapArtifactContent(
+      dto.content as unknown as ArtifactVersionDto["content"],
+    ),
+    contentHash: dto.content_hash as ContentHash,
+    inputHash: dto.input_hash as ContentHash,
+    sourceMode: dto.source_mode as SourceMode,
+    producer: mapProducer(dto.producer),
+    sourceSnapshotIds: mapIds(dto.source_snapshot_ids),
+    evidenceIds: mapIds(dto.evidence_ids),
+    supersedesVersionId: (dto.supersedes_version_id ??
+      null) as DomainEntityId | null,
+    createdAt: dto.created_at as UtcIsoTimestamp,
+  };
+}
+
 export function mapWorkspaceSnapshot(
   dto: WorkspaceSnapshotDto,
 ): WorkspaceSnapshot {
@@ -504,12 +551,85 @@ export function buildFixtureProvenance(
 }
 
 /**
- * Evidence is a frontend domain entity without a v2 transport schema.
- * Fixture evidence is provided directly in domain form (camelCase), so no
- * mapping is needed — this identity function exists for API symmetry.
+ * Fixture evidence is already provided in domain form (camelCase), so no
+ * transport mapping is needed for the fixture adapter.
  */
 export function mapEvidence(entity: Evidence): Evidence {
   return entity;
+}
+
+function readString(raw: Record<string, unknown>, key: string): string {
+  const value = raw[key];
+  return typeof value === "string" ? value : "";
+}
+
+function readNumberOrNull(
+  raw: Record<string, unknown>,
+  key: string,
+): number | null {
+  const value = raw[key];
+  return typeof value === "number" ? value : null;
+}
+
+/** Narrow the opaque wire locator dict to the domain discriminated union. */
+function mapEvidenceLocator(raw: unknown): EvidenceLocator | null {
+  if (raw === null || typeof raw !== "object") return null;
+  const record = raw as Record<string, unknown>;
+  switch (record.kind) {
+    case "database_cell":
+      return {
+        kind: "database_cell",
+        queryHash: readString(record, "query_hash"),
+        rowKey: readString(record, "row_key"),
+        field: mapId(readString(record, "field")),
+      };
+    case "paper_text":
+      return {
+        kind: "paper_text",
+        section: readString(record, "section"),
+        page: readNumberOrNull(record, "page"),
+        paragraph: readNumberOrNull(record, "paragraph"),
+        range: typeof record.range === "string" ? record.range : null,
+      };
+    case "model_extraction":
+      return {
+        kind: "model_extraction",
+        inputEvidenceId: mapId(readString(record, "input_evidence_id")),
+        promptName: readString(record, "prompt_name"),
+        modelVersion: readString(record, "model_version"),
+      };
+    case "reasoning_trace":
+      return {
+        kind: "reasoning_trace",
+        relationId: mapId(readString(record, "relation_id")),
+        stepKey: mapId(readString(record, "step_key")),
+      };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Map the `EvidenceRead` transport projection to the domain `Evidence`. The
+ * wire locator is an opaque object typed loosely by the contract, so it is
+ * narrowed here; unknown locator kinds map to `null` rather than guessing.
+ */
+export function mapEvidenceRead(dto: EvidenceReadDto): Evidence {
+  return {
+    id: mapId(dto.id),
+    artifactVersionId: mapId(dto.artifact_version_id),
+    targetType: dto.target_type as EvidenceTargetType,
+    targetId: mapId(dto.target_id),
+    evidenceType: dto.evidence_type as EvidenceType,
+    sourceSnapshotId: mapId(dto.source_snapshot_id),
+    paperId: (dto.paper_id ?? null) as DomainEntityId | null,
+    locator: mapEvidenceLocator(dto.locator),
+    quoteOrValue:
+      typeof dto.quote_or_value === "string" ? dto.quote_or_value : null,
+    extractionMethod: dto.extraction_method,
+    confidence: dto.confidence,
+    createdAt: dto.created_at as UtcIsoTimestamp,
+  };
 }
 
 export function mapDomainContractInputToDto(

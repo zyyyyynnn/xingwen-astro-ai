@@ -1,0 +1,182 @@
+{
+  "$defs": {
+    "ArtifactKind": {
+      "enum": [
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+        "paper_collection",
+        "paper_summary",
+        "literature_claims",
+        "literature_relations",
+        "reasoning_traces",
+        "graph",
+        "export"
+      ],
+      "title": "ArtifactKind",
+      "type": "string"
+    },
+    "PublicArtifactVersion": {
+      "additionalProperties": false,
+      "description": "Redacted immutable version metadata safe for an anonymous share response.",
+      "properties": {
+        "artifact_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ArtifactKind"
+        },
+        "schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "version_number": {
+          "minimum": 1,
+          "title": "Version Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "artifact_id",
+        "kind",
+        "title",
+        "version_number",
+        "schema_version",
+        "content_hash",
+        "source_mode",
+        "created_at"
+      ],
+      "title": "PublicArtifactVersion",
+      "type": "object"
+    },
+    "PublicEvidence": {
+      "additionalProperties": false,
+      "description": "Minimal Evidence identity bound to a shared immutable version.",
+      "properties": {
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "artifact_version_id",
+        "source_snapshot_id"
+      ],
+      "title": "PublicEvidence",
+      "type": "object"
+    },
+    "ShareRedactionPolicy": {
+      "enum": [
+        "public_metadata_only"
+      ],
+      "title": "ShareRedactionPolicy",
+      "type": "string"
+    },
+    "SourceMode": {
+      "enum": [
+        "fixture",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Anonymous read-only projection frozen when the share is created.",
+  "properties": {
+    "artifact_versions": {
+      "items": {
+        "$ref": "#/$defs/PublicArtifactVersion"
+      },
+      "title": "Artifact Versions",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/PublicEvidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "redaction_policy": {
+      "$ref": "#/$defs/ShareRedactionPolicy"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "artifact_versions",
+    "evidence",
+    "redaction_policy",
+    "created_at",
+    "expires_at"
+  ],
+  "title": "PublicShareSnapshot",
+  "type": "object"
+}

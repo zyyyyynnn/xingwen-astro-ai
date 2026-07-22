@@ -12,17 +12,21 @@
  * inspecting error types.
  */
 
+import { parseV2Dto, type SessionCreated } from "@xingwen/contracts";
+
+import { errorFromResponse, NetworkError } from "./http-errors";
+
 export interface SessionInfo {
-  readonly sessionId: string;
+  readonly status: SessionCreated["status"];
+  readonly createdAt: string;
   readonly expiresAt: string;
   readonly quota: SessionQuota;
   readonly csrfToken: string;
 }
 
 export interface SessionQuota {
-  readonly runsPerDay: number;
-  readonly sharesPerHour: number;
-  readonly feedbacksPerHour: number;
+  readonly maxProjects?: number;
+  readonly maxRuns?: number;
 }
 
 /** Listener invoked when the session is detected as expired. */
@@ -33,7 +37,7 @@ export interface SessionManager {
   ensureSession(): Promise<SessionInfo>;
   /** Current session info, or null if not yet created / expired. */
   getCurrent(): SessionInfo | null;
-  /** Explicitly revoke the session (DELETE /api/v2/sessions). */
+  /** Explicitly revoke the session (DELETE /api/v2/sessions/current). */
   revokeSession(): Promise<void>;
   /** Attach CSRF header to a mutable Headers for non-safe methods. */
   attachCsrf(headers: Headers): void;
@@ -48,17 +52,23 @@ export interface SessionManagerConfig {
   readonly fetchImpl: typeof fetch;
 }
 
-interface CreateSessionResponse {
-  readonly data: {
-    readonly id: string;
-    readonly expires_at: string;
-    readonly quota: {
-      readonly runs_per_day: number;
-      readonly shares_per_hour: number;
-      readonly feedbacks_per_hour: number;
-    };
-    readonly csrf_token: string;
-  };
+interface CreateSessionEnvelope {
+  readonly data: unknown;
+}
+
+async function fetchSession(
+  config: SessionManagerConfig,
+  path: string,
+  init: RequestInit,
+): Promise<Response> {
+  try {
+    return await config.fetchImpl(`${config.baseUrl}${path}`, init);
+  } catch (error) {
+    throw new NetworkError(
+      error instanceof Error ? error.message : "Network request failed",
+      error,
+    );
+  }
 }
 
 export function createSessionManager(
@@ -70,29 +80,25 @@ export function createSessionManager(
   return {
     async ensureSession(): Promise<SessionInfo> {
       if (current) return current;
-      const response = await config.fetchImpl(
-        `${config.baseUrl}/api/v2/sessions`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      const response = await fetchSession(config, "/api/v2/sessions", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
       if (!response.ok) {
-        throw new Error(
-          `Failed to create session: ${response.status} ${response.statusText}`,
-        );
+        throw await errorFromResponse(response);
       }
-      const payload = (await response.json()) as CreateSessionResponse;
+      const payload = (await response.json()) as CreateSessionEnvelope;
+      const data = parseV2Dto<SessionCreated>("SessionCreated", payload.data);
       current = {
-        sessionId: payload.data.id,
-        expiresAt: payload.data.expires_at,
+        status: data.status,
+        createdAt: data.created_at,
+        expiresAt: data.expires_at,
         quota: {
-          runsPerDay: payload.data.quota.runs_per_day,
-          sharesPerHour: payload.data.quota.shares_per_hour,
-          feedbacksPerHour: payload.data.quota.feedbacks_per_hour,
+          maxProjects: data.quota.max_projects,
+          maxRuns: data.quota.max_runs,
         },
-        csrfToken: payload.data.csrf_token,
+        csrfToken: data.csrf_token,
       };
       return current;
     },
@@ -103,19 +109,15 @@ export function createSessionManager(
 
     async revokeSession() {
       if (!current) return;
-      const response = await config.fetchImpl(
-        `${config.baseUrl}/api/v2/sessions`,
-        {
-          method: "DELETE",
-          credentials: "include",
-          headers: { "X-CSRF-Token": current.csrfToken },
-        },
-      );
+      const response = await fetchSession(config, "/api/v2/sessions/current", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "X-CSRF-Token": current.csrfToken },
+      });
       // 204 No Content or 404 (already gone) are both acceptable.
       if (!response.ok && response.status !== 404) {
-        throw new Error(
-          `Failed to revoke session: ${response.status} ${response.statusText}`,
-        );
+        if (response.status === 401) this.notifyExpired();
+        throw await errorFromResponse(response);
       }
       current = null;
     },
