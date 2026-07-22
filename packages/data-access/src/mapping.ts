@@ -15,8 +15,10 @@ import type {
   DomainEntityId,
   Evidence,
   ExecutionMode,
+  NonEmptyString,
   ProducerReference,
   ProvenanceState,
+  SemanticVersion,
   ResearchArtifact,
   ResearchContract,
   ResearchContractDraft,
@@ -25,8 +27,14 @@ import type {
   ResearchRun,
   RunEvent,
   RunStatus,
+  ShareSnapshot,
+  ShareSnapshotCreated,
+  CreateShareSnapshotRequest,
+  PublicShareSnapshot,
   SourceMode,
   UtcIsoTimestamp,
+  WorkspaceSnapshot,
+  WorkspaceSnapshotInput,
 } from "@xingwen/domain";
 import { asEntityId } from "@xingwen/domain";
 
@@ -42,6 +50,12 @@ import type {
   ResearchProject as ResearchProjectDto,
   ResearchRun as ResearchRunDto,
   RunEvent as RunEventDto,
+  WorkspaceSnapshot as WorkspaceSnapshotDto,
+  WorkspaceSnapshotInput as WorkspaceSnapshotInputDto,
+  ShareSnapshot as ShareSnapshotDto,
+  ShareSnapshotCreated as ShareSnapshotCreatedDto,
+  CreateShareSnapshotRequest as CreateShareSnapshotRequestDto,
+  PublicShareSnapshot as PublicShareSnapshotDto,
 } from "@xingwen/contracts";
 
 function mapId(value: string): DomainEntityId {
@@ -289,6 +303,176 @@ export function mapResearchArtifact(
     logicalKey: mapId(dto.logical_key),
     createdAt: dto.created_at as UtcIsoTimestamp,
     latestVersionId: (dto.latest_version_id ?? null) as DomainEntityId | null,
+  };
+}
+
+export function mapWorkspaceSnapshot(
+  dto: WorkspaceSnapshotDto,
+): WorkspaceSnapshot {
+  return {
+    id: mapId(dto.id),
+    projectId: mapId(dto.project_id),
+    revision: dto.revision,
+    layoutPreset: dto.layout_preset,
+    activeRunId: dto.active_run_id ? mapId(dto.active_run_id) : null,
+    panelSlots: (dto.panel_slots ?? []).map((s) => ({
+      slotId: s.slot_id,
+      panelType: s.panel_type,
+      artifactVersionId: s.artifact_version_id
+        ? mapId(s.artifact_version_id)
+        : null,
+      evidenceId: s.evidence_id ? mapId(s.evidence_id) : null,
+    })),
+    pinnedEvidenceIds: (dto.pinned_evidence_ids ?? []).map(mapId),
+    atlasState: dto.atlas_state
+      ? {
+          focusMode: dto.atlas_state.focus_mode ?? null,
+          selectedObjectRef: dto.atlas_state.selected_object_ref
+            ? {
+                artifactVersionId: dto.atlas_state.selected_object_ref
+                  .artifact_version_id
+                  ? mapId(
+                      dto.atlas_state.selected_object_ref.artifact_version_id,
+                    )
+                  : null,
+                objectId: mapId(dto.atlas_state.selected_object_ref.object_id),
+                objectType: dto.atlas_state.selected_object_ref.object_type,
+              }
+            : null,
+        }
+      : null,
+    observatoryState: dto.observatory_state
+      ? {
+          activeArtifactVersionId: dto.observatory_state
+            .active_artifact_version_id
+            ? mapId(dto.observatory_state.active_artifact_version_id)
+            : null,
+          activeEvidenceId: dto.observatory_state.active_evidence_id
+            ? mapId(dto.observatory_state.active_evidence_id)
+            : null,
+        }
+      : null,
+    selectedObjectRef: dto.selected_object_ref
+      ? {
+          artifactVersionId: dto.selected_object_ref.artifact_version_id
+            ? mapId(dto.selected_object_ref.artifact_version_id)
+            : null,
+          objectId: mapId(dto.selected_object_ref.object_id),
+          objectType: dto.selected_object_ref.object_type,
+        }
+      : null,
+    updatedAt: dto.updated_at as UtcIsoTimestamp,
+  };
+}
+
+export function mapWorkspaceSnapshotInputToDto(
+  domain: WorkspaceSnapshotInput,
+): WorkspaceSnapshotInputDto {
+  return {
+    layout_preset: domain.layoutPreset,
+    active_run_id: domain.activeRunId,
+    panel_slots: domain.panelSlots.map((s) => ({
+      slot_id: s.slotId,
+      panel_type: s.panelType,
+      artifact_version_id: s.artifactVersionId,
+      evidence_id: s.evidenceId,
+    })) as WorkspaceSnapshotInputDto["panel_slots"],
+    pinned_evidence_ids: domain.pinnedEvidenceIds.map(String),
+    atlas_state: domain.atlasState
+      ? {
+          focus_mode: domain.atlasState.focusMode,
+          selected_object_ref: domain.atlasState.selectedObjectRef
+            ? {
+                artifact_version_id:
+                  domain.atlasState.selectedObjectRef.artifactVersionId,
+                object_id: domain.atlasState.selectedObjectRef.objectId,
+                object_type: domain.atlasState.selectedObjectRef.objectType,
+              }
+            : null,
+        }
+      : undefined,
+    observatory_state: domain.observatoryState
+      ? {
+          active_artifact_version_id:
+            domain.observatoryState.activeArtifactVersionId,
+          active_evidence_id: domain.observatoryState.activeEvidenceId,
+        }
+      : undefined,
+    selected_object_ref: domain.selectedObjectRef
+      ? {
+          artifact_version_id: domain.selectedObjectRef.artifactVersionId,
+          object_id: domain.selectedObjectRef.objectId,
+          object_type: domain.selectedObjectRef.objectType,
+        }
+      : null,
+  };
+}
+
+export function mapShareSnapshot(dto: ShareSnapshotDto): ShareSnapshot {
+  return {
+    id: mapId(dto.id),
+    projectId: mapId(dto.project_id),
+    title: dto.title as NonEmptyString,
+    status: dto.status,
+    redactionPolicy: dto.redaction_policy,
+    artifactVersionIds: dto.artifact_version_ids.map(mapId),
+    evidenceIds: dto.evidence_ids.map(mapId),
+    createdAt: dto.created_at as UtcIsoTimestamp,
+    expiresAt: dto.expires_at as UtcIsoTimestamp,
+    revokedAt: dto.revoked_at ? (dto.revoked_at as UtcIsoTimestamp) : null,
+  };
+}
+
+export function mapShareSnapshotCreated(
+  dto: ShareSnapshotCreatedDto,
+): ShareSnapshotCreated {
+  return {
+    ...mapShareSnapshot(dto),
+    shareToken: dto.share_token,
+    shareUrl: dto.share_url,
+  };
+}
+
+export function mapCreateShareSnapshotRequestToDto(
+  domain: CreateShareSnapshotRequest,
+): CreateShareSnapshotRequestDto {
+  return {
+    title: domain.title,
+    artifact_version_ids: domain.artifactVersionIds.map(String) as [
+      string,
+      ...string[],
+    ],
+    evidence_ids: domain.evidenceIds.map(String),
+    expires_at: domain.expiresAt,
+    redaction_policy: domain.redactionPolicy,
+  };
+}
+
+export function mapPublicShareSnapshot(
+  dto: PublicShareSnapshotDto,
+): PublicShareSnapshot {
+  return {
+    id: mapId(dto.id),
+    title: dto.title as NonEmptyString,
+    redactionPolicy: dto.redaction_policy,
+    createdAt: dto.created_at as UtcIsoTimestamp,
+    expiresAt: dto.expires_at as UtcIsoTimestamp,
+    artifactVersions: dto.artifact_versions.map((v) => ({
+      id: mapId(v.id),
+      artifactId: mapId(v.artifact_id),
+      kind: v.kind,
+      title: v.title as NonEmptyString,
+      versionNumber: v.version_number,
+      schemaVersion: v.schema_version as SemanticVersion,
+      contentHash: v.content_hash as ContentHash,
+      sourceMode: v.source_mode,
+      createdAt: v.created_at as UtcIsoTimestamp,
+    })),
+    evidence: dto.evidence.map((e) => ({
+      id: mapId(e.id),
+      artifactVersionId: mapId(e.artifact_version_id),
+      sourceSnapshotId: mapId(e.source_snapshot_id),
+    })),
   };
 }
 

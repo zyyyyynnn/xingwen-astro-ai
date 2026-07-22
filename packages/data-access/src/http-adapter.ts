@@ -35,6 +35,12 @@ import type {
   ResearchProject,
   ResearchRun,
   RunEvent,
+  WorkspaceSnapshot,
+  WorkspaceSnapshotInput,
+  ShareSnapshot,
+  ShareSnapshotCreated,
+  CreateShareSnapshotRequest,
+  PublicShareSnapshot,
 } from "@xingwen/domain";
 
 import {
@@ -46,6 +52,11 @@ import {
   mapResearchProject,
   mapResearchRun,
   mapRunEvent,
+  mapWorkspaceSnapshot,
+  mapWorkspaceSnapshotInputToDto,
+  mapShareSnapshot,
+  mapCreateShareSnapshotRequestToDto,
+  mapPublicShareSnapshot,
 } from "./mapping";
 import { CapabilityUnavailableError } from "./errors";
 import {
@@ -64,7 +75,9 @@ import type {
   ProjectRepository,
   RepositoryProvenance,
   RunRepository,
+  ShareRepository,
   Unsubscribe,
+  WorkspaceSnapshotRepository,
 } from "./ports";
 import type { SessionManager } from "./session";
 
@@ -210,8 +223,12 @@ class HttpClient {
   }
 
   /** PUT; returns parsed `data` or null on 204. */
-  async put<T>(path: string, body: unknown): Promise<T | null> {
-    const env = await this.request<Envelope<T>>("PUT", path, body);
+  async put<T>(
+    path: string,
+    body: unknown,
+    headers?: HeadersInit,
+  ): Promise<T | null> {
+    const env = await this.request<Envelope<T>>("PUT", path, body, headers);
     return env ? env.data : null;
   }
 
@@ -230,8 +247,9 @@ class HttpClient {
     method: string,
     path: string,
     body?: unknown,
+    extraHeaders?: HeadersInit,
   ): Promise<Response> {
-    const headers = this.prepareHeaders(method);
+    const headers = this.prepareHeaders(method, extraHeaders);
     let response: Response;
     try {
       response = await this.fetchImpl(this.buildUrl(path), {
@@ -261,8 +279,9 @@ class HttpClient {
     method: string,
     path: string,
     body?: unknown,
+    headers?: HeadersInit,
   ): Promise<T | null> {
-    const response = await this.rawRequest(method, path, body);
+    const response = await this.rawRequest(method, path, body, headers);
     if (response.status === 204) return null;
     if (response.status === 404) {
       // 404 is a valid "not found" outcome for single-resource GETs.
@@ -363,6 +382,8 @@ export interface HttpRepositorySet {
   readonly runs: HttpRunRepository;
   readonly artifacts: ArtifactRepository;
   readonly evidence: EvidenceRepository;
+  readonly workspaces: WorkspaceSnapshotRepository;
+  readonly shares: ShareRepository;
   readonly provenance: RepositoryProvenance;
 }
 
@@ -684,6 +705,90 @@ export function createHttpRepositories(
     },
   };
 
+  const workspaces: WorkspaceSnapshotRepository = {
+    async getByProjectId(
+      projectId: DomainEntityId,
+    ): Promise<WorkspaceSnapshot | null> {
+      const payload = await http.get<unknown>(
+        `/api/v2/projects/${encodeURIComponent(projectId)}/workspace-snapshot`,
+      );
+      if (!payload) return null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return mapWorkspaceSnapshot(payload as any);
+    },
+    async save(
+      projectId: DomainEntityId,
+      snapshot: WorkspaceSnapshotInput,
+      expectedRevision: number,
+    ): Promise<WorkspaceSnapshot> {
+      const payload = await http.put<unknown>(
+        `/api/v2/projects/${encodeURIComponent(projectId)}/workspace-snapshot`,
+        mapWorkspaceSnapshotInputToDto(snapshot),
+        { "If-Match": `"${expectedRevision}"` },
+      );
+      if (!payload) {
+        throw new UnexpectedHttpError(
+          "Workspace save returned no data",
+          200,
+          null,
+        );
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return mapWorkspaceSnapshot(payload as any);
+    },
+  };
+
+  const shares: ShareRepository = {
+    async create(
+      projectId: DomainEntityId,
+      request: CreateShareSnapshotRequest,
+    ): Promise<ShareSnapshotCreated> {
+      const payload = await http.post<unknown>(
+        `/api/v2/projects/${encodeURIComponent(projectId)}/shares`,
+        mapCreateShareSnapshotRequestToDto(request),
+      );
+      return payload as ShareSnapshotCreated;
+    },
+    async getByProjectIdAndShareId(
+      projectId: DomainEntityId,
+      shareId: DomainEntityId,
+    ): Promise<ShareSnapshot | null> {
+      const payload = await http.get<unknown>(
+        `/api/v2/projects/${encodeURIComponent(projectId)}/shares/${encodeURIComponent(shareId)}`,
+      );
+      if (!payload) return null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return mapShareSnapshot(payload as any);
+    },
+    async listByProject(
+      projectId: DomainEntityId,
+    ): Promise<readonly ShareSnapshot[]> {
+      const payload = await http.list<unknown>(
+        `/api/v2/projects/${encodeURIComponent(projectId)}/shares`,
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (payload as any[]).map((p) => mapShareSnapshot(p));
+    },
+    async revoke(
+      projectId: DomainEntityId,
+      shareId: DomainEntityId,
+    ): Promise<void> {
+      await http.delete(
+        `/api/v2/projects/${encodeURIComponent(projectId)}/shares/${encodeURIComponent(shareId)}`,
+      );
+    },
+    async getPublicShare(
+      shareToken: string,
+    ): Promise<PublicShareSnapshot | null> {
+      const payload = await http.get<unknown>(
+        `/api/v2/shares/${encodeURIComponent(shareToken)}`,
+      );
+      if (!payload) return null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return mapPublicShareSnapshot(payload as any);
+    },
+  };
+
   const provenance: RepositoryProvenance = {
     state: {
       executionMode: "live",
@@ -701,6 +806,8 @@ export function createHttpRepositories(
     runs,
     artifacts,
     evidence,
+    workspaces,
+    shares,
     provenance,
   };
 }
