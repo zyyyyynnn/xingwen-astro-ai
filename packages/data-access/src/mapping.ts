@@ -327,3 +327,48 @@ export function buildFixtureProvenance(
 export function mapEvidence(entity: Evidence): Evidence {
   return entity;
 }
+
+export function mapDomainContractInputToDto(
+  input: ResearchContractInput,
+): ResearchContractInputDto {
+  return {
+    research_goal: input.researchGoal,
+    target_objects: [...input.targetObjects] as unknown as [
+      string,
+      ...string[],
+    ],
+    data_requirements: {
+      unit_policy: input.dataRequirements.unitPolicy,
+    },
+    requested_fields: [...input.requestedFields] as unknown as [
+      string,
+      ...string[],
+    ],
+    source_scope: {
+      allowed_sources: [...input.sourceScope.allowedSources] as unknown as [
+        string,
+        ...string[],
+      ],
+    },
+    paper_search_scope: {
+      keywords: [...input.paperSearchScope.keywords],
+      year_from: input.paperSearchScope.yearFrom,
+      year_to: input.paperSearchScope.yearTo,
+      source_ids: [...input.paperSearchScope.sourceIds],
+      max_candidates: input.paperSearchScope.maxCandidates,
+    },
+    output_requirements: [...input.outputRequirements] as unknown as [
+      ArtifactKind,
+      ...ArtifactKind[],
+    ],
+    evidence_requirements: {
+      require_locator: input.evidenceRequirements.requireLocator,
+      require_source_snapshot: input.evidenceRequirements.requireSourceSnapshot,
+      minimum_coverage: input.evidenceRequirements.minimumCoverage,
+    },
+    quality_constraints: {
+      source_completeness_min: input.qualityConstraints.sourceCompletenessMin,
+      unit_consistency_min: input.qualityConstraints.unitConsistencyMin,
+    },
+  };
+}
