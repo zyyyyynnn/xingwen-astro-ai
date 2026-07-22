@@ -15,7 +15,7 @@ MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通�
 - 静态 Brand Site；
 - Guided Tour 与 Research Workspace；
 - FastAPI `/api/v1` 回归接口和 `/api/v2` Contract（Runtime Pending）；
-- PostgreSQL 持久化、迁移和恢复；
+- PostgreSQL Schema 与 Alembic migration 基线已实现；Workflow 恢复和原子发布仍待实现；
 - Demo Replay、Live Run、真实缓存、分享和导出；
 - WebGL 或外部服务失败时的可用降级；
 - 版本、来源、Evidence 和请求追踪。

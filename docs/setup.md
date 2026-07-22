@@ -109,6 +109,22 @@ uv run pytest
 uv run uvicorn app.main:app --reload
 ```
 
+PostgreSQL migration 由 Alembic 管理，应用启动不会自动修改 Schema：
+
+```powershell
+$env:DATABASE_URL = "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/xingwen_astro_ai"
+uv run alembic upgrade head
+uv run alembic downgrade base
+uv run alembic upgrade head
+```
+
+Repository 集成测试只允许连接数据库名包含 `test` 的隔离数据库：
+
+```powershell
+$env:TEST_DATABASE_URL = "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/xingwen_astro_ai_test"
+uv run pytest tests/test_db_postgres_integration.py
+```
+
 导出 Schema：
 
 ```powershell

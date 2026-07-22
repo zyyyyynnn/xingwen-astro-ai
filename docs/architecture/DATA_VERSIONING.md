@@ -4,7 +4,7 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
-| Implementation | D-02 SourceSnapshot / ProducerExecution content current；v2 persistence 与 Publisher Pending |
+| Implementation | D-02 SourceSnapshot / ProducerExecution content 与 #76 persistence schema baseline Implemented；atomic publication and cache/revision workflows Pending |
 | Current runtime | v1 DTO、Prompt registry 与 Phase 0 版本字段 |
 | Target runtime | Project / Run / Artifact / ArtifactVersion 追加式治理 |
 
