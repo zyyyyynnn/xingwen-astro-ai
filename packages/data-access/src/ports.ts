@@ -41,6 +41,11 @@ export interface ContractRepository {
   getDraftById(id: DomainEntityId): Promise<ResearchContractDraft | null>;
   listDrafts(): Promise<readonly ResearchContractDraft[]>;
   saveDraft(draft: ResearchContractDraft): Promise<void>;
+  confirm(
+    projectId: DomainEntityId,
+    draftId: DomainEntityId,
+    expectedDraftVersion: number,
+  ): Promise<ResearchContract>;
   getContractById(id: DomainEntityId): Promise<ResearchContract | null>;
   listContracts(
     projectId: DomainEntityId,

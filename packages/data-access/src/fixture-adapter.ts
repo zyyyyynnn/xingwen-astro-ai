@@ -15,8 +15,10 @@
 import { validateV2Dto, type V2CoreModelName } from "@xingwen/contracts";
 import type {
   ArtifactVersion,
+  ContentHash,
   DomainEntityId,
   Evidence,
+  ResearchContract,
   ResearchContractDraft,
   ResearchProject,
   ResearchRun,
@@ -219,6 +221,31 @@ export function createFixtureRepositories(
       getDraftById: async (id) => drafts.get(id),
       listDrafts: async () => drafts.getAll(),
       saveDraft: async (draft: ResearchContractDraft) => drafts.upsert(draft),
+      confirm: async (projectId, draftId, expectedDraftVersion) => {
+        const draft = drafts.get(draftId);
+        if (draft === null) {
+          throw new FixtureValidationError("ResearchContractDraft", [
+            `Draft ${draftId} not found`,
+          ]);
+        }
+        if (draft.version !== expectedDraftVersion) {
+          throw new FixtureValidationError("ResearchContractDraft", [
+            `Expected draft version ${expectedDraftVersion} but found ${draft.version}`,
+          ]);
+        }
+        const contractId = `rc_${draft.id}` as DomainEntityId;
+        const contract: ResearchContract = {
+          ...draft.contract,
+          id: contractId,
+          projectId,
+          version: 1,
+          createdFromDraftId: draft.id,
+          createdAt: draft.updatedAt,
+          contentHash: `hash_${draft.id}` as ContentHash,
+        };
+        contracts.upsert(contract);
+        return contract;
+      },
       getContractById: async (id) => contracts.get(id),
       listContracts: async (projectId) =>
         contracts.filter((c) => c.projectId === projectId),

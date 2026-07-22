@@ -1,13 +1,17 @@
 /**
- * @xingwen/data-access — repository ports and the Demo Replay fixture adapter.
+ * @xingwen/data-access — repository ports, the Demo Replay fixture adapter,
+ * and the HTTP adapter for live `/api/v2` endpoints.
  *
  * The public API exposes:
  * - Repository Port interfaces (operating on domain types, never DTOs).
  * - The versioned fixture bundle type and the frozen main-case fixture.
  * - `createFixtureRepositories` — validates DTOs against B-15 JSON Schemas,
  *   enforces Demo Replay semantics, and returns a ready-to-use `RepositorySet`.
- *
- * The HTTP adapter (A-15) will implement the same ports against `/api/v2`.
+ * - `createHttpRepositories` — implements the same ports against `/api/v2`,
+ *   reusing the shared mapping layer so Fixture/HTTP consistency is
+ *   guaranteed by construction.
+ * - `createSessionManager` — anonymous session lifecycle and CSRF handling.
+ * - HTTP error types mapping RFC 9457 Problem Details to domain errors.
  */
 
 export type {
@@ -23,6 +27,7 @@ export type {
 } from "./ports";
 
 export {
+  CapabilityUnavailableError,
   EntityNotFoundError,
   FixtureSemanticError,
   FixtureValidationError,
@@ -34,3 +39,32 @@ export {
   createFixtureRepositories,
   type FixtureRepositorySet,
 } from "./fixture-adapter";
+
+export {
+  createHttpRepositories,
+  type HttpAdapterConfig,
+  type HttpRepositorySet,
+  type HttpRunRepository,
+  type RunEventPage,
+} from "./http-adapter";
+export {
+  createSessionManager,
+  type SessionInfo,
+  type SessionManager,
+  type SessionManagerConfig,
+  type SessionQuota,
+} from "./session";
+export {
+  ConflictError,
+  ForbiddenError,
+  NetworkError,
+  NotFoundError,
+  RateLimitedError,
+  SessionExpiredError,
+  UnexpectedHttpError,
+  UpstreamError,
+  ValidationError,
+  mapProblemDetails,
+  type ProblemDetails,
+  type ProblemDetailsFieldError,
+} from "./http-errors";
