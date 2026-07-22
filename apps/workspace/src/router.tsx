@@ -1,7 +1,7 @@
 import {
   Link,
   Outlet,
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
@@ -10,6 +10,7 @@ import type {
   RouterHistory,
 } from "@tanstack/react-router";
 import { BrandMark } from "@xingwen/ui";
+import type { WorkspaceRuntimeBoundaries } from "./boundaries";
 
 function RootLayout() {
   return (
@@ -134,7 +135,7 @@ function NotFoundPage() {
   );
 }
 
-const rootRoute = createRootRoute({
+const rootRoute = createRootRouteWithContext<WorkspaceRuntimeBoundaries>()({
   component: RootLayout,
   errorComponent: RouteErrorPage,
   notFoundComponent: NotFoundPage,
@@ -171,10 +172,14 @@ const routeTree = rootRoute.addChildren([
   shareRoute,
 ]);
 
-export function createAppRouter(history?: RouterHistory) {
+export function createAppRouter(
+  boundaries: WorkspaceRuntimeBoundaries,
+  history?: RouterHistory,
+) {
   return createRouter({
     routeTree,
     history,
+    context: boundaries,
     defaultErrorComponent: RouteErrorPage,
     defaultNotFoundComponent: NotFoundPage,
     defaultPendingComponent: LoadingPage,
@@ -183,10 +188,10 @@ export function createAppRouter(history?: RouterHistory) {
   });
 }
 
-export const router = createAppRouter();
+export type AppRouter = ReturnType<typeof createAppRouter>;
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router;
+    router: AppRouter;
   }
 }

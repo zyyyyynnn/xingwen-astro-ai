@@ -3,6 +3,9 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
 import { createAppRouter } from "./router";
+import type { WorkspaceRuntimeBoundaries } from "./boundaries";
+
+const mockBoundaries = {} as WorkspaceRuntimeBoundaries;
 
 afterEach(cleanup);
 
@@ -10,7 +13,7 @@ test("renders a shared deep link without business data access", async () => {
   const history = createMemoryHistory({
     initialEntries: ["/share/demo-token"],
   });
-  const testRouter = createAppRouter(history);
+  const testRouter = createAppRouter(mockBoundaries, history);
 
   render(<RouterProvider router={testRouter} />);
 
@@ -30,7 +33,7 @@ test.each([
   "marks only the intended primary navigation item for %s",
   async (path, pageHeading, activeLabel) => {
     const history = createMemoryHistory({ initialEntries: [path] });
-    const testRouter = createAppRouter(history);
+    const testRouter = createAppRouter(mockBoundaries, history);
 
     render(<RouterProvider router={testRouter} />);
 
