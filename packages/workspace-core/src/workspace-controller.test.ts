@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { RepositorySet } from "@xingwen/data-access";
 import type { DomainEntityId, WorkspaceSnapshot } from "@xingwen/domain";
-import { createWorkspaceController } from "./workspace-controller";
+import {
+  createWorkspaceController,
+  type WorkspaceSnapshotPort,
+} from "./workspace-controller";
 
 describe("WorkspaceController", () => {
   const mockProjectId = "prj_123" as DomainEntityId;
@@ -20,41 +22,39 @@ describe("WorkspaceController", () => {
     updatedAt: "2026-07-22T00:00:00Z" as never,
   };
 
-  const createMockRepositories = (
+  const createMockPort = (
     initialSnapshot: WorkspaceSnapshot | null = mockSnapshot,
-  ) => {
+  ): WorkspaceSnapshotPort => {
     let current = initialSnapshot;
     return {
-      workspaces: {
-        getByProjectId: vi.fn().mockImplementation(async () => current),
-        save: vi.fn().mockImplementation(async (id, input, expectedRev) => {
-          if (current && current.revision !== expectedRev) {
-            const err = new Error("Conflict");
-            err.name = "ConflictError";
-            throw err;
-          }
-          current = {
-            ...current,
-            ...input,
-            revision: expectedRev + 1,
-            id: `ws_${id}`,
-            projectId: id,
-            updatedAt: "2026-07-22T01:00:00Z",
-          } as WorkspaceSnapshot;
-          return current;
-        }),
-      },
-    } as unknown as RepositorySet;
+      getByProjectId: vi.fn().mockImplementation(async () => current),
+      save: vi.fn().mockImplementation(async (id, input, expectedRev) => {
+        if (current && current.revision !== expectedRev) {
+          const err = new Error("Conflict");
+          err.name = "ConflictError";
+          throw err;
+        }
+        current = {
+          ...current,
+          ...input,
+          revision: expectedRev + 1,
+          id: `ws_${id}`,
+          projectId: id,
+          updatedAt: "2026-07-22T01:00:00Z",
+        } as WorkspaceSnapshot;
+        return current;
+      }),
+    };
   };
 
   it("starts in idle state", () => {
-    const controller = createWorkspaceController(createMockRepositories());
+    const controller = createWorkspaceController(createMockPort());
     expect(controller.getState().status).toBe("idle");
   });
 
   it("loads existing snapshot", async () => {
-    const repos = createMockRepositories();
-    const controller = createWorkspaceController(repos);
+    const port = createMockPort();
+    const controller = createWorkspaceController(port);
 
     await controller.load(mockProjectId);
 
@@ -66,8 +66,8 @@ describe("WorkspaceController", () => {
   });
 
   it("initializes default snapshot if none exists", async () => {
-    const repos = createMockRepositories(null);
-    const controller = createWorkspaceController(repos);
+    const port = createMockPort(null);
+    const controller = createWorkspaceController(port);
 
     await controller.load(mockProjectId);
 
@@ -80,8 +80,8 @@ describe("WorkspaceController", () => {
   });
 
   it("updates layout preset and increments revision", async () => {
-    const repos = createMockRepositories();
-    const controller = createWorkspaceController(repos);
+    const port = createMockPort();
+    const controller = createWorkspaceController(port);
     await controller.load(mockProjectId);
 
     await controller.setLayoutPreset("focus");
@@ -95,13 +95,13 @@ describe("WorkspaceController", () => {
   });
 
   it("recovers from 409 conflict transparently", async () => {
-    const repos = createMockRepositories();
-    const controller = createWorkspaceController(repos);
+    const port = createMockPort();
+    const controller = createWorkspaceController(port);
     await controller.load(mockProjectId);
 
     // Simulate someone else updating the snapshot directly in the DB
     // by calling the mock save function to increment the revision.
-    await repos.workspaces.save(
+    await port.save(
       mockProjectId,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { layoutPreset: "grid" } as any,

@@ -22,7 +22,7 @@ if (!rootElement) {
 
 const repositories = createFixtureRepositories(exoplanetHostStarFixture);
 const tour = createGuidedTourController();
-const workspaceController = createWorkspaceController(repositories);
+const workspaceController = createWorkspaceController(repositories.workspaces);
 
 const boundaries: WorkspaceRuntimeBoundaries = {
   repositories,

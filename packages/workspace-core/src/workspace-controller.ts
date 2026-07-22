@@ -1,10 +1,26 @@
-import type { RepositorySet } from "@xingwen/data-access";
 import type {
   DomainEntityId,
   WorkspaceSnapshot,
   WorkspaceSnapshotInput,
   WorkspacePanelSlot,
 } from "@xingwen/domain";
+
+/**
+ * Narrow port for workspace snapshot persistence.
+ *
+ * Defined here (not imported from `@xingwen/data-access`) so that
+ * `workspace-core` depends only on `@xingwen/domain`. The full
+ * `WorkspaceSnapshotRepository` in `data-access/ports` satisfies this
+ * interface structurally.
+ */
+export interface WorkspaceSnapshotPort {
+  getByProjectId(projectId: DomainEntityId): Promise<WorkspaceSnapshot | null>;
+  save(
+    projectId: DomainEntityId,
+    snapshot: WorkspaceSnapshotInput,
+    expectedRevision: number,
+  ): Promise<WorkspaceSnapshot>;
+}
 
 export type WorkspaceState =
   | { readonly status: "idle" }
@@ -26,7 +42,7 @@ export interface WorkspaceController {
 }
 
 export function createWorkspaceController(
-  repositories: RepositorySet,
+  workspaces: WorkspaceSnapshotPort,
 ): WorkspaceController {
   let state: WorkspaceState = { status: "idle" };
   const listeners = new Set<WorkspaceListener>();
@@ -72,7 +88,7 @@ export function createWorkspaceController(
     notify();
 
     try {
-      const savedSnapshot = await repositories.workspaces.save(
+      const savedSnapshot = await workspaces.save(
         projectId,
         nextInput,
         expectedRevision,
@@ -83,23 +99,29 @@ export function createWorkspaceController(
       const error = err as Error;
       if (error.name === "ConflictError") {
         // Rollback and fetch the latest state
-        const latest = await repositories.workspaces.getByProjectId(projectId);
+        const latest = await workspaces.getByProjectId(projectId);
         if (latest) {
           state = { status: "ready", snapshot: latest };
         } else {
           state = { status: "ready", snapshot: previousSnapshot };
         }
         notify();
-        // Automatically retry once with the latest revision?
-        // We'll retry once transparently.
+        // Retry once transparently with the latest revision.
         if (latest) {
-          const retrySaved = await repositories.workspaces.save(
-            projectId,
-            nextInput,
-            latest.revision,
-          );
-          state = { status: "ready", snapshot: retrySaved };
-          notify();
+          try {
+            const retrySaved = await workspaces.save(
+              projectId,
+              nextInput,
+              latest.revision,
+            );
+            state = { status: "ready", snapshot: retrySaved };
+            notify();
+          } catch (retryErr: unknown) {
+            // Retry also failed — keep state at `latest` and propagate.
+            state = { status: "ready", snapshot: latest };
+            notify();
+            throw retryErr;
+          }
         }
       } else {
         // Rollback and throw
@@ -122,7 +144,7 @@ export function createWorkspaceController(
       state = { status: "loading", projectId };
       notify();
       try {
-        let snapshot = await repositories.workspaces.getByProjectId(projectId);
+        let snapshot = await workspaces.getByProjectId(projectId);
         if (!snapshot) {
           // If a workspace snapshot doesn't exist, we fallback to a default empty one
           // which is saved on the first mutation.

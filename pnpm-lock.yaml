@@ -222,9 +222,6 @@ importers:
 
   packages/workspace-core:
     dependencies:
-      "@xingwen/data-access":
-        specifier: workspace:*
-        version: link:../data-access
       "@xingwen/domain":
         specifier: workspace:*
         version: link:../domain

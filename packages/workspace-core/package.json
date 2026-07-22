@@ -17,7 +17,6 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@xingwen/domain": "workspace:*",
-    "@xingwen/data-access": "workspace:*"
+    "@xingwen/domain": "workspace:*"
   }
 }

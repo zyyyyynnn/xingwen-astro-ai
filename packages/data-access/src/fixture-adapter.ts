@@ -199,6 +199,8 @@ export function createFixtureRepositories(
   );
   const workspaces = new MemoryStore<WorkspaceSnapshot>([]);
   const shares = new MemoryStore<ShareSnapshot>([]);
+  /** Token → ShareSnapshot ID lookup for getPublicShare. */
+  const shareTokenIndex = new Map<string, DomainEntityId>();
 
   const runEvents = new Map<DomainEntityId, RunEvent[]>();
   for (const dto of bundle.data.runEvents) {
@@ -332,7 +334,6 @@ export function createFixtureRepositories(
           id,
           projectId,
           title: request.title,
-          shareToken: token,
           createdAt: new Date().toISOString() as never,
           expiresAt: request.expiresAt,
           status: "active",
@@ -340,9 +341,9 @@ export function createFixtureRepositories(
           artifactVersionIds: request.artifactVersionIds,
           evidenceIds: request.evidenceIds,
           revokedAt: null,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any; // Type coercion for ShareSnapshot since we just need simple mock
+        };
         shares.upsert(snapshot);
+        shareTokenIndex.set(token, id);
         return {
           ...snapshot,
           shareToken: token,
@@ -362,13 +363,13 @@ export function createFixtureRepositories(
         }
       },
       getPublicShare: async (shareToken) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const share = shares.filter(
-          (s) => (s as any).shareToken === shareToken,
-        )[0];
+        const shareId = shareTokenIndex.get(shareToken);
+        if (!shareId) return null;
+        const share = shares.get(shareId);
         if (!share || share.status !== "active") return null;
-        // In fixture we just return a stubbed PublicShareSnapshot
-        // Since we don't have the artifact inline in fixture share, we'd need to mock it if requested.
+        // In fixture mode we return null (no inline artifacts/evidence).
+        // A full PublicShareSnapshot would require resolving artifact versions
+        // and evidence from the stores, which is out of A-16 scope.
         return null;
       },
     },

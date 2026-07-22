@@ -25,6 +25,7 @@ export type {
 export { createWorkspaceController } from "./workspace-controller";
 export type {
   WorkspaceController,
+  WorkspaceSnapshotPort,
   WorkspaceState,
   WorkspaceListener,
 } from "./workspace-controller";
