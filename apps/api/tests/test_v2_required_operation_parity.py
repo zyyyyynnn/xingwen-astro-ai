@@ -30,6 +30,32 @@ def _operations(document: dict[str, object]) -> set[tuple[str, str, str]]:
     return surface
 
 
+def _operations_by_id(document: dict[str, object]) -> dict[str, dict[str, object]]:
+    operations: dict[str, dict[str, object]] = {}
+    paths = document["paths"]
+    assert isinstance(paths, dict)
+    for item in paths.values():
+        assert isinstance(item, dict)
+        for method, operation in item.items():
+            if method not in _HTTP_METHODS:
+                continue
+            assert isinstance(operation, dict)
+            operations[operation["operationId"]] = operation
+    return operations
+
+
+def _required_headers(operation: dict[str, object]) -> set[str]:
+    parameters = operation.get("parameters", [])
+    assert isinstance(parameters, list)
+    return {
+        parameter["name"]
+        for parameter in parameters
+        if isinstance(parameter, dict)
+        and parameter.get("in") == "header"
+        and parameter.get("required") is True
+    }
+
+
 def test_runtime_implements_every_m1_required_contract_operation() -> None:
     contract = _operations(create_v2_contract_app().openapi())
     runtime = _operations(create_app().openapi())
@@ -63,3 +89,48 @@ def test_required_operations_match_method_and_path_exactly() -> None:
                 f"{op_id}: contract={method} {path} runtime={runtime_by_op.get(op_id)}"
             )
     assert not mismatched, "; ".join(mismatched)
+
+
+def test_required_operations_declare_the_same_required_headers() -> None:
+    contract = _operations_by_id(create_v2_contract_app().openapi())
+    runtime = _operations_by_id(create_app().openapi())
+
+    mismatched = {
+        operation_id: {
+            "contract": sorted(_required_headers(operation)),
+            "runtime": sorted(_required_headers(runtime[operation_id])),
+        }
+        for operation_id, operation in contract.items()
+        if _required_headers(operation) != _required_headers(runtime[operation_id])
+    }
+
+    assert not mismatched, f"required header mismatch: {mismatched}"
+
+
+def test_required_operations_use_the_same_success_response_schema() -> None:
+    contract = _operations_by_id(create_v2_contract_app().openapi())
+    runtime = _operations_by_id(create_app().openapi())
+
+    mismatched: dict[str, object] = {}
+    for operation_id, operation in contract.items():
+        contract_responses = operation["responses"]
+        runtime_responses = runtime[operation_id]["responses"]
+        assert isinstance(contract_responses, dict)
+        assert isinstance(runtime_responses, dict)
+        contract_success = {
+            status: response
+            for status, response in contract_responses.items()
+            if str(status).startswith("2")
+        }
+        runtime_success = {
+            status: response
+            for status, response in runtime_responses.items()
+            if str(status).startswith("2")
+        }
+        if contract_success != runtime_success:
+            mismatched[operation_id] = {
+                "contract": contract_success,
+                "runtime": runtime_success,
+            }
+
+    assert not mismatched, f"success response mismatch: {mismatched}"

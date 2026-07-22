@@ -76,6 +76,9 @@ def _workspace_payload(*, layout_preset: str = "research-default") -> dict[str, 
 
 def _session_client() -> tuple[FastAPI, TestClient, str, str]:
     app = create_app()
+    store = InMemorySnapshotStore()
+    app.state.snapshot_store = store
+    app.state.snapshot_service = SnapshotService(store)
     client = TestClient(app, base_url="https://testserver")
     created = client.post("/api/v2/sessions")
     assert created.status_code == 201
@@ -86,20 +89,16 @@ def _session_client() -> tuple[FastAPI, TestClient, str, str]:
     return app, client, session_id, csrf_token
 
 
-def test_snapshot_runtime_is_mounted_and_hides_unknown_projects() -> None:
+def test_snapshot_runtime_reports_unavailable_without_database() -> None:
     app = create_app()
     client = TestClient(app, base_url="https://testserver")
     created = client.post("/api/v2/sessions")
     assert created.status_code == 201
 
-    # The workspace/share router is mounted by default; an authenticated
-    # session requesting a project whose ownership the resource authority does
-    # not know is hidden as a 404 rather than distinguished from a forbidden
-    # cross-session resource.
     response = client.get("/api/v2/projects/proj_unknown/workspace-snapshot")
 
-    assert response.status_code == 404
-    assert response.json()["code"] == "PROJECT_NOT_FOUND"
+    assert response.status_code == 503
+    assert response.json()["code"] == "SNAPSHOT_RUNTIME_UNAVAILABLE"
 
 
 def _seed_project(

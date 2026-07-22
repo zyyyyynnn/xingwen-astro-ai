@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, Header, Request, Response, status
 
 from app.config import settings
 from app.schemas.v2 import Envelope, ResearchSession, ResponseLinks, ResponseMeta, SessionCreated
@@ -69,7 +70,12 @@ def get_session(request: Request, response: Response) -> Envelope[ResearchSessio
 
 
 @router.delete("/current", operation_id="revokeAnonymousSession", status_code=204)
-def revoke_session(request: Request, response: Response) -> None:
+def revoke_session(
+    request: Request,
+    response: Response,
+    csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+) -> None:
+    _ = csrf_token
     credential = request.cookies[settings.SESSION_COOKIE_NAME]
     _service(request).revoke(credential)
     response.delete_cookie(key=settings.SESSION_COOKIE_NAME, path="/api/v2")

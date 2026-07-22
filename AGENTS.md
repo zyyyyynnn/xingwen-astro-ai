@@ -17,14 +17,14 @@
 | 层级       | Current / Implemented                                                                           | Pending                                                 |
 | ---------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | 前端       | `apps/site` Astro Brand Site、`apps/workspace` React Research Workspace、共享包和根 pnpm 工具链 | A-02 视觉系统与静态框架；A-03 Contract 双通道与业务行为 |
-| API        | `/api/v1` Task 契约                                                                             | `/api/v2` Project / Run / Artifact / Version            |
-| 后端与数据 | 当前应用、Pipeline 与 PostgreSQL 基线                                                           | 增加 v2 Application / Persistence，不改变既有科研边界   |
+| API        | `/api/v1` Task 契约；`/api/v2` M1 核心 Runtime 与 PostgreSQL 权威读取                           | A-03 前端 HTTP 接入与 M2 科研能力                        |
+| 后端与数据 | 当前应用、v2 Application / Persistence、Pipeline 与 PostgreSQL 基线                            | M2 科研 Pipeline 扩展，不改变既有科研边界                |
 | 本地环境   | Compose：`site`、`workspace`、`api`、`postgres`                                                 | 生产部署拓扑按独立 Issue 定义                           |
 
 规则：
 
 - A-01 已实现运行时、路由、共享包边界、工具链、CI 与 Compose；不等于 A-02/A-03 产品能力已实现。
-- A-02、A-03 和 `/api/v2` 必须保持 Pending，直到对应代码、测试与运行证据存在。
+- A-02、A-03 保持 Pending；`/api/v2` 后端核心 Runtime 已实现，但前端接入与 Compose 集成仍以对应 Issue 的代码、测试和运行证据为准。
 - 本文件不授权在无对应 Issue 时安装 Three.js、React Three Fiber、GSAP、状态库、Tauri 或新增业务依赖。
 - `apps/site` 与 `apps/workspace` 不得重复实现同一业务状态；共享能力进入职责明确的 Package。
 

@@ -34,6 +34,14 @@ def upgrade() -> None:
             "created_from_draft_id", postgresql.UUID(as_uuid=True), nullable=True
         ),
     )
+    op.add_column(
+        "research_contracts",
+        sa.Column("idempotency_key", sa.String(length=200), nullable=True),
+    )
+    op.add_column(
+        "research_contracts",
+        sa.Column("request_hash", sa.String(length=71), nullable=True),
+    )
     op.create_table(
         "research_contract_drafts",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
@@ -62,13 +70,48 @@ def upgrade() -> None:
         "research_contract_drafts",
         ["session_id"],
     )
+    op.create_unique_constraint(
+        "uq_research_contract_idempotency",
+        "research_contracts",
+        ["project_id", "idempotency_key"],
+    )
+    op.create_unique_constraint(
+        "uq_research_contract_created_from_draft",
+        "research_contracts",
+        ["created_from_draft_id"],
+    )
+    op.create_foreign_key(
+        "fk_research_contracts_created_from_draft",
+        "research_contracts",
+        "research_contract_drafts",
+        ["created_from_draft_id"],
+        ["id"],
+        ondelete="RESTRICT",
+    )
 
 
 def downgrade() -> None:
+    op.drop_constraint(
+        "fk_research_contracts_created_from_draft",
+        "research_contracts",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "uq_research_contract_created_from_draft",
+        "research_contracts",
+        type_="unique",
+    )
+    op.drop_constraint(
+        "uq_research_contract_idempotency",
+        "research_contracts",
+        type_="unique",
+    )
     op.drop_index(
         "ix_research_contract_drafts_session_id",
         table_name="research_contract_drafts",
     )
     op.drop_table("research_contract_drafts")
+    op.drop_column("research_contracts", "request_hash")
+    op.drop_column("research_contracts", "idempotency_key")
     op.drop_column("research_contracts", "created_from_draft_id")
     op.drop_column("research_contracts", "content")

@@ -151,9 +151,11 @@ def confirm_research_contract(
     response: Response,
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
 ) -> Envelope[ResearchContract]:
-    _ = idempotency_key
     data = _service(request).confirm_contract(
-        project_id=project_id, session_id=_session_id(request), request=payload
+        project_id=project_id,
+        session_id=_session_id(request),
+        idempotency_key=idempotency_key,
+        request=payload,
     )
     _no_store(response)
     response.headers["Location"] = f"/api/v2/research-contracts/{data.id}"

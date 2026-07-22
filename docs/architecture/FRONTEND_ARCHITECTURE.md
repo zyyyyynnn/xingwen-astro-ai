@@ -15,7 +15,7 @@
 - 根 pnpm workspace 管理两个 App 和八个共享 Package。
 - Pydantic 仍是生产 Transport Schema 的唯一编写源；前端不得手写第二套同名生产 Schema。
 - Site 与 Workspace 不保存密钥，不直连模型、论文源或天文数据源。
-- A-02、A-03 和 `/api/v2` 保持 Pending，不由 A-01 空边界伪装实现。
+- A-02 与 A-03 前端产品行为保持 Pending；`/api/v2` M1 后端核心 Runtime 已实现，但在 A-03 完成前不宣称 Workspace 已接入真实 HTTP 主链路。
 
 ## 2. 当前目录
 

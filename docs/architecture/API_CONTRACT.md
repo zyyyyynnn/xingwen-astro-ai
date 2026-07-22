@@ -4,9 +4,9 @@
 | -------------- | ---------------------------------------------------------- |
 | Status         | Accepted                                                   |
 | Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring     |
-| Implementation | `/api/v1` Current；`/api/v2` 核心生成契约、Session 安全边界及 Artifact/Evidence/SourceSnapshot PostgreSQL 读取边界 Implemented；Workspace/Share runtime Pending |
+| Implementation | `/api/v1` Current；`/api/v2` M1 核心 Runtime、Session 安全、Project/Contract/Run/Event、Artifact/Evidence/SourceSnapshot 与 Workspace/Share 挂载 Implemented；A-03 前端接入与 Compose 激活 Pending |
 
-本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership、WorkspaceSnapshot 和 ShareSnapshot 应用边界已实现；B-18 已挂载通用 Artifact、ArtifactVersion、Evidence 和 SourceSnapshot 私有读取路由，并在配置 `DATABASE_URL` 时接入 PostgreSQL 事实源，不要求开启 Workflow Executor。Project/Run 写入 API 与 Workspace/Share 生产事实源接入仍为 Pending。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
+本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership 已实现；M1 Runtime 已挂载 Project、ContractDraft、Contract、Run、RunEvent、Artifact、ArtifactVersion、Evidence、SourceSnapshot、WorkspaceSnapshot 与 ShareSnapshot。配置 `DATABASE_URL` 后，资源归属与公开分享投影读取 PostgreSQL 权威事实；Research 写路径还要求启用 `PERSISTENT_WORKFLOW_ENABLED`。Snapshot/Share 状态当前仍为进程生命周期存储，A-03 前端 HTTP 接入与 Compose 默认激活另行验收。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
 
 ## 1. 设计原则
 
@@ -39,7 +39,7 @@ flowchart LR
 | 版本      | 状态              | 说明                                                          |
 | --------- | ----------------- | ------------------------------------------------------------- |
 | `/api/v1` | Current           | 当前后端 Task Contract                                        |
-| `/api/v2` | Contract Implemented, Runtime Partial | Session 与通用 Artifact provenance 私有读取已运行；Workspace/Share application boundary 已实现但运行挂载 Pending；Project / Run 写入及领域专属读取仍 Pending |
+| `/api/v2` | M1 Core Runtime Implemented | 24 个冻结 operation 已挂载；持久 Research 写路径由配置开关启用，A-03 前端接入、Compose 激活与 M2 科研 Pipeline Pending |
 
 版本推进规则：
 

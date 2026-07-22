@@ -24,6 +24,7 @@ from app.db.models import (
     ResearchContractDraftModel,
     ResearchContractModel,
     ResearchProjectModel,
+    ResearchRunModel,
 )
 from app.schemas.manifest import ManifestBundle
 from app.schemas.v2 import (
@@ -114,16 +115,38 @@ class ResearchApplicationService:
     def get_project(self, *, project_id: str, session_id: str) -> ResearchProject:
         with self._factory() as session:
             project = self._require_project(session, project_id, session_id)
-            return _project(project)
+            active_contract_id = session.scalar(
+                select(ResearchContractModel.id)
+                .where(
+                    ResearchContractModel.project_id == project.id,
+                    ResearchContractModel.content.is_not(None),
+                )
+                .order_by(ResearchContractModel.version.desc())
+                .limit(1)
+            )
+            latest_run_id = session.scalar(
+                select(ResearchRunModel.id)
+                .where(ResearchRunModel.project_id == project.id)
+                .order_by(ResearchRunModel.created_at.desc(), ResearchRunModel.id.desc())
+                .limit(1)
+            )
+            return _project(
+                project,
+                active_contract_id=active_contract_id,
+                latest_run_id=latest_run_id,
+            )
 
     # ---- Contract Draft --------------------------------------------------
 
     def get_draft(self, *, draft_id: str, session_id: str) -> ResearchContractDraft:
         draft_uuid = _uuid_or_not_found(draft_id, "DRAFT_NOT_FOUND")
-        with self._factory() as session:
-            draft = session.get(ResearchContractDraftModel, draft_uuid)
+        with self._factory() as session, session.begin():
+            draft = session.get(
+                ResearchContractDraftModel, draft_uuid, with_for_update=True
+            )
             if draft is None or draft.session_id != session_id:
                 raise _not_found("DRAFT_NOT_FOUND")
+            _expire_draft(draft)
             return _draft(draft)
 
     def update_draft(
@@ -142,6 +165,7 @@ class ResearchApplicationService:
             )
             if draft is None or draft.session_id != session_id:
                 raise _not_found("DRAFT_NOT_FOUND")
+            _expire_draft(draft)
             if draft.status != ContractDraftStatus.draft.value:
                 raise SecurityProblem(
                     status=409,
@@ -177,28 +201,41 @@ class ResearchApplicationService:
         *,
         project_id: str,
         session_id: str,
+        idempotency_key: str,
         request: ConfirmResearchContractRequest,
     ) -> ResearchContract:
         draft_uuid = _uuid_or_not_found(request.draft_id, "DRAFT_NOT_FOUND")
+        request_hash = canonical_request_hash(request.model_dump(mode="json"))
         with self._factory() as session, session.begin():
-            project = self._require_project(session, project_id, session_id)
+            project = self._require_project(
+                session, project_id, session_id, with_for_update=True
+            )
+            replay = session.scalar(
+                select(ResearchContractModel).where(
+                    ResearchContractModel.project_id == project.id,
+                    ResearchContractModel.idempotency_key == idempotency_key,
+                )
+            )
+            if replay is not None:
+                if replay.request_hash != request_hash:
+                    raise _idempotency_conflict()
+                return _contract(replay)
             draft = session.get(
                 ResearchContractDraftModel, draft_uuid, with_for_update=True
             )
             if draft is None or draft.session_id != session_id:
                 raise _not_found("DRAFT_NOT_FOUND")
+            _expire_draft(draft)
+            if draft.status != ContractDraftStatus.draft.value:
+                raise SecurityProblem(
+                    status=409,
+                    code="DRAFT_NOT_EDITABLE",
+                    title="Draft not editable",
+                    detail="Only a draft in the draft state can be confirmed",
+                )
             require_revision(
                 expected=request.expected_draft_version, current=draft.version
             )
-            if draft.status == ContractDraftStatus.confirmed.value:
-                existing = session.scalar(
-                    select(ResearchContractModel).where(
-                        ResearchContractModel.created_from_draft_id == draft.id,
-                        ResearchContractModel.project_id == project.id,
-                    )
-                )
-                if existing is not None:
-                    return _contract(existing)
             contract_input = _contract_input(draft.contract)
             content_hash = canonical_request_hash(contract_input.model_dump(mode="json"))
             next_version = (
@@ -224,6 +261,8 @@ class ResearchApplicationService:
                 content_hash=content_hash,
                 content=contract_input.model_dump(mode="json"),
                 created_from_draft_id=draft.id,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
             )
             session.add(model)
             draft.status = ContractDraftStatus.confirmed.value
@@ -253,6 +292,10 @@ class ResearchApplicationService:
             contract = session.get(ResearchContractModel, contract_uuid)
             if contract is None or contract.project_id != project_uuid:
                 raise _not_found("CONTRACT_NOT_FOUND")
+            if parent_uuid is not None:
+                parent = session.get(ResearchRunModel, parent_uuid)
+                if parent is None or parent.project_id != project_uuid:
+                    raise _not_found("RUN_NOT_FOUND")
         request_hash = canonical_request_hash(request.model_dump(mode="json"))
         try:
             snapshot = self._workflow.create_run(
@@ -321,13 +364,39 @@ class ResearchApplicationService:
         return snapshot
 
     def _require_project(
-        self, session: Session, project_id: str, session_id: str
+        self,
+        session: Session,
+        project_id: str,
+        session_id: str,
+        *,
+        with_for_update: bool = False,
     ) -> ResearchProjectModel:
         project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
-        project = session.get(ResearchProjectModel, project_uuid)
+        project = session.get(
+            ResearchProjectModel, project_uuid, with_for_update=with_for_update
+        )
         if project is None or project.session_id != session_id:
             raise _not_found("PROJECT_NOT_FOUND")
         return project
+
+
+def _idempotency_conflict() -> SecurityProblem:
+    return SecurityProblem(
+        status=409,
+        code="IDEMPOTENCY_CONFLICT",
+        title="Idempotency conflict",
+        detail="The idempotency key was already used with a different request",
+    )
+
+
+def _expire_draft(draft: ResearchContractDraftModel) -> None:
+    now = datetime.now(UTC)
+    if (
+        draft.status == ContractDraftStatus.draft.value
+        and _utc(draft.expires_at) <= now
+    ):
+        draft.status = ContractDraftStatus.expired.value
+        draft.updated_at = now
 
 
 def _confirm_or_reject(
@@ -361,15 +430,20 @@ def _confirm_or_reject(
         ) from exc
 
 
-def _project(row: ResearchProjectModel) -> ResearchProject:
+def _project(
+    row: ResearchProjectModel,
+    *,
+    active_contract_id: UUID | None,
+    latest_run_id: UUID | None,
+) -> ResearchProject:
     return ResearchProject(
         id=str(row.id),
         session_id=row.session_id,
         name=row.name,
         description=row.description or "",
         case_key=row.case_key,
-        active_contract_id=None,
-        latest_run_id=None,
+        active_contract_id=str(active_contract_id) if active_contract_id else None,
+        latest_run_id=str(latest_run_id) if latest_run_id else None,
         created_at=_utc(row.created_at),
         updated_at=_utc(row.updated_at),
         revision=row.revision,

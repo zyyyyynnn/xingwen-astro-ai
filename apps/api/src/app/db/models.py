@@ -71,11 +71,22 @@ class ResearchContractModel(TimestampMixin, Base):
     # be recovered verbatim (not only by hash). Nullable for the #76/#77 workflow
     # baseline rows that predate the B-runtime confirm path.
     content: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    created_from_draft_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    created_from_draft_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_contract_drafts.id", ondelete="RESTRICT"),
+    )
+    idempotency_key: Mapped[str | None] = mapped_column(String(200))
+    request_hash: Mapped[str | None] = mapped_column(String(71))
 
     __table_args__ = (
         UniqueConstraint("id", "project_id", name="uq_research_contract_id_project"),
         UniqueConstraint("project_id", "version", name="uq_research_contract_project_version"),
+        UniqueConstraint(
+            "project_id", "idempotency_key", name="uq_research_contract_idempotency"
+        ),
+        UniqueConstraint(
+            "created_from_draft_id", name="uq_research_contract_created_from_draft"
+        ),
         CheckConstraint("version >= 1", name="version_positive"),
     )
 

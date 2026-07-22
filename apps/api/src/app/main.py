@@ -114,9 +114,12 @@ def create_app() -> FastAPI:
             workflow_store=workflow_store,
             manifests=_load_case_manifests(),
         )
-    snapshot_store = InMemorySnapshotStore(resource_authority)
-    app.state.snapshot_store = snapshot_store
-    app.state.snapshot_service = SnapshotService(snapshot_store)
+    app.state.snapshot_store = None
+    app.state.snapshot_service = None
+    if resource_authority is not None:
+        snapshot_store = InMemorySnapshotStore(resource_authority)
+        app.state.snapshot_store = snapshot_store
+        app.state.snapshot_service = SnapshotService(snapshot_store)
     app.add_middleware(
         V2SecurityMiddleware,
         sessions=session_service,
