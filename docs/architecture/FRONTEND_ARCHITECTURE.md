@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------- |
 | Status         | Accepted                                                |
 | Authority      | 前端运行时、目录、依赖方向、构建与质量门禁              |
-| Implementation | A-01 runtime、A-14 Domain/Tour FSM、A-15/A-16 Adapter/Core Current；A-02 视觉与 A-03 UI 接线 Pending |
+| Implementation | A-01 runtime、A-14 Domain/Tour FSM、A-15 Adapter/Core 与 A-16 Workspace UI Port 接线 Current；A-02 视觉与 X-01 真实集成 Pending |
 
 本文是前端运行时、目录、依赖方向、构建和质量门禁的唯一正文来源。A-01 只证明最小入口与工程边界，不代表完整科研产品界面已交付。
 
@@ -15,7 +15,10 @@
 - 根 pnpm workspace 管理两个 App 和八个共享 Package。
 - Pydantic 仍是生产 Transport Schema 的唯一编写源；前端不得手写第二套同名生产 Schema。
 - Site 与 Workspace 不保存密钥，不直连模型、论文源或天文数据源。
-- A-02 与 A-03 前端产品行为保持 Pending；`/api/v2` M1 后端核心 Runtime 已实现，但在 A-03 完成前不宣称 Workspace 已接入真实 HTTP 主链路。
+- `runtime.ts` 未配置 `VITE_API_BASE_URL` 时选择 Fixture，配置合法 HTTP origin 时选择 HTTP Adapter；带路径、查询或 fragment 的值明确失败，不静默回退。
+- 私有 Tour / Workspace 页面仅在 HTTP 模式调用 `SessionManager.ensureSession()`；公开 Share 页面只调用 `shares.getPublic()`，不创建 Session。
+- A-16 页面只消费 Domain Model、Repository Port 和 Controller；`pages/` 与 `components/` 由架构门禁禁止 `fetch`、XHR、SSE、WebSocket、`@xingwen/contracts` 与硬编码 `/api/v1` / `/api/v2`。
+- 这些行为有 Fixture 与 HTTP-shaped 组件测试、Fixture Playwright E2E；真实 HTTP Browser、Compose 与刷新恢复仍由 #122 / #31 验证，不能据此宣称 X-01 完成。
 
 ## 2. 当前目录
 
@@ -23,6 +26,11 @@
 apps/
 ├─ site/                         # Astro 静态 Brand Site
 ├─ workspace/                    # React Research Workspace SPA
+│  └─ src/
+│     ├─ runtime.ts               # Fixture / HTTP Runtime 选择与边界组合
+│     ├─ pages/                   # Tour、Workspace、匿名 Share 页面
+│     ├─ components/              # 无请求的 ResearchShell
+│     └─ hooks/                   # Controller 与私有 Session 订阅
 └─ api/                          # FastAPI（前端边界之外）
 
 packages/
@@ -120,19 +128,19 @@ TypeScript 7.0.2 已发布，但当前不能进入基线：
 
 A-01 不实现完整首页叙事、WebGL、字体资产、社交预览或 A-02 视觉系统。
 
-## 6. Research Workspace 最小入口
+## 6. Research Workspace 当前入口
 
 `apps/workspace` 当前使用一棵 TanStack Router route tree：
 
 | 路径                 | 页面身份                                 |
 | -------------------- | ---------------------------------------- |
 | `/`                  | 科研工作台入口                           |
-| `/tour`              | 引导入口                                 |
-| `/workspace`         | 科研工作区                               |
-| `/share/$shareToken` | 共享入口；不读取共享数据，也不回显 token |
+| `/tour`              | Guided Tour FSM、Draft / Contract 与 Run 启动；Fixture 禁用 Live |
+| `/workspace`         | Project、Run/Event、ArtifactVersion/Evidence、WorkspaceSnapshot 与私有 Share |
+| `/share/$shareToken` | 匿名只读的冻结 PublicShareSnapshot；不创建 Session、不回显 token |
 | 其他                 | Not Found boundary                       |
 
-根布局提供可访问的主要导航和 skip link。Router 提供 Error Boundary、Loading fallback 与 Not Found boundary。每个页面只说明 A-01 基线，不实现真实 Project、Run、Artifact、Repository 或 API 行为。
+私有根布局提供可访问的主要导航和 skip link；窄屏的 Atlas 与 Observatory 保持原生 `details` 入口。Router 提供 Error Boundary、Loading fallback 与 Not Found boundary。Tour / Workspace 通过同一组 Repository Port 消费 Domain Model；公开 Share 不进入私有 Shell。A-16 未增加第二套 DTO、页面 `fetch` 或状态库。
 
 ## 7. Shared Package 当前边界
 
@@ -142,8 +150,8 @@ A-01 不实现完整首页叙事、WebGL、字体资产、社交预览或 A-02 �
 | `ui`             | 静态 `BrandMark` 与 UI 基元                      | A-02 建立 primitive 与复合组件           |
 | `domain`         | A-14 前端 Domain Model（Project、Contract、Run、ArtifactVersion、Evidence、ProvenanceState） | A-04～A-08 各科研工作区消费 |
 | `contracts`      | 生成的 v2 DTO、JSON Schema 与 ajv 运行时校验     | 随后端 Pydantic Contract 同步维护        |
-| `data-access`    | 收窄 Repository Port、版本化 Fixture 与 `/api/v2` HTTP Adapter | A-03 接入 Workspace UI |
-| `workspace-core` | Guided Tour FSM 与 WorkspaceSnapshot Controller | A-03 Contract、Tour UI 与页面状态编排    |
+| `data-access`    | 收窄 Repository Port、版本化 Fixture 与 `/api/v2` HTTP Adapter | #122 真实 Browser / Compose 集成 |
+| `workspace-core` | Guided Tour FSM 与 WorkspaceSnapshot Controller | A-04～A-10 的完整科研工作区状态 |
 | `visual-engine`  | A-02 公开边界类型                               | A-02 实现生命周期与降级                  |
 | `testing`        | 共享入口地址                                    | 各前端 Issue 按实际测试需要扩展          |
 
@@ -180,8 +188,8 @@ pnpm 11 配置位于 `pnpm-workspace.yaml`：
 
 ## 9. 测试边界
 
-- Unit：Vitest + Testing Library 验证共享深链接、生成 Contract 校验、Fixture/HTTP 一致性、错误映射与 Workspace Controller。
-- E2E：Playwright 验证 Site、无 JavaScript Site、Site 404、Workspace 四个入口、共享深链接、Not Found 与页面控制台错误。
+- Unit：Vitest + Testing Library 验证共享深链接、生成 Contract 校验、Fixture/HTTP 一致性、错误映射、Workspace Controller，以及 A-16 的 Tour、冲突、Artifact/Evidence、Share 与匿名状态。
+- E2E：Playwright 验证 Site、无 JavaScript Site、Site 404、Workspace 四个入口、A-16 Fixture Tour / Workspace / Share、键盘、375px、200% 字体、Not Found 与页面控制台错误。
 - Typecheck：两个 App 与全部共享 Package 分别执行。
 - Build：Site 与 Workspace 分别产出 `dist`；共享 Package 产出 JS 与声明文件。
 - Architecture：验证依赖方向、公开入口、Domain 纯度、单 lockfile 与禁止路径别名。
@@ -205,7 +213,7 @@ Compose 服务与默认端口：
 | `api`       | 8000 |
 | `postgres`  | 5432 |
 
-前端容器只接收 `PUBLIC_WORKSPACE_URL` 或 `VITE_API_BASE_URL`，不通过 `env_file` 接收后端密钥。HTTP Adapter 已实现，但当前 Workspace 页面尚未接线；`VITE_API_BASE_URL` 是 A-03/X-01 使用的非敏感地址。
+前端容器只接收 `PUBLIC_WORKSPACE_URL` 或 `VITE_API_BASE_URL`，不通过 `env_file` 接收后端密钥。Workspace 已按 origin 语义接线 HTTP Adapter；真实 Compose Browser、迁移与刷新恢复证据仍由 #122 / #31 收口。
 
 ## 11. CI
 
@@ -216,8 +224,8 @@ CI 不允许 App 私有 lockfile、第二套包管理器状态或跨包深层导
 ## 12. Pending 边界
 
 - A-02：完整 bluegray Design Token、primitive、Brand Site 极简单英雄首页、静态 Workspace Shell、Visual Engine（ASCII/Dither Hero）、Poster 与 Reduced Motion。
-- A-03：Research Contract 双通道 UI、Guided Tour 页面接线、Workspace/Share 交互与真实 HTTP 模式切换；Repository、Fixture/HTTP Adapter、WorkspaceSnapshot Controller 已实现。
-- X-01：完整 Workspace 主链路、Compose 与真实 HTTP 集成证据收口。
+- A-03 / #89：A-16 已完成 Tour、Workspace 与 Share 的页面 Port 接线；父 Epic 的关闭以 GitHub Issue、当前 PR Review 和集成证据为准。
+- X-01 / #122：真实 HTTP Browser、Compose、迁移和刷新恢复证据收口。
 - A-04～A-10：各科研产物工作区、反馈、响应式与发布收口。
 - Desktop/Tauri：需独立 Issue 与 Platform Adapter，不在当前目录创建。
 

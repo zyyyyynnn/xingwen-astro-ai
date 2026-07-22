@@ -22,11 +22,31 @@ export interface WorkspaceSnapshotPort {
   ): Promise<WorkspaceSnapshot>;
 }
 
+interface WorkspaceDraftState {
+  readonly projectId: DomainEntityId;
+  readonly snapshot: WorkspaceSnapshot | null;
+  readonly draft: WorkspaceSnapshotInput;
+  readonly expectedRevision: number;
+  readonly dirty: boolean;
+}
+
 export type WorkspaceState =
   | { readonly status: "idle" }
   | { readonly status: "loading"; readonly projectId: DomainEntityId }
-  | { readonly status: "ready"; readonly snapshot: WorkspaceSnapshot }
-  | { readonly status: "error"; readonly error: Error };
+  | ({ readonly status: "ready"; readonly snapshot: WorkspaceSnapshot } & Omit<
+      WorkspaceDraftState,
+      "snapshot" | "dirty"
+    > & { readonly dirty: false })
+  | ({ readonly status: "draft" } & WorkspaceDraftState)
+  | ({ readonly status: "saving" } & WorkspaceDraftState)
+  | {
+      readonly status: "conflict";
+      readonly projectId: DomainEntityId;
+      readonly attemptedDraft: WorkspaceSnapshotInput;
+      readonly expectedRevision: number;
+      readonly latestSnapshot: WorkspaceSnapshot | null;
+    }
+  | ({ readonly status: "error"; readonly error: Error } & WorkspaceDraftState);
 
 export type WorkspaceListener = (state: WorkspaceState) => void;
 
@@ -34,6 +54,8 @@ export interface WorkspaceController {
   getState(): WorkspaceState;
   subscribe(listener: WorkspaceListener): () => void;
   load(projectId: DomainEntityId): Promise<void>;
+  save(): Promise<void>;
+  adoptLatest(): void;
   setLayoutPreset(preset: string): Promise<void>;
   setPanelSlot(slot: WorkspacePanelSlot): Promise<void>;
   pinEvidence(evidenceId: DomainEntityId): Promise<void>;
@@ -41,10 +63,56 @@ export interface WorkspaceController {
   setActiveRun(runId: DomainEntityId | null): Promise<void>;
 }
 
+function createDraft(): WorkspaceSnapshotInput {
+  return {
+    layoutPreset: "comparative",
+    activeRunId: null,
+    panelSlots: [],
+    pinnedEvidenceIds: [],
+    atlasState: null,
+    observatoryState: null,
+    selectedObjectRef: null,
+  };
+}
+
+function toInput(snapshot: WorkspaceSnapshot): WorkspaceSnapshotInput {
+  return {
+    layoutPreset: snapshot.layoutPreset,
+    activeRunId: snapshot.activeRunId,
+    panelSlots: snapshot.panelSlots,
+    pinnedEvidenceIds: snapshot.pinnedEvidenceIds,
+    atlasState: snapshot.atlasState,
+    observatoryState: snapshot.observatoryState,
+    selectedObjectRef: snapshot.selectedObjectRef,
+  };
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function isConflict(error: Error): boolean {
+  return error.name === "ConflictError";
+}
+
+function isEditableState(
+  state: WorkspaceState,
+): state is Extract<
+  WorkspaceState,
+  { readonly status: "ready" | "draft" | "error" }
+> {
+  return (
+    state.status === "ready" ||
+    state.status === "draft" ||
+    (state.status === "error" && state.dirty)
+  );
+}
+
 export function createWorkspaceController(
   workspaces: WorkspaceSnapshotPort,
 ): WorkspaceController {
   let state: WorkspaceState = { status: "idle" };
+  let requestSequence = 0;
   const listeners = new Set<WorkspaceListener>();
 
   const notify = () => {
@@ -53,83 +121,24 @@ export function createWorkspaceController(
     }
   };
 
-  const updateSnapshot = async (
+  const updateDraft = async (
     updater: (input: WorkspaceSnapshotInput) => WorkspaceSnapshotInput,
   ): Promise<void> => {
-    if (state.status !== "ready") {
-      throw new Error("Cannot update workspace snapshot: workspace not ready");
+    if (!isEditableState(state)) {
+      throw new Error(
+        "Cannot update workspace draft: workspace is not editable",
+      );
     }
 
-    const projectId = state.snapshot.projectId;
-    const previousSnapshot = state.snapshot;
-    const expectedRevision = previousSnapshot.revision;
-
-    const input: WorkspaceSnapshotInput = {
-      layoutPreset: previousSnapshot.layoutPreset,
-      activeRunId: previousSnapshot.activeRunId,
-      panelSlots: previousSnapshot.panelSlots,
-      pinnedEvidenceIds: previousSnapshot.pinnedEvidenceIds,
-      atlasState: previousSnapshot.atlasState,
-      observatoryState: previousSnapshot.observatoryState,
-      selectedObjectRef: previousSnapshot.selectedObjectRef,
-    };
-
-    const nextInput = updater(input);
-
-    // Optimistically apply state changes
     state = {
-      status: "ready",
-      snapshot: {
-        ...previousSnapshot,
-        ...nextInput,
-        revision: expectedRevision + 1, // optimistic rev
-      },
+      status: "draft",
+      projectId: state.projectId,
+      snapshot: state.snapshot,
+      draft: updater(state.draft),
+      expectedRevision: state.expectedRevision,
+      dirty: true,
     };
     notify();
-
-    try {
-      const savedSnapshot = await workspaces.save(
-        projectId,
-        nextInput,
-        expectedRevision,
-      );
-      state = { status: "ready", snapshot: savedSnapshot };
-      notify();
-    } catch (err: unknown) {
-      const error = err as Error;
-      if (error.name === "ConflictError") {
-        // Rollback and fetch the latest state
-        const latest = await workspaces.getByProjectId(projectId);
-        if (latest) {
-          state = { status: "ready", snapshot: latest };
-        } else {
-          state = { status: "ready", snapshot: previousSnapshot };
-        }
-        notify();
-        // Retry once transparently with the latest revision.
-        if (latest) {
-          try {
-            const retrySaved = await workspaces.save(
-              projectId,
-              nextInput,
-              latest.revision,
-            );
-            state = { status: "ready", snapshot: retrySaved };
-            notify();
-          } catch (retryErr: unknown) {
-            // Retry also failed — keep state at `latest` and propagate.
-            state = { status: "ready", snapshot: latest };
-            notify();
-            throw retryErr;
-          }
-        }
-      } else {
-        // Rollback and throw
-        state = { status: "ready", snapshot: previousSnapshot };
-        notify();
-        throw err;
-      }
-    }
   };
 
   return {
@@ -141,46 +150,143 @@ export function createWorkspaceController(
       };
     },
     load: async (projectId: DomainEntityId): Promise<void> => {
+      const request = ++requestSequence;
       state = { status: "loading", projectId };
       notify();
+
       try {
-        let snapshot = await workspaces.getByProjectId(projectId);
-        if (!snapshot) {
-          // If a workspace snapshot doesn't exist, we fallback to a default empty one
-          // which is saved on the first mutation.
-          snapshot = {
-            id: `ws_${projectId}` as DomainEntityId,
+        const snapshot = await workspaces.getByProjectId(projectId);
+        if (request !== requestSequence) return;
+        if (snapshot === null) {
+          state = {
+            status: "draft",
             projectId,
-            revision: 0,
-            layoutPreset: "comparative",
-            activeRunId: null,
-            panelSlots: [],
-            pinnedEvidenceIds: [],
-            atlasState: null,
-            observatoryState: null,
-            selectedObjectRef: null,
-            updatedAt: new Date().toISOString() as never,
+            snapshot: null,
+            draft: createDraft(),
+            expectedRevision: 0,
+            dirty: false,
+          };
+        } else {
+          state = {
+            status: "ready",
+            projectId,
+            snapshot,
+            draft: toInput(snapshot),
+            expectedRevision: snapshot.revision,
+            dirty: false,
           };
         }
-        state = { status: "ready", snapshot };
-        notify();
-      } catch (err) {
+      } catch (error) {
+        if (request !== requestSequence) return;
         state = {
           status: "error",
-          error: err instanceof Error ? err : new Error(String(err)),
+          projectId,
+          snapshot: null,
+          draft: createDraft(),
+          expectedRevision: 0,
+          dirty: false,
+          error: toError(error),
         };
-        notify();
       }
+      if (request === requestSequence) notify();
+    },
+    save: async (): Promise<void> => {
+      if (!isEditableState(state)) {
+        throw new Error(
+          "Cannot save workspace draft: workspace is not editable",
+        );
+      }
+      if (state.status === "ready") {
+        return;
+      }
+
+      const request = ++requestSequence;
+      const attempted = {
+        projectId: state.projectId,
+        snapshot: state.snapshot,
+        draft: state.draft,
+        expectedRevision: state.expectedRevision,
+        dirty: state.dirty,
+      };
+      state = { status: "saving", ...attempted };
+      notify();
+
+      try {
+        const savedSnapshot = await workspaces.save(
+          attempted.projectId,
+          attempted.draft,
+          attempted.expectedRevision,
+        );
+        if (request !== requestSequence) return;
+        state = {
+          status: "ready",
+          projectId: attempted.projectId,
+          snapshot: savedSnapshot,
+          draft: toInput(savedSnapshot),
+          expectedRevision: savedSnapshot.revision,
+          dirty: false,
+        };
+      } catch (error) {
+        if (request !== requestSequence) return;
+        const saveError = toError(error);
+        if (isConflict(saveError)) {
+          try {
+            const latestSnapshot = await workspaces.getByProjectId(
+              attempted.projectId,
+            );
+            if (request !== requestSequence) return;
+            state = {
+              status: "conflict",
+              projectId: attempted.projectId,
+              attemptedDraft: attempted.draft,
+              expectedRevision: attempted.expectedRevision,
+              latestSnapshot,
+            };
+          } catch (readError) {
+            if (request !== requestSequence) return;
+            state = {
+              status: "error",
+              ...attempted,
+              dirty: true,
+              error: toError(readError),
+            };
+          }
+        } else {
+          state = {
+            status: "error",
+            ...attempted,
+            dirty: true,
+            error: saveError,
+          };
+        }
+      }
+      if (request === requestSequence) notify();
+    },
+    adoptLatest: (): void => {
+      if (state.status !== "conflict" || state.latestSnapshot === null) {
+        throw new Error(
+          "Cannot adopt workspace snapshot: no server snapshot is available",
+        );
+      }
+      state = {
+        status: "ready",
+        projectId: state.projectId,
+        snapshot: state.latestSnapshot,
+        draft: toInput(state.latestSnapshot),
+        expectedRevision: state.latestSnapshot.revision,
+        dirty: false,
+      };
+      notify();
     },
     setLayoutPreset: (preset: string) =>
-      updateSnapshot((input) => ({
+      updateDraft((input) => ({
         ...input,
         layoutPreset: preset,
       })),
     setPanelSlot: (slot: WorkspacePanelSlot) =>
-      updateSnapshot((input) => {
+      updateDraft((input) => {
         const otherSlots = input.panelSlots.filter(
-          (s) => s.slotId !== slot.slotId,
+          (currentSlot) => currentSlot.slotId !== slot.slotId,
         );
         return {
           ...input,
@@ -188,7 +294,7 @@ export function createWorkspaceController(
         };
       }),
     pinEvidence: (evidenceId: DomainEntityId) =>
-      updateSnapshot((input) => {
+      updateDraft((input) => {
         if (input.pinnedEvidenceIds.includes(evidenceId)) return input;
         return {
           ...input,
@@ -196,14 +302,14 @@ export function createWorkspaceController(
         };
       }),
     unpinEvidence: (evidenceId: DomainEntityId) =>
-      updateSnapshot((input) => ({
+      updateDraft((input) => ({
         ...input,
         pinnedEvidenceIds: input.pinnedEvidenceIds.filter(
           (id) => id !== evidenceId,
         ),
       })),
     setActiveRun: (runId: DomainEntityId | null) =>
-      updateSnapshot((input) => ({
+      updateDraft((input) => ({
         ...input,
         activeRunId: runId,
       })),
