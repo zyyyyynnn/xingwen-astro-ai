@@ -21,8 +21,8 @@
 
 import {
   parseV2Dto,
-  type UpdateContractDraftRequestExt,
-  type UpdateProjectRequest,
+  type ConfirmResearchContractRequest,
+  type UpdateResearchContractDraftRequest,
   type V2CoreModelName,
 } from "@xingwen/contracts";
 import type {
@@ -47,6 +47,7 @@ import {
   mapResearchRun,
   mapRunEvent,
 } from "./mapping";
+import { CapabilityUnavailableError } from "./errors";
 import {
   mapProblemDetails,
   NetworkError,
@@ -391,34 +392,17 @@ export function createHttpRepositories(
       return validateAndMap("ResearchProject", payload, mapResearchProject);
     },
     async list(): Promise<readonly ResearchProject[]> {
-      const payloads = await http.list<unknown>("/api/v2/projects");
-      const entities = payloads.map((p) =>
-        validateAndMap("ResearchProject", p, mapResearchProject),
+      throw new CapabilityUnavailableError(
+        "projects.list",
+        "OpenAPI does not define a project list endpoint",
       );
-      projectSubs.notify(entities);
-      return entities;
     },
     async save(project: ResearchProject): Promise<void> {
-      // Project create/update endpoints are defined in API_CONTRACT.md §8
-      // but not yet in the generated OpenAPI. We issue PATCH for updates;
-      // the server will return the updated DTO.
-      const body: UpdateProjectRequest = {
-        name: project.name,
-        description: project.description,
-      };
-      const payload = await http.patch<unknown>(
-        `/api/v2/projects/${encodeURIComponent(project.id)}`,
-        body,
+      void project;
+      throw new CapabilityUnavailableError(
+        "projects.save",
+        "OpenAPI does not define a project save/update endpoint",
       );
-      if (payload) {
-        const updated = validateAndMap(
-          "ResearchProject",
-          payload,
-          mapResearchProject,
-        );
-        const all = await this.list();
-        projectSubs.notify([...all, updated]);
-      }
     },
     subscribe(listener: Listener<ResearchProject>): Unsubscribe {
       return projectSubs.subscribe(listener);
@@ -440,22 +424,15 @@ export function createHttpRepositories(
       );
     },
     async listDrafts(): Promise<readonly ResearchContractDraft[]> {
-      // Draft list endpoint is defined in API_CONTRACT.md §7 but not yet
-      // generated. `http.list` treats 404 as an empty collection during
-      // the transition until the backend exposes the route.
-      const payloads = await http.list<unknown>(
-        "/api/v2/research-contract-drafts",
-      );
-      return payloads.map((p) =>
-        validateAndMap("ResearchContractDraft", p, mapResearchContractDraft),
+      throw new CapabilityUnavailableError(
+        "contracts.listDrafts",
+        "OpenAPI does not define a contract drafts list endpoint",
       );
     },
     async saveDraft(draft: ResearchContractDraft): Promise<void> {
-      const body: UpdateContractDraftRequestExt = {
-        version: draft.version,
+      const body: UpdateResearchContractDraftRequest = {
         contract: mapDomainContractInputToDto(draft.contract),
         intent: draft.intent,
-        status: draft.status,
       };
       await http.patch<unknown>(
         `/api/v2/research-contract-drafts/${encodeURIComponent(draft.id)}`,
@@ -465,28 +442,42 @@ export function createHttpRepositories(
     async getContractById(
       contractId: DomainEntityId,
     ): Promise<ResearchContract | null> {
-      void contractId;
-      // Contract is a sub-resource of Project. API_CONTRACT.md §8 does not
-      // define a direct GET by contract id; we use the generated
-      // `getResearchProject` aggregate and search its contracts. For now,
-      // until the backend exposes a direct route, return null if not found
-      // in the project aggregate. This is documented as a known limitation.
-      // The generated Contract includes `confirmResearchContract` which
-      // creates a Contract; reads by id will be added when the backend
-      // exposes them. For consistency tests we rely on the list endpoint.
-      return null;
+      const payload = await http.get<unknown>(
+        `/api/v2/research-contracts/${encodeURIComponent(contractId)}`,
+      );
+      if (!payload) return null;
+      return validateAndMap("ResearchContract", payload, mapResearchContract);
     },
     async listContracts(
       projectId: DomainEntityId,
     ): Promise<readonly ResearchContract[]> {
-      const payloads = await http.list<unknown>(
+      void projectId;
+      throw new CapabilityUnavailableError(
+        "contracts.listContracts",
+        "OpenAPI does not define a contract list endpoint",
+      );
+    },
+    async confirm(
+      projectId: DomainEntityId,
+      draftId: DomainEntityId,
+      expectedDraftVersion: number,
+    ): Promise<ResearchContract> {
+      const body: ConfirmResearchContractRequest = {
+        draft_id: draftId,
+        expected_draft_version: expectedDraftVersion,
+      };
+      const payload = await http.post<unknown>(
         `/api/v2/projects/${encodeURIComponent(projectId)}/contracts`,
+        body,
       );
-      const entities = payloads.map((p) =>
-        validateAndMap("ResearchContract", p, mapResearchContract),
-      );
-      contractSubs.notify(entities);
-      return entities;
+      if (!payload) {
+        throw new UnexpectedHttpError(
+          "Confirm endpoint returned no payload",
+          200,
+          null,
+        );
+      }
+      return validateAndMap("ResearchContract", payload, mapResearchContract);
     },
     subscribe(listener: Listener<ResearchContract>): Unsubscribe {
       return contractSubs.subscribe(listener);
@@ -504,14 +495,11 @@ export function createHttpRepositories(
     async listByProject(
       projectId: DomainEntityId,
     ): Promise<readonly ResearchRun[]> {
-      const payloads = await http.list<unknown>(
-        `/api/v2/projects/${encodeURIComponent(projectId)}/runs`,
+      void projectId;
+      throw new CapabilityUnavailableError(
+        "runs.listByProject",
+        "OpenAPI does not define a run list-by-project endpoint",
       );
-      const entities = payloads.map((p) =>
-        validateAndMap("ResearchRun", p, mapResearchRun),
-      );
-      runSubs.notify(entities);
-      return entities;
     },
     async save(run: ResearchRun): Promise<void> {
       // Run creation uses POST /api/v2/projects/{project_id}/runs with
@@ -640,11 +628,11 @@ export function createHttpRepositories(
     async listByProject(
       projectId: DomainEntityId,
     ): Promise<readonly ResearchArtifact[]> {
-      // Artifacts are listed via runs per API_CONTRACT.md §11. We use the
-      // project's runs and aggregate their artifacts. For now, until the
-      // backend exposes a project-level artifact list, return empty.
       void projectId;
-      return [];
+      throw new CapabilityUnavailableError(
+        "artifacts.listByProject",
+        "OpenAPI does not define an artifact list-by-project endpoint",
+      );
     },
     async getVersionById(id: DomainEntityId): Promise<ArtifactVersion | null> {
       const payload = await http.get<unknown>(
@@ -656,17 +644,10 @@ export function createHttpRepositories(
     async listVersions(
       artifactId: DomainEntityId,
     ): Promise<readonly ArtifactVersion[]> {
-      // API_CONTRACT.md §11 describes the artifact endpoint as returning
-      // "version list summary", but the generated ResearchArtifact schema
-      // has additionalProperties: false and does not include a versions
-      // field. We use a dedicated versions sub-resource endpoint instead:
-      // GET /api/v2/artifacts/{artifact_id}/versions. Not yet in the
-      // generated Contract; each item is validated as an ArtifactVersion.
-      const payloads = await http.list<unknown>(
-        `/api/v2/artifacts/${encodeURIComponent(artifactId)}/versions`,
-      );
-      return payloads.map((p) =>
-        validateAndMap("ArtifactVersion", p, mapArtifactVersion),
+      void artifactId;
+      throw new CapabilityUnavailableError(
+        "artifacts.listVersions",
+        "OpenAPI does not define an artifact version list endpoint",
       );
     },
     async saveVersion(version: ArtifactVersion): Promise<void> {
@@ -680,17 +661,20 @@ export function createHttpRepositories(
 
   const evidence: EvidenceRepository = {
     async getById(id: DomainEntityId): Promise<Evidence | null> {
-      // Evidence read endpoint is defined in API_CONTRACT.md §11 but not
-      // yet in the generated OpenAPI. The response shape is documented but
-      // not contract-validated. We return null until the backend exposes it.
       void id;
-      return null;
+      throw new CapabilityUnavailableError(
+        "evidence.getById",
+        "OpenAPI does not define an evidence read endpoint",
+      );
     },
     async listByArtifactVersion(
       artifactVersionId: DomainEntityId,
     ): Promise<readonly Evidence[]> {
       void artifactVersionId;
-      return [];
+      throw new CapabilityUnavailableError(
+        "evidence.listByArtifactVersion",
+        "OpenAPI does not define an evidence list-by-artifact-version endpoint",
+      );
     },
     async save(evidence: Evidence): Promise<void> {
       void evidence;
