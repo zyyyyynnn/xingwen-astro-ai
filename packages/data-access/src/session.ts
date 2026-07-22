@@ -33,7 +33,7 @@ export interface SessionManager {
   ensureSession(): Promise<SessionInfo>;
   /** Current session info, or null if not yet created / expired. */
   getCurrent(): SessionInfo | null;
-  /** Explicitly revoke the session (DELETE /api/v2/sessions). */
+  /** Explicitly revoke the session (DELETE /api/v2/sessions/current). */
   revokeSession(): Promise<void>;
   /** Attach CSRF header to a mutable Headers for non-safe methods. */
   attachCsrf(headers: Headers): void;
@@ -104,7 +104,7 @@ export function createSessionManager(
     async revokeSession() {
       if (!current) return;
       const response = await config.fetchImpl(
-        `${config.baseUrl}/api/v2/sessions`,
+        `${config.baseUrl}/api/v2/sessions/current`,
         {
           method: "DELETE",
           credentials: "include",

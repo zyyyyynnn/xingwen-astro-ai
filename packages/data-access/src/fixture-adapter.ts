@@ -1,33 +1,34 @@
 /**
  * Fixture adapter — the Demo Replay `RepositorySet` implementation.
  *
- * This adapter validates every fixture DTO against the B-15 JSON Schemas,
- * enforces Demo Replay semantic constraints (no `live` or `cached` data),
- * maps payloads into the domain model, and serves reads from in-memory
- * stores. Writes update the stores and notify subscribers so workspace
- * previews can exercise the full read/write/subscribe contract without a
- * backend.
- *
- * The HTTP adapter (A-15) will implement the same `RepositorySet` interface
- * against real `/api/v2` endpoints.
+ * Validates every fixture DTO against the B-15 JSON Schemas, enforces Demo
+ * Replay semantics (no `live`/`cached` data), maps payloads into the domain
+ * model, and serves reads from in-memory stores. It implements the same
+ * narrowed ports as the HTTP adapter so the two are structurally
+ * interchangeable. Writes (draft update, contract confirm, run create,
+ * workspace save, share create/revoke) mutate the stores deterministically via
+ * an injectable clock and id factory so tests stay stable.
  */
 
 import { validateV2Dto, type V2CoreModelName } from "@xingwen/contracts";
 import type {
-  ArtifactVersion,
-  ContentHash,
+  CreateShareSnapshotRequest,
   DomainEntityId,
-  Evidence,
+  PublicArtifactVersion,
+  PublicEvidence,
+  PublicShareSnapshot,
   ResearchContract,
   ResearchContractDraft,
-  ResearchProject,
   ResearchRun,
-  WorkspaceSnapshot,
-  ShareSnapshot,
   RunEvent,
+  ShareSnapshot,
+  WorkspaceSnapshot,
+  ContentHash,
+  UtcIsoTimestamp,
 } from "@xingwen/domain";
 
 import { FixtureSemanticError, FixtureValidationError } from "./errors";
+import { ConflictError } from "./http-errors";
 import {
   buildFixtureProvenance,
   mapArtifactVersion,
@@ -40,18 +41,24 @@ import {
   mapRunEvent,
 } from "./mapping";
 import type {
-  ArtifactRepository,
+  ArtifactReadRepository,
   ContractRepository,
-  EvidenceRepository,
-  Listener,
+  CreateResearchRunInput,
   ProjectRepository,
   RepositoryProvenance,
+  RunEventRecovery,
   RunRepository,
   ShareRepository,
-  Unsubscribe,
+  UpdateResearchContractDraftInput,
   WorkspaceSnapshotRepository,
 } from "./ports";
 import type { FixtureBundle } from "./fixture/bundle";
+
+/** Optional deterministic clock and id factory for stable tests. */
+export interface FixtureAdapterOptions {
+  readonly clock?: () => UtcIsoTimestamp;
+  readonly idFactory?: (prefix: string) => DomainEntityId;
+}
 
 function validateBundleSemantics(bundle: FixtureBundle): void {
   if (bundle.executionMode !== "demo_replay") {
@@ -64,7 +71,6 @@ function validateBundleSemantics(bundle: FixtureBundle): void {
       `Fixture bundle sourceMode must be "fixture"; got "${bundle.sourceMode}".`,
     );
   }
-
   for (const run of bundle.data.runs) {
     if (run.execution_mode !== "demo_replay") {
       throw new FixtureSemanticError(
@@ -72,7 +78,6 @@ function validateBundleSemantics(bundle: FixtureBundle): void {
       );
     }
   }
-
   for (const version of bundle.data.artifactVersions) {
     if (version.source_mode !== "fixture") {
       throw new FixtureSemanticError(
@@ -95,7 +100,6 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
     { model: "ArtifactVersion", payloads: bundle.data.artifactVersions },
     { model: "ResearchArtifact", payloads: bundle.data.artifacts },
   ];
-
   for (const { model, payloads } of entries) {
     for (const payload of payloads) {
       const result = validateV2Dto(model, payload);
@@ -109,19 +113,12 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
   }
 }
 
-/** In-memory store with subscription support. */
+/** In-memory keyed store. */
 class MemoryStore<T extends { readonly id: DomainEntityId }> {
   private readonly entities = new Map<DomainEntityId, T>();
-  private readonly listeners = new Set<Listener<T>>();
 
   constructor(entities: readonly T[]) {
-    for (const entity of entities) {
-      this.entities.set(entity.id, entity);
-    }
-  }
-
-  getAll(): readonly T[] {
-    return [...this.entities.values()];
+    for (const entity of entities) this.entities.set(entity.id, entity);
   }
 
   get(id: DomainEntityId): T | null {
@@ -130,37 +127,40 @@ class MemoryStore<T extends { readonly id: DomainEntityId }> {
 
   upsert(entity: T): void {
     this.entities.set(entity.id, entity);
-    this.notify();
   }
 
   filter(predicate: (entity: T) => boolean): readonly T[] {
     return [...this.entities.values()].filter(predicate);
   }
+}
 
-  subscribe(listener: Listener<T>): Unsubscribe {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  private notify(): void {
-    const snapshot = this.getAll();
-    for (const listener of this.listeners) {
-      listener(snapshot);
-    }
-  }
+interface ShareRecord {
+  readonly snapshot: ShareSnapshot;
+  readonly token: string;
+  readonly artifactVersions: readonly PublicArtifactVersion[];
+  readonly evidence: readonly PublicEvidence[];
 }
 
 export interface FixtureRepositorySet {
   readonly projects: ProjectRepository;
   readonly contracts: ContractRepository;
   readonly runs: RunRepository;
-  readonly artifacts: ArtifactRepository;
-  readonly evidence: EvidenceRepository;
+  readonly artifacts: ArtifactReadRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
   readonly provenance: RepositoryProvenance;
+}
+
+function defaultClock(): () => UtcIsoTimestamp {
+  let tick = 0;
+  const base = Date.parse("2026-07-21T09:00:00Z");
+  return () => new Date(base + tick++ * 1000).toISOString() as UtcIsoTimestamp;
+}
+
+function defaultIdFactory(): (prefix: string) => DomainEntityId {
+  let seq = 0;
+  return (prefix) =>
+    `${prefix}_${String(++seq).padStart(4, "0")}` as DomainEntityId;
 }
 
 /**
@@ -172,9 +172,13 @@ export interface FixtureRepositorySet {
  */
 export function createFixtureRepositories(
   bundle: FixtureBundle,
+  options: FixtureAdapterOptions = {},
 ): FixtureRepositorySet {
   validateBundleSemantics(bundle);
   validateBundlePayloads(bundle);
+
+  const clock = options.clock ?? defaultClock();
+  const nextId = options.idFactory ?? defaultIdFactory();
 
   const projects = new MemoryStore(
     bundle.data.projects.map((dto) => mapResearchProject(dto)),
@@ -198,39 +202,78 @@ export function createFixtureRepositories(
     bundle.data.evidence.map((entity) => mapEvidence(entity)),
   );
   const workspaces = new MemoryStore<WorkspaceSnapshot>([]);
-  const shares = new MemoryStore<ShareSnapshot>([]);
-  /** Token → ShareSnapshot ID lookup for getPublicShare. */
-  const shareTokenIndex = new Map<string, DomainEntityId>();
 
   const runEvents = new Map<DomainEntityId, RunEvent[]>();
   for (const dto of bundle.data.runEvents) {
     const event = mapRunEvent(dto);
     const existing = runEvents.get(event.runId) ?? [];
     existing.push(event);
+    existing.sort((a, b) => a.sequence - b.sequence);
     runEvents.set(event.runId, existing);
   }
 
-  const provenance: RepositoryProvenance = {
-    state: buildFixtureProvenance(
-      bundle.schemaVersion,
-      bundle.generatedAt,
-      bundle.data.evidence.length,
-      bundle.data.evidence.length,
-      bundle.provenanceNote,
-    ),
-  };
+  const shares = new Map<DomainEntityId, ShareRecord>();
+  const shareByToken = new Map<string, DomainEntityId>();
+
+  function toPublicVersion(versionId: DomainEntityId): PublicArtifactVersion {
+    const version = versions.get(versionId);
+    if (version === null) {
+      throw new FixtureValidationError("ArtifactVersion", [
+        `ArtifactVersion ${versionId} not found for share`,
+      ]);
+    }
+    const artifact = artifacts.get(version.artifactId);
+    if (artifact === null) {
+      throw new FixtureValidationError("ResearchArtifact", [
+        `Artifact ${version.artifactId} not found for share`,
+      ]);
+    }
+    return {
+      id: version.id,
+      artifactId: version.artifactId,
+      kind: artifact.kind,
+      title: artifact.title,
+      versionNumber: version.versionNumber,
+      schemaVersion: version.schemaVersion,
+      contentHash: version.contentHash,
+      sourceMode: version.sourceMode,
+      createdAt: version.createdAt,
+    };
+  }
 
   return {
     projects: {
       getById: async (id) => projects.get(id),
-      list: async () => projects.getAll(),
-      save: async (project: ResearchProject) => projects.upsert(project),
-      subscribe: (listener) => projects.subscribe(listener),
     },
     contracts: {
       getDraftById: async (id) => drafts.get(id),
-      listDrafts: async () => drafts.getAll(),
-      saveDraft: async (draft: ResearchContractDraft) => drafts.upsert(draft),
+      updateDraft: async (
+        draftId,
+        expectedVersion,
+        input: UpdateResearchContractDraftInput,
+      ) => {
+        const draft = drafts.get(draftId);
+        if (draft === null) {
+          throw new FixtureValidationError("ResearchContractDraft", [
+            `Draft ${draftId} not found`,
+          ]);
+        }
+        if (draft.version !== expectedVersion) {
+          throw new ConflictError(
+            `Draft revision conflict: expected ${expectedVersion}, got ${draft.version}`,
+            "VERSION_CONFLICT",
+          );
+        }
+        const updated: ResearchContractDraft = {
+          ...draft,
+          intent: input.intent ?? draft.intent,
+          contract: input.contract ?? draft.contract,
+          version: draft.version + 1,
+          updatedAt: clock(),
+        };
+        drafts.upsert(updated);
+        return updated;
+      },
       confirm: async (projectId, draftId, expectedDraftVersion) => {
         const draft = drafts.get(draftId);
         if (draft === null) {
@@ -239,80 +282,110 @@ export function createFixtureRepositories(
           ]);
         }
         if (draft.version !== expectedDraftVersion) {
-          throw new FixtureValidationError("ResearchContractDraft", [
-            `Expected draft version ${expectedDraftVersion} but found ${draft.version}`,
-          ]);
+          throw new ConflictError(
+            `Draft revision conflict: expected ${expectedDraftVersion}, got ${draft.version}`,
+            "VERSION_CONFLICT",
+          );
         }
-        const contractId = `rc_${draft.id}` as DomainEntityId;
         const contract: ResearchContract = {
           ...draft.contract,
-          id: contractId,
+          id: nextId("rc"),
           projectId,
           version: 1,
           createdFromDraftId: draft.id,
-          createdAt: draft.updatedAt,
-          contentHash: `hash_${draft.id}` as ContentHash,
+          createdAt: clock(),
+          contentHash: ("sha256:" + "0".repeat(64)) as ContentHash,
         };
         contracts.upsert(contract);
         return contract;
       },
       getContractById: async (id) => contracts.get(id),
-      listContracts: async (projectId) =>
-        contracts.filter((c) => c.projectId === projectId),
-      subscribe: (listener) => contracts.subscribe(listener),
     },
     runs: {
       getById: async (id) => runs.get(id),
-      listByProject: async (projectId) =>
-        runs.filter((r) => r.projectId === projectId),
-      save: async (run: ResearchRun) => runs.upsert(run),
-      getEvents: async (runId) => [...(runEvents.get(runId) ?? [])],
-      appendEvent: async (event: RunEvent) => {
-        const existing = runEvents.get(event.runId) ?? [];
-        existing.push(event);
-        runEvents.set(event.runId, existing);
+      create: async (input: CreateResearchRunInput) => {
+        const id = nextId("run");
+        const now = clock();
+        const run: ResearchRun = {
+          id,
+          projectId: input.projectId,
+          contractId: input.contractId,
+          executionMode: input.executionMode,
+          status: "queued",
+          progress: 0,
+          parentRunId: input.parentRunId ?? null,
+          derivationKind: input.derivationKind ?? "original",
+          retryFromStep: input.retryFromStep ?? null,
+          cachePolicy: input.cachePolicy ?? "fallback_on_recoverable_failure",
+          startedAt: null,
+          finishedAt: null,
+          createdAt: now,
+          updatedAt: now,
+          latestEventSequence: 1,
+          failureCode: null,
+          failureSummary: null,
+        };
+        runs.upsert(run);
+        runEvents.set(id, [
+          {
+            runId: id,
+            sequence: 1,
+            eventType: "run.queued" as DomainEntityId,
+            stepKey: null,
+            progress: 0,
+            publicMessage: "Run queued",
+            artifactVersionIds: [],
+            occurredAt: now,
+          },
+        ]);
+        return run;
       },
-      subscribe: (listener) => runs.subscribe(listener),
+      listEvents: async (runId) => [...(runEvents.get(runId) ?? [])],
+      recoverEvents: async (
+        runId,
+        fromCursor = null,
+      ): Promise<RunEventRecovery> => {
+        const run = runs.get(runId);
+        if (run === null) {
+          throw new ConflictError(`Run ${runId} not found`, "RUN_NOT_FOUND");
+        }
+        const latestSequence = run.latestEventSequence;
+        const after = fromCursor ? Number(fromCursor) : 0;
+        const events = (runEvents.get(runId) ?? []).filter(
+          (e) => e.sequence > after && e.sequence <= latestSequence,
+        );
+        return { events, nextCursor: null, latestSequence };
+      },
     },
     artifacts: {
-      getArtifactById: async (id) => artifacts.get(id),
-      listByProject: async (projectId) =>
-        artifacts.filter((a) => a.projectId === projectId),
-      getVersionById: async (id) => versions.get(id),
-      listVersions: async (artifactId) =>
-        versions.filter((v) => v.artifactId === artifactId),
-      saveVersion: async (version: ArtifactVersion) => versions.upsert(version),
-      subscribe: (listener) => artifacts.subscribe(listener),
-    },
-    evidence: {
-      getById: async (id) => evidenceStore.get(id),
-      listByArtifactVersion: async (artifactVersionId) =>
-        evidenceStore.filter((e) => e.artifactVersionId === artifactVersionId),
-      save: async (entity: Evidence) => evidenceStore.upsert(entity),
-      subscribe: (listener) => evidenceStore.subscribe(listener),
+      listByRun: async (runId) => {
+        const versionArtifactIds = new Set(
+          versions
+            .filter((v) => v.createdByRunId === runId)
+            .map((v) => v.artifactId),
+        );
+        return artifacts.filter((a) => versionArtifactIds.has(a.id));
+      },
+      getArtifact: async (id) => artifacts.get(id),
+      getVersion: async (id) => versions.get(id),
+      getEvidence: async (id) => evidenceStore.get(id),
     },
     workspaces: {
-      getByProjectId: async (projectId) => {
-        const matches = workspaces.filter((w) => w.projectId === projectId);
-        return matches[0] ?? null;
-      },
+      getByProjectId: async (projectId) =>
+        workspaces.filter((w) => w.projectId === projectId)[0] ?? null,
       save: async (projectId, snapshotInput, expectedRevision) => {
         const existing = workspaces.filter((w) => w.projectId === projectId)[0];
         const currentRevision = existing ? existing.revision : 0;
-
         if (currentRevision !== expectedRevision) {
-          const { ConflictError } = await import("./http-errors");
           throw new ConflictError(
-            `Workspace snapshot revision conflict: expected ${expectedRevision}, got ${currentRevision}`,
+            `Workspace revision conflict: expected ${expectedRevision}, got ${currentRevision}`,
             "VERSION_CONFLICT",
           );
         }
-
-        const newRevision = currentRevision + 1;
         const snapshot: WorkspaceSnapshot = {
-          id: `ws_${projectId}` as DomainEntityId,
+          id: existing?.id ?? nextId("ws"),
           projectId,
-          revision: newRevision,
+          revision: currentRevision + 1,
           layoutPreset: snapshotInput.layoutPreset,
           panelSlots: snapshotInput.panelSlots,
           activeRunId: snapshotInput.activeRunId,
@@ -320,59 +393,89 @@ export function createFixtureRepositories(
           atlasState: snapshotInput.atlasState,
           observatoryState: snapshotInput.observatoryState,
           selectedObjectRef: snapshotInput.selectedObjectRef,
-          updatedAt: new Date().toISOString() as never,
+          updatedAt: clock(),
         };
         workspaces.upsert(snapshot);
         return snapshot;
       },
     },
     shares: {
-      create: async (projectId, request) => {
-        const id = `share_${Date.now()}` as DomainEntityId;
+      list: async (projectId) =>
+        [...shares.values()]
+          .filter((r) => r.snapshot.projectId === projectId)
+          .map((r) => r.snapshot),
+      create: async (projectId, request: CreateShareSnapshotRequest) => {
+        const id = nextId("share");
         const token = `token_${id}`;
+        const now = clock();
+        const artifactVersions = request.artifactVersionIds.map((v) =>
+          toPublicVersion(v),
+        );
+        const allowed = new Set(request.artifactVersionIds);
+        const evidence: PublicEvidence[] = [];
+        for (const evidenceId of request.evidenceIds) {
+          const entity = evidenceStore.get(evidenceId);
+          if (entity === null || entity.sourceSnapshotId === null) continue;
+          if (!allowed.has(entity.artifactVersionId)) continue;
+          evidence.push({
+            id: entity.id,
+            artifactVersionId: entity.artifactVersionId,
+            sourceSnapshotId: entity.sourceSnapshotId,
+          });
+        }
         const snapshot: ShareSnapshot = {
           id,
           projectId,
           title: request.title,
-          createdAt: new Date().toISOString() as never,
-          expiresAt: request.expiresAt,
           status: "active",
           redactionPolicy: request.redactionPolicy,
           artifactVersionIds: request.artifactVersionIds,
           evidenceIds: request.evidenceIds,
+          createdAt: now,
+          expiresAt: request.expiresAt,
           revokedAt: null,
         };
-        shares.upsert(snapshot);
-        shareTokenIndex.set(token, id);
-        return {
-          ...snapshot,
-          shareToken: token,
-          shareUrl: `https://example.com/share/${token}`,
-        };
+        shares.set(id, { snapshot, token, artifactVersions, evidence });
+        shareByToken.set(token, id);
+        return { ...snapshot, shareToken: token, shareUrl: `/share/${token}` };
       },
-      getByProjectIdAndShareId: async (projectId, shareId) => {
-        const share = shares.get(shareId);
-        return share?.projectId === projectId ? share : null;
-      },
-      listByProject: async (projectId) =>
-        shares.filter((s) => s.projectId === projectId),
       revoke: async (projectId, shareId) => {
-        const share = shares.get(shareId);
-        if (share && share.projectId === projectId) {
-          shares.upsert({ ...share, status: "revoked" });
+        const record = shares.get(shareId);
+        if (record && record.snapshot.projectId === projectId) {
+          shares.set(shareId, {
+            ...record,
+            snapshot: {
+              ...record.snapshot,
+              status: "revoked",
+              revokedAt: clock(),
+            },
+          });
         }
       },
-      getPublicShare: async (shareToken) => {
-        const shareId = shareTokenIndex.get(shareToken);
+      getPublic: async (shareToken): Promise<PublicShareSnapshot | null> => {
+        const shareId = shareByToken.get(shareToken);
         if (!shareId) return null;
-        const share = shares.get(shareId);
-        if (!share || share.status !== "active") return null;
-        // In fixture mode we return null (no inline artifacts/evidence).
-        // A full PublicShareSnapshot would require resolving artifact versions
-        // and evidence from the stores, which is out of A-16 scope.
-        return null;
+        const record = shares.get(shareId);
+        if (!record || record.snapshot.status !== "active") return null;
+        return {
+          id: record.snapshot.id,
+          title: record.snapshot.title,
+          redactionPolicy: record.snapshot.redactionPolicy,
+          createdAt: record.snapshot.createdAt,
+          expiresAt: record.snapshot.expiresAt,
+          artifactVersions: record.artifactVersions,
+          evidence: record.evidence,
+        };
       },
     },
-    provenance,
+    provenance: {
+      state: buildFixtureProvenance(
+        bundle.schemaVersion,
+        bundle.generatedAt,
+        bundle.data.evidence.length,
+        bundle.data.evidence.length,
+        bundle.provenanceNote,
+      ),
+    },
   };
 }

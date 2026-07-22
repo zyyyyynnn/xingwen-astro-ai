@@ -1,0 +1,66 @@
+/**
+ * Generic Artifact/Evidence read repository over `/api/v2`.
+ *
+ * Reads are validated against the exact response contract: list items as
+ * `ResearchArtifact`, single artifact/version as the richer `*Detail`
+ * projections, and Evidence as `EvidenceRead` (the endpoint exists in the
+ * runtime, so this is a real read rather than a capability gap).
+ */
+
+import type {
+  ArtifactVersion,
+  Evidence,
+  ResearchArtifact,
+} from "@xingwen/domain";
+
+import { HttpClient, seg, validateAndMap } from "./http-client";
+import {
+  mapArtifactVersionDetail,
+  mapEvidenceRead,
+  mapResearchArtifact,
+  mapResearchArtifactDetail,
+} from "./mapping";
+import type { ArtifactReadRepository } from "./ports";
+
+export function createArtifactRepository(
+  http: HttpClient,
+): ArtifactReadRepository {
+  return {
+    async listByRun(runId): Promise<readonly ResearchArtifact[]> {
+      const payloads = await http.list<unknown>(
+        `/api/v2/runs/${seg(runId)}/artifacts`,
+      );
+      return payloads.map((p) =>
+        validateAndMap("ResearchArtifact", p, mapResearchArtifact),
+      );
+    },
+    async getArtifact(id): Promise<ResearchArtifact | null> {
+      const payload = await http.get<unknown>(`/api/v2/artifacts/${seg(id)}`);
+      return payload
+        ? validateAndMap(
+            "ResearchArtifactDetail",
+            payload,
+            mapResearchArtifactDetail,
+          )
+        : null;
+    },
+    async getVersion(id): Promise<ArtifactVersion | null> {
+      const payload = await http.get<unknown>(
+        `/api/v2/artifact-versions/${seg(id)}`,
+      );
+      return payload
+        ? validateAndMap(
+            "ArtifactVersionDetail",
+            payload,
+            mapArtifactVersionDetail,
+          )
+        : null;
+    },
+    async getEvidence(id): Promise<Evidence | null> {
+      const payload = await http.get<unknown>(`/api/v2/evidence/${seg(id)}`);
+      return payload
+        ? validateAndMap("EvidenceRead", payload, mapEvidenceRead)
+        : null;
+    },
+  };
+}

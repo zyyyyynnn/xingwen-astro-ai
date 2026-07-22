@@ -2,8 +2,9 @@
  * Shared test helpers for HTTP adapter tests.
  *
  * Builds MSW handlers from fixture DTOs so the HTTP adapter receives the same
- * payloads the fixture adapter validates internally — this is the structural
- * basis for the Fixture/HTTP consistency test.
+ * payloads the fixture adapter validates internally — the structural basis for
+ * the Fixture/HTTP consistency test. Single artifact/version reads are served
+ * as the richer `*Detail` projections the runtime returns.
  */
 
 import { http, HttpResponse } from "msw";
@@ -11,6 +12,10 @@ import { http, HttpResponse } from "msw";
 import { exoplanetHostStarFixture } from "../src/fixture/exoplanet-host-star";
 
 const BASE_URL = "http://test.local";
+
+function hash(char: string): string {
+  return `sha256:${char.repeat(64)}`;
+}
 
 function envelope<T>(data: T): { data: T; meta: Record<string, unknown> } {
   return {
@@ -20,6 +25,156 @@ function envelope<T>(data: T): { data: T; meta: Record<string, unknown> } {
       schema_version: "2.0.0",
       generated_at: "2026-07-21T08:00:00Z",
     },
+  };
+}
+
+/** A deterministic, schema-valid ProducerExecutionDetail for version details. */
+const PRODUCER_EXECUTION = {
+  id: "pexec_01",
+  run_id: "run_01JEXAMPLE",
+  step_key: "cleaning_data",
+  step_attempt_id: "att_01",
+  producer: { type: "pipeline", name: "data", version: "1.0.0" },
+  parameters: {},
+  parameters_hash: hash("e"),
+  input_hash: hash("c"),
+  output_hash: hash("b"),
+  status: "completed",
+  started_at: "2026-07-21T08:16:00Z",
+  finished_at: "2026-07-21T08:21:00Z",
+};
+
+type ArtifactDto = (typeof exoplanetHostStarFixture.data.artifacts)[number];
+type VersionDto =
+  (typeof exoplanetHostStarFixture.data.artifactVersions)[number];
+
+/** Build a ResearchArtifactDetail payload from a base artifact fixture. */
+function artifactDetail(artifact: ArtifactDto): Record<string, unknown> {
+  const versions = exoplanetHostStarFixture.data.artifactVersions
+    .filter((v) => v.artifact_id === artifact.id)
+    .map((v) => ({
+      id: v.id,
+      artifact_id: v.artifact_id,
+      version_number: v.version_number,
+      schema_version: v.schema_version,
+      content_hash: v.content_hash,
+      source_mode: v.source_mode,
+      supersedes_version_id: v.supersedes_version_id ?? null,
+      created_at: v.created_at,
+    }));
+  return { ...artifact, versions };
+}
+
+/**
+ * Build an ArtifactVersionDetail payload from a base version fixture. The
+ * `source_snapshots`/`evidence` detail arrays are empty (the domain model reads
+ * ids from the base fields, so the mapper is unaffected).
+ */
+function versionDetail(version: VersionDto): Record<string, unknown> {
+  return {
+    ...version,
+    producer_execution: PRODUCER_EXECUTION,
+    source_snapshots: [],
+    evidence: [],
+  };
+}
+
+/** A schema-valid EvidenceRead for evd_01 (which has a source snapshot). */
+const EVIDENCE_READ = {
+  id: "evd_01",
+  artifact_version_id: "artv_dataset_01",
+  target_type: "field",
+  target_id: "planet.toi_id",
+  evidence_type: "database_query",
+  source_snapshot_id: "snap_01",
+  paper_id: null,
+  locator: {
+    kind: "database_cell",
+    query_hash: "qhash_01",
+    row_key: "TOI-1234",
+    field: "planet.toi_id",
+  },
+  quote_or_value: "TOI-1234",
+  extraction_method: "nasa_exoplanet_archive.api_lookup",
+  confidence: 1,
+  created_at: "2026-07-21T08:21:00Z",
+  source_snapshot: {
+    id: "snap_01",
+    source_id: "nasa_exoplanet_archive",
+    source_type: "database",
+    retrieved_at: "2026-07-21T08:16:00Z",
+    query: { table: "toi" },
+    query_hash: hash("a"),
+    source_version_or_etag: null,
+    content_hash: hash("b"),
+    license_note: "NASA Exoplanet Archive terms",
+    cache_version: null,
+    request_metadata: {},
+  },
+};
+
+const WORKSPACE_ARTIFACT_VERSION = {
+  id: "artv_dataset_01",
+  artifact_id: "art_dataset_01",
+  kind: "dataset",
+  title: "Exoplanet host-star dataset",
+  version_number: 1,
+  schema_version: "2.0.0",
+  content_hash: hash("b"),
+  source_mode: "fixture",
+  created_at: "2026-07-21T08:21:00Z",
+};
+
+const PUBLIC_SHARE = {
+  id: "share_01",
+  title: "Public dataset evidence",
+  redaction_policy: "public_metadata_only",
+  created_at: "2026-07-21T09:00:00Z",
+  expires_at: "2026-07-22T09:00:00Z",
+  artifact_versions: [WORKSPACE_ARTIFACT_VERSION],
+  evidence: [
+    {
+      id: "evd_01",
+      artifact_version_id: "artv_dataset_01",
+      source_snapshot_id: "snap_01",
+    },
+  ],
+};
+
+function shareCreated(body: {
+  title: string;
+  artifact_version_ids: readonly string[];
+  evidence_ids: readonly string[];
+  redaction_policy: string;
+  expires_at: string;
+}): Record<string, unknown> {
+  return {
+    id: "share_01",
+    project_id: "proj_01JEXAMPLE",
+    title: body.title,
+    status: "active",
+    redaction_policy: body.redaction_policy,
+    artifact_version_ids: body.artifact_version_ids,
+    evidence_ids: body.evidence_ids,
+    created_at: "2026-07-21T09:00:00Z",
+    expires_at: body.expires_at,
+    revoked_at: null,
+    share_token: "raw-share-token-value-01",
+    share_url: "/api/v2/shares/raw-share-token-value-01",
+  };
+}
+
+function workspaceSnapshot(
+  projectId: string,
+  body: Record<string, unknown>,
+  revision: number,
+): Record<string, unknown> {
+  return {
+    ...body,
+    id: `ws_${projectId}`,
+    project_id: projectId,
+    revision,
+    updated_at: "2026-07-21T09:00:00Z",
   };
 }
 
@@ -42,10 +197,22 @@ export const defaultHandlers = [
       return HttpResponse.json(envelope(draft));
     },
   ),
-  http.patch(`${BASE_URL}/api/v2/research-contract-drafts/:draftId`, async () =>
-    HttpResponse.json(
-      envelope(exoplanetHostStarFixture.data.contractDrafts[0]),
-    ),
+  http.patch(
+    `${BASE_URL}/api/v2/research-contract-drafts/:draftId`,
+    ({ request }) => {
+      // Draft PATCH must carry an integer If-Match (the draft version).
+      const ifMatch = request.headers.get("If-Match");
+      if (!ifMatch || !/^\d+$/.test(ifMatch)) {
+        return HttpResponse.json(
+          problem(428, "PRECONDITION_REQUIRED", "If-Match required"),
+          { status: 428 },
+        );
+      }
+      const base = exoplanetHostStarFixture.data.contractDrafts[0]!;
+      return HttpResponse.json(
+        envelope({ ...base, version: Number(ifMatch) + 1 }),
+      );
+    },
   ),
   http.get(
     `${BASE_URL}/api/v2/research-contracts/:contractId`,
@@ -60,10 +227,13 @@ export const defaultHandlers = [
   http.post(
     `${BASE_URL}/api/v2/projects/:projectId/contracts`,
     async ({ request }) => {
-      const body = (await request.json()) as {
-        draft_id: string;
-        expected_draft_version: number;
-      };
+      if (!request.headers.get("Idempotency-Key")) {
+        return HttpResponse.json(
+          problem(400, "INVALID_REQUEST", "Idempotency-Key required"),
+          { status: 400 },
+        );
+      }
+      const body = (await request.json()) as { draft_id: string };
       const draft = exoplanetHostStarFixture.data.contractDrafts.find(
         (d) => d.id === body.draft_id,
       );
@@ -86,30 +256,42 @@ export const defaultHandlers = [
     const events = exoplanetHostStarFixture.data.runEvents.filter(
       (e) => e.run_id === params.runId,
     );
-    // Honour cursor-based pagination for the recovery tests. Cursor is an
-    // opaque string of the form `seq:<N>` meaning "resume after sequence N".
-    // When no cursor is supplied, return the first page (limit 5).
     const url = new URL(request.url);
     const cursor = url.searchParams.get("cursor");
     const limitParam = url.searchParams.get("limit");
     const limit = limitParam ? Number(limitParam) : 100;
     let slice = events;
     if (cursor) {
-      const match = /^seq:(\d+)$/.exec(cursor);
-      if (match) {
-        const after = Number(match[1]);
-        slice = events.filter((e) => e.sequence > after);
+      const after = Number(cursor);
+      if (Number.isInteger(after)) {
+        slice = events.filter((event) => event.sequence > after);
       }
     }
     const page = slice.slice(0, limit);
     const hasMore = slice.length > limit;
     const nextCursor =
       hasMore && page.length > 0
-        ? `seq:${page[page.length - 1]!.sequence}`
+        ? String(page[page.length - 1]!.sequence)
         : null;
     return HttpResponse.json({
       data: page,
       page: { next_cursor: nextCursor, has_more: hasMore, limit },
+      meta: {
+        request_id: "req_test",
+        schema_version: "2.0.0",
+        generated_at: "2026-07-21T08:00:00Z",
+      },
+    });
+  }),
+  http.get(`${BASE_URL}/api/v2/runs/:runId/artifacts`, ({ params }) => {
+    const artifacts = exoplanetHostStarFixture.data.artifacts.filter((a) =>
+      exoplanetHostStarFixture.data.artifactVersions.some(
+        (v) => v.artifact_id === a.id && v.created_by_run_id === params.runId,
+      ),
+    );
+    return HttpResponse.json({
+      data: artifacts,
+      page: { next_cursor: null, has_more: false, limit: 20 },
       meta: {
         request_id: "req_test",
         schema_version: "2.0.0",
@@ -122,14 +304,118 @@ export const defaultHandlers = [
       (a) => a.id === params.artifactId,
     );
     if (!artifact) return new HttpResponse(null, { status: 404 });
-    return HttpResponse.json(envelope(artifact));
+    return HttpResponse.json(envelope(artifactDetail(artifact)));
   }),
   http.get(`${BASE_URL}/api/v2/artifact-versions/:versionId`, ({ params }) => {
     const version = exoplanetHostStarFixture.data.artifactVersions.find(
       (v) => v.id === params.versionId,
     );
     if (!version) return new HttpResponse(null, { status: 404 });
-    return HttpResponse.json(envelope(version));
+    return HttpResponse.json(envelope(versionDetail(version)));
+  }),
+  http.get(`${BASE_URL}/api/v2/evidence/:evidenceId`, ({ params }) => {
+    if (params.evidenceId !== "evd_01") {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(envelope(EVIDENCE_READ));
+  }),
+  http.get(
+    `${BASE_URL}/api/v2/projects/:projectId/workspace-snapshot`,
+    ({ params }) => {
+      if (params.projectId === "proj_empty") {
+        return new HttpResponse(null, { status: 404 });
+      }
+      return HttpResponse.json(
+        envelope(
+          workspaceSnapshot(
+            String(params.projectId),
+            { layout_preset: "comparative", active_run_id: null },
+            1,
+          ),
+        ),
+      );
+    },
+  ),
+  http.put(
+    `${BASE_URL}/api/v2/projects/:projectId/workspace-snapshot`,
+    async ({ params, request }) => {
+      const ifMatch = request.headers.get("If-Match");
+      // The contract requires a bare integer revision, never a quoted ETag.
+      if (!ifMatch || !/^\d+$/.test(ifMatch)) {
+        return HttpResponse.json(
+          problem(428, "PRECONDITION_REQUIRED", "Integer If-Match required"),
+          { status: 428 },
+        );
+      }
+      const body = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json(
+        envelope(
+          workspaceSnapshot(
+            String(params.projectId),
+            body,
+            Number(ifMatch) + 1,
+          ),
+        ),
+      );
+    },
+  ),
+  http.get(`${BASE_URL}/api/v2/projects/:projectId/shares`, () =>
+    HttpResponse.json({
+      data: [
+        {
+          id: "share_01",
+          project_id: "proj_01JEXAMPLE",
+          title: "Public dataset evidence",
+          status: "active",
+          redaction_policy: "public_metadata_only",
+          artifact_version_ids: ["artv_dataset_01"],
+          evidence_ids: ["evd_01"],
+          created_at: "2026-07-21T09:00:00Z",
+          expires_at: "2026-07-22T09:00:00Z",
+          revoked_at: null,
+        },
+      ],
+      page: { next_cursor: null, has_more: false, limit: 20 },
+      meta: {
+        request_id: "req_test",
+        schema_version: "2.0.0",
+        generated_at: "2026-07-21T08:00:00Z",
+      },
+    }),
+  ),
+  http.post(
+    `${BASE_URL}/api/v2/projects/:projectId/shares`,
+    async ({ request }) => {
+      if (request.headers.get("X-CSRF-Token") !== "csrf_test_token") {
+        return HttpResponse.json(
+          problem(403, "CSRF_INVALID", "Missing CSRF token"),
+          { status: 403 },
+        );
+      }
+      const body = (await request.json()) as Parameters<typeof shareCreated>[0];
+      return HttpResponse.json(envelope(shareCreated(body)), { status: 201 });
+    },
+  ),
+  http.delete(
+    `${BASE_URL}/api/v2/projects/:projectId/shares/:shareId`,
+    ({ request }) => {
+      if (request.headers.get("X-CSRF-Token") !== "csrf_test_token") {
+        return HttpResponse.json(
+          problem(403, "CSRF_INVALID", "Missing CSRF token"),
+          { status: 403 },
+        );
+      }
+      return new HttpResponse(null, { status: 204 });
+    },
+  ),
+  http.get(`${BASE_URL}/api/v2/shares/:shareToken`, ({ params }) => {
+    if (params.shareToken === "revoked-token") {
+      return HttpResponse.json(
+        problem(404, "SHARE_NOT_FOUND", "Resource not found"),
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json(envelope(PUBLIC_SHARE));
   }),
   http.post(`${BASE_URL}/api/v2/sessions`, () =>
     HttpResponse.json(
@@ -145,7 +431,7 @@ export const defaultHandlers = [
       }),
     ),
   ),
-  http.delete(`${BASE_URL}/api/v2/sessions`, ({ request }) => {
+  http.delete(`${BASE_URL}/api/v2/sessions/current`, ({ request }) => {
     const csrf = request.headers.get("X-CSRF-Token");
     if (csrf !== "csrf_test_token") {
       return HttpResponse.json(
@@ -156,7 +442,12 @@ export const defaultHandlers = [
     return new HttpResponse(null, { status: 204 });
   }),
   http.post(`${BASE_URL}/api/v2/projects/:projectId/runs`, ({ request }) => {
-    void request;
+    if (!request.headers.get("Idempotency-Key")) {
+      return HttpResponse.json(
+        problem(400, "INVALID_REQUEST", "Idempotency-Key required"),
+        { status: 400 },
+      );
+    }
     return HttpResponse.json(envelope(exoplanetHostStarFixture.data.runs[0]), {
       status: 201,
     });
@@ -201,7 +492,6 @@ export function createTestHttpConfig(
   };
 }
 
-/** Re-export to avoid circular type imports in test files. */
 import { createSessionManager } from "../src/session";
 export function createSessionManagerForTest() {
   return createSessionManager({

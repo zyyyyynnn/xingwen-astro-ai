@@ -1,91 +1,108 @@
 /**
  * Repository Port interfaces.
  *
- * These ports define the read, write and subscription boundary between the
- * frontend application layer and data sources. The fixture adapter
- * (`createFixtureRepositories`) and, later, the HTTP adapter (A-15) implement
- * these interfaces.
+ * These ports define the read/write boundary between the frontend application
+ * layer and data sources. Both the Demo Replay fixture adapter
+ * (`createFixtureRepositories`) and the live HTTP adapter
+ * (`createHttpRepositories`) implement them. Ports operate exclusively on
+ * domain types — transport DTOs never leak through to consumers.
  *
- * All methods are asynchronous so the HTTP adapter can swap in without changing
- * call sites. Ports operate exclusively on domain types — transport DTOs never
- * leak through to consumers.
+ * The surface is intentionally narrowed to the operations the M1 UI and the
+ * frozen 24-operation `/api/v2` contract actually support: there is no
+ * project/run listing, no client-authored draft creation, no artifact/version
+ * writes, and no generic subscription. Each method maps to a real endpoint (or
+ * its fixture equivalent) so an abstraction always has two concrete adapters.
  */
 
 import type {
   ArtifactVersion,
+  CachePolicy,
+  CreateShareSnapshotRequest,
+  DerivationKind,
   DomainEntityId,
   Evidence,
-  ProvenanceState,
+  ExecutionMode,
   PublicShareSnapshot,
   ResearchArtifact,
   ResearchContract,
   ResearchContractDraft,
+  ResearchContractInput,
   ResearchProject,
   ResearchRun,
   RunEvent,
   ShareSnapshot,
   ShareSnapshotCreated,
-  CreateShareSnapshotRequest,
   WorkspaceSnapshot,
   WorkspaceSnapshotInput,
 } from "@xingwen/domain";
 
-/** Subscription cleanup function returned by `subscribe` methods. */
-export type Unsubscribe = () => void;
+/** Fields a client may change on an editable draft (PATCH is partial). */
+export interface UpdateResearchContractDraftInput {
+  readonly intent?: string;
+  readonly contract?: ResearchContractInput;
+}
 
-/** Listener invoked when a repository's collection changes. */
-export type Listener<T> = (entities: readonly T[]) => void;
+/** Parameters for creating a ResearchRun (`execution_mode` lives on the Run). */
+export interface CreateResearchRunInput {
+  readonly projectId: DomainEntityId;
+  readonly contractId: DomainEntityId;
+  readonly executionMode: ExecutionMode;
+  readonly derivationKind?: DerivationKind;
+  readonly parentRunId?: DomainEntityId | null;
+  readonly retryFromStep?: DomainEntityId | null;
+  readonly cachePolicy?: CachePolicy;
+}
+
+/** Snapshot-first RunEvent recovery result, capped to the authoritative tail. */
+export interface RunEventRecovery {
+  /** Events with `sequence <= latestSequence` only (authoritative tail). */
+  readonly events: readonly RunEvent[];
+  /** Cursor to resume incremental polling, or null when fully drained. */
+  readonly nextCursor: string | null;
+  /** The authoritative `latest_event_sequence` from the Run snapshot. */
+  readonly latestSequence: number;
+}
 
 export interface ProjectRepository {
   getById(id: DomainEntityId): Promise<ResearchProject | null>;
-  list(): Promise<readonly ResearchProject[]>;
-  save(project: ResearchProject): Promise<void>;
-  subscribe(listener: Listener<ResearchProject>): Unsubscribe;
 }
 
 export interface ContractRepository {
   getDraftById(id: DomainEntityId): Promise<ResearchContractDraft | null>;
-  listDrafts(): Promise<readonly ResearchContractDraft[]>;
-  saveDraft(draft: ResearchContractDraft): Promise<void>;
+  updateDraft(
+    draftId: DomainEntityId,
+    expectedVersion: number,
+    input: UpdateResearchContractDraftInput,
+  ): Promise<ResearchContractDraft>;
   confirm(
     projectId: DomainEntityId,
     draftId: DomainEntityId,
     expectedDraftVersion: number,
   ): Promise<ResearchContract>;
   getContractById(id: DomainEntityId): Promise<ResearchContract | null>;
-  listContracts(
-    projectId: DomainEntityId,
-  ): Promise<readonly ResearchContract[]>;
-  subscribe(listener: Listener<ResearchContract>): Unsubscribe;
 }
 
 export interface RunRepository {
   getById(id: DomainEntityId): Promise<ResearchRun | null>;
-  listByProject(projectId: DomainEntityId): Promise<readonly ResearchRun[]>;
-  save(run: ResearchRun): Promise<void>;
-  getEvents(runId: DomainEntityId): Promise<readonly RunEvent[]>;
-  appendEvent(event: RunEvent): Promise<void>;
-  subscribe(listener: Listener<ResearchRun>): Unsubscribe;
+  create(input: CreateResearchRunInput): Promise<ResearchRun>;
+  /** All events for a run in ascending sequence order (aggregates pages). */
+  listEvents(runId: DomainEntityId): Promise<readonly RunEvent[]>;
+  /**
+   * Snapshot-first recovery after an interrupted stream: reads the Run
+   * snapshot's authoritative `latest_event_sequence` and returns only events
+   * up to it, resuming from `fromCursor` when supplied.
+   */
+  recoverEvents(
+    runId: DomainEntityId,
+    fromCursor?: string | null,
+  ): Promise<RunEventRecovery>;
 }
 
-export interface ArtifactRepository {
-  getArtifactById(id: DomainEntityId): Promise<ResearchArtifact | null>;
-  listByProject(
-    projectId: DomainEntityId,
-  ): Promise<readonly ResearchArtifact[]>;
-  getVersionById(id: DomainEntityId): Promise<ArtifactVersion | null>;
-  listVersions(artifactId: DomainEntityId): Promise<readonly ArtifactVersion[]>;
-  saveVersion(version: ArtifactVersion): Promise<void>;
-  subscribe(listener: Listener<ResearchArtifact>): Unsubscribe;
-}
-
-export interface EvidenceRepository {
-  getById(id: DomainEntityId): Promise<Evidence | null>;
-  listByArtifactVersion(
-    artifactVersionId: DomainEntityId,
-  ): Promise<readonly Evidence[]>;
-  save(evidence: Evidence): Promise<void>;
-  subscribe(listener: Listener<Evidence>): Unsubscribe;
+export interface ArtifactReadRepository {
+  listByRun(runId: DomainEntityId): Promise<readonly ResearchArtifact[]>;
+  getArtifact(id: DomainEntityId): Promise<ResearchArtifact | null>;
+  getVersion(id: DomainEntityId): Promise<ArtifactVersion | null>;
+  getEvidence(id: DomainEntityId): Promise<Evidence | null>;
 }
 
 export interface WorkspaceSnapshotRepository {
@@ -98,38 +115,36 @@ export interface WorkspaceSnapshotRepository {
 }
 
 export interface ShareRepository {
+  list(projectId: DomainEntityId): Promise<readonly ShareSnapshot[]>;
   create(
     projectId: DomainEntityId,
     request: CreateShareSnapshotRequest,
   ): Promise<ShareSnapshotCreated>;
-  getByProjectIdAndShareId(
-    projectId: DomainEntityId,
-    shareId: DomainEntityId,
-  ): Promise<ShareSnapshot | null>;
-  listByProject(projectId: DomainEntityId): Promise<readonly ShareSnapshot[]>;
   revoke(projectId: DomainEntityId, shareId: DomainEntityId): Promise<void>;
-  getPublicShare(shareToken: string): Promise<PublicShareSnapshot | null>;
+  getPublic(shareToken: string): Promise<PublicShareSnapshot | null>;
 }
 
 /**
- * The complete set of repository ports a workspace consumes.
- * The fixture adapter produces a ready-to-use `RepositorySet`.
+ * The complete set of repository ports a workspace consumes. Both adapters
+ * produce a ready-to-use `RepositorySet`; Evidence reads live on the artifact
+ * read port (`getEvidence`) rather than a separate repository.
  */
 export interface RepositorySet {
   readonly projects: ProjectRepository;
   readonly contracts: ContractRepository;
   readonly runs: RunRepository;
-  readonly artifacts: ArtifactRepository;
-  readonly evidence: EvidenceRepository;
+  readonly artifacts: ArtifactReadRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
 }
 
 /**
- * Provenance summary for the active data source. The fixture adapter reports
- * `executionMode: "demo_replay"` and `sourceMode: "fixture"`; the HTTP adapter
- * (A-15) will report live provenance.
+ * Provenance summary for a data source. Only the fixture adapter reports a
+ * transport-level provenance (`demo_replay` / `fixture`); the HTTP adapter does
+ * not fabricate one because the transport does not determine a Run's
+ * `execution_mode` or an ArtifactVersion's `source_mode` — those are read from
+ * the domain objects themselves.
  */
 export interface RepositoryProvenance {
-  readonly state: ProvenanceState;
+  readonly state: import("@xingwen/domain").ProvenanceState;
 }

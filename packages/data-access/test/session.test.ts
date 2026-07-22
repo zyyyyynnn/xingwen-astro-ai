@@ -133,7 +133,7 @@ it("ensureSession throws when session creation fails", async () => {
 
 it("revokeSession throws when DELETE returns a non-204, non-404 status", async () => {
   httpServer.use(
-    http.delete(`${TEST_BASE_URL}/api/v2/sessions`, () =>
+    http.delete(`${TEST_BASE_URL}/api/v2/sessions/current`, () =>
       HttpResponse.json(problem(500, "INTERNAL_ERROR", "Server error"), {
         status: 500,
       }),
@@ -160,7 +160,7 @@ it("revokeSession throws when DELETE returns a non-204, non-404 status", async (
         meta: {},
       }),
     ),
-    http.delete(`${TEST_BASE_URL}/api/v2/sessions`, () =>
+    http.delete(`${TEST_BASE_URL}/api/v2/sessions/current`, () =>
       HttpResponse.json(problem(500, "INTERNAL_ERROR", "Server error"), {
         status: 500,
       }),
