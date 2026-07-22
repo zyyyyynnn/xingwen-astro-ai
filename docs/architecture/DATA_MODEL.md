@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | 领域实体、字段、枚举与不变量 |
-| Implementation | Core Pydantic contract、Workspace/Share application projection、D-02 PaperCollection Pipeline content、#76 PostgreSQL baseline、#77 Run lease/recovery store 与 #78 ArtifactVersion atomic publisher Implemented；Workspace/Share runtime integration Pending |
+| Implementation | Core Pydantic contract、Workspace/Share application projection、D-02 content、#76/#77 Workflow persistence、#78 atomic publisher 与 #83 Artifact provenance read persistence Implemented；Workspace/Share runtime integration Pending |
 | Current model | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)） |
 | Target model | Project / Run / Artifact / ArtifactVersion |
 
-本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Workspace/Share application projection、#76 Workflow PostgreSQL Schema 基线、#77 Run lease/recovery store 及 #78 ArtifactVersion 原子 Publisher 已实现；Workspace/Share 生产事实源接入与其余 v2 Application API 仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
+本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Workspace/Share application projection、#76 Workflow PostgreSQL Schema、#77 Run lease/recovery、#78 ArtifactVersion Publisher 及 #83 Artifact/Evidence/SourceSnapshot 私有读取已实现；Workspace/Share 生产事实源接入与其余 v2 Application API 仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
 ## 1. 建模原则
 
@@ -311,7 +311,7 @@ cache_version
 request_metadata
 ```
 
-request_metadata 只保存可复现且非敏感字段；认证头、Cookie、API Key 和完整受限响应不得保存。
+持久化层为 Evidence 和 SourceSnapshot 额外保存内部 `project_id` 组合外键，用于强制 Version、Evidence 与 Snapshot 留在同一 Project；Evidence 的内部 `is_restricted` 标记只控制私有读取脱敏，不进入 Transport DTO。`request_metadata` 只保存可复现且非敏感字段；认证头、Cookie、API Key 和完整受限响应不得保存。B-18 读取层还执行防御性 allowlist/redaction，历史或损坏记录中的敏感字段不会序列化。
 
 ## 11. Feedback 与 RevisionPlan
 

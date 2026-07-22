@@ -138,7 +138,27 @@ async function vendorJsonSchemas() {
 async function generateDtoTypes() {
   const openapiPath = resolve(sourceDir, "openapi.json");
   const openapi = JSON.parse(readFileSync(openapiPath, "utf8"));
-  const schemas = stripPropertyTitles(rewriteRefs(openapi.components.schemas));
+  const schemas = rewriteRefs(openapi.components.schemas);
+  const manifest = JSON.parse(
+    readFileSync(resolve(sourceDir, "manifest.json"), "utf8"),
+  );
+
+  // A richer endpoint may inline a base Pydantic model through inheritance,
+  // causing OpenAPI to omit that base as a standalone component. Preserve
+  // every model promised by the checked-in manifest for existing consumers.
+  for (const model of manifest.models) {
+    if (schemas[model.name]) continue;
+    const standalone = JSON.parse(
+      readFileSync(resolve(sourceDir, model.path), "utf8"),
+    );
+    const { $defs = {}, ...rootSchema } = standalone;
+    schemas[model.name] = rootSchema;
+    for (const [name, schema] of Object.entries($defs)) {
+      schemas[name] ??= schema;
+    }
+  }
+
+  const normalizedSchemas = stripPropertyTitles(schemas);
 
   // Wrap all component schemas into a single root $defs block so
   // json-schema-to-typescript emits every definition exactly once.
@@ -147,7 +167,7 @@ async function generateDtoTypes() {
     $schema: "http://json-schema.org/draft-07/schema#",
     type: "object",
     properties: {},
-    $defs: schemas,
+    $defs: normalizedSchemas,
   };
 
   const typescript = await compile(megaSchema, "V2CoreContractRoot", {

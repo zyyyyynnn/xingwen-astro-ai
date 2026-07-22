@@ -753,7 +753,7 @@ def _validated_parameters(
         if (
             not isinstance(key, str)
             or not _PARAMETER_KEY_PATTERN.fullmatch(key)
-            or _parameter_key_is_sensitive(key)
+            or producer_parameter_key_is_sensitive(key)
         ):
             raise ValueError("parameters contain a forbidden or invalid key")
         if not isinstance(value, (str, int, float, bool, type(None))):
@@ -764,7 +764,8 @@ def _validated_parameters(
     return safe
 
 
-def _parameter_key_is_sensitive(key: str) -> bool:
+def producer_parameter_key_is_sensitive(key: str) -> bool:
+    """Return whether a normalized producer key denotes credential material."""
     segments = frozenset(key.split("_"))
     return (
         any(fragment in key for fragment in _SENSITIVE_PARAMETER_KEY_FRAGMENTS)

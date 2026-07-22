@@ -94,133 +94,61 @@ export type SessionStatus = "active" | "expired" | "revoked";
 export type UnitPolicy1 = "canonical";
 
 /**
+ * Unified immutable content and provenance read projection.
+ *
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "ArtifactVersion".
+ * via the `definition` "ArtifactVersionDetail".
  */
-export interface ArtifactVersion {
+export interface ArtifactVersionDetail {
   artifact_id: string;
-  content:
-    | DatasetArtifactContent
-    | FieldDictionaryArtifactContent
-    | SourceCollectionArtifactContent
-    | PaperCollectionArtifactContent
-    | PaperSummaryArtifactContent
-    | LiteratureClaimsArtifactContent
-    | LiteratureRelationsArtifactContent
-    | ReasoningTracesArtifactContent
-    | GraphArtifactContent
-    | ExportArtifactContent;
+  content: {
+    [k: string]: JsonValue;
+  };
   content_hash: string;
   created_at: string;
   created_by_run_id: string;
+  evidence: EvidenceDetail[];
   evidence_ids?: string[];
   id: string;
   input_hash: string;
   producer: ProducerReference;
+  producer_execution: ProducerExecutionDetail;
   project_id: string;
   schema_version: string;
   source_mode: SourceMode;
   source_snapshot_ids?: string[];
+  source_snapshots: SourceSnapshotDetail[];
   supersedes_version_id?: string | null;
   version_number: number;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "DatasetArtifactContent".
+ * via the `definition` "JsonValue".
  */
-export interface DatasetArtifactContent {
-  /**
-   * @minItems 1
-   */
-  field_ids: [string, ...string[]];
-  kind: "dataset";
-  rows: {
-    [k: string]: string | number | boolean | null;
-  }[];
+export interface JsonValue {
+  [k: string]: unknown;
 }
 /**
+ * Evidence bound to one immutable version and source snapshot.
+ *
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "FieldDictionaryArtifactContent".
+ * via the `definition` "EvidenceDetail".
  */
-export interface FieldDictionaryArtifactContent {
-  /**
-   * @minItems 1
-   */
-  field_ids: [string, ...string[]];
-  kind: "field_dictionary";
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "SourceCollectionArtifactContent".
- */
-export interface SourceCollectionArtifactContent {
-  kind: "source_collection";
-  /**
-   * @minItems 1
-   */
-  source_snapshot_ids: [string, ...string[]];
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperCollectionArtifactContent".
- */
-export interface PaperCollectionArtifactContent {
-  kind: "paper_collection";
-  paper_ids: string[];
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummaryArtifactContent".
- */
-export interface PaperSummaryArtifactContent {
-  kind: "paper_summary";
-  paper_id: string;
-  summary_id: string;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "LiteratureClaimsArtifactContent".
- */
-export interface LiteratureClaimsArtifactContent {
-  claim_ids: string[];
-  kind: "literature_claims";
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "LiteratureRelationsArtifactContent".
- */
-export interface LiteratureRelationsArtifactContent {
-  kind: "literature_relations";
-  relation_ids: string[];
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "ReasoningTracesArtifactContent".
- */
-export interface ReasoningTracesArtifactContent {
-  kind: "reasoning_traces";
-  reasoning_trace_ids: string[];
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "GraphArtifactContent".
- */
-export interface GraphArtifactContent {
-  edge_ids: string[];
-  kind: "graph";
-  node_ids: string[];
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "ExportArtifactContent".
- */
-export interface ExportArtifactContent {
-  /**
-   * @minItems 1
-   */
-  artifact_version_ids: [string, ...string[]];
-  format: "csv" | "json" | "provenance_report";
-  kind: "export";
+export interface EvidenceDetail {
+  artifact_version_id: string;
+  confidence: number;
+  created_at: string;
+  evidence_type: string;
+  extraction_method: string;
+  id: string;
+  locator: {
+    [k: string]: JsonValue;
+  };
+  paper_id?: string | null;
+  quote_or_value?: JsonValue | null;
+  source_snapshot_id: string;
+  target_id: string;
+  target_type: string;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -228,12 +156,78 @@ export interface ExportArtifactContent {
  */
 export interface ProducerReference {
   model_name?: string | null;
+  model_provider?: string | null;
   name: string;
   parameters_hash?: string | null;
+  prompt_hash?: string | null;
   prompt_name?: string | null;
   prompt_version?: string | null;
   type: "pipeline" | "model" | "algorithm";
   version: string;
+}
+/**
+ * Reproducible producer metadata with private execution state excluded.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "ProducerExecutionDetail".
+ */
+export interface ProducerExecutionDetail {
+  error_code?: string | null;
+  finished_at?: string | null;
+  id: string;
+  input_hash: string;
+  latency_ms?: number | null;
+  output_hash?: string | null;
+  parameters: {
+    [k: string]: JsonValue;
+  };
+  parameters_hash: string;
+  producer: ProducerReference;
+  run_id: string;
+  started_at: string;
+  status: "running" | "completed" | "failed" | "rejected" | "cancelled";
+  step_attempt_id: string;
+  step_key: string;
+  token_usage?: {
+    [k: string]: number;
+  } | null;
+}
+/**
+ * Reproducible source metadata after the application redaction boundary.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "SourceSnapshotDetail".
+ */
+export interface SourceSnapshotDetail {
+  cache_version?: string | null;
+  content_hash: string;
+  id: string;
+  license_note: string;
+  query: JsonValue;
+  query_hash: string;
+  request_metadata: {
+    [k: string]: JsonValue;
+  };
+  retrieved_at: string;
+  source_id: string;
+  source_type: string;
+  source_version_or_etag?: string | null;
+}
+/**
+ * Bounded immutable-version reference used by Artifact detail reads.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "ArtifactVersionSummary".
+ */
+export interface ArtifactVersionSummary {
+  artifact_id: string;
+  content_hash: string;
+  created_at: string;
+  id: string;
+  schema_version: string;
+  source_mode: SourceMode;
+  supersedes_version_id?: string | null;
+  version_number: number;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -256,27 +250,26 @@ export interface WorkspaceObjectRef {
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "CollectionEnvelope_RunEvent_".
+ * via the `definition` "CollectionEnvelope_ResearchArtifact_".
  */
-export interface CollectionEnvelope_RunEvent_ {
-  data: RunEvent[];
+export interface CollectionEnvelope_ResearchArtifact_ {
+  data: ResearchArtifact[];
   links: ResponseLinks;
   meta: ResponseMeta;
   page: CursorPage;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "RunEvent".
+ * via the `definition` "ResearchArtifact".
  */
-export interface RunEvent {
-  artifact_version_ids?: string[];
-  event_type: string;
-  occurred_at: string;
-  progress?: number | null;
-  public_message: string;
-  run_id: string;
-  sequence: number;
-  step_key?: string | null;
+export interface ResearchArtifact {
+  created_at: string;
+  id: string;
+  kind: ArtifactKind;
+  latest_version_id?: string | null;
+  logical_key: string;
+  project_id: string;
+  title: string;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -302,6 +295,30 @@ export interface CursorPage {
   has_more: boolean;
   limit?: number;
   next_cursor?: string | null;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_RunEvent_".
+ */
+export interface CollectionEnvelope_RunEvent_ {
+  data: RunEvent[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "RunEvent".
+ */
+export interface RunEvent {
+  artifact_version_ids?: string[];
+  event_type: string;
+  occurred_at: string;
+  progress?: number | null;
+  public_message: string;
+  run_id: string;
+  sequence: number;
+  step_key?: string | null;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -379,12 +396,44 @@ export interface DataRequirements {
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "Envelope_ArtifactVersion_".
+ * via the `definition` "Envelope_ArtifactVersionDetail_".
  */
-export interface Envelope_ArtifactVersion_ {
-  data: ArtifactVersion;
+export interface Envelope_ArtifactVersionDetail_ {
+  data: ArtifactVersionDetail;
   links: ResponseLinks;
   meta: ResponseMeta;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_EvidenceRead_".
+ */
+export interface Envelope_EvidenceRead_ {
+  data: EvidenceRead;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * Evidence detail with its immutable, already-redacted source projection.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "EvidenceRead".
+ */
+export interface EvidenceRead {
+  artifact_version_id: string;
+  confidence: number;
+  created_at: string;
+  evidence_type: string;
+  extraction_method: string;
+  id: string;
+  locator: {
+    [k: string]: JsonValue;
+  };
+  paper_id?: string | null;
+  quote_or_value?: JsonValue | null;
+  source_snapshot: SourceSnapshotDetail;
+  source_snapshot_id: string;
+  target_id: string;
+  target_type: string;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -440,18 +489,20 @@ export interface PublicEvidence {
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "Envelope_ResearchArtifact_".
+ * via the `definition` "Envelope_ResearchArtifactDetail_".
  */
-export interface Envelope_ResearchArtifact_ {
-  data: ResearchArtifact;
+export interface Envelope_ResearchArtifactDetail_ {
+  data: ResearchArtifactDetail;
   links: ResponseLinks;
   meta: ResponseMeta;
 }
 /**
+ * Artifact identity plus stable, bounded version summaries.
+ *
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "ResearchArtifact".
+ * via the `definition` "ResearchArtifactDetail".
  */
-export interface ResearchArtifact {
+export interface ResearchArtifactDetail {
   created_at: string;
   id: string;
   kind: ArtifactKind;
@@ -459,6 +510,7 @@ export interface ResearchArtifact {
   logical_key: string;
   project_id: string;
   title: string;
+  versions: ArtifactVersionSummary[];
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -725,6 +777,15 @@ export interface ShareSnapshotCreated {
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_SourceSnapshotDetail_".
+ */
+export interface Envelope_SourceSnapshotDetail_ {
+  data: SourceSnapshotDetail;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_WorkspaceSnapshot_".
  */
 export interface Envelope_WorkspaceSnapshot_ {
@@ -836,4 +897,133 @@ export interface WorkspaceSnapshotInput {
    */
   pinned_evidence_ids?: string[];
   selected_object_ref?: WorkspaceObjectRef | null;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "ArtifactVersion".
+ */
+export interface ArtifactVersion {
+  artifact_id: string;
+  content:
+    | DatasetArtifactContent
+    | FieldDictionaryArtifactContent
+    | SourceCollectionArtifactContent
+    | PaperCollectionArtifactContent
+    | PaperSummaryArtifactContent
+    | LiteratureClaimsArtifactContent
+    | LiteratureRelationsArtifactContent
+    | ReasoningTracesArtifactContent
+    | GraphArtifactContent
+    | ExportArtifactContent;
+  content_hash: string;
+  created_at: string;
+  created_by_run_id: string;
+  evidence_ids?: string[];
+  id: string;
+  input_hash: string;
+  producer: ProducerReference;
+  project_id: string;
+  schema_version: string;
+  source_mode: SourceMode;
+  source_snapshot_ids?: string[];
+  supersedes_version_id?: string | null;
+  version_number: number;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "DatasetArtifactContent".
+ */
+export interface DatasetArtifactContent {
+  /**
+   * @minItems 1
+   */
+  field_ids: [string, ...string[]];
+  kind: "dataset";
+  rows: {
+    [k: string]: string | number | boolean | null;
+  }[];
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "FieldDictionaryArtifactContent".
+ */
+export interface FieldDictionaryArtifactContent {
+  /**
+   * @minItems 1
+   */
+  field_ids: [string, ...string[]];
+  kind: "field_dictionary";
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "SourceCollectionArtifactContent".
+ */
+export interface SourceCollectionArtifactContent {
+  kind: "source_collection";
+  /**
+   * @minItems 1
+   */
+  source_snapshot_ids: [string, ...string[]];
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCollectionArtifactContent".
+ */
+export interface PaperCollectionArtifactContent {
+  kind: "paper_collection";
+  paper_ids: string[];
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryArtifactContent".
+ */
+export interface PaperSummaryArtifactContent {
+  kind: "paper_summary";
+  paper_id: string;
+  summary_id: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureClaimsArtifactContent".
+ */
+export interface LiteratureClaimsArtifactContent {
+  claim_ids: string[];
+  kind: "literature_claims";
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationsArtifactContent".
+ */
+export interface LiteratureRelationsArtifactContent {
+  kind: "literature_relations";
+  relation_ids: string[];
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "ReasoningTracesArtifactContent".
+ */
+export interface ReasoningTracesArtifactContent {
+  kind: "reasoning_traces";
+  reasoning_trace_ids: string[];
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "GraphArtifactContent".
+ */
+export interface GraphArtifactContent {
+  edge_ids: string[];
+  kind: "graph";
+  node_ids: string[];
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "ExportArtifactContent".
+ */
+export interface ExportArtifactContent {
+  /**
+   * @minItems 1
+   */
+  artifact_version_ids: [string, ...string[]];
+  format: "csv" | "json" | "provenance_report";
+  kind: "export";
 }

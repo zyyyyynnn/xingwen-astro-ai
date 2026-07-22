@@ -13,15 +13,18 @@ from typing import Annotated, Any, NoReturn, cast
 from fastapi import FastAPI, Header, Path, Query, Response
 
 from app.schemas.v2 import (
-    ArtifactVersion,
+    ArtifactKind,
+    ArtifactVersionDetail,
     CollectionEnvelope,
     ConfirmResearchContractRequest,
     CreateShareSnapshotRequest,
     CreateRunRequest,
     Envelope,
+    EvidenceRead,
     ProblemDetails,
     PublicShareSnapshot,
     ResearchArtifact,
+    ResearchArtifactDetail,
     ResearchContract,
     ResearchContractDraft,
     ResearchProject,
@@ -34,6 +37,7 @@ from app.schemas.v2 import (
     UpdateResearchContractDraftRequest,
     WorkspaceSnapshot,
     WorkspaceSnapshotInput,
+    SourceSnapshotDetail,
 )
 
 
@@ -194,9 +198,24 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
+        "/api/v2/runs/{run_id}/artifacts",
+        operation_id="listRunArtifacts",
+        response_model=CollectionEnvelope[ResearchArtifact],
+        responses=PROBLEM_RESPONSES,
+    )
+    def list_run_artifacts(
+        run_id: Annotated[str, Path(min_length=1)],
+        kind: Annotated[ArtifactKind | None, Query()] = None,
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (run_id, kind, cursor, limit)
+        return _contract_only()
+
+    @app.get(
         "/api/v2/artifacts/{artifact_id}",
         operation_id="getResearchArtifact",
-        response_model=Envelope[ResearchArtifact],
+        response_model=Envelope[ResearchArtifactDetail],
         responses=PROBLEM_RESPONSES,
     )
     def get_research_artifact(artifact_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
@@ -206,11 +225,33 @@ def create_v2_contract_app() -> FastAPI:
     @app.get(
         "/api/v2/artifact-versions/{version_id}",
         operation_id="getArtifactVersion",
-        response_model=Envelope[ArtifactVersion],
+        response_model=Envelope[ArtifactVersionDetail],
         responses=PROBLEM_RESPONSES,
     )
     def get_artifact_version(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
         _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/v2/evidence/{evidence_id}",
+        operation_id="getEvidence",
+        response_model=Envelope[EvidenceRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_evidence(evidence_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = evidence_id
+        return _contract_only()
+
+    @app.get(
+        "/api/v2/source-snapshots/{snapshot_id}",
+        operation_id="getSourceSnapshot",
+        response_model=Envelope[SourceSnapshotDetail],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_source_snapshot(
+        snapshot_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = snapshot_id
         return _contract_only()
 
     @app.get(
