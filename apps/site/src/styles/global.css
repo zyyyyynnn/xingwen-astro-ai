@@ -52,6 +52,7 @@ a {
 .hero {
   width: 100%;
   min-height: 55vh;
+  height: 55vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -62,6 +63,7 @@ a {
 .hero-visual {
   position: relative;
   width: 100%;
+  height: 100%;
   max-width: 100%;
   display: flex;
   align-items: center;
@@ -89,16 +91,16 @@ a {
 .hero-content {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  width: min(100% - 3rem, 56rem);
+  gap: 1.75rem;
+  width: min(100% - 3rem, 64rem);
   margin-inline: auto;
-  padding: 2.5rem 1.5rem 3rem;
+  padding: 2.5rem 1.5rem 3.5rem;
 }
 
 .cta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.875rem;
 }
 
 .cta {
@@ -148,26 +150,26 @@ a {
 
 .hero-content h1 {
   margin: 0;
-  max-width: 18ch;
+  max-width: 22ch;
   font-family: var(--xw-font-serif);
   font-size: var(--font-size-7);
   font-weight: 520;
-  letter-spacing: -0.04em;
-  line-height: 1.1;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
 }
 
 .hero-notes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 1rem 2rem;
-  max-width: 48rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem 2rem;
+  max-width: 64rem;
 }
 
 .hero-notes p {
   margin: 0;
   color: var(--color-ink-secondary);
   font-size: var(--font-size-2);
-  line-height: 1.7;
+  line-height: 1.65;
 }
 
 /* 404 page */
@@ -186,7 +188,7 @@ a {
   font-family: var(--xw-font-serif);
   font-size: var(--font-size-7);
   font-weight: 520;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.035em;
 }
 
 .not-found p {
@@ -196,9 +198,16 @@ a {
   line-height: 1.6;
 }
 
+@media (max-width: 56rem) {
+  .hero-notes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 40rem) {
   .hero {
     min-height: 45vh;
+    height: 45vh;
   }
 
   .hero-content {
