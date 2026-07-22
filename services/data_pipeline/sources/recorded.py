@@ -130,10 +130,15 @@ class RecordedNasaToiTransport:
         *,
         query: NormalizedDataSourceQuery,
     ) -> None:
-        if query.pagination != fixture.pagination:
+        validated_fixture = RecordedNasaToiFixture.model_validate(
+            fixture.model_dump(mode="json")
+        )
+        if query.pagination != validated_fixture.pagination:
             raise ValueError("recorded fixture pagination does not match normalized query")
-        self.fixture = fixture
-        self.fixture_metadata = fixture.metadata()
+        self._fixture_metadata_items = tuple(validated_fixture.metadata().items())
+        self._safe_response_header_items = tuple(
+            validated_fixture.safe_response_headers.items()
+        )
         self._expected_requests = (
             {
                 "query": render_toi_schema_query(query),
@@ -148,8 +153,18 @@ class RecordedNasaToiTransport:
                 "format": "json",
             },
         )
-        self._responses = (fixture.tap_schema, fixture.records)
+        self._response_bodies = tuple(
+            json.dumps(payload, separators=(",", ":")).encode("utf-8")
+            for payload in (
+                validated_fixture.tap_schema,
+                validated_fixture.records,
+            )
+        )
         self._request_index = 0
+
+    @property
+    def fixture_metadata(self) -> dict[str, str]:
+        return dict(self._fixture_metadata_items)
 
     @classmethod
     def from_path(
@@ -179,10 +194,10 @@ class RecordedNasaToiTransport:
         expected = self._expected_requests[self._request_index]
         if dict(params) != expected:
             raise TransportPolicyError("recorded fixture request does not match capture")
-        payload = self._responses[self._request_index]
+        body = self._response_bodies[self._request_index]
         self._request_index += 1
         return HttpResponse(
             status_code=200,
-            headers=self.fixture.safe_response_headers,
-            body=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+            headers=dict(self._safe_response_header_items),
+            body=body,
         )

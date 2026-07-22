@@ -607,8 +607,11 @@ def _parse_records(
 
 def _decode_json_array(body: bytes, code: str) -> list[object]:
     try:
-        payload = json.loads(body.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
+        payload = json.loads(
+            body.decode("utf-8"),
+            parse_constant=_reject_non_finite_json_constant,
+        )
+    except ValueError:
         raise SourceFailure(
             UpstreamFailureClass.invalid_response,
             code,
@@ -621,6 +624,10 @@ def _decode_json_array(body: bytes, code: str) -> list[object]:
             retryable=False,
         )
     return payload
+
+
+def _reject_non_finite_json_constant(value: str) -> None:
+    raise ValueError(f"non-finite JSON number is forbidden: {value}")
 
 
 def _request_hash(params: Mapping[str, str | int]) -> str:

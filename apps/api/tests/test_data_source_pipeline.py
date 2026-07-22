@@ -516,6 +516,44 @@ def test_nasa_tap_adapter_classifies_invalid_json_without_retry(
     assert error.value.retryable is False
 
 
+def test_nasa_tap_adapter_rejects_non_finite_json_numbers() -> None:
+    from app.schemas.enums import SourceMode, UpstreamFailureClass
+    from app.schemas.source_acquisition import DataSourceDataLevel
+    from services.data_pipeline.sources.base import SourceFailure
+    from services.data_pipeline.sources.nasa_exoplanet_archive import (
+        NasaExoplanetArchiveAdapter,
+    )
+
+    query = normalize_toi_query(
+        load_frozen_manifest_bundle(),
+        page_size=1,
+        max_pages=1,
+        record_limit=1,
+    )
+    record = toi_record(query.selected_columns, tid=100, toi="1000.01")
+    record["ra"] = float("nan")
+    transport = FakeTransport(
+        json_response(toi_schema_rows(query.selected_columns)),
+        FakeResponse(200, {}, json.dumps([record]).encode("utf-8")),
+    )
+
+    with pytest.raises(SourceFailure) as error:
+        NasaExoplanetArchiveAdapter(
+            transport=transport,
+            max_attempts=3,
+            sleeper=lambda _: pytest.fail("invalid JSON must not be retried"),
+        ).acquire(
+            query,
+            source_mode=SourceMode.live,
+            data_level=DataSourceDataLevel.live_result,
+        )
+
+    assert error.value.classification is UpstreamFailureClass.invalid_response
+    assert error.value.code == "NASA_TAP_INVALID_JSON"
+    assert error.value.retryable is False
+    assert len(transport.calls) == 2
+
+
 def test_nasa_tap_adapter_treats_empty_result_as_success() -> None:
     from app.schemas.enums import SourceMode
     from app.schemas.source_acquisition import DataSourceDataLevel
@@ -609,6 +647,70 @@ def test_recorded_fixture_rejects_content_tampering() -> None:
 
     with pytest.raises(ValidationError, match="content_hash mismatch"):
         RecordedNasaToiFixture.model_validate(payload)
+
+
+def test_recorded_transport_revalidates_fixture_before_replay() -> None:
+    from pydantic import ValidationError
+    from services.data_pipeline.sources.recorded import (
+        DEFAULT_RECORDED_TOI_FIXTURE_PATH,
+        RecordedNasaToiFixture,
+        RecordedNasaToiTransport,
+    )
+
+    query = normalize_toi_query(
+        load_frozen_manifest_bundle(),
+        page_size=2,
+        max_pages=1,
+        record_limit=2,
+    )
+    fixture = RecordedNasaToiFixture.model_validate_json(
+        DEFAULT_RECORDED_TOI_FIXTURE_PATH.read_text(encoding="utf-8")
+    )
+    fixture.records[0]["ra"] = "tampered-after-validation"
+
+    with pytest.raises(ValidationError, match="content_hash mismatch"):
+        RecordedNasaToiTransport(fixture, query=query)
+
+
+def test_recorded_transport_detaches_replay_payload_and_metadata() -> None:
+    from app.schemas.enums import SourceMode
+    from app.schemas.source_acquisition import DataSourceDataLevel
+    from services.data_pipeline.sources.nasa_exoplanet_archive import (
+        NasaExoplanetArchiveAdapter,
+    )
+    from services.data_pipeline.sources.recorded import (
+        DEFAULT_RECORDED_TOI_FIXTURE_PATH,
+        RecordedNasaToiFixture,
+        RecordedNasaToiTransport,
+    )
+
+    query = normalize_toi_query(
+        load_frozen_manifest_bundle(),
+        page_size=2,
+        max_pages=1,
+        record_limit=2,
+    )
+    fixture = RecordedNasaToiFixture.model_validate_json(
+        DEFAULT_RECORDED_TOI_FIXTURE_PATH.read_text(encoding="utf-8")
+    )
+    original_ra = fixture.records[0]["ra"]
+    original_hash = fixture.content_hash
+    transport = RecordedNasaToiTransport(fixture, query=query)
+
+    fixture.records[0]["ra"] = "tampered-after-transport-init"
+    transport.fixture_metadata["content_hash"] = "sha256:" + "0" * 64
+
+    result = NasaExoplanetArchiveAdapter(
+        transport=transport,
+        sleeper=lambda _: None,
+    ).acquire(
+        query,
+        source_mode=SourceMode.fixture,
+        data_level=DataSourceDataLevel.recorded_response,
+    )
+
+    assert result.records[0].payload["ra"] == original_ra
+    assert result.snapshot.request_metadata["fixture"]["content_hash"] == original_hash
 
 
 def test_recorded_fixture_rejects_sensitive_response_headers() -> None:
