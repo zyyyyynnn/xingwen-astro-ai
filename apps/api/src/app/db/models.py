@@ -16,6 +16,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -369,6 +370,7 @@ class ArtifactVersionModel(TimestampMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("id", "artifact_id", name="uq_artifact_version_id_artifact"),
+        UniqueConstraint("id", "project_id", name="uq_artifact_version_id_project"),
         UniqueConstraint("artifact_id", "version_number", name="uq_artifact_version_number"),
         UniqueConstraint("artifact_id", "publication_key", name="uq_artifact_publication_key"),
         ForeignKeyConstraint(
@@ -413,4 +415,69 @@ class ArtifactVersionModel(TimestampMixin, Base):
         Index("ix_artifact_versions_producer_execution_id", "producer_execution_id"),
         CheckConstraint("version_number >= 1", name="version_positive"),
         CheckConstraint("source_mode IN ('fixture','live','cached')", name="source_mode"),
+    )
+
+
+class SourceSnapshotModel(Base):
+    __tablename__ = "source_snapshots"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+    )
+    source_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    query: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    query_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    source_version_or_etag: Mapped[str | None] = mapped_column(String(256))
+    content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    license_note: Mapped[str] = mapped_column(Text, nullable=False)
+    cache_version: Mapped[str | None] = mapped_column(String(128))
+    request_metadata: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict
+    )
+
+    __table_args__ = (
+        UniqueConstraint("id", "project_id", name="uq_source_snapshot_id_project"),
+        Index("ix_source_snapshots_project_retrieved", "project_id", "retrieved_at"),
+    )
+
+
+class EvidenceModel(TimestampMixin, Base):
+    __tablename__ = "evidence"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+    )
+    artifact_version_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    evidence_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_snapshot_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    paper_id: Mapped[str | None] = mapped_column(String(128))
+    locator: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    quote_or_value: Mapped[Any | None] = mapped_column(JSONB)
+    extraction_method: Mapped[str] = mapped_column(String(128), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    is_restricted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    __table_args__ = (
+        UniqueConstraint("id", "project_id", name="uq_evidence_id_project"),
+        ForeignKeyConstraint(
+            ["artifact_version_id", "project_id"],
+            ["artifact_versions.id", "artifact_versions.project_id"],
+            name="fk_evidence_version_project",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["source_snapshot_id", "project_id"],
+            ["source_snapshots.id", "source_snapshots.project_id"],
+            name="fk_evidence_snapshot_project",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("confidence BETWEEN 0 AND 1", name="confidence_range"),
+        Index("ix_evidence_artifact_version_id", "artifact_version_id"),
+        Index("ix_evidence_source_snapshot_id", "source_snapshot_id"),
     )

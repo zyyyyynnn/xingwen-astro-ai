@@ -19,6 +19,7 @@ from app.middleware import (
     v2_security_exception_handler,
 )
 from app.routers import (
+    artifacts,
     dataset,
     evidence,
     graph,
@@ -38,6 +39,7 @@ from app.security import (
     install_share_token_access_log_filter,
 )
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
+from app.services.artifacts import ArtifactReadService
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.store import PersistentWorkflowStore
 
@@ -66,21 +68,27 @@ def create_app() -> FastAPI:
     app.state.snapshot_service = SnapshotService(snapshot_store)
     app.state.workflow_store = None
     app.state.workflow_executor = None
+    app.state.artifact_read_service = None
+    database_engine = None
+    if settings.DATABASE_URL is not None:
+        database_engine = create_engine_from_url(
+            settings.DATABASE_URL.get_secret_value()
+        )
+        app.state.artifact_read_service = ArtifactReadService(
+            session_factory(database_engine)
+        )
+        app.router.add_event_handler("shutdown", database_engine.dispose)
     if settings.PERSISTENT_WORKFLOW_ENABLED:
-        if settings.DATABASE_URL is None:
+        if database_engine is None:
             raise RuntimeError(
                 "DATABASE_URL is required when PERSISTENT_WORKFLOW_ENABLED is true"
             )
-        workflow_engine = create_engine_from_url(
-            settings.DATABASE_URL.get_secret_value()
-        )
         app.state.workflow_store = PersistentWorkflowStore(
-            session_factory(workflow_engine)
+            session_factory(database_engine)
         )
         app.state.workflow_executor = PersistentWorkflowExecutor(
             app.state.workflow_store
         )
-        app.router.add_event_handler("shutdown", workflow_engine.dispose)
     app.add_middleware(
         V2SecurityMiddleware,
         sessions=session_service,
@@ -114,6 +122,7 @@ def create_app() -> FastAPI:
     app.include_router(graph.router)
     app.include_router(evidence.router)
     app.include_router(sessions.router)
+    app.include_router(artifacts.router)
 
     return app
 

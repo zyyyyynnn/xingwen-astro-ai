@@ -12,6 +12,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    JsonValue,
     StringConstraints,
     model_validator,
 )
@@ -398,9 +399,11 @@ class ProducerReference(BaseModel):
     type: Literal["pipeline", "model", "algorithm"]
     name: NonEmptyString
     version: NonEmptyString
+    model_provider: str | None = None
     model_name: str | None = None
     prompt_name: str | None = None
     prompt_version: str | None = None
+    prompt_hash: ContentHash | None = None
     parameters_hash: ContentHash | None = None
 
 
@@ -548,6 +551,101 @@ class ArtifactVersion(BaseModel):
     evidence_ids: tuple[Identifier, ...] = ()
     supersedes_version_id: Identifier | None = None
     created_at: UtcDateTime
+
+
+class ArtifactVersionSummary(BaseModel):
+    """Bounded immutable-version reference used by Artifact detail reads."""
+
+    model_config = V2_MODEL_CONFIG
+
+    id: Identifier
+    artifact_id: Identifier
+    version_number: int = Field(ge=1)
+    schema_version: SemanticVersion
+    content_hash: ContentHash
+    source_mode: SourceMode
+    supersedes_version_id: Identifier | None = None
+    created_at: UtcDateTime
+
+
+class ResearchArtifactDetail(ResearchArtifact):
+    """Artifact identity plus stable, bounded version summaries."""
+
+    versions: tuple[ArtifactVersionSummary, ...]
+
+
+class ProducerExecutionDetail(BaseModel):
+    """Reproducible producer metadata with private execution state excluded."""
+
+    model_config = V2_MODEL_CONFIG
+
+    id: Identifier
+    run_id: Identifier
+    step_key: Identifier
+    step_attempt_id: Identifier
+    producer: ProducerReference
+    parameters: dict[str, JsonValue]
+    parameters_hash: ContentHash
+    input_hash: ContentHash
+    output_hash: ContentHash | None = None
+    status: Literal["running", "completed", "failed", "rejected", "cancelled"]
+    started_at: UtcDateTime
+    finished_at: UtcDateTime | None = None
+    token_usage: dict[str, int] | None = None
+    latency_ms: int | None = Field(default=None, ge=0)
+    error_code: Identifier | None = None
+
+
+class SourceSnapshotDetail(BaseModel):
+    """Reproducible source metadata after the application redaction boundary."""
+
+    model_config = V2_MODEL_CONFIG
+
+    id: Identifier
+    source_id: Identifier
+    source_type: Identifier
+    retrieved_at: UtcDateTime
+    query: JsonValue
+    query_hash: ContentHash
+    source_version_or_etag: str | None = None
+    content_hash: ContentHash
+    license_note: NonEmptyString
+    cache_version: str | None = None
+    request_metadata: dict[str, JsonValue]
+
+
+class EvidenceDetail(BaseModel):
+    """Evidence bound to one immutable version and source snapshot."""
+
+    model_config = V2_MODEL_CONFIG
+
+    id: Identifier
+    artifact_version_id: Identifier
+    target_type: Identifier
+    target_id: Identifier
+    evidence_type: Identifier
+    source_snapshot_id: Identifier
+    paper_id: Identifier | None = None
+    locator: dict[str, JsonValue]
+    quote_or_value: JsonValue | None = None
+    extraction_method: Identifier
+    confidence: float = Field(ge=0, le=1)
+    created_at: UtcDateTime
+
+
+class EvidenceRead(EvidenceDetail):
+    """Evidence detail with its immutable, already-redacted source projection."""
+
+    source_snapshot: SourceSnapshotDetail
+
+
+class ArtifactVersionDetail(ArtifactVersion):
+    """Unified immutable content and provenance read projection."""
+
+    content: dict[str, JsonValue]
+    producer_execution: ProducerExecutionDetail
+    source_snapshots: tuple[SourceSnapshotDetail, ...]
+    evidence: tuple[EvidenceDetail, ...]
 
 
 class WorkspaceObjectRef(BaseModel):

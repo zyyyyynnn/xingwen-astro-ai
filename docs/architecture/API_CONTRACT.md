@@ -4,9 +4,9 @@
 | -------------- | ---------------------------------------------------------- |
 | Status         | Accepted                                                   |
 | Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring     |
-| Implementation | `/api/v1` Current；`/api/v2` 核心生成契约、Session 安全边界及 Workspace/Share application boundary Implemented；Workspace/Share runtime Pending |
+| Implementation | `/api/v1` Current；`/api/v2` 核心生成契约、Session 安全边界及 Artifact/Evidence/SourceSnapshot PostgreSQL 读取边界 Implemented；Workspace/Share runtime Pending |
 
-本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership、WorkspaceSnapshot 和 ShareSnapshot 应用边界已实现；Workspace/Share 路由在 Project / Run / ArtifactVersion / Evidence 生产事实源接入前不挂载，Project/Run/Artifact 核心资源运行路由、跨进程持久化与 Workflow 仍为 Pending。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
+本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership、WorkspaceSnapshot 和 ShareSnapshot 应用边界已实现；B-18 已挂载通用 Artifact、ArtifactVersion、Evidence 和 SourceSnapshot 私有读取路由，并在配置 `DATABASE_URL` 时接入 PostgreSQL 事实源，不要求开启 Workflow Executor。Project/Run 写入 API 与 Workspace/Share 生产事实源接入仍为 Pending。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
 
 ## 1. 设计原则
 
@@ -39,7 +39,7 @@ flowchart LR
 | 版本      | 状态              | 说明                                                          |
 | --------- | ----------------- | ------------------------------------------------------------- |
 | `/api/v1` | Current           | 当前后端 Task Contract                                        |
-| `/api/v2` | Contract Implemented, Runtime Partial | Session 已运行；Workspace/Share application boundary 已实现但运行挂载 Pending；Project / Run / Artifact / Version 其余运行边界 Pending |
+| `/api/v2` | Contract Implemented, Runtime Partial | Session 与通用 Artifact provenance 私有读取已运行；Workspace/Share application boundary 已实现但运行挂载 Pending；Project / Run 写入及领域专属读取仍 Pending |
 
 版本推进规则：
 
@@ -313,35 +313,31 @@ Run Snapshot 至少返回：
 | `GET`  | `/api/v2/artifacts/{artifact_id}`                      | Artifact 身份和版本列表摘要   |
 | `GET`  | `/api/v2/artifact-versions/{version_id}`               | 统一 ArtifactVersion Envelope |
 | `GET`  | `/api/v2/evidence/{evidence_id}`                       | Evidence 与 SourceSnapshot    |
-| `GET`  | `/api/v2/source-snapshots/{snapshot_id}`               | 可公开的来源快照信息          |
+| `GET`  | `/api/v2/source-snapshots/{snapshot_id}`               | 当前 Project 的脱敏来源快照   |
 
 ArtifactVersion Envelope：
 
 ```json
 {
   "data": {
-    "artifact": {
-      "id": "art_01J...",
-      "project_id": "proj_01J...",
-      "kind": "dataset",
-      "title": "系外行星与宿主恒星参数数据集"
-    },
-    "version": {
-      "id": "artv_01J...",
-      "version_number": 2,
-      "schema_version": "2.0.0",
-      "content_hash": "sha256:...",
-      "source_mode": "live",
-      "created_by_run_id": "run_01J...",
-      "supersedes_version_id": "artv_01H...",
-      "created_at": "2026-07-16T08:08:00Z"
-    },
+    "id": "artv_01J...",
+    "artifact_id": "art_01J...",
+    "project_id": "proj_01J...",
+    "created_by_run_id": "run_01J...",
+    "version_number": 2,
+    "schema_version": "2.0.0",
     "content": {},
-    "evidence_refs": ["ev_01J..."],
-    "provenance": {
-      "source_snapshot_ids": ["srcs_01J..."],
-      "producer": { "type": "pipeline", "version": "data-pipeline@1" }
-    }
+    "content_hash": "sha256:...",
+    "input_hash": "sha256:...",
+    "source_mode": "live",
+    "producer": { "type": "pipeline", "name": "data", "version": "1.0.0" },
+    "source_snapshot_ids": ["srcs_01J..."],
+    "evidence_ids": ["ev_01J..."],
+    "supersedes_version_id": "artv_01H...",
+    "created_at": "2026-07-16T08:08:00Z",
+    "producer_execution": {},
+    "source_snapshots": [],
+    "evidence": []
   },
   "meta": {
     "request_id": "req_01J...",
@@ -352,7 +348,9 @@ ArtifactVersion Envelope：
 }
 ```
 
-`content` 根据 `artifact.kind` 使用判别联合 Schema；页面不得把任意 JSON 当作已校验产物。
+`content` 是 #78 已经 Pydantic 准入并以 hash 固定的发布 payload；通用读取边界不重复执行领域算法。B-05～B-09 必须在各自领域端点继续映射为判别联合读取模型。读取层会删除凭据、认证头、Cookie、受限全文、原始模型长输出和内部堆栈类字段；SourceSnapshot `request_metadata` 只保留明确允许的可复现字段。
+
+Artifact 列表 cursor 同时绑定 `run_id` 和 `kind` 过滤条件；不得跨 Run 或跨过滤条件复用，scope 不匹配时返回 `400 INVALID_CURSOR`。
 
 上例的 `source_mode=live` 表示实际来源；`supersedes_version_id` 非空表示它是修订版本。界面可组合显示 `LIVE · REVISED`，但不得把 `revised` 写回来源枚举。
 
