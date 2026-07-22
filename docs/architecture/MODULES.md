@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------------- |
 | Status         | Accepted                                                      |
 | Authority      | 跨模块职责、输入输出、依赖方向和交接边界                      |
-| Implementation | A-01 frontend runtime、D-02 PaperCollection Pipeline、#78 Publisher 与 `/api/v2` M1 Core Runtime current；A-02/A-03 前端产品接入 Pending |
+| Implementation | A-01 frontend runtime、C-02 NASA TOI source acquisition、D-02 PaperCollection Pipeline、#78 Publisher 与 `/api/v2` M1 Core Runtime current；A-02/A-03 前端产品接入 Pending |
 
 本文不维护完整前端目录、技术选型或任务顺序。前端包结构见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)，实时任务依赖见 [Backlog](../product/BACKLOG.md)。
 
@@ -97,6 +97,8 @@ flowchart LR
 - Dataset、FieldDictionary、SourceCollection 和 Quality 内容；
 - mapping / unit / quality rule version、input/output hash；
 - 数据修订内容和 Export 输入。
+
+当前 C-02 只实现 `exoplanet_host_star` 的 NASA Exoplanet Archive TOI TAP 主来源 Adapter、原始记录、SourceSnapshot、Recorded Fixture 与有界 smoke 入口；运行规则见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md)。Crossmatch、字段合并、单位统一、质量评分、ArtifactVersion 发布和 Run 编排仍由后续原子 Issue 负责。
 
 ### 不负责
 
