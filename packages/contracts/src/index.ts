@@ -37,10 +37,3 @@ export type {
 
 // Re-export all generated transport types for adapter consumption.
 export type * from "./generated/v2-core/dto";
-
-// Re-export API_CONTRACT.md-sourced types for endpoints not yet in the
-// generated OpenAPI. See ./api-contract-extensions.ts for details.
-export type {
-  UpdateContractDraftRequestExt,
-  UpdateProjectRequest,
-} from "./api-contract-extensions";

@@ -5,6 +5,10 @@
  * serving the same fixture DTOs) return deep-equal domain entities for the
  * exoplanet-host-star scenario. This is the structural guarantee that both
  * adapters share the same mapping layer and produce identical domain models.
+ *
+ * Only operations backed by the generated OpenAPI are exercised here.
+ * Operations without a corresponding server endpoint throw
+ * `CapabilityUnavailableError` and are covered in http-errors.test.ts.
  */
 
 import { expect, it } from "vitest";
@@ -34,17 +38,9 @@ function setupHttpRepos() {
 const PROJECT_ID = "proj_01JEXAMPLE" as never;
 const RUN_ID = "run_01JEXAMPLE" as never;
 const DRAFT_ID = "rcd_01JEXAMPLE" as never;
+const CONTRACT_ID = "rc_01JEXAMPLE" as never;
 const ARTIFACT_ID = "art_graph_01" as never;
 const VERSION_ID = "artv_graph_01" as never;
-
-it("projects.list returns the same domain entities", async () => {
-  const httpRepos = setupHttpRepos();
-  const [fixtureProjects, httpProjects] = await Promise.all([
-    fixtureRepos.projects.list(),
-    httpRepos.projects.list(),
-  ]);
-  expect(httpProjects).toEqual(fixtureProjects);
-});
 
 it("projects.getById returns the same domain entity", async () => {
   const httpRepos = setupHttpRepos();
@@ -53,15 +49,6 @@ it("projects.getById returns the same domain entity", async () => {
     httpRepos.projects.getById(PROJECT_ID),
   ]);
   expect(httpProject).toEqual(fixtureProject);
-});
-
-it("contracts.listContracts returns the same domain entities", async () => {
-  const httpRepos = setupHttpRepos();
-  const [fixtureContracts, httpContracts] = await Promise.all([
-    fixtureRepos.contracts.listContracts(PROJECT_ID),
-    httpRepos.contracts.listContracts(PROJECT_ID),
-  ]);
-  expect(httpContracts).toEqual(fixtureContracts);
 });
 
 it("contracts.getDraftById returns the same domain entity", async () => {
@@ -73,13 +60,13 @@ it("contracts.getDraftById returns the same domain entity", async () => {
   expect(httpDraft).toEqual(fixtureDraft);
 });
 
-it("contracts.listDrafts returns the same domain entities", async () => {
+it("contracts.getContractById returns the same domain entity", async () => {
   const httpRepos = setupHttpRepos();
-  const [fixtureDrafts, httpDrafts] = await Promise.all([
-    fixtureRepos.contracts.listDrafts(),
-    httpRepos.contracts.listDrafts(),
+  const [fixtureContract, httpContract] = await Promise.all([
+    fixtureRepos.contracts.getContractById(CONTRACT_ID),
+    httpRepos.contracts.getContractById(CONTRACT_ID),
   ]);
-  expect(httpDrafts).toEqual(fixtureDrafts);
+  expect(httpContract).toEqual(fixtureContract);
 });
 
 it("runs.getById returns the same domain entity", async () => {
@@ -89,15 +76,6 @@ it("runs.getById returns the same domain entity", async () => {
     httpRepos.runs.getById(RUN_ID),
   ]);
   expect(httpRun).toEqual(fixtureRun);
-});
-
-it("runs.listByProject returns the same domain entities", async () => {
-  const httpRepos = setupHttpRepos();
-  const [fixtureRuns, httpRuns] = await Promise.all([
-    fixtureRepos.runs.listByProject(PROJECT_ID),
-    httpRepos.runs.listByProject(PROJECT_ID),
-  ]);
-  expect(httpRuns).toEqual(fixtureRuns);
 });
 
 it("runs.getEvents returns the same domain entities in sequence order", async () => {
@@ -125,13 +103,4 @@ it("artifacts.getVersionById returns the same domain entity", async () => {
     httpRepos.artifacts.getVersionById(VERSION_ID),
   ]);
   expect(httpVersion).toEqual(fixtureVersion);
-});
-
-it("artifacts.listVersions returns the same domain entities", async () => {
-  const httpRepos = setupHttpRepos();
-  const [fixtureVersions, httpVersions] = await Promise.all([
-    fixtureRepos.artifacts.listVersions(ARTIFACT_ID),
-    httpRepos.artifacts.listVersions(ARTIFACT_ID),
-  ]);
-  expect(httpVersions).toEqual(fixtureVersions);
 });

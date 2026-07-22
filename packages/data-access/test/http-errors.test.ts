@@ -1,15 +1,19 @@
 /**
  * HTTP error scenario tests — RFC 9457 Problem Details → domain error mapping.
  *
- * Covers 401/403/404/409/422/429/503, network failure, idempotency conflict
- * and version conflict. Each test installs a handler returning a specific
+ * Covers 401/403/404/409/422/429/503, network failure, idempotency conflict,
+ * version conflict, and CapabilityUnavailableError for operations without an
+ * OpenAPI endpoint. Each error test installs a handler returning a specific
  * problem details payload and asserts the adapter throws the mapped error.
  */
 
 import { http, HttpResponse } from "msw";
 import { expect, it } from "vitest";
 
+import type { ResearchContractDraft } from "@xingwen/domain";
+
 import { createHttpRepositories } from "../src/http-adapter";
+import { CapabilityUnavailableError } from "../src/errors";
 import {
   ConflictError,
   ForbiddenError,
@@ -44,6 +48,45 @@ function setupRepos() {
 
 const PROJECT_ID = "proj_01JEXAMPLE" as never;
 const RUN_ID = "run_01JEXAMPLE" as never;
+const ARTIFACT_ID = "art_graph_01" as never;
+const VERSION_ID = "artv_graph_01" as never;
+
+/** A valid draft used by saveDraft error tests. */
+const testDraft: ResearchContractDraft = {
+  id: "rcd_01JEXAMPLE" as never,
+  sessionId: "sess" as never,
+  version: 1,
+  intent: "test",
+  status: "draft",
+  contract: {
+    researchGoal: "test",
+    targetObjects: [],
+    dataRequirements: { unitPolicy: "canonical" },
+    requestedFields: [],
+    sourceScope: { allowedSources: [] },
+    paperSearchScope: {
+      keywords: [],
+      yearFrom: null,
+      yearTo: null,
+      sourceIds: [],
+      maxCandidates: 20,
+    },
+    outputRequirements: [],
+    evidenceRequirements: {
+      requireLocator: true,
+      requireSourceSnapshot: true,
+      minimumCoverage: 1,
+    },
+    qualityConstraints: {
+      sourceCompletenessMin: 1,
+      unitConsistencyMin: 1,
+    },
+  },
+  warnings: [],
+  createdAt: "2026-07-22T00:00:00Z",
+  updatedAt: "2026-07-22T00:00:00Z",
+  expiresAt: "2026-07-22T01:00:00Z",
+};
 
 it("401 SESSION_REQUIRED throws SessionExpiredError and notifies session manager", async () => {
   const { repos, session } = setupRepos();
@@ -83,26 +126,15 @@ it("403 ACTION_FORBIDDEN throws ForbiddenError", async () => {
 it("403 CSRF_INVALID throws ForbiddenError with code", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.patch(`${TEST_BASE_URL}/api/v2/projects/:id`, () =>
+    http.patch(`${TEST_BASE_URL}/api/v2/research-contract-drafts/:id`, () =>
       HttpResponse.json(problem(403, "CSRF_INVALID", "CSRF failed"), {
         status: 403,
       }),
     ),
   );
-  await expect(
-    repos.projects.save({
-      id: PROJECT_ID,
-      sessionId: "sess" as never,
-      name: "test",
-      description: "",
-      caseKey: "exoplanet_host_star",
-      activeContractId: null,
-      latestRunId: null,
-      createdAt: "2026-07-22T00:00:00Z",
-      updatedAt: "2026-07-22T00:00:00Z",
-      revision: 1,
-    }),
-  ).rejects.toThrow(ForbiddenError);
+  await expect(repos.contracts.saveDraft(testDraft)).rejects.toThrow(
+    ForbiddenError,
+  );
 });
 
 it("404 PROJECT_NOT_FOUND returns null for getById", async () => {
@@ -168,25 +200,14 @@ it("409 RUN_STATE_CONFLICT throws ConflictError", async () => {
 it("409 VERSION_CONFLICT throws ConflictError with code", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.patch(`${TEST_BASE_URL}/api/v2/projects/:id`, () =>
+    http.patch(`${TEST_BASE_URL}/api/v2/research-contract-drafts/:id`, () =>
       HttpResponse.json(problem(409, "VERSION_CONFLICT", "Stale version"), {
         status: 409,
       }),
     ),
   );
   try {
-    await repos.projects.save({
-      id: PROJECT_ID,
-      sessionId: "sess" as never,
-      name: "test",
-      description: "",
-      caseKey: "exoplanet_host_star",
-      activeContractId: null,
-      latestRunId: null,
-      createdAt: "2026-07-22T00:00:00Z",
-      updatedAt: "2026-07-22T00:00:00Z",
-      revision: 1,
-    });
+    await repos.contracts.saveDraft(testDraft);
     expect.fail("Should have thrown");
   } catch (err) {
     expect(err).toBeInstanceOf(ConflictError);
@@ -248,41 +269,7 @@ it("422 CONTRACT_INVALID throws ValidationError with field errors", async () => 
     ),
   );
   try {
-    await repos.contracts.saveDraft({
-      id: "rcd_01JEXAMPLE" as never,
-      sessionId: "sess" as never,
-      version: 1,
-      intent: "test",
-      status: "draft",
-      contract: {
-        researchGoal: "test",
-        targetObjects: [],
-        dataRequirements: { unitPolicy: "canonical" },
-        requestedFields: [],
-        sourceScope: { allowedSources: [] },
-        paperSearchScope: {
-          keywords: [],
-          yearFrom: null,
-          yearTo: null,
-          sourceIds: [],
-          maxCandidates: 20,
-        },
-        outputRequirements: [],
-        evidenceRequirements: {
-          requireLocator: true,
-          requireSourceSnapshot: true,
-          minimumCoverage: 1,
-        },
-        qualityConstraints: {
-          sourceCompletenessMin: 1,
-          unitConsistencyMin: 1,
-        },
-      },
-      warnings: [],
-      createdAt: "2026-07-22T00:00:00Z",
-      updatedAt: "2026-07-22T00:00:00Z",
-      expiresAt: "2026-07-22T01:00:00Z",
-    });
+    await repos.contracts.saveDraft(testDraft);
     expect.fail("Should have thrown");
   } catch (err) {
     expect(err).toBeInstanceOf(ValidationError);
@@ -297,7 +284,7 @@ it("429 RATE_LIMITED throws RateLimitedError with Retry-After", async () => {
   const { repos } = setupRepos();
   httpServer.use(
     http.get(
-      `${TEST_BASE_URL}/api/v2/projects`,
+      `${TEST_BASE_URL}/api/v2/projects/:id`,
       () =>
         new HttpResponse(
           JSON.stringify(problem(429, "RATE_LIMITED", "Too many requests")),
@@ -312,7 +299,7 @@ it("429 RATE_LIMITED throws RateLimitedError with Retry-After", async () => {
     ),
   );
   try {
-    await repos.projects.list();
+    await repos.projects.getById(PROJECT_ID);
     expect.fail("Should have thrown");
   } catch (err) {
     expect(err).toBeInstanceOf(RateLimitedError);
@@ -358,4 +345,84 @@ it("unexpected 500 throws UnexpectedHttpError", async () => {
   await expect(repos.projects.getById(PROJECT_ID)).rejects.toThrow(
     UnexpectedHttpError,
   );
+});
+
+// ===== CapabilityUnavailableError tests =====
+// Operations not in the generated OpenAPI throw CapabilityUnavailableError
+// before any HTTP request is made.
+
+it("CapabilityUnavailableError carries the capability name", async () => {
+  const { repos } = setupRepos();
+  try {
+    await repos.projects.list();
+    expect.fail("Should have thrown");
+  } catch (err) {
+    expect(err).toBeInstanceOf(CapabilityUnavailableError);
+    expect((err as CapabilityUnavailableError).capability).toBe(
+      "projects.list",
+    );
+  }
+});
+
+it("projects.list throws CapabilityUnavailableError", async () => {
+  const { repos } = setupRepos();
+  await expect(repos.projects.list()).rejects.toThrow(
+    CapabilityUnavailableError,
+  );
+});
+
+it("projects.save throws CapabilityUnavailableError", async () => {
+  const { repos } = setupRepos();
+  await expect(repos.projects.save({} as never)).rejects.toThrow(
+    CapabilityUnavailableError,
+  );
+});
+
+it("contracts.listDrafts throws CapabilityUnavailableError", async () => {
+  const { repos } = setupRepos();
+  await expect(repos.contracts.listDrafts()).rejects.toThrow(
+    CapabilityUnavailableError,
+  );
+});
+
+it("contracts.listContracts throws CapabilityUnavailableError", async () => {
+  const { repos } = setupRepos();
+  await expect(repos.contracts.listContracts(PROJECT_ID)).rejects.toThrow(
+    CapabilityUnavailableError,
+  );
+});
+
+it("runs.listByProject throws CapabilityUnavailableError", async () => {
+  const { repos } = setupRepos();
+  await expect(repos.runs.listByProject(PROJECT_ID)).rejects.toThrow(
+    CapabilityUnavailableError,
+  );
+});
+
+it("artifacts.listByProject throws CapabilityUnavailableError", async () => {
+  const { repos } = setupRepos();
+  await expect(repos.artifacts.listByProject(PROJECT_ID)).rejects.toThrow(
+    CapabilityUnavailableError,
+  );
+});
+
+it("artifacts.listVersions throws CapabilityUnavailableError", async () => {
+  const { repos } = setupRepos();
+  await expect(repos.artifacts.listVersions(ARTIFACT_ID)).rejects.toThrow(
+    CapabilityUnavailableError,
+  );
+});
+
+it("evidence.getById throws CapabilityUnavailableError", async () => {
+  const { repos } = setupRepos();
+  await expect(repos.evidence.getById("evi_test" as never)).rejects.toThrow(
+    CapabilityUnavailableError,
+  );
+});
+
+it("evidence.listByArtifactVersion throws CapabilityUnavailableError", async () => {
+  const { repos } = setupRepos();
+  await expect(
+    repos.evidence.listByArtifactVersion(VERSION_ID),
+  ).rejects.toThrow(CapabilityUnavailableError);
 });

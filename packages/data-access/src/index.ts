@@ -27,6 +27,7 @@ export type {
 } from "./ports";
 
 export {
+  CapabilityUnavailableError,
   EntityNotFoundError,
   FixtureSemanticError,
   FixtureValidationError,

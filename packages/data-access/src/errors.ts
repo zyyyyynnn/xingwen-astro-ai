@@ -43,3 +43,23 @@ export class FixtureSemanticError extends Error {
     this.name = "FixtureSemanticError";
   }
 }
+
+/**
+ * Thrown when an HTTP adapter method cannot be implemented because the
+ * corresponding operation does not exist in the generated OpenAPI contract.
+ *
+ * This is NOT a runtime failure — it means the backend has not yet exposed
+ * the route. The caller should treat this as a permanent "not available"
+ * until the OpenAPI is regenerated with the new operationId.
+ */
+export class CapabilityUnavailableError extends Error {
+  readonly capability: string;
+  readonly reason: string;
+
+  constructor(capability: string, reason: string) {
+    super(`Capability unavailable: ${capability} — ${reason}`);
+    this.name = "CapabilityUnavailableError";
+    this.capability = capability;
+    this.reason = reason;
+  }
+}

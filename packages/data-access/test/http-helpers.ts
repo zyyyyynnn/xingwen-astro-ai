@@ -23,27 +23,8 @@ function envelope<T>(data: T): { data: T; meta: Record<string, unknown> } {
   };
 }
 
-function collection<T>(data: readonly T[]): {
-  data: readonly T[];
-  page: { next_cursor: string | null; has_more: boolean; limit: number };
-  meta: Record<string, unknown>;
-} {
-  return {
-    data,
-    page: { next_cursor: null, has_more: false, limit: 100 },
-    meta: {
-      request_id: "req_test",
-      schema_version: "2.0.0",
-      generated_at: "2026-07-21T08:00:00Z",
-    },
-  };
-}
-
 /** Default handlers serving the exoplanet-host-star fixture over HTTP. */
 export const defaultHandlers = [
-  http.get(`${BASE_URL}/api/v2/projects`, () =>
-    HttpResponse.json(collection(exoplanetHostStarFixture.data.projects)),
-  ),
   http.get(`${BASE_URL}/api/v2/projects/:projectId`, ({ params }) => {
     const project = exoplanetHostStarFixture.data.projects.find(
       (p) => p.id === params.projectId,
@@ -61,32 +42,45 @@ export const defaultHandlers = [
       return HttpResponse.json(envelope(draft));
     },
   ),
-  http.get(`${BASE_URL}/api/v2/research-contract-drafts`, () =>
-    HttpResponse.json(collection(exoplanetHostStarFixture.data.contractDrafts)),
-  ),
   http.patch(`${BASE_URL}/api/v2/research-contract-drafts/:draftId`, async () =>
     HttpResponse.json(
       envelope(exoplanetHostStarFixture.data.contractDrafts[0]),
     ),
   ),
-  http.get(`${BASE_URL}/api/v2/projects/:projectId/contracts`, ({ params }) => {
-    const contracts = exoplanetHostStarFixture.data.contracts.filter(
-      (c) => c.project_id === params.projectId,
-    );
-    return HttpResponse.json(collection(contracts));
-  }),
+  http.get(
+    `${BASE_URL}/api/v2/research-contracts/:contractId`,
+    ({ params }) => {
+      const contract = exoplanetHostStarFixture.data.contracts.find(
+        (c) => c.id === params.contractId,
+      );
+      if (!contract) return new HttpResponse(null, { status: 404 });
+      return HttpResponse.json(envelope(contract));
+    },
+  ),
+  http.post(
+    `${BASE_URL}/api/v2/projects/:projectId/contracts`,
+    async ({ request }) => {
+      const body = (await request.json()) as {
+        draft_id: string;
+        expected_draft_version: number;
+      };
+      const draft = exoplanetHostStarFixture.data.contractDrafts.find(
+        (d) => d.id === body.draft_id,
+      );
+      if (!draft) return new HttpResponse(null, { status: 404 });
+      const contract = exoplanetHostStarFixture.data.contracts.find(
+        (c) => c.created_from_draft_id === draft.id,
+      );
+      if (!contract) return new HttpResponse(null, { status: 404 });
+      return HttpResponse.json(envelope(contract), { status: 201 });
+    },
+  ),
   http.get(`${BASE_URL}/api/v2/runs/:runId`, ({ params }) => {
     const run = exoplanetHostStarFixture.data.runs.find(
       (r) => r.id === params.runId,
     );
     if (!run) return new HttpResponse(null, { status: 404 });
     return HttpResponse.json(envelope(run));
-  }),
-  http.get(`${BASE_URL}/api/v2/projects/:projectId/runs`, ({ params }) => {
-    const runs = exoplanetHostStarFixture.data.runs.filter(
-      (r) => r.project_id === params.projectId,
-    );
-    return HttpResponse.json(collection(runs));
   }),
   http.get(`${BASE_URL}/api/v2/runs/:runId/events`, ({ params, request }) => {
     const events = exoplanetHostStarFixture.data.runEvents.filter(
@@ -128,23 +122,8 @@ export const defaultHandlers = [
       (a) => a.id === params.artifactId,
     );
     if (!artifact) return new HttpResponse(null, { status: 404 });
-    // Return the artifact DTO as-is; version summaries are served by a
-    // dedicated endpoint (see below) so the artifact response stays
-    // schema-valid (additionalProperties: false).
     return HttpResponse.json(envelope(artifact));
   }),
-  http.get(
-    `${BASE_URL}/api/v2/artifacts/:artifactId/versions`,
-    ({ params }) => {
-      // ArtifactVersion list by artifact. Not yet in the generated Contract
-      // but defined in API_CONTRACT.md §11 ("Artifact identity and version
-      // list summary"). Each item is a schema-valid ArtifactVersion DTO.
-      const versions = exoplanetHostStarFixture.data.artifactVersions.filter(
-        (v) => v.artifact_id === params.artifactId,
-      );
-      return HttpResponse.json(collection(versions));
-    },
-  ),
   http.get(`${BASE_URL}/api/v2/artifact-versions/:versionId`, ({ params }) => {
     const version = exoplanetHostStarFixture.data.artifactVersions.find(
       (v) => v.id === params.versionId,
@@ -167,7 +146,6 @@ export const defaultHandlers = [
     ),
   ),
   http.delete(`${BASE_URL}/api/v2/sessions`, ({ request }) => {
-    // Honour CSRF token check: missing or wrong token → 403.
     const csrf = request.headers.get("X-CSRF-Token");
     if (csrf !== "csrf_test_token") {
       return HttpResponse.json(
@@ -178,18 +156,11 @@ export const defaultHandlers = [
     return new HttpResponse(null, { status: 204 });
   }),
   http.post(`${BASE_URL}/api/v2/projects/:projectId/runs`, ({ request }) => {
-    // Idempotency-Key handling: if the same key is seen twice, return 409
-    // IDEMPOTENCY_CONFLICT with the original run in the payload (per
-    // API_CONTRACT.md §9). For tests we just return the fixture run on the
-    // first call.
     void request;
     return HttpResponse.json(envelope(exoplanetHostStarFixture.data.runs[0]), {
       status: 201,
     });
   }),
-  http.patch(`${BASE_URL}/api/v2/projects/:projectId`, () =>
-    HttpResponse.json(envelope(exoplanetHostStarFixture.data.projects[0])),
-  ),
 ];
 
 /** Build a Problem Details response body. */
