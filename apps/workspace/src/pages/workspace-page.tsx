@@ -124,6 +124,10 @@ function preservesLocalWorkspaceState(state: WorkspaceState): boolean {
   );
 }
 
+function belongsToProject(state: WorkspaceState, projectId: EntityId): boolean {
+  return state.status !== "idle" && state.projectId === projectId;
+}
+
 export function WorkspacePage({
   projectId: projectIdProp,
   draftId: draftIdProp,
@@ -143,7 +147,10 @@ export function WorkspacePage({
   const explicitRunId = toEntityId(runIdProp);
   const routeRunId = explicitRunId ?? fixtureContext?.runId ?? null;
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
-  const [selectedRunId, setSelectedRunId] = useState<EntityId | null>(null);
+  const [selectedRun, setSelectedRun] = useState<{
+    readonly projectId: EntityId;
+    readonly runId: EntityId;
+  } | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareFeedback, setShareFeedback] = useState<ShareFeedback>(null);
   const [sharePending, setSharePending] = useState(false);
@@ -154,6 +161,8 @@ export function WorkspacePage({
   const selectionSequence = useRef(0);
   const recoverySequence = useRef(0);
   const shareRequestPending = useRef(false);
+  const selectedRunId =
+    selectedRun?.projectId === projectId ? selectedRun.runId : null;
 
   const loadWorkspace = useCallback(async () => {
     const request = ++loadSequence.current;
@@ -166,8 +175,10 @@ export function WorkspacePage({
 
     setLoadState({ status: "loading" });
     try {
+      const workspaceState = runtime.workspaceController.getState();
       if (
-        !preservesLocalWorkspaceState(runtime.workspaceController.getState())
+        !belongsToProject(workspaceState, projectId) ||
+        !preservesLocalWorkspaceState(workspaceState)
       ) {
         await runtime.workspaceController.load(projectId);
       }
@@ -293,7 +304,8 @@ export function WorkspacePage({
     try {
       await runtime.workspaceController.setActiveRun(run.id);
       if (selection !== selectionSequence.current) return;
-      setSelectedRunId(run.id);
+      if (!data) return;
+      setSelectedRun({ projectId: data.project.id, runId: run.id });
       setSelectionError(false);
     } catch {
       if (selection === selectionSequence.current) setSelectionError(true);

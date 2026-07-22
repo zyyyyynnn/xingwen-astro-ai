@@ -287,6 +287,43 @@ describe("Fixture adapter — share create resolves a frozen public projection",
       }),
     ).rejects.toBeInstanceOf(FixtureValidationError);
   });
+
+  it.each([
+    { title: " " as never },
+    { title: "x".repeat(201) as never },
+    {
+      artifactVersionIds: Array.from(
+        { length: 101 },
+        (_, index) => `artv_${index}` as never,
+      ),
+    },
+    {
+      evidenceIds: Array.from(
+        { length: 501 },
+        (_, index) => `evd_${index}` as never,
+      ),
+    },
+    { redactionPolicy: "private" as never },
+    { expiresAt: "2026-07-24T09:00:00+08:00" as never },
+  ])(
+    "rejects a Share request outside the API contract: %o",
+    async (override) => {
+      const fresh = createFixtureRepositories(exoplanetHostStarFixture);
+      await expect(
+        fresh.shares.create(PROJECT_ID, { ...request, ...override }),
+      ).rejects.toBeInstanceOf(FixtureValidationError);
+    },
+  );
+
+  it("normalizes Share titles like the API authoring model", async () => {
+    const fresh = createFixtureRepositories(exoplanetHostStarFixture);
+    const created = await fresh.shares.create(PROJECT_ID, {
+      ...request,
+      title: "  Public dataset evidence  " as never,
+    });
+
+    expect(created.title).toBe("Public dataset evidence");
+  });
 });
 
 describe("Fixture adapter — semantic and contract validation", () => {

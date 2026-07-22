@@ -16,14 +16,12 @@ export function usePrivateSession(
   );
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => {
+    if (runtime.adapterKind === "http") setStatus("loading");
     setAttempt((current) => current + 1);
-  }, []);
+  }, [runtime.adapterKind]);
 
   useEffect(() => {
-    if (runtime.adapterKind === "fixture") {
-      setStatus("ready");
-      return;
-    }
+    if (runtime.adapterKind === "fixture") return;
 
     let cancelled = false;
     let expired = false;
@@ -31,7 +29,6 @@ export function usePrivateSession(
       expired = true;
       if (!cancelled) setStatus("expired");
     });
-    setStatus("loading");
     void runtime.session.ensureSession().then(
       () => {
         if (!cancelled && !expired) setStatus("ready");

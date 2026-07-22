@@ -641,6 +641,94 @@ describe("Workspace routes", () => {
     });
   });
 
+  it("loads the target Project instead of carrying another Project's local Draft or Run", async () => {
+    const fixture = fixtureRuntime();
+    const sourceProject = await fixture.repositories.projects.getById(
+      fixture.bootstrap.projectId,
+    );
+    if (!sourceProject)
+      throw new Error("Fixture Project context is incomplete.");
+    const targetProjectId = "proj_TARGET" as EntityId;
+    const getByProjectId = vi.fn(async () => null);
+    const runtime = {
+      ...httpShapedRuntime(fixture),
+      repositories: {
+        ...fixture.repositories,
+        projects: {
+          getById: vi.fn(async (id: EntityId) =>
+            id === targetProjectId
+              ? {
+                  ...sourceProject,
+                  id: targetProjectId,
+                  name: "Target Project",
+                  activeContractId: null,
+                  latestRunId: null,
+                }
+              : fixture.repositories.projects.getById(id),
+          ),
+        },
+        shares: {
+          ...fixture.repositories.shares,
+          list: vi.fn(async (projectId: EntityId) =>
+            projectId === targetProjectId
+              ? []
+              : fixture.repositories.shares.list(projectId),
+          ),
+        },
+      },
+      workspaceController: createWorkspaceController({
+        getByProjectId,
+        save: async (projectId, input, expectedRevision) => ({
+          id: `ws_${projectId}` as EntityId,
+          projectId,
+          revision: expectedRevision + 1,
+          ...input,
+          updatedAt: "2026-07-23T00:00:00Z" as never,
+        }),
+      }),
+    };
+    const router = renderRoute(
+      `/workspace?projectId=${fixture.bootstrap.projectId}`,
+      runtime,
+    );
+
+    const runSelect = await screen.findByLabelText("选择 Run");
+    fireEvent.change(runSelect, {
+      target: { value: fixture.bootstrap.runId },
+    });
+    fireEvent.change(screen.getByLabelText("布局"), {
+      target: { value: "focus" },
+    });
+    await waitFor(() => {
+      const state = runtime.workspaceController.getState();
+      expect(state.status).toBe("draft");
+      if (state.status === "draft") {
+        expect(state.projectId).toBe(fixture.bootstrap.projectId);
+        expect(state.dirty).toBe(true);
+      }
+    });
+
+    await act(async () => {
+      await router.navigate({
+        to: "/workspace",
+        search: { projectId: String(targetProjectId) },
+      });
+    });
+
+    await screen.findByText("Target Project");
+    await waitFor(() => {
+      const state = runtime.workspaceController.getState();
+      expect(state.status).toBe("draft");
+      if (state.status === "draft") {
+        expect(state.projectId).toBe(targetProjectId);
+        expect(state.dirty).toBe(false);
+        expect(state.draft.activeRunId).toBeNull();
+      }
+    });
+    expect(getByProjectId).toHaveBeenLastCalledWith(targetProjectId);
+    expect(screen.queryByLabelText("选择 Run")).toBeNull();
+  });
+
   it("selects ArtifactVersion and Evidence before creating and revoking a frozen Share", async () => {
     const runtime = fixtureRuntime();
     const artifacts = await runtime.repositories.artifacts.listByRun(

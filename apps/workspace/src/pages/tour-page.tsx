@@ -35,6 +35,12 @@ interface TourData {
   readonly run: ResearchRun | null;
 }
 
+interface TourLoadResult {
+  readonly key: string;
+  readonly data: TourData | null;
+  readonly error: boolean;
+}
+
 let runActionSequence = 0;
 
 function toEntityId(value: string | undefined): EntityId | null {
@@ -62,8 +68,7 @@ export function TourPage({
   const contractId =
     toEntityId(contractIdProp) ?? fixtureContext?.contractId ?? null;
   const runId = toEntityId(runIdProp) ?? fixtureContext?.runId ?? null;
-  const [data, setData] = useState<TourData | null>(null);
-  const [loadError, setLoadError] = useState(false);
+  const [loadResult, setLoadResult] = useState<TourLoadResult | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [actionError, setActionError] = useState(false);
   const [intent, setIntent] = useState("");
@@ -73,17 +78,22 @@ export function TourPage({
   );
   const [actionPending, setActionPending] = useState(false);
   const runIdempotencyKey = useRef<string | null>(null);
+  const loadKey =
+    projectId && draftId
+      ? JSON.stringify([
+          projectId,
+          draftId,
+          contractId ?? null,
+          runId ?? null,
+          loadAttempt,
+        ])
+      : null;
 
   useEffect(() => {
     if (sessionState.status !== "ready") return;
-    if (!projectId || !draftId) {
-      setData(null);
-      setLoadError(false);
-      return;
-    }
+    if (!projectId || !draftId || !loadKey) return;
 
     let cancelled = false;
-    setLoadError(false);
     void (async () => {
       try {
         const [project, draft, run] = await Promise.all([
@@ -95,7 +105,7 @@ export function TourPage({
         ]);
         if (cancelled) return;
         if (!project || !draft) {
-          setData(null);
+          setLoadResult({ key: loadKey, data: null, error: false });
           return;
         }
         const resolvedContractId =
@@ -106,13 +116,16 @@ export function TourPage({
             )
           : null;
         if (cancelled) return;
-        setData({ project, draft, contract, run });
+        setLoadResult({
+          key: loadKey,
+          data: { project, draft, contract, run },
+          error: false,
+        });
         setIntent(draft.intent);
         setResearchGoal(draft.contract.researchGoal);
       } catch {
         if (!cancelled) {
-          setData(null);
-          setLoadError(true);
+          setLoadResult({ key: loadKey, data: null, error: true });
         }
       }
     })();
@@ -122,13 +135,19 @@ export function TourPage({
   }, [
     contractId,
     draftId,
+    loadKey,
     projectId,
     runId,
     runtime.repositories,
     sessionState.status,
-    loadAttempt,
   ]);
 
+  const currentLoadResult =
+    sessionState.status === "ready" && loadResult?.key === loadKey
+      ? loadResult
+      : null;
+  const data = currentLoadResult?.data ?? null;
+  const loadError = currentLoadResult?.error ?? false;
   const selectedMode = tourState.mode ?? "demo_replay";
   const draft = data?.draft ?? null;
   const contract = data?.contract ?? null;
@@ -168,7 +187,11 @@ export function TourPage({
         },
       },
     );
-    setData((current) => (current ? { ...current, draft: updated } : current));
+    setLoadResult((current) =>
+      current?.key === loadKey && current.data
+        ? { ...current, data: { ...current.data, draft: updated } }
+        : current,
+    );
     setIntent(updated.intent);
     setResearchGoal(updated.contract.researchGoal);
     return updated;
@@ -207,8 +230,10 @@ export function TourPage({
         draftToConfirm.id,
         draftToConfirm.version,
       );
-      setData((current) =>
-        current ? { ...current, contract: confirmed } : current,
+      setLoadResult((current) =>
+        current?.key === loadKey && current.data
+          ? { ...current, data: { ...current.data, contract: confirmed } }
+          : current,
       );
       setConfirmedDraftId(draftToConfirm.id);
       setActionError(false);
@@ -234,7 +259,11 @@ export function TourPage({
         idempotencyKey,
       });
       runIdempotencyKey.current = null;
-      setData((current) => (current ? { ...current, run: created } : current));
+      setLoadResult((current) =>
+        current?.key === loadKey && current.data
+          ? { ...current, data: { ...current.data, run: created } }
+          : current,
+      );
       setActionError(false);
     } catch {
       setActionError(true);

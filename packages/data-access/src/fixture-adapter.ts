@@ -285,8 +285,15 @@ export function createFixtureRepositories(
     now: UtcIsoTimestamp,
   ): void {
     const errors: string[] = [];
+    const title = request.title.trim();
+    if (title.length === 0 || title.length > 200) {
+      errors.push("title must contain between 1 and 200 characters");
+    }
     if (request.artifactVersionIds.length === 0) {
       errors.push("artifactVersionIds must contain at least one value");
+    }
+    if (request.artifactVersionIds.length > 100) {
+      errors.push("artifactVersionIds must contain at most 100 values");
     }
     if (
       request.artifactVersionIds.length !==
@@ -297,8 +304,16 @@ export function createFixtureRepositories(
     if (request.evidenceIds.length !== new Set(request.evidenceIds).size) {
       errors.push("evidenceIds must not contain duplicates");
     }
+    if (request.evidenceIds.length > 500) {
+      errors.push("evidenceIds must contain at most 500 values");
+    }
+    if (request.redactionPolicy !== "public_metadata_only") {
+      errors.push('redactionPolicy must be "public_metadata_only"');
+    }
     const expiry = Date.parse(request.expiresAt);
-    if (Number.isNaN(expiry) || expiry <= Date.parse(now)) {
+    if (Number.isNaN(expiry) || !/(?:Z|[+-]00:00)$/u.test(request.expiresAt)) {
+      errors.push("expiresAt must be a UTC datetime");
+    } else if (expiry <= Date.parse(now)) {
       errors.push("expiresAt must be in the future");
     }
     if (errors.length > 0) {
@@ -565,7 +580,7 @@ export function createFixtureRepositories(
         const snapshot: ShareSnapshot = {
           id,
           projectId,
-          title: request.title,
+          title: request.title.trim() as typeof request.title,
           status: "active",
           redactionPolicy: request.redactionPolicy,
           artifactVersionIds: request.artifactVersionIds,
