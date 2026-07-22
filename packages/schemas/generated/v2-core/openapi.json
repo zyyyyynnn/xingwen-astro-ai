@@ -204,6 +204,36 @@
         "title": "ArtifactVersion",
         "type": "object"
       },
+      "AtlasWorkspaceState": {
+        "additionalProperties": false,
+        "properties": {
+          "focus_mode": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Focus Mode"
+          },
+          "selected_object_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "AtlasWorkspaceState",
+        "type": "object"
+      },
       "CachePolicy": {
         "enum": [
           "disabled",
@@ -239,6 +269,35 @@
           "page"
         ],
         "title": "CollectionEnvelope[RunEvent]",
+        "type": "object"
+      },
+      "CollectionEnvelope_ShareSnapshot_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ShareSnapshot"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "page": {
+            "$ref": "#/components/schemas/CursorPage"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links",
+          "page"
+        ],
+        "title": "CollectionEnvelope[ShareSnapshot]",
         "type": "object"
       },
       "ConfirmResearchContractRequest": {
@@ -334,6 +393,57 @@
           "execution_mode"
         ],
         "title": "CreateRunRequest",
+        "type": "object"
+      },
+      "CreateShareSnapshotRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_version_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Artifact Version Ids",
+            "type": "array"
+          },
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "redaction_policy": {
+            "const": "public_metadata_only",
+            "title": "Redaction Policy",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "artifact_version_ids",
+          "redaction_policy",
+          "expires_at"
+        ],
+        "title": "CreateShareSnapshotRequest",
         "type": "object"
       },
       "CursorPage": {
@@ -465,6 +575,27 @@
           "links"
         ],
         "title": "Envelope[ArtifactVersion]",
+        "type": "object"
+      },
+      "Envelope_PublicShareSnapshot_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PublicShareSnapshot"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[PublicShareSnapshot]",
         "type": "object"
       },
       "Envelope_ResearchArtifact_": {
@@ -612,6 +743,48 @@
           "links"
         ],
         "title": "Envelope[SessionCreated]",
+        "type": "object"
+      },
+      "Envelope_ShareSnapshotCreated_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ShareSnapshotCreated"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[ShareSnapshotCreated]",
+        "type": "object"
+      },
+      "Envelope_WorkspaceSnapshot_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WorkspaceSnapshot"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[WorkspaceSnapshot]",
         "type": "object"
       },
       "EvidenceRequirements": {
@@ -791,6 +964,39 @@
           "relation_ids"
         ],
         "title": "LiteratureRelationsArtifactContent",
+        "type": "object"
+      },
+      "ObservatoryWorkspaceState": {
+        "additionalProperties": false,
+        "properties": {
+          "active_artifact_version_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Artifact Version Id"
+          },
+          "active_evidence_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Evidence Id"
+          }
+        },
+        "title": "ObservatoryWorkspaceState",
         "type": "object"
       },
       "PaperCollectionArtifactContent": {
@@ -1068,6 +1274,154 @@
           "version"
         ],
         "title": "ProducerReference",
+        "type": "object"
+      },
+      "PublicArtifactVersion": {
+        "additionalProperties": false,
+        "description": "Redacted immutable version metadata safe for an anonymous share response.",
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ArtifactKind"
+          },
+          "schema_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source_mode": {
+            "$ref": "#/components/schemas/SourceMode"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "version_number": {
+            "minimum": 1.0,
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "artifact_id",
+          "kind",
+          "title",
+          "version_number",
+          "schema_version",
+          "content_hash",
+          "source_mode",
+          "created_at"
+        ],
+        "title": "PublicArtifactVersion",
+        "type": "object"
+      },
+      "PublicEvidence": {
+        "additionalProperties": false,
+        "description": "Minimal Evidence identity bound to a shared immutable version.",
+        "properties": {
+          "artifact_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Version Id",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "artifact_version_id",
+          "source_snapshot_id"
+        ],
+        "title": "PublicEvidence",
+        "type": "object"
+      },
+      "PublicShareSnapshot": {
+        "additionalProperties": false,
+        "description": "Anonymous read-only projection frozen when the share is created.",
+        "properties": {
+          "artifact_versions": {
+            "items": {
+              "$ref": "#/components/schemas/PublicArtifactVersion"
+            },
+            "title": "Artifact Versions",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/PublicEvidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "redaction_policy": {
+            "$ref": "#/components/schemas/ShareRedactionPolicy"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "artifact_versions",
+          "evidence",
+          "redaction_policy",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "PublicShareSnapshot",
         "type": "object"
       },
       "QualityConstraints": {
@@ -2001,6 +2355,198 @@
         "title": "SessionStatus",
         "type": "string"
       },
+      "ShareRedactionPolicy": {
+        "enum": [
+          "public_metadata_only"
+        ],
+        "title": "ShareRedactionPolicy",
+        "type": "string"
+      },
+      "ShareSnapshot": {
+        "additionalProperties": false,
+        "description": "Private share metadata. Raw tokens and token hashes are intentionally absent.",
+        "properties": {
+          "artifact_version_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Artifact Version Ids",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "redaction_policy": {
+            "$ref": "#/components/schemas/ShareRedactionPolicy"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShareStatus"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "title",
+          "artifact_version_ids",
+          "evidence_ids",
+          "redaction_policy",
+          "status",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "ShareSnapshot",
+        "type": "object"
+      },
+      "ShareSnapshotCreated": {
+        "additionalProperties": false,
+        "description": "One-time creation response containing the only serialized raw share token.",
+        "properties": {
+          "artifact_version_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Artifact Version Ids",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "redaction_policy": {
+            "$ref": "#/components/schemas/ShareRedactionPolicy"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "share_token": {
+            "minLength": 1,
+            "title": "Share Token",
+            "type": "string"
+          },
+          "share_url": {
+            "minLength": 1,
+            "title": "Share Url",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShareStatus"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "title",
+          "artifact_version_ids",
+          "evidence_ids",
+          "redaction_policy",
+          "status",
+          "created_at",
+          "expires_at",
+          "share_token",
+          "share_url"
+        ],
+        "title": "ShareSnapshotCreated",
+        "type": "object"
+      },
+      "ShareStatus": {
+        "enum": [
+          "active",
+          "expired",
+          "revoked"
+        ],
+        "title": "ShareStatus",
+        "type": "string"
+      },
       "SourceCollectionArtifactContent": {
         "additionalProperties": false,
         "properties": {
@@ -2090,6 +2636,253 @@
           }
         },
         "title": "UpdateResearchContractDraftRequest",
+        "type": "object"
+      },
+      "WorkspaceObjectRef": {
+        "additionalProperties": false,
+        "description": "Stable reference to an object shown in the private workspace.",
+        "properties": {
+          "artifact_version_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Version Id"
+          },
+          "object_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Object Id",
+            "type": "string"
+          },
+          "object_type": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Object Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_type",
+          "object_id"
+        ],
+        "title": "WorkspaceObjectRef",
+        "type": "object"
+      },
+      "WorkspacePanelSlot": {
+        "additionalProperties": false,
+        "description": "Bounded panel placement without persisting arbitrary window or GPU state.",
+        "properties": {
+          "artifact_version_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Version Id"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "panel_type": {
+            "enum": [
+              "atlas",
+              "observatory"
+            ],
+            "title": "Panel Type",
+            "type": "string"
+          },
+          "slot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Slot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot_id",
+          "panel_type"
+        ],
+        "title": "WorkspacePanelSlot",
+        "type": "object"
+      },
+      "WorkspaceSnapshot": {
+        "additionalProperties": false,
+        "description": "Private recoverable workspace projection; the session id is never serialized.",
+        "properties": {
+          "active_run_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Run Id"
+          },
+          "atlas_state": {
+            "$ref": "#/components/schemas/AtlasWorkspaceState"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "layout_preset": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Layout Preset",
+            "type": "string"
+          },
+          "observatory_state": {
+            "$ref": "#/components/schemas/ObservatoryWorkspaceState"
+          },
+          "panel_slots": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/WorkspacePanelSlot"
+            },
+            "maxItems": 3,
+            "title": "Panel Slots",
+            "type": "array"
+          },
+          "pinned_evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Pinned Evidence Ids",
+            "type": "array"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "selected_object_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "layout_preset",
+          "id",
+          "project_id",
+          "revision",
+          "updated_at"
+        ],
+        "title": "WorkspaceSnapshot",
+        "type": "object"
+      },
+      "WorkspaceSnapshotInput": {
+        "additionalProperties": false,
+        "description": "Editable private workspace state accepted by the PUT endpoint.",
+        "properties": {
+          "active_run_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Run Id"
+          },
+          "atlas_state": {
+            "$ref": "#/components/schemas/AtlasWorkspaceState"
+          },
+          "layout_preset": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Layout Preset",
+            "type": "string"
+          },
+          "observatory_state": {
+            "$ref": "#/components/schemas/ObservatoryWorkspaceState"
+          },
+          "panel_slots": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/WorkspacePanelSlot"
+            },
+            "maxItems": 3,
+            "title": "Panel Slots",
+            "type": "array"
+          },
+          "pinned_evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Pinned Evidence Ids",
+            "type": "array"
+          },
+          "selected_object_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "layout_preset"
+        ],
+        "title": "WorkspaceSnapshotInput",
         "type": "object"
       }
     }
@@ -2638,6 +3431,593 @@
           }
         },
         "summary": "Create Research Run"
+      }
+    },
+    "/api/v2/projects/{project_id}/shares": {
+      "get": {
+        "operationId": "listShareSnapshots",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionEnvelope_ShareSnapshot_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "List Share Snapshots"
+      },
+      "post": {
+        "operationId": "createShareSnapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShareSnapshotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ShareSnapshotCreated_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Create Share Snapshot"
+      }
+    },
+    "/api/v2/projects/{project_id}/shares/{share_id}": {
+      "delete": {
+        "operationId": "revokeShareSnapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "share_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Share Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Revoke Share Snapshot"
+      }
+    },
+    "/api/v2/projects/{project_id}/workspace-snapshot": {
+      "get": {
+        "operationId": "getWorkspaceSnapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_WorkspaceSnapshot_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Get Workspace Snapshot"
+      },
+      "put": {
+        "operationId": "putWorkspaceSnapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minimum": 0,
+              "title": "If-Match",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceSnapshotInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_WorkspaceSnapshot_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Put Workspace Snapshot"
       }
     },
     "/api/v2/research-contract-drafts/{draft_id}": {
@@ -3452,6 +4832,107 @@
           }
         },
         "summary": "Get Anonymous Session"
+      }
+    },
+    "/api/v2/shares/{share_token}": {
+      "get": {
+        "description": "Anonymous read-only projection; invalid, expired, and revoked tokens are indistinguishable.",
+        "operationId": "getPublicShareSnapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "share_token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Share Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PublicShareSnapshot_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Get Public Share Snapshot"
       }
     }
   }
