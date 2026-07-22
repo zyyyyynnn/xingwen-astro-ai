@@ -177,17 +177,31 @@ def test_database_rejects_all_version_and_sequence_duplicates(postgres_engine: E
             id=uuid4(), project_id=run.project_id, kind="dataset",
             title="Dataset", logical_key="dataset.primary"
         )
-        execution = ProducerExecutionModel(
-            id=uuid4(), run_id=run.id, run_step_id=step.id, step_key=step.key,
-            idempotency_key="producer-1", producer_type="pipeline", producer_name="data",
-            producer_version="1.0.0", input_hash="sha256:" + "c" * 64,
-            status="completed", started_at=datetime.now(UTC)
-        )
         publication_attempt = StepAttemptModel(
             id=uuid4(), run_step_id=step.id, attempt_number=2,
             idempotency_key="attempt-publication", status="completed", retryable=False
         )
-        uow.session.add_all([artifact, execution, publication_attempt])
+        execution = ProducerExecutionModel(
+            id=uuid4(),
+            run_id=run.id,
+            run_step_id=step.id,
+            step_attempt_id=publication_attempt.id,
+            step_key=step.key,
+            idempotency_key="producer-1",
+            lease_generation=1,
+            producer_type="pipeline",
+            producer_name="data",
+            producer_version="1.0.0",
+            parameters={},
+            parameters_hash="sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            input_hash="sha256:" + "c" * 64,
+            output_hash="sha256:" + "d" * 64,
+            status="completed",
+            started_at=datetime.now(UTC),
+        )
+        uow.session.add_all([artifact, publication_attempt])
+        uow.session.flush()
+        uow.session.add(execution)
         uow.commit()
         common = {
             "artifact_id": artifact.id,
