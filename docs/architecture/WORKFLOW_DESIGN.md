@@ -4,7 +4,7 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | Run 状态、事件、取消、重试、缓存与派生语义 |
-| Implementation | #76 PostgreSQL model/migration/repository baseline Implemented；lease, recovery and publication Pending |
+| Implementation | #76 PostgreSQL baseline 与 #77 lease/fencing/recovery store Implemented；ArtifactVersion publication Pending |
 | Current runtime | `apps/api/src/app/workflow` 的 v1 Phase 0 状态机骨架 |
 | Target runtime | Project / Run / ArtifactVersion 工作流 |
 
@@ -113,7 +113,11 @@ PostgreSQL 是 Run、Step、Attempt、ArtifactVersion 和 Event 的事实来源�
 expected_status + expected_revision -> target_status + new_revision
 ```
 
-同一 Run 只允许一个 Executor lease；lease 超时可接管，但必须先确认前一 Attempt 状态。Run 状态、产物登记和完成 Event 在一致性边界内提交，避免页面看到 completed 却找不到产物。
+同一 Run 只允许一个 Executor lease。有效 lease 保存 token、owner、数据库时间 expires_at 和单调 generation；acquire 与状态事务递增 revision，heartbeat 只续期 expires_at，不使执行中的 Attempt revision 失效；超时接管递增 generation 并返回仍为 running 的 Attempt，接管者必须先登记其失败或恢复结论。旧 token 或 generation、过期 lease、旧 revision 和终态 Run 的后续提交全部拒绝。
+
+`create_run` 使用 PostgreSQL 原子 conflict handling 保证并发 Idempotency-Key 语义，验证完整规范状态链，并在数据库层冻结 Step 集合与转换定义。`begin_step` 在持有 ResearchRun 行锁的短事务中校验冻结顺序，条件更新 Run/Step，追加 StepAttempt，并从 Run 的 `latest_event_sequence` 分配下一 Event。可重试失败保留旧 Attempt 并把 Step 恢复为 pending；耗尽重试、不可重试失败和取消在单个事务内更新 Attempt、Step、Run 与 Event。Snapshot 使用单个 PostgreSQL repeatable-read/read-only 事务，并从 `latest_event_sequence` 提供 Event cursor 恢复。
+
+Run 状态、产物登记和完成 Event 最终由 #78 Publisher 在一致性边界内提交，避免页面看到 completed 却找不到产物；#77 不提前实现该发布事务。
 
 MVP 可继续使用 FastAPI BackgroundTasks，但不得以进程内字典作为唯一事实来源。只有真实负载证明需要时才通过 ADR 引入队列。
 
@@ -183,11 +187,11 @@ GraphEdge 修订若影响 Relation、ReasoningTrace 或 Evidence，RevisionPlan 
 
 ## 12. 当前 v1 与目标 v2
 
-当前已实现：显式状态转换表、无数据库 Executor、WorkflowHooks Protocol 与单元测试。
+当前已实现：显式 v1 状态转换表与 WorkflowHooks；#77 PostgreSQL Workflow Store 的 create/acquire/heartbeat/begin/retry/fail/cancel/snapshot 边界，以及按 Step 调用 Adapter 的 `PersistentWorkflowExecutor`。Executor 在 `begin_step` 事务提交后调用外部 Adapter，并把成功提交委托给 #78 注入端口；持久化路径默认由 `PERSISTENT_WORKFLOW_ENABLED=false` 保持关闭，v1 Executor 与 `/api/v1` 不切换实现。
 
 当前 v1 `ResearchTask` 快照同时校验顶层状态、进度和 Step 状态：初始 `pending` 快照不得包含已开始 Step，含 `running` Step 的快照不得为 `pending`，`completed` 快照的进度必须为 100。
 
-当前已实现 #76 的 PostgreSQL Schema、Alembic migration 和最小 Repository / Unit of Work 基线。仍待实现：数据库 WorkflowHooks、lease 与恢复执行、取消资源、派生 Run、ArtifactVersion 原子发布、自动重试、真实 CacheSelector 与 v2 API。
+当前已实现 #76 的 PostgreSQL Schema、Alembic migration 和最小 Repository / Unit of Work 基线，以及 #77 的 lease、条件状态事务、Attempt 自动重试账本、失败/取消、Event cursor 与一致性 Snapshot。仍待实现：#78 ArtifactVersion 原子发布与 Step 成功推进、对外取消资源、派生 Run、真实 CacheSelector 与 v2 API。
 
 迁移期间 v1 `ResearchTask` 可适配为一个 Project + 一个 Run，但 v2 语义不得回写破坏现有接口。
 

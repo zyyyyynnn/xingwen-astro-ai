@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     SESSION_COOKIE_SECURE: bool = False
     SESSION_COOKIE_SAMESITE: str = "lax"
     SESSION_CREATE_RATE_LIMIT: int = Field(default=30, gt=0)
+    PERSISTENT_WORKFLOW_ENABLED: bool = False
 
     DATABASE_URL: SecretStr | None = None
     POSTGRES_PASSWORD: SecretStr | None = None
