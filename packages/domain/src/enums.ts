@@ -108,6 +108,15 @@ export type CachePolicy = (typeof CACHE_POLICIES)[number];
 export const SESSION_STATUSES = ["active", "expired", "revoked"] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
+export const WORKSPACE_PANEL_TYPES = ["atlas", "observatory"] as const;
+export type WorkspacePanelType = (typeof WORKSPACE_PANEL_TYPES)[number];
+
+export const SHARE_STATUSES = ["active", "expired", "revoked"] as const;
+export type ShareStatus = (typeof SHARE_STATUSES)[number];
+
+export const SHARE_REDACTION_POLICIES = ["public_metadata_only"] as const;
+export type ShareRedactionPolicy = (typeof SHARE_REDACTION_POLICIES)[number];
+
 /**
  * Export artifact format values (subset of the v2 contract export content).
  */

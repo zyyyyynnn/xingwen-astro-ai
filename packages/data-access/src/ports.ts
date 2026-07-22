@@ -16,12 +16,18 @@ import type {
   DomainEntityId,
   Evidence,
   ProvenanceState,
+  PublicShareSnapshot,
   ResearchArtifact,
   ResearchContract,
   ResearchContractDraft,
   ResearchProject,
   ResearchRun,
   RunEvent,
+  ShareSnapshot,
+  ShareSnapshotCreated,
+  CreateShareSnapshotRequest,
+  WorkspaceSnapshot,
+  WorkspaceSnapshotInput,
 } from "@xingwen/domain";
 
 /** Subscription cleanup function returned by `subscribe` methods. */
@@ -82,6 +88,23 @@ export interface EvidenceRepository {
   subscribe(listener: Listener<Evidence>): Unsubscribe;
 }
 
+export interface WorkspaceSnapshotRepository {
+  getById(id: DomainEntityId): Promise<WorkspaceSnapshot | null>;
+  save(
+    id: DomainEntityId,
+    snapshot: WorkspaceSnapshotInput,
+    expectedRevision: number,
+  ): Promise<WorkspaceSnapshot>;
+}
+
+export interface ShareRepository {
+  create(request: CreateShareSnapshotRequest): Promise<ShareSnapshotCreated>;
+  getById(id: DomainEntityId): Promise<ShareSnapshot | null>;
+  listByProject(projectId: DomainEntityId): Promise<readonly ShareSnapshot[]>;
+  revoke(id: DomainEntityId): Promise<void>;
+  getPublicShare(shareToken: string): Promise<PublicShareSnapshot | null>;
+}
+
 /**
  * The complete set of repository ports a workspace consumes.
  * The fixture adapter produces a ready-to-use `RepositorySet`.
@@ -92,6 +115,8 @@ export interface RepositorySet {
   readonly runs: RunRepository;
   readonly artifacts: ArtifactRepository;
   readonly evidence: EvidenceRepository;
+  readonly workspaces: WorkspaceSnapshotRepository;
+  readonly shares: ShareRepository;
 }
 
 /**

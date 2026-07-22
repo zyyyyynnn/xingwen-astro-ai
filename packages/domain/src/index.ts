@@ -111,3 +111,21 @@ export {
 
 export type { EvidenceCompleteness, ProvenanceState } from "./provenance";
 export { evidenceCompletenessRatio } from "./provenance";
+
+export type {
+  ShareSnapshot,
+  ShareSnapshotCreated,
+  CreateShareSnapshotRequest,
+  PublicShareSnapshot,
+  PublicArtifactVersion,
+  PublicEvidence,
+} from "./share-snapshot";
+
+export type {
+  WorkspaceObjectRef,
+  AtlasWorkspaceState,
+  ObservatoryWorkspaceState,
+  WorkspacePanelSlot,
+  WorkspaceSnapshot,
+  WorkspaceSnapshotInput,
+} from "./workspace-snapshot";
