@@ -10,6 +10,11 @@ import { http, HttpResponse } from "msw";
 import { expect, it } from "vitest";
 
 import { createSessionManager } from "../src/session";
+import {
+  ForbiddenError,
+  RateLimitedError,
+  SessionExpiredError,
+} from "../src/http-errors";
 
 import {
   createSessionManagerForTest,
@@ -23,12 +28,12 @@ it("ensureSession creates a session and stores CSRF token", async () => {
   httpServer.use(...defaultHandlers);
   const session = createSessionManagerForTest();
   const info = await session.ensureSession();
-  expect(info.sessionId).toBe("sess_01JEXAMPLE");
+  expect(info.status).toBe("active");
+  expect(info.createdAt).toBe("2026-07-21T08:00:00Z");
   expect(info.csrfToken).toBe("csrf_test_token");
   expect(info.expiresAt).toBe("2026-07-21T09:00:00Z");
-  expect(info.quota.runsPerDay).toBe(50);
-  expect(info.quota.sharesPerHour).toBe(20);
-  expect(info.quota.feedbacksPerHour).toBe(30);
+  expect(info.quota.maxProjects).toBe(10);
+  expect(info.quota.maxRuns).toBe(50);
   expect(session.getCurrent()).toBe(info);
 });
 
@@ -117,7 +122,7 @@ it("onSessionExpired supports multiple listeners and per-listener unsubscribe", 
   expect(callsB).toBe(2);
 });
 
-it("ensureSession throws when session creation fails", async () => {
+it("ensureSession maps session creation rate limits", async () => {
   httpServer.use(
     http.post(`${TEST_BASE_URL}/api/v2/sessions`, () =>
       HttpResponse.json(
@@ -127,7 +132,7 @@ it("ensureSession throws when session creation fails", async () => {
     ),
   );
   const session = createSessionManagerForTest();
-  await expect(session.ensureSession()).rejects.toThrow();
+  await expect(session.ensureSession()).rejects.toThrow(RateLimitedError);
   expect(session.getCurrent()).toBeNull();
 });
 
@@ -148,12 +153,12 @@ it("revokeSession throws when DELETE returns a non-204, non-404 status", async (
     http.post(`${TEST_BASE_URL}/api/v2/sessions`, () =>
       HttpResponse.json({
         data: {
-          id: "sess_prime",
+          status: "active",
+          created_at: "2026-07-21T08:00:00Z",
           expires_at: "2026-07-21T09:00:00Z",
           quota: {
-            runs_per_day: 50,
-            shares_per_hour: 20,
-            feedbacks_per_hour: 30,
+            max_projects: 10,
+            max_runs: 50,
           },
           csrf_token: "csrf_prime",
         },
@@ -171,4 +176,41 @@ it("revokeSession throws when DELETE returns a non-204, non-404 status", async (
   // On failure the session is NOT cleared — the caller decides whether to
   // retry or force-clear via notifyExpired.
   expect(session.getCurrent()).not.toBeNull();
+});
+
+it("revokeSession maps CSRF failures without clearing the current session", async () => {
+  httpServer.use(...defaultHandlers);
+  const session = createSessionManagerForTest();
+  await session.ensureSession();
+  httpServer.use(
+    http.delete(`${TEST_BASE_URL}/api/v2/sessions/current`, () =>
+      HttpResponse.json(problem(403, "CSRF_INVALID", "CSRF failed"), {
+        status: 403,
+      }),
+    ),
+  );
+
+  await expect(session.revokeSession()).rejects.toThrow(ForbiddenError);
+  expect(session.getCurrent()).not.toBeNull();
+});
+
+it("revokeSession clears and notifies on SESSION_REQUIRED", async () => {
+  httpServer.use(...defaultHandlers);
+  const session = createSessionManagerForTest();
+  await session.ensureSession();
+  let expired = false;
+  session.onSessionExpired(() => {
+    expired = true;
+  });
+  httpServer.use(
+    http.delete(`${TEST_BASE_URL}/api/v2/sessions/current`, () =>
+      HttpResponse.json(problem(401, "SESSION_REQUIRED", "Session expired"), {
+        status: 401,
+      }),
+    ),
+  );
+
+  await expect(session.revokeSession()).rejects.toThrow(SessionExpiredError);
+  expect(session.getCurrent()).toBeNull();
+  expect(expired).toBe(true);
 });

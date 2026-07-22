@@ -22,6 +22,7 @@ import researchContractSchema from "./generated/v2-core/json/ResearchContract.sc
 import researchProjectSchema from "./generated/v2-core/json/ResearchProject.schema.json";
 import researchRunSchema from "./generated/v2-core/json/ResearchRun.schema.json";
 import runEventSchema from "./generated/v2-core/json/RunEvent.schema.json";
+import sessionCreatedSchema from "./generated/v2-core/json/SessionCreated.schema.json";
 import shareSnapshotSchema from "./generated/v2-core/json/ShareSnapshot.schema.json";
 import shareSnapshotCreatedSchema from "./generated/v2-core/json/ShareSnapshotCreated.schema.json";
 import sourceSnapshotDetailSchema from "./generated/v2-core/json/SourceSnapshotDetail.schema.json";
@@ -46,6 +47,7 @@ export const V2_CORE_MODEL_NAMES = [
   "ArtifactVersionDetail",
   "EvidenceRead",
   "SourceSnapshotDetail",
+  "SessionCreated",
   "WorkspaceSnapshot",
   "ShareSnapshot",
   "ShareSnapshotCreated",
@@ -86,6 +88,7 @@ const schemas: SchemaMap = {
   ArtifactVersionDetail: artifactVersionDetailSchema,
   EvidenceRead: evidenceReadSchema,
   SourceSnapshotDetail: sourceSnapshotDetailSchema,
+  SessionCreated: sessionCreatedSchema,
   WorkspaceSnapshot: workspaceSnapshotSchema,
   ShareSnapshot: shareSnapshotSchema,
   ShareSnapshotCreated: shareSnapshotCreatedSchema,

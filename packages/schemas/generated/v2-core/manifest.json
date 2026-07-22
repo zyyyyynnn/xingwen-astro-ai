@@ -68,6 +68,11 @@
     },
     {
       "module": "app.schemas.v2",
+      "name": "SessionCreated",
+      "path": "json/SessionCreated.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
       "name": "ShareSnapshot",
       "path": "json/ShareSnapshot.schema.json"
     },

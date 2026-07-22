@@ -4,7 +4,7 @@ import { exoplanetHostStarFixture } from "../src/fixture/exoplanet-host-star";
 import type { FixtureBundle } from "../src/fixture/bundle";
 import { createFixtureRepositories } from "../src/fixture-adapter";
 import { FixtureSemanticError, FixtureValidationError } from "../src/errors";
-import { ConflictError } from "../src/http-errors";
+import { ConflictError, NotFoundError } from "../src/http-errors";
 
 const repos = createFixtureRepositories(exoplanetHostStarFixture);
 
@@ -111,14 +111,63 @@ describe("Fixture adapter — run create (deterministic clock/id)", () => {
     const run = await fresh.runs.create({
       projectId: PROJECT_ID,
       contractId: CONTRACT_ID,
-      executionMode: "live",
+      idempotencyKey: "fixture-run-action-01",
+      executionMode: "demo_replay",
     });
     expect(run.id).toBe("run_test");
     expect(run.status).toBe("queued");
-    expect(run.executionMode).toBe("live");
+    expect(run.executionMode).toBe("demo_replay");
     const events = await fresh.runs.listEvents(run.id);
     expect(events).toHaveLength(1);
     expect(events[0]!.eventType).toBe("run.queued");
+  });
+
+  it("replays one action key but allows a new identical action", async () => {
+    const fresh = createFixtureRepositories(exoplanetHostStarFixture);
+    const input = {
+      projectId: PROJECT_ID,
+      contractId: CONTRACT_ID,
+      idempotencyKey: "fixture-run-action-01",
+      executionMode: "demo_replay" as const,
+    };
+    const first = await fresh.runs.create(input);
+    const replay = await fresh.runs.create(input);
+    const next = await fresh.runs.create({
+      ...input,
+      idempotencyKey: "fixture-run-action-02",
+    });
+
+    expect(replay).toEqual(first);
+    expect(next.id).not.toBe(first.id);
+    await expect(
+      fresh.runs.create({
+        ...input,
+        contractId: "rc_other" as never,
+      }),
+    ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+  });
+
+  it("rejects live execution in the Demo Replay adapter", async () => {
+    const fresh = createFixtureRepositories(exoplanetHostStarFixture);
+    await expect(
+      fresh.runs.create({
+        projectId: PROJECT_ID,
+        contractId: CONTRACT_ID,
+        idempotencyKey: "invalid-live-action",
+        executionMode: "live",
+      }),
+    ).rejects.toBeInstanceOf(FixtureSemanticError);
+  });
+
+  it("uses NotFoundError consistently for events of an unknown run", async () => {
+    const fresh = createFixtureRepositories(exoplanetHostStarFixture);
+    const missing = "run_missing" as never;
+    await expect(fresh.runs.listEvents(missing)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    await expect(fresh.runs.recoverEvents(missing)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 });
 
@@ -180,6 +229,14 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     const fresh = createFixtureRepositories(exoplanetHostStarFixture);
     const created = await fresh.shares.create(PROJECT_ID, request);
     await fresh.shares.revoke(PROJECT_ID, created.id);
+    expect(await fresh.shares.getPublic(created.shareToken)).toBeNull();
+  });
+
+  it("returns null for an expired share", async () => {
+    const fresh = createFixtureRepositories(exoplanetHostStarFixture, {
+      clock: () => "2026-07-23T09:00:00Z" as never,
+    });
+    const created = await fresh.shares.create(PROJECT_ID, request);
     expect(await fresh.shares.getPublic(created.shareToken)).toBeNull();
   });
 });

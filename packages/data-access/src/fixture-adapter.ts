@@ -28,7 +28,7 @@ import type {
 } from "@xingwen/domain";
 
 import { FixtureSemanticError, FixtureValidationError } from "./errors";
-import { ConflictError } from "./http-errors";
+import { ConflictError, NotFoundError } from "./http-errors";
 import {
   buildFixtureProvenance,
   mapArtifactVersion,
@@ -214,6 +214,10 @@ export function createFixtureRepositories(
 
   const shares = new Map<DomainEntityId, ShareRecord>();
   const shareByToken = new Map<string, DomainEntityId>();
+  const runsByIdempotencyKey = new Map<
+    string,
+    { readonly request: string; readonly run: ResearchRun }
+  >();
 
   function toPublicVersion(versionId: DomainEntityId): PublicArtifactVersion {
     const version = versions.get(versionId);
@@ -304,6 +308,30 @@ export function createFixtureRepositories(
     runs: {
       getById: async (id) => runs.get(id),
       create: async (input: CreateResearchRunInput) => {
+        if (input.executionMode !== "demo_replay") {
+          throw new FixtureSemanticError(
+            `Fixture Run executionMode must be "demo_replay"; got "${input.executionMode}".`,
+          );
+        }
+        const request = JSON.stringify({
+          projectId: input.projectId,
+          contractId: input.contractId,
+          executionMode: input.executionMode,
+          derivationKind: input.derivationKind ?? "original",
+          parentRunId: input.parentRunId ?? null,
+          retryFromStep: input.retryFromStep ?? null,
+          cachePolicy: input.cachePolicy ?? "fallback_on_recoverable_failure",
+        });
+        const replay = runsByIdempotencyKey.get(input.idempotencyKey);
+        if (replay) {
+          if (replay.request !== request) {
+            throw new ConflictError(
+              "Idempotency key was already used for a different Run request",
+              "IDEMPOTENCY_CONFLICT",
+            );
+          }
+          return replay.run;
+        }
         const id = nextId("run");
         const now = clock();
         const run: ResearchRun = {
@@ -338,16 +366,22 @@ export function createFixtureRepositories(
             occurredAt: now,
           },
         ]);
+        runsByIdempotencyKey.set(input.idempotencyKey, { request, run });
         return run;
       },
-      listEvents: async (runId) => [...(runEvents.get(runId) ?? [])],
+      listEvents: async (runId) => {
+        if (runs.get(runId) === null) {
+          throw new NotFoundError(`Run ${runId} not found`, "RUN_NOT_FOUND");
+        }
+        return [...(runEvents.get(runId) ?? [])];
+      },
       recoverEvents: async (
         runId,
         fromCursor = null,
       ): Promise<RunEventRecovery> => {
         const run = runs.get(runId);
         if (run === null) {
-          throw new ConflictError(`Run ${runId} not found`, "RUN_NOT_FOUND");
+          throw new NotFoundError(`Run ${runId} not found`, "RUN_NOT_FOUND");
         }
         const latestSequence = run.latestEventSequence;
         const after = fromCursor ? Number(fromCursor) : 0;
@@ -457,6 +491,9 @@ export function createFixtureRepositories(
         if (!shareId) return null;
         const record = shares.get(shareId);
         if (!record || record.snapshot.status !== "active") return null;
+        if (Date.parse(record.snapshot.expiresAt) <= Date.parse(clock())) {
+          return null;
+        }
         return {
           id: record.snapshot.id,
           title: record.snapshot.title,

@@ -95,6 +95,7 @@ jobs:
             --include PaperCollectionCandidateRead \
             --include EvidenceRead \
             --include SourceSnapshotDetail \
+            --include SessionCreated \
             --include WorkspaceSnapshot \
             --include ShareSnapshot \
             --include ShareSnapshotCreated \

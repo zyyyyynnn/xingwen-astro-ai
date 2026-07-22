@@ -46,6 +46,8 @@ export interface UpdateResearchContractDraftInput {
 export interface CreateResearchRunInput {
   readonly projectId: DomainEntityId;
   readonly contractId: DomainEntityId;
+  /** Stable per user action; reuse only when retrying that same action. */
+  readonly idempotencyKey: string;
   readonly executionMode: ExecutionMode;
   readonly derivationKind?: DerivationKind;
   readonly parentRunId?: DomainEntityId | null;

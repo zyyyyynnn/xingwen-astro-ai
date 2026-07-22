@@ -160,7 +160,7 @@ export function createResearchRepositories(
       const payload = await http.post<unknown>(
         `/api/v2/projects/${seg(input.projectId)}/runs`,
         body,
-        { "Idempotency-Key": stableIdempotencyKey("create-run", body) },
+        { "Idempotency-Key": input.idempotencyKey },
       );
       return validateAndMap("ResearchRun", payload, mapResearchRun);
     },

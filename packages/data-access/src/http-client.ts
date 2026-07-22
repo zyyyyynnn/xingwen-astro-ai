@@ -10,12 +10,10 @@
 import { parseV2Dto, type V2CoreModelName } from "@xingwen/contracts";
 
 import {
-  mapProblemDetails,
+  errorFromResponse,
   NetworkError,
   NotFoundError,
-  SessionExpiredError,
   UnexpectedHttpError,
-  type ProblemDetails,
 } from "./http-errors";
 import type { SessionManager } from "./session";
 
@@ -184,10 +182,7 @@ export class HttpClient {
     }
     if (response.status === 401) {
       this.config.session.notifyExpired();
-      const problem = await this.safeParseProblem(response);
-      throw new SessionExpiredError(
-        problem?.detail ?? "Session required or expired",
-      );
+      throw await errorFromResponse(response);
     }
     return response;
   }
@@ -201,11 +196,7 @@ export class HttpClient {
     const response = await this.rawRequest(method, path, body, headers);
     if (response.status === 204) return null;
     if (response.status === 404) {
-      const problem = await this.safeParseProblem(response);
-      throw new NotFoundError(
-        problem?.detail ?? "Resource not found",
-        problem?.code ?? "NOT_FOUND",
-      );
+      throw await errorFromResponse(response);
     }
     if (!response.ok) {
       await this.throwFromResponse(response);
@@ -215,26 +206,8 @@ export class HttpClient {
     return JSON.parse(text) as T;
   }
 
-  private async safeParseProblem(
-    response: Response,
-  ): Promise<ProblemDetails | null> {
-    try {
-      const text = await response.clone().text();
-      if (!text) return null;
-      return JSON.parse(text) as ProblemDetails;
-    } catch {
-      return null;
-    }
-  }
-
   private async throwFromResponse(response: Response): Promise<never> {
-    const problem = await this.safeParseProblem(response);
-    const filled: ProblemDetails = {
-      ...problem,
-      status: problem?.status ?? response.status,
-      detail: problem?.detail ?? problem?.title ?? response.statusText,
-    };
-    throw mapProblemDetails(filled, response.headers);
+    throw await errorFromResponse(response);
   }
 }
 

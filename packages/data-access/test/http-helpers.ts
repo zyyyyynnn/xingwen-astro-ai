@@ -420,12 +420,12 @@ export const defaultHandlers = [
   http.post(`${BASE_URL}/api/v2/sessions`, () =>
     HttpResponse.json(
       envelope({
-        id: "sess_01JEXAMPLE",
+        status: "active",
+        created_at: "2026-07-21T08:00:00Z",
         expires_at: "2026-07-21T09:00:00Z",
         quota: {
-          runs_per_day: 50,
-          shares_per_hour: 20,
-          feedbacks_per_hour: 30,
+          max_projects: 10,
+          max_runs: 50,
         },
         csrf_token: "csrf_test_token",
       }),

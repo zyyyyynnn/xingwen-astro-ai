@@ -52,6 +52,7 @@ function createRunInput() {
   return {
     projectId: PROJECT_ID,
     contractId: CONTRACT_ID,
+    idempotencyKey: "run-action-test-01",
     executionMode: "live" as const,
   };
 }
@@ -186,6 +187,50 @@ it("409 IDEMPOTENCY_CONFLICT on run create throws ConflictError", async () => {
   await expect(repos.runs.create(createRunInput())).rejects.toThrow(
     ConflictError,
   );
+});
+
+it("run create forwards the caller action key", async () => {
+  const { repos } = setupRepos();
+  const keys: string[] = [];
+  httpServer.use(
+    http.post(
+      `${TEST_BASE_URL}/api/v2/projects/:projectId/runs`,
+      ({ request }) => {
+        keys.push(request.headers.get("Idempotency-Key") ?? "");
+        return HttpResponse.json({
+          data: {
+            id: "run_01JEXAMPLE",
+            project_id: "proj_01JEXAMPLE",
+            contract_id: "rc_01JEXAMPLE",
+            execution_mode: "live",
+            status: "queued",
+            progress: 0,
+            parent_run_id: null,
+            derivation_kind: "original",
+            retry_from_step: null,
+            cache_policy: "fallback_on_recoverable_failure",
+            started_at: null,
+            finished_at: null,
+            created_at: "2026-07-21T08:15:00Z",
+            updated_at: "2026-07-21T08:15:00Z",
+            latest_event_sequence: 1,
+            failure_code: null,
+            failure_summary: null,
+          },
+        });
+      },
+    ),
+  );
+
+  await repos.runs.create({
+    ...createRunInput(),
+    idempotencyKey: "run-action-01",
+  });
+  await repos.runs.create({
+    ...createRunInput(),
+    idempotencyKey: "run-action-02",
+  });
+  expect(keys).toEqual(["run-action-01", "run-action-02"]);
 });
 
 it("422 CONTRACT_INVALID throws ValidationError with field errors", async () => {
