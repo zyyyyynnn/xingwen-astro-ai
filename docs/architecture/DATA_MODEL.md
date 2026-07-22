@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | 领域实体、字段、枚举与不变量 |
-| Implementation | Core Pydantic contract、D-02 PaperCollection Pipeline content 与 #76 PostgreSQL model/migration baseline Implemented；workflow execution and publication Pending |
+| Implementation | Core Pydantic contract、D-02 PaperCollection Pipeline content、#76 PostgreSQL baseline 与 #77 Run lease/recovery store Implemented；ArtifactVersion publication Pending |
 | Current model | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)） |
 | Target model | Project / Run / Artifact / ArtifactVersion |
 
-本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界及 #76 Workflow PostgreSQL Schema 基线已实现；Workspace/Share、Workflow 执行和原子发布仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
+本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、#76 Workflow PostgreSQL Schema 基线及 #77 Run lease/recovery store 已实现；Workspace/Share、ArtifactVersion 原子发布与 v2 Application API 仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
 ## 1. 建模原则
 
@@ -159,13 +159,19 @@ failure_summary
 
 Run 状态集合、转换、重试和取消规则只在 [WORKFLOW_DESIGN.md](WORKFLOW_DESIGN.md) 定义。`cached`、`fixture`、修订关系和 `using_cache` 都不是 Run 状态。
 
+持久化层额外保存 `revision`、不可公开的 `lease_token`、内部 `lease_owner`、`lease_generation`、`lease_expires_at` 和 `steps_frozen_at`。有效 lease 的 token、owner、expires_at 必须同时存在；接管时 generation 单调递增。任何 Executor 写入都同时校验 status、revision、token、generation 与数据库时间；这些并发控制字段不进入 `/api/v2` Transport Contract。
+
 RunStep：
 
 ```text
 id
 run_id
+position
 key
 label
+enter_status
+success_status
+max_attempts
 status: pending | running | waiting | completed | failed | cancelled | skipped
 progress
 started_at
@@ -178,7 +184,7 @@ public_message
 
 `output_artifact_version_ids` 是读取投影，不作为 `RunStep` 数据库数组事实保存；持久化层通过 `ArtifactVersion.run_step_id` 与 `step_attempt_id` 反向定位输出。
 
-StepAttempt 记录 `attempt_number`、状态、时间、error class/code、retryable 和 upstream request id；重试不得覆盖前一次失败。
+Run 创建事务验证完整规范状态链，并在插入全部 Step 后设置 `steps_frozen_at`；PostgreSQL 触发器阻止后续插入、删除、重排或修改执行定义。StepAttempt 记录 `attempt_number`、幂等键、状态、时间、error class/code、retryable 和 upstream request id；重试不得覆盖前一次失败。
 
 RunEvent 包含 `run_id`、单调递增 `sequence`、event_type、step_key、progress、public_message、artifact_version_ids 和 occurred_at。Event 用于增量通知，不作为当前状态事实来源，也不包含 chain-of-thought。
 
@@ -241,7 +247,7 @@ FieldDefinition 包含 name、label、description、data_type、canonical_unit�
 
 PaperCollection 包含 query、acquisition_run、candidates、selected_paper_ids、dedupe_rule、ranking_rule、source_snapshot_ids。Candidate 至少包含 title、authors、year、DOI/arXiv/URL、source snapshot、relevance、selected 和 selection_reason。Seed 只能标记 benchmark、scientific_review 或 fixture。
 
-当前 D-02 已在唯一 Pydantic 编写源实现独立的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。这不表示 ArtifactVersion、Publisher、`/api/v2` 或 ResearchRun 持久化已实现。
+当前 D-02 已在唯一 Pydantic 编写源实现独立的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。这不表示 ArtifactVersion Publisher、`/api/v2` 或 Paper Pipeline 到 #77 Workflow Store 的集成已实现。
 
 PaperSummary 包含 paper_id、research_goal、method、dataset、findings、limitations、future_work、evidence_ids；每个核心 finding / limitation 可定位 Evidence。
 
