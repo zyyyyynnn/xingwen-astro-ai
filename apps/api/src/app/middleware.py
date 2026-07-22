@@ -42,6 +42,7 @@ class V2SecurityMiddleware(BaseHTTPMiddleware):
         if (
             not request.url.path.startswith("/api/v2")
             or request.url.path.rstrip("/") == "/api/v2/sessions"
+            or self._is_public_share_read(request)
         ):
             return await call_next(request)
         try:
@@ -53,6 +54,17 @@ class V2SecurityMiddleware(BaseHTTPMiddleware):
             return v2_problem_response(request, exc)
         return await call_next(request)
 
+    @staticmethod
+    def _is_public_share_read(request: Request) -> bool:
+        if request.method not in {"GET", "HEAD"}:
+            return False
+        prefix = "/api/v2/shares/"
+        path = request.url.path
+        if not path.startswith(prefix):
+            return False
+        token_segment = path.removeprefix(prefix)
+        return bool(token_segment) and "/" not in token_segment
+
 
 def v2_problem_response(request: Request, exc: SecurityProblem) -> JSONResponse:
     request_id = getattr(request.state, "request_id", "") or "unknown"
@@ -61,29 +73,42 @@ def v2_problem_response(request: Request, exc: SecurityProblem) -> JSONResponse:
         title=exc.title,
         status=exc.status,
         detail=exc.detail,
-        instance=request.url.path,
+        instance=_problem_instance(request),
         code=exc.code,
         request_id=request_id,
     )
+    headers = {"X-Request-Id": request_id, "Cache-Control": "no-store"}
+    headers.update(exc.headers)
+    headers.update(_public_share_headers(request))
     return JSONResponse(
         status_code=exc.status,
         content=problem.model_dump(mode="json"),
         media_type="application/problem+json",
-        headers={"X-Request-Id": request_id, "Cache-Control": "no-store"},
+        headers=headers,
     )
 
 
-async def v2_security_exception_handler(request: Request, exc: SecurityProblem) -> JSONResponse:
+async def v2_security_exception_handler(
+    request: Request, exc: SecurityProblem
+) -> JSONResponse:
     return v2_problem_response(request, exc)
 
 
 async def api_error_exception_handler(request: Request, exc: ApiError) -> JSONResponse:
     request_id = getattr(request.state, "request_id", "")
-    response = ApiResponse.fail(exc.code, exc.message, exc.detail, request_id=request_id)
-    return JSONResponse(status_code=exc.status_code, content=response.model_dump(mode="json"), headers={"X-Request-Id": request_id})
+    response = ApiResponse.fail(
+        exc.code, exc.message, exc.detail, request_id=request_id
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=response.model_dump(mode="json"),
+        headers={"X-Request-Id": request_id},
+    )
 
 
-async def api_http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+async def api_http_exception_handler(
+    request: Request, exc: HTTPException
+) -> JSONResponse:
     if request.url.path.startswith("/api/v2"):
         problem = SecurityProblem(
             status=exc.status_code,
@@ -93,11 +118,21 @@ async def api_http_exception_handler(request: Request, exc: HTTPException) -> JS
         )
         return v2_problem_response(request, problem)
     request_id = getattr(request.state, "request_id", "")
-    response = ApiResponse.fail(ERROR_CODE_MAP.get(exc.status_code, "INVALID_REQUEST"), str(exc.detail), request_id=request_id)
-    return JSONResponse(status_code=exc.status_code, content=response.model_dump(mode="json"), headers={"X-Request-Id": request_id})
+    response = ApiResponse.fail(
+        ERROR_CODE_MAP.get(exc.status_code, "INVALID_REQUEST"),
+        str(exc.detail),
+        request_id=request_id,
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=response.model_dump(mode="json"),
+        headers={"X-Request-Id": request_id},
+    )
 
 
-async def api_validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def api_validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     if request.url.path.startswith("/api/v2"):
         request_id = getattr(request.state, "request_id", "") or "unknown"
         problem = ProblemDetails(
@@ -105,7 +140,7 @@ async def api_validation_exception_handler(request: Request, exc: RequestValidat
             title="Request validation failed",
             status=422,
             detail="The request does not match the required schema",
-            instance=request.url.path,
+            instance=_problem_instance(request),
             code="SCHEMA_VALIDATION_FAILED",
             request_id=request_id,
             errors=tuple(
@@ -117,18 +152,50 @@ async def api_validation_exception_handler(request: Request, exc: RequestValidat
                 for error in exc.errors()
             ),
         )
+        headers = {"X-Request-Id": request_id, "Cache-Control": "no-store"}
+        headers.update(_public_share_headers(request))
         return JSONResponse(
             status_code=422,
             content=problem.model_dump(mode="json"),
             media_type="application/problem+json",
-            headers={"X-Request-Id": request_id},
+            headers=headers,
         )
     request_id = getattr(request.state, "request_id", "")
     detail = {
         "validation_errors": [
-            {"loc": " -> ".join(str(loc) for loc in error["loc"]), "msg": error["msg"], "type": error["type"]}
+            {
+                "loc": " -> ".join(str(loc) for loc in error["loc"]),
+                "msg": error["msg"],
+                "type": error["type"],
+            }
             for error in exc.errors()
         ]
     }
-    response = ApiResponse.fail("SCHEMA_VALIDATION_FAILED", "Request validation failed", detail, request_id=request_id)
-    return JSONResponse(status_code=422, content=response.model_dump(mode="json"), headers={"X-Request-Id": request_id})
+    response = ApiResponse.fail(
+        "SCHEMA_VALIDATION_FAILED",
+        "Request validation failed",
+        detail,
+        request_id=request_id,
+    )
+    return JSONResponse(
+        status_code=422,
+        content=response.model_dump(mode="json"),
+        headers={"X-Request-Id": request_id},
+    )
+
+
+def _problem_instance(request: Request) -> str:
+    if V2SecurityMiddleware._is_public_share_read(request):
+        return "/api/v2/shares/public"
+    return request.url.path
+
+
+def _public_share_headers(request: Request) -> dict[str, str]:
+    if not V2SecurityMiddleware._is_public_share_read(request):
+        return {}
+    return {
+        "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    }

@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
-| Implementation | D-02 SourceSnapshot / ProducerExecution content 与 #76 persistence schema baseline Implemented；atomic publication and cache/revision workflows Pending |
+| Implementation | Workspace/Share process-local application adapter、D-02 content 与 #76 persistence baseline Implemented；runtime integration, durable snapshots, atomic publication and cache/revision workflows Pending |
 | Current runtime | v1 DTO、Prompt registry 与 Phase 0 版本字段 |
 | Target runtime | Project / Run / Artifact / ArtifactVersion 追加式治理 |
 
-本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则，不表示数据库表已落地。
+本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。Workspace/Share 已通过进程内端口适配器实现并发与安全语义，但在生产事实源接入前不挂载运行路由，也不表示其 PostgreSQL 表或跨实例恢复已经落地。
 
 ## 1. 版本边界
 
@@ -158,6 +158,8 @@ CacheSelector 只能在 Live 发生可恢复失败后使用匹配的真实历史
 
 WorkspaceSnapshot 使用 `revision` 做乐观锁，可覆盖同一会话的布局，但不进入科研版本链。
 
+同一 payload 的 PUT 重放返回既有 Snapshot；不同 payload 必须匹配当前 revision，冲突不静默覆盖。当前 adapter 重启后失效，后续持久化 adapter 必须保持相同 revision 语义。
+
 ShareSnapshot 固定：
 
 - ArtifactVersion ids；
@@ -167,6 +169,8 @@ ShareSnapshot 固定：
 - token hash 与撤销状态。
 
 分享不指向 latest，因此后续修订不会改变已提交 URL 的内容。原 token 不进入数据库明文、日志或 Project 聚合响应。
+
+创建时复制允许公开的不可变 Version/Evidence 元数据形成冻结投影；之后即使目录中的 latest 或显示元数据变化，既有分享响应也不漂移。当前 M1 redaction policy 仅为 `public_metadata_only`。
 
 ## 10. 删除与保留
 

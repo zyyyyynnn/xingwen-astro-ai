@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import logging
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,13 +12,16 @@ from app.security import (
     InMemoryRateLimiter,
     InMemorySessionStore,
     OwnershipPolicy,
+    ShareTokenAccessLogFilter,
     SecurityProblem,
     SessionService,
     require_revision,
 )
 
 
-def test_session_cookie_lifecycle_and_public_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_session_cookie_lifecycle_and_public_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr("app.routers.sessions.settings.SESSION_COOKIE_SECURE", True)
     client = TestClient(create_app(), base_url="https://testserver")
     created = client.post("/api/v2/sessions", headers={"X-Request-Id": "req_session"})
@@ -136,10 +140,18 @@ def test_idempotency_replays_same_request_and_rejects_changed_payload() -> None:
         return {"id": "run_01"}
 
     first, replayed = store.execute(
-        session_id="session_a", scope="create_run", key="key-1", payload={"x": 1}, operation=operation
+        session_id="session_a",
+        scope="create_run",
+        key="key-1",
+        payload={"x": 1},
+        operation=operation,
     )
     second, replayed_second = store.execute(
-        session_id="session_a", scope="create_run", key="key-1", payload={"x": 1}, operation=operation
+        session_id="session_a",
+        scope="create_run",
+        key="key-1",
+        payload={"x": 1},
+        operation=operation,
     )
     assert first == second
     assert replayed is False
@@ -148,7 +160,11 @@ def test_idempotency_replays_same_request_and_rejects_changed_payload() -> None:
 
     with pytest.raises(SecurityProblem) as conflict:
         store.execute(
-            session_id="session_a", scope="create_run", key="key-1", payload={"x": 2}, operation=operation
+            session_id="session_a",
+            scope="create_run",
+            key="key-1",
+            payload={"x": 2},
+            operation=operation,
         )
     assert conflict.value.status == 409
     assert conflict.value.code == "IDEMPOTENCY_CONFLICT"
@@ -178,3 +194,26 @@ def test_rate_limit_uses_stable_429_problem() -> None:
     assert response.status_code == 429
     assert response.headers["content-type"].startswith("application/problem+json")
     assert response.json()["code"] == "RATE_LIMITED"
+
+
+def test_uvicorn_access_log_redacts_raw_share_tokens() -> None:
+    raw_token = "secret-share-token-value"
+    record = logging.LogRecord(
+        name="uvicorn.access",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg='%s - "%s %s HTTP/%s" %d',
+        args=(
+            "127.0.0.1:1234",
+            "GET",
+            f"/api/v2/shares/{raw_token}?preview=1",
+            "1.1",
+            200,
+        ),
+        exc_info=None,
+    )
+    assert ShareTokenAccessLogFilter().filter(record) is True
+    rendered = record.getMessage()
+    assert raw_token not in rendered
+    assert "/api/v2/shares/[REDACTED]?preview=1" in rendered

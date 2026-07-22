@@ -1,4 +1,3 @@
-
 """FastAPI application entry point."""
 
 from __future__ import annotations
@@ -31,12 +30,20 @@ from app.routers import (
     sources,
     tasks,
 )
-from app.security import InMemoryRateLimiter, InMemorySessionStore, SecurityProblem, SessionService
+from app.security import (
+    InMemoryRateLimiter,
+    InMemorySessionStore,
+    SecurityProblem,
+    SessionService,
+    install_share_token_access_log_filter,
+)
+from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.store import PersistentWorkflowStore
 
 
 def create_app() -> FastAPI:
+    install_share_token_access_log_filter()
     app = FastAPI(
         title=settings.APP_TITLE,
         version=settings.APP_VERSION,
@@ -51,6 +58,12 @@ def create_app() -> FastAPI:
     app.state.session_rate_limiter = InMemoryRateLimiter(
         limit=settings.SESSION_CREATE_RATE_LIMIT
     )
+    app.state.share_rate_limiter = InMemoryRateLimiter(
+        limit=settings.SHARE_CREATE_RATE_LIMIT
+    )
+    snapshot_store = InMemorySnapshotStore()
+    app.state.snapshot_store = snapshot_store
+    app.state.snapshot_service = SnapshotService(snapshot_store)
     app.state.workflow_store = None
     app.state.workflow_executor = None
     if settings.PERSISTENT_WORKFLOW_ENABLED:
@@ -58,16 +71,24 @@ def create_app() -> FastAPI:
             raise RuntimeError(
                 "DATABASE_URL is required when PERSISTENT_WORKFLOW_ENABLED is true"
             )
-        workflow_engine = create_engine_from_url(settings.DATABASE_URL.get_secret_value())
-        app.state.workflow_store = PersistentWorkflowStore(session_factory(workflow_engine))
-        app.state.workflow_executor = PersistentWorkflowExecutor(app.state.workflow_store)
+        workflow_engine = create_engine_from_url(
+            settings.DATABASE_URL.get_secret_value()
+        )
+        app.state.workflow_store = PersistentWorkflowStore(
+            session_factory(workflow_engine)
+        )
+        app.state.workflow_executor = PersistentWorkflowExecutor(
+            app.state.workflow_store
+        )
         app.router.add_event_handler("shutdown", workflow_engine.dispose)
     app.add_middleware(
         V2SecurityMiddleware,
         sessions=session_service,
         cookie_name=settings.SESSION_COOKIE_NAME,
     )
-    origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+    origins = [
+        origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()
+    ]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,

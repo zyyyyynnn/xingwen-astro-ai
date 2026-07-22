@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | 领域实体、字段、枚举与不变量 |
-| Implementation | Core Pydantic contract、D-02 PaperCollection Pipeline content、#76 PostgreSQL baseline 与 #77 Run lease/recovery store Implemented；ArtifactVersion publication Pending |
+| Implementation | Core Pydantic contract、Workspace/Share application projection、D-02 PaperCollection Pipeline content、#76 PostgreSQL baseline 与 #77 Run lease/recovery store Implemented；Workspace/Share runtime integration 与 ArtifactVersion publication Pending |
 | Current model | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)） |
 | Target model | Project / Run / Artifact / ArtifactVersion |
 
-本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、#76 Workflow PostgreSQL Schema 基线及 #77 Run lease/recovery store 已实现；Workspace/Share、ArtifactVersion 原子发布与 v2 Application API 仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
+本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Workspace/Share application projection、#76 Workflow PostgreSQL Schema 基线及 #77 Run lease/recovery store 已实现；Workspace/Share 生产事实源接入、ArtifactVersion 原子发布与其余 v2 Application API 仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
 ## 1. 建模原则
 
@@ -320,7 +320,7 @@ RevisionPlan 包含 feedback_ids、affected_artifact_version_ids、affected_step
 
 ## 12. WorkspaceSnapshot 与 ShareSnapshot
 
-WorkspaceSnapshot 保存 session/project、active_run_id、最多三个 panel_slots、selected_object_ref、pinned_evidence_ids、Atlas/Observatory 状态、layout_preset、revision 和 updated_at。不保存 token、未提交敏感输入、GPU 状态或模型内部状态。
+WorkspaceSnapshot 内部绑定 session/project，传输 DTO 不序列化 session id；它保存 active_run_id、最多三个具有唯一 slot_id 的 panel_slots、selected_object_ref、pinned_evidence_ids、结构化 Atlas/Observatory 状态、layout_preset、revision 和 updated_at。不保存 token、任意自由文本、未提交敏感输入、GPU 状态或模型内部状态。相同 payload 重放保持 revision，不同 payload 以 revision 乐观锁覆盖。
 
 ShareSnapshot：
 
@@ -340,6 +340,8 @@ revoked_at
 ```
 
 原始 token 只在创建响应中出现一次。ShareSnapshot 不引用动态 latest，不授予反馈、再生成或私有 Project 读取权限。
+
+当前 `public_metadata_only` 投影冻结 ArtifactVersion 的 id、kind、title、version/schema/content hash、source mode 和 created_at，以及 Evidence 到明确 Version/SourceSnapshot 的最小身份引用；不公开 Artifact content、Evidence locator、Session/Project、producer 私有元数据或原始 token。运行适配器只保存 token 的 SHA-256 hash。
 
 ## 13. CacheRecord 与 ProducerExecution
 

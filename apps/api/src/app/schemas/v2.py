@@ -550,6 +550,167 @@ class ArtifactVersion(BaseModel):
     created_at: UtcDateTime
 
 
+class WorkspaceObjectRef(BaseModel):
+    """Stable reference to an object shown in the private workspace."""
+
+    model_config = V2_MODEL_CONFIG
+
+    object_type: Identifier
+    object_id: Identifier
+    artifact_version_id: Identifier | None = None
+
+
+class WorkspacePanelSlot(BaseModel):
+    """Bounded panel placement without persisting arbitrary window or GPU state."""
+
+    model_config = V2_MODEL_CONFIG
+
+    slot_id: Identifier
+    panel_type: Literal["atlas", "observatory"]
+    artifact_version_id: Identifier | None = None
+    evidence_id: Identifier | None = None
+
+
+class AtlasWorkspaceState(BaseModel):
+    model_config = V2_MODEL_CONFIG
+
+    selected_object_ref: WorkspaceObjectRef | None = None
+    focus_mode: Identifier | None = None
+
+
+class ObservatoryWorkspaceState(BaseModel):
+    model_config = V2_MODEL_CONFIG
+
+    active_artifact_version_id: Identifier | None = None
+    active_evidence_id: Identifier | None = None
+
+
+class WorkspaceSnapshotInput(BaseModel):
+    """Editable private workspace state accepted by the PUT endpoint."""
+
+    model_config = V2_MODEL_CONFIG
+
+    active_run_id: Identifier | None = None
+    panel_slots: tuple[WorkspacePanelSlot, ...] = Field(default=(), max_length=3)
+    selected_object_ref: WorkspaceObjectRef | None = None
+    pinned_evidence_ids: tuple[Identifier, ...] = Field(default=(), max_length=100)
+    atlas_state: AtlasWorkspaceState = Field(default_factory=AtlasWorkspaceState)
+    observatory_state: ObservatoryWorkspaceState = Field(
+        default_factory=ObservatoryWorkspaceState
+    )
+    layout_preset: Identifier
+
+    @model_validator(mode="after")
+    def require_unique_workspace_references(self) -> WorkspaceSnapshotInput:
+        slot_ids = tuple(slot.slot_id for slot in self.panel_slots)
+        if len(slot_ids) != len(set(slot_ids)):
+            raise ValueError("panel_slots must use unique slot_id values")
+        if len(self.pinned_evidence_ids) != len(set(self.pinned_evidence_ids)):
+            raise ValueError("pinned_evidence_ids must not contain duplicates")
+        return self
+
+
+class WorkspaceSnapshot(WorkspaceSnapshotInput):
+    """Private recoverable workspace projection; the session id is never serialized."""
+
+    id: Identifier
+    project_id: Identifier
+    revision: int = Field(ge=1)
+    updated_at: UtcDateTime
+
+
+class ShareStatus(StrEnum):
+    active = "active"
+    expired = "expired"
+    revoked = "revoked"
+
+
+class ShareRedactionPolicy(StrEnum):
+    public_metadata_only = "public_metadata_only"
+
+
+class CreateShareSnapshotRequest(BaseModel):
+    model_config = V2_MODEL_CONFIG
+
+    title: NonEmptyString = Field(max_length=200)
+    artifact_version_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=100)
+    evidence_ids: tuple[Identifier, ...] = Field(default=(), max_length=500)
+    redaction_policy: Literal[ShareRedactionPolicy.public_metadata_only]
+    expires_at: UtcDateTime
+
+    @model_validator(mode="after")
+    def require_unique_share_scope(self) -> CreateShareSnapshotRequest:
+        for field_name in ("artifact_version_ids", "evidence_ids"):
+            values = getattr(self, field_name)
+            if len(values) != len(set(values)):
+                raise ValueError(f"{field_name} must not contain duplicates")
+        return self
+
+
+class ShareSnapshot(BaseModel):
+    """Private share metadata. Raw tokens and token hashes are intentionally absent."""
+
+    model_config = V2_MODEL_CONFIG
+
+    id: Identifier
+    project_id: Identifier
+    title: NonEmptyString
+    artifact_version_ids: tuple[Identifier, ...]
+    evidence_ids: tuple[Identifier, ...]
+    redaction_policy: ShareRedactionPolicy
+    status: ShareStatus
+    created_at: UtcDateTime
+    expires_at: UtcDateTime
+    revoked_at: UtcDateTime | None = None
+
+
+class ShareSnapshotCreated(ShareSnapshot):
+    """One-time creation response containing the only serialized raw share token."""
+
+    share_token: NonEmptyString
+    share_url: NonEmptyString
+
+
+class PublicArtifactVersion(BaseModel):
+    """Redacted immutable version metadata safe for an anonymous share response."""
+
+    model_config = V2_MODEL_CONFIG
+
+    id: Identifier
+    artifact_id: Identifier
+    kind: ArtifactKind
+    title: NonEmptyString
+    version_number: int = Field(ge=1)
+    schema_version: SemanticVersion
+    content_hash: ContentHash
+    source_mode: SourceMode
+    created_at: UtcDateTime
+
+
+class PublicEvidence(BaseModel):
+    """Minimal Evidence identity bound to a shared immutable version."""
+
+    model_config = V2_MODEL_CONFIG
+
+    id: Identifier
+    artifact_version_id: Identifier
+    source_snapshot_id: Identifier
+
+
+class PublicShareSnapshot(BaseModel):
+    """Anonymous read-only projection frozen when the share is created."""
+
+    model_config = V2_MODEL_CONFIG
+
+    id: Identifier
+    title: NonEmptyString
+    artifact_versions: tuple[PublicArtifactVersion, ...]
+    evidence: tuple[PublicEvidence, ...]
+    redaction_policy: ShareRedactionPolicy
+    created_at: UtcDateTime
+    expires_at: UtcDateTime
+
+
 class ResponseMeta(BaseModel):
     model_config = V2_MODEL_CONFIG
 
