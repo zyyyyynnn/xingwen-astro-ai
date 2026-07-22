@@ -38,6 +38,7 @@ export interface RenderConfig {
 
 export interface AsciiDitherRenderer {
   render(time: number): void;
+  resize(width: number, height: number): void;
   dispose(): void;
   getFrameData(time: number): FrameData;
 }
@@ -55,6 +56,7 @@ export interface VisualEngine {
   start(): void;
   pause(): void;
   resume(): void;
+  resize(width: number, height: number): void;
   dispose(): void;
   setQuality(quality: Quality): void;
   onContextLoss(handler: () => void): void;

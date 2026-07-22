@@ -1,3 +1,4 @@
+
 """PostgreSQL migration and repository integration tests.
 
 Set TEST_DATABASE_URL to an isolated database whose name contains ``test``.
@@ -84,7 +85,9 @@ def _seed_run(engine: Engine) -> tuple[ResearchRunModel, RunStepModel]:
         request_hash="sha256:" + "b" * 64,
     )
     step = RunStepModel(
-        id=uuid4(), run_id=run.id, key="planning", label="Planning", status="pending", progress=0
+        id=uuid4(), run_id=run.id, position=0, key="planning", label="Planning",
+        enter_status="planning", success_status="fetching_data", max_attempts=2,
+        status="pending", progress=0
     )
     with UnitOfWork(factory) as uow:
         uow.session.add(project)
@@ -111,7 +114,11 @@ def test_repository_create_read_unique_conflict_and_rollback(postgres_engine: En
     with UnitOfWork(factory) as uow:
         assert uow.runs.get(run.id) is not None
         uow.steps.add(
-            RunStepModel(run_id=run.id, key="planning", label="Duplicate", status="pending", progress=0)
+            RunStepModel(
+                run_id=run.id, position=1, key="planning", label="Duplicate",
+                enter_status="planning", success_status="fetching_data", max_attempts=1,
+                status="pending", progress=0
+            )
         )
         with pytest.raises(IntegrityError):
             uow.commit()
