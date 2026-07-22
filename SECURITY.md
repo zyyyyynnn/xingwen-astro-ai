@@ -4,7 +4,7 @@
 | -------------- | --------------------------------------------------------------------- |
 | Status         | Accepted                                                              |
 | Authority      | 密钥、信任边界、输入、会话、分享、日志和安全响应要求                  |
-| Implementation | `/api/v2` Session / CSRF / ownership Current；Workspace revision 与 Share token/read-only application controls Implemented, runtime Pending |
+| Implementation | `/api/v2` Session / CSRF / ownership 与 Artifact provenance 私有读取 Current；Workspace revision 与 Share token/read-only application controls Implemented, runtime Pending |
 
 本文定义必须满足的安全控制。部署拓扑和发布步骤见 [Deployment](DEPLOYMENT.md)，HTTP 授权与公开错误见 [API Contract](docs/architecture/API_CONTRACT.md)，模型调用准入见 [Model Policy](docs/ai/MODEL_POLICY.md)。
 
@@ -34,7 +34,9 @@
 
 ## 3. 匿名 Session 与授权
 
-当前运行基线使用进程内端口适配器保存匿名 Session、幂等与限流状态，重启后失效。WorkspaceSnapshot 与 ShareSnapshot 已实现进程内 application adapter、安全控制与传输契约，但在 Project / Run / ArtifactVersion / Evidence 生产事实源接入前不挂载运行路由。PostgreSQL 适配器由后续持久化 Issue 实现，不得将当前适配器描述为跨实例 Session 或 Snapshot。
+当前运行基线使用进程内端口适配器保存匿名 Session、幂等与限流状态，重启后失效。B-18 Artifact/Version/Evidence/SourceSnapshot 私有读取在配置 `DATABASE_URL` 时使用 PostgreSQL，不要求开启 Workflow Executor，并对每次查询执行 Session-to-Project ownership 检查；跨会话与不存在资源均返回不泄露存在性的 `404`。WorkspaceSnapshot 与 ShareSnapshot 仍为进程内 application adapter，尚未挂载生产事实源，不得描述为跨实例 Session 或 Snapshot。
+
+Artifact provenance 响应使用 `no-store`，并在数据库读取后再次过滤凭据名称、认证头、Cookie、受限全文、原始模型长输出、URL 敏感 query 参数和内部堆栈。SourceSnapshot request metadata 使用明确 allowlist；引用缺失或越出所属 Project 时拒绝返回整个 provenance 图。
 
 Session 创建按客户端地址限流，ShareSnapshot 创建按 Session 独立限流。当前进程内限流状态在重启后清空；多实例生产部署需在边界层配置共享限流。
 

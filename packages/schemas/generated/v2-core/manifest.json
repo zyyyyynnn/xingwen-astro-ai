@@ -8,8 +8,23 @@
     },
     {
       "module": "app.schemas.v2",
+      "name": "ArtifactVersionDetail",
+      "path": "json/ArtifactVersionDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "EvidenceRead",
+      "path": "json/EvidenceRead.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
       "name": "ResearchArtifact",
       "path": "json/ResearchArtifact.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "ResearchArtifactDetail",
+      "path": "json/ResearchArtifactDetail.schema.json"
     },
     {
       "module": "app.schemas.v2",
@@ -35,6 +50,11 @@
       "module": "app.schemas.v2",
       "name": "RunEvent",
       "path": "json/RunEvent.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "SourceSnapshotDetail",
+      "path": "json/SourceSnapshotDetail.schema.json"
     }
   ],
   "schema_version": 1

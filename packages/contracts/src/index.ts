@@ -27,12 +27,16 @@ export {
 
 export type {
   ArtifactVersionDto,
+  ArtifactVersionDetailDto,
+  EvidenceReadDto,
   ResearchArtifactDto,
+  ResearchArtifactDetailDto,
   ResearchContractDto,
   ResearchContractDraftDto,
   ResearchProjectDto,
   ResearchRunDto,
   RunEventDto,
+  SourceSnapshotDetailDto,
 } from "./validation";
 
 // Re-export all generated transport types for adapter consumption.

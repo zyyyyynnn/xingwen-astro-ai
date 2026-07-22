@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
-| Implementation | Workspace/Share process-local application adapter、D-02 content、#76 persistence baseline 与 #78 atomic publication Implemented；runtime integration, durable snapshots and cache/revision workflows Pending |
+| Implementation | Workspace/Share process-local adapter、D-02 content、#76 persistence、#78 atomic publication 与 #83 provenance read persistence Implemented；Workspace/Share integration and cache/revision workflows Pending |
 | Current runtime | v1 DTO、Prompt registry 与 Phase 0 版本字段 |
 | Target runtime | Project / Run / Artifact / ArtifactVersion 追加式治理 |
 
-本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。Workspace/Share 已通过进程内端口适配器实现并发与安全语义，但在生产事实源接入前不挂载运行路由，也不表示其 PostgreSQL 表或跨实例恢复已经落地。
+本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。B-18 已为 ArtifactVersion、Evidence 和 SourceSnapshot 提供 PostgreSQL 私有读取与 Project ownership 边界；Workspace/Share 仍仅通过进程内端口适配器实现并发与安全语义，不表示其 PostgreSQL 表或跨实例恢复已经落地。
 
 ## 1. 版本边界
 
