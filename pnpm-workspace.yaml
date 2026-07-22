@@ -5,6 +5,7 @@ packages:
 
 allowBuilds:
   esbuild: true
+  msw: true
 
 engineStrict: true
 

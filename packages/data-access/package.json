@@ -12,12 +12,15 @@
   },
   "scripts": {
     "build": "tsc",
-    "lint": "eslint src",
+    "lint": "eslint src test",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
     "@xingwen/contracts": "workspace:*",
     "@xingwen/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "msw": "2.10.4"
   }
 }
