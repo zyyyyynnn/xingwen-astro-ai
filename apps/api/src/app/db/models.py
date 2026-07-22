@@ -1,4 +1,5 @@
-"""SQLAlchemy models for the #76 workflow persistence baseline.
+
+"""SQLAlchemy models for the #76/#77 workflow persistence baseline.
 
 Statuses remain text plus database CHECK constraints so migrations are explicit
 and do not depend on PostgreSQL enum lifecycle operations.
@@ -97,6 +98,11 @@ class ResearchRunModel(TimestampMixin, Base):
     failure_code: Mapped[str | None] = mapped_column(String(128))
     failure_summary: Mapped[str | None] = mapped_column(Text)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    lease_token: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    lease_owner: Mapped[str | None] = mapped_column(String(128))
+    lease_generation: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    steps_frozen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
 
@@ -124,7 +130,13 @@ class ResearchRunModel(TimestampMixin, Base):
         ),
         CheckConstraint("progress BETWEEN 0 AND 100", name="progress_range"),
         CheckConstraint("revision >= 1", name="revision_positive"),
+        CheckConstraint("lease_generation >= 0", name="lease_generation_nonnegative"),
         CheckConstraint("latest_event_sequence >= 0", name="event_sequence_nonnegative"),
+        CheckConstraint(
+            "(lease_token IS NULL AND lease_owner IS NULL AND lease_expires_at IS NULL) OR "
+            "(lease_token IS NOT NULL AND lease_owner IS NOT NULL AND lease_expires_at IS NOT NULL)",
+            name="lease_fields_complete",
+        ),
         CheckConstraint(
             "derivation_kind IN ('original','retry','revision','fork')", name="derivation_kind"
         ),
@@ -143,8 +155,12 @@ class RunStepModel(TimestampMixin, Base):
     run_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False
     )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
     key: Mapped[str] = mapped_column(String(128), nullable=False)
     label: Mapped[str] = mapped_column(String(200), nullable=False)
+    enter_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    success_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -155,7 +171,31 @@ class RunStepModel(TimestampMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("id", "run_id", name="uq_run_step_id_run"),
+        UniqueConstraint("run_id", "position", name="uq_run_step_position"),
         UniqueConstraint("run_id", "key", name="uq_run_step_run_key"),
+        CheckConstraint("position >= 0", name="position_nonnegative"),
+        CheckConstraint("max_attempts >= 1", name="max_attempts_positive"),
+        CheckConstraint(
+            "enter_status IN ('planning','fetching_data','cleaning_data','searching_papers',"
+            "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input')",
+            name="enter_status",
+        ),
+        CheckConstraint(
+            "success_status IN ('planning','fetching_data','cleaning_data','searching_papers',"
+            "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input',"
+            "'completed')",
+            name="success_status",
+        ),
+        CheckConstraint(
+            "(enter_status = 'planning' AND success_status = 'fetching_data') OR "
+            "(enter_status = 'fetching_data' AND success_status = 'cleaning_data') OR "
+            "(enter_status = 'cleaning_data' AND success_status = 'searching_papers') OR "
+            "(enter_status = 'searching_papers' AND success_status = 'summarizing_papers') OR "
+            "(enter_status = 'summarizing_papers' AND success_status = 'reasoning_literature') OR "
+            "(enter_status = 'reasoning_literature' AND success_status = 'building_graph') OR "
+            "(enter_status = 'building_graph' AND success_status = 'completed')",
+            name="canonical_transition",
+        ),
         CheckConstraint(
             "status IN ('pending','running','waiting','completed','failed','cancelled','skipped')",
             name="status",
