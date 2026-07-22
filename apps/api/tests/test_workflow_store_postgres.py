@@ -170,7 +170,7 @@ def test_concurrent_lease_acquisition_has_one_winner(postgres_engine: Engine) ->
     )
     assert heartbeat.token == winner.token
     assert heartbeat.generation == winner.generation
-    assert heartbeat.revision == winner.revision + 1
+    assert heartbeat.revision == winner.revision
     assert heartbeat.expires_at > winner.expires_at
 
 
@@ -330,6 +330,54 @@ def test_begin_step_is_atomic_and_freezes_order(postgres_engine: Engine) -> None
     assert current.steps[0].attempts[0].status == "running"
     assert [step.key for step in current.steps[:2]] == ["planning", "fetching_data"]
     assert len(current.steps) == 7
+
+
+def test_heartbeat_does_not_invalidate_in_flight_attempt(
+    postgres_engine: Engine,
+) -> None:
+    store, snapshot = _create_run(postgres_engine, max_attempts=2)
+    lease = store.acquire_lease(
+        snapshot.id,
+        owner="executor",
+        lease_duration=timedelta(seconds=30),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
+    )
+    attempt = store.begin_step(
+        snapshot.id,
+        step_key="planning",
+        attempt_idempotency_key="attempt-before-heartbeat",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="queued",
+        expected_revision=lease.revision,
+        public_message="Planning",
+    )
+
+    renewed = store.heartbeat_lease(
+        snapshot.id,
+        token=lease.token,
+        generation=lease.generation,
+        lease_duration=timedelta(seconds=60),
+        expected_status=attempt.run_status,
+        expected_revision=attempt.run_revision,
+    )
+    recovered = store.record_retryable_failure(
+        snapshot.id,
+        step_key="planning",
+        attempt_id=attempt.attempt_id,
+        token=renewed.token,
+        generation=renewed.generation,
+        expected_status=attempt.run_status,
+        expected_revision=attempt.run_revision,
+        error_class="TimeoutError",
+        error_code="UPSTREAM_TIMEOUT",
+        public_message="Retry after heartbeat",
+    )
+
+    assert renewed.revision == attempt.run_revision
+    assert recovered.revision == attempt.run_revision + 1
+    assert store.load_snapshot(snapshot.id).steps[0].status == "pending"
 
 
 def test_expired_lease_takeover_fences_old_executor_and_reports_active_attempt(
