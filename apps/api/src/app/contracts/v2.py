@@ -39,6 +39,10 @@ from app.schemas.v2 import (
     WorkspaceSnapshotInput,
     SourceSnapshotDetail,
 )
+from app.schemas.paper_collection_api import (
+    PaperCollectionCandidateRead,
+    PaperCollectionRead,
+)
 
 
 PROBLEM_RESPONSES = {
@@ -49,6 +53,7 @@ PROBLEM_RESPONSES = {
     401: {"model": ProblemDetails},
     403: {"model": ProblemDetails},
     429: {"model": ProblemDetails},
+    502: {"model": ProblemDetails},
 }
 
 
@@ -230,6 +235,30 @@ def create_v2_contract_app() -> FastAPI:
     )
     def get_artifact_version(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
         _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/v2/artifact-versions/{version_id}/paper-collection",
+        operation_id="getPaperCollection",
+        response_model=Envelope[PaperCollectionRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_paper_collection(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/v2/artifact-versions/{version_id}/paper-candidates",
+        operation_id="listPaperCollectionCandidates",
+        response_model=CollectionEnvelope[PaperCollectionCandidateRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def list_paper_collection_candidates(
+        version_id: Annotated[str, Path(min_length=1)],
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (version_id, cursor, limit)
         return _contract_only()
 
     @app.get(

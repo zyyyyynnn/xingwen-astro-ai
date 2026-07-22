@@ -4,7 +4,7 @@
 | --- | --- |
 | Status | Implemented |
 | Authority | D-02 论文检索、规范化、去重、排序、来源记录与 PaperCollection 内容生成 |
-| Implementation | Crossref metadata Adapter 与 `paper_collection` Pipeline content current；ArtifactVersion 发布 Pending B-06 |
+| Implementation | Crossref metadata Adapter、`paper_collection` Pipeline content 与 B-06 ArtifactVersion domain reads current；ArtifactVersion 发布由 #78 提供 |
 
 本文是 D-02 运行规则和操作方式的唯一完整事实源。领域实体不变量仍由 [Data Model](../architecture/DATA_MODEL.md) 负责，ArtifactVersion 与缓存规则由 [Data Versioning](../architecture/DATA_VERSIONING.md) 负责，Run 状态只由 [Workflow Design](../architecture/WORKFLOW_DESIGN.md) 负责。
 
@@ -36,7 +36,8 @@ Frozen Benchmark scenario
 -> deterministic ranking + selection / exclusion reasons
 -> ProducerExecution + metrics + stable hashes
 -> validated PaperCollection content
--> B-06 publisher boundary (not implemented here)
+-> #78 ArtifactVersion publisher
+-> B-06 typed detail and candidate pagination reads
 ```
 
 当前唯一 Live Adapter 是 Crossref REST `/works` metadata API：
@@ -128,7 +129,7 @@ Pydantic 编写源是 `apps/api/src/app/schemas/paper_collection.py`。内容至
 - source failure、empty result、candidate recall 和 duplicate rate 指标；
 - ProducerExecution、input hash 和 output hash。
 
-B-06 可以把已校验且符合其质量策略的 content 原样放入 `kind=paper_collection` ArtifactVersion envelope，并登记 content/input hash、producer 与 snapshot ids。B-06 仍负责发布事务、Version id、latest、Evidence/权限和失败/partial 发布政策；D-02 不提供第二套 Publisher。`acquisition_run.status=failed` 的诊断 content 不得发布为成功 ArtifactVersion。
+#78 Publisher 可以把已校验且符合质量策略的 content 原样放入 `kind=paper_collection` ArtifactVersion，并登记 content/input hash、producer 与 snapshot ids。B-06 不复制 Publisher，也不重新运行检索、canonicalization、去重或排序；它通过 #83 ownership 边界重新校验冻结 content 和 provenance，提供 detail 与候选 cursor 分页。`acquisition_run.status=failed` 的诊断 content 不得发布为成功 ArtifactVersion；若读取到遗留或损坏记录，B-06 使用稳定 Problem Details 失败关闭。
 
 ## 9. 验证命令
 

@@ -20,8 +20,13 @@ from app.schemas.v2 import (
     ResponseMeta,
     SourceSnapshotDetail,
 )
+from app.schemas.paper_collection_api import (
+    PaperCollectionCandidateRead,
+    PaperCollectionRead,
+)
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
+from app.services.paper_collections import PaperCollectionReadService
 
 
 router = APIRouter(prefix="/api/v2", tags=["v2-artifacts"])
@@ -41,6 +46,10 @@ def _service(request: Request) -> ArtifactReadService:
 
 def _session_id(request: Request) -> str:
     return request.state.session.id
+
+
+def _paper_service(request: Request) -> PaperCollectionReadService:
+    return PaperCollectionReadService(_service(request))
 
 
 def _meta(request: Request) -> ResponseMeta:
@@ -117,6 +126,52 @@ def get_artifact_version(
     _no_store(response)
     path = f"/api/v2/artifact-versions/{version_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/paper-collection",
+    operation_id="getPaperCollection",
+    response_model=Envelope[PaperCollectionRead],
+)
+def get_paper_collection(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[PaperCollectionRead]:
+    data = _paper_service(request).get_collection(
+        version_id=version_id, session_id=_session_id(request)
+    )
+    _no_store(response)
+    path = f"/api/v2/artifact-versions/{version_id}/paper-collection"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/paper-candidates",
+    operation_id="listPaperCollectionCandidates",
+    response_model=CollectionEnvelope[PaperCollectionCandidateRead],
+)
+def list_paper_collection_candidates(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+    cursor: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> CollectionEnvelope[PaperCollectionCandidateRead]:
+    candidates, next_cursor, has_more = _paper_service(request).list_candidates(
+        version_id=version_id,
+        session_id=_session_id(request),
+        cursor=cursor,
+        limit=limit,
+    )
+    _no_store(response)
+    path = f"/api/v2/artifact-versions/{version_id}/paper-candidates"
+    return CollectionEnvelope(
+        data=candidates,
+        page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
+        meta=_meta(request),
+        links=ResponseLinks(self=path),
+    )
 
 
 @router.get(

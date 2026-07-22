@@ -36,7 +36,7 @@ uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas 
 
 ```powershell
 Set-Location apps/api
-uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/v2-core --include ResearchProject --include ResearchContractDraft --include ResearchContract --include ResearchRun --include RunEvent --include ResearchArtifact --include ArtifactVersion --include ResearchArtifactDetail --include ArtifactVersionDetail --include EvidenceRead --include SourceSnapshotDetail --check
+uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/v2-core --include ResearchProject --include ResearchContractDraft --include ResearchContract --include ResearchRun --include RunEvent --include ResearchArtifact --include ArtifactVersion --include ResearchArtifactDetail --include ArtifactVersionDetail --include PaperCollectionRead --include PaperCollectionCandidateRead --include EvidenceRead --include SourceSnapshotDetail --check
 uv run python ../../scripts/export_v2_openapi.py --output ../../packages/schemas/generated/v2-core/openapi.json --check
 ```
 
@@ -55,7 +55,7 @@ CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件
 ### Benchmark / Pipeline Contract
 
 - `Benchmark*` Pydantic 模型属于 **Benchmark / Pipeline Contract**，会进入全量 JSON Schema 导出。
-- `PaperCollection`、完整 `SourceSnapshot` 与 `ProducerExecution` 是 D-02 已实现的 **Pipeline content Contract**；它们不是 HTTP 资源或 Publisher。
+- `PaperCollection`、完整 `SourceSnapshot` 与 `ProducerExecution` 是 D-02 已实现的 **Pipeline content Contract**；B-06 HTTP 投影直接组合这些模型与 #83 provenance DTO，不复制第二套 PaperCollection，也不承担 Publisher。
 - Benchmark Contract 不是 HTTP Transport API；只有被 FastAPI Router 引用的模型才会自动进入当前 OpenAPI。
 - `Benchmark*` Schema 不表示 `/api/v2` 已实现，也不改变现有 `/api/v1` DTO 或路由。
 - Benchmark JSON 与论文、推理和 Graph 运行 Pipeline 仍由 D 方向负责；Schema 导出不等于运行 Pipeline 已实现。
@@ -66,7 +66,7 @@ CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件
 | 范围                         | 状态                                                                               |
 | ---------------------------- | ---------------------------------------------------------------------------------- |
 | Phase 0 `/api/v1` Schema     | Current，继续用于回归                                                              |
-| `/api/v2` Pydantic / OpenAPI | 七个核心资源及 Workspace/Share Contract Implemented；Session 与 Artifact provenance read runtime Current，Workspace/Share runtime integration 与其余运行 API Pending |
+| `/api/v2` Pydantic / OpenAPI | 七个核心资源及 Workspace/Share Contract Implemented；Session、Artifact provenance 与 PaperCollection domain read runtime Current，Workspace/Share runtime integration 与其余运行 API Pending |
 | `packages/contracts`         | Current A-01 包边界；生成 Type、validation 与 transport helpers 的业务实现 Pending |
 | 独立手写 IDL                 | 未采用；需要新 ADR 才能改变编写源                                                  |
 

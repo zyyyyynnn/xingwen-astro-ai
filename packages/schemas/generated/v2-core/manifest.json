@@ -17,6 +17,16 @@
       "path": "json/EvidenceRead.schema.json"
     },
     {
+      "module": "app.schemas.paper_collection_api",
+      "name": "PaperCollectionCandidateRead",
+      "path": "json/PaperCollectionCandidateRead.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection_api",
+      "name": "PaperCollectionRead",
+      "path": "json/PaperCollectionRead.schema.json"
+    },
+    {
       "module": "app.schemas.v2",
       "name": "ResearchArtifact",
       "path": "json/ResearchArtifact.schema.json"
