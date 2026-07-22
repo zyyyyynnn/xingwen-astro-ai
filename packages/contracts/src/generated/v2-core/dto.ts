@@ -28,9 +28,9 @@ export type ArtifactKind =
   | "export";
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "SourceMode".
+ * via the `definition` "app__schemas__v2__SourceMode".
  */
-export type SourceMode = "fixture" | "live" | "cached";
+export type App_Schemas_V2__SourceMode = "fixture" | "live" | "cached";
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
  * via the `definition` "CachePolicy".
@@ -64,6 +64,48 @@ export type UnitPolicy = "canonical";
  * via the `definition` "DerivationKind".
  */
 export type DerivationKind1 = "original" | "retry" | "revision" | "fork";
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "ProducerExecutionStatus".
+ */
+export type ProducerExecutionStatus = "completed" | "failed";
+/**
+ * Scientific data level, kept separate from ``source_mode``.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperDataLevel".
+ */
+export type PaperDataLevel =
+  | "live_result"
+  | "real_run_cache"
+  | "fixture"
+  | "recorded_response"
+  | "benchmark"
+  | "manual_review";
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "UpstreamFailureClass".
+ */
+export type UpstreamFailureClass =
+  | "timeout"
+  | "rate_limited"
+  | "transport"
+  | "upstream_server"
+  | "upstream_client"
+  | "invalid_response"
+  | "policy_violation";
+/**
+ * Actual origin of an ArtifactVersion-compatible pipeline payload.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "app__schemas__enums__SourceMode".
+ */
+export type App_Schemas_Enums__SourceMode = "fixture" | "live" | "cached";
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSourceExecutionStatus".
+ */
+export type PaperSourceExecutionStatus = "completed" | "failed";
 export type ContractDraftStatus1 = "draft" | "confirmed" | "expired";
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -92,6 +134,11 @@ export type SessionStatus = "active" | "expired" | "revoked";
  * via the `definition` "UnitPolicy".
  */
 export type UnitPolicy1 = "canonical";
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "SourceMode".
+ */
+export type SourceMode = "fixture" | "live" | "cached";
 
 /**
  * Unified immutable content and provenance read projection.
@@ -115,7 +162,7 @@ export interface ArtifactVersionDetail {
   producer_execution: ProducerExecutionDetail;
   project_id: string;
   schema_version: string;
-  source_mode: SourceMode;
+  source_mode: App_Schemas_V2__SourceMode;
   source_snapshot_ids?: string[];
   source_snapshots: SourceSnapshotDetail[];
   supersedes_version_id?: string | null;
@@ -225,7 +272,7 @@ export interface ArtifactVersionSummary {
   created_at: string;
   id: string;
   schema_version: string;
-  source_mode: SourceMode;
+  source_mode: App_Schemas_V2__SourceMode;
   supersedes_version_id?: string | null;
   version_number: number;
 }
@@ -250,26 +297,99 @@ export interface WorkspaceObjectRef {
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "CollectionEnvelope_ResearchArtifact_".
+ * via the `definition` "CollectionEnvelope_PaperCollectionCandidateRead_".
  */
-export interface CollectionEnvelope_ResearchArtifact_ {
-  data: ResearchArtifact[];
+export interface CollectionEnvelope_PaperCollectionCandidateRead_ {
+  data: PaperCollectionCandidateRead[];
   links: ResponseLinks;
   meta: ResponseMeta;
   page: CursorPage;
 }
 /**
+ * Candidate plus its duplicate, source and Evidence read projections.
+ *
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "ResearchArtifact".
+ * via the `definition` "PaperCollectionCandidateRead".
  */
-export interface ResearchArtifact {
-  created_at: string;
-  id: string;
-  kind: ArtifactKind;
-  latest_version_id?: string | null;
-  logical_key: string;
-  project_id: string;
+export interface PaperCollectionCandidateRead {
+  candidate: PaperCollectionCandidate;
+  duplicate_group: PaperDuplicateGroup;
+  /**
+   * @minItems 1
+   */
+  evidence: [EvidenceDetail, ...EvidenceDetail[]];
+  source_snapshot: SourceSnapshotDetail;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCollectionCandidate".
+ */
+export interface PaperCollectionCandidate {
+  arxiv_id?: string | null;
+  authors?: string[];
+  candidate_id: string;
+  canonical_identity_basis: "doi" | "arxiv_id" | "title_year_authors" | "source_record";
+  canonical_paper_id: string;
+  conflicts?: PaperCandidateConflict[];
+  dedupe_evidence?: string[];
+  doi?: string | null;
+  duplicate_group_id: string;
+  exclusion_reason?: string | null;
+  normalized_authors?: string[];
+  normalized_title: string;
+  ranking_key: string;
+  ranking_rule_version: string;
+  raw: RawPaperCandidate;
+  relevance_score: number;
+  selected: boolean;
+  selection_reason?: string | null;
+  selection_rule_version: string;
   title: string;
+  url?: string | null;
+  year?: number | null;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCandidateConflict".
+ */
+export interface PaperCandidateConflict {
+  classification: "conflict" | "uncertain_match";
+  detail: string;
+  field: "doi" | "arxiv_id" | "title" | "year" | "authors";
+  related_candidate_id: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "RawPaperCandidate".
+ */
+export interface RawPaperCandidate {
+  arxiv_id?: string | null;
+  authors?: string[];
+  doi?: string | null;
+  record_hash: string;
+  source_id: string;
+  source_record_id: string;
+  source_snapshot_id: string;
+  title: string;
+  url?: string | null;
+  year?: number | null;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperDuplicateGroup".
+ */
+export interface PaperDuplicateGroup {
+  /**
+   * @minItems 1
+   */
+  candidate_ids: [string, ...string[]];
+  canonical_paper_id: string;
+  conflicts?: PaperCandidateConflict[];
+  duplicate_group_id: string;
+  /**
+   * @minItems 1
+   */
+  match_basis: [string, ...string[]];
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -295,6 +415,29 @@ export interface CursorPage {
   has_more: boolean;
   limit?: number;
   next_cursor?: string | null;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_ResearchArtifact_".
+ */
+export interface CollectionEnvelope_ResearchArtifact_ {
+  data: ResearchArtifact[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchArtifact".
+ */
+export interface ResearchArtifact {
+  created_at: string;
+  id: string;
+  kind: ArtifactKind;
+  latest_version_id?: string | null;
+  logical_key: string;
+  project_id: string;
+  title: string;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -437,6 +580,268 @@ export interface EvidenceRead {
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_PaperCollectionRead_".
+ */
+export interface Envelope_PaperCollectionRead_ {
+  data: PaperCollectionRead;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * A validated domain payload pinned to one immutable ArtifactVersion.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCollectionRead".
+ */
+export interface PaperCollectionRead {
+  artifact_id: string;
+  artifact_version_id: string;
+  collection: PaperCollection;
+  content_hash: string;
+  created_at: string;
+  evidence: EvidenceDetail[];
+  input_hash: string;
+  producer_execution: ProducerExecutionDetail;
+  project_id: string;
+  source_mode: App_Schemas_V2__SourceMode;
+  source_snapshots: SourceSnapshotDetail[];
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCollection".
+ */
+export interface PaperCollection {
+  acquisition_run: PaperCollectionAcquisitionRun;
+  benchmark: PaperBenchmarkReference;
+  candidates?: PaperCollectionCandidate[];
+  dedupe_rule: string;
+  duplicate_groups?: PaperDuplicateGroup[];
+  input_hash: string;
+  metrics: PaperCollectionMetrics;
+  output_hash: string;
+  potential_duplicates?: PaperPotentialDuplicate[];
+  producer: ProducerExecution;
+  query: NormalizedPaperQuery;
+  ranking_rule: string;
+  rules: PaperCollectionRules;
+  schema_version?: "1.0.0";
+  selected_paper_ids?: string[];
+  /**
+   * @minItems 1
+   */
+  source_executions: [PaperSourceExecution, ...PaperSourceExecution[]];
+  source_snapshot_ids?: string[];
+  source_snapshots?: SourceSnapshotRecord[];
+}
+/**
+ * Pipeline-local acquisition execution, never a ResearchRun state owner.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCollectionAcquisitionRun".
+ */
+export interface PaperCollectionAcquisitionRun {
+  acquisition_id: string;
+  candidate_count: number;
+  duplicate_group_count: number;
+  finished_at: string;
+  selected_count: number;
+  source_failure_count: number;
+  started_at: string;
+  status: "completed" | "partial" | "failed";
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperBenchmarkReference".
+ */
+export interface PaperBenchmarkReference {
+  benchmark_id: string;
+  benchmark_version: string;
+  content_hash: string;
+  scenario_id: string;
+  schema_version: string;
+  scientific_payload_hash: string;
+  x00_main_sha: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCollectionMetrics".
+ */
+export interface PaperCollectionMetrics {
+  candidate_count: number;
+  candidate_recall?: number | null;
+  duplicate_candidate_count: number;
+  duplicate_rate: number;
+  expected_candidate_count: number;
+  recalled_expected_candidate_count: number;
+  selected_count: number;
+  source_empty_result_count: number;
+  source_execution_count: number;
+  source_failure_count: number;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperPotentialDuplicate".
+ */
+export interface PaperPotentialDuplicate {
+  basis: "title_year";
+  /**
+   * @minItems 2
+   * @maxItems 2
+   */
+  candidate_ids: [unknown, unknown];
+  reason: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "ProducerExecution".
+ */
+export interface ProducerExecution {
+  error_code?: string | null;
+  execution_id: string;
+  finished_at: string;
+  input_hash: string;
+  latency_ms: number;
+  model_name?: string | null;
+  output_hash?: string | null;
+  parameters_hash: string;
+  producer_name: string;
+  producer_type?: "algorithm";
+  producer_version: string;
+  prompt_name?: string | null;
+  prompt_version?: string | null;
+  run_id?: string | null;
+  started_at: string;
+  status: ProducerExecutionStatus;
+  step_key?: "searching_papers";
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "NormalizedPaperQuery".
+ */
+export interface NormalizedPaperQuery {
+  normalization_rule_version: string;
+  /**
+   * @minItems 1
+   */
+  normalized_keywords: [string, ...string[]];
+  normalized_query_string: string;
+  /**
+   * @minItems 1
+   */
+  original_keywords: [string, ...string[]];
+  original_query_string: string;
+  pagination: PaperQueryPagination;
+  query_hash: string;
+  query_id: string;
+  sort_strategy: string;
+  /**
+   * @minItems 1
+   */
+  source_ids: [string, ...string[]];
+  source_parameters: {
+    /**
+     * This interface was referenced by `undefined`'s JSON-Schema definition
+     * via the `patternProperty` "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$".
+     */
+    [k: string]: {
+      [k: string]: unknown;
+    };
+  };
+  year_from: number;
+  year_to: number;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperQueryPagination".
+ */
+export interface PaperQueryPagination {
+  candidate_limit: number;
+  max_pages: number;
+  page_size: number;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCollectionRules".
+ */
+export interface PaperCollectionRules {
+  adapter_name: string;
+  adapter_version: string;
+  canonicalization_version: string;
+  dedupe_version: string;
+  query_normalization_version: string;
+  ranking_version: string;
+  retry_policy_version: string;
+  selection_limit: number;
+  selection_version: string;
+  source_policy_version: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSourceExecution".
+ */
+export interface PaperSourceExecution {
+  candidate_count: number;
+  data_level: PaperDataLevel;
+  failure_class?: UpstreamFailureClass | null;
+  failure_code?: string | null;
+  finished_at: string;
+  pages?: PaperSourcePage[];
+  pagination: PaperQueryPagination;
+  query_hash: string;
+  request_parameters_hash: string;
+  retry_count: number;
+  source_id: string;
+  source_mode: App_Schemas_Enums__SourceMode;
+  source_snapshot_id?: string | null;
+  started_at: string;
+  status: PaperSourceExecutionStatus;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSourcePage".
+ */
+export interface PaperSourcePage {
+  attempt_count: number;
+  offset: number;
+  page_number: number;
+  rate_limit_metadata?: {
+    [k: string]: string | number | null;
+  };
+  request_hash: string;
+  requested_rows: number;
+  response_hash: string;
+  retrieved_at: string;
+  returned_rows: number;
+  status_code: number;
+  total_results?: number | null;
+}
+/**
+ * Immutable pipeline source record consumed by the future publisher.
+ *
+ * Implements the v2 ``SourceSnapshot`` target entity described in
+ * ``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen
+ * v1 Phase 0 ``SourceSnapshot`` projection above stays unchanged.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "SourceSnapshotRecord".
+ */
+export interface SourceSnapshotRecord {
+  cache_version?: string | null;
+  content_hash: string;
+  license_note: string;
+  query: string;
+  query_hash: string;
+  request_metadata?: {
+    [k: string]: unknown;
+  };
+  retrieved_at: string;
+  snapshot_id: string;
+  source_id: string;
+  source_type: string;
+  source_version_or_etag?: string | null;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_PublicShareSnapshot_".
  */
 export interface Envelope_PublicShareSnapshot_ {
@@ -472,7 +877,7 @@ export interface PublicArtifactVersion {
   id: string;
   kind: ArtifactKind;
   schema_version: string;
-  source_mode: SourceMode;
+  source_mode: App_Schemas_V2__SourceMode;
   title: string;
   version_number: number;
 }

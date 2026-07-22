@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
-| Implementation | Workspace/Share process-local adapter、D-02 content、#76 persistence、#78 atomic publication 与 #83 provenance read persistence Implemented；Workspace/Share integration and cache/revision workflows Pending |
+| Implementation | Workspace/Share process-local adapter、D-02 content、#76 persistence、#78 atomic publication、#83 provenance reads 与 B-06 PaperCollection domain reads Implemented；Workspace/Share integration and cache/revision workflows Pending |
 | Current runtime | v1 DTO、Prompt registry 与 Phase 0 版本字段 |
 | Target runtime | Project / Run / Artifact / ArtifactVersion 追加式治理 |
 
-本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。B-18 已为 ArtifactVersion、Evidence 和 SourceSnapshot 提供 PostgreSQL 私有读取与 Project ownership 边界；Workspace/Share 仍仅通过进程内端口适配器实现并发与安全语义，不表示其 PostgreSQL 表或跨实例恢复已经落地。
+本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。B-18 已为 ArtifactVersion、Evidence 和 SourceSnapshot 提供 PostgreSQL 私有读取与 Project ownership 边界；B-06 在该边界上增加 `paper_collection` 的只读校验与候选 keyset cursor，不改变 #78 发布事务。Workspace/Share 仍仅通过进程内端口适配器实现并发与安全语义，不表示其 PostgreSQL 表或跨实例恢复已经落地。
 
 ## 1. 版本边界
 
@@ -108,6 +108,8 @@ error_code
 ```
 
 `parameters` 只保存经过名称、类型和长度约束的安全标量；敏感键在数据库访问前拒绝。不得保存 API Key、认证头、完整受限全文、原始模型长输出或 chain-of-thought。成功、失败、rejected 与 cancelled 执行均保留。
+
+对 PaperCollection，ArtifactVersion `content_hash` 固定 #78 实际写入的完整 JSON；content 内部 D-02 `output_hash` 固定排除抓取和执行 wall-clock 后的科研稳定内容。读取时必须分别复算，不能要求这两个 hash 相等。
 
 D-02 当前在 PaperCollection content 内生成 detached ProducerExecution：记录固定 step key、producer/rule version、parameters/input/output hash、状态、时间、latency 和错误码，但不登记 ResearchRun 或数据库记录。#78 已提供持久化 ProducerExecution Store 与 ArtifactVersion Publisher；D-02 到该端口的生产接线仍由后续集成负责。具体稳定 hash 与失败记录见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。
 
