@@ -26,13 +26,22 @@ from app.routers import (
     papers,
     reasoning,
     sessions,
+    snapshots,
     sources,
     tasks,
 )
-from app.security import InMemoryRateLimiter, InMemorySessionStore, SecurityProblem, SessionService
+from app.security import (
+    InMemoryRateLimiter,
+    InMemorySessionStore,
+    SecurityProblem,
+    SessionService,
+    install_share_token_access_log_filter,
+)
+from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 
 
 def create_app() -> FastAPI:
+    install_share_token_access_log_filter()
     app = FastAPI(
         title=settings.APP_TITLE,
         version=settings.APP_VERSION,
@@ -47,12 +56,20 @@ def create_app() -> FastAPI:
     app.state.session_rate_limiter = InMemoryRateLimiter(
         limit=settings.SESSION_CREATE_RATE_LIMIT
     )
+    app.state.share_rate_limiter = InMemoryRateLimiter(
+        limit=settings.SHARE_CREATE_RATE_LIMIT
+    )
+    snapshot_store = InMemorySnapshotStore()
+    app.state.snapshot_store = snapshot_store
+    app.state.snapshot_service = SnapshotService(snapshot_store)
     app.add_middleware(
         V2SecurityMiddleware,
         sessions=session_service,
         cookie_name=settings.SESSION_COOKIE_NAME,
     )
-    origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+    origins = [
+        origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()
+    ]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -78,6 +95,7 @@ def create_app() -> FastAPI:
     app.include_router(graph.router)
     app.include_router(evidence.router)
     app.include_router(sessions.router)
+    app.include_router(snapshots.router)
 
     return app
 

@@ -40,7 +40,7 @@ uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/ge
 uv run python ../../scripts/export_v2_openapi.py --output ../../packages/schemas/generated/v2-core/openapi.json --check
 ```
 
-`app.contracts.v2` 仅用于生成目标 OpenAPI，不挂载到当前运行应用；真实 `/api/v2` 路由、Session、持久化和 Workflow 仍由后续 Issue 实现。
+`app.contracts.v2` 仅用于生成完整目标 OpenAPI，不直接挂载到运行应用。Session、WorkspaceSnapshot 与 ShareSnapshot 已由运行 Router 实现；Project/Run/Artifact 其余运行路由、跨进程持久化和 Workflow 仍由后续 Issue 实现。
 
 CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件由对应实现 Issue 决定。
 
@@ -66,7 +66,7 @@ CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件
 | 范围                         | 状态                                                                               |
 | ---------------------------- | ---------------------------------------------------------------------------------- |
 | Phase 0 `/api/v1` Schema     | Current，继续用于回归                                                              |
-| `/api/v2` Pydantic / OpenAPI | 七个核心资源 Contract Implemented；运行 API 与领域内容扩展 Pending；D-02 Pipeline content 不宣称 v2 已实现 |
+| `/api/v2` Pydantic / OpenAPI | 七个核心资源及 Workspace/Share Contract Implemented；Session/Workspace/Share runtime Current，其余运行 API Pending |
 | `packages/contracts`         | Current A-01 包边界；生成 Type、validation 与 transport helpers 的业务实现 Pending |
 | 独立手写 IDL                 | 未采用；需要新 ADR 才能改变编写源                                                  |
 

@@ -4,9 +4,9 @@
 | -------------- | ---------------------------------------------------------- |
 | Status         | Accepted                                                   |
 | Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring     |
-| Implementation | `/api/v1` Current；`/api/v2` 核心生成契约及 Session 安全边界 Implemented |
+| Implementation | `/api/v1` Current；`/api/v2` 核心生成契约、Session 安全边界及 Workspace/Share 运行边界 Implemented |
 
-本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership 应用边界已实现；核心资源运行路由、持久化与 Workflow 仍为 Pending。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
+本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership、WorkspaceSnapshot 和 ShareSnapshot 应用边界已实现；Project/Run/Artifact 核心资源运行路由、跨进程持久化与 Workflow 仍为 Pending。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
 
 ## 1. 设计原则
 
@@ -39,7 +39,7 @@ flowchart LR
 | 版本      | 状态              | 说明                                                          |
 | --------- | ----------------- | ------------------------------------------------------------- |
 | `/api/v1` | Current           | 当前后端 Task Contract                                        |
-| `/api/v2` | Contract Implemented, Runtime Pending | A-03 Workspace 的 Project / Run / Artifact / Version Contract |
+| `/api/v2` | Contract Implemented, Runtime Partial | Session、Workspace/Share 已运行；Project / Run / Artifact / Version 其余运行边界 Pending |
 
 版本推进规则：
 
@@ -365,6 +365,11 @@ ArtifactVersion Envelope：
 
 WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文本、会话 token、模型内部状态或无限自由窗口位置。
 
+- `PUT` 使用数字 revision 的 `If-Match` 前置条件；成功响应通过 `ETag` 返回当前 revision。
+- 同 payload 重放不增加 revision；不同 payload 使用陈旧 revision 时返回 `409 VERSION_CONFLICT`。
+- Snapshot 按 `session + project` 私有隔离，跨 Session 与不存在 Project 使用不泄露存在性的 `404`。
+- 当前运行适配器为进程内恢复边界，进程重启后失效；不得描述为跨实例持久化。
+
 ## 13. 分享
 
 | Method   | Path                                                  | 说明                                      |
@@ -375,6 +380,13 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 | `GET`    | `/api/v2/shares/{share_token}`                        | 无编辑权限的公开快照                      |
 
 创建请求必须列出 `artifact_version_ids`、可公开 Evidence 范围、`expires_at` 和 redaction policy。公开响应只能包含 ShareSnapshot 锁定内容。
+
+- M1 当前只接受 `redaction_policy=public_metadata_only`，公开投影不返回 Artifact content、Evidence locator、Project/Session 信息或内部 producer 数据。
+- 原始 token 只在创建响应返回；私有列表、公开响应和错误的 `instance` 均不返回 token 或 token hash。
+- 无效、撤销和过期 token 统一返回 `404 SHARE_NOT_FOUND`；公开错误也使用固定 `/api/v2/shares/public` instance。
+- Share 创建按 Session 独立限流，默认每分钟 `20` 次；成功返回 `RateLimit-Limit` / `RateLimit-Remaining` / `RateLimit-Reset`，超限返回 `429 RATE_LIMITED` 及 `Retry-After`。
+- 公开读取无需 Session，但不授予任何写权限，并返回 `Cache-Control: no-store`、严格 CSP、`Referrer-Policy: no-referrer` 和 `X-Content-Type-Options: nosniff`。
+- 私有列表使用稳定不透明 cursor；撤销与创建受 ownership 和 CSRF 保护。
 
 ## 14. Feedback 与修订计划
 
