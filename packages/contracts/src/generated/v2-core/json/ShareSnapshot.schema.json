@@ -1,0 +1,101 @@
+{
+  "$defs": {
+    "ShareRedactionPolicy": {
+      "enum": [
+        "public_metadata_only"
+      ],
+      "title": "ShareRedactionPolicy",
+      "type": "string"
+    },
+    "ShareStatus": {
+      "enum": [
+        "active",
+        "expired",
+        "revoked"
+      ],
+      "title": "ShareStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Private share metadata. Raw tokens and token hashes are intentionally absent.",
+  "properties": {
+    "artifact_version_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Artifact Version Ids",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "evidence_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "redaction_policy": {
+      "$ref": "#/$defs/ShareRedactionPolicy"
+    },
+    "revoked_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Revoked At"
+    },
+    "status": {
+      "$ref": "#/$defs/ShareStatus"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "project_id",
+    "title",
+    "artifact_version_ids",
+    "evidence_ids",
+    "redaction_policy",
+    "status",
+    "created_at",
+    "expires_at"
+  ],
+  "title": "ShareSnapshot",
+  "type": "object"
+}
