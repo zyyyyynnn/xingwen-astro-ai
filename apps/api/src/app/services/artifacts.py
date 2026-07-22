@@ -100,8 +100,8 @@ _SAFE_RESPONSE_HEADER_KEYS = frozenset(
     }
 )
 _AUTH_VALUE = re.compile(r"(?i)^\s*(?:bearer|basic)\s+\S+")
-_CREDENTIAL_ASSIGNMENT = re.compile(
-    r"(?i)(?:api[_-]?key|access[_-]?token|refresh[_-]?token|authorization|cookie|password|secret)\s*[:=]\s*\S+"
+_ASSIGNMENT_NAME = re.compile(
+    r"(?i)(?<![a-z0-9_])[\"']?([a-z][a-z0-9_.-]{1,63})[\"']?\s*[:=]\s*"
 )
 _STACK_VALUE = re.compile(
     r"(?i)(?:traceback\s*\(most recent call last\)|\bfile\s+\"[^\"]+\",\s+line\s+\d+)"
@@ -125,7 +125,8 @@ class ArtifactReadService:
     ) -> tuple[tuple[ResearchArtifact, ...], str | None, bool]:
         _require_limit(limit)
         run_uuid = _uuid_or_not_found(run_id, "RUN_NOT_FOUND")
-        cursor_value = _decode_cursor(cursor, scope=run_id) if cursor else None
+        cursor_scope = _artifact_cursor_scope(run_id=run_id, kind=kind)
+        cursor_value = _decode_cursor(cursor, scope=cursor_scope) if cursor else None
         with self._factory() as session:
             run = session.get(ResearchRunModel, run_uuid)
             if run is None:
@@ -162,7 +163,7 @@ class ArtifactReadService:
             has_more = len(rows) > limit
             next_cursor = (
                 _encode_cursor(
-                    scope=run_id,
+                    scope=cursor_scope,
                     created_at=selected[-1].created_at,
                     entity_id=selected[-1].id,
                 )
@@ -480,7 +481,7 @@ def _sanitize_string(value: str, max_length: int) -> str:
     if _AUTH_VALUE.search(value) or _STACK_VALUE.search(value):
         return "[REDACTED]"
     value = _strip_sensitive_url_parameters(value)
-    if _CREDENTIAL_ASSIGNMENT.search(value):
+    if _contains_sensitive_assignment(value):
         return "[REDACTED]"
     return value if len(value) <= max_length else "[REDACTED]"
 
@@ -505,6 +506,10 @@ def _strip_sensitive_url_parameters(value: str) -> str:
 def _sensitive_key(key: str) -> bool:
     normalized = _normalized_key(key)
     return normalized in _FORBIDDEN_KEYS or producer_parameter_key_is_sensitive(normalized)
+
+
+def _contains_sensitive_assignment(value: str) -> bool:
+    return any(_sensitive_key(match.group(1)) for match in _ASSIGNMENT_NAME.finditer(value))
 
 
 def _normalized_key(key: str) -> str:
@@ -536,6 +541,14 @@ def _require_limit(limit: int) -> None:
             title="Request validation failed",
             detail="limit must be between 1 and 100",
         )
+
+
+def _artifact_cursor_scope(*, run_id: str, kind: str | None) -> str:
+    return json.dumps(
+        {"run_id": run_id, "kind": kind},
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
 
 def _encode_cursor(*, scope: str, created_at: datetime, entity_id: UUID) -> str:
