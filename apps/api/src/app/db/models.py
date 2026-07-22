@@ -292,15 +292,22 @@ class ProducerExecutionModel(TimestampMixin, Base):
         PGUUID(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False
     )
     run_step_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    step_attempt_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     step_key: Mapped[str] = mapped_column(String(128), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    lease_generation: Mapped[int] = mapped_column(BigInteger, nullable=False)
     producer_type: Mapped[str] = mapped_column(String(32), nullable=False)
     producer_name: Mapped[str] = mapped_column(String(128), nullable=False)
     producer_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_provider: Mapped[str | None] = mapped_column(String(128))
     model_name: Mapped[str | None] = mapped_column(String(128))
     prompt_name: Mapped[str | None] = mapped_column(String(128))
     prompt_version: Mapped[str | None] = mapped_column(String(64))
-    parameters_hash: Mapped[str | None] = mapped_column(String(71))
+    prompt_hash: Mapped[str | None] = mapped_column(String(71))
+    parameters: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict
+    )
+    parameters_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     input_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     output_hash: Mapped[str | None] = mapped_column(String(71))
     status: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -319,8 +326,19 @@ class ProducerExecutionModel(TimestampMixin, Base):
             name="fk_producer_execution_step_run",
             ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["step_attempt_id", "run_step_id"],
+            ["step_attempts.id", "step_attempts.run_step_id"],
+            name="fk_producer_execution_attempt_step",
+            ondelete="CASCADE",
+        ),
+        Index("ix_producer_executions_step_attempt_id", "step_attempt_id"),
         CheckConstraint("producer_type IN ('pipeline','model','algorithm')", name="producer_type"),
-        CheckConstraint("status IN ('running','completed','failed','cancelled')", name="status"),
+        CheckConstraint(
+            "status IN ('running','completed','failed','rejected','cancelled')",
+            name="status",
+        ),
+        CheckConstraint("lease_generation >= 0", name="lease_generation_nonnegative"),
         CheckConstraint("latency_ms IS NULL OR latency_ms >= 0", name="latency_nonnegative"),
     )
 
