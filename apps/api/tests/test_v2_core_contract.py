@@ -147,7 +147,9 @@ def test_seven_core_resources_validate_examples_and_forbid_extra_fields() -> Non
             model.model_validate({**example, "unexpected": True})  # type: ignore[attr-defined]
 
 
-def test_contract_has_no_execution_mode_and_manifest_admission_is_authoritative() -> None:
+def test_contract_has_no_execution_mode_and_manifest_admission_is_authoritative() -> (
+    None
+):
     example = core_examples()[ResearchContract]
     contract = ResearchContract.model_validate(example)
     assert "execution_mode" not in ResearchContract.model_fields
@@ -202,7 +204,9 @@ def test_contract_has_no_execution_mode_and_manifest_admission_is_authoritative(
 
 def test_contract_rejects_whitespace_goal() -> None:
     with pytest.raises(ValidationError, match="string_too_short"):
-        ResearchContractInput.model_validate({**contract_input(), "research_goal": "    "})
+        ResearchContractInput.model_validate(
+            {**contract_input(), "research_goal": "    "}
+        )
 
 
 def test_execution_source_and_derivation_enums_do_not_mix() -> None:
@@ -272,7 +276,7 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         operation["operationId"]
         for path_item in document["paths"].values()
         for method, operation in path_item.items()
-        if method in {"get", "post", "patch", "delete"}
+        if method in {"get", "post", "put", "patch", "delete"}
     ]
     assert len(operation_ids) == len(set(operation_ids))
     assert {
@@ -289,20 +293,50 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "createAnonymousSession",
         "getAnonymousSession",
         "revokeAnonymousSession",
+        "getWorkspaceSnapshot",
+        "putWorkspaceSnapshot",
+        "listShareSnapshots",
+        "createShareSnapshot",
+        "revokeShareSnapshot",
+        "getPublicShareSnapshot",
     } == set(operation_ids)
 
     create_run = document["paths"]["/api/v2/projects/{project_id}/runs"]["post"]
-    parameters = {parameter["name"]: parameter for parameter in create_run["parameters"]}
+    parameters = {
+        parameter["name"]: parameter for parameter in create_run["parameters"]
+    }
     assert parameters["Idempotency-Key"]["required"] is True
-    update_draft = document["paths"]["/api/v2/research-contract-drafts/{draft_id}"]["patch"]
-    update_parameters = {parameter["name"]: parameter for parameter in update_draft["parameters"]}
+    update_draft = document["paths"]["/api/v2/research-contract-drafts/{draft_id}"][
+        "patch"
+    ]
+    update_parameters = {
+        parameter["name"]: parameter for parameter in update_draft["parameters"]
+    }
     assert update_parameters["If-Match"]["required"] is True
     assert "patch" not in document["paths"]["/api/v2/research-contracts/{contract_id}"]
     events = document["paths"]["/api/v2/runs/{run_id}/events"]["get"]
-    assert {parameter["name"] for parameter in events["parameters"]} >= {"cursor", "limit"}
+    assert {parameter["name"] for parameter in events["parameters"]} >= {
+        "cursor",
+        "limit",
+    }
     assert "409" in create_run["responses"]
-    assert set(create_run["responses"]["409"]["content"]) == {"application/problem+json"}
+    assert set(create_run["responses"]["409"]["content"]) == {
+        "application/problem+json"
+    }
     assert "ProblemDetails" in document["components"]["schemas"]
+
+    workspace_put = document["paths"][
+        "/api/v2/projects/{project_id}/workspace-snapshot"
+    ]["put"]
+    workspace_headers = {
+        parameter["name"]: parameter for parameter in workspace_put["parameters"]
+    }
+    assert workspace_headers["If-Match"]["required"] is True
+    assert workspace_headers["X-CSRF-Token"]["required"] is True
+    share_create = document["paths"]["/api/v2/projects/{project_id}/shares"]["post"]
+    assert {parameter["name"] for parameter in share_create["parameters"]} >= {
+        "X-CSRF-Token"
+    }
 
 
 def test_envelope_cursor_and_problem_details_are_strict_schemas() -> None:

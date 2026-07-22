@@ -14,7 +14,7 @@ MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通�
 
 - 静态 Brand Site；
 - Guided Tour 与 Research Workspace；
-- FastAPI `/api/v1` 回归接口和 `/api/v2` Contract（Runtime Pending）；
+- FastAPI `/api/v1` 回归接口和 `/api/v2` Contract；Session runtime Current，Workspace/Share application boundary 与其余 v2 runtime Pending；
 - PostgreSQL Schema 与 Alembic migration 基线已实现；Workflow 恢复和原子发布仍待实现；
 - Demo Replay、Live Run、真实缓存、分享和导出；
 - WebGL 或外部服务失败时的可用降级；
@@ -28,7 +28,7 @@ MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通�
 | ----------- | ------------------------------ | ------------------------------------ |
 | `site`      | Node.js 24.18.0 + pnpm 11.13.1 | Astro Brand Site                     |
 | `workspace` | Node.js 24.18.0 + pnpm 11.13.1 | React Research Workspace             |
-| `api`       | Python 3.13 + uv               | FastAPI `/api/v1`；`/api/v2` Contract Implemented, Runtime Pending |
+| `api`       | Python 3.13 + uv               | FastAPI `/api/v1`；`/api/v2` Contract 与 Session runtime；Workspace/Share application boundary Pending |
 | `postgres`  | PostgreSQL 17                  | 本地状态和结果持久化                 |
 
 当前启动、端口和故障排查只在 [Local Setup](docs/setup.md) 维护。A-01 入口不代表 A-02/A-03 产品能力已经实现。
@@ -88,6 +88,7 @@ Astro 使用明确的 `PUBLIC_` 前缀，Workspace 使用 `VITE_` 前缀。所�
 - 数据库连接和密码；
 - 模型、论文源和数据源凭据；
 - Session / share signing or hashing secrets；
+- Session 和 ShareSnapshot 创建限流配置（`SESSION_CREATE_RATE_LIMIT` / `SHARE_CREATE_RATE_LIMIT`）；
 - 内部服务地址和管理开关。
 
 `.env.example` 只存占位值和说明。生产环境必须拒绝 DEBUG、默认数据库凭据、空/占位密钥和通配 CORS。完整安全要求见 [Security](SECURITY.md)。

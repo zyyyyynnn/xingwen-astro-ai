@@ -1,8 +1,8 @@
 """OpenAPI-only surface for the accepted ``/api/v2`` transport contract.
 
 The application returned here is intentionally not mounted by ``app.main``.
-Runtime behavior, persistence, session security, and workflow execution belong
-to later issues; this module freezes operation names and transport schemas only.
+Runtime routers selectively implement this surface; this module remains the
+single generated operation and transport-schema document.
 """
 
 from __future__ import annotations
@@ -16,9 +16,11 @@ from app.schemas.v2 import (
     ArtifactVersion,
     CollectionEnvelope,
     ConfirmResearchContractRequest,
+    CreateShareSnapshotRequest,
     CreateRunRequest,
     Envelope,
     ProblemDetails,
+    PublicShareSnapshot,
     ResearchArtifact,
     ResearchContract,
     ResearchContractDraft,
@@ -27,7 +29,11 @@ from app.schemas.v2 import (
     RunEvent,
     ResearchSession,
     SessionCreated,
+    ShareSnapshot,
+    ShareSnapshotCreated,
     UpdateResearchContractDraftRequest,
+    WorkspaceSnapshot,
+    WorkspaceSnapshotInput,
 )
 
 
@@ -205,6 +211,91 @@ def create_v2_contract_app() -> FastAPI:
     )
     def get_artifact_version(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
         _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/v2/projects/{project_id}/workspace-snapshot",
+        operation_id="getWorkspaceSnapshot",
+        response_model=Envelope[WorkspaceSnapshot],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_workspace_snapshot(project_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = project_id
+        return _contract_only()
+
+    @app.put(
+        "/api/v2/projects/{project_id}/workspace-snapshot",
+        operation_id="putWorkspaceSnapshot",
+        response_model=Envelope[WorkspaceSnapshot],
+        responses=PROBLEM_RESPONSES,
+    )
+    def put_workspace_snapshot(
+        project_id: Annotated[str, Path(min_length=1)],
+        request: WorkspaceSnapshotInput,
+        if_match: Annotated[int, Header(alias="If-Match", ge=0)],
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> NoReturn:
+        _ = (project_id, request, if_match, csrf_token)
+        return _contract_only()
+
+    @app.get(
+        "/api/v2/projects/{project_id}/shares",
+        operation_id="listShareSnapshots",
+        response_model=CollectionEnvelope[ShareSnapshot],
+        responses=PROBLEM_RESPONSES,
+    )
+    def list_share_snapshots(
+        project_id: Annotated[str, Path(min_length=1)],
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (project_id, cursor, limit)
+        return _contract_only()
+
+    @app.post(
+        "/api/v2/projects/{project_id}/shares",
+        operation_id="createShareSnapshot",
+        response_model=Envelope[ShareSnapshotCreated],
+        status_code=201,
+        responses=PROBLEM_RESPONSES,
+    )
+    def create_share_snapshot(
+        project_id: Annotated[str, Path(min_length=1)],
+        request: CreateShareSnapshotRequest,
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> NoReturn:
+        _ = (project_id, request, csrf_token)
+        return _contract_only()
+
+    @app.delete(
+        "/api/v2/projects/{project_id}/shares/{share_id}",
+        operation_id="revokeShareSnapshot",
+        status_code=204,
+        response_model=None,
+        responses=PROBLEM_RESPONSES,
+    )
+    def revoke_share_snapshot(
+        project_id: Annotated[str, Path(min_length=1)],
+        share_id: Annotated[str, Path(min_length=1)],
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> Response:
+        _ = (project_id, share_id, csrf_token)
+        return _contract_only()
+
+    @app.get(
+        "/api/v2/shares/{share_token}",
+        operation_id="getPublicShareSnapshot",
+        response_model=Envelope[PublicShareSnapshot],
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Anonymous read-only projection; invalid, expired, and revoked tokens are "
+            "indistinguishable."
+        ),
+    )
+    def get_public_share_snapshot(
+        share_token: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = share_token
         return _contract_only()
 
     generated_openapi = app.openapi

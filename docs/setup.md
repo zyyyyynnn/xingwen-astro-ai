@@ -46,6 +46,7 @@ Session 服务端变量：
 | `SESSION_COOKIE_SECURE` | `false` | 本地 HTTP 默认关闭；Production 必须显式设为 `true` 并使用 HTTPS |
 | `SESSION_TTL_SECONDS` | `86400` | 匿名 Session 有效期 |
 | `SESSION_CREATE_RATE_LIMIT` | `30` | 单客户端每分钟创建 Session 的上限 |
+| `SHARE_CREATE_RATE_LIMIT` | `20` | 单 Session 每分钟创建 ShareSnapshot 的上限 |
 | `PERSISTENT_WORKFLOW_ENABLED` | `false` | #77 PostgreSQL Workflow Executor 渐进接入开关；当前 `/api/v1` 始终保留原执行路径 |
 
 Production 必须保持 `SESSION_COOKIE_SECURE=true`。Session 与 CSRF token 不得写入浏览器持久化存储或日志。
