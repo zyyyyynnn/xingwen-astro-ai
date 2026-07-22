@@ -200,6 +200,7 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
                 "keywords": ["exoplanet"],
                 "authorization": "Bearer must-not-leak",
                 "url": "https://example.test/search?q=star&api_key=must-not-leak",
+                "notes": "bearer_token=embedded-query-secret",
             },
             query_hash=HASH_A,
             source_version_or_etag="authorization=must-not-leak",
@@ -243,6 +244,8 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
                     "rows": [],
                     "raw_model_output": "must-not-leak",
                     "result_error": "Traceback (most recent call last): secret.py",
+                    "notes": "private_key=embedded-content-secret",
+                    "safe_notes": "max_tokens=128",
                 },
                 content_hash=HASH_C,
                 input_hash=HASH_B,
@@ -277,7 +280,11 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
             target_id="TOI-700-d:planet.toi_id",
             evidence_type="database_value",
             source_snapshot_id=snapshot.id,
-            locator={"row_key": "TOI-700-d", "cookie": "must-not-leak"},
+            locator={
+                "row_key": "TOI-700-d",
+                "cookie": "must-not-leak",
+                "notes": "auth_header=embedded-locator-secret",
+            },
             quote_or_value="TOI-700 d",
             extraction_method="direct_lookup",
             confidence=1.0,
@@ -325,6 +332,8 @@ def test_http_reads_complete_provenance_and_redact_sensitive_fields(
     assert data["producer_execution"]["parameters"] == {"max_tokens": 128}
     assert data["content"].get("raw_model_output") is None
     assert "traceback" not in str(data["content"]).casefold()
+    assert data["content"]["notes"] == "[REDACTED]"
+    assert data["content"]["safe_notes"] == "max_tokens=128"
     snapshot = data["source_snapshots"][0]
     rendered = str(response.json()).casefold()
     assert "must-not-leak" not in rendered
@@ -334,7 +343,10 @@ def test_http_reads_complete_provenance_and_redact_sensitive_fields(
     }
     assert snapshot["source_version_or_etag"] == "[REDACTED]"
     assert snapshot["query"]["url"] == "https://example.test/search?q=star"
+    assert snapshot["query"]["notes"] == "[REDACTED]"
     assert data["evidence"][0]["quote_or_value"] == "TOI-700 d"
+    assert data["evidence"][0]["locator"]["notes"] == "[REDACTED]"
+    assert "embedded-" not in rendered
     assert response.headers["cache-control"] == "no-store"
 
     evidence = client.get(f"/api/v2/evidence/{ids['evidence']}")
@@ -370,6 +382,17 @@ def test_cursor_is_stable_scoped_and_bounded(
         str(ids["artifact_1"]),
     ]
     assert client.get(path, params={"kind": "graph"}).json()["data"] == []
+    filtered = client.get(path, params={"kind": "dataset", "limit": 1}).json()
+    filtered_cursor = filtered["page"]["next_cursor"]
+    assert filtered_cursor is not None
+    assert (
+        client.get(
+            path,
+            params={"kind": "dataset", "limit": 1, "cursor": filtered_cursor},
+        ).status_code
+        == 200
+    )
+    assert client.get(path, params={"cursor": filtered_cursor}).status_code == 400
     assert client.get(path, params={"cursor": "not-a-cursor"}).status_code == 400
     assert client.get(path, params={"cursor": "%%%%"}).status_code == 400
     assert client.get(path, params={"limit": 101}).status_code == 422
