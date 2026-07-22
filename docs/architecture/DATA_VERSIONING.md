@@ -132,6 +132,8 @@ request_metadata
 
 数据库查询、论文检索、论文元数据和可公开文本使用各自 locator。Snapshot 中的 request metadata 只保留可复现且非敏感字段。
 
+C-02 已为成功 NASA Exoplanet Archive TOI acquisition 生成完整不可变 SourceSnapshot，记录冻结 Manifest、规范化 query/hash、TAP_SCHEMA 预检、keyset 分页、请求/响应 hash、耗时、重试、许可、版本/ETag 与 request-id 可用性。上游未提供 ETag 或 request-id 时显式记录 `unavailable`，不得生成替代值；Recorded response 固定为 `source_mode=fixture` 与 `data_level=recorded_response`，并绑定版本化 fixture hash/provenance。运行规则见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md)。
+
 D-02 已为成功 Crossref metadata execution 生成完整不可变 SourceSnapshot；失败请求保存 SourceExecution 的 query/pagination/hash/error，不伪造 Snapshot。Cached PaperCollection 要求 Snapshot 额外绑定真实 `origin_run_id` 与 `origin_artifact_version_id`，但 CacheSelector 与 origin persistence 仍为 Pending。
 
 ## 6. Hash 规则
