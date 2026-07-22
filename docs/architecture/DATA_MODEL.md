@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | 领域实体、字段、枚举与不变量 |
-| Implementation | Core Pydantic contract、Workspace/Share application projection、D-02 content、#76/#77 Workflow persistence、#78 atomic publisher 与 #83 Artifact provenance read persistence Implemented；Workspace/Share runtime integration Pending |
+| Implementation | Core Pydantic contract、Project/Contract/Run Runtime、Workspace/Share PostgreSQL authority、D-02 content、#76/#77 Workflow persistence、#78 atomic publisher 与 #83 provenance reads Implemented；Snapshot/Share 跨进程持久化 Pending |
 | Current model | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)） |
 | Target model | Project / Run / Artifact / ArtifactVersion |
 
-本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Workspace/Share application projection、#76 Workflow PostgreSQL Schema、#77 Run lease/recovery、#78 ArtifactVersion Publisher 及 #83 Artifact/Evidence/SourceSnapshot 私有读取已实现；Workspace/Share 生产事实源接入与其余 v2 Application API 仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
+本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Project/Contract/Run Application、Workspace/Share PostgreSQL authority、#76 Workflow PostgreSQL Schema、#77 Run lease/recovery、#78 ArtifactVersion Publisher 及 #83 Artifact/Evidence/SourceSnapshot 私有读取已实现。Workspace/Share 状态仍为进程生命周期存储，跨进程恢复 Pending。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
 ## 1. 建模原则
 
@@ -123,7 +123,7 @@ content_hash
 | `evidence_requirements` | locator、snapshot、引用和最低覆盖要求 |
 | `quality_constraints` | 来源完整性、单位一致性等可验证阈值 |
 
-ResearchContractDraft 是短期可编辑资源，包含 `id`、`session_id`、`version`、`intent`、`contract`、`warnings`、`expires_at`；确认时复制为不可变 Contract。
+ResearchContractDraft 是短期可编辑资源，包含 `id`、`session_id`、`version`、`intent`、`contract`、`warnings`、`expires_at`；到期后转为 `expired` 且不可再修改或确认。确认时复制为不可变 Contract；持久化层以 Project 范围的 `idempotency_key` 与 `request_hash` 防止重复确认和键复用冲突。
 
 C-01 Manifest 来源边界：
 

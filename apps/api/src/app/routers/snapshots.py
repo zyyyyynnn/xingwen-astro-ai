@@ -20,6 +20,7 @@ from app.schemas.v2 import (
     WorkspaceSnapshot,
     WorkspaceSnapshotInput,
 )
+from app.security import SecurityProblem
 from app.services.snapshots import SnapshotService
 
 
@@ -27,7 +28,15 @@ router = APIRouter(prefix="/api/v2", tags=["v2-snapshots"])
 
 
 def _service(request: Request) -> SnapshotService:
-    return request.app.state.snapshot_service
+    service = request.app.state.snapshot_service
+    if service is None:
+        raise SecurityProblem(
+            status=503,
+            code="SNAPSHOT_RUNTIME_UNAVAILABLE",
+            title="Snapshot runtime unavailable",
+            detail="The persistent snapshot runtime is not configured",
+        )
+    return service
 
 
 def _session_id(request: Request) -> str:
@@ -75,7 +84,9 @@ def put_workspace_snapshot(
     request: Request,
     response: Response,
     expected_revision: Annotated[int, Header(alias="If-Match", ge=0)],
+    csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
 ) -> Envelope[WorkspaceSnapshot]:
+    _ = csrf_token
     snapshot = _service(request).save_workspace(
         project_id=project_id,
         session_id=_session_id(request),
@@ -127,7 +138,9 @@ def create_share_snapshot(
     payload: CreateShareSnapshotRequest,
     request: Request,
     response: Response,
+    csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
 ) -> Envelope[ShareSnapshotCreated]:
+    _ = csrf_token
     limiter = request.app.state.share_rate_limiter
     remaining, reset_seconds = limiter.consume(_session_id(request))
     share = _service(request).create_share(
@@ -157,7 +170,9 @@ def revoke_share_snapshot(
     share_id: Annotated[str, Path(min_length=1)],
     request: Request,
     response: Response,
+    csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
 ) -> None:
+    _ = csrf_token
     _service(request).revoke_share(
         project_id=project_id,
         share_id=share_id,

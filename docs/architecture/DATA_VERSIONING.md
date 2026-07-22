@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
-| Implementation | Workspace/Share process-local adapter、D-02 content、#76 persistence、#78 atomic publication、#83 provenance reads 与 B-06 PaperCollection domain reads Implemented；Workspace/Share integration and cache/revision workflows Pending |
+| Implementation | Workspace/Share runtime 与 PostgreSQL resource authority、D-02 content、#76 persistence、#78 atomic publication、#83 provenance reads 与 B-06 PaperCollection reads Implemented；Snapshot/Share 跨进程持久化及 cache/revision workflows Pending |
 | Current runtime | v1 DTO、Prompt registry 与 Phase 0 版本字段 |
 | Target runtime | Project / Run / Artifact / ArtifactVersion 追加式治理 |
 
-本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。B-18 已为 ArtifactVersion、Evidence 和 SourceSnapshot 提供 PostgreSQL 私有读取与 Project ownership 边界；B-06 在该边界上增加 `paper_collection` 的只读校验与候选 keyset cursor，不改变 #78 发布事务。Workspace/Share 仍仅通过进程内端口适配器实现并发与安全语义，不表示其 PostgreSQL 表或跨实例恢复已经落地。
+本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。B-18 已为 ArtifactVersion、Evidence 和 SourceSnapshot 提供 PostgreSQL 私有读取与 Project ownership 边界；B-06 在该边界上增加 `paper_collection` 的只读校验与候选 keyset cursor，不改变 #78 发布事务。Workspace/Share Runtime 已挂载并使用 PostgreSQL resource authority 校验资源事实；其快照记录仍为进程生命周期存储，不表示 PostgreSQL 表或跨实例恢复已经落地。
 
 ## 1. 版本边界
 
