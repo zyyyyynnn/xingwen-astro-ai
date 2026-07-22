@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | 领域实体、字段、枚举与不变量 |
-| Implementation | Core Pydantic contract、Workspace/Share 运行投影、D-02 PaperCollection Pipeline content、#76 PostgreSQL baseline 与 #77 Run lease/recovery store Implemented；ArtifactVersion publication Pending |
+| Implementation | Core Pydantic contract、Workspace/Share application projection、D-02 PaperCollection Pipeline content、#76 PostgreSQL baseline 与 #77 Run lease/recovery store Implemented；Workspace/Share runtime integration 与 ArtifactVersion publication Pending |
 | Current model | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)） |
 | Target model | Project / Run / Artifact / ArtifactVersion |
 
-本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Workspace/Share 运行投影、#76 Workflow PostgreSQL Schema 基线及 #77 Run lease/recovery store 已实现；ArtifactVersion 原子发布与其余 v2 Application API 仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
+本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Workspace/Share application projection、#76 Workflow PostgreSQL Schema 基线及 #77 Run lease/recovery store 已实现；Workspace/Share 生产事实源接入、ArtifactVersion 原子发布与其余 v2 Application API 仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
 ## 1. 建模原则
 

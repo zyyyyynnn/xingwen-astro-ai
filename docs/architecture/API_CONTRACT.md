@@ -4,9 +4,9 @@
 | -------------- | ---------------------------------------------------------- |
 | Status         | Accepted                                                   |
 | Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring     |
-| Implementation | `/api/v1` Current；`/api/v2` 核心生成契约、Session 安全边界及 Workspace/Share 运行边界 Implemented |
+| Implementation | `/api/v1` Current；`/api/v2` 核心生成契约、Session 安全边界及 Workspace/Share application boundary Implemented；Workspace/Share runtime Pending |
 
-本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership、WorkspaceSnapshot 和 ShareSnapshot 应用边界已实现；Project/Run/Artifact 核心资源运行路由、跨进程持久化与 Workflow 仍为 Pending。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
+本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership、WorkspaceSnapshot 和 ShareSnapshot 应用边界已实现；Workspace/Share 路由在 Project / Run / ArtifactVersion / Evidence 生产事实源接入前不挂载，Project/Run/Artifact 核心资源运行路由、跨进程持久化与 Workflow 仍为 Pending。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
 
 ## 1. 设计原则
 
@@ -39,7 +39,7 @@ flowchart LR
 | 版本      | 状态              | 说明                                                          |
 | --------- | ----------------- | ------------------------------------------------------------- |
 | `/api/v1` | Current           | 当前后端 Task Contract                                        |
-| `/api/v2` | Contract Implemented, Runtime Partial | Session、Workspace/Share 已运行；Project / Run / Artifact / Version 其余运行边界 Pending |
+| `/api/v2` | Contract Implemented, Runtime Partial | Session 已运行；Workspace/Share application boundary 已实现但运行挂载 Pending；Project / Run / Artifact / Version 其余运行边界 Pending |
 
 版本推进规则：
 
