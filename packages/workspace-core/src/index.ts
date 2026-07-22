@@ -22,3 +22,9 @@ export type {
   GuidedTourTransitionError,
   TourListener,
 } from "./guided-tour";
+export { createWorkspaceController } from "./workspace-controller";
+export type {
+  WorkspaceController,
+  WorkspaceState,
+  WorkspaceListener,
+} from "./workspace-controller";

@@ -3,7 +3,10 @@ import type {
   RepositorySet,
   SessionManager,
 } from "@xingwen/data-access";
-import type { GuidedTourController } from "@xingwen/workspace-core";
+import type {
+  GuidedTourController,
+  WorkspaceController,
+} from "@xingwen/workspace-core";
 
 /**
  * Workspace runtime boundaries.
@@ -16,6 +19,7 @@ import type { GuidedTourController } from "@xingwen/workspace-core";
 export interface WorkspaceRuntimeBoundaries {
   readonly repositories: RepositorySet;
   readonly tour: GuidedTourController;
+  readonly workspaceController: WorkspaceController;
 }
 
 /**

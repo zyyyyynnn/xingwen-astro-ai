@@ -22,6 +22,8 @@ import type {
   ResearchContractDraft,
   ResearchProject,
   ResearchRun,
+  WorkspaceSnapshot,
+  ShareSnapshot,
   RunEvent,
 } from "@xingwen/domain";
 
@@ -45,7 +47,9 @@ import type {
   ProjectRepository,
   RepositoryProvenance,
   RunRepository,
+  ShareRepository,
   Unsubscribe,
+  WorkspaceSnapshotRepository,
 } from "./ports";
 import type { FixtureBundle } from "./fixture/bundle";
 
@@ -154,6 +158,8 @@ export interface FixtureRepositorySet {
   readonly runs: RunRepository;
   readonly artifacts: ArtifactRepository;
   readonly evidence: EvidenceRepository;
+  readonly workspaces: WorkspaceSnapshotRepository;
+  readonly shares: ShareRepository;
   readonly provenance: RepositoryProvenance;
 }
 
@@ -191,6 +197,8 @@ export function createFixtureRepositories(
   const evidenceStore = new MemoryStore(
     bundle.data.evidence.map((entity) => mapEvidence(entity)),
   );
+  const workspaces = new MemoryStore<WorkspaceSnapshot>([]);
+  const shares = new MemoryStore<ShareSnapshot>([]);
 
   const runEvents = new Map<DomainEntityId, RunEvent[]>();
   for (const dto of bundle.data.runEvents) {
@@ -280,6 +288,87 @@ export function createFixtureRepositories(
         evidenceStore.filter((e) => e.artifactVersionId === artifactVersionId),
       save: async (entity: Evidence) => evidenceStore.upsert(entity),
       subscribe: (listener) => evidenceStore.subscribe(listener),
+    },
+    workspaces: {
+      getByProjectId: async (projectId) => {
+        const matches = workspaces.filter((w) => w.projectId === projectId);
+        return matches[0] ?? null;
+      },
+      save: async (projectId, snapshotInput, expectedRevision) => {
+        const existing = workspaces.filter((w) => w.projectId === projectId)[0];
+        const currentRevision = existing ? existing.revision : 0;
+        
+        if (currentRevision !== expectedRevision) {
+          const { ConflictError } = await import("./http-errors");
+          throw new ConflictError(
+            `Workspace snapshot revision conflict: expected ${expectedRevision}, got ${currentRevision}`,
+            "VERSION_CONFLICT",
+          );
+        }
+
+        const newRevision = currentRevision + 1;
+        const snapshot: WorkspaceSnapshot = {
+          id: `ws_${projectId}` as DomainEntityId,
+          projectId,
+          revision: newRevision,
+          layoutPreset: snapshotInput.layoutPreset,
+          panelSlots: snapshotInput.panelSlots,
+          activeRunId: snapshotInput.activeRunId,
+          pinnedEvidenceIds: snapshotInput.pinnedEvidenceIds,
+          atlasState: snapshotInput.atlasState,
+          observatoryState: snapshotInput.observatoryState,
+          selectedObjectRef: snapshotInput.selectedObjectRef,
+          updatedAt: new Date().toISOString() as never,
+        };
+        workspaces.upsert(snapshot);
+        return snapshot;
+      },
+    },
+    shares: {
+      create: async (projectId, request) => {
+        const id = `share_${Date.now()}` as DomainEntityId;
+        const token = `token_${id}`;
+        const snapshot: ShareSnapshot = {
+          id,
+          projectId,
+          title: request.title,
+          shareToken: token,
+          createdAt: new Date().toISOString() as never,
+          expiresAt: request.expiresAt,
+          status: "active",
+          redactionPolicy: request.redactionPolicy,
+          artifactVersionIds: request.artifactVersionIds,
+          evidenceIds: request.evidenceIds,
+          revokedAt: null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any; // Type coercion for ShareSnapshot since we just need simple mock
+        shares.upsert(snapshot);
+        return {
+          ...snapshot,
+          shareToken: token,
+          shareUrl: `https://example.com/share/${token}`
+        };
+      },
+      getByProjectIdAndShareId: async (projectId, shareId) => {
+        const share = shares.get(shareId);
+        return share?.projectId === projectId ? share : null;
+      },
+      listByProject: async (projectId) =>
+        shares.filter((s) => s.projectId === projectId),
+      revoke: async (projectId, shareId) => {
+        const share = shares.get(shareId);
+        if (share && share.projectId === projectId) {
+          shares.upsert({ ...share, status: "revoked" });
+        }
+      },
+      getPublicShare: async (shareToken) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const share = shares.filter((s) => (s as any).shareToken === shareToken)[0];
+        if (!share || share.status !== "active") return null;
+        // In fixture we just return a stubbed PublicShareSnapshot
+        // Since we don't have the artifact inline in fixture share, we'd need to mock it if requested.
+        return null;
+      },
     },
     provenance,
   };

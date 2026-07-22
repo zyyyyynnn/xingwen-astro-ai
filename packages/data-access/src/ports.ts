@@ -89,19 +89,25 @@ export interface EvidenceRepository {
 }
 
 export interface WorkspaceSnapshotRepository {
-  getById(id: DomainEntityId): Promise<WorkspaceSnapshot | null>;
+  getByProjectId(projectId: DomainEntityId): Promise<WorkspaceSnapshot | null>;
   save(
-    id: DomainEntityId,
+    projectId: DomainEntityId,
     snapshot: WorkspaceSnapshotInput,
     expectedRevision: number,
   ): Promise<WorkspaceSnapshot>;
 }
 
 export interface ShareRepository {
-  create(request: CreateShareSnapshotRequest): Promise<ShareSnapshotCreated>;
-  getById(id: DomainEntityId): Promise<ShareSnapshot | null>;
+  create(
+    projectId: DomainEntityId,
+    request: CreateShareSnapshotRequest,
+  ): Promise<ShareSnapshotCreated>;
+  getByProjectIdAndShareId(
+    projectId: DomainEntityId,
+    shareId: DomainEntityId,
+  ): Promise<ShareSnapshot | null>;
   listByProject(projectId: DomainEntityId): Promise<readonly ShareSnapshot[]>;
-  revoke(id: DomainEntityId): Promise<void>;
+  revoke(projectId: DomainEntityId, shareId: DomainEntityId): Promise<void>;
   getPublicShare(shareToken: string): Promise<PublicShareSnapshot | null>;
 }
 
