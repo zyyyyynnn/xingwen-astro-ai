@@ -6,9 +6,7 @@
  * exoplanet-host-star scenario. This is the structural guarantee that both
  * adapters share the same mapping layer and produce identical domain models.
  *
- * Only operations backed by the generated OpenAPI are exercised here.
- * Operations without a corresponding server endpoint throw
- * `CapabilityUnavailableError` and are covered in http-errors.test.ts.
+ * Only read operations backed by the generated OpenAPI are exercised here.
  */
 
 import { expect, it } from "vitest";
@@ -41,6 +39,7 @@ const DRAFT_ID = "rcd_01JEXAMPLE" as never;
 const CONTRACT_ID = "rc_01JEXAMPLE" as never;
 const ARTIFACT_ID = "art_graph_01" as never;
 const VERSION_ID = "artv_graph_01" as never;
+const EVIDENCE_ID = "evd_01" as never;
 
 it("projects.getById returns the same domain entity", async () => {
   const httpRepos = setupHttpRepos();
@@ -78,29 +77,47 @@ it("runs.getById returns the same domain entity", async () => {
   expect(httpRun).toEqual(fixtureRun);
 });
 
-it("runs.getEvents returns the same domain entities in sequence order", async () => {
+it("runs.listEvents returns the same domain entities in sequence order", async () => {
   const httpRepos = setupHttpRepos();
   const [fixtureEvents, httpEvents] = await Promise.all([
-    fixtureRepos.runs.getEvents(RUN_ID),
-    httpRepos.runs.getEvents(RUN_ID),
+    fixtureRepos.runs.listEvents(RUN_ID),
+    httpRepos.runs.listEvents(RUN_ID),
   ]);
   expect(httpEvents).toEqual(fixtureEvents);
 });
 
-it("artifacts.getArtifactById returns the same domain entity", async () => {
+it("artifacts.listByRun returns the same domain entities", async () => {
+  const httpRepos = setupHttpRepos();
+  const [fixtureArtifacts, httpArtifacts] = await Promise.all([
+    fixtureRepos.artifacts.listByRun(RUN_ID),
+    httpRepos.artifacts.listByRun(RUN_ID),
+  ]);
+  expect(httpArtifacts).toEqual(fixtureArtifacts);
+});
+
+it("artifacts.getArtifact returns the same domain entity", async () => {
   const httpRepos = setupHttpRepos();
   const [fixtureArtifact, httpArtifact] = await Promise.all([
-    fixtureRepos.artifacts.getArtifactById(ARTIFACT_ID),
-    httpRepos.artifacts.getArtifactById(ARTIFACT_ID),
+    fixtureRepos.artifacts.getArtifact(ARTIFACT_ID),
+    httpRepos.artifacts.getArtifact(ARTIFACT_ID),
   ]);
   expect(httpArtifact).toEqual(fixtureArtifact);
 });
 
-it("artifacts.getVersionById returns the same domain entity", async () => {
+it("artifacts.getVersion returns the same domain entity", async () => {
   const httpRepos = setupHttpRepos();
   const [fixtureVersion, httpVersion] = await Promise.all([
-    fixtureRepos.artifacts.getVersionById(VERSION_ID),
-    httpRepos.artifacts.getVersionById(VERSION_ID),
+    fixtureRepos.artifacts.getVersion(VERSION_ID),
+    httpRepos.artifacts.getVersion(VERSION_ID),
   ]);
   expect(httpVersion).toEqual(fixtureVersion);
+});
+
+it("artifacts.getEvidence returns the same domain entity", async () => {
+  const httpRepos = setupHttpRepos();
+  const [fixtureEvidence, httpEvidence] = await Promise.all([
+    fixtureRepos.artifacts.getEvidence(EVIDENCE_ID),
+    httpRepos.artifacts.getEvidence(EVIDENCE_ID),
+  ]);
+  expect(httpEvidence).toEqual(fixtureEvidence);
 });

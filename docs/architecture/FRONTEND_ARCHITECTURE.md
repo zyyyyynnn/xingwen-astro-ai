@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------- |
 | Status         | Accepted                                                |
 | Authority      | 前端运行时、目录、依赖方向、构建与质量门禁              |
-| Implementation | A-01 runtime Current；A-14 Domain/Fixture/Tour FSM Current；A-02 视觉与 A-03 业务行为 Pending |
+| Implementation | A-01 runtime、A-14 Domain/Tour FSM、A-15/A-16 Adapter/Core Current；A-02 视觉与 A-03 UI 接线 Pending |
 
 本文是前端运行时、目录、依赖方向、构建和质量门禁的唯一正文来源。A-01 只证明最小入口与工程边界，不代表完整科研产品界面已交付。
 
@@ -30,8 +30,8 @@ packages/
 ├─ ui/                           # 共享 React UI 公开入口
 ├─ domain/                       # 纯 TypeScript 领域边界
 ├─ contracts/                    # Pydantic Contract 消费边界
-├─ data-access/                  # Repository Port 边界，行为 Pending
-├─ workspace-core/               # 工作台编排边界，行为 Pending
+├─ data-access/                  # Repository Port、Fixture/HTTP Adapter 与 Contract 校验
+├─ workspace-core/               # Guided Tour FSM 与 WorkspaceSnapshot Controller
 ├─ visual-engine/                # 视觉运行时边界，行为 Pending
 └─ testing/                      # 共享测试入口
 
@@ -141,9 +141,9 @@ A-01 不实现完整首页叙事、WebGL、字体资产、社交预览或 A-02 �
 | `design-tokens`  | 基础浅色语义变量、字体 fallback、CSS 与 TS 入口 | A-02 冻结完整颜色、字体、间距和动效系统  |
 | `ui`             | 静态 `BrandMark` 与 UI 基元                      | A-02 建立 primitive 与复合组件           |
 | `domain`         | A-14 前端 Domain Model（Project、Contract、Run、ArtifactVersion、Evidence、ProvenanceState） | A-04～A-08 各科研工作区消费 |
-| `contracts`      | A-14 vendored B-15 JSON Schema + ajv 校验 + 生成 DTO 类型 | B-04 / X-01 生成并接入 v2 Contract |
-| `data-access`    | A-14 Repository Port + 版本化 Fixture Adapter   | A-15 HTTP Adapter                        |
-| `workspace-core` | A-14 Guided Tour FSM（八阶段状态机）            | A-03 Contract、Tour UI 与状态编排        |
+| `contracts`      | 生成的 v2 DTO、JSON Schema 与 ajv 运行时校验     | 随后端 Pydantic Contract 同步维护        |
+| `data-access`    | 收窄 Repository Port、版本化 Fixture 与 `/api/v2` HTTP Adapter | A-03 接入 Workspace UI |
+| `workspace-core` | Guided Tour FSM 与 WorkspaceSnapshot Controller | A-03 Contract、Tour UI 与页面状态编排    |
 | `visual-engine`  | A-02 公开边界类型                               | A-02 实现生命周期与降级                  |
 | `testing`        | 共享入口地址                                    | 各前端 Issue 按实际测试需要扩展          |
 
@@ -180,7 +180,7 @@ pnpm 11 配置位于 `pnpm-workspace.yaml`：
 
 ## 9. 测试边界
 
-- Unit：Vitest + Testing Library 验证共享深链接能渲染，且无需业务数据访问。
+- Unit：Vitest + Testing Library 验证共享深链接、生成 Contract 校验、Fixture/HTTP 一致性、错误映射与 Workspace Controller。
 - E2E：Playwright 验证 Site、无 JavaScript Site、Site 404、Workspace 四个入口、共享深链接、Not Found 与页面控制台错误。
 - Typecheck：两个 App 与全部共享 Package 分别执行。
 - Build：Site 与 Workspace 分别产出 `dist`；共享 Package 产出 JS 与声明文件。
@@ -205,7 +205,7 @@ Compose 服务与默认端口：
 | `api`       | 8000 |
 | `postgres`  | 5432 |
 
-前端容器只接收 `PUBLIC_WORKSPACE_URL` 或 `VITE_API_BASE_URL`，不通过 `env_file` 接收后端密钥。当前 Workspace 没有业务请求；`VITE_API_BASE_URL` 为 A-03/X-01 预留的非敏感地址。
+前端容器只接收 `PUBLIC_WORKSPACE_URL` 或 `VITE_API_BASE_URL`，不通过 `env_file` 接收后端密钥。HTTP Adapter 已实现，但当前 Workspace 页面尚未接线；`VITE_API_BASE_URL` 是 A-03/X-01 使用的非敏感地址。
 
 ## 11. CI
 
@@ -216,8 +216,8 @@ CI 不允许 App 私有 lockfile、第二套包管理器状态或跨包深层导
 ## 12. Pending 边界
 
 - A-02：完整 bluegray Design Token、primitive、Brand Site 极简单英雄首页、静态 Workspace Shell、Visual Engine（ASCII/Dither Hero）、Poster 与 Reduced Motion。
-- A-03：Research Contract、Guided Tour 状态机、Project/Run、Repository Port、Fixture/HTTP、WorkspaceSnapshot、恢复与分享行为。
-- B-04 / X-01：`/api/v2` 生成 Contract 与真实 HTTP 集成。
+- A-03：Research Contract 双通道 UI、Guided Tour 页面接线、Workspace/Share 交互与真实 HTTP 模式切换；Repository、Fixture/HTTP Adapter、WorkspaceSnapshot Controller 已实现。
+- X-01：完整 Workspace 主链路、Compose 与真实 HTTP 集成证据收口。
 - A-04～A-10：各科研产物工作区、反馈、响应式与发布收口。
 - Desktop/Tauri：需独立 Issue 与 Platform Adapter，不在当前目录创建。
 

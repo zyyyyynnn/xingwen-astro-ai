@@ -95,6 +95,11 @@ jobs:
             --include PaperCollectionCandidateRead \
             --include EvidenceRead \
             --include SourceSnapshotDetail \
+            --include SessionCreated \
+            --include WorkspaceSnapshot \
+            --include ShareSnapshot \
+            --include ShareSnapshotCreated \
+            --include PublicShareSnapshot \
             --check
           uv run python ../../scripts/export_v2_openapi.py \
             --output ../../packages/schemas/generated/v2-core/openapi.json \

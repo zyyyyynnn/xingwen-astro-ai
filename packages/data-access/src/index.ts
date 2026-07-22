@@ -3,7 +3,7 @@
  * and the HTTP adapter for live `/api/v2` endpoints.
  *
  * The public API exposes:
- * - Repository Port interfaces (operating on domain types, never DTOs).
+ * - Narrowed Repository Port interfaces (operating on domain types, never DTOs).
  * - The versioned fixture bundle type and the frozen main-case fixture.
  * - `createFixtureRepositories` — validates DTOs against B-15 JSON Schemas,
  *   enforces Demo Replay semantics, and returns a ready-to-use `RepositorySet`.
@@ -15,19 +15,20 @@
  */
 
 export type {
-  ArtifactRepository,
+  ArtifactReadRepository,
   ContractRepository,
-  EvidenceRepository,
-  Listener,
+  CreateResearchRunInput,
   ProjectRepository,
   RepositoryProvenance,
   RepositorySet,
+  RunEventRecovery,
   RunRepository,
-  Unsubscribe,
+  ShareRepository,
+  UpdateResearchContractDraftInput,
+  WorkspaceSnapshotRepository,
 } from "./ports";
 
 export {
-  CapabilityUnavailableError,
   EntityNotFoundError,
   FixtureSemanticError,
   FixtureValidationError,
@@ -37,6 +38,7 @@ export type { FixtureBundle, FixtureBundleData } from "./fixture/bundle";
 export { exoplanetHostStarFixture } from "./fixture/exoplanet-host-star";
 export {
   createFixtureRepositories,
+  type FixtureAdapterOptions,
   type FixtureRepositorySet,
 } from "./fixture-adapter";
 
@@ -44,8 +46,6 @@ export {
   createHttpRepositories,
   type HttpAdapterConfig,
   type HttpRepositorySet,
-  type HttpRunRepository,
-  type RunEventPage,
 } from "./http-adapter";
 export {
   createSessionManager,

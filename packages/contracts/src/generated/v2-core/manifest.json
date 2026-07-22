@@ -28,6 +28,11 @@
     },
     {
       "module": "app.schemas.v2",
+      "name": "PublicShareSnapshot",
+      "path": "json/PublicShareSnapshot.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
       "name": "ResearchArtifact",
       "path": "json/ResearchArtifact.schema.json"
     },
@@ -63,8 +68,28 @@
     },
     {
       "module": "app.schemas.v2",
+      "name": "SessionCreated",
+      "path": "json/SessionCreated.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "ShareSnapshot",
+      "path": "json/ShareSnapshot.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "ShareSnapshotCreated",
+      "path": "json/ShareSnapshotCreated.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
       "name": "SourceSnapshotDetail",
       "path": "json/SourceSnapshotDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.v2",
+      "name": "WorkspaceSnapshot",
+      "path": "json/WorkspaceSnapshot.schema.json"
     }
   ],
   "schema_version": 1

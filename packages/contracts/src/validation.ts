@@ -14,6 +14,7 @@ import artifactVersionSchema from "./generated/v2-core/json/ArtifactVersion.sche
 import artifactVersionDetailSchema from "./generated/v2-core/json/ArtifactVersionDetail.schema.json";
 import evidenceReadSchema from "./generated/v2-core/json/EvidenceRead.schema.json";
 import manifest from "./generated/v2-core/manifest.json";
+import publicShareSnapshotSchema from "./generated/v2-core/json/PublicShareSnapshot.schema.json";
 import researchArtifactSchema from "./generated/v2-core/json/ResearchArtifact.schema.json";
 import researchArtifactDetailSchema from "./generated/v2-core/json/ResearchArtifactDetail.schema.json";
 import researchContractDraftSchema from "./generated/v2-core/json/ResearchContractDraft.schema.json";
@@ -21,7 +22,11 @@ import researchContractSchema from "./generated/v2-core/json/ResearchContract.sc
 import researchProjectSchema from "./generated/v2-core/json/ResearchProject.schema.json";
 import researchRunSchema from "./generated/v2-core/json/ResearchRun.schema.json";
 import runEventSchema from "./generated/v2-core/json/RunEvent.schema.json";
+import sessionCreatedSchema from "./generated/v2-core/json/SessionCreated.schema.json";
+import shareSnapshotSchema from "./generated/v2-core/json/ShareSnapshot.schema.json";
+import shareSnapshotCreatedSchema from "./generated/v2-core/json/ShareSnapshotCreated.schema.json";
 import sourceSnapshotDetailSchema from "./generated/v2-core/json/SourceSnapshotDetail.schema.json";
+import workspaceSnapshotSchema from "./generated/v2-core/json/WorkspaceSnapshot.schema.json";
 
 /** Schema version from the B-15 generation manifest. */
 export const V2_CONTRACT_SCHEMA_VERSION: number = manifest.schema_version;
@@ -42,6 +47,11 @@ export const V2_CORE_MODEL_NAMES = [
   "ArtifactVersionDetail",
   "EvidenceRead",
   "SourceSnapshotDetail",
+  "SessionCreated",
+  "WorkspaceSnapshot",
+  "ShareSnapshot",
+  "ShareSnapshotCreated",
+  "PublicShareSnapshot",
 ] as const;
 export type V2CoreModelName = (typeof V2_CORE_MODEL_NAMES)[number];
 
@@ -78,6 +88,11 @@ const schemas: SchemaMap = {
   ArtifactVersionDetail: artifactVersionDetailSchema,
   EvidenceRead: evidenceReadSchema,
   SourceSnapshotDetail: sourceSnapshotDetailSchema,
+  SessionCreated: sessionCreatedSchema,
+  WorkspaceSnapshot: workspaceSnapshotSchema,
+  ShareSnapshot: shareSnapshotSchema,
+  ShareSnapshotCreated: shareSnapshotCreatedSchema,
+  PublicShareSnapshot: publicShareSnapshotSchema,
 };
 
 /** A compiled ajv validator function with its errors property. */
