@@ -92,6 +92,14 @@ const draft: ResearchContractDraftDto = {
   expires_at: "2026-07-21T09:05:00Z",
 };
 
+const editableDraft: ResearchContractDraftDto = {
+  ...draft,
+  id: "rcd_01JTOUR",
+  status: "draft",
+  created_at: T0,
+  updated_at: T0,
+};
+
 const contract: ResearchContractDto = {
   ...contractInput,
   id: "rc_01JEXAMPLE",
@@ -552,7 +560,7 @@ export const exoplanetHostStarFixture: FixtureBundle = {
   generatedAt: T0,
   data: {
     projects: [project],
-    contractDrafts: [draft],
+    contractDrafts: [draft, editableDraft],
     contracts: [contract],
     runs: [run],
     runEvents,

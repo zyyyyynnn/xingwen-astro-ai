@@ -10,6 +10,7 @@ const repos = createFixtureRepositories(exoplanetHostStarFixture);
 
 const PROJECT_ID = "proj_01JEXAMPLE" as never;
 const DRAFT_ID = "rcd_01JEXAMPLE" as never;
+const EDITABLE_DRAFT_ID = "rcd_01JTOUR" as never;
 const CONTRACT_ID = "rc_01JEXAMPLE" as never;
 const RUN_ID = "run_01JEXAMPLE" as never;
 
@@ -78,13 +79,13 @@ describe("Fixture adapter — draft update and contract confirm", () => {
   it("rejects a draft update with a stale expected version", async () => {
     const fresh = createFixtureRepositories(exoplanetHostStarFixture);
     await expect(
-      fresh.contracts.updateDraft(DRAFT_ID, 99, { intent: "stale" }),
+      fresh.contracts.updateDraft(EDITABLE_DRAFT_ID, 99, { intent: "stale" }),
     ).rejects.toBeInstanceOf(ConflictError);
   });
 
   it("updates a draft and bumps its version", async () => {
     const fresh = createFixtureRepositories(exoplanetHostStarFixture);
-    const updated = await fresh.contracts.updateDraft(DRAFT_ID, 1, {
+    const updated = await fresh.contracts.updateDraft(EDITABLE_DRAFT_ID, 1, {
       intent: "Refined intent",
     });
     expect(updated.intent).toBe("Refined intent");
@@ -93,11 +94,27 @@ describe("Fixture adapter — draft update and contract confirm", () => {
 
   it("confirms a contract from a draft (version-checked)", async () => {
     const fresh = createFixtureRepositories(exoplanetHostStarFixture);
-    const contract = await fresh.contracts.confirm(PROJECT_ID, DRAFT_ID, 1);
+    const contract = await fresh.contracts.confirm(
+      PROJECT_ID,
+      EDITABLE_DRAFT_ID,
+      1,
+    );
     expect(contract.projectId).toBe(PROJECT_ID);
+    expect(contract.version).toBe(2);
     expect(contract.researchGoal).toContain("exoplanet");
+    expect(
+      (await fresh.contracts.getDraftById(EDITABLE_DRAFT_ID))?.status,
+    ).toBe("confirmed");
+    expect((await fresh.projects.getById(PROJECT_ID))?.activeContractId).toBe(
+      contract.id,
+    );
     await expect(
-      fresh.contracts.confirm(PROJECT_ID, DRAFT_ID, 99),
+      fresh.contracts.updateDraft(EDITABLE_DRAFT_ID, 1, {
+        intent: "edited after confirmation",
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+    await expect(
+      fresh.contracts.confirm(PROJECT_ID, EDITABLE_DRAFT_ID, 1),
     ).rejects.toBeInstanceOf(ConflictError);
   });
 });
@@ -232,12 +249,43 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     expect(await fresh.shares.getPublic(created.shareToken)).toBeNull();
   });
 
-  it("returns null for an expired share", async () => {
+  it("marks a previously created share expired and hides its public projection", async () => {
+    let now = "2026-07-21T09:00:00Z" as never;
     const fresh = createFixtureRepositories(exoplanetHostStarFixture, {
-      clock: () => "2026-07-23T09:00:00Z" as never,
+      clock: () => now,
     });
     const created = await fresh.shares.create(PROJECT_ID, request);
+    now = "2026-07-23T09:00:00Z" as never;
+    expect((await fresh.shares.list(PROJECT_ID))[0]?.status).toBe("expired");
     expect(await fresh.shares.getPublic(created.shareToken)).toBeNull();
+  });
+
+  it("rejects expired and out-of-scope share requests", async () => {
+    const expired = createFixtureRepositories(exoplanetHostStarFixture, {
+      clock: () => "2026-07-23T09:00:00Z" as never,
+    });
+    await expect(
+      expired.shares.create(PROJECT_ID, request),
+    ).rejects.toBeInstanceOf(FixtureValidationError);
+
+    const bundle: FixtureBundle = {
+      ...exoplanetHostStarFixture,
+      data: {
+        ...exoplanetHostStarFixture.data,
+        evidence: exoplanetHostStarFixture.data.evidence.map((evidence) =>
+          evidence.id === "evd_02"
+            ? { ...evidence, sourceSnapshotId: "snap_02" as never }
+            : evidence,
+        ),
+      },
+    };
+    const fresh = createFixtureRepositories(bundle);
+    await expect(
+      fresh.shares.create(PROJECT_ID, {
+        ...request,
+        evidenceIds: ["evd_02" as never],
+      }),
+    ).rejects.toBeInstanceOf(FixtureValidationError);
   });
 });
 

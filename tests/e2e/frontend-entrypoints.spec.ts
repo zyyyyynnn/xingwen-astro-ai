@@ -61,9 +61,9 @@ test("brand site hero has a Poster fallback image", async ({ page }) => {
 
 for (const entry of [
   ["/", "科研工作台入口", "入口"],
-  ["/tour", "引导入口", "引导"],
+  ["/tour", "研究引导", "引导"],
   ["/workspace", "科研工作区", "工作区"],
-  ["/share/demo-token", "共享入口", null],
+  ["/share/demo-token", "共享结果不可用", null],
 ] as const) {
   test(`workspace route ${entry[0]} is directly addressable`, async ({
     page,
@@ -73,9 +73,12 @@ for (const entry of [
     await page.goto(`http://127.0.0.1:5173${entry[0]}`);
 
     await expect(page.getByRole("heading", { name: entry[1] })).toBeVisible();
-    await expect(
-      page.getByRole("navigation", { name: "主要导航" }),
-    ).toBeVisible();
+    const navigation = page.getByRole("navigation", { name: "主要导航" });
+    if (entry[2]) {
+      await expect(navigation).toBeVisible();
+    } else {
+      await expect(navigation).toHaveCount(0);
+    }
     expect(errors).toEqual([]);
   });
 }

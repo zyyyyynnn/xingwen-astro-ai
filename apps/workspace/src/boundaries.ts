@@ -1,5 +1,5 @@
 import type {
-  HttpRepositorySet,
+  FixtureRepositorySet,
   RepositorySet,
   SessionManager,
 } from "@xingwen/data-access";
@@ -8,28 +8,36 @@ import type {
   WorkspaceController,
 } from "@xingwen/workspace-core";
 
-/**
- * Workspace runtime boundaries.
- *
- * The workspace consumes repositories through the `RepositorySet` port so it
- * is agnostic to whether data comes from the Demo Replay fixture adapter
- * (A-14) or the live HTTP adapter (A-15). The active adapter is chosen at
- * bootstrap based on the runtime mode (tour/demo → fixture; live → HTTP).
- */
-export interface WorkspaceRuntimeBoundaries {
+type RepositoryEntityId = Parameters<RepositorySet["projects"]["getById"]>[0];
+
+export interface FixtureBootstrapContext {
+  readonly projectId: RepositoryEntityId;
+  readonly draftId: RepositoryEntityId;
+  readonly contractId: RepositoryEntityId;
+  readonly runId: RepositoryEntityId;
+}
+
+interface WorkspaceRuntimeBase {
   readonly repositories: RepositorySet;
   readonly tour: GuidedTourController;
   readonly workspaceController: WorkspaceController;
 }
 
-/**
- * Extended boundaries when the HTTP adapter is active.
- *
- * The session manager is exposed so the workspace can surface session-expired
- * prompts and trigger re-authentication without each component inspecting
- * error types.
- */
-export interface HttpWorkspaceRuntimeBoundaries extends WorkspaceRuntimeBoundaries {
-  readonly repositories: HttpRepositorySet;
+export interface FixtureWorkspaceRuntimeBoundaries extends WorkspaceRuntimeBase {
+  readonly adapterKind: "fixture";
+  readonly repositories: FixtureRepositorySet;
+  readonly bootstrap: FixtureBootstrapContext;
+}
+
+export interface HttpWorkspaceRuntimeBoundaries extends WorkspaceRuntimeBase {
+  readonly adapterKind: "http";
   readonly session: SessionManager;
 }
+
+/**
+ * The single runtime boundary consumed by Workspace pages. Adapter selection is
+ * performed once at bootstrap; pages only receive Repository Ports and domain
+ * controllers.
+ */
+export type WorkspaceRuntimeBoundaries =
+  FixtureWorkspaceRuntimeBoundaries | HttpWorkspaceRuntimeBoundaries;

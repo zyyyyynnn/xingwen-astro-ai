@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------------- |
 | Status         | Accepted                                                      |
 | Authority      | 跨模块职责、输入输出、依赖方向和交接边界                      |
-| Implementation | A-01 frontend runtime、C-02 NASA TOI source acquisition、D-02 PaperCollection Pipeline、#78 Publisher 与 `/api/v2` M1 Core Runtime current；A-02/A-03 前端产品接入 Pending |
+| Implementation | A-01 frontend runtime、A-16 Workspace UI Port 接线、C-02 NASA TOI source acquisition、D-02 PaperCollection Pipeline、#78 Publisher 与 `/api/v2` M1 Core Runtime current；A-02 视觉与 X-01 真实集成 Pending |
 
 本文不维护完整前端目录、技术选型或任务顺序。前端包结构见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)，实时任务依赖见 [Backlog](../product/BACKLOG.md)。
 
@@ -50,6 +50,7 @@ flowchart LR
 - Research Contract、项目/运行导航和最多三面板 Research Canvas；
 - Provenance Observatory、Research Console、分享和反馈体验；
 - Fixture / HTTP Adapter、Domain mapper 和前端状态模型；
+- A-16 的 Tour、Workspace 与匿名 Share 页面通过 Repository Port 消费 Domain Model；
 - a11y、visual、E2E、性能和降级测试。
 
 ### 不负责
@@ -58,6 +59,7 @@ flowchart LR
 - 决定 Run 状态、缓存选择、版本发布或访问权限；
 - 自行补造后端未返回的科研事实；
 - 在 Site 与 Workspace 重复维护同一业务状态。
+- 将 Fixture E2E 或 HTTP-shaped 组件测试表述为真实 HTTP Browser / Compose 集成证据。
 
 ## 3. B：API、Application 与 Workflow
 

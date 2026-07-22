@@ -30,6 +30,7 @@ M1 完成需要同时满足：
 - `/api/v1` 健康检查和回归测试通过；
 - Node.js 24.18.0、pnpm 11.13.1、根 lockfile、uv、Schema 导出和 Foundation CI 通过；
 - A-01 Astro Site、React Workspace、共享包、根工具链与最小路由通过 build、E2E、architecture 和 retirement checks；
+- A-16 Tour、Workspace 与匿名 Share 在同一 Fixture / HTTP Repository Port 组件路径上覆盖 Contract/Run、WorkspaceSnapshot 冲突和冻结 Share 的组件及 Fixture E2E 行为；
 - 运行时退役扫描通过，历史应用目录、专用依赖和环境变量不存在。
 
 ### Pending M1 capabilities
@@ -38,7 +39,7 @@ M1 完成需要同时满足：
 - X-00 已冻结主案例事实包；
 - `/api/v2` 最小 Session、Project、Contract、Run、Event、Artifact、Version、Workspace 和 Share Contract 可测试；
 - A-02 静态首页为极简单英雄区（Hero + 双 CTA + 一句标题 + 短注），Workspace Shell 支持键盘、移动端和实时视觉降级；Token 为 bluegray 体系且业务组件不消费 Raw；
-- A-03 的 Fixture / HTTP Adapter 返回同一 Domain Model；
+- A-03 的 Fixture / HTTP Adapter 返回同一 Domain Model，并在真实 API Browser、Compose 与刷新恢复场景完成 X-01 集成验证；
 - X-01 的 Session、Contract、Run、Event、WorkspaceSnapshot 和 ShareSnapshot 主流程通过；
 - Current、Implemented 和 Pending 在页面、文档和材料中无混淆。
 

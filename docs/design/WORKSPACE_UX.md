@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------- |
 | Status         | Accepted                                                |
 | Authority      | 工作台信息架构、核心交互、页面状态与 Guided Tour       |
-| Implementation | A-01 routes Current；A-02/A-03 experience Pending      |
+| Implementation | A-01 routes 与 A-16 Tour/Workspace/Share Port 行为 Current；A-02 视觉与 X-01 真实集成 Pending |
 
 本文定义科研工作台的信息架构、核心交互、页面状态和 Guided Tour。工作台借鉴现代 Agent Desktop 的桌面级组织能力，但不采用“聊天线程 + 工具日志”作为产品核心。
 
@@ -107,7 +107,7 @@
 | Research Console       | 76px 收起 | 76–280px   |
 | Research Canvas        | 自适应    | 最小 560px |
 
-空间不足时优先收起右栏，其次左栏；中央画布小于最低宽度时切换单焦点视图。
+空间不足时优先将右栏、再将左栏转为原生 `details` 披露区；不得以 `display: none` 移除唯一入口。中央画布小于最低宽度时切换单焦点视图。
 
 主要设计与视觉回归基准为 `1440×900`、`1920×1080`；`1280px` 宽仍必须可完成 Research Contract、运行、产物审查和 Evidence 定位主流程。
 
@@ -433,6 +433,13 @@ AI 响应优先生成：
 
 两者共享相同领域模型与 UI 组件，不维护两套页面。
 
+### 11.4 A-16 当前行为边界
+
+- 未配置 API origin 时，Tour 以版本化 Fixture 呈现 Demo Replay；Live 控件保留但禁用并有文字标识。
+- 配置合法 API origin 时，同一页面组件切换到 HTTP Repository Port；模式选择只传递给 Run `execution_mode`，不写入 Draft 或 Contract。
+- Draft 在确认成功后于当前页面锁定为只读；创建 Run 的单次重试复用同一 Idempotency-Key。
+- 当前证据是组件测试和 Fixture Playwright；真实 HTTP Browser、外部服务失败和刷新恢复仍由 #122 / #31 处理。
+
 ## 12. 会话与分享
 
 ### 12.1 免登录模式
@@ -452,6 +459,8 @@ AI 响应优先生成：
 - 可公开的 Evidence 和导出物
 
 只读页面不得暴露内部密钥、受限全文、原始错误堆栈或未授权输入。
+
+A-16 的公开路由只读取冻结 `PublicShareSnapshot`，不进入私有 Shell、不创建 Session，并区分不可用（撤销、过期或 404）与网络失败。创建后的 `shareUrl` 仅保留在当前内存状态中；页面不显示 raw token。
 
 ## 13. 空、加载、失败与缓存状态
 
@@ -498,6 +507,8 @@ ASCII 动效只辅助状态表达，不替代文字和进度。
 
 移动端不提供三面板对照和完整高密度图谱编辑。WebGL 使用低质量或静态 Poster。
 
+A-16 的 375px 视图保留 Atlas 与 Observatory 的 `details` 摘要、Canvas 和 Console 主动作；不把侧栏内容直接隐藏。
+
 ## 16. UX 验收
 
 - 新用户在首页 10 秒内能识别产品主题，并看到「开始演示」「进入工作台」两个主动作；首屏文字区块不超过按钮行、一句标题与三至四段短注。
@@ -512,3 +523,4 @@ ASCII 动效只辅助状态表达，不替代文字和进度。
 - `1440×900`、`1920×1080` 完整布局与 `1280px` 可完成主流程均通过验证。
 - 中央最多三个拆分面板，底部 Research Console 不遮挡当前核心产物。
 - 无鼠标可以确认 Research Contract、切换产物、定位 Evidence、重试或取消运行。
+- A-16 Fixture E2E 覆盖 Tour、WorkspaceSnapshot 保存、Artifact/Evidence、冻结 Share、375px 与 200% 字体；这不是对真实 HTTP Browser 或 Compose 的验收替代。

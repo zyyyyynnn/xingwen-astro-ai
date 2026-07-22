@@ -219,6 +219,19 @@ const boundaryRules = new Map([
   ],
 ]);
 
+const workspacePresentationRule = {
+  description: "the Workspace presentation boundary",
+  forbiddenBareImports: new Set(["@xingwen/contracts"]),
+  forbiddenIdentifiers: new Set([
+    "EventSource",
+    "WebSocket",
+    "XMLHttpRequest",
+    "fetch",
+  ]),
+  forbidApiVersionPaths: true,
+  forbidRepositorySymbols: false,
+};
+
 function isRelativeImport(specifier) {
   return specifier.startsWith("./") || specifier.startsWith("../");
 }
@@ -241,10 +254,17 @@ function collectBoundaryViolations(file, content, rule) {
 
   function checkModuleSpecifier(specifier) {
     if (
+      rule.allowedBareImports &&
       !isRelativeImport(specifier) &&
       !rule.allowedBareImports.has(specifier)
     ) {
       violations.add(`forbidden runtime import ${specifier}`);
+    }
+
+    for (const forbidden of rule.forbiddenBareImports ?? []) {
+      if (specifier === forbidden || specifier.startsWith(`${forbidden}/`)) {
+        violations.add(`forbidden transport import ${specifier}`);
+      }
     }
   }
 
@@ -298,6 +318,9 @@ function collectBoundaryViolations(file, content, rule) {
   }
 
   visit(sourceFile);
+  if (rule.forbidApiVersionPaths && /\/api\/v[12](?=\/|["'`])/u.test(content)) {
+    violations.add("hardcoded API version path");
+  }
   return [...violations].map(
     (violation) => `${file} violates ${rule.description}: ${violation}.`,
   );
@@ -317,6 +340,20 @@ for (const [location, rule] of boundaryRules) {
   }
 }
 
+for (const file of sourceFiles.filter(
+  (entry) =>
+    entry.startsWith("apps/workspace/src/pages/") ||
+    entry.startsWith("apps/workspace/src/components/"),
+)) {
+  failures.push(
+    ...collectBoundaryViolations(
+      file,
+      readFileSync(resolve(root, file), "utf8"),
+      workspacePresentationRule,
+    ),
+  );
+}
+
 const boundaryRuleFixtures = [
   ["packages/domain", 'import http from "node:http";'],
   ["packages/domain", 'localStorage.getItem("token");'],
@@ -331,6 +368,29 @@ for (const [location, content] of boundaryRuleFixtures) {
     collectBoundaryViolations("boundary-fixture.ts", content, rule).length === 0
   ) {
     failures.push(`Architecture boundary self-test failed for ${location}.`);
+  }
+}
+
+const workspacePresentationRuleFixtures = [
+  'fetch("/api/v2/research/projects");',
+  "new XMLHttpRequest();",
+  'new EventSource("/events");',
+  'new WebSocket("wss://example.test/events");',
+  'import schema from "@xingwen/contracts";',
+  'const apiPath = "/api/v1/tasks";',
+];
+
+for (const content of workspacePresentationRuleFixtures) {
+  if (
+    collectBoundaryViolations(
+      "workspace-presentation-fixture.tsx",
+      content,
+      workspacePresentationRule,
+    ).length === 0
+  ) {
+    failures.push(
+      "Architecture boundary self-test failed for Workspace pages.",
+    );
   }
 }
 
