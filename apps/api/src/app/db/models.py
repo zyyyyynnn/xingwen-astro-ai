@@ -67,11 +67,45 @@ class ResearchContractModel(TimestampMixin, Base):
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    # Full frozen ``ResearchContractInput`` payload so the immutable contract can
+    # be recovered verbatim (not only by hash). Nullable for the #76/#77 workflow
+    # baseline rows that predate the B-runtime confirm path.
+    content: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    created_from_draft_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
 
     __table_args__ = (
         UniqueConstraint("id", "project_id", name="uq_research_contract_id_project"),
         UniqueConstraint("project_id", "version", name="uq_research_contract_project_version"),
         CheckConstraint("version >= 1", name="version_positive"),
+    )
+
+
+class ResearchContractDraftModel(TimestampMixin, Base):
+    """Editable, session-scoped draft persisted for the B-runtime confirm path.
+
+    A draft is owned by a session (not a project); ``version`` is the optimistic
+    concurrency token used by the ``If-Match`` header on PATCH updates.
+    """
+
+    __tablename__ = "research_contract_drafts"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    intent: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
+    contract: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    warnings: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="version_positive"),
+        CheckConstraint(
+            "status IN ('draft','confirmed','expired')", name="draft_status"
+        ),
     )
 
 

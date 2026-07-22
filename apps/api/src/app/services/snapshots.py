@@ -23,6 +23,10 @@ from app.schemas.v2 import (
     WorkspaceSnapshotInput,
 )
 from app.security import OwnershipPolicy, SecurityProblem, require_revision
+from app.services.resource_authority import (
+    InMemoryResourceAuthority,
+    ResourceAuthority,
+)
 
 
 SHARE_TOKEN_BYTES = 32
@@ -33,18 +37,6 @@ class _WorkspaceRecord:
     owner_session_id: str
     payload: WorkspaceSnapshotInput
     snapshot: WorkspaceSnapshot
-
-
-@dataclass(frozen=True, slots=True)
-class _VersionRecord:
-    project_id: str
-    projection: PublicArtifactVersion
-
-
-@dataclass(frozen=True, slots=True)
-class _EvidenceRecord:
-    project_id: str
-    projection: PublicEvidence
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,47 +51,47 @@ class _ShareRecord:
 class InMemorySnapshotStore:
     """Process-local adapter preserving B-17 concurrency and security semantics."""
 
-    def __init__(self) -> None:
-        self._projects: dict[str, str] = {}
-        self._runs: dict[str, str] = {}
-        self._versions: dict[str, _VersionRecord] = {}
-        self._evidence: dict[str, _EvidenceRecord] = {}
+    def __init__(self, authority: ResourceAuthority | None = None) -> None:
+        self._authority: ResourceAuthority = authority or InMemoryResourceAuthority()
         self._workspaces: dict[tuple[str, str], _WorkspaceRecord] = {}
         self._shares: dict[str, _ShareRecord] = {}
         self._share_by_token_hash: dict[str, str] = {}
         self._lock = RLock()
 
-    def register_project(self, *, project_id: str, owner_session_id: str) -> None:
-        """Register the ownership fact supplied by the Project application boundary."""
+    def _memory_authority(self) -> InMemoryResourceAuthority:
+        if not isinstance(self._authority, InMemoryResourceAuthority):
+            raise TypeError(
+                "register_* is only supported by the in-memory resource authority"
+            )
+        return self._authority
 
-        with self._lock:
-            self._projects[project_id] = owner_session_id
+    def register_project(self, *, project_id: str, owner_session_id: str) -> None:
+        """Seed an ownership fact (in-memory authority only; tests/back-compat)."""
+
+        self._memory_authority().register_project(
+            project_id=project_id, owner_session_id=owner_session_id
+        )
 
     def register_run(self, *, run_id: str, project_id: str) -> None:
-        """Register a Run reference that workspace state may restore."""
+        """Seed a Run reference that workspace state may restore (in-memory only)."""
 
-        with self._lock:
-            self._runs[run_id] = project_id
+        self._memory_authority().register_run(run_id=run_id, project_id=project_id)
 
     def register_artifact_version(
         self, *, project_id: str, projection: PublicArtifactVersion
     ) -> None:
-        """Register immutable version metadata eligible for a redacted share."""
+        """Seed immutable version metadata eligible for a share (in-memory only)."""
 
-        with self._lock:
-            self._versions[projection.id] = _VersionRecord(
-                project_id=project_id,
-                projection=projection,
-            )
+        self._memory_authority().register_artifact_version(
+            project_id=project_id, projection=projection
+        )
 
     def register_evidence(self, *, project_id: str, projection: PublicEvidence) -> None:
-        """Register minimal Evidence metadata eligible for a redacted share."""
+        """Seed minimal Evidence metadata eligible for a share (in-memory only)."""
 
-        with self._lock:
-            self._evidence[projection.id] = _EvidenceRecord(
-                project_id=project_id,
-                projection=projection,
-            )
+        self._memory_authority().register_evidence(
+            project_id=project_id, projection=projection
+        )
 
     def get_workspace(self, *, project_id: str, session_id: str) -> WorkspaceSnapshot:
         """Return the private snapshot owned by the current session."""
@@ -293,7 +285,7 @@ class InMemorySnapshotStore:
             return self._shares[share_id].token_hash
 
     def _require_project_owner(self, *, project_id: str, session_id: str) -> None:
-        owner_session_id = self._projects.get(project_id)
+        owner_session_id = self._authority.project_owner(project_id)
         if owner_session_id is None:
             raise _not_found("PROJECT_NOT_FOUND")
         OwnershipPolicy.require_owner(
@@ -307,7 +299,7 @@ class InMemorySnapshotStore:
     ) -> None:
         if (
             payload.active_run_id is not None
-            and self._runs.get(payload.active_run_id) != project_id
+            and self._authority.run_project(payload.active_run_id) != project_id
         ):
             raise _not_found("RUN_NOT_FOUND")
         version_ids = {
@@ -342,23 +334,25 @@ class InMemorySnapshotStore:
         if reference is not None and reference.artifact_version_id is not None:
             version_ids.add(reference.artifact_version_id)
 
-    def _require_version(self, project_id: str, version_id: str) -> _VersionRecord:
-        record = self._versions.get(version_id)
-        if record is None or record.project_id != project_id:
+    def _require_version(
+        self, project_id: str, version_id: str
+    ) -> PublicArtifactVersion:
+        projection = self._authority.public_artifact_version(project_id, version_id)
+        if projection is None:
             raise _not_found("ARTIFACT_VERSION_NOT_FOUND")
-        return record
+        return projection
 
-    def _require_evidence(self, project_id: str, evidence_id: str) -> _EvidenceRecord:
-        record = self._evidence.get(evidence_id)
-        if record is None or record.project_id != project_id:
+    def _require_evidence(self, project_id: str, evidence_id: str) -> PublicEvidence:
+        projection = self._authority.public_evidence(project_id, evidence_id)
+        if projection is None:
             raise _not_found("EVIDENCE_NOT_FOUND")
-        return record
+        return projection
 
     def _share_versions(
         self, project_id: str, version_ids: tuple[str, ...]
     ) -> tuple[PublicArtifactVersion, ...]:
         return tuple(
-            self._require_version(project_id, item).projection for item in version_ids
+            self._require_version(project_id, item) for item in version_ids
         )
 
     def _share_evidence(
@@ -368,12 +362,12 @@ class InMemorySnapshotStore:
         *,
         allowed_version_ids: set[str],
     ) -> tuple[PublicEvidence, ...]:
-        records = tuple(
+        projections = tuple(
             self._require_evidence(project_id, item) for item in evidence_ids
         )
         if any(
-            record.projection.artifact_version_id not in allowed_version_ids
-            for record in records
+            projection.artifact_version_id not in allowed_version_ids
+            for projection in projections
         ):
             raise SecurityProblem(
                 status=422,
@@ -381,7 +375,7 @@ class InMemorySnapshotStore:
                 title="Invalid share scope",
                 detail="Shared Evidence must belong to a selected ArtifactVersion",
             )
-        return tuple(record.projection for record in records)
+        return projections
 
     @staticmethod
     def _snapshot_status(snapshot: ShareSnapshot, now: datetime) -> ShareSnapshot:
