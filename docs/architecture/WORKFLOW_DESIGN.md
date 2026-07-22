@@ -4,7 +4,7 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | Run 状态、事件、取消、重试、缓存与派生语义 |
-| Implementation | Pending for v2 |
+| Implementation | #76 PostgreSQL model/migration/repository baseline Implemented；lease, recovery and publication Pending |
 | Current runtime | `apps/api/src/app/workflow` 的 v1 Phase 0 状态机骨架 |
 | Target runtime | Project / Run / ArtifactVersion 工作流 |
 
@@ -187,7 +187,7 @@ GraphEdge 修订若影响 Relation、ReasoningTrace 或 Evidence，RevisionPlan 
 
 当前 v1 `ResearchTask` 快照同时校验顶层状态、进度和 Step 状态：初始 `pending` 快照不得包含已开始 Step，含 `running` Step 的快照不得为 `pending`，`completed` 快照的进度必须为 100。
 
-目标仍待实现：数据库 Repository/Hooks、Project/Run 持久化、RunEvent、取消资源、派生 Run、ArtifactVersion 发布、自动重试、真实 CacheSelector 与 v2 API。
+当前已实现 #76 的 PostgreSQL Schema、Alembic migration 和最小 Repository / Unit of Work 基线。仍待实现：数据库 WorkflowHooks、lease 与恢复执行、取消资源、派生 Run、ArtifactVersion 原子发布、自动重试、真实 CacheSelector 与 v2 API。
 
 迁移期间 v1 `ResearchTask` 可适配为一个 Project + 一个 Run，但 v2 语义不得回写破坏现有接口。
 

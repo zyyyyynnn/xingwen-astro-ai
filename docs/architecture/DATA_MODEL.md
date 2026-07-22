@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | 领域实体、字段、枚举与不变量 |
-| Implementation | Core Pydantic contract 与 D-02 PaperCollection Pipeline content Implemented；persistence Pending |
+| Implementation | Core Pydantic contract、D-02 PaperCollection Pipeline content 与 #76 PostgreSQL model/migration baseline Implemented；workflow execution and publication Pending |
 | Current model | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)） |
 | Target model | Project / Run / Artifact / ArtifactVersion |
 
-本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema 已实现；数据库表、Session、Workspace/Share 和执行能力仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
+本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界及 #76 Workflow PostgreSQL Schema 基线已实现；Workspace/Share、Workflow 执行和原子发布仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
 ## 1. 建模原则
 
@@ -176,6 +176,8 @@ failure_code
 public_message
 ```
 
+`output_artifact_version_ids` 是读取投影，不作为 `RunStep` 数据库数组事实保存；持久化层通过 `ArtifactVersion.run_step_id` 与 `step_attempt_id` 反向定位输出。
+
 StepAttempt 记录 `attempt_number`、状态、时间、error class/code、retryable 和 upstream request id；重试不得覆盖前一次失败。
 
 RunEvent 包含 `run_id`、单调递增 `sequence`、event_type、step_key、progress、public_message、artifact_version_ids 和 occurred_at。Event 用于增量通知，不作为当前状态事实来源，也不包含 chain-of-thought。
@@ -215,6 +217,10 @@ evidence_ids[]
 supersedes_version_id
 created_at
 ```
+
+#76 持久化基线额外保存 `run_step_id`、`step_attempt_id` 与 `producer_execution_id` 外键，用于从不可变版本反向定位实际 Step、Attempt 和 ProducerExecution；这些字段不改变公开 ArtifactVersion 的领域身份。
+
+组合外键强制 Contract、Run、Artifact、Step、Attempt、ProducerExecution 与 ArtifactVersion 留在同一 Project / Run / Artifact 聚合内；`latest_version_id` 与 `supersedes_version_id` 不能跨 Artifact 引用。
 
 不变量：
 
