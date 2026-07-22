@@ -47,6 +47,7 @@ Session 服务端变量：
 | `SESSION_TTL_SECONDS` | `86400` | 匿名 Session 有效期 |
 | `SESSION_CREATE_RATE_LIMIT` | `30` | 单客户端每分钟创建 Session 的上限 |
 | `SHARE_CREATE_RATE_LIMIT` | `20` | 单 Session 每分钟创建 ShareSnapshot 的上限 |
+| `PERSISTENT_WORKFLOW_ENABLED` | `false` | #77 PostgreSQL Workflow Executor 渐进接入开关；当前 `/api/v1` 始终保留原执行路径 |
 
 Production 必须保持 `SESSION_COOKIE_SECURE=true`。Session 与 CSRF token 不得写入浏览器持久化存储或日志。
 
@@ -123,7 +124,7 @@ Repository 集成测试只允许连接数据库名包含 `test` 的隔离数据�
 
 ```powershell
 $env:TEST_DATABASE_URL = "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/xingwen_astro_ai_test"
-uv run pytest tests/test_db_postgres_integration.py
+uv run pytest tests/test_db_postgres_integration.py tests/test_workflow_store_postgres.py
 ```
 
 导出 Schema：

@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
+from app.db.session import create_engine_from_url, session_factory
 from app.errors import ApiError
 from app.middleware import (
     RequestIDMiddleware,
@@ -38,6 +39,8 @@ from app.security import (
     install_share_token_access_log_filter,
 )
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
+from app.workflow.persistent_executor import PersistentWorkflowExecutor
+from app.workflow.store import PersistentWorkflowStore
 
 
 def create_app() -> FastAPI:
@@ -62,6 +65,23 @@ def create_app() -> FastAPI:
     snapshot_store = InMemorySnapshotStore()
     app.state.snapshot_store = snapshot_store
     app.state.snapshot_service = SnapshotService(snapshot_store)
+    app.state.workflow_store = None
+    app.state.workflow_executor = None
+    if settings.PERSISTENT_WORKFLOW_ENABLED:
+        if settings.DATABASE_URL is None:
+            raise RuntimeError(
+                "DATABASE_URL is required when PERSISTENT_WORKFLOW_ENABLED is true"
+            )
+        workflow_engine = create_engine_from_url(
+            settings.DATABASE_URL.get_secret_value()
+        )
+        app.state.workflow_store = PersistentWorkflowStore(
+            session_factory(workflow_engine)
+        )
+        app.state.workflow_executor = PersistentWorkflowExecutor(
+            app.state.workflow_store
+        )
+        app.router.add_event_handler("shutdown", workflow_engine.dispose)
     app.add_middleware(
         V2SecurityMiddleware,
         sessions=session_service,
