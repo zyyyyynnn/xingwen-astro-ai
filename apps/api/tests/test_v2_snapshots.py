@@ -13,7 +13,6 @@ from pydantic import ValidationError
 
 from app.config import settings
 from app.main import create_app
-from app.routers import snapshots
 from app.schemas.v2 import (
     CreateShareSnapshotRequest,
     PublicArtifactVersion,
@@ -77,7 +76,9 @@ def _workspace_payload(*, layout_preset: str = "research-default") -> dict[str, 
 
 def _session_client() -> tuple[FastAPI, TestClient, str, str]:
     app = create_app()
-    app.include_router(snapshots.router)
+    store = InMemorySnapshotStore()
+    app.state.snapshot_store = store
+    app.state.snapshot_service = SnapshotService(store)
     client = TestClient(app, base_url="https://testserver")
     created = client.post("/api/v2/sessions")
     assert created.status_code == 201
@@ -88,15 +89,16 @@ def _session_client() -> tuple[FastAPI, TestClient, str, str]:
     return app, client, session_id, csrf_token
 
 
-def test_snapshot_runtime_remains_unmounted_until_resource_sources_are_wired() -> None:
+def test_snapshot_runtime_reports_unavailable_without_database() -> None:
     app = create_app()
     client = TestClient(app, base_url="https://testserver")
     created = client.post("/api/v2/sessions")
     assert created.status_code == 201
 
-    response = client.get("/api/v2/projects/proj_01/workspace-snapshot")
+    response = client.get("/api/v2/projects/proj_unknown/workspace-snapshot")
 
-    assert response.status_code == 404
+    assert response.status_code == 503
+    assert response.json()["code"] == "SNAPSHOT_RUNTIME_UNAVAILABLE"
 
 
 def _seed_project(

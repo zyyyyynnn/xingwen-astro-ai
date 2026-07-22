@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,10 +29,13 @@ from app.routers import (
     paper_acquisition,
     papers,
     reasoning,
+    research,
     sessions,
+    snapshots,
     sources,
     tasks,
 )
+from app.schemas.manifest import ManifestBundle, load_manifest_bundle
 from app.security import (
     InMemoryRateLimiter,
     InMemorySessionStore,
@@ -40,8 +45,24 @@ from app.security import (
 )
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 from app.services.artifacts import ArtifactReadService
+from app.services.research import ResearchApplicationService
+from app.services.resource_authority import (
+    PersistentResourceAuthority,
+    ResourceAuthority,
+)
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.store import PersistentWorkflowStore
+
+
+def _load_case_manifests() -> ManifestBundle:
+    root = Path(__file__).resolve().parents[4]
+    manifest_root = (
+        root / "services" / "data_pipeline" / "manifests" / "exoplanet_host_star"
+    )
+    return load_manifest_bundle(
+        manifest_root / "case-manifest.v1.json",
+        manifest_root / "field-manifest.v1.json",
+    )
 
 
 def create_app() -> FastAPI:
@@ -63,18 +84,20 @@ def create_app() -> FastAPI:
     app.state.share_rate_limiter = InMemoryRateLimiter(
         limit=settings.SHARE_CREATE_RATE_LIMIT
     )
-    snapshot_store = InMemorySnapshotStore()
-    app.state.snapshot_store = snapshot_store
-    app.state.snapshot_service = SnapshotService(snapshot_store)
     app.state.workflow_store = None
     app.state.workflow_executor = None
     app.state.artifact_read_service = None
+    app.state.research_service = None
     database_engine = None
+    resource_authority: ResourceAuthority | None = None
     if settings.DATABASE_URL is not None:
         database_engine = create_engine_from_url(
             settings.DATABASE_URL.get_secret_value()
         )
         app.state.artifact_read_service = ArtifactReadService(
+            session_factory(database_engine)
+        )
+        resource_authority = PersistentResourceAuthority(
             session_factory(database_engine)
         )
         app.router.add_event_handler("shutdown", database_engine.dispose)
@@ -83,12 +106,20 @@ def create_app() -> FastAPI:
             raise RuntimeError(
                 "DATABASE_URL is required when PERSISTENT_WORKFLOW_ENABLED is true"
             )
-        app.state.workflow_store = PersistentWorkflowStore(
-            session_factory(database_engine)
+        workflow_store = PersistentWorkflowStore(session_factory(database_engine))
+        app.state.workflow_store = workflow_store
+        app.state.workflow_executor = PersistentWorkflowExecutor(workflow_store)
+        app.state.research_service = ResearchApplicationService(
+            factory=session_factory(database_engine),
+            workflow_store=workflow_store,
+            manifests=_load_case_manifests(),
         )
-        app.state.workflow_executor = PersistentWorkflowExecutor(
-            app.state.workflow_store
-        )
+    app.state.snapshot_store = None
+    app.state.snapshot_service = None
+    if resource_authority is not None:
+        snapshot_store = InMemorySnapshotStore(resource_authority)
+        app.state.snapshot_store = snapshot_store
+        app.state.snapshot_service = SnapshotService(snapshot_store)
     app.add_middleware(
         V2SecurityMiddleware,
         sessions=session_service,
@@ -123,6 +154,8 @@ def create_app() -> FastAPI:
     app.include_router(evidence.router)
     app.include_router(sessions.router)
     app.include_router(artifacts.router)
+    app.include_router(research.router)
+    app.include_router(snapshots.router)
 
     return app
 
