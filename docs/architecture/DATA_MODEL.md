@@ -4,11 +4,11 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | 领域实体、字段、枚举与不变量 |
-| Implementation | Core Pydantic contract、Workspace/Share application projection、D-02 PaperCollection Pipeline content、#76 PostgreSQL baseline 与 #77 Run lease/recovery store Implemented；Workspace/Share runtime integration 与 ArtifactVersion publication Pending |
+| Implementation | Core Pydantic contract、Workspace/Share application projection、D-02 PaperCollection Pipeline content、#76 PostgreSQL baseline、#77 Run lease/recovery store 与 #78 ArtifactVersion atomic publisher Implemented；Workspace/Share runtime integration Pending |
 | Current model | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)） |
 | Target model | Project / Run / Artifact / ArtifactVersion |
 
-本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Workspace/Share application projection、#76 Workflow PostgreSQL Schema 基线及 #77 Run lease/recovery store 已实现；Workspace/Share 生产事实源接入、ArtifactVersion 原子发布与其余 v2 Application API 仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
+本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Workspace/Share application projection、#76 Workflow PostgreSQL Schema 基线、#77 Run lease/recovery store 及 #78 ArtifactVersion 原子 Publisher 已实现；Workspace/Share 生产事实源接入与其余 v2 Application API 仍未实现。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
 ## 1. 建模原则
 
@@ -224,13 +224,14 @@ supersedes_version_id
 created_at
 ```
 
-#76 持久化基线额外保存 `run_step_id`、`step_attempt_id` 与 `producer_execution_id` 外键，用于从不可变版本反向定位实际 Step、Attempt 和 ProducerExecution；这些字段不改变公开 ArtifactVersion 的领域身份。
+#76 持久化基线额外保存 `run_step_id`、`step_attempt_id` 与 `producer_execution_id` 外键，用于从不可变版本反向定位实际 Step、Attempt 和 ProducerExecution；#78 Publisher 使用 `publication_key` 保证同一 Artifact 内的发布幂等。这些字段不改变公开 ArtifactVersion 的领域身份。
 
 组合外键强制 Contract、Run、Artifact、Step、Attempt、ProducerExecution 与 ArtifactVersion 留在同一 Project / Run / Artifact 聚合内；`latest_version_id` 与 `supersedes_version_id` 不能跨 Artifact 引用。
 
 不变量：
 
 - `(artifact_id, version_number)` 唯一，content 创建后不可原地修改。
+- `(artifact_id, publication_key)` 唯一；同 key 同内容和 producer 条件返回既有 Version，不同条件稳定冲突。
 - Evidence、ShareSnapshot 与 Export 固定引用 version id，不引用 latest。
 - Cached 还需 CacheRecord 与 origin Run；修订版本还需 supersedes version 和 Feedback，并保留自身实际来源模式。
 - `producer` 包含 type、name、version，以及适用的 model、prompt、parameters hash；不包含密钥或私有推理。
@@ -247,7 +248,7 @@ FieldDefinition 包含 name、label、description、data_type、canonical_unit�
 
 PaperCollection 包含 query、acquisition_run、candidates、selected_paper_ids、dedupe_rule、ranking_rule、source_snapshot_ids。Candidate 至少包含 title、authors、year、DOI/arXiv/URL、source snapshot、relevance、selected 和 selection_reason。Seed 只能标记 benchmark、scientific_review 或 fixture。
 
-当前 D-02 已在唯一 Pydantic 编写源实现独立的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。这不表示 ArtifactVersion Publisher、`/api/v2` 或 Paper Pipeline 到 #77 Workflow Store 的集成已实现。
+当前 D-02 已在唯一 Pydantic 编写源实现独立的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。#78 已实现通用 Publisher 端口，但这不表示 `/api/v2` HTTP API 或 Paper Pipeline 到持久化 Workflow 的生产集成已实现。
 
 PaperSummary 包含 paper_id、research_goal、method、dataset、findings、limitations、future_work、evidence_ids；每个核心 finding / limitation 可定位 Evidence。
 
@@ -347,13 +348,13 @@ revoked_at
 
 CacheRecord 至少包含 origin_run_id、artifact_version_id、source_snapshot_ids、input_hash、contract_hash、producer_version、created_at 和 validity_scope。缓存不得只是无来源 JSON。
 
-ProducerExecution 可由现有 ExperimentRun 迁移，记录 run、step、producer/model、prompt version、parameters/input/output hash、状态、时间、token usage、latency 和 error code；不保存密钥、受限全文或私有 chain-of-thought。
+ProducerExecution 记录 run、step、attempt、lease generation、producer/model、prompt version/hash、安全标量 parameters 及其 hash、input/output hash、状态、时间、token usage、latency 和 error code；成功、失败、rejected 与 cancelled 终态均保留。参数键和值经过长度、类型和敏感名称校验，不保存密钥、认证头、受限全文、原始模型长输出或私有 chain-of-thought。
 
 ## 14. 一致性边界
 
 - Project 聚合只内嵌 Run / Artifact 摘要，不内嵌完整大产物。
 - Run Snapshot 是状态事实来源；Event 只做增量通知。
-- ArtifactVersion 与 latest 指针在同一事务登记。
+- ArtifactVersion、latest 指针、StepAttempt、RunStep、ResearchRun 与 RunEvent 在同一 fenced 发布事务登记；任一写入失败整体回滚。
 - Evidence 创建前验证 target 属于对应 ArtifactVersion。
 - Graph 发布前验证所有边 Evidence，跨文献边再验证 Relation / Trace。
 - ShareSnapshot 创建时验证版本属于同一 Project，并执行脱敏。
