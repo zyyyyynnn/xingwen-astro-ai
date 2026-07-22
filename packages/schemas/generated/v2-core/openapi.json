@@ -124,7 +124,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/SourceMode"
+            "$ref": "#/components/schemas/app__schemas__v2__SourceMode"
           },
           "source_snapshot_ids": {
             "default": [],
@@ -214,7 +214,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/SourceMode"
+            "$ref": "#/components/schemas/app__schemas__v2__SourceMode"
           },
           "supersedes_version_id": {
             "anyOf": [
@@ -284,6 +284,35 @@
         ],
         "title": "CachePolicy",
         "type": "string"
+      },
+      "CollectionEnvelope_PaperCollectionCandidateRead_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PaperCollectionCandidateRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "page": {
+            "$ref": "#/components/schemas/CursorPage"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links",
+          "page"
+        ],
+        "title": "CollectionEnvelope[PaperCollectionCandidateRead]",
+        "type": "object"
       },
       "CollectionEnvelope_ResearchArtifact_": {
         "additionalProperties": false,
@@ -611,6 +640,27 @@
           "links"
         ],
         "title": "Envelope[EvidenceRead]",
+        "type": "object"
+      },
+      "Envelope_PaperCollectionRead_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PaperCollectionRead"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[PaperCollectionRead]",
         "type": "object"
       },
       "Envelope_PublicShareSnapshot_": {
@@ -1087,6 +1137,110 @@
         "type": "string"
       },
       "JsonValue": {},
+      "NormalizedPaperQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "normalization_rule_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Normalization Rule Version",
+            "type": "string"
+          },
+          "normalized_keywords": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Normalized Keywords",
+            "type": "array"
+          },
+          "normalized_query_string": {
+            "minLength": 1,
+            "title": "Normalized Query String",
+            "type": "string"
+          },
+          "original_keywords": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Original Keywords",
+            "type": "array"
+          },
+          "original_query_string": {
+            "minLength": 1,
+            "title": "Original Query String",
+            "type": "string"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaperQueryPagination"
+          },
+          "query_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Query Hash",
+            "type": "string"
+          },
+          "query_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Query Id",
+            "type": "string"
+          },
+          "sort_strategy": {
+            "minLength": 1,
+            "title": "Sort Strategy",
+            "type": "string"
+          },
+          "source_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Source Ids",
+            "type": "array"
+          },
+          "source_parameters": {
+            "patternProperties": {
+              "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            },
+            "title": "Source Parameters",
+            "type": "object"
+          },
+          "year_from": {
+            "maximum": 2100.0,
+            "minimum": 1900.0,
+            "title": "Year From",
+            "type": "integer"
+          },
+          "year_to": {
+            "maximum": 2100.0,
+            "minimum": 1900.0,
+            "title": "Year To",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query_id",
+          "normalization_rule_version",
+          "original_keywords",
+          "normalized_keywords",
+          "original_query_string",
+          "normalized_query_string",
+          "year_from",
+          "year_to",
+          "source_ids",
+          "source_parameters",
+          "pagination",
+          "sort_strategy",
+          "query_hash"
+        ],
+        "title": "NormalizedPaperQuery",
+        "type": "object"
+      },
       "ObservatoryWorkspaceState": {
         "additionalProperties": false,
         "properties": {
@@ -1118,6 +1272,854 @@
           }
         },
         "title": "ObservatoryWorkspaceState",
+        "type": "object"
+      },
+      "PaperBenchmarkReference": {
+        "additionalProperties": false,
+        "properties": {
+          "benchmark_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Benchmark Id",
+            "type": "string"
+          },
+          "benchmark_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Benchmark Version",
+            "type": "string"
+          },
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "scenario_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Scenario Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scientific_payload_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Scientific Payload Hash",
+            "type": "string"
+          },
+          "x00_main_sha": {
+            "pattern": "^[0-9a-f]{40}$",
+            "title": "X00 Main Sha",
+            "type": "string"
+          }
+        },
+        "required": [
+          "benchmark_id",
+          "schema_version",
+          "benchmark_version",
+          "scientific_payload_hash",
+          "content_hash",
+          "scenario_id",
+          "x00_main_sha"
+        ],
+        "title": "PaperBenchmarkReference",
+        "type": "object"
+      },
+      "PaperCandidateConflict": {
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "enum": [
+              "conflict",
+              "uncertain_match"
+            ],
+            "title": "Classification",
+            "type": "string"
+          },
+          "detail": {
+            "minLength": 1,
+            "title": "Detail",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "doi",
+              "arxiv_id",
+              "title",
+              "year",
+              "authors"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "related_candidate_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Related Candidate Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "related_candidate_id",
+          "classification",
+          "detail"
+        ],
+        "title": "PaperCandidateConflict",
+        "type": "object"
+      },
+      "PaperCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "acquisition_run": {
+            "$ref": "#/components/schemas/PaperCollectionAcquisitionRun"
+          },
+          "benchmark": {
+            "$ref": "#/components/schemas/PaperBenchmarkReference"
+          },
+          "candidates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PaperCollectionCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "dedupe_rule": {
+            "minLength": 1,
+            "title": "Dedupe Rule",
+            "type": "string"
+          },
+          "duplicate_groups": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PaperDuplicateGroup"
+            },
+            "title": "Duplicate Groups",
+            "type": "array"
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/PaperCollectionMetrics"
+          },
+          "output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Output Hash",
+            "type": "string"
+          },
+          "potential_duplicates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PaperPotentialDuplicate"
+            },
+            "title": "Potential Duplicates",
+            "type": "array"
+          },
+          "producer": {
+            "$ref": "#/components/schemas/ProducerExecution"
+          },
+          "query": {
+            "$ref": "#/components/schemas/NormalizedPaperQuery"
+          },
+          "ranking_rule": {
+            "minLength": 1,
+            "title": "Ranking Rule",
+            "type": "string"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/PaperCollectionRules"
+          },
+          "schema_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "selected_paper_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            "title": "Selected Paper Ids",
+            "type": "array"
+          },
+          "source_executions": {
+            "items": {
+              "$ref": "#/components/schemas/PaperSourceExecution"
+            },
+            "minItems": 1,
+            "title": "Source Executions",
+            "type": "array"
+          },
+          "source_snapshot_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            "title": "Source Snapshot Ids",
+            "type": "array"
+          },
+          "source_snapshots": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SourceSnapshotRecord"
+            },
+            "title": "Source Snapshots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "benchmark",
+          "query",
+          "acquisition_run",
+          "source_executions",
+          "dedupe_rule",
+          "ranking_rule",
+          "rules",
+          "producer",
+          "input_hash",
+          "metrics",
+          "output_hash"
+        ],
+        "title": "PaperCollection",
+        "type": "object"
+      },
+      "PaperCollectionAcquisitionRun": {
+        "additionalProperties": false,
+        "description": "Pipeline-local acquisition execution, never a ResearchRun state owner.",
+        "properties": {
+          "acquisition_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Acquisition Id",
+            "type": "string"
+          },
+          "candidate_count": {
+            "minimum": 0.0,
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "duplicate_group_count": {
+            "minimum": 0.0,
+            "title": "Duplicate Group Count",
+            "type": "integer"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "title": "Finished At",
+            "type": "string"
+          },
+          "selected_count": {
+            "minimum": 0.0,
+            "title": "Selected Count",
+            "type": "integer"
+          },
+          "source_failure_count": {
+            "minimum": 0.0,
+            "title": "Source Failure Count",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "partial",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "acquisition_id",
+          "status",
+          "started_at",
+          "finished_at",
+          "candidate_count",
+          "duplicate_group_count",
+          "selected_count",
+          "source_failure_count"
+        ],
+        "title": "PaperCollectionAcquisitionRun",
+        "type": "object"
+      },
+      "PaperCollectionCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "arxiv_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arxiv Id"
+          },
+          "authors": {
+            "default": [],
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Authors",
+            "type": "array"
+          },
+          "candidate_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "canonical_identity_basis": {
+            "enum": [
+              "doi",
+              "arxiv_id",
+              "title_year_authors",
+              "source_record"
+            ],
+            "title": "Canonical Identity Basis",
+            "type": "string"
+          },
+          "canonical_paper_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Canonical Paper Id",
+            "type": "string"
+          },
+          "conflicts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PaperCandidateConflict"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "dedupe_evidence": {
+            "default": [],
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Dedupe Evidence",
+            "type": "array"
+          },
+          "doi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doi"
+          },
+          "duplicate_group_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Duplicate Group Id",
+            "type": "string"
+          },
+          "exclusion_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclusion Reason"
+          },
+          "normalized_authors": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Normalized Authors",
+            "type": "array"
+          },
+          "normalized_title": {
+            "minLength": 1,
+            "title": "Normalized Title",
+            "type": "string"
+          },
+          "ranking_key": {
+            "minLength": 1,
+            "title": "Ranking Key",
+            "type": "string"
+          },
+          "ranking_rule_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Ranking Rule Version",
+            "type": "string"
+          },
+          "raw": {
+            "$ref": "#/components/schemas/RawPaperCandidate"
+          },
+          "relevance_score": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Relevance Score",
+            "type": "number"
+          },
+          "selected": {
+            "title": "Selected",
+            "type": "boolean"
+          },
+          "selection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Reason"
+          },
+          "selection_rule_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Selection Rule Version",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "maximum": 2100.0,
+                "minimum": 1900.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "candidate_id",
+          "raw",
+          "canonical_paper_id",
+          "canonical_identity_basis",
+          "title",
+          "normalized_title",
+          "duplicate_group_id",
+          "relevance_score",
+          "ranking_key",
+          "selected",
+          "ranking_rule_version",
+          "selection_rule_version"
+        ],
+        "title": "PaperCollectionCandidate",
+        "type": "object"
+      },
+      "PaperCollectionCandidateRead": {
+        "additionalProperties": false,
+        "description": "Candidate plus its duplicate, source and Evidence read projections.",
+        "properties": {
+          "candidate": {
+            "$ref": "#/components/schemas/PaperCollectionCandidate"
+          },
+          "duplicate_group": {
+            "$ref": "#/components/schemas/PaperDuplicateGroup"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceDetail"
+            },
+            "minItems": 1,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "source_snapshot": {
+            "$ref": "#/components/schemas/SourceSnapshotDetail"
+          }
+        },
+        "required": [
+          "candidate",
+          "duplicate_group",
+          "source_snapshot",
+          "evidence"
+        ],
+        "title": "PaperCollectionCandidateRead",
+        "type": "object"
+      },
+      "PaperCollectionMetrics": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_count": {
+            "minimum": 0.0,
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "candidate_recall": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Recall"
+          },
+          "duplicate_candidate_count": {
+            "minimum": 0.0,
+            "title": "Duplicate Candidate Count",
+            "type": "integer"
+          },
+          "duplicate_rate": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Duplicate Rate",
+            "type": "number"
+          },
+          "expected_candidate_count": {
+            "minimum": 0.0,
+            "title": "Expected Candidate Count",
+            "type": "integer"
+          },
+          "recalled_expected_candidate_count": {
+            "minimum": 0.0,
+            "title": "Recalled Expected Candidate Count",
+            "type": "integer"
+          },
+          "selected_count": {
+            "minimum": 0.0,
+            "title": "Selected Count",
+            "type": "integer"
+          },
+          "source_empty_result_count": {
+            "minimum": 0.0,
+            "title": "Source Empty Result Count",
+            "type": "integer"
+          },
+          "source_execution_count": {
+            "minimum": 0.0,
+            "title": "Source Execution Count",
+            "type": "integer"
+          },
+          "source_failure_count": {
+            "minimum": 0.0,
+            "title": "Source Failure Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source_execution_count",
+          "source_failure_count",
+          "source_empty_result_count",
+          "candidate_count",
+          "duplicate_candidate_count",
+          "duplicate_rate",
+          "selected_count",
+          "expected_candidate_count",
+          "recalled_expected_candidate_count"
+        ],
+        "title": "PaperCollectionMetrics",
+        "type": "object"
+      },
+      "PaperCollectionRead": {
+        "additionalProperties": false,
+        "description": "A validated domain payload pinned to one immutable ArtifactVersion.",
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "artifact_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Version Id",
+            "type": "string"
+          },
+          "collection": {
+            "$ref": "#/components/schemas/PaperCollection"
+          },
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceDetail"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "producer_execution": {
+            "$ref": "#/components/schemas/ProducerExecutionDetail"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "source_mode": {
+            "$ref": "#/components/schemas/app__schemas__v2__SourceMode"
+          },
+          "source_snapshots": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSnapshotDetail"
+            },
+            "title": "Source Snapshots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "artifact_version_id",
+          "artifact_id",
+          "project_id",
+          "source_mode",
+          "content_hash",
+          "input_hash",
+          "created_at",
+          "collection",
+          "producer_execution",
+          "source_snapshots",
+          "evidence"
+        ],
+        "title": "PaperCollectionRead",
+        "type": "object"
+      },
+      "PaperCollectionRules": {
+        "additionalProperties": false,
+        "properties": {
+          "adapter_name": {
+            "minLength": 1,
+            "title": "Adapter Name",
+            "type": "string"
+          },
+          "adapter_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Adapter Version",
+            "type": "string"
+          },
+          "canonicalization_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Canonicalization Version",
+            "type": "string"
+          },
+          "dedupe_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Dedupe Version",
+            "type": "string"
+          },
+          "query_normalization_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Query Normalization Version",
+            "type": "string"
+          },
+          "ranking_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Ranking Version",
+            "type": "string"
+          },
+          "retry_policy_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Retry Policy Version",
+            "type": "string"
+          },
+          "selection_limit": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100.0,
+            "title": "Selection Limit",
+            "type": "integer"
+          },
+          "selection_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Selection Version",
+            "type": "string"
+          },
+          "source_policy_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Source Policy Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "adapter_name",
+          "adapter_version",
+          "query_normalization_version",
+          "canonicalization_version",
+          "dedupe_version",
+          "ranking_version",
+          "selection_version",
+          "retry_policy_version",
+          "source_policy_version",
+          "selection_limit"
+        ],
+        "title": "PaperCollectionRules",
+        "type": "object"
+      },
+      "PaperDataLevel": {
+        "description": "Scientific data level, kept separate from ``source_mode``.",
+        "enum": [
+          "live_result",
+          "real_run_cache",
+          "fixture",
+          "recorded_response",
+          "benchmark",
+          "manual_review"
+        ],
+        "title": "PaperDataLevel",
+        "type": "string"
+      },
+      "PaperDuplicateGroup": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Candidate Ids",
+            "type": "array"
+          },
+          "canonical_paper_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Canonical Paper Id",
+            "type": "string"
+          },
+          "conflicts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PaperCandidateConflict"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "duplicate_group_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Duplicate Group Id",
+            "type": "string"
+          },
+          "match_basis": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Match Basis",
+            "type": "array"
+          }
+        },
+        "required": [
+          "duplicate_group_id",
+          "canonical_paper_id",
+          "candidate_ids",
+          "match_basis"
+        ],
+        "title": "PaperDuplicateGroup",
+        "type": "object"
+      },
+      "PaperPotentialDuplicate": {
+        "additionalProperties": false,
+        "properties": {
+          "basis": {
+            "const": "title_year",
+            "title": "Basis",
+            "type": "string"
+          },
+          "candidate_ids": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                "type": "string"
+              }
+            ],
+            "title": "Candidate Ids",
+            "type": "array"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidate_ids",
+          "basis",
+          "reason"
+        ],
+        "title": "PaperPotentialDuplicate",
+        "type": "object"
+      },
+      "PaperQueryPagination": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_limit": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100.0,
+            "title": "Candidate Limit",
+            "type": "integer"
+          },
+          "max_pages": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100.0,
+            "title": "Max Pages",
+            "type": "integer"
+          },
+          "page_size": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100.0,
+            "title": "Page Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page_size",
+          "max_pages",
+          "candidate_limit"
+        ],
+        "title": "PaperQueryPagination",
         "type": "object"
       },
       "PaperSearchScope": {
@@ -1177,6 +2179,216 @@
           }
         },
         "title": "PaperSearchScope",
+        "type": "object"
+      },
+      "PaperSourceExecution": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_count": {
+            "minimum": 0.0,
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "data_level": {
+            "$ref": "#/components/schemas/PaperDataLevel"
+          },
+          "failure_class": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamFailureClass"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "title": "Finished At",
+            "type": "string"
+          },
+          "pages": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PaperSourcePage"
+            },
+            "title": "Pages",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaperQueryPagination"
+          },
+          "query_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Query Hash",
+            "type": "string"
+          },
+          "request_parameters_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Parameters Hash",
+            "type": "string"
+          },
+          "retry_count": {
+            "minimum": 0.0,
+            "title": "Retry Count",
+            "type": "integer"
+          },
+          "source_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_mode": {
+            "$ref": "#/components/schemas/app__schemas__enums__SourceMode"
+          },
+          "source_snapshot_id": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Snapshot Id"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaperSourceExecutionStatus"
+          }
+        },
+        "required": [
+          "source_id",
+          "source_mode",
+          "data_level",
+          "status",
+          "query_hash",
+          "request_parameters_hash",
+          "pagination",
+          "started_at",
+          "finished_at",
+          "candidate_count",
+          "retry_count"
+        ],
+        "title": "PaperSourceExecution",
+        "type": "object"
+      },
+      "PaperSourceExecutionStatus": {
+        "enum": [
+          "completed",
+          "failed"
+        ],
+        "title": "PaperSourceExecutionStatus",
+        "type": "string"
+      },
+      "PaperSourcePage": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt_count": {
+            "exclusiveMinimum": 0.0,
+            "title": "Attempt Count",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "page_number": {
+            "exclusiveMinimum": 0.0,
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "rate_limit_metadata": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Rate Limit Metadata",
+            "type": "object"
+          },
+          "request_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Hash",
+            "type": "string"
+          },
+          "requested_rows": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100.0,
+            "title": "Requested Rows",
+            "type": "integer"
+          },
+          "response_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Response Hash",
+            "type": "string"
+          },
+          "retrieved_at": {
+            "format": "date-time",
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "returned_rows": {
+            "minimum": 0.0,
+            "title": "Returned Rows",
+            "type": "integer"
+          },
+          "status_code": {
+            "maximum": 599.0,
+            "minimum": 100.0,
+            "title": "Status Code",
+            "type": "integer"
+          },
+          "total_results": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Results"
+          }
+        },
+        "required": [
+          "page_number",
+          "offset",
+          "requested_rows",
+          "returned_rows",
+          "attempt_count",
+          "status_code",
+          "retrieved_at",
+          "request_hash",
+          "response_hash"
+        ],
+        "title": "PaperSourcePage",
         "type": "object"
       },
       "ProblemDetails": {
@@ -1265,6 +2477,147 @@
           "message"
         ],
         "title": "ProblemFieldError",
+        "type": "object"
+      },
+      "ProducerExecution": {
+        "additionalProperties": false,
+        "properties": {
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "execution_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Execution Id",
+            "type": "string"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "title": "Finished At",
+            "type": "string"
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "latency_ms": {
+            "minimum": 0.0,
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "output_hash": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Hash"
+          },
+          "parameters_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Parameters Hash",
+            "type": "string"
+          },
+          "producer_name": {
+            "minLength": 1,
+            "title": "Producer Name",
+            "type": "string"
+          },
+          "producer_type": {
+            "const": "algorithm",
+            "default": "algorithm",
+            "title": "Producer Type",
+            "type": "string"
+          },
+          "producer_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Producer Version",
+            "type": "string"
+          },
+          "prompt_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Name"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProducerExecutionStatus"
+          },
+          "step_key": {
+            "const": "searching_papers",
+            "default": "searching_papers",
+            "title": "Step Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "execution_id",
+          "producer_name",
+          "producer_version",
+          "parameters_hash",
+          "input_hash",
+          "status",
+          "started_at",
+          "finished_at",
+          "latency_ms"
+        ],
+        "title": "ProducerExecution",
         "type": "object"
       },
       "ProducerExecutionDetail": {
@@ -1410,6 +2763,14 @@
         "title": "ProducerExecutionDetail",
         "type": "object"
       },
+      "ProducerExecutionStatus": {
+        "enum": [
+          "completed",
+          "failed"
+        ],
+        "title": "ProducerExecutionStatus",
+        "type": "string"
+      },
       "ProducerReference": {
         "additionalProperties": false,
         "properties": {
@@ -1544,7 +2905,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/SourceMode"
+            "$ref": "#/components/schemas/app__schemas__v2__SourceMode"
           },
           "title": {
             "minLength": 1,
@@ -1676,6 +3037,100 @@
           }
         },
         "title": "QualityConstraints",
+        "type": "object"
+      },
+      "RawPaperCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "arxiv_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arxiv Id"
+          },
+          "authors": {
+            "default": [],
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Authors",
+            "type": "array"
+          },
+          "doi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doi"
+          },
+          "record_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Record Hash",
+            "type": "string"
+          },
+          "source_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_record_id": {
+            "minLength": 1,
+            "title": "Source Record Id",
+            "type": "string"
+          },
+          "source_snapshot_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Snapshot Id",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "maximum": 2100.0,
+                "minimum": 1900.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "source_id",
+          "source_record_id",
+          "source_snapshot_id",
+          "title",
+          "record_hash"
+        ],
+        "title": "RawPaperCandidate",
         "type": "object"
       },
       "ResearchArtifact": {
@@ -2834,15 +4289,6 @@
         "title": "ShareStatus",
         "type": "string"
       },
-      "SourceMode": {
-        "enum": [
-          "fixture",
-          "live",
-          "cached"
-        ],
-        "title": "SourceMode",
-        "type": "string"
-      },
       "SourceScope": {
         "additionalProperties": false,
         "properties": {
@@ -2952,6 +4398,91 @@
         "title": "SourceSnapshotDetail",
         "type": "object"
       },
+      "SourceSnapshotRecord": {
+        "additionalProperties": false,
+        "description": "Immutable pipeline source record consumed by the future publisher.\n\nImplements the v2 ``SourceSnapshot`` target entity described in\n``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen\nv1 Phase 0 ``SourceSnapshot`` projection above stays unchanged.",
+        "properties": {
+          "cache_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Version"
+          },
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "license_note": {
+            "minLength": 1,
+            "title": "License Note",
+            "type": "string"
+          },
+          "query": {
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "query_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Query Hash",
+            "type": "string"
+          },
+          "request_metadata": {
+            "additionalProperties": true,
+            "title": "Request Metadata",
+            "type": "object"
+          },
+          "retrieved_at": {
+            "format": "date-time",
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "source_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "minLength": 1,
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_version_or_etag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Version Or Etag"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "source_id",
+          "source_type",
+          "retrieved_at",
+          "query",
+          "query_hash",
+          "content_hash",
+          "license_note"
+        ],
+        "title": "SourceSnapshotRecord",
+        "type": "object"
+      },
       "UnitPolicy": {
         "enum": [
           "canonical"
@@ -2987,6 +4518,19 @@
         },
         "title": "UpdateResearchContractDraftRequest",
         "type": "object"
+      },
+      "UpstreamFailureClass": {
+        "enum": [
+          "timeout",
+          "rate_limited",
+          "transport",
+          "upstream_server",
+          "upstream_client",
+          "invalid_response",
+          "policy_violation"
+        ],
+        "title": "UpstreamFailureClass",
+        "type": "string"
       },
       "WorkspaceObjectRef": {
         "additionalProperties": false,
@@ -3234,6 +4778,25 @@
         ],
         "title": "WorkspaceSnapshotInput",
         "type": "object"
+      },
+      "app__schemas__enums__SourceMode": {
+        "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
+        "enum": [
+          "fixture",
+          "live",
+          "cached"
+        ],
+        "title": "SourceMode",
+        "type": "string"
+      },
+      "app__schemas__v2__SourceMode": {
+        "enum": [
+          "fixture",
+          "live",
+          "cached"
+        ],
+        "title": "SourceMode",
+        "type": "string"
       }
     }
   },
@@ -3338,9 +4901,267 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Artifact Version"
+      }
+    },
+    "/api/v2/artifact-versions/{version_id}/paper-candidates": {
+      "get": {
+        "operationId": "listPaperCollectionCandidates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionEnvelope_PaperCollectionCandidateRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List Paper Collection Candidates"
+      }
+    },
+    "/api/v2/artifact-versions/{version_id}/paper-collection": {
+      "get": {
+        "operationId": "getPaperCollection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PaperCollectionRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get Paper Collection"
       }
     },
     "/api/v2/artifacts/{artifact_id}": {
@@ -3438,6 +5259,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Research Artifact"
@@ -3538,6 +5369,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Evidence"
@@ -3638,6 +5479,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Research Project"
@@ -3758,6 +5609,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Confirm Research Contract"
@@ -3878,6 +5739,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Create Research Run"
@@ -4006,6 +5877,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "List Share Snapshots"
@@ -4124,6 +6005,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Create Share Snapshot"
@@ -4237,6 +6128,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Revoke Share Snapshot"
@@ -4337,6 +6238,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Workspace Snapshot"
@@ -4465,6 +6376,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Put Workspace Snapshot"
@@ -4565,6 +6486,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Research Contract Draft"
@@ -4683,6 +6614,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Update Research Contract Draft"
@@ -4783,6 +6724,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Research Contract"
@@ -4883,6 +6834,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Research Run"
@@ -5027,6 +6988,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "List Run Artifacts"
@@ -5155,6 +7126,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "List Run Events"
@@ -5244,6 +7225,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Create Anonymous Session"
@@ -5337,6 +7328,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Revoke Anonymous Session"
@@ -5423,6 +7424,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Anonymous Session"
@@ -5524,6 +7535,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Public Share Snapshot"
@@ -5624,6 +7645,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "summary": "Get Source Snapshot"

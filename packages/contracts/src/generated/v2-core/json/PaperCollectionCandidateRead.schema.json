@@ -1,0 +1,611 @@
+{
+  "$defs": {
+    "EvidenceDetail": {
+      "additionalProperties": false,
+      "description": "Evidence bound to one immutable version and source snapshot.",
+      "properties": {
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "evidence_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Evidence Type",
+          "type": "string"
+        },
+        "extraction_method": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Extraction Method",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "locator": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Locator",
+          "type": "object"
+        },
+        "paper_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paper Id"
+        },
+        "quote_or_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "artifact_version_id",
+        "target_type",
+        "target_id",
+        "evidence_type",
+        "source_snapshot_id",
+        "locator",
+        "extraction_method",
+        "confidence",
+        "created_at"
+      ],
+      "title": "EvidenceDetail",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "PaperCandidateConflict": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "enum": [
+            "conflict",
+            "uncertain_match"
+          ],
+          "title": "Classification",
+          "type": "string"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "doi",
+            "arxiv_id",
+            "title",
+            "year",
+            "authors"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "related_candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Related Candidate Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "related_candidate_id",
+        "classification",
+        "detail"
+      ],
+      "title": "PaperCandidateConflict",
+      "type": "object"
+    },
+    "PaperCollectionCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arxiv Id"
+        },
+        "authors": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Authors",
+          "type": "array"
+        },
+        "candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "canonical_identity_basis": {
+          "enum": [
+            "doi",
+            "arxiv_id",
+            "title_year_authors",
+            "source_record"
+          ],
+          "title": "Canonical Identity Basis",
+          "type": "string"
+        },
+        "canonical_paper_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Canonical Paper Id",
+          "type": "string"
+        },
+        "conflicts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PaperCandidateConflict"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "dedupe_evidence": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Dedupe Evidence",
+          "type": "array"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doi"
+        },
+        "duplicate_group_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Duplicate Group Id",
+          "type": "string"
+        },
+        "exclusion_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclusion Reason"
+        },
+        "normalized_authors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Normalized Authors",
+          "type": "array"
+        },
+        "normalized_title": {
+          "minLength": 1,
+          "title": "Normalized Title",
+          "type": "string"
+        },
+        "ranking_key": {
+          "minLength": 1,
+          "title": "Ranking Key",
+          "type": "string"
+        },
+        "ranking_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Ranking Rule Version",
+          "type": "string"
+        },
+        "raw": {
+          "$ref": "#/$defs/RawPaperCandidate"
+        },
+        "relevance_score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Relevance Score",
+          "type": "number"
+        },
+        "selected": {
+          "title": "Selected",
+          "type": "boolean"
+        },
+        "selection_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selection Reason"
+        },
+        "selection_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Selection Rule Version",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "maximum": 2100,
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "raw",
+        "canonical_paper_id",
+        "canonical_identity_basis",
+        "title",
+        "normalized_title",
+        "duplicate_group_id",
+        "relevance_score",
+        "ranking_key",
+        "selected",
+        "ranking_rule_version",
+        "selection_rule_version"
+      ],
+      "title": "PaperCollectionCandidate",
+      "type": "object"
+    },
+    "PaperDuplicateGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Candidate Ids",
+          "type": "array"
+        },
+        "canonical_paper_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Canonical Paper Id",
+          "type": "string"
+        },
+        "conflicts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PaperCandidateConflict"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "duplicate_group_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Duplicate Group Id",
+          "type": "string"
+        },
+        "match_basis": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Match Basis",
+          "type": "array"
+        }
+      },
+      "required": [
+        "duplicate_group_id",
+        "canonical_paper_id",
+        "candidate_ids",
+        "match_basis"
+      ],
+      "title": "PaperDuplicateGroup",
+      "type": "object"
+    },
+    "RawPaperCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arxiv Id"
+        },
+        "authors": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Authors",
+          "type": "array"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doi"
+        },
+        "record_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Record Hash",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_record_id": {
+          "minLength": 1,
+          "title": "Source Record Id",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "maximum": 2100,
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_record_id",
+        "source_snapshot_id",
+        "title",
+        "record_hash"
+      ],
+      "title": "RawPaperCandidate",
+      "type": "object"
+    },
+    "SourceSnapshotDetail": {
+      "additionalProperties": false,
+      "description": "Reproducible source metadata after the application redaction boundary.",
+      "properties": {
+        "cache_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Version"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "license_note": {
+          "minLength": 1,
+          "title": "License Note",
+          "type": "string"
+        },
+        "query": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "request_metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Request Metadata",
+          "type": "object"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_version_or_etag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Version Or Etag"
+        }
+      },
+      "required": [
+        "id",
+        "source_id",
+        "source_type",
+        "retrieved_at",
+        "query",
+        "query_hash",
+        "content_hash",
+        "license_note",
+        "request_metadata"
+      ],
+      "title": "SourceSnapshotDetail",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Candidate plus its duplicate, source and Evidence read projections.",
+  "properties": {
+    "candidate": {
+      "$ref": "#/$defs/PaperCollectionCandidate"
+    },
+    "duplicate_group": {
+      "$ref": "#/$defs/PaperDuplicateGroup"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceDetail"
+      },
+      "minItems": 1,
+      "title": "Evidence",
+      "type": "array"
+    },
+    "source_snapshot": {
+      "$ref": "#/$defs/SourceSnapshotDetail"
+    }
+  },
+  "required": [
+    "candidate",
+    "duplicate_group",
+    "source_snapshot",
+    "evidence"
+  ],
+  "title": "PaperCollectionCandidateRead",
+  "type": "object"
+}
