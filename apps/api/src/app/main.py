@@ -55,14 +55,14 @@ from app.workflow.store import PersistentWorkflowStore
 
 
 def _load_case_manifests() -> ManifestBundle:
-    root = Path(__file__).resolve().parents[4]
-    manifest_root = (
-        root / "services" / "data_pipeline" / "manifests" / "exoplanet_host_star"
-    )
-    return load_manifest_bundle(
-        manifest_root / "case-manifest.v1.json",
-        manifest_root / "field-manifest.v1.json",
-    )
+    relative = Path("services/data_pipeline/manifests/exoplanet_host_star")
+    for parent in Path(__file__).resolve().parents:
+        manifest_root = parent / relative
+        case_manifest = manifest_root / "case-manifest.v1.json"
+        field_manifest = manifest_root / "field-manifest.v1.json"
+        if case_manifest.is_file() and field_manifest.is_file():
+            return load_manifest_bundle(case_manifest, field_manifest)
+    raise RuntimeError("Exoplanet host-star Case/Field Manifest assets are missing")
 
 
 def create_app() -> FastAPI:
@@ -88,12 +88,14 @@ def create_app() -> FastAPI:
     app.state.workflow_executor = None
     app.state.artifact_read_service = None
     app.state.research_service = None
+    app.state.db_session_factory = None
     database_engine = None
     resource_authority: ResourceAuthority | None = None
     if settings.DATABASE_URL is not None:
         database_engine = create_engine_from_url(
             settings.DATABASE_URL.get_secret_value()
         )
+        app.state.db_session_factory = session_factory(database_engine)
         app.state.artifact_read_service = ArtifactReadService(
             session_factory(database_engine)
         )
@@ -156,6 +158,14 @@ def create_app() -> FastAPI:
     app.include_router(artifacts.router)
     app.include_router(research.router)
     app.include_router(snapshots.router)
+
+    # Test-only bootstrap is mounted exclusively in test/integration
+    # environments, outside the frozen /api/v2 contract surface. It is never
+    # available in development or production.
+    if settings.APP_ENV.lower() in {"test", "integration"}:
+        from app.routers import test_bootstrap
+
+        app.include_router(test_bootstrap.router)
 
     return app
 

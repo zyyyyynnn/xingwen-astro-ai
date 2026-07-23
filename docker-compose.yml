@@ -1,9 +1,11 @@
 # Docker Compose 本地开发编排：品牌站、科研工作台、API 与 PostgreSQL。
+#
+# 服务启动顺序：postgres healthy → migrate(alembic upgrade head，一次性) → api → workspace/site。
+# 服务名由 Compose Project 自动生成，不写固定 container_name，`docker compose -p <name>` 可完全隔离。
 
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: xingwen-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-xingwen_astro_ai}
@@ -23,22 +25,42 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    # one-shot：执行 alembic upgrade head 后退出；失败时 API 不会启动。
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-xingwen_astro_ai}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
-    container_name: xingwen-api
+      context: .
+      dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     env_file:
       - .env
     environment:
+      # APP_ENV 仅允许 development/integration/test；integration/test 才挂载 test-only bootstrap。
+      APP_ENV: ${APP_ENV:-development}
+      # 真实 /api/v2 Runtime 必须使用 PostgreSQL 权威存储。
+      PERSISTENT_WORKFLOW_ENABLED: "true"
+      # 浏览器跨端口访问 API 时显式覆盖 env_file，确保自定义 Compose 端口一致。
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       # 容器内通过服务名访问 postgres；生产环境必须覆盖默认凭据。
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-xingwen_astro_ai}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -56,7 +78,6 @@ services:
     build:
       context: .
       dockerfile: docker/frontend.Dockerfile
-    container_name: xingwen-site
     restart: unless-stopped
     environment:
       PUBLIC_WORKSPACE_URL: ${PUBLIC_WORKSPACE_URL:-http://localhost:5173/workspace}
@@ -80,11 +101,10 @@ services:
     build:
       context: .
       dockerfile: docker/frontend.Dockerfile
-    container_name: xingwen-workspace
     restart: unless-stopped
     environment:
-      # 浏览器公开配置必须使用宿主机可访问地址，且不得包含密钥。
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
+      # 浏览器公开配置：仅为 API origin（不带 /api/v1 或 /api/v2 路径），路径由生成的 operation metadata 提供；不得包含密钥。
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     ports:
       - "${WORKSPACE_PORT:-5173}:5173"
     command: ["pnpm", "--filter", "@xingwen/workspace", "dev"]
