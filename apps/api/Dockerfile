@@ -17,14 +17,18 @@ RUN pip install --no-cache-dir uv==0.7.8 && uv --version
 
 WORKDIR /app
 
-# 先复制依赖清单，利用 Docker 层缓存
-COPY pyproject.toml uv.lock ./
+# Compose 以仓库根目录为 build context，便于只读挂入权威 Case/Field Manifest。
+# 先复制依赖清单，利用 Docker 层缓存。
+COPY apps/api/pyproject.toml apps/api/uv.lock ./
 
 # 同步依赖到隔离的 .venv，不安装项目本身
 RUN uv sync --frozen --no-install-project
 
-# 复制源码
-COPY src ./src
+# 复制源码与迁移资产（migrate one-shot service 与运行时共用同一镜像）
+COPY apps/api/alembic.ini ./
+COPY apps/api/migrations ./migrations
+COPY apps/api/src ./src
+COPY services/data_pipeline/manifests/exoplanet_host_star ./services/data_pipeline/manifests/exoplanet_host_star
 
 # 把 .venv/bin 加入 PATH，uvicorn 直接可用
 # PYTHONPATH 指向 src 目录，配合 src layout（app 包在 src/app）

@@ -164,6 +164,7 @@ def create_share_snapshot(
     "/projects/{project_id}/shares/{share_id}",
     operation_id="revokeShareSnapshot",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
 )
 def revoke_share_snapshot(
     project_id: Annotated[str, Path(min_length=1)],

@@ -140,7 +140,7 @@ def runtime() -> Iterator[dict[str, object]]:
                 warnings=[],
                 created_at=NOW,
                 updated_at=NOW,
-                expires_at=datetime(2026, 7, 23, tzinfo=UTC),
+                expires_at=datetime.now(UTC) + timedelta(hours=1),
             )
         )
 

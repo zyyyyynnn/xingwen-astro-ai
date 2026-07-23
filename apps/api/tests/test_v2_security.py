@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 import logging
+from threading import Barrier
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +16,7 @@ from app.security import (
     OwnershipPolicy,
     ShareTokenAccessLogFilter,
     SecurityProblem,
+    SessionRecord,
     SessionService,
     require_revision,
 )
@@ -64,6 +67,8 @@ def test_session_cookie_lifecycle_and_public_payload(
         headers={"X-CSRF-Token": payload["data"]["csrf_token"]},
     )
     assert revoked.status_code == 204
+    assert revoked.content == b""
+    assert "content-type" not in revoked.headers
     assert revoked.headers["cache-control"] == "no-store"
     assert client.get("/api/v2/sessions/current").status_code == 401
 
@@ -111,6 +116,38 @@ def test_csrf_token_is_session_bound() -> None:
         service.verify_csrf(first, second_csrf)
     assert invalid.value.status == 403
     assert second.id != first.id
+
+
+def test_concurrent_session_resumes_keep_both_issued_csrf_tokens_valid() -> None:
+    class ReadBarrierStore(InMemorySessionStore):
+        """Forces the pre-fix read/replace implementation to lose one update."""
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.read_barrier = Barrier(2)
+            self.block_reads = True
+
+        def get(self, credential_hash: str) -> SessionRecord | None:
+            record = super().get(credential_hash)
+            if self.block_reads:
+                self.read_barrier.wait(timeout=5)
+            return record
+
+    store = ReadBarrierStore()
+    service = SessionService(store, ttl_seconds=60)
+    _record, credential, _csrf = service.create()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        resumed = list(
+            executor.map(lambda _index: service.resume(credential), range(2))
+        )
+
+    assert all(result is not None for result in resumed)
+    store.block_reads = False
+    current = service.authenticate(credential)
+    for result in resumed:
+        assert result is not None
+        service.verify_csrf(current, result[1])
 
 
 def test_ownership_hides_cross_session_resource_existence() -> None:

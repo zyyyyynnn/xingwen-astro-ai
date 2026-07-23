@@ -8,7 +8,13 @@ from typing import Annotated
 from fastapi import APIRouter, Header, Request, Response, status
 
 from app.config import settings
-from app.schemas.v2 import Envelope, ResearchSession, ResponseLinks, ResponseMeta, SessionCreated
+from app.schemas.v2 import (
+    Envelope,
+    ResearchSession,
+    ResponseLinks,
+    ResponseMeta,
+    SessionCreated,
+)
 from app.security import SessionRecord, SessionService
 
 
@@ -20,7 +26,9 @@ def _service(request: Request) -> SessionService:
 
 
 def _meta(request: Request) -> ResponseMeta:
-    return ResponseMeta(request_id=request.state.request_id, generated_at=datetime.now(UTC))
+    return ResponseMeta(
+        request_id=request.state.request_id, generated_at=datetime.now(UTC)
+    )
 
 
 def _public(record: SessionRecord) -> ResearchSession:
@@ -32,10 +40,37 @@ def _public(record: SessionRecord) -> ResearchSession:
     )
 
 
-@router.post("", operation_id="createAnonymousSession", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", operation_id="createAnonymousSession", status_code=status.HTTP_201_CREATED
+)
 def create_session(request: Request, response: Response) -> Envelope[SessionCreated]:
     client_key = request.client.host if request.client is not None else "unknown"
-    remaining, reset_seconds = request.app.state.session_rate_limiter.consume(client_key)
+    remaining, reset_seconds = request.app.state.session_rate_limiter.consume(
+        client_key
+    )
+
+    # Resume an existing valid session (browser refresh recovery) instead of
+    # spawning a parallel one: same cookie credential, freshly rotated CSRF.
+    existing_credential = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if existing_credential:
+        resumed = _service(request).resume(existing_credential)
+        if resumed is not None:
+            record, csrf_token = resumed
+            response.headers["Location"] = "/api/v2/sessions/current"
+            response.headers["RateLimit-Limit"] = str(
+                settings.SESSION_CREATE_RATE_LIMIT
+            )
+            response.headers["RateLimit-Remaining"] = str(remaining)
+            response.headers["RateLimit-Reset"] = str(reset_seconds)
+            response.headers["Cache-Control"] = "no-store"
+            return Envelope(
+                data=SessionCreated(
+                    **_public(record).model_dump(), csrf_token=csrf_token
+                ),
+                meta=_meta(request),
+                links=ResponseLinks(self="/api/v2/sessions/current"),
+            )
+
     record, credential, csrf_token = _service(request).create()
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
@@ -69,7 +104,12 @@ def get_session(request: Request, response: Response) -> Envelope[ResearchSessio
     )
 
 
-@router.delete("/current", operation_id="revokeAnonymousSession", status_code=204)
+@router.delete(
+    "/current",
+    operation_id="revokeAnonymousSession",
+    status_code=204,
+    response_class=Response,
+)
 def revoke_session(
     request: Request,
     response: Response,

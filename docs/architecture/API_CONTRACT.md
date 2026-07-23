@@ -4,9 +4,9 @@
 | -------------- | ---------------------------------------------------------- |
 | Status         | Accepted                                                   |
 | Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring     |
-| Implementation | `/api/v1` Current；`/api/v2` M1 核心 Runtime、Session 安全、Project/Contract/Run/Event、Artifact/Evidence/SourceSnapshot 与 Workspace/Share 挂载 Implemented；A-03 前端接入与 Compose 激活 Pending |
+| Implementation | `/api/v1` Current；`/api/v2` M1 核心 Runtime、Session 安全、Project/Contract/Run/Event、Artifact/Evidence/SourceSnapshot、Workspace/Share 与 A-03/X-01 集成 Implemented |
 
-本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership 已实现；M1 Runtime 已挂载 Project、ContractDraft、Contract、Run、RunEvent、Artifact、ArtifactVersion、Evidence、SourceSnapshot、WorkspaceSnapshot 与 ShareSnapshot。配置 `DATABASE_URL` 后，资源归属与公开分享投影读取 PostgreSQL 权威事实；Research 写路径还要求启用 `PERSISTENT_WORKFLOW_ENABLED`。Snapshot/Share 状态当前仍为进程生命周期存储，A-03 前端 HTTP 接入与 Compose 默认激活另行验收。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 v2 完成。
+本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership 已实现；M1 Runtime 已挂载 Project、ContractDraft、Contract、Run、RunEvent、Artifact、ArtifactVersion、Evidence、SourceSnapshot、WorkspaceSnapshot 与 ShareSnapshot。Compose 配置 `DATABASE_URL` 并强制启用 `PERSISTENT_WORKFLOW_ENABLED`，资源归属、Research 写路径与公开分享投影读取 PostgreSQL 权威事实；真实 HTTP Browser 已验证 A-03/X-01 主链路。Snapshot/Share 状态当前仍为进程生命周期存储。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 M2 完成。
 
 ## 1. 设计原则
 
@@ -39,13 +39,13 @@ flowchart LR
 | 版本      | 状态              | 说明                                                          |
 | --------- | ----------------- | ------------------------------------------------------------- |
 | `/api/v1` | Current           | 当前后端 Task Contract                                        |
-| `/api/v2` | M1 Core Runtime Implemented | 24 个冻结 operation 已挂载；持久 Research 写路径由配置开关启用，A-03 前端接入、Compose 激活与 M2 科研 Pipeline Pending |
+| `/api/v2` | M1 Core Runtime Implemented | 24 个冻结 operation 已挂载；Compose 启用持久 Research 写路径，A-03/X-01 真实集成已验证；M2 科研 Pipeline Pending |
 
 版本推进规则：
 
 1. v2 先以 Pydantic 模型和生成 OpenAPI 落地。
 2. `packages/contracts` 从 OpenAPI / JSON Schema 生成 Transport Type 与校验器。
-3. Fixture / HTTP Adapter 一致性测试通过后，A-03 Workspace 接入 v2。
+3. Fixture / HTTP Adapter 通过同场景 Domain 一致性测试，A-03 Workspace 已接入 v2。
 4. Workspace 主流程、分享、安全和 E2E 通过前，不宣布 v1 deprecated。
 5. 宣布弃用时使用 `Deprecation`、`Sunset` 和 successor `Link` 响应头；本 RFC 不冻结下线日期。
 
@@ -53,9 +53,9 @@ flowchart LR
 
 ### 3.1 匿名会话
 
-- `POST /api/v2/sessions` 创建隔离临时会话。
+- `POST /api/v2/sessions` 在无有效 Cookie 时创建隔离临时会话；有效 Cookie 存在时恢复同一 Session，用于刷新恢复。
 - 服务端通过 Secure、HttpOnly、SameSite Cookie 识别会话，不把编辑凭据放入 URL 或 localStorage。
-- 响应返回会话过期时间、资源配额和内存态 CSRF token；所有非安全方法发送 `X-CSRF-Token`。
+- 响应返回会话过期时间、资源配额和轮换后的内存态 CSRF token；所有非安全方法发送 `X-CSRF-Token`。服务端最多保留最近 4 个有效 token，支持同一 Session 的并行标签页而不无限增长。
 - 所有私有资源按服务端 session ownership 授权，客户端传入的 project/run id 不能替代授权检查。
 - 会话创建、Run 创建、分享和反馈分别限流；返回标准 `RateLimit-*` 与 `Retry-After`。
 
@@ -153,7 +153,7 @@ source_mode    = fixture | live | cached
 derivation_kind = original | retry | revision | fork
 ```
 
-`execution_mode` 只出现在 ResearchRun、创建 Run 请求和 Guided Tour 启动状态中，不进入 ResearchContract 或 ResearchContractDraft。HTTP Adapter 在 MVP 只创建 `execution_mode=live` 的 Run；Fixture Adapter 在浏览器内返回相同 Domain Model，并标记 `execution_mode=demo_replay`、`source_mode=fixture`。修订由 `derivation_kind=revision` 或 `supersedes_version_id` 非空推导，不新增 `source_mode` 值。
+`execution_mode` 只出现在 ResearchRun、创建 Run 请求和 Guided Tour 启动状态中，不进入 ResearchContract 或 ResearchContractDraft。HTTP Adapter 只定义传输方式，创建 Run 时可携带 `execution_mode=demo_replay | live`，不得因使用 HTTP 而把实体的 `source_mode` 自动标记为 `live`；Fixture Adapter 在浏览器内返回相同 Domain Model，并固定标记 `execution_mode=demo_replay`、`source_mode=fixture`。修订由 `derivation_kind=revision` 或 `supersedes_version_id` 非空推导，不新增 `source_mode` 值。
 
 `source_scope.allowed_sources` 使用稳定的 provider source id（例如 `nasa_exoplanet_archive`），不接受 `nasa_exoplanet_archive.ps` 等 table source id。C-01 通过 Field Manifest 中既有 `SourceDefinition.provider_source_id` 与 `source_table` 派生 table source id；API 不维护第二套来源定义或映射表。未经 Case Manifest `allowed_source_ids` 授权的 provider source id 必须拒绝。
 

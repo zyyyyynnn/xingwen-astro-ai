@@ -17,13 +17,14 @@ from app.schemas.v2 import SessionQuota, SessionStatus
 
 
 _SHARE_TOKEN_PATH = re.compile(r"(/api/v2/shares/)[^/?\s]+")
+_MAX_CONCURRENT_CSRF_TOKENS = 4
 
 
 @dataclass(frozen=True, slots=True)
 class SessionRecord:
     id: str
     credential_hash: str
-    csrf_hash: str
+    csrf_hashes: tuple[str, ...]
     status: SessionStatus
     created_at: datetime
     expires_at: datetime
@@ -63,6 +64,36 @@ class InMemorySessionStore:
         with self._lock:
             return self._records.get(credential_hash)
 
+    def resume(
+        self,
+        credential_hash: str,
+        csrf_hash: str,
+        *,
+        now: datetime,
+    ) -> SessionRecord | None:
+        """Atomically validate a session and append one bounded CSRF hash."""
+        with self._lock:
+            record = self._records.get(credential_hash)
+            if (
+                record is None
+                or record.status is not SessionStatus.active
+                or record.expires_at <= now
+            ):
+                return None
+            resumed = SessionRecord(
+                id=record.id,
+                credential_hash=record.credential_hash,
+                csrf_hashes=(*record.csrf_hashes, csrf_hash)[
+                    -_MAX_CONCURRENT_CSRF_TOKENS:
+                ],
+                status=record.status,
+                created_at=record.created_at,
+                expires_at=record.expires_at,
+                quota=record.quota,
+            )
+            self._records[credential_hash] = resumed
+            return resumed
+
     def revoke(self, credential_hash: str) -> SessionRecord | None:
         with self._lock:
             record = self._records.get(credential_hash)
@@ -71,7 +102,7 @@ class InMemorySessionStore:
             revoked = SessionRecord(
                 id=record.id,
                 credential_hash=record.credential_hash,
-                csrf_hash=record.csrf_hash,
+                csrf_hashes=(),
                 status=SessionStatus.revoked,
                 created_at=record.created_at,
                 expires_at=record.expires_at,
@@ -93,7 +124,7 @@ class SessionService:
         record = SessionRecord(
             id=f"sess_{secrets.token_urlsafe(18)}",
             credential_hash=_hash_secret(credential),
-            csrf_hash=_hash_secret(csrf_token),
+            csrf_hashes=(_hash_secret(csrf_token),),
             status=SessionStatus.active,
             created_at=current,
             expires_at=current + timedelta(seconds=self.ttl_seconds),
@@ -101,6 +132,29 @@ class SessionService:
         )
         self.store.put(record)
         return record, credential, csrf_token
+
+    def resume(
+        self, credential: str, *, now: datetime | None = None
+    ) -> tuple[SessionRecord, str] | None:
+        """Resume an existing session from its cookie credential.
+
+        Returns the session record plus a freshly issued CSRF token when the
+        credential maps to an active, unexpired session; ``None`` otherwise.
+        The cookie credential is preserved, so a browser refresh recovers the
+        same anonymous session instead of spawning a parallel one.
+
+        The new token is *added* to a bounded set of valid CSRF tokens (most
+        recent ``_MAX_CONCURRENT_CSRF_TOKENS``): previously issued tokens stay
+        valid so parallel tabs and integration clients holding an earlier
+        token are not silently broken, while the set cannot grow unbounded.
+        """
+        csrf_token = secrets.token_urlsafe(32)
+        resumed = self.store.resume(
+            _hash_secret(credential),
+            _hash_secret(csrf_token),
+            now=now or datetime.now(UTC),
+        )
+        return (resumed, csrf_token) if resumed is not None else None
 
     def authenticate(
         self, credential: str | None, *, now: datetime | None = None
@@ -116,8 +170,9 @@ class SessionService:
         return record
 
     def verify_csrf(self, record: SessionRecord, csrf_token: str | None) -> None:
-        if not csrf_token or not hmac.compare_digest(
-            record.csrf_hash, _hash_secret(csrf_token)
+        candidate = _hash_secret(csrf_token) if csrf_token else ""
+        if not csrf_token or not any(
+            hmac.compare_digest(stored, candidate) for stored in record.csrf_hashes
         ):
             raise SecurityProblem(
                 status=403,

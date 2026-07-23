@@ -6,7 +6,7 @@
 | Authority      | 当前本地、Docker 启动方式、环境变量与验证命令     |
 | Implementation | Current                                           |
 
-本地开发采用 Docker-first。Compose 运行 `site`、`workspace`、`api`、`postgres` 四个服务；前端本机调试统一从仓库根目录执行。
+本地开发采用 Docker-first。Compose 运行 `site`、`workspace`、`api`、`migrate`、`postgres`；前端本机调试统一从仓库根目录执行。
 
 ## 1. 环境要求
 
@@ -35,7 +35,7 @@ Copy-Item .env.example .env
 | 变量                   | 默认值                            | 用途                        |
 | ---------------------- | --------------------------------- | --------------------------- |
 | `PUBLIC_WORKSPACE_URL` | `http://localhost:5173/workspace` | Site 主入口链接             |
-| `VITE_API_BASE_URL`    | `http://localhost:8000/api/v1`    | Workspace 可访问的 API 基址 |
+| `VITE_API_BASE_URL`    | `http://localhost:8000`           | Workspace 可访问的 API origin |
 
 这些变量会进入浏览器输出，只能包含非敏感配置。浏览器地址不能使用 Docker 内部服务名。
 
@@ -47,7 +47,7 @@ Session 服务端变量：
 | `SESSION_TTL_SECONDS` | `86400` | 匿名 Session 有效期 |
 | `SESSION_CREATE_RATE_LIMIT` | `30` | 单客户端每分钟创建 Session 的上限 |
 | `SHARE_CREATE_RATE_LIMIT` | `20` | 单 Session 每分钟创建 ShareSnapshot 的上限 |
-| `PERSISTENT_WORKFLOW_ENABLED` | `false` | #77 PostgreSQL Workflow Executor 渐进接入开关；当前 `/api/v1` 始终保留原执行路径 |
+| `PERSISTENT_WORKFLOW_ENABLED` | `false` | 本机 uvicorn 的持久 Runtime 开关；Compose 的 API 强制为 `true`，`/api/v1` 保留原执行路径 |
 
 Production 必须保持 `SESSION_COOKIE_SECURE=true`。Session 与 CSRF token 不得写入浏览器持久化存储或日志。
 
@@ -60,12 +60,13 @@ docker compose up --build --wait
 
 | 服务        | 容器职责                 | 默认地址                |
 | ----------- | ------------------------ | ----------------------- |
-| `site`      | Astro Brand Site         | `http://127.0.0.1:4321` |
-| `workspace` | React Research Workspace | `http://127.0.0.1:5173` |
-| `api`       | FastAPI `/api/v1`        | `http://127.0.0.1:8000` |
-| `postgres`  | PostgreSQL 17            | `127.0.0.1:5432`        |
+| `site`      | Astro Brand Site         | `http://localhost:4321` |
+| `workspace` | React Research Workspace | `http://localhost:5173` |
+| `api`       | FastAPI `/api/v1` + `/api/v2` | `http://localhost:8000` |
+| `migrate`   | Alembic `upgrade head` one-shot | 无端口                  |
+| `postgres`  | PostgreSQL 17            | `localhost:5432`        |
 
-启动依赖为 PostgreSQL → API → Workspace；Site 可独立启动。四个服务均配置 healthcheck。
+启动依赖为 PostgreSQL healthy → `migrate` 成功退出 → API healthy → Workspace；Site 可独立启动。应用进程不隐式执行 migration。
 
 ```powershell
 docker compose ps
@@ -73,6 +74,25 @@ docker compose down
 ```
 
 Compose 前端镜像固定 `node:24.18.0-bookworm-slim` 与 pnpm 11.13.1，并在根 workspace 执行 frozen install。源码变化后重新 `docker compose up --build`。
+
+### 3.1 X-01 真实集成
+
+真实 Browser E2E 使用独立 Compose Project 和 `docker-compose.integration.yml`。该覆盖层只把 `APP_ENV` 设为 `integration`，从而挂载 Session owner 绑定的 test-only bootstrap；development/production 不挂载该路由。
+
+```powershell
+$project = "xingwen-x01-$((Get-Date).ToString('yyyyMMddHHmmss'))"
+if (-not $project.StartsWith("xingwen-x01-")) { throw "Unsafe Compose project name" }
+
+docker compose -p $project -f docker-compose.yml -f docker-compose.integration.yml up --build --detach --wait
+$env:X01_WORKSPACE_BASE_URL = "http://localhost:5173"
+$env:X01_API_ORIGIN = "http://localhost:8000"
+pnpm test:e2e:integration
+
+if (-not $project.StartsWith("xingwen-x01-")) { throw "Unsafe Compose project name" }
+docker compose -p $project -f docker-compose.yml -f docker-compose.integration.yml down --volumes --remove-orphans
+```
+
+Workspace 与 API 必须使用同一 hostname（默认均为 `localhost`），否则浏览器会把跨端口 Session Cookie 视为跨站 Cookie。不得复用或删除其他 Compose Project/Volume。
 
 ## 4. 前端本机调试
 
@@ -145,10 +165,11 @@ docker compose config
 pnpm install --frozen-lockfile
 pnpm format:check / check:docs / lint / typecheck / test / build
 pnpm check:architecture / check:legacy / test:e2e
-uv sync --frozen / pytest / Pydantic JSON Schema export
+uv sync --frozen / PostgreSQL pytest / Alembic / Pydantic JSON Schema export
+fresh Compose / pnpm test:e2e:integration
 ```
 
-Site 与 Workspace 分别构建；所有共享包参与 typecheck。E2E 覆盖 Site、Workspace、共享深链接和 Not Found。
+Site 与 Workspace 分别构建；所有共享包参与 typecheck。Fixture E2E 覆盖 Site、Workspace、共享深链接和 Not Found；X-01 job 在 fresh Compose 上覆盖真实 `/api/v2` Browser 链路。
 
 ## 7. 本地验收顺序
 
@@ -156,9 +177,10 @@ Site 与 Workspace 分别构建；所有共享包参与 typecheck。E2E 覆盖 S
 2. `pnpm check` 通过。
 3. `pnpm test:e2e` 通过。
 4. `docker compose config` 通过。
-5. `docker compose up --build --wait` 后四服务均为 healthy。
-6. Site、Workspace 深链接和 `/api/v1/health` 可访问。
-7. `.env` 未被 Git 跟踪，仓库只有根 `pnpm-lock.yaml`。
+5. `docker compose up --build --wait` 后 `postgres`、`api`、`site`、`workspace` healthy，`migrate` exited 0。
+6. `pnpm test:e2e:integration` 在独立 Compose Project 上通过。
+7. Site、Workspace 深链接和 `/api/v1/health` 可访问。
+8. `.env` 未被 Git 跟踪，仓库只有根 `pnpm-lock.yaml`。
 
 ## 8. 常见问题
 
@@ -166,7 +188,7 @@ Site 与 Workspace 分别构建；所有共享包参与 typecheck。E2E 覆盖 S
 | ------------------- | ----------------------------------------------------------- |
 | Node 版本不符       | 使用 Node 24.18.0，或直接通过 Compose 验证                  |
 | Docker 启动失败     | 查看 `docker compose ps` 与 `docker compose logs <service>` |
-| 浏览器请求 API 失败 | 将 `VITE_API_BASE_URL` 设为宿主机或公网可访问 URL           |
+| 浏览器请求 API 失败 | 将 `VITE_API_BASE_URL` 设为无版本路径的可访问 origin；Workspace/API 使用同一 hostname |
 | CORS 报错           | 同时核对实际 Workspace origin 与后端 `CORS_ORIGINS`         |
 | 前端依赖异常        | 删除本地 `node_modules` 后重新 frozen install               |
 | 后端依赖异常        | 使用 `uv sync --frozen` 重建                                |

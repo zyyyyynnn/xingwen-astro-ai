@@ -31,11 +31,9 @@ GitHub Open Issues 是标题、正文、标签、Milestone、负责人和实时�
 | #84 | Task | [A] A-11 建立 Design Token、UI primitive 与 BrandMark | #29 | A | #3 | 共享 Token、primitive、BrandMark |
 | #85 | Task | [A] A-12 实现 Visual Engine 生命周期、质量档与降级 | #29 | A | #3 | deterministic runtime、资源释放、Poster/Reduced Motion |
 | #86 | Task | [A] A-13 组装 Brand Site 与静态 Workspace Shell | #29 | A | #84、#85 | 静态首页、Workspace Shell、a11y 与降级 |
-| #30 | Epic | [A] A-03 Epic：建立契约驱动的工作台行为层 | — | A | #28、#29 | Domain/Fixture、HTTP Adapter、Workspace/Share 行为 |
 | #87 | Task | [A] A-14 建立前端 Domain、Fixture Adapter 与 Guided Tour FSM | #30 | A | #80 | 稳定 Domain、版本化 Fixture、FSM、基础 provenance 状态 |
 | #88 | Task | [A] A-15 接入 Session、Contract、Run 与 Event HTTP Adapter | #30 | A | #81、#87 | 生成 Contract Adapter、Mapper、Event 恢复 |
 | #89 | Task | [A] A-16 绑定 WorkspaceSnapshot、Share 与静态 Shell 行为 | #30 | A | #82、#86、#88 | Workspace 恢复、只读分享与 Shell 行为 |
-| #31 | Gate | [X] X-01 Gate：验证真实 /api/v2 Contract 集成 | — | X | #28、#30 | Fixture/HTTP 一致性、Session/Contract/Run/Share 最小 E2E |
 
 ## M2 可靠运行时与通用 Artifact 边界
 

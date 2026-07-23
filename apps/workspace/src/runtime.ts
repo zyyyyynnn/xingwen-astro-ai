@@ -74,13 +74,14 @@ export function createWorkspaceRuntime(
   }
 
   const baseUrl = parseApiOrigin(configuredApiBaseUrl);
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
   const session = createSessionManager({
     baseUrl,
-    fetchImpl: options.fetchImpl ?? globalThis.fetch,
+    fetchImpl,
   });
   const repositories = createHttpRepositories({
     baseUrl,
-    fetchImpl: options.fetchImpl,
+    fetchImpl,
     session,
   });
 

@@ -42,7 +42,7 @@
 - Server state、local state 和 URL state 按 Frontend Architecture 分工。
 - 组件覆盖 loading、empty、partial、success、failed 和来源/修订状态。
 - 用户文本与外部内容默认按文本渲染，不绕过框架转义。
-- A-02/A-03 未实现能力不得通过空对象、伪数据或占位成功状态包装为 Current。
+- 任何 Pending 能力不得通过空对象、伪数据或占位成功状态包装为 Current。
 
 ## 4. Pipeline
 
