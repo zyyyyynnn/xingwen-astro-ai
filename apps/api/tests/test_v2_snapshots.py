@@ -89,7 +89,13 @@ def _session_client() -> tuple[FastAPI, TestClient, str, str]:
     return app, client, session_id, csrf_token
 
 
-def test_snapshot_runtime_reports_unavailable_without_database() -> None:
+def test_snapshot_runtime_reports_unavailable_without_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Isolate from host DATABASE_URL / Compose credentials so the assertion
+    # always exercises the no-authority path rather than a live PG lookup.
+    monkeypatch.setattr(settings, "DATABASE_URL", None)
+    monkeypatch.setattr(settings, "PERSISTENT_WORKFLOW_ENABLED", False)
     app = create_app()
     client = TestClient(app, base_url="https://testserver")
     created = client.post("/api/v2/sessions")
