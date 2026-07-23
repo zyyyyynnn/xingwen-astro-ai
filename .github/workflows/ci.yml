@@ -37,6 +37,22 @@ jobs:
   backend:
     name: Backend tests and schema export
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: xingwen_test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d xingwen_test_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/xingwen_test_db
     defaults:
       run:
         working-directory: apps/api
@@ -55,6 +71,11 @@ jobs:
 
       - name: Sync locked dependencies
         run: uv sync --frozen
+
+      - name: Upgrade isolated PostgreSQL schema
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: uv run alembic upgrade head
 
       - name: Run backend tests
         run: uv run pytest
@@ -174,3 +195,56 @@ jobs:
 
       - name: Run frontend entrypoint smoke
         run: pnpm test:e2e
+
+  x01-integration:
+    name: X-01 real Compose and browser integration
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: x01-ci-${{ github.run_id }}
+      X01_API_ORIGIN: http://localhost:8000
+      X01_WORKSPACE_BASE_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.1
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Enable pinned package manager
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.13.1 --activate
+
+      - name: Install locked dependencies and browser runtime
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Start isolated fresh Compose project
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml -f docker-compose.integration.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.integration.yml up --build --detach --wait --remove-orphans
+          docker compose -f docker-compose.yml -f docker-compose.integration.yml ps --all
+          migrate_id="$(docker compose -f docker-compose.yml -f docker-compose.integration.yml ps --all -q migrate)"
+          test -n "$migrate_id"
+          test "$(docker inspect --format '{{.State.ExitCode}}' "$migrate_id")" = "0"
+          curl --fail --silent --show-error http://localhost:8000/api/v1/health
+
+      - name: Run real HTTP Browser and Fixture parity integration
+        run: pnpm test:e2e:integration
+
+      - name: Show Compose logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.integration.yml logs --no-color
+
+      - name: Remove only the isolated CI Compose project and volume
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.integration.yml down --volumes --remove-orphans
