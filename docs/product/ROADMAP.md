@@ -14,4 +14,4 @@
 | M2 核心功能   | 真实数据、论文、Summary、推理和 Graph 形成版本化 Evidence 链                        | X-06 与 X-07 通过；ArtifactVersion、Evidence、SourceSnapshot 和 Benchmark 可复现             | 数据与论文产物 → X-06 → 推理与图谱产物 → X-07                       |
 | M3 反馈与交付 | 缓存、版本、修订、分享、部署和材料形成稳定闭环                                      | X-08 通过；来源语义、权限、降级、部署和材料 provenance 一致                                  | B-10/B-11 + A-09/A-10 + C-06/D-06 → X-02 → X-03 → X-08              |
 
-A-01 只完成前端运行时硬切换；`/api/v2` M1 后端核心 Runtime 已实现，A-02、A-03、Compose 集成与 X-01 总体验收仍以对应 Issue 的代码、测试和运行证据为准。
+A-01 完成前端运行时硬切换；`/api/v2` M1 后端核心 Runtime、A-03、Compose 集成与 X-01 真实 Browser 证据已实现。A-02 视觉系统和 M2 科研 Pipeline 仍以对应 Issue 的代码、测试和运行证据为准；Milestone 实时状态只看 GitHub。

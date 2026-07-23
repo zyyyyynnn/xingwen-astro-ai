@@ -16,16 +16,16 @@
 
 | 层级       | Current / Implemented                                                                           | Pending                                                 |
 | ---------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| 前端       | `apps/site` Astro Brand Site、`apps/workspace` React Research Workspace、A-16 Tour/Workspace/Share Port 接线、共享包和根 pnpm 工具链 | A-02 视觉系统收口；真实 HTTP Browser/Compose 与刷新恢复（#122 / #31） |
-| API        | `/api/v1` Task 契约；`/api/v2` M1 核心 Runtime 与 PostgreSQL 权威读取                           | A-03 前端 HTTP 接入与 M2 科研能力                        |
-| 后端与数据 | 当前应用、v2 Application / Persistence、Pipeline 与 PostgreSQL 基线                            | M2 科研 Pipeline 扩展，不改变既有科研边界                |
-| 本地环境   | Compose：`site`、`workspace`、`api`、`postgres`                                                 | 生产部署拓扑按独立 Issue 定义                           |
+| 前端       | `apps/site` Astro Brand Site、`apps/workspace` React Research Workspace、A-03 Tour/Workspace/Share Fixture + HTTP Port、真实 Browser/刷新恢复、共享包和根 pnpm 工具链 | A-02 视觉系统收口 |
+| API        | `/api/v1` Task 契约；`/api/v2` M1 核心 Runtime、PostgreSQL 权威读取与 X-01 真实集成 | M2 科研能力 |
+| 后端与数据 | 当前应用、v2 Application / Persistence、Pipeline 与 PostgreSQL 基线 | M2 科研 Pipeline 扩展，不改变既有科研边界 |
+| 本地环境   | Compose：`site`、`workspace`、`api`、`migrate`、`postgres`；独立 X-01 Browser 集成入口 | 生产部署拓扑按独立 Issue 定义 |
 
 规则：
 
-- A-01 已实现运行时、路由、共享包边界、工具链、CI 与 Compose；不等于 A-02/A-03 产品能力已实现。
-- A-16 已将 Fixture / HTTP Repository Port 接入同一套 Tour、Workspace 和匿名 Share 组件，并有组件与 Fixture E2E 证据；这不等于 A-03 Epic、X-01、真实 HTTP Browser 或 Compose 集成完成。
-- `/api/v2` 后端核心 Runtime 已实现；真实浏览器 HTTP、Compose 和刷新恢复仍以 #122 / #31 的代码、测试和运行证据为准。
+- A-01 已实现运行时、路由、共享包边界、工具链、CI 与 Compose；A-03/X-01 由后续独立实现和真实集成证据完成，不等于 A-02 或 M2 产品能力已实现。
+- A-03 已在同一套 Tour、Workspace 和匿名 Share 组件上验证 Fixture / HTTP Repository Port，并有组件、Fixture E2E 与独立真实 HTTP Browser/Compose 证据。
+- `/api/v2` M1 Runtime 与 X-01 真实集成已实现；Snapshot/Share 记录仍为进程生命周期存储，M2 科研 Pipeline 与跨实例持久化不在该结论内。
 - 本文件不授权在无对应 Issue 时安装 Three.js、React Three Fiber、GSAP、状态库、Tauri 或新增业务依赖。
 - `apps/site` 与 `apps/workspace` 不得重复实现同一业务状态；共享能力进入职责明确的 Package。
 
@@ -95,9 +95,9 @@
 | Compose                  | `docker compose config`；运行变更时 `docker compose up --build --wait`                         |
 | A-01 前端                | frozen root install、format、lint、typecheck、test、build、E2E、architecture、legacy checks    |
 | Brand Site               | 当前静态 HTML 含中文标题、说明、Workspace CTA 与 404；A-02 目标为极简单英雄首页 + bluegray Token，另验收 |
-| Workspace                | 四个路由、Not Found、Error Boundary、Loading fallback、键盘导航；A-16 的 Tour/Workspace/Share Port 行为、冲突与 Fixture E2E；真实 HTTP Browser/Compose 仍由 #122 / #31 验收 |
+| Workspace                | 四个路由、Not Found、Error Boundary、Loading fallback、键盘导航；Fixture 与真实 HTTP Browser 的 Tour/Workspace/Share、冲突、刷新恢复和匿名 Share |
 | Visual Engine（Pending） | High/Medium/Low、deterministic seed、freeze time、pause/dispose、Poster、Reduced Motion        |
-| Adapter（Pending）       | Fixture / HTTP 返回同一 Domain Model，一致性测试通过                                           |
+| Adapter                  | Fixture / HTTP 返回同一 Domain Model，一致性测试通过 |
 | 后端                     | `uv sync --frozen` + pytest；错误与权限场景覆盖                                                |
 | 科研可信                 | Summary、Relation、Trace、GraphEdge 均按契约绑定 Evidence                                      |
 
