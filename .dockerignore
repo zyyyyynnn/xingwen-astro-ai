@@ -9,4 +9,10 @@
 .env
 docs
 samples
-services
+services/*
+!services/data_pipeline/
+services/data_pipeline/*
+!services/data_pipeline/manifests/
+services/data_pipeline/manifests/*
+!services/data_pipeline/manifests/exoplanet_host_star/
+!services/data_pipeline/manifests/exoplanet_host_star/*.json

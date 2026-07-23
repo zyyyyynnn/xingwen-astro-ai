@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------------ |
 | Status         | Accepted                                                     |
 | Authority      | 环境拓扑、配置边界、迁移、健康检查和发布验证                 |
-| Implementation | Current four-service local baseline；public topology Pending |
+| Implementation | Current five-service local baseline（含 one-shot migrate）与 X-01 真实集成；public topology Pending |
 
 本文说明系统如何运行和发布。安全要求由 [Security](SECURITY.md) 定义，产品退出标准由 [Acceptance](docs/product/ACCEPTANCE.md) 定义，本地开发命令由 [Local Setup](docs/setup.md) 维护。
 
@@ -14,8 +14,8 @@ MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通�
 
 - 静态 Brand Site；
 - Guided Tour 与 Research Workspace；
-- FastAPI `/api/v1` 回归接口和 `/api/v2` Contract；Session runtime Current，Workspace/Share application boundary 与其余 v2 runtime Pending；
-- PostgreSQL Schema 与 Alembic migration 基线已实现；Workflow 恢复和原子发布仍待实现；
+- FastAPI `/api/v1` 回归接口和 `/api/v2` M1 Runtime；Session、Project/Contract/Run/Event、Artifact/Evidence 与 Workspace/Share Current；
+- PostgreSQL Schema、Alembic migration、Workflow 恢复和 ArtifactVersion 原子发布基线已实现；M2 科研 Pipeline Pending；
 - Demo Replay、Live Run、真实缓存、分享和导出；
 - WebGL 或外部服务失败时的可用降级；
 - 版本、来源、Evidence 和请求追踪。
@@ -27,11 +27,12 @@ MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通�
 | Service     | Runtime                        | Purpose                              |
 | ----------- | ------------------------------ | ------------------------------------ |
 | `site`      | Node.js 24.18.0 + pnpm 11.13.1 | Astro Brand Site                     |
-| `workspace` | Node.js 24.18.0 + pnpm 11.13.1 | React Research Workspace             |
-| `api`       | Python 3.13 + uv               | FastAPI `/api/v1`；`/api/v2` Contract 与 Session runtime；Workspace/Share application boundary Pending |
-| `postgres`  | PostgreSQL 17                  | 本地状态和结果持久化                 |
+| `workspace` | Node.js 24.18.0 + pnpm 11.13.1 | React Research Workspace + HTTP Adapter |
+| `api`       | Python 3.13 + uv               | FastAPI `/api/v1` 与 `/api/v2` M1 Runtime |
+| `migrate`   | Python 3.13 + uv               | Alembic `upgrade head` one-shot |
+| `postgres`  | PostgreSQL 17                  | Project/Contract/Run/Event/Artifact 权威事实 |
 
-当前启动、端口和故障排查只在 [Local Setup](docs/setup.md) 维护。A-01 入口不代表 A-02/A-03 产品能力已经实现。
+`postgres healthy → migrate exited 0 → api` 是固定启动顺序；迁移失败时 API 不启动。当前启动、端口、X-01 隔离 Project 和故障排查只在 [Local Setup](docs/setup.md) 维护。
 
 ## 3. Target：公网拓扑
 
@@ -98,17 +99,18 @@ Astro 使用明确的 `PUBLIC_` 前缀，Workspace 使用 `VITE_` 前缀。所�
 | Path                 | Owner     | Requirement                                       |
 | -------------------- | --------- | ------------------------------------------------- |
 | `/`、`/404.html`     | Site      | Current 静态输出，核心内容不依赖 JavaScript       |
-| `/tour`              | Workspace | Current A-01 SPA 入口；Guided Tour 行为 Pending   |
-| `/workspace`         | Workspace | Current A-01 SPA 入口；私有 Session 行为 Pending  |
-| `/share/$shareToken` | Workspace | Current A-01 SPA 入口；ShareSnapshot 行为 Pending |
+| `/tour`              | Workspace | Current Guided Tour、Contract 与 Run 启动 |
+| `/workspace`         | Workspace | Current 私有 Session、WorkspaceSnapshot 与恢复 |
+| `/share/$shareToken` | Workspace | Current 匿名只读冻结 ShareSnapshot |
 | `/api/v1/*`          | API       | Current 回归接口                                  |
-| `/api/v2/*`          | API       | Pending 资源 Contract                             |
+| `/api/v2/*`          | API       | Current M1 资源 Runtime；M2 科研能力 Pending |
 
 CDN 或平台缓存不得缓存私有 Workspace/API 响应。公开分享默认 `no-store`，除非安全和撤销语义证明可采用其他策略。静态资产可使用内容 hash 长缓存。
 
 ## 7. 数据库迁移与保留
 
 - Migration 必须在应用切换前运行，并具有明确失败退出；
+- 本地 Compose 使用独立 `migrate` one-shot，API 只在其成功退出后启动；应用进程不执行 migration；
 - 破坏性迁移需要备份、回滚或双读/迁移方案；
 - Run、ArtifactVersion、Evidence、SourceSnapshot 和 Share 的事务不变量必须保持；
 - Session 过期、Share 保留和临时导出清理策略需要配置并测试；

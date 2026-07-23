@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------- |
 | Status         | Accepted                                                |
 | Authority      | 工作台信息架构、核心交互、页面状态与 Guided Tour       |
-| Implementation | A-01 routes 与 A-16 Tour/Workspace/Share Port 行为 Current；A-02 视觉与 X-01 真实集成 Pending |
+| Implementation | A-01 routes、A-03 Tour/Workspace/Share Port 行为与 X-01 真实集成 Current；A-02 视觉 Pending |
 
 本文定义科研工作台的信息架构、核心交互、页面状态和 Guided Tour。工作台借鉴现代 Agent Desktop 的桌面级组织能力，但不采用“聊天线程 + 工具日志”作为产品核心。
 
@@ -438,7 +438,7 @@ AI 响应优先生成：
 - 未配置 API origin 时，Tour 以版本化 Fixture 呈现 Demo Replay；Live 控件保留但禁用并有文字标识。
 - 配置合法 API origin 时，同一页面组件切换到 HTTP Repository Port；模式选择只传递给 Run `execution_mode`，不写入 Draft 或 Contract。
 - Draft 在确认成功后于当前页面锁定为只读；创建 Run 的单次重试复用同一 Idempotency-Key。
-- 当前证据是组件测试和 Fixture Playwright；真实 HTTP Browser、外部服务失败和刷新恢复仍由 #122 / #31 处理。
+- 当前证据包含组件测试、Fixture Playwright，以及独立真实 HTTP Browser/Compose 对 Draft、Contract、Run/Event、Workspace 冲突、刷新恢复和冻结 Share 的验证；外部 Live 科研服务失败仍属后续范围。
 
 ## 12. 会话与分享
 
@@ -523,4 +523,4 @@ A-16 的 375px 视图保留 Atlas 与 Observatory 的 `details` 摘要、Canvas 
 - `1440×900`、`1920×1080` 完整布局与 `1280px` 可完成主流程均通过验证。
 - 中央最多三个拆分面板，底部 Research Console 不遮挡当前核心产物。
 - 无鼠标可以确认 Research Contract、切换产物、定位 Evidence、重试或取消运行。
-- A-16 Fixture E2E 覆盖 Tour、WorkspaceSnapshot 保存、Artifact/Evidence、冻结 Share、375px 与 200% 字体；这不是对真实 HTTP Browser 或 Compose 的验收替代。
+- Fixture E2E 覆盖 Tour、WorkspaceSnapshot 保存、Artifact/Evidence、冻结 Share、375px 与 200% 字体；独立 X-01 E2E 再以真实 HTTP/Compose 验证同一组件路径、冲突、刷新恢复、匿名读取与撤销。

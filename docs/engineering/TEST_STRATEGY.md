@@ -49,6 +49,8 @@
 - Qwen/Data/Paper Client 的 stub 或 recorded response；
 - Session、CSRF、ownership、Share 和 Problem Details；
 - Fixture / HTTP Repository Adapter 的 Domain 一致性。
+- 真实 PostgreSQL + FastAPI Runtime 的 Session → Project → Contract → Run/Event → ArtifactVersion/Evidence → Workspace/Share 链路；
+- fresh Compose 上不使用 MSW 的真实 HTTP Browser、冲突、刷新恢复与匿名 Share。
 
 ### Contract
 
@@ -119,12 +121,12 @@ D-02 的 Crossref 单元/集成测试使用 fixture 或 recorded response 并标
 
 ## 4. 环境矩阵
 
-| 环境             | 主要用途                              | 外部服务                          |
-| ---------------- | ------------------------------------- | --------------------------------- |
-| local            | 快速开发、Unit、Component             | 默认 stub/Fixture                 |
-| CI               | 稳定 Contract、Integration、E2E smoke | stub/recorded，禁止依赖不稳定公网 |
-| preview          | 浏览器、路由、安全和部署 smoke        | 受控 Live 或专用测试凭据          |
-| production smoke | 发布后关键路径                        | 限制主案例和调用额度              |
+| 环境             | 主要用途                                                       | 外部服务                                          |
+| ---------------- | -------------------------------------------------------------- | ------------------------------------------------- |
+| local            | 快速开发、Unit、Component                                      | 默认 stub/Fixture                                 |
+| CI               | 稳定 Contract、PostgreSQL Integration、Fixture + real HTTP E2E | stub/recorded + fresh Compose，禁止依赖不稳定公网 |
+| preview          | 浏览器、路由、安全和部署 smoke                                 | 受控 Live 或专用测试凭据                          |
+| production smoke | 发布后关键路径                                                 | 限制主案例和调用额度                              |
 
 敏感凭据只存在于受控环境，不写入 Fixture、录制数据或测试日志。
 
@@ -136,6 +138,8 @@ D-02 的 Crossref 单元/集成测试使用 fixture 或 recorded response 并标
 - Schema/OpenAPI 生成和 stale check；
 - 当前 v1 回归、A-01 Site/Workspace 入口与共享包 smoke；
 - Fixture/HTTP Domain 一致性；
+- PostgreSQL 17、Alembic upgrade、真实 FastAPI Runtime 与 `/api/v1` 回归；
+- fresh Compose 的 `postgres → migrate → api → workspace` 与真实 HTTP Browser/刷新恢复/Share 撤销；
 - 静态首屏、键盘和 WebGL fallback。
 
 ### X-06

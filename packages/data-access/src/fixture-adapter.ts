@@ -537,8 +537,14 @@ export function createFixtureRepositories(
           panelSlots: snapshotInput.panelSlots,
           activeRunId: snapshotInput.activeRunId,
           pinnedEvidenceIds: snapshotInput.pinnedEvidenceIds,
-          atlasState: snapshotInput.atlasState,
-          observatoryState: snapshotInput.observatoryState,
+          atlasState: snapshotInput.atlasState ?? {
+            focusMode: null,
+            selectedObjectRef: null,
+          },
+          observatoryState: snapshotInput.observatoryState ?? {
+            activeArtifactVersionId: null,
+            activeEvidenceId: null,
+          },
           selectedObjectRef: snapshotInput.selectedObjectRef,
           updatedAt: clock(),
         };
@@ -591,7 +597,11 @@ export function createFixtureRepositories(
         };
         shares.set(id, { snapshot, token, artifactVersions, evidence });
         shareByToken.set(token, id);
-        return { ...snapshot, shareToken: token, shareUrl: `/share/${token}` };
+        return {
+          ...snapshot,
+          shareToken: token,
+          shareUrl: `/api/v2/shares/${token}`,
+        };
       },
       revoke: async (projectId, shareId) => {
         const record = shares.get(shareId);

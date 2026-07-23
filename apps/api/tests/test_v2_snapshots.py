@@ -89,7 +89,13 @@ def _session_client() -> tuple[FastAPI, TestClient, str, str]:
     return app, client, session_id, csrf_token
 
 
-def test_snapshot_runtime_reports_unavailable_without_database() -> None:
+def test_snapshot_runtime_reports_unavailable_without_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Isolate from host DATABASE_URL / Compose credentials so the assertion
+    # always exercises the no-authority path rather than a live PG lookup.
+    monkeypatch.setattr(settings, "DATABASE_URL", None)
+    monkeypatch.setattr(settings, "PERSISTENT_WORKFLOW_ENABLED", False)
     app = create_app()
     client = TestClient(app, base_url="https://testserver")
     created = client.post("/api/v2/sessions")
@@ -291,6 +297,8 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
         headers={"X-CSRF-Token": csrf_token},
     )
     assert revoked.status_code == 204
+    assert revoked.content == b""
+    assert "content-type" not in revoked.headers
     after_revoke = anonymous.get(f"/api/v2/shares/{raw_token}")
     invalid = anonymous.get("/api/v2/shares/not-a-real-token")
     assert after_revoke.status_code == invalid.status_code == 404

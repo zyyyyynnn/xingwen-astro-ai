@@ -4,7 +4,7 @@
 | -------------- | ---------------------------------------------------- |
 | Status         | Accepted                                             |
 | Authority      | 产品设计原则、体验域关系、交互模型与设计不变量       |
-| Implementation | A-01 runtime 与 A-16 Port 绑定 UI Current；A-02 视觉系统和 X-01 真实集成 Pending |
+| Implementation | A-01 runtime、A-03 Port 绑定 UI 与 X-01 真实集成 Current；A-02 视觉系统 Pending |
 
 本文定义星文智析的设计判断标准，不重复产品主流程、页面规格、技术栈、领域枚举或验收清单。
 
@@ -119,4 +119,4 @@ flowchart LR
 
 ## 8. 实施边界
 
-设计实现必须由对应 Issue 驱动。A-01 只证明 Astro/React 运行时、路由和共享包边界；A-16 已以同一组件路径消费 Fixture / HTTP Repository Port，并覆盖本地 Draft、冲突与匿名冻结 Share。真实 HTTP Browser、Compose 和刷新恢复仍是 #122 / #31 Pending。只有代码、测试和运行证据通过后，能力才可标记为 Implemented。
+设计实现必须由对应 Issue 驱动。A-01 只证明 Astro/React 运行时、路由和共享包边界；A-03 已以同一组件路径消费 Fixture / HTTP Repository Port，并通过真实 Browser/Compose 覆盖 Draft、Contract、Run/Event、Workspace 冲突与刷新恢复、匿名冻结 Share 和撤销。A-02 视觉系统与 M2 科研能力仍按各自 Issue 和运行证据推进。

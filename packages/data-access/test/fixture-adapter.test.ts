@@ -203,6 +203,14 @@ describe("Fixture adapter — workspace save and conflict", () => {
     const fresh = createFixtureRepositories(exoplanetHostStarFixture);
     const saved = await fresh.workspaces.save(PROJECT_ID, input, 0);
     expect(saved.revision).toBe(1);
+    expect(saved.atlasState).toEqual({
+      focusMode: null,
+      selectedObjectRef: null,
+    });
+    expect(saved.observatoryState).toEqual({
+      activeArtifactVersionId: null,
+      activeEvidenceId: null,
+    });
     const reloaded = await fresh.workspaces.getByProjectId(PROJECT_ID);
     expect(reloaded).toEqual(saved);
   });
@@ -229,6 +237,7 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     const fresh = createFixtureRepositories(exoplanetHostStarFixture);
     const created = await fresh.shares.create(PROJECT_ID, request);
     expect(created.shareToken).toBeTruthy();
+    expect(created.shareUrl).toBe(`/api/v2/shares/${created.shareToken}`);
 
     const listed = await fresh.shares.list(PROJECT_ID);
     expect(listed).toHaveLength(1);
