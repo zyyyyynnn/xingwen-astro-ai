@@ -287,6 +287,7 @@ describe("Workspace routes", () => {
       repositories: {
         ...fixture.repositories,
         projects: {
+          ...fixture.repositories.projects,
           getById: vi.fn(async () => ({ ...project, activeContractId: null })),
         },
         contracts: {
@@ -655,6 +656,7 @@ describe("Workspace routes", () => {
       repositories: {
         ...fixture.repositories,
         projects: {
+          ...fixture.repositories.projects,
           getById: vi.fn(async (id: EntityId) =>
             id === targetProjectId
               ? {
@@ -1032,6 +1034,7 @@ describe("Workspace routes", () => {
       repositories: {
         ...fixture.repositories,
         projects: {
+          ...fixture.repositories.projects,
           getById: vi.fn(async () => ({
             ...project,
             latestRunId: alternateRun.id,

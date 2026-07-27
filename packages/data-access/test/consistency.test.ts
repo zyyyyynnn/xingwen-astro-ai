@@ -51,6 +51,63 @@ it("projects.getById returns the same domain entity", async () => {
   expect(httpProject).toEqual(fixtureProject);
 });
 
+it("projects.list returns the same domain entities and cursor shape", async () => {
+  const httpRepos = setupHttpRepos();
+  const [fixturePage, httpPage] = await Promise.all([
+    fixtureRepos.projects.list(),
+    httpRepos.projects.list(),
+  ]);
+  expect(httpPage.items).toEqual(fixturePage.items);
+  // The seeded fixture holds a single project, so the first page is terminal.
+  expect(fixturePage.nextCursor).toBeNull();
+  expect(httpPage.nextCursor).toBeNull();
+  expect(httpPage.items.map((p) => p.id)).toContain(PROJECT_ID);
+});
+
+it("projects.create returns the same domain entity via both adapters", async () => {
+  const freshFixture = createFixtureRepositories(exoplanetHostStarFixture);
+  const httpRepos = setupHttpRepos();
+  const input = {
+    name: "Consistency project",
+    description: "Created through both adapters",
+    caseKey: "exoplanet_host_star" as never,
+    idempotencyKey: "consistency-project-1",
+  };
+  const [fixtureProject, httpProject] = await Promise.all([
+    freshFixture.projects.create(input),
+    httpRepos.projects.create(input),
+  ]);
+  // Identity/timestamp metadata differs by construction; the client-authored
+  // fields and the frozen defaults must agree.
+  expect(httpProject.name).toBe(fixtureProject.name);
+  expect(httpProject.description).toBe(fixtureProject.description);
+  expect(httpProject.caseKey).toBe(fixtureProject.caseKey);
+  expect(httpProject.activeContractId).toBeNull();
+  expect(fixtureProject.activeContractId).toBeNull();
+  expect(httpProject.revision).toBe(fixtureProject.revision);
+});
+
+it("contracts.createDraft returns the same domain entity via both adapters", async () => {
+  const freshFixture = createFixtureRepositories(exoplanetHostStarFixture);
+  const httpRepos = setupHttpRepos();
+  const base = await freshFixture.contracts.getDraftById(EDITABLE_DRAFT_ID);
+  const input = {
+    intent: "Integrate exoplanet candidates and host-star parameters",
+    contract: base!.contract,
+    idempotencyKey: "consistency-draft-1",
+  };
+  const [fixtureDraft, httpDraft] = await Promise.all([
+    freshFixture.contracts.createDraft(PROJECT_ID, input),
+    httpRepos.contracts.createDraft(PROJECT_ID, input),
+  ]);
+  expect(httpDraft.intent).toBe(fixtureDraft.intent);
+  expect(httpDraft.status).toBe("draft");
+  expect(fixtureDraft.status).toBe("draft");
+  expect(httpDraft.version).toBe(1);
+  expect(fixtureDraft.version).toBe(1);
+  expect(httpDraft.contract).toEqual(fixtureDraft.contract);
+});
+
 it("contracts.getDraftById returns the same domain entity", async () => {
   const httpRepos = setupHttpRepos();
   const [fixtureDraft, httpDraft] = await Promise.all([

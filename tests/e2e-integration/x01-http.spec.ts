@@ -10,13 +10,13 @@ import { asEntityId } from "@xingwen/domain";
 
 const API_ORIGIN = process.env.X01_API_ORIGIN ?? "http://localhost:8000";
 
+/** Fixture ArtifactVersion/Evidence publication result (#131 narrowed shape). */
 interface BootstrapData {
-  readonly project_id: string;
-  readonly draft_id: string;
-  readonly contract_id: string | null;
-  readonly run_id: string | null;
-  readonly artifact_version_id: string | null;
-  readonly evidence_id: string | null;
+  readonly run_id: string;
+  readonly artifact_id: string;
+  readonly artifact_version_id: string;
+  readonly source_snapshot_id: string;
+  readonly evidence_id: string;
   readonly execution_mode: "demo_replay";
   readonly source_mode: "fixture";
   readonly scenario: "exoplanet_host_star";
@@ -25,6 +25,44 @@ interface BootstrapData {
 interface BootstrapEnvelope {
   readonly data: BootstrapData;
 }
+
+/** The full public-runtime chain plus the published fixture artifact ids. */
+interface ChainData {
+  readonly project_id: string;
+  readonly draft_id: string;
+  readonly contract_id: string;
+  readonly run_id: string;
+  readonly artifact_version_id: string;
+  readonly evidence_id: string;
+}
+
+// Domain-shaped (camelCase) contract input consumed by the repository port;
+// the adapter maps it to the snake_case transport DTO. Mirrors the frozen
+// exoplanet host-star main case so drafts stay valid and hash-parity holds.
+const NEW_CONTRACT_INPUT = {
+  researchGoal: "Integrate exoplanet candidates and host-star parameters",
+  targetObjects: ["exoplanet_candidate", "host_star"],
+  dataRequirements: { unitPolicy: "canonical" },
+  requestedFields: ["planet.toi_id", "star.tic_id"],
+  sourceScope: { allowedSources: ["nasa_exoplanet_archive"] },
+  paperSearchScope: {
+    keywords: ["exoplanet", "host star parameters"],
+    yearFrom: 2018,
+    yearTo: 2026,
+    sourceIds: ["nasa_exoplanet_archive"],
+    maxCandidates: 5,
+  },
+  outputRequirements: ["dataset", "graph"],
+  evidenceRequirements: {
+    requireLocator: true,
+    requireSourceSnapshot: true,
+    minimumCoverage: 1,
+  },
+  qualityConstraints: {
+    sourceCompletenessMin: 1,
+    unitConsistencyMin: 1,
+  },
+} as const;
 
 function cookieFetch(): typeof fetch {
   let cookie = "";
@@ -42,26 +80,64 @@ function cookieFetch(): typeof fetch {
   };
 }
 
-async function bootstrapWithAdapter(complete = true) {
+/**
+ * Build the full M1 chain over the *public* runtime — create Project, Draft,
+ * confirm Contract, create a demo_replay Run — then publish the deterministic
+ * fixture ArtifactVersion/Evidence onto that run via the narrowed test-only
+ * bootstrap. Nothing here injects prerequisite resources: the bootstrap only
+ * attaches fixture outputs to a session-owned run.
+ */
+async function buildChainWithAdapter() {
   const fetchImpl = cookieFetch();
   const session = createSessionManager({ baseUrl: API_ORIGIN, fetchImpl });
   await session.ensureSession();
+  const repositories = createHttpRepositories({
+    baseUrl: API_ORIGIN,
+    fetchImpl,
+    session,
+  });
+
+  const project = await repositories.projects.create({
+    name: "Exoplanet host-star integration",
+    description: "Evidence-bound integration for the frozen main case",
+    caseKey: "exoplanet_host_star" as never,
+    idempotencyKey: `chain-project-${String(Date.now())}`,
+  });
+  const draft = await repositories.contracts.createDraft(project.id, {
+    intent: "Integrate exoplanet candidates and host-star parameters",
+    contract: NEW_CONTRACT_INPUT as never,
+    idempotencyKey: `chain-draft-${String(Date.now())}`,
+  });
+  const contract = await repositories.contracts.confirm(
+    project.id,
+    draft.id,
+    draft.version,
+  );
+  const run = await repositories.runs.create({
+    projectId: project.id,
+    contractId: contract.id,
+    executionMode: "demo_replay",
+    idempotencyKey: `chain-run-${String(Date.now())}`,
+  });
+
   const headers = new Headers({ "Content-Type": "application/json" });
   session.attachCsrf(headers);
   const response = await fetchImpl(
-    `${API_ORIGIN}/api/v2/test/bootstrap?complete=${String(complete)}`,
+    `${API_ORIGIN}/api/v2/test/bootstrap?run_id=${String(run.id)}`,
     { method: "POST", credentials: "include", headers },
   );
   expect(response.status).toBe(201);
-  const payload = (await response.json()) as BootstrapEnvelope;
-  return {
-    data: payload.data,
-    repositories: createHttpRepositories({
-      baseUrl: API_ORIGIN,
-      fetchImpl,
-      session,
-    }),
+  const published = ((await response.json()) as BootstrapEnvelope).data;
+
+  const data: ChainData = {
+    project_id: String(project.id),
+    draft_id: String(draft.id),
+    contract_id: String(contract.id),
+    run_id: published.run_id,
+    artifact_version_id: published.artifact_version_id,
+    evidence_id: published.evidence_id,
   };
+  return { data, repositories };
 }
 
 function without(value: object, keys: readonly string[]) {
@@ -121,19 +197,11 @@ function collectRuntimeErrors(page: Page) {
 }
 
 test("real HTTP Adapter returns the same M1 Domain Model as the frozen Fixture", async () => {
-  const { data, repositories: http } = await bootstrapWithAdapter();
+  const { data, repositories: http } = await buildChainWithAdapter();
   const contractId = data.contract_id;
   const runId = data.run_id;
   const artifactVersionId = data.artifact_version_id;
   const evidenceId = data.evidence_id;
-  if (
-    contractId === null ||
-    runId === null ||
-    artifactVersionId === null ||
-    evidenceId === null
-  ) {
-    throw new Error("Integration bootstrap omitted required M1 entity ids");
-  }
 
   const fixture = createFixtureRepositories(exoplanetHostStarFixture);
   const [httpProject, fixtureProject] = await Promise.all([
@@ -331,17 +399,8 @@ test("real HTTP Adapter returns the same M1 Domain Model as the frozen Fixture",
 });
 
 test("real HTTP and Fixture adapters align Workspace and Share Domain Models", async () => {
-  const { data, repositories: http } = await bootstrapWithAdapter();
+  const { data, repositories: http } = await buildChainWithAdapter();
   const fixture = createFixtureRepositories(exoplanetHostStarFixture);
-  if (
-    data.run_id === null ||
-    data.artifact_version_id === null ||
-    data.evidence_id === null
-  ) {
-    throw new Error(
-      "Complete bootstrap did not return the required entity ids",
-    );
-  }
 
   const httpProjectId = asEntityId(data.project_id);
   const httpRunId = asEntityId(data.run_id);
@@ -510,29 +569,12 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
     );
   });
 
-  const createdSession = await context.request.post(
-    `${API_ORIGIN}/api/v2/sessions`,
-  );
-  expect(createdSession.status()).toBe(201);
-  const sessionPayload = (await createdSession.json()) as {
-    data: { csrf_token: string };
-  };
-  const bootstrapHeaders = { "X-CSRF-Token": sessionPayload.data.csrf_token };
-  const partial = await context.request.post(
-    `${API_ORIGIN}/api/v2/test/bootstrap?complete=false`,
-    { headers: bootstrapHeaders },
-  );
-  expect(partial.status()).toBe(201);
-  const seed = ((await partial.json()) as BootstrapEnvelope).data;
-  expect(seed.contract_id).toBeNull();
-  expect(seed.run_id).toBeNull();
-
-  const tourSearch = new URLSearchParams({
-    projectId: seed.project_id,
-    draftId: seed.draft_id,
-  });
-  await page.goto(`/tour?${tourSearch.toString()}`);
-  await expect(page.getByRole("heading", { name: "研究引导" })).toBeVisible();
+  // #131: the browser creates the Project and Draft through the public
+  // runtime UI (entry page) — no test-only bootstrap injection of prerequisites.
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "科研工作台入口" }),
+  ).toBeVisible();
   try {
     await expect(page.getByText("HTTP 适配器", { exact: true })).toBeVisible();
   } catch {
@@ -540,6 +582,37 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
       `HTTP session failed: ${JSON.stringify({ runtimeErrors, requestFailures, apiRequests })}`,
     );
   }
+
+  const projectCreated = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/api/v2/projects") &&
+      response.status() === 201,
+  );
+  await page.getByLabel("Project 名称").fill("Exoplanet host-star integration");
+  await page.getByRole("button", { name: "创建 Project" }).click();
+  const projectId = (
+    (await (await projectCreated).json()) as { data: { id: string } }
+  ).data.id;
+
+  const draftCreated = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response
+        .url()
+        .endsWith(`/api/v2/projects/${projectId}/contract-drafts`) &&
+      response.status() === 201,
+  );
+  await page
+    .getByRole("button", { name: "创建 Draft 并进入引导" })
+    .first()
+    .click();
+  const draftId = (
+    (await (await draftCreated).json()) as { data: { id: string } }
+  ).data.id;
+  const seed = { project_id: projectId, draft_id: draftId };
+
+  await expect(page.getByRole("heading", { name: "研究引导" })).toBeVisible();
 
   await page
     .getByLabel("研究意图")
@@ -585,13 +658,22 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
     .id;
   await expect(page.getByText(/demo_replay \/ queued/).first()).toBeVisible();
 
+  // Publish the deterministic fixture ArtifactVersion/Evidence onto the
+  // UI-created demo_replay run through the narrowed bootstrap. Resuming the
+  // page's session (shared cookie jar) yields a CSRF valid for that owner.
+  const resumeForBootstrap = await context.request.post(
+    `${API_ORIGIN}/api/v2/sessions`,
+  );
+  expect(resumeForBootstrap.status()).toBe(201);
+  const bootstrapCsrf = (
+    (await resumeForBootstrap.json()) as { data: { csrf_token: string } }
+  ).data.csrf_token;
   const completed = await context.request.post(
-    `${API_ORIGIN}/api/v2/test/bootstrap?complete=true`,
-    { headers: bootstrapHeaders },
+    `${API_ORIGIN}/api/v2/test/bootstrap?run_id=${runId}`,
+    { headers: { "X-CSRF-Token": bootstrapCsrf } },
   );
   expect(completed.status()).toBe(201);
   const completeSeed = ((await completed.json()) as BootstrapEnvelope).data;
-  expect(completeSeed.contract_id).toBe(contractId);
   expect(completeSeed.run_id).toBe(runId);
   expect(completeSeed.artifact_version_id).not.toBeNull();
   expect(completeSeed.evidence_id).not.toBeNull();
