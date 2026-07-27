@@ -36,24 +36,13 @@ Closes #
 
 - 测试报告、截图、运行或复现路径：
 
-## Web GPT Review gate
+## Technical Review gate
 
-```text
-review_type: web_gpt
-review_purpose: pr_technical_review
-review_scope:
-  target_type: pull_request
-  target_ids: [zyyyyynnn/xingwen-astro-ai#<PR number>]
-reviewed_head_sha:
-verdict: BLOCKED
-blocking_findings:
-non_blocking_findings:
-reviewed_at:
-evidence_actor_identity:
-review_evidence_state:
-```
+正式技术 Review 由授权审查者按 [Contributing §5](../CONTRIBUTING.md#5-正式技术-review-责任) 另行发布为 GitHub Pull Request Review；PR 作者不得在描述中预填或代写 verdict。
 
-此处只记录实际网页端 GPT Review 结果。`APPROVED` 只能对应 `PASS`，`CHANGES_REQUESTED` 只能对应 `BLOCKED`；`COMMENTED` 正文必须包含独立的 `verdict: PASS | BLOCKED` 行。新 Commit 会使旧 Review 失效。当前 HEAD 的网页端 GPT `pr_technical_review` 为 `PASS` 且标准 CI 通过前，Codex 不得转 Ready 或合并；其他合并条件也满足后，可由网页端 GPT 或 Codex 执行标准合并流程。
+- Review URL：
+- Reviewed HEAD：
+- Verdict：
 
 ## Migration / rollback
 
@@ -62,7 +51,7 @@ review_evidence_state:
 ## Final checklist
 
 - [ ] Diff 与描述一致
-- [ ] 当前 HEAD 的网页端 GPT `pr_technical_review PASS` 和适用 CI 已通过
+- [ ] 当前 HEAD 的正式技术 Review 与适用 CI 已按 [合并标准](../CONTRIBUTING.md#6-合并标准) 通过
 - [ ] 不包含无关改动
 - [ ] Current / Target / Pending 无混淆
 - [ ] 未扩大产品承诺
