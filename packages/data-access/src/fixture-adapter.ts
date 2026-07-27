@@ -32,6 +32,7 @@ import { ConflictError, NotFoundError } from "./http-errors";
 import {
   buildFixtureProvenance,
   mapArtifactVersion,
+  mapDomainContractInputToDto,
   mapEvidence,
   mapResearchArtifact,
   mapResearchContract,
@@ -40,6 +41,7 @@ import {
   mapResearchRun,
   mapRunEvent,
 } from "./mapping";
+import { computeContractContentHash } from "./contract-hash";
 import type {
   ArtifactReadRepository,
   ContractRepository,
@@ -406,7 +408,9 @@ export function createFixtureRepositories(
             ) + 1,
           createdFromDraftId: draft.id,
           createdAt: now,
-          contentHash: ("sha256:" + "0".repeat(64)) as ContentHash,
+          contentHash: (await computeContractContentHash(
+            mapDomainContractInputToDto(draft.contract),
+          )) as ContentHash,
         };
         contracts.upsert(contract);
         drafts.upsert({ ...draft, status: "confirmed", updatedAt: now });

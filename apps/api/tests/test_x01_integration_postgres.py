@@ -132,8 +132,12 @@ def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
     assert store is not None
     assert factory is not None
 
-    owner, owner_credential, owner_csrf = app.state.session_service.create(now=NOW)
-    other, other_credential, _other_csrf = app.state.session_service.create(now=NOW)
+    owner, owner_credential, owner_csrf = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
+    other, other_credential, _other_csrf = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
 
     project_id = uuid4()
     draft_id = uuid4()
@@ -497,7 +501,7 @@ def test_test_only_bootstrap_seeds_session_bound_deterministic_scenario(
     rejected = anonymous.post("/api/v2/test/bootstrap")
     assert rejected.status_code == 401
 
-    _record, credential, csrf = app.state.session_service.create(now=NOW)
+    _record, credential, csrf = app.state.session_service.create(now=datetime.now(UTC))
     client = TestClient(app, base_url="https://testserver")
     client.cookies.set(settings.SESSION_COOKIE_NAME, credential)
     seeded = client.post("/api/v2/test/bootstrap", headers={"X-CSRF-Token": csrf})
@@ -615,7 +619,7 @@ def test_test_only_bootstrap_absent_in_development(
 ) -> None:
     monkeypatch.setattr(settings, "APP_ENV", "development")
     app = create_app()
-    _record, credential, csrf = app.state.session_service.create(now=NOW)
+    _record, credential, csrf = app.state.session_service.create(now=datetime.now(UTC))
     client = TestClient(app, base_url="https://testserver")
     client.cookies.set(settings.SESSION_COOKIE_NAME, credential)
     # Authenticated request still resolves to 404: the router is not mounted.

@@ -31,6 +31,7 @@ from app.schemas.v2 import (
     RunStatus,
     SourceMode,
 )
+from app.security import canonical_request_hash
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -200,6 +201,39 @@ def test_contract_has_no_execution_mode_and_manifest_admission_is_authoritative(
             case_key="exoplanet_host_star",
             manifests=manifests,
         )
+
+
+def test_fixture_contract_hash_matches_pydantic_canonical_payload() -> None:
+    payload = {
+        "research_goal": "Integrate exoplanet candidates and host-star parameters",
+        "target_objects": ["exoplanet_candidate", "host_star"],
+        "data_requirements": {"unit_policy": "canonical"},
+        "requested_fields": ["planet.toi_id", "star.tic_id"],
+        "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+        "paper_search_scope": {
+            "keywords": ["exoplanet", "host star parameters"],
+            "year_from": 2018,
+            "year_to": 2026,
+            "source_ids": ["nasa_exoplanet_archive"],
+            "max_candidates": 5,
+        },
+        "output_requirements": ["dataset", "graph"],
+        "evidence_requirements": {
+            "require_locator": True,
+            "require_source_snapshot": True,
+            "minimum_coverage": 1,
+        },
+        "quality_constraints": {
+            "source_completeness_min": 1,
+            "unit_consistency_min": 1,
+        },
+    }
+    normalized = ResearchContractInput.model_validate(payload).model_dump(mode="json")
+
+    assert normalized["evidence_requirements"]["minimum_coverage"] == 1.0
+    assert canonical_request_hash(normalized) == (
+        "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986"
+    )
 
 
 def test_contract_rejects_whitespace_goal() -> None:
