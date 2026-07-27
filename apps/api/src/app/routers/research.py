@@ -15,6 +15,8 @@ from fastapi import APIRouter, Header, Path, Query, Request, Response, status
 from app.schemas.v2 import (
     CollectionEnvelope,
     ConfirmResearchContractRequest,
+    CreateResearchContractDraftRequest,
+    CreateResearchProjectRequest,
     CreateRunRequest,
     CursorPage,
     Envelope,
@@ -61,6 +63,53 @@ def _no_store(response: Response) -> None:
 
 
 @router.get(
+    "/projects",
+    operation_id="listResearchProjects",
+    response_model=CollectionEnvelope[ResearchProject],
+)
+def list_research_projects(
+    request: Request,
+    response: Response,
+    cursor: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> CollectionEnvelope[ResearchProject]:
+    projects, next_cursor, has_more = _service(request).list_projects(
+        session_id=_session_id(request), cursor=cursor, limit=limit
+    )
+    _no_store(response)
+    path = "/api/v2/projects"
+    return CollectionEnvelope(
+        data=projects,
+        page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
+        meta=_meta(request),
+        links=ResponseLinks(self=path),
+    )
+
+
+@router.post(
+    "/projects",
+    operation_id="createResearchProject",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Envelope[ResearchProject],
+)
+def create_research_project(
+    payload: CreateResearchProjectRequest,
+    request: Request,
+    response: Response,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+) -> Envelope[ResearchProject]:
+    data = _service(request).create_project(
+        session_id=_session_id(request),
+        idempotency_key=idempotency_key,
+        request=payload,
+    )
+    _no_store(response)
+    response.headers["Location"] = f"/api/v2/projects/{data.id}"
+    path = f"/api/v2/projects/{data.id}"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
     "/projects/{project_id}",
     operation_id="getResearchProject",
     response_model=Envelope[ResearchProject],
@@ -75,6 +124,32 @@ def get_research_project(
     )
     _no_store(response)
     path = f"/api/v2/projects/{project_id}"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.post(
+    "/projects/{project_id}/contract-drafts",
+    operation_id="createResearchContractDraft",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Envelope[ResearchContractDraft],
+)
+def create_research_contract_draft(
+    project_id: Annotated[str, Path(min_length=1)],
+    payload: CreateResearchContractDraftRequest,
+    request: Request,
+    response: Response,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+) -> Envelope[ResearchContractDraft]:
+    data = _service(request).create_draft(
+        project_id=project_id,
+        session_id=_session_id(request),
+        idempotency_key=idempotency_key,
+        request=payload,
+    )
+    _no_store(response)
+    response.headers["Location"] = f"/api/v2/research-contract-drafts/{data.id}"
+    response.headers["ETag"] = str(data.version)
+    path = f"/api/v2/research-contract-drafts/{data.id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 

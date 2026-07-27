@@ -17,7 +17,7 @@
 | 层级       | Current / Implemented                                                                                                                                                 | Pending                                   |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | 前端       | `apps/site` Astro Brand Site、`apps/workspace` React Research Workspace、A-03 Tour/Workspace/Share Fixture + HTTP Port、真实 Browser/刷新恢复、共享包和根 pnpm 工具链 | A-02 视觉系统收口                         |
-| API        | `/api/v1` Task 契约；`/api/v2` M1 核心 Runtime、PostgreSQL 权威读取与 X-01 真实集成                                                                                   | M2 科研能力                               |
+| API        | `/api/v1` Task 契约；`/api/v2` M1 核心 Runtime（27-operation 公开 Authoring Chain）、PostgreSQL 权威读取与 X-01 真实集成                                                                                   | M2 科研能力                               |
 | 后端与数据 | 当前应用、v2 Application / Persistence、Pipeline 与 PostgreSQL 基线                                                                                                   | M2 科研 Pipeline 扩展，不改变既有科研边界 |
 | 本地环境   | Compose：`site`、`workspace`、`api`、`migrate`、`postgres`；独立 X-01 Browser 集成入口                                                                                | 生产部署拓扑按独立 Issue 定义             |
 

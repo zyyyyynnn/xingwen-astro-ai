@@ -39,7 +39,7 @@ flowchart LR
 | 版本      | 状态              | 说明                                                          |
 | --------- | ----------------- | ------------------------------------------------------------- |
 | `/api/v1` | Current           | 当前后端 Task Contract                                        |
-| `/api/v2` | M1 Core Runtime Implemented | 24 个冻结 operation 已挂载；Compose 启用持久 Research 写路径，A-03/X-01 真实集成已验证；M2 科研 Pipeline Pending |
+| `/api/v2` | M1 Core Runtime Implemented | 27 个冻结 operation 已挂载（#131 公开 Authoring Chain 新增 `listResearchProjects`、`createResearchProject`、`createResearchContractDraft`）；Compose 启用持久 Research 写路径，A-03/X-01 真实集成已验证；M2 科研 Pipeline Pending |
 
 版本推进规则：
 
@@ -178,14 +178,27 @@ export
 
 ## 7. Research Contract Draft
 
-### `POST /api/v2/research-contract-drafts`
+### `POST /api/v2/projects/{project_id}/contract-drafts`
 
-根据自然语言意图创建可编辑草案，不启动 Run。
+在当前会话拥有的 Project 下创建可编辑草案，不启动 Run。请求携带
+`Idempotency-Key`（与 confirm / run create 一致的重放或 409 语义）。跨会话或
+不存在的 Project 返回既有的不可枚举 404。Draft 与 Contract 都不含
+`execution_mode`（该字段只属于 Run 创建）。
 
 ```json
 {
   "intent": "整合系外行星候选体与宿主恒星参数，并追踪字段和论文证据",
-  "case_key": "exoplanet_host_star"
+  "contract": {
+    "research_goal": "整合系外行星候选体与宿主恒星关键参数",
+    "target_objects": ["exoplanet_candidate", "host_star"],
+    "data_requirements": { "unit_policy": "canonical" },
+    "requested_fields": ["planet.toi_id", "star.tic_id"],
+    "source_scope": { "allowed_sources": ["nasa_exoplanet_archive"] },
+    "paper_search_scope": { "max_candidates": 20 },
+    "output_requirements": ["dataset", "graph"],
+    "evidence_requirements": { "require_locator": true },
+    "quality_constraints": { "source_completeness_min": 1.0 }
+  }
 }
 ```
 
@@ -196,19 +209,15 @@ export
   "data": {
     "id": "rcd_01J...",
     "status": "draft",
+    "version": 1,
     "contract": {
       "research_goal": "整合系外行星候选体与宿主恒星关键参数",
       "target_objects": ["exoplanet_candidate", "host_star"],
       "data_requirements": { "unit_policy": "canonical" },
-      "requested_fields": [
-        "planet.orbital_period",
-        "planet.radius",
-        "planet.mass",
-        "star.effective_temperature"
-      ],
+      "requested_fields": ["planet.toi_id", "star.tic_id"],
       "source_scope": { "allowed_sources": ["nasa_exoplanet_archive"] },
-      "paper_search_scope": { "year_from": 2015, "max_candidates": 20 },
-      "output_requirements": ["dataset", "field_dictionary", "graph"],
+      "paper_search_scope": { "max_candidates": 20 },
+      "output_requirements": ["dataset", "graph"],
       "evidence_requirements": { "require_locator": true },
       "quality_constraints": { "source_completeness_min": 1.0 }
     },
@@ -225,7 +234,7 @@ export
 
 ### `PATCH /api/v2/research-contract-drafts/{draft_id}`
 
-更新草案字段。请求携带 `If-Match` 或 `version`，防止多个编辑器静默覆盖。
+更新草案字段。请求携带 `If-Match`（草案 `version`），防止多个编辑器静默覆盖。
 
 ## 8. Project 与不可变 Contract
 

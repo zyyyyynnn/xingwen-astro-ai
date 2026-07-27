@@ -180,6 +180,103 @@ function workspaceSnapshot(
 
 /** Default handlers serving the exoplanet-host-star fixture over HTTP. */
 export const defaultHandlers = [
+  http.get(`${BASE_URL}/api/v2/projects`, ({ request }) => {
+    // Session-scoped listing seeded with the fixture project only; the cursor
+    // is an opaque base64 project id, mirroring the runtime keyset cursor.
+    const url = new URL(request.url);
+    const cursor = url.searchParams.get("cursor");
+    const ordered = [...exoplanetHostStarFixture.data.projects];
+    let start = 0;
+    if (cursor) {
+      let anchor: string;
+      try {
+        anchor = atob(
+          cursor.padEnd(cursor.length + ((4 - (cursor.length % 4)) % 4), "="),
+        );
+      } catch {
+        return HttpResponse.json(
+          problem(400, "INVALID_CURSOR", "Invalid cursor"),
+          { status: 400 },
+        );
+      }
+      const index = ordered.findIndex((p) => p.id === anchor);
+      if (index === -1) {
+        return HttpResponse.json(
+          problem(400, "INVALID_CURSOR", "Invalid cursor"),
+          { status: 400 },
+        );
+      }
+      start = index + 1;
+    }
+    const page = ordered.slice(start, start + 20);
+    const hasMore = start + page.length < ordered.length;
+    const nextCursor =
+      hasMore && page.length > 0
+        ? btoa(String(page[page.length - 1]!.id)).replace(/=+$/u, "")
+        : null;
+    return HttpResponse.json({
+      data: page,
+      page: { next_cursor: nextCursor, has_more: hasMore, limit: 20 },
+      meta: {
+        request_id: "req_test",
+        schema_version: "2.0.0",
+        generated_at: "2026-07-21T08:00:00Z",
+      },
+    });
+  }),
+  http.post(`${BASE_URL}/api/v2/projects`, async ({ request }) => {
+    if (!request.headers.get("Idempotency-Key")) {
+      return HttpResponse.json(
+        problem(400, "INVALID_REQUEST", "Idempotency-Key required"),
+        { status: 400 },
+      );
+    }
+    const body = (await request.json()) as {
+      name: string;
+      description?: string;
+      case_key: string;
+    };
+    const base = exoplanetHostStarFixture.data.projects[0]!;
+    return HttpResponse.json(
+      envelope({
+        ...base,
+        name: body.name,
+        description: body.description ?? "",
+        case_key: body.case_key,
+        active_contract_id: null,
+        latest_run_id: null,
+      }),
+      { status: 201 },
+    );
+  }),
+  http.post(
+    `${BASE_URL}/api/v2/projects/:projectId/contract-drafts`,
+    async ({ request }) => {
+      if (!request.headers.get("Idempotency-Key")) {
+        return HttpResponse.json(
+          problem(400, "INVALID_REQUEST", "Idempotency-Key required"),
+          { status: 400 },
+        );
+      }
+      const body = (await request.json()) as {
+        intent: string;
+        contract: unknown;
+      };
+      const base = exoplanetHostStarFixture.data.contractDrafts.find(
+        (d) => d.status === "draft",
+      )!;
+      return HttpResponse.json(
+        envelope({
+          ...base,
+          intent: body.intent,
+          contract: body.contract,
+          status: "draft",
+          version: 1,
+        }),
+        { status: 201 },
+      );
+    },
+  ),
   http.get(`${BASE_URL}/api/v2/projects/:projectId`, ({ params }) => {
     const project = exoplanetHostStarFixture.data.projects.find(
       (p) => p.id === params.projectId,

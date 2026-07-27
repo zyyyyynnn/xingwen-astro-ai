@@ -7,6 +7,12 @@ Mounted by ``app.main.create_app`` only when ``APP_ENV`` is ``test`` or
 lives under ``/api/v2``, the standard security middleware enforces the same
 session cookie + CSRF rules as every other private endpoint — ownership
 checks are never bypassed, and no credential is ever returned or logged.
+
+Since #131 the bootstrap no longer injects Project, ContractDraft, Contract,
+Run, credentials or Share tokens: the browser main chain creates those through
+the public Authoring Chain. The bootstrap only publishes the frozen main
+case's deterministic ``demo_replay``/``fixture`` ArtifactVersion + Evidence
+onto a session-owned Run via the real Persistence/Publisher boundary.
 """
 
 from __future__ import annotations
@@ -15,7 +21,7 @@ from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 
 from app.security import SecurityProblem
-from app.test_support.bootstrap import BootstrapResult, bootstrap_demo_scenario
+from app.test_support.bootstrap import BootstrapResult, bootstrap_fixture_artifacts
 
 router = APIRouter(prefix="/api/v2/test", tags=["test-only"])
 
@@ -39,9 +45,9 @@ def _persistent_runtime_unavailable() -> SecurityProblem:
 @router.post("/bootstrap", response_model=BootstrapResponse, status_code=201)
 def create_bootstrap(
     request: Request,
-    complete: bool = Query(
-        default=True,
-        description="False seeds only the editable Project/Draft browser starting point",
+    run_id: str = Query(
+        min_length=1,
+        description="Session-owned demo_replay run the fixture is published onto",
     ),
 ) -> BootstrapResponse:
     record = request.state.session
@@ -52,11 +58,11 @@ def create_bootstrap(
     if factory is None or research_service is None or workflow_store is None:
         raise _persistent_runtime_unavailable()
 
-    result = bootstrap_demo_scenario(
+    result = bootstrap_fixture_artifacts(
         session_id=record.id,
+        run_id=run_id,
         factory=factory,
         research_service=research_service,
         workflow_store=workflow_store,
-        complete=complete,
     )
     return BootstrapResponse(data=result)

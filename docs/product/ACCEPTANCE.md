@@ -31,7 +31,7 @@ M1 完成需要同时满足：
 - Node.js 24.18.0、pnpm 11.13.1、根 lockfile、uv、Schema 导出和 Foundation CI 通过；
 - A-01 Astro Site、React Workspace、共享包、根工具链与最小路由通过 build、E2E、architecture 和 retirement checks；
 - A-16 Tour、Workspace 与匿名 Share 在同一 Fixture / HTTP Repository Port 组件路径上覆盖 Contract/Run、WorkspaceSnapshot 冲突和冻结 Share 的组件及 Fixture E2E 行为；
-- A-03 的 Fixture / HTTP Adapter 对同一场景返回同一 Domain Model；真实 Browser/Compose 覆盖 Session、Contract、Run/Event、ArtifactVersion/Evidence、Workspace 冲突与刷新恢复、冻结 Share、匿名读取与撤销；
+- A-03 的 Fixture / HTTP Adapter 对同一场景返回同一 Domain Model；真实 Browser/Compose 覆盖 Session、经公开 Runtime 创建 Project 与 ContractDraft（#131，不再由 test-only bootstrap 注入）、Contract 确认、Run/Event、ArtifactVersion/Evidence、Workspace 冲突与刷新恢复、冻结 Share、匿名读取与撤销；操作口径以 `docs/architecture/API_CONTRACT.md` 的 27-operation 契约为准；
 - PostgreSQL 是 Project、Contract、Run、Event、ArtifactVersion 和 Evidence 的权威事实源；X-01 集成 CI 不使用 SQLite、MSW 或 Repository mock；
 - 运行时退役扫描通过，历史应用目录、专用依赖和环境变量不存在。
 

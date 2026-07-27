@@ -7,6 +7,8 @@
 
 import type {
   ConfirmResearchContractRequest,
+  CreateResearchContractDraftRequest,
+  CreateResearchProjectRequest,
   CreateRunRequest,
   UpdateResearchContractDraftRequest,
 } from "@xingwen/contracts";
@@ -34,14 +36,18 @@ import {
 } from "./mapping";
 import type {
   ContractRepository,
+  CreateResearchContractDraftInput,
+  CreateResearchProjectInput,
   CreateResearchRunInput,
   ProjectRepository,
+  ResearchProjectPage,
   RunEventRecovery,
   RunRepository,
   UpdateResearchContractDraftInput,
 } from "./ports";
 
 const EVENT_PAGE_LIMIT = 100;
+const PROJECT_PAGE_LIMIT = 20;
 
 interface ResearchRepositories {
   readonly projects: ProjectRepository;
@@ -59,9 +65,52 @@ export function createResearchRepositories(
         ? validateAndMap("ResearchProject", payload, mapResearchProject)
         : null;
     },
+    async list(cursor = null): Promise<ResearchProjectPage> {
+      const params: string[] = [`limit=${String(PROJECT_PAGE_LIMIT)}`];
+      if (cursor) params.push(`cursor=${encodeURIComponent(cursor)}`);
+      const env = await http.getPage<unknown>(
+        `/api/v2/projects?${params.join("&")}`,
+      );
+      return {
+        items: env.data.map((p) =>
+          validateAndMap("ResearchProject", p, mapResearchProject),
+        ),
+        nextCursor: env.page?.has_more ? (env.page?.next_cursor ?? null) : null,
+      };
+    },
+    async create(input: CreateResearchProjectInput) {
+      const body: CreateResearchProjectRequest = {
+        name: input.name,
+        description: input.description ?? "",
+        case_key: input.caseKey,
+      };
+      const payload = await http.post<unknown>("/api/v2/projects", body, {
+        "Idempotency-Key": input.idempotencyKey,
+      });
+      return validateAndMap("ResearchProject", payload, mapResearchProject);
+    },
   };
 
   const contracts: ContractRepository = {
+    async createDraft(
+      projectId,
+      input: CreateResearchContractDraftInput,
+    ): Promise<ResearchContractDraft> {
+      const body: CreateResearchContractDraftRequest = {
+        intent: input.intent,
+        contract: mapDomainContractInputToDto(input.contract),
+      };
+      const payload = await http.post<unknown>(
+        `/api/v2/projects/${seg(projectId)}/contract-drafts`,
+        body,
+        { "Idempotency-Key": input.idempotencyKey },
+      );
+      return validateAndMap(
+        "ResearchContractDraft",
+        payload,
+        mapResearchContractDraft,
+      );
+    },
     async getDraftById(id) {
       const payload = await http.get<unknown>(
         `/api/v2/research-contract-drafts/${seg(id)}`,
