@@ -1,11 +1,11 @@
 # Review Checklist
 
-| 元数据    | 值                                 |
-| --------- | ---------------------------------- |
-| Status    | Accepted                           |
-| Authority | 单个 Pull Request 的网页端 GPT 审查与合并清单 |
+| 元数据    | 值                                             |
+| --------- | ---------------------------------------------- |
+| Status    | Accepted                                       |
+| Authority | 单个 Pull Request 的正式技术 Review 与合并清单 |
 
-本清单由网页端 GPT Review 使用，回答“这个 PR 是否可以合并”。本地 Codex 自审不能替代该 Review。里程碑和作品是否完成由 [Acceptance](../product/ACCEPTANCE.md) 判断，测试方法由 [Test Strategy](../engineering/TEST_STRATEGY.md) 定义。
+本清单由正式技术 Review 使用，回答“这个 PR 是否可以合并”。实施过程中的自审不能替代该 Review。合格审查者可以是人工、Codex、网页端 GPT、独立审查 Agent 或用户明确授权的其他技术审查主体；不以工具、模型、客户端或入口决定 Review 是否有效。里程碑和作品是否完成由 [Acceptance](../product/ACCEPTANCE.md) 判断，测试方法由 [Test Strategy](../engineering/TEST_STRATEGY.md) 定义。
 
 阻塞项仅限真实影响当前 PR 正确性或可合并性的问题：标准 CI 失败；代码、数据或 Schema 无法正常工作；hash、版本或契约错误；安全或数据损坏风险；来源或科学内容明显失真；Diff 超出 Issue 范围；文档与实现存在实质冲突；PR 无法合并。风格偏好、非当前范围增强、低概率防御性设计、后续工具改进、不影响当前正确性的理论边界，以及为单次任务增加额外自动化或治理层，默认记录为非阻塞建议。
 
@@ -94,22 +94,24 @@
 - [ ] 文档不包含个人本地路径、易失价格、未经核验的当前职位/状态或“最新版”等失效表述。
 - [ ] 新规则具有可执行验收，不使用“合理”“完善”“尽量”等模糊结论。
 
-## 9. 网页端 GPT Review 记录
+## 9. 正式技术 Review 记录
 
-- [ ] GitHub 可见记录包含 `review_type: web_gpt`。
+- [ ] GitHub 可见记录包含 `review_type: technical`。
+- [ ] `reviewer_kind` 为 `human | codex | web_gpt | agent` 之一，只记录来源，不决定有效性。
+- [ ] `reviewer_identity` 真实可追溯，`review_authorization` 为 `repository_policy` 或 `user_explicit`；未伪造或冒充其他审查主体。
 - [ ] `review_purpose` 明确为 `pr_technical_review` 或 `benchmark_scientific_review`，两者不互相替代。
 - [ ] `pr_technical_review PASS` 的 scope 精确且仅绑定当前 `pull_request: zyyyyynnn/xingwen-astro-ai#number`；单个 SourcePolicy、Claim 或其他对象范围不能通过 PR Gate。
-- [ ] `reviewed_head_sha` 是本次实际审查的 40 位 Commit SHA。
+- [ ] `reviewed_head_sha` 是本次实际审查的 40 位 Commit SHA，且等于 PR 当前 HEAD。
 - [ ] `verdict` 明确为 `PASS` 或 `BLOCKED`；普通无结论评论不满足门禁。
 - [ ] GitHub state 与 verdict 一致：`APPROVED => PASS`、`CHANGES_REQUESTED => BLOCKED`；`COMMENTED` 正文含独立的匹配 verdict 行。
 - [ ] `blocking_findings`、`non_blocking_findings` 和带时区 `reviewed_at` 已记录。
-- [ ] GitHub API 已核对 Review 的 repository/PR、actor、state、commit id 和正文；记录的 `evidence_actor_identity` 与 `review_evidence_state` 一致。
+- [ ] GitHub API 已核对 Review 的 repository/PR、actor、state、commit id 和正文；记录的 `reviewer_identity` 与 `review_evidence_state` 一致。
 - [ ] 多轮 Review 的最新记录显式 supersede 同 purpose/scope 的上一轮，不存在分叉、循环或未解决的 `BLOCKED` scope。
 - [ ] Review 后若出现新 Commit，旧记录已视为 stale，并在新 HEAD 上重新 Review。
 
 ## 10. 合并条件
 
-- [ ] 所有阻塞网页端 GPT Review 线程已解决。
+- [ ] 所有阻塞正式技术 Review 线程已解决。
 - [ ] 必要 CI 通过，未通过项没有被绕过。
 - [ ] 最新 `pr_technical_review` 的 `reviewed_head_sha` 等于 PR 当前 HEAD，且 verdict 为 `PASS`。
 - [ ] 分支可合并，目标 HEAD 未发生未审查变化。
@@ -117,6 +119,6 @@
 - [ ] 不扩大 MVP 承诺，不隐藏已知风险。
 - [ ] 满足仓库默认 Squash merge 规则。
 
-上述条件满足后，网页端 GPT 或 Codex 均可将 Draft 转为 Ready、执行 Squash merge，并在 `main` 合并结果核对成功后关闭关联 Issue。条件未满足时不得执行；不存在额外人工 PR Review、负责人二次批准或单独授权评论门。
+上述条件满足后，审查者或 Codex 均可将 Draft 转为 Ready、执行 Squash merge，并在 `main` 合并结果核对成功后关闭关联 Issue。条件未满足时不得执行；不存在额外人工 PR Review、负责人二次批准或单独授权评论门。
 
 发布或作品提交前，另按 [Acceptance](../product/ACCEPTANCE.md) 和 [Handoff](../handoff/README.md) 完成阶段级验证。
