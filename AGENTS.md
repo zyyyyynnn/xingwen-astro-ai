@@ -55,9 +55,8 @@
 - 从 `main` 建分支，不直接推送 `main`；不 reset、force push 或改写远端历史。
 - Commit 一个主要目的，使用 `feat` / `fix` / `docs` / `chore` 前缀。
 - PR 关联明确 Issue，或在 PR 描述中记录用户在当前会话直接下达的明确授权；不得为了满足形式要求创建无关 Issue。PR 说明范围、验证、契约/数据/UI/部署/安全影响和材料口径。
-- 本地 Codex 完成实现、验证、Commit、Push 并创建或更新 Draft PR 后，必须等待正式技术 Review；实施过程中的自审不能替代正式 Review。正式 Review 可以由人工审查者、Codex、网页端 GPT、独立审查 Agent 或用户明确授权的其他技术审查主体执行；不以工具、模型、客户端或入口决定 Review 是否有效。
-- 正式技术 Review 必须绑定当前 HEAD，审查完整 base...HEAD diff，给出明确 `PASS | BLOCKED`，列出 blocking/non-blocking findings，并保存 GitHub 可见记录；HEAD 变化后旧 Review 自动失效，新 Review 必须显式 supersede 同 scope 旧 Review。合格 Review 的有效性只取决于：reviewer identity 真实、authorization 可追溯、review scope 明确、绑定当前完整 PR HEAD、覆盖完整 diff、适用 Issue/Contract/规范与测试、给出明确 verdict，并保存为 GitHub 可见证据。
-- 当前 HEAD 的 `pr_technical_review` 为 `PASS`、标准 CI 均通过、PR 可合并且没有未解决的真实阻塞问题后，可由审查者或 Codex 将 Draft 转为 Ready 并按默认 Squash merge；合并结果核对成功后可关闭关联 Issue。当前 HEAD 尚无有效 `PASS`、CI 尚未通过、HEAD 已变化、PR 不可合并或仍有真实阻塞问题时，不得合并或关闭 Issue。
+- 本地 Codex 完成实现、验证、Commit、Push 并创建或更新 Draft PR 后，必须按 [Contributing §5](CONTRIBUTING.md#5-正式技术-review-责任) 获取绑定当前 HEAD 的正式技术 Review；实施过程中的自审不能替代正式 Review，HEAD 变化会使旧 Review 失效。
+- 合并必须满足 [Contributing §6](CONTRIBUTING.md#6-合并标准) 与 [Review Checklist §10](docs/quality/REVIEW_CHECKLIST.md#10-合并条件)。最低条件是当前 HEAD 的 `pr_technical_review` 为 `PASS`、标准 CI 全绿、PR 可合并且没有未解决的真实阻塞问题；否则不得转 Ready、合并或关闭关联 Issue。
 - 工作区存在无关修改时不得擅自暂存、清除或提交。
 
 ## 6. 模块边界

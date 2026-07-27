@@ -96,6 +96,8 @@
 
 ## 9. 正式技术 Review 记录
 
+- [ ] 记录载体是 GitHub Pull Request Review，不是普通 PR Comment、Issue Comment 或线程回复。
+- [ ] `evidence_actor_identity` 等于 GitHub API 返回的 Review actor；它与 `reviewer_identity` 分别记录发布账号和实际审查主体。
 - [ ] GitHub 可见记录包含 `review_type: technical`。
 - [ ] `reviewer_kind` 为 `human | codex | web_gpt | agent` 之一，只记录来源，不决定有效性。
 - [ ] `reviewer_identity` 真实可追溯，`review_authorization` 为 `repository_policy` 或 `user_explicit`；未伪造或冒充其他审查主体。
@@ -105,7 +107,7 @@
 - [ ] `verdict` 明确为 `PASS` 或 `BLOCKED`；普通无结论评论不满足门禁。
 - [ ] GitHub state 与 verdict 一致：`APPROVED => PASS`、`CHANGES_REQUESTED => BLOCKED`；`COMMENTED` 正文含独立的匹配 verdict 行。
 - [ ] `blocking_findings`、`non_blocking_findings` 和带时区 `reviewed_at` 已记录。
-- [ ] GitHub API 已核对 Review 的 repository/PR、actor、state、commit id 和正文；记录的 `reviewer_identity` 与 `review_evidence_state` 一致。
+- [ ] GitHub API 已核对 Review 的 repository/PR、actor、state、commit id 和正文；记录的 `evidence_actor_identity` 与 actor 一致，`review_evidence_state` 与 state 一致。
 - [ ] 多轮 Review 的最新记录显式 supersede 同 purpose/scope 的上一轮，不存在分叉、循环或未解决的 `BLOCKED` scope。
 - [ ] Review 后若出现新 Commit，旧记录已视为 stale，并在新 HEAD 上重新 Review。
 

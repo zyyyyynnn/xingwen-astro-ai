@@ -212,7 +212,7 @@ PR 不接受：
 
 ## 5. 正式技术 Review 责任
 
-合格审查者可以是人工审查者、Codex、网页端 GPT、独立审查 Agent 或用户明确授权的其他技术审查主体；不以工具、模型、客户端或入口决定 Review 是否有效。默认由独立于实现过程的审查者执行正式 Review；用户明确授权当前 Agent 兼任审查者时允许执行，但必须先结束实现阶段、重新 fetch、固定 base 和当前 HEAD、重新读取完整 diff、分别执行 Standards 与 Spec 审查，并保存独立的 GitHub Review 或 PR Comment。
+合格审查者可以是人工审查者、Codex、网页端 GPT、独立审查 Agent 或用户明确授权的其他技术审查主体；不以工具、模型、客户端或入口决定 Review 是否有效。默认由独立于实现过程的审查者执行正式 Review；用户明确授权当前 Agent 兼任审查者时允许执行，但必须先结束实现阶段、重新 fetch、固定 base 和当前 HEAD、重新读取完整 diff、分别执行 Standards 与 Spec 审查，并保存独立的 GitHub Pull Request Review。普通 PR Comment、Issue Comment 或线程回复不能满足正式 Review 门禁。
 
 作者负责：
 
@@ -230,7 +230,7 @@ PR 不接受：
 
 阻塞项与非阻塞建议的唯一完整定义见 [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)。审查者只应阻塞真实影响当前 PR 正确性或可合并性的问题，不得以风格偏好、范围外增强或额外治理层扩大范围。
 
-审查结论必须以 GitHub 可见的 Review、评论或线程保存；实施过程中的自审、测试或总结不能代替正式技术 Review。
+审查结论必须保存为 GitHub Pull Request Review；其 state 为 `COMMENTED`、`APPROVED` 或 `CHANGES_REQUESTED`。普通评论、线程、实施过程中的自审、测试或总结不能代替正式技术 Review。
 
 正式记录至少使用以下机器可读字段；普通无结论评论不能满足门禁：
 
@@ -248,16 +248,18 @@ reviewed_at: <timezone-aware timestamp>
 reviewer_kind: human | codex | web_gpt | agent
 reviewer_identity: <真实可追溯身份>
 review_authorization: repository_policy | user_explicit
+evidence_actor_identity: github:<实际发布 Review 的登录名>
 review_evidence_state: COMMENTED | APPROVED | CHANGES_REQUESTED
 ```
 
 - `reviewer_kind` 只记录来源（human/codex/web_gpt/agent），不用于决定 Review 是否有效。
+- `reviewer_identity` 标识实际技术审查主体；`evidence_actor_identity` 标识发布 GitHub Review 的账号。二者可以不同，但都必须真实且与授权记录一致。
 - `pr_technical_review` 审查代码、契约、测试、来源政策、治理文档和可合并性；PASS scope 必须且只能绑定完整 PR，例如 `pull_request: zyyyyynnn/xingwen-astro-ai#96`，单个 Benchmark 对象不能通过 PR Gate。
 - `benchmark_scientific_review` 逐项核验来源标识、Evidence、Summary、Claim、Relation、Trace 和 Graph；它不能替代技术 Review，技术 Review 也不能批准科研 Benchmark。
 - GitHub state 与 verdict 必须一致：`APPROVED => PASS`、`CHANGES_REQUESTED => BLOCKED`；`COMMENTED` 可承载任一结论，但正文必须包含独立一行 `verdict: PASS` 或 `verdict: BLOCKED`。
 - 同一 purpose/scope 的新 Review 必须显式 supersede 上一轮并使用新的 GitHub Review URL；最新叶节点为有效结论，未解决的 `BLOCKED` scope 阻止通过。
 - 合并门要求最新技术 Review 的 `reviewed_head_sha` 等于 PR 当前 HEAD 且 verdict 为 `PASS`；Review 后新增 Commit 时必须重新 Review。
-- 接受记录前必须通过 GitHub API 读取对应 Review，核对 repository/PR、actor、state、commit id 和包含明确 verdict 的正文；仅匹配 URL 外形不能通过。
+- 接受记录前必须通过 GitHub API 读取对应 Pull Request Review，核对 repository/PR、actor、state、commit id 和包含明确 verdict 的正文；`actor` 必须等于 `evidence_actor_identity`，仅匹配 URL 外形不能通过。
 - 不得伪造审查者身份、冒充其他审查主体，或把普通进度评论当作 `PASS`。当前 HEAD 的 `pr_technical_review` 尚未 `PASS`、标准 CI 未全部成功、HEAD 已变化、PR 不可合并或仍有真实阻塞问题时，Codex 不得转 Ready、合并 PR 或关闭关联 Issue；条件满足后可由审查者或 Codex 执行标准合并流程，不存在额外人工 PR Review、负责人二次批准或单独授权评论门。
 
 具体清单见 [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)。
