@@ -36,6 +36,7 @@ function setupHttpRepos() {
 const PROJECT_ID = "proj_01JEXAMPLE" as never;
 const RUN_ID = "run_01JEXAMPLE" as never;
 const DRAFT_ID = "rcd_01JEXAMPLE" as never;
+const EDITABLE_DRAFT_ID = "rcd_01JTOUR" as never;
 const CONTRACT_ID = "rc_01JEXAMPLE" as never;
 const ARTIFACT_ID = "art_graph_01" as never;
 const VERSION_ID = "artv_graph_01" as never;
@@ -120,4 +121,41 @@ it("artifacts.getEvidence returns the same domain entity", async () => {
     httpRepos.artifacts.getEvidence(EVIDENCE_ID),
   ]);
   expect(httpEvidence).toEqual(fixtureEvidence);
+});
+
+/**
+ * PR-1 Fix 4 — explicit contentHash parity regression.
+ *
+ * The pre-seeded contract `rc_01JEXAMPLE` and the editable draft share the
+ * same contract input, so the Fixture `confirm()` (which now computes the real
+ * canonical hash) and the HTTP contract read must agree on `contentHash`.
+ * `toEqual` above already compares `contentHash` (it is never excluded), but
+ * this test pins the canonical value explicitly so a regression to the
+ * all-zero placeholder or a canonicalization mismatch fails loudly.
+ */
+it("contract contentHash is a real canonical hash shared by Fixture and HTTP", async () => {
+  const httpRepos = setupHttpRepos();
+  const [fixtureContract, httpContract] = await Promise.all([
+    fixtureRepos.contracts.getContractById(CONTRACT_ID),
+    httpRepos.contracts.getContractById(CONTRACT_ID),
+  ]);
+  const expectedHash =
+    "sha256:a900a9fac201c6be7002237c16f1e52670733a5e4c8721d2bd9e6546e62dcaca";
+  expect(fixtureContract!.contentHash).toBe(expectedHash);
+  expect(httpContract!.contentHash).toBe(expectedHash);
+  expect(httpContract!.contentHash).toBe(fixtureContract!.contentHash);
+  expect(fixtureContract!.contentHash).not.toBe("sha256:" + "0".repeat(64));
+});
+
+it("Fixture confirm() and HTTP contract read agree on the confirmed contentHash", async () => {
+  const freshFixture = createFixtureRepositories(exoplanetHostStarFixture);
+  const httpRepos = setupHttpRepos();
+  const [confirmed, httpContract] = await Promise.all([
+    freshFixture.contracts.confirm(PROJECT_ID, EDITABLE_DRAFT_ID, 1),
+    httpRepos.contracts.getContractById(CONTRACT_ID),
+  ]);
+  // The editable draft carries the same input as the pre-seeded contract, so
+  // confirm() reproduces the same canonical hash the HTTP read returns.
+  expect(confirmed.contentHash).toBe(httpContract!.contentHash);
+  expect(confirmed.contentHash).toMatch(/^sha256:[0-9a-f]{64}$/u);
 });

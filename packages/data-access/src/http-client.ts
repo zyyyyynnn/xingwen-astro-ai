@@ -108,10 +108,27 @@ export class HttpClient {
     return aggregated;
   }
 
-  /** Single-page collection GET (no cursor following); used by event recovery. */
+  /**
+   * Single-page collection GET (no cursor following); used by event recovery.
+   *
+   * A collection endpoint is contractually required to return a
+   * `CollectionEnvelope`. A legitimately empty collection is `200` with a JSON
+   * body `{"data":[],...}`, which `request` parses normally. A `204` or empty
+   * body violates the collection contract, so it surfaces as
+   * `UnexpectedHttpError` instead of being masked as a fake empty envelope; a
+   * missing parent surfaces as `NotFoundError` (thrown inside `request`), not
+   * a silent empty list.
+   */
   async getPage<T>(path: string): Promise<CollectionEnvelope<T>> {
     const env = await this.request<CollectionEnvelope<T>>("GET", path);
-    return env ?? { data: [], page: { next_cursor: null, has_more: false } };
+    if (!env) {
+      throw new UnexpectedHttpError(
+        "Expected a collection envelope but received an empty body (204 or no content)",
+        200,
+        null,
+      );
+    }
+    return env;
   }
 
   /** POST creating a resource; returns parsed `data`. */

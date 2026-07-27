@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import os
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -382,7 +382,7 @@ def test_embedded_source_snapshot_rejects_credential_aliases(
 def test_http_contract_authentication_envelopes_and_no_store() -> None:
     app = create_app()
     app.state.artifact_read_service = _Artifacts(_collection())
-    owner, credential, _ = app.state.session_service.create(now=NOW)
+    owner, credential, _ = app.state.session_service.create(now=datetime.now(UTC))
     owner = replace(owner, id="owner")
     app.state.session_service.store.put(owner)
     client = TestClient(app)
@@ -394,6 +394,26 @@ def test_http_contract_authentication_envelopes_and_no_store() -> None:
     assert detail.json()["data"]["collection"]["query"]["query_id"]
     assert page.json()["page"]["has_more"] is True
     assert TestClient(app).get(f"/api/v2/artifact-versions/{VERSION_ID}/paper-collection").status_code == 401
+
+
+def test_genuinely_expired_session_still_returns_401() -> None:
+    """Regression: a session whose expiry is in the past must still 401.
+
+    Guards against re-introducing a fixed-past ``NOW`` for the HTTP session:
+    the authenticator reads real ``datetime.now(UTC)``, so a session created
+    long enough ago that ``expires_at`` has passed must degrade to 401.
+    """
+    app = create_app()
+    app.state.artifact_read_service = _Artifacts(_collection())
+    ttl = app.state.session_service.ttl_seconds
+    past = datetime.now(UTC) - timedelta(seconds=ttl + 1)
+    owner, credential, _ = app.state.session_service.create(now=past)
+    app.state.session_service.store.put(replace(owner, id="owner"))
+    client = TestClient(app)
+    client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api/v2")
+    response = client.get(f"/api/v2/artifact-versions/{VERSION_ID}/paper-collection")
+    assert response.status_code == 401
+    assert response.json()["code"] == "SESSION_REQUIRED"
 
 
 @pytest.mark.parametrize(
@@ -418,7 +438,7 @@ def test_http_failures_are_rfc9457_problem_details(
 ) -> None:
     app = create_app()
     app.state.artifact_read_service = _Artifacts(collection)
-    owner, credential, _ = app.state.session_service.create(now=NOW)
+    owner, credential, _ = app.state.session_service.create(now=datetime.now(UTC))
     app.state.session_service.store.put(replace(owner, id="owner"))
     client = TestClient(app)
     client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api/v2")
@@ -467,8 +487,8 @@ def test_postgres_published_collection_reads_with_ownership_and_redaction() -> N
         quality_validator=_accept,
     )
     app = create_app()
-    owner, credential, _ = app.state.session_service.create(now=NOW)
-    _, other_credential, _ = app.state.session_service.create(now=NOW)
+    owner, credential, _ = app.state.session_service.create(now=datetime.now(UTC))
+    _, other_credential, _ = app.state.session_service.create(now=datetime.now(UTC))
     app.state.artifact_read_service = ArtifactReadService(factory)
     try:
         with factory() as session, session.begin():
