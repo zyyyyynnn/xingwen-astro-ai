@@ -1,10 +1,31 @@
 # X-01 Contract Coverage Matrix (M1 required set)
 
-Baseline HEAD: `e36a95e2c59e5e2a319a7c816d64ff44692c53ba` (= origin/main at X-01 closure)
+Baseline HEAD: `9f3380f9e4d14fd34a27db7632060fe13db24487` (= origin/main at #131 start; previous
+closure baseline was `e36a95e2c59e5e2a319a7c816d64ff44692c53ba`)
 
 Authoritative Contract = contract-only OpenAPI in `apps/api/src/app/contracts/v2.py`
-(`create_v2_contract_app`, **24 operationIds**, asserted exactly by
+(`create_v2_contract_app`, **27 operationIds** after #131, asserted exactly by
 `apps/api/tests/test_v2_core_contract.py::test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives`).
+
+## #131 frozen additions (decided before implementation)
+
+Only three operations are added; the existing 24 authoritative operationIds,
+methods and paths are preserved verbatim. Frozen targets:
+
+| opId | method+path | required headers | request schema | success response |
+|---|---|---|---|---|
+| listResearchProjects | GET /api/v2/projects (`cursor`, `limit` query) | — | — | 200 CollectionEnvelope[ResearchProject] |
+| createResearchProject | POST /api/v2/projects | Idempotency-Key | CreateResearchProjectRequest (name, description="", case_key) | 201 Envelope[ResearchProject] |
+| createResearchContractDraft | POST /api/v2/projects/{project_id}/contract-drafts | Idempotency-Key | CreateResearchContractDraftRequest (intent, contract) | 201 Envelope[ResearchContractDraft] |
+
+Conventions reused (not invented): `Idempotency-Key` + persisted
+`idempotency_key`/`request_hash` replay-or-409 exactly like
+`confirmResearchContract`/`createResearchRun`; nested creation path naming
+follows `POST /projects/{id}/contracts` ↔ `/research-contracts/{id}`
+(`contract-drafts` ↔ `/research-contract-drafts/{id}`); cursor pagination and
+hidden-404 ownership semantics follow the existing collection and read
+operations. `execution_mode` remains Run-only and is absent from Project and
+Draft payloads.
 
 Legend for **State**:
 - `Implemented` — real runtime endpoint mounted + tested against authoritative source (PostgreSQL where applicable).
@@ -27,14 +48,15 @@ Column meanings: opId | method+path | Pydantic authoring | in generated OpenAPI 
 
 | opId | method+path | Pydantic | OpenAPI | TS DTO | Runtime Router | App Service | Persistence | HTTP Adapter | Fixture | React consumer | Tests | State |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
+| listResearchProjects | GET /api/v2/projects (cursor,limit) | ResearchProject (coll) | yes | yes | `research.py` mounted (#131) | ResearchApplicationService.list_projects ✓ | ResearchProjectModel (PG, keyset cursor) | `projects.list` ✓ | `list` ✓ | entry page | test_v2_research_runtime_postgres::test_list_projects_is_session_scoped_with_stable_cursor ✓ | **Implemented** |
+| createResearchProject | POST /api/v2/projects (Idempotency-Key) | CreateResearchProjectRequest → ResearchProject | yes | yes | `research.py` mounted (#131) | ResearchApplicationService.create_project ✓ | ResearchProjectModel (PG, idempotency_key/request_hash) | `projects.create` → Idempotency-Key ✓ | `create` ✓ | entry page | test_public_authoring_chain_creates_project_and_draft ✓ | **Implemented** |
 | getResearchProject | GET /api/v2/projects/{project_id} | ResearchProject | yes | yes | `research.py` mounted (#121) | ResearchApplicationService ✓ | ResearchProjectModel (PG) | `projects.getById` ✓ | `getById` ✓ | workspace shell | test_x01_integration_postgres ✓ | **Implemented** |
-| — (list) | — | — | **not in contract** | — | — | — | — | n/a (no contract op) | `list` ✓ | — | — | n/a — no contract op |
-| — (create/save) | — | — | **not in contract** | — | — | — | — | n/a (no contract op) | `save` ✓ | — | — | n/a — no contract op |
 
 ## 3. Contract Draft
 
 | opId | method+path | Pydantic | OpenAPI | TS DTO | Runtime Router | App Service | Persistence | HTTP Adapter | Fixture | React consumer | Tests | State |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
+| createResearchContractDraft | POST /api/v2/projects/{project_id}/contract-drafts (Idempotency-Key) | CreateResearchContractDraftRequest → ResearchContractDraft | yes | yes | `research.py` mounted (#131) | ResearchApplicationService.create_draft ✓ | ResearchContractDraftModel (PG, idempotency_key/request_hash) | `contracts.createDraft` → Idempotency-Key ✓ | `createDraft` ✓ | entry page | test_public_authoring_chain_creates_project_and_draft, test_create_draft_hides_missing_and_cross_session_projects ✓ | **Implemented** |
 | getResearchContractDraft | GET /api/v2/research-contract-drafts/{draft_id} | ResearchContractDraft | yes | yes | `research.py` mounted (#121) | ResearchApplicationService ✓ | ResearchContractDraftModel (PG, #121) | `contracts.getDraftById` ✓ | `getDraftById` ✓ | workspace shell | test_x01_integration_postgres ✓ | **Implemented** |
 | updateResearchContractDraft | PATCH /api/v2/research-contract-drafts/{draft_id} (If-Match) | UpdateResearchContractDraftRequest | yes | yes | `research.py` mounted (#121) | ResearchApplicationService ✓ | ResearchContractDraftModel (PG) | `contracts.saveDraft` → If-Match header ✓ | `saveDraft` ✓ | workspace shell | test_x01_integration_postgres ✓ | **Implemented** |
 
@@ -114,12 +136,26 @@ authoritative camelCase naming throughout.
 
 ---
 
-## Summary of gaps (M1 required set, HEAD e36a95e)
+## Summary of gaps (M1 required set, HEAD 9f3380f + #131)
 
-**Backend runtime — all 24 contract operationIds now Implemented.**
-#121 (`cb70313`) mounted `research.router` and `snapshots.router`, adding runtime
-endpoints for Project, ContractDraft, Contract, Run, RunEvents, WorkspaceSnapshot,
-and Share. #122/#127 (`e36a95e`) verified the full chain via Compose integration.
+**Backend runtime — all 27 contract operationIds now Implemented.**
+#121 mounted `research.router`/`snapshots.router` for the original 24. #131 added
+`listResearchProjects`, `createResearchProject` (POST /projects) and
+`createResearchContractDraft` (POST /projects/{id}/contract-drafts) on the same
+router and `ResearchApplicationService`, reusing the existing Idempotency-Key
+replay convention and the `research_projects`/`research_contract_drafts` tables
+(migration `20260728_0006` adds only nullable `idempotency_key`/`request_hash`
+columns; no table restructure).
+
+**test-only bootstrap responsibility narrowed (#131):** the bootstrap no longer
+injects Project, ContractDraft, Contract, Run, credentials or Share tokens. It
+publishes only the frozen main case's deterministic `demo_replay`/`fixture`
+ArtifactVersion + Evidence onto a *session-owned demo_replay run* created through
+the public runtime (`POST /api/v2/test/bootstrap?run_id=`), through the real
+Persistence/Publisher boundary. It stays mounted only under `APP_ENV=test`/
+`integration`, returns 404 in development/production, never enters the generated
+contract, rejects live runs (409) and cross-session runs (hidden 404), and never
+returns or logs a credential or share token.
 
 **Persistence — PostgreSQL-backed for research resources; InMemory for Session/Workspace/Share:**
 - PostgreSQL: ResearchProject, ResearchContractDraft (model added by #121),

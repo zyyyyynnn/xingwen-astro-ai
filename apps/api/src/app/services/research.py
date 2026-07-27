@@ -12,8 +12,9 @@ scoped by the anonymous session so cross-session existence is hidden as 404.
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -30,6 +31,8 @@ from app.schemas.manifest import ManifestBundle
 from app.schemas.v2 import (
     ConfirmResearchContractRequest,
     ContractDraftStatus,
+    CreateResearchContractDraftRequest,
+    CreateResearchProjectRequest,
     CreateRunRequest,
     ResearchContract,
     ResearchContractDraft,
@@ -115,28 +118,130 @@ class ResearchApplicationService:
     def get_project(self, *, project_id: str, session_id: str) -> ResearchProject:
         with self._factory() as session:
             project = self._require_project(session, project_id, session_id)
-            active_contract_id = session.scalar(
-                select(ResearchContractModel.id)
-                .where(
-                    ResearchContractModel.project_id == project.id,
-                    ResearchContractModel.content.is_not(None),
+            return self._project_read(session, project)
+
+    def list_projects(
+        self, *, session_id: str, cursor: str | None, limit: int
+    ) -> tuple[tuple[ResearchProject, ...], str | None, bool]:
+        """Session-scoped project listing with a stable keyset cursor.
+
+        Ordered by ``(created_at DESC, id DESC)`` so newly created projects
+        appear first and the ordering is total (id breaks timestamp ties).
+        """
+        with self._factory() as session:
+            query = select(ResearchProjectModel).where(
+                ResearchProjectModel.session_id == session_id
+            )
+            if cursor is not None:
+                anchor_uuid = _decode_project_cursor(cursor)
+                anchor = session.get(ResearchProjectModel, anchor_uuid)
+                if anchor is None or anchor.session_id != session_id:
+                    raise _invalid_cursor()
+                query = query.where(
+                    (ResearchProjectModel.created_at < anchor.created_at)
+                    | (
+                        (ResearchProjectModel.created_at == anchor.created_at)
+                        & (ResearchProjectModel.id < anchor.id)
+                    )
                 )
-                .order_by(ResearchContractModel.version.desc())
-                .limit(1)
+            rows = (
+                session.scalars(
+                    query.order_by(
+                        ResearchProjectModel.created_at.desc(),
+                        ResearchProjectModel.id.desc(),
+                    ).limit(limit + 1)
+                )
+            ).all()
+            has_more = len(rows) > limit
+            selected = rows[:limit]
+            next_cursor = (
+                _encode_project_cursor(selected[-1].id)
+                if selected and has_more
+                else None
             )
-            latest_run_id = session.scalar(
-                select(ResearchRunModel.id)
-                .where(ResearchRunModel.project_id == project.id)
-                .order_by(ResearchRunModel.created_at.desc(), ResearchRunModel.id.desc())
-                .limit(1)
-            )
-            return _project(
-                project,
-                active_contract_id=active_contract_id,
-                latest_run_id=latest_run_id,
+            return (
+                tuple(self._project_read(session, row) for row in selected),
+                next_cursor,
+                has_more,
             )
 
+    def create_project(
+        self,
+        *,
+        session_id: str,
+        idempotency_key: str,
+        request: CreateResearchProjectRequest,
+    ) -> ResearchProject:
+        request_hash = canonical_request_hash(request.model_dump(mode="json"))
+        with self._factory() as session, session.begin():
+            replay = session.scalar(
+                select(ResearchProjectModel).where(
+                    ResearchProjectModel.session_id == session_id,
+                    ResearchProjectModel.idempotency_key == idempotency_key,
+                )
+            )
+            if replay is not None:
+                if replay.request_hash != request_hash:
+                    raise _idempotency_conflict()
+                return self._project_read(session, replay)
+            now = datetime.now(UTC)
+            model = ResearchProjectModel(
+                session_id=session_id,
+                name=request.name,
+                description=request.description,
+                case_key=request.case_key,
+                revision=1,
+                created_at=now,
+                updated_at=now,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+            )
+            session.add(model)
+            session.flush()
+            return self._project_read(session, model)
+
     # ---- Contract Draft --------------------------------------------------
+
+    def create_draft(
+        self,
+        *,
+        project_id: str,
+        session_id: str,
+        idempotency_key: str,
+        request: CreateResearchContractDraftRequest,
+    ) -> ResearchContractDraft:
+        request_hash = canonical_request_hash(request.model_dump(mode="json"))
+        with self._factory() as session, session.begin():
+            # The draft must bind to an existing project owned by this
+            # session; cross-session and unknown projects stay hidden as 404.
+            self._require_project(session, project_id, session_id)
+            replay = session.scalar(
+                select(ResearchContractDraftModel).where(
+                    ResearchContractDraftModel.session_id == session_id,
+                    ResearchContractDraftModel.idempotency_key == idempotency_key,
+                )
+            )
+            if replay is not None:
+                if replay.request_hash != request_hash:
+                    raise _idempotency_conflict()
+                return _draft(replay)
+            now = datetime.now(UTC)
+            model = ResearchContractDraftModel(
+                session_id=session_id,
+                version=1,
+                intent=request.intent,
+                status=ContractDraftStatus.draft.value,
+                contract=request.contract.model_dump(mode="json"),
+                warnings=[],
+                created_at=now,
+                updated_at=now,
+                expires_at=now + DRAFT_TTL,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+            )
+            session.add(model)
+            session.flush()
+            return _draft(model)
 
     def get_draft(self, *, draft_id: str, session_id: str) -> ResearchContractDraft:
         draft_uuid = _uuid_or_not_found(draft_id, "DRAFT_NOT_FOUND")
@@ -336,6 +441,30 @@ class ResearchApplicationService:
 
     # ---- helpers ---------------------------------------------------------
 
+    def _project_read(
+        self, session: Session, project: ResearchProjectModel
+    ) -> ResearchProject:
+        active_contract_id = session.scalar(
+            select(ResearchContractModel.id)
+            .where(
+                ResearchContractModel.project_id == project.id,
+                ResearchContractModel.content.is_not(None),
+            )
+            .order_by(ResearchContractModel.version.desc())
+            .limit(1)
+        )
+        latest_run_id = session.scalar(
+            select(ResearchRunModel.id)
+            .where(ResearchRunModel.project_id == project.id)
+            .order_by(ResearchRunModel.created_at.desc(), ResearchRunModel.id.desc())
+            .limit(1)
+        )
+        return _project(
+            project,
+            active_contract_id=active_contract_id,
+            latest_run_id=latest_run_id,
+        )
+
     def _load_owned_run(
         self,
         run_id: str,
@@ -386,6 +515,33 @@ def _idempotency_conflict() -> SecurityProblem:
         code="IDEMPOTENCY_CONFLICT",
         title="Idempotency conflict",
         detail="The idempotency key was already used with a different request",
+    )
+
+
+# Editable drafts share the one-hour lifetime the deterministic demo seed used.
+DRAFT_TTL = timedelta(hours=1)
+
+
+def _encode_project_cursor(project_id: UUID) -> str:
+    encoded = base64.urlsafe_b64encode(str(project_id).encode("ascii")).decode("ascii")
+    return encoded.rstrip("=")
+
+
+def _decode_project_cursor(cursor: str) -> UUID:
+    try:
+        padding = "=" * (-len(cursor) % 4)
+        decoded = base64.urlsafe_b64decode(cursor + padding).decode("ascii")
+        return UUID(decoded)
+    except (UnicodeDecodeError, ValueError):
+        raise _invalid_cursor() from None
+
+
+def _invalid_cursor() -> SecurityProblem:
+    return SecurityProblem(
+        status=400,
+        code="INVALID_CURSOR",
+        title="Invalid cursor",
+        detail="The pagination cursor is invalid for this collection",
     )
 
 

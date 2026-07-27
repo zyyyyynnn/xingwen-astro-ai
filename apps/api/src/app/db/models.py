@@ -54,8 +54,17 @@ class ResearchProjectModel(TimestampMixin, Base):
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # Public createResearchProject idempotent-replay identity; nullable for
+    # rows that predate the #131 public authoring chain.
+    idempotency_key: Mapped[str | None] = mapped_column(String(200))
+    request_hash: Mapped[str | None] = mapped_column(String(71))
 
-    __table_args__ = (CheckConstraint("revision >= 1", name="revision_positive"),)
+    __table_args__ = (
+        CheckConstraint("revision >= 1", name="revision_positive"),
+        UniqueConstraint(
+            "session_id", "idempotency_key", name="uq_research_project_idempotency"
+        ),
+    )
 
 
 class ResearchContractModel(TimestampMixin, Base):
@@ -111,11 +120,20 @@ class ResearchContractDraftModel(TimestampMixin, Base):
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Public createResearchContractDraft idempotent-replay identity; nullable
+    # for rows that predate the #131 public authoring chain.
+    idempotency_key: Mapped[str | None] = mapped_column(String(200))
+    request_hash: Mapped[str | None] = mapped_column(String(71))
 
     __table_args__ = (
         CheckConstraint("version >= 1", name="version_positive"),
         CheckConstraint(
             "status IN ('draft','confirmed','expired')", name="draft_status"
+        ),
+        UniqueConstraint(
+            "session_id",
+            "idempotency_key",
+            name="uq_research_contract_draft_idempotency",
         ),
     )
 

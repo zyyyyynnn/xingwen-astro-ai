@@ -49,6 +49,42 @@ it("ensureSession reuses the existing session on repeated calls", async () => {
   expect(session.getCurrent()).toBe(first);
 });
 
+it("concurrent ensureSession calls issue exactly one POST and share it", async () => {
+  // Cold-start dedupe: without an existing cookie, two simultaneous callers
+  // (e.g. a StrictMode double-invoked effect) must not create two sessions —
+  // that would split the cookie and the in-memory CSRF token across sessions
+  // and 403 the next mutation.
+  let posts = 0;
+  httpServer.use(
+    http.post(`${TEST_BASE_URL}/api/v2/sessions`, () => {
+      posts += 1;
+      return HttpResponse.json({
+        data: {
+          status: "active",
+          created_at: "2026-07-21T08:00:00Z",
+          expires_at: "2026-07-21T09:00:00Z",
+          quota: { max_projects: 10, max_runs: 50 },
+          csrf_token: `csrf_${String(posts)}`,
+        },
+        meta: {
+          request_id: "req_test",
+          schema_version: "2.0.0",
+          generated_at: "2026-07-21T08:00:00Z",
+        },
+        links: { self: "/api/v2/sessions/current" },
+      });
+    }),
+  );
+  const session = createSessionManagerForTest();
+  const [a, b] = await Promise.all([
+    session.ensureSession(),
+    session.ensureSession(),
+  ]);
+  expect(posts).toBe(1);
+  expect(a).toBe(b);
+  expect(a.csrfToken).toBe("csrf_1");
+});
+
 it("revokeSession clears the current session and returns 204", async () => {
   httpServer.use(...defaultHandlers);
   const session = createSessionManagerForTest();

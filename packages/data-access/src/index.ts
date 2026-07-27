@@ -17,10 +17,13 @@
 export type {
   ArtifactReadRepository,
   ContractRepository,
+  CreateResearchContractDraftInput,
+  CreateResearchProjectInput,
   CreateResearchRunInput,
   ProjectRepository,
   RepositoryProvenance,
   RepositorySet,
+  ResearchProjectPage,
   RunEventRecovery,
   RunRepository,
   ShareRepository,

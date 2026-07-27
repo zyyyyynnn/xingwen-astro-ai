@@ -19,6 +19,7 @@ import type {
   PublicShareSnapshot,
   ResearchContract,
   ResearchContractDraft,
+  ResearchProject,
   ResearchRun,
   RunEvent,
   ShareSnapshot,
@@ -28,7 +29,11 @@ import type {
 } from "@xingwen/domain";
 
 import { FixtureSemanticError, FixtureValidationError } from "./errors";
-import { ConflictError, NotFoundError } from "./http-errors";
+import {
+  ConflictError,
+  NotFoundError,
+  UnexpectedHttpError,
+} from "./http-errors";
 import {
   buildFixtureProvenance,
   mapArtifactVersion,
@@ -165,6 +170,32 @@ function defaultIdFactory(): (prefix: string) => DomainEntityId {
     `${prefix}_${String(++seq).padStart(4, "0")}` as DomainEntityId;
 }
 
+/** Session id all fixture-owned resources belong to (single Demo Replay owner). */
+const FIXTURE_SESSION_ID = "sess_01JEXAMPLE" as DomainEntityId;
+
+/** Matches the runtime default page size for `listResearchProjects`. */
+const PROJECT_PAGE_LIMIT = 20;
+
+function encodeProjectCursor(projectId: DomainEntityId): string {
+  return btoa(String(projectId)).replace(/=+$/u, "");
+}
+
+function decodeProjectCursor(cursor: string): DomainEntityId {
+  try {
+    const padded = cursor.padEnd(
+      cursor.length + ((4 - (cursor.length % 4)) % 4),
+      "=",
+    );
+    return atob(padded) as DomainEntityId;
+  } catch {
+    throw new UnexpectedHttpError(
+      "The pagination cursor is invalid for this collection",
+      400,
+      "INVALID_CURSOR",
+    );
+  }
+}
+
 /**
  * Create a `RepositorySet` backed by a validated fixture bundle.
  *
@@ -219,6 +250,14 @@ export function createFixtureRepositories(
   const runsByIdempotencyKey = new Map<
     string,
     { readonly request: string; readonly run: ResearchRun }
+  >();
+  const projectsByIdempotencyKey = new Map<
+    string,
+    { readonly request: string; readonly project: ResearchProject }
+  >();
+  const draftsByIdempotencyKey = new Map<
+    string,
+    { readonly request: string; readonly draft: ResearchContractDraft }
   >();
 
   function toPublicVersion(
@@ -339,8 +378,119 @@ export function createFixtureRepositories(
   return {
     projects: {
       getById: async (id) => projects.get(id),
+      list: async (cursor = null) => {
+        // Deterministic order matching the runtime: newest first by
+        // (createdAt DESC, id DESC), paginated with an opaque id cursor.
+        const ordered = [...projects.filter(() => true)].sort((a, b) => {
+          if (a.createdAt !== b.createdAt) {
+            return a.createdAt < b.createdAt ? 1 : -1;
+          }
+          return a.id < b.id ? 1 : -1;
+        });
+        let start = 0;
+        if (cursor !== null) {
+          const anchor = decodeProjectCursor(cursor);
+          const index = ordered.findIndex((project) => project.id === anchor);
+          if (index === -1) {
+            throw new UnexpectedHttpError(
+              "The pagination cursor is invalid for this collection",
+              400,
+              "INVALID_CURSOR",
+            );
+          }
+          start = index + 1;
+        }
+        const items = ordered.slice(start, start + PROJECT_PAGE_LIMIT);
+        const hasMore = start + items.length < ordered.length;
+        const nextCursor =
+          items.length > 0 && hasMore
+            ? encodeProjectCursor(items[items.length - 1]!.id)
+            : null;
+        return { items, nextCursor };
+      },
+      create: async (input) => {
+        const replayKey = `create-project:${input.idempotencyKey}`;
+        const replay = projectsByIdempotencyKey.get(replayKey);
+        const requestHash = JSON.stringify({
+          name: input.name,
+          description: input.description ?? "",
+          caseKey: input.caseKey,
+        });
+        if (replay) {
+          if (replay.request !== requestHash) {
+            throw new ConflictError(
+              "The idempotency key was already used with a different request",
+              "IDEMPOTENCY_CONFLICT",
+            );
+          }
+          return replay.project;
+        }
+        const now = clock();
+        const project: ResearchProject = {
+          id: nextId("proj"),
+          sessionId: FIXTURE_SESSION_ID,
+          name: input.name,
+          description: input.description ?? "",
+          caseKey: input.caseKey,
+          activeContractId: null,
+          latestRunId: null,
+          createdAt: now,
+          updatedAt: now,
+          revision: 1,
+        };
+        projects.upsert(project);
+        projectsByIdempotencyKey.set(replayKey, {
+          request: requestHash,
+          project,
+        });
+        return project;
+      },
     },
     contracts: {
+      createDraft: async (projectId, input) => {
+        if (projects.get(projectId) === null) {
+          throw new NotFoundError(
+            `Project ${projectId} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
+        const replayKey = `create-draft:${input.idempotencyKey}`;
+        const replay = draftsByIdempotencyKey.get(replayKey);
+        const requestHash = JSON.stringify({
+          intent: input.intent,
+          contract: mapDomainContractInputToDto(input.contract),
+        });
+        if (replay) {
+          if (replay.request !== requestHash) {
+            throw new ConflictError(
+              "The idempotency key was already used with a different request",
+              "IDEMPOTENCY_CONFLICT",
+            );
+          }
+          return replay.draft;
+        }
+        const now = clock();
+        const draft: ResearchContractDraft = {
+          id: nextId("rcd"),
+          sessionId: FIXTURE_SESSION_ID,
+          version: 1,
+          intent: input.intent,
+          status: "draft",
+          contract: input.contract,
+          warnings: [],
+          createdAt: now,
+          updatedAt: now,
+          expiresAt: new Date(
+            Date.parse(now) + 3_600_000,
+          ).toISOString() as UtcIsoTimestamp,
+        };
+        drafts.upsert(draft);
+        draftsByIdempotencyKey.set(replayKey, {
+          request: requestHash,
+          draft,
+        });
+        return draft;
+      },
       getDraftById: async (id) => drafts.get(id),
       updateDraft: async (
         draftId,

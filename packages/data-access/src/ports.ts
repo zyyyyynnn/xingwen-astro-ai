@@ -8,8 +8,9 @@
  * domain types — transport DTOs never leak through to consumers.
  *
  * The surface is intentionally narrowed to the operations the M1 UI and the
- * frozen 24-operation `/api/v2` contract actually support: there is no
- * project/run listing, no client-authored draft creation, no artifact/version
+ * frozen 27-operation `/api/v2` contract actually support: project listing and
+ * creation and client-authored draft creation exist (the #131 public authoring
+ * chain), but there is still no project/run PATCH/DELETE, no artifact/version
  * writes, and no generic subscription. Each method maps to a real endpoint (or
  * its fixture equivalent) so an abstraction always has two concrete adapters.
  */
@@ -17,6 +18,7 @@
 import type {
   ArtifactVersion,
   CachePolicy,
+  CaseKey,
   CreateShareSnapshotRequest,
   DerivationKind,
   DomainEntityId,
@@ -40,6 +42,30 @@ import type {
 export interface UpdateResearchContractDraftInput {
   readonly intent?: string;
   readonly contract?: ResearchContractInput;
+}
+
+/** Minimal M1 project creation payload; `case_key` stays the frozen main case. */
+export interface CreateResearchProjectInput {
+  readonly name: string;
+  readonly description?: string;
+  readonly caseKey: CaseKey;
+  /** Stable per user action; reuse only when retrying that same action. */
+  readonly idempotencyKey: string;
+}
+
+/** Payload for creating an editable draft bound to a session-owned project. */
+export interface CreateResearchContractDraftInput {
+  readonly intent: string;
+  readonly contract: ResearchContractInput;
+  /** Stable per user action; reuse only when retrying that same action. */
+  readonly idempotencyKey: string;
+}
+
+/** A single page of a session-scoped project listing. */
+export interface ResearchProjectPage {
+  readonly items: readonly ResearchProject[];
+  /** Cursor to resume listing, or null when the collection is fully drained. */
+  readonly nextCursor: string | null;
 }
 
 /** Parameters for creating a ResearchRun (`execution_mode` lives on the Run). */
@@ -67,9 +93,16 @@ export interface RunEventRecovery {
 
 export interface ProjectRepository {
   getById(id: DomainEntityId): Promise<ResearchProject | null>;
+  /** Session-scoped listing in a stable order; follows `cursor` when supplied. */
+  list(cursor?: string | null): Promise<ResearchProjectPage>;
+  create(input: CreateResearchProjectInput): Promise<ResearchProject>;
 }
 
 export interface ContractRepository {
+  createDraft(
+    projectId: DomainEntityId,
+    input: CreateResearchContractDraftInput,
+  ): Promise<ResearchContractDraft>;
   getDraftById(id: DomainEntityId): Promise<ResearchContractDraft | null>;
   updateDraft(
     draftId: DomainEntityId,

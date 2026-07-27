@@ -314,7 +314,10 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
     ]
     assert len(operation_ids) == len(set(operation_ids))
     assert {
+        "listResearchProjects",
+        "createResearchProject",
         "getResearchProject",
+        "createResearchContractDraft",
         "getResearchContractDraft",
         "updateResearchContractDraft",
         "getResearchContract",
@@ -345,6 +348,23 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         parameter["name"]: parameter for parameter in create_run["parameters"]
     }
     assert parameters["Idempotency-Key"]["required"] is True
+    create_project = document["paths"]["/api/v2/projects"]["post"]
+    create_project_parameters = {
+        parameter["name"]: parameter for parameter in create_project["parameters"]
+    }
+    assert create_project_parameters["Idempotency-Key"]["required"] is True
+    create_draft = document["paths"][
+        "/api/v2/projects/{project_id}/contract-drafts"
+    ]["post"]
+    create_draft_parameters = {
+        parameter["name"]: parameter for parameter in create_draft["parameters"]
+    }
+    assert create_draft_parameters["Idempotency-Key"]["required"] is True
+    list_projects = document["paths"]["/api/v2/projects"]["get"]
+    assert {parameter["name"] for parameter in list_projects["parameters"]} >= {
+        "cursor",
+        "limit",
+    }
     update_draft = document["paths"]["/api/v2/research-contract-drafts/{draft_id}"][
         "patch"
     ]
