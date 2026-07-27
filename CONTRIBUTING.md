@@ -1,9 +1,9 @@
 # Contributing
 
-| 元数据    | 值                                |
-| --------- | --------------------------------- |
-| Status    | Accepted                          |
-| Authority | Git、Issue、PR、网页端 GPT Review 与合并流程 |
+| 元数据    | 值                                         |
+| --------- | ------------------------------------------ |
+| Status    | Accepted                                   |
+| Authority | Git、Issue、PR、正式技术 Review 与合并流程 |
 
 Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [Documentation Governance](docs/DOCUMENTATION_GOVERNANCE.md)。
 
@@ -14,9 +14,9 @@ Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [D
 3. 从 `main` 创建任务分支；空分支本身不改变 Issue 状态。
 4. 分支产生首个实质改动时，如有关联的主要 Issue，将其更新为 `in-progress`；随后实施、测试并同步受影响的权威文档。
 5. 本地 Codex Commit、Push 并创建或更新 Draft Pull Request，原则上关联一个主要 Task、Bug 或 Gate；直接用户授权的单次治理或维护任务可在 PR 描述中记录授权来源。Epic 只能作为父级补充引用。
-6. Draft PR 等待网页端 GPT Review 时，如有关联的主要 Issue，将其更新为 `review`。
-7. 处理网页端 GPT Review 和 CI 结果；新 Commit 会使旧 Review 失效，必须在新 HEAD 上重新审查。
-8. 当前 HEAD 的网页端 GPT `pr_technical_review` 为 `PASS`、标准 CI 均通过、PR 可合并且没有未解决的真实阻塞问题后，可由网页端 GPT 或 Codex 转 Ready 并 Squash merge；核对 `main` 合并结果后关闭关联 Issue，随后删除已合并分支。
+6. Draft PR 等待正式技术 Review 时，如有关联的主要 Issue，将其更新为 `review`。
+7. 处理正式技术 Review 和 CI 结果；新 Commit 会使旧 Review 失效，必须在新 HEAD 上重新审查，新 Review 显式 supersede 同 scope 旧 Review。
+8. 当前 HEAD 的 `pr_technical_review` 为 `PASS`、标准 CI 均通过、PR 可合并且没有未解决的真实阻塞问题后，可由审查者或 Codex 转 Ready 并 Squash merge；核对 `main` 合并结果后关闭关联 Issue，随后删除已合并分支。
 
 `main` 必须保持可运行；禁止直接推送。
 
@@ -63,7 +63,7 @@ Issue 至少包含：
 
 `open` 只表示 Issue 尚未关闭，不表示可以开工。依赖未满足时必须标记为 `blocked`。
 
-Assignee 只表示任务执行归属，不表示额外审查权或合并审批权；任务执行人、模块 Owner 和风险 Owner 也不构成网页端 GPT Review 之后的第二道授权门。
+Assignee 只表示任务执行归属，不表示额外审查权或合并审批权；任务执行人、模块 Owner 和风险 Owner 也不构成正式技术 Review 之后的第二道授权门。
 
 状态行不得写成 `Epic · ready`、`Gate · blocked by #6` 等复合文本。角色由标题和标签表达；阻塞 Issue、分支、PR 和说明写在状态行之后的独立段落。
 
@@ -71,12 +71,12 @@ Assignee 只表示任务执行归属，不表示额外审查权或合并审批�
 
 本仓库属于个人账户，不依赖组织级自定义 Issue Type。角色通过标题、现有标签和正文表达：
 
-| Role | 标题与标签 | 职责 | PR 规则 |
-| ---- | ---------- | ---- | ------- |
-| Epic | 标题包含 `Epic`，使用 `type:feature` | 维护子任务、总体边界和退出条件 | 只能作为父级引用，不能作为生产实现 PR 的唯一 Issue |
-| Task | 标准 `[A/B/C/D/X] ID 标题`，使用 `type:task` | 一个主要模块、一个主要负责人、一个主要交付物 | 生产实现 PR 的主要 Issue，原则上对应一个 PR |
-| Gate | `[X] ID Gate：...`，使用 `type:task` 和 `area:infra` | 验证跨模块输入、阶段证据和退出结论 | 阶段验证或证据 PR 的主要 Issue，不替代 A/B/C/D 实现 |
-| Bug  | 使用 `bug` | 修复 Current 行为与已批准契约的偏差 | 修复 PR 的主要 Issue，不夹带新能力或架构迁移 |
+| Role | 标题与标签                                           | 职责                                         | PR 规则                                             |
+| ---- | ---------------------------------------------------- | -------------------------------------------- | --------------------------------------------------- |
+| Epic | 标题包含 `Epic`，使用 `type:feature`                 | 维护子任务、总体边界和退出条件               | 只能作为父级引用，不能作为生产实现 PR 的唯一 Issue  |
+| Task | 标准 `[A/B/C/D/X] ID 标题`，使用 `type:task`         | 一个主要模块、一个主要负责人、一个主要交付物 | 生产实现 PR 的主要 Issue，原则上对应一个 PR         |
+| Gate | `[X] ID Gate：...`，使用 `type:task` 和 `area:infra` | 验证跨模块输入、阶段证据和退出结论           | 阶段验证或证据 PR 的主要 Issue，不替代 A/B/C/D 实现 |
+| Bug  | 使用 `bug`                                           | 修复 Current 行为与已批准契约的偏差          | 修复 PR 的主要 Issue，不夹带新能力或架构迁移        |
 
 Feature 模板仅用于 Epic。原子 Task 使用 Chore/Task 模板；不得创建 `Role=Task + type:feature` 的组合。
 
@@ -155,7 +155,7 @@ blocked → ready → in-progress → review → closed
 ```
 
 - 创建有效工作分支并产生实质改动后，Issue 必须从 `ready` 更新为 `in-progress`。
-- 创建 PR 并准备网页端 GPT 审查后，Issue 更新为 `review`。
+- 创建 PR 并准备正式技术 Review 后，Issue 更新为 `review`。
 - 分支废弃或工作暂停时，必须记录原因、清理或归档分支，并按真实依赖恢复为 `ready` 或 `blocked`。
 - 状态不得根据计划推测，必须与实际分支、PR 和依赖一致。
 
@@ -210,30 +210,32 @@ PR 不接受：
 - 密钥、token、连接串或受限内容泄露；
 - 将 Pending 能力写成已实现。
 
-## 5. 网页端 GPT Review 责任
+## 5. 正式技术 Review 责任
+
+合格审查者可以是人工审查者、Codex、网页端 GPT、独立审查 Agent 或用户明确授权的其他技术审查主体；不以工具、模型、客户端或入口决定 Review 是否有效。默认由独立于实现过程的审查者执行正式 Review；用户明确授权当前 Agent 兼任审查者时允许执行，但必须先结束实现阶段、重新 fetch、固定 base 和当前 HEAD、重新读取完整 diff、分别执行 Standards 与 Spec 审查，并保存独立的 GitHub Pull Request Review。普通 PR Comment、Issue Comment 或线程回复不能满足正式 Review 门禁。
 
 作者负责：
 
 - 提供可审查的范围和证据；
 - 对已知风险和未验证项保持透明；
-- 处理网页端 GPT Review 线程；
+- 处理正式技术 Review 线程；
 - 确保文档与实现同步。
 
-网页端 GPT 审查者负责：
+审查者负责：
 
 - 先检查 Issue 角色、范围、契约、依赖和不变量，再检查局部实现；
 - 区分阻塞问题、建议优化和非本 PR 范围；
 - 不以个人风格偏好扩大范围；
 - 对安全、数据损坏、来源失真和不可逆迁移优先请求修改。
 
-阻塞项与非阻塞建议的唯一完整定义见 [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)。网页端 GPT 只应阻塞真实影响当前 PR 正确性或可合并性的问题，不得以风格偏好、范围外增强或额外治理层扩大范围。
+阻塞项与非阻塞建议的唯一完整定义见 [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)。审查者只应阻塞真实影响当前 PR 正确性或可合并性的问题，不得以风格偏好、范围外增强或额外治理层扩大范围。
 
-审查结论必须以 GitHub 可见的 Review、评论或线程保存；本地 Codex 实施过程中的自审、测试或总结不能代替网页端 GPT Review。
+审查结论必须保存为 GitHub Pull Request Review；其 state 为 `COMMENTED`、`APPROVED` 或 `CHANGES_REQUESTED`。普通评论、线程、实施过程中的自审、测试或总结不能代替正式技术 Review。
 
 正式记录至少使用以下机器可读字段；普通无结论评论不能满足门禁：
 
 ```text
-review_type: web_gpt
+review_type: technical
 review_purpose: pr_technical_review | benchmark_scientific_review
 review_scope:
   target_type: pull_request | <benchmark object type>
@@ -243,17 +245,22 @@ verdict: PASS | BLOCKED
 blocking_findings:
 non_blocking_findings:
 reviewed_at: <timezone-aware timestamp>
-evidence_actor_identity: github:<login>
+reviewer_kind: human | codex | web_gpt | agent
+reviewer_identity: <真实可追溯身份>
+review_authorization: repository_policy | user_explicit
+evidence_actor_identity: github:<实际发布 Review 的登录名>
 review_evidence_state: COMMENTED | APPROVED | CHANGES_REQUESTED
 ```
 
+- `reviewer_kind` 只记录来源（human/codex/web_gpt/agent），不用于决定 Review 是否有效。
+- `reviewer_identity` 标识实际技术审查主体；`evidence_actor_identity` 标识发布 GitHub Review 的账号。二者可以不同，但都必须真实且与授权记录一致。
 - `pr_technical_review` 审查代码、契约、测试、来源政策、治理文档和可合并性；PASS scope 必须且只能绑定完整 PR，例如 `pull_request: zyyyyynnn/xingwen-astro-ai#96`，单个 Benchmark 对象不能通过 PR Gate。
 - `benchmark_scientific_review` 逐项核验来源标识、Evidence、Summary、Claim、Relation、Trace 和 Graph；它不能替代技术 Review，技术 Review 也不能批准科研 Benchmark。
 - GitHub state 与 verdict 必须一致：`APPROVED => PASS`、`CHANGES_REQUESTED => BLOCKED`；`COMMENTED` 可承载任一结论，但正文必须包含独立一行 `verdict: PASS` 或 `verdict: BLOCKED`。
 - 同一 purpose/scope 的新 Review 必须显式 supersede 上一轮并使用新的 GitHub Review URL；最新叶节点为有效结论，未解决的 `BLOCKED` scope 阻止通过。
 - 合并门要求最新技术 Review 的 `reviewed_head_sha` 等于 PR 当前 HEAD 且 verdict 为 `PASS`；Review 后新增 Commit 时必须重新 Review。
-- 接受记录前必须通过 GitHub API 读取对应 Review，核对 repository/PR、actor、state、commit id 和包含明确 verdict 的正文；仅匹配 URL 外形不能通过。
-- 本地 Codex 不得伪造或自行认定网页端 GPT `PASS`。当前 HEAD 的 `pr_technical_review` 尚未 `PASS`、标准 CI 未全部成功、HEAD 已变化、PR 不可合并或仍有真实阻塞问题时，Codex 不得转 Ready、合并 PR 或关闭关联 Issue；条件满足后可由网页端 GPT 或 Codex 执行标准合并流程，不存在额外人工 PR Review、负责人二次批准或单独授权评论门。
+- 接受记录前必须通过 GitHub API 读取对应 Pull Request Review，核对 repository/PR、actor、state、commit id 和包含明确 verdict 的正文；`actor` 必须等于 `evidence_actor_identity`，仅匹配 URL 外形不能通过。
+- 不得伪造审查者身份、冒充其他审查主体，或把普通进度评论当作 `PASS`。当前 HEAD 的 `pr_technical_review` 尚未 `PASS`、标准 CI 未全部成功、HEAD 已变化、PR 不可合并或仍有真实阻塞问题时，Codex 不得转 Ready、合并 PR 或关闭关联 Issue；条件满足后可由审查者或 Codex 执行标准合并流程，不存在额外人工 PR Review、负责人二次批准或单独授权评论门。
 
 具体清单见 [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)。
 
@@ -264,10 +271,10 @@ PR 同时满足以下条件才可合并：
 - 生产实现关联明确的 Task 或 Bug；阶段验证或证据 PR 关联明确的 Gate；Epic 只作为父级补充引用；
 - 解决一个清晰目标且边界明确；
 - 适用测试和 CI 通过；
-- 最新网页端 GPT 技术 Review 绑定当前 HEAD、结论为 `PASS`，且所有阻塞项已处理；
+- 最新正式技术 Review 绑定当前 HEAD、结论为 `PASS`，且所有阻塞项已处理；
 - 契约、生成物、Issue 和文档无明显漂移；
 - 不暴露敏感信息；
 - 不扩大产品承诺；
 - 分支可合并，目标 HEAD 未意外变化。
 
-默认使用 Squash merge。上述条件满足后，网页端 GPT 或 Codex 均可执行；历史或发布分支如需其他策略，必须在对应 Issue 或 PR 范围中事先明确，不得临时绕过 CI 或改写历史。
+默认使用 Squash merge。上述条件满足后，审查者或 Codex 均可执行；历史或发布分支如需其他策略，必须在对应 Issue 或 PR 范围中事先明确，不得临时绕过 CI 或改写历史。
