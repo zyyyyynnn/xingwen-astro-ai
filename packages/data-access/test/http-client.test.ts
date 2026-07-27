@@ -54,14 +54,14 @@ describe("HttpClient.getPage — empty-response contract", () => {
     const client = makeClient(() => new Response(null, { status: 204 }));
     await expect(
       client.getPage<unknown>("/api/v2/runs/r1/events"),
-    ).rejects.toBeInstanceOf(UnexpectedHttpError);
+    ).rejects.toMatchObject({ name: UnexpectedHttpError.name, status: 204 });
   });
 
   it("throws UnexpectedHttpError on 200 with an empty body", async () => {
     const client = makeClient(() => new Response("", { status: 200 }));
     await expect(
       client.getPage<unknown>("/api/v2/runs/r1/events"),
-    ).rejects.toBeInstanceOf(UnexpectedHttpError);
+    ).rejects.toMatchObject({ name: UnexpectedHttpError.name, status: 200 });
   });
 
   it("throws NotFoundError on 404 instead of returning an empty list", async () => {
@@ -80,6 +80,36 @@ describe("HttpClient.getPage — empty-response contract", () => {
     );
     await expect(
       client.getPage<unknown>("/api/v2/runs/r1/events"),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("HttpClient.list — empty-response contract", () => {
+  it.each([
+    [204, () => new Response(null, { status: 204 })],
+    [200, () => new Response("", { status: 200 })],
+  ])("throws UnexpectedHttpError with status %i", async (status, respond) => {
+    const client = makeClient(respond);
+    await expect(
+      client.list<unknown>("/api/v2/projects"),
+    ).rejects.toMatchObject({ name: UnexpectedHttpError.name, status });
+  });
+
+  it("throws NotFoundError on 404 instead of returning an empty list", async () => {
+    const client = makeClient(
+      () =>
+        new Response(
+          JSON.stringify({
+            title: "Resource not found",
+            status: 404,
+            detail: "Parent not found",
+            code: "NOT_FOUND",
+          }),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    await expect(
+      client.list<unknown>("/api/v2/projects"),
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 });

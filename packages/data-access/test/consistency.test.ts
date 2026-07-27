@@ -140,7 +140,7 @@ it("contract contentHash is a real canonical hash shared by Fixture and HTTP", a
     httpRepos.contracts.getContractById(CONTRACT_ID),
   ]);
   const expectedHash =
-    "sha256:a900a9fac201c6be7002237c16f1e52670733a5e4c8721d2bd9e6546e62dcaca";
+    "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986";
   expect(fixtureContract!.contentHash).toBe(expectedHash);
   expect(httpContract!.contentHash).toBe(expectedHash);
   expect(httpContract!.contentHash).toBe(fixtureContract!.contentHash);

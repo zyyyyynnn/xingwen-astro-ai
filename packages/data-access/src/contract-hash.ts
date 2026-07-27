@@ -15,23 +15,56 @@
 
 import type { ResearchContractInput } from "@xingwen/contracts";
 
-/** Stable key order independent of insertion order. */
-function canonicalize(value: unknown): unknown {
+const PYTHON_FLOAT_FIELDS = new Set([
+  "evidence_requirements.minimum_coverage",
+  "quality_constraints.source_completeness_min",
+  "quality_constraints.unit_consistency_min",
+]);
+
+function pythonFloat(value: number): string {
+  if (!Number.isFinite(value)) {
+    throw new TypeError("Contract hash input must contain finite numbers");
+  }
+  if (Object.is(value, -0)) return "-0.0";
+  if (Number.isInteger(value)) return `${value}.0`;
+
+  const absolute = Math.abs(value);
+  const raw =
+    absolute > 0 && absolute < 1e-4 ? value.toExponential() : `${value}`;
+  return raw.replace(
+    /e([+-]?)(\d+)$/u,
+    (_match, sign: string, digits: string) =>
+      `e${sign || "+"}${digits.padStart(2, "0")}`,
+  );
+}
+
+/** Stable serialization matching the backend's contract-specific JSON shape. */
+function canonicalize(value: unknown, path: readonly string[] = []): string {
   if (Array.isArray(value)) {
-    return value.map(canonicalize);
+    return `[${value.map((item) => canonicalize(item, path)).join(",")}]`;
   }
   if (value && typeof value === "object") {
-    const sorted: Record<string, unknown> = {};
-    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
-      sorted[key] = canonicalize((value as Record<string, unknown>)[key]);
-    }
-    return sorted;
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${canonicalize(record[key], [...path, key])}`,
+      )
+      .join(",")}}`;
   }
-  return value;
+  if (typeof value === "number" && PYTHON_FLOAT_FIELDS.has(path.join("."))) {
+    return pythonFloat(value);
+  }
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) {
+    throw new TypeError("Contract hash input must be JSON-serializable");
+  }
+  return serialized;
 }
 
 function toCanonicalJson(input: ResearchContractInput): string {
-  return JSON.stringify(canonicalize(input));
+  return canonicalize(input);
 }
 
 /**
