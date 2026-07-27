@@ -112,8 +112,12 @@ def runtime() -> Iterator[dict[str, object]]:
         InMemorySnapshotStore(PersistentResourceAuthority(factory))
     )
 
-    owner, owner_credential, owner_csrf = app.state.session_service.create(now=NOW)
-    other, other_credential, other_csrf = app.state.session_service.create(now=NOW)
+    owner, owner_credential, owner_csrf = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
+    other, other_credential, other_csrf = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
 
     project_id = uuid4()
     draft_id = uuid4()
