@@ -187,13 +187,12 @@ function CachedProvenance({
           <dt>来源</dt>
           <dd>{String(execution.sourceId)}</dd>
           <dt>缓存适用性</dt>
-          <dd>{execution.cache?.applicability ?? "未提供"}</dd>
+          <dd>{execution.cache?.applicability}</dd>
           <dt>本次 Live 失败</dt>
           <dd>
-            {execution.cache?.liveFailureClass !== null &&
-            execution.cache?.liveFailureClass !== undefined
-              ? `${execution.cache.liveFailureClass}（${execution.cache.liveFailureCode ?? "无代码"}）`
-              : "未尝试 Live 或未提供失败原因"}
+            {execution.cache
+              ? `${execution.cache.liveFailureClass}（${execution.cache.liveFailureCode}）`
+              : "—"}
           </dd>
         </dl>
       ))}
@@ -204,7 +203,7 @@ function CachedProvenance({
           <dt>origin ArtifactVersion</dt>
           <dd>{String(snapshot.cachedOrigin?.originArtifactVersionId)}</dd>
           <dt>cache version</dt>
-          <dd>{snapshot.cacheVersion ?? "未提供"}</dd>
+          <dd>{snapshot.cacheVersion ?? "—"}</dd>
           <dt>快照时间</dt>
           <dd>{snapshot.retrievedAt}</dd>
         </dl>

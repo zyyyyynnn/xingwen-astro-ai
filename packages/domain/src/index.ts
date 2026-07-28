@@ -107,6 +107,8 @@ export type {
 export {
   EVIDENCE_TARGET_TYPES,
   EVIDENCE_TYPES,
+  isEvidenceTargetType,
+  isEvidenceType,
   LOCATOR_KINDS,
 } from "./evidence";
 

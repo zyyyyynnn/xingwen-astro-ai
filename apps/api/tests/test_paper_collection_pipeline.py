@@ -686,7 +686,25 @@ def test_source_mode_and_data_level_cannot_be_misrepresented() -> None:
     cached_payload["source_executions"][0]["cache_applicability"] = (
         "query_hash matches the cached acquisition run"
     )
+    with pytest.raises(
+        ValidationError, match="live_failure_class and live_failure_code"
+    ):
+        PaperCollection.model_validate(cached_payload)
+
+    cached_payload["source_executions"][0]["live_failure_class"] = "timeout"
+    cached_payload["source_executions"][0]["live_failure_code"] = "CROSSREF_TIMEOUT"
     with pytest.raises(ValidationError, match="real origin Run and ArtifactVersion"):
+        PaperCollection.model_validate(cached_payload)
+
+    snapshot_id = cached_payload["source_executions"][0]["source_snapshot_id"]
+    for snapshot in cached_payload["source_snapshots"]:
+        if snapshot["snapshot_id"] == snapshot_id:
+            snapshot["request_metadata"] = {
+                **snapshot["request_metadata"],
+                "origin_run_id": "run_origin_01",
+                "origin_artifact_version_id": "artv_origin_01",
+            }
+    with pytest.raises(ValidationError, match="cache_version"):
         PaperCollection.model_validate(cached_payload)
 
 

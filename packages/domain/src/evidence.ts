@@ -34,6 +34,7 @@ export const EVIDENCE_TARGET_TYPES = [
   "field",
   "source",
   "paper",
+  "paper_candidate",
   "paper_summary",
   "claim",
   "relation",
@@ -41,6 +42,16 @@ export const EVIDENCE_TARGET_TYPES = [
   "graph_edge",
 ] as const;
 export type EvidenceTargetType = (typeof EVIDENCE_TARGET_TYPES)[number];
+
+export function isEvidenceTargetType(
+  value: unknown,
+): value is EvidenceTargetType {
+  return (EVIDENCE_TARGET_TYPES as readonly unknown[]).includes(value);
+}
+
+export function isEvidenceType(value: unknown): value is EvidenceType {
+  return (EVIDENCE_TYPES as readonly unknown[]).includes(value);
+}
 
 /** Discriminator for the {@link EvidenceLocator} union. */
 export const LOCATOR_KINDS = [

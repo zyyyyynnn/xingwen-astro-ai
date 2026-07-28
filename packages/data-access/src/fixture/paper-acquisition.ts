@@ -16,6 +16,7 @@
 import type {
   PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
   PaperCollectionRead as PaperCollectionReadDto,
+  ProducerReference as ProducerReferenceDto,
 } from "@xingwen/contracts";
 
 import fixtureDocument from "./paper-acquisition.fixture.json";
@@ -30,3 +31,19 @@ export const paperCollectionReadFixture =
 /** Candidate reads in the authoritative server ranking order. */
 export const paperCandidateReadsFixture =
   fixtureDocument.candidate_reads as unknown as readonly PaperCollectionCandidateReadDto[];
+
+/**
+ * Generic ArtifactVersion identity derived from the same canonical
+ * PaperCollection dump: content, content/input hash, schema_version and
+ * producer stay mutually consistent exactly as the B-06 runtime re-validates
+ * them (`_validated_collection`).
+ */
+export const paperCollectionArtifactVersionFixture =
+  fixtureDocument.artifact_version as unknown as {
+    readonly content: Record<string, unknown>;
+    readonly content_hash: string;
+    readonly input_hash: string;
+    readonly schema_version: string;
+    readonly created_at: string;
+    readonly producer: ProducerReferenceDto;
+  };

@@ -133,7 +133,9 @@ class PaperSourceExecution(BaseModel):
     failure_class: UpstreamFailureClass | None = None
     failure_code: str | None = None
     # Cached-run audit context (B-06 read boundary): why this cached snapshot
-    # applies to the current query, and how the live attempt failed, if any.
+    # applies to the current query, and how the live attempt failed. All three
+    # fields are required for cached executions so a cached result is always
+    # fully auditable, and forbidden otherwise.
     cache_applicability: NonEmptyString | None = None
     live_failure_class: UpstreamFailureClass | None = None
     live_failure_code: str | None = None
@@ -164,8 +166,10 @@ class PaperSourceExecution(BaseModel):
         if self.source_mode is SourceMode.cached:
             if self.cache_applicability is None:
                 raise ValueError("cached source execution requires cache_applicability")
-            if (self.live_failure_class is None) != (self.live_failure_code is None):
-                raise ValueError("live failure class and code must be provided together")
+            if self.live_failure_class is None or not self.live_failure_code:
+                raise ValueError(
+                    "cached source execution requires live_failure_class and live_failure_code"
+                )
         elif (
             self.cache_applicability is not None
             or self.live_failure_class is not None
@@ -188,6 +192,10 @@ class RawPaperCandidate(BaseModel):
     arxiv_id: str | None = None
     url: str | None = None
     record_hash: ContentHash
+    # Record-level provenance label for synthetic demo/test records; a live
+    # acquisition never sets it. Reviewers must be able to tell synthetic
+    # review material from real bibliographic records per candidate.
+    synthetic_note: NonEmptyString | None = None
 
 
 class PaperCandidateConflict(BaseModel):
@@ -396,6 +404,8 @@ class PaperCollectionPayload(BaseModel):
                 required_origin = {"origin_run_id", "origin_artifact_version_id"}
                 if not required_origin.issubset(snapshot.request_metadata):
                     raise ValueError("cached source requires real origin Run and ArtifactVersion")
+                if not snapshot.cache_version:
+                    raise ValueError("cached source snapshot requires cache_version")
 
         expected_input_hash = compute_paper_collection_input_hash(
             self.benchmark, self.query, self.rules

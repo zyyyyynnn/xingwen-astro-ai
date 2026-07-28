@@ -31,6 +31,7 @@ import type {
   ContentHash,
   DomainEntityId,
   PaperAcquisitionReview,
+  PaperCacheAudit,
   PaperCandidateReview,
   PaperCandidateSelection,
   PaperDuplicateReview,
@@ -172,13 +173,32 @@ function mapSourceExecution(
   dto: PaperSourceExecutionDto,
 ): PaperSourceExecutionReview {
   const sourceMode = dto.source_mode as SourceMode;
-  if (sourceMode === "cached" && !dto.cache_applicability) {
-    // Mirrors the Pydantic invariant; a cached execution without its audit
-    // context must never render as a normal cache.
-    throw contractViolation(
-      `cached source execution ${dto.source_id} lacks cache_applicability`,
-    );
+  if (sourceMode === "cached") {
+    // Mirrors the Pydantic invariant; a cached execution without its full
+    // audit context must never render as a normal cache.
+    if (!dto.cache_applicability) {
+      throw contractViolation(
+        `cached source execution ${dto.source_id} lacks cache_applicability`,
+      );
+    }
+    if (!dto.live_failure_class || !dto.live_failure_code) {
+      throw contractViolation(
+        `cached source execution ${dto.source_id} lacks the live failure ` +
+          `class/code audit context`,
+      );
+    }
   }
+  const cache: PaperCacheAudit | null =
+    sourceMode === "cached" &&
+    dto.cache_applicability &&
+    dto.live_failure_class &&
+    dto.live_failure_code
+      ? {
+          applicability: dto.cache_applicability,
+          liveFailureClass: dto.live_failure_class,
+          liveFailureCode: dto.live_failure_code,
+        }
+      : null;
   return {
     sourceId: mapId(dto.source_id),
     sourceMode,
@@ -209,14 +229,7 @@ function mapSourceExecution(
       responseHash: page.response_hash as ContentHash,
       rateLimitMetadata: metadataEntries(page.rate_limit_metadata),
     })),
-    cache:
-      sourceMode === "cached"
-        ? {
-            applicability: dto.cache_applicability ?? "",
-            liveFailureClass: dto.live_failure_class ?? null,
-            liveFailureCode: dto.live_failure_code ?? null,
-          }
-        : null,
+    cache,
   };
 }
 
@@ -280,6 +293,7 @@ function mapCandidate(
       arxivId: candidate.raw.arxiv_id ?? null,
       url: candidate.raw.url ?? null,
       recordHash: candidate.raw.record_hash as ContentHash,
+      syntheticNote: candidate.raw.synthetic_note ?? null,
     },
     conflicts: (candidate.conflicts ?? []).map(mapConflict),
     relevanceScore: candidate.relevance_score,
@@ -340,15 +354,37 @@ export function assemblePaperAcquisitionReview(
   const persistedSnapshots = (read.source_snapshots ?? []).map(
     mapSnapshotSummary,
   );
-  // A cached execution without any origin-bearing persisted snapshot cannot
-  // be audited and must fail loudly (mirrors the Pydantic cached invariant).
-  if (
-    sourceExecutions.some((execution) => execution.sourceMode === "cached") &&
-    !persistedSnapshots.some((snapshot) => snapshot.cachedOrigin !== null)
-  ) {
-    throw contractViolation(
-      "cached source execution lacks origin Run/ArtifactVersion provenance",
+  // Cached executions must be auditable per execution: resolve each cached
+  // execution's pipeline snapshot to its persisted projection through the
+  // same stable fingerprint B-06 uses, and require real origin provenance
+  // on that exact snapshot (mirrors the Pydantic cached invariant).
+  for (const execution of collection.source_executions) {
+    if ((execution.source_mode as SourceMode) !== "cached") continue;
+    const record = (collection.source_snapshots ?? []).find(
+      (item) => item.snapshot_id === execution.source_snapshot_id,
     );
+    const persisted = record
+      ? persistedSnapshots.find(
+          (item) =>
+            String(item.sourceId) === record.source_id &&
+            item.sourceType === record.source_type &&
+            String(item.queryHash) === record.query_hash &&
+            String(item.contentHash) === record.content_hash &&
+            String(item.retrievedAt) === record.retrieved_at,
+        )
+      : undefined;
+    if (!persisted || persisted.cachedOrigin === null) {
+      throw contractViolation(
+        `cached source execution ${execution.source_id} lacks origin ` +
+          `Run/ArtifactVersion provenance on its own snapshot`,
+      );
+    }
+    if (persisted.cacheVersion === null) {
+      throw contractViolation(
+        `cached source execution ${execution.source_id} lacks a snapshot ` +
+          `cache_version`,
+      );
+    }
   }
 
   return {

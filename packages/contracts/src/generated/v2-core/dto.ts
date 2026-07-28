@@ -375,6 +375,7 @@ export interface RawPaperCandidate {
   source_id: string;
   source_record_id: string;
   source_snapshot_id: string;
+  synthetic_note?: string | null;
   title: string;
   url?: string | null;
   year?: number | null;

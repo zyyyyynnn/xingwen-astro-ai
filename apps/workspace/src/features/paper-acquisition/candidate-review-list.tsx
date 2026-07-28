@@ -80,6 +80,11 @@ export function CandidateReviewList({
                 {candidate.selection.kind === "selected" ? "入选" : "排除"}
               </span>
             </div>
+            {candidate.rawRecord.syntheticNote !== null && (
+              <p className="candidate-synthetic-note" role="note">
+                合成演示记录：{candidate.rawRecord.syntheticNote}
+              </p>
+            )}
             <p className="candidate-meta">
               <span className="candidate-meta-item">
                 {candidate.authors.length > 0

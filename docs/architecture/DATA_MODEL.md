@@ -250,7 +250,7 @@ FieldDefinition 包含 name、label、description、data_type、canonical_unit�
 
 PaperCollection 包含 query、acquisition_run、candidates、selected_paper_ids、dedupe_rule、ranking_rule、source_snapshot_ids。Candidate 至少包含 title、authors、year、DOI/arXiv/URL、source snapshot、relevance、selected 和 selection_reason。Seed 只能标记 benchmark、scientific_review 或 fixture。
 
-`PaperSourceExecution` 携带 cached 审计上下文：`cache_applicability`（cached 执行必填，说明该缓存为何适用于当前查询）与可选的 `live_failure_class`/`live_failure_code`（本次 Live 尝试的失败分类与代码，成对出现）；非 cached 执行禁止携带这些字段。cached 执行引用的 SourceSnapshot 其 `request_metadata` 必须包含 `origin_run_id` 与 `origin_artifact_version_id`（真实历史 Run/版本），由 Pydantic validator 强制。
+`PaperSourceExecution` 携带 cached 审计上下文：cached 执行必须同时提供 `cache_applicability`（该缓存为何适用于当前查询）与 `live_failure_class`/`live_failure_code`（本次 Live 尝试的失败分类与代码）；非 cached 执行禁止携带这些字段。cached 执行引用的 SourceSnapshot 必须提供非空 `cache_version`，且 `request_metadata` 必须包含 `origin_run_id` 与 `origin_artifact_version_id`（真实历史 Run/版本），均由 Pydantic validator 强制；消费端对缺失任一审计字段的 cached 数据必须拒绝为契约违规。`RawPaperCandidate.synthetic_note` 是记录级 provenance 标注：合成演示/测试记录必须携带说明文本，真实获取记录永远为 null，审查界面逐候选展示。
 
 当前 D-02 已在唯一 Pydantic 编写源实现独立的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。#78 已实现通用 Publisher 端口，但这不表示 `/api/v2` HTTP API 或 Paper Pipeline 到持久化 Workflow 的生产集成已实现。
 
@@ -302,6 +302,8 @@ created_at
 ```
 
 Locator 使用判别联合：database cell 定位 query hash、row key 和 field；paper text 定位 section/page/paragraph/range；model extraction 引用输入 evidence 与 prompt/model version；reasoning trace 引用 relation 和显式 step。
+
+前端 Domain 的 Evidence `target_type` 为闭合枚举：`field | source | paper | paper_candidate | paper_summary | claim | relation | reasoning_trace | graph_edge`。`paper_candidate` 由 B-06 候选读取边界使用（Evidence 目标为具体候选记录，`paper_id` 携带 canonical paper）；前端映射层对未知 target/evidence type 显式报错，不用类型断言掩盖漂移。
 
 SourceSnapshot：
 

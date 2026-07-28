@@ -589,6 +589,15 @@ textarea:disabled {
   font-size: var(--font-size-1);
 }
 
+.candidate-synthetic-note {
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  border-inline-start: 3px solid var(--color-border-strong, var(--color-border));
+  background: var(--color-surface-muted);
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-1);
+}
+
 .candidate-conflicts {
   display: grid;
   gap: 0.125rem;

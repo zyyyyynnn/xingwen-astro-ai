@@ -16,8 +16,6 @@ import type {
   DomainEntityId,
   Evidence,
   EvidenceLocator,
-  EvidenceTargetType,
-  EvidenceType,
   ExecutionMode,
   NonEmptyString,
   ProducerReference,
@@ -40,7 +38,11 @@ import type {
   WorkspaceSnapshot,
   WorkspaceSnapshotInput,
 } from "@xingwen/domain";
-import { asEntityId } from "@xingwen/domain";
+import {
+  asEntityId,
+  isEvidenceTargetType,
+  isEvidenceType,
+} from "@xingwen/domain";
 
 import type {
   ArtifactVersion as ArtifactVersionDto,
@@ -617,14 +619,27 @@ function mapEvidenceLocator(raw: unknown): EvidenceLocator | null {
  * source snapshot) and the embedded `EvidenceDetail` share every domain
  * field; the nested snapshot projection is intentionally not carried into
  * the domain `Evidence`, so pinning/Share always reuses the same ids.
+ *
+ * Target/evidence types are validated against the closed domain enums
+ * instead of being asserted, so contract drift fails loudly here.
  */
 function mapEvidenceCore(dto: EvidenceDetailDto): Evidence {
+  if (!isEvidenceTargetType(dto.target_type)) {
+    throw new Error(
+      `Evidence ${dto.id} carries an unknown target_type: ${dto.target_type}`,
+    );
+  }
+  if (!isEvidenceType(dto.evidence_type)) {
+    throw new Error(
+      `Evidence ${dto.id} carries an unknown evidence_type: ${dto.evidence_type}`,
+    );
+  }
   return {
     id: mapId(dto.id),
     artifactVersionId: mapId(dto.artifact_version_id),
-    targetType: dto.target_type as EvidenceTargetType,
+    targetType: dto.target_type,
     targetId: mapId(dto.target_id),
-    evidenceType: dto.evidence_type as EvidenceType,
+    evidenceType: dto.evidence_type,
     sourceSnapshotId: mapId(dto.source_snapshot_id),
     paperId: (dto.paper_id ?? null) as DomainEntityId | null,
     locator: mapEvidenceLocator(dto.locator),

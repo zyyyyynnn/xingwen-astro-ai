@@ -267,6 +267,13 @@ describe("PaperAcquisitionWorkspace — fixture main path", () => {
     );
     // Uncertain title/year match surfaces on the affected candidates.
     expect(list.textContent).toContain("不确定匹配（authors）");
+    // The three synthetic records carry an explicit per-candidate label;
+    // the four real seed papers never do.
+    const syntheticNotes = list.querySelectorAll(".candidate-synthetic-note");
+    expect(syntheticNotes).toHaveLength(3);
+    expect(syntheticNotes[0]?.textContent).toContain("合成演示记录");
+    expect(syntheticNotes[0]?.textContent).toContain("Not a real publication");
+    expect(items[2]?.querySelector(".candidate-synthetic-note")).toBeNull();
   });
 
   it("keeps original stableRank when filtering and resets cleanly", async () => {

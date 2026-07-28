@@ -141,13 +141,14 @@ export interface PaperSourcePageReview {
 
 /**
  * Cached-run audit context: why the cached snapshot applies to this query
- * and how the live attempt failed, if one was made. Reported by the
- * contract; never inferred client-side.
+ * and how the live attempt failed. All fields are contract-required for a
+ * cached execution; a payload missing them is a contract violation, never a
+ * silently rendered cache.
  */
 export interface PaperCacheAudit {
   readonly applicability: string;
-  readonly liveFailureClass: PaperSourceFailureClass | null;
-  readonly liveFailureCode: string | null;
+  readonly liveFailureClass: PaperSourceFailureClass;
+  readonly liveFailureCode: string;
 }
 
 /** Per-source execution outcome as reported by the contract. */
@@ -244,6 +245,11 @@ export interface PaperRawRecordReview {
   /** Original source URL; may be unsafe and must go through safeExternalUrl. */
   readonly url: string | null;
   readonly recordHash: ContentHash;
+  /**
+   * Contract-carried label for synthetic demo/test records; null for real
+   * bibliographic records. Reviewers see it per candidate.
+   */
+  readonly syntheticNote: string | null;
 }
 
 /** One reviewable candidate in authoritative server ranking order. */

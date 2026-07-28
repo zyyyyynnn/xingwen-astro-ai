@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.paper_collection import PaperCollection
 from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
@@ -24,6 +25,7 @@ from services.paper_pipeline.benchmark import load_frozen_benchmark
 from services.paper_pipeline.demo_fixture import (
     DEMO_SCENARIO_ID,
     FIXTURE_OUTPUT_PATH,
+    build_demo_records,
     build_fixture_document,
 )
 
@@ -97,6 +99,73 @@ def test_benchmark_identity_matches_frozen_package(
         set(scenario.expected_paper_ids)
     )
     assert set(query["source_ids"]) <= set(scenario.source_ids)
+
+
+def test_seed_records_are_derived_from_the_frozen_benchmark() -> None:
+    """The expected-paper records must equal the frozen seed papers, not a
+    hand-maintained transcription."""
+
+    benchmark = load_frozen_benchmark()
+    scenario = next(
+        item
+        for item in benchmark.search_scenarios
+        if item.scenario_id == DEMO_SCENARIO_ID
+    )
+    seeds_by_id = {paper.paper_id: paper for paper in benchmark.seed_papers}
+    records = build_demo_records(benchmark)
+    expected = [seeds_by_id[paper_id] for paper_id in scenario.expected_paper_ids]
+    seed_records = records[: len(expected)]
+    for record, seed in zip(seed_records, expected, strict=True):
+        assert "fixture" in seed.intended_uses
+        assert record.title == seed.title
+        assert record.authors == tuple(seed.authors)
+        assert record.year == seed.year
+        assert record.doi == seed.doi
+        assert record.arxiv_id == seed.arxiv_id
+        assert record.synthetic_note is None
+
+
+def test_synthetic_records_carry_explicit_per_candidate_notes(
+    committed_document: dict[str, Any],
+) -> None:
+    read = PaperCollectionRead.model_validate(committed_document["read"])
+    notes = [
+        candidate.raw.synthetic_note for candidate in read.collection.candidates
+    ]
+    synthetic = [note for note in notes if note is not None]
+    real = [note for note in notes if note is None]
+    assert len(synthetic) == 3
+    assert len(real) == 4
+    for note in synthetic:
+        assert "Synthetic demo record" in note
+        assert "Not a real publication" in note
+
+
+def test_artifact_version_identity_is_consistent_with_the_collection(
+    committed_document: dict[str, Any],
+) -> None:
+    """Mirror the B-06 `_validated_collection` cross-checks: the generic
+    ArtifactVersion identity must be derived from the same canonical dump."""
+
+    version = committed_document["artifact_version"]
+    read = committed_document["read"]
+    assert version["content"] == read["collection"]
+    assert version["content_hash"] == read["content_hash"]
+    assert version["content_hash"] == compute_canonical_payload_hash(
+        version["content"]
+    )
+    assert version["input_hash"] == read["collection"]["input_hash"]
+    assert version["schema_version"] == read["collection"]["schema_version"]
+    producer = version["producer"]
+    assert producer == read["producer_execution"]["producer"]
+    assert producer["name"] == read["collection"]["producer"]["producer_name"]
+    assert (
+        producer["version"] == read["collection"]["producer"]["producer_version"]
+    )
+    assert (
+        producer["parameters_hash"]
+        == read["collection"]["producer"]["parameters_hash"]
+    )
 
 
 def _collection_payload(document: dict[str, Any]) -> dict[str, Any]:

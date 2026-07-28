@@ -436,8 +436,13 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
       source_mode: string;
       collection: {
         source_executions: Array<Record<string, unknown>>;
+        source_snapshots: Array<Record<string, unknown>>;
+        source_snapshot_ids: string[];
       };
-      source_snapshots: Array<{ request_metadata: Record<string, unknown> }>;
+      source_snapshots: Array<{
+        cache_version?: string | null;
+        request_metadata: Record<string, unknown>;
+      }>;
     };
     clone.source_mode = "cached";
     for (const execution of clone.collection.source_executions) {
@@ -448,6 +453,7 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
       execution.live_failure_class = "timeout";
       execution.live_failure_code = "CROSSREF_TIMEOUT";
     }
+    clone.source_snapshots[0]!.cache_version = "cache_v1";
     clone.source_snapshots[0]!.request_metadata = {
       ...clone.source_snapshots[0]!.request_metadata,
       origin_run_id: "run_origin_01",
@@ -478,6 +484,7 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
       liveFailureCode: "CROSSREF_TIMEOUT",
     });
     const snapshot = review.sourceSnapshots[0];
+    expect(snapshot?.cacheVersion).toBe("cache_v1");
     expect(snapshot?.cachedOrigin).toEqual({
       originRunId: "run_origin_01",
       originArtifactVersionId: "artv_origin_01",
@@ -494,6 +501,71 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
     await expect(
       httpRepos.paperAcquisition.getReview(VERSION_ID),
     ).rejects.toThrowError(/lacks cache_applicability/u);
+  });
+
+  it("rejects a cached execution without the live failure context", async () => {
+    const httpRepos = setupHttpRepos();
+    const payload = cachedRead();
+    for (const execution of payload.collection.source_executions) {
+      delete (execution as Record<string, unknown>)["live_failure_class"];
+      delete (execution as Record<string, unknown>)["live_failure_code"];
+    }
+    overrideCollectionPayload(payload);
+    await expect(
+      httpRepos.paperAcquisition.getReview(VERSION_ID),
+    ).rejects.toThrowError(/lacks the live failure/u);
+  });
+
+  it("rejects a cached snapshot without a cache_version", async () => {
+    const httpRepos = setupHttpRepos();
+    const payload = cachedRead();
+    payload.source_snapshots[0]!.cache_version = null;
+    overrideCollectionPayload(payload);
+    await expect(
+      httpRepos.paperAcquisition.getReview(VERSION_ID),
+    ).rejects.toThrowError(/lacks a snapshot cache_version/u);
+  });
+
+  it("binds origin provenance per execution, not collection-wide", async () => {
+    const httpRepos = setupHttpRepos();
+    const payload = cachedRead();
+    // Add a second cached execution whose own snapshot has NO origin, while
+    // the first execution's snapshot does: a collection-wide "some snapshot
+    // has origin" guard would wrongly accept this payload.
+    const firstExecution = payload.collection.source_executions[0]!;
+    const firstRecord = payload.collection.source_snapshots[0]!;
+    payload.collection.source_snapshots.push({
+      ...firstRecord,
+      snapshot_id: "snapshot.arxiv.demo2",
+      source_id: "arxiv",
+      content_hash: `sha256:${"b".repeat(64)}`,
+    });
+    payload.collection.source_snapshot_ids = [
+      ...payload.collection.source_snapshot_ids,
+      "snapshot.arxiv.demo2",
+    ].sort();
+    payload.collection.source_executions.push({
+      ...firstExecution,
+      source_id: "arxiv",
+      source_snapshot_id: "snapshot.arxiv.demo2",
+    });
+    const persisted = payload.source_snapshots as Array<
+      Record<string, unknown>
+    >;
+    persisted.push({
+      ...persisted[0]!,
+      id: "snap_paper_arxiv_02",
+      source_id: "arxiv",
+      content_hash: `sha256:${"b".repeat(64)}`,
+      cache_version: "cache_v1",
+      request_metadata: { adapter_name: "arxiv_demo_fixture" },
+    });
+    overrideCollectionPayload(payload);
+    await expect(
+      httpRepos.paperAcquisition.getReview(VERSION_ID),
+    ).rejects.toThrowError(
+      /cached source execution arxiv lacks origin Run\/ArtifactVersion/u,
+    );
   });
 
   it("rejects a cached execution without origin Run/ArtifactVersion", async () => {
