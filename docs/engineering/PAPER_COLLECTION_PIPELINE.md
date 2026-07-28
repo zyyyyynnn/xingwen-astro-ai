@@ -1,12 +1,12 @@
-# PaperCollection Pipeline
+# PaperCollection and PaperSummary Pipeline
 
 | 元数据 | 值 |
 | --- | --- |
 | Status | Implemented |
-| Authority | D-02 论文检索、规范化、去重、排序、来源记录与 PaperCollection 内容生成 |
-| Implementation | Crossref metadata Adapter、`paper_collection` Pipeline content 与 B-06 ArtifactVersion domain reads current；ArtifactVersion 发布由 #78 提供 |
+| Authority | D-02 PaperCollection 获取与 D-03 PaperSummary Prompt/Schema/Evidence 准入 |
+| Implementation | Crossref metadata Adapter、`paper_collection` content、D-03 `paper_summary` detached admission/Benchmark current；ArtifactVersion 发布由 #78 提供，生产模型与 Workflow 接线 Pending |
 
-本文是 D-02 运行规则和操作方式的唯一完整事实源。领域实体不变量仍由 [Data Model](../architecture/DATA_MODEL.md) 负责，ArtifactVersion 与缓存规则由 [Data Versioning](../architecture/DATA_VERSIONING.md) 负责，Run 状态只由 [Workflow Design](../architecture/WORKFLOW_DESIGN.md) 负责。
+本文是 D-02/D-03 论文 Pipeline 运行规则和操作方式的唯一完整事实源。领域实体不变量仍由 [Data Model](../architecture/DATA_MODEL.md) 负责，ArtifactVersion 与缓存规则由 [Data Versioning](../architecture/DATA_VERSIONING.md) 负责，Run 状态只由 [Workflow Design](../architecture/WORKFLOW_DESIGN.md) 负责。
 
 ## 1. 冻结输入与边界
 
@@ -131,14 +131,48 @@ Pydantic 编写源是 `apps/api/src/app/schemas/paper_collection.py`。内容至
 
 #78 Publisher 可以把已校验且符合质量策略的 content 原样放入 `kind=paper_collection` ArtifactVersion，并登记 content/input hash、producer 与 snapshot ids。B-06 不复制 Publisher，也不重新运行检索、canonicalization、去重或排序；它通过 #83 ownership 边界重新校验冻结 content 和 provenance，提供 detail 与候选 cursor 分页。`acquisition_run.status=failed` 的诊断 content 不得发布为成功 ArtifactVersion；若读取到遗留或损坏记录，B-06 使用稳定 Problem Details 失败关闭。
 
-## 9. 验证命令
+## 9. PaperSummary Prompt Registry
+
+生产 Prompt 只能通过 `packages/prompts/registry.json` 和 `packages/prompts/registry.py` 加载。Registry v2 对每个版本记录 path、content hash、output models 与 `active | deprecated | disabled`；默认 `paper_summary@v2` 输出 `PaperSummaryModelOutput`。加载器按 UTF-8/LF 计算 SHA-256 并核对 front matter，任何已登记版本的原地修改都会拒绝加载；历史 v1 保留为 deprecated，不删除或改写。
+
+一次调用固定 Prompt name/version/hash、model name、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本和 Evidence 输入 hash。D-03 不在 Router、组件或临时脚本维护 Prompt。
+
+## 10. PaperSummary Schema 与准入
+
+`services/paper_pipeline/summary.py` 只接收 D-02 `selected_paper_ids` 中的论文。模型响应依次经过：
+
+1. JSON 解析：失败返回 `failure_stage=json` 与 `paper_summary.json_invalid`；
+2. `PaperSummaryModelOutput` 判别 Schema：所有核心字段必须显式存在，失败返回 `failure_stage=schema`；
+3. Evidence 校验：逐项核对 paper/candidate/source/source record/SourceSnapshot/locator/quote-or-value/可访问片段；
+4. 生成 `PaperSummaryArtifactContent` 并复算 input/output hash。
+
+finding/limitation 无 Evidence 时为 `unsupported`；Evidence id 未知、provenance 不匹配或源文本不可访问时为 `unverifiable`；quote/value 未出现在提供的可访问片段时为 `unsupported`。只有所有引用 Evidence 均 supported 的项才为 `supported`。`accessible_excerpt` 仅用于本次校验，不进入 Summary；原始模型响应只计算 hash，不保存长输出。Schema 拒绝、Evidence 状态和来源冲突均不会触发自动科研裁决。
+
+SourceSnapshot 版本是冲突时的权威运行版本。若 caller 声明其他版本，Summary 记录 conflict id、claimed version、snapshot version 与 `source_snapshot_version_retained`，Evidence 仍固定到 Snapshot id/version/content hash。
+
+## 11. Benchmark 评测
+
+`services/paper_pipeline/summary_benchmark.py` 复用已批准 D-01 `1.3.0` Package，不修改 Benchmark 科研内容。报告固定 Prompt/model/parameter 版本、各 case input/model-response/output hash，并计算：
+
+- Schema 通过率：accepted Summary case / 全部 case；
+- Evidence 覆盖率：supported findings + limitations / 全部 findings + limitations；
+- unsupported 拦截率：显式期望拦截且未成为 supported 的核心项 / 全部期望拦截项；
+- 人工审查样例：必须引用 D-01 中 `review_status=approved` 的 PaperSummary id。
+
+评测函数不调用模型；同一版本化 case 输入产生相同 report input/output hash。真实模型调用、成本/延迟采集和生产 Benchmark 执行器仍 Pending。
+
+## 12. D-03 与 Publisher/B-07 边界
+
+D-03 输出的 `PaperSummaryArtifactContent` 直接作为 v2 `ArtifactContent` 的 `kind=paper_summary` 判别分支，并通过现有 #78 structured admission port；不生成第二套 Transport Schema。D-03 不执行 ArtifactVersion 数据库事务、不推进 ResearchRun、不实现 B-07 HTTP/domain read、不实现 CacheSelector。后续 Publisher 必须登记 content/input hash、ProducerExecution、SourceSnapshot ids 与 Evidence ids，且不得把 rejected execution 发布成成功 ArtifactVersion。
+
+## 13. 验证命令
 
 普通 CI 使用 fixture/mock，不访问公网：
 
 ```powershell
 Set-Location apps/api
 uv sync --frozen
-uv run pytest tests/test_paper_collection_pipeline.py
+uv run pytest tests/test_paper_collection_pipeline.py tests/test_paper_summary_pipeline.py
 uv run pytest
 uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas
 uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas --check
@@ -162,7 +196,7 @@ Set-Location apps/api
 uv run pytest -m live tests/test_paper_collection_pipeline.py
 ```
 
-## 10. Issue #38 验收映射
+## 14. Issue #38 验收映射
 
 | # | 验收项 | 自动化证据 |
 | --- | --- | --- |
@@ -189,7 +223,10 @@ uv run pytest -m live tests/test_paper_collection_pipeline.py
 | 29 | 不推进 ResearchRun | `test_pipeline_has_no_research_run_state_dependency` |
 | 30 | 现有回归 | `uv run pytest` 与仓库标准 CI |
 
-## 11. 已知限制
+## 15. 已知限制
+
+- D-03 不调用真实模型，不抓取 abstract/PDF/全文，也不做表格/图像 OCR；Evidence 可访问片段必须由上游依法提供。
+- D-03 不实现跨文献 Relation/Graph、论文写作、ResearchRun 推进、B-07 读取或 ArtifactVersion 事务。
 
 - 当前只有 Crossref metadata Adapter；arXiv 和需要 token 的 NASA ADS 未实现。
 - Crossref relevance 是上游排序输入，最终本地评分是可解释的词法基线，不是科研相关性人工结论。

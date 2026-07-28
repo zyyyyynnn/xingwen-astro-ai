@@ -17,6 +17,8 @@ from pydantic import (
     model_validator,
 )
 
+from .paper_summary import PaperSummaryArtifactContent
+
 
 V2_MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
 Identifier = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=128)]
@@ -444,14 +446,6 @@ class PaperCollectionArtifactContent(BaseModel):
 
     kind: Literal[ArtifactKind.paper_collection]
     paper_ids: tuple[Identifier, ...]
-
-
-class PaperSummaryArtifactContent(BaseModel):
-    model_config = V2_MODEL_CONFIG
-
-    kind: Literal[ArtifactKind.paper_summary]
-    paper_id: Identifier
-    summary_id: Identifier
 
 
 class LiteratureClaimsArtifactContent(BaseModel):

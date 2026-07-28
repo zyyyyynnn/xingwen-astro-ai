@@ -27,6 +27,11 @@
       "path": "json/PaperCollectionRead.schema.json"
     },
     {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryArtifactContent",
+      "path": "json/PaperSummaryArtifactContent.schema.json"
+    },
+    {
       "module": "app.schemas.v2",
       "name": "PublicShareSnapshot",
       "path": "json/PublicShareSnapshot.schema.json"

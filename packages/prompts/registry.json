@@ -1,19 +1,41 @@
 {
-  "literature_reasoning": {
-    "current": "v1",
-    "output_models": [
-      "LiteratureClaim",
-      "LiteratureRelation",
-      "ReasoningTrace"
-    ],
-    "path": "literature_reasoning/v1.md"
-  },
-  "paper_summary": {
-    "current": "v1",
-    "output_models": [
-      "PaperSummary"
-    ],
-    "path": "paper_summary/v1.md"
-  },
-  "registry_version": 1
+  "registry_version": 2,
+  "prompts": {
+    "literature_reasoning": {
+      "current": "v1",
+      "versions": {
+        "v1": {
+          "path": "literature_reasoning/v1.md",
+          "content_hash": "sha256:7ef8fff349bde70b40e855f5812258b0144bd91a9e149d4bb2c9842bddbeaf31",
+          "output_models": [
+            "LiteratureClaim",
+            "LiteratureRelation",
+            "ReasoningTrace"
+          ],
+          "status": "active"
+        }
+      }
+    },
+    "paper_summary": {
+      "current": "v2",
+      "versions": {
+        "v1": {
+          "path": "paper_summary/v1.md",
+          "content_hash": "sha256:a296771e1acf2517b4c9fb72eae6d64ebf78a5f103ac973f2d557fcf2a04be2a",
+          "output_models": [
+            "PaperSummary"
+          ],
+          "status": "deprecated"
+        },
+        "v2": {
+          "path": "paper_summary/v2.md",
+          "content_hash": "sha256:594a3e59ea2cbad953e1245efbe4f409a302ed39a73c743feb62d268422f973a",
+          "output_models": [
+            "PaperSummaryModelOutput"
+          ],
+          "status": "active"
+        }
+      }
+    }
+  }
 }

@@ -4,7 +4,7 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | Run 状态、事件、取消、重试、缓存与派生语义 |
-| Implementation | #76 PostgreSQL baseline、#77 lease/fencing/recovery store、#78 ArtifactVersion atomic publisher 与 M1 v2 Run/Event Runtime Implemented；生产 Pipeline wiring Pending |
+| Implementation | #76 PostgreSQL baseline、#77 lease/fencing/recovery store、#78 ArtifactVersion atomic publisher、D-03 PaperSummary detached admission 与 M1 v2 Run/Event Runtime Implemented；生产 Pipeline wiring Pending |
 | Current runtime | v1 Phase 0 状态机与 `/api/v2` M1 PersistentWorkflowStore Application |
 | Target runtime | Project / Run / ArtifactVersion 工作流 |
 
@@ -97,6 +97,8 @@ stateDiagram-v2
 
 Step 输出先通过 Schema、Evidence 和质量约束，再登记 ArtifactVersion。模型自由文本不得直接成为完成产物。
 
+D-03 PaperSummary 的 detached 准入顺序已实现为 `JSON 解析 -> PaperSummaryModelOutput Schema -> 逐项 Evidence`。JSON 无效和 Schema 失败产生 `rejected` ProducerExecution 安全记录；Evidence 缺失、quote/value 不匹配或来源不可访问不回退成自由文本，而分别降级为 `unsupported` / `unverifiable`；来源版本冲突保留冲突记录并使用 SourceSnapshot 声明版本。通过后得到可交给 #78 admission port 的 `PaperSummaryArtifactContent`，但 D-03 本身不推进 ResearchRun、创建数据库 Version 或选择 Cache。
+
 ## 4. 进度快照与事件
 
 - `GET /runs/{id}` 返回可恢复的权威快照。
@@ -126,6 +128,7 @@ MVP 可继续使用 FastAPI BackgroundTasks，但不得以进程内字典作为�
 - 创建 Live Run 要求 `Idempotency-Key`；同一 key 与同一请求返回同一 Run。
 - 外部读取和模型调用以 input hash、producer version、source scope 组成幂等键。
 - 超时、限流和临时网络错误可自动重试；Schema、Evidence、权限和非法状态错误不可自动重试。
+- D-03 的 JSON/Schema 拒绝和 Evidence 降级是确定性准入结果，不在 detached pipeline 内自动重试模型；上层若重试必须创建新的 StepAttempt/ProducerExecution 并保留旧终态。
 - 每次自动重试创建 StepAttempt，保留 attempt、时间、上游 request id 和错误分类。
 - 重试不得覆盖失败 Attempt，也不得重复发布相同 ArtifactVersion。
 
