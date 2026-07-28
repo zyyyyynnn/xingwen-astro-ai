@@ -14,9 +14,9 @@
  */
 
 import type {
+  ArtifactVersionDetail as ArtifactVersionDetailDto,
   PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
   PaperCollectionRead as PaperCollectionReadDto,
-  ProducerReference as ProducerReferenceDto,
 } from "@xingwen/contracts";
 
 import fixtureDocument from "./paper-acquisition.fixture.json";
@@ -33,17 +33,11 @@ export const paperCandidateReadsFixture =
   fixtureDocument.candidate_reads as unknown as readonly PaperCollectionCandidateReadDto[];
 
 /**
- * Generic ArtifactVersion identity derived from the same canonical
- * PaperCollection dump: content, content/input hash, schema_version and
- * producer stay mutually consistent exactly as the B-06 runtime re-validates
- * them (`_validated_collection`).
+ * Full immutable ArtifactVersion projection derived from the same canonical
+ * PaperCollection dump. The fixture adapter consumes its metadata exactly as
+ * the HTTP Artifact detail repository does; rich content remains on the
+ * dedicated paper-acquisition entry instead of being squeezed into the thin
+ * generic ArtifactVersion DTO.
  */
 export const paperCollectionArtifactVersionFixture =
-  fixtureDocument.artifact_version as unknown as {
-    readonly content: Record<string, unknown>;
-    readonly content_hash: string;
-    readonly input_hash: string;
-    readonly schema_version: string;
-    readonly created_at: string;
-    readonly producer: ProducerReferenceDto;
-  };
+  fixtureDocument.artifact_version as unknown as ArtifactVersionDetailDto;

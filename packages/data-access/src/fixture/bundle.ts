@@ -8,6 +8,7 @@
  */
 
 import type {
+  ArtifactVersionDetail as ArtifactVersionDetailDto,
   ArtifactVersionDto,
   PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
   PaperCollectionRead as PaperCollectionReadDto,
@@ -25,6 +26,8 @@ import type { Evidence } from "@xingwen/domain";
  * with its candidate reads in authoritative server ranking order.
  */
 export interface FixturePaperAcquisition {
+  /** Full immutable version as returned by the real Artifact detail boundary. */
+  readonly version: ArtifactVersionDetailDto;
   readonly collection: PaperCollectionReadDto;
   readonly candidates: readonly PaperCollectionCandidateReadDto[];
 }

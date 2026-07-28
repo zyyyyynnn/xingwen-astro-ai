@@ -13,6 +13,7 @@
 import { validateV2Dto, type V2CoreModelName } from "@xingwen/contracts";
 import type {
   CreateShareSnapshotRequest,
+  ArtifactVersionMetadata,
   DomainEntityId,
   PublicArtifactVersion,
   PublicEvidence,
@@ -36,7 +37,7 @@ import {
 } from "./http-errors";
 import {
   buildFixtureProvenance,
-  mapArtifactVersion,
+  mapArtifactVersionMetadata,
   mapDomainContractInputToDto,
   mapEvidence,
   mapResearchArtifact,
@@ -95,6 +96,36 @@ function validateBundleSemantics(bundle: FixtureBundle): void {
     }
   }
   for (const acquisition of bundle.data.paperAcquisitions) {
+    const { version, collection } = acquisition;
+    // Defensive runtime check: an old-shaped bundle without the rich version
+    // must fail as an explicit fixture contract error, never a TypeError.
+    if (version === undefined || version === null) {
+      throw new FixtureSemanticError(
+        `Fixture paper collection ${collection.artifact_version_id} must ` +
+          "carry its full immutable ArtifactVersion detail",
+      );
+    }
+    if (bundle.data.artifactVersions.some((item) => item.id === version.id)) {
+      throw new FixtureSemanticError(
+        `Paper collection version ${version.id} must have one rich immutable ` +
+          "fixture representation, not a second generic ArtifactVersion",
+      );
+    }
+    if (
+      version.id !== collection.artifact_version_id ||
+      version.artifact_id !== collection.artifact_id ||
+      version.project_id !== collection.project_id ||
+      version.content_hash !== collection.content_hash ||
+      version.input_hash !== collection.input_hash ||
+      version.source_mode !== collection.source_mode ||
+      version.created_at !== collection.created_at ||
+      JSON.stringify(version.content) !== JSON.stringify(collection.collection)
+    ) {
+      throw new FixtureSemanticError(
+        `Paper collection version ${version.id} identity must match its ` +
+          "dedicated collection read",
+      );
+    }
     if (acquisition.collection.source_mode !== "fixture") {
       throw new FixtureSemanticError(
         `Fixture paper collection ${acquisition.collection.artifact_version_id} ` +
@@ -124,6 +155,10 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
     { model: "ResearchRun", payloads: bundle.data.runs },
     { model: "RunEvent", payloads: bundle.data.runEvents },
     { model: "ArtifactVersion", payloads: bundle.data.artifactVersions },
+    {
+      model: "ArtifactVersionDetail",
+      payloads: bundle.data.paperAcquisitions.map((item) => item.version),
+    },
     { model: "ResearchArtifact", payloads: bundle.data.artifacts },
     {
       model: "PaperCollectionRead",
@@ -258,9 +293,14 @@ export function createFixtureRepositories(
   const artifacts = new MemoryStore(
     bundle.data.artifacts.map((dto) => mapResearchArtifact(dto)),
   );
-  const versions = new MemoryStore(
-    bundle.data.artifactVersions.map((dto) => mapArtifactVersion(dto)),
-  );
+  const versions = new MemoryStore<ArtifactVersionMetadata>([
+    ...bundle.data.artifactVersions.map((dto) =>
+      mapArtifactVersionMetadata(dto),
+    ),
+    ...bundle.data.paperAcquisitions.map((item) =>
+      mapArtifactVersionMetadata(item.version),
+    ),
+  ]);
   const evidenceStore = new MemoryStore(
     bundle.data.evidence.map((entity) => mapEvidence(entity)),
   );
@@ -698,15 +738,9 @@ export function createFixtureRepositories(
         return artifacts.filter((a) => versionArtifactIds.has(a.id));
       },
       getArtifact: async (id) => artifacts.get(id),
-      getVersion: async (id) => {
-        // Same narrowing as the HTTP adapter: generic reads expose identity
-        // and provenance metadata only, never the scientific content payload.
-        const version = versions.get(id);
-        if (version === null) return null;
-        const { content, ...metadata } = version;
-        void content;
-        return metadata;
-      },
+      // Same narrowing as the HTTP adapter: generic reads expose identity and
+      // provenance metadata only; rich content stays behind its dedicated port.
+      getVersion: async (id) => versions.get(id),
       getEvidence: async (id) => evidenceStore.get(id),
     },
     paperAcquisition: {

@@ -16,9 +16,9 @@ import { createHttpRepositories } from "../src/http-adapter";
 import { exoplanetHostStarFixture } from "../src/fixture/exoplanet-host-star";
 import {
   paperCandidateReadsFixture,
+  paperCollectionArtifactVersionFixture,
   paperCollectionReadFixture,
 } from "../src/fixture/paper-acquisition";
-import { FixtureSemanticError } from "../src/errors";
 import {
   NetworkError,
   NotFoundError,
@@ -526,6 +526,30 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
     ).rejects.toThrowError(/lacks a snapshot cache_version/u);
   });
 
+  it("rejects blank cached audit values", async () => {
+    const cases: Array<(payload: ReturnType<typeof cachedRead>) => void> = [
+      (payload) => {
+        payload.collection.source_executions[0]!["cache_applicability"] = "   ";
+      },
+      (payload) => {
+        payload.collection.source_executions[0]!["live_failure_code"] = "   ";
+      },
+      (payload) => {
+        payload.source_snapshots[0]!.cache_version = "   ";
+      },
+    ];
+
+    for (const mutate of cases) {
+      const httpRepos = setupHttpRepos();
+      const payload = cachedRead();
+      mutate(payload);
+      overrideCollectionPayload(payload);
+      await expect(
+        httpRepos.paperAcquisition.getReview(VERSION_ID),
+      ).rejects.toThrowError(/cached source execution|cache_version/u);
+    }
+  });
+
   it("binds origin provenance per execution, not collection-wide", async () => {
     const httpRepos = setupHttpRepos();
     const payload = cachedRead();
@@ -589,6 +613,12 @@ describe("paper acquisition fixture — Demo Replay semantics", () => {
         ...exoplanetHostStarFixture.data,
         paperAcquisitions: [
           {
+            // Keep the version identity consistent so the semantic check on
+            // source_mode (not the identity guard) is what rejects it.
+            version: {
+              ...paperCollectionArtifactVersionFixture,
+              source_mode: "live" as const,
+            },
             collection: {
               ...paperCollectionReadFixture,
               source_mode: "live" as const,
@@ -599,30 +629,38 @@ describe("paper acquisition fixture — Demo Replay semantics", () => {
       },
     };
     expect(() => createFixtureRepositories(bundle)).toThrowError(
-      FixtureSemanticError,
+      /must have source_mode "fixture"/u,
     );
   });
 
   it("rejects a fixture whose source execution claims cached source mode", () => {
     const collection = paperCollectionReadFixture;
+    const tamperedCollection = {
+      ...collection.collection,
+      source_executions: [
+        {
+          ...collection.collection.source_executions[0]!,
+          source_mode: "cached" as const,
+        },
+        ...collection.collection.source_executions.slice(1),
+      ] as typeof collection.collection.source_executions,
+    };
     const bundle = {
       ...exoplanetHostStarFixture,
       data: {
         ...exoplanetHostStarFixture.data,
         paperAcquisitions: [
           {
+            // Mirror the tampered content into the version so the identity
+            // guard passes and the per-execution semantic check fires.
+            version: {
+              ...paperCollectionArtifactVersionFixture,
+              content:
+                tamperedCollection as unknown as (typeof paperCollectionArtifactVersionFixture)["content"],
+            },
             collection: {
               ...collection,
-              collection: {
-                ...collection.collection,
-                source_executions: [
-                  {
-                    ...collection.collection.source_executions[0]!,
-                    source_mode: "cached" as const,
-                  },
-                  ...collection.collection.source_executions.slice(1),
-                ] as typeof collection.collection.source_executions,
-              },
+              collection: tamperedCollection,
             },
             candidates: paperCandidateReadsFixture,
           },
@@ -630,7 +668,25 @@ describe("paper acquisition fixture — Demo Replay semantics", () => {
       },
     };
     expect(() => createFixtureRepositories(bundle)).toThrowError(
-      FixtureSemanticError,
+      /source execution.*must stay "fixture"|source_mode "fixture"/u,
+    );
+  });
+
+  it("rejects an old-shaped bundle without the rich immutable version", () => {
+    const bundle = {
+      ...exoplanetHostStarFixture,
+      data: {
+        ...exoplanetHostStarFixture.data,
+        paperAcquisitions: [
+          {
+            collection: paperCollectionReadFixture,
+            candidates: paperCandidateReadsFixture,
+          } as never,
+        ],
+      },
+    };
+    expect(() => createFixtureRepositories(bundle)).toThrowError(
+      /must\s+carry its full immutable ArtifactVersion detail/u,
     );
   });
 });

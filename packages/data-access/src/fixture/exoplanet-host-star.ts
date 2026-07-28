@@ -383,36 +383,6 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     created_at: T5,
   },
   {
-    id: "artv_papcol_01",
-    artifact_id: "art_papcol_01",
-    project_id: "proj_01JEXAMPLE",
-    created_by_run_id: "run_01JEXAMPLE",
-    version_number: 1,
-    // Every identity field below is derived from the same canonical
-    // PaperCollection dump the pipeline generated: schema_version and
-    // producer mirror the collection's own values, and content_hash is the
-    // hash of the full persisted content (the thin summary projection here
-    // is the v2 ArtifactVersion contract shape; the rich content lives
-    // behind the dedicated paper acquisition port).
-    schema_version: paperCollectionArtifactVersionFixture.schema_version,
-    content: {
-      kind: "paper_collection",
-      paper_ids: [
-        ...(paperCollectionReadFixture.collection.selected_paper_ids ?? []),
-      ],
-    },
-    content_hash: paperCollectionArtifactVersionFixture.content_hash,
-    input_hash: paperCollectionArtifactVersionFixture.input_hash,
-    source_mode: "fixture",
-    producer: { ...paperCollectionArtifactVersionFixture.producer },
-    source_snapshot_ids: paperCollectionReadFixture.source_snapshots.map(
-      (item) => item.id,
-    ),
-    evidence_ids: paperCollectionReadFixture.evidence.map((item) => item.id),
-    supersedes_version_id: null,
-    created_at: paperCollectionArtifactVersionFixture.created_at,
-  },
-  {
     id: "artv_papsum_01",
     artifact_id: "art_papsum_01",
     project_id: "proj_01JEXAMPLE",
@@ -664,6 +634,7 @@ export const exoplanetHostStarFixture: FixtureBundle = {
     artifactVersions,
     paperAcquisitions: [
       {
+        version: paperCollectionArtifactVersionFixture,
         collection: paperCollectionReadFixture,
         candidates: paperCandidateReadsFixture,
       },

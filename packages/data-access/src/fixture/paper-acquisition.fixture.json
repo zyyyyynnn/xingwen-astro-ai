@@ -1521,6 +1521,12 @@
     }
   ],
   "artifact_version": {
+    "id": "artv_papcol_01",
+    "artifact_id": "art_papcol_01",
+    "project_id": "proj_01JEXAMPLE",
+    "created_by_run_id": "run_01JEXAMPLE",
+    "version_number": 1,
+    "schema_version": "1.0.0",
     "content": {
       "schema_version": "1.0.0",
       "benchmark": {
@@ -2133,8 +2139,7 @@
     },
     "content_hash": "sha256:e940092826c0db7bb7751fadc3b572bc64691cb68820714bd57e41fc8e07f8d3",
     "input_hash": "sha256:68b8b74bb8c1b22295e40ee6e2d9e35f33cfefd2b83e11673816d9511ee3db45",
-    "schema_version": "1.0.0",
-    "created_at": "2026-07-21T08:24:45Z",
+    "source_mode": "fixture",
     "producer": {
       "type": "algorithm",
       "name": "xingwen.paper_collection",
@@ -2145,6 +2150,199 @@
       "prompt_version": null,
       "prompt_hash": null,
       "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794"
-    }
+    },
+    "source_snapshot_ids": ["snap_paper_crossref_01"],
+    "evidence_ids": [
+      "evd_paper_01",
+      "evd_paper_02",
+      "evd_paper_03",
+      "evd_paper_04",
+      "evd_paper_05",
+      "evd_paper_06",
+      "evd_paper_07"
+    ],
+    "supersedes_version_id": null,
+    "created_at": "2026-07-21T08:24:45Z",
+    "producer_execution": {
+      "id": "pexec_run_papcol_01",
+      "run_id": "run_01JEXAMPLE",
+      "step_key": "searching_papers",
+      "step_attempt_id": "att_papcol_01",
+      "producer": {
+        "type": "algorithm",
+        "name": "xingwen.paper_collection",
+        "version": "1.0.0",
+        "model_provider": null,
+        "model_name": null,
+        "prompt_name": null,
+        "prompt_version": null,
+        "prompt_hash": null,
+        "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794"
+      },
+      "parameters": {},
+      "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
+      "input_hash": "sha256:68b8b74bb8c1b22295e40ee6e2d9e35f33cfefd2b83e11673816d9511ee3db45",
+      "output_hash": "sha256:af34312ec664f183300461a5073cf909e69b9d6524de26f90de3bc08852672cf",
+      "status": "completed",
+      "started_at": "2026-07-21T08:24:00Z",
+      "finished_at": "2026-07-21T08:24:45Z",
+      "token_usage": null,
+      "latency_ms": 45000,
+      "error_code": null
+    },
+    "source_snapshots": [
+      {
+        "id": "snap_paper_crossref_01",
+        "source_id": "crossref",
+        "source_type": "paper_metadata",
+        "retrieved_at": "2026-07-21T08:24:30Z",
+        "query": "(tess or \"transiting exoplanet survey satellite\") and (\"input catalog\" or \"objects of interest\" or \"nearby bright stars\")",
+        "query_hash": "sha256:77cb8ed59e38acc5b736dcb98947292c3c11c3acfbae3b39c8a2a94c91c17085",
+        "source_version_or_etag": null,
+        "content_hash": "sha256:b5bd54421bdba0eb33e50a6674150f526333c92068fe9f1b242e5c96da0ba707",
+        "license_note": "Demo fixture containing public bibliographic metadata and labelled synthetic review records only.",
+        "cache_version": null,
+        "request_metadata": {
+          "adapter_name": "crossref_demo_fixture",
+          "data_level": "fixture",
+          "demo_note": "deterministic demo fixture; not a live retrieval"
+        }
+      }
+    ],
+    "evidence": [
+      {
+        "id": "evd_paper_01",
+        "artifact_version_id": "artv_papcol_01",
+        "target_type": "paper_candidate",
+        "target_id": "candidate.9c9bf84a0444a734b7c3e1d319eeb544e21e04aa8ff4f53831e544ed4554df9c",
+        "evidence_type": "paper_search",
+        "source_snapshot_id": "snap_paper_crossref_01",
+        "paper_id": "paper.c2f79a3ceaf01e5b8571237e672d4724e4d8c707b109efb59d1b9733c3c55a99",
+        "locator": {
+          "kind": "database_cell",
+          "query_hash": "sha256:77cb8ed59e38acc5b736dcb98947292c3c11c3acfbae3b39c8a2a94c91c17085",
+          "row_key": "crossref:demo-duplicate-toi-catalog",
+          "field": "paper.title"
+        },
+        "quote_or_value": "TESS Objects of Interest Catalog from the TESS Prime Mission",
+        "extraction_method": "deterministic_parser",
+        "confidence": 1.0,
+        "created_at": "2026-07-21T08:24:45Z"
+      },
+      {
+        "id": "evd_paper_02",
+        "artifact_version_id": "artv_papcol_01",
+        "target_type": "paper_candidate",
+        "target_id": "candidate.02ce823d0f143321d28cc5559795fe8bbc1c15e39e6323ad845e71c123cbcedb",
+        "evidence_type": "paper_search",
+        "source_snapshot_id": "snap_paper_crossref_01",
+        "paper_id": "paper.c2f79a3ceaf01e5b8571237e672d4724e4d8c707b109efb59d1b9733c3c55a99",
+        "locator": {
+          "kind": "database_cell",
+          "query_hash": "sha256:77cb8ed59e38acc5b736dcb98947292c3c11c3acfbae3b39c8a2a94c91c17085",
+          "row_key": "crossref:10.3847/1538-4365/abefe1",
+          "field": "paper.title"
+        },
+        "quote_or_value": "The TESS Objects of Interest Catalog from the TESS Prime Mission",
+        "extraction_method": "deterministic_parser",
+        "confidence": 1.0,
+        "created_at": "2026-07-21T08:24:45Z"
+      },
+      {
+        "id": "evd_paper_03",
+        "artifact_version_id": "artv_papcol_01",
+        "target_type": "paper_candidate",
+        "target_id": "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
+        "evidence_type": "paper_search",
+        "source_snapshot_id": "snap_paper_crossref_01",
+        "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+        "locator": {
+          "kind": "database_cell",
+          "query_hash": "sha256:77cb8ed59e38acc5b736dcb98947292c3c11c3acfbae3b39c8a2a94c91c17085",
+          "row_key": "crossref:10.3847/1538-3881/ab3467",
+          "field": "paper.title"
+        },
+        "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
+        "extraction_method": "deterministic_parser",
+        "confidence": 1.0,
+        "created_at": "2026-07-21T08:24:45Z"
+      },
+      {
+        "id": "evd_paper_04",
+        "artifact_version_id": "artv_papcol_01",
+        "target_type": "paper_candidate",
+        "target_id": "candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a",
+        "evidence_type": "paper_search",
+        "source_snapshot_id": "snap_paper_crossref_01",
+        "paper_id": "paper.5150cdc95743446bb0b705185b7b07ea6d09fb7bda82b860a28b72ec6cacb3ab",
+        "locator": {
+          "kind": "database_cell",
+          "query_hash": "sha256:77cb8ed59e38acc5b736dcb98947292c3c11c3acfbae3b39c8a2a94c91c17085",
+          "row_key": "crossref:10.3847/1538-3881/aad050",
+          "field": "paper.title"
+        },
+        "quote_or_value": "The TESS Input Catalog and Candidate Target List",
+        "extraction_method": "deterministic_parser",
+        "confidence": 1.0,
+        "created_at": "2026-07-21T08:24:45Z"
+      },
+      {
+        "id": "evd_paper_05",
+        "artifact_version_id": "artv_papcol_01",
+        "target_type": "paper_candidate",
+        "target_id": "candidate.c46a7e7bc6d500bbdd3d1a4dcabb15fa2db8ca4d67fccef4c2b56816d7dc0c0e",
+        "evidence_type": "paper_search",
+        "source_snapshot_id": "snap_paper_crossref_01",
+        "paper_id": "paper.c49f4872400d6fa5751e034a5b12e588014b28b3d37ab6cb949bb33449f00f9c",
+        "locator": {
+          "kind": "database_cell",
+          "query_hash": "sha256:77cb8ed59e38acc5b736dcb98947292c3c11c3acfbae3b39c8a2a94c91c17085",
+          "row_key": "crossref:10.1117/1.JATIS.1.1.014003",
+          "field": "paper.title"
+        },
+        "quote_or_value": "Transiting Exoplanet Survey Satellite",
+        "extraction_method": "deterministic_parser",
+        "confidence": 1.0,
+        "created_at": "2026-07-21T08:24:45Z"
+      },
+      {
+        "id": "evd_paper_06",
+        "artifact_version_id": "artv_papcol_01",
+        "target_type": "paper_candidate",
+        "target_id": "candidate.b2abb7b70b542ae94f90f3f305d5b8222df8e4ce6b1777ebab159daa3bac781c",
+        "evidence_type": "paper_search",
+        "source_snapshot_id": "snap_paper_crossref_01",
+        "paper_id": "paper.7d7aeca298e716eec57277651124d39269c3779a5667d89ebebe2c0bc137f58f",
+        "locator": {
+          "kind": "database_cell",
+          "query_hash": "sha256:77cb8ed59e38acc5b736dcb98947292c3c11c3acfbae3b39c8a2a94c91c17085",
+          "row_key": "crossref:demo-uncertain-mission-reprint",
+          "field": "paper.title"
+        },
+        "quote_or_value": "Transiting Exoplanet Survey Satellite",
+        "extraction_method": "deterministic_parser",
+        "confidence": 1.0,
+        "created_at": "2026-07-21T08:24:45Z"
+      },
+      {
+        "id": "evd_paper_07",
+        "artifact_version_id": "artv_papcol_01",
+        "target_type": "paper_candidate",
+        "target_id": "candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b",
+        "evidence_type": "paper_search",
+        "source_snapshot_id": "snap_paper_crossref_01",
+        "paper_id": "paper.1cd1bbb7e10827a8207b559d4f0ae95d97d5822a4cea48e296607119a61a443c",
+        "locator": {
+          "kind": "database_cell",
+          "query_hash": "sha256:77cb8ed59e38acc5b736dcb98947292c3c11c3acfbae3b39c8a2a94c91c17085",
+          "row_key": "crossref:demo-unrelated-flares",
+          "field": "paper.title"
+        },
+        "quote_or_value": "A Survey of Unrelated M-dwarf Flares",
+        "extraction_method": "deterministic_parser",
+        "confidence": 1.0,
+        "created_at": "2026-07-21T08:24:45Z"
+      }
+    ]
   }
 }

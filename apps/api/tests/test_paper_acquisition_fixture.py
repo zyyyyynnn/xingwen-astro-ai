@@ -21,6 +21,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
+from app.schemas.v2 import ArtifactVersionDetail
 from services.paper_pipeline.benchmark import load_frozen_benchmark
 from services.paper_pipeline.demo_fixture import (
     DEMO_SCENARIO_ID,
@@ -147,7 +148,9 @@ def test_artifact_version_identity_is_consistent_with_the_collection(
     """Mirror the B-06 `_validated_collection` cross-checks: the generic
     ArtifactVersion identity must be derived from the same canonical dump."""
 
-    version = committed_document["artifact_version"]
+    version = ArtifactVersionDetail.model_validate(
+        committed_document["artifact_version"]
+    ).model_dump(mode="json", exclude_none=False)
     read = committed_document["read"]
     assert version["content"] == read["collection"]
     assert version["content_hash"] == read["content_hash"]

@@ -49,37 +49,49 @@ const PRODUCER_EXECUTION = {
 };
 
 type ArtifactDto = (typeof exoplanetHostStarFixture.data.artifacts)[number];
-type VersionDto =
-  (typeof exoplanetHostStarFixture.data.artifactVersions)[number];
+
+/**
+ * Single source of truth for every immutable version the HTTP handlers
+ * serve: generic versions plus the rich paper-collection version detail
+ * (which lives on the dedicated paperAcquisitions entry, exactly like the
+ * fixture adapter consumes it).
+ */
+const ALL_VERSION_DTOS = [
+  ...exoplanetHostStarFixture.data.artifactVersions,
+  ...exoplanetHostStarFixture.data.paperAcquisitions.map(
+    (item) => item.version,
+  ),
+];
+type VersionDto = (typeof ALL_VERSION_DTOS)[number];
 
 /** Build a ResearchArtifactDetail payload from a base artifact fixture. */
 function artifactDetail(artifact: ArtifactDto): Record<string, unknown> {
-  const versions = exoplanetHostStarFixture.data.artifactVersions
-    .filter((v) => v.artifact_id === artifact.id)
-    .map((v) => ({
-      id: v.id,
-      artifact_id: v.artifact_id,
-      version_number: v.version_number,
-      schema_version: v.schema_version,
-      content_hash: v.content_hash,
-      source_mode: v.source_mode,
-      supersedes_version_id: v.supersedes_version_id ?? null,
-      created_at: v.created_at,
-    }));
+  const versions = ALL_VERSION_DTOS.filter(
+    (v) => v.artifact_id === artifact.id,
+  ).map((v) => ({
+    id: v.id,
+    artifact_id: v.artifact_id,
+    version_number: v.version_number,
+    schema_version: v.schema_version,
+    content_hash: v.content_hash,
+    source_mode: v.source_mode,
+    supersedes_version_id: v.supersedes_version_id ?? null,
+    created_at: v.created_at,
+  }));
   return { ...artifact, versions };
 }
 
 /**
- * Build an ArtifactVersionDetail payload from a base version fixture. The
- * `source_snapshots`/`evidence` detail arrays are empty (the domain model reads
- * ids from the base fields, so the mapper is unaffected).
+ * Build an ArtifactVersionDetail payload from a version fixture. Generic
+ * versions get stub detail arrays; the rich paper-collection version already
+ * carries its real producer execution, snapshots and evidence, which win.
  */
 function versionDetail(version: VersionDto): Record<string, unknown> {
   return {
-    ...version,
     producer_execution: PRODUCER_EXECUTION,
     source_snapshots: [],
     evidence: [],
+    ...version,
   };
 }
 
@@ -386,7 +398,7 @@ export const defaultHandlers = [
   }),
   http.get(`${BASE_URL}/api/v2/runs/:runId/artifacts`, ({ params }) => {
     const artifacts = exoplanetHostStarFixture.data.artifacts.filter((a) =>
-      exoplanetHostStarFixture.data.artifactVersions.some(
+      ALL_VERSION_DTOS.some(
         (v) => v.artifact_id === a.id && v.created_by_run_id === params.runId,
       ),
     );
@@ -408,9 +420,7 @@ export const defaultHandlers = [
     return HttpResponse.json(envelope(artifactDetail(artifact)));
   }),
   http.get(`${BASE_URL}/api/v2/artifact-versions/:versionId`, ({ params }) => {
-    const version = exoplanetHostStarFixture.data.artifactVersions.find(
-      (v) => v.id === params.versionId,
-    );
+    const version = ALL_VERSION_DTOS.find((v) => v.id === params.versionId);
     if (!version) return new HttpResponse(null, { status: 404 });
     return HttpResponse.json(envelope(versionDetail(version)));
   }),

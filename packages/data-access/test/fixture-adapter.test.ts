@@ -85,6 +85,28 @@ describe("Fixture adapter — reads map DTO to domain", () => {
     const evidence = await repos.artifacts.getEvidence("evd_01" as never);
     expect(evidence!.evidenceType).toBe("database_query");
   });
+
+  it("reads paper collection version metadata from its rich immutable version", async () => {
+    const acquisition = exoplanetHostStarFixture.data.paperAcquisitions[0]!;
+    expect(acquisition.version.content).toEqual(
+      acquisition.collection.collection,
+    );
+    expect(acquisition.version.content_hash).toBe(
+      acquisition.collection.content_hash,
+    );
+    expect(
+      exoplanetHostStarFixture.data.artifactVersions.some(
+        (version) => version.id === acquisition.version.id,
+      ),
+    ).toBe(false);
+
+    const version = await repos.artifacts.getVersion(
+      acquisition.version.id as never,
+    );
+    expect(version).not.toBeNull();
+    expect(version!.contentHash).toBe(acquisition.collection.content_hash);
+    expect(version).not.toHaveProperty("content");
+  });
 });
 
 describe("Fixture adapter — draft update and contract confirm", () => {

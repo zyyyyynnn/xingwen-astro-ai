@@ -18,7 +18,12 @@ from app.schemas.enums import (
 )
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.paper_benchmark import BenchmarkSearchScenario
-from app.schemas.paper_collection import PaperCollection, PaperSourcePage
+from app.schemas.paper_collection import (
+    PaperCollection,
+    PaperCollectionPayload,
+    PaperSourcePage,
+    compute_paper_collection_output_hash,
+)
 from services.paper_pipeline.benchmark import load_frozen_benchmark
 from services.paper_pipeline.canonicalize import (
     canonicalize_record,
@@ -706,6 +711,39 @@ def test_source_mode_and_data_level_cannot_be_misrepresented() -> None:
             }
     with pytest.raises(ValidationError, match="cache_version"):
         PaperCollection.model_validate(cached_payload)
+
+    for snapshot in cached_payload["source_snapshots"]:
+        if snapshot["snapshot_id"] == snapshot_id:
+            snapshot["cache_version"] = "cache_v1"
+
+    def seal(payload: dict[str, object]) -> dict[str, object]:
+        candidate = json.loads(json.dumps(payload))
+        candidate.pop("output_hash", None)
+        candidate["producer"]["output_hash"] = None
+        staged = PaperCollectionPayload.model_validate(candidate)
+        output_hash = compute_paper_collection_output_hash(staged)
+        sealed = staged.model_dump(mode="json", exclude_none=False)
+        sealed["producer"]["output_hash"] = output_hash
+        sealed["output_hash"] = output_hash
+        return sealed
+
+    valid_cached = seal(cached_payload)
+    assert PaperCollection.model_validate(valid_cached)
+
+    for target, field in (
+        ("execution", "cache_applicability"),
+        ("execution", "live_failure_code"),
+        ("snapshot", "cache_version"),
+    ):
+        blank = json.loads(json.dumps(valid_cached))
+        records = (
+            blank["source_executions"]
+            if target == "execution"
+            else blank["source_snapshots"]
+        )
+        records[0][field] = "   "
+        with pytest.raises(ValidationError, match=field):
+            PaperCollection.model_validate(seal(blank))
 
 
 def test_failure_logs_do_not_include_credentials_or_response_body(caplog) -> None:

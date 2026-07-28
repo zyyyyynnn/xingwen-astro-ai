@@ -173,15 +173,17 @@ function mapSourceExecution(
   dto: PaperSourceExecutionDto,
 ): PaperSourceExecutionReview {
   const sourceMode = dto.source_mode as SourceMode;
+  const cacheApplicability = dto.cache_applicability?.trim() ?? "";
+  const liveFailureCode = dto.live_failure_code?.trim() ?? "";
   if (sourceMode === "cached") {
     // Mirrors the Pydantic invariant; a cached execution without its full
     // audit context must never render as a normal cache.
-    if (!dto.cache_applicability) {
+    if (!cacheApplicability) {
       throw contractViolation(
         `cached source execution ${dto.source_id} lacks cache_applicability`,
       );
     }
-    if (!dto.live_failure_class || !dto.live_failure_code) {
+    if (!dto.live_failure_class || !liveFailureCode) {
       throw contractViolation(
         `cached source execution ${dto.source_id} lacks the live failure ` +
           `class/code audit context`,
@@ -190,13 +192,13 @@ function mapSourceExecution(
   }
   const cache: PaperCacheAudit | null =
     sourceMode === "cached" &&
-    dto.cache_applicability &&
+    cacheApplicability &&
     dto.live_failure_class &&
-    dto.live_failure_code
+    liveFailureCode
       ? {
-          applicability: dto.cache_applicability,
+          applicability: cacheApplicability,
           liveFailureClass: dto.live_failure_class,
-          liveFailureCode: dto.live_failure_code,
+          liveFailureCode,
         }
       : null;
   return {
@@ -379,7 +381,10 @@ export function assemblePaperAcquisitionReview(
           `Run/ArtifactVersion provenance on its own snapshot`,
       );
     }
-    if (persisted.cacheVersion === null) {
+    if (
+      persisted.cacheVersion === null ||
+      persisted.cacheVersion.trim().length === 0
+    ) {
       throw contractViolation(
         `cached source execution ${execution.source_id} lacks a snapshot ` +
           `cache_version`,

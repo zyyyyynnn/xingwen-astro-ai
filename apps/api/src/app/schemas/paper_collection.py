@@ -10,7 +10,14 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 from ._hashing import compute_canonical_payload_hash
 from .enums import (
@@ -26,6 +33,19 @@ from .manifest import ContentHash, Identifier, SemanticVersion
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
 NonEmptyString = Annotated[str, Field(min_length=1)]
+
+
+def _reject_blank(value: str) -> str:
+    if not value.strip():
+        raise ValueError("value must not be blank")
+    return value
+
+
+NonBlankString = Annotated[
+    str,
+    Field(min_length=1),
+    AfterValidator(_reject_blank),
+]
 Score = Annotated[float, Field(ge=0.0, le=1.0)]
 
 
@@ -136,9 +156,9 @@ class PaperSourceExecution(BaseModel):
     # applies to the current query, and how the live attempt failed. All three
     # fields are required for cached executions so a cached result is always
     # fully auditable, and forbidden otherwise.
-    cache_applicability: NonEmptyString | None = None
+    cache_applicability: NonBlankString | None = None
     live_failure_class: UpstreamFailureClass | None = None
-    live_failure_code: str | None = None
+    live_failure_code: NonBlankString | None = None
 
     @model_validator(mode="after")
     def validate_status_details(self) -> Self:
@@ -404,7 +424,7 @@ class PaperCollectionPayload(BaseModel):
                 required_origin = {"origin_run_id", "origin_artifact_version_id"}
                 if not required_origin.issubset(snapshot.request_metadata):
                     raise ValueError("cached source requires real origin Run and ArtifactVersion")
-                if not snapshot.cache_version:
+                if not snapshot.cache_version or not snapshot.cache_version.strip():
                     raise ValueError("cached source snapshot requires cache_version")
 
         expected_input_hash = compute_paper_collection_input_hash(

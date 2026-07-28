@@ -369,7 +369,7 @@ PaperCollection 领域读取只接受 `kind=paper_collection` 的不可变版本
 
 领域读取的失败语义固定为：`PAPER_SOURCE_RATE_LIMITED`（429）、`PAPER_SOURCE_FAILED`（502）、`PAPER_COLLECTION_EMPTY`（404）、`PAPER_COLLECTION_SCHEMA_INVALID`（422）以及通用 ownership / provenance Problem Details。响应不返回来源凭据、受限全文或未净化 HTML，并统一使用 `Cache-Control: no-store`。消费端只有在 404 code 为 `PAPER_COLLECTION_EMPTY` 时才可展示“无候选”空态；其他 404 code 必须作为版本不存在/不可访问处理。
 
-cached 来源执行的审计字段（`cache_applicability` 与 `live_failure_class`/`live_failure_code`，cached 执行均必填）、快照的非空 `cache_version` 以及 `request_metadata` 中的 `origin_run_id`/`origin_artifact_version_id` 随 `PaperCollectionRead` 一起返回，由 Pydantic 强制；前端逐 execution 将其引用的 pipeline 快照按稳定指纹映射到持久化投影后验证 origin/cache_version，缺失任一审计上下文即拒绝为契约违规，不得静默展示为正常缓存。
+cached 来源执行的审计字段（`cache_applicability` 与 `live_failure_class`/`live_failure_code`，cached 执行均必填）、快照的非空 `cache_version` 以及 `request_metadata` 中的 `origin_run_id`/`origin_artifact_version_id` 随 `PaperCollectionRead` 一起返回，由 Pydantic 强制；空串或全空白值等同缺失。前端逐 execution 将其引用的 pipeline 快照按稳定指纹映射到持久化投影后验证 origin/cache_version，缺失或空白的任一审计上下文即拒绝为契约违规，不得静默展示为正常缓存。
 
 上例的 `source_mode=live` 表示实际来源；`supersedes_version_id` 非空表示它是修订版本。界面可组合显示 `LIVE · REVISED`，但不得把 `revised` 写回来源枚举。
 

@@ -337,7 +337,7 @@ export function mapResearchArtifactDetail(
  * cast into the generic `ArtifactContent` union.
  */
 export function mapArtifactVersionMetadata(
-  dto: ArtifactVersionDetailDto,
+  dto: ArtifactVersionDto | ArtifactVersionDetailDto,
 ): ArtifactVersionMetadata {
   return {
     id: mapId(dto.id),

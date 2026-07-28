@@ -42,6 +42,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionRead,
 )
 from app.schemas.v2 import (
+    ArtifactVersionDetail,
     EvidenceDetail,
     ProducerExecutionDetail,
     ProducerReference,
@@ -388,6 +389,26 @@ def build_demo_read() -> tuple[PaperCollectionRead, tuple[PaperCollectionCandida
 def build_fixture_document() -> dict[str, Any]:
     read, candidate_reads = build_demo_read()
     read_payload = read.model_dump(mode="json", exclude_none=False)
+    version = ArtifactVersionDetail(
+        id=read.artifact_version_id,
+        artifact_id=read.artifact_id,
+        project_id=read.project_id,
+        created_by_run_id=_RUN_ID,
+        version_number=1,
+        schema_version=read.collection.schema_version,
+        content=read_payload["collection"],
+        content_hash=read.content_hash,
+        input_hash=read.input_hash,
+        source_mode=read.source_mode,
+        producer=read.producer_execution.producer,
+        source_snapshot_ids=tuple(item.id for item in read.source_snapshots),
+        evidence_ids=tuple(item.id for item in read.evidence),
+        supersedes_version_id=None,
+        created_at=read.created_at,
+        producer_execution=read.producer_execution,
+        source_snapshots=read.source_snapshots,
+        evidence=read.evidence,
+    )
     return {
         "$generated": {
             "tool": "services.paper_pipeline.demo_fixture",
@@ -408,14 +429,7 @@ def build_fixture_document() -> dict[str, Any]:
         # The generic ArtifactVersion identity must be derived from the exact
         # same canonical PaperCollection dump: B-06 recomputes content_hash
         # over version.content and cross-checks schema/producer fields.
-        "artifact_version": {
-            "content": read_payload["collection"],
-            "content_hash": read.content_hash,
-            "input_hash": read.input_hash,
-            "schema_version": read.collection.schema_version,
-            "created_at": read_payload["created_at"],
-            "producer": read_payload["producer_execution"]["producer"],
-        },
+        "artifact_version": version.model_dump(mode="json", exclude_none=False),
     }
 
 

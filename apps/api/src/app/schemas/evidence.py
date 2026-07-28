@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime
 import re
-from typing import Any, Self
+from typing import Annotated, Any, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .enums import EvidenceType
 from .manifest import ContentHash, Identifier
@@ -82,8 +82,15 @@ class SourceSnapshotRecord(BaseModel):
     source_version_or_etag: str | None = None
     content_hash: ContentHash
     license_note: str = Field(min_length=1)
-    cache_version: str | None = None
+    cache_version: Annotated[str, Field(min_length=1)] | None = None
     request_metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("cache_version")
+    @classmethod
+    def reject_blank_cache_version(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("cache_version must not be blank")
+        return value
 
     @model_validator(mode="after")
     def reject_sensitive_request_metadata(self) -> Self:

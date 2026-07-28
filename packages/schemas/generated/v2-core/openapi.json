@@ -2321,6 +2321,7 @@
           "live_failure_code": {
             "anyOf": [
               {
+                "minLength": 1,
                 "type": "string"
               },
               {
@@ -4528,6 +4529,7 @@
           "cache_version": {
             "anyOf": [
               {
+                "minLength": 1,
                 "type": "string"
               },
               {
