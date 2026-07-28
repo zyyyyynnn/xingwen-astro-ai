@@ -20,6 +20,7 @@ export type {
   CreateResearchContractDraftInput,
   CreateResearchProjectInput,
   CreateResearchRunInput,
+  PaperAcquisitionRepository,
   ProjectRepository,
   RepositoryProvenance,
   RepositorySet,
@@ -37,7 +38,11 @@ export {
   FixtureValidationError,
 } from "./errors";
 
-export type { FixtureBundle, FixtureBundleData } from "./fixture/bundle";
+export type {
+  FixtureBundle,
+  FixtureBundleData,
+  FixturePaperAcquisition,
+} from "./fixture/bundle";
 export { exoplanetHostStarFixture } from "./fixture/exoplanet-host-star";
 export {
   createFixtureRepositories,

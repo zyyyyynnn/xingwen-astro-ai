@@ -16,6 +16,7 @@
 import { HttpClient } from "./http-client";
 import type { HttpAdapterConfig } from "./http-client";
 import { createArtifactRepository } from "./artifact-repository";
+import { createPaperAcquisitionRepository } from "./paper-acquisition-repository";
 import type { RepositorySet } from "./ports";
 import { createResearchRepositories } from "./research-repositories";
 import { createSnapshotShareRepositories } from "./snapshot-share-repositories";
@@ -39,6 +40,15 @@ export function createHttpRepositories(
   const http = new HttpClient(config);
   const { projects, contracts, runs } = createResearchRepositories(http);
   const artifacts = createArtifactRepository(http);
+  const paperAcquisition = createPaperAcquisitionRepository(http);
   const { workspaces, shares } = createSnapshotShareRepositories(http);
-  return { projects, contracts, runs, artifacts, workspaces, shares };
+  return {
+    projects,
+    contracts,
+    runs,
+    artifacts,
+    paperAcquisition,
+    workspaces,
+    shares,
+  };
 }

@@ -10,6 +10,10 @@
 import { http, HttpResponse } from "msw";
 
 import { exoplanetHostStarFixture } from "../src/fixture/exoplanet-host-star";
+import {
+  paperCandidateReadsFixture,
+  paperCollectionReadFixture,
+} from "../src/fixture/paper-acquisition";
 
 const BASE_URL = "http://test.local";
 
@@ -410,6 +414,62 @@ export const defaultHandlers = [
     if (!version) return new HttpResponse(null, { status: 404 });
     return HttpResponse.json(envelope(versionDetail(version)));
   }),
+  // B-06 paper acquisition read boundary. Candidates are deliberately served
+  // in 2-item pages so the adapter's cursor loop is exercised by default.
+  http.get(
+    `${BASE_URL}/api/v2/artifact-versions/:versionId/paper-collection`,
+    ({ params }) => {
+      if (params.versionId !== paperCollectionReadFixture.artifact_version_id) {
+        return HttpResponse.json(
+          problem(404, "PAPER_COLLECTION_EMPTY", "Paper collection is empty"),
+          { status: 404 },
+        );
+      }
+      return HttpResponse.json(envelope(paperCollectionReadFixture));
+    },
+  ),
+  http.get(
+    `${BASE_URL}/api/v2/artifact-versions/:versionId/paper-candidates`,
+    ({ params, request }) => {
+      if (params.versionId !== paperCollectionReadFixture.artifact_version_id) {
+        return HttpResponse.json(
+          problem(404, "PAPER_COLLECTION_EMPTY", "Paper collection is empty"),
+          { status: 404 },
+        );
+      }
+      const url = new URL(request.url);
+      const cursor = url.searchParams.get("cursor");
+      const pageSize = 2;
+      let start = 0;
+      if (cursor) {
+        const index = paperCandidateReadsFixture.findIndex(
+          (item) => item.candidate.candidate_id === cursor,
+        );
+        if (index === -1) {
+          return HttpResponse.json(
+            problem(400, "INVALID_CURSOR", "Invalid cursor"),
+            { status: 400 },
+          );
+        }
+        start = index + 1;
+      }
+      const page = paperCandidateReadsFixture.slice(start, start + pageSize);
+      const hasMore = start + page.length < paperCandidateReadsFixture.length;
+      const nextCursor =
+        hasMore && page.length > 0
+          ? (page[page.length - 1]?.candidate.candidate_id ?? null)
+          : null;
+      return HttpResponse.json({
+        data: page,
+        page: { next_cursor: nextCursor, has_more: hasMore, limit: pageSize },
+        meta: {
+          request_id: "req_test",
+          schema_version: "2.0.0",
+          generated_at: "2026-07-21T08:00:00Z",
+        },
+      });
+    },
+  ),
   http.get(`${BASE_URL}/api/v2/evidence/:evidenceId`, ({ params }) => {
     if (params.evidenceId !== "evd_01") {
       return new HttpResponse(null, { status: 404 });

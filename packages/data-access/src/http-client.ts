@@ -90,6 +90,23 @@ export class HttpClient {
   }
 
   /**
+   * Single GET where the resource is required: a 404 propagates as
+   * `NotFoundError` (preserving the server problem code, e.g. an empty
+   * collection vs a missing version) instead of collapsing to `null`.
+   */
+  async getRequired<T>(path: string): Promise<T> {
+    const { body, status } = await this.request<Envelope<T>>("GET", path);
+    if (!body) {
+      throw new UnexpectedHttpError(
+        "Expected an envelope but received an empty body",
+        status,
+        null,
+      );
+    }
+    return body.data;
+  }
+
+  /**
    * Collection GET aggregating every page in ascending order. The cursor is
    * applied against the *base* path each iteration (never accumulated), and a
    * 404 is NOT silently converted to an empty list — it propagates as

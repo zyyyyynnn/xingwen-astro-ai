@@ -33,8 +33,8 @@ describe("Fixture adapter — provenance and semantics", () => {
 
   it("reports evidence completeness from the fixture", () => {
     const { state } = repos.provenance;
-    expect(state.evidenceCompleteness.covered).toBe(3);
-    expect(state.evidenceCompleteness.total).toBe(3);
+    expect(state.evidenceCompleteness.covered).toBe(7);
+    expect(state.evidenceCompleteness.total).toBe(7);
   });
 });
 
@@ -77,7 +77,11 @@ describe("Fixture adapter — reads map DTO to domain", () => {
     const version = await repos.artifacts.getVersion(
       "artv_dataset_01" as never,
     );
-    expect(version!.content.kind).toBe("dataset");
+    // Generic version reads are narrowed to metadata: identity + provenance
+    // only, never the scientific content payload.
+    expect(version!.versionNumber).toBe(1);
+    expect(version!.sourceMode).toBe("fixture");
+    expect(version!).not.toHaveProperty("content");
     const evidence = await repos.artifacts.getEvidence("evd_01" as never);
     expect(evidence!.evidenceType).toBe("database_query");
   });

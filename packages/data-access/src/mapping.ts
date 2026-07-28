@@ -9,6 +9,7 @@
 import type {
   ArtifactKind,
   ArtifactVersion,
+  ArtifactVersionMetadata,
   CaseKey,
   ContentHash,
   DataCell,
@@ -45,6 +46,7 @@ import type {
   ArtifactVersion as ArtifactVersionDto,
   ArtifactVersionDetail as ArtifactVersionDetailDto,
   DataRequirements as DataRequirementsDto,
+  EvidenceDetail as EvidenceDetailDto,
   EvidenceRead as EvidenceReadDto,
   PaperSearchScope as PaperSearchScopeDto,
   ProducerReference as ProducerReferenceDto,
@@ -324,13 +326,17 @@ export function mapResearchArtifactDetail(
 }
 
 /**
- * Map the unified `ArtifactVersionDetail` read projection to the domain
- * `ArtifactVersion`. Detail types `content` as a loose object, so it is
- * narrowed to the discriminated union after schema validation.
+ * Map the `ArtifactVersionDetail` read projection to the narrowed
+ * `ArtifactVersionMetadata` domain shape.
+ *
+ * The generic workspace read deliberately drops the scientific `content`
+ * payload: rich kind-specific content (e.g. the B-06 PaperCollection) must be
+ * read through its dedicated repository and contract instead of being force
+ * cast into the generic `ArtifactContent` union.
  */
-export function mapArtifactVersionDetail(
+export function mapArtifactVersionMetadata(
   dto: ArtifactVersionDetailDto,
-): ArtifactVersion {
+): ArtifactVersionMetadata {
   return {
     id: mapId(dto.id),
     artifactId: mapId(dto.artifact_id),
@@ -338,9 +344,6 @@ export function mapArtifactVersionDetail(
     createdByRunId: mapId(dto.created_by_run_id),
     versionNumber: dto.version_number,
     schemaVersion: dto.schema_version,
-    content: mapArtifactContent(
-      dto.content as unknown as ArtifactVersionDto["content"],
-    ),
     contentHash: dto.content_hash as ContentHash,
     inputHash: dto.input_hash as ContentHash,
     sourceMode: dto.source_mode as SourceMode,
@@ -615,6 +618,30 @@ function mapEvidenceLocator(raw: unknown): EvidenceLocator | null {
  * narrowed here; unknown locator kinds map to `null` rather than guessing.
  */
 export function mapEvidenceRead(dto: EvidenceReadDto): Evidence {
+  return {
+    id: mapId(dto.id),
+    artifactVersionId: mapId(dto.artifact_version_id),
+    targetType: dto.target_type as EvidenceTargetType,
+    targetId: mapId(dto.target_id),
+    evidenceType: dto.evidence_type as EvidenceType,
+    sourceSnapshotId: mapId(dto.source_snapshot_id),
+    paperId: (dto.paper_id ?? null) as DomainEntityId | null,
+    locator: mapEvidenceLocator(dto.locator),
+    quoteOrValue:
+      typeof dto.quote_or_value === "string" ? dto.quote_or_value : null,
+    extractionMethod: dto.extraction_method,
+    confidence: dto.confidence,
+    createdAt: dto.created_at as UtcIsoTimestamp,
+  };
+}
+
+/**
+ * Map the embedded `EvidenceDetail` projection (no nested source snapshot) to
+ * the same domain `Evidence` shape produced by `mapEvidenceRead`, so evidence
+ * read through the paper acquisition boundary stays interchangeable with the
+ * generic Evidence store (selection, pinning and Share reuse the same ids).
+ */
+export function mapEvidenceDetail(dto: EvidenceDetailDto): Evidence {
   return {
     id: mapId(dto.id),
     artifactVersionId: mapId(dto.artifact_version_id),
