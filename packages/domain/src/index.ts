@@ -107,6 +107,8 @@ export type {
 export {
   EVIDENCE_TARGET_TYPES,
   EVIDENCE_TYPES,
+  isEvidenceTargetType,
+  isEvidenceType,
   LOCATOR_KINDS,
 } from "./evidence";
 
@@ -114,21 +116,27 @@ export type { EvidenceCompleteness, ProvenanceState } from "./provenance";
 export { evidenceCompletenessRatio } from "./provenance";
 
 export type {
+  CachedSnapshotOrigin,
   PaperAcquisitionMetrics,
   PaperAcquisitionReview,
   PaperAcquisitionRules,
   PaperAcquisitionRunReview,
   PaperBenchmarkReview,
+  PaperCacheAudit,
   PaperCandidateConflictReview,
   PaperCandidateReview,
   PaperCandidateSelection,
   PaperDataLevel,
   PaperDuplicateReview,
+  PaperQueryPaginationReview,
+  PaperRawRecordReview,
   PaperSearchReview,
   PaperSourceExecutionReview,
   PaperSourceFailureClass,
   PaperSourcePageReview,
+  PaperSourceParametersReview,
   ProducerExecutionSummary,
+  ReviewMetadataEntry,
   SourceSnapshotSummary,
 } from "./paper-acquisition";
 export { safeExternalUrl } from "./paper-acquisition";

@@ -16,8 +16,6 @@ import type {
   DomainEntityId,
   Evidence,
   EvidenceLocator,
-  EvidenceTargetType,
-  EvidenceType,
   ExecutionMode,
   NonEmptyString,
   ProducerReference,
@@ -40,7 +38,11 @@ import type {
   WorkspaceSnapshot,
   WorkspaceSnapshotInput,
 } from "@xingwen/domain";
-import { asEntityId } from "@xingwen/domain";
+import {
+  asEntityId,
+  isEvidenceTargetType,
+  isEvidenceType,
+} from "@xingwen/domain";
 
 import type {
   ArtifactVersion as ArtifactVersionDto,
@@ -335,7 +337,7 @@ export function mapResearchArtifactDetail(
  * cast into the generic `ArtifactContent` union.
  */
 export function mapArtifactVersionMetadata(
-  dto: ArtifactVersionDetailDto,
+  dto: ArtifactVersionDto | ArtifactVersionDetailDto,
 ): ArtifactVersionMetadata {
   return {
     id: mapId(dto.id),
@@ -613,17 +615,31 @@ function mapEvidenceLocator(raw: unknown): EvidenceLocator | null {
 }
 
 /**
- * Map the `EvidenceRead` transport projection to the domain `Evidence`. The
- * wire locator is an opaque object typed loosely by the contract, so it is
- * narrowed here; unknown locator kinds map to `null` rather than guessing.
+ * Shared Evidence projection core. `EvidenceRead` (top-level, with a nested
+ * source snapshot) and the embedded `EvidenceDetail` share every domain
+ * field; the nested snapshot projection is intentionally not carried into
+ * the domain `Evidence`, so pinning/Share always reuses the same ids.
+ *
+ * Target/evidence types are validated against the closed domain enums
+ * instead of being asserted, so contract drift fails loudly here.
  */
-export function mapEvidenceRead(dto: EvidenceReadDto): Evidence {
+function mapEvidenceCore(dto: EvidenceDetailDto): Evidence {
+  if (!isEvidenceTargetType(dto.target_type)) {
+    throw new Error(
+      `Evidence ${dto.id} carries an unknown target_type: ${dto.target_type}`,
+    );
+  }
+  if (!isEvidenceType(dto.evidence_type)) {
+    throw new Error(
+      `Evidence ${dto.id} carries an unknown evidence_type: ${dto.evidence_type}`,
+    );
+  }
   return {
     id: mapId(dto.id),
     artifactVersionId: mapId(dto.artifact_version_id),
-    targetType: dto.target_type as EvidenceTargetType,
+    targetType: dto.target_type,
     targetId: mapId(dto.target_id),
-    evidenceType: dto.evidence_type as EvidenceType,
+    evidenceType: dto.evidence_type,
     sourceSnapshotId: mapId(dto.source_snapshot_id),
     paperId: (dto.paper_id ?? null) as DomainEntityId | null,
     locator: mapEvidenceLocator(dto.locator),
@@ -635,28 +651,14 @@ export function mapEvidenceRead(dto: EvidenceReadDto): Evidence {
   };
 }
 
-/**
- * Map the embedded `EvidenceDetail` projection (no nested source snapshot) to
- * the same domain `Evidence` shape produced by `mapEvidenceRead`, so evidence
- * read through the paper acquisition boundary stays interchangeable with the
- * generic Evidence store (selection, pinning and Share reuse the same ids).
- */
+/** Map the `EvidenceRead` transport projection to the domain `Evidence`. */
+export function mapEvidenceRead(dto: EvidenceReadDto): Evidence {
+  return mapEvidenceCore(dto);
+}
+
+/** Map the embedded `EvidenceDetail` projection to the same domain shape. */
 export function mapEvidenceDetail(dto: EvidenceDetailDto): Evidence {
-  return {
-    id: mapId(dto.id),
-    artifactVersionId: mapId(dto.artifact_version_id),
-    targetType: dto.target_type as EvidenceTargetType,
-    targetId: mapId(dto.target_id),
-    evidenceType: dto.evidence_type as EvidenceType,
-    sourceSnapshotId: mapId(dto.source_snapshot_id),
-    paperId: (dto.paper_id ?? null) as DomainEntityId | null,
-    locator: mapEvidenceLocator(dto.locator),
-    quoteOrValue:
-      typeof dto.quote_or_value === "string" ? dto.quote_or_value : null,
-    extractionMethod: dto.extraction_method,
-    confidence: dto.confidence,
-    createdAt: dto.created_at as UtcIsoTimestamp,
-  };
+  return mapEvidenceCore(dto);
 }
 
 export function mapDomainContractInputToDto(

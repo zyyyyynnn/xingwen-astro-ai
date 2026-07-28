@@ -2262,6 +2262,18 @@
       "PaperSourceExecution": {
         "additionalProperties": false,
         "properties": {
+          "cache_applicability": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Applicability"
+          },
           "candidate_count": {
             "minimum": 0.0,
             "title": "Candidate Count",
@@ -2295,6 +2307,28 @@
             "format": "date-time",
             "title": "Finished At",
             "type": "string"
+          },
+          "live_failure_class": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamFailureClass"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "live_failure_code": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Failure Code"
           },
           "pages": {
             "default": [],
@@ -3170,6 +3204,18 @@
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
             "title": "Source Snapshot Id",
             "type": "string"
+          },
+          "synthetic_note": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Synthetic Note"
           },
           "title": {
             "minLength": 1,
@@ -4483,6 +4529,7 @@
           "cache_version": {
             "anyOf": [
               {
+                "minLength": 1,
                 "type": "string"
               },
               {

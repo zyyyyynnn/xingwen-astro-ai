@@ -27,6 +27,7 @@ import type { Evidence } from "@xingwen/domain";
 import type { FixtureBundle } from "./bundle";
 import {
   paperCandidateReadsFixture,
+  paperCollectionArtifactVersionFixture,
   paperCollectionReadFixture,
 } from "./paper-acquisition";
 
@@ -382,28 +383,6 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     created_at: T5,
   },
   {
-    id: "artv_papcol_01",
-    artifact_id: "art_papcol_01",
-    project_id: "proj_01JEXAMPLE",
-    created_by_run_id: "run_01JEXAMPLE",
-    version_number: 1,
-    schema_version: "2.0.0",
-    content: { kind: "paper_collection", paper_ids: ["paper_01", "paper_02"] },
-    content_hash: hash("1"),
-    input_hash: hash("2"),
-    source_mode: "fixture",
-    producer: { ...producer },
-    source_snapshot_ids: ["snap_paper_ads_01", "snap_paper_arxiv_01"],
-    evidence_ids: [
-      "evd_paper_01",
-      "evd_paper_02",
-      "evd_paper_03",
-      "evd_paper_04",
-    ],
-    supersedes_version_id: null,
-    created_at: T7,
-  },
-  {
     id: "artv_papsum_01",
     artifact_id: "art_papsum_01",
     project_id: "proj_01JEXAMPLE",
@@ -655,6 +634,7 @@ export const exoplanetHostStarFixture: FixtureBundle = {
     artifactVersions,
     paperAcquisitions: [
       {
+        version: paperCollectionArtifactVersionFixture,
         collection: paperCollectionReadFixture,
         candidates: paperCandidateReadsFixture,
       },

@@ -375,6 +375,7 @@ export interface RawPaperCandidate {
   source_id: string;
   source_record_id: string;
   source_snapshot_id: string;
+  synthetic_note?: string | null;
   title: string;
   url?: string | null;
   year?: number | null;
@@ -899,11 +900,14 @@ export interface PaperCollectionRules {
  * via the `definition` "PaperSourceExecution".
  */
 export interface PaperSourceExecution {
+  cache_applicability?: string | null;
   candidate_count: number;
   data_level: PaperDataLevel;
   failure_class?: UpstreamFailureClass | null;
   failure_code?: string | null;
   finished_at: string;
+  live_failure_class?: UpstreamFailureClass | null;
+  live_failure_code?: string | null;
   pages?: PaperSourcePage[];
   pagination: PaperQueryPagination;
   query_hash: string;

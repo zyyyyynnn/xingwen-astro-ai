@@ -10,7 +10,14 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 from ._hashing import compute_canonical_payload_hash
 from .enums import (
@@ -26,6 +33,19 @@ from .manifest import ContentHash, Identifier, SemanticVersion
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
 NonEmptyString = Annotated[str, Field(min_length=1)]
+
+
+def _reject_blank(value: str) -> str:
+    if not value.strip():
+        raise ValueError("value must not be blank")
+    return value
+
+
+NonBlankString = Annotated[
+    str,
+    Field(min_length=1),
+    AfterValidator(_reject_blank),
+]
 Score = Annotated[float, Field(ge=0.0, le=1.0)]
 
 
@@ -132,6 +152,13 @@ class PaperSourceExecution(BaseModel):
     retry_count: int = Field(ge=0)
     failure_class: UpstreamFailureClass | None = None
     failure_code: str | None = None
+    # Cached-run audit context (B-06 read boundary): why this cached snapshot
+    # applies to the current query, and how the live attempt failed. All three
+    # fields are required for cached executions so a cached result is always
+    # fully auditable, and forbidden otherwise.
+    cache_applicability: NonBlankString | None = None
+    live_failure_class: UpstreamFailureClass | None = None
+    live_failure_code: NonBlankString | None = None
 
     @model_validator(mode="after")
     def validate_status_details(self) -> Self:
@@ -156,6 +183,19 @@ class PaperSourceExecution(BaseModel):
             PaperDataLevel.manual_review,
         }:
             raise ValueError("fixture source_mode requires a non-live test/review data level")
+        if self.source_mode is SourceMode.cached:
+            if self.cache_applicability is None:
+                raise ValueError("cached source execution requires cache_applicability")
+            if self.live_failure_class is None or not self.live_failure_code:
+                raise ValueError(
+                    "cached source execution requires live_failure_class and live_failure_code"
+                )
+        elif (
+            self.cache_applicability is not None
+            or self.live_failure_class is not None
+            or self.live_failure_code is not None
+        ):
+            raise ValueError("cache audit fields are only allowed for cached source_mode")
         return self
 
 
@@ -172,6 +212,10 @@ class RawPaperCandidate(BaseModel):
     arxiv_id: str | None = None
     url: str | None = None
     record_hash: ContentHash
+    # Record-level provenance label for synthetic demo/test records; a live
+    # acquisition never sets it. Reviewers must be able to tell synthetic
+    # review material from real bibliographic records per candidate.
+    synthetic_note: NonEmptyString | None = None
 
 
 class PaperCandidateConflict(BaseModel):
@@ -380,6 +424,8 @@ class PaperCollectionPayload(BaseModel):
                 required_origin = {"origin_run_id", "origin_artifact_version_id"}
                 if not required_origin.issubset(snapshot.request_metadata):
                     raise ValueError("cached source requires real origin Run and ArtifactVersion")
+                if not snapshot.cache_version or not snapshot.cache_version.strip():
+                    raise ValueError("cached source snapshot requires cache_version")
 
         expected_input_hash = compute_paper_collection_input_hash(
             self.benchmark, self.query, self.rules
