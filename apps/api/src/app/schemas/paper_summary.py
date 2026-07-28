@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from enum import StrEnum
 import re
-from typing import Annotated, Any, Literal, Self
+from typing import Annotated, Any, ClassVar, Literal, Self
 
 from pydantic import (
     AfterValidator,
@@ -14,6 +14,7 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    PrivateAttr,
     model_validator,
 )
 
@@ -24,6 +25,7 @@ from .paper_collection import PaperBenchmarkReference
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
 _UNSAFE_HTML = re.compile(r"<\s*/?\s*[a-z][^>]*>", re.IGNORECASE)
+_ARTIFACT_PUBLICATION_SEAL = object()
 
 
 def _validate_safe_text(value: str) -> str:
@@ -39,6 +41,15 @@ NonEmptyString = Annotated[
 ]
 ShortString = Annotated[
     str, Field(min_length=1, max_length=512), AfterValidator(_validate_safe_text)
+]
+PaperMetadataField = Literal[
+    "source_record_id",
+    "title",
+    "authors",
+    "year",
+    "doi",
+    "arxiv_id",
+    "url",
 ]
 
 
@@ -75,6 +86,7 @@ class PaperSummaryModelOutput(BaseModel):
     """The complete JSON shape accepted before Evidence validation."""
 
     model_config = MODEL_CONFIG
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     research_goal: PaperSummaryStatementCandidate | None
     method: PaperSummaryStatementCandidate | None
@@ -115,7 +127,7 @@ class PaperSummaryEvidenceLocator(BaseModel):
     section: ShortString | None = None
     paragraph: int | None = Field(default=None, ge=1)
     text_range: ShortString | None = None
-    metadata_field: ShortString | None = None
+    metadata_field: PaperMetadataField | None = None
 
     @model_validator(mode="after")
     def validate_locator_shape(self) -> Self:
@@ -260,6 +272,8 @@ class PaperSummaryArtifactContent(BaseModel):
     """Publisher-ready D-03 content used directly by the v2 Artifact discriminator."""
 
     model_config = MODEL_CONFIG
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
+    _artifact_publication_seal: object | None = PrivateAttr(default=None)
 
     kind: Literal["paper_summary"]
     schema_version: Literal["1.0.0"]
@@ -344,6 +358,9 @@ class PaperSummaryArtifactContent(BaseModel):
         )
         return singular + self.findings + self.limitations + self.future_work
 
+    def __artifact_publication_is_admitted__(self) -> bool:
+        return self._artifact_publication_seal is _ARTIFACT_PUBLICATION_SEAL
+
 
 class PaperSummaryAdmissionResult(BaseModel):
     model_config = MODEL_CONFIG
@@ -408,8 +425,14 @@ class PaperSummaryBenchmarkReport(BaseModel):
     parameters_version: SemanticVersion
     parameters_hash: ContentHash
     cases: tuple[PaperSummaryBenchmarkCaseResult, ...] = Field(min_length=1)
+    schema_items_valid: int = Field(ge=0)
+    schema_items_total: int = Field(ge=1)
     schema_pass_rate: float = Field(ge=0.0, le=1.0)
-    evidence_coverage: float = Field(ge=0.0, le=1.0)
+    evidence_items_supported: int = Field(ge=0)
+    evidence_items_total: int = Field(ge=0)
+    evidence_coverage: float | None = Field(default=None, ge=0.0, le=1.0)
+    unsupported_items_blocked: int = Field(ge=0)
+    unsupported_items_total: int = Field(ge=0)
     unsupported_block_rate: float | None = Field(default=None, ge=0.0, le=1.0)
     human_review_sample_ids: tuple[Identifier, ...] = Field(min_length=1)
     input_hash: ContentHash
@@ -419,6 +442,12 @@ class PaperSummaryBenchmarkReport(BaseModel):
     def validate_report_hash(self) -> Self:
         _require_unique(tuple(case.case_id for case in self.cases), "benchmark case id")
         _require_unique(self.human_review_sample_ids, "human review sample id")
+        if self.schema_items_valid > self.schema_items_total:
+            raise ValueError("schema pass numerator must not exceed denominator")
+        if self.evidence_items_supported > self.evidence_items_total:
+            raise ValueError("Evidence coverage numerator must not exceed denominator")
+        if self.unsupported_items_blocked > self.unsupported_items_total:
+            raise ValueError("unsupported block numerator must not exceed denominator")
         expected = compute_paper_summary_benchmark_output_hash(self)
         if self.output_hash != expected:
             raise ValueError(f"output_hash does not match benchmark report: {expected}")
@@ -442,6 +471,17 @@ def compute_paper_summary_output_hash(
         ):
             producer.pop(field, None)
     return compute_canonical_payload_hash(payload)
+
+
+def _seal_paper_summary_for_publication(
+    value: PaperSummaryArtifactContent,
+) -> PaperSummaryArtifactContent:
+    object.__setattr__(
+        value,
+        "_artifact_publication_seal",
+        _ARTIFACT_PUBLICATION_SEAL,
+    )
+    return value
 
 
 def compute_paper_summary_benchmark_output_hash(

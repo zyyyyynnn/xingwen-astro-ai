@@ -145,8 +145,15 @@
         "metadata_field": {
           "anyOf": [
             {
-              "maxLength": 512,
-              "minLength": 1,
+              "enum": [
+                "source_record_id",
+                "title",
+                "authors",
+                "year",
+                "doi",
+                "arxiv_id",
+                "url"
+              ],
               "type": "string"
             },
             {

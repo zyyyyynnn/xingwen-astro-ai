@@ -143,7 +143,7 @@ Pydantic 编写源是 `apps/api/src/app/schemas/paper_collection.py`。内容至
 
 1. JSON 解析：失败返回 `failure_stage=json` 与 `paper_summary.json_invalid`；
 2. `PaperSummaryModelOutput` 判别 Schema：所有核心字段必须显式存在，失败返回 `failure_stage=schema`；
-3. Evidence 校验：逐项核对 paper/candidate/source/source record/SourceSnapshot/locator/quote-or-value/可访问片段；
+3. Evidence 校验：逐项核对 paper/candidate/source/source record/SourceSnapshot；locator `source_url` 必须匹配 D-02 原始候选 URL，`paper_metadata` 的 quote/value 必须等于对应 D-02 metadata 字段，`paper_text` quote 必须出现在有界可访问片段；
 4. 生成 `PaperSummaryArtifactContent` 并复算 input/output hash。
 
 finding/limitation 无 Evidence 时为 `unsupported`；Evidence id 未知、provenance 不匹配或源文本不可访问时为 `unverifiable`；quote/value 未出现在提供的可访问片段时为 `unsupported`。只有所有引用 Evidence 均 supported 的项才为 `supported`。`accessible_excerpt` 仅用于本次校验，不进入 Summary；原始模型响应只计算 hash，不保存长输出。Schema 拒绝、Evidence 状态和来源冲突均不会触发自动科研裁决。
@@ -152,18 +152,20 @@ SourceSnapshot 版本是冲突时的权威运行版本。若 caller 声明其他
 
 ## 11. Benchmark 评测
 
-`services/paper_pipeline/summary_benchmark.py` 复用已批准 D-01 `1.3.0` Package，不修改 Benchmark 科研内容。报告固定 Prompt/model/parameter 版本、各 case input/model-response/output hash，并计算：
+`services/paper_pipeline/summary_benchmark.py` 复用已批准 D-01 `1.3.0` Package、`BenchmarkEvaluationInput` 与 `evaluate_benchmark` 指标 runner，不修改 Benchmark 科研内容，也不创建平行指标算法。调用 runner 时只消费 Schema/Evidence 指标，并把本次未评测的 Relation 指标保持为 `not_available`。报告固定 Prompt/model/parameter 版本、各 case input/model-response/output hash，并记录每项指标的分子、分母与结果：
 
 - Schema 通过率：accepted Summary case / 全部 case；
 - Evidence 覆盖率：supported findings + limitations / 全部 findings + limitations；
 - unsupported 拦截率：显式期望拦截且未成为 supported 的核心项 / 全部期望拦截项；
 - 人工审查样例：必须引用 D-01 中 `review_status=approved` 的 PaperSummary id。
 
+Evidence 或 unsupported 指标分母为零时报告 `null`，与 D-01 `report_not_available` 空集规则一致，不用 `0.0` 冒充已计算结果。
+
 评测函数不调用模型；同一版本化 case 输入产生相同 report input/output hash。真实模型调用、成本/延迟采集和生产 Benchmark 执行器仍 Pending。
 
 ## 12. D-03 与 Publisher/B-07 边界
 
-D-03 输出的 `PaperSummaryArtifactContent` 直接作为 v2 `ArtifactContent` 的 `kind=paper_summary` 判别分支，并通过现有 #78 structured admission port；不生成第二套 Transport Schema。D-03 不执行 ArtifactVersion 数据库事务、不推进 ResearchRun、不实现 B-07 HTTP/domain read、不实现 CacheSelector。后续 Publisher 必须登记 content/input hash、ProducerExecution、SourceSnapshot ids 与 Evidence ids，且不得把 rejected execution 发布成成功 ArtifactVersion。
+D-03 输出的 `PaperSummaryArtifactContent` 直接作为 v2 `ArtifactContent` 的 `kind=paper_summary` 判别分支，并通过现有 #78 structured admission port；不生成第二套 Transport Schema。`PaperSummaryModelOutput` 明确标记为中间模型，通用 Publisher 会拒绝其绕过 D-03 Evidence admission，只有完整 `PaperSummaryArtifactContent` 可进入发布准入。D-03 不执行 ArtifactVersion 数据库事务、不推进 ResearchRun、不实现 B-07 HTTP/domain read、不实现 CacheSelector。后续 Publisher 必须登记 content/input hash、ProducerExecution、SourceSnapshot ids 与 Evidence ids，且不得把 rejected execution 发布成成功 ArtifactVersion。
 
 ## 13. 验证命令
 
