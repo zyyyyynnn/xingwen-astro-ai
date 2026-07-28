@@ -1478,7 +1478,8 @@ export interface PaperSummaryEvidence {
  */
 export interface PaperSummaryEvidenceLocator {
   kind: "paper_text" | "paper_metadata";
-  metadata_field?: string | null;
+  metadata_field?:
+    ("source_record_id" | "title" | "authors" | "year" | "doi" | "arxiv_id" | "url") | null;
   paragraph?: number | null;
   section?: string | null;
   source_url: string;

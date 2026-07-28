@@ -27,6 +27,7 @@ from app.schemas.paper_summary import (
     PaperSummaryStatement,
     PaperSummaryStatementCandidate,
     PaperSummarySupportStatus,
+    _seal_paper_summary_for_publication,
     compute_paper_summary_output_hash,
 )
 from packages.prompts.registry import PromptRegistry
@@ -100,7 +101,9 @@ class PaperSummaryPipeline:
         evidence_input_hash = compute_canonical_payload_hash(
             [
                 candidate.model_dump(mode="json", exclude_none=True)
-                for candidate in evidence_candidates
+                for candidate in sorted(
+                    evidence_candidates, key=lambda item: item.evidence_id
+                )
             ]
         )
         input_hash = compute_canonical_payload_hash(
@@ -150,6 +153,8 @@ class PaperSummaryPipeline:
                 stage=PaperSummaryFailureStage.json,
                 error_code="paper_summary.json_invalid",
             )
+        response_hash = compute_canonical_payload_hash(decoded)
+        producer_fields["model_response_hash"] = response_hash
         try:
             model_output = PaperSummaryModelOutput.model_validate(decoded)
         except ValidationError:
@@ -327,7 +332,9 @@ def _admit_evidence(
     )
     payload["producer"]["output_hash"] = output_hash
     payload["output_hash"] = output_hash
-    return PaperSummaryArtifactContent.model_validate(payload)
+    return _seal_paper_summary_for_publication(
+        PaperSummaryArtifactContent.model_validate(payload)
+    )
 
 
 def _validate_evidence_candidate(
@@ -350,11 +357,35 @@ def _validate_evidence_candidate(
         or snapshot.source_id != candidate.source_id
     ):
         return None, None
-    if candidate.accessible_excerpt is None:
+    expected_source_urls = {
+        _normalize_source_url(value)
+        for value in (collection_candidate.raw.url, collection_candidate.url)
+        if value is not None
+    }
+    locator_source_url = _normalize_source_url(str(candidate.locator.source_url))
+    if not expected_source_urls or locator_source_url not in expected_source_urls:
+        status = PaperSummarySupportStatus.unverifiable
+        validation_code = "evidence.source_url_unverifiable"
+    elif candidate.locator.kind == "paper_metadata":
+        metadata_value = _paper_metadata_value(
+            collection_candidate, candidate.locator.metadata_field
+        )
+        if metadata_value is None:
+            status = PaperSummarySupportStatus.unverifiable
+            validation_code = "evidence.metadata_unavailable"
+        elif _normalize_evidence_text(candidate.quote_or_value) != (
+            _normalize_evidence_text(metadata_value)
+        ):
+            status = PaperSummarySupportStatus.unsupported
+            validation_code = "evidence.value_mismatch"
+        else:
+            status = PaperSummarySupportStatus.supported
+            validation_code = "evidence.supported"
+    elif candidate.accessible_excerpt is None:
         status = PaperSummarySupportStatus.unverifiable
         validation_code = "evidence.source_text_unavailable"
-    elif _normalize_evidence_text(candidate.quote_or_value) not in _normalize_evidence_text(
-        candidate.accessible_excerpt
+    elif _normalize_evidence_text(candidate.quote_or_value) not in (
+        _normalize_evidence_text(candidate.accessible_excerpt)
     ):
         status = PaperSummarySupportStatus.unsupported
         validation_code = "evidence.quote_not_found"
@@ -448,6 +479,23 @@ def _unique_evidence_candidates(
 
 def _normalize_evidence_text(value: str) -> str:
     return " ".join(value.casefold().split())
+
+
+def _normalize_source_url(value: str) -> str:
+    return value.strip().rstrip("/").casefold()
+
+
+def _paper_metadata_value(
+    candidate: PaperCollectionCandidate, metadata_field: str | None
+) -> str | None:
+    if metadata_field is None:
+        return None
+    value = getattr(candidate.raw, metadata_field)
+    if value is None:
+        return None
+    if isinstance(value, tuple):
+        return ", ".join(value)
+    return str(value)
 
 
 def _dump_optional(value: PaperSummaryStatement | None) -> dict[str, Any] | None:
