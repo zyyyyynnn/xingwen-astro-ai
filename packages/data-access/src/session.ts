@@ -75,32 +75,47 @@ export function createSessionManager(
   config: SessionManagerConfig,
 ): SessionManager {
   let current: SessionInfo | null = null;
+  // Dedupe concurrent cold-start calls: without an existing cookie, two
+  // simultaneous ensureSession() calls (e.g. a StrictMode double-invoked
+  // effect) would each POST /sessions and create *two* sessions, leaving the
+  // cookie and the in-memory CSRF token pointing at different sessions (→ 403
+  // on the next mutation). Memoizing the in-flight promise guarantees a single
+  // creation is shared by all callers.
+  let inFlight: Promise<SessionInfo> | null = null;
   const listeners = new Set<SessionExpiredListener>();
 
   return {
     async ensureSession(): Promise<SessionInfo> {
       if (current) return current;
-      const response = await fetchSession(config, "/api/v2/sessions", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!response.ok) {
-        throw await errorFromResponse(response);
+      if (inFlight) return inFlight;
+      inFlight = (async () => {
+        const response = await fetchSession(config, "/api/v2/sessions", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!response.ok) {
+          throw await errorFromResponse(response);
+        }
+        const payload = (await response.json()) as CreateSessionEnvelope;
+        const data = parseV2Dto<SessionCreated>("SessionCreated", payload.data);
+        current = {
+          status: data.status,
+          createdAt: data.created_at,
+          expiresAt: data.expires_at,
+          quota: {
+            maxProjects: data.quota.max_projects,
+            maxRuns: data.quota.max_runs,
+          },
+          csrfToken: data.csrf_token,
+        };
+        return current;
+      })();
+      try {
+        return await inFlight;
+      } finally {
+        inFlight = null;
       }
-      const payload = (await response.json()) as CreateSessionEnvelope;
-      const data = parseV2Dto<SessionCreated>("SessionCreated", payload.data);
-      current = {
-        status: data.status,
-        createdAt: data.created_at,
-        expiresAt: data.expires_at,
-        quota: {
-          maxProjects: data.quota.max_projects,
-          maxRuns: data.quota.max_runs,
-        },
-        csrfToken: data.csrf_token,
-      };
-      return current;
     },
 
     getCurrent() {

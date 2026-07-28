@@ -17,6 +17,8 @@ from app.schemas.v2 import (
     ArtifactVersionDetail,
     CollectionEnvelope,
     ConfirmResearchContractRequest,
+    CreateResearchContractDraftRequest,
+    CreateResearchProjectRequest,
     CreateShareSnapshotRequest,
     CreateRunRequest,
     Envelope,
@@ -105,6 +107,34 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
+        "/api/v2/projects",
+        operation_id="listResearchProjects",
+        response_model=CollectionEnvelope[ResearchProject],
+        responses=PROBLEM_RESPONSES,
+        description="Lists only the projects owned by the current anonymous session.",
+    )
+    def list_research_projects(
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (cursor, limit)
+        return _contract_only()
+
+    @app.post(
+        "/api/v2/projects",
+        operation_id="createResearchProject",
+        response_model=Envelope[ResearchProject],
+        status_code=201,
+        responses=PROBLEM_RESPONSES,
+    )
+    def create_research_project(
+        request: CreateResearchProjectRequest,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+    ) -> NoReturn:
+        _ = (request, idempotency_key)
+        return _contract_only()
+
+    @app.get(
         "/api/v2/projects/{project_id}",
         operation_id="getResearchProject",
         response_model=Envelope[ResearchProject],
@@ -112,6 +142,25 @@ def create_v2_contract_app() -> FastAPI:
     )
     def get_research_project(project_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
         _ = project_id
+        return _contract_only()
+
+    @app.post(
+        "/api/v2/projects/{project_id}/contract-drafts",
+        operation_id="createResearchContractDraft",
+        response_model=Envelope[ResearchContractDraft],
+        status_code=201,
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Creates an editable draft bound to a project owned by the current "
+            "session; drafts never carry execution_mode."
+        ),
+    )
+    def create_research_contract_draft(
+        project_id: Annotated[str, Path(min_length=1)],
+        request: CreateResearchContractDraftRequest,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+    ) -> NoReturn:
+        _ = (project_id, request, idempotency_key)
         return _contract_only()
 
     @app.get(

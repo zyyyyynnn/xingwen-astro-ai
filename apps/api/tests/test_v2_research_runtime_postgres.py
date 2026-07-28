@@ -112,8 +112,12 @@ def runtime() -> Iterator[dict[str, object]]:
         InMemorySnapshotStore(PersistentResourceAuthority(factory))
     )
 
-    owner, owner_credential, owner_csrf = app.state.session_service.create(now=NOW)
-    other, other_credential, other_csrf = app.state.session_service.create(now=NOW)
+    owner, owner_credential, owner_csrf = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
+    other, other_credential, other_csrf = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
 
     project_id = uuid4()
     draft_id = uuid4()
@@ -154,6 +158,7 @@ def runtime() -> Iterator[dict[str, object]]:
             "owner_session_id": owner.id,
             "owner_csrf": owner_csrf,
             "other_credential": other_credential,
+            "other_csrf": other_csrf,
             "project_id": str(project_id),
             "draft_id": str(draft_id),
         }
@@ -538,6 +543,243 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
     assert public.status_code == 200
     assert public.json()["data"]["artifact_versions"][0]["source_mode"] == "fixture"
     assert public.json()["data"]["evidence"][0]["id"] == str(evidence_id)
+
+
+def test_public_authoring_chain_creates_project_and_draft(
+    runtime: dict[str, object],
+) -> None:
+    """#131: Session → createResearchProject → createResearchContractDraft →
+    update → confirm → run entirely over the public runtime (no bootstrap)."""
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+
+    created = client.post(
+        "/api/v2/projects",
+        headers={**csrf, "Idempotency-Key": "authoring-project-1"},
+        json={
+            "name": "Public authoring chain",
+            "description": "Created through the public runtime",
+            "case_key": "exoplanet_host_star",
+        },
+    )
+    assert created.status_code == 201, created.text
+    project = created.json()["data"]
+    assert project["revision"] == 1
+    assert project["case_key"] == "exoplanet_host_star"
+    assert project["active_contract_id"] is None
+    assert "execution_mode" not in project
+    assert created.headers["Location"] == f"/api/v2/projects/{project['id']}"
+
+    replay = client.post(
+        "/api/v2/projects",
+        headers={**csrf, "Idempotency-Key": "authoring-project-1"},
+        json={
+            "name": "Public authoring chain",
+            "description": "Created through the public runtime",
+            "case_key": "exoplanet_host_star",
+        },
+    )
+    assert replay.status_code == 201
+    assert replay.json()["data"]["id"] == project["id"]
+
+    conflict = client.post(
+        "/api/v2/projects",
+        headers={**csrf, "Idempotency-Key": "authoring-project-1"},
+        json={"name": "Different request", "case_key": "exoplanet_host_star"},
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
+
+    draft_created = client.post(
+        f"/api/v2/projects/{project['id']}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "authoring-draft-1"},
+        json={
+            "intent": "Integrate exoplanet candidates and host-star parameters",
+            "contract": _contract_input(),
+        },
+    )
+    assert draft_created.status_code == 201, draft_created.text
+    draft = draft_created.json()["data"]
+    assert draft["status"] == "draft"
+    assert draft["version"] == 1
+    assert "execution_mode" not in draft
+    assert "execution_mode" not in draft["contract"]
+    assert draft_created.headers["ETag"] == "1"
+    assert draft_created.headers["Location"] == (
+        f"/api/v2/research-contract-drafts/{draft['id']}"
+    )
+
+    draft_replay = client.post(
+        f"/api/v2/projects/{project['id']}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "authoring-draft-1"},
+        json={
+            "intent": "Integrate exoplanet candidates and host-star parameters",
+            "contract": _contract_input(),
+        },
+    )
+    assert draft_replay.status_code == 201
+    assert draft_replay.json()["data"]["id"] == draft["id"]
+
+    draft_conflict = client.post(
+        f"/api/v2/projects/{project['id']}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "authoring-draft-1"},
+        json={"intent": "Different intent", "contract": _contract_input()},
+    )
+    assert draft_conflict.status_code == 409
+    assert draft_conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
+
+    # The freshly created draft continues through the existing lifecycle.
+    patched = client.patch(
+        f"/api/v2/research-contract-drafts/{draft['id']}",
+        headers={**csrf, "If-Match": "1"},
+        json={"intent": "Refined public authoring intent"},
+    )
+    assert patched.status_code == 200
+    confirmed = client.post(
+        f"/api/v2/projects/{project['id']}/contracts",
+        headers={**csrf, "Idempotency-Key": "authoring-confirm-1"},
+        json={"draft_id": draft["id"], "expected_draft_version": 2},
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    contract_id = confirmed.json()["data"]["id"]
+    run = client.post(
+        f"/api/v2/projects/{project['id']}/runs",
+        headers={**csrf, "Idempotency-Key": "authoring-run-1"},
+        json={
+            "contract_id": contract_id,
+            "execution_mode": "demo_replay",
+            "derivation_kind": "original",
+        },
+    )
+    assert run.status_code == 201, run.text
+
+
+def test_create_draft_hides_missing_and_cross_session_projects(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+    body = {
+        "intent": "Integrate exoplanet candidates and host-star parameters",
+        "contract": _contract_input(),
+    }
+
+    missing = client.post(
+        f"/api/v2/projects/{uuid4()}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "draft-missing-project"},
+        json=body,
+    )
+    assert missing.status_code == 404
+    assert missing.json()["code"] == "PROJECT_NOT_FOUND"
+
+    other = TestClient(client.app, base_url="https://testserver")
+    other.cookies.set(settings.SESSION_COOKIE_NAME, runtime["other_credential"])
+    cross = other.post(
+        f"/api/v2/projects/{runtime['project_id']}/contract-drafts",
+        headers={
+            "X-CSRF-Token": runtime["other_csrf"],
+            "Idempotency-Key": "draft-cross-session",
+        },
+        json=body,
+    )
+    assert cross.status_code == 404
+    assert cross.json()["code"] == "PROJECT_NOT_FOUND"
+
+
+def test_list_projects_is_session_scoped_with_stable_cursor(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+
+    created_ids: list[str] = []
+    for index in range(3):
+        response = client.post(
+            "/api/v2/projects",
+            headers={**csrf, "Idempotency-Key": f"list-project-{index}"},
+            json={"name": f"List project {index}", "case_key": "exoplanet_host_star"},
+        )
+        assert response.status_code == 201, response.text
+        created_ids.append(response.json()["data"]["id"])
+
+    # Full listing returns only this session's projects (3 created + fixture).
+    listing = client.get("/api/v2/projects", params={"limit": 100})
+    assert listing.status_code == 200
+    listed_ids = [item["id"] for item in listing.json()["data"]]
+    assert set(created_ids) <= set(listed_ids)
+    assert str(runtime["project_id"]) in listed_ids
+    assert len(listed_ids) == len(set(listed_ids))
+
+    # Cursor pagination is stable: walk pages of 1, never repeating a cursor
+    # or an item, and terminate with has_more=false.
+    seen_ids: list[str] = []
+    seen_cursors: set[str] = set()
+    cursor: str | None = None
+    for _ in range(len(listed_ids) + 2):
+        params: dict[str, str] = {"limit": "1"}
+        if cursor:
+            params["cursor"] = cursor
+        page = client.get("/api/v2/projects", params=params)
+        assert page.status_code == 200
+        payload = page.json()
+        seen_ids.extend(item["id"] for item in payload["data"])
+        cursor = payload["page"]["next_cursor"]
+        if not payload["page"]["has_more"]:
+            assert cursor is None
+            break
+        assert cursor is not None
+        assert cursor not in seen_cursors, "cursor repeated during pagination"
+        seen_cursors.add(cursor)
+    assert seen_ids == listed_ids
+    assert len(seen_ids) == len(set(seen_ids))
+
+    invalid = client.get("/api/v2/projects", params={"cursor": "not-a-cursor"})
+    assert invalid.status_code == 400
+    assert invalid.json()["code"] == "INVALID_CURSOR"
+
+    # The other session sees none of the owner's projects (isolation), and a
+    # cursor anchored on an owner project is rejected rather than leaked.
+    other = TestClient(client.app, base_url="https://testserver")
+    other.cookies.set(settings.SESSION_COOKIE_NAME, runtime["other_credential"])
+    other_listing = other.get("/api/v2/projects")
+    assert other_listing.status_code == 200
+    assert other_listing.json()["data"] == []
+    assert other_listing.json()["page"]["has_more"] is False
+    if seen_cursors:
+        foreign = other.get(
+            "/api/v2/projects", params={"cursor": next(iter(seen_cursors))}
+        )
+        assert foreign.status_code == 400
+        assert foreign.json()["code"] == "INVALID_CURSOR"
+
+
+def test_public_authoring_writes_require_session_and_csrf(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    body = {"name": "No auth", "case_key": "exoplanet_host_star"}
+
+    anonymous = TestClient(client.app, base_url="https://testserver")
+    assert anonymous.get("/api/v2/projects").status_code == 401
+    assert (
+        anonymous.post(
+            "/api/v2/projects", headers={"Idempotency-Key": "anon"}, json=body
+        ).status_code
+        == 401
+    )
+
+    missing_csrf = client.post(
+        "/api/v2/projects", headers={"Idempotency-Key": "no-csrf"}, json=body
+    )
+    assert missing_csrf.status_code == 403
+    assert missing_csrf.json()["code"] == "CSRF_INVALID"
+
+    missing_key = client.post(
+        "/api/v2/projects",
+        headers={"X-CSRF-Token": runtime["owner_csrf"]},
+        json=body,
+    )
+    assert missing_key.status_code == 422
 
 
 def test_runtime_hides_cross_session_and_requires_auth(

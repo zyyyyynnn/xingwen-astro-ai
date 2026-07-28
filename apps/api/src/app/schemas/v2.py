@@ -896,6 +896,31 @@ class UpdateResearchContractDraftRequest(BaseModel):
         return self
 
 
+class CreateResearchProjectRequest(BaseModel):
+    """Minimal M1 project creation payload; `case_key` stays frozen to the main case."""
+
+    model_config = V2_MODEL_CONFIG
+
+    name: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+    ]
+    description: str = Field(default="", max_length=2000)
+    case_key: Literal["exoplanet_host_star"]
+
+
+class CreateResearchContractDraftRequest(BaseModel):
+    """Creates an editable draft bound to a session-owned project.
+
+    The draft never carries `execution_mode`; that field belongs exclusively
+    to Run creation.
+    """
+
+    model_config = V2_MODEL_CONFIG
+
+    intent: NonEmptyString
+    contract: ResearchContractInput
+
+
 class ConfirmResearchContractRequest(BaseModel):
     model_config = V2_MODEL_CONFIG
 

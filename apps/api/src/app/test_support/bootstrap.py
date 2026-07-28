@@ -1,22 +1,26 @@
-"""Deterministic demo_replay fixture bootstrap for real integration runs.
+"""Deterministic demo_replay fixture publication for real integration runs.
 
-X-01 (#122) requires the frozen M1 contract surface to stay free of public
-"create project / create draft" endpoints, while real Browser E2E still needs
-deterministic, known research data. This module seeds a minimal
-``demo_replay`` / ``fixture`` scenario bound to the *calling session's* owner
-id, so ownership, 401/403/404 and CSRF semantics stay intact end to end.
+#131 narrowed this module's responsibility: the public Authoring Chain
+(``createResearchProject``, ``createResearchContractDraft``, draft update,
+contract confirm, run create) is exercised through the real ``/api/v2``
+runtime, so the bootstrap no longer injects Project, ContractDraft, Contract,
+Run, credentials or Share tokens. Its only job is publishing the frozen main
+case's deterministic ``demo_replay``/``fixture`` ArtifactVersion + Evidence
+onto a session-owned Run through the existing Persistence/Publisher boundary
+(M1 has no live executor to produce them).
 
 Hard boundaries:
 
 - Only reachable when ``APP_ENV`` is ``test`` or ``integration``; the router is
   never mounted in ``development`` or ``production``.
-- Not a Live pipeline: every artifact is published with
-  ``source_mode="fixture"`` and the run uses ``execution_mode="demo_replay"``.
+- Not a Live pipeline: the artifact is published with ``source_mode="fixture"``
+  and only onto a Run whose ``execution_mode`` is ``demo_replay``.
 - Never returns or logs the session credential, CSRF token, or share token;
-  entity ids are derived with ``uuid5`` from the opaque session id.
-- Reuses the real runtime path (ResearchApplicationService,
-  PersistentWorkflowStore, ArtifactPublisher) instead of hand-registering
-  parallel state.
+  entity ids are derived with ``uuid5`` from the target run id.
+- No arbitrary artifact content can be uploaded: the payload is the frozen
+  main-case dataset and is validated by the real admission validators.
+- Reuses the real runtime path (ResearchApplicationService ownership check,
+  PersistentWorkflowStore, ArtifactPublisher) instead of parallel state.
 """
 
 from __future__ import annotations
@@ -33,11 +37,9 @@ from app.db.models import (
     ArtifactVersionModel,
     EvidenceModel,
     ResearchArtifactModel,
-    ResearchContractDraftModel,
-    ResearchProjectModel,
     SourceSnapshotModel,
 )
-from app.schemas.v2 import ConfirmResearchContractRequest, CreateRunRequest
+from app.security import SecurityProblem
 from app.services.research import ResearchApplicationService
 from app.workflow.publisher import (
     ArtifactAdmissionContext,
@@ -53,8 +55,8 @@ _NAMESPACE = "https://xingwen.example/test-only-bootstrap"
 _NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
 
 
-def _seed_uuid(session_id: str, entity: str) -> UUID:
-    return uuid5(NAMESPACE_URL, f"{_NAMESPACE}/{session_id}/{entity}")
+def _seed_uuid(run_id: str, entity: str) -> UUID:
+    return uuid5(NAMESPACE_URL, f"{_NAMESPACE}/{run_id}/{entity}")
 
 
 class _FixtureDatasetCandidate(BaseModel):
@@ -89,144 +91,50 @@ def _validate_quality(context: ArtifactAdmissionContext) -> None:
         raise ValueError("fixture dataset values must be non-empty")
 
 
-def _contract_input() -> dict[str, object]:
-    return {
-        "research_goal": "Integrate exoplanet candidates and host-star parameters",
-        "target_objects": ["exoplanet_candidate", "host_star"],
-        "data_requirements": {"unit_policy": "canonical"},
-        "requested_fields": ["planet.toi_id", "star.tic_id"],
-        "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
-        "paper_search_scope": {
-            "keywords": ["exoplanet", "host star parameters"],
-            "year_from": 2018,
-            "year_to": 2026,
-            "source_ids": ["nasa_exoplanet_archive"],
-            "max_candidates": 5,
-        },
-        "output_requirements": ["dataset", "graph"],
-        "evidence_requirements": {
-            "require_locator": True,
-            "require_source_snapshot": True,
-            "minimum_coverage": 1.0,
-        },
-        "quality_constraints": {
-            "source_completeness_min": 1.0,
-            "unit_consistency_min": 1.0,
-        },
-    }
-
-
 class BootstrapResult(BaseModel):
-    """Known ids of the seeded scenario. Never contains credentials."""
+    """Known ids of the published fixture. Never contains credentials."""
 
     model_config = ConfigDict(frozen=True)
 
-    project_id: str
-    draft_id: str
-    contract_id: str | None = None
-    run_id: str | None = None
-    artifact_version_id: str | None = None
-    evidence_id: str | None = None
+    run_id: str
+    artifact_id: str
+    artifact_version_id: str
+    source_snapshot_id: str
+    evidence_id: str
     execution_mode: str = "demo_replay"
     source_mode: str = "fixture"
     scenario: str = "exoplanet_host_star"
 
 
-def bootstrap_demo_scenario(
+def bootstrap_fixture_artifacts(
     *,
     session_id: str,
+    run_id: str,
     factory: Callable[[], Session],
     research_service: ResearchApplicationService,
     workflow_store: PersistentWorkflowStore,
-    complete: bool = True,
 ) -> BootstrapResult:
-    """Seed the deterministic scenario for ``session_id`` (idempotent).
+    """Publish the deterministic fixture version onto ``run_id`` (idempotent).
 
-    ``complete=False`` creates only the Project and editable Draft so the real
-    browser can exercise save/confirm/create-Run itself. A later complete call
-    reuses that session-owned Contract and Run, then publishes the fixture
-    ArtifactVersion/Evidence through the real persistence boundary.
+    The run must already exist, belong to the calling session (ownership is
+    checked through the real application boundary, so cross-session runs stay
+    a hidden 404) and use ``execution_mode="demo_replay"``.
     """
-    project_id = _seed_uuid(session_id, "project")
-    draft_id = _seed_uuid(session_id, "draft")
-    artifact_id = _seed_uuid(session_id, "artifact")
-    source_snapshot_id = _seed_uuid(session_id, "source-snapshot")
-    evidence_id = _seed_uuid(session_id, "evidence")
-
-    # ---- Project + Draft (no public endpoint exists by design) -------------
-    with factory() as session, session.begin():
-        project = session.get(ResearchProjectModel, project_id)
-        if project is None:
-            session.add(
-                ResearchProjectModel(
-                    id=project_id,
-                    session_id=session_id,
-                    name="Exoplanet host-star integration",
-                    description="Evidence-bound integration for the frozen main case",
-                    case_key="exoplanet_host_star",
-                    revision=1,
-                    created_at=_NOW,
-                    updated_at=_NOW,
-                )
-            )
-        draft = session.get(ResearchContractDraftModel, draft_id)
-        if draft is None:
-            session.add(
-                ResearchContractDraftModel(
-                    id=draft_id,
-                    session_id=session_id,
-                    version=1,
-                    intent="Integrate exoplanet candidates and host-star parameters",
-                    status="draft",
-                    contract=_contract_input(),
-                    warnings=[],
-                    created_at=_NOW,
-                    updated_at=_NOW,
-                    expires_at=datetime.now(UTC) + timedelta(hours=1),
-                )
-            )
-
-    if not complete:
-        return BootstrapResult(project_id=str(project_id), draft_id=str(draft_id))
-
-    # ---- Contract + Run via the real application path -----------------------
-    project = research_service.get_project(
-        project_id=str(project_id), session_id=session_id
-    )
-    contract = (
-        research_service.get_contract(
-            contract_id=project.active_contract_id, session_id=session_id
+    run = research_service.get_run(run_id=run_id, session_id=session_id)
+    if run.execution_mode.value != "demo_replay":
+        raise SecurityProblem(
+            status=409,
+            code="BOOTSTRAP_RUN_NOT_DEMO_REPLAY",
+            title="Bootstrap requires a demo_replay run",
+            detail="Fixture artifacts can only be published onto a demo_replay run",
         )
-        if project.active_contract_id is not None
-        else research_service.confirm_contract(
-            project_id=str(project_id),
-            session_id=session_id,
-            idempotency_key=f"x01-bootstrap-confirm-{session_id}",
-            request=ConfirmResearchContractRequest(
-                draft_id=str(draft_id), expected_draft_version=1
-            ),
-        )
-    )
-    project = research_service.get_project(
-        project_id=str(project_id), session_id=session_id
-    )
-    run = (
-        research_service.get_run(run_id=project.latest_run_id, session_id=session_id)
-        if project.latest_run_id is not None
-        else research_service.create_run(
-            project_id=str(project_id),
-            session_id=session_id,
-            idempotency_key=f"x01-bootstrap-run-{session_id}",
-            request=CreateRunRequest(
-                contract_id=contract.id,
-                execution_mode="demo_replay",
-                derivation_kind="original",
-            ),
-        )
-    )
+
     run_uuid = UUID(run.id)
+    project_id = UUID(run.project_id)
+    artifact_id = _seed_uuid(run.id, "artifact")
+    source_snapshot_id = _seed_uuid(run.id, "source-snapshot")
+    evidence_id = _seed_uuid(run.id, "evidence")
 
-    # ---- Fixture artifact version via the real publisher path ----------------
     with factory() as session:
         existing_version_id = session.scalar(
             select(ArtifactVersionModel.id)
@@ -235,7 +143,7 @@ def bootstrap_demo_scenario(
         )
     if existing_version_id is None:
         existing_version_id = _publish_fixture_version(
-            session_id=session_id,
+            run_id=run.id,
             factory=factory,
             workflow_store=workflow_store,
             run_uuid=run_uuid,
@@ -245,7 +153,6 @@ def bootstrap_demo_scenario(
             evidence_id=evidence_id,
         )
 
-    # ---- Evidence bound to the published version ------------------------------
     with factory() as session, session.begin():
         evidence = session.get(EvidenceModel, evidence_id)
         if evidence is None:
@@ -272,18 +179,17 @@ def bootstrap_demo_scenario(
             )
 
     return BootstrapResult(
-        project_id=str(project_id),
-        draft_id=str(draft_id),
-        contract_id=contract.id,
         run_id=run.id,
+        artifact_id=str(artifact_id),
         artifact_version_id=str(existing_version_id),
+        source_snapshot_id=str(source_snapshot_id),
         evidence_id=str(evidence_id),
     )
 
 
 def _publish_fixture_version(
     *,
-    session_id: str,
+    run_id: str,
     factory: Callable[[], Session],
     workflow_store: PersistentWorkflowStore,
     run_uuid: UUID,
@@ -304,7 +210,7 @@ def _publish_fixture_version(
     attempt = workflow_store.begin_step(
         run_uuid,
         step_key="planning",
-        attempt_idempotency_key=f"x01-bootstrap-attempt-{session_id}",
+        attempt_idempotency_key=f"x01-bootstrap-attempt-{run_id}",
         token=lease.token,
         generation=lease.generation,
         expected_status="queued",
@@ -357,7 +263,7 @@ def _publish_fixture_version(
             run_id=run_uuid,
             step_key="planning",
             attempt_id=attempt.attempt_id,
-            idempotency_key=f"x01-bootstrap-producer-{session_id}",
+            idempotency_key=f"x01-bootstrap-producer-{run_id}",
             producer_type="pipeline",
             producer_name="x01-test-bootstrap",
             producer_version="1.0.0",
@@ -385,7 +291,7 @@ def _publish_fixture_version(
         publications=(
             ArtifactPublication(
                 artifact_id=artifact_id,
-                publication_key=f"x01-bootstrap-fixture-{session_id}",
+                publication_key=f"x01-bootstrap-fixture-{run_id}",
                 producer_execution_id=execution.id,
                 candidate=candidate,
                 source_mode="fixture",
