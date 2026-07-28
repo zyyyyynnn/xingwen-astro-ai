@@ -176,38 +176,48 @@ function CachedProvenance({
     (execution) => execution.sourceMode === "cached",
   );
   if (cachedExecutions.length === 0) return null;
-  const originSnapshots = review.sourceSnapshots.filter(
-    (snapshot) => snapshot.cachedOrigin !== null,
-  );
   return (
     <section className="paper-cached-audit" aria-label="缓存审计">
-      <h3 className="paper-section-title">Cached 审计</h3>
-      {cachedExecutions.map((execution) => (
-        <dl className="paper-dl" key={String(execution.sourceId)}>
-          <dt>来源</dt>
-          <dd>{String(execution.sourceId)}</dd>
-          <dt>缓存适用性</dt>
-          <dd>{execution.cache?.applicability}</dd>
-          <dt>本次 Live 失败</dt>
-          <dd>
-            {execution.cache
-              ? `${execution.cache.liveFailureClass}（${execution.cache.liveFailureCode}）`
-              : "—"}
-          </dd>
-        </dl>
-      ))}
-      {originSnapshots.map((snapshot) => (
-        <dl className="paper-dl" key={String(snapshot.id)}>
-          <dt>origin Run</dt>
-          <dd>{String(snapshot.cachedOrigin?.originRunId)}</dd>
-          <dt>origin ArtifactVersion</dt>
-          <dd>{String(snapshot.cachedOrigin?.originArtifactVersionId)}</dd>
-          <dt>cache version</dt>
-          <dd>{snapshot.cacheVersion ?? "—"}</dd>
-          <dt>快照时间</dt>
-          <dd>{snapshot.retrievedAt}</dd>
-        </dl>
-      ))}
+      <h3 className="paper-section-title">缓存审计</h3>
+      {cachedExecutions.map((execution) => {
+        // Pair each cached execution with its origin snapshot. `sourceSnapshotId`
+        // carries the pipeline snapshot id, a different id space from the
+        // persisted `SourceSnapshot.id`, so the stable link is `sourceId`.
+        const snapshot = review.sourceSnapshots.find(
+          (item) => String(item.sourceId) === String(execution.sourceId),
+        );
+        const origin = snapshot?.cachedOrigin ?? null;
+        return (
+          <div className="paper-cached-entry" key={String(execution.sourceId)}>
+            <dl className="paper-dl">
+              <dt>来源</dt>
+              <dd>{String(execution.sourceId)}</dd>
+              <dt>缓存适用性</dt>
+              <dd>{execution.cache?.applicability ?? "—"}</dd>
+              <dt>本次失败（Live）</dt>
+              <dd>
+                {execution.cache
+                  ? `${execution.cache.liveFailureClass}（${execution.cache.liveFailureCode}）`
+                  : "—"}
+              </dd>
+              {snapshot && (
+                <>
+                  <dt>来源 Run</dt>
+                  <dd>{origin ? String(origin.originRunId) : "—"}</dd>
+                  <dt>来源 ArtifactVersion</dt>
+                  <dd>
+                    {origin ? String(origin.originArtifactVersionId) : "—"}
+                  </dd>
+                  <dt>缓存版本</dt>
+                  <dd>{snapshot.cacheVersion ?? "—"}</dd>
+                  <dt>快照时间</dt>
+                  <dd>{snapshot.retrievedAt}</dd>
+                </>
+              )}
+            </dl>
+          </div>
+        );
+      })}
       <p className="candidate-meta">
         <span className="candidate-meta-item">
           此结果来自真实历史 Run 的缓存，不代表本次实时检索。如需刷新，请以 Live
@@ -390,7 +400,7 @@ export function PaperAcquisitionWorkspace({
       {review.sourceMode === "fixture" && (
         <p className="candidate-meta">
           <span className="candidate-meta-item">
-            Fixture 确定性演示数据（schema v{review.schemaVersion}
+            确定性演示数据（Fixture，schema v{review.schemaVersion}
             ），由真实获取管线离线生成，非本次实时检索。
           </span>
         </p>
@@ -398,7 +408,7 @@ export function PaperAcquisitionWorkspace({
       {review.sourceMode === "cached" && (
         <p className="candidate-meta">
           <span className="candidate-meta-item">
-            Cached 结果：详见下方缓存审计；不代表本次实时检索。
+            缓存结果：详见下方缓存审计；不代表本次实时检索。
           </span>
         </p>
       )}
@@ -409,7 +419,7 @@ export function PaperAcquisitionWorkspace({
           <dl className="paper-dl">
             <dt>Query</dt>
             <dd>{review.query.normalizedQuery}</dd>
-            <dt>原始 Query</dt>
+            <dt>Query（原始）</dt>
             <dd>{review.query.originalQuery}</dd>
             <dt>query id</dt>
             <dd>{String(review.query.queryId)}</dd>

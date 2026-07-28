@@ -234,9 +234,12 @@ describe("paperAcquisition.getReview — integrity guards", () => {
           ),
       ),
     );
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(/did not advance|duplicate candidate/u);
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).code).toBe("PAPER_CURSOR_NOT_ADVANCING");
+    expect((error as Error).message).toMatch(/did not advance/u);
   });
 
   it("fails on duplicate candidate ids across pages", async () => {
@@ -261,9 +264,12 @@ describe("paperAcquisition.getReview — integrity guards", () => {
         },
       ),
     );
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(/duplicate candidate id/u);
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).code).toBe("PAPER_CANDIDATE_DUPLICATE");
+    expect((error as Error).message).toMatch(/duplicate candidate id/u);
   });
 
   it("fails when the candidate count mismatches the collection", async () => {
@@ -277,9 +283,14 @@ describe("paperAcquisition.getReview — integrity guards", () => {
           ),
       ),
     );
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(/declares 7/u);
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).code).toBe(
+      "PAPER_CANDIDATE_COUNT_MISMATCH",
+    );
+    expect((error as Error).message).toMatch(/declares 7/u);
   });
 
   it("fails when pages exceed the declared candidate total", async () => {
@@ -300,9 +311,12 @@ describe("paperAcquisition.getReview — integrity guards", () => {
         },
       ),
     );
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(/exceeded the declared total/u);
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).code).toBe("PAPER_CURSOR_EXCEEDED_TOTAL");
+    expect((error as Error).message).toMatch(/exceeded the declared total/u);
   });
 
   it("fails when has_more persists after the declared total is reached", async () => {
@@ -329,9 +343,14 @@ describe("paperAcquisition.getReview — integrity guards", () => {
         },
       ),
     );
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(/after the declared\s+total was reached/u);
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).code).toBe("PAPER_CURSOR_EXCEEDED_TOTAL");
+    expect((error as Error).message).toMatch(
+      /after the declared\s+total was reached/u,
+    );
   });
 
   it("fails when the page order drifts from the collection ranking", async () => {
@@ -343,9 +362,28 @@ describe("paperAcquisition.getReview — integrity guards", () => {
         () => HttpResponse.json(candidatePage(reversed, null, false)),
       ),
     );
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(/order drifted/u);
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).code).toBe("PAPER_CANDIDATE_ORDER_DRIFT");
+    expect((error as Error).message).toMatch(/order drifted/u);
+  });
+
+  it("fails when a page reports has_more but returns no items", async () => {
+    const httpRepos = setupHttpRepos();
+    httpServer.use(
+      http.get(
+        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-candidates`,
+        () => HttpResponse.json(candidatePage([], "page-2", true)),
+      ),
+    );
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).code).toBe("PAPER_CURSOR_EMPTY_PAGE");
+    expect((error as Error).message).toMatch(/has_more without returning/u);
   });
 });
 
@@ -498,9 +536,13 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
       delete (execution as Record<string, unknown>)["cache_applicability"];
     }
     overrideCollectionPayload(payload);
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(/lacks cache_applicability/u);
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect((error as ValidationError).code).toBe(
+      "PAPER_CACHED_LACKS_APPLICABILITY",
+    );
+    expect((error as Error).message).toMatch(/lacks cache_applicability/u);
   });
 
   it("rejects a cached execution without the live failure context", async () => {
@@ -511,9 +553,13 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
       delete (execution as Record<string, unknown>)["live_failure_code"];
     }
     overrideCollectionPayload(payload);
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(/lacks the live failure/u);
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect((error as ValidationError).code).toBe(
+      "PAPER_CACHED_LACKS_LIVE_FAILURE",
+    );
+    expect((error as Error).message).toMatch(/lacks the live failure/u);
   });
 
   it("rejects a cached snapshot without a cache_version", async () => {
@@ -521,9 +567,11 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
     const payload = cachedRead();
     payload.source_snapshots[0]!.cache_version = null;
     overrideCollectionPayload(payload);
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(/lacks a snapshot cache_version/u);
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect((error as ValidationError).code).toBe("PAPER_CACHED_LACKS_VERSION");
+    expect((error as Error).message).toMatch(/lacks a snapshot cache_version/u);
   });
 
   it("rejects blank cached audit values", async () => {
@@ -585,9 +633,11 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
       request_metadata: { adapter_name: "arxiv_demo_fixture" },
     });
     overrideCollectionPayload(payload);
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect((error as ValidationError).code).toBe("PAPER_CACHED_LACKS_ORIGIN");
+    expect((error as Error).message).toMatch(
       /cached source execution arxiv lacks origin Run\/ArtifactVersion/u,
     );
   });
@@ -599,9 +649,13 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
       adapter_name: "crossref_demo_fixture",
     };
     overrideCollectionPayload(payload);
-    await expect(
-      httpRepos.paperAcquisition.getReview(VERSION_ID),
-    ).rejects.toThrowError(/lacks origin Run\/ArtifactVersion/u);
+    const error = await httpRepos.paperAcquisition
+      .getReview(VERSION_ID)
+      .catch((cause: unknown) => cause);
+    expect((error as ValidationError).code).toBe("PAPER_CACHED_LACKS_ORIGIN");
+    expect((error as Error).message).toMatch(
+      /lacks origin Run\/ArtifactVersion/u,
+    );
   });
 });
 

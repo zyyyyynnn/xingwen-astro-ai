@@ -123,7 +123,44 @@ def test_seed_records_are_derived_from_the_frozen_benchmark() -> None:
         assert record.year == seed.year
         assert record.doi == seed.doi
         assert record.arxiv_id == seed.arxiv_id
+        # The derivation, not a transcription, builds the source identifiers:
+        # the crossref record id and canonical DOI URL are both derived from
+        # the seed DOI, and a real seed is never labelled synthetic.
+        assert record.source_record_id == f"crossref:{seed.doi}"
+        assert record.url == f"https://doi.org/{seed.doi}"
         assert record.synthetic_note is None
+    # The seed records must appear first, in scenario ``expected_paper_ids``
+    # order, and be followed only by the three synthetic review records.
+    assert [record.doi for record in seed_records] == [
+        seeds_by_id[paper_id].doi for paper_id in scenario.expected_paper_ids
+    ]
+    assert len(records) == len(expected) + 3
+
+
+def test_seed_derivation_assertions_have_discriminating_power() -> None:
+    """Counter-example guard: the field/order checks above must actually fail
+    when the seed records are paired against the wrong seeds, proving the
+    positive test is not a tautology of ``_seed_records`` construction."""
+
+    benchmark = load_frozen_benchmark()
+    scenario = next(
+        item
+        for item in benchmark.search_scenarios
+        if item.scenario_id == DEMO_SCENARIO_ID
+    )
+    seeds_by_id = {paper.paper_id: paper for paper in benchmark.seed_papers}
+    records = build_demo_records(benchmark)
+    expected = [seeds_by_id[paper_id] for paper_id in scenario.expected_paper_ids]
+    seed_records = records[: len(expected)]
+    assert len(expected) >= 2
+    # Rotate the expected papers by one: a correct derivation must not match
+    # this deliberately mis-ordered pairing (the expected DOIs are distinct).
+    wrong = expected[1:] + expected[:1]
+    assert [seed.doi for seed in wrong] != [record.doi for record in seed_records]
+    with pytest.raises(AssertionError):
+        for record, seed in zip(seed_records, wrong, strict=True):
+            assert record.title == seed.title
+            assert record.doi == seed.doi
 
 
 def test_synthetic_records_carry_explicit_per_candidate_notes(

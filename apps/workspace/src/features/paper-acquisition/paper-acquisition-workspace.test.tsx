@@ -76,7 +76,9 @@ function sessionStub(): SessionManager {
  * for the collection, 2-item cursor pages for the candidates. This drives
  * the real HttpClient → contract parser → cursor loop → assembly chain.
  */
-function paperHttpFetch(): typeof fetch {
+function paperHttpFetch(
+  collection: unknown = paperCollectionReadFixture,
+): typeof fetch {
   const versionId = paperCollectionReadFixture.artifact_version_id;
   return async (input: RequestInfo | URL) => {
     const url = new URL(
@@ -93,7 +95,7 @@ function paperHttpFetch(): typeof fetch {
       url.pathname === `/api/v2/artifact-versions/${versionId}/paper-collection`
     ) {
       return Response.json({
-        data: paperCollectionReadFixture,
+        data: collection,
         meta,
         links: { self: url.pathname },
       });
@@ -232,7 +234,7 @@ describe("PaperAcquisitionWorkspace — fixture main path", () => {
     expect(provenance).toHaveTextContent(
       "scenario: search.tess_mission_and_catalogs",
     );
-    expect(screen.getByText(/Fixture 确定性演示数据/u)).toBeInTheDocument();
+    expect(screen.getByText(/确定性演示数据（Fixture/u)).toBeInTheDocument();
     // Metrics from the real pipeline (7 candidates, 3 selected, recall 4/4).
     expect(screen.getByText(/候选 7/u)).toBeInTheDocument();
     expect(screen.getByText(/入选 3/u)).toBeInTheDocument();
@@ -587,5 +589,72 @@ describe("PaperAcquisitionWorkspace — stale review cleanup", () => {
         screen.queryByRole("list", { name: "候选论文" }),
       ).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("PaperAcquisitionWorkspace — cached provenance", () => {
+  function cachedCollectionPayload() {
+    const clone = JSON.parse(JSON.stringify(paperCollectionReadFixture)) as {
+      source_mode: string;
+      collection: { source_executions: Array<Record<string, unknown>> };
+      source_snapshots: Array<{
+        cache_version?: string | null;
+        request_metadata: Record<string, unknown>;
+      }>;
+    };
+    clone.source_mode = "cached";
+    for (const execution of clone.collection.source_executions) {
+      execution.source_mode = "cached";
+      execution.data_level = "real_run_cache";
+      execution.cache_applicability =
+        "query_hash matches the cached acquisition run";
+      execution.live_failure_class = "timeout";
+      execution.live_failure_code = "CROSSREF_TIMEOUT";
+    }
+    clone.source_snapshots[0]!.cache_version = "cache_v1";
+    clone.source_snapshots[0]!.request_metadata = {
+      ...clone.source_snapshots[0]!.request_metadata,
+      origin_run_id: "run_origin_01",
+      origin_artifact_version_id: "artv_origin_01",
+    };
+    return clone;
+  }
+
+  it("pairs each cached execution with its own origin snapshot", async () => {
+    const fixture = fixtureRuntime();
+    const session = sessionStub();
+    const httpRepos = createHttpRepositories({
+      baseUrl: HTTP_BASE,
+      fetchImpl: paperHttpFetch(cachedCollectionPayload()),
+      session,
+    });
+    renderWorkspace(
+      {
+        adapterKind: "http",
+        repositories: {
+          ...fixture.repositories,
+          paperAcquisition: httpRepos.paperAcquisition,
+        },
+        tour: fixture.tour,
+        workspaceController: fixture.workspaceController,
+        session,
+      },
+      `/workspace?projectId=${String(fixture.bootstrap.projectId)}&runId=${String(fixture.bootstrap.runId)}`,
+    );
+    await openRetrievedPapers();
+
+    // One cached execution renders as one grouped entry that carries both the
+    // execution audit and its paired origin snapshot — not two disjoint lists.
+    const audit = screen.getByRole("region", { name: "缓存审计" });
+    const entries = audit.querySelectorAll(".paper-cached-entry");
+    expect(entries).toHaveLength(1);
+    const entry = entries[0]!;
+    expect(entry.textContent).toContain("crossref");
+    expect(entry.textContent).toContain(
+      "query_hash matches the cached acquisition run",
+    );
+    expect(entry.textContent).toContain("run_origin_01");
+    expect(entry.textContent).toContain("artv_origin_01");
+    expect(entry.textContent).toContain("cache_v1");
   });
 });

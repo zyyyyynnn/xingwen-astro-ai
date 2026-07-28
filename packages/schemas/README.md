@@ -66,7 +66,7 @@ CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件
 | 范围                         | 状态                                                                               |
 | ---------------------------- | ---------------------------------------------------------------------------------- |
 | Phase 0 `/api/v1` Schema     | Current，继续用于回归                                                              |
-| `/api/v2` Pydantic / OpenAPI | 七个核心资源及 Workspace/Share Contract Implemented；Session、Artifact provenance 与 PaperCollection domain read runtime Current，Workspace/Share runtime integration 与其余运行 API Pending |
+| `/api/v2` Pydantic / OpenAPI | 核心资源及 Workspace/Share Contract Implemented；Session、Artifact provenance 与 PaperCollection domain read runtime Current（A-05 纠正性修复后 `PaperSourceExecution` 携带 cached 审计字段 `cache_applicability`/`live_failure_class`/`live_failure_code`、`RawPaperCandidate.synthetic_note`，`SourceSnapshotRecord.cache_version` 为非空白约束）；契约字段集以 `packages/schemas/generated/v2-core/openapi.json` 与 `packages/contracts/src/generated/v2-core/dto.ts` 为权威来源，本表仅记录里程碑级状态；Workspace/Share runtime integration 与其余运行 API Pending |
 | `packages/contracts`         | Current A-01 包边界；生成 Type、validation 与 transport helpers 的业务实现 Pending |
 | 独立手写 IDL                 | 未采用；需要新 ADR 才能改变编写源                                                  |
 
