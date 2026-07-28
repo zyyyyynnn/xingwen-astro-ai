@@ -119,4 +119,4 @@ flowchart LR
 
 ## 8. 实施边界
 
-设计实现必须由对应 Issue 驱动。A-01 只证明 Astro/React 运行时、路由和共享包边界；A-03 已以同一组件路径消费 Fixture / HTTP Repository Port，并通过真实 Browser/Compose 覆盖 Draft、Contract、Run/Event、Workspace 冲突与刷新恢复、匿名冻结 Share 和撤销。A-05 已在 `/workspace` 中央画布交付论文获取与候选审查面：连续分隔线面板、服务端稳定排名不重算、入选/排除原因与重复组/冲突展示、Fixture 4 候选只读审查，候选与 Evidence 接入既有 Observatory 与 Share 链路。A-02 视觉系统与 M2 科研能力仍按各自 Issue 和运行证据推进。
+设计实现必须由对应 Issue 驱动。A-01 只证明 Astro/React 运行时、路由和共享包边界；A-03 已以同一组件路径消费 Fixture / HTTP Repository Port，并通过真实 Browser/Compose 覆盖 Draft、Contract、Run/Event、Workspace 冲突与刷新恢复、匿名冻结 Share 和撤销。A-05（含 #40/#136 合并后纠正）已在 `/workspace` 中央画布交付论文获取与候选审查面：连续分隔线面板、服务端稳定排名不重算、入选/排除原因与重复组/不确定匹配展示、execution_mode 与 source_mode 正交标识、cached 审计（origin Run/版本、适用性、Live 失败原因）；Fixture 由真实 D-02 Pipeline 基于冻结 benchmark 离线生成并经 Pydantic 语义门禁验证，候选与 Evidence 接入既有 Observatory 与 Share 链路。A-02 视觉系统与 M2 科研能力仍按各自 Issue 和运行证据推进。

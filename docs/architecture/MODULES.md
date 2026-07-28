@@ -51,7 +51,7 @@ flowchart LR
 - Provenance Observatory、Research Console、分享和反馈体验；
 - Fixture / HTTP Adapter、Domain mapper 和前端状态模型；
 - A-16 的 Tour、Workspace 与匿名 Share 页面通过 Repository Port 消费 Domain Model；
-- A-05 论文获取与候选审查工作区：`PaperAcquisitionRepository` 深 Port 隐藏 B-06 读端点与分页，Fixture/HTTP 共享同一装配函数产出 `PaperAcquisitionReview`；
+- A-05 论文获取与候选审查工作区：`PaperAcquisitionRepository` 深 Port 隐藏 B-06 读端点与分页，Fixture/HTTP 共享同一装配函数产出 `PaperAcquisitionReview`；论文 Fixture 由真实 D-02 Pipeline（`services/paper_pipeline/demo_fixture.py`）基于冻结 benchmark 生成，经后端 Pydantic 语义门禁验证，前端只消费生成结果；
 - a11y、visual、E2E、性能和降级测试。
 
 ### 不负责

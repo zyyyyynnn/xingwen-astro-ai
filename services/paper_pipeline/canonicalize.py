@@ -68,6 +68,7 @@ def canonicalize_record(
         arxiv_id=record.arxiv_id,
         url=record.url,
         record_hash=record_hash,
+        synthetic_note=record.synthetic_note,
     )
     candidate_hash = compute_canonical_payload_hash(
         {

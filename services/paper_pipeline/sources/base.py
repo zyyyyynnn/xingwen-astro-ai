@@ -40,6 +40,9 @@ class RawSourceRecord:
     doi: str | None
     arxiv_id: str | None
     url: str | None
+    # Provenance label for synthetic demo/test records; live adapters never
+    # set it. Excluded from hash_payload: it is a label, not scientific content.
+    synthetic_note: str | None = None
 
     def hash_payload(self) -> dict[str, object]:
         return {

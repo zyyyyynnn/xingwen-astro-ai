@@ -18,7 +18,12 @@ from app.schemas.enums import (
 )
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.paper_benchmark import BenchmarkSearchScenario
-from app.schemas.paper_collection import PaperCollection, PaperSourcePage
+from app.schemas.paper_collection import (
+    PaperCollection,
+    PaperCollectionPayload,
+    PaperSourcePage,
+    compute_paper_collection_output_hash,
+)
 from services.paper_pipeline.benchmark import load_frozen_benchmark
 from services.paper_pipeline.canonicalize import (
     canonicalize_record,
@@ -680,8 +685,65 @@ def test_source_mode_and_data_level_cannot_be_misrepresented() -> None:
     cached_payload = collection.model_dump(mode="json")
     cached_payload["source_executions"][0]["source_mode"] = "cached"
     cached_payload["source_executions"][0]["data_level"] = "real_run_cache"
+    with pytest.raises(ValidationError, match="cache_applicability"):
+        PaperCollection.model_validate(cached_payload)
+
+    cached_payload["source_executions"][0]["cache_applicability"] = (
+        "query_hash matches the cached acquisition run"
+    )
+    with pytest.raises(
+        ValidationError, match="live_failure_class and live_failure_code"
+    ):
+        PaperCollection.model_validate(cached_payload)
+
+    cached_payload["source_executions"][0]["live_failure_class"] = "timeout"
+    cached_payload["source_executions"][0]["live_failure_code"] = "CROSSREF_TIMEOUT"
     with pytest.raises(ValidationError, match="real origin Run and ArtifactVersion"):
         PaperCollection.model_validate(cached_payload)
+
+    snapshot_id = cached_payload["source_executions"][0]["source_snapshot_id"]
+    for snapshot in cached_payload["source_snapshots"]:
+        if snapshot["snapshot_id"] == snapshot_id:
+            snapshot["request_metadata"] = {
+                **snapshot["request_metadata"],
+                "origin_run_id": "run_origin_01",
+                "origin_artifact_version_id": "artv_origin_01",
+            }
+    with pytest.raises(ValidationError, match="cache_version"):
+        PaperCollection.model_validate(cached_payload)
+
+    for snapshot in cached_payload["source_snapshots"]:
+        if snapshot["snapshot_id"] == snapshot_id:
+            snapshot["cache_version"] = "cache_v1"
+
+    def seal(payload: dict[str, object]) -> dict[str, object]:
+        candidate = json.loads(json.dumps(payload))
+        candidate.pop("output_hash", None)
+        candidate["producer"]["output_hash"] = None
+        staged = PaperCollectionPayload.model_validate(candidate)
+        output_hash = compute_paper_collection_output_hash(staged)
+        sealed = staged.model_dump(mode="json", exclude_none=False)
+        sealed["producer"]["output_hash"] = output_hash
+        sealed["output_hash"] = output_hash
+        return sealed
+
+    valid_cached = seal(cached_payload)
+    assert PaperCollection.model_validate(valid_cached)
+
+    for target, field in (
+        ("execution", "cache_applicability"),
+        ("execution", "live_failure_code"),
+        ("snapshot", "cache_version"),
+    ):
+        blank = json.loads(json.dumps(valid_cached))
+        records = (
+            blank["source_executions"]
+            if target == "execution"
+            else blank["source_snapshots"]
+        )
+        records[0][field] = "   "
+        with pytest.raises(ValidationError, match=field):
+            PaperCollection.model_validate(seal(blank))
 
 
 def test_failure_logs_do_not_include_credentials_or_response_body(caplog) -> None:

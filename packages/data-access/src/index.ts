@@ -45,6 +45,11 @@ export type {
 } from "./fixture/bundle";
 export { exoplanetHostStarFixture } from "./fixture/exoplanet-host-star";
 export {
+  paperAcquisitionFixtureProvenance,
+  paperCandidateReadsFixture,
+  paperCollectionReadFixture,
+} from "./fixture/paper-acquisition";
+export {
   createFixtureRepositories,
   type FixtureAdapterOptions,
   type FixtureRepositorySet,

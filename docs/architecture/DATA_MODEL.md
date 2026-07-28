@@ -1,12 +1,12 @@
 # Data Model
 
-| 项目状态 | 口径 |
-| --- | --- |
-| Status | Accepted |
-| Authority | 领域实体、字段、枚举与不变量 |
+| 项目状态       | 口径                                                                                                                                                                                                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Status         | Accepted                                                                                                                                                                                                                                                                                   |
+| Authority      | 领域实体、字段、枚举与不变量                                                                                                                                                                                                                                                               |
 | Implementation | Core Pydantic contract、Project/Contract/Run Runtime、Workspace/Share PostgreSQL authority、D-02 PaperCollection content、D-03 PaperSummary content/admission、#76/#77 Workflow persistence、#78 atomic publisher 与 #83 provenance reads Implemented；Snapshot/Share 跨进程持久化 Pending |
-| Current model | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)） |
-| Target model | Project / Run / Artifact / ArtifactVersion |
+| Current model  | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)）                                                                                                                                          |
+| Target model   | Project / Run / Artifact / ArtifactVersion                                                                                                                                                                                                                                                 |
 
 本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Project/Contract/Run Application、Workspace/Share PostgreSQL authority、#76 Workflow PostgreSQL Schema、#77 Run lease/recovery、#78 ArtifactVersion Publisher 及 #83 Artifact/Evidence/SourceSnapshot 私有读取已实现。Workspace/Share 状态仍为进程生命周期存储，跨进程恢复 Pending。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
@@ -113,15 +113,15 @@ created_at
 content_hash
 ```
 
-| 字段 | 最低约束 |
-| --- | --- |
-| `research_goal` | 4–500 字符，不能只含空白 |
-| `target_objects` | 至少一个受当前 case 支持的对象类型 |
-| `requested_fields` | 至少一个字段，由 case manifest 校验 |
-| `source_scope` | provider-level 允许来源、合规和缓存策略；table 映射由 Field Manifest 解析 |
-| `paper_search_scope` | 关键词、年份、来源、候选上限和选择规则 |
-| `evidence_requirements` | locator、snapshot、引用和最低覆盖要求 |
-| `quality_constraints` | 来源完整性、单位一致性等可验证阈值 |
+| 字段                    | 最低约束                                                                  |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `research_goal`         | 4–500 字符，不能只含空白                                                  |
+| `target_objects`        | 至少一个受当前 case 支持的对象类型                                        |
+| `requested_fields`      | 至少一个字段，由 case manifest 校验                                       |
+| `source_scope`          | provider-level 允许来源、合规和缓存策略；table 映射由 Field Manifest 解析 |
+| `paper_search_scope`    | 关键词、年份、来源、候选上限和选择规则                                    |
+| `evidence_requirements` | locator、snapshot、引用和最低覆盖要求                                     |
+| `quality_constraints`   | 来源完整性、单位一致性等可验证阈值                                        |
 
 ResearchContractDraft 是短期可编辑资源，包含 `id`、`session_id`、`version`、`intent`、`contract`、`warnings`、`expires_at`；到期后转为 `expired` 且不可再修改或确认。确认时复制为不可变 Contract；持久化层以 Project 范围的 `idempotency_key` 与 `request_hash` 防止重复确认和键复用冲突。
 
@@ -250,6 +250,8 @@ FieldDefinition 包含 name、label、description、data_type、canonical_unit�
 
 PaperCollection 包含 query、acquisition_run、candidates、selected_paper_ids、dedupe_rule、ranking_rule、source_snapshot_ids。Candidate 至少包含 title、authors、year、DOI/arXiv/URL、source snapshot、relevance、selected 和 selection_reason。Seed 只能标记 benchmark、scientific_review 或 fixture。
 
+`PaperSourceExecution` 携带 cached 审计上下文：cached 执行必须同时提供 `cache_applicability`（该缓存为何适用于当前查询）与 `live_failure_class`/`live_failure_code`（本次 Live 尝试的失败分类与代码）；非 cached 执行禁止携带这些字段。cached 执行引用的 SourceSnapshot 必须提供非空 `cache_version`，且 `request_metadata` 必须包含 `origin_run_id` 与 `origin_artifact_version_id`（真实历史 Run/版本），均由 Pydantic validator 强制；空串或全空白值等同缺失，消费端必须拒绝为契约违规。`RawPaperCandidate.synthetic_note` 是记录级 provenance 标注：合成演示/测试记录必须携带说明文本，真实获取记录永远为 null，审查界面逐候选展示。
+
 当前 D-02 已在唯一 Pydantic 编写源实现独立的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。#78 已实现通用 Publisher 端口，但这不表示 `/api/v2` HTTP API 或 Paper Pipeline 到持久化 Workflow 的生产集成已实现。
 
 PaperSummary 的唯一 Pydantic 编写源是 `apps/api/src/app/schemas/paper_summary.py`，并由 `/api/v2` `ArtifactContent` 的 `kind=paper_summary` 判别分支直接复用，不复制第二套生产 Schema。内容包含 `summary_id`、`paper_id`、固定 D-01 Benchmark reference、PaperCollection/SourceSnapshot 输入版本、`research_goal`、`method`、`dataset`、`findings`、`limitations`、`future_work`、逐项状态、Evidence、来源冲突、ProducerExecution、input/output hash。
@@ -300,6 +302,8 @@ created_at
 ```
 
 Locator 使用判别联合：database cell 定位 query hash、row key 和 field；paper text 定位 section/page/paragraph/range；model extraction 引用输入 evidence 与 prompt/model version；reasoning trace 引用 relation 和显式 step。
+
+前端 Domain 的 Evidence `target_type` 为闭合枚举：`field | source | paper | paper_candidate | paper_summary | claim | relation | reasoning_trace | graph_edge`。`paper_candidate` 由 B-06 候选读取边界使用（Evidence 目标为具体候选记录，`paper_id` 携带 canonical paper）；前端映射层对未知 target/evidence type 显式报错，不用类型断言掩盖漂移。
 
 SourceSnapshot：
 
@@ -368,13 +372,13 @@ ProducerExecution 记录 run、step、attempt、lease generation、producer/mode
 
 ## 15. v1 迁移映射
 
-| 当前 v1 | 目标 v2 |
-| --- | --- |
-| `ResearchTask` | `ResearchProject` + 一个 `ResearchRun` |
-| Task options | `ResearchContract` |
-| Task status / steps | `ResearchRun` + RunStep + RunEvent |
+| 当前 v1                             | 目标 v2                                    |
+| ----------------------------------- | ------------------------------------------ |
+| `ResearchTask`                      | `ResearchProject` + 一个 `ResearchRun`     |
+| Task options                        | `ResearchContract`                         |
+| Task status / steps                 | `ResearchRun` + RunStep + RunEvent         |
 | dataset/papers/reasoning/graph 响应 | ResearchArtifact + ArtifactVersion.content |
-| `meta.cached` / `used_cache` | ArtifactVersion.source_mode + CacheRecord |
-| 同一 Task 的 `revising` | 新 `derivation_kind=revision` Run |
+| `meta.cached` / `used_cache`        | ArtifactVersion.source_mode + CacheRecord  |
+| 同一 Task 的 `revising`             | 新 `derivation_kind=revision` Run          |
 
 迁移适配只用于过渡；v1 Task DTO 不得成为新 React 组件的 Domain Model。
