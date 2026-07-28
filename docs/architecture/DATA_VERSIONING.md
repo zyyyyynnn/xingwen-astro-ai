@@ -4,7 +4,7 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
-| Implementation | Workspace/Share runtime 与 PostgreSQL resource authority、D-02 content、#76 persistence、#78 atomic publication、#83 provenance reads 与 B-06 PaperCollection reads Implemented；Snapshot/Share 跨进程持久化及 cache/revision workflows Pending |
+| Implementation | Workspace/Share runtime 与 PostgreSQL resource authority、D-02 PaperCollection content、D-03 PaperSummary content/admission、#76 persistence、#78 atomic publication、#83 provenance reads 与 B-06 PaperCollection reads Implemented；Snapshot/Share 跨进程持久化及 cache/revision workflows Pending |
 | Current runtime | v1 DTO、Prompt registry 与 Phase 0 版本字段 |
 | Target runtime | Project / Run / Artifact / ArtifactVersion 追加式治理 |
 
@@ -113,6 +113,8 @@ error_code
 
 D-02 当前在 PaperCollection content 内生成 detached ProducerExecution：记录固定 step key、producer/rule version、parameters/input/output hash、状态、时间、latency 和错误码，但不登记 ResearchRun 或数据库记录。#78 已提供持久化 ProducerExecution Store 与 ArtifactVersion Publisher；D-02 到该端口的生产接线仍由后续集成负责。具体稳定 hash 与失败记录见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。
 
+D-03 同样生成 detached PaperSummary ProducerExecution，记录 `model_name`、Prompt name/version/hash、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本、input hash、模型响应 hash、最终 output hash 与安全终态。JSON/Schema 拒绝只保留稳定 error code 和响应 hash，不保留原始模型输出；Evidence 降级仍产生可审查 Summary content，但 unsupported/unverifiable 项不作为已验证事实。生产模型 client、数据库 ProducerExecution 接线与 ArtifactVersion 事务仍属于 Workflow/B-07 后续集成。
+
 ## 5. SourceSnapshot
 
 最低字段：
@@ -142,6 +144,9 @@ D-02 已为成功 Crossref metadata execution 生成完整不可变 SourceSnapsh
 - 文本统一 UTF-8 与 LF 后计算；二进制使用 SHA-256。
 - Dataset manifest 包含字段、row count、分页/文件 hash，不依赖显示顺序。
 - 模型输入 hash 覆盖 Prompt 版本、模型参数、Contract hash 和输入 Evidence / ArtifactVersion。
+- D-03 `input_hash` 覆盖 PaperCollection Version/schema/output hash、SourceSnapshot id/version/content hash、目标 paper、Evidence 输入 hash、Prompt name/version/hash、model、parameters version/hash；相同版本化输入可定位同一 input hash。
+- D-03 `model_response_hash` 标识原始响应而不保存原文；`output_hash` 固定经过 Evidence 准入后的稳定 Summary 内容，排除 execution id、run id、wall-clock、latency 与 producer output hash 自引用。
+- Prompt 文件按 UTF-8/LF 归一后计算 SHA-256；registry 明确列出每个不可变版本的 path/content hash/status，历史版本不原地改写。
 - hash 识别内容，不替代 Project、Run、Artifact 或 Version 主键。
 
 ## 7. CacheRecord

@@ -4,7 +4,7 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | 领域实体、字段、枚举与不变量 |
-| Implementation | Core Pydantic contract、Project/Contract/Run Runtime、Workspace/Share PostgreSQL authority、D-02 content、#76/#77 Workflow persistence、#78 atomic publisher 与 #83 provenance reads Implemented；Snapshot/Share 跨进程持久化 Pending |
+| Implementation | Core Pydantic contract、Project/Contract/Run Runtime、Workspace/Share PostgreSQL authority、D-02 PaperCollection content、D-03 PaperSummary content/admission、#76/#77 Workflow persistence、#78 atomic publisher 与 #83 provenance reads Implemented；Snapshot/Share 跨进程持久化 Pending |
 | Current model | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)） |
 | Target model | Project / Run / Artifact / ArtifactVersion |
 
@@ -252,7 +252,11 @@ PaperCollection 包含 query、acquisition_run、candidates、selected_paper_ids
 
 当前 D-02 已在唯一 Pydantic 编写源实现独立的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。#78 已实现通用 Publisher 端口，但这不表示 `/api/v2` HTTP API 或 Paper Pipeline 到持久化 Workflow 的生产集成已实现。
 
-PaperSummary 包含 paper_id、research_goal、method、dataset、findings、limitations、future_work、evidence_ids；每个核心 finding / limitation 可定位 Evidence。
+PaperSummary 的唯一 Pydantic 编写源是 `apps/api/src/app/schemas/paper_summary.py`，并由 `/api/v2` `ArtifactContent` 的 `kind=paper_summary` 判别分支直接复用，不复制第二套生产 Schema。内容包含 `summary_id`、`paper_id`、固定 D-01 Benchmark reference、PaperCollection/SourceSnapshot 输入版本、`research_goal`、`method`、`dataset`、`findings`、`limitations`、`future_work`、逐项状态、Evidence、来源冲突、ProducerExecution、input/output hash。
+
+`research_goal`、`method`、`dataset` 可显式为 `null`；列表字段必须显式存在，缺失字段不默认补全。每个非空项使用独立 `statement_id`、text、evidence_ids 和 `supported | unsupported | unverifiable`。核心 finding / limitation 只有在其 Evidence 同时匹配 paper、D-02 原始 candidate、source、source record、SourceSnapshot、locator、quote/value 和可访问片段后才为 `supported`；无 Evidence 为 `unsupported`，来源不可访问、未知引用或 provenance 不匹配为 `unverifiable`。
+
+D-03 来源版本冲突保留 `claimed_source_version` 与 SourceSnapshot 声明版本，`resolution=source_snapshot_version_retained`；Summary Evidence 固定使用 SourceSnapshot 版本，不静默合并也不自动裁决科研冲突。Publisher-ready content 不含 `accessible_excerpt`、模型原始响应、受限全文或私有 chain-of-thought。
 
 ### 9.3 Claim、Relation 与 ReasoningTrace
 

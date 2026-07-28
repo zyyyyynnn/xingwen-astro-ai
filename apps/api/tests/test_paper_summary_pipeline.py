@@ -1,0 +1,503 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from datetime import datetime, timezone
+import json
+from pathlib import Path
+import shutil
+
+import pytest
+from pydantic import ValidationError
+
+from app.schemas._hashing import compute_canonical_payload_hash
+from app.workflow.publisher import admit_artifact_candidate
+from app.schemas.enums import PaperDataLevel, SourceMode
+from app.schemas.evidence import SourceSnapshotRecord
+from app.schemas.paper_collection import PaperCollection, PaperSourcePage
+from app.schemas.paper_summary import (
+    PaperSummaryBenchmarkEvaluationCase,
+    PaperSummaryArtifactContent,
+    PaperSummaryEvidenceCandidate,
+    PaperSummaryEvidenceLocator,
+    PaperSummaryModelOutput,
+    PaperSummarySupportStatus,
+)
+from app.schemas.v2 import ArtifactVersion
+from packages.prompts.registry import PromptRegistry, PromptRegistryError
+from services.paper_pipeline.pipeline import PaperCollectionPipeline
+from services.paper_pipeline.sources.base import (
+    RawSourceRecord,
+    SourceSearchResult,
+)
+from services.paper_pipeline.summary import PaperSummaryPipeline
+from services.paper_pipeline.summary_benchmark import evaluate_paper_summaries
+
+
+FIXED_TIME = datetime(2026, 7, 26, 8, 30, tzinfo=timezone.utc)
+ROOT = Path(__file__).parents[3]
+SAFE_PARAMETERS = {
+    "temperature": 0,
+    "max_output_tokens": 2048,
+    "response_format": "json_schema",
+}
+
+
+class SummaryFixtureAdapter:
+    source_id = "crossref"
+    adapter_name = "paper_summary_fixture"
+    adapter_version = "1.0.0"
+
+    def search(self, query, *, source_mode, data_level):  # type: ignore[no-untyped-def]
+        record = RawSourceRecord(
+            source_id="crossref",
+            source_record_id="10.1117/12.2232071",
+            title="Transiting Exoplanet Survey Satellite",
+            authors=("George R. Ricker",),
+            year=2015,
+            doi="10.1117/12.2232071",
+            arxiv_id="1406.0151",
+            url="https://doi.org/10.1117/12.2232071",
+        )
+        records = (record,)
+        response_hash = compute_canonical_payload_hash(
+            [item.hash_payload() for item in records]
+        )
+        page = PaperSourcePage(
+            page_number=1,
+            offset=0,
+            requested_rows=query.pagination.page_size,
+            returned_rows=1,
+            total_results=1,
+            attempt_count=1,
+            status_code=200,
+            retrieved_at=FIXED_TIME,
+            request_hash=compute_canonical_payload_hash(
+                {"query_hash": query.query_hash, "page": 1}
+            ),
+            response_hash=response_hash,
+        )
+        snapshot = SourceSnapshotRecord(
+            snapshot_id="snapshot.crossref.summary_fixture",
+            source_id="crossref",
+            source_type="paper_metadata",
+            retrieved_at=FIXED_TIME,
+            query=query.normalized_query_string,
+            query_hash=query.query_hash,
+            source_version_or_etag="crossref.fixture.2026-07-26",
+            content_hash=compute_canonical_payload_hash(
+                {"query_hash": query.query_hash, "records": [record.hash_payload()]}
+            ),
+            license_note="Public bibliographic metadata fixture; no restricted full text.",
+            request_metadata={
+                "adapter_name": self.adapter_name,
+                "data_level": data_level.value,
+            },
+        )
+        return SourceSearchResult(
+            records=records,
+            pages=(page,),
+            snapshot=snapshot,
+            retry_count=0,
+        )
+
+
+def _collection() -> PaperCollection:
+    return PaperCollectionPipeline(
+        adapter=SummaryFixtureAdapter(), clock=lambda: FIXED_TIME
+    ).run(
+        scenario_id="search.tess_mission_and_catalogs",
+        source_mode=SourceMode.fixture,
+        data_level=PaperDataLevel.fixture,
+    )
+
+
+def _evidence(
+    collection: PaperCollection,
+    *,
+    evidence_id: str = "evidence.summary_fixture",
+    quote: str = "TESS targets transits around nearby, bright stars.",
+    excerpt: str | None = "The abstract states that TESS targets transits around nearby, bright stars.",
+    claimed_source_version: str | None = None,
+) -> PaperSummaryEvidenceCandidate:
+    candidate = collection.candidates[0]
+    return PaperSummaryEvidenceCandidate(
+        evidence_id=evidence_id,
+        paper_id=candidate.canonical_paper_id,
+        candidate_id=candidate.candidate_id,
+        source_id=candidate.raw.source_id,
+        source_record_id=candidate.raw.source_record_id,
+        source_snapshot_id=candidate.raw.source_snapshot_id,
+        claimed_source_version=claimed_source_version,
+        locator=PaperSummaryEvidenceLocator(
+            kind="paper_text",
+            source_url="https://arxiv.org/abs/1406.0151",
+            section="abstract",
+            paragraph=1,
+            text_range="sentence 1",
+        ),
+        quote_or_value=quote,
+        accessible_excerpt=excerpt,
+    )
+
+
+def _model_output(
+    *,
+    evidence_id: str = "evidence.summary_fixture",
+    limitation_evidence_ids: tuple[str, ...] = (),
+) -> str:
+    payload = {
+        "research_goal": {
+            "statement_id": "summary_statement.goal",
+            "text": "Establish the TESS mission scope for nearby bright stars.",
+            "evidence_ids": [evidence_id],
+        },
+        "method": None,
+        "dataset": None,
+        "findings": [
+            {
+                "statement_id": "summary_statement.finding",
+                "text": "TESS targets nearby bright stars for transit observations.",
+                "evidence_ids": [evidence_id],
+            }
+        ],
+        "limitations": [
+            {
+                "statement_id": "summary_statement.limitation",
+                "text": "The provided excerpt does not establish observed mission yield.",
+                "evidence_ids": list(limitation_evidence_ids),
+            }
+        ],
+        "future_work": [],
+        "evidence_ids": sorted({evidence_id, *limitation_evidence_ids}),
+    }
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+
+def _admit(
+    collection: PaperCollection,
+    model_response: str,
+    evidence: tuple[PaperSummaryEvidenceCandidate, ...],
+):
+    return PaperSummaryPipeline(clock=lambda: FIXED_TIME).admit(
+        paper_collection=collection,
+        paper_collection_version_id="artifact_version.paper_collection.fixture",
+        paper_id=collection.selected_paper_ids[0],
+        model_response=model_response,
+        model_name="qwen.fixture.1",
+        parameters=SAFE_PARAMETERS,
+        evidence_candidates=evidence,
+    )
+
+
+def test_prompt_registry_resolves_hash_pinned_versions() -> None:
+    registry = PromptRegistry()
+
+    current = registry.get("paper_summary")
+    versions = registry.versions("paper_summary")
+
+    assert current.version == "v2"
+    assert current.output_models == ("PaperSummaryModelOutput",)
+    assert current.content_hash == (
+        "sha256:594a3e59ea2cbad953e1245efbe4f409a302ed39a73c743feb62d268422f973a"
+    )
+    assert tuple(item.version for item in versions) == ("v1", "v2")
+    assert versions[0].status == "deprecated"
+
+
+def test_prompt_registry_rejects_in_place_version_mutation(tmp_path: Path) -> None:
+    prompt_root = tmp_path / "prompts"
+    shutil.copytree(ROOT / "packages" / "prompts", prompt_root)
+    prompt_path = prompt_root / "paper_summary" / "v2.md"
+    prompt_path.write_text(
+        prompt_path.read_text(encoding="utf-8") + "\nmutated in place\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PromptRegistryError, match="immutable prompt content changed"):
+        PromptRegistry(prompt_root)
+
+
+def test_model_output_schema_requires_all_core_fields_without_defaults() -> None:
+    with pytest.raises(ValidationError):
+        PaperSummaryModelOutput.model_validate(
+            {
+                "research_goal": None,
+                "findings": [],
+                "limitations": [],
+                "evidence_ids": [],
+            }
+        )
+
+
+def test_valid_output_becomes_publisher_ready_summary_with_per_item_evidence() -> None:
+    collection = _collection()
+    evidence = _evidence(collection)
+
+    result = _admit(collection, _model_output(), (evidence,))
+
+    assert result.admission_status == "accepted"
+    assert result.summary is not None
+    summary = result.summary
+    assert summary.kind == "paper_summary"
+    assert summary.paper_id == collection.selected_paper_ids[0]
+    assert summary.input_versions.paper_collection_output_hash == collection.output_hash
+    assert summary.input_versions.source_snapshots[0].source_snapshot_id == (
+        collection.source_snapshots[0].snapshot_id
+    )
+    assert summary.findings[0].status is PaperSummarySupportStatus.supported
+    assert summary.limitations[0].status is PaperSummarySupportStatus.unsupported
+    assert summary.limitations[0].validation_code == "evidence.not_provided"
+    assert summary.evidence[0].locator.text_range == "sentence 1"
+    assert summary.evidence[0].quote_or_value == evidence.quote_or_value
+    assert summary.evidence[0].source_record_id == collection.candidates[0].raw.source_record_id
+    assert summary.producer.prompt_hash == PromptRegistry().get("paper_summary").content_hash
+    assert summary.producer.parameters_hash.startswith("sha256:")
+    assert summary.producer.input_versions == summary.input_versions
+    assert summary.producer.output_hash == summary.output_hash
+    assert summary.model_dump(mode="json")["kind"] == "paper_summary"
+
+
+def test_same_versioned_input_model_and_parameters_produce_stable_hashes() -> None:
+    collection = _collection()
+    evidence = _evidence(collection)
+    first = _admit(collection, _model_output(), (evidence,))
+    second = _admit(collection, _model_output(), (evidence,))
+
+    assert first.summary is not None and second.summary is not None
+    assert first.producer.input_hash == second.producer.input_hash
+    assert first.producer.model_response_hash == second.producer.model_response_hash
+    assert first.summary.output_hash == second.summary.output_hash
+    assert first.summary.summary_id == second.summary.summary_id
+
+
+def test_invalid_json_is_rejected_without_retaining_raw_model_output() -> None:
+    collection = _collection()
+    malicious = '{"findings": ["private-chain-of-thought SUPER_SECRET"'
+
+    result = _admit(collection, malicious, ())
+    serialized = result.model_dump_json()
+
+    assert result.admission_status == "rejected"
+    assert result.failure_stage == "json"
+    assert result.producer.status == "rejected"
+    assert result.producer.error_code == "paper_summary.json_invalid"
+    assert "SUPER_SECRET" not in serialized
+    assert "private-chain-of-thought" not in serialized
+
+
+def test_schema_failure_is_rejected_after_json_parse() -> None:
+    collection = _collection()
+    schema_invalid = json.dumps(
+        {
+            "research_goal": None,
+            "method": None,
+            "dataset": None,
+            "findings": [],
+            "limitations": [],
+            "future_work": [],
+        }
+    )
+
+    result = _admit(collection, schema_invalid, ())
+
+    assert result.admission_status == "rejected"
+    assert result.failure_stage == "schema"
+    assert result.producer.error_code == "paper_summary.schema_invalid"
+    assert result.producer.output_hash is None
+
+
+def test_quote_mismatch_marks_finding_unsupported_instead_of_fact() -> None:
+    collection = _collection()
+    evidence = _evidence(collection, excerpt="The excerpt contains unrelated text only.")
+
+    result = _admit(collection, _model_output(), (evidence,))
+
+    assert result.summary is not None
+    assert result.summary.findings[0].status is PaperSummarySupportStatus.unsupported
+    assert result.summary.findings[0].validation_code == "evidence.quote_not_found"
+    assert result.summary.evidence[0].status is PaperSummarySupportStatus.unsupported
+
+
+def test_unavailable_source_text_marks_finding_unverifiable() -> None:
+    collection = _collection()
+    evidence = _evidence(collection, excerpt=None)
+
+    result = _admit(collection, _model_output(), (evidence,))
+
+    assert result.summary is not None
+    assert result.summary.findings[0].status is PaperSummarySupportStatus.unverifiable
+    assert result.summary.evidence[0].validation_code == "evidence.source_text_unavailable"
+
+
+def test_unknown_evidence_reference_is_unverifiable_and_not_published_as_evidence() -> None:
+    collection = _collection()
+
+    result = _admit(collection, _model_output(), ())
+
+    assert result.summary is not None
+    assert result.summary.findings[0].status is PaperSummarySupportStatus.unverifiable
+    assert result.summary.findings[0].evidence_ids == ()
+    assert result.summary.evidence == ()
+
+
+def test_source_version_conflict_retains_snapshot_version_without_auto_adjudication() -> None:
+    collection = _collection()
+    evidence = _evidence(
+        collection,
+        claimed_source_version="crossref.fixture.stale",
+    )
+
+    result = _admit(collection, _model_output(), (evidence,))
+
+    assert result.summary is not None
+    summary = result.summary
+    assert summary.findings[0].status is PaperSummarySupportStatus.supported
+    assert len(summary.source_conflicts) == 1
+    conflict = summary.source_conflicts[0]
+    assert conflict.claimed_source_version == "crossref.fixture.stale"
+    assert conflict.source_snapshot_version == "crossref.fixture.2026-07-26"
+    assert conflict.resolution == "source_snapshot_version_retained"
+    assert summary.evidence[0].source_snapshot_version == conflict.source_snapshot_version
+
+
+def test_evidence_cannot_cross_candidate_or_snapshot_provenance() -> None:
+    collection = _collection()
+    evidence_payload = _evidence(collection).model_dump(mode="json")
+    evidence_payload["source_record_id"] = "different-record"
+    invalid_evidence = PaperSummaryEvidenceCandidate.model_validate(evidence_payload)
+
+    result = _admit(collection, _model_output(), (invalid_evidence,))
+
+    assert result.summary is not None
+    assert result.summary.findings[0].status is PaperSummarySupportStatus.unverifiable
+    assert result.summary.evidence == ()
+
+
+def test_sensitive_model_parameter_is_rejected_before_execution_record() -> None:
+    collection = _collection()
+
+    with pytest.raises(ValueError, match="forbidden"):
+        PaperSummaryPipeline(clock=lambda: FIXED_TIME).admit(
+            paper_collection=collection,
+            paper_collection_version_id="artifact_version.paper_collection.fixture",
+            paper_id=collection.selected_paper_ids[0],
+            model_response=_model_output(),
+            model_name="qwen.fixture.1",
+            parameters={"api_key": "must-not-be-stored"},
+            evidence_candidates=(),
+        )
+
+
+def test_published_summary_excludes_accessible_excerpt_and_raw_response() -> None:
+    collection = _collection()
+    evidence = _evidence(
+        collection,
+        excerpt=(
+            "The abstract states that TESS targets transits around nearby, bright stars. "
+            "RESTRICTED_INPUT_SENTINEL"
+        ),
+    )
+    model_response = _model_output()
+
+    result = _admit(collection, model_response, (evidence,))
+    serialized = result.model_dump_json()
+
+    assert result.summary is not None
+    assert "RESTRICTED_INPUT_SENTINEL" not in serialized
+    assert model_response not in serialized
+    assert "accessible_excerpt" not in serialized
+    assert "chain-of-thought" not in serialized
+
+
+def test_v2_artifact_discriminator_uses_the_d03_summary_schema() -> None:
+    schema = ArtifactVersion.model_json_schema()
+    summary_schema = schema["$defs"]["PaperSummaryArtifactContent"]
+
+    assert {
+        "research_goal",
+        "method",
+        "dataset",
+        "findings",
+        "limitations",
+        "future_work",
+        "evidence_ids",
+        "producer",
+        "input_hash",
+        "output_hash",
+    } <= set(summary_schema["required"])
+    assert summary_schema["properties"]["kind"]["const"] == "paper_summary"
+    assert PaperSummaryArtifactContent.model_json_schema()["title"] == (
+        "PaperSummaryArtifactContent"
+    )
+
+
+def test_d01_benchmark_report_is_reproducible_and_reports_required_metrics() -> None:
+    collection = _collection()
+    evidence = _evidence(collection)
+    admission = _admit(collection, _model_output(), (evidence,))
+    benchmark = __import__(
+        "services.paper_pipeline.benchmark", fromlist=["load_frozen_benchmark"]
+    ).load_frozen_benchmark()
+    benchmark_summary_id = benchmark.paper_summaries[0].summary_id
+    case = PaperSummaryBenchmarkEvaluationCase(
+        case_id="summary_eval.fixture",
+        benchmark_summary_id=benchmark_summary_id,
+        admission=admission,
+        unsupported_statement_ids=("summary_statement.limitation",),
+    )
+
+    report = evaluate_paper_summaries(
+        benchmark=benchmark,
+        cases=(case,),
+        human_review_sample_ids=(benchmark_summary_id,),
+    )
+
+    assert report.benchmark_version == "1.3.0"
+    assert report.schema_pass_rate == 1.0
+    assert report.evidence_coverage == 0.5
+    assert report.unsupported_block_rate == 1.0
+    assert report.human_review_sample_ids == (benchmark_summary_id,)
+    assert report.input_hash.startswith("sha256:")
+    assert report.output_hash.startswith("sha256:")
+    assert report.cases[0].input_hash == admission.producer.input_hash
+
+def test_unsafe_markup_is_rejected_by_the_model_output_schema() -> None:
+    payload = json.loads(_model_output())
+    payload["findings"][0]["text"] = "<script>alert(1)</script>"
+
+    with pytest.raises(ValidationError, match="unsafe markup"):
+        PaperSummaryModelOutput.model_validate(payload)
+
+
+def test_output_hash_tampering_fails_summary_schema_validation() -> None:
+    collection = _collection()
+    result = _admit(collection, _model_output(), (_evidence(collection),))
+    assert result.summary is not None
+    payload = result.summary.model_dump(mode="json")
+    payload["output_hash"] = "sha256:" + "0" * 64
+
+    with pytest.raises(ValidationError, match="output_hash does not match"):
+        PaperSummaryArtifactContent.model_validate(payload)
+
+
+def test_summary_passes_existing_structured_publisher_admission_port() -> None:
+    collection = _collection()
+    result = _admit(collection, _model_output(), (_evidence(collection),))
+    assert result.summary is not None
+
+    admitted = admit_artifact_candidate(
+        result.summary,
+        schema_version=result.summary.schema_version,
+        source_snapshot_ids=tuple(
+            item.source_snapshot_id
+            for item in result.summary.input_versions.source_snapshots
+        ),
+        evidence_ids=result.summary.evidence_ids,
+        evidence_validator=lambda _: None,
+        domain_validator=lambda _: None,
+        quality_validator=lambda _: None,
+    )
+
+    assert admitted.content_hash.startswith("sha256:")
+    assert admitted.content["kind"] == "paper_summary"
+    assert admitted.content["output_hash"] == result.summary.output_hash
