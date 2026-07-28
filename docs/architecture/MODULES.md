@@ -1,10 +1,10 @@
 # Module Boundaries
 
-| 元数据         | 值                                                                                                                                                                                            |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status         | Accepted                                                                                                                                                                                      |
-| Authority      | 跨模块职责、输入输出、依赖方向和交接边界                                                                                                                                                      |
-| Implementation | A-01 frontend runtime、A-03 Workspace/HTTP 集成、X-01、C-02 NASA TOI source acquisition、D-02 PaperCollection Pipeline、#78 Publisher 与 `/api/v2` M1 Core Runtime current；A-02 视觉 Pending |
+| 元数据         | 值                                                                                                                                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status         | Accepted                                                                                                                                                                                                                        |
+| Authority      | 跨模块职责、输入输出、依赖方向和交接边界                                                                                                                                                                                        |
+| Implementation | A-01 frontend runtime、A-03 Workspace/HTTP 集成、A-05 Paper Acquisition Workspace、X-01、C-02 NASA TOI source acquisition、D-02 PaperCollection Pipeline、#78 Publisher 与 `/api/v2` M1 Core Runtime current；A-02 视觉 Pending |
 
 本文不维护完整前端目录、技术选型或任务顺序。前端包结构见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)，实时任务依赖见 [Backlog](../product/BACKLOG.md)。
 
@@ -51,6 +51,7 @@ flowchart LR
 - Provenance Observatory、Research Console、分享和反馈体验；
 - Fixture / HTTP Adapter、Domain mapper 和前端状态模型；
 - A-16 的 Tour、Workspace 与匿名 Share 页面通过 Repository Port 消费 Domain Model；
+- A-05 论文获取与候选审查工作区：`PaperAcquisitionRepository` 深 Port 隐藏 B-06 读端点与分页，Fixture/HTTP 共享同一装配函数产出 `PaperAcquisitionReview`；
 - a11y、visual、E2E、性能和降级测试。
 
 ### 不负责

@@ -9,6 +9,8 @@
 
 import type {
   ArtifactVersionDto,
+  PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
+  PaperCollectionRead as PaperCollectionReadDto,
   ResearchArtifactDto,
   ResearchContractDto,
   ResearchContractDraftDto,
@@ -18,6 +20,15 @@ import type {
 } from "@xingwen/contracts";
 import type { Evidence } from "@xingwen/domain";
 
+/**
+ * One B-06 paper acquisition read model pinned to an ArtifactVersion id,
+ * with its candidate reads in authoritative server ranking order.
+ */
+export interface FixturePaperAcquisition {
+  readonly collection: PaperCollectionReadDto;
+  readonly candidates: readonly PaperCollectionCandidateReadDto[];
+}
+
 export interface FixtureBundleData {
   readonly projects: readonly ResearchProjectDto[];
   readonly contractDrafts: readonly ResearchContractDraftDto[];
@@ -26,6 +37,8 @@ export interface FixtureBundleData {
   readonly runEvents: readonly RunEventDto[];
   readonly artifacts: readonly ResearchArtifactDto[];
   readonly artifactVersions: readonly ArtifactVersionDto[];
+  /** Rich paper acquisition reads keyed by their artifact_version_id. */
+  readonly paperAcquisitions: readonly FixturePaperAcquisition[];
   /**
    * Evidence is a frontend domain entity without a standalone v2 transport
    * schema, so fixture evidence is provided directly in domain (camelCase)

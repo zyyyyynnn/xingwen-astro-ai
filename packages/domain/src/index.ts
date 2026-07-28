@@ -75,6 +75,7 @@ export { validateRunDerivationInvariants } from "./run";
 export type {
   ArtifactContent,
   ArtifactVersion,
+  ArtifactVersionMetadata,
   DatasetArtifactContent,
   DataCell,
   ExportArtifactContent,
@@ -111,6 +112,26 @@ export {
 
 export type { EvidenceCompleteness, ProvenanceState } from "./provenance";
 export { evidenceCompletenessRatio } from "./provenance";
+
+export type {
+  PaperAcquisitionMetrics,
+  PaperAcquisitionReview,
+  PaperAcquisitionRules,
+  PaperAcquisitionRunReview,
+  PaperBenchmarkReview,
+  PaperCandidateConflictReview,
+  PaperCandidateReview,
+  PaperCandidateSelection,
+  PaperDataLevel,
+  PaperDuplicateReview,
+  PaperSearchReview,
+  PaperSourceExecutionReview,
+  PaperSourceFailureClass,
+  PaperSourcePageReview,
+  ProducerExecutionSummary,
+  SourceSnapshotSummary,
+} from "./paper-acquisition";
+export { safeExternalUrl } from "./paper-acquisition";
 
 export type {
   ShareSnapshot,

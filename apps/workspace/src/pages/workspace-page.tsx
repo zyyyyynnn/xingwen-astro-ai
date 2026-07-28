@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useRouteContext } from "@tanstack/react-router";
 import type { RepositorySet } from "@xingwen/data-access";
+import type { PaperCandidateReview } from "@xingwen/domain";
 import type { WorkspaceState } from "@xingwen/workspace-core";
 
+import { ArtifactCanvas } from "../components/artifact-canvas";
+import {
+  evidenceSummary,
+  ProvenanceObservatory,
+} from "../components/provenance-observatory";
 import { ResearchShell } from "../components/research-shell";
 import { useControllerState } from "../hooks/use-controller-state";
 import { usePrivateSession } from "../hooks/use-private-session";
@@ -84,22 +90,6 @@ function workspaceStatus(state: WorkspaceState): string {
   }
 }
 
-function evidenceSummary(evidence: Evidence): string {
-  if (evidence.locator?.kind === "database_cell") {
-    return `数据库字段 ${evidence.locator.field}`;
-  }
-  if (evidence.locator?.kind === "paper_text") {
-    return `论文 ${evidence.locator.section}`;
-  }
-  if (evidence.locator?.kind === "reasoning_trace") {
-    return `推理步骤 ${evidence.locator.stepKey}`;
-  }
-  if (evidence.locator?.kind === "model_extraction") {
-    return `提取 ${evidence.locator.promptName}`;
-  }
-  return "无 locator";
-}
-
 function isUnavailableShareError(error: unknown): boolean {
   return error instanceof Error && error.name === "NotFoundError";
 }
@@ -157,6 +147,10 @@ export function WorkspacePage({
   const [selectionError, setSelectionError] = useState(false);
   const [eventRecoveryError, setEventRecoveryError] = useState(false);
   const [eventRecoveryPending, setEventRecoveryPending] = useState(false);
+  // Candidate review context; cleared whenever the Artifact/Run changes so a
+  // stale candidate never survives into an unrelated version.
+  const [selectedCandidate, setSelectedCandidate] =
+    useState<PaperCandidateReview | null>(null);
   const loadSequence = useRef(0);
   const selectionSequence = useRef(0);
   const recoverySequence = useRef(0);
@@ -174,6 +168,7 @@ export function WorkspacePage({
     }
 
     setLoadState({ status: "loading" });
+    setSelectedCandidate(null);
     try {
       const workspaceState = runtime.workspaceController.getState();
       if (
@@ -305,6 +300,7 @@ export function WorkspacePage({
       await runtime.workspaceController.setActiveRun(run.id);
       if (selection !== selectionSequence.current) return;
       if (!data) return;
+      setSelectedCandidate(null);
       setSelectedRun({ projectId: data.project.id, runId: run.id });
       setSelectionError(false);
     } catch {
@@ -349,10 +345,15 @@ export function WorkspacePage({
             }
           : current,
       );
+      setSelectedCandidate(null);
       setSelectionError(false);
     } catch {
       if (selection === selectionSequence.current) setSelectionError(true);
     }
+  };
+
+  const selectCandidate = (candidate: PaperCandidateReview) => {
+    setSelectedCandidate(candidate);
   };
 
   const selectEvidence = async (evidence: Evidence) => {
@@ -608,37 +609,13 @@ export function WorkspacePage({
         )
       }
       observatory={
-        data?.selectedVersion ? (
-          <>
-            <p className="region-label">Artifact Version</p>
-            <p className="region-placeholder">
-              {data.selectedVersion.id} / v{data.selectedVersion.versionNumber}
-            </p>
-            <p className="region-placeholder">
-              {data.selectedVersion.sourceMode} /{" "}
-              {data.selectedVersion.contentHash}
-            </p>
-            {data.selectedEvidence && (
-              <button
-                type="button"
-                className="atlas-item"
-                onClick={() => void selectEvidence(data.selectedEvidence!)}
-                disabled={!canAdjustWorkspace}
-              >
-                {data.selectedEvidence.id}
-              </button>
-            )}
-            {data.selectedEvidence && (
-              <p className="region-placeholder">
-                {evidenceSummary(data.selectedEvidence)}
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="region-placeholder">
-            选择 ArtifactVersion 后显示证据。
-          </p>
-        )
+        <ProvenanceObservatory
+          version={data?.selectedVersion ?? null}
+          evidence={data?.selectedEvidence ?? null}
+          candidate={selectedCandidate}
+          canAdjust={canAdjustWorkspace}
+          onSelectEvidence={(evidence) => void selectEvidence(evidence)}
+        />
       }
       console={
         <div className="console-actions">
@@ -799,15 +776,21 @@ export function WorkspacePage({
             </section>
 
             {data.selectedArtifact && data.selectedVersion && (
-              <section className="work-panel" aria-labelledby="artifact-title">
-                <h2 id="artifact-title">{data.selectedArtifact.title}</h2>
-                <p>
-                  {data.selectedArtifact.kind} / v
-                  {data.selectedVersion.versionNumber} /{" "}
-                  {data.selectedVersion.sourceMode}
-                </p>
-                <p>{data.selectedVersion.contentHash}</p>
-              </section>
+              <ArtifactCanvas
+                artifact={data.selectedArtifact}
+                version={data.selectedVersion}
+                paperAcquisition={runtime.repositories.paperAcquisition}
+                executionMode={data.run?.executionMode ?? null}
+                ready={sessionState.status === "ready"}
+                disabled={!canAdjustWorkspace}
+                selectedCandidateId={
+                  selectedCandidate
+                    ? String(selectedCandidate.candidateId)
+                    : null
+                }
+                onSelectCandidate={selectCandidate}
+                onSelectEvidence={(evidence) => void selectEvidence(evidence)}
+              />
             )}
 
             {data.selectedEvidence && (

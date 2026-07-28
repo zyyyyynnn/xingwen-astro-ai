@@ -25,6 +25,10 @@ import type {
 import type { Evidence } from "@xingwen/domain";
 
 import type { FixtureBundle } from "./bundle";
+import {
+  paperCandidateReadsFixture,
+  paperCollectionReadFixture,
+} from "./paper-acquisition";
 
 const T0 = "2026-07-21T08:00:00Z";
 const T1 = "2026-07-21T08:05:00Z";
@@ -389,8 +393,13 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     input_hash: hash("2"),
     source_mode: "fixture",
     producer: { ...producer },
-    source_snapshot_ids: [],
-    evidence_ids: [],
+    source_snapshot_ids: ["snap_paper_ads_01", "snap_paper_arxiv_01"],
+    evidence_ids: [
+      "evd_paper_01",
+      "evd_paper_02",
+      "evd_paper_03",
+      "evd_paper_04",
+    ],
     supersedes_version_id: null,
     created_at: T7,
   },
@@ -604,6 +613,28 @@ const evidence = [
     confidence: 0.85,
     createdAt: T8,
   },
+  // Paper acquisition evidence — same ids as the B-06 read fixture so the
+  // candidate review, generic Evidence store, pinning and Share stay wired.
+  ...paperCollectionReadFixture.evidence.map((item) => ({
+    id: item.id,
+    artifactVersionId: item.artifact_version_id,
+    targetType: item.target_type,
+    targetId: item.target_id,
+    evidenceType: item.evidence_type,
+    sourceSnapshotId: item.source_snapshot_id,
+    paperId: item.paper_id ?? null,
+    locator: {
+      kind: "database_cell",
+      queryHash: String(item.locator.query_hash ?? ""),
+      rowKey: String(item.locator.row_key ?? ""),
+      field: String(item.locator.field ?? ""),
+    },
+    quoteOrValue:
+      typeof item.quote_or_value === "string" ? item.quote_or_value : null,
+    extractionMethod: item.extraction_method,
+    confidence: item.confidence,
+    createdAt: item.created_at,
+  })),
 ] as unknown as readonly Evidence[];
 
 export const exoplanetHostStarFixture: FixtureBundle = {
@@ -622,6 +653,12 @@ export const exoplanetHostStarFixture: FixtureBundle = {
     runEvents,
     artifacts,
     artifactVersions,
+    paperAcquisitions: [
+      {
+        collection: paperCollectionReadFixture,
+        candidates: paperCandidateReadsFixture,
+      },
+    ],
     evidence,
   },
 };

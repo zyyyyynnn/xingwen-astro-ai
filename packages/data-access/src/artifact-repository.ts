@@ -8,14 +8,14 @@
  */
 
 import type {
-  ArtifactVersion,
+  ArtifactVersionMetadata,
   Evidence,
   ResearchArtifact,
 } from "@xingwen/domain";
 
 import { HttpClient, seg, validateAndMap } from "./http-client";
 import {
-  mapArtifactVersionDetail,
+  mapArtifactVersionMetadata,
   mapEvidenceRead,
   mapResearchArtifact,
   mapResearchArtifactDetail,
@@ -44,7 +44,7 @@ export function createArtifactRepository(
           )
         : null;
     },
-    async getVersion(id): Promise<ArtifactVersion | null> {
+    async getVersion(id): Promise<ArtifactVersionMetadata | null> {
       const payload = await http.get<unknown>(
         `/api/v2/artifact-versions/${seg(id)}`,
       );
@@ -52,7 +52,7 @@ export function createArtifactRepository(
         ? validateAndMap(
             "ArtifactVersionDetail",
             payload,
-            mapArtifactVersionDetail,
+            mapArtifactVersionMetadata,
           )
         : null;
     },
