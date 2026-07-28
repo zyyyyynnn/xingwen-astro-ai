@@ -16,7 +16,7 @@
  */
 
 import type {
-  ArtifactVersion,
+  ArtifactVersionMetadata,
   CachePolicy,
   CaseKey,
   CreateShareSnapshotRequest,
@@ -24,6 +24,7 @@ import type {
   DomainEntityId,
   Evidence,
   ExecutionMode,
+  PaperAcquisitionReview,
   PublicShareSnapshot,
   ResearchArtifact,
   ResearchContract,
@@ -136,8 +137,28 @@ export interface RunRepository {
 export interface ArtifactReadRepository {
   listByRun(runId: DomainEntityId): Promise<readonly ResearchArtifact[]>;
   getArtifact(id: DomainEntityId): Promise<ResearchArtifact | null>;
-  getVersion(id: DomainEntityId): Promise<ArtifactVersion | null>;
+  /**
+   * Generic version read narrowed to identity + provenance metadata. Rich
+   * kind-specific content (e.g. PaperCollection) is only readable through its
+   * dedicated repository so it never passes through a loose content cast.
+   */
+  getVersion(id: DomainEntityId): Promise<ArtifactVersionMetadata | null>;
   getEvidence(id: DomainEntityId): Promise<Evidence | null>;
+}
+
+/**
+ * Deep read boundary for the B-06 paper acquisition review (A-05).
+ *
+ * `getReview` hides the entire transport protocol: it reads the collection
+ * read model, follows every candidate page by cursor, validates each payload
+ * against the generated contract, guards against cursor loops / duplicate or
+ * reordered candidates / count drift, and returns one complete domain object
+ * in the authoritative server ranking order. Callers never see URLs, DTOs,
+ * cursors, envelopes or page sizes. Failures surface as typed errors
+ * (NotFound/RateLimited/Upstream/Validation/Network), never as `null`.
+ */
+export interface PaperAcquisitionRepository {
+  getReview(artifactVersionId: DomainEntityId): Promise<PaperAcquisitionReview>;
 }
 
 export interface WorkspaceSnapshotRepository {
@@ -169,6 +190,7 @@ export interface RepositorySet {
   readonly contracts: ContractRepository;
   readonly runs: RunRepository;
   readonly artifacts: ArtifactReadRepository;
+  readonly paperAcquisition: PaperAcquisitionRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
 }

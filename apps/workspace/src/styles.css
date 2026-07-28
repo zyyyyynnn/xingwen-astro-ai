@@ -391,6 +391,167 @@ textarea:disabled {
   padding: 2rem 1.5rem;
 }
 
+/* Paper Acquisition Workspace (A-05) — continuous divided panels, dense */
+.route-content:has(.paper-review) {
+  max-width: 72rem;
+}
+
+.paper-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 90rem) {
+  .paper-review-grid {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+    gap: 1.5rem;
+  }
+
+  .paper-review-aside {
+    border-inline-start: 1px solid var(--color-border);
+    padding-inline-start: 1.5rem;
+  }
+}
+
+.paper-section-title {
+  margin: 1rem 0 0.25rem;
+  color: var(--color-ink-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+
+.paper-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  align-items: end;
+  padding-block: 0.5rem;
+  border-block: 1px solid var(--color-border);
+}
+
+.paper-filter-bar label {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 9rem;
+  flex: 1 1 9rem;
+  color: var(--color-ink-primary);
+  font-size: var(--font-size-1);
+  font-weight: 600;
+}
+
+.paper-filter-bar button {
+  flex: 0 0 auto;
+}
+
+.candidate-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.candidate-item {
+  display: grid;
+  gap: 0.25rem;
+  padding-block: 0.625rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.candidate-item[aria-current="true"] {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--color-focus);
+  background: var(--color-surface-muted);
+}
+
+.candidate-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.candidate-rank {
+  color: var(--color-ink-tertiary);
+  font-family: var(--xw-font-mono);
+  font-size: var(--font-size-1);
+}
+
+.candidate-select {
+  min-height: 2rem;
+  padding-inline: 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.candidate-select:hover {
+  background: var(--color-surface-hover);
+}
+
+.candidate-status {
+  margin-left: auto;
+  color: var(--color-ink-secondary);
+  font-family: var(--xw-font-mono);
+  font-size: var(--font-size-0);
+  letter-spacing: 0.08em;
+}
+
+.candidate-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 1rem;
+  margin: 0;
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-1);
+  line-height: 1.5;
+}
+
+.candidate-meta-item {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.candidate-reason {
+  margin: 0;
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-1);
+}
+
+.candidate-conflicts {
+  display: grid;
+  gap: 0.125rem;
+  margin: 0;
+  padding-inline-start: 1rem;
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-1);
+}
+
+.source-execution-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.source-execution-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  justify-content: space-between;
+  padding-block: 0.375rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-1);
+  overflow-wrap: anywhere;
+}
+
 .public-share-page h1 {
   margin: 0.25rem 0 0.75rem;
   font-family: var(--xw-font-serif);

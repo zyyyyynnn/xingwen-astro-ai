@@ -47,10 +47,12 @@ import {
   mapRunEvent,
 } from "./mapping";
 import { computeContractContentHash } from "./contract-hash";
+import { assemblePaperAcquisitionReview } from "./paper-acquisition-repository";
 import type {
   ArtifactReadRepository,
   ContractRepository,
   CreateResearchRunInput,
+  PaperAcquisitionRepository,
   ProjectRepository,
   RepositoryProvenance,
   RunEventRecovery,
@@ -92,6 +94,23 @@ function validateBundleSemantics(bundle: FixtureBundle): void {
       );
     }
   }
+  for (const acquisition of bundle.data.paperAcquisitions) {
+    if (acquisition.collection.source_mode !== "fixture") {
+      throw new FixtureSemanticError(
+        `Fixture paper collection ${acquisition.collection.artifact_version_id} ` +
+          `must have source_mode "fixture"; got "${acquisition.collection.source_mode}".`,
+      );
+    }
+    for (const execution of acquisition.collection.collection
+      .source_executions) {
+      if (execution.source_mode !== "fixture") {
+        throw new FixtureSemanticError(
+          `Fixture paper source execution ${execution.source_id} must have ` +
+            `source_mode "fixture"; got "${execution.source_mode}".`,
+        );
+      }
+    }
+  }
 }
 
 function validateBundlePayloads(bundle: FixtureBundle): void {
@@ -106,6 +125,16 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
     { model: "RunEvent", payloads: bundle.data.runEvents },
     { model: "ArtifactVersion", payloads: bundle.data.artifactVersions },
     { model: "ResearchArtifact", payloads: bundle.data.artifacts },
+    {
+      model: "PaperCollectionRead",
+      payloads: bundle.data.paperAcquisitions.map((item) => item.collection),
+    },
+    {
+      model: "PaperCollectionCandidateRead",
+      payloads: bundle.data.paperAcquisitions.flatMap(
+        (item) => item.candidates,
+      ),
+    },
   ];
   for (const { model, payloads } of entries) {
     for (const payload of payloads) {
@@ -153,6 +182,7 @@ export interface FixtureRepositorySet {
   readonly contracts: ContractRepository;
   readonly runs: RunRepository;
   readonly artifacts: ArtifactReadRepository;
+  readonly paperAcquisition: PaperAcquisitionRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
   readonly provenance: RepositoryProvenance;
@@ -668,8 +698,34 @@ export function createFixtureRepositories(
         return artifacts.filter((a) => versionArtifactIds.has(a.id));
       },
       getArtifact: async (id) => artifacts.get(id),
-      getVersion: async (id) => versions.get(id),
+      getVersion: async (id) => {
+        // Same narrowing as the HTTP adapter: generic reads expose identity
+        // and provenance metadata only, never the scientific content payload.
+        const version = versions.get(id);
+        if (version === null) return null;
+        const { content, ...metadata } = version;
+        void content;
+        return metadata;
+      },
       getEvidence: async (id) => evidenceStore.get(id),
+    },
+    paperAcquisition: {
+      getReview: async (artifactVersionId) => {
+        const entry = bundle.data.paperAcquisitions.find(
+          (item) => item.collection.artifact_version_id === artifactVersionId,
+        );
+        if (!entry) {
+          throw new NotFoundError(
+            `Paper collection ${artifactVersionId} not found`,
+            "PAPER_COLLECTION_EMPTY",
+          );
+        }
+        // Identical assembly path to the HTTP adapter, so both return the
+        // exact same domain shape for the same contract payloads.
+        return assemblePaperAcquisitionReview(entry.collection, [
+          ...entry.candidates,
+        ]);
+      },
     },
     workspaces: {
       getByProjectId: async (projectId) =>

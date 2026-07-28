@@ -150,3 +150,98 @@ test.describe("Workspace at 200% font scale", () => {
     await expectNoHorizontalOverflow(page, 1280);
   });
 });
+
+async function openPaperReview(page: Page) {
+  await page.goto("http://127.0.0.1:5173/workspace");
+  await expect(page.getByRole("heading", { name: "科研工作区" })).toBeVisible();
+  await page.getByRole("button", { name: "Retrieved papers" }).click();
+  await expect(
+    page.getByRole("heading", { name: "论文获取与候选审查" }),
+  ).toBeVisible();
+  await expect(page.locator(".candidate-item")).toHaveCount(4);
+}
+
+test("Fixture paper acquisition review: labels, filtering, candidate and Evidence flow", async ({
+  page,
+}) => {
+  const errors = collectRuntimeErrors(page);
+
+  await openPaperReview(page);
+
+  // Demo Replay / Fixture labelling stays explicit.
+  await expect(page.getByText("source: Fixture / Demo Replay")).toBeVisible();
+  await expect(page.getByText(/Demo Replay 确定性演示数据/u)).toBeVisible();
+
+  // Filtering hides rows but never renumbers the server ranking.
+  await page.getByLabel("入选状态").selectOption("excluded");
+  await expect(page.getByText(/显示 2 \/ 4 项/u)).toBeVisible();
+  await expect(page.locator(".candidate-rank")).toHaveText(["#2", "#4"]);
+  await page.getByRole("button", { name: "重置筛选" }).click();
+  await expect(page.getByText(/显示 4 \/ 4 项/u)).toBeVisible();
+
+  // Keyboard flow: select the top-ranked candidate, then open its Evidence.
+  await page
+    .getByRole("button", {
+      name: "TOI-1234 b: Validation of a Hot Jupiter Around TIC-5678",
+    })
+    .first()
+    .focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByText("cand_paper_01 / canonical paper_01"),
+  ).toBeVisible();
+  await expect(page.getByText("snap_paper_ads_01 / nasa_ads")).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "打开 Evidence evd_paper_01" })
+    .focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Evidence" })).toBeVisible();
+  // Pinning candidate evidence turns the workspace into an unsaved draft.
+  await expect(page.getByText("未保存本地草稿（revision 0）")).toBeVisible();
+
+  // The non-http candidate URL is rendered as plain text, never a link.
+  await expect(
+    page.getByText("ftp://mirror.example.org/flares.pdf"),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+for (const width of [1440, 1280]) {
+  test.describe(`Paper review at ${String(width)}px`, () => {
+    test.use({ viewport: { width, height: 900 } });
+
+    test("renders without horizontal overflow", async ({ page }) => {
+      await openPaperReview(page);
+      await expect(page.getByLabel("检索详情")).toBeVisible();
+      await expectNoHorizontalOverflow(page, width);
+    });
+  });
+}
+
+test.describe("Paper review at 390px", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("stays usable on a narrow viewport", async ({ page }) => {
+    await openPaperReview(page);
+    await expect(page.getByLabel("标题或作者")).toBeVisible();
+    await expectNoHorizontalOverflow(page, 390);
+  });
+});
+
+test.describe("Paper review at 200% font scale", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("keeps the review readable without horizontal overflow", async ({
+    page,
+  }) => {
+    await openPaperReview(page);
+    await page.addStyleTag({
+      content: "html { font-size: 200% !important; }",
+    });
+    await expect(
+      page.getByRole("heading", { name: "论文获取与候选审查" }),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page, 1280);
+  });
+});
