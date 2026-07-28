@@ -97,7 +97,7 @@ stateDiagram-v2
 
 Step 输出先通过 Schema、Evidence 和质量约束，再登记 ArtifactVersion。模型自由文本不得直接成为完成产物。
 
-D-03 PaperSummary 的 detached 准入顺序已实现为 `JSON 解析 -> PaperSummaryModelOutput Schema -> 逐项 Evidence`。JSON 无效和 Schema 失败产生 `rejected` ProducerExecution 安全记录；Evidence 缺失、quote/value 不匹配或来源不可访问不回退成自由文本，而分别降级为 `unsupported` / `unverifiable`；来源版本冲突保留冲突记录并使用 SourceSnapshot 声明版本。通过后得到可交给 #78 admission port 的 `PaperSummaryArtifactContent`，但 D-03 本身不推进 ResearchRun、创建数据库 Version 或选择 Cache。
+D-03 PaperSummary 的 detached 准入顺序已实现为 `JSON 解析 -> PaperSummaryModelOutput Schema -> 逐项 Evidence`。JSON 无效和 Schema 失败产生 `rejected` ProducerExecution 安全记录；Evidence 缺失、quote/value 不匹配或来源不可访问不回退成自由文本，而分别降级为 `unsupported` / `unverifiable`；来源版本冲突保留冲突记录并使用 SourceSnapshot 声明版本。`PaperSummaryModelOutput` 是不可直接发布的中间模型，通用 Publisher 拒绝其绕过 Evidence 阶段；通过后得到可交给 #78 admission port 的 `PaperSummaryArtifactContent`，但 D-03 本身不推进 ResearchRun、创建数据库 Version 或选择 Cache。
 
 ## 4. 进度快照与事件
 

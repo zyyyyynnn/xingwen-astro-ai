@@ -214,6 +214,14 @@ def admit_artifact_candidate(
 
     if not isinstance(candidate, BaseModel) or candidate.__class__ is BaseModel:
         raise PublicationAdmissionError("A validated Pydantic model is required")
+    if getattr(
+        candidate.__class__, "__artifact_publication_requires_admission__", False
+    ):
+        admission_check = getattr(candidate, "__artifact_publication_is_admitted__", None)
+        if not callable(admission_check) or admission_check() is not True:
+            raise PublicationAdmissionError(
+                "Model output cannot bypass its artifact admission pipeline"
+            )
     if not candidate.__class__.model_fields:
         raise PublicationAdmissionError(
             "An empty or untyped candidate cannot be published"
