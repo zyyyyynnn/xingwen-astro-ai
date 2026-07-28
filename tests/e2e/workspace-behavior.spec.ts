@@ -173,7 +173,7 @@ test("Fixture paper acquisition review: labels, filtering, candidate and Evidenc
   await expect(
     page.getByText("source: Fixture", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText(/Fixture 确定性演示数据/u)).toBeVisible();
+  await expect(page.getByText(/确定性演示数据（Fixture/u)).toBeVisible();
   // Real frozen benchmark identity from the pipeline-generated fixture.
   await expect(
     page.getByText(/benchmark: exoplanet_host_star\.paper_reasoning v1\.3\.0/u),
