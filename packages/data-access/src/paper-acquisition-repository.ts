@@ -54,8 +54,8 @@ import type { PaperAcquisitionRepository } from "./ports";
 /** Internal page size; deliberately not exposed through the port. */
 const CANDIDATE_PAGE_SIZE = 50;
 
-function contractViolation(detail: string): ValidationError {
-  return new ValidationError(detail, "PAPER_REVIEW_CONTRACT_VIOLATION", []);
+function contractViolation(detail: string, code: string): ValidationError {
+  return new ValidationError(detail, code, []);
 }
 
 function mapId(value: string): DomainEntityId {
@@ -68,6 +68,20 @@ function displayValue(value: unknown): string {
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(displayValue).join(",")}]`;
+  }
+  if (typeof value === "object") {
+    // Deterministic display regardless of source key order: sort keys before
+    // serialising so two equal dicts never render as different strings.
+    const entries = Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map(
+        (key) =>
+          `"${key}":${displayValue((value as Record<string, unknown>)[key])}`,
+      );
+    return `{${entries.join(",")}}`;
   }
   return JSON.stringify(value);
 }
@@ -181,12 +195,14 @@ function mapSourceExecution(
     if (!cacheApplicability) {
       throw contractViolation(
         `cached source execution ${dto.source_id} lacks cache_applicability`,
+        "PAPER_CACHED_LACKS_APPLICABILITY",
       );
     }
     if (!dto.live_failure_class || !liveFailureCode) {
       throw contractViolation(
         `cached source execution ${dto.source_id} lacks the live failure ` +
           `class/code audit context`,
+        "PAPER_CACHED_LACKS_LIVE_FAILURE",
       );
     }
   }
@@ -334,13 +350,17 @@ export function assemblePaperAcquisitionReview(
     throw contractViolation(
       `candidate pages returned ${String(candidateReads.length)} candidates ` +
         `but the collection declares ${String(declared.length)}`,
+      "PAPER_CANDIDATE_COUNT_MISMATCH",
     );
   }
   const seen = new Set<string>();
   candidateReads.forEach((item, index) => {
     const id = item.candidate.candidate_id;
     if (seen.has(id)) {
-      throw contractViolation(`duplicate candidate id across pages: ${id}`);
+      throw contractViolation(
+        `duplicate candidate id across pages: ${id}`,
+        "PAPER_CANDIDATE_DUPLICATE",
+      );
     }
     seen.add(id);
     const declaredId = declared[index]?.candidate_id;
@@ -348,6 +368,7 @@ export function assemblePaperAcquisitionReview(
       throw contractViolation(
         `candidate order drifted from the collection ranking at position ` +
           `${String(index + 1)}: expected ${declaredId ?? "<none>"}, got ${id}`,
+        "PAPER_CANDIDATE_ORDER_DRIFT",
       );
     }
   });
@@ -368,17 +389,18 @@ export function assemblePaperAcquisitionReview(
     const persisted = record
       ? persistedSnapshots.find(
           (item) =>
-            String(item.sourceId) === record.source_id &&
+            item.sourceId === record.source_id &&
             item.sourceType === record.source_type &&
-            String(item.queryHash) === record.query_hash &&
-            String(item.contentHash) === record.content_hash &&
-            String(item.retrievedAt) === record.retrieved_at,
+            item.queryHash === record.query_hash &&
+            item.contentHash === record.content_hash &&
+            item.retrievedAt === record.retrieved_at,
         )
       : undefined;
     if (!persisted || persisted.cachedOrigin === null) {
       throw contractViolation(
         `cached source execution ${execution.source_id} lacks origin ` +
           `Run/ArtifactVersion provenance on its own snapshot`,
+        "PAPER_CACHED_LACKS_ORIGIN",
       );
     }
     if (
@@ -388,6 +410,7 @@ export function assemblePaperAcquisitionReview(
       throw contractViolation(
         `cached source execution ${execution.source_id} lacks a snapshot ` +
           `cache_version`,
+        "PAPER_CACHED_LACKS_VERSION",
       );
     }
   }
@@ -511,6 +534,7 @@ export function createPaperAcquisitionRepository(
           throw contractViolation(
             `candidate pages exceeded the declared total of ` +
               `${String(declaredCount)} candidates`,
+            "PAPER_CURSOR_EXCEEDED_TOTAL",
           );
         }
         const next: string | null = envelope.page?.has_more
@@ -520,17 +544,20 @@ export function createPaperAcquisitionRepository(
           if (envelope.data.length === 0) {
             throw contractViolation(
               "candidate page reported has_more without returning items",
+              "PAPER_CURSOR_EMPTY_PAGE",
             );
           }
           if (candidateReads.length >= declaredCount) {
             throw contractViolation(
               "candidate pagination reported has_more after the declared " +
                 "total was reached",
+              "PAPER_CURSOR_EXCEEDED_TOTAL",
             );
           }
           if (next === cursor || seenCursors.has(next)) {
             throw contractViolation(
               "candidate pagination cursor did not advance",
+              "PAPER_CURSOR_NOT_ADVANCING",
             );
           }
           seenCursors.add(next);
