@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.paper_benchmark import BenchmarkPackage, BenchmarkReviewStatus
+from app.schemas.paper_benchmark import (
+    BenchmarkEvaluationInput,
+    BenchmarkMetricId,
+    BenchmarkPackage,
+    BenchmarkReviewStatus,
+    evaluate_benchmark,
+)
 from app.schemas.paper_summary import (
     PaperSummaryBenchmarkCaseResult,
     PaperSummaryBenchmarkEvaluationCase,
@@ -121,6 +127,25 @@ def evaluate_paper_summaries(
             "human_review_sample_ids": human_review_sample_ids,
         }
     )
+    metrics_package = benchmark.model_copy(
+        update={"review_status": BenchmarkReviewStatus.pending_scientific_review}
+    )
+    d01_metrics = {
+        result.metric_id: result
+        for result in evaluate_benchmark(
+            metrics_package,
+            BenchmarkEvaluationInput(
+                schema_items_valid=schema_valid_count,
+                schema_items_total=len(cases),
+                evidence_requirements_satisfied=supported_core_item_count,
+                evidence_requirements_total=core_item_count,
+                evidence_less_relations_blocked=0,
+                evidence_less_relations_total=0,
+            ),
+        )
+    }
+    schema_metric = d01_metrics[BenchmarkMetricId.schema_pass_rate]
+    evidence_metric = d01_metrics[BenchmarkMetricId.evidence_coverage]
     payload = {
         "report_version": "1.0.0",
         "benchmark_id": benchmark.benchmark_id,
@@ -135,10 +160,14 @@ def evaluate_paper_summaries(
         "parameters_version": producer.parameters_version,
         "parameters_hash": producer.parameters_hash,
         "cases": [item.model_dump(mode="json", exclude_none=True) for item in case_results],
-        "schema_pass_rate": schema_valid_count / len(cases),
-        "evidence_coverage": (
-            supported_core_item_count / core_item_count if core_item_count else 0.0
-        ),
+        "schema_items_valid": schema_metric.numerator,
+        "schema_items_total": schema_metric.denominator,
+        "schema_pass_rate": schema_metric.value,
+        "evidence_items_supported": evidence_metric.numerator,
+        "evidence_items_total": evidence_metric.denominator,
+        "evidence_coverage": evidence_metric.value,
+        "unsupported_items_blocked": unsupported_blocked_count,
+        "unsupported_items_total": unsupported_expected_count,
         "unsupported_block_rate": (
             unsupported_blocked_count / unsupported_expected_count
             if unsupported_expected_count
