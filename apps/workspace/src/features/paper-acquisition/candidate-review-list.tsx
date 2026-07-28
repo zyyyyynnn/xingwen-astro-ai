@@ -8,7 +8,11 @@
 import type { Evidence, PaperCandidateReview } from "@xingwen/domain";
 import { safeExternalUrl } from "@xingwen/domain";
 
-import { hasConflicts, isDuplicateCandidate } from "./paper-acquisition-state";
+import {
+  conflictsOf,
+  hasConflicts,
+  isDuplicateCandidate,
+} from "./paper-acquisition-state";
 
 export interface CandidateReviewListProps {
   readonly candidates: readonly PaperCandidateReview[];
@@ -103,8 +107,16 @@ export function CandidateReviewList({
               {candidate.url !== null && (
                 <ExternalReference label="URL" value={candidate.url} />
               )}
+              {candidate.rawRecord.url !== null &&
+                candidate.rawRecord.url !== candidate.url && (
+                  <ExternalReference
+                    label="原始记录 URL"
+                    value={candidate.rawRecord.url}
+                  />
+                )}
               <span className="candidate-meta-item">
-                来源: {String(candidate.sourceSnapshot.sourceId)}
+                来源: {String(candidate.sourceSnapshot.sourceId)}（记录{" "}
+                {candidate.rawRecord.sourceRecordId}）
               </span>
             </p>
             <p className="candidate-reason">
@@ -123,9 +135,9 @@ export function CandidateReviewList({
             )}
             {hasConflicts(candidate) && (
               <ul className="candidate-conflicts">
-                {candidate.duplicateGroup.conflicts.map((conflict) => (
+                {conflictsOf(candidate).map((conflict) => (
                   <li
-                    key={`${String(candidate.duplicateGroup.groupId)}-${conflict.field}-${String(conflict.relatedCandidateId)}`}
+                    key={`${String(candidate.candidateId)}-${conflict.field}-${String(conflict.relatedCandidateId)}-${conflict.classification}`}
                   >
                     {conflict.classification === "conflict"
                       ? "冲突"

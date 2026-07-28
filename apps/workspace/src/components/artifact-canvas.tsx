@@ -11,6 +11,7 @@ import type { PaperAcquisitionRepository } from "@xingwen/data-access";
 import type {
   ArtifactVersionMetadata,
   Evidence,
+  ExecutionMode,
   PaperCandidateReview,
   ResearchArtifact,
 } from "@xingwen/domain";
@@ -21,7 +22,7 @@ export interface ArtifactCanvasProps {
   readonly artifact: ResearchArtifact;
   readonly version: ArtifactVersionMetadata;
   readonly paperAcquisition: PaperAcquisitionRepository;
-  readonly executionMode: string | null;
+  readonly executionMode: ExecutionMode | null;
   readonly ready: boolean;
   readonly disabled: boolean;
   readonly selectedCandidateId: string | null;
@@ -43,6 +44,8 @@ export function ArtifactCanvas({
   if (artifact.kind === "paper_collection") {
     return (
       <PaperAcquisitionWorkspace
+        // Remount on version change so a previous review can never linger.
+        key={String(version.id)}
         artifactVersionId={version.id}
         repository={paperAcquisition}
         executionMode={executionMode}

@@ -37,16 +37,39 @@ export type PaperSourceFailureClass =
   | "invalid_response"
   | "policy_violation";
 
+/** One key with its display-ready value, sorted deterministically. */
+export interface ReviewMetadataEntry {
+  readonly key: string;
+  readonly value: string;
+}
+
+/** Pagination contract the acquisition actually executed. */
+export interface PaperQueryPaginationReview {
+  readonly pageSize: number;
+  readonly maxPages: number;
+  readonly candidateLimit: number;
+}
+
+/** Source-specific request parameters, values pre-serialised for review. */
+export interface PaperSourceParametersReview {
+  readonly sourceId: DomainEntityId;
+  readonly parameters: readonly ReviewMetadataEntry[];
+}
+
 /** Normalized search parameters the acquisition actually executed. */
 export interface PaperSearchReview {
+  readonly queryId: DomainEntityId;
+  readonly normalizationRuleVersion: string;
   readonly originalQuery: string;
   readonly normalizedQuery: string;
-  readonly keywords: readonly string[];
+  readonly originalKeywords: readonly string[];
+  readonly normalizedKeywords: readonly string[];
   readonly yearFrom: number;
   readonly yearTo: number;
   readonly sourceIds: readonly DomainEntityId[];
+  readonly sourceParameters: readonly PaperSourceParametersReview[];
+  readonly pagination: PaperQueryPaginationReview;
   readonly sortStrategy: string;
-  readonly candidateLimit: number;
   readonly queryHash: ContentHash;
 }
 
@@ -104,11 +127,27 @@ export interface PaperAcquisitionRules {
 /** One page fetched from a source, kept for rate-limit and audit review. */
 export interface PaperSourcePageReview {
   readonly pageNumber: number;
+  readonly offset: number;
+  readonly requestedRows: number;
+  readonly returnedRows: number;
+  readonly totalResults: number | null;
+  readonly attemptCount: number;
   readonly statusCode: number;
   readonly retrievedAt: UtcIsoTimestamp;
-  readonly returnedRows: number;
-  readonly attemptCount: number;
-  readonly rateLimitMetadata: Readonly<Record<string, string | number | null>>;
+  readonly requestHash: ContentHash;
+  readonly responseHash: ContentHash;
+  readonly rateLimitMetadata: readonly ReviewMetadataEntry[];
+}
+
+/**
+ * Cached-run audit context: why the cached snapshot applies to this query
+ * and how the live attempt failed, if one was made. Reported by the
+ * contract; never inferred client-side.
+ */
+export interface PaperCacheAudit {
+  readonly applicability: string;
+  readonly liveFailureClass: PaperSourceFailureClass | null;
+  readonly liveFailureCode: string | null;
 }
 
 /** Per-source execution outcome as reported by the contract. */
@@ -124,8 +163,12 @@ export interface PaperSourceExecutionReview {
   readonly startedAt: UtcIsoTimestamp;
   readonly finishedAt: UtcIsoTimestamp;
   readonly queryHash: ContentHash;
+  readonly requestParametersHash: ContentHash;
+  readonly pagination: PaperQueryPaginationReview;
   readonly sourceSnapshotId: DomainEntityId | null;
   readonly pages: readonly PaperSourcePageReview[];
+  /** Present only when `sourceMode` is `cached`. */
+  readonly cache: PaperCacheAudit | null;
 }
 
 /** Producer execution summary; parameters stay behind their hash. */
@@ -144,6 +187,12 @@ export interface ProducerExecutionSummary {
   readonly errorCode: string | null;
 }
 
+/** Real origin provenance carried by a cached snapshot's request metadata. */
+export interface CachedSnapshotOrigin {
+  readonly originRunId: DomainEntityId;
+  readonly originArtifactVersionId: DomainEntityId;
+}
+
 /** Reproduction-critical snapshot identity without raw request internals. */
 export interface SourceSnapshotSummary {
   readonly id: DomainEntityId;
@@ -155,6 +204,10 @@ export interface SourceSnapshotSummary {
   readonly sourceVersionOrEtag: string | null;
   readonly licenseNote: string;
   readonly cacheVersion: string | null;
+  /** Redacted request metadata entries, deterministically sorted by key. */
+  readonly requestMetadata: readonly ReviewMetadataEntry[];
+  /** Contract-required origin when this snapshot backs a cached execution. */
+  readonly cachedOrigin: CachedSnapshotOrigin | null;
 }
 
 /** Field-level duplicate conflict or uncertain match between candidates. */
@@ -179,6 +232,20 @@ export type PaperCandidateSelection =
   | { readonly kind: "selected"; readonly reason: string | null }
   | { readonly kind: "excluded"; readonly reason: string | null };
 
+/** The raw source record behind a candidate, kept for audit display only. */
+export interface PaperRawRecordReview {
+  readonly sourceId: DomainEntityId;
+  readonly sourceRecordId: string;
+  readonly title: string;
+  readonly authors: readonly string[];
+  readonly year: number | null;
+  readonly doi: string | null;
+  readonly arxivId: string | null;
+  /** Original source URL; may be unsafe and must go through safeExternalUrl. */
+  readonly url: string | null;
+  readonly recordHash: ContentHash;
+}
+
 /** One reviewable candidate in authoritative server ranking order. */
 export interface PaperCandidateReview {
   readonly candidateId: DomainEntityId;
@@ -189,6 +256,9 @@ export interface PaperCandidateReview {
   readonly doi: string | null;
   readonly arxivId: string | null;
   readonly url: string | null;
+  readonly rawRecord: PaperRawRecordReview;
+  /** Candidate-level conflicts, incl. uncertain matches across groups. */
+  readonly conflicts: readonly PaperCandidateConflictReview[];
   readonly relevanceScore: number;
   /** 1-based position in the server ranking order; never recomputed. */
   readonly stableRank: number;
@@ -216,6 +286,8 @@ export interface PaperAcquisitionReview {
   readonly metrics: PaperAcquisitionMetrics;
   readonly rules: PaperAcquisitionRules;
   readonly sourceExecutions: readonly PaperSourceExecutionReview[];
+  /** Persisted snapshot projections backing this version (audit surface). */
+  readonly sourceSnapshots: readonly SourceSnapshotSummary[];
   readonly producerExecution: ProducerExecutionSummary;
   readonly candidates: readonly PaperCandidateReview[];
 }

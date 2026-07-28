@@ -388,20 +388,25 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     created_by_run_id: "run_01JEXAMPLE",
     version_number: 1,
     schema_version: "2.0.0",
-    content: { kind: "paper_collection", paper_ids: ["paper_01", "paper_02"] },
-    content_hash: hash("1"),
-    input_hash: hash("2"),
+    // Thin generic content; the rich collection lives behind the dedicated
+    // paper acquisition port. All identity fields are derived from the
+    // pipeline-generated B-06 read fixture so they can never drift.
+    content: {
+      kind: "paper_collection",
+      paper_ids: [
+        ...(paperCollectionReadFixture.collection.selected_paper_ids ?? []),
+      ],
+    },
+    content_hash: paperCollectionReadFixture.content_hash,
+    input_hash: paperCollectionReadFixture.input_hash,
     source_mode: "fixture",
     producer: { ...producer },
-    source_snapshot_ids: ["snap_paper_ads_01", "snap_paper_arxiv_01"],
-    evidence_ids: [
-      "evd_paper_01",
-      "evd_paper_02",
-      "evd_paper_03",
-      "evd_paper_04",
-    ],
+    source_snapshot_ids: paperCollectionReadFixture.source_snapshots.map(
+      (item) => item.id,
+    ),
+    evidence_ids: paperCollectionReadFixture.evidence.map((item) => item.id),
     supersedes_version_id: null,
-    created_at: T7,
+    created_at: paperCollectionReadFixture.created_at,
   },
   {
     id: "artv_papsum_01",

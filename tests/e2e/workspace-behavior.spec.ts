@@ -158,7 +158,7 @@ async function openPaperReview(page: Page) {
   await expect(
     page.getByRole("heading", { name: "论文获取与候选审查" }),
   ).toBeVisible();
-  await expect(page.locator(".candidate-item")).toHaveCount(4);
+  await expect(page.locator(".candidate-item")).toHaveCount(7);
 }
 
 test("Fixture paper acquisition review: labels, filtering, candidate and Evidence flow", async ({
@@ -168,29 +168,43 @@ test("Fixture paper acquisition review: labels, filtering, candidate and Evidenc
 
   await openPaperReview(page);
 
-  // Demo Replay / Fixture labelling stays explicit.
-  await expect(page.getByText("source: Fixture / Demo Replay")).toBeVisible();
-  await expect(page.getByText(/Demo Replay 确定性演示数据/u)).toBeVisible();
+  // Execution and source modes are displayed separately, never merged.
+  await expect(page.getByText("execution: Demo Replay")).toBeVisible();
+  await expect(
+    page.getByText("source: Fixture", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/Fixture 确定性演示数据/u)).toBeVisible();
+  // Real frozen benchmark identity from the pipeline-generated fixture.
+  await expect(
+    page.getByText(/benchmark: exoplanet_host_star\.paper_reasoning v1\.3\.0/u),
+  ).toBeVisible();
 
   // Filtering hides rows but never renumbers the server ranking.
   await page.getByLabel("入选状态").selectOption("excluded");
-  await expect(page.getByText(/显示 2 \/ 4 项/u)).toBeVisible();
-  await expect(page.locator(".candidate-rank")).toHaveText(["#2", "#4"]);
+  await expect(page.getByText(/显示 4 \/ 7 项/u)).toBeVisible();
+  await expect(page.locator(".candidate-rank")).toHaveText([
+    "#2",
+    "#5",
+    "#6",
+    "#7",
+  ]);
   await page.getByRole("button", { name: "重置筛选" }).click();
-  await expect(page.getByText(/显示 4 \/ 4 项/u)).toBeVisible();
+  await expect(page.getByText(/显示 7 \/ 7 项/u)).toBeVisible();
 
   // Keyboard flow: select the top-ranked candidate, then open its Evidence.
   await page
     .getByRole("button", {
-      name: "TOI-1234 b: Validation of a Hot Jupiter Around TIC-5678",
+      name: "TESS Objects of Interest Catalog from the TESS Prime Mission",
+      exact: true,
     })
-    .first()
     .focus();
   await page.keyboard.press("Enter");
+  // The Provenance Observatory reflects the selected candidate's snapshot.
   await expect(
-    page.getByText("cand_paper_01 / canonical paper_01"),
+    page
+      .locator(".provenance-observatory")
+      .getByText("snap_paper_crossref_01 / crossref"),
   ).toBeVisible();
-  await expect(page.getByText("snap_paper_ads_01 / nasa_ads")).toBeVisible();
 
   await page
     .getByRole("button", { name: "打开 Evidence evd_paper_01" })
@@ -200,9 +214,9 @@ test("Fixture paper acquisition review: labels, filtering, candidate and Evidenc
   // Pinning candidate evidence turns the workspace into an unsaved draft.
   await expect(page.getByText("未保存本地草稿（revision 0）")).toBeVisible();
 
-  // The non-http candidate URL is rendered as plain text, never a link.
+  // The non-http raw record URL is rendered as plain text, never a link.
   await expect(
-    page.getByText("ftp://mirror.example.org/flares.pdf"),
+    page.getByText(/ftp:\/\/mirror\.example\.org\/flares\.pdf/u),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });

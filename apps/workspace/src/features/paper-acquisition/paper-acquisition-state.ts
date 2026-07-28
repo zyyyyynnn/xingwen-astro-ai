@@ -8,7 +8,9 @@
  */
 
 import type {
+  ExecutionMode,
   PaperAcquisitionReview,
+  PaperCandidateConflictReview,
   PaperCandidateReview,
 } from "@xingwen/domain";
 
@@ -18,6 +20,7 @@ export type PaperReviewState =
   | { readonly status: "loading" }
   | { readonly status: "ready"; readonly review: PaperAcquisitionReview }
   | { readonly status: "empty" }
+  | { readonly status: "unavailable" }
   | { readonly status: "rate_limited"; readonly retryAfterMs: number | null }
   | { readonly status: "source_failed" }
   | { readonly status: "network_error" }
@@ -28,12 +31,20 @@ export type PaperReviewState =
  * `name`/shape rather than `instanceof` so the classification stays stable
  * across bundle boundaries; unknown failures degrade to `network_error`
  * because a re-read is the only safe next step.
+ *
+ * A 404 only means "no candidates" when the contract explicitly reports
+ * `PAPER_COLLECTION_EMPTY`; any other 404 (missing or inaccessible
+ * ArtifactVersion) is surfaced as `unavailable`, never as an empty result.
  */
 export function classifyPaperReviewError(error: unknown): PaperReviewState {
   if (!(error instanceof Error)) return { status: "network_error" };
   switch (error.name) {
-    case "NotFoundError":
-      return { status: "empty" };
+    case "NotFoundError": {
+      const code = (error as { code?: unknown }).code;
+      return code === "PAPER_COLLECTION_EMPTY"
+        ? { status: "empty" }
+        : { status: "unavailable" };
+    }
     case "RateLimitedError": {
       const retryAfterMs = (error as { retryAfterMs?: unknown }).retryAfterMs;
       return {
@@ -73,9 +84,29 @@ export function isDuplicateCandidate(candidate: PaperCandidateReview): boolean {
   return candidate.duplicateGroup.candidateIds.length > 1;
 }
 
-/** A candidate whose duplicate group carries conflicts or uncertain matches. */
+/**
+ * Candidate- and group-level conflicts merged for review display, with
+ * duplicates (same field/related/classification) collapsed.
+ */
+export function conflictsOf(
+  candidate: PaperCandidateReview,
+): readonly PaperCandidateConflictReview[] {
+  const merged = [...candidate.conflicts];
+  for (const conflict of candidate.duplicateGroup.conflicts) {
+    const exists = merged.some(
+      (item) =>
+        item.field === conflict.field &&
+        item.classification === conflict.classification &&
+        String(item.relatedCandidateId) === String(conflict.relatedCandidateId),
+    );
+    if (!exists) merged.push(conflict);
+  }
+  return merged;
+}
+
+/** A candidate carrying any conflict or uncertain match. */
 export function hasConflicts(candidate: PaperCandidateReview): boolean {
-  return candidate.duplicateGroup.conflicts.length > 0;
+  return conflictsOf(candidate).length > 0;
 }
 
 /**
@@ -122,9 +153,13 @@ export function filterCandidates(
   });
 }
 
-/** Distinct source ids in review order, for the source filter control. */
+/** Distinct source ids in first-appearance order, for the filter control. */
 export function sourceIdsOf(review: PaperAcquisitionReview): readonly string[] {
-  return review.sourceExecutions.map((execution) => String(execution.sourceId));
+  return [
+    ...new Set(
+      review.sourceExecutions.map((execution) => String(execution.sourceId)),
+    ),
+  ];
 }
 
 /** Failed source executions listed in the partial/failure banners. */
@@ -134,14 +169,29 @@ export function failedSourceExecutions(review: PaperAcquisitionReview) {
   );
 }
 
-/** Human label for the review's source mode; never infers beyond the domain. */
+/**
+ * Human label for the collection's source mode. Never mixed with the run's
+ * execution mode: `source_mode` and `execution_mode` are orthogonal facts.
+ */
 export function sourceModeLabel(review: PaperAcquisitionReview): string {
   switch (review.sourceMode) {
     case "fixture":
-      return "Fixture / Demo Replay";
+      return "Fixture";
     case "cached":
       return "Cached";
     case "live":
       return "Live";
+  }
+}
+
+/** Human label for the owning ResearchRun's execution mode, display-only. */
+export function executionModeLabel(mode: ExecutionMode | null): string {
+  switch (mode) {
+    case "demo_replay":
+      return "Demo Replay";
+    case "live":
+      return "Live";
+    case null:
+      return "未知";
   }
 }

@@ -27,15 +27,18 @@ import type {
 } from "@xingwen/contracts";
 import { parseV2Dto } from "@xingwen/contracts";
 import type {
+  CachedSnapshotOrigin,
   ContentHash,
   DomainEntityId,
   PaperAcquisitionReview,
   PaperCandidateReview,
   PaperCandidateSelection,
   PaperDuplicateReview,
+  PaperQueryPaginationReview,
   PaperSearchReview,
   PaperSourceExecutionReview,
   ProducerExecutionSummary,
+  ReviewMetadataEntry,
   SourceMode,
   SourceSnapshotSummary,
   UtcIsoTimestamp,
@@ -58,9 +61,59 @@ function mapId(value: string): DomainEntityId {
   return asEntityId(value);
 }
 
+/** Serialise an opaque contract value for review display, never [object Object]. */
+function displayValue(value: unknown): string {
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+/** Deterministically sorted key/value entries for dict-shaped contract data. */
+function metadataEntries(
+  record: Readonly<Record<string, unknown>> | null | undefined,
+): ReviewMetadataEntry[] {
+  return Object.entries(record ?? {})
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, value]) => ({ key, value: displayValue(value) }));
+}
+
+/** Contract-defined origin keys carried by cached snapshots (B-06 validator). */
+function cachedOriginOf(
+  metadata: Readonly<Record<string, unknown>>,
+): CachedSnapshotOrigin | null {
+  const run = metadata["origin_run_id"];
+  const version = metadata["origin_artifact_version_id"];
+  if (
+    typeof run === "string" &&
+    run.length > 0 &&
+    typeof version === "string" &&
+    version.length > 0
+  ) {
+    return {
+      originRunId: mapId(run),
+      originArtifactVersionId: mapId(version),
+    };
+  }
+  return null;
+}
+
+function mapPagination(
+  dto: PaperCollectionDto["query"]["pagination"],
+): PaperQueryPaginationReview {
+  return {
+    pageSize: dto.page_size,
+    maxPages: dto.max_pages,
+    candidateLimit: dto.candidate_limit,
+  };
+}
+
 function mapSnapshotSummary(
   dto: SourceSnapshotDetailDto,
 ): SourceSnapshotSummary {
+  const requestMetadata = dto.request_metadata ?? {};
   return {
     id: mapId(dto.id),
     sourceId: mapId(dto.source_id),
@@ -71,6 +124,8 @@ function mapSnapshotSummary(
     sourceVersionOrEtag: dto.source_version_or_etag ?? null,
     licenseNote: dto.license_note,
     cacheVersion: dto.cache_version ?? null,
+    requestMetadata: metadataEntries(requestMetadata),
+    cachedOrigin: cachedOriginOf(requestMetadata),
   };
 }
 
@@ -92,27 +147,41 @@ function mapProducerExecutionSummary(
   };
 }
 
+function mapConflict(
+  conflict: NonNullable<PaperDuplicateGroupDto["conflicts"]>[number],
+) {
+  return {
+    classification: conflict.classification,
+    field: conflict.field,
+    detail: conflict.detail,
+    relatedCandidateId: mapId(conflict.related_candidate_id),
+  };
+}
+
 function mapDuplicateGroup(dto: PaperDuplicateGroupDto): PaperDuplicateReview {
   return {
     groupId: mapId(dto.duplicate_group_id),
     canonicalPaperId: mapId(dto.canonical_paper_id),
     candidateIds: dto.candidate_ids.map(mapId),
     matchBasis: [...dto.match_basis],
-    conflicts: (dto.conflicts ?? []).map((conflict) => ({
-      classification: conflict.classification,
-      field: conflict.field,
-      detail: conflict.detail,
-      relatedCandidateId: mapId(conflict.related_candidate_id),
-    })),
+    conflicts: (dto.conflicts ?? []).map(mapConflict),
   };
 }
 
 function mapSourceExecution(
   dto: PaperSourceExecutionDto,
 ): PaperSourceExecutionReview {
+  const sourceMode = dto.source_mode as SourceMode;
+  if (sourceMode === "cached" && !dto.cache_applicability) {
+    // Mirrors the Pydantic invariant; a cached execution without its audit
+    // context must never render as a normal cache.
+    throw contractViolation(
+      `cached source execution ${dto.source_id} lacks cache_applicability`,
+    );
+  }
   return {
     sourceId: mapId(dto.source_id),
-    sourceMode: dto.source_mode as SourceMode,
+    sourceMode,
     dataLevel: dto.data_level,
     status: dto.status,
     failureClass: dto.failure_class ?? null,
@@ -122,31 +191,57 @@ function mapSourceExecution(
     startedAt: dto.started_at as UtcIsoTimestamp,
     finishedAt: dto.finished_at as UtcIsoTimestamp,
     queryHash: dto.query_hash as ContentHash,
+    requestParametersHash: dto.request_parameters_hash as ContentHash,
+    pagination: mapPagination(dto.pagination),
     sourceSnapshotId: dto.source_snapshot_id
       ? mapId(dto.source_snapshot_id)
       : null,
     pages: (dto.pages ?? []).map((page) => ({
       pageNumber: page.page_number,
+      offset: page.offset,
+      requestedRows: page.requested_rows,
+      returnedRows: page.returned_rows,
+      totalResults: page.total_results ?? null,
+      attemptCount: page.attempt_count,
       statusCode: page.status_code,
       retrievedAt: page.retrieved_at as UtcIsoTimestamp,
-      returnedRows: page.returned_rows,
-      attemptCount: page.attempt_count,
-      rateLimitMetadata: { ...(page.rate_limit_metadata ?? {}) },
+      requestHash: page.request_hash as ContentHash,
+      responseHash: page.response_hash as ContentHash,
+      rateLimitMetadata: metadataEntries(page.rate_limit_metadata),
     })),
+    cache:
+      sourceMode === "cached"
+        ? {
+            applicability: dto.cache_applicability ?? "",
+            liveFailureClass: dto.live_failure_class ?? null,
+            liveFailureCode: dto.live_failure_code ?? null,
+          }
+        : null,
   };
 }
 
 function mapQuery(collection: PaperCollectionDto): PaperSearchReview {
   const query = collection.query;
   return {
+    queryId: mapId(query.query_id),
+    normalizationRuleVersion: query.normalization_rule_version,
     originalQuery: query.original_query_string,
     normalizedQuery: query.normalized_query_string,
-    keywords: [...query.normalized_keywords],
+    originalKeywords: [...query.original_keywords],
+    normalizedKeywords: [...query.normalized_keywords],
     yearFrom: query.year_from,
     yearTo: query.year_to,
     sourceIds: query.source_ids.map(mapId),
+    sourceParameters: Object.entries(query.source_parameters ?? {})
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([sourceId, parameters]) => ({
+        sourceId: mapId(sourceId),
+        parameters: metadataEntries(
+          parameters as Readonly<Record<string, unknown>>,
+        ),
+      })),
+    pagination: mapPagination(query.pagination),
     sortStrategy: query.sort_strategy,
-    candidateLimit: query.pagination.candidate_limit,
     queryHash: query.query_hash as ContentHash,
   };
 }
@@ -175,6 +270,18 @@ function mapCandidate(
     doi: candidate.doi ?? null,
     arxivId: candidate.arxiv_id ?? null,
     url: candidate.url ?? null,
+    rawRecord: {
+      sourceId: mapId(candidate.raw.source_id),
+      sourceRecordId: candidate.raw.source_record_id,
+      title: candidate.raw.title,
+      authors: [...(candidate.raw.authors ?? [])],
+      year: candidate.raw.year ?? null,
+      doi: candidate.raw.doi ?? null,
+      arxivId: candidate.raw.arxiv_id ?? null,
+      url: candidate.raw.url ?? null,
+      recordHash: candidate.raw.record_hash as ContentHash,
+    },
+    conflicts: (candidate.conflicts ?? []).map(mapConflict),
     relevanceScore: candidate.relevance_score,
     stableRank,
     selection: mapSelection(
@@ -228,6 +335,21 @@ export function assemblePaperAcquisitionReview(
       );
     }
   });
+
+  const sourceExecutions = collection.source_executions.map(mapSourceExecution);
+  const persistedSnapshots = (read.source_snapshots ?? []).map(
+    mapSnapshotSummary,
+  );
+  // A cached execution without any origin-bearing persisted snapshot cannot
+  // be audited and must fail loudly (mirrors the Pydantic cached invariant).
+  if (
+    sourceExecutions.some((execution) => execution.sourceMode === "cached") &&
+    !persistedSnapshots.some((snapshot) => snapshot.cachedOrigin !== null)
+  ) {
+    throw contractViolation(
+      "cached source execution lacks origin Run/ArtifactVersion provenance",
+    );
+  }
 
   return {
     artifactVersionId: mapId(read.artifact_version_id),
@@ -283,7 +405,8 @@ export function assemblePaperAcquisitionReview(
       retryPolicyVersion: collection.rules.retry_policy_version,
       sourcePolicyVersion: collection.rules.source_policy_version,
     },
-    sourceExecutions: collection.source_executions.map(mapSourceExecution),
+    sourceExecutions,
+    sourceSnapshots: persistedSnapshots,
     producerExecution: mapProducerExecutionSummary(read.producer_execution),
     candidates: candidateReads.map((item, index) =>
       mapCandidate(item, index + 1),
@@ -323,6 +446,9 @@ export function createPaperAcquisitionRepository(
 
       const candidateReads: PaperCollectionCandidateReadDto[] = [];
       const seenCursors = new Set<string>();
+      // The collection read is the authoritative declared total; a server
+      // producing endless fresh cursors must not drive an unbounded loop.
+      const declaredCount = (read.collection.candidates ?? []).length;
       let cursor: string | null = null;
       do {
         const params = new URLSearchParams({
@@ -340,6 +466,12 @@ export function createPaperAcquisitionRepository(
             ),
           );
         }
+        if (candidateReads.length > declaredCount) {
+          throw contractViolation(
+            `candidate pages exceeded the declared total of ` +
+              `${String(declaredCount)} candidates`,
+          );
+        }
         const next: string | null = envelope.page?.has_more
           ? (envelope.page?.next_cursor ?? null)
           : null;
@@ -347,6 +479,12 @@ export function createPaperAcquisitionRepository(
           if (envelope.data.length === 0) {
             throw contractViolation(
               "candidate page reported has_more without returning items",
+            );
+          }
+          if (candidateReads.length >= declaredCount) {
+            throw contractViolation(
+              "candidate pagination reported has_more after the declared " +
+                "total was reached",
             );
           }
           if (next === cursor || seenCursors.has(next)) {

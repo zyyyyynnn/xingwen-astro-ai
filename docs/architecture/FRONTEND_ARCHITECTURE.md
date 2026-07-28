@@ -145,16 +145,16 @@ A-01 不实现完整首页叙事、WebGL、字体资产、社交预览或 A-02 �
 
 ## 7. Shared Package 当前边界
 
-| Package          | 当前内容                                                                                                                                                                               | 后续 Issue                              |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| `design-tokens`  | 基础浅色语义变量、字体 fallback、CSS 与 TS 入口                                                                                                                                        | A-02 冻结完整颜色、字体、间距和动效系统 |
-| `ui`             | 静态 `BrandMark` 与 UI 基元                                                                                                                                                            | A-02 建立 primitive 与复合组件          |
-| `domain`         | A-14 前端 Domain Model（Project、Contract、Run、ArtifactVersion、Evidence、ProvenanceState）与 A-05 `PaperAcquisitionReview`（含 `safeExternalUrl` 与 `ArtifactVersionMetadata` 收窄） | A-04、A-06～A-08 各科研工作区消费       |
-| `contracts`      | 生成的 v2 DTO、JSON Schema 与 ajv 运行时校验（含 B-06 PaperCollection 读模型）                                                                                                         | 随后端 Pydantic Contract 同步维护       |
-| `data-access`    | 收窄 Repository Port、版本化 Fixture、`/api/v2` HTTP Adapter 与 A-05 `PaperAcquisitionRepository`（内部分页、完整性防护与共享装配）                                                    | A-04、A-06～A-10 按既有 Port 消费       |
-| `workspace-core` | Guided Tour FSM 与 WorkspaceSnapshot Controller                                                                                                                                        | A-04～A-10 的完整科研工作区状态         |
-| `visual-engine`  | A-02 公开边界类型                                                                                                                                                                      | A-02 实现生命周期与降级                 |
-| `testing`        | 共享入口地址                                                                                                                                                                           | 各前端 Issue 按实际测试需要扩展         |
+| Package          | 当前内容                                                                                                                                                                                                                                           | 后续 Issue                              |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `design-tokens`  | 基础浅色语义变量、字体 fallback、CSS 与 TS 入口                                                                                                                                                                                                    | A-02 冻结完整颜色、字体、间距和动效系统 |
+| `ui`             | 静态 `BrandMark` 与 UI 基元                                                                                                                                                                                                                        | A-02 建立 primitive 与复合组件          |
+| `domain`         | A-14 前端 Domain Model（Project、Contract、Run、ArtifactVersion、Evidence、ProvenanceState）与 A-05 `PaperAcquisitionReview`（含 `safeExternalUrl` 与 `ArtifactVersionMetadata` 收窄）                                                             | A-04、A-06～A-08 各科研工作区消费       |
+| `contracts`      | 生成的 v2 DTO、JSON Schema 与 ajv 运行时校验（含 B-06 PaperCollection 读模型）                                                                                                                                                                     | 随后端 Pydantic Contract 同步维护       |
+| `data-access`    | 收窄 Repository Port、版本化 Fixture、`/api/v2` HTTP Adapter 与 A-05 `PaperAcquisitionRepository`（内部分页、完整性防护含声明总量上限、共享装配）；论文 Fixture 由真实 D-02 Pipeline 生成为 JSON 并经 Pydantic 门禁验证，TypeScript 只消费生成结果 | A-04、A-06～A-10 按既有 Port 消费       |
+| `workspace-core` | Guided Tour FSM 与 WorkspaceSnapshot Controller                                                                                                                                                                                                    | A-04～A-10 的完整科研工作区状态         |
+| `visual-engine`  | A-02 公开边界类型                                                                                                                                                                                                                                  | A-02 实现生命周期与降级                 |
+| `testing`        | 共享入口地址                                                                                                                                                                                                                                       | 各前端 Issue 按实际测试需要扩展         |
 
 基础 Token 只为 A-01 页面提供可读浅色 fallback，不构成完整 A-02 设计系统。
 
@@ -189,7 +189,7 @@ pnpm 11 配置位于 `pnpm-workspace.yaml`：
 
 ## 9. 测试边界
 
-- Unit：Vitest + Testing Library 验证共享深链接、生成 Contract 校验、Fixture/HTTP 一致性、错误映射、Workspace Controller，A-16 的 Tour、冲突、Artifact/Evidence、Share 与匿名状态，以及 A-05 的分页装配、完整性防护、错误分类、稳定排名筛选与候选/Evidence 选择。
+- Unit：Vitest + Testing Library 验证共享深链接、生成 Contract 校验、Fixture/HTTP 一致性、错误映射、Workspace Controller，A-16 的 Tour、冲突、Artifact/Evidence、Share 与匿名状态，以及 A-05 的分页装配、完整性防护（含 cursor 声明总量上限）、错误分类（含非空 404）、cached 审计、稳定排名筛选、旧 review 清理与候选/Evidence 选择；A-05 React HTTP 路径注入真实 `createHttpRepositories`（HTTP client/契约解析/cursor 分页真实执行，服务端为已验证 Fixture 的副本，不等于真实 FastAPI Runtime）。A-05 Fixture 本身由 `apps/api/tests/test_paper_acquisition_fixture.py` 的 Pydantic 语义门禁（正向 + 变异负向 + 确定性重建防漂移）在后端 CI 路径验证；前端 AJV 只覆盖结构层，不等同于 Pydantic 语义通过。
 - E2E：Playwright 验证 Site、无 JavaScript Site、Site 404、Workspace 四个入口、A-16 Fixture Tour / Workspace / Share、A-05 论文候选审查主流程与视口（1440/1280/390/200% 字体）、键盘、375px、200% 字体、Not Found 与页面控制台错误。
 - Typecheck：两个 App 与全部共享 Package 分别执行。
 - Build：Site 与 Workspace 分别产出 `dist`；共享 Package 产出 JS 与声明文件。
@@ -226,7 +226,7 @@ CI 不允许 App 私有 lockfile、第二套包管理器状态或跨包深层导
 ## 12. Current 与 Pending 边界
 
 - A-03 / X-01：Fixture/HTTP Domain 一致性、真实 Browser/Compose、迁移、冲突、刷新恢复和匿名 Share 已验证；最终 Issue/Milestone 状态以 GitHub 为准。
-- A-05：论文获取与候选审查工作区 Current：`PaperAcquisitionRepository` 深 Port、`PaperAcquisitionReview` Domain、版本化 B-06 Fixture、`/workspace` 中央画布集成与 Fixture E2E；真实 HTTP 数据取决于后端 B-06/D-02 运行链路。
+- A-05：论文获取与候选审查工作区 Current（含 #136 合并后纠正）：`PaperAcquisitionRepository` 深 Port、完整参数/分页/hash 审查域模型、cached 审计、execution/source 正交标识、真实 Pipeline 生成并经 Pydantic 门禁验证的 B-06 Fixture、`/workspace` 中央画布集成与 Fixture E2E；真实 HTTP 数据取决于后端 B-06/D-02 运行链路。
 
 - A-02：完整 bluegray Design Token、primitive、Brand Site 极简单英雄首页、静态 Workspace Shell、Visual Engine（ASCII/Dither Hero）、Poster 与 Reduced Motion。
 - A-04、A-06～A-10：其余科研产物工作区、反馈、响应式与发布收口。

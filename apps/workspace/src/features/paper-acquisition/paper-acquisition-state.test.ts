@@ -2,9 +2,10 @@
  * Pure state tests for the paper acquisition review feature.
  *
  * Stable ranking must never change under filtering; selection reasons must
- * not be conflated; duplicate/conflict filters must match the duplicate
- * groups; error classification must be exhaustive; unsafe external URLs must
- * never become links.
+ * not be conflated; duplicate/conflict filters must match the real pipeline
+ * output; error classification must be exhaustive (incl. the non-empty 404
+ * path); execution/source mode labels are orthogonal; unsafe external URLs
+ * must never become links.
  */
 
 import { describe, expect, it } from "vitest";
@@ -24,10 +25,12 @@ import type { PaperAcquisitionReview } from "@xingwen/domain";
 import {
   classifyPaperReviewError,
   EMPTY_CANDIDATE_FILTER,
+  executionModeLabel,
   filterCandidates,
   hasConflicts,
   isDuplicateCandidate,
   sourceIdsOf,
+  sourceModeLabel,
 } from "./paper-acquisition-state";
 
 const VERSION_ID = "artv_papcol_01" as never;
@@ -44,10 +47,19 @@ describe("filterCandidates — stable ranking", () => {
       ...EMPTY_CANDIDATE_FILTER,
       selection: "excluded",
     });
-    expect(excludedOnly.map((item) => item.stableRank)).toEqual([2, 4]);
+    // Ranks come from the review itself so the assertion cannot silently
+    // renumber: the excluded subset must keep its server ranks verbatim.
+    const expectedExcludedRanks = review.candidates
+      .filter((item) => item.selection.kind === "excluded")
+      .map((item) => item.stableRank);
+    expect(excludedOnly.map((item) => item.stableRank)).toEqual(
+      expectedExcludedRanks,
+    );
+    expect(expectedExcludedRanks).toEqual([2, 5, 6, 7]);
+
     const textOnly = filterCandidates(review.candidates, {
       ...EMPTY_CANDIDATE_FILTER,
-      text: "host-star parameters",
+      text: "revised tess input catalog",
     });
     expect(textOnly.map((item) => item.stableRank)).toEqual([3]);
   });
@@ -68,28 +80,39 @@ describe("filterCandidates — selection, source, duplicates, conflicts", () => 
       ...EMPTY_CANDIDATE_FILTER,
       selection: "selected",
     });
-    expect(selected).toHaveLength(2);
+    expect(selected).toHaveLength(3);
     for (const candidate of selected) {
       expect(candidate.selection.kind).toBe("selected");
+      expect(candidate.selection.reason).toBe(
+        "highest ranked representative within selection limit",
+      );
     }
     const excluded = filterCandidates(review.candidates, {
       ...EMPTY_CANDIDATE_FILTER,
       selection: "excluded",
     });
-    expect(excluded.map((item) => item.selection.reason)).toEqual([
-      "Duplicate of canonical paper paper_01 (DOI match)",
-      "Relevance 0.31 is below the selection threshold",
-    ]);
+    expect(excluded).toHaveLength(4);
+    for (const candidate of excluded) {
+      expect(candidate.selection.kind).toBe("excluded");
+      expect(candidate.selection.reason).toMatch(
+        /^duplicate of higher-ranked candidate |^selection limit reached/u,
+      );
+    }
   });
 
-  it("filters by source id", async () => {
+  it("filters by source id with distinct first-appearance ids", async () => {
     const review = await loadReview();
-    expect(sourceIdsOf(review)).toEqual(["nasa_ads", "arxiv"]);
-    const arxivOnly = filterCandidates(review.candidates, {
+    expect(sourceIdsOf(review)).toEqual(["crossref"]);
+    const crossrefOnly = filterCandidates(review.candidates, {
+      ...EMPTY_CANDIDATE_FILTER,
+      sourceId: "crossref",
+    });
+    expect(crossrefOnly).toHaveLength(7);
+    const none = filterCandidates(review.candidates, {
       ...EMPTY_CANDIDATE_FILTER,
       sourceId: "arxiv",
     });
-    expect(arxivOnly.map((item) => item.stableRank)).toEqual([2, 3]);
+    expect(none).toHaveLength(0);
   });
 
   it("filters duplicate groups and conflicts correctly", async () => {
@@ -98,6 +121,7 @@ describe("filterCandidates — selection, source, duplicates, conflicts", () => 
       ...EMPTY_CANDIDATE_FILTER,
       grouping: "duplicates",
     });
+    // The same-DOI pair is the only multi-member duplicate group.
     expect(duplicates.map((item) => item.stableRank)).toEqual([1, 2]);
     for (const candidate of duplicates) {
       expect(isDuplicateCandidate(candidate)).toBe(true);
@@ -106,7 +130,8 @@ describe("filterCandidates — selection, source, duplicates, conflicts", () => 
       ...EMPTY_CANDIDATE_FILTER,
       grouping: "conflicts",
     });
-    expect(conflicts.map((item) => item.stableRank)).toEqual([1, 2]);
+    // Title conflict inside the DOI pair + the uncertain title/year match.
+    expect(conflicts.map((item) => item.stableRank)).toEqual([1, 2, 5, 6]);
     for (const candidate of conflicts) {
       expect(hasConflicts(candidate)).toBe(true);
     }
@@ -120,6 +145,12 @@ describe("classifyPaperReviewError — exhaustive branches", () => {
         new NotFoundError("empty", "PAPER_COLLECTION_EMPTY"),
       ),
     ).toEqual({ status: "empty" });
+    // A non-empty 404 (missing/inaccessible version) is never an empty state.
+    expect(
+      classifyPaperReviewError(
+        new NotFoundError("missing", "RESOURCE_NOT_FOUND"),
+      ),
+    ).toEqual({ status: "unavailable" });
     expect(
       classifyPaperReviewError(new RateLimitedError("slow down", 30_000)),
     ).toEqual({ status: "rate_limited", retryAfterMs: 30_000 });
@@ -143,6 +174,19 @@ describe("classifyPaperReviewError — exhaustive branches", () => {
     expect(classifyPaperReviewError("not-an-error")).toEqual({
       status: "network_error",
     });
+  });
+});
+
+describe("execution/source mode labels stay orthogonal", () => {
+  it("labels execution mode independently of source mode", async () => {
+    const review = await loadReview();
+    expect(sourceModeLabel(review)).toBe("Fixture");
+    expect(executionModeLabel("demo_replay")).toBe("Demo Replay");
+    expect(executionModeLabel("live")).toBe("Live");
+    expect(executionModeLabel(null)).toBe("未知");
+    // No label ever contains the other axis.
+    expect(sourceModeLabel(review)).not.toContain("Demo Replay");
+    expect(executionModeLabel("demo_replay")).not.toContain("Fixture");
   });
 });
 

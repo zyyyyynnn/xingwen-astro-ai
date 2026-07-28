@@ -132,6 +132,11 @@ class PaperSourceExecution(BaseModel):
     retry_count: int = Field(ge=0)
     failure_class: UpstreamFailureClass | None = None
     failure_code: str | None = None
+    # Cached-run audit context (B-06 read boundary): why this cached snapshot
+    # applies to the current query, and how the live attempt failed, if any.
+    cache_applicability: NonEmptyString | None = None
+    live_failure_class: UpstreamFailureClass | None = None
+    live_failure_code: str | None = None
 
     @model_validator(mode="after")
     def validate_status_details(self) -> Self:
@@ -156,6 +161,17 @@ class PaperSourceExecution(BaseModel):
             PaperDataLevel.manual_review,
         }:
             raise ValueError("fixture source_mode requires a non-live test/review data level")
+        if self.source_mode is SourceMode.cached:
+            if self.cache_applicability is None:
+                raise ValueError("cached source execution requires cache_applicability")
+            if (self.live_failure_class is None) != (self.live_failure_code is None):
+                raise ValueError("live failure class and code must be provided together")
+        elif (
+            self.cache_applicability is not None
+            or self.live_failure_class is not None
+            or self.live_failure_code is not None
+        ):
+            raise ValueError("cache audit fields are only allowed for cached source_mode")
         return self
 
 

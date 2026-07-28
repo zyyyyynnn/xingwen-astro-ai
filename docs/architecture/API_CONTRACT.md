@@ -1,9 +1,9 @@
 # API Contract
 
-| 元数据         | 值                                                         |
-| -------------- | ---------------------------------------------------------- |
-| Status         | Accepted                                                   |
-| Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring     |
+| 元数据         | 值                                                                                                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status         | Accepted                                                                                                                                                                |
+| Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring                                                                                                                  |
 | Implementation | `/api/v1` Current；`/api/v2` M1 核心 Runtime、Session 安全、Project/Contract/Run/Event、Artifact/Evidence/SourceSnapshot、Workspace/Share 与 A-03/X-01 集成 Implemented |
 
 本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership 已实现；M1 Runtime 已挂载 Project、ContractDraft、Contract、Run、RunEvent、Artifact、ArtifactVersion、Evidence、SourceSnapshot、WorkspaceSnapshot 与 ShareSnapshot。Compose 配置 `DATABASE_URL` 并强制启用 `PERSISTENT_WORKFLOW_ENABLED`，资源归属、Research 写路径与公开分享投影读取 PostgreSQL 权威事实；真实 HTTP Browser 已验证 A-03/X-01 主链路。Snapshot/Share 状态当前仍为进程生命周期存储。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 M2 完成。
@@ -36,9 +36,9 @@ flowchart LR
 
 ## 2. 版本状态
 
-| 版本      | 状态              | 说明                                                          |
-| --------- | ----------------- | ------------------------------------------------------------- |
-| `/api/v1` | Current           | 当前后端 Task Contract                                        |
+| 版本      | 状态                        | 说明                                                                                                                                                                                                                              |
+| --------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/v1` | Current                     | 当前后端 Task Contract                                                                                                                                                                                                            |
 | `/api/v2` | M1 Core Runtime Implemented | 27 个冻结 operation 已挂载（#131 公开 Authoring Chain 新增 `listResearchProjects`、`createResearchProject`、`createResearchContractDraft`）；Compose 启用持久 Research 写路径，A-03/X-01 真实集成已验证；M2 科研 Pipeline Pending |
 
 版本推进规则：
@@ -316,14 +316,14 @@ Run Snapshot 至少返回：
 
 ## 11. Artifact 与统一 Envelope
 
-| Method | Path                                                   | 说明                          |
-| ------ | ------------------------------------------------------ | ----------------------------- |
-| `GET`  | `/api/v2/runs/{run_id}/artifacts?kind=&cursor=&limit=` | Run 的 Artifact 摘要          |
-| `GET`  | `/api/v2/artifacts/{artifact_id}`                      | Artifact 身份和版本列表摘要   |
-| `GET`  | `/api/v2/artifact-versions/{version_id}`               | 统一 ArtifactVersion Envelope |
-| `GET`  | `/api/v2/evidence/{evidence_id}`                       | Evidence 与 SourceSnapshot    |
-| `GET`  | `/api/v2/source-snapshots/{snapshot_id}`               | 当前 Project 的脱敏来源快照   |
-| `GET`  | `/api/v2/artifact-versions/{version_id}/paper-collection` | 校验后的 PaperCollection 与完整溯源 |
+| Method | Path                                                                     | 说明                                    |
+| ------ | ------------------------------------------------------------------------ | --------------------------------------- |
+| `GET`  | `/api/v2/runs/{run_id}/artifacts?kind=&cursor=&limit=`                   | Run 的 Artifact 摘要                    |
+| `GET`  | `/api/v2/artifacts/{artifact_id}`                                        | Artifact 身份和版本列表摘要             |
+| `GET`  | `/api/v2/artifact-versions/{version_id}`                                 | 统一 ArtifactVersion Envelope           |
+| `GET`  | `/api/v2/evidence/{evidence_id}`                                         | Evidence 与 SourceSnapshot              |
+| `GET`  | `/api/v2/source-snapshots/{snapshot_id}`                                 | 当前 Project 的脱敏来源快照             |
+| `GET`  | `/api/v2/artifact-versions/{version_id}/paper-collection`                | 校验后的 PaperCollection 与完整溯源     |
 | `GET`  | `/api/v2/artifact-versions/{version_id}/paper-candidates?cursor=&limit=` | 稳定排序的候选、去重组、来源与 Evidence |
 
 ArtifactVersion Envelope：
@@ -367,7 +367,9 @@ Artifact 列表 cursor 同时绑定 `run_id` 和 `kind` 过滤条件；不得跨
 
 PaperCollection 领域读取只接受 `kind=paper_collection` 的不可变版本，并重新校验 D-02 Pydantic content、input/output hash、producer output hash、`source_mode`、SourceSnapshot 集合和候选 Evidence 绑定。ArtifactVersion `content_hash` 按 #78 对完整持久化 JSON 计算；D-02 `output_hash` 按科研稳定规则排除 wall-clock 字段，两者分别校验且不得混用。Pipeline snapshot identifier 通过 source/type/query hash/content hash/retrieved time 的稳定指纹一一映射到持久化 SourceSnapshot UUID，不改写已冻结 content。它不执行检索、canonicalization、去重或重新排序。候选 cursor 绑定 ArtifactVersion，并包含既有 `ranking_key`、`canonical_paper_id` 与 `candidate_id`；跨版本复用返回 `400 INVALID_CURSOR`，`limit` 最大为 100。
 
-领域读取的失败语义固定为：`PAPER_SOURCE_RATE_LIMITED`（429）、`PAPER_SOURCE_FAILED`（502）、`PAPER_COLLECTION_EMPTY`（404）、`PAPER_COLLECTION_SCHEMA_INVALID`（422）以及通用 ownership / provenance Problem Details。响应不返回来源凭据、受限全文或未净化 HTML，并统一使用 `Cache-Control: no-store`。
+领域读取的失败语义固定为：`PAPER_SOURCE_RATE_LIMITED`（429）、`PAPER_SOURCE_FAILED`（502）、`PAPER_COLLECTION_EMPTY`（404）、`PAPER_COLLECTION_SCHEMA_INVALID`（422）以及通用 ownership / provenance Problem Details。响应不返回来源凭据、受限全文或未净化 HTML，并统一使用 `Cache-Control: no-store`。消费端只有在 404 code 为 `PAPER_COLLECTION_EMPTY` 时才可展示“无候选”空态；其他 404 code 必须作为版本不存在/不可访问处理。
+
+cached 来源执行的审计字段（`cache_applicability`、`live_failure_class`/`live_failure_code`）与快照 `request_metadata` 中的 `origin_run_id`/`origin_artifact_version_id` 随 `PaperCollectionRead` 一起返回，由 Pydantic 强制；前端对缺失审计上下文的 cached 数据必须拒绝为契约违规，不得静默展示为正常缓存。
 
 上例的 `source_mode=live` 表示实际来源；`supersedes_version_id` 非空表示它是修订版本。界面可组合显示 `LIVE · REVISED`，但不得把 `revised` 写回来源枚举。
 

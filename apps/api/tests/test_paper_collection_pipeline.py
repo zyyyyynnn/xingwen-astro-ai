@@ -680,6 +680,12 @@ def test_source_mode_and_data_level_cannot_be_misrepresented() -> None:
     cached_payload = collection.model_dump(mode="json")
     cached_payload["source_executions"][0]["source_mode"] = "cached"
     cached_payload["source_executions"][0]["data_level"] = "real_run_cache"
+    with pytest.raises(ValidationError, match="cache_applicability"):
+        PaperCollection.model_validate(cached_payload)
+
+    cached_payload["source_executions"][0]["cache_applicability"] = (
+        "query_hash matches the cached acquisition run"
+    )
     with pytest.raises(ValidationError, match="real origin Run and ArtifactVersion"):
         PaperCollection.model_validate(cached_payload)
 

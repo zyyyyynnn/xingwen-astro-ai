@@ -6,6 +6,10 @@
  * never sees URLs, DTOs, cursors or envelopes. Continuous divided panels
  * (no card walls), light system only, and the server ranking order is never
  * recomputed — filters only hide rows while `stableRank` stays visible.
+ *
+ * `execution_mode` (Demo Replay | Live) and `source_mode`
+ * (Fixture | Live | Cached) are orthogonal facts and are always displayed
+ * separately; neither is ever inferred from the other.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -13,13 +17,18 @@ import type { PaperAcquisitionRepository } from "@xingwen/data-access";
 import type {
   DomainEntityId,
   Evidence,
+  ExecutionMode,
+  PaperAcquisitionReview,
   PaperCandidateReview,
+  PaperSourceExecutionReview,
+  ReviewMetadataEntry,
 } from "@xingwen/domain";
 
 import { CandidateReviewList } from "./candidate-review-list";
 import {
   classifyPaperReviewError,
   EMPTY_CANDIDATE_FILTER,
+  executionModeLabel,
   failedSourceExecutions,
   filterCandidates,
   sourceIdsOf,
@@ -34,12 +43,180 @@ export interface PaperAcquisitionWorkspaceProps {
   readonly artifactVersionId: DomainEntityId;
   readonly repository: PaperAcquisitionRepository;
   /** The owning ResearchRun's execution mode; display-only. */
-  readonly executionMode: string | null;
+  readonly executionMode: ExecutionMode | null;
   readonly ready: boolean;
   readonly disabled: boolean;
   readonly selectedCandidateId: string | null;
   readonly onSelectCandidate: (candidate: PaperCandidateReview) => void;
   readonly onSelectEvidence: (evidence: Evidence) => void;
+}
+
+function MetadataEntries({
+  entries,
+}: {
+  readonly entries: readonly ReviewMetadataEntry[];
+}) {
+  if (entries.length === 0) {
+    return <span className="candidate-meta-item">（无）</span>;
+  }
+  return (
+    <>
+      {entries.map((entry) => (
+        <span key={entry.key} className="candidate-meta-item">
+          {entry.key}: {entry.value}
+        </span>
+      ))}
+    </>
+  );
+}
+
+function SourceExecutionAudit({
+  execution,
+}: {
+  readonly execution: PaperSourceExecutionReview;
+}) {
+  return (
+    <details className="paper-execution-details">
+      <summary>
+        {String(execution.sourceId)}・
+        {execution.status === "completed" ? "完成" : "失败"}
+        {execution.failureClass !== null && `（${execution.failureClass}）`}・
+        {execution.candidateCount} 候选・source {sourceModeLabelOf(execution)}
+      </summary>
+      <dl className="paper-dl">
+        <dt>data level</dt>
+        <dd>{execution.dataLevel}</dd>
+        <dt>retry count</dt>
+        <dd>{execution.retryCount}</dd>
+        <dt>query hash</dt>
+        <dd>{String(execution.queryHash)}</dd>
+        <dt>request parameters hash</dt>
+        <dd>{String(execution.requestParametersHash)}</dd>
+        <dt>pagination</dt>
+        <dd>
+          page_size {execution.pagination.pageSize} / max_pages{" "}
+          {execution.pagination.maxPages} / candidate_limit{" "}
+          {execution.pagination.candidateLimit}
+        </dd>
+        <dt>snapshot</dt>
+        <dd>
+          {execution.sourceSnapshotId !== null
+            ? String(execution.sourceSnapshotId)
+            : "无"}
+        </dd>
+        <dt>时间</dt>
+        <dd>
+          {execution.startedAt} → {execution.finishedAt}
+        </dd>
+      </dl>
+      {execution.pages.length > 0 && (
+        <table className="paper-page-table">
+          <caption>来源分页请求</caption>
+          <thead>
+            <tr>
+              <th scope="col">page</th>
+              <th scope="col">offset</th>
+              <th scope="col">req/ret rows</th>
+              <th scope="col">total</th>
+              <th scope="col">attempt</th>
+              <th scope="col">status</th>
+              <th scope="col">retrieved</th>
+              <th scope="col">request hash</th>
+              <th scope="col">response hash</th>
+              <th scope="col">rate limit</th>
+            </tr>
+          </thead>
+          <tbody>
+            {execution.pages.map((page) => (
+              <tr key={page.pageNumber}>
+                <td>{page.pageNumber}</td>
+                <td>{page.offset}</td>
+                <td>
+                  {page.requestedRows}/{page.returnedRows}
+                </td>
+                <td>{page.totalResults ?? "—"}</td>
+                <td>{page.attemptCount}</td>
+                <td>{page.statusCode}</td>
+                <td>{page.retrievedAt}</td>
+                <td className="paper-hash-cell">{String(page.requestHash)}</td>
+                <td className="paper-hash-cell">{String(page.responseHash)}</td>
+                <td>
+                  {page.rateLimitMetadata.length > 0 ? (
+                    <MetadataEntries entries={page.rateLimitMetadata} />
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </details>
+  );
+}
+
+function sourceModeLabelOf(execution: PaperSourceExecutionReview): string {
+  switch (execution.sourceMode) {
+    case "fixture":
+      return "Fixture";
+    case "cached":
+      return "Cached";
+    case "live":
+      return "Live";
+  }
+}
+
+function CachedProvenance({
+  review,
+}: {
+  readonly review: PaperAcquisitionReview;
+}) {
+  const cachedExecutions = review.sourceExecutions.filter(
+    (execution) => execution.sourceMode === "cached",
+  );
+  if (cachedExecutions.length === 0) return null;
+  const originSnapshots = review.sourceSnapshots.filter(
+    (snapshot) => snapshot.cachedOrigin !== null,
+  );
+  return (
+    <section className="paper-cached-audit" aria-label="缓存审计">
+      <h3 className="paper-section-title">Cached 审计</h3>
+      {cachedExecutions.map((execution) => (
+        <dl className="paper-dl" key={String(execution.sourceId)}>
+          <dt>来源</dt>
+          <dd>{String(execution.sourceId)}</dd>
+          <dt>缓存适用性</dt>
+          <dd>{execution.cache?.applicability ?? "未提供"}</dd>
+          <dt>本次 Live 失败</dt>
+          <dd>
+            {execution.cache?.liveFailureClass !== null &&
+            execution.cache?.liveFailureClass !== undefined
+              ? `${execution.cache.liveFailureClass}（${execution.cache.liveFailureCode ?? "无代码"}）`
+              : "未尝试 Live 或未提供失败原因"}
+          </dd>
+        </dl>
+      ))}
+      {originSnapshots.map((snapshot) => (
+        <dl className="paper-dl" key={String(snapshot.id)}>
+          <dt>origin Run</dt>
+          <dd>{String(snapshot.cachedOrigin?.originRunId)}</dd>
+          <dt>origin ArtifactVersion</dt>
+          <dd>{String(snapshot.cachedOrigin?.originArtifactVersionId)}</dd>
+          <dt>cache version</dt>
+          <dd>{snapshot.cacheVersion ?? "未提供"}</dd>
+          <dt>快照时间</dt>
+          <dd>{snapshot.retrievedAt}</dd>
+        </dl>
+      ))}
+      <p className="candidate-meta">
+        <span className="candidate-meta-item">
+          此结果来自真实历史 Run 的缓存，不代表本次实时检索。如需刷新，请以 Live
+          模式重新启动检索 Run；当前工作区不提供一键重跑。
+        </span>
+      </p>
+    </section>
+  );
 }
 
 export function PaperAcquisitionWorkspace({
@@ -58,12 +235,16 @@ export function PaperAcquisitionWorkspace({
   const requestSequence = useRef(0);
 
   useEffect(() => {
-    if (!ready) return;
     const request = ++requestSequence.current;
     // Deferred to a microtask (same pattern as WorkspacePage) so the effect
     // never sets state synchronously; stale responses are ignored by sequence.
     void Promise.resolve().then(() => {
       if (request !== requestSequence.current) return;
+      if (!ready) {
+        // A stale review must never survive a session loss or version switch.
+        setState({ status: "idle" });
+        return;
+      }
       setState({ status: "loading" });
       setFilter(EMPTY_CANDIDATE_FILTER);
       repository.getReview(artifactVersionId).then(
@@ -102,6 +283,19 @@ export function PaperAcquisitionWorkspace({
       <section className="work-panel" aria-labelledby="paper-review-title">
         <h2 id="paper-review-title">论文获取与候选审查</h2>
         <p aria-live="polite">当前 ArtifactVersion 没有候选论文。</p>
+        {retryButton}
+      </section>
+    );
+  }
+  if (state.status === "unavailable") {
+    return (
+      <section
+        className="alert-panel"
+        role="alert"
+        aria-labelledby="paper-review-title"
+      >
+        <h2 id="paper-review-title">论文获取与候选审查</h2>
+        <p>当前 ArtifactVersion 不存在或不可访问，请重新选择 Artifact。</p>
         {retryButton}
       </section>
     );
@@ -181,7 +375,7 @@ export function PaperAcquisitionWorkspace({
           ArtifactVersion {String(review.artifactVersionId)}
         </span>
         <span className="candidate-meta-item">
-          execution: {executionMode ?? "未知"}
+          execution: {executionModeLabel(executionMode)}
         </span>
         <span className="candidate-meta-item">
           source: {sourceModeLabel(review)}
@@ -190,20 +384,22 @@ export function PaperAcquisitionWorkspace({
           benchmark: {String(review.benchmark.benchmarkId)} v
           {review.benchmark.benchmarkVersion}
         </span>
+        <span className="candidate-meta-item">
+          scenario: {String(review.benchmark.scenarioId)}
+        </span>
       </p>
       {review.sourceMode === "fixture" && (
         <p className="candidate-meta">
           <span className="candidate-meta-item">
-            Demo Replay 确定性演示数据（scenario{" "}
-            {String(review.benchmark.scenarioId)}，schema v
-            {review.schemaVersion}），非本次实时检索。
+            Fixture 确定性演示数据（schema v{review.schemaVersion}
+            ），由真实获取管线离线生成，非本次实时检索。
           </span>
         </p>
       )}
       {review.sourceMode === "cached" && (
         <p className="candidate-meta">
           <span className="candidate-meta-item">
-            Cached 结果，快照时间见来源执行；不代表本次实时检索。
+            Cached 结果：详见下方缓存审计；不代表本次实时检索。
           </span>
         </p>
       )}
@@ -211,28 +407,45 @@ export function PaperAcquisitionWorkspace({
       <div className="paper-review-grid">
         <div className="paper-review-main">
           <h3 className="paper-section-title">检索与来源</h3>
-          <p className="candidate-meta">
-            <span className="candidate-meta-item">
-              Query: {review.query.normalizedQuery}
-            </span>
-            <span className="candidate-meta-item">
-              原始: {review.query.originalQuery}
-            </span>
-          </p>
-          <p className="candidate-meta">
-            <span className="candidate-meta-item">
-              关键词: {review.query.keywords.join("、")}
-            </span>
-            <span className="candidate-meta-item">
-              年份: {review.query.yearFrom}–{review.query.yearTo}
-            </span>
-            <span className="candidate-meta-item">
-              排序: {review.query.sortStrategy}
-            </span>
-            <span className="candidate-meta-item">
-              候选上限: {review.query.candidateLimit}
-            </span>
-          </p>
+          <dl className="paper-dl">
+            <dt>Query</dt>
+            <dd>{review.query.normalizedQuery}</dd>
+            <dt>原始 Query</dt>
+            <dd>{review.query.originalQuery}</dd>
+            <dt>query id</dt>
+            <dd>{String(review.query.queryId)}</dd>
+            <dt>normalization</dt>
+            <dd>v{review.query.normalizationRuleVersion}</dd>
+            <dt>关键词</dt>
+            <dd>{review.query.normalizedKeywords.join("、")}</dd>
+            <dt>原始关键词</dt>
+            <dd>{review.query.originalKeywords.join("、")}</dd>
+            <dt>年份</dt>
+            <dd>
+              {review.query.yearFrom}–{review.query.yearTo}
+            </dd>
+            <dt>排序</dt>
+            <dd>{review.query.sortStrategy}</dd>
+            <dt>分页</dt>
+            <dd>
+              page_size {review.query.pagination.pageSize} / max_pages{" "}
+              {review.query.pagination.maxPages} / 候选上限{" "}
+              {review.query.pagination.candidateLimit}
+            </dd>
+            <dt>query hash</dt>
+            <dd>{String(review.query.queryHash)}</dd>
+          </dl>
+          {review.query.sourceParameters.map((entry) => (
+            <details
+              key={String(entry.sourceId)}
+              className="paper-execution-details"
+            >
+              <summary>来源参数 {String(entry.sourceId)}</summary>
+              <p className="candidate-meta">
+                <MetadataEntries entries={entry.parameters} />
+              </p>
+            </details>
+          ))}
           <p className="candidate-meta">
             <span className="candidate-meta-item">
               获取 {review.acquisition.startedAt} →{" "}
@@ -245,14 +458,7 @@ export function PaperAcquisitionWorkspace({
           <ul className="source-execution-list" aria-label="来源执行">
             {review.sourceExecutions.map((execution) => (
               <li key={String(execution.sourceId)}>
-                <span>{String(execution.sourceId)}</span>
-                <span>
-                  {execution.status === "completed" ? "完成" : "失败"}
-                  {execution.failureClass !== null &&
-                    `（${execution.failureClass}）`}
-                  ・{execution.candidateCount} 候选・retrieved{" "}
-                  {execution.pages[0]?.retrievedAt ?? execution.finishedAt}
-                </span>
+                <SourceExecutionAudit execution={execution} />
               </li>
             ))}
           </ul>
@@ -272,6 +478,7 @@ export function PaperAcquisitionWorkspace({
               </p>
             </div>
           )}
+          <CachedProvenance review={review} />
 
           <h3 className="paper-section-title">指标</h3>
           <p className="candidate-meta">
@@ -284,6 +491,12 @@ export function PaperAcquisitionWorkspace({
             <span className="candidate-meta-item">
               重复 {review.metrics.duplicateCandidateCount}（rate{" "}
               {review.metrics.duplicateRate}）
+            </span>
+            <span className="candidate-meta-item">
+              期望 {review.metrics.expectedCandidateCount} / 召回{" "}
+              {review.metrics.recalledExpectedCandidateCount}
+              {review.metrics.candidateRecall !== null &&
+                `（recall ${String(review.metrics.candidateRecall)}）`}
             </span>
             <span className="candidate-meta-item">
               来源失败 {review.metrics.sourceFailureCount} / 空结果{" "}
@@ -379,38 +592,72 @@ export function PaperAcquisitionWorkspace({
 
         <aside className="paper-review-aside" aria-label="检索详情">
           <h3 className="paper-section-title">规则版本</h3>
-          <p className="candidate-meta">
-            <span className="candidate-meta-item">
-              dedupe: {review.rules.dedupeRule} v{review.rules.dedupeVersion}
-            </span>
-            <span className="candidate-meta-item">
-              ranking: {review.rules.rankingRule} v{review.rules.rankingVersion}
-            </span>
-            <span className="candidate-meta-item">
-              selection: v{review.rules.selectionVersion}（limit{" "}
+          <dl className="paper-dl">
+            <dt>dedupe</dt>
+            <dd>
+              {review.rules.dedupeRule} v{review.rules.dedupeVersion}
+            </dd>
+            <dt>ranking</dt>
+            <dd>
+              {review.rules.rankingRule} v{review.rules.rankingVersion}
+            </dd>
+            <dt>selection</dt>
+            <dd>
+              v{review.rules.selectionVersion}（limit{" "}
               {review.rules.selectionLimit}）
-            </span>
-            <span className="candidate-meta-item">
-              adapter: {review.rules.adapterName} v{review.rules.adapterVersion}
-            </span>
-          </p>
+            </dd>
+            <dt>normalization</dt>
+            <dd>v{review.rules.queryNormalizationVersion}</dd>
+            <dt>canonicalization</dt>
+            <dd>v{review.rules.canonicalizationVersion}</dd>
+            <dt>adapter</dt>
+            <dd>
+              {review.rules.adapterName} v{review.rules.adapterVersion}
+            </dd>
+            <dt>retry policy</dt>
+            <dd>v{review.rules.retryPolicyVersion}</dd>
+            <dt>source policy</dt>
+            <dd>v{review.rules.sourcePolicyVersion}</dd>
+          </dl>
           <h3 className="paper-section-title">复现标识</h3>
-          <p className="candidate-meta">
-            <span className="candidate-meta-item">
-              query hash: {String(review.query.queryHash)}
-            </span>
-            <span className="candidate-meta-item">
-              content hash: {String(review.contentHash)}
-            </span>
-            <span className="candidate-meta-item">
-              input hash: {String(review.inputHash)}
-            </span>
-            <span className="candidate-meta-item">
-              producer: {review.producerExecution.producerName} v
+          <dl className="paper-dl">
+            <dt>content hash</dt>
+            <dd>{String(review.contentHash)}</dd>
+            <dt>input hash</dt>
+            <dd>{String(review.inputHash)}</dd>
+            <dt>benchmark payload hash</dt>
+            <dd>{String(review.benchmark.contentHash)}</dd>
+            <dt>producer</dt>
+            <dd>
+              {review.producerExecution.producerName} v
               {review.producerExecution.producerVersion}（
               {review.producerExecution.status}）
-            </span>
-          </p>
+            </dd>
+            <dt>producer input/output</dt>
+            <dd>
+              {String(review.producerExecution.inputHash)} /{" "}
+              {review.producerExecution.outputHash !== null
+                ? String(review.producerExecution.outputHash)
+                : "无"}
+            </dd>
+          </dl>
+          <h3 className="paper-section-title">SourceSnapshot</h3>
+          {review.sourceSnapshots.map((snapshot) => (
+            <dl className="paper-dl" key={String(snapshot.id)}>
+              <dt>snapshot</dt>
+              <dd>
+                {String(snapshot.id)} / {String(snapshot.sourceId)}
+              </dd>
+              <dt>retrieved</dt>
+              <dd>{snapshot.retrievedAt}</dd>
+              <dt>license</dt>
+              <dd>{snapshot.licenseNote}</dd>
+              <dt>request metadata</dt>
+              <dd>
+                <MetadataEntries entries={snapshot.requestMetadata} />
+              </dd>
+            </dl>
+          ))}
         </aside>
       </div>
     </section>

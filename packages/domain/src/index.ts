@@ -114,21 +114,27 @@ export type { EvidenceCompleteness, ProvenanceState } from "./provenance";
 export { evidenceCompletenessRatio } from "./provenance";
 
 export type {
+  CachedSnapshotOrigin,
   PaperAcquisitionMetrics,
   PaperAcquisitionReview,
   PaperAcquisitionRules,
   PaperAcquisitionRunReview,
   PaperBenchmarkReview,
+  PaperCacheAudit,
   PaperCandidateConflictReview,
   PaperCandidateReview,
   PaperCandidateSelection,
   PaperDataLevel,
   PaperDuplicateReview,
+  PaperQueryPaginationReview,
+  PaperRawRecordReview,
   PaperSearchReview,
   PaperSourceExecutionReview,
   PaperSourceFailureClass,
   PaperSourcePageReview,
+  PaperSourceParametersReview,
   ProducerExecutionSummary,
+  ReviewMetadataEntry,
   SourceSnapshotSummary,
 } from "./paper-acquisition";
 export { safeExternalUrl } from "./paper-acquisition";
