@@ -14,6 +14,14 @@ const EDITABLE_DRAFT_ID = "rcd_01JTOUR" as never;
 const CONTRACT_ID = "rc_01JEXAMPLE" as never;
 const RUN_ID = "run_01JEXAMPLE" as never;
 
+// Canonical content hash of the fixture contract input — mirrors the backend
+// `canonical_request_hash` over `ResearchContractInput`. The editable draft
+// `rcd_01JTOUR` carries the same input as the pre-seeded contract
+// `rc_01JEXAMPLE`, so confirming it must reproduce this exact hash.
+const EXPECTED_CONTRACT_HASH =
+  "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986";
+const ALL_ZERO_HASH = "sha256:" + "0".repeat(64);
+
 describe("Fixture adapter — provenance and semantics", () => {
   it("reports demo_replay execution mode and fixture source mode", () => {
     const { state } = repos.provenance;
@@ -42,7 +50,7 @@ describe("Fixture adapter — reads map DTO to domain", () => {
     const draft = await repos.contracts.getDraftById(DRAFT_ID);
     const contract = await repos.contracts.getContractById(CONTRACT_ID);
     expect(draft!.intent).toContain("exoplanet");
-    expect(contract!.contentHash).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    expect(contract!.contentHash).toBe(EXPECTED_CONTRACT_HASH);
   });
 
   it("gets a run and lists its events in sequence order", async () => {
@@ -116,6 +124,49 @@ describe("Fixture adapter — draft update and contract confirm", () => {
     await expect(
       fresh.contracts.confirm(PROJECT_ID, EDITABLE_DRAFT_ID, 1),
     ).rejects.toBeInstanceOf(ConflictError);
+  });
+});
+
+describe("Fixture adapter — contract content hash", () => {
+  it("computes a real canonical hash, not the all-zero placeholder", async () => {
+    const fresh = createFixtureRepositories(exoplanetHostStarFixture);
+    const contract = await fresh.contracts.confirm(
+      PROJECT_ID,
+      EDITABLE_DRAFT_ID,
+      1,
+    );
+    expect(contract.contentHash).toBe(EXPECTED_CONTRACT_HASH);
+    expect(contract.contentHash).not.toBe(ALL_ZERO_HASH);
+    expect(contract.contentHash).toMatch(/^sha256:[0-9a-f]{64}$/u);
+  });
+
+  it("is deterministic: identical input yields the same hash across repos", async () => {
+    const a = createFixtureRepositories(exoplanetHostStarFixture);
+    const b = createFixtureRepositories(exoplanetHostStarFixture);
+    const first = await a.contracts.confirm(PROJECT_ID, EDITABLE_DRAFT_ID, 1);
+    const second = await b.contracts.confirm(PROJECT_ID, EDITABLE_DRAFT_ID, 1);
+    expect(second.contentHash).toBe(first.contentHash);
+    expect(second.contentHash).toBe(EXPECTED_CONTRACT_HASH);
+  });
+
+  it("changes when the contract content changes", async () => {
+    const fresh = createFixtureRepositories(exoplanetHostStarFixture);
+    const base = (await fresh.contracts.getDraftById(EDITABLE_DRAFT_ID))!
+      .contract;
+    const updated = await fresh.contracts.updateDraft(EDITABLE_DRAFT_ID, 1, {
+      contract: {
+        ...base,
+        researchGoal: "Integrate stellar ages and metallicities" as never,
+      },
+    });
+    const contract = await fresh.contracts.confirm(
+      PROJECT_ID,
+      EDITABLE_DRAFT_ID,
+      updated.version,
+    );
+    expect(contract.contentHash).not.toBe(EXPECTED_CONTRACT_HASH);
+    expect(contract.contentHash).not.toBe(ALL_ZERO_HASH);
+    expect(contract.contentHash).toMatch(/^sha256:[0-9a-f]{64}$/u);
   });
 });
 

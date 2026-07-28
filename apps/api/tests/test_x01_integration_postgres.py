@@ -11,7 +11,8 @@ Repository/WorkflowStore/Publisher):
 - Anonymous Public Share read, redaction, and post-revoke 404.
 - Stable 404 for missing Project/Run/ArtifactVersion/Share.
 - The test-only bootstrap router: mounted only under ``APP_ENV=test``,
-  session-bound, deterministic, and absent under ``development``.
+  narrowed to fixture ArtifactVersion/Evidence publication onto a
+  session-owned demo_replay run, and absent under ``development``.
 
 Requires ``TEST_DATABASE_URL`` (isolated database whose name contains
 ``test``); the suite skips otherwise rather than substituting SQLite.
@@ -132,8 +133,12 @@ def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
     assert store is not None
     assert factory is not None
 
-    owner, owner_credential, owner_csrf = app.state.session_service.create(now=NOW)
-    other, other_credential, _other_csrf = app.state.session_service.create(now=NOW)
+    owner, owner_credential, owner_csrf = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
+    other, other_credential, _other_csrf = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
 
     project_id = uuid4()
     draft_id = uuid4()
@@ -486,9 +491,63 @@ def test_stable_404_for_missing_resources(runtime: dict[str, object]) -> None:
     assert missing_share.json()["code"] == "SHARE_NOT_FOUND"
 
 
-def test_test_only_bootstrap_seeds_session_bound_deterministic_scenario(
+def _public_chain(
+    client: TestClient, csrf: str, *, key_suffix: str, execution_mode: str = "demo_replay"
+) -> dict[str, str]:
+    """Create Project → Draft → Contract → Run entirely over the public API."""
+    headers = {"X-CSRF-Token": csrf}
+    project = client.post(
+        "/api/v2/projects",
+        headers={**headers, "Idempotency-Key": f"chain-project-{key_suffix}"},
+        json={
+            "name": "Public authoring chain",
+            "description": "Created through the public runtime",
+            "case_key": "exoplanet_host_star",
+        },
+    )
+    assert project.status_code == 201, project.text
+    project_id = project.json()["data"]["id"]
+    draft = client.post(
+        f"/api/v2/projects/{project_id}/contract-drafts",
+        headers={**headers, "Idempotency-Key": f"chain-draft-{key_suffix}"},
+        json={
+            "intent": "Integrate exoplanet candidates and host-star parameters",
+            "contract": _contract_input(),
+        },
+    )
+    assert draft.status_code == 201, draft.text
+    draft_id = draft.json()["data"]["id"]
+    confirmed = client.post(
+        f"/api/v2/projects/{project_id}/contracts",
+        headers={**headers, "Idempotency-Key": f"chain-confirm-{key_suffix}"},
+        json={"draft_id": draft_id, "expected_draft_version": 1},
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    contract_id = confirmed.json()["data"]["id"]
+    run = client.post(
+        f"/api/v2/projects/{project_id}/runs",
+        headers={**headers, "Idempotency-Key": f"chain-run-{key_suffix}"},
+        json={
+            "contract_id": contract_id,
+            "execution_mode": execution_mode,
+            "derivation_kind": "original",
+        },
+    )
+    assert run.status_code == 201, run.text
+    return {
+        "project_id": project_id,
+        "draft_id": draft_id,
+        "contract_id": contract_id,
+        "run_id": run.json()["data"]["id"],
+    }
+
+
+def test_test_only_bootstrap_publishes_fixture_onto_public_chain_run(
     runtime: dict[str, object], monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """#131: the bootstrap no longer injects Project/Draft/Contract/Run — it
+    only publishes the deterministic fixture ArtifactVersion/Evidence onto a
+    session-owned demo_replay run created through the public runtime."""
     monkeypatch.setattr(settings, "APP_ENV", "test")
     app = create_app()
 
@@ -497,37 +556,79 @@ def test_test_only_bootstrap_seeds_session_bound_deterministic_scenario(
     rejected = anonymous.post("/api/v2/test/bootstrap")
     assert rejected.status_code == 401
 
-    _record, credential, csrf = app.state.session_service.create(now=NOW)
+    _record, credential, csrf = app.state.session_service.create(now=datetime.now(UTC))
     client = TestClient(app, base_url="https://testserver")
     client.cookies.set(settings.SESSION_COOKIE_NAME, credential)
-    seeded = client.post("/api/v2/test/bootstrap", headers={"X-CSRF-Token": csrf})
+
+    # run_id is mandatory: the bootstrap cannot fabricate prerequisite state.
+    missing_run = client.post(
+        "/api/v2/test/bootstrap", headers={"X-CSRF-Token": csrf}
+    )
+    assert missing_run.status_code == 422
+
+    chain = _public_chain(client, csrf, key_suffix="bootstrap")
+    seeded = client.post(
+        f"/api/v2/test/bootstrap?run_id={chain['run_id']}",
+        headers={"X-CSRF-Token": csrf},
+    )
     assert seeded.status_code == 201, seeded.text
     data = seeded.json()["data"]
+    assert data["run_id"] == chain["run_id"]
     assert data["execution_mode"] == "demo_replay"
     assert data["source_mode"] == "fixture"
+    assert set(data.keys()) == {
+        "run_id",
+        "artifact_id",
+        "artifact_version_id",
+        "source_snapshot_id",
+        "evidence_id",
+        "execution_mode",
+        "source_mode",
+        "scenario",
+    }, "bootstrap must not return project/draft/contract ids or any token"
 
-    # Every seeded entity is readable through the real frozen /api/v2 surface.
-    project = client.get(f"/api/v2/projects/{data['project_id']}")
-    assert project.status_code == 200
-    draft = client.get(f"/api/v2/research-contract-drafts/{data['draft_id']}")
-    assert draft.status_code == 200
-    run = client.get(f"/api/v2/runs/{data['run_id']}")
-    assert run.status_code == 200
-    assert run.json()["data"]["execution_mode"] == "demo_replay"
-    events = client.get(f"/api/v2/runs/{data['run_id']}/events")
-    assert events.status_code == 200
-    assert len(events.json()["data"]) >= 2
+    # The published entities are readable through the real frozen surface.
     version = client.get(f"/api/v2/artifact-versions/{data['artifact_version_id']}")
     assert version.status_code == 200
     assert version.json()["data"]["source_mode"] == "fixture"
     evidence = client.get(f"/api/v2/evidence/{data['evidence_id']}")
     assert evidence.status_code == 200
     assert evidence.json()["data"]["id"] == data["evidence_id"]
+    events = client.get(f"/api/v2/runs/{chain['run_id']}/events")
+    assert events.status_code == 200
+    assert len(events.json()["data"]) >= 2
 
-    # Bootstrap is idempotent for the same session owner.
-    replayed = client.post("/api/v2/test/bootstrap", headers={"X-CSRF-Token": csrf})
+    # Bootstrap is idempotent for the same run.
+    replayed = client.post(
+        f"/api/v2/test/bootstrap?run_id={chain['run_id']}",
+        headers={"X-CSRF-Token": csrf},
+    )
     assert replayed.status_code == 201
     assert replayed.json()["data"] == data
+
+    # A live run is rejected: the fixture is demo_replay-only.
+    live_chain = _public_chain(
+        client, csrf, key_suffix="bootstrap-live", execution_mode="live"
+    )
+    live_rejected = client.post(
+        f"/api/v2/test/bootstrap?run_id={live_chain['run_id']}",
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert live_rejected.status_code == 409
+    assert live_rejected.json()["code"] == "BOOTSTRAP_RUN_NOT_DEMO_REPLAY"
+
+    # A cross-session run stays a hidden 404.
+    _other, other_credential, other_csrf = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
+    other = TestClient(app, base_url="https://testserver")
+    other.cookies.set(settings.SESSION_COOKIE_NAME, other_credential)
+    cross = other.post(
+        f"/api/v2/test/bootstrap?run_id={chain['run_id']}",
+        headers={"X-CSRF-Token": other_csrf},
+    )
+    assert cross.status_code == 404
+    assert cross.json()["code"] == "RUN_NOT_FOUND"
 
 
 def test_session_resume_preserves_ownership_across_refresh(
@@ -544,10 +645,8 @@ def test_session_resume_preserves_ownership_across_refresh(
     assert created.status_code == 201
     first_csrf = created.json()["data"]["csrf_token"]
 
-    # Seed the deterministic scenario bound to this session's owner.
-    seeded = client.post("/api/v2/test/bootstrap", headers={"X-CSRF-Token": first_csrf})
-    assert seeded.status_code == 201, seeded.text
-    data = seeded.json()["data"]
+    # Create the deterministic scenario through the public authoring chain.
+    data = _public_chain(client, first_csrf, key_suffix="resume")
 
     # Simulate a browser refresh: the cookie persists, the in-memory CSRF is
     # gone; POST /sessions must resume (not replace) the session.
@@ -615,7 +714,7 @@ def test_test_only_bootstrap_absent_in_development(
 ) -> None:
     monkeypatch.setattr(settings, "APP_ENV", "development")
     app = create_app()
-    _record, credential, csrf = app.state.session_service.create(now=NOW)
+    _record, credential, csrf = app.state.session_service.create(now=datetime.now(UTC))
     client = TestClient(app, base_url="https://testserver")
     client.cookies.set(settings.SESSION_COOKIE_NAME, credential)
     # Authenticated request still resolves to 404: the router is not mounted.

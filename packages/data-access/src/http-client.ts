@@ -50,6 +50,11 @@ export interface HttpAdapterConfig {
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+interface ParsedResponse<T> {
+  readonly body: T | null;
+  readonly status: number;
+}
+
 /** Internal HTTP client wrapping fetch with envelope parsing and error mapping. */
 export class HttpClient {
   private readonly fetchImpl: typeof fetch;
@@ -76,8 +81,8 @@ export class HttpClient {
   /** Single GET; returns parsed `data` or null on 404. */
   async get<T>(path: string): Promise<T | null> {
     try {
-      const env = await this.request<Envelope<T>>("GET", path);
-      return env ? env.data : null;
+      const { body } = await this.request<Envelope<T>>("GET", path);
+      return body ? body.data : null;
     } catch (err) {
       if (err instanceof NotFoundError) return null;
       throw err;
@@ -98,20 +103,47 @@ export class HttpClient {
       const url: string = cursor
         ? `${path}${separator}cursor=${encodeURIComponent(cursor)}`
         : path;
-      const env: CollectionEnvelope<T> | null = await this.request<
-        CollectionEnvelope<T>
-      >("GET", url);
-      if (!env) break;
-      aggregated.push(...env.data);
-      cursor = env.page?.has_more ? (env.page?.next_cursor ?? null) : null;
+      const { body, status } = await this.request<CollectionEnvelope<T>>(
+        "GET",
+        url,
+      );
+      if (!body) {
+        throw new UnexpectedHttpError(
+          "Expected a collection envelope but received an empty body (204 or no content)",
+          status,
+          null,
+        );
+      }
+      aggregated.push(...body.data);
+      cursor = body.page?.has_more ? (body.page?.next_cursor ?? null) : null;
     } while (cursor);
     return aggregated;
   }
 
-  /** Single-page collection GET (no cursor following); used by event recovery. */
+  /**
+   * Single-page collection GET (no cursor following); used by event recovery.
+   *
+   * A collection endpoint is contractually required to return a
+   * `CollectionEnvelope`. A legitimately empty collection is `200` with a JSON
+   * body `{"data":[],...}`, which `request` parses normally. A `204` or empty
+   * body violates the collection contract, so it surfaces as
+   * `UnexpectedHttpError` instead of being masked as a fake empty envelope; a
+   * missing parent surfaces as `NotFoundError` (thrown inside `request`), not
+   * a silent empty list.
+   */
   async getPage<T>(path: string): Promise<CollectionEnvelope<T>> {
-    const env = await this.request<CollectionEnvelope<T>>("GET", path);
-    return env ?? { data: [], page: { next_cursor: null, has_more: false } };
+    const { body, status } = await this.request<CollectionEnvelope<T>>(
+      "GET",
+      path,
+    );
+    if (!body) {
+      throw new UnexpectedHttpError(
+        "Expected a collection envelope but received an empty body (204 or no content)",
+        status,
+        null,
+      );
+    }
+    return body;
   }
 
   /** POST creating a resource; returns parsed `data`. */
@@ -120,11 +152,20 @@ export class HttpClient {
     body: unknown,
     headers?: HeadersInit,
   ): Promise<T> {
-    const env = await this.request<Envelope<T>>("POST", path, body, headers);
-    if (!env) {
-      throw new UnexpectedHttpError("Empty response body on POST", 200, null);
+    const response = await this.request<Envelope<T>>(
+      "POST",
+      path,
+      body,
+      headers,
+    );
+    if (!response.body) {
+      throw new UnexpectedHttpError(
+        "Empty response body on POST",
+        response.status,
+        null,
+      );
     }
-    return env.data;
+    return response.body.data;
   }
 
   /** PATCH updating a resource; returns parsed `data`. */
@@ -133,20 +174,38 @@ export class HttpClient {
     body: unknown,
     headers?: HeadersInit,
   ): Promise<T> {
-    const env = await this.request<Envelope<T>>("PATCH", path, body, headers);
-    if (!env) {
-      throw new UnexpectedHttpError("Empty response body on PATCH", 200, null);
+    const response = await this.request<Envelope<T>>(
+      "PATCH",
+      path,
+      body,
+      headers,
+    );
+    if (!response.body) {
+      throw new UnexpectedHttpError(
+        "Empty response body on PATCH",
+        response.status,
+        null,
+      );
     }
-    return env.data;
+    return response.body.data;
   }
 
   /** PUT; returns parsed `data`. */
   async put<T>(path: string, body: unknown, headers?: HeadersInit): Promise<T> {
-    const env = await this.request<Envelope<T>>("PUT", path, body, headers);
-    if (!env) {
-      throw new UnexpectedHttpError("Empty response body on PUT", 200, null);
+    const response = await this.request<Envelope<T>>(
+      "PUT",
+      path,
+      body,
+      headers,
+    );
+    if (!response.body) {
+      throw new UnexpectedHttpError(
+        "Empty response body on PUT",
+        response.status,
+        null,
+      );
     }
-    return env.data;
+    return response.body.data;
   }
 
   /** DELETE; returns true on 204 or 404 (idempotent). */
@@ -192,9 +251,9 @@ export class HttpClient {
     path: string,
     body?: unknown,
     headers?: HeadersInit,
-  ): Promise<T | null> {
+  ): Promise<ParsedResponse<T>> {
     const response = await this.rawRequest(method, path, body, headers);
-    if (response.status === 204) return null;
+    if (response.status === 204) return { body: null, status: response.status };
     if (response.status === 404) {
       throw await errorFromResponse(response);
     }
@@ -202,8 +261,10 @@ export class HttpClient {
       await this.throwFromResponse(response);
     }
     const text = await response.text();
-    if (!text) return null;
-    return JSON.parse(text) as T;
+    return {
+      body: text ? (JSON.parse(text) as T) : null,
+      status: response.status,
+    };
   }
 
   private async throwFromResponse(response: Response): Promise<never> {

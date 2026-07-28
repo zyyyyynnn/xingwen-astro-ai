@@ -36,6 +36,7 @@ function setupHttpRepos() {
 const PROJECT_ID = "proj_01JEXAMPLE" as never;
 const RUN_ID = "run_01JEXAMPLE" as never;
 const DRAFT_ID = "rcd_01JEXAMPLE" as never;
+const EDITABLE_DRAFT_ID = "rcd_01JTOUR" as never;
 const CONTRACT_ID = "rc_01JEXAMPLE" as never;
 const ARTIFACT_ID = "art_graph_01" as never;
 const VERSION_ID = "artv_graph_01" as never;
@@ -48,6 +49,63 @@ it("projects.getById returns the same domain entity", async () => {
     httpRepos.projects.getById(PROJECT_ID),
   ]);
   expect(httpProject).toEqual(fixtureProject);
+});
+
+it("projects.list returns the same domain entities and cursor shape", async () => {
+  const httpRepos = setupHttpRepos();
+  const [fixturePage, httpPage] = await Promise.all([
+    fixtureRepos.projects.list(),
+    httpRepos.projects.list(),
+  ]);
+  expect(httpPage.items).toEqual(fixturePage.items);
+  // The seeded fixture holds a single project, so the first page is terminal.
+  expect(fixturePage.nextCursor).toBeNull();
+  expect(httpPage.nextCursor).toBeNull();
+  expect(httpPage.items.map((p) => p.id)).toContain(PROJECT_ID);
+});
+
+it("projects.create returns the same domain entity via both adapters", async () => {
+  const freshFixture = createFixtureRepositories(exoplanetHostStarFixture);
+  const httpRepos = setupHttpRepos();
+  const input = {
+    name: "Consistency project",
+    description: "Created through both adapters",
+    caseKey: "exoplanet_host_star" as never,
+    idempotencyKey: "consistency-project-1",
+  };
+  const [fixtureProject, httpProject] = await Promise.all([
+    freshFixture.projects.create(input),
+    httpRepos.projects.create(input),
+  ]);
+  // Identity/timestamp metadata differs by construction; the client-authored
+  // fields and the frozen defaults must agree.
+  expect(httpProject.name).toBe(fixtureProject.name);
+  expect(httpProject.description).toBe(fixtureProject.description);
+  expect(httpProject.caseKey).toBe(fixtureProject.caseKey);
+  expect(httpProject.activeContractId).toBeNull();
+  expect(fixtureProject.activeContractId).toBeNull();
+  expect(httpProject.revision).toBe(fixtureProject.revision);
+});
+
+it("contracts.createDraft returns the same domain entity via both adapters", async () => {
+  const freshFixture = createFixtureRepositories(exoplanetHostStarFixture);
+  const httpRepos = setupHttpRepos();
+  const base = await freshFixture.contracts.getDraftById(EDITABLE_DRAFT_ID);
+  const input = {
+    intent: "Integrate exoplanet candidates and host-star parameters",
+    contract: base!.contract,
+    idempotencyKey: "consistency-draft-1",
+  };
+  const [fixtureDraft, httpDraft] = await Promise.all([
+    freshFixture.contracts.createDraft(PROJECT_ID, input),
+    httpRepos.contracts.createDraft(PROJECT_ID, input),
+  ]);
+  expect(httpDraft.intent).toBe(fixtureDraft.intent);
+  expect(httpDraft.status).toBe("draft");
+  expect(fixtureDraft.status).toBe("draft");
+  expect(httpDraft.version).toBe(1);
+  expect(fixtureDraft.version).toBe(1);
+  expect(httpDraft.contract).toEqual(fixtureDraft.contract);
 });
 
 it("contracts.getDraftById returns the same domain entity", async () => {
@@ -120,4 +178,41 @@ it("artifacts.getEvidence returns the same domain entity", async () => {
     httpRepos.artifacts.getEvidence(EVIDENCE_ID),
   ]);
   expect(httpEvidence).toEqual(fixtureEvidence);
+});
+
+/**
+ * PR-1 Fix 4 — explicit contentHash parity regression.
+ *
+ * The pre-seeded contract `rc_01JEXAMPLE` and the editable draft share the
+ * same contract input, so the Fixture `confirm()` (which now computes the real
+ * canonical hash) and the HTTP contract read must agree on `contentHash`.
+ * `toEqual` above already compares `contentHash` (it is never excluded), but
+ * this test pins the canonical value explicitly so a regression to the
+ * all-zero placeholder or a canonicalization mismatch fails loudly.
+ */
+it("contract contentHash is a real canonical hash shared by Fixture and HTTP", async () => {
+  const httpRepos = setupHttpRepos();
+  const [fixtureContract, httpContract] = await Promise.all([
+    fixtureRepos.contracts.getContractById(CONTRACT_ID),
+    httpRepos.contracts.getContractById(CONTRACT_ID),
+  ]);
+  const expectedHash =
+    "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986";
+  expect(fixtureContract!.contentHash).toBe(expectedHash);
+  expect(httpContract!.contentHash).toBe(expectedHash);
+  expect(httpContract!.contentHash).toBe(fixtureContract!.contentHash);
+  expect(fixtureContract!.contentHash).not.toBe("sha256:" + "0".repeat(64));
+});
+
+it("Fixture confirm() and HTTP contract read agree on the confirmed contentHash", async () => {
+  const freshFixture = createFixtureRepositories(exoplanetHostStarFixture);
+  const httpRepos = setupHttpRepos();
+  const [confirmed, httpContract] = await Promise.all([
+    freshFixture.contracts.confirm(PROJECT_ID, EDITABLE_DRAFT_ID, 1),
+    httpRepos.contracts.getContractById(CONTRACT_ID),
+  ]);
+  // The editable draft carries the same input as the pre-seeded contract, so
+  // confirm() reproduces the same canonical hash the HTTP read returns.
+  expect(confirmed.contentHash).toBe(httpContract!.contentHash);
+  expect(confirmed.contentHash).toMatch(/^sha256:[0-9a-f]{64}$/u);
 });

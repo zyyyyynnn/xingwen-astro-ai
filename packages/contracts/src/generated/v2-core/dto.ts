@@ -51,6 +51,7 @@ export type ShareStatus = "active" | "expired" | "revoked";
  * via the `definition` "ContractDraftStatus".
  */
 export type ContractDraftStatus = "draft" | "confirmed" | "expired";
+export type UnitPolicy = "canonical";
 export type CachePolicy1 = "disabled" | "fallback_on_recoverable_failure";
 export type DerivationKind = "original" | "retry" | "revision" | "fork";
 /**
@@ -58,7 +59,6 @@ export type DerivationKind = "original" | "retry" | "revision" | "fork";
  * via the `definition` "ExecutionMode".
  */
 export type ExecutionMode = "demo_replay" | "live";
-export type UnitPolicy = "canonical";
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
  * via the `definition` "DerivationKind".
@@ -446,6 +446,32 @@ export interface ResearchArtifact {
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_ResearchProject_".
+ */
+export interface CollectionEnvelope_ResearchProject_ {
+  data: ResearchProject[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchProject".
+ */
+export interface ResearchProject {
+  active_contract_id?: string | null;
+  case_key: "exoplanet_host_star";
+  created_at: string;
+  description?: string;
+  id: string;
+  latest_run_id?: string | null;
+  name: string;
+  revision: number;
+  session_id: string;
+  updated_at: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
  * via the `definition` "CollectionEnvelope_RunEvent_".
  */
 export interface CollectionEnvelope_RunEvent_ {
@@ -505,6 +531,101 @@ export interface ConfirmResearchContractRequest {
   expected_draft_version: number;
 }
 /**
+ * Creates an editable draft bound to a session-owned project.
+ *
+ * The draft never carries `execution_mode`; that field belongs exclusively
+ * to Run creation.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "CreateResearchContractDraftRequest".
+ */
+export interface CreateResearchContractDraftRequest {
+  contract: ResearchContractInput;
+  intent: string;
+}
+/**
+ * Shared scientific payload for an editable draft and immutable contract.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchContractInput".
+ */
+export interface ResearchContractInput {
+  data_requirements: DataRequirements;
+  evidence_requirements: EvidenceRequirements;
+  /**
+   * @minItems 1
+   */
+  output_requirements: [ArtifactKind, ...ArtifactKind[]];
+  paper_search_scope: PaperSearchScope;
+  quality_constraints: QualityConstraints;
+  /**
+   * @minItems 1
+   */
+  requested_fields: [string, ...string[]];
+  research_goal: string;
+  source_scope: SourceScope;
+  /**
+   * @minItems 1
+   */
+  target_objects: [string, ...string[]];
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "DataRequirements".
+ */
+export interface DataRequirements {
+  unit_policy?: UnitPolicy;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "EvidenceRequirements".
+ */
+export interface EvidenceRequirements {
+  minimum_coverage?: number;
+  require_locator?: boolean;
+  require_source_snapshot?: boolean;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSearchScope".
+ */
+export interface PaperSearchScope {
+  keywords?: string[];
+  max_candidates?: number;
+  source_ids?: string[];
+  year_from?: number | null;
+  year_to?: number | null;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "QualityConstraints".
+ */
+export interface QualityConstraints {
+  source_completeness_min?: number;
+  unit_consistency_min?: number;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "SourceScope".
+ */
+export interface SourceScope {
+  /**
+   * @minItems 1
+   */
+  allowed_sources: [string, ...string[]];
+}
+/**
+ * Minimal M1 project creation payload; `case_key` stays frozen to the main case.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "CreateResearchProjectRequest".
+ */
+export interface CreateResearchProjectRequest {
+  case_key: "exoplanet_host_star";
+  description?: string;
+  name: string;
+}
+/**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
  * via the `definition` "CreateRunRequest".
  */
@@ -534,13 +655,6 @@ export interface CreateShareSnapshotRequest {
   expires_at: string;
   redaction_policy: "public_metadata_only";
   title: string;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "DataRequirements".
- */
-export interface DataRequirements {
-  unit_policy?: UnitPolicy;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -948,70 +1062,6 @@ export interface ResearchContractDraft {
   warnings?: string[];
 }
 /**
- * Shared scientific payload for an editable draft and immutable contract.
- *
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "ResearchContractInput".
- */
-export interface ResearchContractInput {
-  data_requirements: DataRequirements;
-  evidence_requirements: EvidenceRequirements;
-  /**
-   * @minItems 1
-   */
-  output_requirements: [ArtifactKind, ...ArtifactKind[]];
-  paper_search_scope: PaperSearchScope;
-  quality_constraints: QualityConstraints;
-  /**
-   * @minItems 1
-   */
-  requested_fields: [string, ...string[]];
-  research_goal: string;
-  source_scope: SourceScope;
-  /**
-   * @minItems 1
-   */
-  target_objects: [string, ...string[]];
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "EvidenceRequirements".
- */
-export interface EvidenceRequirements {
-  minimum_coverage?: number;
-  require_locator?: boolean;
-  require_source_snapshot?: boolean;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSearchScope".
- */
-export interface PaperSearchScope {
-  keywords?: string[];
-  max_candidates?: number;
-  source_ids?: string[];
-  year_from?: number | null;
-  year_to?: number | null;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "QualityConstraints".
- */
-export interface QualityConstraints {
-  source_completeness_min?: number;
-  unit_consistency_min?: number;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "SourceScope".
- */
-export interface SourceScope {
-  /**
-   * @minItems 1
-   */
-  allowed_sources: [string, ...string[]];
-}
-/**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_ResearchContract_".
  */
@@ -1058,22 +1108,6 @@ export interface Envelope_ResearchProject_ {
   data: ResearchProject;
   links: ResponseLinks;
   meta: ResponseMeta;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "ResearchProject".
- */
-export interface ResearchProject {
-  active_contract_id?: string | null;
-  case_key: "exoplanet_host_star";
-  created_at: string;
-  description?: string;
-  id: string;
-  latest_run_id?: string | null;
-  name: string;
-  revision: number;
-  session_id: string;
-  updated_at: string;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema

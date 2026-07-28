@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 import os
 from pathlib import Path
@@ -13,7 +12,6 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import Engine
-from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db.models import (
@@ -71,8 +69,8 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
     factory = session_factory(postgres_engine)
     app = create_app()
     app.state.artifact_read_service = ArtifactReadService(factory)
-    owner, owner_credential, _ = app.state.session_service.create(now=NOW)
-    other, other_credential, _ = app.state.session_service.create(now=NOW)
+    owner, owner_credential, _ = app.state.session_service.create(now=datetime.now(UTC))
+    other, other_credential, _ = app.state.session_service.create(now=datetime.now(UTC))
     ids = {
         name: UUID(int=index)
         for index, name in enumerate(

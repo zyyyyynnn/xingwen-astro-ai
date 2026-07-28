@@ -48,4 +48,4 @@ labels: ["type:task"]
 
 ---
 
-**治理要求：** 必须添加 `type:task`、适用的 `area:*`、一个 `priority:p0/p1/p2`，并归入对应 Milestone。一个 Task 只包含一个主要模块、一个主要负责人和一个主要交付物。创建工作分支并产生实质改动后更新为 `in-progress`；Draft PR 创建后，Issue 更新为 `review`。当前 HEAD 的网页端 GPT `pr_technical_review` 为 `PASS`、标准 CI 通过、PR 可合并且没有未解决的真实阻塞问题后，可由网页端 GPT 或 Codex 执行 Ready、Squash merge，并在 `main` 合并结果核对成功后关闭 Issue；条件未满足时不得执行。
+**治理要求：** 必须添加 `type:task`、适用的 `area:*`、一个 `priority:p0/p1/p2`，并归入对应 Milestone。一个 Task 只包含一个主要模块、一个主要负责人和一个主要交付物。创建工作分支并产生实质改动后更新为 `in-progress`；Draft PR 创建后，Issue 更新为 `review`。当前 HEAD 的 `pr_technical_review` 为 `PASS`、标准 CI 通过、PR 可合并且没有未解决的真实阻塞问题后，可由审查者或 Codex 执行 Ready、Squash merge，并在 `main` 合并结果核对成功后关闭 Issue；条件未满足时不得执行。

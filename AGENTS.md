@@ -14,12 +14,12 @@
 
 ## 2. 当前实现与后续边界
 
-| 层级       | Current / Implemented                                                                           | Pending                                                 |
-| ---------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| 前端       | `apps/site` Astro Brand Site、`apps/workspace` React Research Workspace、A-03 Tour/Workspace/Share Fixture + HTTP Port、真实 Browser/刷新恢复、共享包和根 pnpm 工具链 | A-02 视觉系统收口 |
-| API        | `/api/v1` Task 契约；`/api/v2` M1 核心 Runtime、PostgreSQL 权威读取与 X-01 真实集成 | M2 科研能力 |
-| 后端与数据 | 当前应用、v2 Application / Persistence、Pipeline 与 PostgreSQL 基线 | M2 科研 Pipeline 扩展，不改变既有科研边界 |
-| 本地环境   | Compose：`site`、`workspace`、`api`、`migrate`、`postgres`；独立 X-01 Browser 集成入口 | 生产部署拓扑按独立 Issue 定义 |
+| 层级       | Current / Implemented                                                                                                                                                 | Pending                                   |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| 前端       | `apps/site` Astro Brand Site、`apps/workspace` React Research Workspace、A-03 Tour/Workspace/Share Fixture + HTTP Port、真实 Browser/刷新恢复、共享包和根 pnpm 工具链 | A-02 视觉系统收口                         |
+| API        | `/api/v1` Task 契约；`/api/v2` M1 核心 Runtime（27-operation 公开 Authoring Chain）、PostgreSQL 权威读取与 X-01 真实集成                                                                                   | M2 科研能力                               |
+| 后端与数据 | 当前应用、v2 Application / Persistence、Pipeline 与 PostgreSQL 基线                                                                                                   | M2 科研 Pipeline 扩展，不改变既有科研边界 |
+| 本地环境   | Compose：`site`、`workspace`、`api`、`migrate`、`postgres`；独立 X-01 Browser 集成入口                                                                                | 生产部署拓扑按独立 Issue 定义             |
 
 规则：
 
@@ -55,9 +55,8 @@
 - 从 `main` 建分支，不直接推送 `main`；不 reset、force push 或改写远端历史。
 - Commit 一个主要目的，使用 `feat` / `fix` / `docs` / `chore` 前缀。
 - PR 关联明确 Issue，或在 PR 描述中记录用户在当前会话直接下达的明确授权；不得为了满足形式要求创建无关 Issue。PR 说明范围、验证、契约/数据/UI/部署/安全影响和材料口径。
-- 本地 Codex 完成实现、验证、Commit、Push 并创建或更新 Draft PR 后，必须等待网页端 GPT Review；本地自审不能替代正式 Review。
-- 网页端 GPT Review 必须绑定当前 HEAD，明确 `PASS | BLOCKED` 并保存 GitHub 可见记录；HEAD 变化后旧 Review 自动失效。
-- 当前 HEAD 的网页端 GPT `pr_technical_review` 为 `PASS`、标准 CI 均通过、PR 可合并且没有未解决的真实阻塞问题后，可由网页端 GPT 或 Codex 将 Draft 转为 Ready 并按默认 Squash merge；合并结果核对成功后可关闭关联 Issue。网页端 GPT 尚未给出有效 `PASS`、CI 尚未通过、HEAD 已变化、PR 不可合并或仍有真实阻塞问题时，不得合并或关闭 Issue。
+- 本地 Codex 完成实现、验证、Commit、Push 并创建或更新 Draft PR 后，必须按 [Contributing §5](CONTRIBUTING.md#5-正式技术-review-责任) 获取绑定当前 HEAD 的正式技术 Review；实施过程中的自审不能替代正式 Review，HEAD 变化会使旧 Review 失效。
+- 合并必须满足 [Contributing §6](CONTRIBUTING.md#6-合并标准) 与 [Review Checklist §10](docs/quality/REVIEW_CHECKLIST.md#10-合并条件)。最低条件是当前 HEAD 的 `pr_technical_review` 为 `PASS`、标准 CI 全绿、PR 可合并且没有未解决的真实阻塞问题；否则不得转 Ready、合并或关闭关联 Issue。
 - 工作区存在无关修改时不得擅自暂存、清除或提交。
 
 ## 6. 模块边界
@@ -89,17 +88,17 @@
 
 ## 8. 验证要求
 
-| 类型                     | 最低要求                                                                                       |
-| ------------------------ | ---------------------------------------------------------------------------------------------- |
-| Foundation               | `python scripts/check_foundation.py`                                                           |
-| Compose                  | `docker compose config`；运行变更时 `docker compose up --build --wait`                         |
-| A-01 前端                | frozen root install、format、lint、typecheck、test、build、E2E、architecture、legacy checks    |
-| Brand Site               | 当前静态 HTML 含中文标题、说明、Workspace CTA 与 404；A-02 目标为极简单英雄首页 + bluegray Token，另验收 |
+| 类型                     | 最低要求                                                                                                                                         |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Foundation               | `python scripts/check_foundation.py`                                                                                                             |
+| Compose                  | `docker compose config`；运行变更时 `docker compose up --build --wait`                                                                           |
+| A-01 前端                | frozen root install、format、lint、typecheck、test、build、E2E、architecture、legacy checks                                                      |
+| Brand Site               | 当前静态 HTML 含中文标题、说明、Workspace CTA 与 404；A-02 目标为极简单英雄首页 + bluegray Token，另验收                                         |
 | Workspace                | 四个路由、Not Found、Error Boundary、Loading fallback、键盘导航；Fixture 与真实 HTTP Browser 的 Tour/Workspace/Share、冲突、刷新恢复和匿名 Share |
-| Visual Engine（Pending） | High/Medium/Low、deterministic seed、freeze time、pause/dispose、Poster、Reduced Motion        |
-| Adapter                  | Fixture / HTTP 返回同一 Domain Model，一致性测试通过 |
-| 后端                     | `uv sync --frozen` + pytest；错误与权限场景覆盖                                                |
-| 科研可信                 | Summary、Relation、Trace、GraphEdge 均按契约绑定 Evidence                                      |
+| Visual Engine（Pending） | High/Medium/Low、deterministic seed、freeze time、pause/dispose、Poster、Reduced Motion                                                          |
+| Adapter                  | Fixture / HTTP 返回同一 Domain Model，一致性测试通过                                                                                             |
+| 后端                     | `uv sync --frozen` + pytest；错误与权限场景覆盖                                                                                                  |
+| 科研可信                 | Summary、Relation、Trace、GraphEdge 均按契约绑定 Evidence                                                                                        |
 
 无法执行上一级验证时说明原因和降级验证，不得用“应该可以”代替结果。
 
