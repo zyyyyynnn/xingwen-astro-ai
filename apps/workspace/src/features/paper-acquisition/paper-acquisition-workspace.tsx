@@ -178,7 +178,7 @@ function CachedProvenance({
   if (cachedExecutions.length === 0) return null;
   return (
     <section className="paper-cached-audit" aria-label="缓存审计">
-      <h3 className="paper-section-title">Cached 审计</h3>
+      <h3 className="paper-section-title">缓存审计</h3>
       {cachedExecutions.map((execution) => {
         // Pair each cached execution with its origin snapshot. `sourceSnapshotId`
         // carries the pipeline snapshot id, a different id space from the
@@ -194,7 +194,7 @@ function CachedProvenance({
               <dd>{String(execution.sourceId)}</dd>
               <dt>缓存适用性</dt>
               <dd>{execution.cache?.applicability ?? "—"}</dd>
-              <dt>本次 Live 失败</dt>
+              <dt>本次失败（Live）</dt>
               <dd>
                 {execution.cache
                   ? `${execution.cache.liveFailureClass}（${execution.cache.liveFailureCode}）`
@@ -202,13 +202,13 @@ function CachedProvenance({
               </dd>
               {snapshot && (
                 <>
-                  <dt>origin Run</dt>
+                  <dt>来源 Run</dt>
                   <dd>{origin ? String(origin.originRunId) : "—"}</dd>
-                  <dt>origin ArtifactVersion</dt>
+                  <dt>来源 ArtifactVersion</dt>
                   <dd>
                     {origin ? String(origin.originArtifactVersionId) : "—"}
                   </dd>
-                  <dt>cache version</dt>
+                  <dt>缓存版本</dt>
                   <dd>{snapshot.cacheVersion ?? "—"}</dd>
                   <dt>快照时间</dt>
                   <dd>{snapshot.retrievedAt}</dd>
@@ -400,7 +400,7 @@ export function PaperAcquisitionWorkspace({
       {review.sourceMode === "fixture" && (
         <p className="candidate-meta">
           <span className="candidate-meta-item">
-            Fixture 确定性演示数据（schema v{review.schemaVersion}
+            确定性演示数据（Fixture，schema v{review.schemaVersion}
             ），由真实获取管线离线生成，非本次实时检索。
           </span>
         </p>
@@ -408,7 +408,7 @@ export function PaperAcquisitionWorkspace({
       {review.sourceMode === "cached" && (
         <p className="candidate-meta">
           <span className="candidate-meta-item">
-            Cached 结果：详见下方缓存审计；不代表本次实时检索。
+            缓存结果：详见下方缓存审计；不代表本次实时检索。
           </span>
         </p>
       )}
@@ -419,7 +419,7 @@ export function PaperAcquisitionWorkspace({
           <dl className="paper-dl">
             <dt>Query</dt>
             <dd>{review.query.normalizedQuery}</dd>
-            <dt>原始 Query</dt>
+            <dt>Query（原始）</dt>
             <dd>{review.query.originalQuery}</dd>
             <dt>query id</dt>
             <dd>{String(review.query.queryId)}</dd>

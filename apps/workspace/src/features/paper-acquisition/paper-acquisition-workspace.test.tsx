@@ -234,7 +234,7 @@ describe("PaperAcquisitionWorkspace — fixture main path", () => {
     expect(provenance).toHaveTextContent(
       "scenario: search.tess_mission_and_catalogs",
     );
-    expect(screen.getByText(/Fixture 确定性演示数据/u)).toBeInTheDocument();
+    expect(screen.getByText(/确定性演示数据（Fixture/u)).toBeInTheDocument();
     // Metrics from the real pipeline (7 candidates, 3 selected, recall 4/4).
     expect(screen.getByText(/候选 7/u)).toBeInTheDocument();
     expect(screen.getByText(/入选 3/u)).toBeInTheDocument();
