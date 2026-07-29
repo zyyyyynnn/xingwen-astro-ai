@@ -780,12 +780,18 @@ export function WorkspacePage({
                 artifact={data.selectedArtifact}
                 version={data.selectedVersion}
                 paperAcquisition={runtime.repositories.paperAcquisition}
+                paperSummary={runtime.repositories.paperSummary}
                 executionMode={data.run?.executionMode ?? null}
                 ready={sessionState.status === "ready"}
                 disabled={!canAdjustWorkspace}
                 selectedCandidateId={
                   selectedCandidate
                     ? String(selectedCandidate.candidateId)
+                    : null
+                }
+                selectedEvidenceId={
+                  data.selectedEvidence
+                    ? String(data.selectedEvidence.id)
                     : null
                 }
                 onSelectCandidate={selectCandidate}

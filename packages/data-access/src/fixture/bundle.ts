@@ -12,6 +12,7 @@ import type {
   ArtifactVersionDto,
   PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
   PaperCollectionRead as PaperCollectionReadDto,
+  PaperSummaryRead as PaperSummaryReadDto,
   ResearchArtifactDto,
   ResearchContractDto,
   ResearchContractDraftDto,
@@ -32,6 +33,13 @@ export interface FixturePaperAcquisition {
   readonly candidates: readonly PaperCollectionCandidateReadDto[];
 }
 
+/** One B-07 paper summary read model pinned to an ArtifactVersion id. */
+export interface FixturePaperSummary {
+  /** Full immutable version as returned by the real Artifact detail boundary. */
+  readonly version: ArtifactVersionDetailDto;
+  readonly summary: PaperSummaryReadDto;
+}
+
 export interface FixtureBundleData {
   readonly projects: readonly ResearchProjectDto[];
   readonly contractDrafts: readonly ResearchContractDraftDto[];
@@ -42,6 +50,8 @@ export interface FixtureBundleData {
   readonly artifactVersions: readonly ArtifactVersionDto[];
   /** Rich paper acquisition reads keyed by their artifact_version_id. */
   readonly paperAcquisitions: readonly FixturePaperAcquisition[];
+  /** Rich paper summary reads keyed by their artifact_version_id. */
+  readonly paperSummaries: readonly FixturePaperSummary[];
   /**
    * Evidence is a frontend domain entity without a standalone v2 transport
    * schema, so fixture evidence is provided directly in domain (camelCase)

@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Status         | Accepted                                                                                                                       |
 | Authority      | 工作台信息架构、核心交互、页面状态与 Guided Tour                                                                               |
-| Implementation | A-01 routes、A-03 Tour/Workspace/Share Port 行为、A-05 Paper Acquisition Workspace 与 X-01 真实集成 Current；A-02 视觉 Pending |
+| Implementation | A-01 routes、A-03 Tour/Workspace/Share Port 行为、A-05 Paper Acquisition Workspace、A-06 Literature Summary Workspace 与 X-01 真实集成 Current；A-02 视觉 Pending |
 
 本文定义科研工作台的信息架构、核心交互、页面状态和 Guided Tour。工作台借鉴现代 Agent Desktop 的桌面级组织能力，但不采用“聊天线程 + 工具日志”作为产品核心。
 
@@ -370,6 +370,8 @@ AI 响应优先生成：
 - 版本和 Prompt / 模型信息
 
 支持论文间并排对照。
+
+当前实现（A-06）：`/workspace` 选中 `paper_summary` 版本后，中央画布经 `artifact-canvas` 路由到 `LiteratureSummaryWorkspace`——按研究目标、方法、数据集、核心发现、局限与未来工作五区展示结构化语句，每条语句携带 supported / unsupported（未证实）/ unverifiable（证据不可核验）状态徽标，绝不把无证据或不可核验的模型表述呈现为无条件事实；每条语句内联展示其 `summaryEvidence`（paper_text: 章节/段落/文本范围；paper_metadata: 字段 + 经 `safeExternalUrl` 白名单的 http(s) 链接）与引文短句/值；点击语句经 `targetId === statementId` 定位通用 Evidence 并驱动 Provenance Observatory，进入既有 pin/Share 链路；展示论文元信息、benchmark、模型/Prompt provenance 与 input_versions 复现标识、来源版本冲突；idle/loading/unavailable/invalid/network_error 状态矩阵完整（paper_summary 版本已存在即携带总结，无“空总结”后端态；未知版本走 unavailable），键盘可 Tab 聚焦语句并以 Enter/Space 触发证据侧栏；`LiteratureComparisonGrid` 组件（等宽列对照研究目标/方法/数据集/发现/局限与未来工作、各列保留各自版本与来源、不合并成无来源结论）已构建并单测覆盖，但至多三篇并排对照的可达 UI 接线属 Pending（当前 Demo Replay Fixture 仅含单篇总结，多篇对照待后续 Issue 与多篇生成数据一同交付）。PaperSummary Fixture 由真实 D-03 `PaperSummaryPipeline` 生成并经 Pydantic 语义门禁验证；真实 HTTP 数据取决于后端 B-07/D-03 运行链路。
 
 ### 10.5 Reasoning Workspace
 

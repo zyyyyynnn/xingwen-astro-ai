@@ -259,3 +259,52 @@ test.describe("Paper review at 200% font scale", () => {
     await expectNoHorizontalOverflow(page, 1280);
   });
 });
+
+async function openPaperSummary(page: Page) {
+  await page.goto("http://127.0.0.1:5173/workspace");
+  await expect(page.getByRole("heading", { name: "科研工作区" })).toBeVisible();
+  await page.getByRole("button", { name: "Paper summary" }).click();
+  await expect(
+    page.getByRole("heading", { name: "文献总结阅读" }),
+  ).toBeVisible();
+}
+
+test("Fixture literature summary: five regions, status badges and statement Evidence flow", async ({
+  page,
+}) => {
+  const errors = collectRuntimeErrors(page);
+
+  await openPaperSummary(page);
+
+  // The five reading regions render as headings in fixed order.
+  for (const title of [
+    "研究目标",
+    "研究方法",
+    "使用数据集",
+    "核心发现",
+    "局限与未来工作",
+  ]) {
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  }
+
+  // Support statuses are visible and never merged into unmarked facts.
+  await expect(page.getByText("有证据支持").first()).toBeVisible();
+  await expect(page.getByText("无证据（未证实）").first()).toBeVisible();
+  await expect(page.getByText("证据不可核验").first()).toBeVisible();
+
+  // Keyboard flow: focus a supported statement and press Enter — its generic
+  // Evidence opens in the Provenance Observatory.
+  await page
+    .getByRole("button", {
+      name: "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
+    })
+    .focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page
+      .locator(".provenance-observatory")
+      .getByRole("button", { name: "evd_papsum_03" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Evidence" })).toBeVisible();
+  expect(errors).toEqual([]);
+});
