@@ -1,10 +1,10 @@
 """Test-only bootstrap router.
 
 Mounted by ``app.main.create_app`` only when ``APP_ENV`` is ``test`` or
-``integration``. The endpoint (``POST /api/v2/test/bootstrap``) is absent in
+``integration``. The endpoint (``POST /api/test/bootstrap``) is absent in
 ``development`` and ``production`` builds, so it can never drift the frozen
 /generated contract (the export and parity checks run without it). Because it
-lives under ``/api/v2``, the standard security middleware enforces the same
+lives under ``/api``, the standard security middleware enforces the same
 session cookie + CSRF rules as every other private endpoint — ownership
 checks are never bypassed, and no credential is ever returned or logged.
 
@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from app.security import SecurityProblem
 from app.test_support.bootstrap import BootstrapResult, bootstrap_fixture_artifacts
 
-router = APIRouter(prefix="/api/v2/test", tags=["test-only"])
+router = APIRouter(prefix="/api/test", tags=["test-only"])
 
 
 class BootstrapResponse(BaseModel):

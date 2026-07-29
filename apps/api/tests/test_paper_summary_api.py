@@ -45,13 +45,17 @@ PROJECT_ID = "project-1"
 
 def _input_versions(*, with_snapshot: bool) -> PaperSummaryInputVersions:
     snapshots = (
-        PaperSummarySourceSnapshotReference(
-            source_snapshot_id="pipeline-snapshot",
-            source_id="crossref",
-            source_version="crossref-v1",
-            content_hash=HASH_A,
-        ),
-    ) if with_snapshot else ()
+        (
+            PaperSummarySourceSnapshotReference(
+                source_snapshot_id="pipeline-snapshot",
+                source_id="crossref",
+                source_version="crossref-v1",
+                content_hash=HASH_A,
+            ),
+        )
+        if with_snapshot
+        else ()
+    )
     return PaperSummaryInputVersions(
         paper_collection_version_id=COLLECTION_VERSION_ID,
         paper_collection_schema_version="1.0.0",
@@ -149,11 +153,20 @@ def _summary(*, with_evidence: bool = True) -> PaperSummaryArtifactContent:
     return PaperSummaryArtifactContent.model_validate(payload)
 
 
-def _version(*, summary: PaperSummaryArtifactContent, kind: str = "paper_summary", tamper_hash: bool = False) -> ArtifactVersionDetail:
-    content = summary.model_dump(mode="json") if kind == "paper_summary" else {
-        "schema_version": summary.input_versions.paper_collection_schema_version,
-        "output_hash": summary.input_versions.paper_collection_output_hash,
-    }
+def _version(
+    *,
+    summary: PaperSummaryArtifactContent,
+    kind: str = "paper_summary",
+    tamper_hash: bool = False,
+) -> ArtifactVersionDetail:
+    content = (
+        summary.model_dump(mode="json")
+        if kind == "paper_summary"
+        else {
+            "schema_version": summary.input_versions.paper_collection_schema_version,
+            "output_hash": summary.input_versions.paper_collection_output_hash,
+        }
+    )
     content_hash = compute_canonical_payload_hash(content)
     if tamper_hash:
         content_hash = HASH_A
@@ -183,38 +196,48 @@ def _version(*, summary: PaperSummaryArtifactContent, kind: str = "paper_summary
         latency_ms=1,
     )
     snapshots = (
-        SourceSnapshotDetail(
-            id="snapshot-db",
-            source_id="crossref",
-            source_type="paper_metadata",
-            retrieved_at=NOW,
-            query="query",
-            query_hash=HASH_A,
-            source_version_or_etag="crossref-v1",
-            content_hash=HASH_A,
-            license_note="Public metadata",
-            request_metadata={},
-        ),
-    ) if kind == "paper_summary" and summary.input_versions.source_snapshots else ()
+        (
+            SourceSnapshotDetail(
+                id="snapshot-db",
+                source_id="crossref",
+                source_type="paper_metadata",
+                retrieved_at=NOW,
+                query="query",
+                query_hash=HASH_A,
+                source_version_or_etag="crossref-v1",
+                content_hash=HASH_A,
+                license_note="Public metadata",
+                request_metadata={},
+            ),
+        )
+        if kind == "paper_summary" and summary.input_versions.source_snapshots
+        else ()
+    )
     evidence = (
-        EvidenceDetail(
-            id="evidence-db",
-            artifact_version_id=SUMMARY_VERSION_ID,
-            target_type="paper_summary",
-            target_id="finding-1",
-            evidence_type="paper_metadata",
-            source_snapshot_id="snapshot-db",
-            paper_id="paper-1",
-            locator={"source_record_id": "record-1"},
-            quote_or_value="A validated paper",
-            extraction_method="paper_summary",
-            confidence=1.0,
-            created_at=NOW,
-        ),
-    ) if snapshots else ()
+        (
+            EvidenceDetail(
+                id="evidence-db",
+                artifact_version_id=SUMMARY_VERSION_ID,
+                target_type="paper_summary",
+                target_id="finding-1",
+                evidence_type="paper_metadata",
+                source_snapshot_id="snapshot-db",
+                paper_id="paper-1",
+                locator={"source_record_id": "record-1"},
+                quote_or_value="A validated paper",
+                extraction_method="paper_summary",
+                confidence=1.0,
+                created_at=NOW,
+            ),
+        )
+        if snapshots
+        else ()
+    )
     return ArtifactVersionDetail(
         id=SUMMARY_VERSION_ID if kind == "paper_summary" else COLLECTION_VERSION_ID,
-        artifact_id=SUMMARY_ARTIFACT_ID if kind == "paper_summary" else "collection-artifact",
+        artifact_id=SUMMARY_ARTIFACT_ID
+        if kind == "paper_summary"
+        else "collection-artifact",
         project_id=PROJECT_ID,
         created_by_run_id="run-1",
         version_number=1,
@@ -237,20 +260,39 @@ def _version(*, summary: PaperSummaryArtifactContent, kind: str = "paper_summary
 class _Artifacts:
     def __init__(self, summary_version: ArtifactVersionDetail) -> None:
         self.summary_version = summary_version
-        self.collection_version = _version(summary=_summary(with_evidence=False), kind="paper_collection")
+        self.collection_version = _version(
+            summary=_summary(with_evidence=False), kind="paper_collection"
+        )
 
     def get_version(self, *, version_id: str, session_id: str) -> ArtifactVersionDetail:
         if session_id != "owner":
-            raise SecurityProblem(status=404, code="ARTIFACT_VERSION_NOT_FOUND", title="Resource not found", detail="Resource not found")
+            raise SecurityProblem(
+                status=404,
+                code="ARTIFACT_VERSION_NOT_FOUND",
+                title="Resource not found",
+                detail="Resource not found",
+            )
         if version_id == SUMMARY_VERSION_ID:
             return self.summary_version
         if version_id == COLLECTION_VERSION_ID:
             return self.collection_version
-        raise SecurityProblem(status=404, code="ARTIFACT_VERSION_NOT_FOUND", title="Resource not found", detail="Resource not found")
+        raise SecurityProblem(
+            status=404,
+            code="ARTIFACT_VERSION_NOT_FOUND",
+            title="Resource not found",
+            detail="Resource not found",
+        )
 
-    def get_artifact(self, *, artifact_id: str, session_id: str) -> ResearchArtifactDetail:
+    def get_artifact(
+        self, *, artifact_id: str, session_id: str
+    ) -> ResearchArtifactDetail:
         if session_id != "owner":
-            raise SecurityProblem(status=404, code="ARTIFACT_NOT_FOUND", title="Resource not found", detail="Resource not found")
+            raise SecurityProblem(
+                status=404,
+                code="ARTIFACT_NOT_FOUND",
+                title="Resource not found",
+                detail="Resource not found",
+            )
         if artifact_id == SUMMARY_ARTIFACT_ID:
             return ResearchArtifactDetail(
                 id=SUMMARY_ARTIFACT_ID,
@@ -273,7 +315,12 @@ class _Artifacts:
                 latest_version_id=COLLECTION_VERSION_ID,
                 versions=(),
             )
-        raise SecurityProblem(status=404, code="ARTIFACT_NOT_FOUND", title="Resource not found", detail="Resource not found")
+        raise SecurityProblem(
+            status=404,
+            code="ARTIFACT_NOT_FOUND",
+            title="Resource not found",
+            detail="Resource not found",
+        )
 
 
 def _client(artifacts: _Artifacts) -> TestClient:
@@ -282,7 +329,7 @@ def _client(artifacts: _Artifacts) -> TestClient:
     owner, credential, _ = app.state.session_service.create(now=datetime.now(UTC))
     app.state.session_service.store.put(replace(owner, id="owner"))
     client = TestClient(app)
-    client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api/v2")
+    client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api")
     return client
 
 
@@ -294,7 +341,7 @@ def test_paper_summary_read_returns_typed_summary_and_provenance() -> None:
     artifacts = _Artifacts(version)
     assert "kind" not in artifacts.collection_version.content
     client = _client(artifacts)
-    response = client.get(f"/api/v2/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary")
+    response = client.get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary")
 
     assert response.status_code == 200
     data = response.json()["data"]
@@ -308,14 +355,18 @@ def test_paper_summary_read_returns_typed_summary_and_provenance() -> None:
     ("version", "status", "code"),
     [
         (_version(summary=_summary(), kind="dataset"), 409, "ARTIFACT_KIND_MISMATCH"),
-        (_version(summary=_summary(), tamper_hash=True), 422, "PAPER_SUMMARY_SCHEMA_INVALID"),
+        (
+            _version(summary=_summary(), tamper_hash=True),
+            422,
+            "PAPER_SUMMARY_SCHEMA_INVALID",
+        ),
     ],
 )
 def test_paper_summary_invalid_content_uses_problem_details(
     version: ArtifactVersionDetail, status: int, code: str
 ) -> None:
     response = _client(_Artifacts(version)).get(
-        f"/api/v2/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
     )
     assert response.status_code == status
     assert response.headers["content-type"].startswith("application/problem+json")
@@ -327,28 +378,33 @@ def test_paper_summary_requires_session_and_hides_other_projects() -> None:
     app = create_app()
     artifacts = _Artifacts(_version(summary=_summary()))
     app.state.artifact_read_service = artifacts  # type: ignore[assignment]
-    assert TestClient(app).get(
-        f"/api/v2/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
-    ).status_code == 401
+    assert (
+        TestClient(app)
+        .get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary")
+        .status_code
+        == 401
+    )
 
-    owner, _owner_credential, _ = app.state.session_service.create(now=datetime.now(UTC))
+    owner, _owner_credential, _ = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
     app.state.session_service.store.put(replace(owner, id="owner"))
     other, other_credential, _ = app.state.session_service.create(now=datetime.now(UTC))
     app.state.session_service.store.put(replace(other, id="other"))
     client = TestClient(app)
-    client.cookies.set(settings.SESSION_COOKIE_NAME, other_credential, path="/api/v2")
-    response = client.get(
-        f"/api/v2/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
-    )
+    client.cookies.set(settings.SESSION_COOKIE_NAME, other_credential, path="/api")
+    response = client.get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary")
     assert response.status_code == 404
     assert response.json()["code"] == "ARTIFACT_VERSION_NOT_FOUND"
 
 
 def test_paper_summary_rejects_missing_persisted_evidence() -> None:
     summary = _summary()
-    version = _version(summary=summary).model_copy(update={"evidence": (), "evidence_ids": ()})
+    version = _version(summary=summary).model_copy(
+        update={"evidence": (), "evidence_ids": ()}
+    )
     response = _client(_Artifacts(version)).get(
-        f"/api/v2/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
     )
     assert response.status_code == 403
     assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"

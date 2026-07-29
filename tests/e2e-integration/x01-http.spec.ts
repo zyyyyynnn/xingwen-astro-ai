@@ -123,7 +123,7 @@ async function buildChainWithAdapter() {
   const headers = new Headers({ "Content-Type": "application/json" });
   session.attachCsrf(headers);
   const response = await fetchImpl(
-    `${API_ORIGIN}/api/v2/test/bootstrap?run_id=${String(run.id)}`,
+    `${API_ORIGIN}/api/test/bootstrap?run_id=${String(run.id)}`,
     { method: "POST", credentials: "include", headers },
   );
   expect(response.status).toBe(201);
@@ -559,7 +559,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   const apiRequests: string[] = [];
   const requestFailures: string[] = [];
   page.on("request", (request) => {
-    if (request.url().startsWith(`${API_ORIGIN}/api/v2/`)) {
+    if (request.url().startsWith(`${API_ORIGIN}/api/`)) {
       apiRequests.push(`${request.method()} ${request.url()}`);
     }
   });
@@ -586,7 +586,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   const projectCreated = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
-      response.url().endsWith("/api/v2/projects") &&
+      response.url().endsWith("/api/projects") &&
       response.status() === 201,
   );
   await page.getByLabel("Project 名称").fill("Exoplanet host-star integration");
@@ -598,9 +598,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   const draftCreated = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
-      response
-        .url()
-        .endsWith(`/api/v2/projects/${projectId}/contract-drafts`) &&
+      response.url().endsWith(`/api/projects/${projectId}/contract-drafts`) &&
       response.status() === 201,
   );
   await page
@@ -623,9 +621,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   const draftSaved = page.waitForResponse(
     (response) =>
       response.request().method() === "PATCH" &&
-      response
-        .url()
-        .includes(`/api/v2/research-contract-drafts/${seed.draft_id}`),
+      response.url().includes(`/api/contracts/drafts/${seed.draft_id}`),
   );
   await page.getByRole("button", { name: "保存草稿" }).click();
   expect((await draftSaved).status()).toBe(200);
@@ -633,7 +629,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   const contractCreated = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
-      response.url().endsWith(`/api/v2/projects/${seed.project_id}/contracts`),
+      response.url().endsWith(`/api/projects/${seed.project_id}/contracts`),
   );
   await page.getByRole("button", { name: "确认 Contract" }).click();
   const contractResponse = await contractCreated;
@@ -649,7 +645,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   const runCreated = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
-      response.url().endsWith(`/api/v2/projects/${seed.project_id}/runs`),
+      response.url().endsWith(`/api/projects/${seed.project_id}/runs`),
   );
   await page.getByRole("button", { name: "启动运行" }).click();
   const runResponse = await runCreated;
@@ -662,14 +658,14 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   // UI-created demo_replay run through the narrowed bootstrap. Resuming the
   // page's session (shared cookie jar) yields a CSRF valid for that owner.
   const resumeForBootstrap = await context.request.post(
-    `${API_ORIGIN}/api/v2/sessions`,
+    `${API_ORIGIN}/api/sessions`,
   );
   expect(resumeForBootstrap.status()).toBe(201);
   const bootstrapCsrf = (
     (await resumeForBootstrap.json()) as { data: { csrf_token: string } }
   ).data.csrf_token;
   const completed = await context.request.post(
-    `${API_ORIGIN}/api/v2/test/bootstrap?run_id=${runId}`,
+    `${API_ORIGIN}/api/test/bootstrap?run_id=${runId}`,
     { headers: { "X-CSRF-Token": bootstrapCsrf } },
   );
   expect(completed.status()).toBe(201);
@@ -705,14 +701,14 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   await page.getByLabel("布局").selectOption("focus");
 
   const concurrentSession = await context.request.post(
-    `${API_ORIGIN}/api/v2/sessions`,
+    `${API_ORIGIN}/api/sessions`,
   );
   expect(concurrentSession.status()).toBe(201);
   const concurrentSessionPayload = (await concurrentSession.json()) as {
     data: { csrf_token: string };
   };
   const serverWrite = await context.request.put(
-    `${API_ORIGIN}/api/v2/projects/${seed.project_id}/workspace-snapshot`,
+    `${API_ORIGIN}/api/projects/${seed.project_id}/workspace-snapshot`,
     {
       headers: {
         "X-CSRF-Token": concurrentSessionPayload.data.csrf_token,
@@ -728,7 +724,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
       response.request().method() === "PUT" &&
       response
         .url()
-        .endsWith(`/api/v2/projects/${seed.project_id}/workspace-snapshot`) &&
+        .endsWith(`/api/projects/${seed.project_id}/workspace-snapshot`) &&
       response.status() === 409,
   );
   await page.getByRole("button", { name: "保存工作区" }).click();
@@ -752,7 +748,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
       response.request().method() === "PUT" &&
       response
         .url()
-        .endsWith(`/api/v2/projects/${seed.project_id}/workspace-snapshot`) &&
+        .endsWith(`/api/projects/${seed.project_id}/workspace-snapshot`) &&
       response.status() === 200,
   );
   await page.getByRole("button", { name: "保存工作区" }).click();
@@ -776,7 +772,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   const shareCreated = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
-      response.url().endsWith(`/api/v2/projects/${seed.project_id}/shares`),
+      response.url().endsWith(`/api/projects/${seed.project_id}/shares`),
   );
   await page.getByRole("button", { name: "创建只读分享" }).click();
   const shareResponse = await shareCreated;
@@ -800,7 +796,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   const publicErrors = collectRuntimeErrors(publicPage);
   const publicSessionRequests: string[] = [];
   publicPage.on("request", (request) => {
-    if (request.url().includes("/api/v2/sessions")) {
+    if (request.url().includes("/api/sessions")) {
       publicSessionRequests.push(request.url());
     }
   });
@@ -833,7 +829,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   ).toBeVisible();
   expect(publicSessionRequests).toEqual([]);
 
-  const revokeUrl = `${API_ORIGIN}/api/v2/projects/${seed.project_id}/shares/${share.data.id}`;
+  const revokeUrl = `${API_ORIGIN}/api/projects/${seed.project_id}/shares/${share.data.id}`;
   const revoked = page.waitForResponse(
     (response) =>
       response.request().method() === "DELETE" && response.url() === revokeUrl,
@@ -852,7 +848,7 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
   expect(publicSessionRequests).toEqual([]);
 
   expect(
-    apiRequests.some((request) => request.includes("/api/v2/projects/")),
+    apiRequests.some((request) => request.includes("/api/projects/")),
   ).toBe(true);
   expect(
     apiRequests.some((request) => request.includes("/workspace-snapshot")),

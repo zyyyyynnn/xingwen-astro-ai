@@ -238,7 +238,7 @@ jobs:
           migrate_id="$(docker compose -f docker-compose.yml -f docker-compose.integration.yml ps --all -q migrate)"
           test -n "$migrate_id"
           test "$(docker inspect --format '{{.State.ExitCode}}' "$migrate_id")" = "0"
-          curl --fail --silent --show-error http://localhost:8000/api/v1/health
+          curl --fail --silent --show-error http://localhost:8000/api/health
 
       - name: Run real HTTP Browser and Fixture parity integration
         run: pnpm test:e2e:integration

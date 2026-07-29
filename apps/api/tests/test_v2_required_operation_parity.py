@@ -3,7 +3,7 @@
 The contract-only OpenAPI (`app.contracts.v2`) is the authoritative operation
 surface. This test asserts that the mounted runtime implements every M1
 required operation with the *same* HTTP method, path and operationId. It does
-not force any future ``/api/v2`` target to exist early; it only checks the M1
+not force any future ``/api`` target to exist early; it only checks the M1
 required set (which currently equals the full frozen 24-operation contract).
 """
 

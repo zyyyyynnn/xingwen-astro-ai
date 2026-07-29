@@ -2,7 +2,7 @@
 
 #131 narrowed this module's responsibility: the public Authoring Chain
 (``createResearchProject``, ``createResearchContractDraft``, draft update,
-contract confirm, run create) is exercised through the real ``/api/v2``
+contract confirm, run create) is exercised through the real ``/api``
 runtime, so the bootstrap no longer injects Project, ContractDraft, Contract,
 Run, credentials or Share tokens. Its only job is publishing the frozen main
 case's deterministic ``demo_replay``/``fixture`` ArtifactVersion + Evidence

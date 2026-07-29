@@ -1,4 +1,4 @@
-"""OpenAPI-only surface for the accepted ``/api/v2`` transport contract.
+"""OpenAPI-only surface for the accepted ``/api`` transport contract.
 
 The application returned here is intentionally not mounted by ``app.main``.
 Runtime routers selectively implement this surface; this module remains the
@@ -61,12 +61,12 @@ PROBLEM_RESPONSES = {
 
 
 def _contract_only() -> NoReturn:
-    raise RuntimeError("the /api/v2 contract application is not a runtime API")
+    raise RuntimeError("the /api contract application is not a runtime API")
 
 
 def create_v2_contract_app() -> FastAPI:
     app = FastAPI(
-        title="Xingwen Astro AI /api/v2 Contract",
+        title="Xingwen Astro AI /api Contract",
         version="2.0.0",
         openapi_version="3.1.0",
         docs_url=None,
@@ -75,7 +75,7 @@ def create_v2_contract_app() -> FastAPI:
     )
 
     @app.post(
-        "/api/v2/sessions",
+        "/api/sessions",
         operation_id="createAnonymousSession",
         response_model=Envelope[SessionCreated],
         status_code=201,
@@ -86,7 +86,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/sessions/current",
+        "/api/sessions/current",
         operation_id="getAnonymousSession",
         response_model=Envelope[ResearchSession],
         responses=PROBLEM_RESPONSES,
@@ -95,7 +95,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.delete(
-        "/api/v2/sessions/current",
+        "/api/sessions/current",
         operation_id="revokeAnonymousSession",
         status_code=204,
         response_model=None,
@@ -108,7 +108,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/projects",
+        "/api/projects",
         operation_id="listResearchProjects",
         response_model=CollectionEnvelope[ResearchProject],
         responses=PROBLEM_RESPONSES,
@@ -122,7 +122,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.post(
-        "/api/v2/projects",
+        "/api/projects",
         operation_id="createResearchProject",
         response_model=Envelope[ResearchProject],
         status_code=201,
@@ -136,7 +136,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/projects/{project_id}",
+        "/api/projects/{project_id}",
         operation_id="getResearchProject",
         response_model=Envelope[ResearchProject],
         responses=PROBLEM_RESPONSES,
@@ -146,7 +146,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.post(
-        "/api/v2/projects/{project_id}/contract-drafts",
+        "/api/projects/{project_id}/contract-drafts",
         operation_id="createResearchContractDraft",
         response_model=Envelope[ResearchContractDraft],
         status_code=201,
@@ -165,7 +165,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/research-contract-drafts/{draft_id}",
+        "/api/contracts/drafts/{draft_id}",
         operation_id="getResearchContractDraft",
         response_model=Envelope[ResearchContractDraft],
         responses=PROBLEM_RESPONSES,
@@ -175,7 +175,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.patch(
-        "/api/v2/research-contract-drafts/{draft_id}",
+        "/api/contracts/drafts/{draft_id}",
         operation_id="updateResearchContractDraft",
         response_model=Envelope[ResearchContractDraft],
         responses=PROBLEM_RESPONSES,
@@ -189,7 +189,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/research-contracts/{contract_id}",
+        "/api/contracts/{contract_id}",
         operation_id="getResearchContract",
         response_model=Envelope[ResearchContract],
         responses=PROBLEM_RESPONSES,
@@ -199,7 +199,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.post(
-        "/api/v2/projects/{project_id}/contracts",
+        "/api/projects/{project_id}/contracts",
         operation_id="confirmResearchContract",
         response_model=Envelope[ResearchContract],
         status_code=201,
@@ -214,7 +214,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/runs/{run_id}",
+        "/api/runs/{run_id}",
         operation_id="getResearchRun",
         response_model=Envelope[ResearchRun],
         responses=PROBLEM_RESPONSES,
@@ -224,7 +224,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.post(
-        "/api/v2/projects/{project_id}/runs",
+        "/api/projects/{project_id}/runs",
         operation_id="createResearchRun",
         response_model=Envelope[ResearchRun],
         status_code=201,
@@ -239,7 +239,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/runs/{run_id}/events",
+        "/api/runs/{run_id}/events",
         operation_id="listRunEvents",
         response_model=CollectionEnvelope[RunEvent],
         responses=PROBLEM_RESPONSES,
@@ -253,7 +253,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/runs/{run_id}/artifacts",
+        "/api/runs/{run_id}/artifacts",
         operation_id="listRunArtifacts",
         response_model=CollectionEnvelope[ResearchArtifact],
         responses=PROBLEM_RESPONSES,
@@ -268,7 +268,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/artifacts/{artifact_id}",
+        "/api/artifacts/{artifact_id}",
         operation_id="getResearchArtifact",
         response_model=Envelope[ResearchArtifactDetail],
         responses=PROBLEM_RESPONSES,
@@ -278,7 +278,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/artifact-versions/{version_id}",
+        "/api/artifact-versions/{version_id}",
         operation_id="getArtifactVersion",
         response_model=Envelope[ArtifactVersionDetail],
         responses=PROBLEM_RESPONSES,
@@ -288,7 +288,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/artifact-versions/{version_id}/paper-collection",
+        "/api/artifact-versions/{version_id}/paper-collection",
         operation_id="getPaperCollection",
         response_model=Envelope[PaperCollectionRead],
         responses=PROBLEM_RESPONSES,
@@ -298,7 +298,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/artifact-versions/{version_id}/paper-summary",
+        "/api/artifact-versions/{version_id}/paper-summary",
         operation_id="getPaperSummary",
         response_model=Envelope[PaperSummaryRead],
         responses=PROBLEM_RESPONSES,
@@ -308,7 +308,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/artifact-versions/{version_id}/paper-candidates",
+        "/api/artifact-versions/{version_id}/paper-candidates",
         operation_id="listPaperCollectionCandidates",
         response_model=CollectionEnvelope[PaperCollectionCandidateRead],
         responses=PROBLEM_RESPONSES,
@@ -322,7 +322,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/evidence/{evidence_id}",
+        "/api/evidence/{evidence_id}",
         operation_id="getEvidence",
         response_model=Envelope[EvidenceRead],
         responses=PROBLEM_RESPONSES,
@@ -332,7 +332,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/source-snapshots/{snapshot_id}",
+        "/api/source-snapshots/{snapshot_id}",
         operation_id="getSourceSnapshot",
         response_model=Envelope[SourceSnapshotDetail],
         responses=PROBLEM_RESPONSES,
@@ -344,7 +344,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/projects/{project_id}/workspace-snapshot",
+        "/api/projects/{project_id}/workspace-snapshot",
         operation_id="getWorkspaceSnapshot",
         response_model=Envelope[WorkspaceSnapshot],
         responses=PROBLEM_RESPONSES,
@@ -354,7 +354,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.put(
-        "/api/v2/projects/{project_id}/workspace-snapshot",
+        "/api/projects/{project_id}/workspace-snapshot",
         operation_id="putWorkspaceSnapshot",
         response_model=Envelope[WorkspaceSnapshot],
         responses=PROBLEM_RESPONSES,
@@ -369,7 +369,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/projects/{project_id}/shares",
+        "/api/projects/{project_id}/shares",
         operation_id="listShareSnapshots",
         response_model=CollectionEnvelope[ShareSnapshot],
         responses=PROBLEM_RESPONSES,
@@ -383,7 +383,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.post(
-        "/api/v2/projects/{project_id}/shares",
+        "/api/projects/{project_id}/shares",
         operation_id="createShareSnapshot",
         response_model=Envelope[ShareSnapshotCreated],
         status_code=201,
@@ -398,7 +398,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.delete(
-        "/api/v2/projects/{project_id}/shares/{share_id}",
+        "/api/projects/{project_id}/shares/{share_id}",
         operation_id="revokeShareSnapshot",
         status_code=204,
         response_model=None,
@@ -413,7 +413,7 @@ def create_v2_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
-        "/api/v2/shares/{share_token}",
+        "/api/public/shares/{share_token}",
         operation_id="getPublicShareSnapshot",
         response_model=Envelope[PublicShareSnapshot],
         responses=PROBLEM_RESPONSES,
