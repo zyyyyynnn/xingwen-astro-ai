@@ -47,7 +47,7 @@ Session 服务端变量：
 | `SESSION_TTL_SECONDS` | `86400` | 匿名 Session 有效期 |
 | `SESSION_CREATE_RATE_LIMIT` | `30` | 单客户端每分钟创建 Session 的上限 |
 | `SHARE_CREATE_RATE_LIMIT` | `20` | 单 Session 每分钟创建 ShareSnapshot 的上限 |
-| `PERSISTENT_WORKFLOW_ENABLED` | `false` | 本机 uvicorn 的持久 Runtime 开关；Compose 的 API 强制为 `true`，`/api/v1` 保留原执行路径 |
+| `PERSISTENT_WORKFLOW_ENABLED` | `false` | 本机 uvicorn 的持久 Runtime 开关；Compose 的 API 强制为 `true`，Pipeline `/api` 保留原执行路径 |
 
 Production 必须保持 `SESSION_COOKIE_SECURE=true`。Session 与 CSRF token 不得写入浏览器持久化存储或日志。
 
@@ -62,7 +62,7 @@ docker compose up --build --wait
 | ----------- | ------------------------ | ----------------------- |
 | `site`      | Astro Brand Site         | `http://localhost:4321` |
 | `workspace` | React Research Workspace | `http://localhost:5173` |
-| `api`       | FastAPI `/api/v1` + `/api/v2` | `http://localhost:8000` |
+| `api`       | FastAPI `/api` | `http://localhost:8000` |
 | `migrate`   | Alembic `upgrade head` one-shot | 无端口                  |
 | `postgres`  | PostgreSQL 17            | `localhost:5432`        |
 
@@ -169,7 +169,7 @@ uv sync --frozen / PostgreSQL pytest / Alembic / Pydantic JSON Schema export
 fresh Compose / pnpm test:e2e:integration
 ```
 
-Site 与 Workspace 分别构建；所有共享包参与 typecheck。Fixture E2E 覆盖 Site、Workspace、共享深链接和 Not Found；X-01 job 在 fresh Compose 上覆盖真实 `/api/v2` Browser 链路。
+Site 与 Workspace 分别构建；所有共享包参与 typecheck。Fixture E2E 覆盖 Site、Workspace、共享深链接和 Not Found；X-01 job 在 fresh Compose 上覆盖真实 `/api` Browser 链路。
 
 ## 7. 本地验收顺序
 
@@ -179,7 +179,7 @@ Site 与 Workspace 分别构建；所有共享包参与 typecheck。Fixture E2E 
 4. `docker compose config` 通过。
 5. `docker compose up --build --wait` 后 `postgres`、`api`、`site`、`workspace` healthy，`migrate` exited 0。
 6. `pnpm test:e2e:integration` 在独立 Compose Project 上通过。
-7. Site、Workspace 深链接和 `/api/v1/health` 可访问。
+7. Site、Workspace 深链接和 `/api/health` 可访问。
 8. `.env` 未被 Git 跟踪，仓库只有根 `pnpm-lock.yaml`。
 
 ## 8. 常见问题

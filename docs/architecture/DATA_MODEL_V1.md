@@ -1,15 +1,15 @@
-# Phase 0 `/api/v1` Data Model
+# Phase 0 `/api` Data Model
 
 | Metadata | Value |
 | --- | --- |
 | Status | Accepted |
-| Authority | `/api/v1` Phase 0 DTO contract |
+| Authority | `/api` Phase 0 DTO contract |
 | Historical source | `DATA_MODEL.md` at `9dddef0754443e8645e506d705c0f52ef7a165ca` |
 | Authoring source | `apps/api/src/app/schemas` |
-| Scope | Fixture-backed `/api/v1`; not the `/api/v2` target model |
+| Scope | Fixture-backed Phase 0 `/api`; not the `DATA_MODEL.md` target model |
 
 This document freezes the Phase 0 contract used by Issue #26. The current
-[`DATA_MODEL.md`](DATA_MODEL.md) remains the `/api/v2` target model and must not
+[`DATA_MODEL.md`](DATA_MODEL.md) remains the `/api` target model and must not
 be used to change these v1 DTOs implicitly. A deliberate v1 deviation must be
 recorded in [`V1_SCHEMA_FIELD_MATRIX.md`](V1_SCHEMA_FIELD_MATRIX.md) and covered
 by contract tests.
@@ -254,7 +254,8 @@ The historical v1 Evidence response embeds only:
 
 This intentionally reduced embedded snapshot is frozen for v1 compatibility.
 The expanded SourceSnapshot defined by the target `DATA_MODEL.md` belongs to
-`/api/v2` and must not be backported by silently changing the v1 wire response.
+the target `/api` model and must not be backported by silently changing the v1
+wire response.
 
 ## Evidence invariants
 

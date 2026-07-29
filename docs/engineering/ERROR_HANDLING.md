@@ -19,8 +19,8 @@ HTTP 状态、Problem Details 字段和授权错误的唯一事实来源是 [API
 
 ## 2. Current 与 Target
 
-- 当前 `/api/v1` 保持既有 Task error envelope 和回归行为。
-- 目标 `/api/v2` 只使用 RFC 9457 Problem Details，不维护第二套 v2 错误 Envelope。
+- 当前 Pipeline `/api` 保持既有 Task error envelope 和回归行为。
+- 目标核心 `/api` 只使用 RFC 9457 Problem Details，不维护第二套 v2 错误 Envelope。
 - v1 和 v2 可以使用不同传输结构，但必须映射到稳定内部错误分类。
 
 ## 3. 内部错误分类

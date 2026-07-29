@@ -1,7 +1,7 @@
 /**
  * Session manager — anonymous session lifecycle and CSRF token handling.
  *
- * POST /api/v2/sessions creates an isolated temporary session. The server
+ * POST /api/sessions creates an isolated temporary session. The server
  * identifies the session via a Secure, HttpOnly, SameSite Cookie managed by
  * the browser; the client never reads the token. The createSession response
  * returns an in-memory CSRF token that must be attached to every non-safe
@@ -37,7 +37,7 @@ export interface SessionManager {
   ensureSession(): Promise<SessionInfo>;
   /** Current session info, or null if not yet created / expired. */
   getCurrent(): SessionInfo | null;
-  /** Explicitly revoke the session (DELETE /api/v2/sessions/current). */
+  /** Explicitly revoke the session (DELETE /api/sessions/current). */
   revokeSession(): Promise<void>;
   /** Attach CSRF header to a mutable Headers for non-safe methods. */
   attachCsrf(headers: Headers): void;

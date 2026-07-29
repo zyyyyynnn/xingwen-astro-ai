@@ -1,5 +1,5 @@
 /**
- * Private WorkspaceSnapshot recovery and Share repositories over `/api/v2`.
+ * Private WorkspaceSnapshot recovery and Share repositories over `/api`.
  *
  * Workspace `save` sends the contract-required integer `If-Match` (not a quoted
  * ETag), every response is validated against its generated schema and mapped

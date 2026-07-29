@@ -5,10 +5,10 @@
 | Status         | Accepted                                                                                                                                                                                                                                                                                   |
 | Authority      | 领域实体、字段、枚举与不变量                                                                                                                                                                                                                                                               |
 | Implementation | Core Pydantic contract、Project/Contract/Run Runtime、Workspace/Share PostgreSQL authority、D-02 PaperCollection content、D-03 PaperSummary content/admission、#76/#77 Workflow persistence、#78 atomic publisher 与 #83 provenance reads Implemented；Snapshot/Share 跨进程持久化 Pending |
-| Current model  | `/api/v1` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)）                                                                                                                                          |
+| Current model  | `/api` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)）                                                                                                                                          |
 | Target model   | Project / Run / Artifact / ArtifactVersion                                                                                                                                                                                                                                                 |
 
-本文冻结 `/api/v2` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Project/Contract/Run Application、Workspace/Share PostgreSQL authority、#76 Workflow PostgreSQL Schema、#77 Run lease/recovery、#78 ArtifactVersion Publisher 及 #83 Artifact/Evidence/SourceSnapshot 私有读取已实现。Workspace/Share 状态仍为进程生命周期存储，跨进程恢复 Pending。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
+本文冻结 `/api` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Project/Contract/Run Application、Workspace/Share PostgreSQL authority、#76 Workflow PostgreSQL Schema、#77 Run lease/recovery、#78 ArtifactVersion Publisher 及 #83 Artifact/Evidence/SourceSnapshot 私有读取已实现。Workspace/Share 状态仍为进程生命周期存储，跨进程恢复 Pending。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
 ## 1. 建模原则
 
@@ -159,7 +159,7 @@ failure_summary
 
 Run 状态集合、转换、重试和取消规则只在 [WORKFLOW_DESIGN.md](WORKFLOW_DESIGN.md) 定义。`cached`、`fixture`、修订关系和 `using_cache` 都不是 Run 状态。
 
-持久化层额外保存 `revision`、不可公开的 `lease_token`、内部 `lease_owner`、`lease_generation`、`lease_expires_at` 和 `steps_frozen_at`。有效 lease 的 token、owner、expires_at 必须同时存在；接管时 generation 单调递增。任何 Executor 写入都同时校验 status、revision、token、generation 与数据库时间；这些并发控制字段不进入 `/api/v2` Transport Contract。
+持久化层额外保存 `revision`、不可公开的 `lease_token`、内部 `lease_owner`、`lease_generation`、`lease_expires_at` 和 `steps_frozen_at`。有效 lease 的 token、owner、expires_at 必须同时存在；接管时 generation 单调递增。任何 Executor 写入都同时校验 status、revision、token、generation 与数据库时间；这些并发控制字段不进入 `/api` Transport Contract。
 
 RunStep：
 
@@ -252,9 +252,9 @@ PaperCollection 包含 query、acquisition_run、candidates、selected_paper_ids
 
 `PaperSourceExecution` 携带 cached 审计上下文：cached 执行必须同时提供 `cache_applicability`（该缓存为何适用于当前查询）与 `live_failure_class`/`live_failure_code`（本次 Live 尝试的失败分类与代码）；非 cached 执行禁止携带这些字段。cached 执行引用的 SourceSnapshot 必须提供非空 `cache_version`，且 `request_metadata` 必须包含 `origin_run_id` 与 `origin_artifact_version_id`（真实历史 Run/版本），均由 Pydantic validator 强制；空串或全空白值等同缺失，消费端必须拒绝为契约违规。`RawPaperCandidate.synthetic_note` 是记录级 provenance 标注：合成演示/测试记录必须携带说明文本，真实获取记录永远为 null，审查界面逐候选展示。
 
-当前 D-02 已在唯一 Pydantic 编写源实现独立的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。#78 已实现通用 Publisher 端口，但这不表示 `/api/v2` HTTP API 或 Paper Pipeline 到持久化 Workflow 的生产集成已实现。
+当前 D-02 已在唯一 Pydantic 编写源实现独立的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。#78 已实现通用 Publisher 端口，但这不表示 `/api` HTTP API 或 Paper Pipeline 到持久化 Workflow 的生产集成已实现。
 
-PaperSummary 的唯一 Pydantic 编写源是 `apps/api/src/app/schemas/paper_summary.py`，并由 `/api/v2` `ArtifactContent` 的 `kind=paper_summary` 判别分支直接复用，不复制第二套生产 Schema。内容包含 `summary_id`、`paper_id`、固定 D-01 Benchmark reference、PaperCollection/SourceSnapshot 输入版本、`research_goal`、`method`、`dataset`、`findings`、`limitations`、`future_work`、逐项状态、Evidence、来源冲突、ProducerExecution、input/output hash。B-07 的 `PaperSummaryRead` 传输投影位于 `apps/api/src/app/schemas/paper_summary_api.py`，由 `GET /api/v2/artifact-versions/{version_id}/paper-summary` 返回，并在序列化前验证不可变版本、同项目 PaperCollection 输入、SourceSnapshot 稳定指纹、Evidence target 归属和 ProducerExecution/hash 对照。
+PaperSummary 的唯一 Pydantic 编写源是 `apps/api/src/app/schemas/paper_summary.py`，并由 `/api` `ArtifactContent` 的 `kind=paper_summary` 判别分支直接复用，不复制第二套生产 Schema。内容包含 `summary_id`、`paper_id`、固定 D-01 Benchmark reference、PaperCollection/SourceSnapshot 输入版本、`research_goal`、`method`、`dataset`、`findings`、`limitations`、`future_work`、逐项状态、Evidence、来源冲突、ProducerExecution、input/output hash。B-07 的 `PaperSummaryRead` 传输投影位于 `apps/api/src/app/schemas/paper_summary_api.py`，由 `GET /api/artifact-versions/{version_id}/paper-summary` 返回，并在序列化前验证不可变版本、同项目 PaperCollection 输入、SourceSnapshot 稳定指纹、Evidence target 归属和 ProducerExecution/hash 对照。
 
 `research_goal`、`method`、`dataset` 可显式为 `null`；列表字段必须显式存在，缺失字段不默认补全。每个非空项使用独立 `statement_id`、text、evidence_ids 和 `supported | unsupported | unverifiable`。核心 finding / limitation 只有在其 Evidence 同时匹配 paper、D-02 原始 candidate、source、source record、SourceSnapshot 后才继续验证 locator/value：`source_url` 必须等于 D-02 候选 URL，metadata value 必须等于受限字段枚举对应的原始值，paper text quote 必须出现在有界可访问片段中。无 Evidence 为 `unsupported`，来源不可访问、未知引用或 provenance 不匹配为 `unverifiable`。
 

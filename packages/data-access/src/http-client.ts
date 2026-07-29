@@ -1,5 +1,5 @@
 /**
- * Internal HTTP transport client shared by the `/api/v2` repositories.
+ * Internal HTTP transport client shared by the `/api` repositories.
  *
  * Wraps `fetch` with envelope parsing, RFC 9457 Problem Details → domain error
  * mapping, CSRF attachment for non-safe methods, and 401 session-expiry

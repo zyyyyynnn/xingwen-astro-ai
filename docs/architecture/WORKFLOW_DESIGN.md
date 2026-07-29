@@ -5,7 +5,7 @@
 | Status | Accepted |
 | Authority | Run 状态、事件、取消、重试、缓存与派生语义 |
 | Implementation | #76 PostgreSQL baseline、#77 lease/fencing/recovery store、#78 ArtifactVersion atomic publisher、D-03 PaperSummary detached admission 与 M1 v2 Run/Event Runtime Implemented；生产 Pipeline wiring Pending |
-| Current runtime | v1 Phase 0 状态机与 `/api/v2` M1 PersistentWorkflowStore Application |
+| Current runtime | v1 Phase 0 状态机与 `/api` M1 PersistentWorkflowStore Application |
 | Target runtime | Project / Run / ArtifactVersion 工作流 |
 
 本文定义 ResearchRun 编排、事件、取消、重试、缓存、修订与派生语义。当前 v1 Executor、Hooks 与测试继续作为兼容基线；M1 v2 Run 创建/读取与 Event 读取已接入 PersistentWorkflowStore，但数据库 Hooks、真实 Pipeline、对外取消资源、CacheSelector 与自动执行仍为 Pending。
@@ -190,7 +190,7 @@ GraphEdge 修订若影响 Relation、ReasoningTrace 或 Evidence，RevisionPlan 
 
 ## 12. 当前 v1 与目标 v2
 
-当前已实现：显式 v1 状态转换表与 WorkflowHooks；#77 PostgreSQL Workflow Store 的 create/acquire/heartbeat/begin/retry/fail/cancel/snapshot 边界；按 Step 调用 Adapter 的 `PersistentWorkflowExecutor`；以及 #78 ProducerExecution Store、结构化 candidate 准入端口和 ArtifactVersion Publisher。Executor 在 `begin_step` 事务提交后调用外部 Adapter，并可把成功提交委托给 Publisher 注入端口；本机 uvicorn 默认由 `PERSISTENT_WORKFLOW_ENABLED=false` 保持关闭，Compose 的 M1 `/api/v2` Runtime 显式强制为 `true`，v1 Executor 与 `/api/v1` 不切换实现。
+当前已实现：显式 v1 状态转换表与 WorkflowHooks；#77 PostgreSQL Workflow Store 的 create/acquire/heartbeat/begin/retry/fail/cancel/snapshot 边界；按 Step 调用 Adapter 的 `PersistentWorkflowExecutor`；以及 #78 ProducerExecution Store、结构化 candidate 准入端口和 ArtifactVersion Publisher。Executor 在 `begin_step` 事务提交后调用外部 Adapter，并可把成功提交委托给 Publisher 注入端口；本机 uvicorn 默认由 `PERSISTENT_WORKFLOW_ENABLED=false` 保持关闭，Compose 的 M1 `/api` Runtime 显式强制为 `true`，v1 Executor 与 Pipeline `/api` 不切换实现。
 
 当前 v1 `ResearchTask` 快照同时校验顶层状态、进度和 Step 状态：初始 `pending` 快照不得包含已开始 Step，含 `running` Step 的快照不得为 `pending`，`completed` 快照的进度必须为 100。
 

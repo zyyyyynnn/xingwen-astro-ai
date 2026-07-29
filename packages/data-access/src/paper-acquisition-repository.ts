@@ -4,7 +4,7 @@
  * One deep port method — `getReview(artifactVersionId)` — hides the entire
  * transport protocol:
  *
- * - `GET /api/v2/artifact-versions/{id}/paper-collection` (required read)
+ * - `GET /api/artifact-versions/{id}/paper-collection` (required read)
  * - cursor-paged `GET .../paper-candidates` until exhausted
  * - generated-contract validation of every payload
  * - integrity guards: non-advancing/looping cursors, duplicate candidates,
