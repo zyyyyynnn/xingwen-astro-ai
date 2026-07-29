@@ -10,6 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
+from app import api_surface
 from app.errors import ApiError
 from app.schemas.common import ApiResponse
 from app.schemas.v2 import ProblemDetails, ProblemFieldError
@@ -39,11 +40,7 @@ class V2SecurityMiddleware(BaseHTTPMiddleware):
         self.cookie_name = cookie_name
 
     async def dispatch(self, request: Request, call_next: Any) -> JSONResponse:  # noqa: ANN401
-        if (
-            not request.url.path.startswith("/api/v2")
-            or request.url.path.rstrip("/") == "/api/v2/sessions"
-            or self._is_public_share_read(request)
-        ):
+        if not api_surface.requires_authentication(request.method, request.url.path):
             return await call_next(request)
         try:
             record = self.sessions.authenticate(request.cookies.get(self.cookie_name))
@@ -53,17 +50,6 @@ class V2SecurityMiddleware(BaseHTTPMiddleware):
         except SecurityProblem as exc:
             return v2_problem_response(request, exc)
         return await call_next(request)
-
-    @staticmethod
-    def _is_public_share_read(request: Request) -> bool:
-        if request.method not in {"GET", "HEAD"}:
-            return False
-        prefix = "/api/v2/shares/"
-        path = request.url.path
-        if not path.startswith(prefix):
-            return False
-        token_segment = path.removeprefix(prefix)
-        return bool(token_segment) and "/" not in token_segment
 
 
 def v2_problem_response(request: Request, exc: SecurityProblem) -> JSONResponse:
@@ -109,7 +95,7 @@ async def api_error_exception_handler(request: Request, exc: ApiError) -> JSONRe
 async def api_http_exception_handler(
     request: Request, exc: HTTPException
 ) -> JSONResponse:
-    if request.url.path.startswith("/api/v2"):
+    if api_surface.uses_problem_details(request.url.path):
         problem = SecurityProblem(
             status=exc.status_code,
             code="INVALID_REQUEST" if exc.status_code == 400 else "RESOURCE_NOT_FOUND",
@@ -133,7 +119,7 @@ async def api_http_exception_handler(
 async def api_validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    if request.url.path.startswith("/api/v2"):
+    if api_surface.uses_problem_details(request.url.path):
         request_id = getattr(request.state, "request_id", "") or "unknown"
         problem = ProblemDetails(
             type="https://xingwen.example/errors/schema-validation-failed",
@@ -185,13 +171,13 @@ async def api_validation_exception_handler(
 
 
 def _problem_instance(request: Request) -> str:
-    if V2SecurityMiddleware._is_public_share_read(request):
-        return "/api/v2/shares/public"
+    if api_surface.is_public_share_read(request.method, request.url.path):
+        return api_surface.public_share_instance()
     return request.url.path
 
 
 def _public_share_headers(request: Request) -> dict[str, str]:
-    if not V2SecurityMiddleware._is_public_share_read(request):
+    if not api_surface.is_public_share_read(request.method, request.url.path):
         return {}
     return {
         "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
