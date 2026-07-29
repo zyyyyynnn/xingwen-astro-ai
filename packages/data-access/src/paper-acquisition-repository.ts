@@ -145,7 +145,8 @@ export function mapSnapshotSummary(
   };
 }
 
-function mapProducerExecutionSummary(
+/** Shared with the A-06 paper summary repository (same persisted record). */
+export function mapProducerExecutionSummary(
   dto: ProducerExecutionDetailDto,
 ): ProducerExecutionSummary {
   return {

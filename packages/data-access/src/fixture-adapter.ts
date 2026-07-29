@@ -73,6 +73,14 @@ export interface FixtureAdapterOptions {
 }
 
 function validateBundleSemantics(bundle: FixtureBundle): void {
+  // Defensive runtime check: an old-shaped bundle without the paperSummaries
+  // array must fail as an explicit fixture contract error, never a TypeError.
+  if (!Array.isArray(bundle.data.paperSummaries)) {
+    throw new FixtureSemanticError(
+      "Fixture bundle must carry a paperSummaries array of rich immutable " +
+        "paper summary entries.",
+    );
+  }
   if (bundle.executionMode !== "demo_replay") {
     throw new FixtureSemanticError(
       `Fixture bundle executionMode must be "demo_replay"; got "${bundle.executionMode}".`,
@@ -818,9 +826,11 @@ export function createFixtureRepositories(
           (item) => item.summary.artifact_version_id === artifactVersionId,
         );
         if (!entry) {
+          // Mirrors the B-07 backend: an unknown version id is a generic
+          // ARTIFACT_VERSION_NOT_FOUND, never an "empty summary" state.
           throw new NotFoundError(
             `Paper summary ${artifactVersionId} not found`,
-            "PAPER_SUMMARY_EMPTY",
+            "ARTIFACT_VERSION_NOT_FOUND",
           );
         }
         // Identical assembly path to the HTTP adapter, so both return the

@@ -20,6 +20,11 @@ one unverifiable paper_text statement whose source excerpt is unavailable.
 Regenerate the committed JSON with:
 
     uv run --project apps/api python -m services.paper_pipeline.demo_summary_fixture
+    pnpm prettier --write packages/data-access/src/fixture/paper-summary.fixture.json
+
+The prettier pass is mandatory after every regeneration: this generator
+writes plain ``json.dumps`` output, while the repo formatting gate
+(`pnpm format:check`) collapses short arrays onto one line.
 """
 
 from __future__ import annotations
@@ -56,7 +61,10 @@ from .demo_fixture import (
 )
 from .summary import PaperSummaryPipeline
 
-_SUMMARY_TIME = datetime(2026, 7, 21, 9, 0, tzinfo=timezone.utc)
+# Inside the demo run window (T4 08:16 .. T9 08:30) at the
+# `run.summarizing_papers` event time (T7), after the paper-collection
+# version (~08:24) and clear of the fixture adapter's 09:00 clock base.
+_SUMMARY_TIME = datetime(2026, 7, 21, 8, 25, tzinfo=timezone.utc)
 
 _ARTIFACT_VERSION_ID = "artv_papsum_01"
 _ARTIFACT_ID = "art_papsum_01"
@@ -322,9 +330,11 @@ def build_demo_summary_read() -> tuple[PaperSummaryRead, ArtifactVersionDetail]:
                 **(
                     {"metadata_field": item.locator.metadata_field}
                     if item.locator.kind == "paper_metadata"
+                    # The generic domain `PaperTextLocator` reads `range`;
+                    # `text_range` exists only inside the summary schema.
                     else {
                         "section": item.locator.section,
-                        "text_range": item.locator.text_range,
+                        "range": item.locator.text_range,
                     }
                 ),
             },

@@ -50,6 +50,21 @@ describe("LiteratureComparisonGrid", () => {
       `ArtifactVersion ${String(fixtureReview.artifactVersionId)}`,
     );
     expect(first).toHaveTextContent("source: Fixture");
+    // All five comparison dimensions render, including the limitations cell
+    // that enables cross-paper limitation contrast.
+    for (const title of [
+      "研究目标",
+      "研究方法",
+      "使用数据集",
+      "核心发现",
+      "局限与未来工作",
+    ]) {
+      expect(
+        within(first).getByRole("heading", { name: title }),
+      ).toBeInTheDocument();
+    }
+    expect(first).toHaveTextContent(fixtureReview.limitations[0]!.text);
+    expect(first).toHaveTextContent(fixtureReview.dataset!.text);
 
     for (const slot of ["对比列 2（空）", "对比列 3（空）"]) {
       const empty = screen.getByRole("article", { name: slot });
@@ -81,7 +96,8 @@ describe("LiteratureComparisonGrid", () => {
     expect(
       second.getByText("Second paper goal statement for column isolation."),
     ).toBeInTheDocument();
-    expect(second.getByText("无证据（未证实）")).toBeInTheDocument();
+    // Two unsupported badges: the stubbed goal plus the inherited limitation.
+    expect(second.getAllByText("无证据（未证实）")).toHaveLength(2);
     // The stub has no method/findings: stated, never merged from column 1.
     expect(second.getAllByText("无陈述。")).toHaveLength(2);
     expect(

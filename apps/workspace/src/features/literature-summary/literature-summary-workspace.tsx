@@ -122,7 +122,9 @@ function StatementItem({
             // a missing record is stated below and never fabricated.
             if (generic !== null) onSelectEvidence(generic);
           }}
-          disabled={disabled}
+          // Without a generic Evidence record the button would be an enabled
+          // no-op; disable it so assistive tech gets an honest affordance.
+          disabled={disabled || generic === null}
         >
           {statement.text}
         </button>
@@ -219,6 +221,10 @@ export function LiteratureSummaryView({
         <span className="candidate-meta-item">
           producer: {review.producer.producerName} v
           {review.producer.producerVersion}（{review.producer.status}）
+        </span>
+        <span className="candidate-meta-item">
+          执行记录 {String(review.producerExecution.id)}（
+          {review.producerExecution.status}）
         </span>
         <span className="candidate-meta-item">
           输入 PaperCollection{" "}
@@ -338,15 +344,6 @@ export function LiteratureSummaryWorkspace({
       <section className="work-panel" aria-labelledby="paper-summary-title">
         <h2 id="paper-summary-title">文献总结阅读</h2>
         <p aria-live="polite">正在读取文献总结产物。</p>
-      </section>
-    );
-  }
-  if (state.status === "empty") {
-    return (
-      <section className="work-panel" aria-labelledby="paper-summary-title">
-        <h2 id="paper-summary-title">文献总结阅读</h2>
-        <p aria-live="polite">无文献总结。</p>
-        {retryButton}
       </section>
     );
   }

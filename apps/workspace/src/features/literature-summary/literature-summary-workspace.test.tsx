@@ -287,7 +287,13 @@ describe("LiteratureSummaryWorkspace — fixture main path", () => {
     renderWorkspace(runtime);
     await openPaperSummary();
 
-    fireEvent.click(screen.getByRole("button", { name: LIMITATION_TEXT }));
+    // The statement without a generic Evidence record is disabled: clicking
+    // it must be a no-op instead of a silently enabled dead button.
+    const limitationButton = screen.getByRole("button", {
+      name: LIMITATION_TEXT,
+    });
+    expect(limitationButton).toBeDisabled();
+    fireEvent.click(limitationButton);
 
     // No fabricated Evidence: the workspace draft never pins anything.
     await waitFor(() => {
@@ -336,14 +342,18 @@ describe("LiteratureSummaryWorkspace — non-ready states and retry", () => {
     };
   }
 
-  it("shows the empty state only for the explicit empty-summary code", async () => {
+  it("shows the unavailable state for an unknown version 404", async () => {
     renderWorkspace(
       runtimeWithSummary(async () => {
-        throw new NotFoundError("empty", "PAPER_SUMMARY_EMPTY");
+        throw new NotFoundError("missing", "ARTIFACT_VERSION_NOT_FOUND");
       }),
     );
     await openPaperSummary();
-    expect(await screen.findByText("无文献总结。")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "当前 ArtifactVersion 不存在或不可访问，请重新选择 Artifact。",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "重新读取当前版本" }),
     ).toBeInTheDocument();
@@ -361,7 +371,6 @@ describe("LiteratureSummaryWorkspace — non-ready states and retry", () => {
         "当前 ArtifactVersion 不存在或不可访问，请重新选择 Artifact。",
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByText("无文献总结。")).not.toBeInTheDocument();
   });
 
   it("shows the schema-invalid state", async () => {

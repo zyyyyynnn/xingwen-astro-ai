@@ -41,6 +41,7 @@ import { asEntityId } from "@xingwen/domain";
 import { HttpClient, seg } from "./http-client";
 import { mapEvidenceDetail } from "./mapping";
 import {
+  mapProducerExecutionSummary,
   mapSnapshotSummary,
   parseContract,
 } from "./paper-acquisition-repository";
@@ -198,6 +199,7 @@ export function assemblePaperSummaryReview(
     summaryEvidence: summary.evidence.map(mapSummaryEvidence),
     sourceConflicts: summary.source_conflicts.map(mapSourceConflict),
     producer: mapProducer(summary.producer),
+    producerExecution: mapProducerExecutionSummary(read.producer_execution),
     sourceSnapshots: (read.source_snapshots ?? []).map(mapSnapshotSummary),
     evidence: read.evidence.map((item: EvidenceDetailDto) =>
       mapEvidenceDetail(item),

@@ -54,7 +54,10 @@ def test_committed_fixture_matches_deterministic_rebuild(
     assert committed_document == build_summary_fixture_document(), (
         "paper-summary.fixture.json drifted from the pipeline build; "
         "regenerate with `uv run --project apps/api python -m "
-        "services.paper_pipeline.demo_summary_fixture`"
+        "services.paper_pipeline.demo_summary_fixture` and then run "
+        "`pnpm prettier --write "
+        "packages/data-access/src/fixture/paper-summary.fixture.json` "
+        "(the generator writes json.dumps; prettier collapses short arrays)"
     )
 
 

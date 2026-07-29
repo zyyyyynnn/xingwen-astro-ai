@@ -26,15 +26,12 @@ import {
 const review = assemblePaperSummaryReview(paperSummaryReadFixture);
 
 describe("classifyPaperSummaryError", () => {
-  it("maps the explicit empty-summary 404 code to empty", () => {
+  it("maps every 404 code to unavailable — there is no empty-summary state", () => {
     expect(
       classifyPaperSummaryError(
-        new NotFoundError("empty", "PAPER_SUMMARY_EMPTY"),
+        new NotFoundError("missing", "ARTIFACT_VERSION_NOT_FOUND"),
       ),
-    ).toEqual({ status: "empty" });
-  });
-
-  it("maps any other 404 code to unavailable, never empty", () => {
+    ).toEqual({ status: "unavailable" });
     expect(
       classifyPaperSummaryError(
         new NotFoundError("missing", "RESOURCE_NOT_FOUND"),

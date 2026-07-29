@@ -26,7 +26,6 @@ export type PaperSummaryReviewState =
   | { readonly status: "idle" }
   | { readonly status: "loading" }
   | { readonly status: "ready"; readonly review: PaperSummaryReview }
-  | { readonly status: "empty" }
   | { readonly status: "unavailable" }
   | { readonly status: "network_error" }
   | { readonly status: "invalid" };
@@ -34,21 +33,17 @@ export type PaperSummaryReviewState =
 /**
  * Classify a `getSummary` failure into a summary state, reusing the exact
  * A-05 error-name mapping (`classifyPaperReviewError`) for every branch
- * except the 404 code: a 404 only means "no summary" when the contract
- * explicitly reports `PAPER_SUMMARY_EMPTY`; any other 404 (missing or
- * inaccessible ArtifactVersion) is `unavailable`, never an empty result.
- * States the summary read cannot produce (rate limiting, upstream source
- * failure) degrade to `network_error` because a re-read is the only safe
- * next step.
+ * except 404: a `paper_summary` version, if it exists, always carries a
+ * summary — there is no "empty summary" backend state — so any 404 (missing
+ * or inaccessible ArtifactVersion) is `unavailable`. States the summary read
+ * cannot produce (rate limiting, upstream source failure) degrade to
+ * `network_error` because a re-read is the only safe next step.
  */
 export function classifyPaperSummaryError(
   error: unknown,
 ): PaperSummaryReviewState {
   if (error instanceof Error && error.name === "NotFoundError") {
-    const code = (error as { code?: unknown }).code;
-    return code === "PAPER_SUMMARY_EMPTY"
-      ? { status: "empty" }
-      : { status: "unavailable" };
+    return { status: "unavailable" };
   }
   const base = classifyPaperReviewError(error);
   return base.status === "invalid"

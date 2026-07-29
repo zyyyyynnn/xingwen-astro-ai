@@ -14,6 +14,7 @@
 
 import type {
   ArtifactVersionDto,
+  EvidenceDetail as EvidenceDetailDto,
   ResearchArtifactDto,
   ResearchContractDto,
   ResearchContractDraftDto,
@@ -24,6 +25,7 @@ import type {
 } from "@xingwen/contracts";
 import type { Evidence } from "@xingwen/domain";
 
+import { mapEvidenceDetail } from "../mapping";
 import type { FixtureBundle } from "./bundle";
 import {
   paperCandidateReadsFixture,
@@ -482,7 +484,9 @@ const evidence = [
   },
   {
     id: "evd_02",
-    artifactVersionId: "artv_papsum_01",
+    // Homed on the claims version, which lists it in `evidence_ids`; the
+    // rich `artv_papsum_01` carries its own `evd_papsum_*` records instead.
+    artifactVersionId: "artv_claims_01",
     targetType: "paper_summary",
     targetId: "psum_01",
     evidenceType: "paper_text",
@@ -543,36 +547,11 @@ const evidence = [
     createdAt: item.created_at,
   })),
   // Paper summary evidence — same ids as the B-07 read fixture so the summary
-  // review, generic Evidence store, pinning and Share stay wired. Locators
-  // mirror the shared `mapEvidenceDetail` narrowing: `paper_metadata` has no
-  // generic domain locator (null), `paper_text` maps defensively.
-  ...paperSummaryReadFixture.evidence.map((item) => ({
-    id: item.id,
-    artifactVersionId: item.artifact_version_id,
-    targetType: item.target_type,
-    targetId: item.target_id,
-    evidenceType: item.evidence_type,
-    sourceSnapshotId: item.source_snapshot_id,
-    paperId: item.paper_id ?? null,
-    locator:
-      String(item.locator.kind ?? "") === "paper_text"
-        ? {
-            kind: "paper_text",
-            section: String(item.locator.section ?? ""),
-            page: null,
-            paragraph: null,
-            range:
-              typeof item.locator.range === "string"
-                ? String(item.locator.range)
-                : null,
-          }
-        : null,
-    quoteOrValue:
-      typeof item.quote_or_value === "string" ? item.quote_or_value : null,
-    extractionMethod: item.extraction_method,
-    confidence: item.confidence,
-    createdAt: item.created_at,
-  })),
+  // review, generic Evidence store, pinning and Share stay wired, mapped
+  // through the shared `mapEvidenceDetail` DTO→domain projection.
+  ...paperSummaryReadFixture.evidence.map((item) =>
+    mapEvidenceDetail(item as unknown as EvidenceDetailDto),
+  ),
 ] as unknown as readonly Evidence[];
 
 export const exoplanetHostStarFixture: FixtureBundle = {

@@ -1,6 +1,7 @@
 /**
  * Literature comparison grid (A-06) — an equal-width side-by-side reading of
- * up to three paper summaries, comparing goal, method and findings.
+ * up to three paper summaries, comparing goal, method, dataset, findings and
+ * limitations & future work.
  *
  * Every column keeps its own ArtifactVersion identity, source mode and
  * per-statement support status; columns are never merged into an unsourced
@@ -112,7 +113,15 @@ export function LiteratureComparisonGrid({
                 title="研究方法"
                 statements={summary.method === null ? [] : [summary.method]}
               />
+              <ComparisonCell
+                title="使用数据集"
+                statements={summary.dataset === null ? [] : [summary.dataset]}
+              />
               <ComparisonCell title="核心发现" statements={summary.findings} />
+              <ComparisonCell
+                title="局限与未来工作"
+                statements={[...summary.limitations, ...summary.futureWork]}
+              />
             </article>
           ),
         )}

@@ -18,6 +18,7 @@ import type { SourceMode } from "./enums";
 import type { DomainEntityId } from "./identifiers";
 import type {
   PaperBenchmarkReview,
+  ProducerExecutionSummary,
   SourceSnapshotSummary,
 } from "./paper-acquisition";
 import type {
@@ -151,6 +152,8 @@ export interface PaperSummaryReview {
   readonly summaryEvidence: readonly PaperSummaryEvidenceReview[];
   readonly sourceConflicts: readonly PaperSummarySourceConflictReview[];
   readonly producer: PaperSummaryProducerReview;
+  /** Generic runtime execution record persisted alongside the version. */
+  readonly producerExecution: ProducerExecutionSummary;
   readonly sourceSnapshots: readonly SourceSnapshotSummary[];
   readonly evidence: readonly Evidence[];
 }

@@ -14,9 +14,9 @@
     "artifact_id": "art_papsum_01",
     "project_id": "proj_01JEXAMPLE",
     "source_mode": "fixture",
-    "content_hash": "sha256:1a2ddce44f5669c36e3472c20247d073e4211760e62314d15adcfb21174a5658",
+    "content_hash": "sha256:5e2f7cc684a4365132c5e10f6b3b8d6beaba17e7b3dd863fc004b406c33ef6de",
     "input_hash": "sha256:5fc279fc5533380dda0633e4d31082579f21513ef84f5d2d8d93f065a599b53f",
-    "created_at": "2026-07-21T09:00:00Z",
+    "created_at": "2026-07-21T08:25:00Z",
     "summary": {
       "kind": "paper_summary",
       "schema_version": "1.0.0",
@@ -207,8 +207,8 @@
         "model_response_hash": "sha256:55298827faa717234747414f5c3fd53bf7b9e2fa0967b3f186600571d4223c39",
         "output_hash": "sha256:e2387598a7dc133feeb39c825e09b9115d59d16ba1149073ec7eaa8f7b1523d4",
         "status": "completed",
-        "started_at": "2026-07-21T09:00:00Z",
-        "finished_at": "2026-07-21T09:00:00Z",
+        "started_at": "2026-07-21T08:25:00Z",
+        "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
@@ -237,10 +237,10 @@
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
       "input_hash": "sha256:5fc279fc5533380dda0633e4d31082579f21513ef84f5d2d8d93f065a599b53f",
-      "output_hash": "sha256:1a2ddce44f5669c36e3472c20247d073e4211760e62314d15adcfb21174a5658",
+      "output_hash": "sha256:5e2f7cc684a4365132c5e10f6b3b8d6beaba17e7b3dd863fc004b406c33ef6de",
       "status": "completed",
-      "started_at": "2026-07-21T09:00:00Z",
-      "finished_at": "2026-07-21T09:00:00Z",
+      "started_at": "2026-07-21T08:25:00Z",
+      "finished_at": "2026-07-21T08:25:00Z",
       "token_usage": null,
       "latency_ms": 0,
       "error_code": null
@@ -282,7 +282,7 @@
         "quote_or_value": "2019",
         "extraction_method": "paper_summary",
         "confidence": 1.0,
-        "created_at": "2026-07-21T09:00:00Z"
+        "created_at": "2026-07-21T08:25:00Z"
       },
       {
         "id": "evd_papsum_02",
@@ -301,7 +301,7 @@
         "quote_or_value": "10.3847/1538-3881/ab3467",
         "extraction_method": "paper_summary",
         "confidence": 1.0,
-        "created_at": "2026-07-21T09:00:00Z"
+        "created_at": "2026-07-21T08:25:00Z"
       },
       {
         "id": "evd_papsum_03",
@@ -320,7 +320,7 @@
         "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
         "extraction_method": "paper_summary",
         "confidence": 1.0,
-        "created_at": "2026-07-21T09:00:00Z"
+        "created_at": "2026-07-21T08:25:00Z"
       },
       {
         "id": "evd_papsum_04",
@@ -335,12 +335,12 @@
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
           "section": "Methods",
-          "text_range": "paragraph 2, sentences 1-3"
+          "range": "paragraph 2, sentences 1-3"
         },
         "quote_or_value": "Stellar parameters are compiled from all-sky photometric catalogs and parallax measurements.",
         "extraction_method": "paper_summary",
         "confidence": 1.0,
-        "created_at": "2026-07-21T09:00:00Z"
+        "created_at": "2026-07-21T08:25:00Z"
       }
     ]
   },
@@ -541,15 +541,15 @@
         "model_response_hash": "sha256:55298827faa717234747414f5c3fd53bf7b9e2fa0967b3f186600571d4223c39",
         "output_hash": "sha256:e2387598a7dc133feeb39c825e09b9115d59d16ba1149073ec7eaa8f7b1523d4",
         "status": "completed",
-        "started_at": "2026-07-21T09:00:00Z",
-        "finished_at": "2026-07-21T09:00:00Z",
+        "started_at": "2026-07-21T08:25:00Z",
+        "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
       "input_hash": "sha256:5fc279fc5533380dda0633e4d31082579f21513ef84f5d2d8d93f065a599b53f",
       "output_hash": "sha256:e2387598a7dc133feeb39c825e09b9115d59d16ba1149073ec7eaa8f7b1523d4"
     },
-    "content_hash": "sha256:1a2ddce44f5669c36e3472c20247d073e4211760e62314d15adcfb21174a5658",
+    "content_hash": "sha256:5e2f7cc684a4365132c5e10f6b3b8d6beaba17e7b3dd863fc004b406c33ef6de",
     "input_hash": "sha256:5fc279fc5533380dda0633e4d31082579f21513ef84f5d2d8d93f065a599b53f",
     "source_mode": "fixture",
     "producer": {
@@ -571,7 +571,7 @@
       "evd_papsum_04"
     ],
     "supersedes_version_id": null,
-    "created_at": "2026-07-21T09:00:00Z",
+    "created_at": "2026-07-21T08:25:00Z",
     "producer_execution": {
       "id": "pexec_run_papsum_01",
       "run_id": "run_01JEXAMPLE",
@@ -594,10 +594,10 @@
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
       "input_hash": "sha256:5fc279fc5533380dda0633e4d31082579f21513ef84f5d2d8d93f065a599b53f",
-      "output_hash": "sha256:1a2ddce44f5669c36e3472c20247d073e4211760e62314d15adcfb21174a5658",
+      "output_hash": "sha256:5e2f7cc684a4365132c5e10f6b3b8d6beaba17e7b3dd863fc004b406c33ef6de",
       "status": "completed",
-      "started_at": "2026-07-21T09:00:00Z",
-      "finished_at": "2026-07-21T09:00:00Z",
+      "started_at": "2026-07-21T08:25:00Z",
+      "finished_at": "2026-07-21T08:25:00Z",
       "token_usage": null,
       "latency_ms": 0,
       "error_code": null
@@ -639,7 +639,7 @@
         "quote_or_value": "2019",
         "extraction_method": "paper_summary",
         "confidence": 1.0,
-        "created_at": "2026-07-21T09:00:00Z"
+        "created_at": "2026-07-21T08:25:00Z"
       },
       {
         "id": "evd_papsum_02",
@@ -658,7 +658,7 @@
         "quote_or_value": "10.3847/1538-3881/ab3467",
         "extraction_method": "paper_summary",
         "confidence": 1.0,
-        "created_at": "2026-07-21T09:00:00Z"
+        "created_at": "2026-07-21T08:25:00Z"
       },
       {
         "id": "evd_papsum_03",
@@ -677,7 +677,7 @@
         "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
         "extraction_method": "paper_summary",
         "confidence": 1.0,
-        "created_at": "2026-07-21T09:00:00Z"
+        "created_at": "2026-07-21T08:25:00Z"
       },
       {
         "id": "evd_papsum_04",
@@ -692,12 +692,12 @@
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
           "section": "Methods",
-          "text_range": "paragraph 2, sentences 1-3"
+          "range": "paragraph 2, sentences 1-3"
         },
         "quote_or_value": "Stellar parameters are compiled from all-sky photometric catalogs and parallax measurements.",
         "extraction_method": "paper_summary",
         "confidence": 1.0,
-        "created_at": "2026-07-21T09:00:00Z"
+        "created_at": "2026-07-21T08:25:00Z"
       }
     ]
   }

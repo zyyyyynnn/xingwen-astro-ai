@@ -487,8 +487,14 @@ export const defaultHandlers = [
     `${BASE_URL}/api/v2/artifact-versions/:versionId/paper-summary`,
     ({ params }) => {
       if (params.versionId !== paperSummaryReadFixture.artifact_version_id) {
+        // Mirrors B-07: an unknown version id is a generic 404, never an
+        // "empty summary" contract state.
         return HttpResponse.json(
-          problem(404, "PAPER_SUMMARY_EMPTY", "Paper summary is empty"),
+          problem(
+            404,
+            "ARTIFACT_VERSION_NOT_FOUND",
+            "Artifact version not found",
+          ),
           { status: 404 },
         );
       }
