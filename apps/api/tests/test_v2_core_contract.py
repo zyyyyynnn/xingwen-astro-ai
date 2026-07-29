@@ -329,6 +329,7 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "getResearchArtifact",
         "getArtifactVersion",
         "getPaperCollection",
+        "getPaperSummary",
         "listPaperCollectionCandidates",
         "getEvidence",
         "getSourceSnapshot",
@@ -393,6 +394,11 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
     assert artifacts["parameters"][-1]["schema"]["maximum"] == 100
     assert "/api/v2/evidence/{evidence_id}" in document["paths"]
     assert "/api/v2/source-snapshots/{snapshot_id}" in document["paths"]
+    paper_summary = document["paths"][
+        "/api/v2/artifact-versions/{version_id}/paper-summary"
+    ]["get"]
+    assert paper_summary["operationId"] == "getPaperSummary"
+    assert "PaperSummaryRead" in json.dumps(paper_summary)
 
     workspace_put = document["paths"][
         "/api/v2/projects/{project_id}/workspace-snapshot"

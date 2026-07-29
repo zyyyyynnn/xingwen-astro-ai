@@ -324,6 +324,7 @@ Run Snapshot 至少返回：
 | `GET`  | `/api/v2/evidence/{evidence_id}`                                         | Evidence 与 SourceSnapshot              |
 | `GET`  | `/api/v2/source-snapshots/{snapshot_id}`                                 | 当前 Project 的脱敏来源快照             |
 | `GET`  | `/api/v2/artifact-versions/{version_id}/paper-collection`                | 校验后的 PaperCollection 与完整溯源     |
+| `GET`  | `/api/v2/artifact-versions/{version_id}/paper-summary`                   | 校验后的 PaperSummary 与完整溯源        |
 | `GET`  | `/api/v2/artifact-versions/{version_id}/paper-candidates?cursor=&limit=` | 稳定排序的候选、去重组、来源与 Evidence |
 
 ArtifactVersion Envelope：
@@ -361,7 +362,7 @@ ArtifactVersion Envelope：
 
 `content` 是 #78 已经 Pydantic 准入并以 hash 固定的发布 payload；通用读取边界不重复执行领域算法。B-05～B-09 必须在各自领域端点继续映射为判别联合读取模型。读取层会删除凭据、认证头、Cookie、受限全文、原始模型长输出和内部堆栈类字段；SourceSnapshot `request_metadata` 只保留明确允许的可复现字段。
 
-`kind=paper_summary` 的通用 ArtifactVersion `content` 已直接使用 D-03 `PaperSummaryArtifactContent` 判别 Schema，包含核心总结字段、逐项 support 状态、Evidence/SourceSnapshot 版本、来源冲突、ProducerExecution 与 hash；这只扩展统一 Envelope 的判别内容，不表示 B-07 PaperSummary 领域读取端点、生产模型调用或 Workflow 接线已实现。通用读取仍不得返回 D-03 校验时使用的 `accessible_excerpt` 或原始模型响应。
+`kind=paper_summary` 的通用 ArtifactVersion `content` 已直接使用 D-03 `PaperSummaryArtifactContent` 判别 Schema，包含核心总结字段、逐项 support 状态、Evidence/SourceSnapshot 版本、来源冲突、ProducerExecution 与 hash。B-07 已提供 `GET /api/v2/artifact-versions/{version_id}/paper-summary` 联合读取端点：它重新校验 Summary schema/content/input/output hash、ProducerExecution 对照、同项目 PaperCollection 输入版本、SourceSnapshot 稳定指纹和 Evidence target 归属；校验失败使用 Problem Details（`422 PAPER_SUMMARY_SCHEMA_INVALID` 或 `403 PROVENANCE_SCOPE_VIOLATION`）。通用读取与领域读取均不得返回 D-03 校验时使用的 `accessible_excerpt` 或原始模型响应。
 
 Artifact 列表 cursor 同时绑定 `run_id` 和 `kind` 过滤条件；不得跨 Run 或跨过滤条件复用，scope 不匹配时返回 `400 INVALID_CURSOR`。
 
