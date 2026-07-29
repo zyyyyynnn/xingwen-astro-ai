@@ -106,6 +106,11 @@ export type App_Schemas_Enums__SourceMode = "fixture" | "live" | "cached";
  * via the `definition` "PaperSourceExecutionStatus".
  */
 export type PaperSourceExecutionStatus = "completed" | "failed";
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummarySupportStatus".
+ */
+export type PaperSummarySupportStatus = "supported" | "unsupported" | "unverifiable";
 export type ContractDraftStatus1 = "draft" | "confirmed" | "expired";
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
@@ -134,11 +139,6 @@ export type SessionStatus = "active" | "expired" | "revoked";
  * via the `definition` "UnitPolicy".
  */
 export type UnitPolicy1 = "canonical";
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummarySupportStatus".
- */
-export type PaperSummarySupportStatus = "supported" | "unsupported" | "unverifiable";
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
  * via the `definition` "SourceMode".
@@ -965,6 +965,161 @@ export interface SourceSnapshotRecord {
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_PaperSummaryRead_".
+ */
+export interface Envelope_PaperSummaryRead_ {
+  data: PaperSummaryRead;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * A validated PaperSummary pinned to one immutable ArtifactVersion.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryRead".
+ */
+export interface PaperSummaryRead {
+  artifact_id: string;
+  artifact_version_id: string;
+  content_hash: string;
+  created_at: string;
+  evidence: EvidenceDetail[];
+  input_hash: string;
+  producer_execution: ProducerExecutionDetail;
+  project_id: string;
+  source_mode: App_Schemas_V2__SourceMode;
+  source_snapshots: SourceSnapshotDetail[];
+  summary: PaperSummaryArtifactContent;
+}
+/**
+ * Publisher-ready D-03 content used directly by the v2 Artifact discriminator.
+ *
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryArtifactContent".
+ */
+export interface PaperSummaryArtifactContent {
+  benchmark: PaperBenchmarkReference;
+  dataset: PaperSummaryStatement | null;
+  evidence: PaperSummaryEvidence[];
+  evidence_ids: string[];
+  findings: PaperSummaryStatement[];
+  future_work: PaperSummaryStatement[];
+  input_hash: string;
+  input_versions: PaperSummaryInputVersions;
+  kind: "paper_summary";
+  limitations: PaperSummaryStatement[];
+  method: PaperSummaryStatement | null;
+  output_hash: string;
+  paper_id: string;
+  producer: PaperSummaryProducerExecution;
+  research_goal: PaperSummaryStatement | null;
+  schema_version: "1.0.0";
+  source_conflicts: PaperSummarySourceConflict[];
+  summary_id: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryStatement".
+ */
+export interface PaperSummaryStatement {
+  evidence_ids: string[];
+  statement_id: string;
+  status: PaperSummarySupportStatus;
+  text: string;
+  validation_code: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryEvidence".
+ */
+export interface PaperSummaryEvidence {
+  candidate_id: string;
+  evidence_id: string;
+  locator: PaperSummaryEvidenceLocator;
+  paper_id: string;
+  quote_or_value: string;
+  source_id: string;
+  source_record_id: string;
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
+  source_snapshot_version: string;
+  status: PaperSummarySupportStatus;
+  validation_code: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryEvidenceLocator".
+ */
+export interface PaperSummaryEvidenceLocator {
+  kind: "paper_text" | "paper_metadata";
+  metadata_field?:
+    ("source_record_id" | "title" | "authors" | "year" | "doi" | "arxiv_id" | "url") | null;
+  paragraph?: number | null;
+  section?: string | null;
+  source_url: string;
+  text_range?: string | null;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryInputVersions".
+ */
+export interface PaperSummaryInputVersions {
+  paper_collection_output_hash: string;
+  paper_collection_schema_version: string;
+  paper_collection_version_id: string;
+  source_snapshots: PaperSummarySourceSnapshotReference[];
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummarySourceSnapshotReference".
+ */
+export interface PaperSummarySourceSnapshotReference {
+  content_hash: string;
+  source_id: string;
+  source_snapshot_id: string;
+  source_version: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryProducerExecution".
+ */
+export interface PaperSummaryProducerExecution {
+  error_code?: string | null;
+  execution_id: string;
+  finished_at: string;
+  input_hash: string;
+  input_versions: PaperSummaryInputVersions;
+  latency_ms: number;
+  model_name: string;
+  model_response_hash: string;
+  output_hash?: string | null;
+  parameters_hash: string;
+  parameters_version: string;
+  producer_name: string;
+  producer_type?: "model";
+  producer_version: string;
+  prompt_hash: string;
+  prompt_name: string;
+  prompt_version: string;
+  run_id?: string | null;
+  started_at: string;
+  status: "completed" | "rejected";
+  step_key?: "summarizing_papers";
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummarySourceConflict".
+ */
+export interface PaperSummarySourceConflict {
+  claimed_source_version: string;
+  conflict_id: string;
+  evidence_id: string;
+  resolution?: "source_snapshot_version_retained";
+  source_snapshot_id: string;
+  source_snapshot_version: string;
+}
+/**
+ * This interface was referenced by `V2CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_PublicShareSnapshot_".
  */
 export interface Envelope_PublicShareSnapshot_ {
@@ -1420,133 +1575,6 @@ export interface SourceCollectionArtifactContent {
 export interface PaperCollectionArtifactContent {
   kind: "paper_collection";
   paper_ids: string[];
-}
-/**
- * Publisher-ready D-03 content used directly by the v2 Artifact discriminator.
- *
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummaryArtifactContent".
- */
-export interface PaperSummaryArtifactContent {
-  benchmark: PaperBenchmarkReference;
-  dataset: PaperSummaryStatement | null;
-  evidence: PaperSummaryEvidence[];
-  evidence_ids: string[];
-  findings: PaperSummaryStatement[];
-  future_work: PaperSummaryStatement[];
-  input_hash: string;
-  input_versions: PaperSummaryInputVersions;
-  kind: "paper_summary";
-  limitations: PaperSummaryStatement[];
-  method: PaperSummaryStatement | null;
-  output_hash: string;
-  paper_id: string;
-  producer: PaperSummaryProducerExecution;
-  research_goal: PaperSummaryStatement | null;
-  schema_version: "1.0.0";
-  source_conflicts: PaperSummarySourceConflict[];
-  summary_id: string;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummaryStatement".
- */
-export interface PaperSummaryStatement {
-  evidence_ids: string[];
-  statement_id: string;
-  status: PaperSummarySupportStatus;
-  text: string;
-  validation_code: string;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummaryEvidence".
- */
-export interface PaperSummaryEvidence {
-  candidate_id: string;
-  evidence_id: string;
-  locator: PaperSummaryEvidenceLocator;
-  paper_id: string;
-  quote_or_value: string;
-  source_id: string;
-  source_record_id: string;
-  source_snapshot_content_hash: string;
-  source_snapshot_id: string;
-  source_snapshot_version: string;
-  status: PaperSummarySupportStatus;
-  validation_code: string;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummaryEvidenceLocator".
- */
-export interface PaperSummaryEvidenceLocator {
-  kind: "paper_text" | "paper_metadata";
-  metadata_field?:
-    ("source_record_id" | "title" | "authors" | "year" | "doi" | "arxiv_id" | "url") | null;
-  paragraph?: number | null;
-  section?: string | null;
-  source_url: string;
-  text_range?: string | null;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummaryInputVersions".
- */
-export interface PaperSummaryInputVersions {
-  paper_collection_output_hash: string;
-  paper_collection_schema_version: string;
-  paper_collection_version_id: string;
-  source_snapshots: PaperSummarySourceSnapshotReference[];
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummarySourceSnapshotReference".
- */
-export interface PaperSummarySourceSnapshotReference {
-  content_hash: string;
-  source_id: string;
-  source_snapshot_id: string;
-  source_version: string;
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummaryProducerExecution".
- */
-export interface PaperSummaryProducerExecution {
-  error_code?: string | null;
-  execution_id: string;
-  finished_at: string;
-  input_hash: string;
-  input_versions: PaperSummaryInputVersions;
-  latency_ms: number;
-  model_name: string;
-  model_response_hash: string;
-  output_hash?: string | null;
-  parameters_hash: string;
-  parameters_version: string;
-  producer_name: string;
-  producer_type?: "model";
-  producer_version: string;
-  prompt_hash: string;
-  prompt_name: string;
-  prompt_version: string;
-  run_id?: string | null;
-  started_at: string;
-  status: "completed" | "rejected";
-  step_key?: "summarizing_papers";
-}
-/**
- * This interface was referenced by `V2CoreContract`'s JSON-Schema
- * via the `definition` "PaperSummarySourceConflict".
- */
-export interface PaperSummarySourceConflict {
-  claimed_source_version: string;
-  conflict_id: string;
-  evidence_id: string;
-  resolution?: "source_snapshot_version_retained";
-  source_snapshot_id: string;
-  source_snapshot_version: string;
 }
 /**
  * This interface was referenced by `V2CoreContract`'s JSON-Schema
