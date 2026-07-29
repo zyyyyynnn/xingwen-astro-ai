@@ -40,6 +40,7 @@ const EDITABLE_DRAFT_ID = "rcd_01JTOUR" as never;
 const CONTRACT_ID = "rc_01JEXAMPLE" as never;
 const ARTIFACT_ID = "art_graph_01" as never;
 const VERSION_ID = "artv_graph_01" as never;
+const PAPER_SUMMARY_VERSION_ID = "artv_papsum_01" as never;
 const EVIDENCE_ID = "evd_01" as never;
 
 it("projects.getById returns the same domain entity", async () => {
@@ -178,6 +179,15 @@ it("artifacts.getEvidence returns the same domain entity", async () => {
     httpRepos.artifacts.getEvidence(EVIDENCE_ID),
   ]);
   expect(httpEvidence).toEqual(fixtureEvidence);
+});
+
+it("paperSummary.getSummary returns the same paper_summary domain entity", async () => {
+  const httpRepos = setupHttpRepos();
+  const [fixtureSummary, httpSummary] = await Promise.all([
+    fixtureRepos.paperSummary.getSummary(PAPER_SUMMARY_VERSION_ID),
+    httpRepos.paperSummary.getSummary(PAPER_SUMMARY_VERSION_ID),
+  ]);
+  expect(httpSummary).toEqual(fixtureSummary);
 });
 
 /**

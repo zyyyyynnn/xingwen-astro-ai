@@ -14,6 +14,7 @@ import {
   paperCandidateReadsFixture,
   paperCollectionReadFixture,
 } from "../src/fixture/paper-acquisition";
+import { paperSummaryReadFixture } from "../src/fixture/paper-summary";
 
 const BASE_URL = "http://test.local";
 
@@ -52,15 +53,16 @@ type ArtifactDto = (typeof exoplanetHostStarFixture.data.artifacts)[number];
 
 /**
  * Single source of truth for every immutable version the HTTP handlers
- * serve: generic versions plus the rich paper-collection version detail
- * (which lives on the dedicated paperAcquisitions entry, exactly like the
- * fixture adapter consumes it).
+ * serve: generic versions plus the rich paper-collection and paper-summary
+ * version details (which live on the dedicated paperAcquisitions /
+ * paperSummaries entries, exactly like the fixture adapter consumes them).
  */
 const ALL_VERSION_DTOS = [
   ...exoplanetHostStarFixture.data.artifactVersions,
   ...exoplanetHostStarFixture.data.paperAcquisitions.map(
     (item) => item.version,
   ),
+  ...exoplanetHostStarFixture.data.paperSummaries.map((item) => item.version),
 ];
 type VersionDto = (typeof ALL_VERSION_DTOS)[number];
 
@@ -478,6 +480,25 @@ export const defaultHandlers = [
           generated_at: "2026-07-21T08:00:00Z",
         },
       });
+    },
+  ),
+  // B-07 paper summary read boundary (single required read, no pagination).
+  http.get(
+    `${BASE_URL}/api/v2/artifact-versions/:versionId/paper-summary`,
+    ({ params }) => {
+      if (params.versionId !== paperSummaryReadFixture.artifact_version_id) {
+        // Mirrors B-07: an unknown version id is a generic 404, never an
+        // "empty summary" contract state.
+        return HttpResponse.json(
+          problem(
+            404,
+            "ARTIFACT_VERSION_NOT_FOUND",
+            "Artifact version not found",
+          ),
+          { status: 404 },
+        );
+      }
+      return HttpResponse.json(envelope(paperSummaryReadFixture));
     },
   ),
   http.get(`${BASE_URL}/api/v2/evidence/:evidenceId`, ({ params }) => {

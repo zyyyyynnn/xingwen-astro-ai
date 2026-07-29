@@ -21,6 +21,7 @@ export type {
   CreateResearchProjectInput,
   CreateResearchRunInput,
   PaperAcquisitionRepository,
+  PaperSummaryRepository,
   ProjectRepository,
   RepositoryProvenance,
   RepositorySet,
@@ -42,6 +43,7 @@ export type {
   FixtureBundle,
   FixtureBundleData,
   FixturePaperAcquisition,
+  FixturePaperSummary,
 } from "./fixture/bundle";
 export { exoplanetHostStarFixture } from "./fixture/exoplanet-host-star";
 export {
@@ -49,6 +51,14 @@ export {
   paperCandidateReadsFixture,
   paperCollectionReadFixture,
 } from "./fixture/paper-acquisition";
+export {
+  paperSummaryFixtureProvenance,
+  paperSummaryReadFixture,
+} from "./fixture/paper-summary";
+export {
+  assemblePaperSummaryReview,
+  createPaperSummaryRepository,
+} from "./paper-summary-repository";
 export {
   createFixtureRepositories,
   type FixtureAdapterOptions,
