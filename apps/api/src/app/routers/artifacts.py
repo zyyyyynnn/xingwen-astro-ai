@@ -24,9 +24,11 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
+from app.schemas.paper_summary_api import PaperSummaryRead
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
+from app.services.paper_summaries import PaperSummaryReadService
 
 
 router = APIRouter(prefix="/api/v2", tags=["v2-artifacts"])
@@ -50,6 +52,10 @@ def _session_id(request: Request) -> str:
 
 def _paper_service(request: Request) -> PaperCollectionReadService:
     return PaperCollectionReadService(_service(request))
+
+
+def _summary_service(request: Request) -> PaperSummaryReadService:
+    return PaperSummaryReadService(_service(request))
 
 
 def _meta(request: Request) -> ResponseMeta:
@@ -143,6 +149,24 @@ def get_paper_collection(
     )
     _no_store(response)
     path = f"/api/v2/artifact-versions/{version_id}/paper-collection"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/paper-summary",
+    operation_id="getPaperSummary",
+    response_model=Envelope[PaperSummaryRead],
+)
+def get_paper_summary(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[PaperSummaryRead]:
+    data = _summary_service(request).get_summary(
+        version_id=version_id, session_id=_session_id(request)
+    )
+    _no_store(response)
+    path = f"/api/v2/artifact-versions/{version_id}/paper-summary"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 

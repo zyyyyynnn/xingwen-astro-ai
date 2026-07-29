@@ -45,6 +45,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
+from app.schemas.paper_summary_api import PaperSummaryRead
 
 
 PROBLEM_RESPONSES = {
@@ -293,6 +294,16 @@ def create_v2_contract_app() -> FastAPI:
         responses=PROBLEM_RESPONSES,
     )
     def get_paper_collection(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/v2/artifact-versions/{version_id}/paper-summary",
+        operation_id="getPaperSummary",
+        response_model=Envelope[PaperSummaryRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_paper_summary(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
         _ = version_id
         return _contract_only()
 

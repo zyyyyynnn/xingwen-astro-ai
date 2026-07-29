@@ -113,6 +113,7 @@ jobs:
             --include ResearchArtifactDetail \
             --include ArtifactVersionDetail \
             --include PaperSummaryArtifactContent \
+            --include PaperSummaryRead \
             --include PaperCollectionRead \
             --include PaperCollectionCandidateRead \
             --include EvidenceRead \
