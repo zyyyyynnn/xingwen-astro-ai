@@ -32,6 +32,11 @@
       "path": "json/PaperSummaryArtifactContent.schema.json"
     },
     {
+      "module": "app.schemas.paper_summary_api",
+      "name": "PaperSummaryRead",
+      "path": "json/PaperSummaryRead.schema.json"
+    },
+    {
       "module": "app.schemas.v2",
       "name": "PublicShareSnapshot",
       "path": "json/PublicShareSnapshot.schema.json"
