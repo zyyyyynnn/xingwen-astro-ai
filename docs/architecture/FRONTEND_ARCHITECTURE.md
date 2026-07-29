@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | Status         | Accepted                                                                                                                                   |
 | Authority      | 前端运行时、目录、依赖方向、构建与质量门禁                                                                                                 |
-| Implementation | A-01 runtime、A-03 Domain/Adapter/Workspace UI、A-05 Paper Acquisition Workspace 与 X-01 真实 HTTP/Compose 集成 Current；A-02 视觉 Pending |
+| Implementation | A-01 runtime、A-03 Domain/Adapter/Workspace UI、A-05 Paper Acquisition Workspace、A-06 Literature Summary Workspace 与 X-01 真实 HTTP/Compose 集成 Current；A-02 视觉 Pending |
 
 本文是前端运行时、目录、依赖方向、构建和质量门禁的唯一正文来源。A-01 只证明最小入口与工程边界，不代表完整科研产品界面已交付。
 
@@ -30,7 +30,7 @@ apps/
 │     ├─ runtime.ts               # Fixture / HTTP Runtime 选择与边界组合
 │     ├─ pages/                   # Tour、Workspace、匿名 Share 页面
 │     ├─ components/              # 无请求的 ResearchShell、ProvenanceObservatory、ArtifactCanvas
-│     ├─ features/                # 按产物种类拆分的审查面（当前：paper-acquisition）
+│     ├─ features/                # 按产物种类拆分的审查面（当前：paper-acquisition、literature-summary）
 │     └─ hooks/                   # Controller 与私有 Session 订阅
 └─ api/                          # FastAPI（前端边界之外）
 
@@ -227,6 +227,7 @@ CI 不允许 App 私有 lockfile、第二套包管理器状态或跨包深层导
 
 - A-03 / X-01：Fixture/HTTP Domain 一致性、真实 Browser/Compose、迁移、冲突、刷新恢复和匿名 Share 已验证；最终 Issue/Milestone 状态以 GitHub 为准。
 - A-05：论文获取与候选审查工作区 Current（含 #136 合并后纠正）：`PaperAcquisitionRepository` 深 Port、完整参数/分页/hash 审查域模型、cached 审计、execution/source 正交标识、真实 Pipeline 生成并经 Pydantic 门禁验证的 B-06 Fixture、`/workspace` 中央画布集成与 Fixture E2E；真实 HTTP 数据取决于后端 B-06/D-02 运行链路。
+- A-06：文献总结与 Evidence 阅读工作区 Current：`PaperSummaryRepository` 深 Port（`getSummary` 隐藏 B-07 读端点、契约解析与装配，Fixture/HTTP 共享同一 `assemblePaperSummaryReview`）、`PaperSummaryReview` 域模型（研究目标/方法/数据集/发现/局限与未来工作五区语句 + 逐项 summaryEvidence + supported/unsupported/unverifiable 状态 + 来源冲突 + 模型/Prompt provenance）、`paper_summary` 版本经 `artifact-canvas` 路由到 `LiteratureSummaryWorkspace`、点击语句驱动 Provenance Observatory；PaperSummary Fixture 由真实 D-03 `PaperSummaryPipeline` 生成并经 `apps/api/tests/test_paper_summary_fixture.py` Pydantic 语义门禁验证；真实 HTTP 数据取决于后端 B-07/D-03 运行链路。
 
 - A-02：完整 bluegray Design Token、primitive、Brand Site 极简单英雄首页、静态 Workspace Shell、Visual Engine（ASCII/Dither Hero）、Poster 与 Reduced Motion。
 - A-04、A-06～A-10：其余科研产物工作区、反馈、响应式与发布收口。

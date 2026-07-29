@@ -125,7 +125,8 @@ function mapPagination(
   };
 }
 
-function mapSnapshotSummary(
+/** Shared with the A-06 paper summary repository (same persisted projection). */
+export function mapSnapshotSummary(
   dto: SourceSnapshotDetailDto,
 ): SourceSnapshotSummary {
   const requestMetadata = dto.request_metadata ?? {};
@@ -479,7 +480,7 @@ export function assemblePaperAcquisitionReview(
 }
 
 /** Parse helper that reports contract failures as `ValidationError`. */
-function parseContract<T>(
+export function parseContract<T>(
   model: Parameters<typeof parseV2Dto>[0],
   value: unknown,
 ): T {

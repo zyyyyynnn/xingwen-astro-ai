@@ -16,6 +16,7 @@ import evidenceReadSchema from "./generated/v2-core/json/EvidenceRead.schema.jso
 import manifest from "./generated/v2-core/manifest.json";
 import paperCollectionCandidateReadSchema from "./generated/v2-core/json/PaperCollectionCandidateRead.schema.json";
 import paperCollectionReadSchema from "./generated/v2-core/json/PaperCollectionRead.schema.json";
+import paperSummaryReadSchema from "./generated/v2-core/json/PaperSummaryRead.schema.json";
 import publicShareSnapshotSchema from "./generated/v2-core/json/PublicShareSnapshot.schema.json";
 import researchArtifactSchema from "./generated/v2-core/json/ResearchArtifact.schema.json";
 import researchArtifactDetailSchema from "./generated/v2-core/json/ResearchArtifactDetail.schema.json";
@@ -51,6 +52,7 @@ export const V2_CORE_MODEL_NAMES = [
   "SourceSnapshotDetail",
   "PaperCollectionRead",
   "PaperCollectionCandidateRead",
+  "PaperSummaryRead",
   "SessionCreated",
   "WorkspaceSnapshot",
   "ShareSnapshot",
@@ -94,6 +96,7 @@ const schemas: SchemaMap = {
   SourceSnapshotDetail: sourceSnapshotDetailSchema,
   PaperCollectionRead: paperCollectionReadSchema,
   PaperCollectionCandidateRead: paperCollectionCandidateReadSchema,
+  PaperSummaryRead: paperSummaryReadSchema,
   SessionCreated: sessionCreatedSchema,
   WorkspaceSnapshot: workspaceSnapshotSchema,
   ShareSnapshot: shareSnapshotSchema,

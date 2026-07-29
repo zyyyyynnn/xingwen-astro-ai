@@ -25,6 +25,7 @@ import type {
   Evidence,
   ExecutionMode,
   PaperAcquisitionReview,
+  PaperSummaryReview,
   PublicShareSnapshot,
   ResearchArtifact,
   ResearchContract,
@@ -161,6 +162,19 @@ export interface PaperAcquisitionRepository {
   getReview(artifactVersionId: DomainEntityId): Promise<PaperAcquisitionReview>;
 }
 
+/**
+ * Deep read boundary for the B-07 paper summary review (A-06).
+ *
+ * `getSummary` hides the entire transport protocol: it reads the summary
+ * read model, validates the payload against the generated contract, and
+ * returns one complete domain object with server-validated support statuses.
+ * Callers never see URLs, DTOs or envelopes. Failures surface as typed
+ * errors (NotFound/RateLimited/Upstream/Validation/Network), never as `null`.
+ */
+export interface PaperSummaryRepository {
+  getSummary(artifactVersionId: DomainEntityId): Promise<PaperSummaryReview>;
+}
+
 export interface WorkspaceSnapshotRepository {
   getByProjectId(projectId: DomainEntityId): Promise<WorkspaceSnapshot | null>;
   save(
@@ -191,6 +205,7 @@ export interface RepositorySet {
   readonly runs: RunRepository;
   readonly artifacts: ArtifactReadRepository;
   readonly paperAcquisition: PaperAcquisitionRepository;
+  readonly paperSummary: PaperSummaryRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
 }

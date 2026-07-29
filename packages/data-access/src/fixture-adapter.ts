@@ -49,11 +49,13 @@ import {
 } from "./mapping";
 import { computeContractContentHash } from "./contract-hash";
 import { assemblePaperAcquisitionReview } from "./paper-acquisition-repository";
+import { assemblePaperSummaryReview } from "./paper-summary-repository";
 import type {
   ArtifactReadRepository,
   ContractRepository,
   CreateResearchRunInput,
   PaperAcquisitionRepository,
+  PaperSummaryRepository,
   ProjectRepository,
   RepositoryProvenance,
   RunEventRecovery,
@@ -142,6 +144,44 @@ function validateBundleSemantics(bundle: FixtureBundle): void {
       }
     }
   }
+  for (const entry of bundle.data.paperSummaries) {
+    const { version, summary } = entry;
+    // Defensive runtime check: an old-shaped bundle without the rich version
+    // must fail as an explicit fixture contract error, never a TypeError.
+    if (version === undefined || version === null) {
+      throw new FixtureSemanticError(
+        `Fixture paper summary ${summary.artifact_version_id} must ` +
+          "carry its full immutable ArtifactVersion detail",
+      );
+    }
+    if (bundle.data.artifactVersions.some((item) => item.id === version.id)) {
+      throw new FixtureSemanticError(
+        `Paper summary version ${version.id} must have one rich immutable ` +
+          "fixture representation, not a second generic ArtifactVersion",
+      );
+    }
+    if (
+      version.id !== summary.artifact_version_id ||
+      version.artifact_id !== summary.artifact_id ||
+      version.project_id !== summary.project_id ||
+      version.content_hash !== summary.content_hash ||
+      version.input_hash !== summary.input_hash ||
+      version.source_mode !== summary.source_mode ||
+      version.created_at !== summary.created_at ||
+      JSON.stringify(version.content) !== JSON.stringify(summary.summary)
+    ) {
+      throw new FixtureSemanticError(
+        `Paper summary version ${version.id} identity must match its ` +
+          "dedicated summary read",
+      );
+    }
+    if (summary.source_mode !== "fixture") {
+      throw new FixtureSemanticError(
+        `Fixture paper summary ${summary.artifact_version_id} ` +
+          `must have source_mode "fixture"; got "${summary.source_mode}".`,
+      );
+    }
+  }
 }
 
 function validateBundlePayloads(bundle: FixtureBundle): void {
@@ -157,7 +197,10 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
     { model: "ArtifactVersion", payloads: bundle.data.artifactVersions },
     {
       model: "ArtifactVersionDetail",
-      payloads: bundle.data.paperAcquisitions.map((item) => item.version),
+      payloads: [
+        ...bundle.data.paperAcquisitions.map((item) => item.version),
+        ...bundle.data.paperSummaries.map((item) => item.version),
+      ],
     },
     { model: "ResearchArtifact", payloads: bundle.data.artifacts },
     {
@@ -169,6 +212,10 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
       payloads: bundle.data.paperAcquisitions.flatMap(
         (item) => item.candidates,
       ),
+    },
+    {
+      model: "PaperSummaryRead",
+      payloads: bundle.data.paperSummaries.map((item) => item.summary),
     },
   ];
   for (const { model, payloads } of entries) {
@@ -218,6 +265,7 @@ export interface FixtureRepositorySet {
   readonly runs: RunRepository;
   readonly artifacts: ArtifactReadRepository;
   readonly paperAcquisition: PaperAcquisitionRepository;
+  readonly paperSummary: PaperSummaryRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
   readonly provenance: RepositoryProvenance;
@@ -298,6 +346,9 @@ export function createFixtureRepositories(
       mapArtifactVersionMetadata(dto),
     ),
     ...bundle.data.paperAcquisitions.map((item) =>
+      mapArtifactVersionMetadata(item.version),
+    ),
+    ...bundle.data.paperSummaries.map((item) =>
       mapArtifactVersionMetadata(item.version),
     ),
   ]);
@@ -759,6 +810,22 @@ export function createFixtureRepositories(
         return assemblePaperAcquisitionReview(entry.collection, [
           ...entry.candidates,
         ]);
+      },
+    },
+    paperSummary: {
+      getSummary: async (artifactVersionId) => {
+        const entry = bundle.data.paperSummaries.find(
+          (item) => item.summary.artifact_version_id === artifactVersionId,
+        );
+        if (!entry) {
+          throw new NotFoundError(
+            `Paper summary ${artifactVersionId} not found`,
+            "PAPER_SUMMARY_EMPTY",
+          );
+        }
+        // Identical assembly path to the HTTP adapter, so both return the
+        // exact same domain shape for the same contract payloads.
+        return assemblePaperSummaryReview(entry.summary);
       },
     },
     workspaces: {

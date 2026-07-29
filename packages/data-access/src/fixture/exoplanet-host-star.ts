@@ -30,6 +30,10 @@ import {
   paperCollectionArtifactVersionFixture,
   paperCollectionReadFixture,
 } from "./paper-acquisition";
+import {
+  paperSummaryArtifactVersionFixture,
+  paperSummaryReadFixture,
+} from "./paper-summary";
 
 const T0 = "2026-07-21T08:00:00Z";
 const T1 = "2026-07-21T08:05:00Z";
@@ -383,82 +387,6 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     created_at: T5,
   },
   {
-    id: "artv_papsum_01",
-    artifact_id: "art_papsum_01",
-    project_id: "proj_01JEXAMPLE",
-    created_by_run_id: "run_01JEXAMPLE",
-    version_number: 1,
-    schema_version: "2.0.0",
-    content: {
-      kind: "paper_summary",
-      schema_version: "1.0.0",
-      summary_id: "psum_01",
-      paper_id: "paper_01",
-      benchmark: {
-        benchmark_id: "exoplanet_host_star.paper_reasoning",
-        schema_version: "1.3.0",
-        benchmark_version: "1.3.0",
-        scientific_payload_hash: hash("a"),
-        content_hash: hash("b"),
-        scenario_id: "search.tess_mission_and_catalogs",
-        x00_main_sha: "eb7e23f6d0c14555627c602c6e5a2b84210ba833",
-      },
-      input_versions: {
-        paper_collection_version_id: "artv_papcol_01",
-        paper_collection_schema_version: "1.0.0",
-        paper_collection_output_hash: hash("c"),
-        source_snapshots: [],
-      },
-      research_goal: null,
-      method: null,
-      dataset: null,
-      findings: [],
-      limitations: [],
-      future_work: [],
-      evidence_ids: [],
-      evidence: [],
-      source_conflicts: [],
-      producer: {
-        execution_id: "execution.summary_fixture",
-        run_id: null,
-        step_key: "summarizing_papers",
-        producer_type: "model",
-        producer_name: "xingwen.paper_summary",
-        producer_version: "1.0.0",
-        model_name: "fixture-model",
-        prompt_name: "paper_summary",
-        prompt_version: "v2",
-        prompt_hash: hash("d"),
-        parameters_version: "1.0.0",
-        parameters_hash: hash("e"),
-        input_versions: {
-          paper_collection_version_id: "artv_papcol_01",
-          paper_collection_schema_version: "1.0.0",
-          paper_collection_output_hash: hash("c"),
-          source_snapshots: [],
-        },
-        input_hash: hash("4"),
-        model_response_hash: hash("f"),
-        output_hash: hash("3"),
-        status: "completed",
-        started_at: T7,
-        finished_at: T7,
-        latency_ms: 0,
-        error_code: null,
-      },
-      input_hash: hash("4"),
-      output_hash: hash("3"),
-    },
-    content_hash: hash("3"),
-    input_hash: hash("4"),
-    source_mode: "fixture",
-    producer: { ...producer },
-    source_snapshot_ids: [],
-    evidence_ids: ["evd_02"],
-    supersedes_version_id: null,
-    created_at: T7,
-  },
-  {
     id: "artv_claims_01",
     artifact_id: "art_claims_01",
     project_id: "proj_01JEXAMPLE",
@@ -614,6 +542,37 @@ const evidence = [
     confidence: item.confidence,
     createdAt: item.created_at,
   })),
+  // Paper summary evidence — same ids as the B-07 read fixture so the summary
+  // review, generic Evidence store, pinning and Share stay wired. Locators
+  // mirror the shared `mapEvidenceDetail` narrowing: `paper_metadata` has no
+  // generic domain locator (null), `paper_text` maps defensively.
+  ...paperSummaryReadFixture.evidence.map((item) => ({
+    id: item.id,
+    artifactVersionId: item.artifact_version_id,
+    targetType: item.target_type,
+    targetId: item.target_id,
+    evidenceType: item.evidence_type,
+    sourceSnapshotId: item.source_snapshot_id,
+    paperId: item.paper_id ?? null,
+    locator:
+      String(item.locator.kind ?? "") === "paper_text"
+        ? {
+            kind: "paper_text",
+            section: String(item.locator.section ?? ""),
+            page: null,
+            paragraph: null,
+            range:
+              typeof item.locator.range === "string"
+                ? String(item.locator.range)
+                : null,
+          }
+        : null,
+    quoteOrValue:
+      typeof item.quote_or_value === "string" ? item.quote_or_value : null,
+    extractionMethod: item.extraction_method,
+    confidence: item.confidence,
+    createdAt: item.created_at,
+  })),
 ] as unknown as readonly Evidence[];
 
 export const exoplanetHostStarFixture: FixtureBundle = {
@@ -637,6 +596,12 @@ export const exoplanetHostStarFixture: FixtureBundle = {
         version: paperCollectionArtifactVersionFixture,
         collection: paperCollectionReadFixture,
         candidates: paperCandidateReadsFixture,
+      },
+    ],
+    paperSummaries: [
+      {
+        version: paperSummaryArtifactVersionFixture,
+        summary: paperSummaryReadFixture,
       },
     ],
     evidence,

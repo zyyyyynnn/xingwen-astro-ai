@@ -142,6 +142,21 @@ export type {
 export { safeExternalUrl } from "./paper-acquisition";
 
 export type {
+  PaperSummaryEvidenceLocator,
+  PaperSummaryEvidenceReview,
+  PaperSummaryInputVersionsReview,
+  PaperSummaryMetadataLocator,
+  PaperSummaryProducerReview,
+  PaperSummaryReview,
+  PaperSummarySnapshotVersionReview,
+  PaperSummarySourceConflictReview,
+  PaperSummaryStatementReview,
+  PaperSummarySupportStatus,
+  PaperSummaryTextLocator,
+} from "./paper-summary";
+export { PAPER_SUMMARY_SUPPORT_STATUSES } from "./paper-summary";
+
+export type {
   ShareSnapshot,
   ShareSnapshotCreated,
   CreateShareSnapshotRequest,

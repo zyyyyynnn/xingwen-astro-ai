@@ -125,13 +125,14 @@ describe("v2 contract validation — isV2Dto type guard", () => {
 
 describe("v2 contract — schema metadata", () => {
   it("exposes core and generic provenance read model names", () => {
-    expect(V2_CORE_MODEL_NAMES).toHaveLength(18);
+    expect(V2_CORE_MODEL_NAMES).toHaveLength(19);
     expect(V2_CORE_MODEL_NAMES).toContain("ResearchProject");
     expect(V2_CORE_MODEL_NAMES).toContain("ArtifactVersion");
     expect(V2_CORE_MODEL_NAMES).toContain("EvidenceRead");
     expect(V2_CORE_MODEL_NAMES).toContain("SourceSnapshotDetail");
     expect(V2_CORE_MODEL_NAMES).toContain("PaperCollectionRead");
     expect(V2_CORE_MODEL_NAMES).toContain("PaperCollectionCandidateRead");
+    expect(V2_CORE_MODEL_NAMES).toContain("PaperSummaryRead");
     expect(V2_CORE_MODEL_NAMES).toContain("SessionCreated");
     expect(V2_CORE_MODEL_NAMES).toContain("WorkspaceSnapshot");
     expect(V2_CORE_MODEL_NAMES).toContain("ShareSnapshot");
