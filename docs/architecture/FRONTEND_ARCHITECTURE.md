@@ -230,7 +230,7 @@ CI 不允许 App 私有 lockfile、第二套包管理器状态或跨包深层导
 - A-06：文献总结与 Evidence 阅读工作区 Current：`PaperSummaryRepository` 深 Port（`getSummary` 隐藏 B-07 读端点、契约解析与装配，Fixture/HTTP 共享同一 `assemblePaperSummaryReview`）、`PaperSummaryReview` 域模型（研究目标/方法/数据集/发现/局限与未来工作五区语句 + 逐项 summaryEvidence + supported/unsupported/unverifiable 状态 + 来源冲突 + 模型/Prompt provenance）、`paper_summary` 版本经 `artifact-canvas` 路由到 `LiteratureSummaryWorkspace`、点击语句驱动 Provenance Observatory；PaperSummary Fixture 由真实 D-03 `PaperSummaryPipeline` 生成并经 `apps/api/tests/test_paper_summary_fixture.py` Pydantic 语义门禁验证；真实 HTTP 数据取决于后端 B-07/D-03 运行链路。
 
 - A-02：完整 bluegray Design Token、primitive、Brand Site 极简单英雄首页、静态 Workspace Shell、Visual Engine（ASCII/Dither Hero）、Poster 与 Reduced Motion。
-- A-04、A-06～A-10：其余科研产物工作区、反馈、响应式与发布收口。
+- A-04、A-07～A-10：其余科研产物工作区、反馈、响应式与发布收口。
 - Desktop/Tauri：需独立 Issue 与 Platform Adapter，不在当前目录创建。
 
 任何 Pending 能力都不能因存在空接口、路由占位或设计文档而标记为 Implemented。
