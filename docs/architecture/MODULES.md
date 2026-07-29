@@ -4,7 +4,7 @@
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Status         | Accepted                                                                                                                                                                                                                        |
 | Authority      | 跨模块职责、输入输出、依赖方向和交接边界                                                                                                                                                                                        |
-| Implementation | A-01 frontend runtime、A-03 Workspace/HTTP 集成、A-05 Paper Acquisition Workspace、A-06 Literature Summary Workspace、X-01、C-02 NASA TOI source acquisition、D-02 PaperCollection Pipeline、#78 Publisher 与 `/api/v2` M1 Core Runtime current；A-02 视觉 Pending |
+| Implementation | A-01 frontend runtime、A-03 Workspace/HTTP 集成、A-05 Paper Acquisition Workspace、A-06 Literature Summary Workspace、X-01、C-02 NASA TOI source acquisition、D-02 PaperCollection Pipeline、#78 Publisher 与 `/api` M1 Core Runtime current；A-02 视觉 Pending |
 
 本文不维护完整前端目录、技术选型或任务顺序。前端包结构见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)，实时任务依赖见 [Backlog](../product/BACKLOG.md)。
 
@@ -73,7 +73,7 @@ flowchart LR
 
 ### 输出
 
-- `/api/v1` 回归稳定性与 Current `/api/v2` M1 资源 API；M2 资源按后续 Issue 推进；
+- Pipeline `/api` 回归稳定性与 Current `/api` M1 资源 API；M2 资源按后续 Issue 推进；
 - Session、Project、Contract、Run、Event、Artifact、Version、Workspace 和 Share；
 - Workflow、幂等、取消、重试、CacheSelector、Feedback 与 RevisionPlan；
 - OpenAPI / JSON Schema、Problem Details 和授权语义；

@@ -17,7 +17,7 @@
 - Site 与 Workspace 不保存密钥，不直连模型、论文源或天文数据源。
 - `runtime.ts` 未配置 `VITE_API_BASE_URL` 时选择 Fixture，配置合法 HTTP origin 时选择 HTTP Adapter；带路径、查询或 fragment 的值明确失败，不静默回退。
 - 私有 Tour / Workspace 页面仅在 HTTP 模式调用 `SessionManager.ensureSession()`；公开 Share 页面只调用 `shares.getPublic()`，不创建 Session。
-- A-16 页面只消费 Domain Model、Repository Port 和 Controller；`pages/` 与 `components/` 由架构门禁禁止 `fetch`、XHR、SSE、WebSocket、`@xingwen/contracts` 与硬编码 `/api/v1` / `/api/v2`。
+- A-16 页面只消费 Domain Model、Repository Port 和 Controller；`pages/` 与 `components/` 由架构门禁禁止 `fetch`、XHR、SSE、WebSocket、`@xingwen/contracts` 与硬编码 `/api`。
 - 这些行为有 Fixture 与 HTTP-shaped 组件测试、Fixture Playwright E2E，以及独立真实 HTTP Browser/Compose 测试；后者验证 Session、Contract、Run/Event、Workspace 冲突与刷新恢复、冻结 Share 和匿名撤销语义。
 
 ## 2. 当前目录
@@ -151,7 +151,7 @@ A-01 不实现完整首页叙事、WebGL、字体资产、社交预览或 A-02 �
 | `ui`             | 静态 `BrandMark` 与 UI 基元                                                                                                                                                                                                                        | A-02 建立 primitive 与复合组件          |
 | `domain`         | A-14 前端 Domain Model（Project、Contract、Run、ArtifactVersion、Evidence、ProvenanceState）与 A-05 `PaperAcquisitionReview`（含 `safeExternalUrl` 与 `ArtifactVersionMetadata` 收窄）                                                             | A-04、A-06～A-08 各科研工作区消费       |
 | `contracts`      | 生成的 v2 DTO、JSON Schema 与 ajv 运行时校验（含 B-06 PaperCollection 读模型）                                                                                                                                                                     | 随后端 Pydantic Contract 同步维护       |
-| `data-access`    | 收窄 Repository Port、版本化 Fixture、`/api/v2` HTTP Adapter 与 A-05 `PaperAcquisitionRepository`（内部分页、完整性防护含声明总量上限、共享装配）；论文 Fixture 由真实 D-02 Pipeline 生成为 JSON 并经 Pydantic 门禁验证，TypeScript 只消费生成结果 | A-04、A-06～A-10 按既有 Port 消费       |
+| `data-access`    | 收窄 Repository Port、版本化 Fixture、`/api` HTTP Adapter 与 A-05 `PaperAcquisitionRepository`（内部分页、完整性防护含声明总量上限、共享装配）；论文 Fixture 由真实 D-02 Pipeline 生成为 JSON 并经 Pydantic 门禁验证，TypeScript 只消费生成结果 | A-04、A-06～A-10 按既有 Port 消费       |
 | `workspace-core` | Guided Tour FSM 与 WorkspaceSnapshot Controller                                                                                                                                                                                                    | A-04～A-10 的完整科研工作区状态         |
 | `visual-engine`  | A-02 公开边界类型                                                                                                                                                                                                                                  | A-02 实现生命周期与降级                 |
 | `testing`        | 共享入口地址                                                                                                                                                                                                                                       | 各前端 Issue 按实际测试需要扩展         |

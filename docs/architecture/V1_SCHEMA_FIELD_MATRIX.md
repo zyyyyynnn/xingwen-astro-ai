@@ -1,9 +1,9 @@
-# `/api/v1` Phase 0 Schema Field Matrix
+# `/api` Phase 0 Schema Field Matrix
 
 | Metadata | Value |
 | --- | --- |
 | Status | Implemented |
-| Authority | `/api/v1` Phase 0 Schema field mapping and drift decisions |
+| Authority | `/api` Phase 0 Schema field mapping and drift decisions |
 
 This matrix compares the frozen [`DATA_MODEL_V1.md`](DATA_MODEL_V1.md) with the
 Pydantic authoring source. `required` refers to JSON Schema requiredness. A dash
@@ -170,7 +170,7 @@ means that no default exists.
 | SourceSnapshot | expanded v2 fields | absent | — | — | — | Deliberate reduced embedded v1 DTO |
 
 Exact field sets, required arrays, aliases, defaults, and enum values are
-enforced in `apps/api/tests/test_v1_schema_contract.py`. Generated manifest
+enforced in `apps/api/tests/test_pipeline_contract.py`. Generated manifest
 coverage and stale output are enforced by the committed generated contracts and
 CI `--check`. Any change above requires updating the frozen v1 document and the
 corresponding exact assertion in the same change.

@@ -32,7 +32,7 @@ docker compose up --build --wait
 | Brand Site         | `http://127.0.0.1:4321`             |
 | Research Workspace | `http://127.0.0.1:5173`             |
 | 后端 API           | `http://127.0.0.1:8000`             |
-| API 文档           | `http://127.0.0.1:8000/api/v1/docs` |
+| API 文档           | `http://127.0.0.1:8000/api/docs` |
 | PostgreSQL         | `127.0.0.1:5432`                    |
 
 前端本机调试从仓库根目录执行：

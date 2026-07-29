@@ -138,7 +138,7 @@ D-02 的 Crossref 单元/集成测试使用 fixture 或 recorded response 并标
 - Schema/OpenAPI 生成和 stale check；
 - 当前 v1 回归、A-01 Site/Workspace 入口与共享包 smoke；
 - Fixture/HTTP Domain 一致性；
-- PostgreSQL 17、Alembic upgrade、真实 FastAPI Runtime 与 `/api/v1` 回归；
+- PostgreSQL 17、Alembic upgrade、真实 FastAPI Runtime 与 `/api` 回归；
 - fresh Compose 的 `postgres → migrate → api → workspace` 与真实 HTTP Browser/刷新恢复/Share 撤销；
 - 静态首屏、键盘和 WebGL fallback。
 

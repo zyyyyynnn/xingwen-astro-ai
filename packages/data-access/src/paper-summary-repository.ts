@@ -4,7 +4,7 @@
  * One deep port method — `getSummary(artifactVersionId)` — hides the entire
  * transport protocol:
  *
- * - `GET /api/v2/artifact-versions/{id}/paper-summary` (required read)
+ * - `GET /api/artifact-versions/{id}/paper-summary` (required read)
  * - generated-contract validation of the payload
  * - a single DTO→domain assembly shared verbatim with the fixture adapter
  *
