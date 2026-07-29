@@ -12,6 +12,6 @@ from app.services import task_service
 router = APIRouter(tags=["evidence"])
 
 
-@router.get("/api/v1/tasks/{task_id}/evidence/{evidence_id}", response_model=ApiResponse[EvidenceResponse])
+@router.get("/api/tasks/{task_id}/evidence/{evidence_id}", response_model=ApiResponse[EvidenceResponse])
 async def get_evidence(task_id: str, evidence_id: str, request: Request):
     return ok(request, task_service.get_evidence(task_id, evidence_id))

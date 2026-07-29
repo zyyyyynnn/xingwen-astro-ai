@@ -52,7 +52,7 @@ it("listEvents applies each cursor to the base path without accumulating query p
   const cursorValues: string[][] = [];
   let pageIndex = 0;
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/runs/:runId/events`, ({ request }) => {
+    http.get(`${TEST_BASE_URL}/api/runs/:runId/events`, ({ request }) => {
       cursorValues.push(new URL(request.url).searchParams.getAll("cursor"));
       const event = exoplanetHostStarFixture.data.runEvents[pageIndex]!;
       pageIndex += 1;
@@ -76,7 +76,7 @@ it("listEvents applies each cursor to the base path without accumulating query p
 it("listEvents propagates NotFoundError when the run is missing", async () => {
   const repos = setupRepos();
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/runs/:runId/events`, () =>
+    http.get(`${TEST_BASE_URL}/api/runs/:runId/events`, () =>
       HttpResponse.json(problem(404, "RUN_NOT_FOUND", "Run not found"), {
         status: 404,
       }),
@@ -106,7 +106,7 @@ it("recoverEvents excludes events beyond the snapshot sequence", async () => {
   const repos = setupRepos();
   // The snapshot only knows about events 1-3, though the stream holds 9.
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/runs/:runId`, () =>
+    http.get(`${TEST_BASE_URL}/api/runs/:runId`, () =>
       HttpResponse.json({
         data: {
           id: "run_01JEXAMPLE",
@@ -134,7 +134,7 @@ it("recoverEvents excludes events beyond the snapshot sequence", async () => {
         },
       }),
     ),
-    http.get(`${TEST_BASE_URL}/api/v2/runs/:runId/events`, () =>
+    http.get(`${TEST_BASE_URL}/api/runs/:runId/events`, () =>
       HttpResponse.json({
         data: exoplanetHostStarFixture.data.runEvents.slice(0, 5),
         page: { next_cursor: "5", has_more: true, limit: 5 },
@@ -151,7 +151,7 @@ it("recoverEvents excludes events beyond the snapshot sequence", async () => {
 it("recoverEvents throws NotFoundError when the run does not exist", async () => {
   const repos = setupRepos();
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/runs/:runId`, () =>
+    http.get(`${TEST_BASE_URL}/api/runs/:runId`, () =>
       HttpResponse.json(problem(404, "RUN_NOT_FOUND", "Run gone"), {
         status: 404,
       }),

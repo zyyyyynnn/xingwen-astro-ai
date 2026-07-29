@@ -12,6 +12,6 @@ from app.services import task_service
 router = APIRouter(tags=["graph"])
 
 
-@router.get("/api/v1/tasks/{task_id}/graph", response_model=ApiResponse[GraphResponse])
+@router.get("/api/tasks/{task_id}/graph", response_model=ApiResponse[GraphResponse])
 async def get_graph(task_id: str, request: Request):
     return ok(request, task_service.get_graph(task_id))

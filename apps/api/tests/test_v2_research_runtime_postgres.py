@@ -174,17 +174,17 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     project_id = runtime["project_id"]
     draft_id = runtime["draft_id"]
 
-    project = client.get(f"/api/v2/projects/{project_id}")
+    project = client.get(f"/api/projects/{project_id}")
     assert project.status_code == 200
     assert project.json()["data"]["case_key"] == "exoplanet_host_star"
     assert "session_id" in project.json()["data"]  # owner reads its own project
 
-    draft = client.get(f"/api/v2/research-contract-drafts/{draft_id}")
+    draft = client.get(f"/api/contracts/drafts/{draft_id}")
     assert draft.status_code == 200
     assert draft.json()["data"]["status"] == "draft"
 
     patched = client.patch(
-        f"/api/v2/research-contract-drafts/{draft_id}",
+        f"/api/contracts/drafts/{draft_id}",
         headers={**csrf, "If-Match": "1"},
         json={"intent": "Refined integration intent"},
     )
@@ -192,7 +192,7 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     assert patched.json()["data"]["version"] == 2
 
     stale = client.patch(
-        f"/api/v2/research-contract-drafts/{draft_id}",
+        f"/api/contracts/drafts/{draft_id}",
         headers={**csrf, "If-Match": "1"},
         json={"intent": "conflicting"},
     )
@@ -200,7 +200,7 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     assert stale.json()["code"] == "VERSION_CONFLICT"
 
     confirmed = client.post(
-        f"/api/v2/projects/{project_id}/contracts",
+        f"/api/projects/{project_id}/contracts",
         headers={**csrf, "Idempotency-Key": "confirm-1"},
         json={"draft_id": draft_id, "expected_draft_version": 2},
     )
@@ -209,7 +209,7 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     assert confirmed.json()["data"]["content_hash"].startswith("sha256:")
 
     confirm_replay = client.post(
-        f"/api/v2/projects/{project_id}/contracts",
+        f"/api/projects/{project_id}/contracts",
         headers={**csrf, "Idempotency-Key": "confirm-1"},
         json={"draft_id": draft_id, "expected_draft_version": 2},
     )
@@ -234,14 +234,14 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
             )
         )
     idempotency_conflict = client.post(
-        f"/api/v2/projects/{project_id}/contracts",
+        f"/api/projects/{project_id}/contracts",
         headers={**csrf, "Idempotency-Key": "confirm-1"},
         json={"draft_id": str(conflicting_draft_id), "expected_draft_version": 1},
     )
     assert idempotency_conflict.status_code == 409
     assert idempotency_conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
 
-    contract = client.get(f"/api/v2/research-contracts/{contract_id}")
+    contract = client.get(f"/api/contracts/{contract_id}")
     assert contract.status_code == 200
     # Full frozen content is recovered, not only the hash.
     assert contract.json()["data"]["requested_fields"] == [
@@ -250,7 +250,7 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     ]
 
     created = client.post(
-        f"/api/v2/projects/{project_id}/runs",
+        f"/api/projects/{project_id}/runs",
         headers={**csrf, "Idempotency-Key": "run-1"},
         json={
             "contract_id": contract_id,
@@ -262,12 +262,12 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     run_id = created.json()["data"]["id"]
     assert created.json()["data"]["status"] == "queued"
 
-    project_after_run = client.get(f"/api/v2/projects/{project_id}")
+    project_after_run = client.get(f"/api/projects/{project_id}")
     assert project_after_run.json()["data"]["active_contract_id"] == contract_id
     assert project_after_run.json()["data"]["latest_run_id"] == run_id
 
     replay = client.post(
-        f"/api/v2/projects/{project_id}/runs",
+        f"/api/projects/{project_id}/runs",
         headers={**csrf, "Idempotency-Key": "run-1"},
         json={
             "contract_id": contract_id,
@@ -279,7 +279,7 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     assert replay.json()["data"]["id"] == run_id  # idempotent replay
 
     conflict = client.post(
-        f"/api/v2/projects/{project_id}/runs",
+        f"/api/projects/{project_id}/runs",
         headers={**csrf, "Idempotency-Key": "run-1"},
         json={
             "contract_id": contract_id,
@@ -290,24 +290,24 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     assert conflict.status_code == 409
     assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
 
-    run = client.get(f"/api/v2/runs/{run_id}")
+    run = client.get(f"/api/runs/{run_id}")
     assert run.status_code == 200
     assert run.json()["data"]["latest_event_sequence"] >= 1
 
-    events = client.get(f"/api/v2/runs/{run_id}/events")
+    events = client.get(f"/api/runs/{run_id}/events")
     assert events.status_code == 200
     sequences = [event["sequence"] for event in events.json()["data"]]
     assert sequences == sorted(sequences)
     assert events.json()["data"][0]["event_type"] == "run.queued"
 
     saved = client.put(
-        f"/api/v2/projects/{project_id}/workspace-snapshot",
+        f"/api/projects/{project_id}/workspace-snapshot",
         headers={**csrf, "If-Match": "0"},
         json={"layout_preset": "comparative", "active_run_id": run_id},
     )
     assert saved.status_code == 200
     assert saved.json()["data"]["revision"] == 1
-    reloaded = client.get(f"/api/v2/projects/{project_id}/workspace-snapshot")
+    reloaded = client.get(f"/api/projects/{project_id}/workspace-snapshot")
     assert reloaded.json()["data"] == saved.json()["data"]
 
     non_raising = TestClient(
@@ -315,7 +315,7 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     )
     non_raising.cookies.update(client.cookies)
     missing_parent = non_raising.post(
-        f"/api/v2/projects/{project_id}/runs",
+        f"/api/projects/{project_id}/runs",
         headers={**csrf, "Idempotency-Key": "derived-missing-parent"},
         json={
             "contract_id": contract_id,
@@ -350,13 +350,13 @@ def test_expired_draft_is_visible_but_cannot_be_changed_or_confirmed(
             )
         )
 
-    fetched = client.get(f"/api/v2/research-contract-drafts/{expired_id}")
+    fetched = client.get(f"/api/contracts/drafts/{expired_id}")
     assert fetched.status_code == 200
     assert fetched.json()["data"]["status"] == "expired"
 
     csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
     patched = client.patch(
-        f"/api/v2/research-contract-drafts/{expired_id}",
+        f"/api/contracts/drafts/{expired_id}",
         headers={**csrf, "If-Match": "1"},
         json={"intent": "too late"},
     )
@@ -364,7 +364,7 @@ def test_expired_draft_is_visible_but_cannot_be_changed_or_confirmed(
     assert patched.json()["code"] == "DRAFT_NOT_EDITABLE"
 
     confirmed = client.post(
-        f"/api/v2/projects/{runtime['project_id']}/contracts",
+        f"/api/projects/{runtime['project_id']}/contracts",
         headers={**csrf, "Idempotency-Key": "expired-confirm"},
         json={"draft_id": str(expired_id), "expected_draft_version": 1},
     )
@@ -381,7 +381,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
     draft_id = runtime["draft_id"]
 
     confirmed = client.post(
-        f"/api/v2/projects/{project_id}/contracts",
+        f"/api/projects/{project_id}/contracts",
         headers={**csrf, "Idempotency-Key": "fixture-contract"},
         json={"draft_id": draft_id, "expected_draft_version": 1},
     )
@@ -389,7 +389,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
     contract_id = confirmed.json()["data"]["id"]
 
     created = client.post(
-        f"/api/v2/projects/{project_id}/runs",
+        f"/api/projects/{project_id}/runs",
         headers={**csrf, "Idempotency-Key": "fixture-run"},
         json={
             "contract_id": contract_id,
@@ -522,13 +522,13 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
             )
         )
 
-    version = client.get(f"/api/v2/artifact-versions/{version_id}")
+    version = client.get(f"/api/artifact-versions/{version_id}")
     assert version.status_code == 200
     assert version.json()["data"]["source_mode"] == "fixture"
     assert version.json()["data"]["evidence_ids"] == [str(evidence_id)]
 
     shared = client.post(
-        f"/api/v2/projects/{project_id}/shares",
+        f"/api/projects/{project_id}/shares",
         headers=csrf,
         json={
             "title": "X-01 deterministic fixture evidence",
@@ -554,7 +554,7 @@ def test_public_authoring_chain_creates_project_and_draft(
     csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
 
     created = client.post(
-        "/api/v2/projects",
+        "/api/projects",
         headers={**csrf, "Idempotency-Key": "authoring-project-1"},
         json={
             "name": "Public authoring chain",
@@ -568,10 +568,10 @@ def test_public_authoring_chain_creates_project_and_draft(
     assert project["case_key"] == "exoplanet_host_star"
     assert project["active_contract_id"] is None
     assert "execution_mode" not in project
-    assert created.headers["Location"] == f"/api/v2/projects/{project['id']}"
+    assert created.headers["Location"] == f"/api/projects/{project['id']}"
 
     replay = client.post(
-        "/api/v2/projects",
+        "/api/projects",
         headers={**csrf, "Idempotency-Key": "authoring-project-1"},
         json={
             "name": "Public authoring chain",
@@ -583,7 +583,7 @@ def test_public_authoring_chain_creates_project_and_draft(
     assert replay.json()["data"]["id"] == project["id"]
 
     conflict = client.post(
-        "/api/v2/projects",
+        "/api/projects",
         headers={**csrf, "Idempotency-Key": "authoring-project-1"},
         json={"name": "Different request", "case_key": "exoplanet_host_star"},
     )
@@ -591,7 +591,7 @@ def test_public_authoring_chain_creates_project_and_draft(
     assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
 
     draft_created = client.post(
-        f"/api/v2/projects/{project['id']}/contract-drafts",
+        f"/api/projects/{project['id']}/contract-drafts",
         headers={**csrf, "Idempotency-Key": "authoring-draft-1"},
         json={
             "intent": "Integrate exoplanet candidates and host-star parameters",
@@ -605,12 +605,10 @@ def test_public_authoring_chain_creates_project_and_draft(
     assert "execution_mode" not in draft
     assert "execution_mode" not in draft["contract"]
     assert draft_created.headers["ETag"] == "1"
-    assert draft_created.headers["Location"] == (
-        f"/api/v2/research-contract-drafts/{draft['id']}"
-    )
+    assert draft_created.headers["Location"] == (f"/api/contracts/drafts/{draft['id']}")
 
     draft_replay = client.post(
-        f"/api/v2/projects/{project['id']}/contract-drafts",
+        f"/api/projects/{project['id']}/contract-drafts",
         headers={**csrf, "Idempotency-Key": "authoring-draft-1"},
         json={
             "intent": "Integrate exoplanet candidates and host-star parameters",
@@ -621,7 +619,7 @@ def test_public_authoring_chain_creates_project_and_draft(
     assert draft_replay.json()["data"]["id"] == draft["id"]
 
     draft_conflict = client.post(
-        f"/api/v2/projects/{project['id']}/contract-drafts",
+        f"/api/projects/{project['id']}/contract-drafts",
         headers={**csrf, "Idempotency-Key": "authoring-draft-1"},
         json={"intent": "Different intent", "contract": _contract_input()},
     )
@@ -630,20 +628,20 @@ def test_public_authoring_chain_creates_project_and_draft(
 
     # The freshly created draft continues through the existing lifecycle.
     patched = client.patch(
-        f"/api/v2/research-contract-drafts/{draft['id']}",
+        f"/api/contracts/drafts/{draft['id']}",
         headers={**csrf, "If-Match": "1"},
         json={"intent": "Refined public authoring intent"},
     )
     assert patched.status_code == 200
     confirmed = client.post(
-        f"/api/v2/projects/{project['id']}/contracts",
+        f"/api/projects/{project['id']}/contracts",
         headers={**csrf, "Idempotency-Key": "authoring-confirm-1"},
         json={"draft_id": draft["id"], "expected_draft_version": 2},
     )
     assert confirmed.status_code == 201, confirmed.text
     contract_id = confirmed.json()["data"]["id"]
     run = client.post(
-        f"/api/v2/projects/{project['id']}/runs",
+        f"/api/projects/{project['id']}/runs",
         headers={**csrf, "Idempotency-Key": "authoring-run-1"},
         json={
             "contract_id": contract_id,
@@ -665,7 +663,7 @@ def test_create_draft_hides_missing_and_cross_session_projects(
     }
 
     missing = client.post(
-        f"/api/v2/projects/{uuid4()}/contract-drafts",
+        f"/api/projects/{uuid4()}/contract-drafts",
         headers={**csrf, "Idempotency-Key": "draft-missing-project"},
         json=body,
     )
@@ -675,7 +673,7 @@ def test_create_draft_hides_missing_and_cross_session_projects(
     other = TestClient(client.app, base_url="https://testserver")
     other.cookies.set(settings.SESSION_COOKIE_NAME, runtime["other_credential"])
     cross = other.post(
-        f"/api/v2/projects/{runtime['project_id']}/contract-drafts",
+        f"/api/projects/{runtime['project_id']}/contract-drafts",
         headers={
             "X-CSRF-Token": runtime["other_csrf"],
             "Idempotency-Key": "draft-cross-session",
@@ -695,7 +693,7 @@ def test_list_projects_is_session_scoped_with_stable_cursor(
     created_ids: list[str] = []
     for index in range(3):
         response = client.post(
-            "/api/v2/projects",
+            "/api/projects",
             headers={**csrf, "Idempotency-Key": f"list-project-{index}"},
             json={"name": f"List project {index}", "case_key": "exoplanet_host_star"},
         )
@@ -703,7 +701,7 @@ def test_list_projects_is_session_scoped_with_stable_cursor(
         created_ids.append(response.json()["data"]["id"])
 
     # Full listing returns only this session's projects (3 created + fixture).
-    listing = client.get("/api/v2/projects", params={"limit": 100})
+    listing = client.get("/api/projects", params={"limit": 100})
     assert listing.status_code == 200
     listed_ids = [item["id"] for item in listing.json()["data"]]
     assert set(created_ids) <= set(listed_ids)
@@ -719,7 +717,7 @@ def test_list_projects_is_session_scoped_with_stable_cursor(
         params: dict[str, str] = {"limit": "1"}
         if cursor:
             params["cursor"] = cursor
-        page = client.get("/api/v2/projects", params=params)
+        page = client.get("/api/projects", params=params)
         assert page.status_code == 200
         payload = page.json()
         seen_ids.extend(item["id"] for item in payload["data"])
@@ -733,7 +731,7 @@ def test_list_projects_is_session_scoped_with_stable_cursor(
     assert seen_ids == listed_ids
     assert len(seen_ids) == len(set(seen_ids))
 
-    invalid = client.get("/api/v2/projects", params={"cursor": "not-a-cursor"})
+    invalid = client.get("/api/projects", params={"cursor": "not-a-cursor"})
     assert invalid.status_code == 400
     assert invalid.json()["code"] == "INVALID_CURSOR"
 
@@ -741,13 +739,13 @@ def test_list_projects_is_session_scoped_with_stable_cursor(
     # cursor anchored on an owner project is rejected rather than leaked.
     other = TestClient(client.app, base_url="https://testserver")
     other.cookies.set(settings.SESSION_COOKIE_NAME, runtime["other_credential"])
-    other_listing = other.get("/api/v2/projects")
+    other_listing = other.get("/api/projects")
     assert other_listing.status_code == 200
     assert other_listing.json()["data"] == []
     assert other_listing.json()["page"]["has_more"] is False
     if seen_cursors:
         foreign = other.get(
-            "/api/v2/projects", params={"cursor": next(iter(seen_cursors))}
+            "/api/projects", params={"cursor": next(iter(seen_cursors))}
         )
         assert foreign.status_code == 400
         assert foreign.json()["code"] == "INVALID_CURSOR"
@@ -760,22 +758,22 @@ def test_public_authoring_writes_require_session_and_csrf(
     body = {"name": "No auth", "case_key": "exoplanet_host_star"}
 
     anonymous = TestClient(client.app, base_url="https://testserver")
-    assert anonymous.get("/api/v2/projects").status_code == 401
+    assert anonymous.get("/api/projects").status_code == 401
     assert (
         anonymous.post(
-            "/api/v2/projects", headers={"Idempotency-Key": "anon"}, json=body
+            "/api/projects", headers={"Idempotency-Key": "anon"}, json=body
         ).status_code
         == 401
     )
 
     missing_csrf = client.post(
-        "/api/v2/projects", headers={"Idempotency-Key": "no-csrf"}, json=body
+        "/api/projects", headers={"Idempotency-Key": "no-csrf"}, json=body
     )
     assert missing_csrf.status_code == 403
     assert missing_csrf.json()["code"] == "CSRF_INVALID"
 
     missing_key = client.post(
-        "/api/v2/projects",
+        "/api/projects",
         headers={"X-CSRF-Token": runtime["owner_csrf"]},
         json=body,
     )
@@ -789,19 +787,19 @@ def test_runtime_hides_cross_session_and_requires_auth(
     project_id = runtime["project_id"]
 
     anonymous = TestClient(client.app, base_url="https://testserver")
-    assert anonymous.get(f"/api/v2/projects/{project_id}").status_code == 401
+    assert anonymous.get(f"/api/projects/{project_id}").status_code == 401
 
     other = TestClient(client.app, base_url="https://testserver")
     other.cookies.set(settings.SESSION_COOKIE_NAME, runtime["other_credential"])
-    hidden = other.get(f"/api/v2/projects/{project_id}")
+    hidden = other.get(f"/api/projects/{project_id}")
     assert hidden.status_code == 404
     assert hidden.json()["code"] == "PROJECT_NOT_FOUND"
 
     unknown = uuid4()
-    assert client.get(f"/api/v2/runs/{unknown}").status_code == 404
+    assert client.get(f"/api/runs/{unknown}").status_code == 404
 
     missing_csrf = client.post(
-        f"/api/v2/projects/{project_id}/runs",
+        f"/api/projects/{project_id}/runs",
         headers={"Idempotency-Key": "no-csrf"},
         json={"contract_id": str(UUID(int=0)), "execution_mode": "live"},
     )

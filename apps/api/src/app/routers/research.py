@@ -1,4 +1,4 @@
-"""Runtime transport for the minimal ``/api/v2`` research chain.
+"""Runtime transport for the minimal ``/api`` research chain.
 
 Project, ContractDraft, Contract, Run and RunEvent transport. Business logic
 and persistence live in :class:`ResearchApplicationService`; this router only
@@ -33,7 +33,7 @@ from app.security import SecurityProblem
 from app.services.research import ResearchApplicationService
 
 
-router = APIRouter(prefix="/api/v2", tags=["v2-research"])
+router = APIRouter(prefix="/api", tags=["v2-research"])
 
 
 def _service(request: Request) -> ResearchApplicationService:
@@ -77,7 +77,7 @@ def list_research_projects(
         session_id=_session_id(request), cursor=cursor, limit=limit
     )
     _no_store(response)
-    path = "/api/v2/projects"
+    path = "/api/projects"
     return CollectionEnvelope(
         data=projects,
         page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
@@ -104,8 +104,8 @@ def create_research_project(
         request=payload,
     )
     _no_store(response)
-    response.headers["Location"] = f"/api/v2/projects/{data.id}"
-    path = f"/api/v2/projects/{data.id}"
+    response.headers["Location"] = f"/api/projects/{data.id}"
+    path = f"/api/projects/{data.id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -123,7 +123,7 @@ def get_research_project(
         project_id=project_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/v2/projects/{project_id}"
+    path = f"/api/projects/{project_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -147,14 +147,14 @@ def create_research_contract_draft(
         request=payload,
     )
     _no_store(response)
-    response.headers["Location"] = f"/api/v2/research-contract-drafts/{data.id}"
+    response.headers["Location"] = f"/api/contracts/drafts/{data.id}"
     response.headers["ETag"] = str(data.version)
-    path = f"/api/v2/research-contract-drafts/{data.id}"
+    path = f"/api/contracts/drafts/{data.id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
 @router.get(
-    "/research-contract-drafts/{draft_id}",
+    "/contracts/drafts/{draft_id}",
     operation_id="getResearchContractDraft",
     response_model=Envelope[ResearchContractDraft],
 )
@@ -167,12 +167,12 @@ def get_research_contract_draft(
         draft_id=draft_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/v2/research-contract-drafts/{draft_id}"
+    path = f"/api/contracts/drafts/{draft_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
 @router.patch(
-    "/research-contract-drafts/{draft_id}",
+    "/contracts/drafts/{draft_id}",
     operation_id="updateResearchContractDraft",
     response_model=Envelope[ResearchContractDraft],
 )
@@ -191,12 +191,12 @@ def update_research_contract_draft(
     )
     _no_store(response)
     response.headers["ETag"] = str(data.version)
-    path = f"/api/v2/research-contract-drafts/{draft_id}"
+    path = f"/api/contracts/drafts/{draft_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
 @router.get(
-    "/research-contracts/{contract_id}",
+    "/contracts/{contract_id}",
     operation_id="getResearchContract",
     response_model=Envelope[ResearchContract],
 )
@@ -209,7 +209,7 @@ def get_research_contract(
         contract_id=contract_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/v2/research-contracts/{contract_id}"
+    path = f"/api/contracts/{contract_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -233,8 +233,8 @@ def confirm_research_contract(
         request=payload,
     )
     _no_store(response)
-    response.headers["Location"] = f"/api/v2/research-contracts/{data.id}"
-    path = f"/api/v2/research-contracts/{data.id}"
+    response.headers["Location"] = f"/api/contracts/{data.id}"
+    path = f"/api/contracts/{data.id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -250,7 +250,7 @@ def get_research_run(
 ) -> Envelope[ResearchRun]:
     data = _service(request).get_run(run_id=run_id, session_id=_session_id(request))
     _no_store(response)
-    path = f"/api/v2/runs/{run_id}"
+    path = f"/api/runs/{run_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -274,8 +274,8 @@ def create_research_run(
         request=payload,
     )
     _no_store(response)
-    response.headers["Location"] = f"/api/v2/runs/{data.id}"
-    path = f"/api/v2/runs/{data.id}"
+    response.headers["Location"] = f"/api/runs/{data.id}"
+    path = f"/api/runs/{data.id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -298,7 +298,7 @@ def list_run_events(
         limit=limit,
     )
     _no_store(response)
-    path = f"/api/v2/runs/{run_id}/events"
+    path = f"/api/runs/{run_id}/events"
     return CollectionEnvelope(
         data=events,
         page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),

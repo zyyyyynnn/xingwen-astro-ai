@@ -24,7 +24,7 @@ from app.security import SecurityProblem
 from app.services.snapshots import SnapshotService
 
 
-router = APIRouter(prefix="/api/v2", tags=["v2-snapshots"])
+router = APIRouter(prefix="/api", tags=["v2-snapshots"])
 
 
 def _service(request: Request) -> SnapshotService:
@@ -70,7 +70,7 @@ def get_workspace_snapshot(
     return Envelope(
         data=snapshot,
         meta=_meta(request),
-        links=ResponseLinks(self=f"/api/v2/projects/{project_id}/workspace-snapshot"),
+        links=ResponseLinks(self=f"/api/projects/{project_id}/workspace-snapshot"),
     )
 
 
@@ -98,7 +98,7 @@ def put_workspace_snapshot(
     return Envelope(
         data=snapshot,
         meta=_meta(request),
-        links=ResponseLinks(self=f"/api/v2/projects/{project_id}/workspace-snapshot"),
+        links=ResponseLinks(self=f"/api/projects/{project_id}/workspace-snapshot"),
     )
 
 
@@ -124,7 +124,7 @@ def list_share_snapshots(
         data=shares,
         page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
         meta=_meta(request),
-        links=ResponseLinks(self=f"/api/v2/projects/{project_id}/shares"),
+        links=ResponseLinks(self=f"/api/projects/{project_id}/shares"),
     )
 
 
@@ -149,14 +149,14 @@ def create_share_snapshot(
         request=payload,
     )
     _private_no_store(response)
-    response.headers["Location"] = f"/api/v2/projects/{project_id}/shares/{share.id}"
+    response.headers["Location"] = f"/api/projects/{project_id}/shares/{share.id}"
     response.headers["RateLimit-Limit"] = str(limiter.limit)
     response.headers["RateLimit-Remaining"] = str(remaining)
     response.headers["RateLimit-Reset"] = str(reset_seconds)
     return Envelope(
         data=share,
         meta=_meta(request),
-        links=ResponseLinks(self=f"/api/v2/projects/{project_id}/shares"),
+        links=ResponseLinks(self=f"/api/projects/{project_id}/shares"),
     )
 
 
@@ -183,7 +183,7 @@ def revoke_share_snapshot(
 
 
 @router.get(
-    "/shares/{share_token}",
+    "/public/shares/{share_token}",
     operation_id="getPublicShareSnapshot",
 )
 def get_public_share_snapshot(
@@ -202,5 +202,5 @@ def get_public_share_snapshot(
     return Envelope(
         data=projection,
         meta=_meta(request),
-        links=ResponseLinks(self="/api/v2/shares/public"),
+        links=ResponseLinks(self="/api/public/shares/public"),
     )

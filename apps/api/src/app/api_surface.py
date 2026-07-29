@@ -7,28 +7,44 @@ classification of request paths:
 * which paths are anonymous public *share reads* (and therefore carry the
   hardened public-share response headers), and
 * which paths return the RFC-9457 ``application/problem+json`` error shape
-  versus the legacy :class:`ApiResponse` envelope.
+  versus the legacy :class:`ApiResponse` envelope (the data-pipeline surface).
 
 Centralizing these rules keeps the security boundary explicit and testable
 instead of being scattered across the middleware and error handlers as ad hoc
-``str.startswith`` checks. The literal prefixes below are the *only* place the
-version segment appears in the security decision, so the versionless
-single-surface cut-over flips these constants (and the accompanying
-``test_api_surface`` table) in one lockstep change.
+``str.startswith`` checks. On the versionless single surface everything lives
+under ``/api``; the security decision is therefore *default-deny* — any ``/api``
+path that is not on the small public allowlist requires an anonymous session.
+Adding a new domain never needs a middleware edit: anonymous reads live under
+``/api/public/*`` and everything else is protected by default.
 
 The functions are pure and allocation-free on the request hot path (a couple of
-``str.startswith``/equality checks), so consuming them from the middleware adds
-no measurable per-request cost.
+``str.startswith``/equality checks against module-level tuples), so consuming
+them from the middleware adds no measurable per-request cost.
 """
 
 from __future__ import annotations
 
 # --- Surface constants -------------------------------------------------------
-# Current (versioned) values. The versionless cut-over changes these literals;
-# nothing else in the security decision needs to move.
-PROTECTED_ROOT = "/api/v2"
-SESSION_CREATE_PATH = "/api/v2/sessions"
-PUBLIC_SHARE_PREFIX = "/api/v2/shares/"
+API_ROOT = "/api"
+
+# Anonymous session-create endpoint (method-agnostic, matching the router).
+SESSION_CREATE_PATH = "/api/sessions"
+
+# Prefix for anonymous public share reads (a single token segment beneath it).
+PUBLIC_SHARE_PREFIX = "/api/public/shares/"
+
+# Unauthenticated non-core surface: health probe, data-pipeline task reads, and
+# the interactive API docs. These are served without a session cookie.
+PUBLIC_UNAUTH_PREFIXES = (
+    "/api/health",
+    "/api/tasks",
+    "/api/docs",
+    "/api/openapi.json",
+)
+
+# Paths that use the legacy :class:`ApiResponse` envelope on error (the
+# data-pipeline task surface). Every other ``/api`` path uses problem+json.
+LEGACY_ENVELOPE_PREFIXES = ("/api/health", "/api/tasks")
 
 # Evolution seam (see ADR "versionless single-surface API"): maps a route
 # ``path_format`` to a human-readable sunset note. While this map is empty no
@@ -39,15 +55,30 @@ DEPRECATED_OPERATIONS: dict[str, str] = {}
 _PUBLIC_SHARE_READ_METHODS = frozenset({"GET", "HEAD"})
 
 
+def _matches_prefix(path: str, prefixes: tuple[str, ...]) -> bool:
+    """True when ``path`` equals a prefix or sits directly beneath it.
+
+    Matching on ``prefix`` or ``prefix + "/"`` prevents a sibling such as
+    ``/api/tasksfoo`` from being classified as ``/api/tasks``.
+    """
+
+    for prefix in prefixes:
+        if path == prefix or path.startswith(prefix + "/"):
+            return True
+    return False
+
+
 def requires_authentication(method: str, path: str) -> bool:
     """Return ``True`` when the security middleware must enforce a session.
 
-    A request is public (no session required) when it does not target the
-    protected root, when it is the anonymous session-create endpoint, or when
-    it is an anonymous public share read.
+    Default-deny: any ``/api`` path requires an anonymous session unless it is
+    on the public allowlist (health/tasks/docs/openapi), the anonymous
+    session-create endpoint, or an anonymous public share read.
     """
 
-    if not path.startswith(PROTECTED_ROOT):
+    if not path.startswith(API_ROOT):
+        return False
+    if _matches_prefix(path, PUBLIC_UNAUTH_PREFIXES):
         return False
     if path.rstrip("/") == SESSION_CREATE_PATH:
         return False
@@ -70,11 +101,13 @@ def is_public_share_read(method: str, path: str) -> bool:
 def uses_problem_details(path: str) -> bool:
     """Return ``True`` when errors on this path use ``application/problem+json``.
 
-    Paths outside the protected root use the legacy :class:`ApiResponse`
-    envelope (the data-pipeline task surface).
+    The data-pipeline task surface (and any non-``/api`` path) keeps the legacy
+    :class:`ApiResponse` envelope; every other ``/api`` path uses problem+json.
     """
 
-    return path.startswith(PROTECTED_ROOT)
+    if not path.startswith(API_ROOT):
+        return False
+    return not _matches_prefix(path, LEGACY_ENVELOPE_PREFIXES)
 
 
 def public_share_instance() -> str:

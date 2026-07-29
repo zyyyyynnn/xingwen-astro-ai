@@ -60,7 +60,7 @@ export function createResearchRepositories(
 ): ResearchRepositories {
   const projects: ProjectRepository = {
     async getById(id) {
-      const payload = await http.get<unknown>(`/api/v2/projects/${seg(id)}`);
+      const payload = await http.get<unknown>(`/api/projects/${seg(id)}`);
       return payload
         ? validateAndMap("ResearchProject", payload, mapResearchProject)
         : null;
@@ -69,7 +69,7 @@ export function createResearchRepositories(
       const params: string[] = [`limit=${String(PROJECT_PAGE_LIMIT)}`];
       if (cursor) params.push(`cursor=${encodeURIComponent(cursor)}`);
       const env = await http.getPage<unknown>(
-        `/api/v2/projects?${params.join("&")}`,
+        `/api/projects?${params.join("&")}`,
       );
       return {
         items: env.data.map((p) =>
@@ -84,7 +84,7 @@ export function createResearchRepositories(
         description: input.description ?? "",
         case_key: input.caseKey,
       };
-      const payload = await http.post<unknown>("/api/v2/projects", body, {
+      const payload = await http.post<unknown>("/api/projects", body, {
         "Idempotency-Key": input.idempotencyKey,
       });
       return validateAndMap("ResearchProject", payload, mapResearchProject);
@@ -101,7 +101,7 @@ export function createResearchRepositories(
         contract: mapDomainContractInputToDto(input.contract),
       };
       const payload = await http.post<unknown>(
-        `/api/v2/projects/${seg(projectId)}/contract-drafts`,
+        `/api/projects/${seg(projectId)}/contract-drafts`,
         body,
         { "Idempotency-Key": input.idempotencyKey },
       );
@@ -113,7 +113,7 @@ export function createResearchRepositories(
     },
     async getDraftById(id) {
       const payload = await http.get<unknown>(
-        `/api/v2/research-contract-drafts/${seg(id)}`,
+        `/api/contracts/drafts/${seg(id)}`,
       );
       return payload
         ? validateAndMap(
@@ -135,7 +135,7 @@ export function createResearchRepositories(
           : null,
       };
       const payload = await http.patch<unknown>(
-        `/api/v2/research-contract-drafts/${seg(draftId)}`,
+        `/api/contracts/drafts/${seg(draftId)}`,
         body,
         { "If-Match": String(expectedVersion) },
       );
@@ -155,16 +155,14 @@ export function createResearchRepositories(
         expected_draft_version: expectedDraftVersion,
       };
       const payload = await http.post<unknown>(
-        `/api/v2/projects/${seg(projectId)}/contracts`,
+        `/api/projects/${seg(projectId)}/contracts`,
         body,
         { "Idempotency-Key": stableIdempotencyKey("confirm-contract", body) },
       );
       return validateAndMap("ResearchContract", payload, mapResearchContract);
     },
     async getContractById(id) {
-      const payload = await http.get<unknown>(
-        `/api/v2/research-contracts/${seg(id)}`,
-      );
+      const payload = await http.get<unknown>(`/api/contracts/${seg(id)}`);
       return payload
         ? validateAndMap("ResearchContract", payload, mapResearchContract)
         : null;
@@ -181,7 +179,7 @@ export function createResearchRepositories(
   }> {
     const params: string[] = [`limit=${String(EVENT_PAGE_LIMIT)}`];
     if (cursor) params.push(`cursor=${encodeURIComponent(cursor)}`);
-    const path = `/api/v2/runs/${seg(runId)}/events?${params.join("&")}`;
+    const path = `/api/runs/${seg(runId)}/events?${params.join("&")}`;
     const env = await http.getPage<unknown>(path);
     return {
       events: env.data.map((p) => validateAndMap("RunEvent", p, mapRunEvent)),
@@ -192,7 +190,7 @@ export function createResearchRepositories(
 
   const runs: RunRepository = {
     async getById(id) {
-      const payload = await http.get<unknown>(`/api/v2/runs/${seg(id)}`);
+      const payload = await http.get<unknown>(`/api/runs/${seg(id)}`);
       return payload
         ? validateAndMap("ResearchRun", payload, mapResearchRun)
         : null;
@@ -207,7 +205,7 @@ export function createResearchRepositories(
         cache_policy: input.cachePolicy ?? "fallback_on_recoverable_failure",
       };
       const payload = await http.post<unknown>(
-        `/api/v2/projects/${seg(input.projectId)}/runs`,
+        `/api/projects/${seg(input.projectId)}/runs`,
         body,
         { "Idempotency-Key": input.idempotencyKey },
       );
@@ -215,13 +213,13 @@ export function createResearchRepositories(
     },
     async listEvents(runId): Promise<readonly RunEvent[]> {
       const payloads = await http.list<unknown>(
-        `/api/v2/runs/${seg(runId)}/events`,
+        `/api/runs/${seg(runId)}/events`,
       );
       return payloads.map((p) => validateAndMap("RunEvent", p, mapRunEvent));
     },
     async recoverEvents(runId, fromCursor = null): Promise<RunEventRecovery> {
       // Snapshot-first: the Run's latest_event_sequence is authoritative.
-      const payload = await http.get<unknown>(`/api/v2/runs/${seg(runId)}`);
+      const payload = await http.get<unknown>(`/api/runs/${seg(runId)}`);
       if (!payload) {
         throw new NotFoundError(
           "Run not found; cannot recover events",

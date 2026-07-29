@@ -12,6 +12,6 @@ from app.services import task_service
 router = APIRouter(tags=["dataset"])
 
 
-@router.get("/api/v1/tasks/{task_id}/dataset", response_model=ApiResponse[DatasetResponse])
+@router.get("/api/tasks/{task_id}/dataset", response_model=ApiResponse[DatasetResponse])
 async def get_dataset(task_id: str, request: Request):
     return ok(request, task_service.get_dataset(task_id))

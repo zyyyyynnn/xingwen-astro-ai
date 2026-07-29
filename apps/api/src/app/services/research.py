@@ -1,4 +1,4 @@
-"""Research runtime application boundary for the minimal ``/api/v2`` chain.
+"""Research runtime application boundary for the minimal ``/api`` chain.
 
 Thin layer wiring the runtime routers to authoritative persistence:
 

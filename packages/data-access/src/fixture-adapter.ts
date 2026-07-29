@@ -921,7 +921,7 @@ export function createFixtureRepositories(
         return {
           ...snapshot,
           shareToken: token,
-          shareUrl: `/api/v2/shares/${token}`,
+          shareUrl: `/api/public/shares/${token}`,
         };
       },
       revoke: async (projectId, shareId) => {

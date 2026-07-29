@@ -344,37 +344,35 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "getPublicShareSnapshot",
     } == set(operation_ids)
 
-    create_run = document["paths"]["/api/v2/projects/{project_id}/runs"]["post"]
+    create_run = document["paths"]["/api/projects/{project_id}/runs"]["post"]
     parameters = {
         parameter["name"]: parameter for parameter in create_run["parameters"]
     }
     assert parameters["Idempotency-Key"]["required"] is True
-    create_project = document["paths"]["/api/v2/projects"]["post"]
+    create_project = document["paths"]["/api/projects"]["post"]
     create_project_parameters = {
         parameter["name"]: parameter for parameter in create_project["parameters"]
     }
     assert create_project_parameters["Idempotency-Key"]["required"] is True
-    create_draft = document["paths"][
-        "/api/v2/projects/{project_id}/contract-drafts"
-    ]["post"]
+    create_draft = document["paths"]["/api/projects/{project_id}/contract-drafts"][
+        "post"
+    ]
     create_draft_parameters = {
         parameter["name"]: parameter for parameter in create_draft["parameters"]
     }
     assert create_draft_parameters["Idempotency-Key"]["required"] is True
-    list_projects = document["paths"]["/api/v2/projects"]["get"]
+    list_projects = document["paths"]["/api/projects"]["get"]
     assert {parameter["name"] for parameter in list_projects["parameters"]} >= {
         "cursor",
         "limit",
     }
-    update_draft = document["paths"]["/api/v2/research-contract-drafts/{draft_id}"][
-        "patch"
-    ]
+    update_draft = document["paths"]["/api/contracts/drafts/{draft_id}"]["patch"]
     update_parameters = {
         parameter["name"]: parameter for parameter in update_draft["parameters"]
     }
     assert update_parameters["If-Match"]["required"] is True
-    assert "patch" not in document["paths"]["/api/v2/research-contracts/{contract_id}"]
-    events = document["paths"]["/api/v2/runs/{run_id}/events"]["get"]
+    assert "patch" not in document["paths"]["/api/contracts/{contract_id}"]
+    events = document["paths"]["/api/runs/{run_id}/events"]["get"]
     assert {parameter["name"] for parameter in events["parameters"]} >= {
         "cursor",
         "limit",
@@ -384,7 +382,7 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "application/problem+json"
     }
     assert "ProblemDetails" in document["components"]["schemas"]
-    artifacts = document["paths"]["/api/v2/runs/{run_id}/artifacts"]["get"]
+    artifacts = document["paths"]["/api/runs/{run_id}/artifacts"]["get"]
     assert {item["name"] for item in artifacts["parameters"]} == {
         "run_id",
         "kind",
@@ -392,23 +390,23 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "limit",
     }
     assert artifacts["parameters"][-1]["schema"]["maximum"] == 100
-    assert "/api/v2/evidence/{evidence_id}" in document["paths"]
-    assert "/api/v2/source-snapshots/{snapshot_id}" in document["paths"]
+    assert "/api/evidence/{evidence_id}" in document["paths"]
+    assert "/api/source-snapshots/{snapshot_id}" in document["paths"]
     paper_summary = document["paths"][
-        "/api/v2/artifact-versions/{version_id}/paper-summary"
+        "/api/artifact-versions/{version_id}/paper-summary"
     ]["get"]
     assert paper_summary["operationId"] == "getPaperSummary"
     assert "PaperSummaryRead" in json.dumps(paper_summary)
 
-    workspace_put = document["paths"][
-        "/api/v2/projects/{project_id}/workspace-snapshot"
-    ]["put"]
+    workspace_put = document["paths"]["/api/projects/{project_id}/workspace-snapshot"][
+        "put"
+    ]
     workspace_headers = {
         parameter["name"]: parameter for parameter in workspace_put["parameters"]
     }
     assert workspace_headers["If-Match"]["required"] is True
     assert workspace_headers["X-CSRF-Token"]["required"] is True
-    share_create = document["paths"]["/api/v2/projects/{project_id}/shares"]["post"]
+    share_create = document["paths"]["/api/projects/{project_id}/shares"]["post"]
     assert {parameter["name"] for parameter in share_create["parameters"]} >= {
         "X-CSRF-Token"
     }

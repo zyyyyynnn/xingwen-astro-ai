@@ -192,14 +192,14 @@ def _confirm_and_run(runtime: dict[str, object], *, key_suffix: str) -> tuple[st
     client: TestClient = runtime["client"]  # type: ignore[assignment]
     csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
     confirmed = client.post(
-        f"/api/v2/projects/{runtime['project_id']}/contracts",
+        f"/api/projects/{runtime['project_id']}/contracts",
         headers={**csrf, "Idempotency-Key": f"gap-confirm-{key_suffix}"},
         json={"draft_id": runtime["draft_id"], "expected_draft_version": 1},
     )
     assert confirmed.status_code == 201, confirmed.text
     contract_id = confirmed.json()["data"]["id"]
     created = client.post(
-        f"/api/v2/projects/{runtime['project_id']}/runs",
+        f"/api/projects/{runtime['project_id']}/runs",
         headers={**csrf, "Idempotency-Key": f"gap-run-{key_suffix}"},
         json={
             "contract_id": contract_id,
@@ -341,14 +341,14 @@ def test_draft_and_contract_payloads_never_carry_execution_mode(
     runtime: dict[str, object],
 ) -> None:
     client: TestClient = runtime["client"]  # type: ignore[assignment]
-    draft = client.get(f"/api/v2/research-contract-drafts/{runtime['draft_id']}")
+    draft = client.get(f"/api/contracts/drafts/{runtime['draft_id']}")
     assert draft.status_code == 200
     draft_payload = draft.json()["data"]
     assert "execution_mode" not in draft_payload
     assert "execution_mode" not in draft_payload["contract"]
 
     contract_id, _run_id = _confirm_and_run(runtime, key_suffix="no-exec-mode")
-    contract = client.get(f"/api/v2/research-contracts/{contract_id}")
+    contract = client.get(f"/api/contracts/{contract_id}")
     assert contract.status_code == 200
     assert "execution_mode" not in contract.json()["data"]
 
@@ -360,11 +360,11 @@ def test_run_events_never_exceed_latest_event_sequence(
     _contract_id, run_id = _confirm_and_run(runtime, key_suffix="event-bound")
     _publish_fixture_artifact(runtime, run_id)
 
-    run = client.get(f"/api/v2/runs/{run_id}")
+    run = client.get(f"/api/runs/{run_id}")
     assert run.status_code == 200
     latest = run.json()["data"]["latest_event_sequence"]
 
-    events = client.get(f"/api/v2/runs/{run_id}/events", params={"limit": 100})
+    events = client.get(f"/api/runs/{run_id}/events", params={"limit": 100})
     assert events.status_code == 200
     sequences = [event["sequence"] for event in events.json()["data"]]
     assert sequences, "published run must emit events"
@@ -380,7 +380,7 @@ def test_workspace_snapshot_stale_revision_conflict_and_authoritative_read(
     project_id = runtime["project_id"]
 
     saved = client.put(
-        f"/api/v2/projects/{project_id}/workspace-snapshot",
+        f"/api/projects/{project_id}/workspace-snapshot",
         headers={**csrf, "If-Match": "0"},
         json={"layout_preset": "comparative"},
     )
@@ -389,14 +389,14 @@ def test_workspace_snapshot_stale_revision_conflict_and_authoritative_read(
     assert saved.headers["ETag"] == "1"
 
     stale = client.put(
-        f"/api/v2/projects/{project_id}/workspace-snapshot",
+        f"/api/projects/{project_id}/workspace-snapshot",
         headers={**csrf, "If-Match": "0"},
         json={"layout_preset": "single"},
     )
     assert stale.status_code == 409
     assert stale.json()["code"] == "VERSION_CONFLICT"
 
-    authoritative = client.get(f"/api/v2/projects/{project_id}/workspace-snapshot")
+    authoritative = client.get(f"/api/projects/{project_id}/workspace-snapshot")
     assert authoritative.status_code == 200
     # The stale write never silently overwrote the authoritative snapshot.
     assert authoritative.json()["data"]["revision"] == 1
@@ -413,7 +413,7 @@ def test_share_freeze_private_list_redaction_and_revoke(
     version_id, evidence_id = _publish_fixture_artifact(runtime, run_id)
 
     created = client.post(
-        f"/api/v2/projects/{project_id}/shares",
+        f"/api/projects/{project_id}/shares",
         headers=csrf,
         json={
             "title": "X-01 gap share",
@@ -431,7 +431,7 @@ def test_share_freeze_private_list_redaction_and_revoke(
     assert share_url.endswith(raw_token)
 
     # Private list never serializes the raw token or its hash.
-    listed = client.get(f"/api/v2/projects/{project_id}/shares")
+    listed = client.get(f"/api/projects/{project_id}/shares")
     assert listed.status_code == 200
     listed_payload = listed.json()
     assert raw_token not in str(listed_payload)
@@ -470,7 +470,7 @@ def test_share_freeze_private_list_redaction_and_revoke(
 
     # Revoke: public read degrades to the same 404 as an invalid token.
     revoked = client.delete(
-        f"/api/v2/projects/{project_id}/shares/{share_id}", headers=csrf
+        f"/api/projects/{project_id}/shares/{share_id}", headers=csrf
     )
     assert revoked.status_code == 204
     after_revoke = anonymous.get(share_url)
@@ -481,23 +481,27 @@ def test_share_freeze_private_list_redaction_and_revoke(
 def test_stable_404_for_missing_resources(runtime: dict[str, object]) -> None:
     client: TestClient = runtime["client"]  # type: ignore[assignment]
     missing = uuid4()
-    assert client.get(f"/api/v2/projects/{missing}").status_code == 404
-    assert client.get(f"/api/v2/runs/{missing}").status_code == 404
-    assert client.get(f"/api/v2/artifact-versions/{missing}").status_code == 404
+    assert client.get(f"/api/projects/{missing}").status_code == 404
+    assert client.get(f"/api/runs/{missing}").status_code == 404
+    assert client.get(f"/api/artifact-versions/{missing}").status_code == 404
 
     anonymous = TestClient(client.app, base_url="https://testserver")
-    missing_share = anonymous.get("/api/v2/shares/not-a-real-token")
+    missing_share = anonymous.get("/api/public/shares/not-a-real-token")
     assert missing_share.status_code == 404
     assert missing_share.json()["code"] == "SHARE_NOT_FOUND"
 
 
 def _public_chain(
-    client: TestClient, csrf: str, *, key_suffix: str, execution_mode: str = "demo_replay"
+    client: TestClient,
+    csrf: str,
+    *,
+    key_suffix: str,
+    execution_mode: str = "demo_replay",
 ) -> dict[str, str]:
     """Create Project → Draft → Contract → Run entirely over the public API."""
     headers = {"X-CSRF-Token": csrf}
     project = client.post(
-        "/api/v2/projects",
+        "/api/projects",
         headers={**headers, "Idempotency-Key": f"chain-project-{key_suffix}"},
         json={
             "name": "Public authoring chain",
@@ -508,7 +512,7 @@ def _public_chain(
     assert project.status_code == 201, project.text
     project_id = project.json()["data"]["id"]
     draft = client.post(
-        f"/api/v2/projects/{project_id}/contract-drafts",
+        f"/api/projects/{project_id}/contract-drafts",
         headers={**headers, "Idempotency-Key": f"chain-draft-{key_suffix}"},
         json={
             "intent": "Integrate exoplanet candidates and host-star parameters",
@@ -518,14 +522,14 @@ def _public_chain(
     assert draft.status_code == 201, draft.text
     draft_id = draft.json()["data"]["id"]
     confirmed = client.post(
-        f"/api/v2/projects/{project_id}/contracts",
+        f"/api/projects/{project_id}/contracts",
         headers={**headers, "Idempotency-Key": f"chain-confirm-{key_suffix}"},
         json={"draft_id": draft_id, "expected_draft_version": 1},
     )
     assert confirmed.status_code == 201, confirmed.text
     contract_id = confirmed.json()["data"]["id"]
     run = client.post(
-        f"/api/v2/projects/{project_id}/runs",
+        f"/api/projects/{project_id}/runs",
         headers={**headers, "Idempotency-Key": f"chain-run-{key_suffix}"},
         json={
             "contract_id": contract_id,
@@ -553,7 +557,7 @@ def test_test_only_bootstrap_publishes_fixture_onto_public_chain_run(
 
     # Unauthenticated bootstrap attempts are rejected with the standard 401.
     anonymous = TestClient(app, base_url="https://testserver")
-    rejected = anonymous.post("/api/v2/test/bootstrap")
+    rejected = anonymous.post("/api/test/bootstrap")
     assert rejected.status_code == 401
 
     _record, credential, csrf = app.state.session_service.create(now=datetime.now(UTC))
@@ -561,14 +565,12 @@ def test_test_only_bootstrap_publishes_fixture_onto_public_chain_run(
     client.cookies.set(settings.SESSION_COOKIE_NAME, credential)
 
     # run_id is mandatory: the bootstrap cannot fabricate prerequisite state.
-    missing_run = client.post(
-        "/api/v2/test/bootstrap", headers={"X-CSRF-Token": csrf}
-    )
+    missing_run = client.post("/api/test/bootstrap", headers={"X-CSRF-Token": csrf})
     assert missing_run.status_code == 422
 
     chain = _public_chain(client, csrf, key_suffix="bootstrap")
     seeded = client.post(
-        f"/api/v2/test/bootstrap?run_id={chain['run_id']}",
+        f"/api/test/bootstrap?run_id={chain['run_id']}",
         headers={"X-CSRF-Token": csrf},
     )
     assert seeded.status_code == 201, seeded.text
@@ -588,19 +590,19 @@ def test_test_only_bootstrap_publishes_fixture_onto_public_chain_run(
     }, "bootstrap must not return project/draft/contract ids or any token"
 
     # The published entities are readable through the real frozen surface.
-    version = client.get(f"/api/v2/artifact-versions/{data['artifact_version_id']}")
+    version = client.get(f"/api/artifact-versions/{data['artifact_version_id']}")
     assert version.status_code == 200
     assert version.json()["data"]["source_mode"] == "fixture"
-    evidence = client.get(f"/api/v2/evidence/{data['evidence_id']}")
+    evidence = client.get(f"/api/evidence/{data['evidence_id']}")
     assert evidence.status_code == 200
     assert evidence.json()["data"]["id"] == data["evidence_id"]
-    events = client.get(f"/api/v2/runs/{chain['run_id']}/events")
+    events = client.get(f"/api/runs/{chain['run_id']}/events")
     assert events.status_code == 200
     assert len(events.json()["data"]) >= 2
 
     # Bootstrap is idempotent for the same run.
     replayed = client.post(
-        f"/api/v2/test/bootstrap?run_id={chain['run_id']}",
+        f"/api/test/bootstrap?run_id={chain['run_id']}",
         headers={"X-CSRF-Token": csrf},
     )
     assert replayed.status_code == 201
@@ -611,7 +613,7 @@ def test_test_only_bootstrap_publishes_fixture_onto_public_chain_run(
         client, csrf, key_suffix="bootstrap-live", execution_mode="live"
     )
     live_rejected = client.post(
-        f"/api/v2/test/bootstrap?run_id={live_chain['run_id']}",
+        f"/api/test/bootstrap?run_id={live_chain['run_id']}",
         headers={"X-CSRF-Token": csrf},
     )
     assert live_rejected.status_code == 409
@@ -624,7 +626,7 @@ def test_test_only_bootstrap_publishes_fixture_onto_public_chain_run(
     other = TestClient(app, base_url="https://testserver")
     other.cookies.set(settings.SESSION_COOKIE_NAME, other_credential)
     cross = other.post(
-        f"/api/v2/test/bootstrap?run_id={chain['run_id']}",
+        f"/api/test/bootstrap?run_id={chain['run_id']}",
         headers={"X-CSRF-Token": other_csrf},
     )
     assert cross.status_code == 404
@@ -641,7 +643,7 @@ def test_session_resume_preserves_ownership_across_refresh(
     app = create_app()
 
     client = TestClient(app, base_url="https://testserver")
-    created = client.post("/api/v2/sessions")
+    created = client.post("/api/sessions")
     assert created.status_code == 201
     first_csrf = created.json()["data"]["csrf_token"]
 
@@ -650,16 +652,16 @@ def test_session_resume_preserves_ownership_across_refresh(
 
     # Simulate a browser refresh: the cookie persists, the in-memory CSRF is
     # gone; POST /sessions must resume (not replace) the session.
-    resumed = client.post("/api/v2/sessions")
+    resumed = client.post("/api/sessions")
     assert resumed.status_code == 201
     resumed_csrf = resumed.json()["data"]["csrf_token"]
     assert resumed_csrf != first_csrf
 
     # The fresh CSRF unlocks mutations against the *same* owner context.
-    project = client.get(f"/api/v2/projects/{data['project_id']}")
+    project = client.get(f"/api/projects/{data['project_id']}")
     assert project.status_code == 200
     saved = client.put(
-        f"/api/v2/projects/{data['project_id']}/workspace-snapshot",
+        f"/api/projects/{data['project_id']}/workspace-snapshot",
         headers={"X-CSRF-Token": resumed_csrf, "If-Match": "0"},
         json={"layout_preset": "comparative", "active_run_id": data["run_id"]},
     )
@@ -667,16 +669,16 @@ def test_session_resume_preserves_ownership_across_refresh(
 
     # A wrong token is still rejected.
     wrong = client.put(
-        f"/api/v2/projects/{data['project_id']}/workspace-snapshot",
+        f"/api/projects/{data['project_id']}/workspace-snapshot",
         headers={"X-CSRF-Token": "definitely-not-a-valid-token", "If-Match": "1"},
         json={"layout_preset": "single"},
     )
     assert wrong.status_code == 403
 
     # Ownership survived the resume: the run and its events are still visible.
-    run = client.get(f"/api/v2/runs/{data['run_id']}")
+    run = client.get(f"/api/runs/{data['run_id']}")
     assert run.status_code == 200
-    reloaded = client.get(f"/api/v2/projects/{data['project_id']}/workspace-snapshot")
+    reloaded = client.get(f"/api/projects/{data['project_id']}/workspace-snapshot")
     assert reloaded.status_code == 200
     assert reloaded.json()["data"]["active_run_id"] == data["run_id"]
 
@@ -689,20 +691,20 @@ def test_session_resume_keeps_recent_csrf_tokens_valid_within_bound(
     client: TestClient = runtime["client"]  # type: ignore[assignment]
     first_csrf = str(runtime["owner_csrf"])
 
-    resumed = client.post("/api/v2/sessions")
+    resumed = client.post("/api/sessions")
     assert resumed.status_code == 201
     second_csrf = resumed.json()["data"]["csrf_token"]
     assert second_csrf != first_csrf
 
     # Both the original and the freshly issued token authorize mutations.
     first = client.put(
-        f"/api/v2/projects/{runtime['project_id']}/workspace-snapshot",
+        f"/api/projects/{runtime['project_id']}/workspace-snapshot",
         headers={"X-CSRF-Token": first_csrf, "If-Match": "0"},
         json={"layout_preset": "comparative"},
     )
     assert first.status_code == 200, first.text
     second = client.put(
-        f"/api/v2/projects/{runtime['project_id']}/workspace-snapshot",
+        f"/api/projects/{runtime['project_id']}/workspace-snapshot",
         headers={"X-CSRF-Token": second_csrf, "If-Match": "1"},
         json={"layout_preset": "focus"},
     )
@@ -718,5 +720,5 @@ def test_test_only_bootstrap_absent_in_development(
     client = TestClient(app, base_url="https://testserver")
     client.cookies.set(settings.SESSION_COOKIE_NAME, credential)
     # Authenticated request still resolves to 404: the router is not mounted.
-    response = client.post("/api/v2/test/bootstrap", headers={"X-CSRF-Token": csrf})
+    response = client.post("/api/test/bootstrap", headers={"X-CSRF-Token": csrf})
     assert response.status_code == 404

@@ -12,6 +12,6 @@ from app.services import task_service
 router = APIRouter(tags=["sources"])
 
 
-@router.get("/api/v1/tasks/{task_id}/sources", response_model=ApiResponse[SourcesResponse])
+@router.get("/api/tasks/{task_id}/sources", response_model=ApiResponse[SourcesResponse])
 async def get_sources(task_id: str, request: Request):
     return ok(request, task_service.get_sources(task_id))
