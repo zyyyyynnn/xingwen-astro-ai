@@ -6,7 +6,7 @@
 | Authority       | MAVIS 参考事实、来源与再分发裁决记录                                   |
 | Audit date      | 2026-07-30                                                             |
 | Governance      | [Issue #152](https://github.com/zyyyyynnn/xingwen-astro-ai/issues/152) |
-| Source snapshot | `mavis.local-reference.fbc7aaa105b0`                                   |
+| Source snapshot | `mavis.local-reference.01f166d78b4a`                                   |
 
 ## 1. 结论
 
@@ -28,14 +28,14 @@
 
 | 字段                 | 值                                                                 |
 | -------------------- | ------------------------------------------------------------------ |
-| `snapshot_id`        | `mavis.local-reference.fbc7aaa105b0`                               |
-| `inventory_sha256`   | `fbc7aaa105b05ebe61778290b50e8389a6476585a39cb288996396ba3bf95ccb` |
+| `snapshot_id`        | `mavis.local-reference.01f166d78b4a`                               |
+| `inventory_sha256`   | `01f166d78b4ada735de0c701ef3209586776737e9fd16a2162184b0d1ae4b05f` |
 | `file_count`         | `2289`                                                             |
 | `audit_rule_version` | `1.0.0`                                                            |
 
-inventory 对本地只读参考快照递归枚举文件，将相对路径统一为 `/`，排除 `node_modules`、`.git`、`.idea`、`__pycache__`、`.ipynb_checkpoints` 路径段，按相对路径排序，并以 UTF-8 编码的 `<relative_path>\t<byte_length>\n` 计算 SHA-256。该 fingerprint 标识本次审计输入，不授予资产再分发权，也不证明源码可运行。
+inventory 对本地只读参考快照递归枚举文件，将相对路径统一为 `/`，排除 `node_modules`、`.git`、`.idea`、`__pycache__`、`.ipynb_checkpoints` 路径段，按 .NET `StringComparer.Ordinal` 比较相对路径、以字节数作为数值型次级排序键，并以 UTF-8（无 BOM）编码的 `<relative_path>\t<byte_length>\t<file_sha256_lowercase>\n` 计算 SHA-256。该规则不依赖系统区域设置，且会检测同长度内容变化。该 fingerprint 标识本次审计输入，不授予资产再分发权，也不证明源码可运行。
 
-benchmark 的 160/99/59/2、89 个 `code/visual.py` 和 Prompt 4/11 统计及判定规则以 [摘要的“已核验结构事实”](摘要.md#已核验结构事实) 为人类可读口径，并在 manifest 的 `source_snapshot.statistics` 中保存机器可读镜像；两处不得独立演化。
+benchmark 的 160/99/59/2、89 个 `code/visual.py` 和 Prompt 4/11 统计及判定规则，以 [摘要的“已核验结构事实”](摘要.md#已核验结构事实) 为唯一维护口径；本审计不复制第二套统计定义。
 
 ### 2.2 审计对象与方法
 

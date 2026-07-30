@@ -3,47 +3,20 @@
   "audited_at": "2026-07-30",
   "governance_issue": "https://github.com/zyyyyynnn/xingwen-astro-ai/issues/152",
   "source_snapshot": {
-    "snapshot_id": "mavis.local-reference.fbc7aaa105b0",
-    "inventory_sha256": "fbc7aaa105b05ebe61778290b50e8389a6476585a39cb288996396ba3bf95ccb",
+    "snapshot_id": "mavis.local-reference.01f166d78b4a",
+    "inventory_sha256": "01f166d78b4ada735de0c701ef3209586776737e9fd16a2162184b0d1ae4b05f",
     "file_count": 2289,
     "audit_rule_version": "1.0.0",
     "original_zip_sha256": null,
     "original_zip_status": "not_found",
-    "inventory_serialization": "UTF-8 lines sorted by normalized relative path: <relative_path>\\t<byte_length>\\n",
+    "inventory_serialization": "UTF-8 lines sorted by normalized relative path with StringComparer.Ordinal and byte length as a numeric tiebreaker: <relative_path>\\t<byte_length>\\t<file_sha256_lowercase>\\n",
     "excluded_path_segments": [
       "node_modules",
       ".git",
       ".idea",
       "__pycache__",
       ".ipynb_checkpoints"
-    ],
-    "statistics": {
-      "benchmark_task_directories": {
-        "count": 160,
-        "rule": "Direct child directories of data/task_benchmark."
-      },
-      "relatively_complete_tasks": {
-        "count": 99,
-        "rule": "All task directories except the 59 converted-result-only directories and 2 limited dual-JSON directories."
-      },
-      "converted_result_only_tasks": {
-        "count": 59,
-        "rule": "The directory contains only divide_task_converted.json."
-      },
-      "limited_dual_json_tasks": {
-        "count": 2,
-        "rule": "The directory contains exactly two task JSON files and no other task assets."
-      },
-      "visual_py_directories": {
-        "count": 89,
-        "rule": "Task directories where code/visual.py exists; this is not an image-count claim."
-      },
-      "prompt_loaded_api_json": {
-        "count": 4,
-        "inventory_count": 11,
-        "rule": "Unique API JSON files directly loaded by prompt10.py from data/api_for_prompt."
-      }
-    }
+    ]
   },
   "assets": [
     {
