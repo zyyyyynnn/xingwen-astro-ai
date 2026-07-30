@@ -317,7 +317,7 @@ def test_ps_adapter_builds_complete_paginated_snapshot() -> None:
         tic_ids=("TIC 18121498", "TIC 164830162"),
         page_size=2,
         max_pages=2,
-        record_limit=3,
+        record_limit=4,
     )
     first_page = [
         ps_record(
