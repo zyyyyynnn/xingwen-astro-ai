@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import socket
 import time
 from collections.abc import Mapping
 from datetime import datetime, timezone
@@ -12,7 +11,6 @@ from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import SourceMode, UpstreamFailureClass
-from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.source_acquisition import (
     DataSourceDataLevel,
     DataSourcePage,
@@ -31,6 +29,10 @@ from ..constants import (
     SOURCE_POLICY_VERSION,
 )
 from ..manifest import load_frozen_manifest_bundle
+from ..source_contract import (
+    SourceColumnRuntimeContract,
+    load_source_column_runtime_contract,
+)
 from ..supplemental_query import (
     normalize_ps_supplemental_query,
     render_ps_page_query,
@@ -38,17 +40,23 @@ from ..supplemental_query import (
 from .base import (
     Clock,
     DataSourceAcquisitionResult,
-    HttpResponse,
     HttpTransport,
     MonotonicClock,
     Sleeper,
     SourceFailure,
 )
-from .nasa_exoplanet_archive import (
+from .nasa_tap import (
     NASA_TAP_SYNC_URL,
-    SAFE_RESPONSE_HEADERS,
-    TransportPolicyError,
-    UrllibTransport,
+    NasaTapRequester,
+    availability_status,
+    build_source_snapshot,
+    classify_bounded_completion,
+    rate_limit_metadata,
+    request_hash,
+    request_id,
+    resolve_consistent_data_etag,
+    safe_headers,
+    tap_type_category,
 )
 
 
@@ -86,20 +94,24 @@ class NasaPlanetarySystemsSupplementalAdapter:
         monotonic: MonotonicClock = time.monotonic,
         sleeper: Sleeper = time.sleep,
     ) -> None:
-        if timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be positive")
-        if max_attempts < 1 or max_attempts > 5:
-            raise ValueError("max_attempts must be between one and five")
-        if min(base_backoff_seconds, max_backoff_seconds, page_delay_seconds) < 0:
-            raise ValueError("delay values must not be negative")
-        self.transport = transport or UrllibTransport()
+        if page_delay_seconds < 0:
+            raise ValueError("page_delay_seconds must not be negative")
+        self.requester = NasaTapRequester(
+            failure_prefix="NASA_PS",
+            source_label="nasa-ps",
+            logger=LOGGER,
+            transport=transport,
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
+            base_backoff_seconds=base_backoff_seconds,
+            max_backoff_seconds=max_backoff_seconds,
+            monotonic=monotonic,
+            sleeper=sleeper,
+        )
+        self.transport = self.requester.transport
         self.timeout_seconds = timeout_seconds
-        self.max_attempts = max_attempts
-        self.base_backoff_seconds = base_backoff_seconds
-        self.max_backoff_seconds = max_backoff_seconds
         self.page_delay_seconds = page_delay_seconds
         self.clock = clock or (lambda: datetime.now(timezone.utc))
-        self.monotonic = monotonic
         self.sleeper = sleeper
 
     def acquire(
@@ -110,7 +122,7 @@ class NasaPlanetarySystemsSupplementalAdapter:
         data_level: DataSourceDataLevel,
     ) -> DataSourceAcquisitionResult:
         _validate_origin(source_mode, data_level)
-        _validate_query_contract(query)
+        runtime_contract = _validate_query_contract(query)
         fixture_metadata = _fixture_metadata(
             self.transport,
             source_mode=source_mode,
@@ -119,23 +131,23 @@ class NasaPlanetarySystemsSupplementalAdapter:
 
         schema_query = render_ps_schema_query(query)
         schema_params = {"query": schema_query, "format": "json"}
-        schema_response, schema_attempts, schema_latency_ms = self._request(
+        schema_response, schema_attempts, schema_latency_ms = self.requester.request(
             schema_params
         )
         schema_rows = _decode_json_array(
             schema_response.body,
             "NASA_PS_SCHEMA_INVALID_JSON",
         )
-        _validate_schema_rows(schema_rows, query)
-        schema_request_hash = _request_hash(schema_params)
+        _validate_schema_rows(schema_rows, query, runtime_contract)
+        schema_request_hash = request_hash(schema_params)
         schema_response_hash = compute_canonical_payload_hash(schema_rows)
-        schema_headers = _safe_headers(schema_response.headers)
-        schema_request_id = _request_id(schema_headers)
+        schema_headers = safe_headers(schema_response.headers)
+        schema_request_id = request_id(schema_headers)
 
         records: list[RawDataSourceRecord] = []
         pages: list[DataSourcePage] = []
         seen_row_keys: set[tuple[tuple[str, str], ...]] = set()
-        etags = [schema_headers["etag"]] if "etag" in schema_headers else []
+        data_page_etags: list[str] = []
         total_retries = schema_attempts - 1
         cursor: SupplementalDataQueryCursor | None = None
         for page_number in range(1, query.pagination.max_pages + 1):
@@ -150,7 +162,7 @@ class NasaPlanetarySystemsSupplementalAdapter:
             )
             params = {"query": page_query, "format": "json"}
             try:
-                response, attempt_count, latency_ms = self._request(params)
+                response, attempt_count, latency_ms = self.requester.request(params)
                 payload = _decode_json_array(
                     response.body,
                     "NASA_PS_INVALID_JSON",
@@ -184,15 +196,17 @@ class NasaPlanetarySystemsSupplementalAdapter:
                     )
                 seen_row_keys.add(record.row_key)
             retrieved_at = self._aware_now()
-            normalized_headers = _safe_headers(response.headers)
-            if etag := normalized_headers.get("etag"):
-                etags.append(etag)
+            normalized_headers = safe_headers(response.headers)
+            data_etag = normalized_headers.get("etag")
+            if data_etag:
+                data_page_etags.append(data_etag)
             response_metadata = {
                 key: value
                 for key, value in normalized_headers.items()
                 if key != "etag"
             }
-            response_metadata["request_id"] = _request_id(normalized_headers)
+            response_metadata["request_id"] = request_id(normalized_headers)
+            response_metadata["data_etag"] = data_etag
             page = DataSourcePage(
                 page_number=page_number,
                 requested_rows=requested_rows,
@@ -203,7 +217,7 @@ class NasaPlanetarySystemsSupplementalAdapter:
                 latency_ms=latency_ms,
                 cursor_before=cursor,
                 cursor_after=cursor_after,
-                request_hash=_request_hash(params),
+                request_hash=request_hash(params),
                 response_hash=compute_canonical_payload_hash(
                     [record.payload for record in page_records]
                 ),
@@ -217,6 +231,20 @@ class NasaPlanetarySystemsSupplementalAdapter:
             if page_number < query.pagination.max_pages and remaining > requested_rows:
                 self.sleeper(self.page_delay_seconds)
 
+        source_version = resolve_consistent_data_etag(
+            data_page_etags,
+            failure_prefix="NASA_PS",
+        )
+        completion = classify_bounded_completion(
+            pages=pages,
+            record_count=len(records),
+            record_limit=query.pagination.record_limit,
+            max_pages=query.pagination.max_pages,
+        )
+        completion_payload = {
+            "status": completion.status,
+            "continuation_cursor": completion.continuation_cursor,
+        }
         content_hash = compute_canonical_payload_hash(
             {
                 "source_id": self.source_id,
@@ -232,35 +260,17 @@ class NasaPlanetarySystemsSupplementalAdapter:
                     for page in pages
                 ],
                 "schema_response_hash": schema_response_hash,
+                "completion": completion_payload,
             }
         )
-        snapshot_fingerprint = compute_canonical_payload_hash(
-            {
-                "source_id": self.source_id,
-                "query_hash": query.query_hash,
-                "content_hash": content_hash,
-            }
-        )
-        source_version = (
-            ",".join(sorted(set(etags)))
-            if etags
-            else f"tap-schema:{schema_response_hash}"
-        )
-        source_version_evidence = {
-            "kind": "etag" if etags else "tap_schema_response_hash",
-            "value": source_version,
-        }
         request_hashes = [schema_request_hash] + [
             page.request_hash for page in pages
         ]
         request_ids = [schema_request_id] + [
             page.response_metadata.get("request_id") for page in pages
         ]
-        snapshot = SourceSnapshotRecord(
-            snapshot_id=(
-                "snapshot.nasa-ps."
-                f"{snapshot_fingerprint.removeprefix('sha256:')[:24]}"
-            ),
+        snapshot = build_source_snapshot(
+            snapshot_prefix="snapshot.nasa-ps",
             source_id=self.source_id,
             source_type="astronomical_catalog_metadata",
             retrieved_at=pages[0].retrieved_at if pages else self._aware_now(),
@@ -274,7 +284,6 @@ class NasaPlanetarySystemsSupplementalAdapter:
             source_version_or_etag=source_version,
             content_hash=content_hash,
             license_note=NASA_PS_LICENSE_NOTE,
-            cache_version=None,
             request_metadata={
                 "adapter_name": self.adapter_name,
                 "adapter_version": self.adapter_version,
@@ -297,9 +306,12 @@ class NasaPlanetarySystemsSupplementalAdapter:
                     "input_values": list(query.input_values),
                     "pagination": query.pagination.model_dump(mode="json"),
                 },
-                "source_version_evidence": source_version_evidence,
+                "source_version_evidence": {
+                    "kind": "data_page_etag" if source_version else "unavailable",
+                    "value": source_version,
+                },
                 "source_version_or_etag_status": (
-                    "etag" if etags else "tap_schema_response_hash"
+                    "available" if source_version else "unavailable"
                 ),
                 "column_contract": {
                     "snapshot_id": query.column_contract_snapshot_id,
@@ -311,10 +323,20 @@ class NasaPlanetarySystemsSupplementalAdapter:
                     ),
                     "queried_columns": list(query.selected_columns),
                 },
+                "runtime_schema_contract": {
+                    "schema_id": query.runtime_schema_contract_id,
+                    "schema_version": query.runtime_schema_contract_version,
+                    "content_hash": query.runtime_schema_contract_content_hash,
+                    "datatype_categories": dict(
+                        runtime_contract.selected_column_categories
+                    ),
+                },
                 "timeout_seconds": self.timeout_seconds,
                 "pagination_strategy": "keyset:pl_name,pl_refname",
                 "result_status": "non_empty" if records else "empty",
-                "request_id_status": _availability_status(request_ids),
+                "completion_status": completion.status,
+                "continuation_cursor": completion.continuation_cursor,
+                "request_id_status": availability_status(request_ids),
                 "locators": {
                     "endpoint": NASA_TAP_SYNC_URL,
                     "documentation_url": NASA_PS_DOCUMENTATION_URL,
@@ -332,7 +354,11 @@ class NasaPlanetarySystemsSupplementalAdapter:
                     "column_count": len(schema_rows),
                     "request_id": schema_request_id,
                     "response_date": schema_headers.get("date"),
-                    "rate_limit_metadata": _rate_limit_metadata(schema_headers),
+                    "schema_etag": schema_headers.get("etag"),
+                    "schema_etag_status": (
+                        "available" if schema_headers.get("etag") else "unavailable"
+                    ),
+                    "rate_limit_metadata": rate_limit_metadata(schema_headers),
                 },
                 "pages": [
                     {
@@ -345,6 +371,7 @@ class NasaPlanetarySystemsSupplementalAdapter:
                         "request_hash": page.request_hash,
                         "response_hash": page.response_hash,
                         "request_id": page.response_metadata.get("request_id"),
+                        "data_etag": page.response_metadata.get("data_etag"),
                         "adql": render_ps_page_query(
                             query,
                             cursor=_supplemental_cursor(page.cursor_before),
@@ -361,7 +388,7 @@ class NasaPlanetarySystemsSupplementalAdapter:
                             else None
                         ),
                         "response_date": page.response_metadata.get("date"),
-                        "rate_limit_metadata": _rate_limit_metadata(
+                        "rate_limit_metadata": rate_limit_metadata(
                             page.response_metadata
                         ),
                     }
@@ -375,82 +402,6 @@ class NasaPlanetarySystemsSupplementalAdapter:
             pages=tuple(pages),
             snapshot=snapshot,
             retry_count=total_retries,
-        )
-
-    def _request(
-        self,
-        params: Mapping[str, str | int],
-    ) -> tuple[HttpResponse, int, int]:
-        failure: SourceFailure | None = None
-        headers = {
-            "Accept": "application/json",
-            "User-Agent": (
-                "xingwen-astro-ai/0.1 "
-                "(https://github.com/zyyyyynnn/xingwen-astro-ai; "
-                "scientific metadata)"
-            ),
-        }
-        for attempt in range(1, self.max_attempts + 1):
-            started = self.monotonic()
-            response: HttpResponse | None = None
-            try:
-                response = self.transport.request(
-                    url=NASA_TAP_SYNC_URL,
-                    params=params,
-                    headers=headers,
-                    timeout_seconds=self.timeout_seconds,
-                )
-                latency_ms = max(0, round((self.monotonic() - started) * 1000))
-                failure = _classify_status(response.status_code)
-                if failure is None:
-                    return response, attempt, latency_ms
-            except TransportPolicyError:
-                self.monotonic()
-                failure = SourceFailure(
-                    UpstreamFailureClass.policy_violation,
-                    "NASA_PS_TRANSPORT_POLICY_VIOLATION",
-                    retryable=False,
-                )
-            except (TimeoutError, socket.timeout):
-                self.monotonic()
-                failure = SourceFailure(
-                    UpstreamFailureClass.timeout,
-                    "NASA_PS_TIMEOUT",
-                    retryable=True,
-                )
-            except OSError:
-                self.monotonic()
-                failure = SourceFailure(
-                    UpstreamFailureClass.transport,
-                    "NASA_PS_TRANSPORT_ERROR",
-                    retryable=True,
-                )
-
-            assert failure is not None
-            LOGGER.warning(
-                "data source request failed source=nasa-ps class=%s code=%s attempt=%s",
-                failure.classification.value,
-                failure.code,
-                attempt,
-            )
-            if not failure.retryable or attempt == self.max_attempts:
-                failure.attempt_count = attempt
-                raise failure
-            retry_after = None
-            if response is not None:
-                retry_after = _safe_headers(response.headers).get("retry-after")
-            self.sleeper(self._retry_delay(attempt, retry_after))
-        raise AssertionError("bounded retry loop exited unexpectedly")
-
-    def _retry_delay(self, attempt: int, retry_after: str | None) -> float:
-        if retry_after:
-            try:
-                return min(max(float(retry_after), 0.0), self.max_backoff_seconds)
-            except ValueError:
-                pass
-        return min(
-            self.base_backoff_seconds * (2 ** (attempt - 1)),
-            self.max_backoff_seconds,
         )
 
     def _aware_now(self) -> datetime:
@@ -486,9 +437,12 @@ def _validate_origin(source_mode: SourceMode, data_level: DataSourceDataLevel) -
         )
 
 
-def _validate_query_contract(query: NormalizedSupplementalSourceQuery) -> None:
+def _validate_query_contract(
+    query: NormalizedSupplementalSourceQuery,
+) -> SourceColumnRuntimeContract:
+    bundle = load_frozen_manifest_bundle()
     expected = normalize_ps_supplemental_query(
-        load_frozen_manifest_bundle(),
+        bundle,
         tic_ids=query.input_values,
         page_size=query.pagination.page_size,
         max_pages=query.pagination.max_pages,
@@ -500,6 +454,12 @@ def _validate_query_contract(query: NormalizedSupplementalSourceQuery) -> None:
             "NASA_PS_QUERY_CONTRACT_MISMATCH",
             retryable=False,
         )
+    source = next(
+        item
+        for item in bundle.field_manifest.sources
+        if item.source_id == query.table_source_id
+    )
+    return load_source_column_runtime_contract(source)
 
 
 def _fixture_metadata(
@@ -538,6 +498,7 @@ def _fixture_metadata(
 def _validate_schema_rows(
     rows: list[object],
     query: NormalizedSupplementalSourceQuery,
+    runtime_contract: SourceColumnRuntimeContract,
 ) -> None:
     actual: dict[str, str] = {}
     for row in rows:
@@ -551,12 +512,15 @@ def _validate_schema_rows(
             raise _schema_drift()
         if column_name in actual:
             raise _schema_drift()
-        actual[column_name] = datatype.casefold()
+        category = tap_type_category(datatype)
+        if category is None:
+            raise _schema_drift()
+        actual[column_name] = category
     if set(actual) != set(query.selected_columns):
         raise _schema_drift()
-    for field in query.row_key_fields:
-        if not any(token in actual[field] for token in ("char", "string", "unicode")):
-            raise _schema_drift()
+    expected = dict(runtime_contract.selected_column_categories)
+    if actual != expected:
+        raise _schema_drift()
 
 
 def _schema_drift() -> SourceFailure:
@@ -638,72 +602,6 @@ def _decode_json_array(body: bytes, code: str) -> list[object]:
 
 def _reject_non_finite_json_constant(value: str) -> None:
     raise ValueError(f"non-finite JSON number is forbidden: {value}")
-
-
-def _request_hash(params: Mapping[str, str | int]) -> str:
-    return compute_canonical_payload_hash(
-        {"endpoint": NASA_TAP_SYNC_URL, "params": dict(params)}
-    )
-
-
-def _classify_status(status_code: int) -> SourceFailure | None:
-    if status_code == 200:
-        return None
-    if status_code == 429:
-        return SourceFailure(
-            UpstreamFailureClass.rate_limited,
-            "NASA_PS_RATE_LIMITED",
-            retryable=True,
-            status_code=status_code,
-        )
-    if 500 <= status_code <= 599:
-        return SourceFailure(
-            UpstreamFailureClass.upstream_server,
-            "NASA_PS_UPSTREAM_SERVER_ERROR",
-            retryable=True,
-            status_code=status_code,
-        )
-    if 400 <= status_code <= 499:
-        return SourceFailure(
-            UpstreamFailureClass.upstream_client,
-            "NASA_PS_UPSTREAM_CLIENT_ERROR",
-            retryable=False,
-            status_code=status_code,
-        )
-    return SourceFailure(
-        UpstreamFailureClass.invalid_response,
-        "NASA_PS_UNEXPECTED_STATUS",
-        retryable=False,
-        status_code=status_code,
-    )
-
-
-def _safe_headers(headers: Mapping[str, str]) -> dict[str, str]:
-    normalized = {str(key).casefold(): str(value) for key, value in headers.items()}
-    return {
-        key: value for key, value in normalized.items() if key in SAFE_RESPONSE_HEADERS
-    }
-
-
-def _request_id(headers: Mapping[str, str]) -> str | None:
-    return headers.get("x-request-id") or headers.get("x-correlation-id")
-
-
-def _availability_status(values: list[object]) -> str:
-    available = sum(isinstance(value, str) and bool(value) for value in values)
-    if available == 0:
-        return "unavailable"
-    if available == len(values):
-        return "available"
-    return "partially_available"
-
-
-def _rate_limit_metadata(headers: Mapping[str, object]) -> dict[str, object]:
-    return {
-        key: value
-        for key, value in headers.items()
-        if key.startswith("x-rate-limit-") or key == "retry-after"
-    }
 
 
 def _supplemental_cursor(
