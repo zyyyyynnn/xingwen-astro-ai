@@ -9,6 +9,6 @@ from app.config import settings
 router = APIRouter(tags=["system"])
 
 
-@router.get("/api/v1/health")
+@router.get("/api/health")
 async def health():
     return {"status": "ok", "version": settings.APP_VERSION, "env": settings.APP_ENV}

@@ -213,7 +213,7 @@ export function createPaperSummaryRepository(
   return {
     async getSummary(artifactVersionId) {
       const payload = await http.getRequired<unknown>(
-        `/api/v2/artifact-versions/${seg(artifactVersionId)}/paper-summary`,
+        `/api/artifact-versions/${seg(artifactVersionId)}/paper-summary`,
       );
       const read = parseContract<PaperSummaryReadDto>(
         "PaperSummaryRead",

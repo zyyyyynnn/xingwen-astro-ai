@@ -1,9 +1,9 @@
 """Table-driven guard for the centralized API-surface classification.
 
-These expectations mirror the *current* behavior of the security middleware and
-error handlers. They must stay green through the security-surface extraction
-(PR-1, this change), and the versionless single-surface cut-over (PR-2) flips
-both the ``api_surface`` constants and this table in one lockstep change.
+These expectations pin the versionless single-surface behavior: everything
+lives under ``/api``; a small public allowlist (health, data-pipeline tasks,
+docs, openapi, anonymous session-create, public share reads) is served without
+a session, and every other ``/api`` path is protected by default.
 """
 
 from __future__ import annotations
@@ -14,38 +14,42 @@ from app import api_surface
 
 # Requests that must be served WITHOUT an anonymous session.
 PUBLIC_REQUESTS = [
-    ("GET", "/api/v1/health"),
-    ("POST", "/api/v1/tasks"),
-    ("GET", "/api/v1/tasks/task-123"),
-    ("GET", "/api/v1/docs"),
-    ("GET", "/api/v1/openapi.json"),
+    ("GET", "/api/health"),
+    ("POST", "/api/tasks"),
+    ("GET", "/api/tasks/task-123"),
+    ("GET", "/api/docs"),
+    ("GET", "/api/openapi.json"),
     ("GET", "/"),
-    ("POST", "/api/v2/sessions"),
-    ("POST", "/api/v2/sessions/"),
-    ("GET", "/api/v2/shares/tok-123"),
-    ("HEAD", "/api/v2/shares/tok-123"),
+    ("POST", "/api/sessions"),
+    ("POST", "/api/sessions/"),
+    ("GET", "/api/public/shares/tok-123"),
+    ("HEAD", "/api/public/shares/tok-123"),
 ]
 
 # Requests that MUST require an authenticated session.
 PROTECTED_REQUESTS = [
-    ("GET", "/api/v2/sessions/current"),
-    ("DELETE", "/api/v2/sessions/current"),
-    ("GET", "/api/v2/projects"),
-    ("POST", "/api/v2/projects"),
-    ("GET", "/api/v2/projects/proj-1"),
-    ("POST", "/api/v2/projects/proj-1/runs"),
-    ("GET", "/api/v2/runs/run-1"),
-    ("GET", "/api/v2/runs/run-1/events"),
-    ("GET", "/api/v2/artifacts/art-1"),
-    ("GET", "/api/v2/artifact-versions/ver-1"),
-    ("GET", "/api/v2/evidence/ev-1"),
-    ("GET", "/api/v2/source-snapshots/snap-1"),
-    ("GET", "/api/v2/projects/proj-1/shares"),
-    ("POST", "/api/v2/projects/proj-1/shares"),
-    ("POST", "/api/v2/shares/tok-123"),  # non-read method on a share token
-    ("GET", "/api/v2/shares/tok-123/extra"),  # multi-segment is not a token read
-    ("GET", "/api/v2/shares/"),  # empty token is not a public share read
-    ("POST", "/api/v2/test/bootstrap"),
+    ("GET", "/api/sessions/current"),
+    ("DELETE", "/api/sessions/current"),
+    ("GET", "/api/projects"),
+    ("POST", "/api/projects"),
+    ("GET", "/api/projects/proj-1"),
+    ("POST", "/api/projects/proj-1/runs"),
+    ("GET", "/api/contracts/drafts/draft-1"),
+    ("PATCH", "/api/contracts/drafts/draft-1"),
+    ("GET", "/api/contracts/contract-1"),
+    ("GET", "/api/runs/run-1"),
+    ("GET", "/api/runs/run-1/events"),
+    ("GET", "/api/artifacts/art-1"),
+    ("GET", "/api/artifact-versions/ver-1"),
+    ("GET", "/api/evidence/ev-1"),
+    ("GET", "/api/source-snapshots/snap-1"),
+    ("GET", "/api/projects/proj-1/shares"),
+    ("POST", "/api/projects/proj-1/shares"),
+    ("POST", "/api/public/shares/tok-123"),  # non-read method on a share token
+    ("GET", "/api/public/shares/tok-123/extra"),  # multi-segment is not a token read
+    ("GET", "/api/public/shares/"),  # empty token is not a public share read
+    ("POST", "/api/test/bootstrap"),
+    ("GET", "/api/tasksfoo"),  # sibling of /api/tasks must NOT be public
 ]
 
 
@@ -62,12 +66,12 @@ def test_protected_requests_require_authentication(method: str, path: str) -> No
 @pytest.mark.parametrize(
     ("method", "path", "expected"),
     [
-        ("GET", "/api/v2/shares/tok-123", True),
-        ("HEAD", "/api/v2/shares/tok-123", True),
-        ("POST", "/api/v2/shares/tok-123", False),
-        ("GET", "/api/v2/shares/", False),
-        ("GET", "/api/v2/shares/tok-123/extra", False),
-        ("GET", "/api/v2/projects", False),
+        ("GET", "/api/public/shares/tok-123", True),
+        ("HEAD", "/api/public/shares/tok-123", True),
+        ("POST", "/api/public/shares/tok-123", False),
+        ("GET", "/api/public/shares/", False),
+        ("GET", "/api/public/shares/tok-123/extra", False),
+        ("GET", "/api/projects", False),
     ],
 )
 def test_public_share_read_detection(method: str, path: str, expected: bool) -> None:
@@ -77,11 +81,12 @@ def test_public_share_read_detection(method: str, path: str, expected: bool) -> 
 @pytest.mark.parametrize(
     ("path", "expected"),
     [
-        ("/api/v2/projects", True),
-        ("/api/v2/shares/tok-123", True),
-        ("/api/v2/sessions", True),
-        ("/api/v1/health", False),
-        ("/api/v1/tasks/task-1", False),
+        ("/api/projects", True),
+        ("/api/public/shares/tok-123", True),
+        ("/api/sessions", True),
+        ("/api/contracts/drafts/draft-1", True),
+        ("/api/health", False),
+        ("/api/tasks/task-1", False),
         ("/", False),
     ],
 )
@@ -91,7 +96,7 @@ def test_problem_details_classification(path: str, expected: bool) -> None:
 
 def test_public_share_instance_hides_token() -> None:
     instance = api_surface.public_share_instance()
-    assert instance == "/api/v2/shares/public"
+    assert instance == "/api/public/shares/public"
     assert api_surface.PUBLIC_SHARE_PREFIX in instance
 
 

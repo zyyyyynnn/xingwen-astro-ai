@@ -70,8 +70,8 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.APP_TITLE,
         version=settings.APP_VERSION,
-        docs_url="/api/v1/docs",
-        openapi_url="/api/v1/openapi.json",
+        docs_url="/api/docs",
+        openapi_url="/api/openapi.json",
     )
 
     session_service = SessionService(
@@ -160,7 +160,7 @@ def create_app() -> FastAPI:
     app.include_router(snapshots.router)
 
     # Test-only bootstrap is mounted exclusively in test/integration
-    # environments, outside the frozen /api/v2 contract surface. It is never
+    # environments, outside the frozen /api contract surface. It is never
     # available in development or production.
     if settings.APP_ENV.lower() in {"test", "integration"}:
         from app.routers import test_bootstrap

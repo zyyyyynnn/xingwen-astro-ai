@@ -91,7 +91,7 @@ function summaryHttpFetch(): typeof fetch {
     };
     if (
       url.pathname ===
-      `/api/v2/artifact-versions/${SUMMARY_VERSION_ID}/paper-summary`
+      `/api/artifact-versions/${SUMMARY_VERSION_ID}/paper-summary`
     ) {
       return Response.json({
         data: paperSummaryReadFixture,

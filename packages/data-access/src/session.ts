@@ -89,7 +89,7 @@ export function createSessionManager(
       if (current) return current;
       if (inFlight) return inFlight;
       inFlight = (async () => {
-        const response = await fetchSession(config, "/api/v2/sessions", {
+        const response = await fetchSession(config, "/api/sessions", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -124,7 +124,7 @@ export function createSessionManager(
 
     async revokeSession() {
       if (!current) return;
-      const response = await fetchSession(config, "/api/v2/sessions/current", {
+      const response = await fetchSession(config, "/api/sessions/current", {
         method: "DELETE",
         credentials: "include",
         headers: { "X-CSRF-Token": current.csrfToken },

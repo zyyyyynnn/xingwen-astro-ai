@@ -80,7 +80,7 @@ def _session_client() -> tuple[FastAPI, TestClient, str, str]:
     app.state.snapshot_store = store
     app.state.snapshot_service = SnapshotService(store)
     client = TestClient(app, base_url="https://testserver")
-    created = client.post("/api/v2/sessions")
+    created = client.post("/api/sessions")
     assert created.status_code == 201
     csrf_token = created.json()["data"]["csrf_token"]
     credential = client.cookies.get(settings.SESSION_COOKIE_NAME)
@@ -98,10 +98,10 @@ def test_snapshot_runtime_reports_unavailable_without_database(
     monkeypatch.setattr(settings, "PERSISTENT_WORKFLOW_ENABLED", False)
     app = create_app()
     client = TestClient(app, base_url="https://testserver")
-    created = client.post("/api/v2/sessions")
+    created = client.post("/api/sessions")
     assert created.status_code == 201
 
-    response = client.get("/api/v2/projects/proj_unknown/workspace-snapshot")
+    response = client.get("/api/projects/proj_unknown/workspace-snapshot")
 
     assert response.status_code == 503
     assert response.json()["code"] == "SNAPSHOT_RUNTIME_UNAVAILABLE"
@@ -143,7 +143,7 @@ def test_workspace_put_is_idempotent_and_uses_revision_conflicts() -> None:
     headers = {"X-CSRF-Token": csrf_token, "If-Match": "0"}
 
     first = client.put(
-        "/api/v2/projects/proj_01/workspace-snapshot",
+        "/api/projects/proj_01/workspace-snapshot",
         headers=headers,
         json=_workspace_payload(),
     )
@@ -154,7 +154,7 @@ def test_workspace_put_is_idempotent_and_uses_revision_conflicts() -> None:
     assert "session_id" not in first.json()["data"]
 
     replay = client.put(
-        "/api/v2/projects/proj_01/workspace-snapshot",
+        "/api/projects/proj_01/workspace-snapshot",
         headers=headers,
         json=_workspace_payload(),
     )
@@ -162,7 +162,7 @@ def test_workspace_put_is_idempotent_and_uses_revision_conflicts() -> None:
     assert replay.json()["data"] == first.json()["data"]
 
     conflict = client.put(
-        "/api/v2/projects/proj_01/workspace-snapshot",
+        "/api/projects/proj_01/workspace-snapshot",
         headers=headers,
         json=_workspace_payload(layout_preset="observatory-focus"),
     )
@@ -171,13 +171,13 @@ def test_workspace_put_is_idempotent_and_uses_revision_conflicts() -> None:
     assert conflict.json()["request_id"]
 
     updated = client.put(
-        "/api/v2/projects/proj_01/workspace-snapshot",
+        "/api/projects/proj_01/workspace-snapshot",
         headers={"X-CSRF-Token": csrf_token, "If-Match": "1"},
         json=_workspace_payload(layout_preset="observatory-focus"),
     )
     assert updated.status_code == 200
     assert updated.json()["data"]["revision"] == 2
-    restored = client.get("/api/v2/projects/proj_01/workspace-snapshot")
+    restored = client.get("/api/projects/proj_01/workspace-snapshot")
     assert restored.json()["data"] == updated.json()["data"]
 
 
@@ -218,14 +218,13 @@ def test_cross_session_private_resources_are_hidden() -> None:
     app, owner_client, session_id, _ = _session_client()
     _seed_project(app, session_id)
     other = TestClient(app, base_url="https://testserver")
-    assert other.post("/api/v2/sessions").status_code == 201
-    hidden = other.get("/api/v2/projects/proj_01/workspace-snapshot")
+    assert other.post("/api/sessions").status_code == 201
+    hidden = other.get("/api/projects/proj_01/workspace-snapshot")
     assert hidden.status_code == 404
     assert hidden.json()["code"] == "PROJECT_NOT_FOUND"
     assert "proj_01" not in hidden.json()["detail"]
     assert (
-        owner_client.get("/api/v2/projects/missing/workspace-snapshot").status_code
-        == 404
+        owner_client.get("/api/projects/missing/workspace-snapshot").status_code == 404
     )
 
 
@@ -240,20 +239,18 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
         "redaction_policy": "public_metadata_only",
         "expires_at": expires_at.isoformat(),
     }
-    missing_csrf = client.post("/api/v2/projects/proj_01/shares", json=payload)
+    missing_csrf = client.post("/api/projects/proj_01/shares", json=payload)
     assert missing_csrf.status_code == 403
     assert missing_csrf.json()["code"] == "CSRF_INVALID"
 
     created = client.post(
-        "/api/v2/projects/proj_01/shares",
+        "/api/projects/proj_01/shares",
         headers={"X-CSRF-Token": csrf_token},
         json=payload,
     )
     assert created.status_code == 201
     data = created.json()["data"]
-    assert created.headers["location"] == (
-        f"/api/v2/projects/proj_01/shares/{data['id']}"
-    )
+    assert created.headers["location"] == (f"/api/projects/proj_01/shares/{data['id']}")
     assert created.headers["ratelimit-limit"] == str(settings.SHARE_CREATE_RATE_LIMIT)
     assert int(created.headers["ratelimit-remaining"]) == (
         settings.SHARE_CREATE_RATE_LIMIT - 1
@@ -266,7 +263,7 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
     assert len(token_hash) == 64
     assert raw_token not in repr(app.state.snapshot_store.__dict__)
 
-    listed = client.get("/api/v2/projects/proj_01/shares")
+    listed = client.get("/api/projects/proj_01/shares")
     assert listed.status_code == 200
     listed_wire = listed.text
     assert raw_token not in listed_wire
@@ -279,7 +276,7 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
         projection=_version(title="Changed catalog title"),
     )
     anonymous = TestClient(app, base_url="https://testserver")
-    public = anonymous.get(f"/api/v2/shares/{raw_token}")
+    public = anonymous.get(f"/api/public/shares/{raw_token}")
     assert public.status_code == 200
     public_data = public.json()["data"]
     assert public_data["artifact_versions"][0]["title"] == "Frozen dataset"
@@ -293,18 +290,18 @@ def test_share_freezes_redacted_scope_and_never_lists_token_material() -> None:
     assert public.headers["x-content-type-options"] == "nosniff"
 
     revoked = client.delete(
-        f"/api/v2/projects/proj_01/shares/{data['id']}",
+        f"/api/projects/proj_01/shares/{data['id']}",
         headers={"X-CSRF-Token": csrf_token},
     )
     assert revoked.status_code == 204
     assert revoked.content == b""
     assert "content-type" not in revoked.headers
-    after_revoke = anonymous.get(f"/api/v2/shares/{raw_token}")
-    invalid = anonymous.get("/api/v2/shares/not-a-real-token")
+    after_revoke = anonymous.get(f"/api/public/shares/{raw_token}")
+    invalid = anonymous.get("/api/public/shares/not-a-real-token")
     assert after_revoke.status_code == invalid.status_code == 404
     assert after_revoke.json()["code"] == invalid.json()["code"] == "SHARE_NOT_FOUND"
     assert after_revoke.json()["detail"] == invalid.json()["detail"]
-    assert after_revoke.json()["instance"] == "/api/v2/shares/public"
+    assert after_revoke.json()["instance"] == "/api/public/shares/public"
     assert raw_token not in after_revoke.text
     assert after_revoke.headers["referrer-policy"] == "no-referrer"
     assert "default-src 'none'" in after_revoke.headers["content-security-policy"]
@@ -322,7 +319,7 @@ def test_share_create_has_an_independent_per_session_rate_limit() -> None:
     }
 
     first = client.post(
-        "/api/v2/projects/proj_01/shares",
+        "/api/projects/proj_01/shares",
         headers={"X-CSRF-Token": csrf_token},
         json=payload,
     )
@@ -331,7 +328,7 @@ def test_share_create_has_an_independent_per_session_rate_limit() -> None:
     assert first.headers["ratelimit-remaining"] == "0"
 
     limited = client.post(
-        "/api/v2/projects/proj_01/shares",
+        "/api/projects/proj_01/shares",
         headers={"X-CSRF-Token": csrf_token},
         json=payload,
     )

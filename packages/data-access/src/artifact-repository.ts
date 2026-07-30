@@ -28,14 +28,14 @@ export function createArtifactRepository(
   return {
     async listByRun(runId): Promise<readonly ResearchArtifact[]> {
       const payloads = await http.list<unknown>(
-        `/api/v2/runs/${seg(runId)}/artifacts`,
+        `/api/runs/${seg(runId)}/artifacts`,
       );
       return payloads.map((p) =>
         validateAndMap("ResearchArtifact", p, mapResearchArtifact),
       );
     },
     async getArtifact(id): Promise<ResearchArtifact | null> {
-      const payload = await http.get<unknown>(`/api/v2/artifacts/${seg(id)}`);
+      const payload = await http.get<unknown>(`/api/artifacts/${seg(id)}`);
       return payload
         ? validateAndMap(
             "ResearchArtifactDetail",
@@ -46,7 +46,7 @@ export function createArtifactRepository(
     },
     async getVersion(id): Promise<ArtifactVersionMetadata | null> {
       const payload = await http.get<unknown>(
-        `/api/v2/artifact-versions/${seg(id)}`,
+        `/api/artifact-versions/${seg(id)}`,
       );
       return payload
         ? validateAndMap(
@@ -57,7 +57,7 @@ export function createArtifactRepository(
         : null;
     },
     async getEvidence(id): Promise<Evidence | null> {
-      const payload = await http.get<unknown>(`/api/v2/evidence/${seg(id)}`);
+      const payload = await http.get<unknown>(`/api/evidence/${seg(id)}`);
       return payload
         ? validateAndMap("EvidenceRead", payload, mapEvidenceRead)
         : null;

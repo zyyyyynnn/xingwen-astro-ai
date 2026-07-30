@@ -12,14 +12,14 @@ client = TestClient(app)
 
 
 def test_health() -> None:
-    response = client.get("/api/v1/health")
+    response = client.get("/api/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
 
 
 def test_create_task_then_read_pending_task() -> None:
     response = client.post(
-        "/api/v1/tasks",
+        "/api/tasks",
         json={
             "goal": "研究热木星候选体与宿主恒星参数之间的关系",
             "case_key": "exoplanet_host_star",
@@ -32,7 +32,7 @@ def test_create_task_then_read_pending_task() -> None:
 
     task_id = payload["data"]["task_id"]
     status_response = client.get(
-        f"/api/v1/tasks/{task_id}", headers={"X-Request-Id": "req_pending_task"}
+        f"/api/tasks/{task_id}", headers={"X-Request-Id": "req_pending_task"}
     )
     assert status_response.status_code == 200
     status_payload = status_response.json()
@@ -54,7 +54,9 @@ def test_task_status_snapshot_invariants() -> None:
         "updated_at": "2026-07-19T00:00:00Z",
     }
 
-    with pytest.raises(ValidationError, match="pending task must not contain started steps"):
+    with pytest.raises(
+        ValidationError, match="pending task must not contain started steps"
+    ):
         TaskStatusResponse(
             **base,
             status="pending",
@@ -65,7 +67,9 @@ def test_task_status_snapshot_invariants() -> None:
     with pytest.raises(ValidationError, match="completed task must have progress 100"):
         TaskStatusResponse(**base, status="completed", progress=99, steps=[])
 
-    with pytest.raises(ValidationError, match="task with a running step must not be pending"):
+    with pytest.raises(
+        ValidationError, match="task with a running step must not be pending"
+    ):
         TaskStatusResponse(
             **base,
             status="pending",
@@ -75,27 +79,27 @@ def test_task_status_snapshot_invariants() -> None:
 
 
 def test_fixed_demo_task_keeps_running_state_and_results() -> None:
-    status_response = client.get("/api/v1/tasks/task_001")
+    status_response = client.get("/api/tasks/task_001")
     assert status_response.status_code == 200
     status = status_response.json()["data"]
     assert status["status"] == "searching_papers"
     assert status["progress"] == 55
     assert any(step["status"] == "running" for step in status["steps"])
 
-    dataset_response = client.get("/api/v1/tasks/task_001/dataset")
+    dataset_response = client.get("/api/tasks/task_001/dataset")
     assert dataset_response.status_code == 200
     assert dataset_response.json()["data"]["dataset_id"] == "dataset_001"
 
 
 def test_core_result_endpoints_use_envelope_and_request_id() -> None:
     paths = [
-        "/api/v1/tasks/task_001/dataset",
-        "/api/v1/tasks/task_001/sources",
-        "/api/v1/tasks/task_001/paper-acquisition",
-        "/api/v1/tasks/task_001/papers",
-        "/api/v1/tasks/task_001/literature-reasoning",
-        "/api/v1/tasks/task_001/graph",
-        "/api/v1/tasks/task_001/evidence/evidence_001",
+        "/api/tasks/task_001/dataset",
+        "/api/tasks/task_001/sources",
+        "/api/tasks/task_001/paper-acquisition",
+        "/api/tasks/task_001/papers",
+        "/api/tasks/task_001/literature-reasoning",
+        "/api/tasks/task_001/graph",
+        "/api/tasks/task_001/evidence/evidence_001",
     ]
     for path in paths:
         response = client.get(path, headers={"X-Request-Id": "req_test"})
@@ -107,7 +111,7 @@ def test_core_result_endpoints_use_envelope_and_request_id() -> None:
 
 
 def test_graph_edges_are_evidence_bound() -> None:
-    response = client.get("/api/v1/tasks/task_001/graph")
+    response = client.get("/api/tasks/task_001/graph")
     assert response.status_code == 200
     edges = response.json()["data"]["edges"]
     assert edges
@@ -119,7 +123,7 @@ def test_graph_edges_are_evidence_bound() -> None:
 
 def test_validation_error_uses_contract_envelope() -> None:
     response = client.post(
-        "/api/v1/tasks",
+        "/api/tasks",
         json={"goal": "", "case_key": "exoplanet_host_star"},
     )
     assert response.status_code == 422
@@ -130,7 +134,7 @@ def test_validation_error_uses_contract_envelope() -> None:
 
 
 def test_missing_task_uses_contract_error_code() -> None:
-    response = client.get("/api/v1/tasks/not_found")
+    response = client.get("/api/tasks/not_found")
     assert response.status_code == 404
     payload = response.json()
     assert payload["success"] is False

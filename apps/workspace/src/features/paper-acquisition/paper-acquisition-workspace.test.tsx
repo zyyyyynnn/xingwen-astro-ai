@@ -92,7 +92,7 @@ function paperHttpFetch(
       generated_at: "2026-07-21T08:00:00Z",
     };
     if (
-      url.pathname === `/api/v2/artifact-versions/${versionId}/paper-collection`
+      url.pathname === `/api/artifact-versions/${versionId}/paper-collection`
     ) {
       return Response.json({
         data: collection,
@@ -101,7 +101,7 @@ function paperHttpFetch(
       });
     }
     if (
-      url.pathname === `/api/v2/artifact-versions/${versionId}/paper-candidates`
+      url.pathname === `/api/artifact-versions/${versionId}/paper-candidates`
     ) {
       const cursor = url.searchParams.get("cursor");
       let start = 0;

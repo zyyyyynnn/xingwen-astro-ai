@@ -56,7 +56,7 @@ it("concurrent ensureSession calls issue exactly one POST and share it", async (
   // and 403 the next mutation.
   let posts = 0;
   httpServer.use(
-    http.post(`${TEST_BASE_URL}/api/v2/sessions`, () => {
+    http.post(`${TEST_BASE_URL}/api/sessions`, () => {
       posts += 1;
       return HttpResponse.json({
         data: {
@@ -71,7 +71,7 @@ it("concurrent ensureSession calls issue exactly one POST and share it", async (
           schema_version: "2.0.0",
           generated_at: "2026-07-21T08:00:00Z",
         },
-        links: { self: "/api/v2/sessions/current" },
+        links: { self: "/api/sessions/current" },
       });
     }),
   );
@@ -160,7 +160,7 @@ it("onSessionExpired supports multiple listeners and per-listener unsubscribe", 
 
 it("ensureSession maps session creation rate limits", async () => {
   httpServer.use(
-    http.post(`${TEST_BASE_URL}/api/v2/sessions`, () =>
+    http.post(`${TEST_BASE_URL}/api/sessions`, () =>
       HttpResponse.json(
         problem(429, "RATE_LIMITED", "Too many session creations"),
         { status: 429 },
@@ -174,7 +174,7 @@ it("ensureSession maps session creation rate limits", async () => {
 
 it("revokeSession throws when DELETE returns a non-204, non-404 status", async () => {
   httpServer.use(
-    http.delete(`${TEST_BASE_URL}/api/v2/sessions/current`, () =>
+    http.delete(`${TEST_BASE_URL}/api/sessions/current`, () =>
       HttpResponse.json(problem(500, "INTERNAL_ERROR", "Server error"), {
         status: 500,
       }),
@@ -186,7 +186,7 @@ it("revokeSession throws when DELETE returns a non-204, non-404 status", async (
   });
   // Prime the session with a working create handler.
   httpServer.use(
-    http.post(`${TEST_BASE_URL}/api/v2/sessions`, () =>
+    http.post(`${TEST_BASE_URL}/api/sessions`, () =>
       HttpResponse.json({
         data: {
           status: "active",
@@ -201,7 +201,7 @@ it("revokeSession throws when DELETE returns a non-204, non-404 status", async (
         meta: {},
       }),
     ),
-    http.delete(`${TEST_BASE_URL}/api/v2/sessions/current`, () =>
+    http.delete(`${TEST_BASE_URL}/api/sessions/current`, () =>
       HttpResponse.json(problem(500, "INTERNAL_ERROR", "Server error"), {
         status: 500,
       }),
@@ -219,7 +219,7 @@ it("revokeSession maps CSRF failures without clearing the current session", asyn
   const session = createSessionManagerForTest();
   await session.ensureSession();
   httpServer.use(
-    http.delete(`${TEST_BASE_URL}/api/v2/sessions/current`, () =>
+    http.delete(`${TEST_BASE_URL}/api/sessions/current`, () =>
       HttpResponse.json(problem(403, "CSRF_INVALID", "CSRF failed"), {
         status: 403,
       }),
@@ -239,7 +239,7 @@ it("revokeSession clears and notifies on SESSION_REQUIRED", async () => {
     expired = true;
   });
   httpServer.use(
-    http.delete(`${TEST_BASE_URL}/api/v2/sessions/current`, () =>
+    http.delete(`${TEST_BASE_URL}/api/sessions/current`, () =>
       HttpResponse.json(problem(401, "SESSION_REQUIRED", "Session expired"), {
         status: 401,
       }),

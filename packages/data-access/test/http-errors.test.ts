@@ -60,7 +60,7 @@ function createRunInput() {
 it("401 SESSION_REQUIRED throws SessionExpiredError and notifies session manager", async () => {
   const { repos, session } = setupRepos();
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/projects/:id`, () =>
+    http.get(`${TEST_BASE_URL}/api/projects/:id`, () =>
       HttpResponse.json(problem(401, "SESSION_REQUIRED", "Session expired"), {
         status: 401,
       }),
@@ -81,7 +81,7 @@ it("401 SESSION_REQUIRED throws SessionExpiredError and notifies session manager
 it("403 ACTION_FORBIDDEN throws ForbiddenError", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/projects/:id`, () =>
+    http.get(`${TEST_BASE_URL}/api/projects/:id`, () =>
       HttpResponse.json(problem(403, "ACTION_FORBIDDEN", "Not allowed"), {
         status: 403,
       }),
@@ -95,7 +95,7 @@ it("403 ACTION_FORBIDDEN throws ForbiddenError", async () => {
 it("403 CSRF_INVALID on draft update throws ForbiddenError with code", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.patch(`${TEST_BASE_URL}/api/v2/research-contract-drafts/:id`, () =>
+    http.patch(`${TEST_BASE_URL}/api/contracts/drafts/:id`, () =>
       HttpResponse.json(problem(403, "CSRF_INVALID", "CSRF failed"), {
         status: 403,
       }),
@@ -109,7 +109,7 @@ it("403 CSRF_INVALID on draft update throws ForbiddenError with code", async () 
 it("404 PROJECT_NOT_FOUND returns null for getById", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/projects/:id`, () =>
+    http.get(`${TEST_BASE_URL}/api/projects/:id`, () =>
       HttpResponse.json(problem(404, "PROJECT_NOT_FOUND", "Not found"), {
         status: 404,
       }),
@@ -121,7 +121,7 @@ it("404 PROJECT_NOT_FOUND returns null for getById", async () => {
 it("404 RUN_NOT_FOUND returns null for getById", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/runs/:runId`, () =>
+    http.get(`${TEST_BASE_URL}/api/runs/:runId`, () =>
       HttpResponse.json(problem(404, "RUN_NOT_FOUND", "Run not found"), {
         status: 404,
       }),
@@ -133,7 +133,7 @@ it("404 RUN_NOT_FOUND returns null for getById", async () => {
 it("404 on a collection propagates NotFoundError instead of an empty list", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/runs/:runId/artifacts`, () =>
+    http.get(`${TEST_BASE_URL}/api/runs/:runId/artifacts`, () =>
       HttpResponse.json(problem(404, "RUN_NOT_FOUND", "Run not found"), {
         status: 404,
       }),
@@ -145,7 +145,7 @@ it("404 on a collection propagates NotFoundError instead of an empty list", asyn
 it("409 RUN_STATE_CONFLICT throws ConflictError", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.post(`${TEST_BASE_URL}/api/v2/projects/:projectId/runs`, () =>
+    http.post(`${TEST_BASE_URL}/api/projects/:projectId/runs`, () =>
       HttpResponse.json(
         problem(409, "RUN_STATE_CONFLICT", "Run already running"),
         { status: 409 },
@@ -160,7 +160,7 @@ it("409 RUN_STATE_CONFLICT throws ConflictError", async () => {
 it("409 VERSION_CONFLICT on draft update throws ConflictError with code", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.patch(`${TEST_BASE_URL}/api/v2/research-contract-drafts/:id`, () =>
+    http.patch(`${TEST_BASE_URL}/api/contracts/drafts/:id`, () =>
       HttpResponse.json(problem(409, "VERSION_CONFLICT", "Stale version"), {
         status: 409,
       }),
@@ -178,7 +178,7 @@ it("409 VERSION_CONFLICT on draft update throws ConflictError with code", async 
 it("409 IDEMPOTENCY_CONFLICT on run create throws ConflictError", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.post(`${TEST_BASE_URL}/api/v2/projects/:projectId/runs`, () =>
+    http.post(`${TEST_BASE_URL}/api/projects/:projectId/runs`, () =>
       HttpResponse.json(problem(409, "IDEMPOTENCY_CONFLICT", "Duplicate key"), {
         status: 409,
       }),
@@ -194,7 +194,7 @@ it("run create forwards the caller action key", async () => {
   const keys: string[] = [];
   httpServer.use(
     http.post(
-      `${TEST_BASE_URL}/api/v2/projects/:projectId/runs`,
+      `${TEST_BASE_URL}/api/projects/:projectId/runs`,
       ({ request }) => {
         keys.push(request.headers.get("Idempotency-Key") ?? "");
         return HttpResponse.json({
@@ -236,7 +236,7 @@ it("run create forwards the caller action key", async () => {
 it("422 CONTRACT_INVALID throws ValidationError with field errors", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.patch(`${TEST_BASE_URL}/api/v2/research-contract-drafts/:id`, () =>
+    http.patch(`${TEST_BASE_URL}/api/contracts/drafts/:id`, () =>
       HttpResponse.json(
         problem(422, "CONTRACT_INVALID", "Invalid contract", [
           {
@@ -265,7 +265,7 @@ it("429 RATE_LIMITED throws RateLimitedError with Retry-After", async () => {
   const { repos } = setupRepos();
   httpServer.use(
     http.get(
-      `${TEST_BASE_URL}/api/v2/projects/:id`,
+      `${TEST_BASE_URL}/api/projects/:id`,
       () =>
         new HttpResponse(
           JSON.stringify(problem(429, "RATE_LIMITED", "Too many requests")),
@@ -291,7 +291,7 @@ it("429 RATE_LIMITED throws RateLimitedError with Retry-After", async () => {
 it("503 UPSTREAM_UNAVAILABLE throws UpstreamError", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/runs/:runId`, () =>
+    http.get(`${TEST_BASE_URL}/api/runs/:runId`, () =>
       HttpResponse.json(
         problem(503, "UPSTREAM_UNAVAILABLE", "External service down"),
         { status: 503 },
@@ -304,9 +304,7 @@ it("503 UPSTREAM_UNAVAILABLE throws UpstreamError", async () => {
 it("network failure throws NetworkError", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/projects/:id`, () =>
-      HttpResponse.error(),
-    ),
+    http.get(`${TEST_BASE_URL}/api/projects/:id`, () => HttpResponse.error()),
   );
   await expect(repos.projects.getById(PROJECT_ID)).rejects.toThrow(
     NetworkError,
@@ -316,7 +314,7 @@ it("network failure throws NetworkError", async () => {
 it("unexpected 500 throws UnexpectedHttpError", async () => {
   const { repos } = setupRepos();
   httpServer.use(
-    http.get(`${TEST_BASE_URL}/api/v2/projects/:id`, () =>
+    http.get(`${TEST_BASE_URL}/api/projects/:id`, () =>
       HttpResponse.json(
         problem(500, "INTERNAL_ERROR", "Something went wrong"),
         {

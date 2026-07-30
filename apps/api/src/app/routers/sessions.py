@@ -18,7 +18,7 @@ from app.schemas.v2 import (
 from app.security import SessionRecord, SessionService
 
 
-router = APIRouter(prefix="/api/v2/sessions", tags=["v2-sessions"])
+router = APIRouter(prefix="/api/sessions", tags=["v2-sessions"])
 
 
 def _service(request: Request) -> SessionService:
@@ -56,7 +56,7 @@ def create_session(request: Request, response: Response) -> Envelope[SessionCrea
         resumed = _service(request).resume(existing_credential)
         if resumed is not None:
             record, csrf_token = resumed
-            response.headers["Location"] = "/api/v2/sessions/current"
+            response.headers["Location"] = "/api/sessions/current"
             response.headers["RateLimit-Limit"] = str(
                 settings.SESSION_CREATE_RATE_LIMIT
             )
@@ -68,7 +68,7 @@ def create_session(request: Request, response: Response) -> Envelope[SessionCrea
                     **_public(record).model_dump(), csrf_token=csrf_token
                 ),
                 meta=_meta(request),
-                links=ResponseLinks(self="/api/v2/sessions/current"),
+                links=ResponseLinks(self="/api/sessions/current"),
             )
 
     record, credential, csrf_token = _service(request).create()
@@ -79,9 +79,9 @@ def create_session(request: Request, response: Response) -> Envelope[SessionCrea
         secure=settings.SESSION_COOKIE_SECURE,
         httponly=True,
         samesite=settings.SESSION_COOKIE_SAMESITE,
-        path="/api/v2",
+        path="/api",
     )
-    response.headers["Location"] = "/api/v2/sessions/current"
+    response.headers["Location"] = "/api/sessions/current"
     response.headers["RateLimit-Limit"] = str(settings.SESSION_CREATE_RATE_LIMIT)
     response.headers["RateLimit-Remaining"] = str(remaining)
     response.headers["RateLimit-Reset"] = str(reset_seconds)
@@ -89,7 +89,7 @@ def create_session(request: Request, response: Response) -> Envelope[SessionCrea
     return Envelope(
         data=SessionCreated(**_public(record).model_dump(), csrf_token=csrf_token),
         meta=_meta(request),
-        links=ResponseLinks(self="/api/v2/sessions/current"),
+        links=ResponseLinks(self="/api/sessions/current"),
     )
 
 
@@ -100,7 +100,7 @@ def get_session(request: Request, response: Response) -> Envelope[ResearchSessio
     return Envelope(
         data=_public(record),
         meta=_meta(request),
-        links=ResponseLinks(self="/api/v2/sessions/current"),
+        links=ResponseLinks(self="/api/sessions/current"),
     )
 
 
@@ -118,5 +118,5 @@ def revoke_session(
     _ = csrf_token
     credential = request.cookies[settings.SESSION_COOKIE_NAME]
     _service(request).revoke(credential)
-    response.delete_cookie(key=settings.SESSION_COOKIE_NAME, path="/api/v2")
+    response.delete_cookie(key=settings.SESSION_COOKIE_NAME, path="/api")
     response.headers["Cache-Control"] = "no-store"

@@ -12,6 +12,6 @@ from app.services import task_service
 router = APIRouter(tags=["reasoning"])
 
 
-@router.get("/api/v1/tasks/{task_id}/literature-reasoning", response_model=ApiResponse[LiteratureReasoningResponse])
+@router.get("/api/tasks/{task_id}/literature-reasoning", response_model=ApiResponse[LiteratureReasoningResponse])
 async def get_literature_reasoning(task_id: str, request: Request):
     return ok(request, task_service.get_literature_reasoning(task_id))

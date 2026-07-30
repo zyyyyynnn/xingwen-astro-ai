@@ -55,7 +55,7 @@ function envelope<T>(data: T) {
       schema_version: "2.0.0",
       generated_at: "2026-07-21T08:00:00Z",
     },
-    links: { self: "/api/v2/test" },
+    links: { self: "/api/test" },
   };
 }
 
@@ -223,7 +223,7 @@ describe("paperAcquisition.getReview — integrity guards", () => {
     const httpRepos = setupHttpRepos();
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-candidates`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-candidates`,
         () =>
           HttpResponse.json(
             candidatePage(
@@ -253,7 +253,7 @@ describe("paperAcquisition.getReview — integrity guards", () => {
     ];
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-candidates`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-candidates`,
         () => {
           call += 1;
           return HttpResponse.json(
@@ -276,7 +276,7 @@ describe("paperAcquisition.getReview — integrity guards", () => {
     const httpRepos = setupHttpRepos();
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-candidates`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-candidates`,
         () =>
           HttpResponse.json(
             candidatePage(paperCandidateReadsFixture.slice(0, 2), null, false),
@@ -298,7 +298,7 @@ describe("paperAcquisition.getReview — integrity guards", () => {
     let call = 0;
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-candidates`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-candidates`,
         () => {
           call += 1;
           return HttpResponse.json(
@@ -324,7 +324,7 @@ describe("paperAcquisition.getReview — integrity guards", () => {
     let call = 0;
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-candidates`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-candidates`,
         () => {
           call += 1;
           return HttpResponse.json(
@@ -358,7 +358,7 @@ describe("paperAcquisition.getReview — integrity guards", () => {
     const reversed = [...paperCandidateReadsFixture].reverse();
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-candidates`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-candidates`,
         () => HttpResponse.json(candidatePage(reversed, null, false)),
       ),
     );
@@ -374,7 +374,7 @@ describe("paperAcquisition.getReview — integrity guards", () => {
     const httpRepos = setupHttpRepos();
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-candidates`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-candidates`,
         () => HttpResponse.json(candidatePage([], "page-2", true)),
       ),
     );
@@ -391,7 +391,7 @@ describe("paperAcquisition.getReview — HTTP error classification", () => {
   function overrideCollection(status: number, code: string) {
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-collection`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-collection`,
         () => HttpResponse.json(problem(status, code, "problem"), { status }),
       ),
     );
@@ -441,7 +441,7 @@ describe("paperAcquisition.getReview — HTTP error classification", () => {
     const httpRepos = setupHttpRepos();
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-collection`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-collection`,
         () => HttpResponse.json(envelope({ not: "a-collection" })),
       ),
     );
@@ -454,7 +454,7 @@ describe("paperAcquisition.getReview — HTTP error classification", () => {
     const httpRepos = setupHttpRepos();
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-collection`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-collection`,
         () => HttpResponse.error(),
       ),
     );
@@ -504,7 +504,7 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
   function overrideCollectionPayload(payload: unknown) {
     httpServer.use(
       http.get(
-        `${TEST_BASE_URL}/api/v2/artifact-versions/:versionId/paper-collection`,
+        `${TEST_BASE_URL}/api/artifact-versions/:versionId/paper-collection`,
         () => HttpResponse.json(envelope(payload)),
       ),
     );

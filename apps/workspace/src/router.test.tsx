@@ -1080,7 +1080,7 @@ describe("Workspace routes", () => {
         shareToken = created.shareToken;
         return {
           ...created,
-          shareUrl: `/api/v2/shares/${created.shareToken}`,
+          shareUrl: `/api/public/shares/${created.shareToken}`,
         };
       },
     );

@@ -31,7 +31,7 @@ from app.services.paper_collections import PaperCollectionReadService
 from app.services.paper_summaries import PaperSummaryReadService
 
 
-router = APIRouter(prefix="/api/v2", tags=["v2-artifacts"])
+router = APIRouter(prefix="/api", tags=["v2-artifacts"])
 
 
 def _service(request: Request) -> ArtifactReadService:
@@ -89,7 +89,7 @@ def list_run_artifacts(
         limit=limit,
     )
     _no_store(response)
-    path = f"/api/v2/runs/{run_id}/artifacts"
+    path = f"/api/runs/{run_id}/artifacts"
     return CollectionEnvelope(
         data=artifacts,
         page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
@@ -112,7 +112,7 @@ def get_research_artifact(
         artifact_id=artifact_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/v2/artifacts/{artifact_id}"
+    path = f"/api/artifacts/{artifact_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -130,7 +130,7 @@ def get_artifact_version(
         version_id=version_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/v2/artifact-versions/{version_id}"
+    path = f"/api/artifact-versions/{version_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -148,7 +148,7 @@ def get_paper_collection(
         version_id=version_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/v2/artifact-versions/{version_id}/paper-collection"
+    path = f"/api/artifact-versions/{version_id}/paper-collection"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -166,7 +166,7 @@ def get_paper_summary(
         version_id=version_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/v2/artifact-versions/{version_id}/paper-summary"
+    path = f"/api/artifact-versions/{version_id}/paper-summary"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -189,7 +189,7 @@ def list_paper_collection_candidates(
         limit=limit,
     )
     _no_store(response)
-    path = f"/api/v2/artifact-versions/{version_id}/paper-candidates"
+    path = f"/api/artifact-versions/{version_id}/paper-candidates"
     return CollectionEnvelope(
         data=candidates,
         page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
@@ -212,7 +212,7 @@ def get_evidence(
         evidence_id=evidence_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/v2/evidence/{evidence_id}"
+    path = f"/api/evidence/{evidence_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
@@ -230,5 +230,5 @@ def get_source_snapshot(
         snapshot_id=snapshot_id, session_id=_session_id(request)
     )
     _no_store(response)
-    path = f"/api/v2/source-snapshots/{snapshot_id}"
+    path = f"/api/source-snapshots/{snapshot_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
