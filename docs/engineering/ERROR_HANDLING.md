@@ -17,10 +17,10 @@ HTTP 状态、Problem Details 字段和授权错误的唯一事实来源是 [API
 - 自动重试、用户重试、缓存和修订使用不同语义；
 - 公开响应与日志不泄露敏感信息或受限内容。
 
-## 2. Current 与 Target
+## 2. Phase 0 与 Core 错误传输
 
-- 当前 Pipeline `/api` 保持既有 Task error envelope 和回归行为。
-- 目标核心 `/api` 只使用 RFC 9457 Problem Details，不维护第二套错误 Envelope。
+- Pipeline `/api` 保持既有 Task error envelope 和回归行为。
+- 核心 `/api` 只使用 RFC 9457 Problem Details，不维护第二套错误 Envelope。
 - Pipeline 面与 Core 面可以使用不同传输结构，但必须映射到稳定内部错误分类。
 
 ## 3. 内部错误分类

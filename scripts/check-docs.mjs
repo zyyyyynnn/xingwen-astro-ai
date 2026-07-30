@@ -80,7 +80,6 @@ for (const file of files) {
   }
   if (
     file.startsWith("docs/archive/") &&
-    result.metadata.Status &&
     result.metadata.Status !== "Archived"
   ) {
     errors.push(
@@ -89,7 +88,6 @@ for (const file of files) {
   }
   if (
     file.startsWith("docs/references/") &&
-    result.metadata.Status &&
     result.metadata.Status !== "Reference"
   ) {
     errors.push(

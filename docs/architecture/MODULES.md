@@ -166,7 +166,7 @@ flowchart LR
 | Version/cache/revision/share     | Data Versioning                            |
 | Prompt content and version       | `packages/prompts` + Prompt Versioning     |
 | Relation admission               | Reasoning Protocol                         |
-| Current task state               | GitHub Issue / Milestone                   |
+| Real-time task state             | GitHub Issue / Milestone                   |
 | Runtime status                   | Code, deployment and verified run evidence |
 
 ## 8. 交接标准
