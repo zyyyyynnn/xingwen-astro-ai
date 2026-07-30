@@ -18,6 +18,7 @@ import type { SourceMode } from "./enums";
 import type { DomainEntityId } from "./identifiers";
 import type {
   PaperBenchmarkReview,
+  PaperSourceFailureClass,
   ProducerExecutionSummary,
   SourceSnapshotSummary,
 } from "./paper-acquisition";
@@ -123,6 +124,26 @@ export interface PaperSummaryProducerReview {
   readonly status: string;
 }
 
+/** Bibliographic identity derived from the immutable input PaperCollection. */
+export interface PaperSummaryPaperReview {
+  readonly paperId: DomainEntityId;
+  readonly title: string;
+  readonly authors: readonly string[];
+  readonly year: number | null;
+}
+
+/** Complete audit context for one cached source used by the summary input. */
+export interface PaperSummaryCacheAuditReview {
+  readonly sourceId: DomainEntityId;
+  readonly sourceSnapshotId: DomainEntityId;
+  readonly cacheVersion: string;
+  readonly cacheApplicability: string;
+  readonly liveFailureClass: PaperSourceFailureClass;
+  readonly liveFailureCode: string;
+  readonly originRunId: DomainEntityId;
+  readonly originArtifactVersionId: DomainEntityId;
+}
+
 /**
  * The complete paper summary review for one immutable ArtifactVersion.
  *
@@ -134,12 +155,15 @@ export interface PaperSummaryReview {
   readonly artifactVersionId: DomainEntityId;
   readonly artifactId: DomainEntityId;
   readonly projectId: DomainEntityId;
+  readonly versionNumber: number;
+  readonly supersedesVersionId: DomainEntityId | null;
   readonly sourceMode: SourceMode;
   readonly contentHash: ContentHash;
   readonly inputHash: ContentHash;
   readonly createdAt: UtcIsoTimestamp;
   readonly summaryId: DomainEntityId;
   readonly paperId: DomainEntityId;
+  readonly paper: PaperSummaryPaperReview;
   readonly schemaVersion: SemanticVersion;
   readonly benchmark: PaperBenchmarkReview;
   readonly inputVersions: PaperSummaryInputVersionsReview;
@@ -152,6 +176,7 @@ export interface PaperSummaryReview {
   readonly summaryEvidence: readonly PaperSummaryEvidenceReview[];
   readonly sourceConflicts: readonly PaperSummarySourceConflictReview[];
   readonly producer: PaperSummaryProducerReview;
+  readonly cacheAudits: readonly PaperSummaryCacheAuditReview[];
   /** Generic runtime execution record persisted alongside the version. */
   readonly producerExecution: ProducerExecutionSummary;
   readonly sourceSnapshots: readonly SourceSnapshotSummary[];

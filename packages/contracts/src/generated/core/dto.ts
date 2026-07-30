@@ -981,15 +981,47 @@ export interface Envelope_PaperSummaryRead_ {
 export interface PaperSummaryRead {
   artifact_id: string;
   artifact_version_id: string;
+  cache_audits?: PaperSummaryCacheAudit[];
   content_hash: string;
   created_at: string;
   evidence: EvidenceDetail[];
   input_hash: string;
+  paper: PaperSummaryPaperMetadata;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
   source_mode: App_Schemas_Core__SourceMode;
   source_snapshots: SourceSnapshotDetail[];
   summary: PaperSummaryArtifactContent;
+  supersedes_version_id: string | null;
+  version_number: number;
+}
+/**
+ * Why a cached source was used and the immutable origin it came from.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryCacheAudit".
+ */
+export interface PaperSummaryCacheAudit {
+  cache_applicability: string;
+  cache_version: string;
+  live_failure_class: UpstreamFailureClass;
+  live_failure_code: string;
+  origin_artifact_version_id: string;
+  origin_run_id: string;
+  source_id: string;
+  source_snapshot_id: string;
+}
+/**
+ * Bibliographic identity projected from the pinned input PaperCollection.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryPaperMetadata".
+ */
+export interface PaperSummaryPaperMetadata {
+  authors?: string[];
+  paper_id: string;
+  title: string;
+  year?: number | null;
 }
 /**
  * Publisher-ready D-03 content used directly by the core Artifact discriminator.

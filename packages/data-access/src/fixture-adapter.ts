@@ -810,7 +810,7 @@ export function createFixtureRepositories(
         if (!entry) {
           throw new NotFoundError(
             `Paper collection ${artifactVersionId} not found`,
-            "PAPER_COLLECTION_EMPTY",
+            "ARTIFACT_VERSION_NOT_FOUND",
           );
         }
         // Identical assembly path to the HTTP adapter, so both return the
