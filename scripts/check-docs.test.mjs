@@ -3,6 +3,12 @@ import test from "node:test";
 
 import { inspectMarkdown } from "./check-docs-rules.mjs";
 
+function metadataDoc(rows) {
+  return ["# Title", "", "| 元数据 | 值 |", "| --- | --- |", ...rows].join(
+    "\n",
+  );
+}
+
 test("detects an unclosed fence", () => {
   assert.match(
     inspectMarkdown("# Title\n\n```text\nopen").errors.join("\n"),
@@ -33,9 +39,8 @@ test("extracts local links and Mermaid blocks", () => {
   assert.deepEqual(result.mermaidBlocks[0].lines, ["flowchart LR", " A-->B"]);
 });
 
-test("rejects progress-style Status values", () => {
-  const source =
-    "# Title\n\n| 元数据 | 值 |\n| --- | --- |\n| Status | Implemented |\n| Authority | X |";
+test("rejects unrecognized Status values", () => {
+  const source = metadataDoc(["| Status | Implemented |", "| Authority | X |"]);
   assert.match(
     inspectMarkdown(source).errors.join("\n"),
     /Status is not recognized: Implemented/u,
@@ -50,7 +55,61 @@ test("accepts the governed Status enumeration", () => {
     "Archived",
     "Reference",
   ]) {
-    const source = `# Title\n\n| 元数据 | 值 |\n| --- | --- |\n| Status | ${status} |\n| Authority | X |`;
+    const source = metadataDoc([`| Status | ${status} |`, "| Authority | X |"]);
     assert.deepEqual(inspectMarkdown(source).errors, []);
   }
+});
+
+test("rejects Implementation as a metadata field", () => {
+  const source = metadataDoc([
+    "| Status | Accepted |",
+    "| Authority | X |",
+    "| Implementation | done |",
+  ]);
+  assert.match(
+    inspectMarkdown(source).errors.join("\n"),
+    /forbidden progress field: Implementation/u,
+  );
+});
+
+test("rejects Current runtime as a metadata field", () => {
+  const source = metadataDoc([
+    "| Status | Accepted |",
+    "| Authority | X |",
+    "| Current runtime | y |",
+  ]);
+  assert.match(
+    inspectMarkdown(source).errors.join("\n"),
+    /forbidden progress field: Current runtime/u,
+  );
+});
+
+test("requires Status: Reference for reference documents", () => {
+  const source = metadataDoc(["| Status | Accepted |", "| Authority | X |"]);
+  assert.match(
+    inspectMarkdown(source, { expectedStatus: "Reference" }).errors.join("\n"),
+    /Status must be Reference/u,
+  );
+});
+
+test("requires Status: Archived for archived documents", () => {
+  const source = metadataDoc(["| Status | Accepted |", "| Authority | X |"]);
+  assert.match(
+    inspectMarkdown(source, { expectedStatus: "Archived" }).errors.join("\n"),
+    /Status must be Archived/u,
+  );
+});
+
+test("allows stable context metadata fields", () => {
+  const source = metadataDoc([
+    "| Status | Accepted |",
+    "| Authority | X |",
+    "| Scope | exoplanet_host_star |",
+    "| Issue | #32 |",
+    "| Superseded by | Data Model |",
+    "| Authoring source | apps/api/src/app/schemas |",
+    "| Time range | Phase 0 baseline |",
+    "| Applies to | all Markdown |",
+  ]);
+  assert.deepEqual(inspectMarkdown(source).errors, []);
 });
