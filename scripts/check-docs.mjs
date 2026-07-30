@@ -37,9 +37,9 @@ function requiresMetadata(file) {
     file === "docs/README.md" ||
     file === "docs/DOCUMENTATION_GOVERNANCE.md" ||
     file === "docs/setup.md" ||
-    (/^docs\/(?:ai|architecture|design|engineering|product|quality)\/[^/]+\.md$/u.test(
+    /^docs\/(?:ai|architecture|design|engineering|product|quality)\/[^/]+\.md$/u.test(
       file,
-    )) ||
+    ) ||
     file === "docs/handoff/README.md" ||
     file === "packages/prompts/README.md" ||
     file === "packages/schemas/README.md"
@@ -83,7 +83,9 @@ for (const file of files) {
     result.metadata.Status &&
     result.metadata.Status !== "Archived"
   ) {
-    errors.push(`${file}: documents under docs/archive/ must use Status: Archived`);
+    errors.push(
+      `${file}: documents under docs/archive/ must use Status: Archived`,
+    );
   }
   if (
     file.startsWith("docs/references/") &&

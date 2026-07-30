@@ -36,7 +36,6 @@ Thumbs.db
 
 # Project outputs
 .artifacts/*
-!.artifacts/x01-contract-coverage-matrix.md
 samples/outputs/*
 !samples/outputs/.gitkeep
 exports/
