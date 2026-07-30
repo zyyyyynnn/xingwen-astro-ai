@@ -1,25 +1,43 @@
 # MAVIS Reference Audit
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Reference |
-| Authority | MAVIS 参考事实、来源与再分发裁决记录 |
-| Audit date | 2026-07-30 |
-| Governance | [Issue #152](https://github.com/zyyyyynnn/xingwen-astro-ai/issues/152) |
+| 元数据          | 值                                                                     |
+| --------------- | ---------------------------------------------------------------------- |
+| Status          | Reference                                                              |
+| Authority       | MAVIS 参考事实、来源与再分发裁决记录                                   |
+| Audit date      | 2026-07-30                                                             |
+| Governance      | [Issue #152](https://github.com/zyyyyynnn/xingwen-astro-ai/issues/152) |
+| Source snapshot | `mavis.local-reference.fbc7aaa105b0`                                   |
 
 ## 1. 结论
 
 本次审计未找到足以证明 11 个 API JSON 或 MAVIS 学位论文 PDF 可由本仓库再分发的许可证据。当前树删除这 12 个副本，只保留非侵权的派生事实、原始位置、文件大小和 SHA-256。删除不改写 Git 历史。
 
-| 资产类别 | 数量 | License status | 裁决 |
-| --- | ---: | --- | --- |
-| API JSON | 11 | `unverified` | 从当前树移除 |
-| 学位论文 PDF | 1 | `not_redistributable` | 从当前树移除 |
-| 仓库派生摘要 | 1 | `verified` | 保留 |
+| 资产类别     | 数量 | License status        | 裁决         |
+| ------------ | ---: | --------------------- | ------------ |
+| API JSON     |   11 | `unverified`          | 从当前树移除 |
+| 学位论文 PDF |    1 | `not_redistributable` | 从当前树移除 |
+| 仓库派生摘要 |    1 | `verified`            | 保留         |
 
 逐文件记录见 [ASSET_MANIFEST.json](ASSET_MANIFEST.json)。
 
 ## 2. 审计范围与方法
+
+### 2.1 稳定源快照身份
+
+未找到可作为原始来源身份的 MAVIS ZIP，因此本次使用确定性 inventory hash：
+
+| 字段                 | 值                                                                 |
+| -------------------- | ------------------------------------------------------------------ |
+| `snapshot_id`        | `mavis.local-reference.fbc7aaa105b0`                               |
+| `inventory_sha256`   | `fbc7aaa105b05ebe61778290b50e8389a6476585a39cb288996396ba3bf95ccb` |
+| `file_count`         | `2289`                                                             |
+| `audit_rule_version` | `1.0.0`                                                            |
+
+inventory 对本地只读参考快照递归枚举文件，将相对路径统一为 `/`，排除 `node_modules`、`.git`、`.idea`、`__pycache__`、`.ipynb_checkpoints` 路径段，按相对路径排序，并以 UTF-8 编码的 `<relative_path>\t<byte_length>\n` 计算 SHA-256。该 fingerprint 标识本次审计输入，不授予资产再分发权，也不证明源码可运行。
+
+benchmark 的 160/99/59/2、89 个 `code/visual.py` 和 Prompt 4/11 统计及判定规则以 [摘要的“已核验结构事实”](摘要.md#已核验结构事实) 为人类可读口径，并在 manifest 的 `source_snapshot.statistics` 中保存机器可读镜像；两处不得独立演化。
+
+### 2.2 审计对象与方法
 
 审计对象：
 
