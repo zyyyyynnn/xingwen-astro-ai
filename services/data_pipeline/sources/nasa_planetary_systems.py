@@ -1,4 +1,4 @@
-"""NASA Exoplanet Archive TOI TAP adapter with bounded keyset pagination."""
+"""NASA Planetary Systems TAP adapter for the C-07 supplemental source."""
 
 from __future__ import annotations
 
@@ -12,24 +12,31 @@ from typing import Any
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import SourceMode, UpstreamFailureClass
 from app.schemas.source_acquisition import (
-    DataQueryCursor,
     DataSourceDataLevel,
     DataSourcePage,
-    NormalizedDataSourceQuery,
+    NormalizedSupplementalSourceQuery,
     RawDataSourceRecord,
+    SupplementalDataQueryCursor,
     compute_raw_data_record_hash,
 )
 
 from ..constants import (
     FROZEN_X00_MAIN_SHA,
-    NASA_TAP_ADAPTER_VERSION,
+    NASA_PS_SUPPLEMENTAL_ADAPTER_VERSION,
     PRODUCER_NAME,
     PRODUCER_VERSION,
     RETRY_POLICY_VERSION,
     SOURCE_POLICY_VERSION,
 )
 from ..manifest import load_frozen_manifest_bundle
-from ..query import normalize_toi_query, render_toi_page_query
+from ..source_contract import (
+    SourceColumnRuntimeContract,
+    load_source_column_runtime_contract,
+)
+from ..supplemental_query import (
+    normalize_ps_supplemental_query,
+    render_ps_page_query,
+)
 from .base import (
     Clock,
     DataSourceAcquisitionResult,
@@ -40,10 +47,7 @@ from .base import (
 )
 from .nasa_tap import (
     NASA_TAP_SYNC_URL,
-    SAFE_RESPONSE_HEADERS,
     NasaTapRequester,
-    TransportPolicyError,
-    UrllibTransport,
     availability_status,
     build_source_snapshot,
     classify_bounded_completion,
@@ -52,23 +56,30 @@ from .nasa_tap import (
     request_id,
     resolve_consistent_data_etag,
     safe_headers,
+    tap_type_category,
 )
 
 
 LOGGER = logging.getLogger(__name__)
-NASA_TOI_DOCUMENTATION_URL = (
-    "https://exoplanetarchive.ipac.caltech.edu/docs/API_TOI_columns.html"
+NASA_PS_DOCUMENTATION_URL = (
+    "https://exoplanetarchive.ipac.caltech.edu/docs/API_PS_columns.html"
 )
-NASA_TOI_LICENSE_NOTE = (
-    "NASA Exoplanet Archive TOI metadata is publicly queryable; preserve archive "
-    "attribution and follow the archive acknowledgement and citation guidance."
+NASA_PS_ACKNOWLEDGEMENT_URL = (
+    "https://exoplanetarchive.ipac.caltech.edu/docs/acknowledge.html"
+)
+NASA_PS_LICENSE_NOTE = (
+    "NASA Exoplanet Archive Planetary Systems metadata is publicly queryable; "
+    "preserve archive attribution and follow the archive acknowledgement and "
+    "citation guidance."
 )
 
 
-class NasaExoplanetArchiveAdapter:
-    source_id = "nasa_exoplanet_archive.toi"
-    adapter_name = "nasa_exoplanet_archive_tap"
-    adapter_version = NASA_TAP_ADAPTER_VERSION
+class NasaPlanetarySystemsSupplementalAdapter:
+    """Acquire raw PS rows without crossmatching, merging, or unit conversion."""
+
+    source_id = "nasa_exoplanet_archive.ps"
+    adapter_name = "nasa_exoplanet_archive_ps_tap"
+    adapter_version = NASA_PS_SUPPLEMENTAL_ADAPTER_VERSION
 
     def __init__(
         self,
@@ -86,8 +97,8 @@ class NasaExoplanetArchiveAdapter:
         if page_delay_seconds < 0:
             raise ValueError("page_delay_seconds must not be negative")
         self.requester = NasaTapRequester(
-            failure_prefix="NASA_TAP",
-            source_label="nasa-toi",
+            failure_prefix="NASA_PS",
+            source_label="nasa-ps",
             logger=LOGGER,
             transport=transport,
             timeout_seconds=timeout_seconds,
@@ -105,25 +116,29 @@ class NasaExoplanetArchiveAdapter:
 
     def acquire(
         self,
-        query: NormalizedDataSourceQuery,
+        query: NormalizedSupplementalSourceQuery,
         *,
         source_mode: SourceMode,
         data_level: DataSourceDataLevel,
     ) -> DataSourceAcquisitionResult:
         _validate_origin(source_mode, data_level)
-        _validate_query_contract(query)
+        runtime_contract = _validate_query_contract(query)
+        fixture_metadata = _fixture_metadata(
+            self.transport,
+            source_mode=source_mode,
+            data_level=data_level,
+        )
 
-        fixture_metadata = _fixture_metadata(self.transport, source_mode)
-        schema_query = render_toi_schema_query(query)
+        schema_query = render_ps_schema_query(query)
         schema_params = {"query": schema_query, "format": "json"}
         schema_response, schema_attempts, schema_latency_ms = self.requester.request(
             schema_params
         )
         schema_rows = _decode_json_array(
             schema_response.body,
-            "NASA_TAP_SCHEMA_INVALID_JSON",
+            "NASA_PS_SCHEMA_INVALID_JSON",
         )
-        _validate_schema_rows(schema_rows, query)
+        _validate_schema_rows(schema_rows, query, runtime_contract)
         schema_request_hash = request_hash(schema_params)
         schema_response_hash = compute_canonical_payload_hash(schema_rows)
         schema_headers = safe_headers(schema_response.headers)
@@ -134,33 +149,49 @@ class NasaExoplanetArchiveAdapter:
         seen_row_keys: set[tuple[tuple[str, str], ...]] = set()
         data_page_etags: list[str] = []
         total_retries = schema_attempts - 1
-        cursor: DataQueryCursor | None = None
+        cursor: SupplementalDataQueryCursor | None = None
         for page_number in range(1, query.pagination.max_pages + 1):
             remaining = query.pagination.record_limit - len(records)
             if remaining <= 0:
                 break
             requested_rows = min(query.pagination.page_size, remaining)
-            page_query = render_toi_page_query(
+            page_query = render_ps_page_query(
                 query,
                 cursor=cursor,
                 requested_rows=requested_rows,
             )
             params = {"query": page_query, "format": "json"}
-            response, attempt_count, latency_ms = self.requester.request(params)
-            total_retries += attempt_count - 1
-            payload = _decode_json_array(response.body, "NASA_TAP_INVALID_JSON")
-            if len(payload) > requested_rows:
-                raise SourceFailure(
-                    UpstreamFailureClass.invalid_response,
-                    "NASA_TAP_PAGE_SIZE_EXCEEDED",
-                    retryable=False,
+            try:
+                response, attempt_count, latency_ms = self.requester.request(params)
+                payload = _decode_json_array(
+                    response.body,
+                    "NASA_PS_INVALID_JSON",
                 )
-            page_records, cursor_after = _parse_records(payload, query, cursor)
+                if len(payload) > requested_rows:
+                    raise SourceFailure(
+                        UpstreamFailureClass.invalid_response,
+                        "NASA_PS_PAGE_SIZE_EXCEEDED",
+                        retryable=False,
+                    )
+                page_records, cursor_after = _parse_records(payload, query, cursor)
+            except SourceFailure as failure:
+                if pages:
+                    interrupted = SourceFailure(
+                        failure.classification,
+                        "NASA_PS_PAGINATION_INTERRUPTED",
+                        retryable=False,
+                        status_code=failure.status_code,
+                        attempt_count=failure.attempt_count,
+                    )
+                    raise interrupted from failure
+                raise
+
+            total_retries += attempt_count - 1
             for record in page_records:
                 if record.row_key in seen_row_keys:
                     raise SourceFailure(
                         UpstreamFailureClass.invalid_response,
-                        "NASA_TAP_DUPLICATE_ROW_KEY",
+                        "NASA_PS_DUPLICATE_ROW_KEY",
                         retryable=False,
                     )
                 seen_row_keys.add(record.row_key)
@@ -202,7 +233,7 @@ class NasaExoplanetArchiveAdapter:
 
         source_version = resolve_consistent_data_etag(
             data_page_etags,
-            failure_prefix="NASA_TAP",
+            failure_prefix="NASA_PS",
         )
         completion = classify_bounded_completion(
             pages=pages,
@@ -218,6 +249,7 @@ class NasaExoplanetArchiveAdapter:
             {
                 "source_id": self.source_id,
                 "query_hash": query.query_hash,
+                "input_hash": query.input_hash,
                 "record_hashes": [record.content_hash for record in records],
                 "pages": [
                     page.model_dump(
@@ -231,11 +263,14 @@ class NasaExoplanetArchiveAdapter:
                 "completion": completion_payload,
             }
         )
+        request_hashes = [schema_request_hash] + [
+            page.request_hash for page in pages
+        ]
         request_ids = [schema_request_id] + [
             page.response_metadata.get("request_id") for page in pages
         ]
         snapshot = build_source_snapshot(
-            snapshot_prefix="snapshot.nasa-toi",
+            snapshot_prefix="snapshot.nasa-ps",
             source_id=self.source_id,
             source_type="astronomical_catalog_metadata",
             retrieved_at=pages[0].retrieved_at if pages else self._aware_now(),
@@ -248,7 +283,7 @@ class NasaExoplanetArchiveAdapter:
             query_hash=query.query_hash,
             source_version_or_etag=source_version,
             content_hash=content_hash,
-            license_note=NASA_TOI_LICENSE_NOTE,
+            license_note=NASA_PS_LICENSE_NOTE,
             request_metadata={
                 "adapter_name": self.adapter_name,
                 "adapter_version": self.adapter_version,
@@ -262,23 +297,52 @@ class NasaExoplanetArchiveAdapter:
                     "source_policy": SOURCE_POLICY_VERSION,
                 },
                 "x00_main_sha": FROZEN_X00_MAIN_SHA,
-                "endpoint": NASA_TAP_SYNC_URL,
-                "documentation_url": NASA_TOI_DOCUMENTATION_URL,
                 "source_mode": source_mode.value,
                 "data_level": data_level.value,
-                "timeout_seconds": self.timeout_seconds,
-                "pagination_strategy": "keyset:tid,toi",
-                "result_status": "non_empty" if records else "empty",
-                "completion_status": completion.status,
-                "continuation_cursor": completion.continuation_cursor,
-                "source_version_or_etag_status": (
-                    "available" if source_version else "unavailable"
-                ),
+                "input_hash": query.input_hash,
+                "normalized_parameters": {
+                    "input_identity_field": query.input_identity_field,
+                    "source_filter_field": query.source_filter_field,
+                    "input_values": list(query.input_values),
+                    "pagination": query.pagination.model_dump(mode="json"),
+                },
                 "source_version_evidence": {
                     "kind": "data_page_etag" if source_version else "unavailable",
                     "value": source_version,
                 },
+                "source_version_or_etag_status": (
+                    "available" if source_version else "unavailable"
+                ),
+                "column_contract": {
+                    "snapshot_id": query.column_contract_snapshot_id,
+                    "snapshot_version": query.column_contract_snapshot_version,
+                    "content_hash": query.column_contract_content_hash,
+                    "declared_columns": list(query.declared_columns),
+                    "live_unavailable_columns": list(
+                        query.live_unavailable_columns
+                    ),
+                    "queried_columns": list(query.selected_columns),
+                },
+                "runtime_schema_contract": {
+                    "schema_id": query.runtime_schema_contract_id,
+                    "schema_version": query.runtime_schema_contract_version,
+                    "content_hash": query.runtime_schema_contract_content_hash,
+                    "datatype_categories": dict(
+                        runtime_contract.selected_column_categories
+                    ),
+                },
+                "timeout_seconds": self.timeout_seconds,
+                "pagination_strategy": "keyset:pl_name,pl_refname",
+                "result_status": "non_empty" if records else "empty",
+                "completion_status": completion.status,
+                "continuation_cursor": completion.continuation_cursor,
                 "request_id_status": availability_status(request_ids),
+                "locators": {
+                    "endpoint": NASA_TAP_SYNC_URL,
+                    "documentation_url": NASA_PS_DOCUMENTATION_URL,
+                    "license_url": NASA_PS_ACKNOWLEDGEMENT_URL,
+                    "request_hashes": request_hashes,
+                },
                 "schema_preflight": {
                     "status": "compatible",
                     "adql": schema_query,
@@ -308,9 +372,9 @@ class NasaExoplanetArchiveAdapter:
                         "response_hash": page.response_hash,
                         "request_id": page.response_metadata.get("request_id"),
                         "data_etag": page.response_metadata.get("data_etag"),
-                        "adql": render_toi_page_query(
+                        "adql": render_ps_page_query(
                             query,
-                            cursor=_toi_cursor(page.cursor_before),
+                            cursor=_supplemental_cursor(page.cursor_before),
                             requested_rows=page.requested_rows,
                         ),
                         "cursor_before": (
@@ -347,38 +411,7 @@ class NasaExoplanetArchiveAdapter:
         return value
 
 
-def _validate_origin(source_mode: SourceMode, data_level: DataSourceDataLevel) -> None:
-    allowed = {
-        SourceMode.live: {DataSourceDataLevel.live_result},
-        SourceMode.fixture: {
-            DataSourceDataLevel.recorded_response,
-            DataSourceDataLevel.fixture,
-        },
-    }
-    if data_level not in allowed.get(source_mode, set()):
-        raise SourceFailure(
-            UpstreamFailureClass.policy_violation,
-            "NASA_TAP_SOURCE_MODE_DATA_LEVEL_MISMATCH",
-            retryable=False,
-        )
-
-
-def _validate_query_contract(query: NormalizedDataSourceQuery) -> None:
-    expected = normalize_toi_query(
-        load_frozen_manifest_bundle(),
-        page_size=query.pagination.page_size,
-        max_pages=query.pagination.max_pages,
-        record_limit=query.pagination.record_limit,
-    )
-    if query != expected:
-        raise SourceFailure(
-            UpstreamFailureClass.policy_violation,
-            "NASA_TAP_QUERY_CONTRACT_MISMATCH",
-            retryable=False,
-        )
-
-
-def render_toi_schema_query(query: NormalizedDataSourceQuery) -> str:
+def render_ps_schema_query(query: NormalizedSupplementalSourceQuery) -> str:
     columns = ",".join(f"'{column}'" for column in sorted(query.selected_columns))
     return (
         "select table_name,column_name,datatype from TAP_SCHEMA.columns "
@@ -387,13 +420,57 @@ def render_toi_schema_query(query: NormalizedDataSourceQuery) -> str:
     )
 
 
+def _validate_origin(source_mode: SourceMode, data_level: DataSourceDataLevel) -> None:
+    allowed = {
+        SourceMode.live: {DataSourceDataLevel.live_result},
+        SourceMode.fixture: {
+            DataSourceDataLevel.recorded_response,
+            DataSourceDataLevel.fixture,
+            DataSourceDataLevel.seed,
+        },
+    }
+    if data_level not in allowed.get(source_mode, set()):
+        raise SourceFailure(
+            UpstreamFailureClass.policy_violation,
+            "NASA_PS_SOURCE_MODE_DATA_LEVEL_MISMATCH",
+            retryable=False,
+        )
+
+
+def _validate_query_contract(
+    query: NormalizedSupplementalSourceQuery,
+) -> SourceColumnRuntimeContract:
+    bundle = load_frozen_manifest_bundle()
+    expected = normalize_ps_supplemental_query(
+        bundle,
+        tic_ids=query.input_values,
+        page_size=query.pagination.page_size,
+        max_pages=query.pagination.max_pages,
+        record_limit=query.pagination.record_limit,
+    )
+    if query != expected:
+        raise SourceFailure(
+            UpstreamFailureClass.policy_violation,
+            "NASA_PS_QUERY_CONTRACT_MISMATCH",
+            retryable=False,
+        )
+    source = next(
+        item
+        for item in bundle.field_manifest.sources
+        if item.source_id == query.table_source_id
+    )
+    return load_source_column_runtime_contract(source)
+
+
 def _fixture_metadata(
     transport: HttpTransport,
+    *,
     source_mode: SourceMode,
+    data_level: DataSourceDataLevel,
 ) -> dict[str, Any] | None:
-    raw_metadata = getattr(transport, "fixture_metadata", None)
     if source_mode is not SourceMode.fixture:
         return None
+    raw_metadata = getattr(transport, "fixture_metadata", None)
     required = {
         "fixture_id",
         "schema_version",
@@ -401,18 +478,27 @@ def _fixture_metadata(
         "recorded_at",
         "content_hash",
         "provenance_note",
+        "data_level",
     }
     if not isinstance(raw_metadata, Mapping) or not required.issubset(raw_metadata):
         raise SourceFailure(
             UpstreamFailureClass.policy_violation,
-            "NASA_TAP_FIXTURE_PROVENANCE_MISSING",
+            "NASA_PS_FIXTURE_PROVENANCE_MISSING",
+            retryable=False,
+        )
+    if raw_metadata["data_level"] != data_level.value:
+        raise SourceFailure(
+            UpstreamFailureClass.policy_violation,
+            "NASA_PS_FIXTURE_DATA_LEVEL_MISMATCH",
             retryable=False,
         )
     return {str(key): value for key, value in raw_metadata.items()}
 
 
 def _validate_schema_rows(
-    rows: list[object], query: NormalizedDataSourceQuery
+    rows: list[object],
+    query: NormalizedSupplementalSourceQuery,
+    runtime_contract: SourceColumnRuntimeContract,
 ) -> None:
     actual: dict[str, str] = {}
     for row in rows:
@@ -426,28 +512,30 @@ def _validate_schema_rows(
             raise _schema_drift()
         if column_name in actual:
             raise _schema_drift()
-        actual[column_name] = datatype.casefold()
+        category = tap_type_category(datatype)
+        if category is None:
+            raise _schema_drift()
+        actual[column_name] = category
     if set(actual) != set(query.selected_columns):
         raise _schema_drift()
-    if actual["tid"] not in {"int", "integer", "long"}:
-        raise _schema_drift()
-    if not any(token in actual["toi"] for token in ("char", "string")):
+    expected = dict(runtime_contract.selected_column_categories)
+    if actual != expected:
         raise _schema_drift()
 
 
 def _schema_drift() -> SourceFailure:
     return SourceFailure(
         UpstreamFailureClass.invalid_response,
-        "NASA_TAP_SCHEMA_DRIFT",
+        "NASA_PS_SCHEMA_DRIFT",
         retryable=False,
     )
 
 
 def _parse_records(
     rows: list[object],
-    query: NormalizedDataSourceQuery,
-    cursor_before: DataQueryCursor | None,
-) -> tuple[list[RawDataSourceRecord], DataQueryCursor | None]:
+    query: NormalizedSupplementalSourceQuery,
+    cursor_before: SupplementalDataQueryCursor | None,
+) -> tuple[list[RawDataSourceRecord], SupplementalDataQueryCursor | None]:
     records: list[RawDataSourceRecord] = []
     cursor = cursor_before
     expected_columns = set(query.selected_columns)
@@ -455,16 +543,22 @@ def _parse_records(
         if not isinstance(row, dict) or set(row) != expected_columns:
             raise _schema_drift()
         try:
-            next_cursor = DataQueryCursor(tid=row["tid"], toi=row["toi"])
+            next_cursor = SupplementalDataQueryCursor(
+                pl_name=row["pl_name"],
+                pl_refname=row["pl_refname"],
+            )
         except Exception:
             raise _schema_drift() from None
-        if cursor is not None and (next_cursor.tid, next_cursor.toi) <= (
-            cursor.tid,
-            cursor.toi,
+        if cursor is not None and (
+            next_cursor.pl_name,
+            next_cursor.pl_refname,
+        ) <= (
+            cursor.pl_name,
+            cursor.pl_refname,
         ):
             raise SourceFailure(
                 UpstreamFailureClass.invalid_response,
-                "NASA_TAP_UNSTABLE_PAGE_ORDER",
+                "NASA_PS_UNSTABLE_PAGE_ORDER",
                 retryable=False,
             )
         row_key = tuple((field, str(row[field])) for field in query.row_key_fields)
@@ -510,9 +604,11 @@ def _reject_non_finite_json_constant(value: str) -> None:
     raise ValueError(f"non-finite JSON number is forbidden: {value}")
 
 
-def _toi_cursor(cursor: object) -> DataQueryCursor | None:
+def _supplemental_cursor(
+    cursor: object,
+) -> SupplementalDataQueryCursor | None:
     if cursor is None:
         return None
-    if not isinstance(cursor, DataQueryCursor):
-        raise TypeError("TOI page contains an incompatible cursor")
+    if not isinstance(cursor, SupplementalDataQueryCursor):
+        raise TypeError("supplemental page contains an incompatible cursor")
     return cursor

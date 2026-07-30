@@ -1,1 +1,1 @@
-"""Primary scientific data-source adapters."""
+"""Scientific primary and supplemental data-source adapters."""
