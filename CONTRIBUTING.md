@@ -117,10 +117,9 @@ Priority 表达所属交付阶段，不表达 Issue 当前是否可开工：
 
 ### 3.4 Definition of Ready
 
-Task 或 Bug 进入 `ready` 前必须满足：
+`ready` 表示 Issue 的范围、交接和验收已准备进入计划队列，不表示当前即可开工。Task、Bug 或 Gate 使用 `ready` 前必须满足：
 
-- 前置 Issue 已关闭，或提供冻结的版本/hash/Contract；
-- 输入、输出 Schema 和数据等级明确；
+- 输入、输出 Schema、数据等级和计划交接明确；
 - 唯一事实源已定位；
 - 主要目录、模块 Owner 和边界明确；
 - 不与其他 Issue 重复实现同一状态机、事务或领域算法；
@@ -129,9 +128,9 @@ Task 或 Bug 进入 `ready` 前必须满足：
 
 Parent Epic 保持 Open 不影响子 Task 进入 `ready`；父子层级不得被当作 prerequisite。
 
-Gate 进入 `ready` 前，其必需输入必须已完成并提供可复现版本和验证证据。
+从 `ready` 开始实质工作还必须满足：没有未完成的原生 Dependency，或对应输入已经提供冻结版本/hash/Contract。Gate 只能在必需输入完成并提供可复现版本和验证证据后开始验证。
 
-不满足时不得移除原生 Dependency，也不得以临时 DTO、Mock 分支或复制规则绕过依赖；正文状态不增加另一套阻塞枚举。
+等待直接输入期间，正文保持 `ready`，编号左侧的阻塞状态由 GitHub 原生 Dependency 计算。不得移除真实 Dependency，也不得以临时 DTO、Mock 分支或复制规则绕过依赖；正文不增加另一套阻塞枚举。
 
 ### 3.5 状态迁移
 
