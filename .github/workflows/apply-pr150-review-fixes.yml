@@ -1,0 +1,59 @@
+name: Apply PR 150 review fixes
+
+on:
+  push:
+    branches:
+      - codex/c-07-supplemental-source-adapter
+    paths:
+      - scripts/apply_pr150_review_fixes.py
+      - .github/workflows/apply-pr150-review-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/c-07-supplemental-source-adapter
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Apply review fixes
+        run: python scripts/apply_pr150_review_fixes.py
+
+      - name: Sync locked backend dependencies
+        run: uv sync --frozen --project apps/api
+
+      - name: Run focused regression tests
+        env:
+          PYTHONPATH: apps/api/src:.
+        run: >-
+          uv run --project apps/api pytest -q
+          apps/api/tests/test_data_source_pipeline.py
+          apps/api/tests/test_supplemental_source_pipeline.py
+          apps/api/tests/test_supplemental_source_review_fixes.py
+
+      - name: Validate syntax and diff hygiene
+        run: |
+          python -m compileall -q apps/api/src services/data_pipeline
+          git diff --check
+
+      - name: Commit and push fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(data-pipeline): address supplemental adapter review"
+          git push origin HEAD:codex/c-07-supplemental-source-adapter
