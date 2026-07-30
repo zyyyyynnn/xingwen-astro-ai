@@ -13,10 +13,13 @@ from datetime import UTC, datetime, timedelta
 from threading import RLock
 from typing import Any
 
+from app import api_surface
 from app.schemas.v2 import SessionQuota, SessionStatus
 
 
-_SHARE_TOKEN_PATH = re.compile(r"(/api/v2/shares/)[^/?\s]+")
+_SHARE_TOKEN_PATH = re.compile(
+    rf"({re.escape(api_surface.PUBLIC_SHARE_PREFIX)})[^/?\s]+"
+)
 _MAX_CONCURRENT_CSRF_TOKENS = 4
 
 
