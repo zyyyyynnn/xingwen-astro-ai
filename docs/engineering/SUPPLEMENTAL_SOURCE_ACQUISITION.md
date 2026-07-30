@@ -22,59 +22,77 @@ Fixture、seed 或 TOI 结果副本当作补充来源。
 
 选择 `ps` 的依据是冻结契约：
 
-- Case Manifest `1.0.1` 只授权 provider source id
+- Case Manifest `1.0.1` 授权 provider source id
   `nasa_exoplanet_archive`；
-- Field Manifest `1.0.1` 已声明 `ps` 的 table source id、列、row key、引用列和
+- Field Manifest `1.0.1` 声明 `ps` 的 table source id、列、row key、引用列和
   provenance 列；
-- `star.tic_id` 是 Case Manifest 的宿主恒星 identity field，并已由 Field
+- `star.tic_id` 是 Case Manifest 的宿主恒星 identity field，并由 Field
   Manifest 映射到 `ps.tic_id`；
-- 因此实现复用既有 provider/table 映射，不创建第二套 source registry，也不修改
+- 实现复用既有 provider/table 映射，不创建第二套 source registry，也不修改
   X-00 冻结包。
 
-固定输入为规范化后的 TIC 标识符集合。空白、大小写、重复值和调用方顺序先归一化为
-排序且去重的 `TIC <positive integer>`；单次最多 100 个标识符，数字部分最多
-19 位，非法或可注入的值在发出请求前拒绝。
+固定输入先归一化为排序且去重的 `TIC <positive integer>`。单次最多 100 个标识符，
+数字部分最多 19 位；空白、大小写和调用方顺序不影响稳定 hash，非法或可注入值在发出
+请求前拒绝。
+
 `input_hash` 绑定 Manifest pins、identity field 和规范化输入；`query_hash` 进一步
-绑定来源表、列契约、约束和分页。两者都复用 canonical JSON SHA-256。
+绑定来源表、列裁决、运行时类型契约、约束和分页。两者均使用 canonical JSON
+SHA-256。
 
 | 冻结输入 | 值 |
 | --- | --- |
 | Case Manifest version/hash | `1.0.1` / `sha256:bb870d3c8b6b6c972cd8d7139b9cfcb672bb9ce75401109271aaf05a147819d3` |
 | Field Manifest version/hash | `1.0.1` / `sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53` |
 | Column adjudication version/hash | `1.0.0` / `sha256:b27b6fc8aab5d2ddeda2f21420650291567e09c26e969bb4eb89c54853d0766b` |
+| Runtime schema contract | `nasa_exoplanet_archive.ps.runtime_schema.2026-07-30` / `1.0.0` |
 | X-00 baseline | `main@eb7e23f6d0c14555627c602c6e5a2b84210ba833` |
-| Query normalization / Adapter | `1.0.0` / `1.0.0` |
+| Query normalization / Adapter | `1.1.0` / `1.1.0` |
 
-## 2. 列契约与 live metadata gap
+## 2. Provider 层、Adapter 层与职责
 
-运行时先校验 Field Manifest 引用的列裁决文件路径、文件 SHA-256、snapshot
-identity 和 table contract。查询列由该版本化证据派生，不另写一份字段清单。
+NASA TAP 的 provider 通用能力集中在
+`services/data_pipeline/sources/nasa_tap.py`：
 
-C-01 裁决保留官方定义的 `raerr1`、`raerr2`、`decerr1`、`decerr2`，同时记录
-这些列连续两次未出现在 live `TAP_SCHEMA`。NASA 当前也会拒绝直接选择这些列。
-C-07 不删除这些 Manifest 声明，而是将它们记录为 `live_unavailable_columns`，
-只对其余已批准列执行 live 查询。规范化 query 和 SourceSnapshot 同时保存：
+- HTTPS endpoint 与 redirect allowlist；
+- 有界响应体、超时、状态分类、429 `Retry-After` 和指数退避；
+- 安全响应头、request id、request hash 和 rate-limit metadata；
+- 数据页 ETag 一致性检查；
+- bounded completion 分类；
+- SourceSnapshot 基础构建。
 
-- 完整 `declared_columns`；
-- 裁决 snapshot id、version 和 content hash；
-- `live_unavailable_columns`；
-- 实际 `queried_columns`。
+TOI 与 PS Adapter 复用同一 provider 层。来源 Adapter 仅保留本来源的 query renderer、
+cursor、schema/row validator、分页编排和来源专用 provenance。安全、重试或版本语义发生
+变化时不再维护两套实现。
 
-数据页请求前执行 `TAP_SCHEMA.columns` 预检。实际可查询列缺失、重复、类型漂移，
-或返回记录字段不一致时，以 `NASA_PS_SCHEMA_DRIFT` 或相应 invalid-response
-错误关闭，不根据单次 live 结果改写 Manifest。
+## 3. 列契约与 Schema Drift
 
-## 3. 请求、分页与错误语义
+运行时首先验证 Field Manifest 引用的列裁决文件路径、文件 SHA-256、snapshot identity
+和 table contract。C-01 裁决保留官方定义的 `raerr1`、`raerr2`、`decerr1`、
+`decerr2`，同时记录这些列连续两次未出现在 live `TAP_SCHEMA`。C-07 不删除这些
+Manifest 声明，而是将其记录为 `live_unavailable_columns`，只查询其余批准列。
 
-Adapter 使用官方同步 TAP endpoint：
-`https://exoplanetarchive.ipac.caltech.edu/TAP/sync`。传输层只允许 HTTPS 和
-`exoplanetarchive.ipac.caltech.edu`，跨 host redirect 作为 policy violation
-拒绝。请求不发送认证信息。
+实际查询列还绑定版本化运行时类型契约：
 
-查询按 Manifest row key `pl_name,pl_refname` 排序，并使用有界 `TOP N` 和 keyset
-cursor。`page_size <= 1000`、`max_pages <= 100`、`record_limit <= 100000`；
-默认最大尝试 3 次，指数退避从 0.5 秒开始、上限 4 秒，429 优先采用有界
-`Retry-After`。第一页之后的失败显式分类为
+`services/data_pipeline/manifests/exoplanet_host_star/source-evidence/`
+`nasa-exoplanet-archive/2026-07-30/ps-runtime-schema-contract.v1.json`
+
+该契约为每个 queried column 固定 `string | integer | number` 类别。数据页请求前执行
+`TAP_SCHEMA.columns` 预检，并逐列校验：
+
+- 表名、列集合和唯一性；
+- 所有 queried columns 的 datatype category；
+- row key 和数据页字段集合；
+- 页内及跨页 keyset 单调顺序。
+
+任一列缺失、重复、类型漂移或数据页字段不一致均以
+`NASA_PS_SCHEMA_DRIFT` 或对应的 stable invalid-response code 关闭；实现不会根据单次
+live 结果改写 Manifest 或类型契约。
+
+## 4. 请求、分页与完成状态
+
+查询按 Manifest row key `pl_name,pl_refname` 排序，使用有界 `TOP N` 和 keyset
+cursor。`page_size <= 1000`、`max_pages <= 100`、`record_limit <= 100000`；默认最大
+尝试 3 次，指数退避从 0.5 秒开始、上限 4 秒。第一页之后的请求失败分类为
 `NASA_PS_PAGINATION_INTERRUPTED`，原始失败保留为 exception cause。
 
 | 场景 | failure class | 是否重试 |
@@ -84,29 +102,45 @@ cursor。`page_size <= 1000`、`max_pages <= 100`、`record_limit <= 100000`；
 | HTTP 429 | `rate_limited` | 有界重试 |
 | HTTP 5xx | `upstream_server` | 有界重试 |
 | HTTP 4xx（429 除外） | `upstream_client` | 不重试 |
-| 非法 JSON、字段或排序漂移 | `invalid_response` | 不重试 |
+| 非法 JSON、字段、类型、排序漂移 | `invalid_response` | 不重试 |
+| 数据页 ETag 不一致 | `invalid_response` | 不重试 |
 | endpoint、origin 或来源等级违规 | `policy_violation` | 不重试 |
 
-成功的空数组是明确的零结果：保留一页零记录证据，Snapshot
-`result_status=empty`。失败请求不伪造成功 Snapshot。
+成功 Snapshot 明确记录：
 
-## 4. SourceSnapshot 与敏感信息
+- `completion_status=complete`：最后一页少于请求数，已观察到结果终点；
+- `completion_status=truncated`：在满页状态下达到 `record_limit` 或 `max_pages`；
+- `completion_status=unknown`：没有足够证据判断完整性；
+- `continuation_cursor`：截断时保存最后一个 source-specific cursor。
+
+成功的空数组是一页零记录的完整结果。满页达到边界时不得只写 `non_empty` 并暗示结果
+完整；CLI 和导出同时暴露 completion status 与 continuation cursor。
+
+## 5. SourceSnapshot、ETag 与 Schema 证据
 
 每次成功查询生成 `source_id=nasa_exoplanet_archive.ps` 的独立
-`SourceSnapshotRecord`，至少保存：
+`SourceSnapshotRecord`。至少保存：
 
 - canonical query、`input_hash`、`query_hash` 和规范化参数；
 - endpoint、官方列文档和每次 request hash locator；
 - `retrieved_at`、数据页 response hash、聚合 content hash；
-- ETag；上游未提供 ETag 时使用 `tap-schema:<response hash>` 作为等效版本证据；
 - adapter、producer、retry、source policy 和 query normalization 版本；
-- schema 状态、分页、cursor、状态码、attempt、耗时和安全 request id；
+- schema 状态、分页、cursor、完成状态、状态码、attempt、耗时和安全 request id；
+- column adjudication 与 runtime schema contract pins；
 - license note、`source_mode`、`data_level` 和录制 Fixture provenance。
+
+`source_version_or_etag` 只接受数据页 representation 的真实且一致 ETag：
+
+- 所有返回 ETag 的数据页必须一致，否则以
+  `NASA_PS_SOURCE_VERSION_CHANGED` 失败；
+- 上游未提供数据页 ETag 时，该字段为 `null`，状态为 `unavailable`；
+- `TAP_SCHEMA` response hash 与 schema ETag 只保存在 `schema_preflight`，不得替代
+  动态数据版本，也不得与数据页 ETag 拼接。
 
 响应头采用 allowlist。`Authorization`、Cookie、Set-Cookie、API key、Session、
 Token、credential 及其值不会进入 Snapshot、Fixture 或错误日志。
 
-## 5. Live、Recorded、Fixture 与 Seed
+## 6. Live、Recorded、Fixture 与 Seed
 
 | 实际来源 | `source_mode` | `data_level` | 规则 |
 | --- | --- | --- | --- |
@@ -115,32 +149,31 @@ Token、credential 及其值不会进入 Snapshot、Fixture 或错误日志。
 | 合成测试样例 | `fixture` | `fixture` | 必须携带版本化 provenance |
 | seed 输入或样例 | `fixture` | `seed` | 不得标记 Live |
 
-该 Adapter 不接受 `cached`。未来缓存只有在引用真实历史 Run、
-ArtifactVersion 和 SourceSnapshot 时才能接入；C-07 不实现该能力。
+该 Adapter 不接受 `cached`。未来缓存只有在引用真实历史 Run、ArtifactVersion 和
+SourceSnapshot 时才能接入；C-07 不实现该能力。
 
-## 6. Recorded Fixture
+## 7. Recorded Fixture
 
 受控响应位于
 `services/data_pipeline/fixtures/exoplanet_host_star/nasa-ps-by-tic-first-page.recorded.v1.json`。
-它在 `2026-07-30T05:56:13Z` 从官方 endpoint 录制，仅包含一页两条 metadata
-记录；固定输入 `TIC 219698776` 同时存在于 TOI 与 PS 表，可作为 #91 的原始输入，
-但 C-07 不据此生成匹配结论。Fixture 保存来源、文档、时间、Manifest/裁决 pins、输入、分页、schema/page
-response hash、等效来源版本、license、provenance 和整体 content hash。
+它在 `2026-07-30T05:56:13Z` 从官方 endpoint 录制，固定输入为
+`TIC 219698776`，仅包含一页两条 metadata 记录。
 
-更新流程：
+Recorded schema 明确限制：
 
-1. 先运行下一节的有界 Live CLI 和 Live smoke，保存输出并确认官方列文档与
-   `TAP_SCHEMA`；
-2. 只把相同固定输入的一页最小响应更新到 Fixture，同时更新 `recorded_at`、
-   response hashes、来源版本证据和 provenance note；
-3. 若结构变化，提升 Fixture schema/version；不得原地伪装为旧响应；
-4. 使用 `compute_recorded_ps_fixture_hash` 重算 content hash；
-5. 运行 recorded smoke、篡改检测、schema drift 和完整后端测试。
+- `max_pages == 1`；
+- `page_size == record_limit`；
+- 记录数不得超过该单页上限；
+- Fixture 保存 Manifest、列裁决和 runtime schema contract pins；
+- `source_version_or_etag` 只能等于录制数据页 ETag；本次上游未返回数据页 ETag，因此为
+  `null`；
+- schema/page response hash 和整体 content hash 必须通过校验；
+- Replay transport 只接受与 capture 完全相同的 schema query 和第一页 query。
 
-录制文件不得包含认证头或私有数据。响应变大时继续保持固定的一页小样本，不提交全库
-导出。
+Fixture 只证明录制时刻的一页响应，不表示完整 PS 结果集。当前两条记录恰好填满边界，
+因此 replay 输出为 `completion_status=truncated`。
 
-## 7. 运行与验证
+## 8. 运行与验证
 
 默认 recorded 命令不访问公网：
 
@@ -170,7 +203,8 @@ uv run --project apps/api python -m services.data_pipeline.supplemental_cli `
 ```powershell
 Set-Location apps/api
 uv sync --frozen
-uv run pytest tests/test_supplemental_source_pipeline.py
+uv run pytest tests/test_data_source_pipeline.py `
+  tests/test_supplemental_source_pipeline.py
 
 $env:XINGWEN_RUN_LIVE_SUPPLEMENTAL_SOURCE_TESTS = "1"
 uv run pytest -m live tests/test_supplemental_source_pipeline.py
@@ -178,22 +212,18 @@ uv run pytest -m live tests/test_supplemental_source_pipeline.py
 
 `XINGWEN_RUN_LIVE_SUPPLEMENTAL_SOURCE_TESTS` 只是显式联网开关，不是凭据。
 
-## 8. 许可与已知限制
+## 9. 许可、限制与验收映射
 
-NASA Exoplanet Archive metadata 可公开查询。产物必须保留 archive attribution，
-并遵循官方 [acknowledgement and citation guidance](https://exoplanetarchive.ipac.caltech.edu/docs/acknowledge.html)；
-Adapter 不重新许可上游内容。
+NASA Exoplanet Archive metadata 可公开查询。产物必须保留 archive attribution，并遵循
+官方 acknowledgement and citation guidance；Adapter 不重新许可上游内容。
 
-PS 是动态表，当前同步 endpoint 未提供独立 release id 或稳定 ETag，因此
-`TAP_SCHEMA` 响应 hash 只是本次结构证据，不代表全库版本。Live 结果可能随上游更新；
-recorded 响应只证明录制时刻的内容。网络、限流和上游维护仍可能使 opt-in Live smoke
-失败。PS 与 TOI 虽是独立真实表和独立 SourceSnapshot，但属于同一 NASA provider，
-这是被冻结 Case SourcePolicy 允许的最小 C-07 实现。
+PS 是动态表，当前同步 endpoint 未提供稳定 release id。Schema response hash 只是结构
+证据，不代表全库版本；recorded 响应只证明录制时刻的内容。网络、限流和上游维护仍可能
+使 opt-in Live smoke 失败。PS 与 TOI 虽是独立真实表和独立 SourceSnapshot，但属于
+同一 NASA provider，这是被冻结 Case SourcePolicy 允许的最小 C-07 实现。
 
 输出只包含原始 PS 记录及其 provenance。如何把 TOI 与 PS 实体进行 exact、alias、
 coordinate 或人工对齐属于 Issue #91，本实现不提供任何匹配结论。
-
-## 9. Issue #90 验收映射
 
 | 验收能力 | 代码或测试证据 |
 | --- | --- |
@@ -201,4 +231,6 @@ coordinate 或人工对齐属于 Issue #91，本实现不提供任何匹配结�
 | 稳定 query/input hash | 顺序、空白、重复值和有意义变更测试 |
 | SourceSnapshot 可追溯来源、时间、参数和许可 | 分页 Snapshot、locator、版本证据和敏感头测试 |
 | Fixture/seed 不标记 Live | origin/data-level 组合拒绝测试 |
+| Schema drift 完整关闭 | 非 row-key 数值列、integer 列和列集合漂移测试 |
+| 有界结果不冒充完整集合 | completion status 与 continuation cursor 测试 |
 | 单元测试与 recorded/Live smoke | `test_supplemental_source_pipeline.py` |
