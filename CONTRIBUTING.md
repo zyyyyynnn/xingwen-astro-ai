@@ -28,10 +28,10 @@ Epic 不直接建立生产实现分支；Gate 不替代 A/B/C/D 原子实现。
 
 ```text
 feat/a-research-canvas
-feat/b-v2-artifacts
+feat/b-artifact-reader
 feat/c-source-crossmatch
 feat/d-reasoning-admission
-fix/api-version-conflict
+fix/api-contract-conflict
 docs/issue-governance
 ```
 
@@ -48,24 +48,22 @@ chore: update generated contracts
 
 ## 3. Issue 规范
 
-Issue 至少包含：
+Issue 正文只保留：
 
-- **状态**：状态行只能是 `ready`、`blocked`、`in-progress` 或 `review`；
-- **背景**：为什么需要该改动；
+- **状态**：状态行只能是 `ready`、`in-progress` 或 `review`；
 - **目标**：交付的可观察结果；
-- **技术或用户范围**：涉及哪些能力；
+- **输入与输出**：已完成基线与计划交接；
+- **技术范围**：涉及的能力和主要模块；
+- **核心不变量**：不能破坏的契约、数据和权限边界；
 - **验收标准**：可执行、可验证的完成条件；
-- **Parent Epic**：仅 Task 属于某个 Epic 时填写；否则为 `—`；
-- **依赖**：真正阻塞执行的前置 Issue、Contract 或 Artifact；
-- **边界**：明确不做什么；
-- **影响范围**：代码、数据、契约、文档和材料；
-- **验证**：预期命令、测试或复现证据。
+- **PR 交付计划**：可独立验证的纵向切片；
+- **边界**：明确不做什么。
 
-`open` 只表示 Issue 尚未关闭，不表示可以开工。依赖未满足时必须标记为 `blocked`。
+`open` 只表示 Issue 尚未关闭，不表示可以开工。GitHub 原生 Sub-issue 表示层级，Dependency 表示直接阻塞；正文不复制父子关系或直接依赖清单。
 
 Assignee 只表示任务执行归属，不表示额外审查权或合并审批权；任务执行人、模块 Owner 和风险 Owner 也不构成正式技术 Review 之后的第二道授权门。
 
-状态行不得写成 `Epic · ready`、`Gate · blocked by #6` 等复合文本。角色由标题和标签表达；阻塞 Issue、分支、PR 和说明写在状态行之后的独立段落。
+状态行不得附加角色、依赖或 Issue 编号。角色由标题和标签表达；阻塞关系只由 GitHub 原生 Dependency 表达。
 
 ### 3.1 Issue 角色
 
@@ -80,22 +78,9 @@ Assignee 只表示任务执行归属，不表示额外审查权或合并审批�
 
 Feature 模板仅用于 Epic。原子 Task 使用 Chore/Task 模板；不得创建 `Role=Task + type:feature` 的组合。
 
-Epic 正文使用链接任务清单：
+Epic 与 Task 的层级只使用 GitHub 原生 Sub-issue；正文不维护重复任务清单或 `Parent Epic` 章节。
 
-```markdown
-- [ ] #80 B-15 冻结核心 Contract
-- [ ] #81 B-16 实现 Session 安全边界
-```
-
-Task 正文单独记录 Parent Epic：
-
-```markdown
-## Parent Epic
-
-- #28
-```
-
-**Parent Epic 表示层级归属，不是执行前置依赖。** Task 不得因为父 Epic 尚未关闭而保持 `blocked`；只根据其真正的前置输入决定状态。Epic 的退出依赖子 Task 完成，但子 Task 的 `## 依赖` 不反向包含父 Epic。
+**Parent Epic 表示层级归属，不是执行前置依赖。** Task 不得因为父 Epic 尚未关闭而被原生 Dependency 阻塞；只根据其真正的前置输入决定可执行性。Epic 的退出依赖子 Task 完成，但子 Task 不反向依赖父 Epic。
 
 Gate 发现实现缺陷时，应回到所属 Task 或 Bug 修复；不得在 Gate PR 中直接接管生产实现。
 
@@ -103,11 +88,11 @@ Gate 发现实现缺陷时，应回到所属 Task 或 Bug 修复；不得在 Gat
 
 ```text
 [A] A-11 建立 Design Token、UI primitive 与 BrandMark
-[B] B-15 冻结 /api/v2 核心领域与传输契约
+[B] B-15 冻结 /api 核心领域与传输契约
 [C] C-08 实现跨源实体对齐、匹配 Evidence 与审查基准
 [D] D-08 实现 Relation、ReasoningTrace 准入与评测
-[X] X-06 Gate：验证 v2 数据、论文与 Summary 主链路
-[B] B-04 Epic：建立 /api/v2 最小领域与传输契约
+[X] X-06 Gate：验证数据、论文与 Summary 主链路
+[B] B-04 Epic：建立 /api 最小领域与传输契约
 ```
 
 ### 3.3 Labels 与 Milestones
@@ -132,10 +117,9 @@ Priority 表达所属交付阶段，不表达 Issue 当前是否可开工：
 
 ### 3.4 Definition of Ready
 
-Task 或 Bug 进入 `ready` 前必须满足：
+`ready` 表示 Issue 的范围、交接和验收已准备进入计划队列，不表示当前即可开工。Task、Bug 或 Gate 使用 `ready` 前必须满足：
 
-- 前置 Issue 已关闭，或提供冻结的版本/hash/Contract；
-- 输入、输出 Schema 和数据等级明确；
+- 输入、输出 Schema、数据等级和计划交接明确；
 - 唯一事实源已定位；
 - 主要目录、模块 Owner 和边界明确；
 - 不与其他 Issue 重复实现同一状态机、事务或领域算法；
@@ -144,19 +128,19 @@ Task 或 Bug 进入 `ready` 前必须满足：
 
 Parent Epic 保持 Open 不影响子 Task 进入 `ready`；父子层级不得被当作 prerequisite。
 
-Gate 进入 `ready` 前，其必需输入必须已完成并提供可复现版本和验证证据。
+从 `ready` 开始实质工作还必须满足：没有未完成的原生 Dependency，或对应输入已经提供冻结版本/hash/Contract。Gate 只能在必需输入完成并提供可复现版本和验证证据后开始验证。
 
-不满足时保持 `blocked`，不得以临时 DTO、Mock 分支或复制规则绕过依赖。
+等待直接输入期间，正文保持 `ready`，编号左侧的阻塞状态由 GitHub 原生 Dependency 计算。不得移除真实 Dependency，也不得以临时 DTO、Mock 分支或复制规则绕过依赖；正文不增加另一套阻塞枚举。
 
 ### 3.5 状态迁移
 
 ```text
-blocked → ready → in-progress → review → closed
+ready → in-progress → review → closed
 ```
 
 - 创建有效工作分支并产生实质改动后，Issue 必须从 `ready` 更新为 `in-progress`。
 - 创建 PR 并准备正式技术 Review 后，Issue 更新为 `review`。
-- 分支废弃或工作暂停时，必须记录原因、清理或归档分支，并按真实依赖恢复为 `ready` 或 `blocked`。
+- 分支废弃或工作暂停时，必须记录原因、清理或归档分支，并恢复为 `ready`；尚未完成的直接输入继续保留为原生 Dependency。
 - 状态不得根据计划推测，必须与实际分支、PR 和依赖一致。
 
 ### 3.6 WIP 限制
