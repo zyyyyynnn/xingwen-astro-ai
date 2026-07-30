@@ -201,14 +201,24 @@ class PaperSummaryReadService:
         return snapshot_ids
 
 
+def _effective_source_version(snapshot: SourceSnapshotDetail) -> str:
+    """Resolve the immutable source identity using the Pipeline fallback order."""
+
+    return (
+        snapshot.source_version_or_etag
+        or snapshot.cache_version
+        or snapshot.content_hash
+    )
+
+
 def _snapshot_map(
     snapshots: tuple[SourceSnapshotDetail, ...],
-) -> dict[tuple[str, str | None, str], SourceSnapshotDetail]:
-    result: dict[tuple[str, str | None, str], SourceSnapshotDetail] = {}
+) -> dict[tuple[str, str, str], SourceSnapshotDetail]:
+    result: dict[tuple[str, str, str], SourceSnapshotDetail] = {}
     for snapshot in snapshots:
         key = (
             snapshot.source_id,
-            snapshot.source_version_or_etag,
+            _effective_source_version(snapshot),
             snapshot.content_hash,
         )
         if key in result:
