@@ -1,5 +1,5 @@
 /**
- * HTTP adapter — composes the live `/api/v2` RepositorySet from focused
+ * HTTP adapter — composes the live `/api` RepositorySet from focused
  * transport modules:
  *
  * - `http-client`            — fetch, envelopes, error mapping, CSRF, 401
@@ -24,11 +24,11 @@ import { createSnapshotShareRepositories } from "./snapshot-share-repositories";
 
 export type { HttpAdapterConfig };
 
-/** The live `/api/v2` RepositorySet (identical port surface to the fixture). */
+/** The live `/api` RepositorySet (identical port surface to the fixture). */
 export type HttpRepositorySet = RepositorySet;
 
 /**
- * Create a `RepositorySet` backed by real `/api/v2` endpoints.
+ * Create a `RepositorySet` backed by real `/api` endpoints.
  *
  * Reads issue GETs and map DTOs via the shared `mapping.ts`. Writes issue
  * POST/PATCH/PUT/DELETE with CSRF attached and the contract-required

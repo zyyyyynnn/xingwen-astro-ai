@@ -50,7 +50,7 @@ services:
     environment:
       # APP_ENV 仅允许 development/integration/test；integration/test 才挂载 test-only bootstrap。
       APP_ENV: ${APP_ENV:-development}
-      # 真实 /api/v2 Runtime 必须使用 PostgreSQL 权威存储。
+      # 真实 /api Runtime 必须使用 PostgreSQL 权威存储。
       PERSISTENT_WORKFLOW_ENABLED: "true"
       # 浏览器跨端口访问 API 时显式覆盖 env_file，确保自定义 Compose 端口一致。
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
@@ -103,7 +103,7 @@ services:
       dockerfile: docker/frontend.Dockerfile
     restart: unless-stopped
     environment:
-      # 浏览器公开配置：仅为 API origin（不带 /api/v1 或 /api/v2 路径），路径由生成的 operation metadata 提供；不得包含密钥。
+      # 浏览器公开配置：仅为 API origin（不带 /api 路径），路径由生成的 operation metadata 提供；不得包含密钥。
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     ports:
       - "${WORKSPACE_PORT:-5173}:5173"

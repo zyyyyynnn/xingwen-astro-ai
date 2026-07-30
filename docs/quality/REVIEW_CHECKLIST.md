@@ -28,7 +28,7 @@
 - [ ] Project、Run、Artifact、ArtifactVersion、Evidence、SourceSnapshot 和 ShareSnapshot 未混淆。
 - [ ] Run status、execution mode、source mode 和 revision 派生关系分别表达。
 - [ ] 集合接口、错误、幂等、版本冲突、取消、重试和权限语义有对应测试。
-- [ ] `/api/v1` 回归接口没有被静默破坏。
+- [ ] `/api` 回归接口没有被静默破坏。
 
 ## 3. 科研可信
 

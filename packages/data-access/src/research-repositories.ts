@@ -1,5 +1,5 @@
 /**
- * Research chain repositories over `/api/v2`: Project, ContractDraft, Contract,
+ * Research chain repositories over `/api`: Project, ContractDraft, Contract,
  * Run and RunEvent. Every write carries the contract-required concurrency or
  * idempotency header, and RunEvent recovery is capped to the authoritative
  * `latest_event_sequence`.

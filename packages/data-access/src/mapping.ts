@@ -1,7 +1,7 @@
 /**
  * Transport DTO → domain entity mappers.
  *
- * These functions convert snake_case `/api/v2` DTOs (validated by
+ * These functions convert snake_case `/api` DTOs (validated by
  * `@xingwen/contracts`) into the camelCase domain model. They are the only
  * place where DTO shapes are referenced; downstream code never sees DTOs.
  */

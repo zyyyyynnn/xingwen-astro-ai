@@ -2,7 +2,7 @@
  * Exoplanet host-star integration fixture — the frozen main-case Demo Replay
  * scenario.
  *
- * Every payload is a snake_case `/api/v2` transport DTO that the fixture
+ * Every payload is a snake_case `/api` transport DTO that the fixture
  * adapter validates against the B-15 JSON Schemas before mapping into the
  * domain model. Timestamps, hashes and IDs are deterministic so Guided Tour
  * replays are reproducible.

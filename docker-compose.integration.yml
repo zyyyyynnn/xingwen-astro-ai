@@ -4,7 +4,7 @@
 #   docker compose -f docker-compose.yml -f docker-compose.integration.yml -p <project> up --build --wait
 #
 # 该覆盖层只做一件事：把 API 的 APP_ENV 切换为 integration，从而挂载
-# test-only bootstrap（POST /api/v2/test/bootstrap），供真实 Browser E2E
+# test-only bootstrap（POST /api/test/bootstrap），供真实 Browser E2E
 # 为当前 Session owner 植入确定性 demo_replay/fixture 种子数据。
 # 本地 development 与 production 默认不启用该覆盖层，bootstrap 不挂载。
 
