@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime
 from fastapi.testclient import TestClient
@@ -7,6 +8,11 @@ import pytest
 
 from app.main import create_app
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.paper_collection import (
+    PaperBenchmarkReference,
+    PaperCollection,
+    compute_paper_collection_output_hash,
+)
 from app.schemas.paper_summary import (
     PaperSummaryArtifactContent,
     PaperSummaryEvidence,
@@ -18,7 +24,6 @@ from app.schemas.paper_summary import (
     PaperSummarySupportStatus,
     compute_paper_summary_output_hash,
 )
-from app.schemas.paper_collection import PaperBenchmarkReference
 from app.schemas.paper_summary_api import PaperSummaryRead
 from app.schemas.core import (
     ArtifactVersionDetail,
@@ -26,11 +31,12 @@ from app.schemas.core import (
     ProducerExecutionDetail,
     ProducerReference,
     ResearchArtifactDetail,
+    SourceMode,
     SourceSnapshotDetail,
 )
 from app.security import SecurityProblem
-from app.services.paper_summaries import PaperSummaryReadService
 from app.config import settings
+from services.paper_pipeline.demo_fixture import build_demo_collection
 
 
 NOW = datetime(2026, 7, 29, 8, 0, tzinfo=UTC)
@@ -41,16 +47,59 @@ SUMMARY_VERSION_ID = "summary-version"
 COLLECTION_VERSION_ID = "collection-version"
 SUMMARY_ARTIFACT_ID = "summary-artifact"
 PROJECT_ID = "project-1"
+BASE_COLLECTION = build_demo_collection()
+TEST_CANDIDATE = next(
+    candidate
+    for candidate in BASE_COLLECTION.candidates
+    if candidate.selected and candidate.raw.synthetic_note is None
+)
 
 
-def _input_versions(*, with_snapshot: bool) -> PaperSummaryInputVersions:
+def _collection(
+    source_mode: str = "fixture", *, execution_source_id: str | None = None
+) -> PaperCollection:
+    payload = BASE_COLLECTION.model_dump(mode="json", exclude_none=True)
+    for execution in payload["source_executions"]:
+        execution["source_id"] = execution_source_id or execution["source_id"]
+        if source_mode == "cached":
+            execution.update(
+                {
+                    "source_mode": "cached",
+                    "data_level": "real_run_cache",
+                    "cache_applicability": "same normalized query",
+                    "live_failure_class": "timeout",
+                    "live_failure_code": "CROSSREF_TIMEOUT",
+                }
+            )
+    for snapshot in payload["source_snapshots"]:
+        if source_mode == "cached":
+            snapshot["cache_version"] = "cache-v1"
+            snapshot["request_metadata"] = {
+                **snapshot["request_metadata"],
+                "origin_run_id": "origin-run",
+                "origin_artifact_version_id": "origin-version",
+            }
+    output_hash = compute_paper_collection_output_hash(deepcopy(payload))
+    payload["output_hash"] = output_hash
+    payload["producer"]["output_hash"] = output_hash
+    return PaperCollection.model_validate(payload)
+
+
+def _input_versions(
+    *, with_snapshot: bool, collection: PaperCollection
+) -> PaperSummaryInputVersions:
+    snapshot = collection.source_snapshots[0]
     snapshots = (
         (
             PaperSummarySourceSnapshotReference(
-                source_snapshot_id="pipeline-snapshot",
-                source_id="crossref",
-                source_version="crossref-v1",
-                content_hash=HASH_A,
+                source_snapshot_id=snapshot.snapshot_id,
+                source_id=snapshot.source_id,
+                source_version=(
+                    snapshot.source_version_or_etag
+                    or snapshot.cache_version
+                    or snapshot.content_hash
+                ),
+                content_hash=snapshot.content_hash,
             ),
         )
         if with_snapshot
@@ -58,14 +107,21 @@ def _input_versions(*, with_snapshot: bool) -> PaperSummaryInputVersions:
     )
     return PaperSummaryInputVersions(
         paper_collection_version_id=COLLECTION_VERSION_ID,
-        paper_collection_schema_version="1.0.0",
-        paper_collection_output_hash=HASH_B,
+        paper_collection_schema_version=collection.schema_version,
+        paper_collection_output_hash=collection.output_hash,
         source_snapshots=snapshots,
     )
 
 
-def _summary(*, with_evidence: bool = True) -> PaperSummaryArtifactContent:
-    input_versions = _input_versions(with_snapshot=with_evidence)
+def _summary(
+    *,
+    with_evidence: bool = True,
+    source_mode: str = "fixture",
+    collection: PaperCollection | None = None,
+) -> PaperSummaryArtifactContent:
+    collection = collection or _collection(source_mode)
+    input_versions = _input_versions(with_snapshot=with_evidence, collection=collection)
+    source_snapshot = collection.source_snapshots[0]
     producer = PaperSummaryProducerExecution(
         execution_id="pipeline-execution",
         run_id=None,
@@ -92,19 +148,23 @@ def _summary(*, with_evidence: bool = True) -> PaperSummaryArtifactContent:
         evidence = (
             PaperSummaryEvidence(
                 evidence_id="pipeline-evidence",
-                paper_id="paper-1",
-                candidate_id="candidate-1",
-                source_id="crossref",
-                source_record_id="record-1",
-                source_snapshot_id="pipeline-snapshot",
-                source_snapshot_version="crossref-v1",
-                source_snapshot_content_hash=HASH_A,
+                paper_id=TEST_CANDIDATE.canonical_paper_id,
+                candidate_id=TEST_CANDIDATE.candidate_id,
+                source_id=TEST_CANDIDATE.raw.source_id,
+                source_record_id=TEST_CANDIDATE.raw.source_record_id,
+                source_snapshot_id=source_snapshot.snapshot_id,
+                source_snapshot_version=(
+                    source_snapshot.source_version_or_etag
+                    or source_snapshot.cache_version
+                    or source_snapshot.content_hash
+                ),
+                source_snapshot_content_hash=source_snapshot.content_hash,
                 locator=PaperSummaryEvidenceLocator(
                     kind="paper_metadata",
-                    source_url="https://example.org/paper",
+                    source_url=TEST_CANDIDATE.raw.url,
                     metadata_field="title",
                 ),
-                quote_or_value="A validated paper",
+                quote_or_value=TEST_CANDIDATE.title,
                 status=PaperSummarySupportStatus.supported,
                 validation_code="evidence.supported",
             ),
@@ -112,7 +172,7 @@ def _summary(*, with_evidence: bool = True) -> PaperSummaryArtifactContent:
         findings = (
             PaperSummaryStatement(
                 statement_id="finding-1",
-                text="A validated paper",
+                text=TEST_CANDIDATE.title,
                 evidence_ids=("pipeline-evidence",),
                 status=PaperSummarySupportStatus.supported,
                 validation_code="evidence.supported",
@@ -122,15 +182,9 @@ def _summary(*, with_evidence: bool = True) -> PaperSummaryArtifactContent:
         kind="paper_summary",
         schema_version="1.0.0",
         summary_id="summary-1",
-        paper_id="paper-1",
-        benchmark=PaperBenchmarkReference(
-            benchmark_id="exoplanet_host_star.paper_reasoning",
-            schema_version="1.3.0",
-            benchmark_version="1.3.0",
-            scientific_payload_hash=HASH_A,
-            content_hash=HASH_B,
-            scenario_id="search.tess_mission_and_catalogs",
-            x00_main_sha="eb7e23f6d0c14555627c602c6e5a2b84210ba833",
+        paper_id=TEST_CANDIDATE.canonical_paper_id,
+        benchmark=PaperBenchmarkReference.model_validate(
+            collection.benchmark.model_dump(mode="json")
         ),
         input_versions=input_versions,
         research_goal=None,
@@ -153,64 +207,115 @@ def _summary(*, with_evidence: bool = True) -> PaperSummaryArtifactContent:
     return PaperSummaryArtifactContent.model_validate(payload)
 
 
+def _summary_with_two_evidence() -> PaperSummaryArtifactContent:
+    summary = _summary()
+    second_evidence = summary.evidence[0].model_copy(
+        update={"evidence_id": "pipeline-evidence-2"}
+    )
+    second_finding = summary.findings[0].model_copy(
+        update={
+            "statement_id": "finding-2",
+            "evidence_ids": (second_evidence.evidence_id,),
+        }
+    )
+    payload = summary.model_dump(mode="json")
+    payload["evidence"].append(second_evidence.model_dump(mode="json"))
+    payload["evidence_ids"].append(second_evidence.evidence_id)
+    payload["findings"].append(second_finding.model_dump(mode="json"))
+    output_hash = compute_paper_summary_output_hash(payload)
+    payload["output_hash"] = output_hash
+    payload["producer"]["output_hash"] = output_hash
+    return PaperSummaryArtifactContent.model_validate(payload)
+
+
 def _version(
     *,
     summary: PaperSummaryArtifactContent,
     kind: str = "paper_summary",
     tamper_hash: bool = False,
+    source_mode: str = "fixture",
+    collection: PaperCollection | None = None,
 ) -> ArtifactVersionDetail:
+    collection = collection or _collection(source_mode)
     content = (
         summary.model_dump(mode="json")
         if kind == "paper_summary"
-        else {
-            "schema_version": summary.input_versions.paper_collection_schema_version,
-            "output_hash": summary.input_versions.paper_collection_output_hash,
-        }
+        else collection.model_dump(mode="json", exclude_none=True)
     )
     content_hash = compute_canonical_payload_hash(content)
     if tamper_hash:
         content_hash = HASH_A
     producer = ProducerReference(
-        type="model",
-        name="xingwen.paper_summary" if kind == "paper_summary" else "fixture",
-        version="1.0.0",
+        type="model" if kind == "paper_summary" else "algorithm",
+        name=(
+            "xingwen.paper_summary"
+            if kind == "paper_summary"
+            else collection.producer.producer_name
+        ),
+        version=(
+            "1.0.0" if kind == "paper_summary" else collection.producer.producer_version
+        ),
         model_name="fixture-model" if kind == "paper_summary" else None,
         prompt_name="paper_summary" if kind == "paper_summary" else None,
         prompt_version="v2" if kind == "paper_summary" else None,
         prompt_hash=HASH_A if kind == "paper_summary" else None,
-        parameters_hash=HASH_B if kind == "paper_summary" else None,
+        parameters_hash=(
+            HASH_B if kind == "paper_summary" else collection.producer.parameters_hash
+        ),
     )
     runtime_producer = ProducerExecutionDetail(
         id="producer-1",
         run_id="run-1",
-        step_key="summarizing_papers" if kind == "paper_summary" else "planning",
+        step_key=(
+            "summarizing_papers" if kind == "paper_summary" else "searching_papers"
+        ),
         step_attempt_id="attempt-1",
         producer=producer,
         parameters={},
-        parameters_hash=HASH_B,
-        input_hash=HASH_C,
+        parameters_hash=(
+            HASH_B if kind == "paper_summary" else collection.producer.parameters_hash
+        ),
+        input_hash=summary.input_hash
+        if kind == "paper_summary"
+        else collection.input_hash,
         output_hash=content_hash,
         status="completed",
         started_at=NOW,
         finished_at=NOW,
         latency_ms=1,
     )
+    reference = (
+        summary.input_versions.source_snapshots[0]
+        if summary.input_versions.source_snapshots
+        else None
+    )
+    pipeline_snapshot = (
+        next(
+            item
+            for item in collection.source_snapshots
+            if reference is not None
+            and item.snapshot_id == reference.source_snapshot_id
+        )
+        if reference is not None
+        else None
+    )
     snapshots = (
         (
             SourceSnapshotDetail(
                 id="snapshot-db",
-                source_id="crossref",
-                source_type="paper_metadata",
-                retrieved_at=NOW,
-                query="query",
-                query_hash=HASH_A,
-                source_version_or_etag="crossref-v1",
-                content_hash=HASH_A,
-                license_note="Public metadata",
-                request_metadata={},
+                source_id=pipeline_snapshot.source_id,
+                source_type=pipeline_snapshot.source_type,
+                retrieved_at=pipeline_snapshot.retrieved_at,
+                query=pipeline_snapshot.query,
+                query_hash=pipeline_snapshot.query_hash,
+                source_version_or_etag=reference.source_version,
+                content_hash=pipeline_snapshot.content_hash,
+                license_note=pipeline_snapshot.license_note,
+                cache_version=pipeline_snapshot.cache_version,
+                request_metadata=pipeline_snapshot.request_metadata,
             ),
         )
-        if kind == "paper_summary" and summary.input_versions.source_snapshots
+        if kind == "paper_summary" and pipeline_snapshot is not None
         else ()
     )
     evidence = (
@@ -222,9 +327,12 @@ def _version(
                 target_id="finding-1",
                 evidence_type="paper_metadata",
                 source_snapshot_id="snapshot-db",
-                paper_id="paper-1",
-                locator={"source_record_id": "record-1"},
-                quote_or_value="A validated paper",
+                paper_id=TEST_CANDIDATE.canonical_paper_id,
+                locator={
+                    "source_record_id": TEST_CANDIDATE.raw.source_record_id,
+                    "summary_evidence_id": "pipeline-evidence",
+                },
+                quote_or_value=TEST_CANDIDATE.title,
                 extraction_method="paper_summary",
                 confidence=1.0,
                 created_at=NOW,
@@ -244,8 +352,10 @@ def _version(
         schema_version="1.0.0",
         content=content,
         content_hash=content_hash,
-        input_hash=HASH_C,
-        source_mode="fixture",
+        input_hash=summary.input_hash
+        if kind == "paper_summary"
+        else collection.input_hash,
+        source_mode=source_mode,
         producer=producer,
         source_snapshot_ids=tuple(item.id for item in snapshots),
         evidence_ids=tuple(item.id for item in evidence),
@@ -258,10 +368,19 @@ def _version(
 
 
 class _Artifacts:
-    def __init__(self, summary_version: ArtifactVersionDetail) -> None:
+    def __init__(
+        self,
+        summary_version: ArtifactVersionDetail,
+        *,
+        collection: PaperCollection | None = None,
+    ) -> None:
         self.summary_version = summary_version
+        self.collection = collection or _collection(summary_version.source_mode.value)
         self.collection_version = _version(
-            summary=_summary(with_evidence=False), kind="paper_collection"
+            summary=_summary(with_evidence=False, collection=self.collection),
+            kind="paper_collection",
+            source_mode=summary_version.source_mode.value,
+            collection=self.collection,
         )
 
     def get_version(self, *, version_id: str, session_id: str) -> ArtifactVersionDetail:
@@ -345,7 +464,19 @@ def test_paper_summary_read_returns_typed_summary_and_provenance() -> None:
 
     assert response.status_code == 200
     data = response.json()["data"]
-    assert PaperSummaryRead.model_validate(data).summary.paper_id == "paper-1"
+    assert (
+        PaperSummaryRead.model_validate(data).summary.paper_id
+        == TEST_CANDIDATE.canonical_paper_id
+    )
+    assert data["paper"] == {
+        "paper_id": TEST_CANDIDATE.canonical_paper_id,
+        "title": TEST_CANDIDATE.title,
+        "authors": list(TEST_CANDIDATE.authors),
+        "year": TEST_CANDIDATE.year,
+    }
+    assert data["version_number"] == 1
+    assert data["supersedes_version_id"] is None
+    assert data["cache_audits"] == []
     assert data["evidence"][0]["artifact_version_id"] == SUMMARY_VERSION_ID
     assert data["source_snapshots"][0]["id"] == "snapshot-db"
     assert response.headers["cache-control"] == "no-store"
@@ -406,5 +537,164 @@ def test_paper_summary_rejects_missing_persisted_evidence() -> None:
     response = _client(_Artifacts(version)).get(
         f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
     )
+    assert response.status_code == 403
+    assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+
+
+def test_paper_summary_rejects_swapped_persisted_evidence_identity() -> None:
+    summary = _summary()
+    version = _version(summary=summary)
+    evidence = version.evidence[0].model_copy(
+        update={
+            "locator": {
+                **version.evidence[0].locator,
+                "summary_evidence_id": "another-pipeline-evidence",
+            }
+        }
+    )
+    response = _client(
+        _Artifacts(
+            version.model_copy(
+                update={"evidence": (evidence,), "evidence_ids": (evidence.id,)}
+            )
+        )
+    ).get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary")
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+
+
+def test_paper_summary_exposes_complete_cached_source_audit() -> None:
+    version = _version(summary=_summary(source_mode="cached"), source_mode="cached")
+    response = _client(_Artifacts(version)).get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["cache_audits"] == [
+        {
+            "source_id": "crossref",
+            "source_snapshot_id": "snapshot-db",
+            "cache_version": "cache-v1",
+            "cache_applicability": "same normalized query",
+            "live_failure_class": "timeout",
+            "live_failure_code": "CROSSREF_TIMEOUT",
+            "origin_run_id": "origin-run",
+            "origin_artifact_version_id": "origin-version",
+        }
+    ]
+
+
+def test_paper_summary_rejects_unreferenced_persisted_evidence() -> None:
+    version = _version(summary=_summary())
+    extra = version.evidence[0].model_copy(
+        update={
+            "id": "evidence-extra",
+            "locator": {
+                **version.evidence[0].locator,
+                "summary_evidence_id": "pipeline-evidence-extra",
+            },
+        }
+    )
+    response = _client(
+        _Artifacts(
+            version.model_copy(
+                update={
+                    "evidence": (*version.evidence, extra),
+                    "evidence_ids": (*version.evidence_ids, extra.id),
+                }
+            )
+        )
+    ).get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary")
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+
+
+def test_paper_summary_rejects_duplicate_persisted_evidence_ids() -> None:
+    summary = _summary_with_two_evidence()
+    version = _version(summary=summary)
+    first = version.evidence[0]
+    second = first.model_copy(
+        update={
+            "target_id": "finding-2",
+            "locator": {
+                **first.locator,
+                "summary_evidence_id": "pipeline-evidence-2",
+            },
+        }
+    )
+    version = version.model_copy(
+        update={
+            "evidence": (first, second),
+            "evidence_ids": (first.id,),
+        }
+    )
+
+    response = _client(_Artifacts(version)).get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+
+
+def test_paper_summary_rejects_self_consistent_artifact_hash_over_stale_collection_hash() -> (
+    None
+):
+    collection = _collection()
+    version = _version(summary=_summary(collection=collection), collection=collection)
+    artifacts = _Artifacts(version, collection=collection)
+    content = dict(artifacts.collection_version.content)
+    candidates = [dict(item) for item in content["candidates"]]
+    candidates[0]["title"] = "Tampered title with stale collection output hash"
+    content["candidates"] = candidates
+    artifacts.collection_version = artifacts.collection_version.model_copy(
+        update={
+            "content": content,
+            "content_hash": compute_canonical_payload_hash(content),
+        }
+    )
+
+    response = _client(artifacts).get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+
+
+@pytest.mark.parametrize(
+    ("collection_mode", "version_mode"),
+    [("fixture", SourceMode.cached), ("cached", SourceMode.fixture)],
+)
+def test_paper_summary_rejects_source_mode_without_matching_cache_audit(
+    collection_mode: str, version_mode: SourceMode
+) -> None:
+    collection = _collection(collection_mode)
+    summary = _summary(source_mode=collection_mode, collection=collection)
+    version = _version(
+        summary=summary,
+        source_mode=collection_mode,
+        collection=collection,
+    ).model_copy(update={"source_mode": version_mode})
+
+    response = _client(_Artifacts(version, collection=collection)).get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+
+
+def test_paper_summary_rejects_cached_execution_attributed_to_another_source() -> None:
+    collection = _collection("cached", execution_source_id="semantic-scholar")
+    summary = _summary(source_mode="cached", collection=collection)
+    version = _version(summary=summary, source_mode="cached", collection=collection)
+
+    response = _client(_Artifacts(version, collection=collection)).get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary"
+    )
+
     assert response.status_code == 403
     assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"

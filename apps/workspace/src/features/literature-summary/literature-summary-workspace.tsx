@@ -28,6 +28,7 @@ import type {
 import { safeExternalUrl } from "@xingwen/domain";
 
 import { executionModeLabel } from "../paper-acquisition/paper-acquisition-state";
+import { LiteratureComparisonGrid } from "./literature-comparison-grid";
 import {
   allStatements,
   classifyPaperSummaryError,
@@ -40,6 +41,8 @@ import {
 
 export interface LiteratureSummaryWorkspaceProps {
   readonly artifactVersionId: DomainEntityId;
+  /** Latest PaperSummary versions available in the active Run, capped to three. */
+  readonly comparisonArtifactVersionIds?: readonly DomainEntityId[];
   readonly repository: PaperSummaryRepository;
   /** The owning ResearchRun's execution mode; display-only. */
   readonly executionMode: ExecutionMode | null;
@@ -194,6 +197,11 @@ export function LiteratureSummaryView({
   return (
     <>
       <p className="candidate-meta" data-testid="paper-summary-provenance">
+        <span className="candidate-meta-item">{review.paper.title}</span>
+        <span className="candidate-meta-item">
+          {review.paper.authors.join("、") || "作者未知"}（
+          {review.paper.year ?? "年份未知"}）
+        </span>
         <span className="candidate-meta-item">
           ArtifactVersion {String(review.artifactVersionId)}
         </span>
@@ -205,6 +213,12 @@ export function LiteratureSummaryView({
         </span>
         <span className="candidate-meta-item">
           source: {summarySourceModeLabel(review.sourceMode)}
+        </span>
+        <span className="candidate-meta-item">
+          版本 {String(review.versionNumber)}
+          {review.supersedesVersionId === null
+            ? "（初始版本）"
+            : `（修订自 ${String(review.supersedesVersionId)}）`}
         </span>
         <span className="candidate-meta-item">
           benchmark: {String(review.benchmark.benchmarkId)} v
@@ -241,6 +255,33 @@ export function LiteratureSummaryView({
           </span>
         ))}
       </p>
+      {review.sourceMode === "cached" && (
+        <section
+          className="alert-panel"
+          role="note"
+          aria-label="Cached 来源审计"
+        >
+          <h3 className="paper-section-title">Cached 来源审计</h3>
+          {review.cacheAudits.length === 0 ? (
+            <p>缺少 Cached 来源审计，当前产物不可视为完整可复现。</p>
+          ) : (
+            <ul className="candidate-conflicts">
+              {review.cacheAudits.map((audit) => (
+                <li
+                  key={`${String(audit.sourceId)}-${String(audit.sourceSnapshotId)}`}
+                >
+                  {String(audit.sourceId)} / cache {audit.cacheVersion} /
+                  适用性：
+                  {audit.cacheApplicability} / Live 失败：
+                  {audit.liveFailureClass} / {audit.liveFailureCode} / origin：
+                  {String(audit.originRunId)} /{" "}
+                  {String(audit.originArtifactVersionId)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
       {review.sourceMode === "fixture" && (
         <p className="candidate-meta">
           <span className="candidate-meta-item">
@@ -290,6 +331,7 @@ export function LiteratureSummaryView({
 
 export function LiteratureSummaryWorkspace({
   artifactVersionId,
+  comparisonArtifactVersionIds = [],
   repository,
   executionMode,
   ready,
@@ -301,7 +343,17 @@ export function LiteratureSummaryWorkspace({
     status: "idle",
   });
   const [attempt, setAttempt] = useState(0);
+  const [comparisonState, setComparisonState] = useState<
+    | { readonly status: "closed" }
+    | { readonly status: "loading" }
+    | {
+        readonly status: "ready";
+        readonly reviews: readonly PaperSummaryReview[];
+      }
+    | { readonly status: "error" }
+  >({ status: "closed" });
   const requestSequence = useRef(0);
+  const comparisonSequence = useRef(0);
 
   useEffect(() => {
     const request = ++requestSequence.current;
@@ -310,6 +362,8 @@ export function LiteratureSummaryWorkspace({
     // by sequence.
     void Promise.resolve().then(() => {
       if (request !== requestSequence.current) return;
+      comparisonSequence.current += 1;
+      setComparisonState({ status: "closed" });
       if (!ready) {
         // A stale summary must never survive a session loss or version switch.
         setState({ status: "idle" });
@@ -387,19 +441,78 @@ export function LiteratureSummaryWorkspace({
     );
   }
 
+  const openComparison = () => {
+    const request = ++comparisonSequence.current;
+    const ids = [
+      ...new Set(
+        [artifactVersionId, ...comparisonArtifactVersionIds].map(String),
+      ),
+    ].slice(0, 3) as DomainEntityId[];
+    setComparisonState({ status: "loading" });
+    void Promise.all(
+      ids.map((id) =>
+        String(id) === String(artifactVersionId)
+          ? Promise.resolve(state.review)
+          : repository.getSummary(id),
+      ),
+    ).then(
+      (reviews) => {
+        if (request === comparisonSequence.current) {
+          setComparisonState({ status: "ready", reviews });
+        }
+      },
+      () => {
+        if (request === comparisonSequence.current) {
+          setComparisonState({ status: "error" });
+        }
+      },
+    );
+  };
+
   return (
     <section
       className="work-panel paper-summary"
       aria-labelledby="paper-summary-title"
     >
       <h2 id="paper-summary-title">文献总结阅读</h2>
-      <LiteratureSummaryView
-        review={state.review}
-        executionMode={executionMode}
-        disabled={disabled}
-        selectedEvidenceId={selectedEvidenceId}
-        onSelectEvidence={onSelectEvidence}
-      />
+      {comparisonState.status === "closed" ? (
+        <>
+          <button type="button" onClick={openComparison} disabled={disabled}>
+            打开文献总结对比
+          </button>
+          <LiteratureSummaryView
+            review={state.review}
+            executionMode={executionMode}
+            disabled={disabled}
+            selectedEvidenceId={selectedEvidenceId}
+            onSelectEvidence={onSelectEvidence}
+          />
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              comparisonSequence.current += 1;
+              setComparisonState({ status: "closed" });
+            }}
+            disabled={disabled}
+          >
+            返回单篇阅读
+          </button>
+          {comparisonState.status === "loading" && (
+            <p aria-live="polite">正在读取对比文献总结。</p>
+          )}
+          {comparisonState.status === "error" && (
+            <section className="alert-panel" role="alert">
+              <p>无法读取全部对比文献总结，请返回后重试。</p>
+            </section>
+          )}
+          {comparisonState.status === "ready" && (
+            <LiteratureComparisonGrid summaries={comparisonState.reviews} />
+          )}
+        </>
+      )}
     </section>
   );
 }

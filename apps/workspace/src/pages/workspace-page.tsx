@@ -781,6 +781,14 @@ export function WorkspacePage({
                 version={data.selectedVersion}
                 paperAcquisition={runtime.repositories.paperAcquisition}
                 paperSummary={runtime.repositories.paperSummary}
+                comparisonArtifactVersionIds={data.artifacts
+                  .filter((artifact) => artifact.kind === "paper_summary")
+                  .flatMap((artifact) =>
+                    artifact.latestVersionId === null
+                      ? []
+                      : [artifact.latestVersionId],
+                  )
+                  .slice(0, 3)}
                 executionMode={data.run?.executionMode ?? null}
                 ready={sessionState.status === "ready"}
                 disabled={!canAdjustWorkspace}

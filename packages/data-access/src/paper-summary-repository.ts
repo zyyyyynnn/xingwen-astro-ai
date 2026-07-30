@@ -15,6 +15,7 @@
 
 import type {
   EvidenceDetail as EvidenceDetailDto,
+  PaperSummaryCacheAudit as PaperSummaryCacheAuditDto,
   PaperSummaryEvidence as PaperSummaryEvidenceDto,
   PaperSummaryEvidenceLocator as PaperSummaryEvidenceLocatorDto,
   PaperSummaryInputVersions as PaperSummaryInputVersionsDto,
@@ -33,12 +34,14 @@ import type {
   PaperSummaryReview,
   PaperSummarySourceConflictReview,
   PaperSummaryStatementReview,
+  PaperSummaryCacheAuditReview,
   SourceMode,
   UtcIsoTimestamp,
 } from "@xingwen/domain";
 import { asEntityId } from "@xingwen/domain";
 
 import { HttpClient, seg } from "./http-client";
+import { ValidationError } from "./http-errors";
 import { mapEvidenceDetail } from "./mapping";
 import {
   mapProducerExecutionSummary,
@@ -159,6 +162,25 @@ function mapProducer(
   };
 }
 
+function mapCacheAudit(
+  dto: PaperSummaryCacheAuditDto,
+): PaperSummaryCacheAuditReview {
+  return {
+    sourceId: mapId(dto.source_id),
+    sourceSnapshotId: mapId(dto.source_snapshot_id),
+    cacheVersion: dto.cache_version,
+    cacheApplicability: dto.cache_applicability,
+    liveFailureClass: dto.live_failure_class,
+    liveFailureCode: dto.live_failure_code,
+    originRunId: mapId(dto.origin_run_id),
+    originArtifactVersionId: mapId(dto.origin_artifact_version_id),
+  };
+}
+
+function summaryContractViolation(detail: string): ValidationError {
+  return new ValidationError(detail, "PAPER_SUMMARY_PROVENANCE_INVALID", []);
+}
+
 /**
  * Assemble the complete domain review from a validated transport payload.
  *
@@ -171,16 +193,67 @@ export function assemblePaperSummaryReview(
   read: PaperSummaryReadDto,
 ): PaperSummaryReview {
   const summary = read.summary;
+  if (read.paper.paper_id !== summary.paper_id) {
+    throw summaryContractViolation(
+      "paper metadata does not identify the summarized paper",
+    );
+  }
+  const cacheAudits = read.cache_audits ?? [];
+  if (
+    (read.source_mode === "cached" && cacheAudits.length === 0) ||
+    (read.source_mode !== "cached" && cacheAudits.length > 0)
+  ) {
+    throw summaryContractViolation(
+      "cache audit context must exist exactly for cached summaries",
+    );
+  }
+  const sourceSnapshots = (read.source_snapshots ?? []).map(mapSnapshotSummary);
+  const mappedCacheAudits = cacheAudits.map(mapCacheAudit);
+  for (const audit of mappedCacheAudits) {
+    const snapshot = sourceSnapshots.find(
+      (item) => String(item.id) === String(audit.sourceSnapshotId),
+    );
+    if (
+      snapshot === undefined ||
+      String(snapshot.sourceId) !== String(audit.sourceId) ||
+      snapshot.cacheVersion !== audit.cacheVersion ||
+      snapshot.cachedOrigin === null ||
+      String(snapshot.cachedOrigin.originRunId) !== String(audit.originRunId) ||
+      String(snapshot.cachedOrigin.originArtifactVersionId) !==
+        String(audit.originArtifactVersionId) ||
+      [
+        audit.cacheVersion,
+        audit.cacheApplicability,
+        audit.liveFailureClass,
+        audit.liveFailureCode,
+      ].some((value) => value.trim().length === 0)
+    ) {
+      throw summaryContractViolation(
+        `cached source ${String(audit.sourceId)} has inconsistent provenance`,
+      );
+    }
+  }
   return {
     artifactVersionId: mapId(read.artifact_version_id),
     artifactId: mapId(read.artifact_id),
     projectId: mapId(read.project_id),
+    versionNumber: read.version_number,
+    supersedesVersionId:
+      read.supersedes_version_id === null
+        ? null
+        : mapId(read.supersedes_version_id),
     sourceMode: read.source_mode as SourceMode,
     contentHash: read.content_hash as ContentHash,
     inputHash: read.input_hash as ContentHash,
     createdAt: read.created_at as UtcIsoTimestamp,
     summaryId: mapId(summary.summary_id),
     paperId: mapId(summary.paper_id),
+    paper: {
+      paperId: mapId(read.paper.paper_id),
+      title: read.paper.title,
+      authors: read.paper.authors ?? [],
+      year: read.paper.year ?? null,
+    },
     schemaVersion: summary.schema_version,
     benchmark: {
       benchmarkId: mapId(summary.benchmark.benchmark_id),
@@ -199,8 +272,9 @@ export function assemblePaperSummaryReview(
     summaryEvidence: summary.evidence.map(mapSummaryEvidence),
     sourceConflicts: summary.source_conflicts.map(mapSourceConflict),
     producer: mapProducer(summary.producer),
+    cacheAudits: mappedCacheAudits,
     producerExecution: mapProducerExecutionSummary(read.producer_execution),
-    sourceSnapshots: (read.source_snapshots ?? []).map(mapSnapshotSummary),
+    sourceSnapshots,
     evidence: read.evidence.map((item: EvidenceDetailDto) =>
       mapEvidenceDetail(item),
     ),

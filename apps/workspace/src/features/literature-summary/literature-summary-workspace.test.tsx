@@ -35,7 +35,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceRuntimeBoundaries } from "../../boundaries";
 import { createAppRouter } from "../../router";
 import { createWorkspaceRuntime } from "../../runtime";
-import { LiteratureSummaryWorkspace } from "./literature-summary-workspace";
+import {
+  LiteratureSummaryView,
+  LiteratureSummaryWorkspace,
+} from "./literature-summary-workspace";
 
 const HTTP_BASE = "http://paper-summary-test.local";
 const SUMMARY_VERSION_ID = paperSummaryReadFixture.artifact_version_id;
@@ -203,6 +206,14 @@ describe("LiteratureSummaryWorkspace — fixture main path", () => {
     expect(provenance).toHaveTextContent(
       `paper: ${paperSummaryReadFixture.summary.paper_id}`,
     );
+    expect(provenance).toHaveTextContent(paperSummaryReadFixture.paper.title);
+    expect(provenance).toHaveTextContent(
+      (paperSummaryReadFixture.paper.authors ?? []).join("、"),
+    );
+    expect(provenance).toHaveTextContent(
+      String(paperSummaryReadFixture.paper.year),
+    );
+    expect(provenance).toHaveTextContent("版本 1（初始版本）");
     expect(provenance).toHaveTextContent(
       "benchmark: exoplanet_host_star.paper_reasoning v1.3.0",
     );
@@ -220,6 +231,26 @@ describe("LiteratureSummaryWorkspace — fixture main path", () => {
         .paper_collection_output_hash,
     );
     expect(screen.getByText(/确定性演示数据（Fixture/u)).toBeInTheDocument();
+  });
+
+  it("opens the three-column comparison from the real workspace", async () => {
+    renderWorkspace(fixtureRuntime());
+    await openPaperSummary();
+
+    fireEvent.click(screen.getByRole("button", { name: "打开文献总结对比" }));
+
+    expect(
+      await screen.findByRole("region", { name: "文献总结对比" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "对比列 1" })).toHaveTextContent(
+      paperSummaryReadFixture.paper.title,
+    );
+    expect(
+      screen.getByRole("article", { name: "对比列 2（空）" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("article", { name: "对比列 3（空）" }),
+    ).toBeInTheDocument();
   });
 
   it("marks supported, unsupported and unverifiable statements distinctly", async () => {
@@ -485,5 +516,45 @@ describe("LiteratureSummaryWorkspace — stale summary cleanup", () => {
       ).not.toBeInTheDocument();
     });
     expect(screen.getByText("正在读取文献总结产物。")).toBeInTheDocument();
+  });
+});
+
+describe("LiteratureSummaryView — cached provenance", () => {
+  it("shows cache applicability, live failure and immutable origin", async () => {
+    const fixture = fixtureRuntime();
+    const review = await fixture.repositories.paperSummary.getSummary(
+      SUMMARY_VERSION_ID as never,
+    );
+
+    render(
+      <LiteratureSummaryView
+        review={{
+          ...review,
+          sourceMode: "cached",
+          cacheAudits: [
+            {
+              sourceId: "crossref" as never,
+              sourceSnapshotId: "snapshot-cached" as never,
+              cacheVersion: "cache-v3",
+              cacheApplicability: "same normalized query",
+              liveFailureClass: "timeout",
+              liveFailureCode: "CROSSREF_TIMEOUT",
+              originRunId: "run-origin" as never,
+              originArtifactVersionId: "version-origin" as never,
+            },
+          ],
+        }}
+        executionMode="live"
+        disabled={false}
+        selectedEvidenceId={null}
+        onSelectEvidence={() => {}}
+      />,
+    );
+
+    const audit = screen.getByRole("note", { name: "Cached 来源审计" });
+    expect(audit).toHaveTextContent("cache-v3");
+    expect(audit).toHaveTextContent("same normalized query");
+    expect(audit).toHaveTextContent("timeout / CROSSREF_TIMEOUT");
+    expect(audit).toHaveTextContent("run-origin / version-origin");
   });
 });
