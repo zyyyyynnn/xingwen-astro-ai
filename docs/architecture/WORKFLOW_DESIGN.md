@@ -4,11 +4,8 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | Run 状态、事件、取消、重试、缓存与派生语义 |
-| Implementation | #76 PostgreSQL baseline、#77 lease/fencing/recovery store、#78 ArtifactVersion atomic publisher、D-03 PaperSummary detached admission 与 M1 v2 Run/Event Runtime Implemented；生产 Pipeline wiring Pending |
-| Current runtime | v1 Phase 0 状态机与 `/api` M1 PersistentWorkflowStore Application |
-| Target runtime | Project / Run / ArtifactVersion 工作流 |
 
-本文定义 ResearchRun 编排、事件、取消、重试、缓存、修订与派生语义。当前 v1 Executor、Hooks 与测试继续作为兼容基线；M1 v2 Run 创建/读取与 Event 读取已接入 PersistentWorkflowStore，但数据库 Hooks、真实 Pipeline、对外取消资源、CacheSelector 与自动执行仍为 Pending。
+本文定义 ResearchRun 编排、事件、取消、重试、缓存、修订与派生语义。Phase 0 Executor、Hooks 与测试构成兼容基线，其行为边界保持不变。Core Run 的创建/读取与 Event 读取以 PersistentWorkflowStore 为持久化边界；数据库 Hooks、Pipeline 接线、对外取消资源、CacheSelector 与自动执行同属 Core 编排职责。
 
 ## 1. 职责边界
 
@@ -78,7 +75,7 @@ stateDiagram-v2
   cancelled --> [*]
 ```
 
-`cached`、`fixture`、修订关系和 `using_cache` 不属于状态。目标 v2 不在原 Run 中使用 `revising -> completed`；人工修订创建新的 `derivation_kind=revision` Run。
+`cached`、`fixture`、修订关系和 `using_cache` 不属于状态。Core 模型不在原 Run 中使用 `revising -> completed`；人工修订创建新的 `derivation_kind=revision` Run。
 
 ## 3. Step 契约
 
@@ -97,7 +94,7 @@ stateDiagram-v2
 
 Step 输出先通过 Schema、Evidence 和质量约束，再登记 ArtifactVersion。模型自由文本不得直接成为完成产物。
 
-D-03 PaperSummary 的 detached 准入顺序已实现为 `JSON 解析 -> PaperSummaryModelOutput Schema -> 逐项 Evidence`。JSON 无效和 Schema 失败产生 `rejected` ProducerExecution 安全记录；Evidence 缺失、quote/value 不匹配或来源不可访问不回退成自由文本，而分别降级为 `unsupported` / `unverifiable`；来源版本冲突保留冲突记录并使用 SourceSnapshot 声明版本。`PaperSummaryModelOutput` 是不可直接发布的中间模型，通用 Publisher 拒绝其绕过 Evidence 阶段；通过后得到可交给 #78 admission port 的 `PaperSummaryArtifactContent`，但 D-03 本身不推进 ResearchRun、创建数据库 Version 或选择 Cache。
+D-03 PaperSummary 的 detached 准入顺序为 `JSON 解析 -> PaperSummaryModelOutput Schema -> 逐项 Evidence`。JSON 无效和 Schema 失败产生 `rejected` ProducerExecution 安全记录；Evidence 缺失、quote/value 不匹配或来源不可访问不回退成自由文本，而分别降级为 `unsupported` / `unverifiable`；来源版本冲突保留冲突记录并使用 SourceSnapshot 声明版本。`PaperSummaryModelOutput` 是不可直接发布的中间模型，通用 Publisher 拒绝其绕过 Evidence 阶段；通过后得到可交给 ArtifactVersion 准入端口的 `PaperSummaryArtifactContent`，但 D-03 本身不推进 ResearchRun、创建数据库 Version 或选择 Cache。
 
 ## 4. 进度快照与事件
 
@@ -119,7 +116,7 @@ expected_status + expected_revision -> target_status + new_revision
 
 `create_run` 使用 PostgreSQL 原子 conflict handling 保证并发 Idempotency-Key 语义，验证完整规范状态链，并在数据库层冻结 Step 集合与转换定义。`begin_step` 在持有 ResearchRun 行锁的短事务中校验冻结顺序，条件更新 Run/Step，追加 StepAttempt，并从 Run 的 `latest_event_sequence` 分配下一 Event。可重试失败保留旧 Attempt 并把 Step 恢复为 pending；耗尽重试、不可重试失败和取消在单个事务内更新 Attempt、Step、Run 与 Event。Snapshot 使用单个 PostgreSQL repeatable-read/read-only 事务，并从 `latest_event_sequence` 提供 Event cursor 恢复。
 
-#78 Publisher 已在固定 `ResearchRun -> RunStep -> ResearchArtifact（id 排序）` 锁顺序下，将产物登记、latest、Attempt、Step、Run 与完成 Event 放入同一 fenced 事务，避免出现 completed 却找不到产物的快照。外部模型、数据源和算法调用仍在事务外执行，ProducerExecution 开始、结束和产物发布分别使用短事务。
+Publisher 在固定 `ResearchRun -> RunStep -> ResearchArtifact（id 排序）` 锁顺序下，将产物登记、latest、Attempt、Step、Run 与完成 Event 放入同一 fenced 事务，避免出现 completed 却找不到产物的快照。外部模型、数据源和算法调用在事务外执行，ProducerExecution 开始、结束和产物发布分别使用短事务。
 
 MVP 可继续使用 FastAPI BackgroundTasks，但不得以进程内字典作为唯一事实来源。只有真实负载证明需要时才通过 ADR 引入队列。
 
@@ -132,7 +129,7 @@ MVP 可继续使用 FastAPI BackgroundTasks，但不得以进程内字典作为�
 - 每次自动重试创建 StepAttempt，保留 attempt、时间、上游 request id 和错误分类。
 - 重试不得覆盖失败 Attempt，也不得重复发布相同 ArtifactVersion。
 
-当前 D-02 Paper Adapter 在 Pipeline 边界内执行有界 HTTP request retry，并把 page attempt count、SourceExecution retry count 与错误分类返回给调用方；它不写 Run/Step/Attempt 或推进状态。B-06/Workflow 接入时必须把 Pipeline 返回的执行证据登记到所属 StepAttempt，且不得因 Pipeline 已重试而省略工作流审计。
+D-02 Paper Adapter 在 Pipeline 边界内执行有界 HTTP request retry，并把 page attempt count、SourceExecution retry count 与错误分类返回给调用方；它不写 Run/Step/Attempt 或推进状态。B-06/Workflow 接入时必须把 Pipeline 返回的执行证据登记到所属 StepAttempt，且不得因 Pipeline 已重试而省略工作流审计。
 
 ## 7. 用户重试与派生 Run
 
@@ -188,15 +185,15 @@ GraphEdge 修订若影响 Relation、ReasoningTrace 或 Evidence，RevisionPlan 
 - 上游返回不可校验结构时记录 `UPSTREAM_INVALID_RESPONSE`，不得把自由文本降级为科研事实。
 - `waiting_for_input` 只用于确实需要用户选择的安全边界，不用于掩盖未知错误。
 
-## 12. 当前 v1 与目标 v2
+## 12. Phase 0 与 Core 编排边界
 
-当前已实现：显式 v1 状态转换表与 WorkflowHooks；#77 PostgreSQL Workflow Store 的 create/acquire/heartbeat/begin/retry/fail/cancel/snapshot 边界；按 Step 调用 Adapter 的 `PersistentWorkflowExecutor`；以及 #78 ProducerExecution Store、结构化 candidate 准入端口和 ArtifactVersion Publisher。Executor 在 `begin_step` 事务提交后调用外部 Adapter，并可把成功提交委托给 Publisher 注入端口；本机 uvicorn 默认由 `PERSISTENT_WORKFLOW_ENABLED=false` 保持关闭，Compose 的 M1 `/api` Runtime 显式强制为 `true`，v1 Executor 与 Pipeline `/api` 不切换实现。
+Phase 0 编排使用显式状态转换表与 WorkflowHooks。Core 编排由 PostgreSQL Workflow Store 提供 create/acquire/heartbeat/begin/retry/fail/cancel/snapshot 边界，`PersistentWorkflowExecutor` 按 Step 调用 Adapter，ProducerExecution Store、结构化 candidate 准入端口与 ArtifactVersion Publisher 承担产物发布。Executor 在 `begin_step` 事务提交后调用外部 Adapter，并可把成功提交委托给 Publisher 注入端口；本机 uvicorn 默认由 `PERSISTENT_WORKFLOW_ENABLED=false` 保持关闭，Compose 的 `/api` Runtime 显式强制为 `true`，Phase 0 Executor 与 Pipeline `/api` 不切换实现。
 
-当前 v1 `ResearchTask` 快照同时校验顶层状态、进度和 Step 状态：初始 `pending` 快照不得包含已开始 Step，含 `running` Step 的快照不得为 `pending`，`completed` 快照的进度必须为 100。
+Phase 0 `ResearchTask` 快照同时校验顶层状态、进度和 Step 状态：初始 `pending` 快照不得包含已开始 Step，含 `running` Step 的快照不得为 `pending`，`completed` 快照的进度必须为 100。
 
-当前已实现 #76 的 PostgreSQL Schema、Alembic migration 和最小 Repository / Unit of Work 基线，#77 的 lease、条件状态事务、Attempt 自动重试账本、失败/取消、Event cursor 与一致性 Snapshot，#78 的 ProducerExecution 账本、ArtifactVersion 原子发布与 Step/Run 成功推进，以及 M1 v2 Run/Event Application。仍待实现：对外取消资源、真实 CacheSelector、各 Pipeline 的生产接线与自动执行。
+Core 持久化边界覆盖 PostgreSQL Schema、Alembic migration 与最小 Repository / Unit of Work、Run lease 与条件状态事务、Attempt 自动重试账本、失败/取消、Event cursor 与一致性 Snapshot、ProducerExecution 账本与 ArtifactVersion 原子发布；对外取消资源、CacheSelector、各 Pipeline 生产接线与自动执行同属 Core 编排职责。
 
-迁移期间 v1 `ResearchTask` 可适配为一个 Project + 一个 Run，但 v2 语义不得回写破坏现有接口。
+迁移期间 Phase 0 `ResearchTask` 可适配为一个 Project + 一个 Run，但 Core 语义不得回写破坏现有接口。
 
 ## 13. 验收门禁
 

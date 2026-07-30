@@ -4,7 +4,6 @@
 | -------------- | ------------------------------------------------------------------------------------ |
 | Status         | Accepted                                                                             |
 | Authority      | 用户、问题、产品范围、主流程、成功指标与非目标                                       |
-| Implementation | A-01/A-03 M1 runtime 与行为主链路 implemented；A-02 视觉系统和 M2 科研主流程 Pending |
 
 本文定义星文智析要解决的问题和必须交付的产品结果。交互细节见 [Workspace UX](docs/design/WORKSPACE_UX.md)，领域与接口见 [Docs Index](docs/README.md)，退出标准见 [Acceptance](docs/product/ACCEPTANCE.md)。
 

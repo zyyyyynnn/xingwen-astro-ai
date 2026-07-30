@@ -37,10 +37,9 @@ function requiresMetadata(file) {
     file === "docs/README.md" ||
     file === "docs/DOCUMENTATION_GOVERNANCE.md" ||
     file === "docs/setup.md" ||
-    (/^docs\/(?:ai|architecture|design|engineering|product|quality)\/[^/]+\.md$/u.test(
+    /^docs\/(?:ai|architecture|design|engineering|product|quality)\/[^/]+\.md$/u.test(
       file,
-    ) &&
-      !file.includes("/archive/")) ||
+    ) ||
     file === "docs/handoff/README.md" ||
     file === "packages/prompts/README.md" ||
     file === "packages/schemas/README.md"
@@ -65,10 +64,16 @@ function localTarget(rawTarget) {
 }
 
 for (const file of files) {
+  const expectedStatus = file.startsWith("docs/archive/")
+    ? "Archived"
+    : file.startsWith("docs/references/")
+      ? "Reference"
+      : null;
   const result = inspectMarkdown(readFileSync(resolve(root, file), "utf8"), {
     requireSingleH1:
       !file.startsWith(".github/") &&
       !/^packages\/prompts\/[^/]+\/v\d+\.md$/u.test(file),
+    expectedStatus,
   });
   results.set(file, result);
   for (const error of result.errors) errors.push(`${file}: ${error}`);

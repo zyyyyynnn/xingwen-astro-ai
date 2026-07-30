@@ -4,7 +4,6 @@
 | --------- | ------------------------------ |
 | Status    | Accepted                       |
 | Authority | 模型调用准入、记录、降级与评测 |
-| Implementation | #78 structured candidate admission、ProducerExecution ledger 与 ArtifactVersion publication boundary Implemented；model client/runtime integration Pending |
 
 本文规定模型调用进入科研产物前的准入、验证和记录要求。Prompt 生命周期见 [Prompt Versioning](PROMPT_VERSIONING.md)，Relation 准入见 [Reasoning Protocol](REASONING_PROTOCOL.md)，敏感信息与日志要求见 [Security](../../SECURITY.md)。
 

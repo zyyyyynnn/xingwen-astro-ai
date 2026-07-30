@@ -81,12 +81,12 @@
 - [ ] 使用的测试数据等级明确标记为 Fixture、recorded、Live 或 Cached。
 - [ ] 适用的 unit、integration、contract、pipeline、E2E、a11y、visual 或 deployment 测试通过。
 - [ ] 生成 Contract、Schema、快照或文档索引没有 stale diff。
-- [ ] 回归范围覆盖当前 v1 和受影响的目标路径。
+- [ ] 回归范围覆盖 Phase 0 和受影响的目标路径。
 - [ ] 验证可在声明的环境中重复，不依赖个人电脑隐式状态。
 
 ## 8. 文档专项审查
 
-- [ ] 关键规范包含 Status、Authority 和必要的 Implementation 状态。
+- [ ] 关键规范包含 Status 与 Authority 元数据。
 - [ ] 标题层级连续，代码块闭合，表格列数一致，Mermaid 可解析。
 - [ ] 相对链接有效，没有指向已删除或移动文件。
 - [ ] 同一枚举、状态机、技术栈或提交顺序没有在多份文档重复完整定义。

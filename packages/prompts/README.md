@@ -2,7 +2,7 @@
 
 | 元数据    | 值                                        |
 | --------- | ----------------------------------------- |
-| Status    | Implemented                               |
+| Status    | Accepted                                  |
 | Authority | `packages/prompts` 目录结构与本地使用方式 |
 
 全局 Prompt 生命周期、版本和发布规则见 [Prompt Versioning](../../docs/ai/PROMPT_VERSIONING.md)。本文件不重复模型准入、Evidence 或评测政策。
@@ -21,7 +21,7 @@ packages/prompts/
 
 ## 使用规则
 
-- 业务代码通过 registry 选择 Prompt；公共加载器由对应实现 Issue 提供后才能作为 Current 能力使用。
+- 业务代码通过 registry 选择 Prompt；公共加载器由对应实现 Issue 交付后才能在生产中使用。
 - 文件名使用稳定版本 `vN.md`，不创建 `latest.md`。
 - 已被 Run、ArtifactVersion、Benchmark 或 CacheRecord 引用的版本不原地改写。
 - `registry.json` 的默认版本变化必须通过 PR 和回归验证。

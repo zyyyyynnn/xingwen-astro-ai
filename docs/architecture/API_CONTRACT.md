@@ -4,7 +4,6 @@
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Status         | Accepted                                                                                                                                                                |
 | Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring                                                                                                                  |
-| Implementation | 单一 `/api/*` 面：Core APIs（Session/Project/Contract/Run/Event/Artifact/Evidence/SourceSnapshot/Workspace/Share）为 M1 Core Runtime 与 A-03/X-01 集成 Implemented；Pipeline APIs（`/api/health`、`/api/tasks*`）为 Phase 0 基线 |
 
 本文定义无版本前缀的单一 `/api/*` 面（[ADR-030](DECISIONS.md)），分为 Core APIs（七个核心资源）与 Pipeline APIs（`/api/health`、`/api/tasks*`）。Core 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership 已实现；M1 Runtime 已挂载 Project、ContractDraft、Contract、Run、RunEvent、Artifact、ArtifactVersion、Evidence、SourceSnapshot、WorkspaceSnapshot 与 ShareSnapshot。Compose 配置 `DATABASE_URL` 并强制启用 `PERSISTENT_WORKFLOW_ENABLED`，资源归属、Research 写路径与公开分享投影读取 PostgreSQL 权威事实；真实 HTTP Browser 已验证 A-03/X-01 主链路。Snapshot/Share 状态当前仍为进程生命周期存储。API 只做加法演进，不引入 URL 版本升级；Pipeline APIs 保持兼容，不得原地修改 Pipeline 响应来伪装 M2 完成。
 
@@ -36,10 +35,10 @@ flowchart LR
 
 ## 2. API 面与演进
 
-| 分类          | 面                                                                                                        | 状态                        | 说明                                                                                                                                                                                                                              |
-| ------------- | --------------------------------------------------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Core APIs     | `/api/*`（Session、Project、Contract、Run、Event、Artifact、Evidence、SourceSnapshot、Workspace、Share） | M1 Core Runtime Implemented | 27 个冻结 operation 已挂载（#131 公开 Authoring Chain 新增 `listResearchProjects`、`createResearchProject`、`createResearchContractDraft`）；Compose 启用持久 Research 写路径，A-03/X-01 真实集成已验证；M2 科研 Pipeline Pending |
-| Pipeline APIs | `/api/health`、`/api/tasks*`                                                                               | Phase 0 基线                | 当前后端 Task Contract，Fixture-backed                                                                                                                                                                                            |
+| 分类          | 面                                                                                                        | 说明                                                                                                                                                                                                                              |
+| ------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Core APIs     | `/api/*`（Session、Project、Contract、Run、Event、Artifact、Evidence、SourceSnapshot、Workspace、Share） | 27 个冻结 operation，含公开 Authoring Chain（`listResearchProjects`、`createResearchProject`、`createResearchContractDraft`）；Compose 启用持久 Research 写路径 |
+| Pipeline APIs | `/api/health`、`/api/tasks*`                                                                               | Phase 0 Task Contract，Fixture-backed                                                                                                                                                                                            |
 
 演进规则（additive-only，见 [ADR-030](DECISIONS.md)）：
 
@@ -470,10 +469,11 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 当前实现仍提供 `/api/health`、`/api/tasks` 及 dataset、sources、paper-acquisition、papers、literature-reasoning、graph、evidence 等 Task 子资源。它们是 Phase 0 Fixture-backed 契约，不支持本文件的 Project、Run、ArtifactVersion、WorkspaceSnapshot 或 ShareSnapshot。
 
-Pipeline APIs 的字段、必填性、默认值、枚举和 legacy wire alias 冻结在
-[`DATA_MODEL_V1.md`](DATA_MODEL_V1.md)，逐字段实现决策见
-[`V1_SCHEMA_FIELD_MATRIX.md`](V1_SCHEMA_FIELD_MATRIX.md)。Core APIs 目标契约
-不得隐式改变 Pipeline Wire Contract。
+Pipeline APIs 的字段、必填性、默认值、枚举和 legacy wire alias 以 Pydantic
+authoring source（`apps/api/src/app/schemas/`）与生成 Schema
+（`packages/schemas/generated/phase0/`）为准，冻结决策与偏差记录见
+[Phase 0 API Contract（归档）](../archive/phase0/PHASE0_API_CONTRACT.md)。Core
+APIs 目标契约不得隐式改变 Pipeline Wire Contract。
 
 Phase 0 Task 状态快照必须保持内部一致：新建 `pending` Task 的 `progress=0`，且 `steps` 为空或全部为 `pending`；`pending` Task 不得包含已开始步骤；存在 `running` Step 时顶层状态不得为 `pending`；`completed` Task 的 `progress=100`。固定演示 Task `task_001` 保持其运行中 Fixture 语义。
 

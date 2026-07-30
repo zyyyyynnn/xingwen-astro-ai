@@ -24,24 +24,18 @@
 
 M1 完成需要同时满足：
 
-### Current runtime baseline
-
-- 当前 Docker Compose 可启动并健康检查 `site`、`workspace`、`api`、`postgres`，且 `migrate` one-shot 成功退出后 API 才启动；
+- Docker Compose 可启动并健康检查 `site`、`workspace`、`api`、`postgres`，且 `migrate` one-shot 成功退出后 API 才启动；
 - `/api` 健康检查和回归测试通过；
-- Node.js 24.18.0、pnpm 11.13.1、根 lockfile、uv、Schema 导出和 Foundation CI 通过；
-- A-01 Astro Site、React Workspace、共享包、根工具链与最小路由通过 build、E2E、architecture 和 retirement checks；
-- A-16 Tour、Workspace 与匿名 Share 在同一 Fixture / HTTP Repository Port 组件路径上覆盖 Contract/Run、WorkspaceSnapshot 冲突和冻结 Share 的组件及 Fixture E2E 行为；
-- A-03 的 Fixture / HTTP Adapter 对同一场景返回同一 Domain Model；真实 Browser/Compose 覆盖 Session、经公开 Runtime 创建 Project 与 ContractDraft（#131，不再由 test-only bootstrap 注入）、Contract 确认、Run/Event、ArtifactVersion/Evidence、Workspace 冲突与刷新恢复、冻结 Share、匿名读取与撤销；操作口径以 `docs/architecture/API_CONTRACT.md` 的 27-operation 契约为准；
-- PostgreSQL 是 Project、Contract、Run、Event、ArtifactVersion 和 Evidence 的权威事实源；X-01 集成 CI 不使用 SQLite、MSW 或 Repository mock；
-- 运行时退役扫描通过，历史应用目录、专用依赖和环境变量不存在。
-
-### Pending M1 capabilities
-
-- Case / Field Manifest 和论文/推理 Benchmark 可机器校验并版本化；
-- X-00 已冻结主案例事实包；
+- 工具链基线（Node、pnpm、根 lockfile、uv、Schema 导出与 Foundation CI）通过；
+- 前端运行时（Astro Site、React Workspace、共享包、根工具链与最小路由）通过 build、E2E、architecture 和 retirement checks；
+- Tour、Workspace 与匿名 Share 在同一 Fixture / HTTP Repository Port 组件路径上覆盖 Contract/Run、WorkspaceSnapshot 冲突和冻结 Share 的组件及 Fixture E2E 行为；
+- Fixture / HTTP Adapter 对同一场景返回同一 Domain Model；真实 Browser/Compose 覆盖 Session、经公开 Runtime 创建 Project 与 ContractDraft、Contract 确认、Run/Event、ArtifactVersion/Evidence、Workspace 冲突与刷新恢复、冻结 Share、匿名读取与撤销；操作口径以 [API Contract](../architecture/API_CONTRACT.md) 为准；
+- PostgreSQL 是 Project、Contract、Run、Event、ArtifactVersion 和 Evidence 的权威事实源；集成 CI 不使用 SQLite、MSW 或 Repository mock；
+- 运行时退役扫描通过，历史应用目录、专用依赖和环境变量不存在；
+- Case / Field Manifest 和论文/推理 Benchmark 可机器校验并版本化；主案例事实包已冻结；
 - `/api` 最小 Session、Project、Contract、Run、Event、Artifact、Version、Workspace 和 Share Contract 可测试；
-- A-02 静态首页为极简单英雄区（Hero + 双 CTA + 一句标题 + 短注），Workspace Shell 支持键盘、移动端和实时视觉降级；Token 为 bluegray 体系且业务组件不消费 Raw；
-- Current、Implemented 和 Pending 在页面、文档和材料中无混淆。
+- 静态首页为极简单英雄区（Hero + 双 CTA + 一句标题 + 短注），Workspace Shell 支持键盘、移动端和实时视觉降级；Token 为 bluegray 体系且业务组件不消费 Raw；
+- 实现状态表述在页面、文档和材料中无混淆。
 
 ## 3. X-06：数据、论文与 Summary 主链路
 
@@ -54,7 +48,7 @@ X-06 完成需要证明：
 - Dataset、FieldDictionary、PaperCollection 和 PaperSummary 以 ArtifactVersion 发布；
 - 数据和论文 Query、来源、时间、规则版本、hash 与 SourceSnapshot 可定位；
 - PaperSummary 核心 finding / limitation 逐项绑定 Evidence；
-- A-04～A-06 可从关键值或结论定位 Evidence；
+- A-04～A-06 对应的工作区可从关键值或结论定位 Evidence；
 - 空结果、上游失败、Schema 无效、Evidence 不足和授权场景通过；
 - Fixture、Live、Cached、Run status 和 view state 没有语义混用。
 

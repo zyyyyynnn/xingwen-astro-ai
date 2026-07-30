@@ -61,7 +61,7 @@
 - generated Transport Type 无 stale diff；
 - Fixture 与 recorded payload 通过同一 Schema；
 - DTO → Domain mapper 覆盖日期、ID、枚举、版本和错误；
-- v1 回归 Contract 未被静默破坏。
+- Phase 0 回归 Contract 未被静默破坏。
 
 ### Pipeline and evaluation
 
@@ -136,7 +136,7 @@ D-02 的 Crossref 单元/集成测试使用 fixture 或 recorded response 并标
 
 - Foundation、frozen install/sync、lint、typecheck、unit、build；
 - Schema/OpenAPI 生成和 stale check；
-- 当前 v1 回归、A-01 Site/Workspace 入口与共享包 smoke；
+- Phase 0 回归、Site/Workspace 入口与共享包 smoke；
 - Fixture/HTTP Domain 一致性；
 - PostgreSQL 17、Alembic upgrade、真实 FastAPI Runtime 与 `/api` 回归；
 - fresh Compose 的 `postgres → migrate → api → workspace` 与真实 HTTP Browser/刷新恢复/Share 撤销；

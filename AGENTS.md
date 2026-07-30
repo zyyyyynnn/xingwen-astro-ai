@@ -1,126 +1,100 @@
 # AGENTS
 
-本文件是本仓库的 Agent 操作协议。协作流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，产品与设计总纲见 [DESIGN.md](DESIGN.md)，文档权威层级见 [Documentation Governance](docs/DOCUMENTATION_GOVERNANCE.md)。
+本文件是本仓库的 Agent 执行协议。协作与合并流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，文档地图与唯一事实来源见 [docs/README.md](docs/README.md)，文档治理规则见 [Documentation Governance](docs/DOCUMENTATION_GOVERNANCE.md)。
 
-事实冲突时按以下顺序处理：当前 Issue / PR 已批准范围、L1 核心规范、L2 专项规范、L3 执行治理、L0 摘要、L4 参考资料。代码与验证证据决定 Implementation 状态；发现冲突时修正低权威来源，不自行猜测。
+## 基准
 
-## 1. 默认基准
-
-- 环境：Windows 11、PowerShell 7+、UTF-8。
+- 默认环境：Windows 11、PowerShell 7+、UTF-8；命令默认使用 PowerShell，文本读写显式使用 UTF-8。
 - 开发方式：Web-first、Docker-first、Contract-first、Evidence-first。
-- 主案例：**系外行星候选体与宿主恒星参数整合**。
-- 优先级：主链路稳定 > 证据可信 > 可复现 > 自主评审可理解 > 功能扩展。
-- 需求明确时直接执行；只改任务要求的部分；无法验证时写明原因。
+- 回复使用中文；结论先行，简洁、直接、可执行。
+- 不编造事实、代码、接口、文件内容或验证结果；不确定时明确说明。
+- 不输出元解释，不重复询问已提供的信息。
+- 依赖特定终端、系统或编码行为时，必须明确说明。
 
-## 2. 当前实现与后续边界
+## 决策
 
-| 层级       | Current / Implemented                                                                                                                                                 | Pending                                   |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| 前端       | `apps/site` Astro Brand Site、`apps/workspace` React Research Workspace、A-03 Tour/Workspace/Share Fixture + HTTP Port、真实 Browser/刷新恢复、共享包和根 pnpm 工具链 | A-02 视觉系统收口                         |
-| API        | Pipeline Baseline（`/api/health`、`/api/tasks*`）Task 契约；Core Runtime（`/api/*`）M1（27-operation 公开 Authoring Chain）、PostgreSQL 权威读取与 X-01 真实集成                                                                                   | M2 科研能力                               |
-| 后端与数据 | 当前应用、Core Application / Persistence、Pipeline 与 PostgreSQL 基线                                                                                                   | M2 科研 Pipeline 扩展，不改变既有科研边界 |
-| 本地环境   | Compose：`site`、`workspace`、`api`、`migrate`、`postgres`；独立 X-01 Browser 集成入口                                                                                | 生产部署拓扑按独立 Issue 定义             |
+- 先理解目标、相关代码、项目约定、调用关系和现有测试，再决定方案。
+- 跨模块任务先对齐接口、数据模型、工作流和版本契约，再动手实现。
+- 文档与代码冲突时以运行证据为准，修正低权威来源，不自行猜测。
+- 仅当歧义会实质影响实现、输出或风险时提问。
+- 信息不足但可采用低风险、可回退方案时，明确假设后继续，并在结果中指出仍需验证的关键假设。
+- 信息不足且可能导致方向错误、高风险或不可逆变更时，先询问。
+- 简单任务直接执行；复杂、跨模块或高风险任务先形成简短计划。
+- 信息充足时一次性完成所有直接相关步骤，不为普通中间步骤反复确认。
+- 发现前提不成立时调整方案，不机械执行原计划。
 
-规则：
+## 方案与范围
 
-- A-01 已实现运行时、路由、共享包边界、工具链、CI 与 Compose；A-03/X-01 由后续独立实现和真实集成证据完成，不等于 A-02 或 M2 产品能力已实现。
-- A-03 已在同一套 Tour、Workspace 和匿名 Share 组件上验证 Fixture / HTTP Repository Port，并有组件、Fixture E2E 与独立真实 HTTP Browser/Compose 证据。
-- Core Runtime（`/api/*`）M1 与 X-01 真实集成已实现；Snapshot/Share 记录仍为进程生命周期存储，M2 科研 Pipeline 与跨实例持久化不在该结论内。
-- 本文件不授权在无对应 Issue 时安装 Three.js、React Three Fiber、GSAP、状态库、Tauri 或新增业务依赖。
-- `apps/site` 与 `apps/workspace` 不得重复实现同一业务状态；共享能力进入职责明确的 Package。
+- 不默认最小修改，也不默认扩大重构；选择综合收益最高且能够验证的方案。
+- 优先级：正确性与安全性、架构与边界、可维护性与可测试性、兼容性与回归风险、实现成本、diff 大小。
+- 每处改动对应 Issue、PR 或明确的用户指令；不顺手重构、不夹带无关功能和清理。
+- 优先修复根因；局部修补会保留根因、重复逻辑或第二事实来源时，进行直接相关的结构调整。
+- 共享能力进入职责明确的 Package；不在多个应用中重复实现同一业务状态。
+- 不因个人审美、命名偏好或格式统一扩大范围。
+- 保持公共接口和既有行为，除非需求明确要求改变。
 
-## 3. 技术栈红线
+## 实现
 
-- 前端统一 Node.js 24.18.0、pnpm 11.13.1、单一根 `pnpm-lock.yaml`、TypeScript strict。
-- TypeScript 当前固定 6.0.3；只有 `typescript-eslint` 与 Astro 检查工具共同支持 TypeScript 7 后才能升级。
-- 禁止 npm/yarn/bun 生成依赖状态；禁止提交 `package-lock.json`、`yarn.lock`、`bun.lock`。
-- 后端统一 uv、`pyproject.toml`、`uv.lock`；禁止用裸 pip / requirements 替代主流程。
-- Pydantic 是当前 Schema authoring source；OpenAPI / JSON Schema 生成 Transport Contract，禁止手写第二套同名生产 Schema。
-- 前端不直连 Qwen、天文数据源或论文源，不保存密钥。
-- M1 不引入 Redis、Celery、MinIO、Nginx、RabbitMQ、Neo4j 或向量数据库，除非先更新 ADR 与 Backlog。
-- 生产 Prompt 位于 `packages/prompts`，不得散落在 Router、组件或临时脚本。
+- 优先减少重复、共享可变状态、无效分支、隐式约定和不必要耦合。
+- 沿用项目中合理的架构、命名和风格；不机械复制明显有问题的既有模式。
+- 抽象必须有明确职责或真实复用价值；不为未知需求预建框架。
+- 默认不引入新依赖或新框架；新增业务依赖必须有对应 Issue 或 ADR 支撑。
+- 不使用临时补丁掩盖结构性问题；受限于任务边界时，明确其临时性质和剩余风险。
+- 不手工修改生成文件、供应商代码或锁文件；生成物只经生成脚本更新。
+- 生产 Prompt 只位于 packages/prompts，不散落在 Router、组件或临时脚本。
+- 修改可观察行为、公共接口或配置时，更新直接相关的测试和文档。
+- 不做请求之外的功能。
 
-## 4. 执行与修改纪律
+Bug 修复应说明根因、复现条件、修改内容、验证结果和剩余风险；优先补充修改前失败、修改后通过的回归测试。功能实现以可观察、可验证的完成标准为边界，覆盖正常路径、关键边界和失败路径。
 
-- 每处改动对应 Issue、PR 或明确用户指令。
-- 不顺手重构、不扩大范围、不引入无明确职责的依赖。
-- 跨模块任务先对齐 API、Data Model、Workflow、Version 和 Reasoning Contract。
-- 当前代码与规划文档冲突时，以运行证据为准并明确“Current / Implemented / Pending”，不得猜测完成状态。
-- 不把 Fixture、缓存或模型推断包装成真实科研结论。
-- 不保存或展示模型私有 chain-of-thought；ReasoningTrace 只含可审查依据、条件和引用。
+## 代码审查
 
-## 5. Git 与 PR
+- 用户只要求审查时，不直接修改代码。
+- 先给 findings，按严重程度排序，不用摘要掩盖问题。
+- 每条有效发现包含严重程度、触发条件、实际影响、判断依据和修复方向。
+- 行级问题提供具体 `文件:行号`；跨文件或系统级问题明确涉及范围。
+- 优先检查：正确性、安全性、数据完整性、并发、错误处理、边界条件、接口契约、兼容性、模块职责、依赖方向、状态所有权、测试缺口和长期维护成本。
+- 仅在存在可证明影响时报告性能问题。
+- 区分实际缺陷、结构性风险和可选建议；不把个人偏好或纯格式问题描述为缺陷。
+- 不只写“可以优化”；必须说明具体风险或收益。
+- 没有发现问题时明确写出“未发现明确问题”，并说明未覆盖的验证范围。
+- 正式技术 Review 绑定当前 HEAD，自审不能替代正式 Review；流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-- 到 GitHub Issues 中查看已明确指派给自己的未关闭任务，即 Assignee 包含自己的 Issue。开始前完整阅读任务的目标、范围、依赖、边界和验收标准；未明确指派的任务不要自行开工。本条约束从 GitHub 任务池自行领取工作，不改变用户在当前会话直接下达明确任务的授权效力。Assignee、任务执行人、模块 Owner 或风险 Owner 不因此获得额外 PR 审查权或合并审批权。
-- 从 `main` 建分支，不直接推送 `main`；不 reset、force push 或改写远端历史。
-- Commit 一个主要目的，使用 `feat` / `fix` / `docs` / `chore` 前缀。
-- PR 关联明确 Issue，或在 PR 描述中记录用户在当前会话直接下达的明确授权；不得为了满足形式要求创建无关 Issue。PR 说明范围、验证、契约/数据/UI/部署/安全影响和材料口径。
-- 本地 Codex 完成实现、验证、Commit、Push 并创建或更新 Draft PR 后，必须按 [Contributing §5](CONTRIBUTING.md#5-正式技术-review-责任) 获取绑定当前 HEAD 的正式技术 Review；实施过程中的自审不能替代正式 Review，HEAD 变化会使旧 Review 失效。
-- 合并必须满足 [Contributing §6](CONTRIBUTING.md#6-合并标准) 与 [Review Checklist §10](docs/quality/REVIEW_CHECKLIST.md#10-合并条件)。最低条件是当前 HEAD 的 `pr_technical_review` 为 `PASS`、标准 CI 全绿、PR 可合并且没有未解决的真实阻塞问题；否则不得转 Ready、合并或关闭关联 Issue。
-- 工作区存在无关修改时不得擅自暂存、清除或提交。
+## 验证
 
-## 6. 模块边界
+- 按改动风险选择足够的验证范围；先运行最相关、反馈最快的检查，再根据影响面扩大到相关测试、构建与静态检查。
+- 优先级：实际运行或复现、针对性自动化测试、相关测试、构建或静态检查、最小手动验证、代码级推理。
+- 不跳过已有且直接相关的测试；测试失败时区分当前修改引入的问题与既有问题。
+- 修改完成后检查最终 diff，确认没有无关改动、调试代码、生成物、凭据或意外接口变化。
+- 无法验证时明确写出“未验证”、原因和建议执行的命令。
+- 只报告实际执行并观察到的结果。
 
-| 岗位         | 当前目录                                                                                                                                          | 核心职责                                                           |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| A 前端与产品 | `apps/site`, `apps/workspace`, `packages/design-tokens`, `ui`, `domain`, `contracts`, `data-access`, `workspace-core`, `visual-engine`, `testing` | Brand Site、Guided Tour、Workspace、Domain Adapter、视觉与前端门禁 |
-| B 后端与编排 | `apps/api`, `packages/schemas`, `scripts`                                                                                                         | Pipeline Baseline 稳定性、Core API、Run Workflow、Schema、Session / Share、安全 |
-| C 数据       | `services/data_pipeline`, `samples/outputs`                                                                                                       | 数据源、清洗、单位、质量、SourceSnapshot、Evidence、导出           |
-| D 论文与图谱 | `services/paper_pipeline`, `services/graph_pipeline`, `packages/prompts`                                                                          | 论文获取、Summary、Claim/Relation/Trace、Graph 与 Evidence         |
-| X 基建       | 根目录、`.github`, `docs/setup.md`                                                                                                                | Compose、CI、环境变量、版本锁定和验证                              |
+## 工作区安全
 
-详细依赖方向以 [MODULES.md](docs/architecture/MODULES.md) 为准。
+- 修改前检查工作区状态和相关 diff，保留用户已有修改；无关修改不得擅自暂存、清除或提交。
+- 从 main 建分支，不直接推送 main；不 reset、force push 或改写远端历史。
+- 未经明确要求，不执行破坏性 Git 操作，不提交、推送、变基、合并或切换分支，也不关闭 Issue。
+- 删除、迁移或重命名前，确认引用关系、数据契约和替代路径。
+- 不输出、提交或传播密钥、凭据和隐私数据。
+- 涉及生产配置或不可逆操作时，先确认影响范围、回退方式和授权边界。
 
-## 7. 文档同步红线
+## 输出
 
-| 改动                         | 必须同步                                                                |
-| ---------------------------- | ----------------------------------------------------------------------- |
-| 接口、响应、错误、授权       | `docs/architecture/API_CONTRACT.md`                                     |
-| 实体、字段、枚举             | `docs/architecture/DATA_MODEL.md`                                       |
-| 状态、重试、取消、缓存、派生 | `docs/architecture/WORKFLOW_DESIGN.md`                                  |
-| Artifact、版本、来源、分享   | `docs/architecture/DATA_VERSIONING.md`                                  |
-| 前端架构与目录               | `DESIGN.md`, `docs/architecture/FRONTEND_ARCHITECTURE.md`, `MODULES.md` |
-| 品牌、Token、字体、WebGL     | `docs/design/VISUAL_LANGUAGE.md`                                        |
-| 首页、Tour、Workspace        | `docs/design/WORKSPACE_UX.md`                                           |
-| 启动、Docker、环境变量       | `docs/setup.md`, `DEPLOYMENT.md`, `.env.example`                        |
-| 产品范围与验收               | `PRD.md`, `docs/product/ACCEPTANCE.md`                                  |
-| 风险与安全                   | `docs/quality/RISK_REGISTER.md`, `SECURITY.md`                          |
+- 可直接修改工作区时，直接应用修改；除非明确要求，不在回复中粘贴完整文件。
+- 实现任务默认输出：结论、主要改动、验证结果、剩余风险。
+- 审查任务默认输出：findings、必要问题、简短结论。
+- 仅保留与决策、修改和验证直接相关的信息。
+- 仅当其他问题会导致当前任务失效、引入明显风险或误导判断时才提及。
+- 一次性过程报告默认不写入仓库；Issue、Gate、Benchmark、审计或交接明确要求的正式证据按对应规范提交。
 
-## 8. 验证要求
+## 项目约束
 
-| 类型                     | 最低要求                                                                                                                                         |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Foundation               | `python scripts/check_foundation.py`                                                                                                             |
-| Compose                  | `docker compose config`；运行变更时 `docker compose up --build --wait`                                                                           |
-| A-01 前端                | frozen root install、format、lint、typecheck、test、build、E2E、architecture、legacy checks                                                      |
-| Brand Site               | 当前静态 HTML 含中文标题、说明、Workspace CTA 与 404；A-02 目标为极简单英雄首页 + bluegray Token，另验收                                         |
-| Workspace                | 四个路由、Not Found、Error Boundary、Loading fallback、键盘导航；Fixture 与真实 HTTP Browser 的 Tour/Workspace/Share、冲突、刷新恢复和匿名 Share |
-| Visual Engine（Pending） | High/Medium/Low、deterministic seed、freeze time、pause/dispose、Poster、Reduced Motion                                                          |
-| Adapter                  | Fixture / HTTP 返回同一 Domain Model，一致性测试通过                                                                                             |
-| 后端                     | `uv sync --frozen` + pytest；错误与权限场景覆盖                                                                                                  |
-| 科研可信                 | Summary、Relation、Trace、GraphEdge 均按契约绑定 Evidence                                                                                        |
-
-无法执行上一级验证时说明原因和降级验证，不得用“应该可以”代替结果。
-
-## 9. UI 与视觉红线
-
-- 只实现浅色系统；Raw Color 只在 design-tokens，业务组件只用语义 Token。
-- 禁止黑底星空、霓虹蓝紫、强发光、大面积渐变、玻璃拟态和通用大圆角 Card 墙。
-- 工作台以科研产物为中心，不以聊天气泡、工具日志、IDE 或无限窗口为中心。
-- Canvas 必须有 DOM 内容和 Poster，支持 Reduced Motion、页面隐藏暂停与 GPU dispose；不得用大量 DOM glyph 实现 ASCII / Dither。
-- 字体二进制提交前必须记录来源、可再分发许可证、中文覆盖与加载策略。
-
-## 10. Fixture、运行来源与科研可信
-
-- `execution_mode`: `demo_replay | live`，只属于 Run 与启动状态；`source_mode`: `fixture | live | cached`；修订由 revision Run 或 supersedes 关系推导。
-- Fixture 版本化并包含 scenario、schema version 和 provenance note。
-- Cached 只能引用真实历史 Run、ArtifactVersion 与 SourceSnapshot。
-- seed list 仅用于 benchmark、Fixture 或人工校验，不能冒充自动获取。
-- 模型输出必须经过 Schema 与 Evidence 校验；无 Evidence / Trace 的关系只能作为候选。
-- GraphEdge 全部绑定 Evidence，跨文献边再绑定 Relation / ReasoningTrace。
-
-## 11. 材料口径
-
-唯一提交顺序见 [docs/handoff/README.md](docs/handoff/README.md)。只交付真实系统素材、明确 Fixture 或可定位真实运行缓存；未实现能力只能写 Proposed、Pending、规划或预留。
-
-禁止宣传：任意天文方向、任意 PDF 全文解析、任意图表全自动解析、无边界 AI Scientist、无证据科学发现。
+1. 固定主案例及产品范围以 [PRD.md](PRD.md) 为准。
+2. 模块职责和依赖以 [MODULES.md](docs/architecture/MODULES.md) 为准。
+3. Pydantic 是生产 Schema authoring source；前端只经 Repository Port 消费 Domain Model。
+4. Pipeline 不发布 HTTP DTO、不推进 Run 状态、不直接分配 ArtifactVersion；Router 不实现科研算法。
+5. PostgreSQL 是运行和版本事实源；ArtifactVersion、Evidence、SourceSnapshot 是复现边界。
+6. 模型输出必须经过 Schema 与 Evidence 准入；不得保存私有 chain-of-thought。
+7. Fixture、Live、Cached、Revision 不得混淆。
+8. 修改接口、数据、工作流、版本、安全或 UI 时，更新对应唯一规范；规范入口见 [docs/README.md](docs/README.md)。
+9. 项目验证入口引用 [CONTRIBUTING.md](CONTRIBUTING.md)、[TEST_STRATEGY.md](docs/engineering/TEST_STRATEGY.md) 和根目录检查脚本，不复制完整命令表。

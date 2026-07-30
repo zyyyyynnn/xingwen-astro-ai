@@ -14,7 +14,7 @@ docs/references/
 ├─ README.md
 ├─ 赛题要求.md
 ├─ autoastro/           derived summary + selected code
-├─ mavis/               derived summary + provenance/license audit
+├─ mavis/               derived summary（含许可裁决与项目边界）
 └─ inosum/              derived summary + selected code
 ```
 

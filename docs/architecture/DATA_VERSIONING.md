@@ -4,11 +4,8 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
-| Implementation | Workspace/Share runtime 与 PostgreSQL resource authority、D-02 PaperCollection content、D-03 PaperSummary content/admission、#76 persistence、#78 atomic publication、#83 provenance reads 与 B-06 PaperCollection reads Implemented；Snapshot/Share 跨进程持久化及 cache/revision workflows Pending |
-| Current runtime | v1 DTO、Prompt registry 与 Phase 0 版本字段 |
-| Target runtime | Project / Run / Artifact / ArtifactVersion 追加式治理 |
 
-本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。B-18 已为 ArtifactVersion、Evidence 和 SourceSnapshot 提供 PostgreSQL 私有读取与 Project ownership 边界；B-06 在该边界上增加 `paper_collection` 的只读校验与候选 keyset cursor，不改变 #78 发布事务。Workspace/Share Runtime 已挂载并使用 PostgreSQL resource authority 校验资源事实；其快照记录仍为进程生命周期存储，不表示 PostgreSQL 表或跨实例恢复已经落地。
+本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。ArtifactVersion、Evidence 和 SourceSnapshot 由 PostgreSQL 提供私有读取与 Project ownership 边界；`paper_collection` 在该边界上提供只读校验与候选 keyset cursor，不改变发布事务。Workspace/Share Runtime 使用 PostgreSQL resource authority 校验资源事实；其快照记录的持久化边界由对应实现 Issue 定义。
 
 ## 1. 版本边界
 
@@ -136,7 +133,7 @@ request_metadata
 
 C-02 已为成功 NASA Exoplanet Archive TOI acquisition 生成完整不可变 SourceSnapshot，记录冻结 Manifest、规范化 query/hash、TAP_SCHEMA 预检、keyset 分页、请求/响应 hash、耗时、重试、许可、版本/ETag 与 request-id 可用性。上游未提供 ETag 或 request-id 时显式记录 `unavailable`，不得生成替代值；Recorded response 固定为 `source_mode=fixture` 与 `data_level=recorded_response`，并绑定版本化 fixture hash/provenance。运行规则见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md)。
 
-D-02 已为成功 Crossref metadata execution 生成完整不可变 SourceSnapshot；失败请求保存 SourceExecution 的 query/pagination/hash/error，不伪造 Snapshot。Cached PaperCollection 要求 Snapshot 额外绑定真实 `origin_run_id` 与 `origin_artifact_version_id`，但 CacheSelector 与 origin persistence 仍为 Pending。
+Crossref metadata execution 成功时生成完整不可变 SourceSnapshot；失败请求保存 SourceExecution 的 query/pagination/hash/error，不伪造 Snapshot。Cached PaperCollection 要求 Snapshot 额外绑定真实 `origin_run_id` 与 `origin_artifact_version_id`。
 
 ## 6. Hash 规则
 
@@ -195,13 +192,9 @@ ShareSnapshot 固定：
 - 涉及密钥、侵权或依法删除时执行强制删除；审计记录不得继续保留必须清除的敏感内容。
 - 导出和临时下载 URL 有独立过期时间，不作为 ArtifactVersion 的唯一存储。
 
-## 11. 实施顺序
+## 11. 架构依赖
 
-1. v2 Pydantic Schema 与迁移映射。
-2. ResearchProject、ResearchContract、ResearchRun、RunStep / Event 持久化。
-3. ResearchArtifact、ArtifactVersion、SourceSnapshot 和 Evidence 事务边界。
-4. CacheRecord、派生 Run、Feedback / RevisionPlan。
-5. WorkspaceSnapshot 与安全 ShareSnapshot。
+ArtifactVersion 发布依赖已校验的领域内容、ProducerExecution、Evidence 与 SourceSnapshot。任务顺序和直接依赖由 Roadmap、Backlog 与 GitHub 原生 Dependency 维护。
 
 任何阶段都不因版本治理提前引入 Redis、对象存储、图数据库或通用事件总线。
 

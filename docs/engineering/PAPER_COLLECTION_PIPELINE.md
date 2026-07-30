@@ -2,9 +2,8 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Implemented |
+| Status | Accepted |
 | Authority | D-02 PaperCollection 获取与 D-03 PaperSummary Prompt/Schema/Evidence 准入 |
-| Implementation | Crossref metadata Adapter、`paper_collection` content、D-03 `paper_summary` detached admission/Benchmark current；ArtifactVersion 发布由 #78 提供，生产模型与 Workflow 接线 Pending |
 
 本文是 D-02/D-03 论文 Pipeline 运行规则和操作方式的唯一完整事实源。领域实体不变量仍由 [Data Model](../architecture/DATA_MODEL.md) 负责，ArtifactVersion 与缓存规则由 [Data Versioning](../architecture/DATA_VERSIONING.md) 负责，Run 状态只由 [Workflow Design](../architecture/WORKFLOW_DESIGN.md) 负责。
 
@@ -161,7 +160,7 @@ SourceSnapshot 版本是冲突时的权威运行版本。若 caller 声明其他
 
 Evidence 或 unsupported 指标分母为零时报告 `null`，与 D-01 `report_not_available` 空集规则一致，不用 `0.0` 冒充已计算结果。
 
-评测函数不调用模型；同一版本化 case 输入产生相同 report input/output hash。真实模型调用、成本/延迟采集和生产 Benchmark 执行器仍 Pending。
+评测函数不调用模型；同一版本化 case 输入产生相同 report input/output hash。真实模型调用、成本/延迟采集和生产 Benchmark 执行器由对应 Issue 定义。
 
 ## 12. D-03 与 Publisher/B-07 边界
 
