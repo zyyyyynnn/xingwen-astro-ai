@@ -27,7 +27,9 @@ describe("createWorkspaceRuntime", () => {
 
   it("rejects a versioned API path instead of silently falling back to Fixture", () => {
     expect(() =>
-      createWorkspaceRuntime({ apiBaseUrl: "https://api.example.test/api/v1" }),
+      createWorkspaceRuntime({
+        apiBaseUrl: "https://api.example.test/base/path",
+      }),
     ).toThrow(/origin/u);
   });
 });

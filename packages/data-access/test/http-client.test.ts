@@ -44,7 +44,7 @@ describe("HttpClient.getPage — empty-response contract", () => {
     const client = makeClient(
       () => new Response(EMPTY_COLLECTION_BODY, { status: 200 }),
     );
-    const env = await client.getPage<unknown>("/api/v2/runs/r1/events");
+    const env = await client.getPage<unknown>("/api/runs/r1/events");
     expect(env.data).toEqual([]);
     expect(env.page?.has_more).toBe(false);
     expect(env.page?.next_cursor).toBeNull();
@@ -53,14 +53,14 @@ describe("HttpClient.getPage — empty-response contract", () => {
   it("throws UnexpectedHttpError on 204 (no content)", async () => {
     const client = makeClient(() => new Response(null, { status: 204 }));
     await expect(
-      client.getPage<unknown>("/api/v2/runs/r1/events"),
+      client.getPage<unknown>("/api/runs/r1/events"),
     ).rejects.toMatchObject({ name: UnexpectedHttpError.name, status: 204 });
   });
 
   it("throws UnexpectedHttpError on 200 with an empty body", async () => {
     const client = makeClient(() => new Response("", { status: 200 }));
     await expect(
-      client.getPage<unknown>("/api/v2/runs/r1/events"),
+      client.getPage<unknown>("/api/runs/r1/events"),
     ).rejects.toMatchObject({ name: UnexpectedHttpError.name, status: 200 });
   });
 
@@ -79,7 +79,7 @@ describe("HttpClient.getPage — empty-response contract", () => {
         ),
     );
     await expect(
-      client.getPage<unknown>("/api/v2/runs/r1/events"),
+      client.getPage<unknown>("/api/runs/r1/events"),
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 });
@@ -90,9 +90,10 @@ describe("HttpClient.list — empty-response contract", () => {
     [200, () => new Response("", { status: 200 })],
   ])("throws UnexpectedHttpError with status %i", async (status, respond) => {
     const client = makeClient(respond);
-    await expect(
-      client.list<unknown>("/api/v2/projects"),
-    ).rejects.toMatchObject({ name: UnexpectedHttpError.name, status });
+    await expect(client.list<unknown>("/api/projects")).rejects.toMatchObject({
+      name: UnexpectedHttpError.name,
+      status,
+    });
   });
 
   it("throws NotFoundError on 404 instead of returning an empty list", async () => {
@@ -108,8 +109,8 @@ describe("HttpClient.list — empty-response contract", () => {
           { status: 404, headers: { "Content-Type": "application/json" } },
         ),
     );
-    await expect(
-      client.list<unknown>("/api/v2/projects"),
-    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(client.list<unknown>("/api/projects")).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 });

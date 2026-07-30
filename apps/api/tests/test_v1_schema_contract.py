@@ -39,60 +39,160 @@ client = TestClient(app)
 
 EXPECTED_FIELDS: dict[type[BaseModel], set[str]] = {
     DatasetResponse: {
-        "id", "task_id", "name", "case_key", "row_count", "field_count",
-        "created_at", "columns", "rows", "quality_score",
+        "id",
+        "task_id",
+        "name",
+        "case_key",
+        "row_count",
+        "field_count",
+        "created_at",
+        "columns",
+        "rows",
+        "quality_score",
     },
     ColumnInfo: {
-        "name", "label", "unit", "description", "data_type", "required",
-        "source_ids", "missing_rate", "mapping_rule",
+        "name",
+        "label",
+        "unit",
+        "description",
+        "data_type",
+        "required",
+        "source_ids",
+        "missing_rate",
+        "mapping_rule",
     },
     QualityScore: {
-        "task_id", "field_coverage", "missing_rate", "source_completeness",
-        "unit_consistency", "paper_acquisition_reproducibility",
-        "paper_summary_completeness", "literature_relation_evidence_rate",
-        "graph_evidence_completeness", "reproducibility",
+        "task_id",
+        "field_coverage",
+        "missing_rate",
+        "source_completeness",
+        "unit_consistency",
+        "paper_acquisition_reproducibility",
+        "paper_summary_completeness",
+        "literature_relation_evidence_rate",
+        "graph_evidence_completeness",
+        "reproducibility",
     },
     SourceRecordItem: {
-        "id", "task_id", "type", "name", "url", "query", "retrieved_at",
-        "cached", "license_note",
+        "id",
+        "task_id",
+        "type",
+        "name",
+        "url",
+        "query",
+        "retrieved_at",
+        "cached",
+        "license_note",
     },
     PaperSearchQuery: {
-        "id", "task_id", "case_key", "keywords", "source_types", "query_string",
-        "filters", "created_at",
+        "id",
+        "task_id",
+        "case_key",
+        "keywords",
+        "source_types",
+        "query_string",
+        "filters",
+        "created_at",
     },
     PaperAcquisitionRun: {
-        "id", "task_id", "query_id", "status", "candidate_count", "selected_count",
-        "dedupe_rule", "used_cache", "started_at", "finished_at",
+        "id",
+        "task_id",
+        "query_id",
+        "status",
+        "candidate_count",
+        "selected_count",
+        "dedupe_rule",
+        "used_cache",
+        "started_at",
+        "finished_at",
     },
     PaperCandidate: {
-        "id", "task_id", "run_id", "source_record_id", "external_id", "title",
-        "authors", "year", "doi", "arxiv_id", "url", "abstract", "relevance_score",
-        "dedupe_key", "selected", "selection_reason",
+        "id",
+        "task_id",
+        "run_id",
+        "source_record_id",
+        "external_id",
+        "title",
+        "authors",
+        "year",
+        "doi",
+        "arxiv_id",
+        "url",
+        "abstract",
+        "relevance_score",
+        "dedupe_key",
+        "selected",
+        "selection_reason",
     },
     PaperSummary: {
-        "id", "paper_id", "research_goal", "method", "dataset", "findings",
-        "limitations", "future_work", "evidence_ids", "model_name", "prompt_version",
+        "id",
+        "paper_id",
+        "research_goal",
+        "method",
+        "dataset",
+        "findings",
+        "limitations",
+        "future_work",
+        "evidence_ids",
+        "model_name",
+        "prompt_version",
     },
     PaperItem: {
-        "id", "candidate_id", "task_id", "title", "authors", "year", "url",
-        "source_ids", "summary", "evidence_ids",
+        "id",
+        "candidate_id",
+        "task_id",
+        "title",
+        "authors",
+        "year",
+        "url",
+        "source_ids",
+        "summary",
+        "evidence_ids",
     },
     LiteratureClaim: {
-        "id", "task_id", "paper_id", "claim_type", "text", "normalized_text",
-        "evidence_ids", "confidence",
+        "id",
+        "task_id",
+        "paper_id",
+        "claim_type",
+        "text",
+        "normalized_text",
+        "evidence_ids",
+        "confidence",
     },
     LiteratureRelation: {
-        "id", "task_id", "source_claim_id", "target_claim_id", "relation_type",
-        "reasoning_trace_id", "evidence_ids", "confidence",
+        "id",
+        "task_id",
+        "source_claim_id",
+        "target_claim_id",
+        "relation_type",
+        "reasoning_trace_id",
+        "evidence_ids",
+        "confidence",
     },
     ReasoningTrace: {
-        "id", "task_id", "relation_id", "steps", "evidence_ids", "model_name",
+        "id",
+        "task_id",
+        "relation_id",
+        "steps",
+        "evidence_ids",
+        "model_name",
         "prompt_version",
     },
     EvidenceResponse: {
-        "id", "task_id", "type", "source_id", "paper_id", "target_type", "target_id",
-        "content", "locator", "quote_or_value", "extraction_method", "source_snapshot",
-        "confidence", "created_at",
+        "id",
+        "task_id",
+        "type",
+        "source_id",
+        "paper_id",
+        "target_type",
+        "target_id",
+        "content",
+        "locator",
+        "quote_or_value",
+        "extraction_method",
+        "source_snapshot",
+        "confidence",
+        "created_at",
     },
     SourceSnapshot: {"retrieved_at", "query_hash"},
 }
@@ -100,56 +200,140 @@ EXPECTED_FIELDS: dict[type[BaseModel], set[str]] = {
 
 EXPECTED_REQUIRED: dict[type[BaseModel], set[str]] = {
     DatasetResponse: {
-        "dataset_id", "task_id", "name", "case_key", "row_count", "field_count",
-        "created_at", "columns", "rows",
+        "dataset_id",
+        "task_id",
+        "name",
+        "case_key",
+        "row_count",
+        "field_count",
+        "created_at",
+        "columns",
+        "rows",
     },
     ColumnInfo: {
-        "name", "label", "unit", "description", "data_type", "required",
-        "source_ids", "missing_rate", "mapping_rule",
+        "name",
+        "label",
+        "unit",
+        "description",
+        "data_type",
+        "required",
+        "source_ids",
+        "missing_rate",
+        "mapping_rule",
     },
     QualityScore: {
-        "task_id", "field_coverage", "missing_rate", "source_completeness",
-        "unit_consistency", "paper_acquisition_reproducibility",
-        "paper_summary_completeness", "literature_relation_evidence_rate",
-        "graph_evidence_completeness", "reproducibility",
+        "task_id",
+        "field_coverage",
+        "missing_rate",
+        "source_completeness",
+        "unit_consistency",
+        "paper_acquisition_reproducibility",
+        "paper_summary_completeness",
+        "literature_relation_evidence_rate",
+        "graph_evidence_completeness",
+        "reproducibility",
     },
     SourceRecordItem: {
-        "id", "task_id", "type", "name", "url", "query", "retrieved_at",
+        "id",
+        "task_id",
+        "type",
+        "name",
+        "url",
+        "query",
+        "retrieved_at",
     },
     PaperSearchQuery: {
-        "query_id", "task_id", "case_key", "keywords", "source_types", "query_string",
-        "filters", "created_at",
+        "query_id",
+        "task_id",
+        "case_key",
+        "keywords",
+        "source_types",
+        "query_string",
+        "filters",
+        "created_at",
     },
     PaperAcquisitionRun: {
-        "run_id", "task_id", "query_id", "status", "candidate_count", "selected_count",
-        "dedupe_rule", "used_cache", "started_at",
+        "run_id",
+        "task_id",
+        "query_id",
+        "status",
+        "candidate_count",
+        "selected_count",
+        "dedupe_rule",
+        "used_cache",
+        "started_at",
     },
     PaperCandidate: {
-        "candidate_id", "task_id", "run_id", "source_record_id", "title", "authors",
-        "relevance_score", "dedupe_key", "selected",
+        "candidate_id",
+        "task_id",
+        "run_id",
+        "source_record_id",
+        "title",
+        "authors",
+        "relevance_score",
+        "dedupe_key",
+        "selected",
     },
     PaperSummary: {
-        "id", "paper_id", "research_goal", "method", "dataset", "findings",
-        "limitations", "future_work", "evidence_ids", "model_name", "prompt_version",
+        "id",
+        "paper_id",
+        "research_goal",
+        "method",
+        "dataset",
+        "findings",
+        "limitations",
+        "future_work",
+        "evidence_ids",
+        "model_name",
+        "prompt_version",
     },
     PaperItem: {
-        "paper_id", "candidate_id", "task_id", "title", "authors", "source_ids",
+        "paper_id",
+        "candidate_id",
+        "task_id",
+        "title",
+        "authors",
+        "source_ids",
     },
     LiteratureClaim: {
-        "claim_id", "task_id", "paper_id", "claim_type", "text", "normalized_text",
-        "evidence_ids", "confidence",
+        "claim_id",
+        "task_id",
+        "paper_id",
+        "claim_type",
+        "text",
+        "normalized_text",
+        "evidence_ids",
+        "confidence",
     },
     LiteratureRelation: {
-        "relation_id", "task_id", "source_claim_id", "target_claim_id", "relation_type",
-        "reasoning_trace_id", "evidence_ids", "confidence",
+        "relation_id",
+        "task_id",
+        "source_claim_id",
+        "target_claim_id",
+        "relation_type",
+        "reasoning_trace_id",
+        "evidence_ids",
+        "confidence",
     },
     ReasoningTrace: {
-        "trace_id", "task_id", "relation_id", "steps", "evidence_ids", "model_name",
+        "trace_id",
+        "task_id",
+        "relation_id",
+        "steps",
+        "evidence_ids",
+        "model_name",
         "prompt_version",
     },
     EvidenceResponse: {
-        "id", "task_id", "type", "target_type", "target_id", "extraction_method",
-        "source_snapshot", "confidence", "created_at",
+        "id",
+        "task_id",
+        "type",
+        "target_type",
+        "target_id",
+        "extraction_method",
+        "source_snapshot",
+        "confidence",
+        "created_at",
     },
     SourceSnapshot: {"retrieved_at"},
 }
@@ -172,7 +356,9 @@ def test_exact_python_field_sets(model: type[BaseModel], expected: set[str]) -> 
 
 
 @pytest.mark.parametrize("model, expected", EXPECTED_REQUIRED.items())
-def test_exact_json_schema_required_sets(model: type[BaseModel], expected: set[str]) -> None:
+def test_exact_json_schema_required_sets(
+    model: type[BaseModel], expected: set[str]
+) -> None:
     assert set(model.model_json_schema().get("required", [])) == expected
 
 
@@ -216,21 +402,45 @@ def test_all_v1_id_aliases_are_frozen(model: type[BaseModel], alias: str) -> Non
 def test_core_enum_values_are_frozen() -> None:
     assert {item.value for item in CaseKey} == {"exoplanet_host_star"}
     assert {item.value for item in SourceType} == {
-        "database", "paper_source", "paper", "cache", "manual_review",
+        "database",
+        "paper_source",
+        "paper",
+        "cache",
+        "manual_review",
     }
     assert {item.value for item in PaperAcquisitionStatus} == {
-        "pending", "running", "completed", "failed", "cached",
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "cached",
     }
     assert {item.value for item in ClaimType} == {
-        "goal", "method", "dataset", "finding", "limitation", "future_work",
+        "goal",
+        "method",
+        "dataset",
+        "finding",
+        "limitation",
+        "future_work",
     }
     assert {item.value for item in LiteratureRelationType} == {
-        "supports", "extends", "derived_from", "limits", "contradicts",
-        "uses_same_dataset", "compares_method",
+        "supports",
+        "extends",
+        "derived_from",
+        "limits",
+        "contradicts",
+        "uses_same_dataset",
+        "compares_method",
     }
     assert {item.value for item in EvidenceType} == {
-        "database_query", "paper_search", "paper_metadata", "paper_text",
-        "model_extraction", "reasoning_trace", "user_feedback", "cache_record",
+        "database_query",
+        "paper_search",
+        "paper_metadata",
+        "paper_text",
+        "model_extraction",
+        "reasoning_trace",
+        "user_feedback",
+        "cache_record",
     }
 
 
@@ -261,7 +471,7 @@ def test_evidence_bound_models_reject_empty_evidence() -> None:
 
 
 def test_v1_http_wire_keeps_legacy_ids_and_required_provenance() -> None:
-    dataset = client.get("/api/v1/tasks/task_001/dataset")
+    dataset = client.get("/api/tasks/task_001/dataset")
     assert dataset.status_code == 200
     dataset_data = dataset.json()["data"]
     assert dataset_data["dataset_id"] == "dataset_001"
@@ -271,11 +481,13 @@ def test_v1_http_wire_keeps_legacy_ids_and_required_provenance() -> None:
     assert dataset_data["field_count"] == len(dataset_data["columns"])
     assert all(column["mapping_rule"] for column in dataset_data["columns"])
 
-    sources = client.get("/api/v1/tasks/task_001/sources")
+    sources = client.get("/api/tasks/task_001/sources")
     assert sources.status_code == 200
-    assert all(source["task_id"] == "task_001" for source in sources.json()["data"]["sources"])
+    assert all(
+        source["task_id"] == "task_001" for source in sources.json()["data"]["sources"]
+    )
 
-    acquisition = client.get("/api/v1/tasks/task_001/paper-acquisition")
+    acquisition = client.get("/api/tasks/task_001/paper-acquisition")
     assert acquisition.status_code == 200
     data = acquisition.json()["data"]
     assert data["query"]["query_id"] == "paper_query_001"
@@ -285,7 +497,7 @@ def test_v1_http_wire_keeps_legacy_ids_and_required_provenance() -> None:
     assert data["run"]["query_id"] == "paper_query_001"
     assert all(candidate["candidate_id"] for candidate in data["candidates"])
 
-    reasoning = client.get("/api/v1/tasks/task_001/literature-reasoning")
+    reasoning = client.get("/api/tasks/task_001/literature-reasoning")
     assert reasoning.status_code == 200
     reasoning_data = reasoning.json()["data"]
     assert reasoning_data["claims"][0]["claim_id"] == "claim_001"
@@ -293,7 +505,7 @@ def test_v1_http_wire_keeps_legacy_ids_and_required_provenance() -> None:
     assert reasoning_data["traces"][0]["trace_id"] == "trace_001"
     assert all(item["task_id"] == "task_001" for item in reasoning_data["claims"])
 
-    evidence = client.get("/api/v1/tasks/task_001/evidence/evidence_001")
+    evidence = client.get("/api/tasks/task_001/evidence/evidence_001")
     assert evidence.status_code == 200
     evidence_data = evidence.json()["data"]
     assert evidence_data["task_id"] == "task_001"

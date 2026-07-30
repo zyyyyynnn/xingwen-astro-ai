@@ -1,4 +1,4 @@
-"""Pydantic authoring source for the minimal ``/api/v2`` core contract."""
+"""Pydantic authoring source for the minimal ``/api`` core contract."""
 
 from __future__ import annotations
 

@@ -117,11 +117,15 @@ class _FixtureAdapter:
             request_hash=compute_canonical_payload_hash({"query": query.query_hash}),
             response_hash=records_hash,
         )
-        return SourceSearchResult(records=records, pages=(page,), snapshot=snapshot, retry_count=0)
+        return SourceSearchResult(
+            records=records, pages=(page,), snapshot=snapshot, retry_count=0
+        )
 
 
 def _collection(count: int = 3) -> PaperCollection:
-    return PaperCollectionPipeline(adapter=_FixtureAdapter(count), clock=lambda: NOW).run(
+    return PaperCollectionPipeline(
+        adapter=_FixtureAdapter(count), clock=lambda: NOW
+    ).run(
         scenario_id="search.tess_mission_and_catalogs",
         page_size=20,
         selection_limit=2,
@@ -136,7 +140,9 @@ class _FailureAdapter(_FixtureAdapter):
         self.classification = classification
 
     def search(self, query, *, source_mode, data_level):  # type: ignore[no-untyped-def]
-        raise SourceFailure(self.classification, "CROSSREF_FAILED", retryable=True, attempt_count=2)
+        raise SourceFailure(
+            self.classification, "CROSSREF_FAILED", retryable=True, attempt_count=2
+        )
 
 
 def _failed_collection(classification: UpstreamFailureClass) -> PaperCollection:
@@ -176,7 +182,12 @@ class _Artifacts:
 
     def get_version(self, *, version_id: str, session_id: str) -> ArtifactVersionDetail:
         if session_id != "owner" or version_id != VERSION_ID:
-            raise SecurityProblem(status=404, code="ARTIFACT_VERSION_NOT_FOUND", title="Resource not found", detail="Resource not found")
+            raise SecurityProblem(
+                status=404,
+                code="ARTIFACT_VERSION_NOT_FOUND",
+                title="Resource not found",
+                detail="Resource not found",
+            )
         candidates = self.collection.candidates
         evidence = tuple(
             EvidenceDetail(
@@ -255,9 +266,16 @@ class _Artifacts:
             evidence=evidence,
         )
 
-    def get_artifact(self, *, artifact_id: str, session_id: str) -> ResearchArtifactDetail:
+    def get_artifact(
+        self, *, artifact_id: str, session_id: str
+    ) -> ResearchArtifactDetail:
         if session_id != "owner" or artifact_id != ARTIFACT_ID:
-            raise SecurityProblem(status=404, code="ARTIFACT_NOT_FOUND", title="Resource not found", detail="Resource not found")
+            raise SecurityProblem(
+                status=404,
+                code="ARTIFACT_NOT_FOUND",
+                title="Resource not found",
+                detail="Resource not found",
+            )
         return ResearchArtifactDetail(
             id=ARTIFACT_ID,
             project_id=PROJECT_ID,
@@ -275,12 +293,17 @@ def service() -> PaperCollectionReadService:
     return PaperCollectionReadService(_Artifacts(_collection()))  # type: ignore[arg-type]
 
 
-def test_detail_exposes_reproducible_typed_collection(service: PaperCollectionReadService) -> None:
+def test_detail_exposes_reproducible_typed_collection(
+    service: PaperCollectionReadService,
+) -> None:
     detail = service.get_collection(version_id=VERSION_ID, session_id="owner")
     assert detail.collection.query.query_hash.startswith("sha256:")
     assert detail.collection.source_executions[0].source_id == "crossref"
     assert detail.collection.duplicate_groups
-    assert all(item.selection_reason if item.selected else item.exclusion_reason for item in detail.collection.candidates)
+    assert all(
+        item.selection_reason if item.selected else item.exclusion_reason
+        for item in detail.collection.candidates
+    )
     assert detail.content_hash == compute_canonical_payload_hash(
         detail.collection.model_dump(mode="json", exclude_none=True)
     )
@@ -305,19 +328,31 @@ def test_fixture_uses_b14_publisher_content_hash_semantics() -> None:
     assert version.content_hash != collection.output_hash
 
 
-def test_candidate_cursor_is_stable_scoped_and_resolves_provenance(service: PaperCollectionReadService) -> None:
-    first, cursor, has_more = service.list_candidates(version_id=VERSION_ID, session_id="owner", cursor=None, limit=2)
+def test_candidate_cursor_is_stable_scoped_and_resolves_provenance(
+    service: PaperCollectionReadService,
+) -> None:
+    first, cursor, has_more = service.list_candidates(
+        version_id=VERSION_ID, session_id="owner", cursor=None, limit=2
+    )
     assert len(first) == 2 and has_more is True and cursor is not None
-    second, final_cursor, final_has_more = service.list_candidates(version_id=VERSION_ID, session_id="owner", cursor=cursor, limit=2)
+    second, final_cursor, final_has_more = service.list_candidates(
+        version_id=VERSION_ID, session_id="owner", cursor=cursor, limit=2
+    )
     assert len(second) == 1 and final_cursor is None and final_has_more is False
     combined = first + second
     assert len({item.candidate.candidate_id for item in combined}) == 3
-    assert all(item.evidence and item.source_snapshot.id == SNAPSHOT_ID for item in combined)
+    assert all(
+        item.evidence and item.source_snapshot.id == SNAPSHOT_ID for item in combined
+    )
+
     class _CrossVersion(_Artifacts):
         def get_version(self, **kwargs):  # type: ignore[no-untyped-def]
-            return super().get_version(version_id=VERSION_ID, session_id="owner").model_copy(
-                update={"id": "another-version"}
+            return (
+                super()
+                .get_version(version_id=VERSION_ID, session_id="owner")
+                .model_copy(update={"id": "another-version"})
             )
+
     with pytest.raises(SecurityProblem) as invalid:
         PaperCollectionReadService(_CrossVersion(_collection())).list_candidates(
             version_id=VERSION_ID, session_id="owner", cursor=cursor, limit=2
@@ -325,7 +360,9 @@ def test_candidate_cursor_is_stable_scoped_and_resolves_provenance(service: Pape
     assert invalid.value.code == "INVALID_CURSOR"
 
 
-def test_invalid_schema_unsafe_html_empty_and_source_failures_use_problem_details(service: PaperCollectionReadService) -> None:
+def test_invalid_schema_unsafe_html_empty_and_source_failures_use_problem_details(
+    service: PaperCollectionReadService,
+) -> None:
     artifacts = service._artifacts  # noqa: SLF001 - deliberate corruption test seam
     assert isinstance(artifacts, _Artifacts)
     with pytest.raises(SecurityProblem) as invalid:
@@ -386,14 +423,23 @@ def test_http_contract_authentication_envelopes_and_no_store() -> None:
     owner = replace(owner, id="owner")
     app.state.session_service.store.put(owner)
     client = TestClient(app)
-    client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api/v2")
-    detail = client.get(f"/api/v2/artifact-versions/{VERSION_ID}/paper-collection")
-    page = client.get(f"/api/v2/artifact-versions/{VERSION_ID}/paper-candidates", params={"limit": 2})
+    client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api")
+    detail = client.get(f"/api/artifact-versions/{VERSION_ID}/paper-collection")
+    page = client.get(
+        f"/api/artifact-versions/{VERSION_ID}/paper-candidates", params={"limit": 2}
+    )
     assert detail.status_code == page.status_code == 200
-    assert detail.headers["cache-control"] == page.headers["cache-control"] == "no-store"
+    assert (
+        detail.headers["cache-control"] == page.headers["cache-control"] == "no-store"
+    )
     assert detail.json()["data"]["collection"]["query"]["query_id"]
     assert page.json()["page"]["has_more"] is True
-    assert TestClient(app).get(f"/api/v2/artifact-versions/{VERSION_ID}/paper-collection").status_code == 401
+    assert (
+        TestClient(app)
+        .get(f"/api/artifact-versions/{VERSION_ID}/paper-collection")
+        .status_code
+        == 401
+    )
 
 
 def test_genuinely_expired_session_still_returns_401() -> None:
@@ -410,8 +456,8 @@ def test_genuinely_expired_session_still_returns_401() -> None:
     owner, credential, _ = app.state.session_service.create(now=past)
     app.state.session_service.store.put(replace(owner, id="owner"))
     client = TestClient(app)
-    client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api/v2")
-    response = client.get(f"/api/v2/artifact-versions/{VERSION_ID}/paper-collection")
+    client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api")
+    response = client.get(f"/api/artifact-versions/{VERSION_ID}/paper-collection")
     assert response.status_code == 401
     assert response.json()["code"] == "SESSION_REQUIRED"
 
@@ -441,10 +487,8 @@ def test_http_failures_are_rfc9457_problem_details(
     owner, credential, _ = app.state.session_service.create(now=datetime.now(UTC))
     app.state.session_service.store.put(replace(owner, id="owner"))
     client = TestClient(app)
-    client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api/v2")
-    response = client.get(
-        f"/api/v2/artifact-versions/{VERSION_ID}/paper-collection"
-    )
+    client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api")
+    response = client.get(f"/api/artifact-versions/{VERSION_ID}/paper-collection")
     assert response.status_code == status
     assert response.headers["content-type"].startswith("application/problem+json")
     problem = response.json()
@@ -453,9 +497,7 @@ def test_http_failures_are_rfc9457_problem_details(
     assert problem["detail"]
 
 
-@pytest.mark.skipif(
-    not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
-)
+@pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
 def test_postgres_published_collection_reads_with_ownership_and_redaction() -> None:
     assert TEST_DATABASE_URL is not None
     assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
@@ -511,20 +553,16 @@ def test_postgres_published_collection_reads_with_ownership_and_redaction() -> N
             )
 
         with TestClient(app) as client:
-            client.cookies.set(
-                settings.SESSION_COOKIE_NAME, credential, path="/api/v2"
-            )
-            detail = client.get(
-                f"/api/v2/artifact-versions/{version_id}/paper-collection"
-            )
+            client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api")
+            detail = client.get(f"/api/artifact-versions/{version_id}/paper-collection")
             first = client.get(
-                f"/api/v2/artifact-versions/{version_id}/paper-candidates",
+                f"/api/artifact-versions/{version_id}/paper-candidates",
                 params={"limit": 2},
             )
             assert detail.status_code == first.status_code == 200
             cursor = first.json()["page"]["next_cursor"]
             second = client.get(
-                f"/api/v2/artifact-versions/{version_id}/paper-candidates",
+                f"/api/artifact-versions/{version_id}/paper-candidates",
                 params={"limit": 2, "cursor": cursor},
             )
             assert second.status_code == 200
@@ -536,11 +574,9 @@ def test_postgres_published_collection_reads_with_ownership_and_redaction() -> N
 
         with TestClient(app) as other:
             other.cookies.set(
-                settings.SESSION_COOKIE_NAME, other_credential, path="/api/v2"
+                settings.SESSION_COOKIE_NAME, other_credential, path="/api"
             )
-            hidden = other.get(
-                f"/api/v2/artifact-versions/{version_id}/paper-collection"
-            )
+            hidden = other.get(f"/api/artifact-versions/{version_id}/paper-collection")
             assert hidden.status_code == 404
             assert hidden.json()["code"] == "ARTIFACT_VERSION_NOT_FOUND"
     finally:

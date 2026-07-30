@@ -27,14 +27,14 @@ def test_session_cookie_lifecycle_and_public_payload(
 ) -> None:
     monkeypatch.setattr("app.routers.sessions.settings.SESSION_COOKIE_SECURE", True)
     client = TestClient(create_app(), base_url="https://testserver")
-    created = client.post("/api/v2/sessions", headers={"X-Request-Id": "req_session"})
+    created = client.post("/api/sessions", headers={"X-Request-Id": "req_session"})
     assert created.status_code == 201
     payload = created.json()
     assert payload["data"]["status"] == "active"
     assert payload["data"]["csrf_token"]
     assert "id" not in payload["data"]
     assert payload["meta"]["request_id"] == "req_session"
-    assert created.headers["location"] == "/api/v2/sessions/current"
+    assert created.headers["location"] == "/api/sessions/current"
     assert created.headers["ratelimit-limit"] == "30"
     assert created.headers["ratelimit-remaining"] == "29"
     assert created.headers["cache-control"] == "no-store"
@@ -43,47 +43,47 @@ def test_session_cookie_lifecycle_and_public_payload(
     assert "secure" in cookie
     assert "httponly" in cookie
     assert "samesite=lax" in cookie
-    assert "path=/api/v2" in cookie
+    assert "path=/api" in cookie
 
-    current = client.get("/api/v2/sessions/current")
+    current = client.get("/api/sessions/current")
     assert current.status_code == 200
     assert current.headers["cache-control"] == "no-store"
     assert "csrf_token" not in current.json()["data"]
 
-    hidden = client.get("/api/v2/private-resource-that-does-not-exist")
+    hidden = client.get("/api/private-resource-that-does-not-exist")
     assert hidden.status_code == 404
     assert hidden.headers["content-type"].startswith("application/problem+json")
     assert hidden.json()["code"] == "RESOURCE_NOT_FOUND"
     assert "private-resource-that-does-not-exist" not in hidden.json()["detail"]
 
-    missing_csrf = client.delete("/api/v2/sessions/current")
+    missing_csrf = client.delete("/api/sessions/current")
     assert missing_csrf.status_code == 403
     assert missing_csrf.headers["content-type"].startswith("application/problem+json")
     assert missing_csrf.headers["cache-control"] == "no-store"
     assert missing_csrf.json()["code"] == "CSRF_INVALID"
 
     revoked = client.delete(
-        "/api/v2/sessions/current",
+        "/api/sessions/current",
         headers={"X-CSRF-Token": payload["data"]["csrf_token"]},
     )
     assert revoked.status_code == 204
     assert revoked.content == b""
     assert "content-type" not in revoked.headers
     assert revoked.headers["cache-control"] == "no-store"
-    assert client.get("/api/v2/sessions/current").status_code == 401
+    assert client.get("/api/sessions/current").status_code == 401
 
 
 def test_security_problem_responses_preserve_cors_headers() -> None:
     client = TestClient(create_app(), base_url="https://testserver")
     origin = "http://localhost:5173"
 
-    missing = client.get("/api/v2/sessions/current", headers={"Origin": origin})
+    missing = client.get("/api/sessions/current", headers={"Origin": origin})
     assert missing.status_code == 401
     assert missing.headers["access-control-allow-origin"] == origin
     assert missing.headers["cache-control"] == "no-store"
 
-    created = client.post("/api/v2/sessions", headers={"Origin": origin})
-    csrf_failure = client.delete("/api/v2/sessions/current", headers={"Origin": origin})
+    created = client.post("/api/sessions", headers={"Origin": origin})
+    csrf_failure = client.delete("/api/sessions/current", headers={"Origin": origin})
     assert created.status_code == 201
     assert csrf_failure.status_code == 403
     assert csrf_failure.headers["access-control-allow-origin"] == origin
@@ -92,7 +92,7 @@ def test_security_problem_responses_preserve_cors_headers() -> None:
 
 def test_missing_and_expired_sessions_use_same_public_401() -> None:
     client = TestClient(create_app(), base_url="https://testserver")
-    missing = client.get("/api/v2/sessions/current")
+    missing = client.get("/api/sessions/current")
     assert missing.status_code == 401
     assert missing.json()["code"] == "SESSION_REQUIRED"
 
@@ -226,8 +226,8 @@ def test_rate_limit_uses_stable_429_problem() -> None:
     app = create_app()
     app.state.session_rate_limiter = InMemoryRateLimiter(limit=1)
     client = TestClient(app, base_url="https://testserver")
-    assert client.post("/api/v2/sessions").status_code == 201
-    response = client.post("/api/v2/sessions")
+    assert client.post("/api/sessions").status_code == 201
+    response = client.post("/api/sessions")
     assert response.status_code == 429
     assert response.headers["content-type"].startswith("application/problem+json")
     assert response.json()["code"] == "RATE_LIMITED"
@@ -244,7 +244,7 @@ def test_uvicorn_access_log_redacts_raw_share_tokens() -> None:
         args=(
             "127.0.0.1:1234",
             "GET",
-            f"/api/v2/shares/{raw_token}?preview=1",
+            f"/api/public/shares/{raw_token}?preview=1",
             "1.1",
             200,
         ),
@@ -253,4 +253,4 @@ def test_uvicorn_access_log_redacts_raw_share_tokens() -> None:
     assert ShareTokenAccessLogFilter().filter(record) is True
     rendered = record.getMessage()
     assert raw_token not in rendered
-    assert "/api/v2/shares/[REDACTED]?preview=1" in rendered
+    assert "/api/public/shares/[REDACTED]?preview=1" in rendered

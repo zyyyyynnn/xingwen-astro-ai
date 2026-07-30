@@ -38,7 +38,7 @@ export function createSnapshotShareRepositories(
   const workspaces: WorkspaceSnapshotRepository = {
     async getByProjectId(projectId): Promise<WorkspaceSnapshot | null> {
       const payload = await http.get<unknown>(
-        `/api/v2/projects/${seg(projectId)}/workspace-snapshot`,
+        `/api/projects/${seg(projectId)}/workspace-snapshot`,
       );
       return payload
         ? validateAndMap("WorkspaceSnapshot", payload, mapWorkspaceSnapshot)
@@ -50,7 +50,7 @@ export function createSnapshotShareRepositories(
       expectedRevision: number,
     ): Promise<WorkspaceSnapshot> {
       const payload = await http.put<unknown>(
-        `/api/v2/projects/${seg(projectId)}/workspace-snapshot`,
+        `/api/projects/${seg(projectId)}/workspace-snapshot`,
         mapWorkspaceSnapshotInputToDto(snapshot),
         { "If-Match": String(expectedRevision) },
       );
@@ -61,7 +61,7 @@ export function createSnapshotShareRepositories(
   const shares: ShareRepository = {
     async list(projectId): Promise<readonly ShareSnapshot[]> {
       const payloads = await http.list<unknown>(
-        `/api/v2/projects/${seg(projectId)}/shares`,
+        `/api/projects/${seg(projectId)}/shares`,
       );
       return payloads.map((p) =>
         validateAndMap("ShareSnapshot", p, mapShareSnapshot),
@@ -72,7 +72,7 @@ export function createSnapshotShareRepositories(
       request: CreateShareSnapshotRequest,
     ): Promise<ShareSnapshotCreated> {
       const payload = await http.post<unknown>(
-        `/api/v2/projects/${seg(projectId)}/shares`,
+        `/api/projects/${seg(projectId)}/shares`,
         mapCreateShareSnapshotRequestToDto(request),
       );
       return validateAndMap(
@@ -83,12 +83,12 @@ export function createSnapshotShareRepositories(
     },
     async revoke(projectId, shareId): Promise<void> {
       await http.delete(
-        `/api/v2/projects/${seg(projectId)}/shares/${seg(shareId)}`,
+        `/api/projects/${seg(projectId)}/shares/${seg(shareId)}`,
       );
     },
     async getPublic(shareToken): Promise<PublicShareSnapshot | null> {
       const payload = await http.get<unknown>(
-        `/api/v2/shares/${seg(shareToken)}`,
+        `/api/public/shares/${seg(shareToken)}`,
       );
       return payload
         ? validateAndMap("PublicShareSnapshot", payload, mapPublicShareSnapshot)

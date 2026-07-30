@@ -501,7 +501,7 @@ export function createPaperAcquisitionRepository(
 ): PaperAcquisitionRepository {
   return {
     async getReview(artifactVersionId) {
-      const base = `/api/v2/artifact-versions/${seg(artifactVersionId)}`;
+      const base = `/api/artifact-versions/${seg(artifactVersionId)}`;
       const collectionPayload = await http.getRequired<unknown>(
         `${base}/paper-collection`,
       );

@@ -314,7 +314,7 @@ describe("Fixture adapter — share create resolves a frozen public projection",
     const fresh = createFixtureRepositories(exoplanetHostStarFixture);
     const created = await fresh.shares.create(PROJECT_ID, request);
     expect(created.shareToken).toBeTruthy();
-    expect(created.shareUrl).toBe(`/api/v2/shares/${created.shareToken}`);
+    expect(created.shareUrl).toBe(`/api/public/shares/${created.shareToken}`);
 
     const listed = await fresh.shares.list(PROJECT_ID);
     expect(listed).toHaveLength(1);

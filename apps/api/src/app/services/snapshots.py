@@ -187,7 +187,7 @@ class InMemorySnapshotStore:
             return ShareSnapshotCreated(
                 **snapshot.model_dump(),
                 share_token=raw_token,
-                share_url=f"/api/v2/shares/{raw_token}",
+                share_url=f"/api/public/shares/{raw_token}",
             )
 
     def list_shares(

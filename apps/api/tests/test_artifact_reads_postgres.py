@@ -300,7 +300,7 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
             result.cookies.set(
                 settings.SESSION_COOKIE_NAME,
                 credential,
-                path="/api/v2",
+                path="/api",
             )
         return result
 
@@ -322,7 +322,7 @@ def test_http_reads_complete_provenance_and_redact_sensitive_fields(
     client = read_context["owner"]
     assert isinstance(ids, dict)
     assert isinstance(client, TestClient)
-    response = client.get(f"/api/v2/artifact-versions/{ids['version_1']}")
+    response = client.get(f"/api/artifact-versions/{ids['version_1']}")
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["source_snapshot_ids"] == [str(ids["snapshot"])]
@@ -347,9 +347,9 @@ def test_http_reads_complete_provenance_and_redact_sensitive_fields(
     assert "embedded-" not in rendered
     assert response.headers["cache-control"] == "no-store"
 
-    evidence = client.get(f"/api/v2/evidence/{ids['evidence']}")
-    source = client.get(f"/api/v2/source-snapshots/{ids['snapshot']}")
-    artifact = client.get(f"/api/v2/artifacts/{ids['artifact_1']}")
+    evidence = client.get(f"/api/evidence/{ids['evidence']}")
+    source = client.get(f"/api/source-snapshots/{ids['snapshot']}")
+    artifact = client.get(f"/api/artifacts/{ids['artifact_1']}")
     assert evidence.status_code == source.status_code == artifact.status_code == 200
     assert evidence.json()["data"]["source_snapshot"]["id"] == str(ids["snapshot"])
     assert artifact.json()["data"]["versions"][0]["id"] == str(ids["version_1"])
@@ -362,7 +362,7 @@ def test_cursor_is_stable_scoped_and_bounded(
     client = read_context["owner"]
     assert isinstance(ids, dict)
     assert isinstance(client, TestClient)
-    path = f"/api/v2/runs/{ids['run']}/artifacts"
+    path = f"/api/runs/{ids['run']}/artifacts"
     first = client.get(path, params={"limit": 2})
     assert first.status_code == 200
     payload = first.json()
@@ -410,15 +410,15 @@ def test_authentication_ownership_not_found_and_integrity_problem_details(
     assert isinstance(anonymous, TestClient)
     assert callable(factory)
     private_paths = (
-        f"/api/v2/runs/{ids['run']}/artifacts",
-        f"/api/v2/artifacts/{ids['artifact_1']}",
-        f"/api/v2/artifact-versions/{ids['version_1']}",
-        f"/api/v2/evidence/{ids['evidence']}",
-        f"/api/v2/source-snapshots/{ids['snapshot']}",
+        f"/api/runs/{ids['run']}/artifacts",
+        f"/api/artifacts/{ids['artifact_1']}",
+        f"/api/artifact-versions/{ids['version_1']}",
+        f"/api/evidence/{ids['evidence']}",
+        f"/api/source-snapshots/{ids['snapshot']}",
     )
     assert all(anonymous.get(path).status_code == 401 for path in private_paths)
     hidden_responses = tuple(other.get(path) for path in private_paths)
-    missing = owner.get(f"/api/v2/artifacts/{UUID(int=999)}")
+    missing = owner.get(f"/api/artifacts/{UUID(int=999)}")
     assert all(response.status_code == 404 for response in hidden_responses)
     assert missing.status_code == 404
     assert all(
@@ -430,7 +430,7 @@ def test_authentication_ownership_not_found_and_integrity_problem_details(
         version = session.get(ArtifactVersionModel, ids["version_1"])
         assert version is not None
         version.evidence_ids = [str(UUID(int=999))]
-    denied = owner.get(f"/api/v2/artifact-versions/{ids['version_1']}")
+    denied = owner.get(f"/api/artifact-versions/{ids['version_1']}")
     assert denied.status_code == 403
     assert denied.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
     assert "traceback" not in denied.text.casefold()
