@@ -13,8 +13,11 @@
 packages/prompts/
 ├─ README.md
 ├─ registry.json
-├─ paper_summary/
+├─ literature_claim/
 │  └─ v1.md
+├─ paper_summary/
+│  ├─ v1.md
+│  └─ v2.md
 └─ literature_reasoning/
    └─ v1.md
 ```
