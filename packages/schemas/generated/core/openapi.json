@@ -2526,7 +2526,7 @@
       },
       "PaperSummaryArtifactContent": {
         "additionalProperties": false,
-        "description": "Publisher-ready D-03 content used directly by the v2 Artifact discriminator.",
+        "description": "Publisher-ready D-03 content used directly by the core Artifact discriminator.",
         "properties": {
           "benchmark": {
             "$ref": "#/components/schemas/PaperBenchmarkReference"

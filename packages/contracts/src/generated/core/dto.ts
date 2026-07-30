@@ -992,7 +992,7 @@ export interface PaperSummaryRead {
   summary: PaperSummaryArtifactContent;
 }
 /**
- * Publisher-ready D-03 content used directly by the v2 Artifact discriminator.
+ * Publisher-ready D-03 content used directly by the core Artifact discriminator.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PaperSummaryArtifactContent".

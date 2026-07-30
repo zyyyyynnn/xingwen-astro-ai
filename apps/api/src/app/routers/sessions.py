@@ -1,4 +1,4 @@
-"""Anonymous v2 session transport; security logic remains in application services."""
+"""Anonymous session transport; security logic remains in application services."""
 
 from __future__ import annotations
 

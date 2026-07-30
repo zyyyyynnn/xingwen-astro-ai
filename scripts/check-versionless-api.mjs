@@ -46,9 +46,12 @@ const SKIP_PATH_PREFIXES = ["apps/api/migrations"];
 const ALLOWLIST = new Set([
   "scripts/check-frontend-architecture.mjs",
   "scripts/check-versionless-api.mjs",
+  // Historical records that intentionally cite the retired versioned surface:
+  "docs/architecture/DECISIONS.md", // ADR-030 documents the migration itself
+  "CONTRIBUTING.md", // past GitHub issue titles quoted verbatim
 ]);
 
-const VERSION_PATH_PATTERN = /\/api\/v[0-9](?=\/|["'`\s])/u;
+const VERSION_PATH_PATTERN = /\/api\/v[0-9](?=[/\W]|$)/u;
 
 /**
  * Collect scannable files under the tracked source tree.
@@ -73,9 +76,6 @@ function collectFiles() {
     .map((file) => file.replaceAll("\\", "/"));
 
   return listed.filter((file) => {
-    if (!SCAN_DIRS.some((dir) => file === dir || file.startsWith(`${dir}/`))) {
-      return false;
-    }
     if (file.split("/").some((segment) => SKIP_DIR_NAMES.has(segment))) {
       return false;
     }
@@ -84,6 +84,14 @@ function collectFiles() {
     }
     const dot = file.lastIndexOf(".");
     const extension = dot === -1 ? "" : file.slice(dot);
+    // Markdown is policed repo-wide (docs live under docs/ and the repo root);
+    // code/config files are policed only within the versioned source dirs.
+    if (extension === ".md") {
+      return true;
+    }
+    if (!SCAN_DIRS.some((dir) => file === dir || file.startsWith(`${dir}/`))) {
+      return false;
+    }
     return SCANNED_EXTENSIONS.has(extension);
   });
 }

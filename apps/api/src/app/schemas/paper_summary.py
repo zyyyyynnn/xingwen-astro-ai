@@ -269,7 +269,7 @@ class PaperSummaryProducerExecution(BaseModel):
 
 
 class PaperSummaryArtifactContent(BaseModel):
-    """Publisher-ready D-03 content used directly by the v2 Artifact discriminator."""
+    """Publisher-ready D-03 content used directly by the core Artifact discriminator."""
 
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
