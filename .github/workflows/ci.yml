@@ -7,42 +7,13 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  apply-pr150-review-fixes:
-    name: Apply PR 150 review fixes
-    if: github.event_name == 'pull_request' && github.event.pull_request.number == 150 && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: codex/c-07-supplemental-source-adapter
-          fetch-depth: 2
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Apply review fixes
-        run: python scripts/apply_pr150_review_fixes.py
-
-      - name: Restore CI and publish the fixed branch
-        run: |
-          git show HEAD^:.github/workflows/ci.yml > .github/workflows/ci.yml
-          git diff --check
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix(data-pipeline): address supplemental adapter review"
-          git push origin HEAD:codex/c-07-supplemental-source-adapter
-
   foundation:
     name: Foundation checks
     runs-on: ubuntu-latest
