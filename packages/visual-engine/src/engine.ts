@@ -33,7 +33,7 @@ export function createVisualEngine(config: VisualEngineConfig): VisualEngine {
     canvas,
   });
 
-  // --- DOM anchor: accessible text describing the visual (AGENTS §9) ---
+  // --- DOM anchor: accessible text describing the visual (见 docs/design/VISUAL_LANGUAGE.md) ---
   function ensureDomAnchor(): void {
     if (domAnchor) return;
     domAnchor = document.createElement("div");
