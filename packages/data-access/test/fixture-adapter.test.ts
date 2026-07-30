@@ -107,6 +107,18 @@ describe("Fixture adapter — reads map DTO to domain", () => {
     expect(version!.contentHash).toBe(acquisition.collection.content_hash);
     expect(version).not.toHaveProperty("content");
   });
+
+  it("classifies a missing paper collection version like the HTTP adapter", async () => {
+    const failure = await repos.paperAcquisition
+      .getReview("artv_missing" as never)
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+
+    expect(failure).toBeInstanceOf(NotFoundError);
+    expect((failure as NotFoundError).code).toBe("ARTIFACT_VERSION_NOT_FOUND");
+  });
 });
 
 describe("Fixture adapter — draft update and contract confirm", () => {

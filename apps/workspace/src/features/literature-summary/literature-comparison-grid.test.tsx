@@ -22,7 +22,31 @@ function secondReview(): PaperSummaryReview {
     ...fixtureReview,
     artifactVersionId: "artv_papsum_02" as never,
     paperId: "pap_second_01" as never,
+    paper: {
+      paperId: "pap_second_01" as never,
+      title: "Second paper title",
+      authors: ["Second Author"],
+      year: 2025,
+    },
     sourceMode: "cached",
+    producer: {
+      ...fixtureReview.producer,
+      modelName: "second-model",
+      promptName: "second_prompt" as never,
+      promptVersion: "v3",
+    },
+    cacheAudits: [
+      {
+        sourceId: "crossref" as never,
+        sourceSnapshotId: "snap_second" as never,
+        cacheVersion: "cache-v3",
+        cacheApplicability: "same normalized query",
+        liveFailureClass: "timeout",
+        liveFailureCode: "CROSSREF_TIMEOUT",
+        originRunId: "run_origin_02" as never,
+        originArtifactVersionId: "artv_origin_02" as never,
+      },
+    ],
     researchGoal:
       fixtureReview.researchGoal === null
         ? null
@@ -50,6 +74,12 @@ describe("LiteratureComparisonGrid", () => {
       `ArtifactVersion ${String(fixtureReview.artifactVersionId)}`,
     );
     expect(first).toHaveTextContent("source: Fixture");
+    expect(first).toHaveTextContent(
+      `${fixtureReview.producer.modelName} / ${String(
+        fixtureReview.producer.promptName,
+      )}@${fixtureReview.producer.promptVersion}`,
+    );
+    expect(first).toHaveTextContent("Evidence coverage");
     // All five comparison dimensions render, including the limitations cell
     // that enables cross-paper limitation contrast.
     for (const title of [
@@ -92,7 +122,18 @@ describe("LiteratureComparisonGrid", () => {
 
     // Column 2 keeps its own identity; nothing leaks across columns.
     expect(second.getByText("paper pap_second_01")).toBeInTheDocument();
+    expect(second.getByText("Second paper title")).toBeInTheDocument();
+    expect(second.getByText("Second Author（2025）")).toBeInTheDocument();
     expect(second.getByText("source: Cached")).toBeInTheDocument();
+    expect(
+      second.getByText("second-model / second_prompt@v3"),
+    ).toBeInTheDocument();
+    expect(second.getByText(/cache cache-v3/u)).toHaveTextContent(
+      "origin Run run_origin_02 / ArtifactVersion artv_origin_02",
+    );
+    expect(
+      second.getByText(/Live 失败：timeout:CROSSREF_TIMEOUT/u),
+    ).toHaveTextContent("适用条件：same normalized query");
     expect(
       second.getByText("Second paper goal statement for column isolation."),
     ).toBeInTheDocument();

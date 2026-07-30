@@ -24,10 +24,14 @@ PUBLIC_REQUESTS = [
     ("POST", "/api/sessions/"),
     ("GET", "/api/public/shares/tok-123"),
     ("HEAD", "/api/public/shares/tok-123"),
+    ("GET", "/apix"),
+    ("GET", "/apis"),
 ]
 
 # Requests that MUST require an authenticated session.
 PROTECTED_REQUESTS = [
+    ("GET", "/api/sessions"),
+    ("DELETE", "/api/sessions"),
     ("GET", "/api/sessions/current"),
     ("DELETE", "/api/sessions/current"),
     ("GET", "/api/projects"),
@@ -88,6 +92,8 @@ def test_public_share_read_detection(method: str, path: str, expected: bool) -> 
         ("/api/health", False),
         ("/api/tasks/task-1", False),
         ("/", False),
+        ("/apix", False),
+        ("/apis", False),
     ],
 )
 def test_problem_details_classification(path: str, expected: bool) -> None:

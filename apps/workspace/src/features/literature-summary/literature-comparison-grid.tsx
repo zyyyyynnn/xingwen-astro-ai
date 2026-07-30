@@ -15,6 +15,7 @@ import type {
 } from "@xingwen/domain";
 
 import {
+  allStatements,
   summarySourceModeLabel,
   supportStatusLabel,
 } from "./literature-summary-state";
@@ -25,6 +26,47 @@ export interface LiteratureComparisonGridProps {
 }
 
 const COMPARISON_SLOTS = 3;
+
+function ComparisonProvenance({
+  summary,
+}: {
+  readonly summary: PaperSummaryReview;
+}) {
+  const statements = allStatements(summary).flatMap(
+    (region) => region.statements,
+  );
+  const supportedCount = statements.filter(
+    (statement) => statement.status === "supported",
+  ).length;
+  return (
+    <dl className="paper-dl">
+      <dt>model / Prompt</dt>
+      <dd>
+        {summary.producer.modelName} / {String(summary.producer.promptName)}@
+        {summary.producer.promptVersion}
+      </dd>
+      <dt>Evidence coverage</dt>
+      <dd>
+        {supportedCount}/{statements.length} 有证据支持；
+        {statements.length - supportedCount} 项存在覆盖缺口
+      </dd>
+      {summary.cacheAudits.map((audit) => (
+        <div
+          key={`${String(audit.sourceId)}:${String(audit.sourceSnapshotId)}`}
+        >
+          <dt>Cached source</dt>
+          <dd>
+            {String(audit.sourceId)} / cache {audit.cacheVersion} / 适用条件：
+            {audit.cacheApplicability} / Live 失败：
+            {audit.liveFailureClass}:{audit.liveFailureCode} / origin Run{" "}
+            {String(audit.originRunId)} / ArtifactVersion{" "}
+            {String(audit.originArtifactVersionId)}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 function ComparisonCell({
   title,
@@ -94,6 +136,13 @@ export function LiteratureComparisonGrid({
             >
               <p className="candidate-meta">
                 <span className="candidate-meta-item">
+                  {summary.paper.title}
+                </span>
+                <span className="candidate-meta-item">
+                  {summary.paper.authors.join("、") || "作者未知"}（
+                  {summary.paper.year ?? "年份未知"}）
+                </span>
+                <span className="candidate-meta-item">
                   paper {String(summary.paperId)}
                 </span>
                 <span className="candidate-meta-item">
@@ -102,7 +151,14 @@ export function LiteratureComparisonGrid({
                 <span className="candidate-meta-item">
                   source: {summarySourceModeLabel(summary.sourceMode)}
                 </span>
+                <span className="candidate-meta-item">
+                  版本 {String(summary.versionNumber)}
+                  {summary.supersedesVersionId === null
+                    ? "（初始版本）"
+                    : `（修订自 ${String(summary.supersedesVersionId)}）`}
+                </span>
               </p>
+              <ComparisonProvenance summary={summary} />
               <ComparisonCell
                 title="研究目标"
                 statements={

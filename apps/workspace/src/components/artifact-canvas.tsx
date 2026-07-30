@@ -29,6 +29,7 @@ export interface ArtifactCanvasProps {
   readonly version: ArtifactVersionMetadata;
   readonly paperAcquisition: PaperAcquisitionRepository;
   readonly paperSummary: PaperSummaryRepository;
+  readonly comparisonArtifactVersionIds?: readonly ArtifactVersionMetadata["id"][];
   readonly executionMode: ExecutionMode | null;
   readonly ready: boolean;
   readonly disabled: boolean;
@@ -43,6 +44,7 @@ export function ArtifactCanvas({
   version,
   paperAcquisition,
   paperSummary,
+  comparisonArtifactVersionIds,
   executionMode,
   ready,
   disabled,
@@ -73,6 +75,7 @@ export function ArtifactCanvas({
         // Remount on version change so a previous summary can never linger.
         key={String(version.id)}
         artifactVersionId={version.id}
+        comparisonArtifactVersionIds={comparisonArtifactVersionIds}
         repository={paperSummary}
         executionMode={executionMode}
         ready={ready}

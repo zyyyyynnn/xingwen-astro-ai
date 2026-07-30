@@ -144,9 +144,11 @@ export { safeExternalUrl } from "./paper-acquisition";
 export type {
   PaperSummaryEvidenceLocator,
   PaperSummaryEvidenceReview,
+  PaperSummaryCacheAuditReview,
   PaperSummaryInputVersionsReview,
   PaperSummaryMetadataLocator,
   PaperSummaryProducerReview,
+  PaperSummaryPaperReview,
   PaperSummaryReview,
   PaperSummarySnapshotVersionReview,
   PaperSummarySourceConflictReview,

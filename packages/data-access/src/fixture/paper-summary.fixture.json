@@ -13,10 +13,18 @@
     "artifact_version_id": "artv_papsum_01",
     "artifact_id": "art_papsum_01",
     "project_id": "proj_01JEXAMPLE",
+    "version_number": 1,
+    "supersedes_version_id": null,
     "source_mode": "fixture",
     "content_hash": "sha256:5e2f7cc684a4365132c5e10f6b3b8d6beaba17e7b3dd863fc004b406c33ef6de",
     "input_hash": "sha256:5fc279fc5533380dda0633e4d31082579f21513ef84f5d2d8d93f065a599b53f",
     "created_at": "2026-07-21T08:25:00Z",
+    "paper": {
+      "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "title": "The Revised TESS Input Catalog and Candidate Target List",
+      "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Martin Paegert"],
+      "year": 2019
+    },
     "summary": {
       "kind": "paper_summary",
       "schema_version": "1.0.0",
@@ -215,6 +223,7 @@
       "input_hash": "sha256:5fc279fc5533380dda0633e4d31082579f21513ef84f5d2d8d93f065a599b53f",
       "output_hash": "sha256:e2387598a7dc133feeb39c825e09b9115d59d16ba1149073ec7eaa8f7b1523d4"
     },
+    "cache_audits": [],
     "producer_execution": {
       "id": "pexec_run_papsum_01",
       "run_id": "run_01JEXAMPLE",
@@ -275,6 +284,7 @@
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
         "locator": {
           "kind": "paper_metadata",
+          "summary_evidence_id": "ev.dataset_year",
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
           "metadata_field": "year"
@@ -294,6 +304,7 @@
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
         "locator": {
           "kind": "paper_metadata",
+          "summary_evidence_id": "ev.finding_doi",
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
           "metadata_field": "doi"
@@ -313,6 +324,7 @@
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
         "locator": {
           "kind": "paper_metadata",
+          "summary_evidence_id": "ev.goal_title",
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
           "metadata_field": "title"
@@ -332,6 +344,7 @@
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
         "locator": {
           "kind": "paper_text",
+          "summary_evidence_id": "ev.method_text",
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
           "section": "Methods",
@@ -632,6 +645,7 @@
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
         "locator": {
           "kind": "paper_metadata",
+          "summary_evidence_id": "ev.dataset_year",
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
           "metadata_field": "year"
@@ -651,6 +665,7 @@
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
         "locator": {
           "kind": "paper_metadata",
+          "summary_evidence_id": "ev.finding_doi",
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
           "metadata_field": "doi"
@@ -670,6 +685,7 @@
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
         "locator": {
           "kind": "paper_metadata",
+          "summary_evidence_id": "ev.goal_title",
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
           "metadata_field": "title"
@@ -689,6 +705,7 @@
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
         "locator": {
           "kind": "paper_text",
+          "summary_evidence_id": "ev.method_text",
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_url": "https://doi.org/10.3847/1538-3881/ab3467",
           "section": "Methods",
