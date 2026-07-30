@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "audited_at": "2026-07-30",
+  "governance_issue": "https://github.com/zyyyyynnn/xingwen-astro-ai/issues/152",
+  "assets": [
+    {
+      "path": "docs/references/mavis/api/astropy.json",
+      "sha256": "396f17046bc1a595da5bced2bb9925ae5b9d36a15b873c81406dec02d91b16c3",
+      "bytes": 6588,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/astropy.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal."
+    },
+    {
+      "path": "docs/references/mavis/api/getData.json",
+      "sha256": "0738cd27843b19d9de82f2130f0a4b1ec3588b46b084fc6889870c4124f5580a",
+      "bytes": 8905,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/getData.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal; this is one of four JSON files directly loaded by prompt10.py."
+    },
+    {
+      "path": "docs/references/mavis/api/getData2.json",
+      "sha256": "5f607b7718aa0e7bb373e1e8321dcf1e548d8ada9688cfccf59605812f67811a",
+      "bytes": 10986,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/getData2.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal."
+    },
+    {
+      "path": "docs/references/mavis/api/photutils.json",
+      "sha256": "6f4c0d4a4d25e5ffe8ed2c8fb518028501883499c61f496daf67b79a834560e7",
+      "bytes": 18795,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/photutils.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal; this is one of four JSON files directly loaded by prompt10.py."
+    },
+    {
+      "path": "docs/references/mavis/api/skyfield.json",
+      "sha256": "87dd100300d68091f88947d55ea9305cd55f0e17bacc505cec166f2adbc9c552",
+      "bytes": 21224,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/skyfield.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal; this is one of four JSON files directly loaded by prompt10.py."
+    },
+    {
+      "path": "docs/references/mavis/api/skyfield2.json",
+      "sha256": "315dd7e946a692f1e59db2e2f589f67afafedf3f8a340043f6b0914a816482f5",
+      "bytes": 28485,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/skyfield2.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal."
+    },
+    {
+      "path": "docs/references/mavis/api/skyfield3.json",
+      "sha256": "cf563e9918ee6af080a50c8a0ebe3f4f8093283ab0bb9f11f6f8f07405d0bf99",
+      "bytes": 19400,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/skyfield3.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal."
+    },
+    {
+      "path": "docs/references/mavis/api/wwt_agent.json",
+      "sha256": "7cbbcde5321902e654e3ea72783251fa46eb707c8b876a576fd1ef6d88699033",
+      "bytes": 4932,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/wwt_agent.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal; this is one of four JSON files directly loaded by prompt10.py."
+    },
+    {
+      "path": "docs/references/mavis/api/wwt_agent1.json",
+      "sha256": "091a90cb525112ed77ba07f3e488f51946404ed5acf9c03145cced3706beadce",
+      "bytes": 12355,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/wwt_agent1.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal."
+    },
+    {
+      "path": "docs/references/mavis/api/wwt_agent2.json",
+      "sha256": "c863d4ef1ade4d472be978d87d186a43edd318e0be8f6a144800bbe0641ad20f",
+      "bytes": 16460,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/wwt_agent2.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal."
+    },
+    {
+      "path": "docs/references/mavis/api/wwt_agent4.json",
+      "sha256": "5cac7a992120ce1141c994d5222c8a8e381c7cba6dcafc800fc3fa3a4320cd81",
+      "bytes": 7622,
+      "asset_type": "api_json",
+      "original_location": "local MAVIS reference snapshot / data/api_for_prompt/wwt_agent4.json",
+      "source_or_author": "MAVIS local reference snapshot; author not documented in file",
+      "license_status": "unverified",
+      "license_evidence": "No file license, root LICENSE/COPYING/NOTICE, source URL, or author authorization was found; PR #61 records only an external-directory import.",
+      "redistribution_action": "remove",
+      "notes": "Repository copy matched the local original SHA-256 before removal."
+    },
+    {
+      "path": "docs/references/papers/mavis-天文可视化工具.pdf",
+      "sha256": "c7132bb0f7a99f18fad5b2a48509a23fb8f522c985b0bac01cbefa7ab87ef806",
+      "bytes": 4577528,
+      "asset_type": "paper",
+      "original_location": "External-directory artifact introduced by PR #61; upstream URL was not recorded",
+      "source_or_author": "谢家福; 贵州大学",
+      "license_status": "not_redistributable",
+      "license_evidence": "PDF page 89 assigns related-work IP to Guizhou University and grants retention, submission, database, and copying rights to the university; no grant to this repository was found.",
+      "redistribution_action": "remove",
+      "notes": "Title: 基于大语言模型的天文数据分析任务智能执行技术研究; dated June 2026."
+    },
+    {
+      "path": "docs/references/mavis/摘要.md",
+      "sha256": "ee7bf597e392895541512d9071266a02f85fe7f1fadd6f8d24d28ce8623efc9d",
+      "bytes": 4349,
+      "asset_type": "derived_summary",
+      "original_location": "Repository-authored from a read-only structural audit of the local MAVIS reference snapshot",
+      "source_or_author": "zyyyyynnn/xingwen-astro-ai contributors",
+      "license_status": "verified",
+      "license_evidence": "Repository-authored factual synthesis; no third-party JSON, PDF text, or credential value is copied.",
+      "redistribution_action": "derived_facts_only",
+      "notes": "Retained as the non-normative reference summary; hash computed after the audit rewrite."
+    }
+  ]
+}

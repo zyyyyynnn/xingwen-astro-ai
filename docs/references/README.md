@@ -15,7 +15,7 @@ docs/references/
 ├─ 赛题要求.md
 ├─ papers/              third-party papers
 ├─ autoastro/           paper summary + selected code
-├─ mavis/               paper summary + selected API examples
+├─ mavis/               derived summary + provenance/license audit
 └─ inosum/              paper summary + selected code
 ```
 
