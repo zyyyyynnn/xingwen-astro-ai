@@ -1,9 +1,8 @@
 name: Apply PR 150 review fixes
 
 on:
-  push:
-    branches:
-      - codex/c-07-supplemental-source-adapter
+  pull_request:
+    types: [synchronize]
     paths:
       - scripts/apply_pr150_review_fixes.py
       - .github/workflows/apply-pr150-review-fixes.yml
@@ -13,7 +12,7 @@ permissions:
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event.pull_request.number == 150 && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Check out PR branch
