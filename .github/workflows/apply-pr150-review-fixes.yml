@@ -1,3 +1,4 @@
+# Trigger after pull_request configuration exists in the parent commit.
 name: Apply PR 150 review fixes
 
 on:
