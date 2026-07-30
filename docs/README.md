@@ -91,6 +91,8 @@
 | ------------------------------------------------------------- | --------------- | -------------------------------- |
 | [Competition Requirements](references/赛题要求.md)            | Reference       | 外部要求，不直接定义内部实现     |
 | [Reference Materials](references/README.md)                   | Reference index | 第三方论文、代码和摘要，仅供研究 |
+| [MAVIS Reference Summary](references/mavis/摘要.md)           | Reference       | 已核验事实与当前项目边界         |
+| [MAVIS Reference Audit](references/mavis/REFERENCE_AUDIT.md)  | Reference audit | 来源、哈希、许可与再分发裁决     |
 
 参考代码和论文必须先被 L1/L2 规范明确采纳，才能成为实现约束。
 
