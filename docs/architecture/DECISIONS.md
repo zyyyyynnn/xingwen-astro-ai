@@ -347,7 +347,7 @@
 
 **Rationale:** 单面消除版本分叉与“冻结 v2”表述的歧义；追加式 + 既有三重门禁（committed generated schema、`--check` 导出、运行时↔契约 App parity）在评审中以红 diff 机械拦截破坏性变更；`/api/public/*` 命名约定使新增匿名读无需再改中间件。
 
-**Consequence:** 取代此前“冻结的 /api/v2 契约面”表述；`docs/architecture/API_CONTRACT.md` 按 Core APIs 与 Pipeline APIs 组织；生成目录、同步脚本与导出符号去版本化（`core`、`sync_contracts`、`CoreModelName` 等）。会话 Cookie 作用域由 `/api/v2` 扩为 `/api`（set 与 delete 同步）。
+**Consequence:** 取代此前“冻结的 /api/v2 契约面”表述；`docs/architecture/API_CONTRACT.md` 按 Core APIs 与 Pipeline APIs 组织；生成目录、同步脚本与导出符号去版本化（`core`、`sync_contracts`、`CoreModelName` 等）。会话 Cookie 作用域由 `/api/v2` 扩为 `/api`（set 与 delete 同步）。切换时存量匿名会话一次性失效：持有 `/api/v2` 作用域 Cookie 的浏览器不会向 `/api/sessions` 发送该凭据，恢复无法触发，旧 Cookie 在会话 TTL 内自行过期。作用域扩大后 HttpOnly 凭据也会随请求发送到 `/api/health` 与 `/api/tasks*`，但这些端点不消费会话，无授权或 CSRF 后果。
 
 **Rejected:** 保留 v1/v2 别名或双挂载；用 URL 版本号表达破坏性变更；跨模块搬迁端点归属（保持按域扁平）。
 

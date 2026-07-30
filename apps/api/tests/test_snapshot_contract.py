@@ -13,7 +13,7 @@ from pydantic import ValidationError
 
 from app.config import settings
 from app.main import create_app
-from app.schemas.v2 import (
+from app.schemas.core import (
     CreateShareSnapshotRequest,
     PublicArtifactVersion,
     PublicEvidence,

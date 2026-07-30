@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Path, Query, Request, Response, status
 
-from app.schemas.v2 import (
+from app.schemas.core import (
     CollectionEnvelope,
     CreateShareSnapshotRequest,
     CursorPage,
@@ -24,7 +24,7 @@ from app.security import SecurityProblem
 from app.services.snapshots import SnapshotService
 
 
-router = APIRouter(prefix="/api", tags=["v2-snapshots"])
+router = APIRouter(prefix="/api", tags=["snapshots"])
 
 
 def _service(request: Request) -> SnapshotService:

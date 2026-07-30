@@ -1,4 +1,4 @@
-"""Lease-fenced execution boundary for the persistent v2 workflow.
+"""Lease-fenced execution boundary for the persistent workflow.
 
 The executor owns orchestration around one frozen step. External adapters and
 the #78 success committer run after ``begin_step`` has closed its transaction.

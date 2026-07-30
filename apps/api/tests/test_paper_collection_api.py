@@ -38,7 +38,7 @@ from app.schemas.paper_collection import (
     PaperSourcePage,
     compute_paper_collection_output_hash,
 )
-from app.schemas.v2 import (
+from app.schemas.core import (
     ArtifactVersionDetail,
     EvidenceDetail,
     ProducerExecutionDetail,

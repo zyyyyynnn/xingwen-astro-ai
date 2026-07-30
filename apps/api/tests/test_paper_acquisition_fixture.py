@@ -21,7 +21,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.v2 import ArtifactVersionDetail
+from app.schemas.core import ArtifactVersionDetail
 from services.paper_pipeline.benchmark import load_frozen_benchmark
 from services.paper_pipeline.demo_fixture import (
     DEMO_SCENARIO_ID,

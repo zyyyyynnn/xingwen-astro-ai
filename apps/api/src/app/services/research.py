@@ -28,7 +28,7 @@ from app.db.models import (
     ResearchRunModel,
 )
 from app.schemas.manifest import ManifestBundle
-from app.schemas.v2 import (
+from app.schemas.core import (
     ConfirmResearchContractRequest,
     ContractDraftStatus,
     CreateResearchContractDraftRequest,

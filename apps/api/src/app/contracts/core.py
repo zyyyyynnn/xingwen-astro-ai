@@ -12,7 +12,7 @@ from typing import Annotated, Any, NoReturn, cast
 
 from fastapi import FastAPI, Header, Path, Query, Response
 
-from app.schemas.v2 import (
+from app.schemas.core import (
     ArtifactKind,
     ArtifactVersionDetail,
     CollectionEnvelope,
@@ -64,7 +64,7 @@ def _contract_only() -> NoReturn:
     raise RuntimeError("the /api contract application is not a runtime API")
 
 
-def create_v2_contract_app() -> FastAPI:
+def create_contract_app() -> FastAPI:
     app = FastAPI(
         title="Xingwen Astro AI /api Contract",
         version="2.0.0",

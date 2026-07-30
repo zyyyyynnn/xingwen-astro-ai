@@ -1,11 +1,11 @@
-"""Case Manifest admission for immutable v2 research contracts."""
+"""Case Manifest admission for immutable core research contracts."""
 
 from __future__ import annotations
 
 from datetime import datetime
 
 from app.schemas.manifest import ManifestBundle
-from app.schemas.v2 import ResearchContract, ResearchContractInput
+from app.schemas.core import ResearchContract, ResearchContractInput
 
 
 def validate_contract_against_manifest(

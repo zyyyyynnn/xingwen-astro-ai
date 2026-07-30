@@ -25,7 +25,7 @@ from app.db.models import (
     ResearchRunModel,
     SourceSnapshotModel,
 )
-from app.schemas.v2 import (
+from app.schemas.core import (
     ArtifactVersionDetail,
     ArtifactVersionSummary,
     EvidenceDetail,

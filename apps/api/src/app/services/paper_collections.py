@@ -19,7 +19,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.v2 import ArtifactVersionDetail, SourceSnapshotDetail
+from app.schemas.core import ArtifactVersionDetail, SourceSnapshotDetail
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 

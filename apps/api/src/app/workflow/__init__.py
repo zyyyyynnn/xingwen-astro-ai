@@ -1,6 +1,6 @@
 """Research task workflow primitives.
 
-Phase 0 keeps its original executor. The opt-in persistent v2 executor uses
+Phase 0 keeps its original executor. The opt-in persistent executor uses
 PostgreSQL lifecycle transactions while pipeline implementations remain ports.
 """
 

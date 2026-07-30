@@ -14,11 +14,11 @@ from app.db.session import create_engine_from_url, session_factory
 from app.errors import ApiError
 from app.middleware import (
     RequestIDMiddleware,
-    V2SecurityMiddleware,
+    SecurityMiddleware,
     api_error_exception_handler,
     api_http_exception_handler,
     api_validation_exception_handler,
-    v2_security_exception_handler,
+    security_exception_handler,
 )
 from app.routers import (
     artifacts,
@@ -123,7 +123,7 @@ def create_app() -> FastAPI:
         app.state.snapshot_store = snapshot_store
         app.state.snapshot_service = SnapshotService(snapshot_store)
     app.add_middleware(
-        V2SecurityMiddleware,
+        SecurityMiddleware,
         sessions=session_service,
         cookie_name=settings.SESSION_COOKIE_NAME,
     )
@@ -143,7 +143,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(HTTPException, api_http_exception_handler)
     app.add_exception_handler(StarletteHTTPException, api_http_exception_handler)
     app.add_exception_handler(RequestValidationError, api_validation_exception_handler)
-    app.add_exception_handler(SecurityProblem, v2_security_exception_handler)
+    app.add_exception_handler(SecurityProblem, security_exception_handler)
 
     app.include_router(health.router)
     app.include_router(tasks.router)

@@ -14,7 +14,7 @@ MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通�
 
 - 静态 Brand Site；
 - Guided Tour 与 Research Workspace；
-- FastAPI `/api/v1` 回归接口和 `/api/v2` M1 Runtime；Session、Project/Contract/Run/Event、Artifact/Evidence 与 Workspace/Share Current；
+- FastAPI 单一 `/api/*` 面：Pipeline APIs（`/api/health`、`/api/tasks*`）与 Core APIs M1 Runtime；Session、Project/Contract/Run/Event、Artifact/Evidence 与 Workspace/Share Current；
 - PostgreSQL Schema、Alembic migration、Workflow 恢复和 ArtifactVersion 原子发布基线已实现；M2 科研 Pipeline Pending；
 - Demo Replay、Live Run、真实缓存、分享和导出；
 - WebGL 或外部服务失败时的可用降级；
@@ -28,7 +28,7 @@ MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通�
 | ----------- | ------------------------------ | ------------------------------------ |
 | `site`      | Node.js 24.18.0 + pnpm 11.13.1 | Astro Brand Site                     |
 | `workspace` | Node.js 24.18.0 + pnpm 11.13.1 | React Research Workspace + HTTP Adapter |
-| `api`       | Python 3.13 + uv               | FastAPI `/api/v1` 与 `/api/v2` M1 Runtime |
+| `api`       | Python 3.13 + uv               | FastAPI 单一 `/api/*` 面（Pipeline APIs 与 Core APIs M1 Runtime） |
 | `migrate`   | Python 3.13 + uv               | Alembic `upgrade head` one-shot |
 | `postgres`  | PostgreSQL 17                  | Project/Contract/Run/Event/Artifact 权威事实 |
 
@@ -102,8 +102,8 @@ Astro 使用明确的 `PUBLIC_` 前缀，Workspace 使用 `VITE_` 前缀。所�
 | `/tour`              | Workspace | Current Guided Tour、Contract 与 Run 启动 |
 | `/workspace`         | Workspace | Current 私有 Session、WorkspaceSnapshot 与恢复 |
 | `/share/$shareToken` | Workspace | Current 匿名只读冻结 ShareSnapshot |
-| `/api/v1/*`          | API       | Current 回归接口                                  |
-| `/api/v2/*`          | API       | Current M1 资源 Runtime；M2 科研能力 Pending |
+| `/api/health`、`/api/tasks*` | API       | Current Pipeline APIs（Phase 0 基线）          |
+| `/api/*`             | API       | Current Core APIs M1 资源 Runtime；M2 科研能力 Pending |
 
 CDN 或平台缓存不得缓存私有 Workspace/API 响应。公开分享默认 `no-store`，除非安全和撤销语义证明可采用其他策略。静态资产可使用内容 hash 长缓存。
 
@@ -156,7 +156,7 @@ CDN 或平台缓存不得缓存私有 Workspace/API 响应。公开分享默认 
 
 - 静态首屏、SEO 元信息和无 WebGL fallback；
 - `/tour/*`、`/workspace/*`、`/share/*` 深链接与刷新；
-- `/api/v1` 回归和适用 `/api/v2` Contract；
+- Pipeline APIs（`/api/health`、`/api/tasks*`）回归与 Core APIs 契约；
 - Session、CSRF、401/403/404、Share 撤销/过期；
 - Project、Run、ArtifactVersion、Evidence 和导出读取；
 - Demo Replay 与 Live/Cached 语义；

@@ -2,17 +2,17 @@
   "authoring_source": "apps/api/src/app/schemas",
   "models": [
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "ArtifactVersion",
       "path": "json/ArtifactVersion.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "ArtifactVersionDetail",
       "path": "json/ArtifactVersionDetail.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "EvidenceRead",
       "path": "json/EvidenceRead.schema.json"
     },
@@ -37,67 +37,67 @@
       "path": "json/PaperSummaryRead.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "PublicShareSnapshot",
       "path": "json/PublicShareSnapshot.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "ResearchArtifact",
       "path": "json/ResearchArtifact.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "ResearchArtifactDetail",
       "path": "json/ResearchArtifactDetail.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "ResearchContract",
       "path": "json/ResearchContract.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "ResearchContractDraft",
       "path": "json/ResearchContractDraft.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "ResearchProject",
       "path": "json/ResearchProject.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "ResearchRun",
       "path": "json/ResearchRun.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "RunEvent",
       "path": "json/RunEvent.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "SessionCreated",
       "path": "json/SessionCreated.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "ShareSnapshot",
       "path": "json/ShareSnapshot.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "ShareSnapshotCreated",
       "path": "json/ShareSnapshotCreated.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "SourceSnapshotDetail",
       "path": "json/SourceSnapshotDetail.schema.json"
     },
     {
-      "module": "app.schemas.v2",
+      "module": "app.schemas.core",
       "name": "WorkspaceSnapshot",
       "path": "json/WorkspaceSnapshot.schema.json"
     }

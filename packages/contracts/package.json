@@ -19,6 +19,6 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "sync-contracts": "node ../../scripts/sync_v2_contracts.mjs"
+    "sync-contracts": "node ../../scripts/sync_contracts.mjs"
   }
 }
