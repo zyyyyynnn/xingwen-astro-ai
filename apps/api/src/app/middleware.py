@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse
 from app import api_surface
 from app.errors import ApiError
 from app.schemas.common import ApiResponse
-from app.schemas.v2 import ProblemDetails, ProblemFieldError
+from app.schemas.core import ProblemDetails, ProblemFieldError
 from app.security import SecurityProblem, SessionService
 
 ERROR_CODE_MAP = {
@@ -33,7 +33,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         return response
 
 
-class V2SecurityMiddleware(BaseHTTPMiddleware):
+class SecurityMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: Any, *, sessions: SessionService, cookie_name: str) -> None:
         super().__init__(app)
         self.sessions = sessions
@@ -48,11 +48,11 @@ class V2SecurityMiddleware(BaseHTTPMiddleware):
             if request.method not in {"GET", "HEAD", "OPTIONS"}:
                 self.sessions.verify_csrf(record, request.headers.get("X-CSRF-Token"))
         except SecurityProblem as exc:
-            return v2_problem_response(request, exc)
+            return problem_response(request, exc)
         return await call_next(request)
 
 
-def v2_problem_response(request: Request, exc: SecurityProblem) -> JSONResponse:
+def problem_response(request: Request, exc: SecurityProblem) -> JSONResponse:
     request_id = getattr(request.state, "request_id", "") or "unknown"
     problem = ProblemDetails(
         type=f"https://xingwen.example/errors/{exc.code.lower().replace('_', '-')}",
@@ -74,10 +74,10 @@ def v2_problem_response(request: Request, exc: SecurityProblem) -> JSONResponse:
     )
 
 
-async def v2_security_exception_handler(
+async def security_exception_handler(
     request: Request, exc: SecurityProblem
 ) -> JSONResponse:
-    return v2_problem_response(request, exc)
+    return problem_response(request, exc)
 
 
 async def api_error_exception_handler(request: Request, exc: ApiError) -> JSONResponse:
@@ -102,7 +102,7 @@ async def api_http_exception_handler(
             title="Invalid request" if exc.status_code == 400 else "Resource not found",
             detail="The request could not be completed",
         )
-        return v2_problem_response(request, problem)
+        return problem_response(request, problem)
     request_id = getattr(request.state, "request_id", "")
     response = ApiResponse.fail(
         ERROR_CODE_MAP.get(exc.status_code, "INVALID_REQUEST"),

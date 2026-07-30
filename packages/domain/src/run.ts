@@ -1,7 +1,7 @@
 /**
  * Research run and run event domain models.
  *
- * Mirror `ResearchRun` and `RunEvent` in the Pydantic `/api/v2` authoring
+ * Mirror `ResearchRun` and `RunEvent` in the Pydantic `/api` authoring
  * source, including the derivation cross-field invariants.
  */
 

@@ -5,8 +5,8 @@
  * must not depend on React, Astro, Vite, HTTP, DOM or any browser/global API.
  * Purity is enforced by `scripts/check-frontend-architecture.mjs`.
  *
- * Entity shapes mirror the Pydantic `/api/v2` authoring source
- * (`apps/api/src/app/schemas/v2.py`) using frontend camelCase convention.
+ * Entity shapes mirror the Pydantic `/api` authoring source
+ * (`apps/api/src/app/schemas/core.py`) using frontend camelCase convention.
  * Transport DTO mapping lives in `@xingwen/data-access`.
  */
 
@@ -18,7 +18,7 @@ export type {
   SemanticVersion,
   UtcIsoTimestamp,
 } from "./value-types";
-export { CASE_KEY, V2_CONTRACT_VERSION } from "./value-types";
+export { CASE_KEY, CONTRACT_VERSION } from "./value-types";
 
 export type { DomainEntityId } from "./identifiers";
 export { asEntityId } from "./identifiers";

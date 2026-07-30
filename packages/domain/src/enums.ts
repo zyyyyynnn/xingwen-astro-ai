@@ -3,7 +3,7 @@
  *
  * Each enum is exposed as a readonly tuple (for iteration / validation) and a
  * derived union type (for exhaustive switch checking). The values mirror the
- * Pydantic `/api/v2` authoring source byte-for-byte so adapters can map wire
+ * Pydantic `/api` authoring source byte-for-byte so adapters can map wire
  * payloads without translation.
  */
 
@@ -118,7 +118,7 @@ export const SHARE_REDACTION_POLICIES = ["public_metadata_only"] as const;
 export type ShareRedactionPolicy = (typeof SHARE_REDACTION_POLICIES)[number];
 
 /**
- * Export artifact format values (subset of the v2 contract export content).
+ * Export artifact format values (subset of the contract export content).
  */
 export const EXPORT_FORMATS = ["csv", "json", "provenance_report"] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];

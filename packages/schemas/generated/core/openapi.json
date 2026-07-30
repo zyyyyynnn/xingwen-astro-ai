@@ -124,7 +124,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__v2__SourceMode"
+            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
           },
           "source_snapshot_ids": {
             "default": [],
@@ -214,7 +214,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__v2__SourceMode"
+            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
           },
           "supersedes_version_id": {
             "anyOf": [
@@ -1995,7 +1995,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__v2__SourceMode"
+            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
           },
           "source_snapshots": {
             "items": {
@@ -2526,7 +2526,7 @@
       },
       "PaperSummaryArtifactContent": {
         "additionalProperties": false,
-        "description": "Publisher-ready D-03 content used directly by the v2 Artifact discriminator.",
+        "description": "Publisher-ready D-03 content used directly by the core Artifact discriminator.",
         "properties": {
           "benchmark": {
             "$ref": "#/components/schemas/PaperBenchmarkReference"
@@ -3068,7 +3068,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__v2__SourceMode"
+            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
           },
           "source_snapshots": {
             "items": {
@@ -3742,7 +3742,7 @@
             "type": "string"
           },
           "source_mode": {
-            "$ref": "#/components/schemas/app__schemas__v2__SourceMode"
+            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
           },
           "title": {
             "minLength": 1,
@@ -5629,8 +5629,7 @@
         "title": "WorkspaceSnapshotInput",
         "type": "object"
       },
-      "app__schemas__enums__SourceMode": {
-        "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
+      "app__schemas__core__SourceMode": {
         "enum": [
           "fixture",
           "live",
@@ -5639,7 +5638,8 @@
         "title": "SourceMode",
         "type": "string"
       },
-      "app__schemas__v2__SourceMode": {
+      "app__schemas__enums__SourceMode": {
+        "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
         "enum": [
           "fixture",
           "live",

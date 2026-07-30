@@ -1919,8 +1919,7 @@
       "title": "UpstreamFailureClass",
       "type": "string"
     },
-    "app__schemas__enums__SourceMode": {
-      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
+    "app__schemas__core__SourceMode": {
       "enum": [
         "fixture",
         "live",
@@ -1929,7 +1928,8 @@
       "title": "SourceMode",
       "type": "string"
     },
-    "app__schemas__v2__SourceMode": {
+    "app__schemas__enums__SourceMode": {
+      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
       "enum": [
         "fixture",
         "live",
@@ -1989,7 +1989,7 @@
       "type": "string"
     },
     "source_mode": {
-      "$ref": "#/$defs/app__schemas__v2__SourceMode"
+      "$ref": "#/$defs/app__schemas__core__SourceMode"
     },
     "source_snapshots": {
       "items": {

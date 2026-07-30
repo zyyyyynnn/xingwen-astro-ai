@@ -20,7 +20,7 @@ from pydantic import (
 from .paper_summary import PaperSummaryArtifactContent
 
 
-V2_MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
+CORE_MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
 Identifier = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=128)]
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 ResearchGoal = Annotated[
@@ -103,13 +103,13 @@ class CachePolicy(StrEnum):
 
 
 class DataRequirements(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     unit_policy: UnitPolicy = UnitPolicy.canonical
 
 
 class SourceScope(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     allowed_sources: tuple[Identifier, ...] = Field(min_length=1)
 
@@ -121,7 +121,7 @@ class SourceScope(BaseModel):
 
 
 class PaperSearchScope(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     keywords: tuple[NonEmptyString, ...] = ()
     year_from: int | None = Field(default=None, ge=1900, le=9999)
@@ -138,7 +138,7 @@ class PaperSearchScope(BaseModel):
 
 
 class EvidenceRequirements(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     require_locator: bool = True
     require_source_snapshot: bool = True
@@ -146,7 +146,7 @@ class EvidenceRequirements(BaseModel):
 
 
 class QualityConstraints(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     source_completeness_min: float = Field(default=1.0, ge=0, le=1)
     unit_consistency_min: float = Field(default=1.0, ge=0, le=1)
@@ -155,7 +155,7 @@ class QualityConstraints(BaseModel):
 class ResearchContractInput(BaseModel):
     """Shared scientific payload for an editable draft and immutable contract."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     research_goal: ResearchGoal
     target_objects: tuple[Identifier, ...] = Field(min_length=1)
@@ -178,7 +178,7 @@ class ResearchContractInput(BaseModel):
 
 class ResearchProject(BaseModel):
     model_config = ConfigDict(
-        **V2_MODEL_CONFIG,
+        **CORE_MODEL_CONFIG,
         json_schema_extra={
             "examples": [
                 {
@@ -209,7 +209,7 @@ class ResearchProject(BaseModel):
 
 class ResearchContractDraft(BaseModel):
     model_config = ConfigDict(
-        **V2_MODEL_CONFIG,
+        **CORE_MODEL_CONFIG,
         json_schema_extra={
             "examples": [
                 {
@@ -252,7 +252,7 @@ class ResearchContractDraft(BaseModel):
 
 class ResearchContract(ResearchContractInput):
     model_config = ConfigDict(
-        **V2_MODEL_CONFIG,
+        **CORE_MODEL_CONFIG,
         json_schema_extra={
             "examples": [
                 {
@@ -286,7 +286,7 @@ class ResearchContract(ResearchContractInput):
 
 class ResearchRun(BaseModel):
     model_config = ConfigDict(
-        **V2_MODEL_CONFIG,
+        **CORE_MODEL_CONFIG,
         json_schema_extra={
             "examples": [
                 {
@@ -341,7 +341,7 @@ class ResearchRun(BaseModel):
 
 class RunEvent(BaseModel):
     model_config = ConfigDict(
-        **V2_MODEL_CONFIG,
+        **CORE_MODEL_CONFIG,
         json_schema_extra={
             "examples": [
                 {
@@ -370,7 +370,7 @@ class RunEvent(BaseModel):
 
 class ResearchArtifact(BaseModel):
     model_config = ConfigDict(
-        **V2_MODEL_CONFIG,
+        **CORE_MODEL_CONFIG,
         json_schema_extra={
             "examples": [
                 {
@@ -396,7 +396,7 @@ class ResearchArtifact(BaseModel):
 
 
 class ProducerReference(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     type: Literal["pipeline", "model", "algorithm"]
     name: NonEmptyString
@@ -410,7 +410,7 @@ class ProducerReference(BaseModel):
 
 
 class DatasetArtifactContent(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     kind: Literal[ArtifactKind.dataset]
     field_ids: tuple[Identifier, ...] = Field(min_length=1)
@@ -428,49 +428,49 @@ class DatasetArtifactContent(BaseModel):
 
 
 class FieldDictionaryArtifactContent(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     kind: Literal[ArtifactKind.field_dictionary]
     field_ids: tuple[Identifier, ...] = Field(min_length=1)
 
 
 class SourceCollectionArtifactContent(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     kind: Literal[ArtifactKind.source_collection]
     source_snapshot_ids: tuple[Identifier, ...] = Field(min_length=1)
 
 
 class PaperCollectionArtifactContent(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     kind: Literal[ArtifactKind.paper_collection]
     paper_ids: tuple[Identifier, ...]
 
 
 class LiteratureClaimsArtifactContent(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     kind: Literal[ArtifactKind.literature_claims]
     claim_ids: tuple[Identifier, ...]
 
 
 class LiteratureRelationsArtifactContent(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     kind: Literal[ArtifactKind.literature_relations]
     relation_ids: tuple[Identifier, ...]
 
 
 class ReasoningTracesArtifactContent(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     kind: Literal[ArtifactKind.reasoning_traces]
     reasoning_trace_ids: tuple[Identifier, ...]
 
 
 class GraphArtifactContent(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     kind: Literal[ArtifactKind.graph]
     node_ids: tuple[Identifier, ...]
@@ -478,7 +478,7 @@ class GraphArtifactContent(BaseModel):
 
 
 class ExportArtifactContent(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     kind: Literal[ArtifactKind.export]
     format: Literal["csv", "json", "provenance_report"]
@@ -502,7 +502,7 @@ ArtifactContent = Annotated[
 
 class ArtifactVersion(BaseModel):
     model_config = ConfigDict(
-        **V2_MODEL_CONFIG,
+        **CORE_MODEL_CONFIG,
         json_schema_extra={
             "examples": [
                 {
@@ -550,7 +550,7 @@ class ArtifactVersion(BaseModel):
 class ArtifactVersionSummary(BaseModel):
     """Bounded immutable-version reference used by Artifact detail reads."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     id: Identifier
     artifact_id: Identifier
@@ -571,7 +571,7 @@ class ResearchArtifactDetail(ResearchArtifact):
 class ProducerExecutionDetail(BaseModel):
     """Reproducible producer metadata with private execution state excluded."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     id: Identifier
     run_id: Identifier
@@ -593,7 +593,7 @@ class ProducerExecutionDetail(BaseModel):
 class SourceSnapshotDetail(BaseModel):
     """Reproducible source metadata after the application redaction boundary."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     id: Identifier
     source_id: Identifier
@@ -611,7 +611,7 @@ class SourceSnapshotDetail(BaseModel):
 class EvidenceDetail(BaseModel):
     """Evidence bound to one immutable version and source snapshot."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     id: Identifier
     artifact_version_id: Identifier
@@ -645,7 +645,7 @@ class ArtifactVersionDetail(ArtifactVersion):
 class WorkspaceObjectRef(BaseModel):
     """Stable reference to an object shown in the private workspace."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     object_type: Identifier
     object_id: Identifier
@@ -655,7 +655,7 @@ class WorkspaceObjectRef(BaseModel):
 class WorkspacePanelSlot(BaseModel):
     """Bounded panel placement without persisting arbitrary window or GPU state."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     slot_id: Identifier
     panel_type: Literal["atlas", "observatory"]
@@ -664,14 +664,14 @@ class WorkspacePanelSlot(BaseModel):
 
 
 class AtlasWorkspaceState(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     selected_object_ref: WorkspaceObjectRef | None = None
     focus_mode: Identifier | None = None
 
 
 class ObservatoryWorkspaceState(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     active_artifact_version_id: Identifier | None = None
     active_evidence_id: Identifier | None = None
@@ -680,7 +680,7 @@ class ObservatoryWorkspaceState(BaseModel):
 class WorkspaceSnapshotInput(BaseModel):
     """Editable private workspace state accepted by the PUT endpoint."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     active_run_id: Identifier | None = None
     panel_slots: tuple[WorkspacePanelSlot, ...] = Field(default=(), max_length=3)
@@ -722,7 +722,7 @@ class ShareRedactionPolicy(StrEnum):
 
 
 class CreateShareSnapshotRequest(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     title: NonEmptyString = Field(max_length=200)
     artifact_version_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=100)
@@ -742,7 +742,7 @@ class CreateShareSnapshotRequest(BaseModel):
 class ShareSnapshot(BaseModel):
     """Private share metadata. Raw tokens and token hashes are intentionally absent."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     id: Identifier
     project_id: Identifier
@@ -766,7 +766,7 @@ class ShareSnapshotCreated(ShareSnapshot):
 class PublicArtifactVersion(BaseModel):
     """Redacted immutable version metadata safe for an anonymous share response."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     id: Identifier
     artifact_id: Identifier
@@ -782,7 +782,7 @@ class PublicArtifactVersion(BaseModel):
 class PublicEvidence(BaseModel):
     """Minimal Evidence identity bound to a shared immutable version."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     id: Identifier
     artifact_version_id: Identifier
@@ -792,7 +792,7 @@ class PublicEvidence(BaseModel):
 class PublicShareSnapshot(BaseModel):
     """Anonymous read-only projection frozen when the share is created."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     id: Identifier
     title: NonEmptyString
@@ -804,7 +804,7 @@ class PublicShareSnapshot(BaseModel):
 
 
 class ResponseMeta(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     request_id: Identifier
     schema_version: Literal["2.0.0"] = "2.0.0"
@@ -812,7 +812,7 @@ class ResponseMeta(BaseModel):
 
 
 class ResponseLinks(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     self: NonEmptyString
 
@@ -821,7 +821,7 @@ DataT = TypeVar("DataT")
 
 
 class Envelope(BaseModel, Generic[DataT]):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     data: DataT
     meta: ResponseMeta
@@ -829,7 +829,7 @@ class Envelope(BaseModel, Generic[DataT]):
 
 
 class CursorPage(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     next_cursor: str | None = None
     has_more: bool
@@ -841,7 +841,7 @@ class CollectionEnvelope(Envelope[tuple[DataT, ...]], Generic[DataT]):
 
 
 class ProblemFieldError(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     field: NonEmptyString
     code: NonEmptyString
@@ -849,7 +849,7 @@ class ProblemFieldError(BaseModel):
 
 
 class ProblemDetails(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     type: NonEmptyString
     title: NonEmptyString
@@ -862,7 +862,7 @@ class ProblemDetails(BaseModel):
 
 
 class CreateRunRequest(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     contract_id: Identifier
     execution_mode: ExecutionMode
@@ -884,7 +884,7 @@ class CreateRunRequest(BaseModel):
 
 
 class UpdateResearchContractDraftRequest(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     intent: NonEmptyString | None = None
     contract: ResearchContractInput | None = None
@@ -899,7 +899,7 @@ class UpdateResearchContractDraftRequest(BaseModel):
 class CreateResearchProjectRequest(BaseModel):
     """Minimal M1 project creation payload; `case_key` stays frozen to the main case."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     name: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
@@ -915,14 +915,14 @@ class CreateResearchContractDraftRequest(BaseModel):
     to Run creation.
     """
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     intent: NonEmptyString
     contract: ResearchContractInput
 
 
 class ConfirmResearchContractRequest(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     draft_id: Identifier
     expected_draft_version: int = Field(ge=1)
@@ -935,7 +935,7 @@ class SessionStatus(StrEnum):
 
 
 class SessionQuota(BaseModel):
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     max_projects: int = Field(default=10, ge=1)
     max_runs: int = Field(default=50, ge=1)
@@ -944,7 +944,7 @@ class SessionQuota(BaseModel):
 class ResearchSession(BaseModel):
     """Public session metadata; the credential and internal id are excluded."""
 
-    model_config = V2_MODEL_CONFIG
+    model_config = CORE_MODEL_CONFIG
 
     status: SessionStatus
     created_at: UtcDateTime

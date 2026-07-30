@@ -20,7 +20,7 @@ from pydantic import ValidationError
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.paper_summary import PaperSummaryArtifactContent
 from app.schemas.paper_summary_api import PaperSummaryRead
-from app.schemas.v2 import ArtifactVersionDetail, ResearchArtifactDetail
+from app.schemas.core import ArtifactVersionDetail, ResearchArtifactDetail
 from app.security import SecurityProblem
 from app.services.paper_summaries import PaperSummaryReadService
 from services.paper_pipeline.demo_fixture import (

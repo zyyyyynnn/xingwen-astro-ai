@@ -12,7 +12,7 @@
  * inspecting error types.
  */
 
-import { parseV2Dto, type SessionCreated } from "@xingwen/contracts";
+import { parseDto, type SessionCreated } from "@xingwen/contracts";
 
 import { errorFromResponse, NetworkError } from "./http-errors";
 
@@ -98,7 +98,7 @@ export function createSessionManager(
           throw await errorFromResponse(response);
         }
         const payload = (await response.json()) as CreateSessionEnvelope;
-        const data = parseV2Dto<SessionCreated>("SessionCreated", payload.data);
+        const data = parseDto<SessionCreated>("SessionCreated", payload.data);
         current = {
           status: data.status,
           createdAt: data.created_at,

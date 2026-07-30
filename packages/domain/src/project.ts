@@ -1,7 +1,7 @@
 /**
  * Research project — the top-level aggregate for a research investigation.
  *
- * Mirrors `ResearchProject` in the Pydantic `/api/v2` authoring source.
+ * Mirrors `ResearchProject` in the Pydantic `/api` authoring source.
  */
 
 import type { CaseKey } from "./value-types";

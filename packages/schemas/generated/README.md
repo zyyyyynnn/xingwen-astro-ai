@@ -8,6 +8,6 @@
 
 当前已提交基线：
 
-- `v1-phase0/`：冻结的 `/api` Phase 0 DTO JSON Schema。
-- `v2-core/`：#80 的七个核心资源及 #83 Artifact provenance read 投影 JSON Schema、manifest 与契约 OpenAPI 3.1；通用读取路由已挂载，其他 v2 路由状态以 API Contract 为准。
-- `v2-security/`：#81 的 Session、CSRF/Problem Details 相关传输 Schema。
+- `phase0/`：冻结的 `/api` Phase 0 DTO JSON Schema。
+- `core/`：#80 的七个核心资源及 #83 Artifact provenance read 投影 JSON Schema、manifest 与契约 OpenAPI 3.1；通用读取路由已挂载，其他路由状态以 API Contract 为准。
+- `security/`：#81 的 Session、CSRF/Problem Details 相关传输 Schema。

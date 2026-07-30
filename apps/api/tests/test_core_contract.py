@@ -11,9 +11,9 @@ from app.contracts.manifest_policy import (
     confirm_research_contract,
     validate_contract_against_manifest,
 )
-from app.contracts.v2 import create_v2_contract_app
+from app.contracts.core import create_contract_app
 from app.schemas.manifest import load_manifest_bundle
-from app.schemas.v2 import (
+from app.schemas.core import (
     ArtifactVersion,
     CollectionEnvelope,
     CreateRunRequest,
@@ -304,7 +304,7 @@ def test_artifact_content_is_discriminated_and_not_arbitrary_json() -> None:
 
 
 def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -> None:
-    document = create_v2_contract_app().openapi()
+    document = create_contract_app().openapi()
     assert document["openapi"].startswith("3.1.")
     operation_ids = [
         operation["operationId"]
@@ -430,4 +430,4 @@ def test_envelope_cursor_and_problem_details_are_strict_schemas() -> None:
 
 
 def test_openapi_document_is_json_serializable() -> None:
-    json.dumps(create_v2_contract_app().openapi(), ensure_ascii=False)
+    json.dumps(create_contract_app().openapi(), ensure_ascii=False)

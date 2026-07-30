@@ -18,7 +18,7 @@
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | 前端       | `apps/site` Astro Brand Site、`apps/workspace` React Research Workspace、A-03 Tour/Workspace/Share Fixture + HTTP Port、真实 Browser/刷新恢复、共享包和根 pnpm 工具链 | A-02 视觉系统收口                         |
 | API        | Pipeline Baseline（`/api/health`、`/api/tasks*`）Task 契约；Core Runtime（`/api/*`）M1（27-operation 公开 Authoring Chain）、PostgreSQL 权威读取与 X-01 真实集成                                                                                   | M2 科研能力                               |
-| 后端与数据 | 当前应用、v2 Application / Persistence、Pipeline 与 PostgreSQL 基线                                                                                                   | M2 科研 Pipeline 扩展，不改变既有科研边界 |
+| 后端与数据 | 当前应用、Core Application / Persistence、Pipeline 与 PostgreSQL 基线                                                                                                   | M2 科研 Pipeline 扩展，不改变既有科研边界 |
 | 本地环境   | Compose：`site`、`workspace`、`api`、`migrate`、`postgres`；独立 X-01 Browser 集成入口                                                                                | 生产部署拓扑按独立 Issue 定义             |
 
 规则：
@@ -64,7 +64,7 @@
 | 岗位         | 当前目录                                                                                                                                          | 核心职责                                                           |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | A 前端与产品 | `apps/site`, `apps/workspace`, `packages/design-tokens`, `ui`, `domain`, `contracts`, `data-access`, `workspace-core`, `visual-engine`, `testing` | Brand Site、Guided Tour、Workspace、Domain Adapter、视觉与前端门禁 |
-| B 后端与编排 | `apps/api`, `packages/schemas`, `scripts`                                                                                                         | v1 稳定性、v2 API、Run Workflow、Schema、Session / Share、安全     |
+| B 后端与编排 | `apps/api`, `packages/schemas`, `scripts`                                                                                                         | Pipeline Baseline 稳定性、Core API、Run Workflow、Schema、Session / Share、安全 |
 | C 数据       | `services/data_pipeline`, `samples/outputs`                                                                                                       | 数据源、清洗、单位、质量、SourceSnapshot、Evidence、导出           |
 | D 论文与图谱 | `services/paper_pipeline`, `services/graph_pipeline`, `packages/prompts`                                                                          | 论文获取、Summary、Claim/Relation/Trace、Graph 与 Evidence         |
 | X 基建       | 根目录、`.github`, `docs/setup.md`                                                                                                                | Compose、CI、环境变量、版本锁定和验证                              |
