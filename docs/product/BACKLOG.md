@@ -23,8 +23,8 @@ GitHub Open Issues 是标题、正文、标签、Milestone、负责人和实时�
 | #6 | Task | [D] D-01 冻结论文获取与推理 Benchmark Package | — | D | — | Search、Paper、Claim/Relation、Evidence 与 Graph Benchmark |
 | #2 | Gate | [X] X-00 Gate：集成并冻结 MVP Case Manifest 与科研基准 | — | X | #5、#6 | 冻结 Case、SourcePolicy、Benchmark、Graph taxonomy |
 | #26 | Task | [B] B-02 定义 Pydantic Schema 初版 | — | B | #4 | v1 字段对照、Schema 回归与导出漂移门禁 |
-| #28 | Epic | [B] B-04 Epic：建立 /api/v2 最小领域与传输契约 | — | B | #2、#4 | 核心 Contract、Session 安全、Workspace/Share |
-| #80 | Task | [B] B-15 冻结 /api/v2 核心领域与传输契约 | #28 | B | #2、#4 | Project、Contract、Run、Event、Artifact、Version Contract |
+| #28 | Epic | [B] B-04 Epic：建立 /api 最小领域与传输契约 | — | B | #2、#4 | 核心 Contract、Session 安全、Workspace/Share |
+| #80 | Task | [B] B-15 冻结 /api 核心领域与传输契约 | #28 | B | #2、#4 | Project、Contract、Run、Event、Artifact、Version Contract |
 | #81 | Task | [B] B-16 实现 Session、ownership、CSRF 与统一写入安全边界 | #28 | B | #80 | Session、授权、幂等、Problem Details |
 | #82 | Task | [B] B-17 实现 WorkspaceSnapshot、ShareSnapshot 与公开只读投影 | #28 | B | #80、#81 | Workspace 恢复、冻结分享、撤销与过期 |
 | #29 | Epic | [A] A-02 Epic：建立品牌视觉系统与静态工作台框架 | — | A | #3 | Design System、Visual Engine、静态 Site/Workspace Shell |

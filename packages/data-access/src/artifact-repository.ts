@@ -1,5 +1,5 @@
 /**
- * Generic Artifact/Evidence read repository over `/api/v2`.
+ * Generic Artifact/Evidence read repository over `/api`.
  *
  * Reads are validated against the exact response contract: list items as
  * `ResearchArtifact`, single artifact/version as the richer `*Detail`

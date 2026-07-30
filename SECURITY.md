@@ -4,7 +4,7 @@
 | -------------- | --------------------------------------------------------------------- |
 | Status         | Accepted                                                              |
 | Authority      | 密钥、信任边界、输入、会话、分享、日志和安全响应要求                  |
-| Implementation | `/api/v2` Session / CSRF / ownership、Artifact provenance 私有读取及 Workspace/Share Runtime Current；Session、限流与 Snapshot/Share 记录仍为进程生命周期存储 |
+| Implementation | `/api` Session / CSRF / ownership、Artifact provenance 私有读取及 Workspace/Share Runtime Current；Session、限流与 Snapshot/Share 记录仍为进程生命周期存储 |
 
 本文定义必须满足的安全控制。部署拓扑和发布步骤见 [Deployment](DEPLOYMENT.md)，HTTP 授权与公开错误见 [API Contract](docs/architecture/API_CONTRACT.md)，模型调用准入见 [Model Policy](docs/ai/MODEL_POLICY.md)。
 
@@ -40,7 +40,7 @@ Artifact provenance 响应使用 `no-store`，并在数据库读取后再次过�
 
 Session 创建按客户端地址限流，ShareSnapshot 创建按 Session 独立限流。当前进程内限流状态在重启后清空；多实例生产部署需在边界层配置共享限流。
 
-目标 `/api/v2` 的免登录体验仍需要完整授权边界：
+目标 `/api` 的免登录体验仍需要完整授权边界：
 
 - Session 使用服务端签发的高熵标识和明确过期时间；
 - Cookie 使用 `Secure`、`HttpOnly`、合适的 `SameSite` 与最小 Path/Domain；

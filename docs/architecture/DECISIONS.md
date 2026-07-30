@@ -34,6 +34,7 @@
 | 022–027 | Accepted；Pending              | 产品体验、领域与安全方案                               |
 | 028     | Superseded by ADR-029          | 浅色雾霾蓝视觉体系（已由 bluegray 取代）              |
 | 029     | Accepted；Pending              | 浅色 bluegray 视觉 + Brand Site 极简单英雄首页         |
+| 030     | Accepted for implementation    | 无版本化单面 API（/api/*）与追加式演进                 |
 
 ## ADR-001：MVP 固定主案例
 
@@ -330,6 +331,27 @@
 **Boundary:** 文档冻结不等于 Implemented；A-01 运行时 Token 可能仍为旧子集，以代码与测试证据为准。WebGL Hero、完整 Token 落地与视觉回归由 A-02 交付。字体资产提交前验证许可、来源、字符覆盖和加载策略。
 
 **See also:** [Visual Language](../design/VISUAL_LANGUAGE.md), [Workspace UX](../design/WORKSPACE_UX.md) §2.1 / §2.4。
+
+## ADR-030：无版本化单面 API（/api/*）
+
+**Status:** Accepted for implementation
+
+**Context:** 早期 `/api/v1`（Pipeline 任务基线）与 `/api/v2`（M1 核心 Runtime）以 URL 版本段区分同一套演进中的 API。消费方仅为仓库内 `apps/workspace` 与 `apps/site`，无外部客户端，URL 版本段带来的分叉成本高于收益。
+
+**Decision:** 硬切换收口为单一无版本面 `/api/*`，无兼容别名：
+
+- 全部路径打平到语义化顶级资源（Session / Project / Contract / Run / Artifact / Evidence / Source / Workspace / Share / Health / Task）；契约草稿与契约收敛到 `/api/contracts/drafts/{id}` 与 `/api/contracts/{id}`；公共分享读收敛到 `/api/public/shares/{token}`。
+- 安全面**默认拒绝**：`/api/*` 一律需匿名会话，仅 health、tasks、docs、openapi、匿名 session-create 与 `public/shares/{token}` 读在白名单内免鉴权；分类集中于 `app.api_surface`。
+- 演进采用**追加式（Additive Only）**：只允许新增端点、新增可选字段或新 Query 参数；禁止删除或重命名现有字段。字段废弃用 Pydantic / OpenAPI `deprecated=True`（经既有生成管线自动流入 JSON Schema 与 `dto.ts`）并可选输出 `Deprecation` / `Sunset` 响应头，绝不通过变更 URL 版本号断代。
+- 演进钩子 `app.api_surface.DEPRECATED_OPERATIONS` 为空时不挂载任何废弃头中间件，请求热路径零成本；首次废弃再启用。
+
+**Rationale:** 单面消除版本分叉与“冻结 v2”表述的歧义；追加式 + 既有三重门禁（committed generated schema、`--check` 导出、运行时↔契约 App parity）在评审中以红 diff 机械拦截破坏性变更；`/api/public/*` 命名约定使新增匿名读无需再改中间件。
+
+**Consequence:** 取代此前“冻结的 /api/v2 契约面”表述；`docs/architecture/API_CONTRACT.md` 按 Core APIs 与 Pipeline APIs 组织；生成目录、同步脚本与导出符号去版本化（`core`、`sync_contracts`、`CoreModelName` 等）。会话 Cookie 作用域由 `/api/v2` 扩为 `/api`（set 与 delete 同步）。
+
+**Rejected:** 保留 v1/v2 别名或双挂载；用 URL 版本号表达破坏性变更；跨模块搬迁端点归属（保持按域扁平）。
+
+**Boundary:** 不触碰 Alembic 迁移文件（revision id 不可变）；文档冻结不等于 Implemented，以代码与运行证据为准。
 
 ## 2. 新增与修改规则
 

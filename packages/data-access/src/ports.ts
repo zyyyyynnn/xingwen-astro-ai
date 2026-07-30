@@ -8,7 +8,7 @@
  * domain types — transport DTOs never leak through to consumers.
  *
  * The surface is intentionally narrowed to the operations the M1 UI and the
- * frozen 27-operation `/api/v2` contract actually support: project listing and
+ * frozen 27-operation `/api` contract actually support: project listing and
  * creation and client-authored draft creation exist (the #131 public authoring
  * chain), but there is still no project/run PATCH/DELETE, no artifact/version
  * writes, and no generic subscription. Each method maps to a real endpoint (or

@@ -4,15 +4,15 @@
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Status         | Accepted                                                                                                                                                                |
 | Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring                                                                                                                  |
-| Implementation | `/api/v1` Current；`/api/v2` M1 核心 Runtime、Session 安全、Project/Contract/Run/Event、Artifact/Evidence/SourceSnapshot、Workspace/Share 与 A-03/X-01 集成 Implemented |
+| Implementation | 单一 `/api/*` 面：Core APIs（Session/Project/Contract/Run/Event/Artifact/Evidence/SourceSnapshot/Workspace/Share）为 M1 Core Runtime 与 A-03/X-01 集成 Implemented；Pipeline APIs（`/api/health`、`/api/tasks*`）为 Phase 0 基线 |
 
-本文定义 Current 与 Pending API。`/api/v2` 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership 已实现；M1 Runtime 已挂载 Project、ContractDraft、Contract、Run、RunEvent、Artifact、ArtifactVersion、Evidence、SourceSnapshot、WorkspaceSnapshot 与 ShareSnapshot。Compose 配置 `DATABASE_URL` 并强制启用 `PERSISTENT_WORKFLOW_ENABLED`，资源归属、Research 写路径与公开分享投影读取 PostgreSQL 权威事实；真实 HTTP Browser 已验证 A-03/X-01 主链路。Snapshot/Share 状态当前仍为进程生命周期存储。当前 `/api/v1` 保持兼容；不得原地修改 v1 响应来伪装 M2 完成。
+本文定义无版本前缀的单一 `/api/*` 面（[ADR-030](DECISIONS.md)），分为 Core APIs（七个核心资源）与 Pipeline APIs（`/api/health`、`/api/tasks*`）。Core 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership 已实现；M1 Runtime 已挂载 Project、ContractDraft、Contract、Run、RunEvent、Artifact、ArtifactVersion、Evidence、SourceSnapshot、WorkspaceSnapshot 与 ShareSnapshot。Compose 配置 `DATABASE_URL` 并强制启用 `PERSISTENT_WORKFLOW_ENABLED`，资源归属、Research 写路径与公开分享投影读取 PostgreSQL 权威事实；真实 HTTP Browser 已验证 A-03/X-01 主链路。Snapshot/Share 状态当前仍为进程生命周期存储。API 只做加法演进，不引入 URL 版本升级；Pipeline APIs 保持兼容，不得原地修改 Pipeline 响应来伪装 M2 完成。
 
 ## 1. 设计原则
 
 - URI 使用复数资源名与 snake_case JSON 字段。
 - Project、Run、Artifact、ArtifactVersion 是独立资源，不以聊天线程或页面为资源。
-- 成功响应使用统一 Envelope；v2 错误使用 `application/problem+json`。
+- 成功响应使用统一 Envelope；Core API 错误使用 `application/problem+json`，Pipeline（`/api/health`、`/api/tasks*`）沿用旧版 `ApiResponse` 信封。
 - 集合接口使用不透明 cursor，默认 20、最大 100。
 - 写操作通过 `Idempotency-Key`、版本前置条件或唯一约束避免重复。
 - `execution_mode` 与 `source_mode` 分离；Fixture 不能冒充 Cached。
@@ -34,26 +34,25 @@ flowchart LR
   Share --> Version
 ```
 
-## 2. 版本状态
+## 2. API 面与演进
 
-| 版本      | 状态                        | 说明                                                                                                                                                                                                                              |
-| --------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/v1` | Current                     | 当前后端 Task Contract                                                                                                                                                                                                            |
-| `/api/v2` | M1 Core Runtime Implemented | 27 个冻结 operation 已挂载（#131 公开 Authoring Chain 新增 `listResearchProjects`、`createResearchProject`、`createResearchContractDraft`）；Compose 启用持久 Research 写路径，A-03/X-01 真实集成已验证；M2 科研 Pipeline Pending |
+| 分类          | 面                                                                                                        | 状态                        | 说明                                                                                                                                                                                                                              |
+| ------------- | --------------------------------------------------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Core APIs     | `/api/*`（Session、Project、Contract、Run、Event、Artifact、Evidence、SourceSnapshot、Workspace、Share） | M1 Core Runtime Implemented | 27 个冻结 operation 已挂载（#131 公开 Authoring Chain 新增 `listResearchProjects`、`createResearchProject`、`createResearchContractDraft`）；Compose 启用持久 Research 写路径，A-03/X-01 真实集成已验证；M2 科研 Pipeline Pending |
+| Pipeline APIs | `/api/health`、`/api/tasks*`                                                                               | Phase 0 基线                | 当前后端 Task Contract，Fixture-backed                                                                                                                                                                                            |
 
-版本推进规则：
+演进规则（additive-only，见 [ADR-030](DECISIONS.md)）：
 
-1. v2 先以 Pydantic 模型和生成 OpenAPI 落地。
-2. `packages/contracts` 从 OpenAPI / JSON Schema 生成 Transport Type 与校验器。
-3. Fixture / HTTP Adapter 通过同场景 Domain 一致性测试，A-03 Workspace 已接入 v2。
-4. Workspace 主流程、分享、安全和 E2E 通过前，不宣布 v1 deprecated。
-5. 宣布弃用时使用 `Deprecation`、`Sunset` 和 successor `Link` 响应头；本 RFC 不冻结下线日期。
+- 只允许新增端点、新增可选字段和新增查询参数。
+- 不移除、不重命名既有字段。
+- 字段弃用通过 Pydantic / OpenAPI `deprecated=True` 标记，可选配合 `Deprecation`、`Sunset` 与 successor `Link` 响应头。
+- 永不通过 URL 版本升级演进。
 
 ## 3. 会话、安全与授权
 
 ### 3.1 匿名会话
 
-- `POST /api/v2/sessions` 在无有效 Cookie 时创建隔离临时会话；有效 Cookie 存在时恢复同一 Session，用于刷新恢复。
+- `POST /api/sessions` 在无有效 Cookie 时创建隔离临时会话；有效 Cookie 存在时恢复同一 Session，用于刷新恢复。
 - 服务端通过 Secure、HttpOnly、SameSite Cookie 识别会话，不把编辑凭据放入 URL 或 localStorage。
 - 响应返回会话过期时间、资源配额和轮换后的内存态 CSRF token；所有非安全方法发送 `X-CSRF-Token`。服务端最多保留最近 4 个有效 token，支持同一 Session 的并行标签页而不无限增长。
 - 所有私有资源按服务端 session ownership 授权，客户端传入的 project/run id 不能替代授权检查。
@@ -78,7 +77,7 @@ flowchart LR
     "generated_at": "2026-07-16T08:00:00Z"
   },
   "links": {
-    "self": "/api/v2/projects/proj_01J..."
+    "self": "/api/projects/proj_01J..."
   }
 }
 ```
@@ -104,7 +103,7 @@ flowchart LR
 
 ## 5. 错误响应
 
-v2 错误使用 RFC 9457 Problem Details：
+Core API 错误使用 RFC 9457 Problem Details（Pipeline 沿用旧版 `ApiResponse` 信封）：
 
 ```json
 {
@@ -112,7 +111,7 @@ v2 错误使用 RFC 9457 Problem Details：
   "title": "Research Contract is invalid",
   "status": 422,
   "detail": "requested_fields must contain at least one supported field",
-  "instance": "/api/v2/research-contract-drafts/rcd_01J...",
+  "instance": "/api/contracts/drafts/rcd_01J...",
   "code": "CONTRACT_INVALID",
   "request_id": "req_01J...",
   "errors": [
@@ -178,7 +177,7 @@ export
 
 ## 7. Research Contract Draft
 
-### `POST /api/v2/projects/{project_id}/contract-drafts`
+### `POST /api/projects/{project_id}/contract-drafts`
 
 在当前会话拥有的 Project 下创建可编辑草案，不启动 Run。请求携带
 `Idempotency-Key`（与 confirm / run create 一致的重放或 409 语义）。跨会话或
@@ -228,11 +227,11 @@ export
     "schema_version": "2.0.0",
     "generated_at": "2026-07-16T08:00:00Z"
   },
-  "links": { "self": "/api/v2/research-contract-drafts/rcd_01J..." }
+  "links": { "self": "/api/contracts/drafts/rcd_01J..." }
 }
 ```
 
-### `PATCH /api/v2/research-contract-drafts/{draft_id}`
+### `PATCH /api/contracts/drafts/{draft_id}`
 
 更新草案字段。请求携带 `If-Match`（草案 `version`），防止多个编辑器静默覆盖。
 
@@ -240,12 +239,12 @@ export
 
 | Method  | Path                                                     | 说明                                                 |
 | ------- | -------------------------------------------------------- | ---------------------------------------------------- |
-| `GET`   | `/api/v2/projects?cursor=&limit=`                        | 当前会话的 Project 列表                              |
-| `POST`  | `/api/v2/projects`                                       | 创建临时 ResearchProject                             |
-| `GET`   | `/api/v2/projects/{project_id}`                          | Project 聚合：当前 Contract、Run 摘要、Artifact 摘要 |
-| `PATCH` | `/api/v2/projects/{project_id}`                          | 修改名称、描述等非科研产物元信息                     |
-| `POST`  | `/api/v2/projects/{project_id}/contracts`                | 从 draft 创建不可变 ResearchContract                 |
-| `GET`   | `/api/v2/projects/{project_id}/contracts?cursor=&limit=` | Contract 历史                                        |
+| `GET`   | `/api/projects?cursor=&limit=`                        | 当前会话的 Project 列表                              |
+| `POST`  | `/api/projects`                                       | 创建临时 ResearchProject                             |
+| `GET`   | `/api/projects/{project_id}`                          | Project 聚合：当前 Contract、Run 摘要、Artifact 摘要 |
+| `PATCH` | `/api/projects/{project_id}`                          | 修改名称、描述等非科研产物元信息                     |
+| `POST`  | `/api/projects/{project_id}/contracts`                | 从 draft 创建不可变 ResearchContract                 |
+| `GET`   | `/api/projects/{project_id}/contracts?cursor=&limit=` | Contract 历史                                        |
 
 创建 Contract 请求：
 
@@ -262,11 +261,11 @@ export
 
 | Method | Path                                                | 说明                                     |
 | ------ | --------------------------------------------------- | ---------------------------------------- |
-| `GET`  | `/api/v2/projects/{project_id}/runs?cursor=&limit=` | Run 列表，默认按创建时间倒序             |
-| `POST` | `/api/v2/projects/{project_id}/runs`                | 创建 Live Run；要求 `Idempotency-Key`    |
-| `GET`  | `/api/v2/runs/{run_id}`                             | Run 状态快照、steps、产物摘要和可用动作  |
-| `GET`  | `/api/v2/runs/{run_id}/events?cursor=&limit=`       | 有序进度事件；可协商 `text/event-stream` |
-| `POST` | `/api/v2/runs/{run_id}/cancellations`               | 创建取消请求；重复请求幂等               |
+| `GET`  | `/api/projects/{project_id}/runs?cursor=&limit=` | Run 列表，默认按创建时间倒序             |
+| `POST` | `/api/projects/{project_id}/runs`                | 创建 Live Run；要求 `Idempotency-Key`    |
+| `GET`  | `/api/runs/{run_id}`                             | Run 状态快照、steps、产物摘要和可用动作  |
+| `GET`  | `/api/runs/{run_id}/events?cursor=&limit=`       | 有序进度事件；可协商 `text/event-stream` |
+| `POST` | `/api/runs/{run_id}/cancellations`               | 创建取消请求；重复请求幂等               |
 
 创建 Run：
 
@@ -318,14 +317,14 @@ Run Snapshot 至少返回：
 
 | Method | Path                                                                     | 说明                                    |
 | ------ | ------------------------------------------------------------------------ | --------------------------------------- |
-| `GET`  | `/api/v2/runs/{run_id}/artifacts?kind=&cursor=&limit=`                   | Run 的 Artifact 摘要                    |
-| `GET`  | `/api/v2/artifacts/{artifact_id}`                                        | Artifact 身份和版本列表摘要             |
-| `GET`  | `/api/v2/artifact-versions/{version_id}`                                 | 统一 ArtifactVersion Envelope           |
-| `GET`  | `/api/v2/evidence/{evidence_id}`                                         | Evidence 与 SourceSnapshot              |
-| `GET`  | `/api/v2/source-snapshots/{snapshot_id}`                                 | 当前 Project 的脱敏来源快照             |
-| `GET`  | `/api/v2/artifact-versions/{version_id}/paper-collection`                | 校验后的 PaperCollection 与完整溯源     |
-| `GET`  | `/api/v2/artifact-versions/{version_id}/paper-summary`                   | 校验后的 PaperSummary 与完整溯源        |
-| `GET`  | `/api/v2/artifact-versions/{version_id}/paper-candidates?cursor=&limit=` | 稳定排序的候选、去重组、来源与 Evidence |
+| `GET`  | `/api/runs/{run_id}/artifacts?kind=&cursor=&limit=`                   | Run 的 Artifact 摘要                    |
+| `GET`  | `/api/artifacts/{artifact_id}`                                        | Artifact 身份和版本列表摘要             |
+| `GET`  | `/api/artifact-versions/{version_id}`                                 | 统一 ArtifactVersion Envelope           |
+| `GET`  | `/api/evidence/{evidence_id}`                                         | Evidence 与 SourceSnapshot              |
+| `GET`  | `/api/source-snapshots/{snapshot_id}`                                 | 当前 Project 的脱敏来源快照             |
+| `GET`  | `/api/artifact-versions/{version_id}/paper-collection`                | 校验后的 PaperCollection 与完整溯源     |
+| `GET`  | `/api/artifact-versions/{version_id}/paper-summary`                   | 校验后的 PaperSummary 与完整溯源        |
+| `GET`  | `/api/artifact-versions/{version_id}/paper-candidates?cursor=&limit=` | 稳定排序的候选、去重组、来源与 Evidence |
 
 ArtifactVersion Envelope：
 
@@ -356,13 +355,13 @@ ArtifactVersion Envelope：
     "schema_version": "2.0.0",
     "generated_at": "2026-07-16T08:08:00Z"
   },
-  "links": { "self": "/api/v2/artifact-versions/artv_01J..." }
+  "links": { "self": "/api/artifact-versions/artv_01J..." }
 }
 ```
 
 `content` 是 #78 已经 Pydantic 准入并以 hash 固定的发布 payload；通用读取边界不重复执行领域算法。B-05～B-09 必须在各自领域端点继续映射为判别联合读取模型。读取层会删除凭据、认证头、Cookie、受限全文、原始模型长输出和内部堆栈类字段；SourceSnapshot `request_metadata` 只保留明确允许的可复现字段。
 
-`kind=paper_summary` 的通用 ArtifactVersion `content` 已直接使用 D-03 `PaperSummaryArtifactContent` 判别 Schema，包含核心总结字段、逐项 support 状态、Evidence/SourceSnapshot 版本、来源冲突、ProducerExecution 与 hash。B-07 已提供 `GET /api/v2/artifact-versions/{version_id}/paper-summary` 联合读取端点：它重新校验 Summary schema/content/input/output hash、ProducerExecution 对照、同项目 PaperCollection 输入版本、SourceSnapshot 稳定指纹和 Evidence target 归属；校验失败使用 Problem Details（`422 PAPER_SUMMARY_SCHEMA_INVALID` 或 `403 PROVENANCE_SCOPE_VIOLATION`）。通用读取与领域读取均不得返回 D-03 校验时使用的 `accessible_excerpt` 或原始模型响应。
+`kind=paper_summary` 的通用 ArtifactVersion `content` 已直接使用 D-03 `PaperSummaryArtifactContent` 判别 Schema，包含核心总结字段、逐项 support 状态、Evidence/SourceSnapshot 版本、来源冲突、ProducerExecution 与 hash。B-07 已提供 `GET /api/artifact-versions/{version_id}/paper-summary` 联合读取端点：它重新校验 Summary schema/content/input/output hash、ProducerExecution 对照、同项目 PaperCollection 输入版本、SourceSnapshot 稳定指纹和 Evidence target 归属；校验失败使用 Problem Details（`422 PAPER_SUMMARY_SCHEMA_INVALID` 或 `403 PROVENANCE_SCOPE_VIOLATION`）。通用读取与领域读取均不得返回 D-03 校验时使用的 `accessible_excerpt` 或原始模型响应。
 
 Artifact 列表 cursor 同时绑定 `run_id` 和 `kind` 过滤条件；不得跨 Run 或跨过滤条件复用，scope 不匹配时返回 `400 INVALID_CURSOR`。
 
@@ -378,8 +377,8 @@ cached 来源执行的审计字段（`cache_applicability` 与 `live_failure_cla
 
 | Method | Path                                               | 说明                             |
 | ------ | -------------------------------------------------- | -------------------------------- |
-| `GET`  | `/api/v2/projects/{project_id}/workspace-snapshot` | 当前会话的工作台恢复状态         |
-| `PUT`  | `/api/v2/projects/{project_id}/workspace-snapshot` | 幂等保存布局、打开产物和选择对象 |
+| `GET`  | `/api/projects/{project_id}/workspace-snapshot` | 当前会话的工作台恢复状态         |
+| `PUT`  | `/api/projects/{project_id}/workspace-snapshot` | 幂等保存布局、打开产物和选择对象 |
 
 WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文本、会话 token、模型内部状态或无限自由窗口位置。
 
@@ -392,16 +391,16 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 | Method   | Path                                                  | 说明                                      |
 | -------- | ----------------------------------------------------- | ----------------------------------------- |
-| `GET`    | `/api/v2/projects/{project_id}/shares?cursor=&limit=` | 私有分享记录，不返回原 token              |
-| `POST`   | `/api/v2/projects/{project_id}/shares`                | 创建冻结的 ShareSnapshot 与一次性可见 URL |
-| `DELETE` | `/api/v2/projects/{project_id}/shares/{share_id}`     | 撤销分享                                  |
-| `GET`    | `/api/v2/shares/{share_token}`                        | 无编辑权限的公开快照                      |
+| `GET`    | `/api/projects/{project_id}/shares?cursor=&limit=` | 私有分享记录，不返回原 token              |
+| `POST`   | `/api/projects/{project_id}/shares`                | 创建冻结的 ShareSnapshot 与一次性可见 URL |
+| `DELETE` | `/api/projects/{project_id}/shares/{share_id}`     | 撤销分享                                  |
+| `GET`    | `/api/public/shares/{share_token}`                        | 无编辑权限的公开快照                      |
 
 创建请求必须列出 `artifact_version_ids`、可公开 Evidence 范围、`expires_at` 和 redaction policy。公开响应只能包含 ShareSnapshot 锁定内容。
 
 - M1 当前只接受 `redaction_policy=public_metadata_only`，公开投影不返回 Artifact content、Evidence locator、Project/Session 信息或内部 producer 数据。
 - 原始 token 只在创建响应返回；私有列表、公开响应和错误的 `instance` 均不返回 token 或 token hash。
-- 无效、撤销和过期 token 统一返回 `404 SHARE_NOT_FOUND`；公开错误也使用固定 `/api/v2/shares/public` instance。
+- 无效、撤销和过期 token 统一返回 `404 SHARE_NOT_FOUND`；公开错误也使用固定 `/api/public/shares/public` instance。
 - Share 创建按 Session 独立限流，默认每分钟 `20` 次；成功返回 `RateLimit-Limit` / `RateLimit-Remaining` / `RateLimit-Reset`，超限返回 `429 RATE_LIMITED` 及 `Retry-After`。
 - 公开读取无需 Session，但不授予任何写权限，并返回 `Cache-Control: no-store`、严格 CSP、`Referrer-Policy: no-referrer` 和 `X-Content-Type-Options: nosniff`。
 - 私有列表使用稳定不透明 cursor；撤销与创建受 ownership 和 CSRF 保护。
@@ -410,8 +409,8 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 | Method | Path                             | 说明                                                                    |
 | ------ | -------------------------------- | ----------------------------------------------------------------------- |
-| `POST` | `/api/v2/feedback`               | 针对 Field、Source、Paper、Claim、Relation、Trace 或 GraphEdge 提交反馈 |
-| `GET`  | `/api/v2/feedback/{feedback_id}` | 反馈状态、影响范围与 RevisionPlan                                       |
+| `POST` | `/api/feedback`               | 针对 Field、Source、Paper、Claim、Relation、Trace 或 GraphEdge 提交反馈 |
+| `GET`  | `/api/feedback/{feedback_id}` | 反馈状态、影响范围与 RevisionPlan                                       |
 
 ```json
 {
@@ -432,8 +431,8 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 | Method | Path                                             | 说明                              |
 | ------ | ------------------------------------------------ | --------------------------------- |
-| `POST` | `/api/v2/artifact-versions/{version_id}/exports` | 创建 CSV、JSON 或溯源报告导出任务 |
-| `GET`  | `/api/v2/exports/{export_id}`                    | 查询状态与短期下载 URL            |
+| `POST` | `/api/artifact-versions/{version_id}/exports` | 创建 CSV、JSON 或溯源报告导出任务 |
+| `GET`  | `/api/exports/{export_id}`                    | 查询状态与短期下载 URL            |
 
 导出必须锁定 ArtifactVersion、内容 hash、生成时间与 provenance；下载 URL 短期有效且不暴露底层文件路径。
 
@@ -455,7 +454,7 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 5. Fixture 与 HTTP Adapter 对同一 Contract Fixture 运行一致性测试。
 6. OpenAPI lint、Schema export diff 和生成类型漂移检查进入 CI。
 
-当前 v2 OpenAPI 已由 Pydantic 唯一 authoring source 生成并提交，Runtime parity 自动核对冻结 operation 的 method、path、operationId、必需 Header 与成功响应 Schema；生成物漂移检查已进入 CI。
+当前 Core OpenAPI 已由 Pydantic 唯一 authoring source 生成并提交，Runtime parity 自动核对冻结 operation 的 method、path、operationId、必需 Header 与成功响应 Schema；生成物漂移检查已进入 CI。
 
 ## 18. 非功能与安全验证
 
@@ -467,15 +466,15 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 - API 与前端部署定义 CSP、HSTS、MIME sniffing、Referrer Policy、Permissions Policy 和最小 CORS allowlist。
 - Rate limit 与匿名配额数值由部署配置冻结，并在 OpenAPI / `.env.example` 实施时同步；本 RFC 不编造未经容量测试的阈值。
 
-## 19. 当前 v1 边界
+## 19. Pipeline APIs 边界
 
-当前实现仍提供 `/api/v1/health`、`/api/v1/tasks` 及 dataset、sources、paper-acquisition、papers、literature-reasoning、graph、evidence 等 Task 子资源。它们是 Phase 0 Fixture-backed 契约，不支持本文件的 Project、Run、ArtifactVersion、WorkspaceSnapshot 或 ShareSnapshot。
+当前实现仍提供 `/api/health`、`/api/tasks` 及 dataset、sources、paper-acquisition、papers、literature-reasoning、graph、evidence 等 Task 子资源。它们是 Phase 0 Fixture-backed 契约，不支持本文件的 Project、Run、ArtifactVersion、WorkspaceSnapshot 或 ShareSnapshot。
 
-`/api/v1` 的字段、必填性、默认值、枚举和 legacy wire alias 冻结在
+Pipeline APIs 的字段、必填性、默认值、枚举和 legacy wire alias 冻结在
 [`DATA_MODEL_V1.md`](DATA_MODEL_V1.md)，逐字段实现决策见
-[`V1_SCHEMA_FIELD_MATRIX.md`](V1_SCHEMA_FIELD_MATRIX.md)。当前 v2 目标契约
-不得隐式改变 v1 Wire Contract。
+[`V1_SCHEMA_FIELD_MATRIX.md`](V1_SCHEMA_FIELD_MATRIX.md)。Core APIs 目标契约
+不得隐式改变 Pipeline Wire Contract。
 
 Phase 0 Task 状态快照必须保持内部一致：新建 `pending` Task 的 `progress=0`，且 `steps` 为空或全部为 `pending`；`pending` Task 不得包含已开始步骤；存在 `running` Step 时顶层状态不得为 `pending`；`completed` Task 的 `progress=100`。固定演示 Task `task_001` 保持其运行中 Fixture 语义。
 
-README、PR、演示材料必须保持这一“当前实现 / 目标契约”区分，直到 v2 有可执行代码和验证证据。
+README、PR、演示材料必须保持这一“当前实现 / 目标契约”区分，直到目标契约有可执行代码和验证证据。
