@@ -4,7 +4,6 @@
 | -------------- | ------------------------------------------------------------ |
 | Status         | Accepted                                                     |
 | Authority      | 环境拓扑、配置边界、迁移、健康检查和发布验证                 |
-| Implementation | Current five-service local baseline（含 one-shot migrate）与 X-01 真实集成；public topology Pending |
 
 本文说明系统如何运行和发布。安全要求由 [Security](SECURITY.md) 定义，产品退出标准由 [Acceptance](docs/product/ACCEPTANCE.md) 定义，本地开发命令由 [Local Setup](docs/setup.md) 维护。
 
@@ -14,13 +13,13 @@ MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通�
 
 - 静态 Brand Site；
 - Guided Tour 与 Research Workspace；
-- FastAPI 单一 `/api/*` 面：Pipeline APIs（`/api/health`、`/api/tasks*`）与 Core APIs M1 Runtime；Session、Project/Contract/Run/Event、Artifact/Evidence 与 Workspace/Share Current；
-- PostgreSQL Schema、Alembic migration、Workflow 恢复和 ArtifactVersion 原子发布基线已实现；M2 科研 Pipeline Pending；
+- FastAPI 单一 `/api/*` 面：Pipeline APIs（`/api/health`、`/api/tasks*`）与 Core APIs（Session、Project/Contract/Run/Event、Artifact/Evidence 与 Workspace/Share）；
+- PostgreSQL Schema、Alembic migration、Workflow 恢复和 ArtifactVersion 原子发布；
 - Demo Replay、Live Run、真实缓存、分享和导出；
 - WebGL 或外部服务失败时的可用降级；
 - 版本、来源、Evidence 和请求追踪。
 
-## 2. Current：本地运行基线
+## 2. 本地运行基线
 
 当前 Compose 包含：
 
@@ -98,12 +97,12 @@ Astro 使用明确的 `PUBLIC_` 前缀，Workspace 使用 `VITE_` 前缀。所�
 
 | Path                 | Owner     | Requirement                                       |
 | -------------------- | --------- | ------------------------------------------------- |
-| `/`、`/404.html`     | Site      | Current 静态输出，核心内容不依赖 JavaScript       |
-| `/tour`              | Workspace | Current Guided Tour、Contract 与 Run 启动 |
-| `/workspace`         | Workspace | Current 私有 Session、WorkspaceSnapshot 与恢复 |
-| `/share/$shareToken` | Workspace | Current 匿名只读冻结 ShareSnapshot |
-| `/api/health`、`/api/tasks*` | API       | Current Pipeline APIs（Phase 0 基线）          |
-| `/api/*`             | API       | Current Core APIs M1 资源 Runtime；M2 科研能力 Pending |
+| `/`、`/404.html`     | Site      | 静态输出，核心内容不依赖 JavaScript       |
+| `/tour`              | Workspace | Guided Tour、Contract 与 Run 启动 |
+| `/workspace`         | Workspace | 私有 Session、WorkspaceSnapshot 与恢复 |
+| `/share/$shareToken` | Workspace | 匿名只读冻结 ShareSnapshot |
+| `/api/health`、`/api/tasks*` | API       | Pipeline APIs（Phase 0 基线）          |
+| `/api/*`             | API       | Core APIs 资源 Runtime |
 
 CDN 或平台缓存不得缓存私有 Workspace/API 响应。公开分享默认 `no-store`，除非安全和撤销语义证明可采用其他策略。静态资产可使用内容 hash 长缓存。
 

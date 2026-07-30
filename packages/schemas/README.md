@@ -40,7 +40,7 @@ uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/ge
 uv run python ../../scripts/export_openapi.py --output ../../packages/schemas/generated/core/openapi.json --check
 ```
 
-`app.contracts.core` 仅用于生成完整目标 OpenAPI，不直接挂载到运行应用。Session 与 B-18 通用 Artifact provenance 私有读取已由运行 Router 实现；WorkspaceSnapshot 与 ShareSnapshot application Router 已实现但在生产事实源接入前不挂载；Project/Run 写入和领域专属读取仍由后续 Issue 实现。
+`app.contracts.core` 仅用于生成完整目标 OpenAPI，不直接挂载到运行应用。挂载范围与运行事实源接入以对应实现 Issue 与运行 Router 为准。
 
 CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件由对应实现 Issue 决定。
 
@@ -55,20 +55,17 @@ CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件
 ### Benchmark / Pipeline Contract
 
 - `Benchmark*` Pydantic 模型属于 **Benchmark / Pipeline Contract**，会进入全量 JSON Schema 导出。
-- `PaperCollection`、完整 `SourceSnapshot` 与 `ProducerExecution` 是 D-02 已实现的 **Pipeline content Contract**；B-06 HTTP 投影直接组合这些模型与 #83 provenance DTO，不复制第二套 PaperCollection，也不承担 Publisher。
+- `PaperCollection`、完整 `SourceSnapshot` 与 `ProducerExecution` 是 Pipeline content Contract；HTTP 投影直接组合这些模型与 provenance DTO，不复制第二套 PaperCollection，也不承担 Publisher。
 - Benchmark Contract 不是 HTTP Transport API；只有被 FastAPI Router 引用的模型才会自动进入当前 OpenAPI。
-- `Benchmark*` Schema 不表示核心 `/api` 已实现，也不改变现有 Phase 0 `/api` DTO 或路由。
-- Benchmark JSON 与论文、推理和 Graph 运行 Pipeline 仍由 D 方向负责；Schema 导出不等于运行 Pipeline 已实现。
+- `Benchmark*` Schema 不改变现有 Phase 0 `/api` DTO 或路由；Schema 导出不等于运行 Pipeline 已接线。
 - Pydantic Contract 的统一编写源仍为 `apps/api/src/app/schemas`，Pipeline 和文档不得复制同名生产 Schema 形成第二事实源。
 
-## 4. 当前与目标
+## 4. 编写源与生成边界
 
-| 范围                         | 状态                                                                               |
-| ---------------------------- | ---------------------------------------------------------------------------------- |
-| Phase 0 `/api` Schema     | Current，继续用于回归                                                              |
-| `/api` Pydantic / OpenAPI | 核心资源及 Workspace/Share Contract Implemented；Session、Artifact provenance 与 PaperCollection domain read runtime Current（A-05 纠正性修复后 `PaperSourceExecution` 携带 cached 审计字段 `cache_applicability`/`live_failure_class`/`live_failure_code`、`RawPaperCandidate.synthetic_note`，`SourceSnapshotRecord.cache_version` 为非空白约束）；契约字段集以 `packages/schemas/generated/core/openapi.json` 与 `packages/contracts/src/generated/core/dto.ts` 为权威来源，本表仅记录里程碑级状态；Workspace/Share runtime integration 与其余运行 API Pending |
-| `packages/contracts`         | Current A-01 包边界；生成 Type、validation 与 transport helpers 的业务实现 Pending |
-| 独立手写 IDL                 | 未采用；需要新 ADR 才能改变编写源                                                  |
+- Phase 0 `/api` Schema 继续用于回归；核心资源及 Workspace/Share Contract 的 Pydantic / OpenAPI 由编写源生成。
+- 契约字段集以 `packages/schemas/generated/core/openapi.json` 与 `packages/contracts/src/generated/core/dto.ts` 为权威来源；本文不维护里程碑级状态叙述，实时状态见 GitHub Issues。
+- `packages/contracts` 是前端 Contract 包边界：从生成 Schema 得到 Transport Type，经 validation 与 mapper 转为 Domain Model。
+- 独立手写 IDL 未采用；改变编写源需要新 ADR。
 
 后续 Contract 实现不得复制当前 generated 文件作为第二编写源，必须由后端编写源、生成流程和前端 Contract package 共同落地。
 

@@ -24,8 +24,6 @@
 | 设计原则、体验域、交互模型              | [Product Design](../DESIGN.md)                      |
 | HTTP 资源、传输结构、错误、授权         | [API Contract](architecture/API_CONTRACT.md)        |
 | 领域实体、字段和不变量                  | [Data Model](architecture/DATA_MODEL.md)            |
-| `/api` Phase 0 DTO 字段和不变量         | [Phase 0 Data Model](architecture/DATA_MODEL_V1.md) |
-| `/api` Phase 0 Schema 字段映射和偏差决策 | [Phase 0 Schema Matrix](architecture/V1_SCHEMA_FIELD_MATRIX.md) |
 | Run 状态、事件、取消、重试和派生        | [Workflow Design](architecture/WORKFLOW_DESIGN.md)  |
 | ArtifactVersion、缓存、修订、分享和保留 | [Data Versioning](architecture/DATA_VERSIONING.md)  |
 | 跨模块职责、输入输出和依赖              | [Module Boundaries](architecture/MODULES.md)        |

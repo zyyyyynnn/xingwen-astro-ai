@@ -4,7 +4,6 @@
 | -------------- | ------------------------------------------------- |
 | Status         | Accepted                                          |
 | Authority      | 当前本地、Docker 启动方式、环境变量与验证命令     |
-| Implementation | Current                                           |
 
 本地开发采用 Docker-first。Compose 运行 `site`、`workspace`、`api`、`migrate`、`postgres`；前端本机调试统一从仓库根目录执行。
 

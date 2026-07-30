@@ -4,7 +4,6 @@
 | -------------- | ----------------------------------------------------- |
 | Status         | Accepted                                              |
 | Authority      | 品牌、Token、字体、排版、视觉引擎、动效与组件外观     |
-| Implementation | A-01 基础浅色 Token Current；A-02 visual system Pending |
 
 本文定义星文智析的品牌视觉、配色 Token、字体、排版、ASCII / Dither、动效与组件外观。实现不得从参考产品复制界面皮肤，也不得在业务页面临时追加独立色值和视觉规则。
 
