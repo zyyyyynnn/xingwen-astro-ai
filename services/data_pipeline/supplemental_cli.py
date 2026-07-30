@@ -31,7 +31,8 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Run the bounded C-07 NASA PS supplemental adapter in live or "
             "explicitly recorded fixture mode. This command does not match "
-            "entities or advance a ResearchRun."
+            "entities or advance a ResearchRun. A completed command may still "
+            "report completion_status=truncated when the configured bound was hit."
         )
     )
     parser.add_argument("--mode", choices=("recorded", "live"), default="recorded")
@@ -66,8 +67,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         except ValueError as exc:
             print(
-                "recorded mode must use the captured input and pagination "
-                "profile: "
+                "recorded mode must use the captured input and one-page "
+                "pagination profile: "
                 f"{exc}",
                 file=sys.stderr,
             )
@@ -108,10 +109,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 1
 
+    completion_status = result.snapshot.request_metadata["completion_status"]
+    continuation_cursor = result.snapshot.request_metadata["continuation_cursor"]
     export_payload = {
         "schema_version": "1.0.0",
         "source_mode": source_mode.value,
         "data_level": data_level.value,
+        "completion_status": completion_status,
+        "continuation_cursor": continuation_cursor,
         "query": query.model_dump(mode="json"),
         "records": [record.model_dump(mode="json") for record in result.records],
         "pages": [page.model_dump(mode="json") for page in result.pages],
@@ -138,6 +143,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "record_count": len(result.records),
         "page_count": len(result.pages),
         "retry_count": result.retry_count,
+        "completion_status": completion_status,
+        "continuation_cursor": continuation_cursor,
         "input_hash": query.input_hash,
         "query_hash": query.query_hash,
         "snapshot_id": result.snapshot.snapshot_id,
