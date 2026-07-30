@@ -10,7 +10,7 @@ from .enums import PaperAcquisitionStatus
 
 
 class PaperSearchQuery(BaseModel):
-    """Phase 0 paper query domain model with the legacy v1 wire alias."""
+    """Phase 0 paper query domain model with the legacy Pipeline wire alias."""
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 

@@ -941,9 +941,9 @@ export interface PaperSourcePage {
 /**
  * Immutable pipeline source record consumed by the future publisher.
  *
- * Implements the v2 ``SourceSnapshot`` target entity described in
+ * Implements the core ``SourceSnapshot`` target entity described in
  * ``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen
- * v1 Phase 0 ``SourceSnapshot`` projection above stays unchanged.
+ * Phase 0 ``SourceSnapshot`` projection above stays unchanged.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "SourceSnapshotRecord".

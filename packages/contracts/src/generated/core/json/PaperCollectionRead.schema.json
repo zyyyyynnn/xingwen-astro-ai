@@ -1820,7 +1820,7 @@
     },
     "SourceSnapshotRecord": {
       "additionalProperties": false,
-      "description": "Immutable pipeline source record consumed by the future publisher.\n\nImplements the v2 ``SourceSnapshot`` target entity described in\n``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen\nv1 Phase 0 ``SourceSnapshot`` projection above stays unchanged.",
+      "description": "Immutable pipeline source record consumed by the future publisher.\n\nImplements the core ``SourceSnapshot`` target entity described in\n``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen\nPhase 0 ``SourceSnapshot`` projection above stays unchanged.",
       "properties": {
         "cache_version": {
           "anyOf": [
