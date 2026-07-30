@@ -2,13 +2,10 @@
 
 | 项目状态       | 口径                                                                                                                                                                                                                                                                                       |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status         | Accepted                                                                                                                                                                                                                                                                                   |
-| Authority      | 领域实体、字段、枚举与不变量                                                                                                                                                                                                                                                               |
-| Implementation | Core Pydantic contract、Project/Contract/Run Runtime、Workspace/Share PostgreSQL authority、PaperCollection content、PaperSummary content/admission、Workflow persistence、atomic publisher 与 provenance reads 的实体口径 |
-| Phase 0 模型  | `/api` 的 ResearchTask 与结果 DTO（冻结决策见 [Phase 0 API Contract（归档）](../archive/phase0/PHASE0_API_CONTRACT.md)，字段以 `apps/api/src/app/schemas/` 与 `packages/schemas/generated/phase0/` 为准）                                                                              |
-| Core 模型     | Project / Run / Artifact / ArtifactVersion                                                                                                                                                                                                                                                 |
+| Status         | Accepted                     |
+| Authority      | 领域实体、字段、枚举与不变量 |
 
-本文冻结 `/api` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Project/Contract/Run Application、Workspace/Share PostgreSQL authority、Workflow PostgreSQL Schema、Run lease/recovery、ArtifactVersion Publisher 与 Artifact/Evidence/SourceSnapshot 私有读取共同构成数据模型口径。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
+本文冻结 `/api` 与前端 Domain Model 的目标实体和不变量。Core 模型为 Project / Run / Artifact / ArtifactVersion；Phase 0 的 ResearchTask 与结果 DTO 冻结决策见 [Phase 0 API Contract（归档）](../archive/phase0/PHASE0_API_CONTRACT.md)，其字段以 `apps/api/src/app/schemas/` 与 `packages/schemas/generated/phase0/` 为准。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
 ## 1. 建模原则
 
