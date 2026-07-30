@@ -165,6 +165,9 @@ class NormalizedSupplementalSourceQuery(BaseModel):
     column_contract_snapshot_id: Identifier
     column_contract_snapshot_version: SemanticVersion
     column_contract_content_hash: ContentHash
+    runtime_schema_contract_id: Identifier
+    runtime_schema_contract_version: SemanticVersion
+    runtime_schema_contract_content_hash: ContentHash
     input_identity_field: NonEmptyString
     source_filter_field: NonEmptyString
     input_values: tuple[NonEmptyString, ...] = Field(
