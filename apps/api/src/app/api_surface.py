@@ -28,7 +28,7 @@ from __future__ import annotations
 # --- Surface constants -------------------------------------------------------
 API_ROOT = "/api"
 
-# Anonymous session-create endpoint (method-agnostic, matching the router).
+# Anonymous session-create endpoint.
 SESSION_CREATE_PATH = "/api/sessions"
 
 # Prefix for anonymous public share reads (a single token segment beneath it).
@@ -69,6 +69,12 @@ def _matches_prefix(path: str, prefixes: tuple[str, ...]) -> bool:
     return False
 
 
+def _is_api_path(path: str) -> bool:
+    """True only for the API root or a path segment beneath it."""
+
+    return path == API_ROOT or path.startswith(API_ROOT + "/")
+
+
 def requires_authentication(method: str, path: str) -> bool:
     """Return ``True`` when the security middleware must enforce a session.
 
@@ -77,11 +83,11 @@ def requires_authentication(method: str, path: str) -> bool:
     session-create endpoint, or an anonymous public share read.
     """
 
-    if not path.startswith(API_ROOT):
+    if not _is_api_path(path):
         return False
     if _matches_prefix(path, PUBLIC_UNAUTH_PREFIXES):
         return False
-    if path.rstrip("/") == SESSION_CREATE_PATH:
+    if method == "POST" and path.rstrip("/") == SESSION_CREATE_PATH:
         return False
     if is_public_share_read(method, path):
         return False
@@ -106,7 +112,7 @@ def uses_problem_details(path: str) -> bool:
     :class:`ApiResponse` envelope; every other ``/api`` path uses problem+json.
     """
 
-    if not path.startswith(API_ROOT):
+    if not _is_api_path(path):
         return False
     return not _matches_prefix(path, LEGACY_ENVELOPE_PREFIXES)
 

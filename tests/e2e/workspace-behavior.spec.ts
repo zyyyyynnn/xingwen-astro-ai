@@ -276,6 +276,19 @@ test("Fixture literature summary: five regions, status badges and statement Evid
 
   await openPaperSummary(page);
 
+  await expect(
+    page.getByText("The Revised TESS Input Catalog and Candidate Target List", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Keivan G. Stassun、Ryan J. Oelkers、Martin Paegert（2019）",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(page.getByText("版本 1（初始版本）")).toBeVisible();
+
   // The five reading regions render as headings in fixed order.
   for (const title of [
     "研究目标",
@@ -306,5 +319,25 @@ test("Fixture literature summary: five regions, status badges and statement Evid
       .getByRole("button", { name: "evd_papsum_03" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Evidence" })).toBeVisible();
+
+  await page.getByRole("button", { name: "打开文献总结对比" }).click();
+  await expect(
+    page.getByRole("region", { name: "文献总结对比" }),
+  ).toBeVisible();
+  const firstComparison = page.getByRole("article", { name: "对比列 1" });
+  await expect(firstComparison).toContainText(
+    "The Revised TESS Input Catalog and Candidate Target List",
+  );
+  await expect(firstComparison).toContainText(
+    "fixture-model / paper_summary@v2",
+  );
+  await expect(firstComparison).toContainText(
+    "3/5 有证据支持；2 项存在覆盖缺口",
+  );
+  await expect(
+    page.getByRole("article", { name: "对比列 2（空）" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "返回单篇阅读" }).click();
+  await expect(page.getByRole("heading", { name: "研究目标" })).toBeVisible();
   expect(errors).toEqual([]);
 });

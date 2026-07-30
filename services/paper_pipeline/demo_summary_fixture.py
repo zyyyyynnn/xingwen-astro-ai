@@ -43,7 +43,7 @@ from app.schemas.paper_summary import (
     PaperSummaryEvidenceCandidate,
     PaperSummaryEvidenceLocator,
 )
-from app.schemas.paper_summary_api import PaperSummaryRead
+from app.schemas.paper_summary_api import PaperSummaryPaperMetadata, PaperSummaryRead
 from app.schemas.core import (
     ArtifactVersionDetail,
     EvidenceDetail,
@@ -325,6 +325,7 @@ def build_demo_summary_read() -> tuple[PaperSummaryRead, ArtifactVersionDetail]:
             paper_id=item.paper_id,
             locator={
                 "kind": item.locator.kind,
+                "summary_evidence_id": item.evidence_id,
                 "source_record_id": item.source_record_id,
                 "source_url": str(item.locator.source_url),
                 **(
@@ -349,11 +350,20 @@ def build_demo_summary_read() -> tuple[PaperSummaryRead, ArtifactVersionDetail]:
         artifact_version_id=_ARTIFACT_VERSION_ID,
         artifact_id=_ARTIFACT_ID,
         project_id=_PROJECT_ID,
+        version_number=1,
+        supersedes_version_id=None,
         source_mode=SourceMode.fixture,
         content_hash=content_hash,
         input_hash=summary.input_hash,
         created_at=producer.finished_at,
+        paper=PaperSummaryPaperMetadata(
+            paper_id=candidate.canonical_paper_id,
+            title=candidate.title,
+            authors=candidate.authors,
+            year=candidate.year,
+        ),
         summary=summary,
+        cache_audits=(),
         producer_execution=producer_execution,
         source_snapshots=(snapshot_detail,),
         evidence=evidence,

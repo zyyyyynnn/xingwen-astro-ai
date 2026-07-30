@@ -52,7 +52,7 @@ flowchart LR
 - Fixture / HTTP Adapter、Domain mapper 和前端状态模型；
 - A-16 的 Tour、Workspace 与匿名 Share 页面通过 Repository Port 消费 Domain Model；
 - A-05 论文获取与候选审查工作区：`PaperAcquisitionRepository` 深 Port 隐藏 B-06 读端点与分页，Fixture/HTTP 共享同一装配函数产出 `PaperAcquisitionReview`；论文 Fixture 由真实 D-02 Pipeline（`services/paper_pipeline/demo_fixture.py`）基于冻结 benchmark 生成，经后端 Pydantic 语义门禁验证，前端只消费生成结果；
-- A-06 文献总结与 Evidence 阅读工作区：`PaperSummaryRepository` 深 Port 隐藏 B-07 读端点，Fixture/HTTP 共享同一 `assemblePaperSummaryReview` 产出 `PaperSummaryReview`（五区语句 + 逐项 Evidence + supported/unsupported/unverifiable 状态）；PaperSummary Fixture 由真实 D-03 `PaperSummaryPipeline`（`services/paper_pipeline/demo_summary_fixture.py`）生成并经后端 Pydantic 语义门禁验证，前端只消费生成结果；
+- A-06 文献总结与 Evidence 阅读工作区：`PaperSummaryRepository` 深 Port 隐藏 B-07 读端点，Fixture/HTTP 共享同一 `assemblePaperSummaryReview` 产出 `PaperSummaryReview`（论文元信息、revision/supersedes、Cached 审计、五区语句、逐项 Evidence 与 supported/unsupported/unverifiable 状态）；`LiteratureSummaryWorkspace` 提供单篇 Evidence 审查与当前 Run 最多三篇的可达对照模式，对比列分别保留 model/Prompt、Evidence 覆盖与 Cached origin/Live 失败上下文。PaperSummary Fixture 由真实 D-03 `PaperSummaryPipeline`（`services/paper_pipeline/demo_summary_fixture.py`）生成并经后端 Pydantic 语义门禁验证，前端只消费生成结果；
 - a11y、visual、E2E、性能和降级测试。
 
 ### 不负责
