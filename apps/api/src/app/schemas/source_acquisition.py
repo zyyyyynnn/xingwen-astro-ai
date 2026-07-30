@@ -53,6 +53,9 @@ class SupplementalDataQueryCursor(BaseModel):
     pl_refname: NonEmptyString
 
 
+DataSourceCursor = DataQueryCursor | SupplementalDataQueryCursor
+
+
 class RawDataSourceRecord(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -83,8 +86,8 @@ class DataSourcePage(BaseModel):
     status_code: int = Field(ge=100, le=599)
     retrieved_at: AwareDatetime
     latency_ms: int = Field(ge=0)
-    cursor_before: DataQueryCursor | SupplementalDataQueryCursor | None = None
-    cursor_after: DataQueryCursor | SupplementalDataQueryCursor | None = None
+    cursor_before: DataSourceCursor | None = None
+    cursor_after: DataSourceCursor | None = None
     request_hash: ContentHash
     response_hash: ContentHash
     response_metadata: dict[str, str | int | None] = Field(default_factory=dict)
@@ -97,6 +100,12 @@ class DataSourcePage(BaseModel):
             raise ValueError("non-empty page requires cursor_after")
         if not self.returned_rows and self.cursor_after is not None:
             raise ValueError("empty page must not advance cursor")
+        if (
+            self.cursor_before is not None
+            and self.cursor_after is not None
+            and type(self.cursor_before) is not type(self.cursor_after)
+        ):
+            raise ValueError("page cursors must use the same source-specific type")
         return self
 
 
