@@ -4,7 +4,6 @@
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Status         | Accepted                                                                                                                       |
 | Authority      | 工作台信息架构、核心交互、页面状态与 Guided Tour                                                                               |
-| Implementation | A-01 routes、A-03 Tour/Workspace/Share Port 行为、A-05 Paper Acquisition Workspace、A-06 Literature Summary Workspace 与 X-01 真实集成 Current；A-02 视觉 Pending |
 
 本文定义科研工作台的信息架构、核心交互、页面状态和 Guided Tour。工作台借鉴现代 Agent Desktop 的桌面级组织能力，但不采用“聊天线程 + 工具日志”作为产品核心。
 

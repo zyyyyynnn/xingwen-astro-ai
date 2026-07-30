@@ -81,7 +81,7 @@
 - [ ] 使用的测试数据等级明确标记为 Fixture、recorded、Live 或 Cached。
 - [ ] 适用的 unit、integration、contract、pipeline、E2E、a11y、visual 或 deployment 测试通过。
 - [ ] 生成 Contract、Schema、快照或文档索引没有 stale diff。
-- [ ] 回归范围覆盖当前 v1 和受影响的目标路径。
+- [ ] 回归范围覆盖 Phase 0 和受影响的目标路径。
 - [ ] 验证可在声明的环境中重复，不依赖个人电脑隐式状态。
 
 ## 8. 文档专项审查
