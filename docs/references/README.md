@@ -5,7 +5,7 @@
 | Status    | Reference                      |
 | Authority | 无；本目录不定义当前产品或实现 |
 
-本目录保存赛题要求、第三方论文、示例代码和研究摘要。内容只用于比较、调研和形成设计输入；任何规则必须先进入 PRD、ADR、Contract 或专项规范，才能成为实现依据。
+本目录保存赛题要求、第三方参考代码、研究摘要和来源审计记录。内容只用于比较、调研和形成设计输入；任何规则必须先进入 PRD、ADR、Contract 或专项规范，才能成为实现依据。
 
 ## 内容
 
@@ -13,11 +13,12 @@
 docs/references/
 ├─ README.md
 ├─ 赛题要求.md
-├─ papers/              third-party papers
-├─ autoastro/           paper summary + selected code
+├─ autoastro/           derived summary + selected code
 ├─ mavis/               derived summary + provenance/license audit
-└─ inosum/              paper summary + selected code
+└─ inosum/              derived summary + selected code
 ```
+
+仓库不保留第三方 PDF。各参考摘要只记录来源文件名、原始字节数和 SHA-256；需要复核原文时，必须从有权访问的来源另行取得与记录哈希一致的副本。
 
 ## 使用原则
 
@@ -42,6 +43,6 @@ docs/references/
 
 [赛题要求.md](赛题要求.md) 是外部要求的仓库整理版。产品范围和提交口径仍由 PRD、Acceptance 与 Handoff 维护；两者冲突时应先核对原始赛题材料，再通过 Issue 修改内部规范。
 
-## 未保留的大型原始文件
+## 未保留的原始文件
 
-部分压缩包、数据集和大体积参考工程未纳入仓库。当前目录只保留完成调研所需的论文、摘要和选定代码。缺失内容不得由文件名或摘要推断。
+第三方 PDF、部分压缩包、数据集和大体积参考工程不纳入仓库。当前目录只保留派生摘要、审计记录和选定代码。缺失内容不得由文件名或摘要推断，摘要也不能替代原文证据。
