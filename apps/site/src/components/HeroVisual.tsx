@@ -19,7 +19,7 @@ interface HeroVisualProps {
  * - Reduced motion: engine renders single static frame
  * - On unmount: disposes engine resources
  *
- * DOM anchor provides accessible text (AGENTS §9).
+ * DOM anchor provides accessible text (见 docs/design/VISUAL_LANGUAGE.md).
  */
 export function HeroVisual({ seed = 42 }: HeroVisualProps) {
   const containerRef = useRef<HTMLDivElement>(null);

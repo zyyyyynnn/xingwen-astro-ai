@@ -25,7 +25,7 @@
 | R-05 | High     | 模型输出无效或编造                     | Schema 失败、Evidence 缺失、unsupported 增加         | 结构校验、Evidence 门、Benchmark、禁止自由文本直出                   | D-03/D-04 与 X-07 指标达标      |
 | R-06 | High     | Relation / Graph 产生无证据关系        | Accepted Relation 无双方 Evidence；Graph 悬空引用    | candidate/accepted/rejected、Trace、Graph 完整性门                   | X-07 Benchmark 与完整性测试通过 |
 | R-07 | High     | Case Manifest 与实现漂移               | 字段、单位、来源或 taxonomy 在代码中出现第二套定义   | C-01/D-01/X-00 单一版本、Contract 校验和 hash                        | X-00 冻结且 stale check 进入 CI |
-| R-08 | High     | v1/v2 Contract 与实现状态漂移          | v1 DTO 被当作 v2 目标，或 Pending 资源被写成 Current | 版本边界、生成 Contract、Fixture/HTTP 一致性和真实集成 CI            | X-01 门禁持续通过               |
+| R-08 | High     | Phase 0 与 Core Contract 与实现状态漂移          | Phase 0 DTO 被当作 Core 目标，或规划资源被写成已交付 | 版本边界、生成 Contract、Fixture/HTTP 一致性和真实集成 CI            | 集成门禁持续通过               |
 | R-09 | Medium   | WebGL 性能或 context loss 破坏主体验   | 低端设备卡顿、页面隐藏仍渲染、Canvas 崩溃后空白      | 质量档、Poster、Reduced Motion、pause/dispose                        | A-02 与 X-02 降级测试通过       |
 | R-10 | Medium   | 数据 crossmatch 或单位规则错误         | 匹配冲突率高、单位不可转换、误差/limit 丢失          | 版本化规则、人工样例、冲突保留、Evidence                             | C-03～C-05 固定样例通过         |
 | R-11 | Medium   | Prompt / model 变更导致结果不可复现    | 使用“最新版本”、历史缓存无法定位生成条件             | Prompt registry、ProducerExecution、input/output hash                | D-03/D-04 和 X-08 版本链通过    |
@@ -33,7 +33,7 @@
 | R-13 | Medium   | 文档、Issue 与实现再次漂移             | Backlog 标题/依赖过期；同一规则多处冲突              | 文档治理、唯一事实源、索引和 PR 检查                                 | 文档 CI / Review 持续执行       |
 | R-14 | Medium   | 第三方许可或字体来源不清               | 无许可证、受限全文或不可分发资产进入发布物           | 来源/许可记录、Reference 隔离、资产审查                              | A-02、X-03 资产清单通过         |
 | R-15 | Low      | 材料与系统版本不一致                   | 视频、PDF、截图和网页展示不同结果                    | provenance manifest、固定 Run/Version、content hash                  | X-03 自主走读通过               |
-| R-16 | Medium   | v2 Session/限流/幂等使用内存存储      | API 重启或水平扩容后匿名 Session、限流窗口、幂等键全部丢失 | PostgreSQL 持久化适配器（后续 Issue）；当前仅在单实例本地基线使用 | 持久化 Session 适配器 + 跨实例测试通过 |
+| R-16 | Medium   | Core Session/限流/幂等使用内存存储      | API 重启或水平扩容后匿名 Session、限流窗口、幂等键全部丢失 | PostgreSQL 持久化适配器（对应 Issue）；单实例本地基线使用内存 | 持久化 Session 适配器 + 跨实例测试通过 |
 
 ## 3. 风险处理流程
 

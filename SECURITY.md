@@ -4,7 +4,6 @@
 | -------------- | --------------------------------------------------------------------- |
 | Status         | Accepted                                                              |
 | Authority      | 密钥、信任边界、输入、会话、分享、日志和安全响应要求                  |
-| Implementation | `/api` Session / CSRF / ownership、Artifact provenance 私有读取及 Workspace/Share Runtime Current；Session、限流与 Snapshot/Share 记录仍为进程生命周期存储 |
 
 本文定义必须满足的安全控制。部署拓扑和发布步骤见 [Deployment](DEPLOYMENT.md)，HTTP 授权与公开错误见 [API Contract](docs/architecture/API_CONTRACT.md)，模型调用准入见 [Model Policy](docs/ai/MODEL_POLICY.md)。
 

@@ -2,13 +2,10 @@
 
 | 项目状态       | 口径                                                                                                                                                                                                                                                                                       |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status         | Accepted                                                                                                                                                                                                                                                                                   |
-| Authority      | 领域实体、字段、枚举与不变量                                                                                                                                                                                                                                                               |
-| Implementation | Core Pydantic contract、Project/Contract/Run Runtime、Workspace/Share PostgreSQL authority、D-02 PaperCollection content、D-03 PaperSummary content/admission、#76/#77 Workflow persistence、#78 atomic publisher 与 #83 provenance reads Implemented；Snapshot/Share 跨进程持久化 Pending |
-| Current model  | `/api` 的 ResearchTask 与结果 DTO（冻结字段见 [DATA_MODEL_V1.md](DATA_MODEL_V1.md) 与 [V1_SCHEMA_FIELD_MATRIX.md](V1_SCHEMA_FIELD_MATRIX.md)）                                                                                                                                          |
-| Target model   | Project / Run / Artifact / ArtifactVersion                                                                                                                                                                                                                                                 |
+| Status         | Accepted                     |
+| Authority      | 领域实体、字段、枚举与不变量 |
 
-本文冻结 `/api` 与前端 Domain Model 的目标实体和不变量。七个核心资源的 Pydantic Schema、Session 安全边界、Project/Contract/Run Application、Workspace/Share PostgreSQL authority、#76 Workflow PostgreSQL Schema、#77 Run lease/recovery、#78 ArtifactVersion Publisher 及 #83 Artifact/Evidence/SourceSnapshot 私有读取已实现。Workspace/Share 状态仍为进程生命周期存储，跨进程恢复 Pending。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
+本文冻结 `/api` 与前端 Domain Model 的目标实体和不变量。Core 模型为 Project / Run / Artifact / ArtifactVersion；Phase 0 的 ResearchTask 与结果 DTO 冻结决策见 [Phase 0 API Contract（归档）](../archive/phase0/PHASE0_API_CONTRACT.md)，其字段以 `apps/api/src/app/schemas/` 与 `packages/schemas/generated/phase0/` 为准。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
 ## 1. 建模原则
 
@@ -224,7 +221,7 @@ supersedes_version_id
 created_at
 ```
 
-#76 持久化基线额外保存 `run_step_id`、`step_attempt_id` 与 `producer_execution_id` 外键，用于从不可变版本反向定位实际 Step、Attempt 和 ProducerExecution；#78 Publisher 使用 `publication_key` 保证同一 Artifact 内的发布幂等。这些字段不改变公开 ArtifactVersion 的领域身份。
+持久化基线额外保存 `run_step_id`、`step_attempt_id` 与 `producer_execution_id` 外键，用于从不可变版本反向定位实际 Step、Attempt 和 ProducerExecution；Publisher 使用 `publication_key` 保证同一 Artifact 内的发布幂等。这些字段不改变公开 ArtifactVersion 的领域身份。
 
 `paper_collection` 版本的领域内容直接使用 D-02 `PaperCollection` Pydantic 模型，不复制第二套同名领域 Schema。B-06 的 HTTP 投影在版本元数据外组合该 content、ProducerExecution、SourceSnapshot 与 Evidence；候选分页项组合一个既有 `PaperCollectionCandidate`、其 `PaperDuplicateGroup`、对应 SourceSnapshot 和至少一个 Evidence。分页不改变 content 中冻结的候选顺序与规则版本。
 
@@ -252,7 +249,7 @@ PaperCollection 包含 query、acquisition_run、candidates、selected_paper_ids
 
 `PaperSourceExecution` 携带 cached 审计上下文：cached 执行必须同时提供 `cache_applicability`（该缓存为何适用于当前查询）与 `live_failure_class`/`live_failure_code`（本次 Live 尝试的失败分类与代码）；非 cached 执行禁止携带这些字段。cached 执行引用的 SourceSnapshot 必须提供非空 `cache_version`，且 `request_metadata` 必须包含 `origin_run_id` 与 `origin_artifact_version_id`（真实历史 Run/版本），均由 Pydantic validator 强制；空串或全空白值等同缺失，消费端必须拒绝为契约违规。`RawPaperCandidate.synthetic_note` 是记录级 provenance 标注：合成演示/测试记录必须携带说明文本，真实获取记录永远为 null，审查界面逐候选展示。
 
-当前 D-02 已在唯一 Pydantic 编写源实现独立的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。#78 已实现通用 Publisher 端口，但这不表示 `/api` HTTP API 或 Paper Pipeline 到持久化 Workflow 的生产集成已实现。
+D-02 的 PaperCollection Pipeline content、完整 SourceSnapshot 和 ProducerExecution 元信息只有唯一 Pydantic 编写源；Query、candidate、duplicate group、conflict、ranking、selection/exclusion、指标与 hash 的运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。通用 Publisher 端口与 `/api` HTTP API、Paper Pipeline 到持久化 Workflow 的生产接线是相互独立的边界。
 
 PaperSummary 的唯一 Pydantic 编写源是 `apps/api/src/app/schemas/paper_summary.py`，并由 `/api` `ArtifactContent` 的 `kind=paper_summary` 判别分支直接复用，不复制第二套生产 Schema。内容包含 `summary_id`、`paper_id`、固定 D-01 Benchmark reference、PaperCollection/SourceSnapshot 输入版本、`research_goal`、`method`、`dataset`、`findings`、`limitations`、`future_work`、逐项状态、Evidence、来源冲突、ProducerExecution、input/output hash。B-07 的 `PaperSummaryRead` 传输投影位于 `apps/api/src/app/schemas/paper_summary_api.py`，由 `GET /api/artifact-versions/{version_id}/paper-summary` 返回，并在序列化前验证不可变版本、同项目 PaperCollection 的完整类型与稳定 `output_hash`、SourceSnapshot 稳定指纹、Evidence target 归属和 ProducerExecution/hash 对照。该读取投影从已固定的类型化 PaperCollection 候选派生 `paper` bibliographic identity，并显式携带 ArtifactVersion revision/supersedes 与 Cached 来源审计；Cached audit 的 `source_id`、SourceSnapshot、origin 与 `source_mode` 必须互相一致。管线 Evidence 标识通过持久化 locator 的 `summary_evidence_id` 与数据库 Evidence UUID 建立一一映射，不把两个命名空间混为一谈。
 
@@ -352,7 +349,7 @@ revoked_at
 
 原始 token 只在创建响应中出现一次。ShareSnapshot 不引用动态 latest，不授予反馈、再生成或私有 Project 读取权限。
 
-当前 `public_metadata_only` 投影冻结 ArtifactVersion 的 id、kind、title、version/schema/content hash、source mode 和 created_at，以及 Evidence 到明确 Version/SourceSnapshot 的最小身份引用；不公开 Artifact content、Evidence locator、Session/Project、producer 私有元数据或原始 token。运行适配器只保存 token 的 SHA-256 hash。
+`public_metadata_only` 投影冻结 ArtifactVersion 的 id、kind、title、version/schema/content hash、source mode 和 created_at，以及 Evidence 到明确 Version/SourceSnapshot 的最小身份引用；不公开 Artifact content、Evidence locator、Session/Project、producer 私有元数据或原始 token。运行适配器只保存 token 的 SHA-256 hash。
 
 ## 13. CacheRecord 与 ProducerExecution
 
@@ -370,9 +367,9 @@ ProducerExecution 记录 run、step、attempt、lease generation、producer/mode
 - ShareSnapshot 创建时验证版本属于同一 Project，并执行脱敏。
 - Revision Run 只复用 content hash 与 Contract 允许的完成版本。
 
-## 15. v1 迁移映射
+## 15. Phase 0 到 Core 迁移映射
 
-| 当前 v1                             | 目标 v2                                    |
+| Phase 0                             | Core                                       |
 | ----------------------------------- | ------------------------------------------ |
 | `ResearchTask`                      | `ResearchProject` + 一个 `ResearchRun`     |
 | Task options                        | `ResearchContract`                         |
@@ -381,4 +378,4 @@ ProducerExecution 记录 run、step、attempt、lease generation、producer/mode
 | `meta.cached` / `used_cache`        | ArtifactVersion.source_mode + CacheRecord  |
 | 同一 Task 的 `revising`             | 新 `derivation_kind=revision` Run          |
 
-迁移适配只用于过渡；v1 Task DTO 不得成为新 React 组件的 Domain Model。
+迁移适配只用于过渡；Phase 0 Task DTO 不得成为新 React 组件的 Domain Model。

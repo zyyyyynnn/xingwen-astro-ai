@@ -67,7 +67,7 @@ scripts                   架构、基建与 Schema 脚本
 docs                      架构、产品、质量、交接文档
 ```
 
-实现状态以 [AGENTS](AGENTS.md) §2 的 Current / Pending 表为准。
+实现状态以 GitHub Issues 与 [Roadmap](docs/product/ROADMAP.md) 为准。
 
 ## 核心文档
 
@@ -82,7 +82,7 @@ docs                      架构、产品、质量、交接文档
 | 产品退出标准                           | [Acceptance](docs/product/ACCEPTANCE.md)                            |
 | PR 与发布检查                          | [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)                |
 | 文档治理                               | [Documentation Governance](docs/DOCUMENTATION_GOVERNANCE.md)        |
-| Agent 执行纪律                         | [AGENTS](AGENTS.md)                                                 |
+| Agent 执行协议与项目约束               | [AGENTS](AGENTS.md)                                                 |
 
 其他资料按任务类型从 [docs/README.md](docs/README.md) 定位。
 

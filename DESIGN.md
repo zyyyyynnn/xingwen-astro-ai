@@ -4,7 +4,6 @@
 | -------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Status         | Accepted                                                                                                          |
 | Authority      | 产品设计原则、体验域关系、交互模型与设计不变量                                                                    |
-| Implementation | A-01 runtime、A-03 Port 绑定 UI、A-05 Paper Acquisition Workspace 与 X-01 真实集成 Current；A-02 视觉系统 Pending |
 
 本文定义星文智析的设计判断标准，不重复产品主流程、页面规格、技术栈、领域枚举或验收清单。
 
@@ -119,4 +118,4 @@ flowchart LR
 
 ## 8. 实施边界
 
-设计实现必须由对应 Issue 驱动。A-01 只证明 Astro/React 运行时、路由和共享包边界；A-03 已以同一组件路径消费 Fixture / HTTP Repository Port，并通过真实 Browser/Compose 覆盖 Draft、Contract、Run/Event、Workspace 冲突与刷新恢复、匿名冻结 Share 和撤销。A-05（含 #40/#136 合并后纠正）已在 `/workspace` 中央画布交付论文获取与候选审查面：连续分隔线面板、服务端稳定排名不重算、入选/排除原因与重复组/不确定匹配展示、execution_mode 与 source_mode 正交标识、cached 审计（origin Run/版本、适用性、Live 失败原因）；Fixture 由真实 D-02 Pipeline 基于冻结 benchmark 离线生成并经 Pydantic 语义门禁验证，候选与 Evidence 接入既有 Observatory 与 Share 链路。A-02 视觉系统与 M2 科研能力仍按各自 Issue 和运行证据推进。
+设计实现必须由对应 Issue 驱动。工作台以科研产物为中心，同一组件路径同时消费 Fixture 与 HTTP Repository Port，返回同一 Domain Model。论文获取与候选审查、推理与图谱、反馈修正等体验域各自以对应 Issue 的代码、测试和运行证据为准；实时实现状态见 GitHub Issues。设计不得把 Fixture 或模型推断表述为真实科研结论。
