@@ -2,7 +2,7 @@
 
 | 元数据         | 值                                                |
 | -------------- | ------------------------------------------------- |
-| Status         | Implemented                                       |
+| Status         | Accepted                                          |
 | Authority      | 当前本地、Docker 启动方式、环境变量与验证命令     |
 | Implementation | Current                                           |
 

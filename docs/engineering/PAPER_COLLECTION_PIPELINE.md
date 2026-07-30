@@ -2,7 +2,7 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Implemented |
+| Status | Accepted |
 | Authority | D-02 PaperCollection 获取与 D-03 PaperSummary Prompt/Schema/Evidence 准入 |
 | Implementation | Crossref metadata Adapter、`paper_collection` content、D-03 `paper_summary` detached admission/Benchmark current；ArtifactVersion 发布由 #78 提供，生产模型与 Workflow 接线 Pending |
 

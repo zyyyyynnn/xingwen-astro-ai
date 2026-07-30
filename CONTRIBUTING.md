@@ -5,7 +5,7 @@
 | Status    | Accepted                                   |
 | Authority | Git、Issue、PR、正式技术 Review 与合并流程 |
 
-Agent 的执行纪律见 [AGENTS](AGENTS.md)；文档层级和同步规则见 [Documentation Governance](docs/DOCUMENTATION_GOVERNANCE.md)。
+Agent 的执行协议与项目约束见 [AGENTS](AGENTS.md)；文档分类和唯一事实来源规则见 [Documentation Governance](docs/DOCUMENTATION_GOVERNANCE.md)。
 
 ## 1. 标准流程
 
