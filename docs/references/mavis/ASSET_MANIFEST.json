@@ -152,26 +152,14 @@
       "notes": "Repository copy matched the local original SHA-256 before removal."
     },
     {
-      "path": "docs/references/papers/mavis-天文可视化工具.pdf",
-      "sha256": "c7132bb0f7a99f18fad5b2a48509a23fb8f522c985b0bac01cbefa7ab87ef806",
-      "bytes": 4577528,
-      "asset_type": "paper",
-      "original_location": "External-directory artifact introduced by PR #61; upstream URL was not recorded",
-      "source_or_author": "谢家福; 贵州大学",
-      "license_status": "not_redistributable",
-      "license_evidence": "PDF page 89 assigns related-work IP to Guizhou University and grants retention, submission, database, and copying rights to the university; no grant to this repository was found.",
-      "redistribution_action": "remove",
-      "notes": "Title: 基于大语言模型的天文数据分析任务智能执行技术研究; dated June 2026."
-    },
-    {
       "path": "docs/references/mavis/摘要.md",
-      "sha256": "ee7bf597e392895541512d9071266a02f85fe7f1fadd6f8d24d28ce8623efc9d",
-      "bytes": 4349,
+      "sha256": "415c04a9ad95040bfb8b2239e5d7f188c116f18b5c9f42aa3a8cc3db907902e3",
+      "bytes": 4972,
       "asset_type": "derived_summary",
       "original_location": "Repository-authored from a read-only structural audit of the local MAVIS reference snapshot",
       "source_or_author": "zyyyyynnn/xingwen-astro-ai contributors",
       "license_status": "verified",
-      "license_evidence": "Repository-authored factual synthesis; no third-party JSON, PDF text, or credential value is copied.",
+      "license_evidence": "Repository-authored factual synthesis; no third-party source text, JSON content, or credential value is copied.",
       "redistribution_action": "derived_facts_only",
       "notes": "Retained as the non-normative reference summary; hash computed after the audit rewrite."
     }
