@@ -57,7 +57,7 @@ class Locator(BaseModel):
 
 
 class SourceSnapshot(BaseModel):
-    """Phase 0 Evidence projection retained for the existing v1 response."""
+    """Phase 0 Evidence projection retained for the existing Pipeline response."""
 
     retrieved_at: datetime
     query_hash: str | None = None
@@ -66,9 +66,9 @@ class SourceSnapshot(BaseModel):
 class SourceSnapshotRecord(BaseModel):
     """Immutable pipeline source record consumed by the future publisher.
 
-    Implements the v2 ``SourceSnapshot`` target entity described in
+    Implements the core ``SourceSnapshot`` target entity described in
     ``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen
-    v1 Phase 0 ``SourceSnapshot`` projection above stays unchanged.
+    Phase 0 ``SourceSnapshot`` projection above stays unchanged.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
