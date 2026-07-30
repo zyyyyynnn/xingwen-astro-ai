@@ -33,7 +33,7 @@
       "type": "object"
     },
     "SourceSnapshot": {
-      "description": "Phase 0 Evidence projection retained for the existing v1 response.",
+      "description": "Phase 0 Evidence projection retained for the existing Pipeline response.",
       "properties": {
         "query_hash": {
           "anyOf": [

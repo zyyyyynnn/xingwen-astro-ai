@@ -1,5 +1,5 @@
 {
-  "description": "Phase 0 paper query domain model with the legacy v1 wire alias.",
+  "description": "Phase 0 paper query domain model with the legacy Pipeline wire alias.",
   "properties": {
     "case_key": {
       "title": "Case Key",
