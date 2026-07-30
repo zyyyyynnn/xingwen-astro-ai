@@ -10,13 +10,12 @@
 
 ## 1. 结论
 
-本次审计未找到足以证明 11 个 API JSON 或 MAVIS 学位论文 PDF 可由本仓库再分发的许可证据。当前树删除这 12 个副本，只保留非侵权的派生事实、原始位置、文件大小和 SHA-256。删除不改写 Git 历史。
+本次审计未找到足以证明 11 个 API JSON 可由本仓库再分发的许可证据。当前树不保留这些副本，只保留非侵权的派生事实、原始位置、文件大小和 SHA-256。该处理不改写 Git 历史。
 
-| 资产类别     | 数量 | License status        | 裁决         |
-| ------------ | ---: | --------------------- | ------------ |
-| API JSON     |   11 | `unverified`          | 从当前树移除 |
-| 学位论文 PDF |    1 | `not_redistributable` | 从当前树移除 |
-| 仓库派生摘要 |    1 | `verified`            | 保留         |
+| 资产类别     | 数量 | License status | 裁决         |
+| ------------ | ---: | -------------- | ------------ |
+| API JSON     |   11 | `unverified`   | 当前树不保留 |
+| 仓库派生摘要 |    1 | `verified`     | 保留         |
 
 逐文件记录见 [ASSET_MANIFEST.json](ASSET_MANIFEST.json)。
 
@@ -43,7 +42,6 @@ benchmark 的 160/99/59/2、89 个 `code/visual.py` 和 Prompt 4/11 统计及判
 
 - 本地只读 MAVIS 参考快照；物理路径仅记录在本地审计证据中；
 - 曾位于 `docs/references/mavis/api/` 的 11 个 JSON；
-- 曾位于 `docs/references/papers/mavis-天文可视化工具.pdf` 的 PDF；
 - 仓库引入提交 `ef3231c6ce3e0e0771c1e048f9b3ef16c829abb3` 和 [PR #61](https://github.com/zyyyyynnn/xingwen-astro-ai/pull/61)；
 - 当前派生摘要。
 
@@ -51,9 +49,8 @@ benchmark 的 160/99/59/2、89 个 `code/visual.py` 和 Prompt 4/11 统计及判
 
 1. 对仓库副本和本地快照 `data/api_for_prompt` 原文件计算 SHA-256，确认 11 个仓库 JSON 与本地来源逐字节对应。
 2. 检查 JSON 内容、参考快照根目录和引入 PR 中的许可证、作者授权、NOTICE 或来源记录。
-3. 读取并渲染 PDF 的封面与末页权利声明，核对作者、机构和授权范围。
-4. 只读统计 benchmark 目录和 `code/visual.py`，检查 Prompt 直接文件引用以及 agent10/11/12 的接线路径。
-5. 不运行模型、Benchmark、Redis、Jupyter、WWT、WebSocket 或 MAVIS 网络请求。
+3. 只读统计 benchmark 目录和 `code/visual.py`，检查 Prompt 直接文件引用以及 agent10/11/12 的接线路径。
+4. 不运行模型、Benchmark、Redis、Jupyter、WWT、WebSocket 或 MAVIS 网络请求。
 
 ## 3. 参考事实来源
 
@@ -75,22 +72,9 @@ Benchmark 分类、Prompt 的 4/11 加载关系、agent10/11/12 可达性、静�
 
 “来自外部目录”“学术/竞赛用途”以及“未看到禁止条款”均不构成授权。因此这 11 个文件标记为 `unverified` 并从当前树移除。
 
-### 4.2 学位论文 PDF
+### 4.2 派生摘要
 
-PDF 封面记录：
-
-- 题名：`基于大语言模型的天文数据分析任务智能执行技术研究`
-- 作者：谢家福
-- 机构：贵州大学
-- 日期：2026 年 06 月
-
-末页权利声明表明相关知识产权归贵州大学，并授权贵州大学保存、向有关机构提交、供查阅借阅、纳入数据库以及采用复制手段保存和汇编。该声明没有授予本仓库公开再分发 PDF 的权利，引入 PR 也没有补充授权记录。因此该副本标记为 `not_redistributable` 并从当前树移除。
-
-本裁决只判断本仓库当前能否证明再分发权，不判断作者或机构能否在其他渠道合法发布。
-
-### 4.3 派生摘要
-
-`摘要.md` 是本仓库依据结构统计和有限事实重新撰写的派生文档，不保留论文正文、JSON 内容或凭据值。它由仓库维护并可保留；其 SHA-256 记录在 manifest。
+`摘要.md` 是本仓库依据结构统计和有限事实重新撰写的派生文档，不保留第三方来源正文、JSON 内容或凭据值。它由仓库维护并可保留；其 SHA-256 记录在 manifest。
 
 ## 5. 复核与恢复
 
