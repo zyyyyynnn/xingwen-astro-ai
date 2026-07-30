@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 | --- | --- |
-| Status | Implemented |
+| Status | Accepted |
 | Authority | `/api` Phase 0 Schema field mapping and drift decisions |
 
 This matrix compares the frozen [`DATA_MODEL_V1.md`](DATA_MODEL_V1.md) with the

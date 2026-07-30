@@ -32,3 +32,25 @@ test("extracts local links and Mermaid blocks", () => {
   assert.deepEqual(result.links, [{ line: 3, target: "docs/README.md" }]);
   assert.deepEqual(result.mermaidBlocks[0].lines, ["flowchart LR", " A-->B"]);
 });
+
+test("rejects progress-style Status values", () => {
+  const source =
+    "# Title\n\n| 元数据 | 值 |\n| --- | --- |\n| Status | Implemented |\n| Authority | X |";
+  assert.match(
+    inspectMarkdown(source).errors.join("\n"),
+    /Status is not recognized: Implemented/u,
+  );
+});
+
+test("accepts the governed Status enumeration", () => {
+  for (const status of [
+    "Proposed",
+    "Accepted",
+    "Superseded",
+    "Archived",
+    "Reference",
+  ]) {
+    const source = `# Title\n\n| 元数据 | 值 |\n| --- | --- |\n| Status | ${status} |\n| Authority | X |`;
+    assert.deepEqual(inspectMarkdown(source).errors, []);
+  }
+});

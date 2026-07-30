@@ -39,8 +39,7 @@ function requiresMetadata(file) {
     file === "docs/setup.md" ||
     (/^docs\/(?:ai|architecture|design|engineering|product|quality)\/[^/]+\.md$/u.test(
       file,
-    ) &&
-      !file.includes("/archive/")) ||
+    )) ||
     file === "docs/handoff/README.md" ||
     file === "packages/prompts/README.md" ||
     file === "packages/schemas/README.md"
@@ -78,6 +77,22 @@ for (const file of files) {
       if (!result.metadata[field])
         errors.push(`${file}: missing ${field} metadata`);
     }
+  }
+  if (
+    file.startsWith("docs/archive/") &&
+    result.metadata.Status &&
+    result.metadata.Status !== "Archived"
+  ) {
+    errors.push(`${file}: documents under docs/archive/ must use Status: Archived`);
+  }
+  if (
+    file.startsWith("docs/references/") &&
+    result.metadata.Status &&
+    result.metadata.Status !== "Reference"
+  ) {
+    errors.push(
+      `${file}: documents under docs/references/ must use Status: Reference`,
+    );
   }
   if (
     result.metadata.Authority &&

@@ -2,7 +2,7 @@
 
 | 元数据    | 值                                        |
 | --------- | ----------------------------------------- |
-| Status    | Implemented                               |
+| Status    | Accepted                                  |
 | Authority | `packages/prompts` 目录结构与本地使用方式 |
 
 全局 Prompt 生命周期、版本和发布规则见 [Prompt Versioning](../../docs/ai/PROMPT_VERSIONING.md)。本文件不重复模型准入、Evidence 或评测政策。

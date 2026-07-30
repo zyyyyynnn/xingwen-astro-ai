@@ -1,7 +1,6 @@
 const allowedStatuses = new Set([
   "Proposed",
   "Accepted",
-  "Implemented",
   "Superseded",
   "Archived",
   "Reference",
@@ -125,10 +124,9 @@ export function inspectMarkdown(content, { requireSingleH1 = true } = {}) {
       links.push({ line: lineNumber, target: match[1].trim() });
     }
 
-    const metadataRow =
-      /^\|\s*(Status|Authority|Implementation)\s*\|\s*(.*?)\s*\|\s*$/u.exec(
-        line,
-      );
+    const metadataRow = /^\|\s*(Status|Authority)\s*\|\s*(.*?)\s*\|\s*$/u.exec(
+      line,
+    );
     if (metadataRow) metadata[metadataRow[1]] = metadataRow[2];
   }
 
