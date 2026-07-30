@@ -17,7 +17,7 @@
 - `apps/api/src/app/schemas/manifest.py` 是 Pydantic v2 Schema authoring source，只定义结构、稳定 hash 和静态校验，不新增 API 端点。
 - `packages/schemas/generated/` 只保存现有导出脚本生成的 JSON Schema，不手写第二套生产 Schema。
 - `packages/domain`、`packages/contracts`、前端和 Pipeline 运行时代码只能按版本引用 Manifest，不复制字段清单。
-- `/api/v1` 现有 Mock 字段保持兼容；目标 `/api` 的 `ResearchContract.requested_fields` 使用 canonical field id，不使用来源列名。
+- Pipeline（`/api/tasks`）现有 Mock 字段保持兼容；目标 `/api` 的 `ResearchContract.requested_fields` 使用 canonical field id，不使用来源列名。
 
 ## 3. Manifest 拆分
 

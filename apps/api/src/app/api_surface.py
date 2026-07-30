@@ -14,8 +14,9 @@ instead of being scattered across the middleware and error handlers as ad hoc
 ``str.startswith`` checks. On the versionless single surface everything lives
 under ``/api``; the security decision is therefore *default-deny* — any ``/api``
 path that is not on the small public allowlist requires an anonymous session.
-Adding a new domain never needs a middleware edit: anonymous reads live under
-``/api/public/*`` and everything else is protected by default.
+Adding a new domain never needs a middleware edit for the default (protected)
+case; new anonymous surfaces must be added to the public allowlist here (today
+only single-token ``/api/public/shares/{token}`` reads are anonymous).
 
 The functions are pure and allocation-free on the request hot path (a couple of
 ``str.startswith``/equality checks against module-level tuples), so consuming

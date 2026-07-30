@@ -20,8 +20,8 @@ HTTP 状态、Problem Details 字段和授权错误的唯一事实来源是 [API
 ## 2. Current 与 Target
 
 - 当前 Pipeline `/api` 保持既有 Task error envelope 和回归行为。
-- 目标核心 `/api` 只使用 RFC 9457 Problem Details，不维护第二套 v2 错误 Envelope。
-- v1 和 v2 可以使用不同传输结构，但必须映射到稳定内部错误分类。
+- 目标核心 `/api` 只使用 RFC 9457 Problem Details，不维护第二套错误 Envelope。
+- Pipeline 面与 Core 面可以使用不同传输结构，但必须映射到稳定内部错误分类。
 
 ## 3. 内部错误分类
 
@@ -116,7 +116,7 @@ duration_ms
 
 错误相关改动至少覆盖：
 
-- 内部错误到 v1/v2 公开响应映射；
+- 内部错误到公开响应映射；
 - 401/403/404 不泄露资源存在性；
 - 409 状态、版本和幂等冲突；
 - 自动 retry 与用户派生 Run 的差异；
