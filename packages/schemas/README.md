@@ -9,7 +9,7 @@
 
 ## 1. 编写源
 
-当前唯一编写源：
+编写源统一为：
 
 ```text
 apps/api/src/app/schemas
@@ -47,7 +47,7 @@ CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件
 ## 3. 消费边界
 
 - 后端：引用 Pydantic 编写源和生成 OpenAPI，不复制 DTO。
-- 前端 Contract 边界：A-03 实现后从 OpenAPI / JSON Schema 生成 Transport Type，经 validation 和 mapper 转为 Domain Model。
+- 前端 Contract 边界：从 OpenAPI / JSON Schema 生成 Transport Type，经 validation 和 mapper 转为 Domain Model。
 - Pipeline：按领域输入输出 Schema 返回结构化内容，不依赖页面 DTO。
 - Fixture / recorded response：通过同一 Schema，并明确数据等级。
 - 文档：描述资源与不变量，不成为机器 Contract 的第二编写源。
@@ -58,7 +58,7 @@ CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件
 - `PaperCollection`、完整 `SourceSnapshot` 与 `ProducerExecution` 是 Pipeline content Contract；HTTP 投影直接组合这些模型与 provenance DTO，不复制第二套 PaperCollection，也不承担 Publisher。
 - Benchmark Contract 不是 HTTP Transport API；只有被 FastAPI Router 引用的模型才会自动进入当前 OpenAPI。
 - `Benchmark*` Schema 不改变现有 Phase 0 `/api` DTO 或路由；Schema 导出不等于运行 Pipeline 已接线。
-- Pydantic Contract 的统一编写源仍为 `apps/api/src/app/schemas`，Pipeline 和文档不得复制同名生产 Schema 形成第二事实源。
+- Pydantic Contract 的统一编写源为 `apps/api/src/app/schemas`，Pipeline 和文档不得复制同名生产 Schema 形成第二事实源。
 
 ## 4. 编写源与生成边界
 
@@ -67,7 +67,7 @@ CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件
 - `packages/contracts` 是前端 Contract 包边界：从生成 Schema 得到 Transport Type，经 validation 与 mapper 转为 Domain Model。
 - 独立手写 IDL 未采用；改变编写源需要新 ADR。
 
-后续 Contract 实现不得复制当前 generated 文件作为第二编写源，必须由后端编写源、生成流程和前端 Contract package 共同落地。
+Contract 实现不得复制 generated 文件作为第二编写源，必须由后端编写源、生成流程和前端 Contract package 共同落地。
 
 ## 5. 变更门禁
 

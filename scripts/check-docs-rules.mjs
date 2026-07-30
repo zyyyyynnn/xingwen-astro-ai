@@ -6,9 +6,23 @@ const allowedStatuses = new Set([
   "Reference",
 ]);
 
-// Metadata keys that describe volatile progress. They must never appear in a
-// document metadata table; real-time status lives in Issues, Roadmap, Backlog
-// and verified run evidence.
+// The only metadata keys a leading metadata table may declare. Any other key
+// fails the check; the table describes stable scope, source and supersession,
+// never volatile progress.
+const allowedMetadataFields = new Set([
+  "Status",
+  "Authority",
+  "Scope",
+  "Issue",
+  "Superseded by",
+  "Authoring source",
+  "Time range",
+  "Applies to",
+]);
+
+// Metadata keys that describe volatile progress. They are rejected with a
+// dedicated message; real-time status lives in Issues, Roadmap, Backlog and
+// verified run evidence.
 const forbiddenMetadataFields = new Set([
   "Implementation",
   "Current runtime",
@@ -57,7 +71,11 @@ function isDelimiterRow(line) {
 
 export function inspectMarkdown(
   content,
-  { requireSingleH1 = true, expectedStatus = null } = {},
+  {
+    requireSingleH1 = true,
+    expectedStatus = null,
+    requireMetadata = false,
+  } = {},
 ) {
   const lines = content.split(/\r?\n/u);
   const errors = [];
@@ -177,6 +195,13 @@ export function inspectMarkdown(
   for (const key of metadataKeys) {
     if (forbiddenMetadataFields.has(key)) {
       errors.push(`metadata field is a forbidden progress field: ${key}`);
+    } else if (!allowedMetadataFields.has(key)) {
+      errors.push(`metadata field is not on the allowlist: ${key}`);
+    }
+  }
+  if (requireMetadata) {
+    for (const field of ["Status", "Authority"]) {
+      if (!metadata[field]) errors.push(`missing ${field} metadata`);
     }
   }
   if (metadata.Status && !allowedStatuses.has(metadata.Status)) {

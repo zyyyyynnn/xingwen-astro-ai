@@ -2,12 +2,12 @@
 
 本目录预留给 `scripts/export_schemas.py` 生成的 JSON Schema。
 
-当前 CI 将契约导出到临时 Artifact 目录验证生成能力，不默认提交所有生成文件。需要提交生成产物时，必须同时提交 `manifest.json` 与 `json/*.schema.json`，并通过 `--check` 验证无漂移。
+CI 将契约导出到临时 Artifact 目录验证生成能力，不默认提交所有生成文件。需要提交生成产物时，必须同时提交 `manifest.json` 与 `json/*.schema.json`，并通过 `--check` 验证无漂移。
 
 禁止手工修改生成文件。
 
-当前已提交基线：
+本目录包含的基线：
 
 - `phase0/`：冻结的 `/api` Phase 0 DTO JSON Schema。
-- `core/`：#80 的七个核心资源及 #83 Artifact provenance read 投影 JSON Schema、manifest 与契约 OpenAPI 3.1；通用读取路由已挂载，其他路由状态以 API Contract 为准。
+- `core/`：#80 的七个核心资源及 #83 Artifact provenance read 投影 JSON Schema、manifest 与契约 OpenAPI 3.1；路由挂载状态以 API Contract 为准。
 - `security/`：#81 的 Session、CSRF/Problem Details 相关传输 Schema。

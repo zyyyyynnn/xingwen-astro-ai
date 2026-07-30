@@ -1,8 +1,8 @@
 # PaperCollection and PaperSummary Pipeline
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
+| 元数据    | 值                                                                        |
+| --------- | ------------------------------------------------------------------------- |
+| Status    | Accepted                                                                  |
 | Authority | D-02 PaperCollection 获取与 D-03 PaperSummary Prompt/Schema/Evidence 准入 |
 
 本文是 D-02/D-03 论文 Pipeline 运行规则和操作方式的唯一完整事实源。领域实体不变量仍由 [Data Model](../architecture/DATA_MODEL.md) 负责，ArtifactVersion 与缓存规则由 [Data Versioning](../architecture/DATA_VERSIONING.md) 负责，Run 状态只由 [Workflow Design](../architecture/WORKFLOW_DESIGN.md) 负责。
@@ -11,13 +11,13 @@
 
 Pipeline 只读取固定文件 `services/paper_pipeline/benchmarks/exoplanet_host_star/paper-reasoning-benchmark.v1.json`，并在加载时同时校验：
 
-| 输入 | 固定值 |
-| --- | --- |
-| Benchmark schema | `1.3.0` |
-| Benchmark version | `1.3.0` |
+| 输入                    | 固定值                                                                    |
+| ----------------------- | ------------------------------------------------------------------------- |
+| Benchmark schema        | `1.3.0`                                                                   |
+| Benchmark version       | `1.3.0`                                                                   |
 | Scientific payload hash | `sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd` |
-| Content hash | `sha256:07fa19820cdbd5b908d4f30705bb863fb9a28050caf7bf54f6c01130467b1e2d` |
-| X-00 baseline | `main@eb7e23f6d0c14555627c602c6e5a2b84210ba833` |
+| Content hash            | `sha256:07fa19820cdbd5b908d4f30705bb863fb9a28050caf7bf54f6c01130467b1e2d` |
+| X-00 baseline           | `main@eb7e23f6d0c14555627c602c6e5a2b84210ba833`                           |
 
 不读取动态 `latest`。任何版本或 hash 不一致都会在外部请求前失败。
 
@@ -39,7 +39,7 @@ Frozen Benchmark scenario
 -> B-06 typed detail and candidate pagination reads
 ```
 
-当前唯一 Live Adapter 是 Crossref REST `/works` metadata API：
+本 Pipeline 的 Live Adapter 为 Crossref REST `/works` metadata API：
 
 - 只请求 DOI、title、author、publication date、URL、resource 和 alternative id 等书目信息；
 - 不请求或保存受限全文，不把 Crossref metadata link 解释为全文授权；
@@ -103,11 +103,11 @@ Frozen Benchmark scenario
 
 `source_mode` 只允许 Data Model 定义的 `fixture | live | cached`，与数据等级分别记录：
 
-| source_mode | 允许的数据等级 | 约束 |
-| --- | --- | --- |
-| `live` | `live_result` | 真实请求和抓取时间；Recorded response 不得标 Live |
-| `cached` | `real_run_cache` | SourceSnapshot 必须记录 `origin_run_id` 与 `origin_artifact_version_id` |
-| `fixture` | `fixture | recorded_response | benchmark | manual_review` | 不能表述为真实 Live/Cached 结果 |
+| source_mode | 允许的数据等级   | 约束                                                                    |
+| ----------- | ---------------- | ----------------------------------------------------------------------- |
+| `live`      | `live_result`    | 真实请求和抓取时间；Recorded response 不得标 Live                       |
+| `cached`    | `real_run_cache` | SourceSnapshot 必须记录 `origin_run_id` 与 `origin_artifact_version_id` |
+| `fixture`   | `fixture         | recorded_response                                                       | benchmark | manual_review` | 不能表述为真实 Live/Cached 结果 |
 
 Seed 不是来源模式。D-02 当前不把 seed 作为检索候选输入；若后续显式引入，运行用途只能标记为 benchmark、manual review 或 fixture，且不得在 Live 失败时回退。冻结 D-01 Package 中的 `scientific_review` 是 Benchmark 科研审核用途，不会自动映射成 D-02 Live/Cache 来源。
 
@@ -132,7 +132,7 @@ Pydantic 编写源是 `apps/api/src/app/schemas/paper_collection.py`。内容至
 
 ## 9. PaperSummary Prompt Registry
 
-生产 Prompt 只能通过 `packages/prompts/registry.json` 和 `packages/prompts/registry.py` 加载。Registry v2 对每个版本记录 path、content hash、output models 与 `active | deprecated | disabled`；默认 `paper_summary@v2` 输出 `PaperSummaryModelOutput`。加载器按 UTF-8/LF 计算 SHA-256 并核对 front matter，任何已登记版本的原地修改都会拒绝加载；历史 v1 保留为 deprecated，不删除或改写。
+生产 Prompt 只能通过 `packages/prompts/registry.json` 和 `packages/prompts/registry.py` 加载。Registry 对每个版本记录 path、content hash、output models 与 `active | deprecated | disabled`；默认 `paper_summary@v2` 输出 `PaperSummaryModelOutput`。加载器按 UTF-8/LF 计算 SHA-256 并核对 front matter，任何已登记版本的原地修改都会拒绝加载；历史 `paper_summary@v1` 保留为 deprecated，不删除或改写。
 
 一次调用固定 Prompt name/version/hash、model name、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本和 Evidence 输入 hash。D-03 不在 Router、组件或临时脚本维护 Prompt。
 
@@ -164,7 +164,7 @@ Evidence 或 unsupported 指标分母为零时报告 `null`，与 D-01 `report_n
 
 ## 12. D-03 与 Publisher/B-07 边界
 
-D-03 输出的 `PaperSummaryArtifactContent` 直接作为 v2 `ArtifactContent` 的 `kind=paper_summary` 判别分支，并通过现有 #78 structured admission port；不生成第二套 Transport Schema。`PaperSummaryModelOutput` 明确标记为中间模型，通用 Publisher 会拒绝其绕过 D-03 Evidence admission，只有完整 `PaperSummaryArtifactContent` 可进入发布准入。D-03 不执行 ArtifactVersion 数据库事务、不推进 ResearchRun、不实现 B-07 HTTP/domain read、不实现 CacheSelector。后续 Publisher 必须登记 content/input hash、ProducerExecution、SourceSnapshot ids 与 Evidence ids，且不得把 rejected execution 发布成成功 ArtifactVersion。
+D-03 输出的 `PaperSummaryArtifactContent` 直接作为 `ArtifactContent` 的 `kind=paper_summary` 判别分支，并通过现有 #78 structured admission port；不生成第二套 Transport Schema。`PaperSummaryModelOutput` 明确标记为中间模型，通用 Publisher 会拒绝其绕过 D-03 Evidence admission，只有完整 `PaperSummaryArtifactContent` 可进入发布准入。D-03 不执行 ArtifactVersion 数据库事务、不推进 ResearchRun、不实现 B-07 HTTP/domain read、不实现 CacheSelector。下游 Publisher 必须登记 content/input hash、ProducerExecution、SourceSnapshot ids 与 Evidence ids，且不得把 rejected execution 发布成成功 ArtifactVersion。
 
 ## 13. 验证命令
 
@@ -199,30 +199,30 @@ uv run pytest -m live tests/test_paper_collection_pipeline.py
 
 ## 14. Issue #38 验收映射
 
-| # | 验收项 | 自动化证据 |
-| --- | --- | --- |
-| 1 | 固定 Query 真实来源 | `test_frozen_benchmark_query_runs_against_real_crossref`（opt-in Live） |
-| 2 | Query 稳定 | `test_query_normalization_and_hash_ignore_case_and_whitespace` |
-| 3–4 | 来源/分页可复现、分页合并 | `test_crossref_pagination_merges_pages_and_records_metadata` |
-| 5–7 | timeout、限流、有界重试 | timeout 与 rate-limit tests |
-| 8 | 不可重试错误 | `test_crossref_non_retryable_client_error_stops_immediately` |
-| 9 | 空结果 | Crossref empty 与 Pipeline empty tests |
-| 10 | 畸形/缺失字段 | `test_crossref_malformed_response_is_classified` |
-| 11–12 | DOI/arXiv 归一 | parameterized DOI/arXiv tests |
-| 13 | title/year 稳定分组 | `test_title_year_duplicate_group_is_stable_across_input_order` |
-| 14–15 | 作者/年份冲突保留 | exact identifier conflict test |
-| 16 | group id 稳定 | title/year input-order test |
-| 17 | 稳定排序/tie-breaker | ranking test |
-| 18–19 | selection/exclusion reason | ranking test 与 Schema validator |
-| 20 | Live 失败无 seed 回退 | `test_live_failure_records_truth_and_never_falls_back_to_seed` |
-| 21 | candidate 定位 Snapshot | Pipeline provenance test |
-| 22 | Producer/rule versions | Pipeline provenance test |
-| 23 | input/output hash 稳定 | Pipeline hash test 与 tamper test |
-| 24 | PaperCollection Schema | JSON round-trip 与 tamper test |
-| 25–27 | 来源失败、召回、重复率 | failure/empty/provenance metrics tests |
-| 28 | 日志不泄露 | logging、sanitization 与 sensitive metadata tests |
-| 29 | 不推进 ResearchRun | `test_pipeline_has_no_research_run_state_dependency` |
-| 30 | 现有回归 | `uv run pytest` 与仓库标准 CI |
+| #     | 验收项                     | 自动化证据                                                              |
+| ----- | -------------------------- | ----------------------------------------------------------------------- |
+| 1     | 固定 Query 真实来源        | `test_frozen_benchmark_query_runs_against_real_crossref`（opt-in Live） |
+| 2     | Query 稳定                 | `test_query_normalization_and_hash_ignore_case_and_whitespace`          |
+| 3–4   | 来源/分页可复现、分页合并  | `test_crossref_pagination_merges_pages_and_records_metadata`            |
+| 5–7   | timeout、限流、有界重试    | timeout 与 rate-limit tests                                             |
+| 8     | 不可重试错误               | `test_crossref_non_retryable_client_error_stops_immediately`            |
+| 9     | 空结果                     | Crossref empty 与 Pipeline empty tests                                  |
+| 10    | 畸形/缺失字段              | `test_crossref_malformed_response_is_classified`                        |
+| 11–12 | DOI/arXiv 归一             | parameterized DOI/arXiv tests                                           |
+| 13    | title/year 稳定分组        | `test_title_year_duplicate_group_is_stable_across_input_order`          |
+| 14–15 | 作者/年份冲突保留          | exact identifier conflict test                                          |
+| 16    | group id 稳定              | title/year input-order test                                             |
+| 17    | 稳定排序/tie-breaker       | ranking test                                                            |
+| 18–19 | selection/exclusion reason | ranking test 与 Schema validator                                        |
+| 20    | Live 失败无 seed 回退      | `test_live_failure_records_truth_and_never_falls_back_to_seed`          |
+| 21    | candidate 定位 Snapshot    | Pipeline provenance test                                                |
+| 22    | Producer/rule versions     | Pipeline provenance test                                                |
+| 23    | input/output hash 稳定     | Pipeline hash test 与 tamper test                                       |
+| 24    | PaperCollection Schema     | JSON round-trip 与 tamper test                                          |
+| 25–27 | 来源失败、召回、重复率     | failure/empty/provenance metrics tests                                  |
+| 28    | 日志不泄露                 | logging、sanitization 与 sensitive metadata tests                       |
+| 29    | 不推进 ResearchRun         | `test_pipeline_has_no_research_run_state_dependency`                    |
+| 30    | 现有回归                   | `uv run pytest` 与仓库标准 CI                                           |
 
 ## 15. 已知限制
 

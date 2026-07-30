@@ -84,6 +84,34 @@ test("rejects Current runtime as a metadata field", () => {
   );
 });
 
+test("rejects a metadata field that is not on the allowlist", () => {
+  const source = metadataDoc([
+    "| Status | Accepted |",
+    "| Authority | X |",
+    "| Source | somewhere |",
+  ]);
+  assert.match(
+    inspectMarkdown(source).errors.join("\n"),
+    /not on the allowlist: Source/u,
+  );
+});
+
+test("requires Status when metadata is mandatory", () => {
+  const source = metadataDoc(["| Authority | X |"]);
+  assert.match(
+    inspectMarkdown(source, { requireMetadata: true }).errors.join("\n"),
+    /missing Status metadata/u,
+  );
+});
+
+test("requires Authority when metadata is mandatory", () => {
+  const source = metadataDoc(["| Status | Accepted |"]);
+  assert.match(
+    inspectMarkdown(source, { requireMetadata: true }).errors.join("\n"),
+    /missing Authority metadata/u,
+  );
+});
+
 test("requires Status: Reference for reference documents", () => {
   const source = metadataDoc(["| Status | Accepted |", "| Authority | X |"]);
   assert.match(

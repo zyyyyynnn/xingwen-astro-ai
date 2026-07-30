@@ -1,24 +1,24 @@
 # Data and Artifact Versioning
 
-| 项目状态 | 口径 |
-| --- | --- |
-| Status | Accepted |
+| 项目状态  | 口径                                              |
+| --------- | ------------------------------------------------- |
+| Status    | Accepted                                          |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
 
 本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。ArtifactVersion、Evidence 和 SourceSnapshot 由 PostgreSQL 提供私有读取与 Project ownership 边界；`paper_collection` 在该边界上提供只读校验与候选 keyset cursor，不改变发布事务。Workspace/Share Runtime 使用 PostgreSQL resource authority 校验资源事实；其快照记录的持久化边界由对应实现 Issue 定义。
 
 ## 1. 版本边界
 
-| 对象 | 是否不可变 | 用途 |
-| --- | --- | --- |
-| ResearchContract | 确认后不可变 | 固定一次 Run 的研究输入和质量要求 |
-| ResearchRun | 创建后关键输入不可变 | 记录一次执行、失败、取消或派生关系 |
-| ResearchArtifact | 身份可更新 | 表示同一逻辑产物，维护 latest 指针 |
-| ArtifactVersion | 内容不可变 | Evidence、Cache、Share、Export 的绑定单位 |
-| SourceSnapshot | 不可变 | 固定外部来源、查询、时间和许可信息 |
-| BenchmarkPackage | 已发布版本不可变 | 使用 benchmark id、version 与 content hash 固定静态评测输入 |
-| WorkspaceSnapshot | 可覆盖、乐观锁 | 私有 UI 恢复状态，不是科研产物 |
-| ShareSnapshot | 创建后不可变 | 冻结公开版本与脱敏范围 |
+| 对象              | 是否不可变           | 用途                                                        |
+| ----------------- | -------------------- | ----------------------------------------------------------- |
+| ResearchContract  | 确认后不可变         | 固定一次 Run 的研究输入和质量要求                           |
+| ResearchRun       | 创建后关键输入不可变 | 记录一次执行、失败、取消或派生关系                          |
+| ResearchArtifact  | 身份可更新           | 表示同一逻辑产物，维护 latest 指针                          |
+| ArtifactVersion   | 内容不可变           | Evidence、Cache、Share、Export 的绑定单位                   |
+| SourceSnapshot    | 不可变               | 固定外部来源、查询、时间和许可信息                          |
+| BenchmarkPackage  | 已发布版本不可变     | 使用 benchmark id、version 与 content hash 固定静态评测输入 |
+| WorkspaceSnapshot | 可覆盖、乐观锁       | 私有 UI 恢复状态，不是科研产物                              |
+| ShareSnapshot     | 创建后不可变         | 冻结公开版本与脱敏范围                                      |
 
 BenchmarkPackage 的 `schema_version` 表示机器结构版本，`benchmark_version` 表示论文、Evidence、科研审核标签、Graph、来源政策或指标内容版本。任何内容或语义变化都发布新 version 与 content hash，并追加 change record；实际 Review 完成后才追加 review record，不得由 Codex 伪造。不得在相同 version 下原地改变已发布语义。来源核验日期、稳定 URL、文档政策冲突和运行时响应头快照属于 hash 绑定内容，运行时 SourceSnapshot 仍另行记录实际响应与请求元数据。
 
@@ -108,9 +108,9 @@ error_code
 
 对 PaperCollection，ArtifactVersion `content_hash` 固定 #78 实际写入的完整 JSON；content 内部 D-02 `output_hash` 固定排除抓取和执行 wall-clock 后的科研稳定内容。读取时必须分别复算，不能要求这两个 hash 相等。
 
-D-02 当前在 PaperCollection content 内生成 detached ProducerExecution：记录固定 step key、producer/rule version、parameters/input/output hash、状态、时间、latency 和错误码，但不登记 ResearchRun 或数据库记录。#78 已提供持久化 ProducerExecution Store 与 ArtifactVersion Publisher；D-02 到该端口的生产接线仍由后续集成负责。具体稳定 hash 与失败记录见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。
+D-02 在 PaperCollection content 内生成 detached ProducerExecution：记录固定 step key、producer/rule version、parameters/input/output hash、状态、时间、latency 和错误码，不登记 ResearchRun 或数据库记录。持久化 ProducerExecution Store 与 ArtifactVersion 分配由 Publisher 端口负责，detached 记录经该端口进入持久化与版本边界。具体稳定 hash 与失败记录见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。
 
-D-03 同样生成 detached PaperSummary ProducerExecution，记录 `model_name`、Prompt name/version/hash、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本、input hash、模型响应 hash、最终 output hash 与安全终态。B-07 读取投影同时暴露 ArtifactVersion `version_number` / `supersedes_version_id`；Cached Summary 必须逐来源给出 cache version、适用性、Live 失败原因和 origin Run/ArtifactVersion，并把 audit `source_id` 绑定到对应 SourceSnapshot，不允许来源调换、空审计或与 `source_mode` 不一致的审计进入正常读取。JSON/Schema 拒绝只保留稳定 error code 和响应 hash，不保留原始模型输出；Evidence 降级仍产生可审查 Summary content，但 unsupported/unverifiable 项不作为已验证事实。生产模型 client、数据库 ProducerExecution 接线与 ArtifactVersion 事务仍属于 Workflow/B-07 后续集成。
+D-03 同样生成 detached PaperSummary ProducerExecution，记录 `model_name`、Prompt name/version/hash、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本、input hash、模型响应 hash、最终 output hash 与安全终态。B-07 读取投影同时暴露 ArtifactVersion `version_number` / `supersedes_version_id`；Cached Summary 必须逐来源给出 cache version、适用性、Live 失败原因和 origin Run/ArtifactVersion，并把 audit `source_id` 绑定到对应 SourceSnapshot，不允许来源调换、空审计或与 `source_mode` 不一致的审计进入正常读取。JSON/Schema 拒绝只保留稳定 error code 和响应 hash，不保留原始模型输出；Evidence 降级仍产生可审查 Summary content，但 unsupported/unverifiable 项不作为已验证事实。生产模型 client、数据库 ProducerExecution 持久化与 ArtifactVersion 事务属于 Workflow 与 B-07 读取投影的边界。
 
 ## 5. SourceSnapshot
 
