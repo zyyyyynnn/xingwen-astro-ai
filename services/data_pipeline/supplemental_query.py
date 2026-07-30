@@ -95,6 +95,13 @@ def normalize_ps_supplemental_query(
         "column_contract_snapshot_id": column_contract.snapshot_id,
         "column_contract_snapshot_version": column_contract.snapshot_version,
         "column_contract_content_hash": column_contract.content_hash,
+        "runtime_schema_contract_id": column_contract.runtime_schema_contract_id,
+        "runtime_schema_contract_version": (
+            column_contract.runtime_schema_contract_version
+        ),
+        "runtime_schema_contract_content_hash": (
+            column_contract.runtime_schema_contract_content_hash
+        ),
         "input_identity_field": _INPUT_IDENTITY_FIELD,
         "source_filter_field": _SOURCE_FILTER_FIELD,
         "input_values": normalized_values,
