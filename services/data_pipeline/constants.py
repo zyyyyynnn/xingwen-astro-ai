@@ -1,4 +1,4 @@
-"""Frozen X-00 inputs and C-02 rule versions."""
+"""Frozen X-00 inputs and versioned data-acquisition rules."""
 
 from __future__ import annotations
 
@@ -25,3 +25,5 @@ QUERY_NORMALIZATION_VERSION = "1.0.0"
 RETRY_POLICY_VERSION = "1.0.0"
 SOURCE_POLICY_VERSION = "1.0.0"
 NASA_TAP_ADAPTER_VERSION = "1.0.0"
+NASA_PS_SUPPLEMENTAL_ADAPTER_VERSION = "1.0.0"
+SUPPLEMENTAL_QUERY_NORMALIZATION_VERSION = "1.0.0"
