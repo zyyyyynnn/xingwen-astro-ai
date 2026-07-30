@@ -96,6 +96,8 @@ Step 输出先通过 Schema、Evidence 和质量约束，再登记 ArtifactVersi
 
 D-03 PaperSummary 的 detached 准入顺序为 `JSON 解析 -> PaperSummaryModelOutput Schema -> 逐项 Evidence`。JSON 无效和 Schema 失败产生 `rejected` ProducerExecution 安全记录；Evidence 缺失、quote/value 不匹配或来源不可访问不回退成自由文本，而分别降级为 `unsupported` / `unverifiable`；来源版本冲突保留冲突记录并使用 SourceSnapshot 声明版本。`PaperSummaryModelOutput` 是不可直接发布的中间模型，通用 Publisher 拒绝其绕过 Evidence 阶段；通过后得到可交给 ArtifactVersion 准入端口的 `PaperSummaryArtifactContent`，但 D-03 本身不推进 ResearchRun、创建数据库 Version 或选择 Cache。
 
+D-07 LiteratureClaim 的 detached 顺序固定为 `JSON -> Pydantic -> PaperSummary Version -> Evidence/SourceSnapshot existence -> ownership -> normalization -> exact structured duplicate -> final admission`。JSON/Schema 失败保留安全 ProducerExecution 和 hash 而不伪造 Claim；accepted 要求 supported Evidence，弱 Evidence 保留 candidate，硬错误稳定 rejected。`LiteratureClaimExtractionOutput` 不能绕过 Pipeline；封印后的 `LiteratureClaimsCandidate` 可交给 ArtifactVersion 准入端口。D-07 同样不推进 Run、不发布数据库 Version，也不实现 Relation/Trace/Graph 或 HTTP。
+
 ## 4. 进度快照与事件
 
 - `GET /runs/{id}` 返回可恢复的权威快照。
@@ -125,7 +127,7 @@ MVP 可继续使用 FastAPI BackgroundTasks，但不得以进程内字典作为�
 - 创建 Live Run 要求 `Idempotency-Key`；同一 key 与同一请求返回同一 Run。
 - 外部读取和模型调用以 input hash、producer version、source scope 组成幂等键。
 - 超时、限流和临时网络错误可自动重试；Schema、Evidence、权限和非法状态错误不可自动重试。
-- D-03 的 JSON/Schema 拒绝和 Evidence 降级是确定性准入结果，不在 detached pipeline 内自动重试模型；上层若重试必须创建新的 StepAttempt/ProducerExecution 并保留旧终态。
+- D-03/D-07 的 JSON/Schema、Evidence、ownership、normalization 和 duplicate 结果是确定性准入结论，不在 detached pipeline 内自动重试模型；上层若重试必须创建新的 StepAttempt/ProducerExecution 并保留旧终态。
 - 每次自动重试创建 StepAttempt，保留 attempt、时间、上游 request id 和错误分类。
 - 重试不得覆盖失败 Attempt，也不得重复发布相同 ArtifactVersion。
 
