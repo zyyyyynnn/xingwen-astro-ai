@@ -44,7 +44,11 @@ class PaperSummaryReadService:
 
         summary = self._validated_summary(version)
         collection = self._validate_input_collection(version, summary, session_id)
-        snapshot_ids = self._validate_snapshots_and_evidence(version, summary)
+        snapshot_ids = self._validate_snapshots_and_evidence(
+            version,
+            summary,
+            collection,
+        )
         cache_audits = _cache_audits(
             collection,
             snapshot_ids,
@@ -144,23 +148,22 @@ class PaperSummaryReadService:
     def _validate_snapshots_and_evidence(
         version: ArtifactVersionDetail,
         summary: PaperSummaryArtifactContent,
+        collection: PaperCollection,
     ) -> dict[str, str]:
+        expected_snapshot_keys = _collection_snapshot_keys(collection, summary)
         persisted_snapshots = _snapshot_map(version.source_snapshots)
         if set(version.source_snapshot_ids) != {
             item.id for item in version.source_snapshots
         }:
             raise _provenance_problem()
         snapshot_ids: dict[str, str] = {}
-        for reference in summary.input_versions.source_snapshots:
-            key = (
-                reference.source_id,
-                reference.source_version,
-                reference.content_hash,
-            )
+        for pipeline_snapshot_id, key in expected_snapshot_keys.items():
             persisted = persisted_snapshots.get(key)
             if persisted is None:
                 raise _provenance_problem()
-            snapshot_ids[reference.source_snapshot_id] = persisted.id
+            snapshot_ids[pipeline_snapshot_id] = persisted.id
+        if set(snapshot_ids.values()) != set(version.source_snapshot_ids):
+            raise _provenance_problem()
 
         evidence_by_id = {item.evidence_id: item for item in summary.evidence}
         if set(summary.evidence_ids) != set(evidence_by_id):
@@ -201,14 +204,49 @@ class PaperSummaryReadService:
         return snapshot_ids
 
 
-def _effective_source_version(snapshot: SourceSnapshotDetail) -> str:
+def _effective_source_version(
+    *,
+    source_version_or_etag: str | None,
+    cache_version: str | None,
+    content_hash: str,
+) -> str:
     """Resolve the immutable source identity using the Pipeline fallback order."""
 
-    return (
-        snapshot.source_version_or_etag
-        or snapshot.cache_version
-        or snapshot.content_hash
-    )
+    return source_version_or_etag or cache_version or content_hash
+
+
+def _collection_snapshot_keys(
+    collection: PaperCollection,
+    summary: PaperSummaryArtifactContent,
+) -> dict[str, tuple[str, str, str]]:
+    collection_by_id = {
+        snapshot.snapshot_id: snapshot for snapshot in collection.source_snapshots
+    }
+    references = summary.input_versions.source_snapshots
+    reference_ids = {reference.source_snapshot_id for reference in references}
+    if len(references) != len(collection_by_id) or reference_ids != set(collection_by_id):
+        raise _provenance_problem()
+
+    result: dict[str, tuple[str, str, str]] = {}
+    for reference in references:
+        snapshot = collection_by_id[reference.source_snapshot_id]
+        expected_version = _effective_source_version(
+            source_version_or_etag=snapshot.source_version_or_etag,
+            cache_version=snapshot.cache_version,
+            content_hash=snapshot.content_hash,
+        )
+        if (
+            reference.source_id != snapshot.source_id
+            or reference.source_version != expected_version
+            or reference.content_hash != snapshot.content_hash
+        ):
+            raise _provenance_problem()
+        result[reference.source_snapshot_id] = (
+            reference.source_id,
+            reference.source_version,
+            reference.content_hash,
+        )
+    return result
 
 
 def _snapshot_map(
@@ -218,7 +256,11 @@ def _snapshot_map(
     for snapshot in snapshots:
         key = (
             snapshot.source_id,
-            _effective_source_version(snapshot),
+            _effective_source_version(
+                source_version_or_etag=snapshot.source_version_or_etag,
+                cache_version=snapshot.cache_version,
+                content_hash=snapshot.content_hash,
+            ),
             snapshot.content_hash,
         )
         if key in result:
