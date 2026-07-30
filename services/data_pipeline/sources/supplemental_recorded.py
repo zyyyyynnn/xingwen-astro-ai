@@ -60,7 +60,7 @@ class RecordedNasaPsFixture(BaseModel):
     source_endpoint: _NonEmptyString
     source_documentation_url: _NonEmptyString
     source_acknowledgement_url: _NonEmptyString
-    source_version_or_etag: _NonEmptyString
+    source_version_or_etag: _NonEmptyString | None
     license_note: _NonEmptyString
     source_mode: Literal["fixture"]
     data_level: Literal["recorded_response"]
@@ -71,6 +71,9 @@ class RecordedNasaPsFixture(BaseModel):
     column_contract_snapshot_id: Identifier
     column_contract_snapshot_version: SemanticVersion
     column_contract_content_hash: ContentHash
+    runtime_schema_contract_id: Identifier
+    runtime_schema_contract_version: SemanticVersion
+    runtime_schema_contract_content_hash: ContentHash
     input_identity_field: Literal["star.tic_id"]
     input_values: tuple[_NonEmptyString, ...] = Field(min_length=1)
     pagination: DataQueryPagination
@@ -99,6 +102,13 @@ class RecordedNasaPsFixture(BaseModel):
             raise ValueError("recorded fixture acknowledgement URL is not NASA PS")
         if self.license_note != NASA_PS_LICENSE_NOTE:
             raise ValueError("recorded fixture license note does not match the adapter")
+        if (
+            self.pagination.max_pages != 1
+            or self.pagination.page_size != self.pagination.record_limit
+        ):
+            raise ValueError(
+                "recorded PS fixture must use one page with page_size=record_limit"
+            )
         expected_pins = (
             FROZEN_CASE_MANIFEST_VERSION,
             FROZEN_CASE_MANIFEST_CONTENT_HASH,
@@ -133,12 +143,24 @@ class RecordedNasaPsFixture(BaseModel):
         )
         if actual_column_contract != expected_column_contract:
             raise ValueError("recorded fixture column contract pins do not match")
+        expected_runtime_contract = (
+            query.runtime_schema_contract_id,
+            query.runtime_schema_contract_version,
+            query.runtime_schema_contract_content_hash,
+        )
+        actual_runtime_contract = (
+            self.runtime_schema_contract_id,
+            self.runtime_schema_contract_version,
+            self.runtime_schema_contract_content_hash,
+        )
+        if actual_runtime_contract != expected_runtime_contract:
+            raise ValueError("recorded fixture runtime schema pins do not match")
         if self.input_values != query.input_values:
             raise ValueError("recorded fixture inputs are not normalized")
         if self.input_hash != query.input_hash or self.query_hash != query.query_hash:
             raise ValueError("recorded fixture query hashes do not match normalization")
-        if len(self.records) > self.pagination.record_limit:
-            raise ValueError("recorded fixture exceeds record_limit")
+        if len(self.records) > self.pagination.page_size:
+            raise ValueError("recorded fixture exceeds its one-page bound")
         expected_columns = set(query.selected_columns)
         if any(set(record) != expected_columns for record in self.records):
             raise ValueError("recorded fixture record columns do not match query")
@@ -148,9 +170,10 @@ class RecordedNasaPsFixture(BaseModel):
             raise ValueError("recorded fixture schema response hash mismatch")
         if self.page_response_hash != page_hash:
             raise ValueError("recorded fixture page response hash mismatch")
-        if self.source_version_or_etag != f"tap-schema:{schema_hash}":
+        page_etag = _header_value(self.page_safe_response_headers, "etag")
+        if self.source_version_or_etag != page_etag:
             raise ValueError(
-                "recorded fixture source version does not match TAP schema response"
+                "recorded fixture source version must match the data page ETag"
             )
         unsafe_headers = sorted(
             key
@@ -170,7 +193,7 @@ class RecordedNasaPsFixture(BaseModel):
             raise ValueError(f"recorded fixture content_hash mismatch: {expected_hash}")
         return self
 
-    def metadata(self) -> dict[str, str]:
+    def metadata(self) -> dict[str, Any]:
         return {
             "fixture_id": self.fixture_id,
             "schema_version": self.schema_version,
@@ -195,6 +218,13 @@ class RecordedNasaPsFixture(BaseModel):
                 self.column_contract_snapshot_version
             ),
             "column_contract_content_hash": self.column_contract_content_hash,
+            "runtime_schema_contract_id": self.runtime_schema_contract_id,
+            "runtime_schema_contract_version": (
+                self.runtime_schema_contract_version
+            ),
+            "runtime_schema_contract_content_hash": (
+                self.runtime_schema_contract_content_hash
+            ),
         }
 
 
@@ -248,7 +278,7 @@ class RecordedNasaPsTransport:
                 "query": render_ps_page_query(
                     query,
                     cursor=None,
-                    requested_rows=query.pagination.record_limit,
+                    requested_rows=query.pagination.page_size,
                 ),
                 "format": "json",
             },
@@ -260,7 +290,7 @@ class RecordedNasaPsTransport:
         self._request_index = 0
 
     @property
-    def fixture_metadata(self) -> dict[str, str]:
+    def fixture_metadata(self) -> dict[str, Any]:
         return dict(self._fixture_metadata_items)
 
     @property
@@ -310,3 +340,11 @@ class RecordedNasaPsTransport:
             headers=response_headers,
             body=body,
         )
+
+
+def _header_value(headers: Mapping[str, str], name: str) -> str | None:
+    target = name.casefold()
+    for key, value in headers.items():
+        if key.casefold() == target:
+            return value
+    return None
