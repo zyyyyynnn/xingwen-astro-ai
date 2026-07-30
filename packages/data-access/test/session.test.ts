@@ -1,7 +1,7 @@
 /**
  * Session manager tests — anonymous session lifecycle and CSRF handling.
  *
- * Covers: session creation via POST /api/v2/sessions, CSRF token retrieval,
+ * Covers: session creation via POST /api/sessions, CSRF token retrieval,
  * session revocation via DELETE, session-expired notification, session reuse
  * on repeated ensureSession, and CSRF attachment to non-safe methods.
  */

@@ -29,6 +29,9 @@ jobs:
           python -m unittest scripts.test_check_foundation
           python scripts/check_foundation.py
 
+      - name: Check versionless API naming
+        run: node scripts/check-versionless-api.mjs
+
       - name: Validate Docker Compose contract
         run: |
           cp .env.example .env
@@ -80,10 +83,10 @@ jobs:
       - name: Run backend tests
         run: uv run pytest
 
-      - name: Check Phase 0 v1 Pydantic contracts
+      - name: Check phase0 pipeline schema contracts
         run: >
           uv run python ../../scripts/export_schemas.py
-          --output ../../packages/schemas/generated/v1-phase0
+          --output ../../packages/schemas/generated/phase0
           --include DatasetResponse
           --include ColumnInfo
           --include QualityScore
@@ -99,10 +102,10 @@ jobs:
           --include SourceSnapshot
           --check
 
-      - name: Check v2 core contracts
+      - name: Check core contracts
         run: |
           uv run python ../../scripts/export_schemas.py \
-            --output ../../packages/schemas/generated/v2-core \
+            --output ../../packages/schemas/generated/core \
             --include ResearchProject \
             --include ResearchContractDraft \
             --include ResearchContract \
@@ -124,14 +127,14 @@ jobs:
             --include ShareSnapshotCreated \
             --include PublicShareSnapshot \
             --check
-          uv run python ../../scripts/export_v2_openapi.py \
-            --output ../../packages/schemas/generated/v2-core/openapi.json \
+          uv run python ../../scripts/export_openapi.py \
+            --output ../../packages/schemas/generated/core/openapi.json \
             --check
 
-      - name: Check v2 session security contracts
+      - name: Check session security contracts
         run: >
           uv run python ../../scripts/export_schemas.py
-          --output ../../packages/schemas/generated/v2-security
+          --output ../../packages/schemas/generated/security
           --include ResearchSession
           --include SessionCreated
           --include SessionQuota
@@ -163,10 +166,10 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check generated v2 transport contracts
+      - name: Check generated transport contracts
         run: |
           pnpm --filter @xingwen/contracts sync-contracts
-          git diff --exit-code -- packages/contracts/src/generated/v2-core
+          git diff --exit-code -- packages/contracts/src/generated
 
       - name: Check formatting
         run: pnpm format:check

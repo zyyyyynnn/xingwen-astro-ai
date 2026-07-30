@@ -5,11 +5,11 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
-  V2_CONTRACT_SCHEMA_VERSION,
-  V2_CORE_MODEL_NAMES,
-  isV2Dto,
-  parseV2Dto,
-  validateV2Dto,
+  CONTRACT_SCHEMA_VERSION,
+  CORE_MODEL_NAMES,
+  isDto,
+  parseDto,
+  validateDto,
 } from "./validation";
 
 const validProject = {
@@ -22,9 +22,9 @@ const validProject = {
   revision: 1,
 };
 
-describe("v2 contract validation — ResearchProject", () => {
+describe("contract validation — ResearchProject", () => {
   it("accepts a valid project", () => {
-    const result = validateV2Dto("ResearchProject", validProject);
+    const result = validateDto("ResearchProject", validProject);
     expect(result.ok).toBe(true);
     expect(result.data).toEqual(validProject);
   });
@@ -32,13 +32,13 @@ describe("v2 contract validation — ResearchProject", () => {
   it("rejects a missing required field", () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { revision: _removed, ...missingRevision } = validProject;
-    const result = validateV2Dto("ResearchProject", missingRevision);
+    const result = validateDto("ResearchProject", missingRevision);
     expect(result.ok).toBe(false);
     expect(result.errors.some((e) => e.keyword === "required")).toBe(true);
   });
 
   it("rejects additional properties", () => {
-    const result = validateV2Dto("ResearchProject", {
+    const result = validateDto("ResearchProject", {
       ...validProject,
       extra_field: "not allowed",
     });
@@ -49,7 +49,7 @@ describe("v2 contract validation — ResearchProject", () => {
   });
 
   it("rejects an invalid date-time format", () => {
-    const result = validateV2Dto("ResearchProject", {
+    const result = validateDto("ResearchProject", {
       ...validProject,
       created_at: "not-a-date",
     });
@@ -57,7 +57,7 @@ describe("v2 contract validation — ResearchProject", () => {
   });
 
   it("rejects an invalid case_key", () => {
-    const result = validateV2Dto("ResearchProject", {
+    const result = validateDto("ResearchProject", {
       ...validProject,
       case_key: "invalid_case",
     });
@@ -65,7 +65,7 @@ describe("v2 contract validation — ResearchProject", () => {
   });
 });
 
-describe("v2 contract validation — ResearchRun", () => {
+describe("contract validation — ResearchRun", () => {
   const validRun = {
     id: "run_test",
     project_id: "proj_test",
@@ -80,79 +80,79 @@ describe("v2 contract validation — ResearchRun", () => {
   };
 
   it("accepts a valid run", () => {
-    expect(validateV2Dto("ResearchRun", validRun).ok).toBe(true);
+    expect(validateDto("ResearchRun", validRun).ok).toBe(true);
   });
 
   it("rejects an invalid execution_mode", () => {
     expect(
-      validateV2Dto("ResearchRun", { ...validRun, execution_mode: "test" }).ok,
+      validateDto("ResearchRun", { ...validRun, execution_mode: "test" }).ok,
     ).toBe(false);
   });
 
   it("rejects an invalid status enum", () => {
     expect(
-      validateV2Dto("ResearchRun", { ...validRun, status: "unknown" }).ok,
+      validateDto("ResearchRun", { ...validRun, status: "unknown" }).ok,
     ).toBe(false);
   });
 });
 
-describe("v2 contract validation — parseV2Dto", () => {
+describe("contract validation — parseDto", () => {
   it("returns typed data on success", () => {
-    const data = parseV2Dto("ResearchProject", validProject);
+    const data = parseDto("ResearchProject", validProject);
     expect(data).toEqual(validProject);
   });
 
   it("throws on invalid data with descriptive errors", () => {
-    expect(() => parseV2Dto("ResearchProject", { wrong: true })).toThrow(
+    expect(() => parseDto("ResearchProject", { wrong: true })).toThrow(
       /ResearchProject/,
     );
   });
 });
 
-describe("v2 contract validation — isV2Dto type guard", () => {
+describe("contract validation — isDto type guard", () => {
   it("returns true for valid data", () => {
-    expect(isV2Dto("ResearchProject", validProject)).toBe(true);
+    expect(isDto("ResearchProject", validProject)).toBe(true);
   });
 
   it("returns false for invalid data", () => {
-    expect(isV2Dto("ResearchProject", { wrong: true })).toBe(false);
+    expect(isDto("ResearchProject", { wrong: true })).toBe(false);
   });
 
   it("returns false for unknown model", () => {
-    expect(isV2Dto("Unknown" as never, validProject)).toBe(false);
+    expect(isDto("Unknown" as never, validProject)).toBe(false);
   });
 });
 
-describe("v2 contract — schema metadata", () => {
+describe("contract — schema metadata", () => {
   it("exposes core and generic provenance read model names", () => {
-    expect(V2_CORE_MODEL_NAMES).toHaveLength(19);
-    expect(V2_CORE_MODEL_NAMES).toContain("ResearchProject");
-    expect(V2_CORE_MODEL_NAMES).toContain("ArtifactVersion");
-    expect(V2_CORE_MODEL_NAMES).toContain("EvidenceRead");
-    expect(V2_CORE_MODEL_NAMES).toContain("SourceSnapshotDetail");
-    expect(V2_CORE_MODEL_NAMES).toContain("PaperCollectionRead");
-    expect(V2_CORE_MODEL_NAMES).toContain("PaperCollectionCandidateRead");
-    expect(V2_CORE_MODEL_NAMES).toContain("PaperSummaryRead");
-    expect(V2_CORE_MODEL_NAMES).toContain("SessionCreated");
-    expect(V2_CORE_MODEL_NAMES).toContain("WorkspaceSnapshot");
-    expect(V2_CORE_MODEL_NAMES).toContain("ShareSnapshot");
-    expect(V2_CORE_MODEL_NAMES).toContain("ShareSnapshotCreated");
-    expect(V2_CORE_MODEL_NAMES).toContain("PublicShareSnapshot");
+    expect(CORE_MODEL_NAMES).toHaveLength(19);
+    expect(CORE_MODEL_NAMES).toContain("ResearchProject");
+    expect(CORE_MODEL_NAMES).toContain("ArtifactVersion");
+    expect(CORE_MODEL_NAMES).toContain("EvidenceRead");
+    expect(CORE_MODEL_NAMES).toContain("SourceSnapshotDetail");
+    expect(CORE_MODEL_NAMES).toContain("PaperCollectionRead");
+    expect(CORE_MODEL_NAMES).toContain("PaperCollectionCandidateRead");
+    expect(CORE_MODEL_NAMES).toContain("PaperSummaryRead");
+    expect(CORE_MODEL_NAMES).toContain("SessionCreated");
+    expect(CORE_MODEL_NAMES).toContain("WorkspaceSnapshot");
+    expect(CORE_MODEL_NAMES).toContain("ShareSnapshot");
+    expect(CORE_MODEL_NAMES).toContain("ShareSnapshotCreated");
+    expect(CORE_MODEL_NAMES).toContain("PublicShareSnapshot");
   });
 
   it("exposes the manifest schema version", () => {
-    expect(V2_CONTRACT_SCHEMA_VERSION).toBe(1);
+    expect(CONTRACT_SCHEMA_VERSION).toBe(1);
   });
 });
 
-describe("v2 contract — drift guard", () => {
+describe("contract — drift guard", () => {
   const sourceRoot = resolve(
     dirname(fileURLToPath(import.meta.url)),
-    "../../schemas/generated/v2-core",
+    "../../schemas/generated/core",
   );
   const vendoredRoot = resolve(
     dirname(fileURLToPath(import.meta.url)),
-    "generated/v2-core",
+    "generated/core",
   );
 
   for (const file of [

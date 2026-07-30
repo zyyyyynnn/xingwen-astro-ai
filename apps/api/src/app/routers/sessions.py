@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Header, Request, Response, status
 
 from app.config import settings
-from app.schemas.v2 import (
+from app.schemas.core import (
     Envelope,
     ResearchSession,
     ResponseLinks,
@@ -18,7 +18,7 @@ from app.schemas.v2 import (
 from app.security import SessionRecord, SessionService
 
 
-router = APIRouter(prefix="/api/sessions", tags=["v2-sessions"])
+router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
 
 def _service(request: Request) -> SessionService:

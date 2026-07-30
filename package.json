@@ -20,7 +20,8 @@
     "check:docs": "node --test scripts/check-docs.test.mjs && node scripts/check-docs.mjs",
     "check:architecture": "node scripts/check-frontend-architecture.mjs",
     "check:legacy": "node --test scripts/check-frontend-legacy.test.mjs && node scripts/check-frontend-legacy.mjs",
-    "check": "pnpm format:check && pnpm check:docs && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:architecture && pnpm check:legacy"
+    "check:versionless": "node scripts/check-versionless-api.mjs",
+    "check": "pnpm format:check && pnpm check:docs && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:architecture && pnpm check:legacy && pnpm check:versionless"
   },
   "devDependencies": {
     "@xingwen/data-access": "workspace:*",

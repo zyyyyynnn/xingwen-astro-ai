@@ -10,7 +10,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from threading import RLock
 
-from app.schemas.v2 import (
+from app.schemas.core import (
     CreateShareSnapshotRequest,
     PublicArtifactVersion,
     PublicEvidence,

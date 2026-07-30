@@ -14,7 +14,7 @@ from threading import RLock
 from typing import Any
 
 from app import api_surface
-from app.schemas.v2 import SessionQuota, SessionStatus
+from app.schemas.core import SessionQuota, SessionStatus
 
 
 _SHARE_TOKEN_PATH = re.compile(

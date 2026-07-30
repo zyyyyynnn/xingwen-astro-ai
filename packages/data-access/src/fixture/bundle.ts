@@ -53,7 +53,7 @@ export interface FixtureBundleData {
   /** Rich paper summary reads keyed by their artifact_version_id. */
   readonly paperSummaries: readonly FixturePaperSummary[];
   /**
-   * Evidence is a frontend domain entity without a standalone v2 transport
+   * Evidence is a frontend domain entity without a standalone transport
    * schema, so fixture evidence is provided directly in domain (camelCase)
    * form rather than as a validated DTO.
    */

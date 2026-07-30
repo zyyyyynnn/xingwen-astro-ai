@@ -12,7 +12,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Path, Query, Request, Response, status
 
-from app.schemas.v2 import (
+from app.schemas.core import (
     CollectionEnvelope,
     ConfirmResearchContractRequest,
     CreateResearchContractDraftRequest,
@@ -33,7 +33,7 @@ from app.security import SecurityProblem
 from app.services.research import ResearchApplicationService
 
 
-router = APIRouter(prefix="/api", tags=["v2-research"])
+router = APIRouter(prefix="/api", tags=["research"])
 
 
 def _service(request: Request) -> ResearchApplicationService:

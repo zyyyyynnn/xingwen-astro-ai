@@ -1,4 +1,4 @@
-"""Export or stale-check the contract-only ``/api/v2`` OpenAPI document."""
+"""Export or stale-check the contract-only versionless ``/api`` OpenAPI document."""
 
 from __future__ import annotations
 
@@ -7,12 +7,12 @@ import json
 import sys
 from pathlib import Path
 
-from app.contracts.v2 import create_v2_contract_app
+from app.contracts.core import create_contract_app
 
 
 def render_openapi() -> str:
     return json.dumps(
-        create_v2_contract_app().openapi(),
+        create_contract_app().openapi(),
         ensure_ascii=False,
         indent=2,
         sort_keys=True,

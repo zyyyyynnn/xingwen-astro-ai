@@ -23,7 +23,7 @@ from app.schemas.paper_summary import (
     PaperSummaryModelOutput,
     PaperSummarySupportStatus,
 )
-from app.schemas.v2 import ArtifactVersion
+from app.schemas.core import ArtifactVersion
 from packages.prompts.registry import (
     PromptRegistry,
     PromptRegistryError,

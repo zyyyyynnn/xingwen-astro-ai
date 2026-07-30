@@ -25,7 +25,7 @@ import type {
   ProducerExecutionDetail as ProducerExecutionDetailDto,
   SourceSnapshotDetail as SourceSnapshotDetailDto,
 } from "@xingwen/contracts";
-import { parseV2Dto } from "@xingwen/contracts";
+import { parseDto } from "@xingwen/contracts";
 import type {
   CachedSnapshotOrigin,
   ContentHash,
@@ -482,11 +482,11 @@ export function assemblePaperAcquisitionReview(
 
 /** Parse helper that reports contract failures as `ValidationError`. */
 export function parseContract<T>(
-  model: Parameters<typeof parseV2Dto>[0],
+  model: Parameters<typeof parseDto>[0],
   value: unknown,
 ): T {
   try {
-    return parseV2Dto<T>(model, value);
+    return parseDto<T>(model, value);
   } catch (error) {
     throw new ValidationError(
       error instanceof Error ? error.message : "contract validation failed",

@@ -10,7 +10,7 @@
  * an injectable clock and id factory so tests stay stable.
  */
 
-import { validateV2Dto, type V2CoreModelName } from "@xingwen/contracts";
+import { validateDto, type CoreModelName } from "@xingwen/contracts";
 import type {
   CreateShareSnapshotRequest,
   ArtifactVersionMetadata,
@@ -194,7 +194,7 @@ function validateBundleSemantics(bundle: FixtureBundle): void {
 
 function validateBundlePayloads(bundle: FixtureBundle): void {
   const entries: readonly {
-    readonly model: V2CoreModelName;
+    readonly model: CoreModelName;
     readonly payloads: readonly unknown[];
   }[] = [
     { model: "ResearchProject", payloads: bundle.data.projects },
@@ -228,7 +228,7 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
   ];
   for (const { model, payloads } of entries) {
     for (const payload of payloads) {
-      const result = validateV2Dto(model, payload);
+      const result = validateDto(model, payload);
       if (!result.ok) {
         throw new FixtureValidationError(
           model,
@@ -320,7 +320,7 @@ function decodeProjectCursor(cursor: string): DomainEntityId {
 /**
  * Create a `RepositorySet` backed by a validated fixture bundle.
  *
- * @throws {FixtureValidationError} when any DTO fails v2 contract validation.
+ * @throws {FixtureValidationError} when any DTO fails contract validation.
  * @throws {FixtureSemanticError} when the bundle violates Demo Replay
  *   constraints (e.g. `live` or `cached` source labels).
  */

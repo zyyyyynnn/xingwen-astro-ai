@@ -6,7 +6,7 @@
  * the UI to render actionable failure states.
  */
 
-/** A fixture payload failed v2 contract schema validation. */
+/** A fixture payload failed contract schema validation. */
 export class FixtureValidationError extends Error {
   readonly model: string;
   readonly errors: readonly string[];

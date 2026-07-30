@@ -2,7 +2,7 @@
  * Research artifact and versioned artifact content domain models.
  *
  * Mirror `ResearchArtifact`, `ArtifactVersion`, `ProducerReference` and the
- * discriminated `ArtifactContent` union in the Pydantic `/api/v2` authoring
+ * discriminated `ArtifactContent` union in the Pydantic `/api` authoring
  * source.
  */
 

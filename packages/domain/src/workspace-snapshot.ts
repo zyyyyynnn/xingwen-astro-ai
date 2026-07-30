@@ -1,7 +1,7 @@
 /**
  * WorkspaceSnapshot — the private recoverable workspace projection.
  *
- * Mirrors `WorkspaceSnapshot` in the Pydantic `/api/v2` authoring source using
+ * Mirrors `WorkspaceSnapshot` in the Pydantic `/api` authoring source using
  * frontend camelCase convention. The snapshot captures layout, panel slots,
  * pinned evidence and selection state so a session can resume without losing
  * context. It is scoped to `session + project` and never serialises the
