@@ -22,6 +22,7 @@ class DataSourceDataLevel(StrEnum):
     live_result = "live_result"
     recorded_response = "recorded_response"
     fixture = "fixture"
+    seed = "seed"
 
 
 class DataQueryPagination(BaseModel):
@@ -43,6 +44,16 @@ class DataQueryCursor(BaseModel):
 
     tid: int = Field(ge=0)
     toi: Annotated[str, Field(pattern=r"^[0-9]+(?:\.[0-9]+)?$")]
+
+
+class SupplementalDataQueryCursor(BaseModel):
+    model_config = MODEL_CONFIG
+
+    pl_name: NonEmptyString
+    pl_refname: NonEmptyString
+
+
+DataSourceCursor = DataQueryCursor | SupplementalDataQueryCursor
 
 
 class RawDataSourceRecord(BaseModel):
@@ -75,8 +86,8 @@ class DataSourcePage(BaseModel):
     status_code: int = Field(ge=100, le=599)
     retrieved_at: AwareDatetime
     latency_ms: int = Field(ge=0)
-    cursor_before: DataQueryCursor | None = None
-    cursor_after: DataQueryCursor | None = None
+    cursor_before: DataSourceCursor | None = None
+    cursor_after: DataSourceCursor | None = None
     request_hash: ContentHash
     response_hash: ContentHash
     response_metadata: dict[str, str | int | None] = Field(default_factory=dict)
@@ -89,6 +100,12 @@ class DataSourcePage(BaseModel):
             raise ValueError("non-empty page requires cursor_after")
         if not self.returned_rows and self.cursor_after is not None:
             raise ValueError("empty page must not advance cursor")
+        if (
+            self.cursor_before is not None
+            and self.cursor_after is not None
+            and type(self.cursor_before) is not type(self.cursor_after)
+        ):
+            raise ValueError("page cursors must use the same source-specific type")
         return self
 
 
@@ -131,8 +148,127 @@ class NormalizedDataSourceQuery(BaseModel):
         return self
 
 
+class NormalizedSupplementalSourceQuery(BaseModel):
+    model_config = MODEL_CONFIG
+
+    query_id: Identifier
+    normalization_rule_version: SemanticVersion
+    case_id: Identifier
+    case_manifest_version: SemanticVersion
+    case_manifest_content_hash: ContentHash
+    field_manifest_id: Identifier
+    field_manifest_version: SemanticVersion
+    field_manifest_content_hash: ContentHash
+    provider_source_id: Identifier
+    table_source_id: Identifier
+    source_table: NonEmptyString
+    column_contract_snapshot_id: Identifier
+    column_contract_snapshot_version: SemanticVersion
+    column_contract_content_hash: ContentHash
+    runtime_schema_contract_id: Identifier
+    runtime_schema_contract_version: SemanticVersion
+    runtime_schema_contract_content_hash: ContentHash
+    input_identity_field: NonEmptyString
+    source_filter_field: NonEmptyString
+    input_values: tuple[NonEmptyString, ...] = Field(
+        min_length=1,
+        max_length=100,
+    )
+    declared_columns: tuple[NonEmptyString, ...] = Field(min_length=1)
+    live_unavailable_columns: tuple[NonEmptyString, ...]
+    selected_columns: tuple[NonEmptyString, ...] = Field(min_length=1)
+    row_key_fields: tuple[NonEmptyString, ...] = Field(min_length=1)
+    constraints: tuple[NonEmptyString, ...] = Field(min_length=1)
+    order_by: tuple[NonEmptyString, ...] = Field(min_length=1)
+    pagination: DataQueryPagination
+    input_hash: ContentHash
+    query_hash: ContentHash
+
+    @model_validator(mode="after")
+    def validate_normalized_query(self) -> Self:
+        declared = set(self.declared_columns)
+        selected = set(self.selected_columns)
+        unavailable = set(self.live_unavailable_columns)
+        if len(declared) != len(self.declared_columns):
+            raise ValueError("declared_columns must be unique")
+        if len(unavailable) != len(self.live_unavailable_columns):
+            raise ValueError("live_unavailable_columns must be unique")
+        if not unavailable.issubset(declared):
+            raise ValueError("live_unavailable_columns must be declared")
+        expected_selected = tuple(
+            column
+            for column in self.declared_columns
+            if column not in unavailable
+        )
+        if self.selected_columns != expected_selected:
+            raise ValueError(
+                "selected_columns must be the declared live-queryable columns"
+            )
+        if len(selected) != len(self.selected_columns):
+            raise ValueError("selected_columns must be unique")
+        if len(set(self.input_values)) != len(self.input_values):
+            raise ValueError("input_values must be unique")
+        if tuple(sorted(self.input_values)) != self.input_values:
+            raise ValueError("input_values must use canonical order")
+        if not set(self.row_key_fields).issubset(selected):
+            raise ValueError("row_key_fields must be selected")
+        if not set(self.order_by).issubset(selected):
+            raise ValueError("order_by fields must be selected")
+        if self.source_filter_field not in selected:
+            raise ValueError("source_filter_field must be selected")
+        expected_input_hash = compute_supplemental_input_hash(self)
+        if self.input_hash != expected_input_hash:
+            raise ValueError(
+                f"input_hash does not match normalized input: {expected_input_hash}"
+            )
+        expected_query_hash = compute_normalized_supplemental_query_hash(self)
+        if self.query_hash != expected_query_hash:
+            raise ValueError(
+                f"query_hash does not match normalized query: {expected_query_hash}"
+            )
+        expected_id = f"query.{expected_query_hash.removeprefix('sha256:')[:24]}"
+        if self.query_id != expected_id:
+            raise ValueError(f"query_id does not match normalized query: {expected_id}")
+        return self
+
+
 def compute_normalized_data_query_hash(
     value: NormalizedDataSourceQuery | dict[str, Any],
+) -> str:
+    payload = (
+        deepcopy(value.model_dump(mode="json", exclude_none=True))
+        if isinstance(value, BaseModel)
+        else deepcopy(value)
+    )
+    payload.pop("query_id", None)
+    payload.pop("query_hash", None)
+    return compute_canonical_payload_hash(payload)
+
+
+def compute_supplemental_input_hash(
+    value: NormalizedSupplementalSourceQuery | dict[str, Any],
+) -> str:
+    payload = (
+        value.model_dump(mode="json", exclude_none=True)
+        if isinstance(value, BaseModel)
+        else value
+    )
+    return compute_canonical_payload_hash(
+        {
+            "case_id": payload["case_id"],
+            "case_manifest_version": payload["case_manifest_version"],
+            "case_manifest_content_hash": payload["case_manifest_content_hash"],
+            "field_manifest_id": payload["field_manifest_id"],
+            "field_manifest_version": payload["field_manifest_version"],
+            "field_manifest_content_hash": payload["field_manifest_content_hash"],
+            "input_identity_field": payload["input_identity_field"],
+            "input_values": payload["input_values"],
+        }
+    )
+
+
+def compute_normalized_supplemental_query_hash(
+    value: NormalizedSupplementalSourceQuery | dict[str, Any],
 ) -> str:
     payload = (
         deepcopy(value.model_dump(mode="json", exclude_none=True))
