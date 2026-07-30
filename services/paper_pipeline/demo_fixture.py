@@ -41,7 +41,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
-from app.schemas.v2 import (
+from app.schemas.core import (
     ArtifactVersionDetail,
     EvidenceDetail,
     ProducerExecutionDetail,

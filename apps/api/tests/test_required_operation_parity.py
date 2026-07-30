@@ -1,6 +1,6 @@
 """M1 required-operation parity between the contract and the runtime.
 
-The contract-only OpenAPI (`app.contracts.v2`) is the authoritative operation
+The contract-only OpenAPI (`app.contracts.core`) is the authoritative operation
 surface. This test asserts that the mounted runtime implements every M1
 required operation with the *same* HTTP method, path and operationId. It does
 not force any future ``/api`` target to exist early; it only checks the M1
@@ -9,7 +9,7 @@ required set (which currently equals the full frozen 24-operation contract).
 
 from __future__ import annotations
 
-from app.contracts.v2 import create_v2_contract_app
+from app.contracts.core import create_contract_app
 from app.main import create_app
 
 
@@ -57,7 +57,7 @@ def _required_headers(operation: dict[str, object]) -> set[str]:
 
 
 def test_runtime_implements_every_m1_required_contract_operation() -> None:
-    contract = _operations(create_v2_contract_app().openapi())
+    contract = _operations(create_contract_app().openapi())
     runtime = _operations(create_app().openapi())
 
     # The M1 required set is the full frozen contract surface.
@@ -77,7 +77,7 @@ def test_runtime_operation_ids_are_unique() -> None:
 
 
 def test_required_operations_match_method_and_path_exactly() -> None:
-    contract = _operations(create_v2_contract_app().openapi())
+    contract = _operations(create_contract_app().openapi())
     runtime_by_op = {
         op_id: (method, path)
         for method, path, op_id in _operations(create_app().openapi())
@@ -92,7 +92,7 @@ def test_required_operations_match_method_and_path_exactly() -> None:
 
 
 def test_required_operations_declare_the_same_required_headers() -> None:
-    contract = _operations_by_id(create_v2_contract_app().openapi())
+    contract = _operations_by_id(create_contract_app().openapi())
     runtime = _operations_by_id(create_app().openapi())
 
     mismatched = {
@@ -108,7 +108,7 @@ def test_required_operations_declare_the_same_required_headers() -> None:
 
 
 def test_required_operations_use_the_same_success_response_schema() -> None:
-    contract = _operations_by_id(create_v2_contract_app().openapi())
+    contract = _operations_by_id(create_contract_app().openapi())
     runtime = _operations_by_id(create_app().openapi())
 
     mismatched: dict[str, object] = {}

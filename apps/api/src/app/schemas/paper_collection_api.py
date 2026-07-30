@@ -9,7 +9,7 @@ from .paper_collection import (
     PaperCollectionCandidate,
     PaperDuplicateGroup,
 )
-from .v2 import (
+from .core import (
     ContentHash,
     EvidenceDetail,
     Identifier,

@@ -36,11 +36,11 @@ uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas 
 
 ```powershell
 Set-Location apps/api
-uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/v2-core --include ResearchProject --include ResearchContractDraft --include ResearchContract --include ResearchRun --include RunEvent --include ResearchArtifact --include ArtifactVersion --include ResearchArtifactDetail --include ArtifactVersionDetail --include PaperSummaryArtifactContent --include PaperCollectionRead --include PaperCollectionCandidateRead --include EvidenceRead --include SourceSnapshotDetail --check
-uv run python ../../scripts/export_v2_openapi.py --output ../../packages/schemas/generated/v2-core/openapi.json --check
+uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/core --include ResearchProject --include ResearchContractDraft --include ResearchContract --include ResearchRun --include RunEvent --include ResearchArtifact --include ArtifactVersion --include ResearchArtifactDetail --include ArtifactVersionDetail --include PaperSummaryArtifactContent --include PaperCollectionRead --include PaperCollectionCandidateRead --include EvidenceRead --include SourceSnapshotDetail --check
+uv run python ../../scripts/export_openapi.py --output ../../packages/schemas/generated/core/openapi.json --check
 ```
 
-`app.contracts.v2` 仅用于生成完整目标 OpenAPI，不直接挂载到运行应用。Session 与 B-18 通用 Artifact provenance 私有读取已由运行 Router 实现；WorkspaceSnapshot 与 ShareSnapshot application Router 已实现但在生产事实源接入前不挂载；Project/Run 写入和领域专属读取仍由后续 Issue 实现。
+`app.contracts.core` 仅用于生成完整目标 OpenAPI，不直接挂载到运行应用。Session 与 B-18 通用 Artifact provenance 私有读取已由运行 Router 实现；WorkspaceSnapshot 与 ShareSnapshot application Router 已实现但在生产事实源接入前不挂载；Project/Run 写入和领域专属读取仍由后续 Issue 实现。
 
 CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件由对应实现 Issue 决定。
 
@@ -66,7 +66,7 @@ CI 可以使用临时目录执行导出和 stale diff；是否提交生成文件
 | 范围                         | 状态                                                                               |
 | ---------------------------- | ---------------------------------------------------------------------------------- |
 | Phase 0 `/api` Schema     | Current，继续用于回归                                                              |
-| `/api` Pydantic / OpenAPI | 核心资源及 Workspace/Share Contract Implemented；Session、Artifact provenance 与 PaperCollection domain read runtime Current（A-05 纠正性修复后 `PaperSourceExecution` 携带 cached 审计字段 `cache_applicability`/`live_failure_class`/`live_failure_code`、`RawPaperCandidate.synthetic_note`，`SourceSnapshotRecord.cache_version` 为非空白约束）；契约字段集以 `packages/schemas/generated/v2-core/openapi.json` 与 `packages/contracts/src/generated/v2-core/dto.ts` 为权威来源，本表仅记录里程碑级状态；Workspace/Share runtime integration 与其余运行 API Pending |
+| `/api` Pydantic / OpenAPI | 核心资源及 Workspace/Share Contract Implemented；Session、Artifact provenance 与 PaperCollection domain read runtime Current（A-05 纠正性修复后 `PaperSourceExecution` 携带 cached 审计字段 `cache_applicability`/`live_failure_class`/`live_failure_code`、`RawPaperCandidate.synthetic_note`，`SourceSnapshotRecord.cache_version` 为非空白约束）；契约字段集以 `packages/schemas/generated/core/openapi.json` 与 `packages/contracts/src/generated/core/dto.ts` 为权威来源，本表仅记录里程碑级状态；Workspace/Share runtime integration 与其余运行 API Pending |
 | `packages/contracts`         | Current A-01 包边界；生成 Type、validation 与 transport helpers 的业务实现 Pending |
 | 独立手写 IDL                 | 未采用；需要新 ADR 才能改变编写源                                                  |
 

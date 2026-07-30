@@ -32,8 +32,8 @@ export type CaseKey = "exoplanet_host_star";
 
 export const CASE_KEY: CaseKey = "exoplanet_host_star";
 
-/** Contract schema version surfaced to consumers (matches `/api/v2`). */
-export const V2_CONTRACT_VERSION: SemanticVersion = "2.0.0";
+/** Contract schema version surfaced to consumers (matches `/api`). */
+export const CONTRACT_VERSION: SemanticVersion = "2.0.0";
 
 /**
  * Non-empty trimmed string. The backend enforces `min_length=1` after

@@ -44,7 +44,7 @@ from app.schemas.paper_summary import (
     PaperSummaryEvidenceLocator,
 )
 from app.schemas.paper_summary_api import PaperSummaryRead
-from app.schemas.v2 import (
+from app.schemas.core import (
     ArtifactVersionDetail,
     EvidenceDetail,
     ProducerExecutionDetail,

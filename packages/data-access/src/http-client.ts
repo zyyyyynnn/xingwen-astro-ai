@@ -7,7 +7,7 @@
  * this client is the only place that executes fetch and parses envelopes.
  */
 
-import { parseV2Dto, type V2CoreModelName } from "@xingwen/contracts";
+import { parseDto, type CoreModelName } from "@xingwen/contracts";
 
 import {
   errorFromResponse,
@@ -291,11 +291,11 @@ export class HttpClient {
 
 /** Validate a payload against the generated contract, then map to a domain type. */
 export function validateAndMap<TDto, TDomain>(
-  model: V2CoreModelName,
+  model: CoreModelName,
   payload: unknown,
   map: (dto: TDto) => TDomain,
 ): TDomain {
-  return map(parseV2Dto<TDto>(model, payload));
+  return map(parseDto<TDto>(model, payload));
 }
 
 /**

@@ -19,7 +19,7 @@ services/paper_pipeline/benchmarks/
 - JSON 是 D-01 基准内容的唯一事实源，Graph taxonomy 与完整性规则也保存在同一 Package 中。
 - `apps/api/src/app/schemas/paper_benchmark.py` 是 Benchmark Pydantic v2 Schema、引用完整性和指标定义的编写源。
 - `apps/api/tests/test_paper_benchmark.py` 验证正常加载、恶意篡改、hash、Evidence、Relation、Trace、Graph 和指标。
-- Benchmark 模型全部使用 `Benchmark` 前缀，不替代或修改 `/api/v1` DTO，也不声明 `/api/v2` 已实现。
+- Benchmark 模型全部使用 `Benchmark` 前缀，不替代或修改 `/api/v1` DTO，也不声明 `/api` 已实现。
 
 ## 3. 数据等级与使用边界
 

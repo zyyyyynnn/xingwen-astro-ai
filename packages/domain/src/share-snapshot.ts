@@ -2,7 +2,7 @@
  * ShareSnapshot and public share projection domain types.
  *
  * Mirrors `ShareSnapshot`, `ShareSnapshotCreated`, `PublicShareSnapshot`,
- * `PublicArtifactVersion` and `PublicEvidence` in the Pydantic `/api/v2`
+ * `PublicArtifactVersion` and `PublicEvidence` in the Pydantic `/api`
  * authoring source using frontend camelCase convention.
  *
  * Key security invariants enforced by the adapter:
@@ -99,7 +99,7 @@ export interface PublicEvidence {
 /**
  * Anonymous read-only projection frozen when the share is created.
  *
- * This is what the public `GET /api/v2/shares/{share_token}` endpoint returns.
+ * This is what the public `GET /api/shares/{share_token}` endpoint returns.
  * It contains only the share metadata and the redacted artifact version +
  * evidence identity — never the full content, locator, or session info.
  */

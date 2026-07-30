@@ -2,7 +2,7 @@
  * Evidence domain model and locator discriminated union.
  *
  * The entity shape follows [Data Model §10](../../docs/architecture/DATA_MODEL.md).
- * Evidence is a frontend domain entity without a standalone `/api/v2` transport
+ * Evidence is a frontend domain entity without a standalone `/api` transport
  * schema; it is projected from ArtifactVersion evidence ids and source
  * snapshots. Repository adapters (including the fixture adapter) produce
  * Evidence instances directly in domain form.

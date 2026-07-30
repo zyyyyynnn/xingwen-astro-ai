@@ -518,7 +518,7 @@ def test_generated_manifest_covers_issue_26_models() -> None:
         / "packages"
         / "schemas"
         / "generated"
-        / "v1-phase0"
+        / "phase0"
         / "manifest.json"
     )
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

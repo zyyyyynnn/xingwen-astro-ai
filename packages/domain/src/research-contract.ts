@@ -4,7 +4,7 @@
  *
  * Field names follow the frontend domain convention (camelCase) and are mapped
  * from the snake_case transport DTO by repository adapters. The shape mirrors
- * `ResearchContractInput` in the Pydantic `/api/v2` authoring source.
+ * `ResearchContractInput` in the Pydantic `/api` authoring source.
  */
 
 import type { ArtifactKind, ContractDraftStatus, UnitPolicy } from "./enums";
@@ -96,7 +96,7 @@ export function validateContractInputInvariants(
 /**
  * Editable draft of a research contract. Carries the contract input payload
  * plus draft lifecycle metadata. Mirrors `ResearchContractDraft` in the
- * Pydantic `/api/v2` authoring source.
+ * Pydantic `/api` authoring source.
  */
 export interface ResearchContractDraft {
   readonly id: DomainEntityId;
@@ -114,7 +114,7 @@ export interface ResearchContractDraft {
 /**
  * Immutable confirmed research contract. Extends the contract input with
  * identity, provenance and content hash. Mirrors `ResearchContract` in the
- * Pydantic `/api/v2` authoring source.
+ * Pydantic `/api` authoring source.
  */
 export interface ResearchContract extends ResearchContractInput {
   readonly id: DomainEntityId;

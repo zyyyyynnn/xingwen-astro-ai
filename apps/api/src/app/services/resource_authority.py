@@ -25,7 +25,7 @@ from app.db.models import (
     ResearchProjectModel,
     ResearchRunModel,
 )
-from app.schemas.v2 import PublicArtifactVersion, PublicEvidence
+from app.schemas.core import PublicArtifactVersion, PublicEvidence
 
 
 class ResourceAuthority(Protocol):

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 from .paper_summary import PaperSummaryArtifactContent
-from .v2 import (
+from .core import (
     ContentHash,
     EvidenceDetail,
     Identifier,

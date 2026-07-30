@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.paper_summary import PaperSummaryArtifactContent
 from app.schemas.paper_summary_api import PaperSummaryRead
-from app.schemas.v2 import ArtifactVersionDetail, SourceSnapshotDetail
+from app.schemas.core import ArtifactVersionDetail, SourceSnapshotDetail
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 

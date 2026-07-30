@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Request, Response
 
-from app.schemas.v2 import (
+from app.schemas.core import (
     ArtifactKind,
     ArtifactVersionDetail,
     CollectionEnvelope,
@@ -31,7 +31,7 @@ from app.services.paper_collections import PaperCollectionReadService
 from app.services.paper_summaries import PaperSummaryReadService
 
 
-router = APIRouter(prefix="/api", tags=["v2-artifacts"])
+router = APIRouter(prefix="/api", tags=["artifacts"])
 
 
 def _service(request: Request) -> ArtifactReadService:
