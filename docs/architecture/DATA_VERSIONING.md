@@ -4,8 +4,6 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
-| Phase 0 运行 | Phase 0 DTO、Prompt registry 与 Phase 0 版本字段 |
-| Core 目标 | Project / Run / Artifact / ArtifactVersion 追加式治理 |
 
 本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。ArtifactVersion、Evidence 和 SourceSnapshot 由 PostgreSQL 提供私有读取与 Project ownership 边界；`paper_collection` 在该边界上提供只读校验与候选 keyset cursor，不改变发布事务。Workspace/Share Runtime 使用 PostgreSQL resource authority 校验资源事实；其快照记录的持久化边界由对应实现 Issue 定义。
 
@@ -194,13 +192,9 @@ ShareSnapshot 固定：
 - 涉及密钥、侵权或依法删除时执行强制删除；审计记录不得继续保留必须清除的敏感内容。
 - 导出和临时下载 URL 有独立过期时间，不作为 ArtifactVersion 的唯一存储。
 
-## 11. 实施顺序
+## 11. 架构依赖
 
-1. Core Pydantic Schema 与迁移映射。
-2. ResearchProject、ResearchContract、ResearchRun、RunStep / Event 持久化。
-3. ResearchArtifact、ArtifactVersion、SourceSnapshot 和 Evidence 事务边界。
-4. CacheRecord、派生 Run、Feedback / RevisionPlan。
-5. WorkspaceSnapshot 与安全 ShareSnapshot。
+ArtifactVersion 发布依赖已校验的领域内容、ProducerExecution、Evidence 与 SourceSnapshot。任务顺序和直接依赖由 Roadmap、Backlog 与 GitHub 原生 Dependency 维护。
 
 任何阶段都不因版本治理提前引入 Redis、对象存储、图数据库或通用事件总线。
 

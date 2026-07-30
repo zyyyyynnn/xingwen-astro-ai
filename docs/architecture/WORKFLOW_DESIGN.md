@@ -4,8 +4,6 @@
 | --- | --- |
 | Status | Accepted |
 | Authority | Run 状态、事件、取消、重试、缓存与派生语义 |
-| 运行说明 | Phase 0 状态机与 `/api` Core PersistentWorkflowStore Application |
-| Target runtime | Project / Run / ArtifactVersion 工作流 |
 
 本文定义 ResearchRun 编排、事件、取消、重试、缓存、修订与派生语义。Phase 0 Executor、Hooks 与测试构成兼容基线，其行为边界保持不变。Core Run 的创建/读取与 Event 读取以 PersistentWorkflowStore 为持久化边界；数据库 Hooks、Pipeline 接线、对外取消资源、CacheSelector 与自动执行同属 Core 编排职责。
 

@@ -49,15 +49,43 @@
 
 ## 3. 标准元数据
 
-规范性文档在标题后使用简短元数据表，只包含 `Status` 与 `Authority` 两个必填字段。
+规范性文档在标题后使用简短元数据表。字段分三类：
+
+必填字段：
+
+- `Status`
+- `Authority`
+
+允许但不强制的稳定字段，只描述稳定范围、来源或替代关系：
+
+- `Scope`
+- `Issue`
+- `Superseded by`
+- `Authoring source`
+- `Time range`
+- `Applies to`
+
+禁止的进度字段，实时状态改由 Issue、Roadmap、Backlog 与运行证据表达：
+
+- `Implementation`
+- `Current runtime`
+- `Target runtime`
+- `Current model`
+- `Target model`
+- `Current`
+- `Pending`
+- `Progress`
 
 字段规则：
 
 - `Status` 取值：`Proposed`（尚待确认，仅供讨论）、`Accepted`（已确认，可驱动 Issue 与实现）、`Superseded`（已被新决策取代，仅保留历史与迁移解释）、`Archived`（不再维护，不作为实现依据）、`Reference`（外部或辅助资料，仅供研究和比较）。
 - `Status` 描述文档决策状态，不描述代码完成状态；代码完成状态由 Issue、PR 与运行证据表达。
 - `Authority` 在全部非 Reference / Archived 文档中唯一。
-- `docs/archive/` 下声明 Status 时必须为 `Archived`；`docs/references/` 下声明 Status 时必须为 `Reference`。
+- `docs/archive/` 下的文档必须使用 `Status: Archived`；`docs/references/` 下的文档必须使用 `Status: Reference`。
+- 禁止的是元数据字段名，不是合法正文术语或版本化工件内容。
 - 状态变化必须在 PR 中说明替代关系。
+
+`scripts/check-docs.mjs` 拒绝出现禁止字段，并按目录强制 Status。
 
 ## 4. 保留、合并、归档与删除
 

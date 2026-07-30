@@ -64,10 +64,16 @@ function localTarget(rawTarget) {
 }
 
 for (const file of files) {
+  const expectedStatus = file.startsWith("docs/archive/")
+    ? "Archived"
+    : file.startsWith("docs/references/")
+      ? "Reference"
+      : null;
   const result = inspectMarkdown(readFileSync(resolve(root, file), "utf8"), {
     requireSingleH1:
       !file.startsWith(".github/") &&
       !/^packages\/prompts\/[^/]+\/v\d+\.md$/u.test(file),
+    expectedStatus,
   });
   results.set(file, result);
   for (const error of result.errors) errors.push(`${file}: ${error}`);
@@ -77,22 +83,6 @@ for (const file of files) {
       if (!result.metadata[field])
         errors.push(`${file}: missing ${field} metadata`);
     }
-  }
-  if (
-    file.startsWith("docs/archive/") &&
-    result.metadata.Status !== "Archived"
-  ) {
-    errors.push(
-      `${file}: documents under docs/archive/ must use Status: Archived`,
-    );
-  }
-  if (
-    file.startsWith("docs/references/") &&
-    result.metadata.Status !== "Reference"
-  ) {
-    errors.push(
-      `${file}: documents under docs/references/ must use Status: Reference`,
-    );
   }
   if (
     result.metadata.Authority &&
