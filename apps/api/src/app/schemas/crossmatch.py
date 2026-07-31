@@ -9,6 +9,7 @@ from datetime import date
 from enum import StrEnum
 import math
 from typing import Annotated, Any, Literal, Self
+import unicodedata
 
 from pydantic import (
     AwareDatetime,
@@ -38,6 +39,17 @@ CanonicalFieldId = Annotated[
     Field(pattern=r"^(planet|star|system)\.[a-z][a-z0-9_]*$"),
 ]
 NormalizedScalar = str | int | float | bool
+_COORDINATE_FIELD_IDS = (
+    "system.right_ascension",
+    "system.declination",
+)
+_ARCSECONDS_PER_RADIAN = 180.0 / math.pi * 3600.0
+_COORDINATE_THRESHOLD_REL_TOL = 1e-12
+_COORDINATE_THRESHOLD_ABS_TOL = 1e-7
+
+
+def _normalize_alias_name(value: str) -> str:
+    return " ".join(unicodedata.normalize("NFKC", value).strip().split()).casefold()
 
 
 class EntityLevel(StrEnum):
@@ -151,9 +163,7 @@ class ConfidencePolicy(BaseModel):
 
     @model_validator(mode="after")
     def validate_order(self) -> Self:
-        if not (
-            self.high_minimum > self.medium_minimum > self.low_minimum >= 0
-        ):
+        if not (self.high_minimum > self.medium_minimum > self.low_minimum >= 0):
             raise ValueError("confidence thresholds must be strictly descending")
         return self
 
@@ -233,12 +243,8 @@ class CrossmatchSourcePolicy(BaseModel):
 
     policy_id: Identifier
     version: SemanticVersion
-    allowed_origins: tuple[CrossmatchSourceOriginPolicy, ...] = Field(
-        min_length=1
-    )
-    completion_statuses: tuple[DataSourceCompletionStatus, ...] = Field(
-        min_length=1
-    )
+    allowed_origins: tuple[CrossmatchSourceOriginPolicy, ...] = Field(min_length=1)
+    completion_statuses: tuple[DataSourceCompletionStatus, ...] = Field(min_length=1)
     content_hash: ContentHash
 
     @model_validator(mode="after")
@@ -293,9 +299,7 @@ class CrossmatchRuleSet(BaseModel):
 
     @model_validator(mode="after")
     def validate_rule_set_hash(self) -> Self:
-        if len(self.supported_entity_levels) != len(
-            set(self.supported_entity_levels)
-        ):
+        if len(self.supported_entity_levels) != len(set(self.supported_entity_levels)):
             raise ValueError("RuleSet supported entity levels must be unique")
         if len(self.method_priority) != len(set(self.method_priority)):
             raise ValueError("RuleSet method priority must be unique")
@@ -370,6 +374,10 @@ class ManualReviewDecision(BaseModel):
         ):
             if len(values) != len(set(values)):
                 raise ValueError(f"manual decision contains duplicate {label} ID")
+            if values != tuple(sorted(values)):
+                raise ValueError(
+                    f"manual decision {label} IDs must use canonical order"
+                )
         _validate_content_hash(self)
         return self
 
@@ -421,8 +429,7 @@ class CrossmatchInput(BaseModel):
             raise ValueError("crossmatch input alias catalog disagrees with RuleSet")
         if (
             self.source_policy.version != rule_set.source_policy_version
-            or self.source_policy.content_hash
-            != rule_set.source_policy_content_hash
+            or self.source_policy.content_hash != rule_set.source_policy_content_hash
         ):
             raise ValueError("crossmatch input SourcePolicy disagrees with RuleSet")
         allowed_origins = {
@@ -503,6 +510,36 @@ class SkyCoordinate(BaseModel):
         if not math.isfinite(value):
             raise ValueError("coordinate values must be finite")
         return value
+
+
+def angular_separation_arcsec(
+    left: SkyCoordinate,
+    right: SkyCoordinate,
+) -> float:
+    left_ra = math.radians(left.right_ascension)
+    right_ra = math.radians(right.right_ascension)
+    left_dec = math.radians(left.declination)
+    right_dec = math.radians(right.declination)
+    half_dec = (right_dec - left_dec) / 2.0
+    half_ra = (right_ra - left_ra) / 2.0
+    haversine = (
+        math.sin(half_dec) ** 2
+        + math.cos(left_dec) * math.cos(right_dec) * math.sin(half_ra) ** 2
+    )
+    angle = 2.0 * math.asin(math.sqrt(min(1.0, max(0.0, haversine))))
+    return angle * _ARCSECONDS_PER_RADIAN
+
+
+def within_crossmatch_coordinate_threshold(
+    separation: float,
+    threshold: float,
+) -> bool:
+    return separation <= threshold or math.isclose(
+        separation,
+        threshold,
+        rel_tol=_COORDINATE_THRESHOLD_REL_TOL,
+        abs_tol=_COORDINATE_THRESHOLD_ABS_TOL,
+    )
 
 
 class CanonicalIdentityValue(BaseModel):
@@ -586,9 +623,7 @@ class CrossmatchCondition(BaseModel):
         ):
             raise ValueError("coordinate condition thresholds are out of order")
         if value_condition and (
-            self.field_id is None
-            or self.left_value is None
-            or self.right_value is None
+            self.field_id is None or self.left_value is None or self.right_value is None
         ):
             raise ValueError(
                 "identifier and alias conditions require field and both values"
@@ -598,12 +633,29 @@ class CrossmatchCondition(BaseModel):
             or self.left_value is not None
             or self.right_value is not None
         ):
-            raise ValueError(
-                "coordinate conditions must not carry identifier values"
-            )
+            raise ValueError("coordinate conditions must not carry identifier values")
         if self.operator is ConditionOperator.source_scope:
             raise ValueError("source_scope condition is not supported by v1")
+        expected_id = compute_crossmatch_condition_id(self)
+        if self.condition_id != expected_id:
+            raise ValueError(f"condition_id does not match payload: {expected_id}")
         return self
+
+
+def compute_crossmatch_condition_id(
+    value: BaseModel | dict[str, Any],
+) -> str:
+    payload = (
+        value.model_dump(mode="json", exclude={"condition_id"})
+        if isinstance(value, BaseModel)
+        else {
+            key: nested
+            for key, nested in deepcopy(value).items()
+            if key != "condition_id"
+        }
+    )
+    identity = compute_canonical_payload_hash(payload)
+    return f"condition.{identity.removeprefix('sha256:')[:24]}"
 
 
 class CrossmatchEvidence(BaseModel):
@@ -634,8 +686,7 @@ class CrossmatchEvidence(BaseModel):
         ):
             raise ValueError("left evidence locator uses the wrong side")
         if any(
-            locator.side is not CrossmatchSide.right
-            for locator in self.right_locators
+            locator.side is not CrossmatchSide.right for locator in self.right_locators
         ):
             raise ValueError("right evidence locator uses the wrong side")
         condition_ids = [condition.condition_id for condition in self.conditions]
@@ -757,14 +808,8 @@ def derive_crossmatch_record_semantics(
         }
     )
     methods = {edge.method for edge in edges}
-    method = (
-        next(iter(methods))
-        if len(methods) == 1
-        else CrossmatchMethod.compound
-    )
-    evidence_ids = tuple(
-        sorted({item for edge in edges for item in edge.evidence_ids})
-    )
+    method = next(iter(methods)) if len(methods) == 1 else CrossmatchMethod.compound
+    evidence_ids = tuple(sorted({item for edge in edges for item in edge.evidence_ids}))
     if is_conflict:
         return CrossmatchRecordSemantics(
             record_type=record_type,
@@ -825,6 +870,25 @@ def derive_crossmatch_record_semantics(
         topology=topology,
         evidence_ids=evidence_ids,
     )
+
+
+def derive_crossmatch_conflict_code(
+    component: Iterable[CandidateEdge],
+    evidence_by_id: dict[str, CrossmatchEvidence],
+) -> str:
+    operators = {
+        condition.operator
+        for edge in component
+        for evidence_id in edge.evidence_ids
+        for condition in evidence_by_id[evidence_id].conditions
+    }
+    if ConditionOperator.contradicts in operators:
+        return "crossmatch.identifier_conflict"
+    if ConditionOperator.angular_separation_gt in operators:
+        return "crossmatch.identifier_coordinate_conflict"
+    if ConditionOperator.curated_alias in operators:
+        return "crossmatch.alias_conflict"
+    return "crossmatch.candidate_conflict"
 
 
 class _AdjudicableRecord(BaseModel):
@@ -972,9 +1036,7 @@ class RatioMetric(BaseModel):
     def validate_ratio(self) -> Self:
         if self.numerator > self.denominator:
             raise ValueError("ratio numerator must not exceed denominator")
-        expected = (
-            self.numerator / self.denominator if self.denominator else None
-        )
+        expected = self.numerator / self.denominator if self.denominator else None
         if expected is None and self.value is not None:
             raise ValueError("empty ratio must not have a value")
         if expected is not None and (
@@ -1050,8 +1112,7 @@ class CrossmatchMetrics(BaseModel):
         if topology_count != self.paired_group_count:
             raise ValueError("topology counts must equal paired_group_count")
         if (
-            self.unmatched_left_record_count
-            + self.unmatched_right_record_count
+            self.unmatched_left_record_count + self.unmatched_right_record_count
             != self.unmatched_record_count
         ):
             raise ValueError("side unmatched counts must equal unmatched_record_count")
@@ -1090,9 +1151,7 @@ def compute_crossmatch_metrics(
     edge_values = tuple(edges)
     record_values = tuple(records)
     evidence_values = tuple(evidence)
-    paired = [
-        record for record in record_values if isinstance(record, PairedMatch)
-    ]
+    paired = [record for record in record_values if isinstance(record, PairedMatch)]
     conflicts = [
         record for record in record_values if isinstance(record, ConflictGroup)
     ]
@@ -1104,8 +1163,7 @@ def compute_crossmatch_metrics(
     covered = sum(
         1
         for record in audited_records
-        if set(record.evidence_ids).issubset(evidence_ids)
-        and bool(record.evidence_ids)
+        if set(record.evidence_ids).issubset(evidence_ids) and bool(record.evidence_ids)
     )
     denominator = len(audited_records)
     candidate_count = sum(
@@ -1200,8 +1258,7 @@ def compute_crossmatch_metrics(
             edge.confidence_band is ConfidenceBand.low for edge in edge_values
         ),
         manual_adjudication_count=sum(
-            record.adjudication is not None
-            for record in (*paired, *conflicts)
+            record.adjudication is not None for record in (*paired, *conflicts)
         ),
         one_to_one_count=sum(
             record.topology is MatchTopology.one_to_one for record in paired
@@ -1217,16 +1274,12 @@ def compute_crossmatch_metrics(
         ),
         confidence_distribution=ConfidenceDistribution(
             high=sum(
-                edge.confidence_band is ConfidenceBand.high
-                for edge in edge_values
+                edge.confidence_band is ConfidenceBand.high for edge in edge_values
             ),
             medium=sum(
-                edge.confidence_band is ConfidenceBand.medium
-                for edge in edge_values
+                edge.confidence_band is ConfidenceBand.medium for edge in edge_values
             ),
-            low=sum(
-                edge.confidence_band is ConfidenceBand.low for edge in edge_values
-            ),
+            low=sum(edge.confidence_band is ConfidenceBand.low for edge in edge_values),
             not_applicable=sum(
                 edge.confidence_band is ConfidenceBand.not_applicable
                 for edge in edge_values
@@ -1234,8 +1287,7 @@ def compute_crossmatch_metrics(
         ),
         method_distribution=MethodDistribution(
             exact_identifier=sum(
-                edge.method is CrossmatchMethod.exact_identifier
-                for edge in edge_values
+                edge.method is CrossmatchMethod.exact_identifier for edge in edge_values
             ),
             curated_entity_alias=sum(
                 edge.method is CrossmatchMethod.curated_entity_alias
@@ -1252,17 +1304,13 @@ def compute_crossmatch_metrics(
         match_coverage=RatioMetric(
             numerator=matched_candidates,
             denominator=candidate_count,
-            value=(
-                matched_candidates / candidate_count if candidate_count else None
-            ),
+            value=(matched_candidates / candidate_count if candidate_count else None),
         ),
         conflict_rate=RatioMetric(
             numerator=len(conflicts),
             denominator=conflict_denominator,
             value=(
-                len(conflicts) / conflict_denominator
-                if conflict_denominator
-                else None
+                len(conflicts) / conflict_denominator if conflict_denominator else None
             ),
         ),
         unmatched_rate=RatioMetric(
@@ -1290,6 +1338,39 @@ class CrossmatchProducerExecution(BaseModel):
     rule_set_id: Identifier
     rule_set_version: SemanticVersion
     rule_set_content_hash: ContentHash
+
+
+class CrossmatchAdmissionContext(BaseModel):
+    """Frozen facts required to independently admit a CrossmatchResult."""
+
+    model_config = MODEL_CONFIG
+
+    source_input_hash: ContentHash
+    rule_set: CrossmatchRuleSet
+    alias_catalog: EntityAliasCatalog
+    manual_review_decisions: tuple[ManualReviewDecision, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_context(self) -> Self:
+        decision_keys = [
+            decision.logical_match_key for decision in self.manual_review_decisions
+        ]
+        if len(decision_keys) != len(set(decision_keys)):
+            raise ValueError(
+                "admission context decisions must target unique logical matches"
+            )
+        for decision in self.manual_review_decisions:
+            if decision.source_input_hash != self.source_input_hash:
+                raise ValueError(
+                    "admission context manual decision input hash disagrees"
+                )
+            if (
+                decision.rule_set_id != self.rule_set.rule_set_id
+                or decision.rule_set_version != self.rule_set.version
+                or decision.rule_set_content_hash != self.rule_set.content_hash
+            ):
+                raise ValueError("admission context manual decision RuleSet disagrees")
+        return self
 
 
 class CrossmatchResult(BaseModel):
@@ -1322,6 +1403,7 @@ class CrossmatchResult(BaseModel):
     alias_catalog_id: Identifier
     alias_catalog_version: SemanticVersion
     alias_catalog_content_hash: ContentHash
+    admission_context: CrossmatchAdmissionContext
     candidates: tuple[EntityCandidate, ...]
     candidate_edges: tuple[CandidateEdge, ...]
     evidence: tuple[CrossmatchEvidence, ...]
@@ -1333,6 +1415,41 @@ class CrossmatchResult(BaseModel):
 
     @model_validator(mode="after")
     def validate_handoff(self) -> Self:
+        context = self.admission_context
+        if (
+            self.rule_set_id != context.rule_set.rule_set_id
+            or self.rule_set_version != context.rule_set.version
+            or self.rule_set_content_hash != context.rule_set.content_hash
+        ):
+            raise ValueError("result RuleSet disagrees with admission context")
+        if (
+            self.alias_catalog_id != context.alias_catalog.catalog_id
+            or self.alias_catalog_version != context.alias_catalog.version
+            or self.alias_catalog_content_hash != context.alias_catalog.content_hash
+        ):
+            raise ValueError("result alias catalog disagrees with admission context")
+        if (
+            self.case_manifest_id != context.rule_set.case_manifest_id
+            or self.case_manifest_version != context.rule_set.case_manifest_version
+            or self.case_manifest_content_hash
+            != context.rule_set.case_manifest_content_hash
+            or self.field_manifest_id != context.rule_set.field_manifest_id
+            or self.field_manifest_version != context.rule_set.field_manifest_version
+            or self.field_manifest_content_hash
+            != context.rule_set.field_manifest_content_hash
+        ):
+            raise ValueError("result manifest pins disagree with admission context")
+        expected_input_hash = compute_crossmatch_input_hash(
+            {
+                "source_input_hash": context.source_input_hash,
+                "manual_review_decisions": [
+                    decision.model_dump(mode="json")
+                    for decision in context.manual_review_decisions
+                ],
+            }
+        )
+        if self.input_hash != expected_input_hash:
+            raise ValueError("result input_hash disagrees with admission context")
         candidates_by_id = {
             candidate.candidate_id: candidate for candidate in self.candidates
         }
@@ -1390,6 +1507,14 @@ class CrossmatchResult(BaseModel):
             tuple[CrossmatchSide, str, str, str, tuple[tuple[str, str], ...]],
             list[EvidenceLocator],
         ] = {}
+        identity_values_by_source_record: dict[
+            tuple[CrossmatchSide, str, str, str, tuple[tuple[str, str], ...]],
+            list[CanonicalIdentityValue],
+        ] = {}
+        coordinates_by_source_record: dict[
+            tuple[CrossmatchSide, str, str, str, tuple[tuple[str, str], ...]],
+            SkyCoordinate,
+        ] = {}
         for candidate in self.candidates:
             reference = candidate.source_record
             source_record_key = (
@@ -1399,11 +1524,65 @@ class CrossmatchResult(BaseModel):
                 reference.query_hash,
                 reference.row_key,
             )
-            identity_locators_by_source_record.setdefault(
-                source_record_key, []
-            ).extend(identity.locator for identity in candidate.identity_values)
-        evidence_by_id = {
-            item.evidence_id: item for item in self.evidence
+            identity_locators_by_source_record.setdefault(source_record_key, []).extend(
+                identity.locator for identity in candidate.identity_values
+            )
+            identity_values_by_source_record.setdefault(source_record_key, []).extend(
+                candidate.identity_values
+            )
+            if candidate.coordinate is not None:
+                existing_coordinate = coordinates_by_source_record.setdefault(
+                    source_record_key,
+                    candidate.coordinate,
+                )
+                if existing_coordinate != candidate.coordinate:
+                    raise ValueError(
+                        "candidates from one source row disagree on coordinates"
+                    )
+
+        def source_record_key(candidate: EntityCandidate):
+            reference = candidate.source_record
+            return (
+                candidate.side,
+                reference.source_snapshot_id,
+                reference.source_id,
+                reference.query_hash,
+                reference.row_key,
+            )
+
+        def locator_signature(locator: EvidenceLocator):
+            return (
+                locator.side,
+                locator.source_snapshot_id,
+                locator.source_id,
+                locator.query_hash,
+                locator.row_key,
+                locator.raw_field,
+            )
+
+        def condition_locator(
+            candidate: EntityCandidate,
+            field_id: str,
+            normalized_value: NormalizedScalar | None,
+        ) -> EvidenceLocator:
+            matches = {
+                locator_signature(identity.locator): identity.locator
+                for identity in identity_values_by_source_record.get(
+                    source_record_key(candidate), []
+                )
+                if identity.field_id == field_id
+                and (
+                    normalized_value is None
+                    or identity.normalized_value == str(normalized_value)
+                )
+            }
+            if len(matches) != 1:
+                raise ValueError("Evidence condition disagrees with candidate identity")
+            return next(iter(matches.values()))
+
+        evidence_by_id = {item.evidence_id: item for item in self.evidence}
+        alias_entries_by_id = {
+            entry.alias_id: entry for entry in context.alias_catalog.entries
         }
         for item in self.evidence:
             left_candidate = candidates_by_id.get(item.left_candidate_id)
@@ -1448,6 +1627,149 @@ class CrossmatchResult(BaseModel):
                 )
                 if any(locator not in allowed_locators for locator in locators):
                     raise ValueError("Evidence locator disagrees with candidate")
+            required_left_locators: dict[tuple[Any, ...], EvidenceLocator] = {}
+            required_right_locators: dict[tuple[Any, ...], EvidenceLocator] = {}
+            for condition in item.conditions:
+                expected_rule_references = {
+                    ConditionOperator.exact: {
+                        f"{self.rule_set_id}:exact_identifier",
+                        f"{self.rule_set_id}:host_corroboration",
+                    },
+                    ConditionOperator.contradicts: {
+                        f"{self.rule_set_id}:identifier_conflict",
+                    },
+                    ConditionOperator.angular_separation_lte: {
+                        f"{self.rule_set_id}:coordinate",
+                    },
+                    ConditionOperator.angular_separation_gt: {
+                        f"{self.rule_set_id}:coordinate_conflict",
+                    },
+                }
+                if condition.operator is ConditionOperator.curated_alias:
+                    alias_entry = alias_entries_by_id.get(condition.rule_reference)
+                    if (
+                        alias_entry is None
+                        or alias_entry.entity_level is not item.entity_level
+                        or alias_entry.left_source_id
+                        != left_candidate.source_record.source_id
+                        or alias_entry.right_source_id
+                        != right_candidate.source_record.source_id
+                        or alias_entry.left_field_id != condition.field_id
+                        or alias_entry.left_value != str(condition.left_value)
+                        or _normalize_alias_name(alias_entry.right_value)
+                        != str(condition.right_value)
+                    ):
+                        raise ValueError(
+                            "Evidence condition disagrees with alias catalog"
+                        )
+                elif condition.rule_reference not in expected_rule_references.get(
+                    condition.operator, set()
+                ):
+                    raise ValueError(
+                        "Evidence condition rule reference disagrees with RuleSet"
+                    )
+                if condition.operator in {
+                    ConditionOperator.exact,
+                    ConditionOperator.curated_alias,
+                    ConditionOperator.contradicts,
+                }:
+                    assert condition.field_id is not None
+                    assert condition.left_value is not None
+                    assert condition.right_value is not None
+                    if (
+                        condition.operator is ConditionOperator.exact
+                        and condition.left_value != condition.right_value
+                    ):
+                        raise ValueError(
+                            "Evidence condition disagrees with candidate identity"
+                        )
+                    if (
+                        condition.operator is ConditionOperator.contradicts
+                        and condition.left_value == condition.right_value
+                    ):
+                        raise ValueError(
+                            "Evidence condition disagrees with candidate identity"
+                        )
+                    right_field_id = (
+                        alias_entries_by_id[condition.rule_reference].right_field_id
+                        if condition.operator is ConditionOperator.curated_alias
+                        else condition.field_id
+                    )
+                    left_locator = condition_locator(
+                        left_candidate,
+                        condition.field_id,
+                        condition.left_value,
+                    )
+                    right_locator = condition_locator(
+                        right_candidate,
+                        right_field_id,
+                        condition.right_value,
+                    )
+                    required_left_locators[locator_signature(left_locator)] = (
+                        left_locator
+                    )
+                    required_right_locators[locator_signature(right_locator)] = (
+                        right_locator
+                    )
+                elif condition.operator in {
+                    ConditionOperator.angular_separation_lte,
+                    ConditionOperator.angular_separation_gt,
+                }:
+                    left_coordinate = coordinates_by_source_record.get(
+                        source_record_key(left_candidate)
+                    )
+                    right_coordinate = coordinates_by_source_record.get(
+                        source_record_key(right_candidate)
+                    )
+                    if left_coordinate is None or right_coordinate is None:
+                        raise ValueError(
+                            "Evidence coordinate condition lacks candidate coordinates"
+                        )
+                    expected_separation = angular_separation_arcsec(
+                        left_coordinate,
+                        right_coordinate,
+                    )
+                    if condition.separation_arcsec != expected_separation:
+                        raise ValueError(
+                            "Evidence condition disagrees with candidate coordinates"
+                        )
+                    assert condition.manual_review_threshold_arcsec is not None
+                    if (
+                        condition.strict_threshold_arcsec
+                        != context.rule_set.coordinate.strict_separation_arcsec
+                        or condition.manual_review_threshold_arcsec
+                        != context.rule_set.coordinate.manual_review_separation_arcsec
+                    ):
+                        raise ValueError(
+                            "Evidence coordinate thresholds disagree with RuleSet"
+                        )
+                    within_manual_threshold = within_crossmatch_coordinate_threshold(
+                        expected_separation,
+                        condition.manual_review_threshold_arcsec,
+                    )
+                    if (
+                        condition.operator is ConditionOperator.angular_separation_lte
+                    ) != within_manual_threshold:
+                        raise ValueError(
+                            "Evidence coordinate operator disagrees with threshold"
+                        )
+                    for field_id in _COORDINATE_FIELD_IDS:
+                        left_locator = condition_locator(left_candidate, field_id, None)
+                        right_locator = condition_locator(
+                            right_candidate, field_id, None
+                        )
+                        required_left_locators[locator_signature(left_locator)] = (
+                            left_locator
+                        )
+                        required_right_locators[locator_signature(right_locator)] = (
+                            right_locator
+                        )
+            if {locator_signature(locator) for locator in item.left_locators} != set(
+                required_left_locators
+            ) or {locator_signature(locator) for locator in item.right_locators} != set(
+                required_right_locators
+            ):
+                raise ValueError("Evidence condition disagrees with candidate locator")
             for locator in (*item.left_locators, *item.right_locators):
                 snapshot = snapshots[locator.side]
                 if (
@@ -1506,16 +1828,19 @@ class CrossmatchResult(BaseModel):
             or set(edge_evidence_ids) != evidence_ids
         ):
             raise ValueError("Evidence must belong to exactly one candidate edge")
-        expected_record_semantics = {
-            (semantics.record_type, semantics.logical_match_key): semantics
-            for semantics in (
-                derive_crossmatch_record_semantics(component)
-                for component in group_crossmatch_edge_components(
-                    self.candidate_edges
-                )
-            )
-        }
+        expected_record_semantics = {}
+        expected_record_components = {}
+        for component in group_crossmatch_edge_components(self.candidate_edges):
+            semantics = derive_crossmatch_record_semantics(component)
+            semantics_key = (semantics.record_type, semantics.logical_match_key)
+            expected_record_semantics[semantics_key] = semantics
+            expected_record_components[semantics_key] = component
         observed_record_semantics: set[tuple[str, str]] = set()
+        decisions_by_logical_key = {
+            decision.logical_match_key: decision
+            for decision in context.manual_review_decisions
+        }
+        observed_manual_decisions: set[str] = set()
         participating_candidate_ids = {
             candidate_id
             for edge in self.candidate_edges
@@ -1538,16 +1863,14 @@ class CrossmatchResult(BaseModel):
                     else EntityLevel.planet_assertion
                 )
                 if any(
-                    candidates_by_id[candidate_id].side
-                    is not CrossmatchSide.left
+                    candidates_by_id[candidate_id].side is not CrossmatchSide.left
                     or candidates_by_id[candidate_id].entity_level
                     is not record.entity_level
                     for candidate_id in record.left_candidate_ids
                 ):
                     raise ValueError("record uses invalid left candidate members")
                 if any(
-                    candidates_by_id[candidate_id].side
-                    is not CrossmatchSide.right
+                    candidates_by_id[candidate_id].side is not CrossmatchSide.right
                     or candidates_by_id[candidate_id].entity_level
                     is not expected_right_level
                     for candidate_id in record.right_candidate_ids
@@ -1582,12 +1905,66 @@ class CrossmatchResult(BaseModel):
                     or record.confidence_band is not semantics.confidence_band
                 ):
                     raise ValueError("record semantics disagree with candidate edges")
+                if isinstance(record, ConflictGroup) and record.conflict_code != (
+                    derive_crossmatch_conflict_code(
+                        expected_record_components[semantics_key],
+                        evidence_by_id,
+                    )
+                ):
+                    raise ValueError(
+                        "record conflict code disagrees with candidate edges"
+                    )
+                manual_decision = decisions_by_logical_key.get(record.logical_match_key)
+                has_manual_projection = record.manual_decision_id is not None
+                if has_manual_projection != (manual_decision is not None):
+                    raise ValueError(
+                        "record manual decision disagrees with admission context"
+                    )
+                if manual_decision is not None:
+                    if (
+                        isinstance(record, PairedMatch)
+                        and record.decision is not MatchDecision.review_required
+                    ):
+                        raise ValueError(
+                            "manual decision may target only review or conflict records"
+                        )
+                    projected_decision = (
+                        record.manual_decision_id,
+                        record.logical_match_key,
+                        record.adjudication,
+                        record.adjudicated_by,
+                        record.reviewer_kind,
+                        record.adjudication_rule_or_actor,
+                        record.adjudicated_at,
+                        record.adjudication_rationale,
+                        record.manual_decision_content_hash,
+                        record.left_candidate_ids,
+                        record.right_candidate_ids,
+                        record.evidence_ids,
+                    )
+                    expected_decision = (
+                        manual_decision.decision_id,
+                        manual_decision.logical_match_key,
+                        manual_decision.adjudication,
+                        manual_decision.adjudicated_by,
+                        manual_decision.reviewer_kind,
+                        manual_decision.adjudication_rule_or_actor,
+                        manual_decision.adjudicated_at,
+                        manual_decision.rationale,
+                        manual_decision.content_hash,
+                        manual_decision.left_candidate_ids,
+                        manual_decision.right_candidate_ids,
+                        manual_decision.evidence_ids,
+                    )
+                    if projected_decision != expected_decision:
+                        raise ValueError(
+                            "record manual decision projection disagrees with context"
+                        )
+                    observed_manual_decisions.add(record.logical_match_key)
             else:
                 candidate = candidates_by_id.get(record.candidate_id)
                 if candidate is None:
-                    raise ValueError(
-                        "unpaired record references an unknown candidate"
-                    )
+                    raise ValueError("unpaired record references an unknown candidate")
                 if (
                     candidate.side is not record.side
                     or candidate.entity_level is not record.entity_level
@@ -1620,6 +1997,8 @@ class CrossmatchResult(BaseModel):
                     raise ValueError("unpaired record semantics disagree with scope")
         if observed_record_semantics != set(expected_record_semantics):
             raise ValueError("record semantics disagree with candidate edges")
+        if observed_manual_decisions != set(decisions_by_logical_key):
+            raise ValueError("result manual decisions disagree with admission context")
         observed_unpaired_ids = {
             record.candidate_id
             for record in self.records
@@ -1717,10 +2096,13 @@ class CrossmatchBenchmarkScenario(BaseModel):
     left_records: tuple[BenchmarkToiRecord, ...]
     right_records: tuple[BenchmarkPsRecord, ...]
     capacity_override: CrossmatchCapacityPolicy | None = None
-    input_fault: Literal[
-        "duplicate_record_reference",
-        "record_source_mismatch",
-    ] | None = None
+    input_fault: (
+        Literal[
+            "duplicate_record_reference",
+            "record_source_mismatch",
+        ]
+        | None
+    ) = None
     manual_adjudication: AdjudicationDecision | None = None
     manual_binding: Literal["valid", "stale_input", "stale_rule"] | None = None
     expectation: CrossmatchBenchmarkExpectation
@@ -1801,8 +2183,7 @@ class CrossmatchBenchmarkReport(BaseModel):
         if self.passed_count + self.failed_count != self.scenario_count:
             raise ValueError("benchmark pass/fail counts do not match scenario_count")
         if self.passed_count != sum(
-            result.status is BenchmarkScenarioStatus.passed
-            for result in self.results
+            result.status is BenchmarkScenarioStatus.passed for result in self.results
         ):
             raise ValueError("benchmark passed_count does not match results")
         _validate_content_hash(self)

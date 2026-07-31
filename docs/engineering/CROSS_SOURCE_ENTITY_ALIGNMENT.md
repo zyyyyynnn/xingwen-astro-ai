@@ -116,7 +116,11 @@ records separation plus both strict and manual-review thresholds. The
 `CrossmatchResult` validator cross-checks Candidate, Edge, Evidence, Record,
 metrics, Snapshot, RuleSet, and producer references even if a caller recomputes
 hashes. Each Evidence locator must identify the referenced candidate's source
-row and a normalized identity raw field admitted for that row.
+row and the exact normalized identity raw field required by its condition.
+Condition IDs are derived from their complete payload; coordinate separation,
+operator, thresholds, and rule reference are checked against the candidate
+coordinates and frozen RuleSet. Conflict codes are derived from the admitted
+Edge/Evidence component instead of trusted as caller metadata.
 
 Identifier and alias conditions carry only field/left/right values; coordinate
 conditions carry only separation plus both thresholds. `source_scope` remains a
@@ -131,6 +135,14 @@ review records the adjudication audit fields but preserves the automatic
 `review_required` or `conflict` decision. Benchmark decisions use
 `reviewer_kind=benchmark_fixture` and are not represented as human or
 scientific approval.
+
+Every result carries a typed `admission_context` containing the frozen RuleSet,
+AliasCatalog, source-input hash, and complete manual-decision inputs required
+for independent admission. The result validator binds curated-alias conditions
+to an actual catalog entry and binds every projected adjudication field to its
+typed decision and `input_hash`; a caller cannot substitute a same-row field,
+fabricated alias ID, conflict code, or reviewer while retaining the admitted
+provenance hashes.
 
 A record logical match key is derived from the record type, entity level, and
 both candidate-id sets, so paired and conflict-group records over the same

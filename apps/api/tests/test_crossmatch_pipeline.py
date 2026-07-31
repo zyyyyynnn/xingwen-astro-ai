@@ -2,19 +2,24 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import math
 
 import pytest
 from pydantic import ValidationError
 
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.crossmatch import (
     AdjudicationDecision,
+    CandidateEdge,
     ConfidenceBand,
     ConflictGroup,
+    CrossmatchEvidence,
     CrossmatchInput,
     CrossmatchMethod,
     CrossmatchResult,
     CrossmatchRuleSet,
     CrossmatchSourceInput,
+    EntityCandidate,
     EntityLevel,
     ManualReviewDecision,
     MatchDecision,
@@ -24,6 +29,7 @@ from app.schemas.crossmatch import (
     UnpairedRecord,
     compute_crossmatch_content_hash,
     compute_crossmatch_input_hash,
+    compute_crossmatch_metrics,
     compute_crossmatch_source_input_hash,
 )
 from app.schemas.enums import SourceMode
@@ -141,9 +147,7 @@ def source_input(
         records=records,
         snapshot=SourceSnapshotRecord(
             snapshot_id=(
-                "snapshot.crossmatch_toi"
-                if is_toi
-                else "snapshot.crossmatch_ps"
+                "snapshot.crossmatch_toi" if is_toi else "snapshot.crossmatch_ps"
             ),
             source_id=source_id,
             source_type="database",
@@ -215,6 +219,14 @@ def rehash_result_payload(payload: dict[str, object]) -> None:
     payload["result_id"] = (
         f"crossmatch.{str(payload['content_hash']).removeprefix('sha256:')[:24]}"
     )
+
+
+def rehash_condition_payload(payload: dict[str, object]) -> None:
+    condition_payload = {
+        key: value for key, value in payload.items() if key != "condition_id"
+    }
+    identity = compute_canonical_payload_hash(condition_payload)
+    payload["condition_id"] = f"condition.{identity.removeprefix('sha256:')[:24]}"
 
 
 def rule_set_with_capacity(
@@ -363,8 +375,7 @@ def test_exact_identifier_topologies_are_explicit(
     expected: MatchTopology,
 ) -> None:
     left = tuple(
-        toi_record(f"200.{index + 1:02d}", tic_id=222)
-        for index in range(left_count)
+        toi_record(f"200.{index + 1:02d}", tic_id=222) for index in range(left_count)
     )
     right = tuple(
         ps_record("Planet Two b", f"Reference {index}", tic_id="TIC 222")
@@ -700,14 +711,10 @@ def test_coordinate_evidence_records_both_thresholds_and_confidence_effect() -> 
         )
     )
     evidence = next(
-        item
-        for item in result.evidence
-        if item.method is CrossmatchMethod.coordinate
+        item for item in result.evidence if item.method is CrossmatchMethod.coordinate
     )
     condition = next(
-        item
-        for item in evidence.conditions
-        if item.separation_arcsec is not None
+        item for item in evidence.conditions if item.separation_arcsec is not None
     )
 
     assert condition.strict_threshold_arcsec == 1.0
@@ -716,7 +723,9 @@ def test_coordinate_evidence_records_both_thresholds_and_confidence_effect() -> 
     assert evidence.confidence_band is ConfidenceBand.medium
 
 
-def test_coordinate_threshold_change_changes_decision_evidence_and_output_hash() -> None:
+def test_coordinate_threshold_change_changes_decision_evidence_and_output_hash() -> (
+    None
+):
     left = (toi_record("607.01", tic_id=None, ra=10.0, dec=20.0),)
     right = (
         ps_record(
@@ -826,14 +835,17 @@ def test_crossmatch_input_hash_binds_snapshots_records_and_rules() -> None:
         rule_set=CrossmatchRuleSet.model_validate(changed_rule_payload),
     )
 
-    assert len(
-        {
-            original.input_hash,
-            changed_snapshot.input_hash,
-            changed_record.input_hash,
-            changed_rule.input_hash,
-        }
-    ) == 4
+    assert (
+        len(
+            {
+                original.input_hash,
+                changed_snapshot.input_hash,
+                changed_record.input_hash,
+                changed_rule.input_hash,
+            }
+        )
+        == 4
+    )
 
     tampered = original.model_dump(mode="json")
     tampered["source_input_hash"] = "sha256:" + "f" * 64
@@ -937,7 +949,226 @@ def test_crossmatch_result_rejects_rehashed_evidence_locator_tampering(
     evidence["content_hash"] = compute_crossmatch_content_hash(evidence)
     rehash_result_payload(tampered)
 
-    with pytest.raises(ValidationError, match="Evidence locator disagrees with candidate"):
+    with pytest.raises(
+        ValidationError, match="Evidence locator disagrees with candidate"
+    ):
+        CrossmatchResult.model_validate(tampered)
+
+
+def test_crossmatch_result_rejects_rehashed_condition_value_tampering() -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("636.02", tic_id=636, ra=10.0, dec=20.0),),
+            (
+                ps_record(
+                    "Condition Bound b",
+                    "Reference",
+                    tic_id="TIC 636",
+                    ra=10.00001,
+                    dec=20.0,
+                ),
+            ),
+        )
+    )
+    tampered = result.model_dump(mode="json")
+    evidence = next(
+        item
+        for item in tampered["evidence"]
+        if any(condition["operator"] == "exact" for condition in item["conditions"])
+    )
+    condition = next(
+        item for item in evidence["conditions"] if item["operator"] == "exact"
+    )
+    old_condition_id = condition["condition_id"]
+    condition["left_value"] = "fabricated"
+    rehash_condition_payload(condition)
+    evidence["content_hash"] = compute_crossmatch_content_hash(evidence)
+    edge = next(
+        item
+        for item in tampered["candidate_edges"]
+        if evidence["evidence_id"] in item["evidence_ids"]
+    )
+    edge["condition_ids"] = [
+        condition["condition_id"] if item == old_condition_id else item
+        for item in edge["condition_ids"]
+    ]
+    edge["content_hash"] = compute_crossmatch_content_hash(edge)
+    rehash_result_payload(tampered)
+
+    with pytest.raises(ValidationError, match="condition disagrees with candidate"):
+        CrossmatchResult.model_validate(tampered)
+
+
+def test_crossmatch_result_rejects_rehashed_coordinate_operator_flip() -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("636.04", tic_id=None, ra=10.0, dec=20.0),),
+            (
+                ps_record(
+                    "Operator Bound b",
+                    "Reference",
+                    tic_id=None,
+                    ra=10.00025,
+                    dec=20.0,
+                ),
+            ),
+        )
+    )
+    tampered = result.model_dump(mode="json")
+    evidence = next(
+        item
+        for item in tampered["evidence"]
+        if any(
+            condition["operator"] == "angular_separation_lte"
+            for condition in item["conditions"]
+        )
+    )
+    condition = next(
+        item
+        for item in evidence["conditions"]
+        if item["operator"] == "angular_separation_lte"
+    )
+    old_condition_id = condition["condition_id"]
+    condition["operator"] = "angular_separation_gt"
+    condition["rule_reference"] = f"{result.rule_set_id}:coordinate_conflict"
+    rehash_condition_payload(condition)
+    evidence["content_hash"] = compute_crossmatch_content_hash(evidence)
+    edge = next(
+        item
+        for item in tampered["candidate_edges"]
+        if evidence["evidence_id"] in item["evidence_ids"]
+    )
+    edge["condition_ids"] = [
+        condition["condition_id"] if item == old_condition_id else item
+        for item in edge["condition_ids"]
+    ]
+    edge["content_hash"] = compute_crossmatch_content_hash(edge)
+    rehash_result_payload(tampered)
+
+    with pytest.raises(ValidationError, match="operator disagrees"):
+        CrossmatchResult.model_validate(tampered)
+
+
+def test_crossmatch_result_rejects_rehashed_rule_reference_tampering() -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("636.05", tic_id=636),),
+            (ps_record("Rule Bound b", "Reference", tic_id="TIC 636"),),
+        )
+    )
+    tampered = result.model_dump(mode="json")
+    evidence = next(
+        item
+        for item in tampered["evidence"]
+        if any(condition["operator"] == "exact" for condition in item["conditions"])
+    )
+    condition = next(
+        item for item in evidence["conditions"] if item["operator"] == "exact"
+    )
+    old_condition_id = condition["condition_id"]
+    condition["rule_reference"] = "crossmatch-rules.fabricated:exact_identifier"
+    rehash_condition_payload(condition)
+    evidence["content_hash"] = compute_crossmatch_content_hash(evidence)
+    edge = next(
+        item
+        for item in tampered["candidate_edges"]
+        if evidence["evidence_id"] in item["evidence_ids"]
+    )
+    edge["condition_ids"] = [
+        condition["condition_id"] if item == old_condition_id else item
+        for item in edge["condition_ids"]
+    ]
+    edge["content_hash"] = compute_crossmatch_content_hash(edge)
+    rehash_result_payload(tampered)
+
+    with pytest.raises(ValidationError, match="rule reference disagrees"):
+        CrossmatchResult.model_validate(tampered)
+
+
+def test_crossmatch_result_rejects_rehashed_alias_reference_tampering() -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("700.01", tic_id=700),),
+            (ps_record("Planet Seven b", "Reference", tic_id="TIC 700"),),
+        )
+    )
+    tampered = result.model_dump(mode="json")
+    evidence = next(
+        item
+        for item in tampered["evidence"]
+        if any(
+            condition["operator"] == "curated_alias" for condition in item["conditions"]
+        )
+    )
+    condition = next(
+        item for item in evidence["conditions"] if item["operator"] == "curated_alias"
+    )
+    old_condition_id = condition["condition_id"]
+    condition["rule_reference"] = "alias.fabricated"
+    rehash_condition_payload(condition)
+    evidence["content_hash"] = compute_crossmatch_content_hash(evidence)
+    edge = next(
+        item
+        for item in tampered["candidate_edges"]
+        if evidence["evidence_id"] in item["evidence_ids"]
+    )
+    edge["condition_ids"] = [
+        condition["condition_id"] if item == old_condition_id else item
+        for item in edge["condition_ids"]
+    ]
+    edge["content_hash"] = compute_crossmatch_content_hash(edge)
+    rehash_result_payload(tampered)
+
+    with pytest.raises(ValidationError, match="alias catalog"):
+        CrossmatchResult.model_validate(tampered)
+
+
+def test_crossmatch_result_rejects_same_row_wrong_field_locator() -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("636.03", tic_id=636, ra=10.0, dec=20.0),),
+            (
+                ps_record(
+                    "Field Bound b",
+                    "Reference",
+                    tic_id="TIC 636",
+                    ra=10.00001,
+                    dec=20.0,
+                ),
+            ),
+        )
+    )
+    tampered = result.model_dump(mode="json")
+    evidence = next(
+        item
+        for item in tampered["evidence"]
+        if any(condition["operator"] == "exact" for condition in item["conditions"])
+        and len(item["left_locators"]) > 1
+    )
+    exact_condition = next(
+        condition
+        for condition in evidence["conditions"]
+        if condition["operator"] == "exact"
+    )
+    exact_locator = next(
+        locator
+        for locator in evidence["left_locators"]
+        if locator["raw_field"] == "tid"
+    )
+    alternate_locator = next(
+        locator
+        for locator in evidence["left_locators"]
+        if locator["raw_field"] != exact_locator["raw_field"]
+    )
+    evidence["left_locators"] = [
+        alternate_locator if locator is exact_locator else locator
+        for locator in evidence["left_locators"]
+    ]
+    evidence["content_hash"] = compute_crossmatch_content_hash(evidence)
+    rehash_result_payload(tampered)
+
+    assert exact_condition["field_id"] == "star.tic_id"
+    with pytest.raises(ValidationError, match="condition disagrees with candidate"):
         CrossmatchResult.model_validate(tampered)
 
 
@@ -1009,6 +1240,122 @@ def test_crossmatch_result_rejects_rehashed_conflict_evidence_omission() -> None
         CrossmatchResult.model_validate(tampered)
 
 
+@pytest.mark.parametrize(
+    "conflict_kind",
+    ["identifier", "identifier_coordinate", "alias"],
+)
+def test_crossmatch_result_rejects_rehashed_conflict_code_tampering(
+    conflict_kind: str,
+) -> None:
+    if conflict_kind == "identifier":
+        left_records = (toi_record("908.01", tic_id=908, ra=10.0, dec=20.0),)
+        right_records = (
+            ps_record(
+                "Identifier Conflict b",
+                "Reference",
+                tic_id="TIC 909",
+                ra=10.00001,
+                dec=20.0,
+            ),
+        )
+        expected_code = "crossmatch.identifier_conflict"
+    elif conflict_kind == "identifier_coordinate":
+        left_records = (toi_record("910.01", tic_id=910, ra=10.0, dec=20.0),)
+        right_records = (
+            ps_record(
+                "Coordinate Conflict b",
+                "Reference",
+                tic_id="TIC 910",
+                ra=10.01,
+                dec=20.0,
+            ),
+        )
+        expected_code = "crossmatch.identifier_coordinate_conflict"
+    else:
+        left_records = (toi_record("900.01", tic_id=900),)
+        right_records = (
+            ps_record("Planet Nine b", "Reference B", tic_id="TIC 900"),
+            ps_record("Planet Nine c", "Reference C", tic_id="TIC 900"),
+        )
+        expected_code = "crossmatch.alias_conflict"
+    result = align_cross_source_records(crossmatch_input(left_records, right_records))
+    tampered = result.model_dump(mode="json")
+    record = next(
+        item for item in tampered["records"] if item["record_type"] == "conflict_group"
+    )
+    assert record["conflict_code"] == expected_code
+    record["conflict_code"] = "crossmatch.fabricated"
+    record["content_hash"] = compute_crossmatch_content_hash(record)
+    rehash_result_payload(tampered)
+
+    with pytest.raises(ValidationError, match="conflict code disagrees"):
+        CrossmatchResult.model_validate(tampered)
+
+
+def test_reserved_rejected_record_passes_full_result_admission() -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("638.01", tic_id=638),),
+            (ps_record("Reserved Reject b", "Reference", tic_id="TIC 638"),),
+        )
+    )
+    tampered = result.model_dump(mode="json")
+    record = next(
+        item
+        for item in tampered["records"]
+        if item["record_type"] == "paired"
+        and item["entity_level"] == EntityLevel.host_star.value
+    )
+    record["decision"] = MatchDecision.rejected.value
+    record["content_hash"] = compute_crossmatch_content_hash(record)
+    evidence_ids = set(record["evidence_ids"])
+    for evidence in tampered["evidence"]:
+        if evidence["evidence_id"] in evidence_ids:
+            evidence["decision"] = MatchDecision.rejected.value
+            evidence["content_hash"] = compute_crossmatch_content_hash(evidence)
+    for edge in tampered["candidate_edges"]:
+        if evidence_ids.intersection(edge["evidence_ids"]):
+            edge["decision"] = MatchDecision.rejected.value
+            edge["content_hash"] = compute_crossmatch_content_hash(edge)
+
+    candidates = tuple(
+        EntityCandidate.model_validate(item) for item in tampered["candidates"]
+    )
+    edges = tuple(
+        CandidateEdge.model_validate(item) for item in tampered["candidate_edges"]
+    )
+    evidence = tuple(
+        CrossmatchEvidence.model_validate(item) for item in tampered["evidence"]
+    )
+    records = tuple(
+        (
+            PairedMatch.model_validate(item)
+            if item["record_type"] == "paired"
+            else (
+                ConflictGroup.model_validate(item)
+                if item["record_type"] == "conflict_group"
+                else UnpairedRecord.model_validate(item)
+            )
+        )
+        for item in tampered["records"]
+    )
+    tampered["metrics"] = compute_crossmatch_metrics(
+        candidates,
+        edges,
+        records,
+        evidence,
+    ).model_dump(mode="json")
+    rehash_result_payload(tampered)
+
+    admitted = CrossmatchResult.model_validate(tampered)
+    admitted_record = next(
+        item
+        for item in admitted.records
+        if isinstance(item, PairedMatch) and item.entity_level is EntityLevel.host_star
+    )
+    assert admitted_record.decision is MatchDecision.rejected
+
+
 def test_manual_review_decision_is_auditable_and_preserves_automatic_status() -> None:
     automatic_input = crossmatch_input(
         (toi_record("640.01", tic_id=None, ra=10.0, dec=20.0),),
@@ -1046,14 +1393,10 @@ def test_manual_review_decision_is_auditable_and_preserves_automatic_status() ->
         "right_candidate_ids": list(target.right_candidate_ids),
         "evidence_ids": list(target.evidence_ids),
     }
-    decision_payload["content_hash"] = compute_crossmatch_content_hash(
-        decision_payload
-    )
+    decision_payload["content_hash"] = compute_crossmatch_content_hash(decision_payload)
     decision = ManualReviewDecision.model_validate(decision_payload)
     reviewed_payload = automatic_input.model_dump(mode="json")
-    reviewed_payload["manual_review_decisions"] = [
-        decision.model_dump(mode="json")
-    ]
+    reviewed_payload["manual_review_decisions"] = [decision.model_dump(mode="json")]
     reviewed_payload["input_hash"] = compute_crossmatch_input_hash(reviewed_payload)
     reviewed_input = CrossmatchInput.model_validate(reviewed_payload)
 
@@ -1071,6 +1414,80 @@ def test_manual_review_decision_is_auditable_and_preserves_automatic_status() ->
     assert reviewed.metrics.manual_adjudication_count == 1
     assert reviewed.input_hash != automatic.input_hash
     assert reviewed.output_hash != automatic.output_hash
+
+
+@pytest.mark.parametrize(
+    ("field", "forged_value"),
+    [
+        ("manual_decision_id", "review.fixture.forged"),
+        ("adjudication", AdjudicationDecision.rejected.value),
+        ("adjudicated_by", "forged-reviewer"),
+        ("reviewer_kind", ReviewerKind.human.value),
+        ("adjudication_rule_or_actor", "forged.actor"),
+        ("adjudicated_at", "2026-07-31T00:00:00Z"),
+        ("adjudication_rationale", "Forged rationale."),
+        ("manual_decision_content_hash", "sha256:" + "f" * 64),
+    ],
+)
+def test_crossmatch_result_rejects_rehashed_manual_audit_tampering(
+    field: str,
+    forged_value: object,
+) -> None:
+    automatic_input = crossmatch_input(
+        (toi_record("641.01", tic_id=None, ra=10.0, dec=20.0),),
+        (
+            ps_record(
+                "Audit Bound b",
+                "Reference",
+                tic_id=None,
+                ra=10.00025,
+                dec=20.0,
+            ),
+        ),
+    )
+    automatic = align_cross_source_records(automatic_input)
+    target = next(
+        record
+        for record in paired_records(automatic)
+        if record.decision is MatchDecision.review_required
+    )
+    decision_payload = {
+        "schema_version": "1.0.0",
+        "decision_id": "review.fixture.audit_bound",
+        "logical_match_key": target.logical_match_key,
+        "adjudication": AdjudicationDecision.accepted,
+        "adjudicated_by": "benchmark-reviewer",
+        "reviewer_kind": ReviewerKind.benchmark_fixture,
+        "adjudication_rule_or_actor": "benchmark.expected_decision",
+        "adjudicated_at": "2026-07-30T00:00:00Z",
+        "rationale": "Synthetic audit binding case.",
+        "source_input_hash": automatic_input.source_input_hash,
+        "rule_set_id": automatic_input.rule_set.rule_set_id,
+        "rule_set_version": automatic_input.rule_set.version,
+        "rule_set_content_hash": automatic_input.rule_set.content_hash,
+        "left_candidate_ids": list(target.left_candidate_ids),
+        "right_candidate_ids": list(target.right_candidate_ids),
+        "evidence_ids": list(target.evidence_ids),
+    }
+    decision_payload["content_hash"] = compute_crossmatch_content_hash(decision_payload)
+    reviewed_payload = automatic_input.model_dump(mode="json")
+    reviewed_payload["manual_review_decisions"] = [decision_payload]
+    reviewed_payload["input_hash"] = compute_crossmatch_input_hash(reviewed_payload)
+    reviewed = align_cross_source_records(
+        CrossmatchInput.model_validate(reviewed_payload)
+    )
+    tampered = reviewed.model_dump(mode="json")
+    record = next(
+        item
+        for item in tampered["records"]
+        if item.get("manual_decision_id") == decision_payload["decision_id"]
+    )
+    record[field] = forged_value
+    record["content_hash"] = compute_crossmatch_content_hash(record)
+    rehash_result_payload(tampered)
+
+    with pytest.raises(ValidationError, match="manual decision"):
+        CrossmatchResult.model_validate(tampered)
 
 
 @pytest.mark.parametrize(
@@ -1107,9 +1524,7 @@ def test_stale_manual_review_decision_is_rejected(
         "evidence_ids": ["evidence.stale"],
     }
     decision_payload[field] = "sha256:" + "f" * 64
-    decision_payload["content_hash"] = compute_crossmatch_content_hash(
-        decision_payload
-    )
+    decision_payload["content_hash"] = compute_crossmatch_content_hash(decision_payload)
     payload = base.model_dump(mode="json")
     payload["manual_review_decisions"] = [decision_payload]
     payload["input_hash"] = compute_crossmatch_input_hash(payload)
@@ -1151,9 +1566,7 @@ def test_manual_review_candidate_binding_mismatch_is_rejected() -> None:
         "right_candidate_ids": list(target.right_candidate_ids),
         "evidence_ids": list(target.evidence_ids),
     }
-    decision_payload["content_hash"] = compute_crossmatch_content_hash(
-        decision_payload
-    )
+    decision_payload["content_hash"] = compute_crossmatch_content_hash(decision_payload)
     payload = automatic_input.model_dump(mode="json")
     payload["manual_review_decisions"] = [decision_payload]
     payload["input_hash"] = compute_crossmatch_input_hash(payload)
@@ -1240,9 +1653,7 @@ def test_identifier_match_within_manual_tolerance_is_not_coordinate_conflict() -
         for item in evidence.conditions
         if item.separation_arcsec is not None
     )
-    assert (
-        coordinate_condition.operator.value == "angular_separation_lte"
-    )
+    assert coordinate_condition.operator.value == "angular_separation_lte"
 
 
 def test_strict_band_uses_shared_tolerance_at_boundary() -> None:
@@ -1277,6 +1688,68 @@ def test_strict_band_uses_shared_tolerance_at_boundary() -> None:
     assert coordinate_match.method is CrossmatchMethod.coordinate
     assert coordinate_match.decision is MatchDecision.review_required
     assert coordinate_match.confidence_band is ConfidenceBand.medium
+
+
+def test_strict_band_is_stable_at_exact_and_adjacent_float_boundaries() -> None:
+    separation = _coordinate_separation_arcsec(10.0, 10.00025, 20.0)
+    thresholds = (
+        math.nextafter(separation, -math.inf),
+        separation,
+        math.nextafter(separation, math.inf),
+    )
+
+    for index, strict_threshold in enumerate(thresholds):
+        result = align_cross_source_records(
+            crossmatch_input(
+                (
+                    toi_record(
+                        f"903.0{index + 1}",
+                        tic_id=None,
+                        ra=10.0,
+                        dec=20.0,
+                    ),
+                ),
+                (
+                    ps_record(
+                        f"ULP Boundary {index} b",
+                        "Reference",
+                        tic_id=None,
+                        ra=10.00025,
+                        dec=20.0,
+                    ),
+                ),
+                rule_set=_rule_set_with_coordinate(
+                    strict=strict_threshold,
+                    manual_review=separation + 1.0,
+                ),
+            )
+        )
+        match = next(
+            record
+            for record in paired_records(result)
+            if record.entity_level is EntityLevel.host_star
+        )
+        condition = next(
+            condition
+            for evidence in result.evidence
+            if evidence.entity_level is EntityLevel.host_star
+            for condition in evidence.conditions
+            if condition.separation_arcsec is not None
+        )
+
+        assert match.decision is MatchDecision.review_required
+        assert match.confidence_band is ConfidenceBand.medium
+        assert condition.operator.value == "angular_separation_lte"
+        assert condition.strict_threshold_arcsec == strict_threshold
+
+
+def test_manual_threshold_uses_the_same_tolerance_window() -> None:
+    separation = _coordinate_separation_arcsec(10.0, 10.00025, 20.0)
+
+    assert crossmatch_engine._within_threshold(separation, separation)
+    assert crossmatch_engine._within_threshold(separation, separation - 5e-8)
+    assert crossmatch_engine._within_threshold(separation, separation + 5e-8)
+    assert not crossmatch_engine._within_threshold(separation, separation - 2e-7)
 
 
 def _edge(left_id: str, right_id: str, decision: MatchDecision) -> object:
@@ -1345,11 +1818,45 @@ def test_record_logical_key_is_namespaced_by_record_type() -> None:
     # The fix: record-type namespacing keeps their logical keys distinct.
     assert paired_record.logical_match_key != conflict_record.logical_match_key
 
-    # A decision map keyed by logical_match_key (as _apply_manual_decisions builds)
-    # routes a conflict-group decision only to the conflict group.
-    decisions = {conflict_record.logical_match_key: object()}
-    assert decisions.get(conflict_record.logical_match_key) is not None
-    assert decisions.get(paired_record.logical_match_key) is None
+    base_input = crossmatch_input(
+        (toi_record("906.01", tic_id=None),),
+        (ps_record("Namespaced Review b", "Reference", tic_id=None),),
+    )
+    decision_payload = {
+        "schema_version": "1.0.0",
+        "decision_id": "review.fixture.namespaced_conflict",
+        "logical_match_key": conflict_record.logical_match_key,
+        "adjudication": AdjudicationDecision.accepted,
+        "adjudicated_by": "benchmark-reviewer",
+        "reviewer_kind": ReviewerKind.benchmark_fixture,
+        "adjudication_rule_or_actor": "benchmark.expected_decision",
+        "adjudicated_at": "2026-07-30T00:00:00Z",
+        "rationale": "Synthetic record-type namespace routing case.",
+        "source_input_hash": base_input.source_input_hash,
+        "rule_set_id": base_input.rule_set.rule_set_id,
+        "rule_set_version": base_input.rule_set.version,
+        "rule_set_content_hash": base_input.rule_set.content_hash,
+        "left_candidate_ids": list(conflict_record.left_candidate_ids),
+        "right_candidate_ids": list(conflict_record.right_candidate_ids),
+        "evidence_ids": list(conflict_record.evidence_ids),
+    }
+    decision_payload["content_hash"] = compute_crossmatch_content_hash(decision_payload)
+    reviewed_payload = base_input.model_dump(mode="json")
+    reviewed_payload["manual_review_decisions"] = [decision_payload]
+    reviewed_payload["input_hash"] = compute_crossmatch_input_hash(reviewed_payload)
+    reviewed_input = CrossmatchInput.model_validate(reviewed_payload)
+
+    applied = crossmatch_engine._apply_manual_decisions(records, reviewed_input)
+    applied_paired = next(
+        record for record in applied if isinstance(record, PairedMatch)
+    )
+    applied_conflict = next(
+        record for record in applied if isinstance(record, ConflictGroup)
+    )
+
+    assert applied_paired.manual_decision_id is None
+    assert applied_conflict.manual_decision_id == decision_payload["decision_id"]
+    assert applied_conflict.adjudication is AdjudicationDecision.accepted
 
 
 def test_blank_identifier_values_are_treated_as_missing_not_invalid() -> None:

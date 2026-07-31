@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable
-import math
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.crossmatch import (
@@ -14,6 +13,7 @@ from app.schemas.crossmatch import (
     ConfidenceBand,
     ConflictGroup,
     CrossmatchCondition,
+    CrossmatchAdmissionContext,
     CrossmatchEvidence,
     CrossmatchInput,
     CrossmatchMethod,
@@ -27,20 +27,19 @@ from app.schemas.crossmatch import (
     MatchDecision,
     PairedMatch,
     UnpairedRecord,
+    angular_separation_arcsec,
+    compute_crossmatch_condition_id,
     compute_crossmatch_content_hash,
     derive_crossmatch_record_semantics,
     group_crossmatch_edge_components,
+    within_crossmatch_coordinate_threshold,
 )
 from app.schemas.manifest import ManifestBundle
 from app.schemas.source_acquisition import DataSourceCompletionStatus
 
 from ..manifest import load_frozen_manifest_bundle
 from .errors import CrossmatchCapacityError, CrossmatchError
-from .identity import (
-    angular_separation_arcsec,
-    normalize_name,
-    normalize_toi_id,
-)
+from .identity import normalize_name, normalize_toi_id
 from .metrics import compute_crossmatch_metrics
 from .normalization import normalize_source_candidates
 
@@ -49,19 +48,12 @@ _TOI_SOURCE_ID = "nasa_exoplanet_archive.toi"
 _PS_SOURCE_ID = "nasa_exoplanet_archive.ps"
 _HOST_IDENTIFIER_FIELDS = ("star.tic_id", "star.gaia_dr3_id")
 _COORDINATE_FIELDS = ("system.right_ascension", "system.declination")
-_COORDINATE_THRESHOLD_REL_TOL = 1e-12
-_COORDINATE_THRESHOLD_ABS_TOL = 1e-7
 
 
 def _within_threshold(separation: float, threshold: float) -> bool:
     """Apply one shared numeric tolerance policy to every coordinate band."""
 
-    return separation <= threshold or math.isclose(
-        separation,
-        threshold,
-        rel_tol=_COORDINATE_THRESHOLD_REL_TOL,
-        abs_tol=_COORDINATE_THRESHOLD_ABS_TOL,
-    )
+    return within_crossmatch_coordinate_threshold(separation, threshold)
 
 
 def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
@@ -148,9 +140,7 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
                     )
                 )
 
-    alias_matches: list[
-        tuple[EntityCandidate, EntityCandidate, object, bool]
-    ] = []
+    alias_matches: list[tuple[EntityCandidate, EntityCandidate, object, bool]] = []
     host_by_record = {
         (candidate.side, candidate.source_record.row_key): candidate
         for candidate in (*left_hosts, *right_hosts)
@@ -170,10 +160,14 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
     alias_conflicts = _alias_conflicting_pairs(alias_matches)
     for left, right, entry, host_corroborated in alias_matches:
         is_conflict = (left.candidate_id, right.candidate_id) in alias_conflicts
-        is_conflict = is_conflict or (
-            left.source_record.row_key,
-            right.source_record.row_key,
-        ) in conflicting_host_record_pairs
+        is_conflict = (
+            is_conflict
+            or (
+                left.source_record.row_key,
+                right.source_record.row_key,
+            )
+            in conflicting_host_record_pairs
+        )
         method = (
             CrossmatchMethod.compound
             if host_corroborated
@@ -314,6 +308,12 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
         "alias_catalog_id": input.alias_catalog.catalog_id,
         "alias_catalog_version": input.alias_catalog.version,
         "alias_catalog_content_hash": input.alias_catalog.content_hash,
+        "admission_context": CrossmatchAdmissionContext(
+            source_input_hash=input.source_input_hash,
+            rule_set=input.rule_set,
+            alias_catalog=input.alias_catalog,
+            manual_review_decisions=input.manual_review_decisions,
+        ).model_dump(mode="json"),
         "candidates": [candidate.model_dump(mode="json") for candidate in candidates],
         "candidate_edges": [edge.model_dump(mode="json") for edge in edges],
         "evidence": [item.model_dump(mode="json") for item in evidence],
@@ -354,10 +354,9 @@ def _validate_eligible_candidate_capacity(
     left_planets: tuple[EntityCandidate, ...],
     right_assertions: tuple[EntityCandidate, ...],
 ) -> None:
-    eligible_candidate_pairs = (
-        len(left_hosts) * len(right_hosts)
-        + len(left_planets) * len(right_assertions)
-    )
+    eligible_candidate_pairs = len(left_hosts) * len(right_hosts) + len(
+        left_planets
+    ) * len(right_assertions)
     if eligible_candidate_pairs > input.rule_set.capacity.max_candidate_pairs:
         raise CrossmatchCapacityError(
             "CROSSMATCH_CAPACITY_EXCEEDED",
@@ -379,9 +378,7 @@ def _validate_source_contract(
             "CROSSMATCH_SOURCE_CONTRACT_MISMATCH",
             "C-08 requires TOI as left and PS as right input",
         )
-    manifest_source_ids = {
-        source.source_id for source in bundle.field_manifest.sources
-    }
+    manifest_source_ids = {source.source_id for source in bundle.field_manifest.sources}
     if not set(actual_sources).issubset(manifest_source_ids):
         raise CrossmatchError(
             "CROSSMATCH_SOURCE_CONTRACT_MISMATCH",
@@ -410,9 +407,7 @@ def _match_host_candidates(
     if left.coordinate is not None and right.coordinate is not None:
         separation = angular_separation_arcsec(left.coordinate, right.coordinate)
     strict_threshold = input.rule_set.coordinate.strict_separation_arcsec
-    coordinate_threshold = (
-        input.rule_set.coordinate.manual_review_separation_arcsec
-    )
+    coordinate_threshold = input.rule_set.coordinate.manual_review_separation_arcsec
     coordinate_match = separation is not None and _within_threshold(
         separation, coordinate_threshold
     )
@@ -572,9 +567,9 @@ def _alias_conflicting_pairs(alias_matches) -> set[tuple[str, str]]:
         right_values_by_left[left.candidate_id].add(
             _identity(right, "planet.name").normalized_value
         )
-        left_values_by_right[
-            _identity(right, "planet.name").normalized_value
-        ].add(_identity(left, "planet.toi_id").normalized_value)
+        left_values_by_right[_identity(right, "planet.name").normalized_value].add(
+            _identity(left, "planet.toi_id").normalized_value
+        )
     conflicts: set[tuple[str, str]] = set()
     for left, right, _, _ in alias_matches:
         right_name = _identity(right, "planet.name").normalized_value
@@ -616,8 +611,7 @@ def _build_edge_and_evidence(
     )
     evidence_payload = {
         "evidence_id": (
-            f"evidence.crossmatch_"
-            f"{evidence_identity.removeprefix('sha256:')[:24]}"
+            f"evidence.crossmatch_{evidence_identity.removeprefix('sha256:')[:24]}"
         ),
         "entity_level": entity_level,
         "method": method,
@@ -634,9 +628,7 @@ def _build_edge_and_evidence(
             locator.model_dump(mode="json")
             for locator in _dedupe_locators(right_locators)
         ],
-        "conditions": [
-            condition.model_dump(mode="json") for condition in conditions
-        ],
+        "conditions": [condition.model_dump(mode="json") for condition in conditions],
         "rule_set_id": input.rule_set.rule_set_id,
         "rule_set_version": input.rule_set.version,
         "rule_set_content_hash": input.rule_set.content_hash,
@@ -825,28 +817,19 @@ def _condition(
     strict_threshold_arcsec: float | None = None,
     manual_review_threshold_arcsec: float | None = None,
 ) -> CrossmatchCondition:
-    identity = compute_canonical_payload_hash(
-        {
-            "operator": operator.value,
-            "field_id": field_id,
-            "left_value": left_value,
-            "right_value": right_value,
-            "separation_arcsec": separation_arcsec,
-            "strict_threshold_arcsec": strict_threshold_arcsec,
-            "manual_review_threshold_arcsec": manual_review_threshold_arcsec,
-            "rule_reference": rule_reference,
-        }
-    )
+    payload = {
+        "operator": operator,
+        "field_id": field_id,
+        "left_value": left_value,
+        "right_value": right_value,
+        "separation_arcsec": separation_arcsec,
+        "strict_threshold_arcsec": strict_threshold_arcsec,
+        "manual_review_threshold_arcsec": manual_review_threshold_arcsec,
+        "rule_reference": rule_reference,
+    }
     return CrossmatchCondition(
-        condition_id=f"condition.{identity.removeprefix('sha256:')[:24]}",
-        operator=operator,
-        field_id=field_id,
-        left_value=left_value,
-        right_value=right_value,
-        separation_arcsec=separation_arcsec,
-        strict_threshold_arcsec=strict_threshold_arcsec,
-        manual_review_threshold_arcsec=manual_review_threshold_arcsec,
-        rule_reference=rule_reference,
+        condition_id=compute_crossmatch_condition_id(payload),
+        **payload,
     )
 
 
@@ -868,11 +851,7 @@ def _optional_identity(
     field_id: str,
 ) -> CanonicalIdentityValue | None:
     return next(
-        (
-            value
-            for value in candidate.identity_values
-            if value.field_id == field_id
-        ),
+        (value for value in candidate.identity_values if value.field_id == field_id),
         None,
     )
 

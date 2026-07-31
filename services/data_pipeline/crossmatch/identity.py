@@ -7,6 +7,9 @@ import re
 import unicodedata
 
 from app.schemas.crossmatch import SkyCoordinate
+from app.schemas.crossmatch import (
+    angular_separation_arcsec as angular_separation_arcsec,
+)
 
 
 _TIC_IDENTIFIER = re.compile(r"^(?:tic\s*)?([0-9]+)$", re.IGNORECASE)
@@ -19,7 +22,6 @@ _TOI_IDENTIFIER = re.compile(
     re.IGNORECASE,
 )
 _MAX_CATALOG_IDENTIFIER_DIGITS = 19
-_ARCSECONDS_PER_RADIAN = 180.0 * 3600.0 / math.pi
 
 
 def normalize_tic_id(value: object) -> str:
@@ -65,24 +67,6 @@ def normalize_sky_coordinate(
     )
 
 
-def angular_separation_arcsec(
-    left: SkyCoordinate,
-    right: SkyCoordinate,
-) -> float:
-    left_ra = math.radians(left.right_ascension)
-    right_ra = math.radians(right.right_ascension)
-    left_dec = math.radians(left.declination)
-    right_dec = math.radians(right.declination)
-    half_dec = (right_dec - left_dec) / 2.0
-    half_ra = (right_ra - left_ra) / 2.0
-    haversine = (
-        math.sin(half_dec) ** 2
-        + math.cos(left_dec) * math.cos(right_dec) * math.sin(half_ra) ** 2
-    )
-    angle = 2.0 * math.asin(math.sqrt(min(1.0, max(0.0, haversine))))
-    return angle * _ARCSECONDS_PER_RADIAN
-
-
 def normalize_name(value: object) -> str:
     if not isinstance(value, str):
         raise ValueError("entity name must be a string")
@@ -106,10 +90,7 @@ def _normalize_catalog_identifier(
         or int(match.group(1)) == 0
         or len(match.group(1)) > _MAX_CATALOG_IDENTIFIER_DIGITS
     ):
-        if (
-            match is not None
-            and len(match.group(1)) > _MAX_CATALOG_IDENTIFIER_DIGITS
-        ):
+        if match is not None and len(match.group(1)) > _MAX_CATALOG_IDENTIFIER_DIGITS:
             raise ValueError(f"{prefix} identifier exceeds frozen length boundary")
         raise ValueError(f"invalid {prefix} identifier")
     return f"{prefix} {int(match.group(1))}"
