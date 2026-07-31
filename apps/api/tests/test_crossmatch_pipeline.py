@@ -851,7 +851,43 @@ def test_crossmatch_result_rejects_output_tampering() -> None:
     tampered = result.model_dump(mode="json")
     tampered["metrics"]["left_record_count"] = 2
 
-    with pytest.raises(ValidationError, match="content_hash"):
+    with pytest.raises(ValidationError, match="metrics disagree with result members"):
+        CrossmatchResult.model_validate(tampered)
+
+
+@pytest.mark.parametrize(
+    "tamper_kind",
+    [
+        "record_count",
+        "matched_group_count",
+        "coverage",
+        "method_distribution",
+    ],
+)
+def test_crossmatch_result_rejects_rehashed_metrics_tampering(
+    tamper_kind: str,
+) -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("631.01", tic_id=631),),
+            (ps_record("Metrics Bound b", "Reference", tic_id="TIC 631"),),
+        )
+    )
+    tampered = result.model_dump(mode="json")
+    metrics = tampered["metrics"]
+    if tamper_kind == "record_count":
+        metrics["left_record_count"] += 1
+    elif tamper_kind == "matched_group_count":
+        metrics["matched_group_count"] = 0
+    elif tamper_kind == "coverage":
+        metrics["match_coverage"]["numerator"] = 0
+        metrics["match_coverage"]["value"] = 0.0
+    else:
+        metrics["method_distribution"]["exact_identifier"] -= 1
+        metrics["method_distribution"]["compound"] += 1
+    rehash_result_payload(tampered)
+
+    with pytest.raises(ValidationError, match="metrics disagree with result members"):
         CrossmatchResult.model_validate(tampered)
 
 

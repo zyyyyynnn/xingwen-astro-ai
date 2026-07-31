@@ -1080,6 +1080,208 @@ class CrossmatchMetrics(BaseModel):
         return self
 
 
+def compute_crossmatch_metrics(
+    candidates: Iterable[EntityCandidate],
+    edges: Iterable[CandidateEdge],
+    records: Iterable[CrossmatchRecord],
+    evidence: Iterable[CrossmatchEvidence],
+) -> CrossmatchMetrics:
+    candidate_values = tuple(candidates)
+    edge_values = tuple(edges)
+    record_values = tuple(records)
+    evidence_values = tuple(evidence)
+    paired = [
+        record for record in record_values if isinstance(record, PairedMatch)
+    ]
+    conflicts = [
+        record for record in record_values if isinstance(record, ConflictGroup)
+    ]
+    unpaired = [
+        record for record in record_values if isinstance(record, UnpairedRecord)
+    ]
+    audited_records = paired + conflicts
+    evidence_ids = {item.evidence_id for item in evidence_values}
+    covered = sum(
+        1
+        for record in audited_records
+        if set(record.evidence_ids).issubset(evidence_ids)
+        and bool(record.evidence_ids)
+    )
+    denominator = len(audited_records)
+    candidate_count = sum(
+        (
+            len(record.left_candidate_ids) + len(record.right_candidate_ids)
+            if isinstance(record, PairedMatch | ConflictGroup)
+            else 1
+        )
+        for record in record_values
+    )
+    accepted_paired = [
+        record
+        for record in paired
+        if record.decision is MatchDecision.accepted
+        or record.adjudication is AdjudicationDecision.accepted
+    ]
+    matched_candidates = sum(
+        len(record.left_candidate_ids) + len(record.right_candidate_ids)
+        for record in accepted_paired
+    )
+    conflict_denominator = len(paired) + len(conflicts)
+    unmatched_left = sum(
+        record.side is CrossmatchSide.left
+        and record.decision is MatchDecision.unmatched
+        for record in unpaired
+    )
+    unmatched_right = sum(
+        record.side is CrossmatchSide.right
+        and record.decision is MatchDecision.unmatched
+        for record in unpaired
+    )
+    unresolved_paired = [
+        record
+        for record in paired
+        if record.decision is MatchDecision.review_required
+        and record.adjudication in {None, AdjudicationDecision.keep_unresolved}
+    ]
+    unresolved_conflicts = [
+        record
+        for record in conflicts
+        if record.adjudication in {None, AdjudicationDecision.keep_unresolved}
+    ]
+    error_references = sorted(
+        {
+            *(
+                record.logical_match_key
+                for record in (*unresolved_paired, *unresolved_conflicts)
+            ),
+            *(record.content_hash for record in unpaired),
+        }
+    )[:10]
+    left_source_records = {
+        (
+            candidate.source_record.source_id,
+            candidate.source_record.row_key,
+        )
+        for candidate in candidate_values
+        if candidate.side is CrossmatchSide.left
+    }
+    right_source_records = {
+        (
+            candidate.source_record.source_id,
+            candidate.source_record.row_key,
+        )
+        for candidate in candidate_values
+        if candidate.side is CrossmatchSide.right
+    }
+    return CrossmatchMetrics(
+        left_record_count=len(left_source_records),
+        right_record_count=len(right_source_records),
+        left_candidate_count=sum(
+            candidate.side is CrossmatchSide.left for candidate in candidate_values
+        ),
+        right_candidate_count=sum(
+            candidate.side is CrossmatchSide.right for candidate in candidate_values
+        ),
+        candidate_pair_count=len(edge_values),
+        paired_group_count=len(paired),
+        matched_group_count=len(accepted_paired),
+        ambiguous_group_count=len(unresolved_paired),
+        conflict_group_count=len(conflicts),
+        unmatched_record_count=unmatched_left + unmatched_right,
+        unmatched_left_record_count=unmatched_left,
+        unmatched_right_record_count=unmatched_right,
+        inconclusive_record_count=sum(
+            record.decision is MatchDecision.inconclusive for record in unpaired
+        ),
+        manual_review_required_count=(
+            len(unresolved_paired) + len(unresolved_conflicts)
+        ),
+        low_confidence_count=sum(
+            edge.confidence_band is ConfidenceBand.low for edge in edge_values
+        ),
+        manual_adjudication_count=sum(
+            record.adjudication is not None
+            for record in (*paired, *conflicts)
+        ),
+        one_to_one_count=sum(
+            record.topology is MatchTopology.one_to_one for record in paired
+        ),
+        one_to_many_count=sum(
+            record.topology is MatchTopology.one_to_many for record in paired
+        ),
+        many_to_one_count=sum(
+            record.topology is MatchTopology.many_to_one for record in paired
+        ),
+        many_to_many_count=sum(
+            record.topology is MatchTopology.many_to_many for record in paired
+        ),
+        confidence_distribution=ConfidenceDistribution(
+            high=sum(
+                edge.confidence_band is ConfidenceBand.high
+                for edge in edge_values
+            ),
+            medium=sum(
+                edge.confidence_band is ConfidenceBand.medium
+                for edge in edge_values
+            ),
+            low=sum(
+                edge.confidence_band is ConfidenceBand.low for edge in edge_values
+            ),
+            not_applicable=sum(
+                edge.confidence_band is ConfidenceBand.not_applicable
+                for edge in edge_values
+            ),
+        ),
+        method_distribution=MethodDistribution(
+            exact_identifier=sum(
+                edge.method is CrossmatchMethod.exact_identifier
+                for edge in edge_values
+            ),
+            curated_entity_alias=sum(
+                edge.method is CrossmatchMethod.curated_entity_alias
+                for edge in edge_values
+            ),
+            coordinate=sum(
+                edge.method is CrossmatchMethod.coordinate for edge in edge_values
+            ),
+            compound=sum(
+                edge.method is CrossmatchMethod.compound for edge in edge_values
+            ),
+        ),
+        error_example_references=tuple(error_references),
+        match_coverage=RatioMetric(
+            numerator=matched_candidates,
+            denominator=candidate_count,
+            value=(
+                matched_candidates / candidate_count if candidate_count else None
+            ),
+        ),
+        conflict_rate=RatioMetric(
+            numerator=len(conflicts),
+            denominator=conflict_denominator,
+            value=(
+                len(conflicts) / conflict_denominator
+                if conflict_denominator
+                else None
+            ),
+        ),
+        unmatched_rate=RatioMetric(
+            numerator=unmatched_left + unmatched_right,
+            denominator=candidate_count,
+            value=(
+                (unmatched_left + unmatched_right) / candidate_count
+                if candidate_count
+                else None
+            ),
+        ),
+        evidence_coverage=RatioMetric(
+            numerator=covered,
+            denominator=denominator,
+            value=covered / denominator if denominator else None,
+        ),
+    )
+
+
 class CrossmatchProducerExecution(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -1438,6 +1640,14 @@ class CrossmatchResult(BaseModel):
             != self.rule_set_content_hash
         ):
             raise ValueError("producer execution disagrees with result RuleSet")
+        expected_metrics = compute_crossmatch_metrics(
+            self.candidates,
+            self.candidate_edges,
+            self.records,
+            self.evidence,
+        )
+        if self.metrics != expected_metrics:
+            raise ValueError("metrics disagree with result members")
         if self.output_hash != self.content_hash:
             raise ValueError("output_hash must equal the canonical result content_hash")
         expected_result_id = (

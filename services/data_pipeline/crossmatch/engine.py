@@ -281,7 +281,7 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
     records = sorted(records, key=_record_sort_key)
     records = list(_apply_manual_decisions(tuple(records), input))
 
-    metrics = compute_crossmatch_metrics(input, candidates, edges, records, evidence)
+    metrics = compute_crossmatch_metrics(candidates, edges, records, evidence)
     producer = CrossmatchProducerExecution(
         producer_name=input.rule_set.producer_name,
         producer_version=input.rule_set.producer_version,
