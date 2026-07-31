@@ -1,0 +1,61 @@
+{
+  "rule_set_id": "exoplanet_host_star.crossmatch_rules",
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "content_hash": "sha256:6d47746b7fb2e45970ed352aa4002edcdeef7bffac0356519f292d7accfd098d",
+  "producer_name": "xingwen.cross_source_alignment",
+  "producer_version": "1.0.0",
+  "case_manifest_id": "exoplanet_host_star",
+  "case_manifest_version": "1.0.1",
+  "case_manifest_content_hash": "sha256:bb870d3c8b6b6c972cd8d7139b9cfcb672bb9ce75401109271aaf05a147819d3",
+  "field_manifest_id": "exoplanet_host_star.fields",
+  "field_manifest_version": "1.0.1",
+  "field_manifest_content_hash": "sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53",
+  "source_policy_version": "1.0.0",
+  "source_policy_content_hash": "sha256:4ab8fb8837160764f13d2c26d5ed48a67bcd944df020ffbe0a0f57e8b24d4fb1",
+  "identifier_policy_version": "1.0.0",
+  "name_policy_version": "1.0.0",
+  "alias_policy_version": "1.0.0",
+  "coordinate_policy_version": "1.0.0",
+  "entity_alias_catalog_version": "1.0.0",
+  "entity_alias_catalog_content_hash": "sha256:9cc7ae6f7616ac1fab596edc31218ccee6e1022f2fb297eb70c8f73fc500f9c3",
+  "capacity_policy_version": "1.0.0",
+  "conflict_policy_version": "1.0.0",
+  "supported_entity_levels": [
+    "host_star",
+    "planet_candidate",
+    "planet_assertion"
+  ],
+  "method_priority": [
+    "exact_identifier",
+    "curated_entity_alias",
+    "coordinate",
+    "compound"
+  ],
+  "alias_requires_corroboration": true,
+  "capacity": {
+    "max_left_records": 500,
+    "max_right_records": 500,
+    "max_candidate_pairs": 250000
+  },
+  "coordinate": {
+    "frame": "ICRS",
+    "unit": "degree",
+    "strict_separation_arcsec": 1.0,
+    "manual_review_separation_arcsec": 2.0
+  },
+  "confidence": {
+    "high_minimum": 0.95,
+    "medium_minimum": 0.7,
+    "low_minimum": 0.4
+  },
+  "method_confidence": {
+    "exact_identifier": 1.0,
+    "curated_entity_alias": 0.8,
+    "coordinate_strict": 0.7,
+    "coordinate_review": 0.4,
+    "compound": 1.0
+  },
+  "created_at": "2026-07-30",
+  "maintained_by": "module-c-data-pipeline"
+}

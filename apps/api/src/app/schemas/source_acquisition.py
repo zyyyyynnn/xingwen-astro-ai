@@ -56,6 +56,37 @@ class SupplementalDataQueryCursor(BaseModel):
 DataSourceCursor = DataQueryCursor | SupplementalDataQueryCursor
 
 
+class DataSourceCompletionStatus(StrEnum):
+    """Whether the bounded acquisition proved that its source scope is complete."""
+
+    complete = "complete"
+    truncated = "truncated"
+    unknown = "unknown"
+
+
+class DataSourceCompletion(BaseModel):
+    """Typed source-completion semantics consumed by downstream data stages."""
+
+    model_config = MODEL_CONFIG
+
+    status: DataSourceCompletionStatus
+    continuation_cursor: DataSourceCursor | None = None
+
+    @model_validator(mode="after")
+    def validate_cursor_semantics(self) -> Self:
+        if (
+            self.status is DataSourceCompletionStatus.complete
+            and self.continuation_cursor is not None
+        ):
+            raise ValueError("complete acquisition cannot expose a continuation cursor")
+        if (
+            self.status is DataSourceCompletionStatus.truncated
+            and self.continuation_cursor is None
+        ):
+            raise ValueError("truncated acquisition requires a continuation cursor")
+        return self
+
+
 class RawDataSourceRecord(BaseModel):
     model_config = MODEL_CONFIG
 

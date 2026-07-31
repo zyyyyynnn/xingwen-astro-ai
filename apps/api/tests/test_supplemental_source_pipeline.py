@@ -477,6 +477,11 @@ def test_ps_adapter_treats_empty_result_as_complete_success() -> None:
 
 
 def test_ps_adapter_marks_full_bounded_result_as_truncated() -> None:
+    from app.schemas.source_acquisition import (
+        DataSourceCompletion,
+        SupplementalDataQueryCursor,
+    )
+
     query = ps_query()
     record = ps_record(
         query.selected_columns,
@@ -492,6 +497,13 @@ def test_ps_adapter_marks_full_bounded_result_as_truncated() -> None:
     result = acquire_live(query, transport)
 
     metadata = result.snapshot.request_metadata
+    assert result.completion == DataSourceCompletion(
+        status="truncated",
+        continuation_cursor=SupplementalDataQueryCursor(
+            pl_name="Planet b",
+            pl_refname="Reference",
+        ),
+    )
     assert metadata["completion_status"] == "truncated"
     assert metadata["continuation_cursor"] == {
         "pl_name": "Planet b",

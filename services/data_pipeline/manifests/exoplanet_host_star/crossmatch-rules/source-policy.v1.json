@@ -1,0 +1,25 @@
+{
+  "policy_id": "nasa_exoplanet_archive.acquisition_source_policy",
+  "version": "1.0.0",
+  "allowed_origins": [
+    {
+      "source_mode": "fixture",
+      "data_levels": [
+        "fixture",
+        "recorded_response"
+      ]
+    },
+    {
+      "source_mode": "live",
+      "data_levels": [
+        "live_result"
+      ]
+    }
+  ],
+  "completion_statuses": [
+    "complete",
+    "truncated",
+    "unknown"
+  ],
+  "content_hash": "sha256:4ab8fb8837160764f13d2c26d5ed48a67bcd944df020ffbe0a0f57e8b24d4fb1"
+}

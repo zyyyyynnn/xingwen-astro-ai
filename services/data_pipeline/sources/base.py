@@ -9,7 +9,11 @@ from typing import Protocol
 
 from app.schemas.enums import UpstreamFailureClass
 from app.schemas.evidence import SourceSnapshotRecord
-from app.schemas.source_acquisition import DataSourcePage, RawDataSourceRecord
+from app.schemas.source_acquisition import (
+    DataSourceCompletion,
+    DataSourcePage,
+    RawDataSourceRecord,
+)
 
 
 @dataclass(frozen=True)
@@ -35,6 +39,7 @@ class DataSourceAcquisitionResult:
     records: tuple[RawDataSourceRecord, ...]
     pages: tuple[DataSourcePage, ...]
     snapshot: SourceSnapshotRecord
+    completion: DataSourceCompletion
     retry_count: int
 
 
