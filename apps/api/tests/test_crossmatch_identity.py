@@ -63,7 +63,9 @@ def test_tic_identifier_rejects_values_beyond_frozen_length_boundary() -> None:
     [
         ("1243.01", "1243.01"),
         ("TOI 1243.01", "1243.01"),
+        ("TOI1243.01", "1243.01"),
         ("toi-1243.01", "1243.01"),
+        ("TOI - 1243.01", "1243.01"),
         (" TOI   001243.01 ", "1243.01"),
     ],
 )
@@ -81,6 +83,9 @@ def test_toi_identifier_normalization_preserves_candidate_number(
         "TOI",
         "TOI-0.01",
         "TOI 1243 b",
+        "TOI--1243.01",
+        "TOI - - 1243.01",
+        "TOIABC1243.01",
         "TOI 1243.01 OR 1=1",
         "TOI 1243.01, TOI 1244.01",
     ],

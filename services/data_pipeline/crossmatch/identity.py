@@ -15,7 +15,7 @@ _GAIA_DR3_IDENTIFIER = re.compile(
     re.IGNORECASE,
 )
 _TOI_IDENTIFIER = re.compile(
-    r"^(?:toi(?:\s+|-)\s*)?([0-9]+)(?:\.([0-9]+))?$",
+    r"^(?:toi(?:\s*-\s*|\s*))?([0-9]+)(?:\.([0-9]+))?$",
     re.IGNORECASE,
 )
 _MAX_CATALOG_IDENTIFIER_DIGITS = 19
