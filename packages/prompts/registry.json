@@ -1,19 +1,6 @@
 {
   "registry_version": 2,
   "prompts": {
-    "literature_claim": {
-      "current": "v1",
-      "versions": {
-        "v1": {
-          "path": "literature_claim/v1.md",
-          "content_hash": "sha256:054ab7dea308222716f4cf327c7b01f2781d05e8718bf47b331a62a28775ebe1",
-          "output_models": [
-            "LiteratureClaimExtractionOutput"
-          ],
-          "status": "active"
-        }
-      }
-    },
     "literature_reasoning": {
       "current": "v1",
       "versions": {
