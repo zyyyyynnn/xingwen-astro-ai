@@ -6,6 +6,8 @@ from pydantic import TypeAdapter, ValidationError
 from app.schemas.crossmatch import (
     AdjudicationDecision,
     ConfidenceBand,
+    ConditionOperator,
+    CrossmatchCondition,
     CrossmatchMethod,
     CrossmatchRecord,
     CrossmatchRecordType,
@@ -129,3 +131,38 @@ def test_paired_match_admits_reserved_rejected_decision() -> None:
     tampered["content_hash"] = "sha256:" + "0" * 64
     with pytest.raises(ValidationError):
         PairedMatch.model_validate(tampered)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "operator": ConditionOperator.exact,
+            "field_id": "star.tic_id",
+            "left_value": "123",
+            "right_value": "123",
+            "separation_arcsec": 0.1,
+        },
+        {
+            "operator": ConditionOperator.curated_alias,
+            "field_id": "star.tic_id",
+            "left_value": "123",
+            "right_value": "123",
+            "strict_threshold_arcsec": 1.0,
+        },
+        {
+            "operator": ConditionOperator.source_scope,
+        },
+    ],
+)
+def test_crossmatch_condition_rejects_undefined_operator_shapes(
+    payload: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError, match="condition"):
+        CrossmatchCondition.model_validate(
+            {
+                "condition_id": "condition.invalid_shape",
+                "rule_reference": "crossmatch-rules.v1",
+                **payload,
+            }
+        )

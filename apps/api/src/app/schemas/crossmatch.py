@@ -567,10 +567,13 @@ class CrossmatchCondition(BaseModel):
             ConditionOperator.curated_alias,
             ConditionOperator.contradicts,
         }
-        if coordinate_condition != all(value is not None for value in values):
+        has_any_distance = any(value is not None for value in values)
+        if coordinate_condition and not all(value is not None for value in values):
             raise ValueError(
                 "coordinate condition requires separation and both thresholds"
             )
+        if not coordinate_condition and has_any_distance:
+            raise ValueError("non-coordinate condition must not carry distance fields")
         strict_threshold = self.strict_threshold_arcsec
         manual_threshold = self.manual_review_threshold_arcsec
         if (
@@ -596,6 +599,8 @@ class CrossmatchCondition(BaseModel):
             raise ValueError(
                 "coordinate conditions must not carry identifier values"
             )
+        if self.operator is ConditionOperator.source_scope:
+            raise ValueError("source_scope condition is not supported by v1")
         return self
 
 
