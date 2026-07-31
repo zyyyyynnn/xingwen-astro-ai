@@ -259,7 +259,9 @@ D-03 来源版本冲突保留 `claimed_source_version` 与 SourceSnapshot 声明
 
 ### 9.3 Claim、Relation 与 ReasoningTrace
 
-LiteratureClaim：paper_id、claim_type、text、conditions、evidence_ids、confidence、`candidate | accepted | rejected`。
+LiteratureClaim 的 D-07 唯一 Pipeline Pydantic 编写源是 `apps/api/src/app/schemas/literature_claim.py`。Schema-valid Claim 包含输入 PaperSummary ArtifactVersion/summary statement/paper、原始与规范化表述、claim type、polarity、objects、metric/unit、conditions、scope、limitations、qualifiers、uncertainty、comparison basis、Evidence/SourceSnapshot、normalization version、稳定 fingerprint、Prompt/model/ProducerExecution、input/model-response/output hash、`candidate | accepted | rejected`、failure stage 和稳定拒绝原因。JSON/Schema 失败只产生无 Claim 的统一 admission result，不伪造领域对象。完整拒绝枚举、固定准入顺序和运行方式的唯一正文见 [LiteratureClaim Pipeline](../engineering/LITERATURE_CLAIM_PIPELINE.md)。
+
+D-07 的 `LiteratureClaimsCandidate@1.0.0` 是交给后续 Relation/读取边界与 ArtifactVersion 准入端口的领域 typed candidate，不是 HTTP DTO。只有 D-07 Pipeline 返回的封印批次可进入 Publisher；单条模型输出或 admission record/result、Phase 0 `app.schemas.reasoning.LiteratureClaim` 及其 `LiteratureReasoningResponse` 包络、core `LiteratureClaimsArtifactContent` 投影都不是发布编写源，并由 Publisher marker 拒绝。accepted 要求全部 Evidence 为 D-03 `supported`；unsupported/unverifiable Evidence 只能形成 candidate；版本、Evidence/SourceSnapshot、ownership、normalization 或 duplicate 硬错误形成 rejected。confidence、模糊相似度和 hash 不用于科学正确性判定。
 
 LiteratureRelation：source/target claim、relation_type、conditions、reasoning_trace_id、evidence_ids、confidence、状态。方向统一为 `source_claim_id relation_type target_claim_id`；source 是关系主语，target 是关系宾语。Accepted Relation 必须同时有 Evidence 和 ReasoningTrace。
 
@@ -281,7 +283,7 @@ Crossref SourcePolicy 分离 `documented_policy` 与 `observed_runtime_limits`�
 
 ## 10. Evidence 与 SourceSnapshot
 
-C-08 的唯一 Pydantic 编写源是
+跨源实体对齐的唯一 Pydantic 编写源是
 `apps/api/src/app/schemas/crossmatch.py`。`CrossmatchInput` 固定 Case/Field
 Manifest、RuleSet、完整冻结 SourcePolicy、alias catalog、两侧 SourceSnapshot、
 completion scope、origin 与 canonical raw-record references；SourcePolicy
@@ -294,7 +296,7 @@ conflict record、显式人工裁决审计、可解释指标及稳定 input/outp
 source-input/RuleSet/candidate/Evidence 后才可附加审计，且不会覆盖自动判定。
 完整运行语义见
 [Cross-source Entity Alignment](../engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md)。
-C-04 canonical mapping 与 C-05 quality scoring 仍为 Pending。
+Canonical mapping 与 quality scoring 属于独立职责边界。
 
 Evidence：
 

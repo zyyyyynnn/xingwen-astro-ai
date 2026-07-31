@@ -1,24 +1,24 @@
 # Data and Artifact Versioning
 
-| 项目状态 | 口径 |
-| --- | --- |
-| Status | Accepted |
+| 项目状态  | 口径                                              |
+| --------- | ------------------------------------------------- |
+| Status    | Accepted                                          |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
 
-本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。ArtifactVersion、Evidence 和 SourceSnapshot 由 PostgreSQL 提供私有读取与 Project ownership 边界；`paper_collection` 在该边界上提供只读校验与候选 keyset cursor，不改变发布事务。Workspace/Share Runtime 使用 PostgreSQL resource authority 校验资源事实；其快照记录的持久化边界由对应实现 Issue 定义。
+本文定义科研产物、来源、缓存、修订、工作台与分享的版本规则。ArtifactVersion、Evidence 和 SourceSnapshot 由 PostgreSQL 提供私有读取与 Project ownership 边界；`paper_collection` 在该边界上提供只读校验与候选 keyset cursor，不改变发布事务。Workspace/Share Runtime 使用 PostgreSQL resource authority 校验资源事实；WorkspaceSnapshot 与 ShareSnapshot 记录由进程内 Adapter 保存，不跨重启或实例共享。
 
 ## 1. 版本边界
 
-| 对象 | 是否不可变 | 用途 |
-| --- | --- | --- |
-| ResearchContract | 确认后不可变 | 固定一次 Run 的研究输入和质量要求 |
-| ResearchRun | 创建后关键输入不可变 | 记录一次执行、失败、取消或派生关系 |
-| ResearchArtifact | 身份可更新 | 表示同一逻辑产物，维护 latest 指针 |
-| ArtifactVersion | 内容不可变 | Evidence、Cache、Share、Export 的绑定单位 |
-| SourceSnapshot | 不可变 | 固定外部来源、查询、时间和许可信息 |
-| BenchmarkPackage | 已发布版本不可变 | 使用 benchmark id、version 与 content hash 固定静态评测输入 |
-| WorkspaceSnapshot | 可覆盖、乐观锁 | 私有 UI 恢复状态，不是科研产物 |
-| ShareSnapshot | 创建后不可变 | 冻结公开版本与脱敏范围 |
+| 对象              | 是否不可变           | 用途                                                        |
+| ----------------- | -------------------- | ----------------------------------------------------------- |
+| ResearchContract  | 确认后不可变         | 固定一次 Run 的研究输入和质量要求                           |
+| ResearchRun       | 创建后关键输入不可变 | 记录一次执行、失败、取消或派生关系                          |
+| ResearchArtifact  | 身份可更新           | 表示同一逻辑产物，维护 latest 指针                          |
+| ArtifactVersion   | 内容不可变           | Evidence、Cache、Share、Export 的绑定单位                   |
+| SourceSnapshot    | 不可变               | 固定外部来源、查询、时间和许可信息                          |
+| BenchmarkPackage  | 已发布版本不可变     | 使用 benchmark id、version 与 content hash 固定静态评测输入 |
+| WorkspaceSnapshot | 可覆盖、乐观锁       | 私有 UI 恢复状态，不是科研产物                              |
+| ShareSnapshot     | 创建后不可变         | 冻结公开版本与脱敏范围                                      |
 
 BenchmarkPackage 的 `schema_version` 表示机器结构版本，`benchmark_version` 表示论文、Evidence、科研审核标签、Graph、来源政策或指标内容版本。任何内容或语义变化都发布新 version 与 content hash，并追加 change record；实际 Review 完成后才追加 review record，不得由 Codex 伪造。不得在相同 version 下原地改变已发布语义。来源核验日期、稳定 URL、文档政策冲突和运行时响应头快照属于 hash 绑定内容，运行时 SourceSnapshot 仍另行记录实际响应与请求元数据。
 
@@ -72,7 +72,7 @@ fork Run     -> 新 Contract 下的新版本或新 Artifact
 
 版本只有在 Schema、Evidence、SourceSnapshot、质量约束和 content hash 验证通过后才发布。取消后完成的外部输出可以保留为诊断记录，但不得自动提升为 latest。
 
-#78 Publisher 只接受通过 Pydantic 结构校验以及调用方 Evidence、Domain、Quality 三道准入门的 opaque candidate。发布事务按 `ResearchRun -> RunStep -> ResearchArtifact（id 排序）` 固定顺序加锁，并原子写入 Version、latest、Attempt、Step、Run 和 Event；任一写入失败全部回滚。`publication_key` 在 Artifact 内唯一，同 key 同内容和 producer 条件重放既有 Version，不同条件返回稳定冲突。
+Publisher 只接受通过 Pydantic 结构校验以及调用方 Evidence、Domain、Quality 三道准入门的 opaque candidate。发布事务按 `ResearchRun -> RunStep -> ResearchArtifact（id 排序）` 固定顺序加锁，并原子写入 Version、latest、Attempt、Step、Run 和 Event；任一写入失败全部回滚。`publication_key` 在 Artifact 内唯一，同 key 同内容和 producer 条件重放既有 Version，不同条件返回稳定冲突。
 
 ## 4. ProducerExecution
 
@@ -106,11 +106,13 @@ error_code
 
 `parameters` 只保存经过名称、类型和长度约束的安全标量；敏感键在数据库访问前拒绝。不得保存 API Key、认证头、完整受限全文、原始模型长输出或 chain-of-thought。成功、失败、rejected 与 cancelled 执行均保留。
 
-对 PaperCollection，ArtifactVersion `content_hash` 固定 #78 实际写入的完整 JSON；content 内部 D-02 `output_hash` 固定排除抓取和执行 wall-clock 后的科研稳定内容。读取时必须分别复算，不能要求这两个 hash 相等。
+对 PaperCollection，ArtifactVersion `content_hash` 固定 Publisher 实际写入的完整 JSON；content 内部 D-02 `output_hash` 固定排除抓取和执行 wall-clock 后的科研稳定内容。读取时必须分别复算，不能要求这两个 hash 相等。
 
-D-02 当前在 PaperCollection content 内生成 detached ProducerExecution：记录固定 step key、producer/rule version、parameters/input/output hash、状态、时间、latency 和错误码，但不登记 ResearchRun 或数据库记录。#78 已提供持久化 ProducerExecution Store 与 ArtifactVersion Publisher；D-02 到该端口的生产接线仍由后续集成负责。具体稳定 hash 与失败记录见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。
+D-02 在 PaperCollection content 内生成 detached ProducerExecution：记录固定 step key、producer/rule version、parameters/input/output hash、状态、时间、latency 和错误码，不登记 ResearchRun 或数据库记录。持久化 ProducerExecution Store 与 ArtifactVersion 分配由 Publisher 端口负责，detached 记录经该端口进入持久化与版本边界。具体稳定 hash 与失败记录见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。
 
-D-03 同样生成 detached PaperSummary ProducerExecution，记录 `model_name`、Prompt name/version/hash、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本、input hash、模型响应 hash、最终 output hash 与安全终态。B-07 读取投影同时暴露 ArtifactVersion `version_number` / `supersedes_version_id`；Cached Summary 必须逐来源给出 cache version、适用性、Live 失败原因和 origin Run/ArtifactVersion，并把 audit `source_id` 绑定到对应 SourceSnapshot，不允许来源调换、空审计或与 `source_mode` 不一致的审计进入正常读取。JSON/Schema 拒绝只保留稳定 error code 和响应 hash，不保留原始模型输出；Evidence 降级仍产生可审查 Summary content，但 unsupported/unverifiable 项不作为已验证事实。生产模型 client、数据库 ProducerExecution 接线与 ArtifactVersion 事务仍属于 Workflow/B-07 后续集成。
+D-03 同样生成 detached PaperSummary ProducerExecution，记录 `model_name`、Prompt name/version/hash、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本、input hash、模型响应 hash、最终 output hash 与安全终态。读取投影同时暴露 ArtifactVersion `version_number` / `supersedes_version_id`；Cached Summary 必须逐来源给出 cache version、适用性、Live 失败原因和 origin Run/ArtifactVersion，并把 audit `source_id` 绑定到对应 SourceSnapshot，不允许来源调换、空审计或与 `source_mode` 不一致的审计进入正常读取。JSON/Schema 拒绝只保留稳定 error code 和响应 hash，不保留原始模型输出；Evidence 降级仍产生可审查 Summary content，但 unsupported/unverifiable 项不作为已验证事实。生产模型 client、数据库 ProducerExecution 持久化与 ArtifactVersion 事务属于 Workflow 与读取投影边界。
+
+D-07 生成 detached LiteratureClaim ProducerExecution，固定 PaperSummary ArtifactVersion/schema/output hash、paper/summary、SourceSnapshot versions、Prompt/schema/model/parameters/producer/normalization version 与 input/model-response/output hash。JSON/Schema rejected result 不保存原始响应；Schema-valid Claim 的 accepted/candidate/rejected record 均保留输入与 execution 引用。`LiteratureClaimsCandidate` 已通过 Pipeline seal，可进入 structured ArtifactVersion admission；其内部稳定 `output_hash` 排除 execution/run id、wall-clock 与 latency，ArtifactVersion admission 返回的 `content_hash` 则覆盖准备持久化的完整 JSON，两者不要求相等。后续持久化与读取边界使用 admitted `content_hash` 对照数据库 ProducerExecution，并负责 ArtifactVersion 接线和 version-pinned HTTP projection。
 
 ## 5. SourceSnapshot
 
@@ -131,9 +133,9 @@ request_metadata
 
 数据库查询、论文检索、论文元数据和可公开文本使用各自 locator。Snapshot 中的 request metadata 只保留可复现且非敏感字段。
 
-C-02 已为成功 NASA Exoplanet Archive TOI acquisition 生成完整不可变 SourceSnapshot，记录冻结 Manifest、规范化 query/hash、TAP_SCHEMA 预检、keyset 分页、请求/响应 hash、耗时、重试、许可、版本/ETag 与 request-id 可用性。上游未提供 ETag 或 request-id 时显式记录 `unavailable`，不得生成替代值；Recorded response 固定为 `source_mode=fixture` 与 `data_level=recorded_response`，并绑定版本化 fixture hash/provenance。运行规则见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md)。
+成功的 NASA Exoplanet Archive TOI acquisition 必须生成完整不可变 SourceSnapshot，记录冻结 Manifest、规范化 query/hash、TAP_SCHEMA 预检、keyset 分页、请求/响应 hash、耗时、重试、许可、版本/ETag 与 request-id 可用性。上游未提供 ETag 或 request-id 时显式记录 `unavailable`，不得生成替代值；Recorded response 固定为 `source_mode=fixture` 与 `data_level=recorded_response`，并绑定版本化 fixture hash/provenance。运行规则见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md)。
 
-C-07 对 PS 补充来源生成独立 SourceSnapshot；C-08 不合并或重写两侧
+PS 补充来源生成独立 SourceSnapshot；跨源实体对齐不合并或重写两侧
 Snapshot，而是把双方 Snapshot/query/content hash、completion、origin、排序后的
 raw-record hashes、Manifest/RuleSet/SourcePolicy/alias pins 和可选人工裁决 hash 绑定到稳定
 `source_input_hash` / `input_hash`。`output_hash` 绑定 candidate、edge、Evidence、
@@ -141,7 +143,7 @@ raw-record hashes、Manifest/RuleSet/SourcePolicy/alias pins 和可选人工裁�
 RuleSet version/hash。运行规则见
 [Cross-source Entity Alignment](../engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md)。
 
-D-02 已为成功 Crossref metadata execution 生成完整不可变 SourceSnapshot；失败请求保存 SourceExecution 的 query/pagination/hash/error，不伪造 Snapshot。Cached PaperCollection 要求 Snapshot 额外绑定真实 `origin_run_id` 与 `origin_artifact_version_id`，但 CacheSelector 与 origin persistence 仍为 Pending。
+Crossref metadata execution 成功时生成完整不可变 SourceSnapshot；失败请求保存 SourceExecution 的 query/pagination/hash/error，不伪造 Snapshot。Cached PaperCollection 要求 Snapshot 额外绑定真实 `origin_run_id` 与 `origin_artifact_version_id`。
 
 ## 6. Hash 规则
 
@@ -151,6 +153,7 @@ D-02 已为成功 Crossref metadata execution 生成完整不可变 SourceSnapsh
 - 模型输入 hash 覆盖 Prompt 版本、模型参数、Contract hash 和输入 Evidence / ArtifactVersion。
 - D-03 `input_hash` 覆盖 PaperCollection Version/schema/output hash、SourceSnapshot id/version/content hash、目标 paper、Evidence 输入 hash、Prompt name/version/hash、model、parameters version/hash；相同版本化输入可定位同一 input hash。
 - D-03 `model_response_hash` 标识原始响应而不保存原文；`output_hash` 固定经过 Evidence 准入后的稳定 Summary 内容，排除 execution id、run id、wall-clock、latency 与 producer output hash 自引用。
+- D-07 `input_hash` 继续覆盖 PaperSummary Version/schema/output hash、paper/summary、SourceSnapshot 版本、Prompt/model/parameters 与 producer/normalization version；valid `model_response_hash` 对 Claim 集合做稳定排序，`output_hash` 覆盖准入后的结构、Evidence、状态和拒绝原因并排除 execution/run id、wall-clock、latency 与自引用。
 - Prompt 文件按 UTF-8/LF 归一后计算 SHA-256；registry 明确列出每个不可变版本的 path/content hash/status，历史版本不原地改写。
 - hash 识别内容，不替代 Project、Run、Artifact 或 Version 主键。
 
@@ -179,7 +182,7 @@ CacheSelector 只能在 Live 发生可恢复失败后使用匹配的真实历史
 
 WorkspaceSnapshot 使用 `revision` 做乐观锁，可覆盖同一会话的布局，但不进入科研版本链。
 
-同一 payload 的 PUT 重放返回既有 Snapshot；不同 payload 必须匹配当前 revision，冲突不静默覆盖。当前 adapter 重启后失效，后续持久化 adapter 必须保持相同 revision 语义。
+同一 payload 的 PUT 重放返回既有 Snapshot；不同 payload 必须匹配当前 revision，冲突不静默覆盖。Snapshot Adapter 为进程内实现，重启后状态失效；任何持久化 Adapter 必须保持相同 revision 语义。
 
 ShareSnapshot 固定：
 
@@ -191,7 +194,7 @@ ShareSnapshot 固定：
 
 分享不指向 latest，因此后续修订不会改变已提交 URL 的内容。原 token 不进入数据库明文、日志或 Project 聚合响应。
 
-创建时复制允许公开的不可变 Version/Evidence 元数据形成冻结投影；之后即使目录中的 latest 或显示元数据变化，既有分享响应也不漂移。当前 M1 redaction policy 仅为 `public_metadata_only`。
+创建时复制允许公开的不可变 Version/Evidence 元数据形成冻结投影；之后即使目录中的 latest 或显示元数据变化，既有分享响应也不漂移。Redaction policy 为 `public_metadata_only`。
 
 ## 10. 删除与保留
 
