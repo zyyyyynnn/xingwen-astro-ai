@@ -1,11 +1,6 @@
-"""D-02 PaperCollection, D-03 PaperSummary, and D-07 Claim pipelines."""
+"""D-02 PaperCollection and D-03 PaperSummary pipelines."""
 
-from .claim import LiteratureClaimPipeline
 from .pipeline import PaperCollectionPipeline
 from .summary import PaperSummaryPipeline
 
-__all__ = [
-    "LiteratureClaimPipeline",
-    "PaperCollectionPipeline",
-    "PaperSummaryPipeline",
-]
+__all__ = ["PaperCollectionPipeline", "PaperSummaryPipeline"]

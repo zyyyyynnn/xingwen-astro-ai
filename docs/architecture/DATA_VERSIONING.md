@@ -112,8 +112,6 @@ D-02 在 PaperCollection content 内生成 detached ProducerExecution：记录�
 
 D-03 同样生成 detached PaperSummary ProducerExecution，记录 `model_name`、Prompt name/version/hash、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本、input hash、模型响应 hash、最终 output hash 与安全终态。读取投影同时暴露 ArtifactVersion `version_number` / `supersedes_version_id`；Cached Summary 必须逐来源给出 cache version、适用性、Live 失败原因和 origin Run/ArtifactVersion，并把 audit `source_id` 绑定到对应 SourceSnapshot，不允许来源调换、空审计或与 `source_mode` 不一致的审计进入正常读取。JSON/Schema 拒绝只保留稳定 error code 和响应 hash，不保留原始模型输出；Evidence 降级仍产生可审查 Summary content，但 unsupported/unverifiable 项不作为已验证事实。生产模型 client、数据库 ProducerExecution 持久化与 ArtifactVersion 事务属于 Workflow 与读取投影边界。
 
-D-07 生成 detached LiteratureClaim ProducerExecution，固定 PaperSummary ArtifactVersion/schema/output hash、paper/summary、SourceSnapshot versions、Prompt/schema/model/parameters/producer/normalization version 与 input/model-response/output hash。JSON/Schema rejected result 不保存原始响应；Schema-valid Claim 的 accepted/candidate/rejected record 均保留输入与 execution 引用。`LiteratureClaimsCandidate` 已通过 Pipeline seal，可进入 structured ArtifactVersion admission；其内部稳定 `output_hash` 排除 execution/run id、wall-clock 与 latency，ArtifactVersion admission 返回的 `content_hash` 则覆盖准备持久化的完整 JSON，两者不要求相等。后续持久化与读取边界使用 admitted `content_hash` 对照数据库 ProducerExecution，并负责 ArtifactVersion 接线和 version-pinned HTTP projection。
-
 ## 5. SourceSnapshot
 
 最低字段：
@@ -153,7 +151,6 @@ RuleSet version/hash。运行规则见
 - 模型输入 hash 覆盖 Prompt 版本、模型参数、Contract hash 和输入 Evidence / ArtifactVersion。
 - D-03 `input_hash` 覆盖 PaperCollection Version/schema/output hash、SourceSnapshot id/version/content hash、目标 paper、Evidence 输入 hash、Prompt name/version/hash、model、parameters version/hash；相同版本化输入可定位同一 input hash。
 - D-03 `model_response_hash` 标识原始响应而不保存原文；`output_hash` 固定经过 Evidence 准入后的稳定 Summary 内容，排除 execution id、run id、wall-clock、latency 与 producer output hash 自引用。
-- D-07 `input_hash` 继续覆盖 PaperSummary Version/schema/output hash、paper/summary、SourceSnapshot 版本、Prompt/model/parameters 与 producer/normalization version；valid `model_response_hash` 对 Claim 集合做稳定排序，`output_hash` 覆盖准入后的结构、Evidence、状态和拒绝原因并排除 execution/run id、wall-clock、latency 与自引用。
 - Prompt 文件按 UTF-8/LF 归一后计算 SHA-256；registry 明确列出每个不可变版本的 path/content hash/status，历史版本不原地改写。
 - hash 识别内容，不替代 Project、Run、Artifact 或 Version 主键。
 
