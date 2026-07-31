@@ -13,8 +13,8 @@
 [Data Versioning](../architecture/DATA_VERSIONING.md) 管理。本文不定义跨源匹配、
 字段合并、单位转换、质量评分、ResearchRun 状态或 HTTP DTO。
 
-C-07 的输出由
-[Cross-source Entity Alignment](CROSS_SOURCE_ENTITY_ALIGNMENT.md) 在 C-08 中
+本 Adapter 的输出由
+[Cross-source Entity Alignment](CROSS_SOURCE_ENTITY_ALIGNMENT.md)
 以纯确定性方式消费；本 Adapter 不导入或控制 crossmatch。
 
 ## 1. 来源选择与冻结边界
