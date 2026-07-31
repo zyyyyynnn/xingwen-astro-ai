@@ -185,7 +185,7 @@ GitHub Issue 是任务状态的实时事实来源；[Backlog](docs/product/BACKL
 PR 描述至少包含：
 
 - 一个且仅一个主要关联 Task、Bug 或 Gate，或用户在当前会话直接授权任务的可追溯授权背景；
-- 所属 Epic、上级 Gate或相关 Issue 的补充引用（适用时）；
+- 所属 Epic、上级 Gate 或相关 Issue 的补充引用（适用时）；
 - 改动范围与明确非目标；
 - 验证命令、结果和未执行原因；
 - API、Data Model、Workflow、Version、UI、部署和安全影响；
