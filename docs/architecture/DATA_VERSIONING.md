@@ -5,7 +5,7 @@
 | Status    | Accepted                                          |
 | Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
 
-本文冻结科研产物、来源、缓存、修订、工作台与分享的目标版本规则。ArtifactVersion、Evidence 和 SourceSnapshot 由 PostgreSQL 提供私有读取与 Project ownership 边界；`paper_collection` 在该边界上提供只读校验与候选 keyset cursor，不改变发布事务。Workspace/Share Runtime 使用 PostgreSQL resource authority 校验资源事实；其快照记录的持久化边界由对应实现 Issue 定义。
+本文定义科研产物、来源、缓存、修订、工作台与分享的版本规则。ArtifactVersion、Evidence 和 SourceSnapshot 由 PostgreSQL 提供私有读取与 Project ownership 边界；`paper_collection` 在该边界上提供只读校验与候选 keyset cursor，不改变发布事务。Workspace/Share Runtime 使用 PostgreSQL resource authority 校验资源事实；WorkspaceSnapshot 与 ShareSnapshot 记录由进程内 Adapter 保存，不跨重启或实例共享。
 
 ## 1. 版本边界
 
@@ -72,7 +72,7 @@ fork Run     -> 新 Contract 下的新版本或新 Artifact
 
 版本只有在 Schema、Evidence、SourceSnapshot、质量约束和 content hash 验证通过后才发布。取消后完成的外部输出可以保留为诊断记录，但不得自动提升为 latest。
 
-#78 Publisher 只接受通过 Pydantic 结构校验以及调用方 Evidence、Domain、Quality 三道准入门的 opaque candidate。发布事务按 `ResearchRun -> RunStep -> ResearchArtifact（id 排序）` 固定顺序加锁，并原子写入 Version、latest、Attempt、Step、Run 和 Event；任一写入失败全部回滚。`publication_key` 在 Artifact 内唯一，同 key 同内容和 producer 条件重放既有 Version，不同条件返回稳定冲突。
+Publisher 只接受通过 Pydantic 结构校验以及调用方 Evidence、Domain、Quality 三道准入门的 opaque candidate。发布事务按 `ResearchRun -> RunStep -> ResearchArtifact（id 排序）` 固定顺序加锁，并原子写入 Version、latest、Attempt、Step、Run 和 Event；任一写入失败全部回滚。`publication_key` 在 Artifact 内唯一，同 key 同内容和 producer 条件重放既有 Version，不同条件返回稳定冲突。
 
 ## 4. ProducerExecution
 
@@ -106,11 +106,11 @@ error_code
 
 `parameters` 只保存经过名称、类型和长度约束的安全标量；敏感键在数据库访问前拒绝。不得保存 API Key、认证头、完整受限全文、原始模型长输出或 chain-of-thought。成功、失败、rejected 与 cancelled 执行均保留。
 
-对 PaperCollection，ArtifactVersion `content_hash` 固定 #78 实际写入的完整 JSON；content 内部 D-02 `output_hash` 固定排除抓取和执行 wall-clock 后的科研稳定内容。读取时必须分别复算，不能要求这两个 hash 相等。
+对 PaperCollection，ArtifactVersion `content_hash` 固定 Publisher 实际写入的完整 JSON；content 内部 D-02 `output_hash` 固定排除抓取和执行 wall-clock 后的科研稳定内容。读取时必须分别复算，不能要求这两个 hash 相等。
 
 D-02 在 PaperCollection content 内生成 detached ProducerExecution：记录固定 step key、producer/rule version、parameters/input/output hash、状态、时间、latency 和错误码，不登记 ResearchRun 或数据库记录。持久化 ProducerExecution Store 与 ArtifactVersion 分配由 Publisher 端口负责，detached 记录经该端口进入持久化与版本边界。具体稳定 hash 与失败记录见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。
 
-D-03 同样生成 detached PaperSummary ProducerExecution，记录 `model_name`、Prompt name/version/hash、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本、input hash、模型响应 hash、最终 output hash 与安全终态。B-07 读取投影同时暴露 ArtifactVersion `version_number` / `supersedes_version_id`；Cached Summary 必须逐来源给出 cache version、适用性、Live 失败原因和 origin Run/ArtifactVersion，并把 audit `source_id` 绑定到对应 SourceSnapshot，不允许来源调换、空审计或与 `source_mode` 不一致的审计进入正常读取。JSON/Schema 拒绝只保留稳定 error code 和响应 hash，不保留原始模型输出；Evidence 降级仍产生可审查 Summary content，但 unsupported/unverifiable 项不作为已验证事实。生产模型 client、数据库 ProducerExecution 持久化与 ArtifactVersion 事务属于 Workflow 与 B-07 读取投影的边界。
+D-03 同样生成 detached PaperSummary ProducerExecution，记录 `model_name`、Prompt name/version/hash、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本、input hash、模型响应 hash、最终 output hash 与安全终态。读取投影同时暴露 ArtifactVersion `version_number` / `supersedes_version_id`；Cached Summary 必须逐来源给出 cache version、适用性、Live 失败原因和 origin Run/ArtifactVersion，并把 audit `source_id` 绑定到对应 SourceSnapshot，不允许来源调换、空审计或与 `source_mode` 不一致的审计进入正常读取。JSON/Schema 拒绝只保留稳定 error code 和响应 hash，不保留原始模型输出；Evidence 降级仍产生可审查 Summary content，但 unsupported/unverifiable 项不作为已验证事实。生产模型 client、数据库 ProducerExecution 持久化与 ArtifactVersion 事务属于 Workflow 与读取投影边界。
 
 ## 5. SourceSnapshot
 
@@ -131,7 +131,7 @@ request_metadata
 
 数据库查询、论文检索、论文元数据和可公开文本使用各自 locator。Snapshot 中的 request metadata 只保留可复现且非敏感字段。
 
-C-02 已为成功 NASA Exoplanet Archive TOI acquisition 生成完整不可变 SourceSnapshot，记录冻结 Manifest、规范化 query/hash、TAP_SCHEMA 预检、keyset 分页、请求/响应 hash、耗时、重试、许可、版本/ETag 与 request-id 可用性。上游未提供 ETag 或 request-id 时显式记录 `unavailable`，不得生成替代值；Recorded response 固定为 `source_mode=fixture` 与 `data_level=recorded_response`，并绑定版本化 fixture hash/provenance。运行规则见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md)。
+成功的 NASA Exoplanet Archive TOI acquisition 必须生成完整不可变 SourceSnapshot，记录冻结 Manifest、规范化 query/hash、TAP_SCHEMA 预检、keyset 分页、请求/响应 hash、耗时、重试、许可、版本/ETag 与 request-id 可用性。上游未提供 ETag 或 request-id 时显式记录 `unavailable`，不得生成替代值；Recorded response 固定为 `source_mode=fixture` 与 `data_level=recorded_response`，并绑定版本化 fixture hash/provenance。运行规则见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md)。
 
 Crossref metadata execution 成功时生成完整不可变 SourceSnapshot；失败请求保存 SourceExecution 的 query/pagination/hash/error，不伪造 Snapshot。Cached PaperCollection 要求 Snapshot 额外绑定真实 `origin_run_id` 与 `origin_artifact_version_id`。
 
