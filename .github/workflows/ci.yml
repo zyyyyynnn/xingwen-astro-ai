@@ -83,6 +83,12 @@ jobs:
       - name: Run backend tests
         run: uv run pytest
 
+      - name: Run reproducible D07 claim benchmark
+        working-directory: .
+        run: >
+          uv run --project apps/api python -m services.paper_pipeline.claim_benchmark
+          --output .artifacts/d07-claim-benchmark-report.json
+
       - name: Check phase0 pipeline schema contracts
         run: >
           uv run python ../../scripts/export_schemas.py
@@ -100,6 +106,18 @@ jobs:
           --include ReasoningTrace
           --include EvidenceResponse
           --include SourceSnapshot
+          --check
+
+      - name: Check D07 LiteratureClaim pipeline contracts
+        run: >
+          uv run python ../../scripts/export_schemas.py
+          --output ../../packages/schemas/generated/literature_claim
+          --include LiteratureClaimExtractionOutput
+          --include LiteratureClaimCandidate
+          --include LiteratureClaimAdmissionResult
+          --include LiteratureClaimsCandidate
+          --include LiteratureClaimBenchmarkEvaluationCase
+          --include LiteratureClaimBenchmarkReport
           --check
 
       - name: Check core contracts

@@ -11,6 +11,7 @@ from pydantic import TypeAdapter
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.literature_claim import (
+    LiteratureClaimBenchmarkCaseKind,
     LiteratureClaimBenchmarkCaseResult,
     LiteratureClaimBenchmarkEvaluationCase,
     LiteratureClaimBenchmarkReport,
@@ -28,7 +29,7 @@ from app.schemas.paper_benchmark import (
     BenchmarkReviewStatus,
 )
 
-from .benchmark import load_frozen_benchmark
+from .benchmark import load_frozen_benchmark, validate_frozen_benchmark
 
 
 _CASE_ADAPTER = TypeAdapter(tuple[LiteratureClaimBenchmarkEvaluationCase, ...])
@@ -43,6 +44,7 @@ def evaluate_literature_claims(
 
     if not cases:
         raise ValueError("LiteratureClaim benchmark requires at least one case")
+    validate_frozen_benchmark(benchmark)
     benchmark_claims = {item.claim_id: item for item in benchmark.claims}
     ordered_cases = tuple(sorted(cases, key=lambda item: item.case_id))
     producer = ordered_cases[0].admission.producer
@@ -55,18 +57,23 @@ def evaluate_literature_claims(
     schema_valid_count = 0
     evidence_supported_count = 0
     evidence_total_count = 0
-    scientific_correct_count = 0
+    scientific_exact_count = 0
+    scientific_total_count = 0
+    rejection_passed_count = 0
+    rejection_total_count = 0
     status_counts: Counter[LiteratureClaimStatus] = Counter()
 
     for case in ordered_cases:
-        expected = benchmark_claims.get(case.benchmark_claim_id)
-        if (
-            expected is None
-            or expected.review_status is not BenchmarkReviewStatus.approved
-        ):
-            raise ValueError(
-                "evaluation cases must reference approved D-01 Claim labels"
-            )
+        expected = None
+        if case.case_kind is LiteratureClaimBenchmarkCaseKind.scientific_label:
+            expected = benchmark_claims.get(case.benchmark_claim_id or "")
+            if (
+                expected is None
+                or expected.review_status is not BenchmarkReviewStatus.approved
+            ):
+                raise ValueError(
+                    "scientific cases must reference approved D-01 Claim labels"
+                )
         if _producer_signature(case.admission.producer) != signature:
             raise ValueError(
                 "one Claim benchmark report requires one Prompt/model/parameter version"
@@ -80,37 +87,64 @@ def evaluate_literature_claims(
             }
         )
         schema_valid_count += int(schema_valid)
-        supported, total = _evidence_counts(case, record)
+        scientific_compared = expected is not None and schema_valid and record is not None
+        supported, total = (
+            _evidence_counts(case, record) if scientific_compared else (0, 0)
+        )
         evidence_supported_count += supported
         evidence_total_count += total
-        scientific_correct = (
-            record is not None and _matches_approved_claim(record, expected)
+        scientific_exact = (
+            _matches_approved_claim(record, expected)
+            if scientific_compared and record is not None and expected is not None
+            else None
         )
-        scientific_correct_count += int(scientific_correct)
+        scientific_total_count += int(scientific_compared)
+        scientific_exact_count += int(scientific_exact is True)
         status = (
             record.status
             if record is not None
             else case.admission.admission_status
+        )
+        failure_stage = (
+            record.failure_stage
+            if record is not None
+            else case.admission.failure_stage
         )
         reason = (
             record.rejection_reason
             if record is not None
             else case.admission.rejection_reason
         )
+        rejection_case_pass = None
+        if case.case_kind is LiteratureClaimBenchmarkCaseKind.rejection_case:
+            rejection_total_count += 1
+            rejection_case_pass = (
+                status is LiteratureClaimStatus.rejected
+                and failure_stage is case.expected_failure_stage
+                and reason is case.expected_rejection_reason
+            )
+            rejection_passed_count += int(rejection_case_pass)
         status_counts[status] += 1
-        claim_type_counts[expected.claim_type] += 1
+        if scientific_compared and expected is not None:
+            claim_type_counts[expected.claim_type] += 1
         if reason is not None:
             rejection_case_ids[reason].append(case.case_id)
         results.append(
             LiteratureClaimBenchmarkCaseResult(
                 case_id=case.case_id,
+                case_kind=case.case_kind,
                 benchmark_claim_id=case.benchmark_claim_id,
-                claim_type=expected.claim_type,
+                claim_type=None if expected is None else expected.claim_type,
+                expected_failure_stage=case.expected_failure_stage,
+                expected_rejection_reason=case.expected_rejection_reason,
                 schema_valid=schema_valid,
                 evidence_items_supported=supported,
                 evidence_items_total=total,
-                scientific_review_correct=scientific_correct,
+                scientific_label_compared=scientific_compared,
+                scientific_label_exact_match=scientific_exact,
+                rejection_case_pass=rejection_case_pass,
                 status=status,
+                failure_stage=failure_stage,
                 rejection_reason=reason,
                 input_hash=case.admission.producer.input_hash,
                 output_hash=case.admission.output_hash,
@@ -167,16 +201,27 @@ def evaluate_literature_claims(
         "schema_items_valid": schema_valid_count,
         "schema_items_total": len(results),
         "schema_pass_rate": schema_valid_count / len(results),
+        "rejection_cases_passed": rejection_passed_count,
+        "rejection_cases_total": rejection_total_count,
+        "rejection_case_pass_rate": (
+            rejection_passed_count / rejection_total_count
+            if rejection_total_count
+            else None
+        ),
         "evidence_items_supported": evidence_supported_count,
         "evidence_items_total": evidence_total_count,
-        "evidence_coverage": (
+        "evidence_coverage_rate": (
             evidence_supported_count / evidence_total_count
             if evidence_total_count
             else None
         ),
-        "scientific_review_items_correct": scientific_correct_count,
-        "scientific_review_items_total": len(results),
-        "scientific_review_accuracy": scientific_correct_count / len(results),
+        "scientific_label_items_exact": scientific_exact_count,
+        "scientific_label_items_total": scientific_total_count,
+        "scientific_label_exact_match_rate": (
+            scientific_exact_count / scientific_total_count
+            if scientific_total_count
+            else None
+        ),
         "status_counts": typed_status_counts.model_dump(mode="json"),
         "rejection_counts": [
             item.model_dump(mode="json") for item in rejection_counts
@@ -190,6 +235,35 @@ def evaluate_literature_claims(
     output_hash = compute_literature_claim_benchmark_output_hash(report_payload)
     report_payload["output_hash"] = output_hash
     return LiteratureClaimBenchmarkReport.model_validate(report_payload)
+
+
+def validate_scientific_label_coverage(
+    benchmark: BenchmarkPackage,
+    cases: tuple[LiteratureClaimBenchmarkEvaluationCase, ...],
+) -> None:
+    """Require the formal suite to cover every approved D-01 Claim exactly once."""
+
+    validate_frozen_benchmark(benchmark)
+    expected = tuple(
+        sorted(
+            item.claim_id
+            for item in benchmark.claims
+            if item.review_status is BenchmarkReviewStatus.approved
+        )
+    )
+    actual = tuple(
+        sorted(
+            case.benchmark_claim_id
+            for case in cases
+            if case.case_kind
+            is LiteratureClaimBenchmarkCaseKind.scientific_label
+            and case.benchmark_claim_id is not None
+        )
+    )
+    if actual != expected:
+        raise ValueError(
+            "formal D-07 benchmark must cover every approved D-01 Claim exactly once"
+        )
 
 
 def _select_record(
@@ -274,8 +348,15 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--cases",
         type=Path,
-        required=True,
-        help="JSON array of LiteratureClaimBenchmarkEvaluationCase values.",
+        help=(
+            "Optional JSON array of LiteratureClaimBenchmarkEvaluationCase values; "
+            "omit to generate the formal suite deterministically from tracked D-01."
+        ),
+    )
+    parser.add_argument(
+        "--cases-output",
+        type=Path,
+        help="Optionally write the sorted generated/loaded case array for inspection.",
     )
     parser.add_argument("--output", type=Path)
     return parser.parse_args()
@@ -283,18 +364,42 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = _parse_args()
-    cases = _CASE_ADAPTER.validate_json(args.cases.read_text(encoding="utf-8"))
-    report = evaluate_literature_claims(
-        benchmark=load_frozen_benchmark(),
-        cases=cases,
-    )
-    content = report.model_dump_json(indent=2, exclude_none=True) + "\n"
+    benchmark = load_frozen_benchmark()
+    if args.cases is None:
+        from .claim_benchmark_cases import build_frozen_claim_benchmark_cases
+
+        cases = build_frozen_claim_benchmark_cases(benchmark)
+    else:
+        cases = _CASE_ADAPTER.validate_json(args.cases.read_text(encoding="utf-8"))
+    cases = tuple(sorted(cases, key=lambda item: item.case_id))
+    validate_scientific_label_coverage(benchmark, cases)
+    if args.cases_output is not None:
+        args.cases_output.parent.mkdir(parents=True, exist_ok=True)
+        args.cases_output.write_text(
+            _stable_json(
+                [item.model_dump(mode="json", exclude_none=True) for item in cases]
+            ),
+            encoding="utf-8",
+            newline="\n",
+        )
+    report = evaluate_literature_claims(benchmark=benchmark, cases=cases)
+    content = _stable_json(report.model_dump(mode="json", exclude_none=True))
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(content, encoding="utf-8")
+        args.output.write_text(content, encoding="utf-8", newline="\n")
     else:
-        print(json.dumps(json.loads(content), ensure_ascii=False, indent=2))
+        print(content, end="")
     return 0
+
+
+def _stable_json(value: object) -> str:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+        allow_nan=False,
+    ) + "\n"
 
 
 if __name__ == "__main__":
