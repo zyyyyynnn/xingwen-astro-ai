@@ -5,7 +5,7 @@
 | Status    | Accepted                                               |
 | Authority | HTTP 资源、传输结构、错误、授权语义与 Schema authoring |
 
-本文定义无版本前缀的单一 `/api/*` 面（[ADR-030](DECISIONS.md)），分为 Core APIs（七个核心资源）与 Pipeline APIs（`/api/health`、`/api/tasks*`）。Core 七个核心资源以 Pydantic、JSON Schema 与契约 OpenAPI 定义 Project、ContractDraft、Contract、Run、RunEvent、Artifact、ArtifactVersion、Evidence、SourceSnapshot、WorkspaceSnapshot 与 ShareSnapshot，并约束匿名 Session、CSRF 与 ownership 语义。资源归属、Research 写路径与公开分享投影以 PostgreSQL 为权威事实源，Compose 通过 `DATABASE_URL` 与 `PERSISTENT_WORKFLOW_ENABLED` 提供该运行时。API 只做加法演进，不引入 URL 版本升级；Pipeline APIs 保持兼容，不原地修改 Pipeline 响应结构。运行状态以代码、测试与 GitHub 证据为准。
+本文定义无版本前缀的单一 `/api/*` 面（[ADR-030](DECISIONS.md)），分为 Core APIs 与 Pipeline APIs（`/api/health`、`/api/tasks*`）。Core APIs 以 Pydantic、JSON Schema 与契约 OpenAPI 定义 Session、Project、Contract、Run、Artifact、Evidence、Workspace 与 Share 资源及其从属实体（ContractDraft、RunEvent、ArtifactVersion、SourceSnapshot），并约束匿名 Session、CSRF 与 ownership 语义。Project ownership、Research 写路径与 ArtifactVersion / Evidence 读取以 PostgreSQL 为权威事实源；WorkspaceSnapshot 与 ShareSnapshot 记录由进程内 Adapter 保存，不跨重启或实例共享，替换持久化 Adapter 时必须保持 revision、冻结投影、过期与撤销语义。Compose 通过 `DATABASE_URL` 与 `PERSISTENT_WORKFLOW_ENABLED` 提供该运行时。API 只做加法演进，不引入 URL 版本升级；Pipeline APIs 保持兼容，不原地修改 Pipeline 响应结构。运行状态以代码、测试与 GitHub 证据为准。
 
 ## 1. 设计原则
 
@@ -384,7 +384,7 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 - `PUT` 使用数字 revision 的 `If-Match` 前置条件；成功响应通过 `ETag` 返回当前 revision。
 - 同 payload 重放不增加 revision；不同 payload 使用陈旧 revision 时返回 `409 VERSION_CONFLICT`。
 - Snapshot 按 `session + project` 私有隔离，跨 Session 与不存在 Project 使用不泄露存在性的 `404`。
-- 当前运行适配器为进程内恢复边界，进程重启后失效；不得描述为跨实例持久化。
+- 运行适配器为进程内恢复边界，进程重启后失效；不得描述为跨实例持久化。
 
 ## 13. 分享
 

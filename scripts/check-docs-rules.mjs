@@ -34,11 +34,12 @@ const forbiddenMetadataFields = new Set([
   "Progress",
 ]);
 
+// GFM treats an unescaped pipe as a column delimiter even inside a code span;
+// only a backslash-escaped pipe (\|) is literal cell content.
 function tableCells(line) {
   const cells = [];
   let current = "";
   let escaped = false;
-  let codeTicks = 0;
 
   for (const character of line.trim()) {
     if (escaped) {
@@ -47,10 +48,7 @@ function tableCells(line) {
     } else if (character === "\\") {
       current += character;
       escaped = true;
-    } else if (character === "`") {
-      codeTicks = codeTicks === 0 ? 1 : 0;
-      current += character;
-    } else if (character === "|" && codeTicks === 0) {
+    } else if (character === "|") {
       cells.push(current.trim());
       current = "";
     } else {

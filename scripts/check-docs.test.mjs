@@ -31,6 +31,20 @@ test("detects inconsistent table columns", () => {
   );
 });
 
+test("counts an unescaped pipe inside a code span as a separator", () => {
+  const source = "# Title\n\n## T\n\n| A | B |\n| --- | --- |\n| `x | y` | z |";
+  assert.match(
+    inspectMarkdown(source).errors.join("\n"),
+    /3 columns; expected 2/u,
+  );
+});
+
+test("treats an escaped pipe inside a code span as cell content", () => {
+  const source =
+    "# Title\n\n## T\n\n| A | B |\n| --- | --- |\n| `x \\| y` | z |";
+  assert.deepEqual(inspectMarkdown(source).errors, []);
+});
+
 test("extracts local links and Mermaid blocks", () => {
   const source =
     "# Title\n\n[Docs](docs/README.md)\n\n```mermaid\nflowchart LR\n A-->B\n```";

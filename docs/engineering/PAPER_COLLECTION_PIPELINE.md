@@ -103,13 +103,13 @@ Frozen Benchmark scenario
 
 `source_mode` 只允许 Data Model 定义的 `fixture | live | cached`，与数据等级分别记录：
 
-| source_mode | 允许的数据等级   | 约束                                                                    |
-| ----------- | ---------------- | ----------------------------------------------------------------------- |
-| `live`      | `live_result`    | 真实请求和抓取时间；Recorded response 不得标 Live                       |
-| `cached`    | `real_run_cache` | SourceSnapshot 必须记录 `origin_run_id` 与 `origin_artifact_version_id` |
-| `fixture`   | `fixture         | recorded_response                                                       | benchmark | manual_review` | 不能表述为真实 Live/Cached 结果 |
+| source_mode | 允许的数据等级                                               | 约束                                                                    |
+| ----------- | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `live`      | `live_result`                                                | 真实请求和抓取时间；Recorded response 不得标 Live                       |
+| `cached`    | `real_run_cache`                                             | SourceSnapshot 必须记录 `origin_run_id` 与 `origin_artifact_version_id` |
+| `fixture`   | `fixture`、`recorded_response`、`benchmark`、`manual_review` | 不能表述为真实 Live/Cached 结果                                         |
 
-Seed 不是来源模式。D-02 当前不把 seed 作为检索候选输入；若后续显式引入，运行用途只能标记为 benchmark、manual review 或 fixture，且不得在 Live 失败时回退。冻结 D-01 Package 中的 `scientific_review` 是 Benchmark 科研审核用途，不会自动映射成 D-02 Live/Cache 来源。
+Seed 不是来源模式，也不作为检索候选输入；其用途仅限 benchmark、manual review 或 fixture，且不得作为 Live 失败回退。冻结 D-01 Package 中的 `scientific_review` 是 Benchmark 科研审核用途，不会自动映射成 D-02 Live/Cache 来源。
 
 每个成功 source execution 产生完整 SourceSnapshot，包含 source/query/query hash、抓取时间、content hash、license note、非敏感 request metadata、分页 request/response hash 和运行时限流摘要。每个 candidate 同时保存 snapshot id、source id、source record id 以及 DOI/arXiv/URL 中可用的核验标识。失败 execution 没有伪造 Snapshot，但仍保存 query hash、分页策略、请求参数 hash、时间、重试和错误分类。
 
@@ -229,9 +229,9 @@ uv run pytest -m live tests/test_paper_collection_pipeline.py
 - D-03 不调用真实模型，不抓取 abstract/PDF/全文，也不做表格/图像 OCR；Evidence 可访问片段必须由上游依法提供。
 - D-03 不实现跨文献 Relation/Graph、论文写作、ResearchRun 推进、B-07 读取或 ArtifactVersion 事务。
 
-- 当前只有 Crossref metadata Adapter；arXiv 和需要 token 的 NASA ADS 未实现。
+- 本 Pipeline 只集成 Crossref metadata Adapter；arXiv 与需要 token 的 NASA ADS 不在其范围。
 - Crossref relevance 是上游排序输入，最终本地评分是可解释的词法基线，不是科研相关性人工结论。
 - 只支持最多 100 个候选和 offset pagination；不抓取 abstract、PDF 或任意全文。
 - Crossref 数据会更新；SourceSnapshot 固定本次结果，但不能保证未来同 query 返回相同 metadata。
-- Cached 只定义可校验的消费边界；真实 CacheSelector、origin persistence 和发布仍属于后续 B/Workflow Issue。
+- Cached 只定义可校验的消费边界；真实 CacheSelector、origin persistence 和发布由 B/Workflow Issue 负责。
 - Live smoke 依赖公网和 Crossref 运行状态，因此普通 CI 默认跳过，并且不得用 Fixture 结果替代 Live 结论。

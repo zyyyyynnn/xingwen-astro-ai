@@ -171,7 +171,7 @@ CacheSelector 只能在 Live 发生可恢复失败后使用匹配的真实历史
 
 WorkspaceSnapshot 使用 `revision` 做乐观锁，可覆盖同一会话的布局，但不进入科研版本链。
 
-同一 payload 的 PUT 重放返回既有 Snapshot；不同 payload 必须匹配当前 revision，冲突不静默覆盖。当前 adapter 重启后失效，后续持久化 adapter 必须保持相同 revision 语义。
+同一 payload 的 PUT 重放返回既有 Snapshot；不同 payload 必须匹配当前 revision，冲突不静默覆盖。Snapshot Adapter 为进程内实现，重启后状态失效；任何持久化 Adapter 必须保持相同 revision 语义。
 
 ShareSnapshot 固定：
 
@@ -183,7 +183,7 @@ ShareSnapshot 固定：
 
 分享不指向 latest，因此后续修订不会改变已提交 URL 的内容。原 token 不进入数据库明文、日志或 Project 聚合响应。
 
-创建时复制允许公开的不可变 Version/Evidence 元数据形成冻结投影；之后即使目录中的 latest 或显示元数据变化，既有分享响应也不漂移。当前 M1 redaction policy 仅为 `public_metadata_only`。
+创建时复制允许公开的不可变 Version/Evidence 元数据形成冻结投影；之后即使目录中的 latest 或显示元数据变化，既有分享响应也不漂移。Redaction policy 为 `public_metadata_only`。
 
 ## 10. 删除与保留
 

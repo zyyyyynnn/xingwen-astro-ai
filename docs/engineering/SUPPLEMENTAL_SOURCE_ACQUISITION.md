@@ -1,11 +1,11 @@
 # Supplemental Source Acquisition
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
-| Authority | C-07 补充来源查询、录制响应与独立 SourceSnapshot 运行规则 |
-| Issue | #90 |
-| Scope | `exoplanet_host_star` 的 NASA Exoplanet Archive Planetary Systems metadata |
+| 元数据    | 值                                                                         |
+| --------- | -------------------------------------------------------------------------- |
+| Status    | Accepted                                                                   |
+| Authority | C-07 补充来源查询、录制响应与独立 SourceSnapshot 运行规则                  |
+| Issue     | #90                                                                        |
+| Scope     | `exoplanet_host_star` 的 NASA Exoplanet Archive Planetary Systems metadata |
 
 本文定义 C-07 的可执行边界。字段与来源表事实仍以
 [C-01 Manifest](../../services/data_pipeline/manifests/README.md) 为唯一来源；
@@ -39,14 +39,14 @@ Fixture、seed 或 TOI 结果副本当作补充来源。
 绑定来源表、列裁决、运行时类型契约、约束和分页。两者均使用 canonical JSON
 SHA-256。
 
-| 冻结输入 | 值 |
-| --- | --- |
-| Case Manifest version/hash | `1.0.1` / `sha256:bb870d3c8b6b6c972cd8d7139b9cfcb672bb9ce75401109271aaf05a147819d3` |
-| Field Manifest version/hash | `1.0.1` / `sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53` |
+| 冻结输入                         | 值                                                                                  |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| Case Manifest version/hash       | `1.0.1` / `sha256:bb870d3c8b6b6c972cd8d7139b9cfcb672bb9ce75401109271aaf05a147819d3` |
+| Field Manifest version/hash      | `1.0.1` / `sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53` |
 | Column adjudication version/hash | `1.0.0` / `sha256:b27b6fc8aab5d2ddeda2f21420650291567e09c26e969bb4eb89c54853d0766b` |
-| Runtime schema contract | `nasa_exoplanet_archive.ps.runtime_schema.2026-07-30` / `1.0.0` |
-| X-00 baseline | `main@eb7e23f6d0c14555627c602c6e5a2b84210ba833` |
-| Query normalization / Adapter | `1.1.0` / `1.1.0` |
+| Runtime schema contract          | `nasa_exoplanet_archive.ps.runtime_schema.2026-07-30` / `1.0.0`                     |
+| X-00 baseline                    | `main@eb7e23f6d0c14555627c602c6e5a2b84210ba833`                                     |
+| Query normalization / Adapter    | `1.1.0` / `1.1.0`                                                                   |
 
 ## 2. Provider 层、Adapter 层与职责
 
@@ -95,16 +95,16 @@ cursor。`page_size <= 1000`、`max_pages <= 100`、`record_limit <= 100000`；�
 尝试 3 次，指数退避从 0.5 秒开始、上限 4 秒。第一页之后的请求失败分类为
 `NASA_PS_PAGINATION_INTERRUPTED`，原始失败保留为 exception cause。
 
-| 场景 | failure class | 是否重试 |
-| --- | --- | --- |
-| timeout | `timeout` | 有界重试 |
-| 临时传输错误 | `transport` | 有界重试 |
-| HTTP 429 | `rate_limited` | 有界重试 |
-| HTTP 5xx | `upstream_server` | 有界重试 |
-| HTTP 4xx（429 除外） | `upstream_client` | 不重试 |
-| 非法 JSON、字段、类型、排序漂移 | `invalid_response` | 不重试 |
-| 数据页 ETag 不一致 | `invalid_response` | 不重试 |
-| endpoint、origin 或来源等级违规 | `policy_violation` | 不重试 |
+| 场景                            | failure class      | 是否重试 |
+| ------------------------------- | ------------------ | -------- |
+| timeout                         | `timeout`          | 有界重试 |
+| 临时传输错误                    | `transport`        | 有界重试 |
+| HTTP 429                        | `rate_limited`     | 有界重试 |
+| HTTP 5xx                        | `upstream_server`  | 有界重试 |
+| HTTP 4xx（429 除外）            | `upstream_client`  | 不重试   |
+| 非法 JSON、字段、类型、排序漂移 | `invalid_response` | 不重试   |
+| 数据页 ETag 不一致              | `invalid_response` | 不重试   |
+| endpoint、origin 或来源等级违规 | `policy_violation` | 不重试   |
 
 成功 Snapshot 明确记录：
 
@@ -142,12 +142,12 @@ Token、credential 及其值不会进入 Snapshot、Fixture 或错误日志。
 
 ## 6. Live、Recorded、Fixture 与 Seed
 
-| 实际来源 | `source_mode` | `data_level` | 规则 |
-| --- | --- | --- | --- |
-| 官方 endpoint 当前响应 | `live` | `live_result` | 唯一可标记 Live 的组合 |
-| 版本化真实响应回放 | `fixture` | `recorded_response` | 默认 CI smoke |
-| 合成测试样例 | `fixture` | `fixture` | 必须携带版本化 provenance |
-| seed 输入或样例 | `fixture` | `seed` | 不得标记 Live |
+| 实际来源               | `source_mode` | `data_level`        | 规则                      |
+| ---------------------- | ------------- | ------------------- | ------------------------- |
+| 官方 endpoint 当前响应 | `live`        | `live_result`       | 唯一可标记 Live 的组合    |
+| 版本化真实响应回放     | `fixture`     | `recorded_response` | 默认 CI smoke             |
+| 合成测试样例           | `fixture`     | `fixture`           | 必须携带版本化 provenance |
+| seed 输入或样例        | `fixture`     | `seed`              | 不得标记 Live             |
 
 该 Adapter 不接受 `cached`。未来缓存只有在引用真实历史 Run、ArtifactVersion 和
 SourceSnapshot 时才能接入；C-07 不实现该能力。
@@ -217,7 +217,7 @@ uv run pytest -m live tests/test_supplemental_source_pipeline.py
 NASA Exoplanet Archive metadata 可公开查询。产物必须保留 archive attribution，并遵循
 官方 acknowledgement and citation guidance；Adapter 不重新许可上游内容。
 
-PS 是动态表，当前同步 endpoint 未提供稳定 release id。Schema response hash 只是结构
+PS 是动态表，同步 endpoint 不提供稳定 release id。Schema response hash 只是结构
 证据，不代表全库版本；recorded 响应只证明录制时刻的内容。网络、限流和上游维护仍可能
 使 opt-in Live smoke 失败。PS 与 TOI 虽是独立真实表和独立 SourceSnapshot，但属于
 同一 NASA provider，这是被冻结 Case SourcePolicy 允许的最小 C-07 实现。
@@ -225,12 +225,12 @@ PS 是动态表，当前同步 endpoint 未提供稳定 release id。Schema resp
 输出只包含原始 PS 记录及其 provenance。如何把 TOI 与 PS 实体进行 exact、alias、
 coordinate 或人工对齐属于 Issue #91，本实现不提供任何匹配结论。
 
-| 验收能力 | 代码或测试证据 |
-| --- | --- |
-| 固定主案例补充来源真实或录制运行 | recorded CLI/test 与 opt-in Live smoke |
-| 稳定 query/input hash | 顺序、空白、重复值和有意义变更测试 |
-| SourceSnapshot 可追溯来源、时间、参数和许可 | 分页 Snapshot、locator、版本证据和敏感头测试 |
-| Fixture/seed 不标记 Live | origin/data-level 组合拒绝测试 |
-| Schema drift 完整关闭 | 非 row-key 数值列、integer 列和列集合漂移测试 |
-| 有界结果不冒充完整集合 | completion status 与 continuation cursor 测试 |
-| 单元测试与 recorded/Live smoke | `test_supplemental_source_pipeline.py` |
+| 验收能力                                    | 代码或测试证据                                |
+| ------------------------------------------- | --------------------------------------------- |
+| 固定主案例补充来源真实或录制运行            | recorded CLI/test 与 opt-in Live smoke        |
+| 稳定 query/input hash                       | 顺序、空白、重复值和有意义变更测试            |
+| SourceSnapshot 可追溯来源、时间、参数和许可 | 分页 Snapshot、locator、版本证据和敏感头测试  |
+| Fixture/seed 不标记 Live                    | origin/data-level 组合拒绝测试                |
+| Schema drift 完整关闭                       | 非 row-key 数值列、integer 列和列集合漂移测试 |
+| 有界结果不冒充完整集合                      | completion status 与 continuation cursor 测试 |
+| 单元测试与 recorded/Live smoke              | `test_supplemental_source_pipeline.py`        |
