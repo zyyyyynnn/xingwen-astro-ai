@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from .enums import ClaimType, LiteratureRelationType
@@ -9,6 +11,8 @@ from .enums import ClaimType, LiteratureRelationType
 
 class LiteratureClaim(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+    # Frozen Phase 0 transport model; never a D-07 publication candidate.
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     id: str = Field(alias="claim_id")
     task_id: str
@@ -52,6 +56,9 @@ class LiteratureRelation(BaseModel):
 
 
 class LiteratureReasoningResponse(BaseModel):
+    # Phase 0 envelope contains unadmitted Claim records and is not publishable.
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
+
     claims: list[LiteratureClaim]
     relations: list[LiteratureRelation]
     traces: list[ReasoningTrace]

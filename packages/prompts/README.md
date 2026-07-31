@@ -13,6 +13,8 @@
 packages/prompts/
 ├─ README.md
 ├─ registry.json
+├─ literature_claim/
+│  └─ v1.md
 ├─ paper_summary/
 │  └─ v1.md
 └─ literature_reasoning/
@@ -27,6 +29,10 @@ packages/prompts/
 - `registry.json` 的默认版本变化必须通过 PR 和回归验证。
 - 新 Prompt 或新版本包含完整 front matter，并与目标输出 Schema 对齐。
 - 包内文件不保存运行凭据、用户数据、受限全文或实际模型响应。
+- `literature_claim@v1` 是 D-07 单 Claim extraction Prompt；
+  `literature_reasoning@v1` 只保留 Phase 0 多输出兼容。后者可由 Registry 读取不表示其旧
+  `LiteratureClaim` 或 `LiteratureReasoningResponse` 包络可发布，旧模型由 Publisher
+  admission marker 拒绝。
 
 ## 变更验证
 

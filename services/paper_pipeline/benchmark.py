@@ -17,6 +17,13 @@ from .constants import (
 
 def load_frozen_benchmark(path: Path = FROZEN_BENCHMARK_PATH) -> BenchmarkPackage:
     package = BenchmarkPackage.model_validate_json(path.read_text(encoding="utf-8"))
+    validate_frozen_benchmark(package)
+    return package
+
+
+def validate_frozen_benchmark(package: BenchmarkPackage) -> None:
+    """Reject a valid package when it is not the explicitly frozen D-01 identity."""
+
     expected = {
         "schema_version": FROZEN_BENCHMARK_SCHEMA_VERSION,
         "benchmark_version": FROZEN_BENCHMARK_VERSION,
@@ -25,7 +32,4 @@ def load_frozen_benchmark(path: Path = FROZEN_BENCHMARK_PATH) -> BenchmarkPackag
     }
     actual = {field: getattr(package, field) for field in expected}
     if actual != expected:
-        raise ValueError(
-            "D-02 benchmark pin mismatch; dynamic or modified benchmark input is forbidden"
-        )
-    return package
+        raise ValueError("frozen D-01 benchmark identity mismatch")
