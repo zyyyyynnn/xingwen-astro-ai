@@ -37,6 +37,7 @@ labels: ["type:feature"]
 
 - Epic 不建立生产实现 PR，也不能作为生产实现 PR 的唯一或主要 Issue。
 - 每个原子 Task、Bug 或 Gate 分别对应一个主要交付 PR。
+- Epic 可以作为多个子任务 PR 的补充父级引用，但不能代替这些 PR 各自的主要 Task、Bug 或 Gate。
 - Epic 只在子任务完成后汇总退出证据；需要证据性变更时，应由明确 Gate 或直接授权的治理 PR 承载。
 
 ## 边界
@@ -50,4 +51,4 @@ labels: ["type:feature"]
 
 ---
 
-**治理要求：** 本模板只用于 Epic。必须添加一个 `priority:p0/p1/p2`、一个或多个 `area:*`，并归入对应 Milestone。原子实现统一使用 Chore/Task 模板；不得把本模板改写为 Task，也不得用一个 Epic 直接关联多个生产实现 PR。
+**治理要求：** 本模板只用于 Epic。必须添加一个 `priority:p0/p1/p2`、一个或多个 `area:*`，并归入对应 Milestone。原子实现统一使用 Chore/Task 模板；不得把本模板改写为 Task，也不得把 Epic 作为生产实现 PR 的主要 Issue。
