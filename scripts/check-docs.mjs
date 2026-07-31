@@ -40,7 +40,9 @@ function requiresMetadata(file) {
     /^docs\/(?:ai|architecture|design|engineering|product|quality)\/[^/]+\.md$/u.test(
       file,
     ) ||
-    file === "docs/handoff/README.md" ||
+    file.startsWith("docs/handoff/") ||
+    file.startsWith("docs/archive/") ||
+    file.startsWith("docs/references/") ||
     file === "packages/prompts/README.md" ||
     file === "packages/schemas/README.md"
   );
@@ -74,16 +76,11 @@ for (const file of files) {
       !file.startsWith(".github/") &&
       !/^packages\/prompts\/[^/]+\/v\d+\.md$/u.test(file),
     expectedStatus,
+    requireMetadata: requiresMetadata(file),
   });
   results.set(file, result);
   for (const error of result.errors) errors.push(`${file}: ${error}`);
 
-  if (requiresMetadata(file)) {
-    for (const field of ["Status", "Authority"]) {
-      if (!result.metadata[field])
-        errors.push(`${file}: missing ${field} metadata`);
-    }
-  }
   if (
     result.metadata.Authority &&
     !["Reference", "Archived"].includes(result.metadata.Status)

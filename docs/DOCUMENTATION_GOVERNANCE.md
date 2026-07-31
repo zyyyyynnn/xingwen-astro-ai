@@ -12,13 +12,13 @@
 
 文档按职责分为五类：
 
-| 类别       | 位置                                                                                                                          | 职责                                     |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| 入口       | `README.md`、`docs/README.md`                                                                                                   | 项目定位、快速启动、文档地图             |
-| 规范       | `PRD.md`、`DESIGN.md`、`SECURITY.md`、`docs/architecture/`、`docs/ai/`、`docs/design/`                                          | 产品范围、系统不变量、接口、数据、工作流 |
-| 工程与交付 | `CONTRIBUTING.md`、`DEPLOYMENT.md`、`docs/setup.md`、`docs/engineering/`、`docs/product/`、`docs/quality/`、`docs/handoff/`     | 实现、测试、协作、交付与运维规则         |
-| 包级       | `packages/*/README.md`、`services/*/README.md`                                                                                  | 单个包的使用方式与局部边界               |
-| 参考与归档 | `docs/references/`、`docs/archive/`                                                                                             | 非规范参考与历史记录                     |
+| 类别       | 位置                                                                                                                        | 职责                                     |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| 入口       | `README.md`、`docs/README.md`                                                                                               | 项目定位、快速启动、文档地图             |
+| 规范       | `PRD.md`、`DESIGN.md`、`SECURITY.md`、`docs/architecture/`、`docs/ai/`、`docs/design/`                                      | 产品范围、系统不变量、接口、数据、工作流 |
+| 工程与交付 | `CONTRIBUTING.md`、`DEPLOYMENT.md`、`docs/setup.md`、`docs/engineering/`、`docs/product/`、`docs/quality/`、`docs/handoff/` | 实现、测试、协作、交付与运维规则         |
+| 包级       | `packages/*/README.md`、`services/*/README.md`                                                                              | 单个包的使用方式与局部边界               |
+| 参考与归档 | `docs/references/`、`docs/archive/`                                                                                         | 非规范参考与历史记录                     |
 
 权威性冲突时按以下顺序处理：当前 Issue / PR 已批准范围 → 规范 → 工程与交付 → 入口 → 参考与归档。发现冲突时修正低权威来源，或通过 ADR / Issue 修改高权威事实，不自行选择“看起来更新”的版本。
 
@@ -78,6 +78,8 @@
 
 字段规则：
 
+- 前导元数据表只允许上述必填与稳定字段；出现任何其他键名一律失败，不静默忽略。
+- 规范、参考与归档文档必须同时包含 `Status` 与 `Authority`。
 - `Status` 取值：`Proposed`（尚待确认，仅供讨论）、`Accepted`（已确认，可驱动 Issue 与实现）、`Superseded`（已被新决策取代，仅保留历史与迁移解释）、`Archived`（不再维护，不作为实现依据）、`Reference`（外部或辅助资料，仅供研究和比较）。
 - `Status` 描述文档决策状态，不描述代码完成状态；代码完成状态由 Issue、PR 与运行证据表达。
 - `Authority` 在全部非 Reference / Archived 文档中唯一。
@@ -85,7 +87,7 @@
 - 禁止的是元数据字段名，不是合法正文术语或版本化工件内容。
 - 状态变化必须在 PR 中说明替代关系。
 
-`scripts/check-docs.mjs` 拒绝出现禁止字段，并按目录强制 Status。
+`scripts/check-docs.mjs` 校验必填字段是否存在、拒绝白名单外字段与禁止字段，并按目录强制 `Status`。
 
 ## 4. 保留、合并、归档与删除
 
