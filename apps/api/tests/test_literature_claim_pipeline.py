@@ -1,18 +1,22 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
 from pathlib import Path
 import shutil
 import sys
+from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.core import ArtifactKind, LiteratureClaimsArtifactContent
 from app.schemas.enums import ClaimType
 from app.schemas.literature_claim import (
+    LiteratureClaimAdmissionResult,
+    LiteratureClaimBenchmarkCaseKind,
     LiteratureClaimBenchmarkEvaluationCase,
     LiteratureClaimBenchmarkReport,
     LiteratureClaimCandidate,
@@ -22,6 +26,7 @@ from app.schemas.literature_claim import (
     LiteratureClaimsCandidate,
     LiteratureClaimStatus,
 )
+from app.schemas.paper_benchmark import BenchmarkReviewStatus
 from app.schemas.paper_collection import PaperBenchmarkReference
 from app.schemas.paper_summary import (
     PaperSummaryArtifactContent,
@@ -36,8 +41,14 @@ from app.schemas.paper_summary import (
     compute_paper_summary_output_hash,
 )
 from app.workflow.publisher import (
+    ArtifactAdmissionContext,
+    ArtifactPublication,
     PublicationAdmissionError,
     admit_artifact_candidate,
+)
+from app.schemas.reasoning import (
+    LiteratureClaim as Phase0LiteratureClaim,
+    LiteratureReasoningResponse as Phase0LiteratureReasoningResponse,
 )
 from packages.prompts.registry import (
     PromptRegistry,
@@ -51,12 +62,17 @@ from services.paper_pipeline.claim import (
 from services.paper_pipeline.claim_benchmark import (
     evaluate_literature_claims,
     main as claim_benchmark_main,
+    validate_scientific_label_coverage,
+)
+from services.paper_pipeline.claim_benchmark_cases import (
+    build_frozen_claim_benchmark_cases,
 )
 from services.paper_pipeline.constants import (
     CLAIM_NORMALIZATION_VERSION,
     CLAIM_PARAMETERS_VERSION,
     CLAIM_PRODUCER_NAME,
     CLAIM_PRODUCER_VERSION,
+    CLAIM_SCHEMA_VERSION,
     FROZEN_BENCHMARK_CONTENT_HASH,
     FROZEN_BENCHMARK_SCHEMA_VERSION,
     FROZEN_BENCHMARK_VERSION,
@@ -269,10 +285,13 @@ def _admit(
     available_evidence_ids: frozenset[str] | None = None,
     available_source_snapshot_ids: frozenset[str] | None = None,
     existing_claim_fingerprints: frozenset[str] = frozenset(),
+    execution_id: str | None = None,
+    run_id: str | None = None,
+    now: datetime = FIXED_TIME,
 ):
     return LiteratureClaimPipeline(
         prompt_registry=prompt_registry,
-        clock=lambda: FIXED_TIME,
+        clock=lambda: now,
     ).admit(
         paper_summary_artifact_version_id=version_id,
         paper_id=paper_id,
@@ -283,6 +302,8 @@ def _admit(
         available_evidence_ids=available_evidence_ids,
         available_source_snapshot_ids=available_source_snapshot_ids,
         existing_claim_fingerprints=existing_claim_fingerprints,
+        execution_id=execution_id,
+        run_id=run_id,
     )
 
 
@@ -303,6 +324,61 @@ def test_claim_prompt_is_hash_pinned_and_schema_aligned() -> None:
     assert "confidence" in record.content
     assert "ReasoningTrace" in record.content
     assert "chain-of-thought" in record.content
+
+
+def test_claim_input_hash_pins_schema_version() -> None:
+    result = _admit(_response())
+    prompt = PromptRegistry().get("literature_claim")
+    parameters_hash = compute_canonical_payload_hash(
+        {
+            "parameters_version": CLAIM_PARAMETERS_VERSION,
+            "parameters": SAFE_PARAMETERS,
+        }
+    )
+    payload = {
+        "input_versions": result.producer.input_versions.model_dump(
+            mode="json", exclude_none=True
+        ),
+        "prompt_name": prompt.name,
+        "prompt_version": prompt.version,
+        "prompt_hash": prompt.content_hash,
+        "model_name": "qwen.fixture.1",
+        "parameters_version": CLAIM_PARAMETERS_VERSION,
+        "parameters_hash": parameters_hash,
+        "producer_version": CLAIM_PRODUCER_VERSION,
+        "schema_version": CLAIM_SCHEMA_VERSION,
+        "normalization_version": CLAIM_NORMALIZATION_VERSION,
+    }
+
+    assert result.producer.schema_version == CLAIM_SCHEMA_VERSION
+    assert result.publisher_candidate is not None
+    assert result.publisher_candidate.schema_version == CLAIM_SCHEMA_VERSION
+    assert result.producer.input_hash == compute_canonical_payload_hash(payload)
+    payload.pop("schema_version")
+    assert result.producer.input_hash != compute_canonical_payload_hash(payload)
+
+
+def test_tracked_d07_schema_contracts_match_authoring_models() -> None:
+    models = {
+        model.__name__: model
+        for model in (
+            LiteratureClaimExtractionOutput,
+            LiteratureClaimCandidate,
+            LiteratureClaimAdmissionResult,
+            LiteratureClaimsCandidate,
+            LiteratureClaimBenchmarkEvaluationCase,
+            LiteratureClaimBenchmarkReport,
+        )
+    }
+    output = ROOT / "packages" / "schemas" / "generated" / "literature_claim"
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+
+    assert {item["name"] for item in manifest["models"]} == set(models)
+    for name, model in models.items():
+        generated = json.loads(
+            (output / "json" / f"{name}.schema.json").read_text(encoding="utf-8")
+        )
+        assert generated == model.model_json_schema()
 
 
 def test_model_output_requires_complete_strict_claim_shape() -> None:
@@ -618,6 +694,49 @@ def test_hashes_are_stable_across_key_claim_and_parameter_order() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("model_response", "expected_status"),
+    (
+        (_response(), LiteratureClaimStatus.accepted),
+        (
+            _response(_claim(evidence_ids=())),
+            LiteratureClaimStatus.rejected,
+        ),
+        ("{invalid", LiteratureClaimStatus.rejected),
+    ),
+    ids=("accepted", "record_rejected", "json_rejected"),
+)
+def test_execution_runtime_does_not_change_stable_hashes(
+    model_response: str,
+    expected_status: LiteratureClaimStatus,
+) -> None:
+    first = _admit(
+        model_response,
+        execution_id="execution.explicit.a",
+        run_id="run.explicit.a",
+        now=FIXED_TIME,
+    )
+    second = _admit(
+        model_response,
+        execution_id="execution.explicit.b",
+        run_id="run.explicit.b",
+        now=FIXED_TIME + timedelta(minutes=5),
+    )
+
+    assert first.admission_status is expected_status
+    assert second.admission_status is expected_status
+    assert first.producer.execution_id != second.producer.execution_id
+    assert first.producer.run_id != second.producer.run_id
+    assert first.producer.started_at != second.producer.started_at
+    assert first.producer.input_hash == second.producer.input_hash
+    assert first.producer.model_response_hash == second.producer.model_response_hash
+    assert first.output_hash == second.output_hash
+    if first.records:
+        assert tuple(item.producer_execution_id for item in first.records) != tuple(
+            item.producer_execution_id for item in second.records
+        )
+
+
 def test_parameter_and_input_version_changes_change_hashes() -> None:
     first = _admit(_response())
     changed_parameters = _admit(
@@ -696,155 +815,335 @@ def test_publisher_ready_candidate_passes_structured_admission_port() -> None:
     result = _admit(_response())
     assert result.publisher_candidate is not None
 
+    def validate_context(context: ArtifactAdmissionContext) -> None:
+        assert context.candidate is result.publisher_candidate
+        assert context.source_snapshot_ids == result.publisher_candidate.source_snapshot_ids
+        assert context.evidence_ids == result.publisher_candidate.evidence_ids
+
     admitted = admit_artifact_candidate(
         result.publisher_candidate,
         schema_version=result.publisher_candidate.schema_version,
         source_snapshot_ids=result.publisher_candidate.source_snapshot_ids,
         evidence_ids=result.publisher_candidate.evidence_ids,
-        evidence_validator=lambda _: None,
-        domain_validator=lambda _: None,
-        quality_validator=lambda _: None,
+        evidence_validator=validate_context,
+        domain_validator=validate_context,
+        quality_validator=validate_context,
+    )
+    publication = ArtifactPublication(
+        artifact_id=uuid4(),
+        publication_key="d07-benchmark-fixture",
+        producer_execution_id=uuid4(),
+        candidate=admitted,
+        source_mode="fixture",
     )
 
     assert admitted.content["kind"] == "literature_claims"
     assert admitted.content["output_hash"] == result.output_hash
+    assert admitted.content_hash == compute_canonical_payload_hash(admitted.content)
+    assert publication.candidate is admitted
     reparsed = LiteratureClaimsCandidate.model_validate(admitted.content)
     assert reparsed.claims == result.records
 
-
-def test_intermediate_model_output_cannot_bypass_publisher() -> None:
-    model_output = LiteratureClaimExtractionOutput.model_validate_json(_response())
-
     with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
         admit_artifact_candidate(
-            model_output,
-            schema_version="1.0.0",
-            source_snapshot_ids=(SNAPSHOT_ID,),
-            evidence_ids=(EVIDENCE_ID,),
+            reparsed,
+            schema_version=reparsed.schema_version,
+            source_snapshot_ids=reparsed.source_snapshot_ids,
+            evidence_ids=reparsed.evidence_ids,
             evidence_validator=lambda _: None,
             domain_validator=lambda _: None,
             quality_validator=lambda _: None,
         )
 
 
-def test_fixed_d01_claim_benchmark_is_reproducible_and_uses_approved_labels() -> None:
-    benchmark = load_frozen_benchmark()
-    expected = benchmark.claims[0]
-    summary = _summary(
-        paper_id=expected.paper_id,
-        summary_id=expected.summary_id,
-        statement_id=STATEMENT_ID,
-        evidence_id=expected.evidence_ids[0],
-    )
-    exact_claim = _claim(
-        claim_type=expected.claim_type,
-        evidence_ids=expected.evidence_ids,
-        text=expected.text,
-        normalized_text=expected.normalized_text,
-        conditions=expected.conditions,
-    )
-    accepted = _admit(_response(exact_claim), versions=_versions(summary))
-    invalid = _admit("{invalid")
-    cases = (
-        LiteratureClaimBenchmarkEvaluationCase(
-            case_id="claim_eval.accepted",
-            benchmark_claim_id=expected.claim_id,
-            record_claim_id=accepted.records[0].claim_id,
-            admission=accepted,
-        ),
-        LiteratureClaimBenchmarkEvaluationCase(
-            case_id="claim_eval.invalid_json",
-            benchmark_claim_id=benchmark.claims[1].claim_id,
-            record_claim_id=None,
-            admission=invalid,
-        ),
+def test_publisher_seal_is_bound_to_original_candidate_instance() -> None:
+    result = _admit(_response())
+    assert result.publisher_candidate is not None
+    copied = result.publisher_candidate.model_copy()
+    deep_copied = result.publisher_candidate.model_copy(deep=True)
+    tampered = result.publisher_candidate.model_copy(
+        update={"output_hash": "sha256:" + "0" * 64}
     )
 
+    for candidate in (copied, deep_copied, tampered):
+        with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
+            admit_artifact_candidate(
+                candidate,
+                schema_version=candidate.schema_version,
+                source_snapshot_ids=candidate.source_snapshot_ids,
+                evidence_ids=candidate.evidence_ids,
+                evidence_validator=lambda _: None,
+                domain_validator=lambda _: None,
+                quality_validator=lambda _: None,
+            )
+
+
+def test_intermediate_model_output_cannot_bypass_publisher() -> None:
+    model_output = LiteratureClaimExtractionOutput.model_validate_json(_response())
+
+    for candidate in (model_output, model_output.claims[0]):
+        with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
+            admit_artifact_candidate(
+                candidate,
+                schema_version="1.0.0",
+                source_snapshot_ids=(SNAPSHOT_ID,),
+                evidence_ids=(EVIDENCE_ID,),
+                evidence_validator=lambda _: None,
+                domain_validator=lambda _: None,
+                quality_validator=lambda _: None,
+            )
+
+
+def test_legacy_projection_and_single_claim_models_cannot_bypass_publisher() -> None:
+    result = _admit(_response())
+    legacy = Phase0LiteratureClaim(
+        claim_id="claim.phase0",
+        task_id="task.phase0",
+        paper_id=PAPER_ID,
+        claim_type=ClaimType.method,
+        text="Legacy transport claim.",
+        normalized_text="Legacy transport claim.",
+        evidence_ids=[EVIDENCE_ID],
+        confidence=1.0,
+    )
+    projection = LiteratureClaimsArtifactContent(
+        kind=ArtifactKind.literature_claims,
+        claim_ids=("claim.phase0",),
+    )
+    legacy_response = Phase0LiteratureReasoningResponse(
+        claims=[legacy],
+        relations=[],
+        traces=[],
+    )
+
+    for candidate in (
+        result.records[0],
+        result,
+        legacy,
+        legacy_response,
+        projection,
+    ):
+        with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
+            admit_artifact_candidate(
+                candidate,
+                schema_version="1.0.0",
+                source_snapshot_ids=(SNAPSHOT_ID,),
+                evidence_ids=(EVIDENCE_ID,),
+                evidence_validator=lambda _: None,
+                domain_validator=lambda _: None,
+                quality_validator=lambda _: None,
+            )
+
+
+def test_fixed_d01_claim_benchmark_is_reproducible_and_uses_approved_labels() -> None:
+    benchmark = load_frozen_benchmark()
+    cases = build_frozen_claim_benchmark_cases(benchmark)
+    approved_ids = {
+        item.claim_id
+        for item in benchmark.claims
+        if item.review_status is BenchmarkReviewStatus.approved
+    }
+    scientific_ids = {
+        case.benchmark_claim_id
+        for case in cases
+        if case.case_kind is LiteratureClaimBenchmarkCaseKind.scientific_label
+    }
+
+    validate_scientific_label_coverage(benchmark, cases)
     first = evaluate_literature_claims(benchmark=benchmark, cases=cases)
     second = evaluate_literature_claims(
         benchmark=benchmark,
         cases=tuple(reversed(cases)),
     )
 
+    assert len(approved_ids) == 8
+    assert scientific_ids == approved_ids
     assert first == second
+    assert first.benchmark_schema_version == FROZEN_BENCHMARK_SCHEMA_VERSION
     assert first.benchmark_version == FROZEN_BENCHMARK_VERSION
-    assert first.sample_count == 2
-    assert first.schema_items_valid == 1
-    assert first.schema_pass_rate == 0.5
-    assert first.evidence_items_supported == 1
-    assert first.evidence_items_total == 1
-    assert first.evidence_coverage == 1.0
-    assert first.scientific_review_items_correct == 1
-    assert first.scientific_review_items_total == 2
-    assert first.scientific_review_accuracy == 0.5
-    assert first.status_counts.accepted == 1
-    assert first.status_counts.rejected == 1
-    assert first.rejection_counts[0].rejection_reason is (
-        LiteratureClaimRejectionReason.invalid_json
-    )
-    assert first.rejection_counts[0].sample_case_ids == (
-        "claim_eval.invalid_json",
+    assert first.benchmark_scientific_payload_hash == FROZEN_SCIENTIFIC_PAYLOAD_HASH
+    assert first.benchmark_content_hash == FROZEN_BENCHMARK_CONTENT_HASH
+    assert first.sample_count == len(approved_ids) + 4
+    assert first.schema_items_valid == first.sample_count - 1
+    assert first.schema_items_total == first.sample_count
+    assert first.rejection_cases_passed == 4
+    assert first.rejection_cases_total == 4
+    assert first.rejection_case_pass_rate == 1.0
+    assert first.evidence_items_supported == len(approved_ids)
+    assert first.evidence_items_total == len(approved_ids)
+    assert first.evidence_coverage_rate == 1.0
+    assert first.scientific_label_items_exact == len(approved_ids)
+    assert first.scientific_label_items_total == len(approved_ids)
+    assert first.scientific_label_exact_match_rate == 1.0
+    assert all(
+        item.scientific_label_exact_match is None
+        for item in first.cases
+        if item.case_kind is LiteratureClaimBenchmarkCaseKind.rejection_case
     )
     assert first.input_hash.startswith("sha256:")
     assert first.output_hash.startswith("sha256:")
 
 
-def test_claim_benchmark_cli_writes_valid_stable_report(
+def test_claim_benchmark_metric_denominators_and_empty_subsets() -> None:
+    benchmark = load_frozen_benchmark()
+    cases = build_frozen_claim_benchmark_cases(benchmark)
+    scientific = tuple(
+        case
+        for case in cases
+        if case.case_kind is LiteratureClaimBenchmarkCaseKind.scientific_label
+    )
+    rejections = tuple(
+        case
+        for case in cases
+        if case.case_kind is LiteratureClaimBenchmarkCaseKind.rejection_case
+    )
+
+    scientific_report = evaluate_literature_claims(
+        benchmark=benchmark,
+        cases=scientific,
+    )
+    rejection_report = evaluate_literature_claims(
+        benchmark=benchmark,
+        cases=rejections,
+    )
+
+    assert scientific_report.schema_pass_rate == 1.0
+    assert scientific_report.scientific_label_exact_match_rate == 1.0
+    assert scientific_report.evidence_coverage_rate == 1.0
+    assert scientific_report.rejection_cases_total == 0
+    assert scientific_report.rejection_case_pass_rate is None
+    assert rejection_report.schema_items_valid == 3
+    assert rejection_report.schema_items_total == 4
+    assert rejection_report.schema_pass_rate == 0.75
+    assert rejection_report.rejection_case_pass_rate == 1.0
+    assert rejection_report.scientific_label_items_total == 0
+    assert rejection_report.scientific_label_exact_match_rate is None
+    assert rejection_report.evidence_items_total == 0
+    assert rejection_report.evidence_coverage_rate is None
+    with pytest.raises(ValueError, match="at least one case"):
+        evaluate_literature_claims(benchmark=benchmark, cases=())
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("schema_version", "1.3.1"),
+        ("benchmark_version", "1.3.1"),
+        ("scientific_payload_hash", "sha256:" + "1" * 64),
+        ("content_hash", "sha256:" + "2" * 64),
+    ),
+)
+def test_claim_benchmark_rejects_d01_identity_mismatch(
+    field: str,
+    value: str,
+) -> None:
+    benchmark = load_frozen_benchmark()
+    cases = build_frozen_claim_benchmark_cases(benchmark)
+    changed = benchmark.model_copy(update={field: value})
+
+    with pytest.raises(ValueError, match="frozen D-01 benchmark identity mismatch"):
+        evaluate_literature_claims(benchmark=changed, cases=cases)
+
+
+def test_formal_claim_benchmark_rejects_incomplete_scientific_coverage() -> None:
+    benchmark = load_frozen_benchmark()
+    cases = build_frozen_claim_benchmark_cases(benchmark)
+    incomplete = tuple(
+        case
+        for case in cases
+        if case.case_id != "scientific.claim.ricker_expected_yield"
+    )
+
+    with pytest.raises(ValueError, match="every approved D-01 Claim exactly once"):
+        validate_scientific_label_coverage(benchmark, incomplete)
+
+
+def test_claim_benchmark_ignores_execution_runtime_in_content_hash() -> None:
+    benchmark = load_frozen_benchmark()
+    first_admission = _admit(
+        _response(),
+        execution_id="execution.benchmark.a",
+        run_id="run.benchmark.a",
+        now=FIXED_TIME,
+    )
+    second_admission = _admit(
+        _response(),
+        execution_id="execution.benchmark.b",
+        run_id="run.benchmark.b",
+        now=FIXED_TIME + timedelta(minutes=5),
+    )
+
+    def evaluation_case(
+        admission: LiteratureClaimAdmissionResult,
+    ) -> LiteratureClaimBenchmarkEvaluationCase:
+        return LiteratureClaimBenchmarkEvaluationCase(
+            case_id="scientific.runtime_stability",
+            case_kind=LiteratureClaimBenchmarkCaseKind.scientific_label,
+            benchmark_claim_id="claim.ricker_transit_bright_stars",
+            record_claim_id=admission.records[0].claim_id,
+            admission=admission,
+        )
+
+    first = evaluate_literature_claims(
+        benchmark=benchmark,
+        cases=(evaluation_case(first_admission),),
+    )
+    second = evaluate_literature_claims(
+        benchmark=benchmark,
+        cases=(evaluation_case(second_admission),),
+    )
+
+    assert first_admission.producer.execution_id != (
+        second_admission.producer.execution_id
+    )
+    assert first == second
+    assert first.input_hash == second.input_hash
+    assert first.output_hash == second.output_hash
+
+
+def test_claim_benchmark_cli_generates_clean_checkout_suite_and_stable_output(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    benchmark = load_frozen_benchmark()
-    expected = benchmark.claims[0]
-    summary = _summary(
-        paper_id=expected.paper_id,
-        summary_id=expected.summary_id,
-        evidence_id=expected.evidence_ids[0],
-    )
-    admission = _admit(
-        _response(
-            _claim(
-                claim_type=expected.claim_type,
-                evidence_ids=expected.evidence_ids,
-                text=expected.text,
-                normalized_text=expected.normalized_text,
-                conditions=expected.conditions,
-            )
-        ),
-        versions=_versions(summary),
-    )
-    case = LiteratureClaimBenchmarkEvaluationCase(
-        case_id="claim_eval.cli",
-        benchmark_claim_id=expected.claim_id,
-        record_claim_id=admission.records[0].claim_id,
-        admission=admission,
-    )
-    cases_path = tmp_path / "cases.json"
-    report_path = tmp_path / "report.json"
-    cases_path.write_text(
-        json.dumps(
-            [case.model_dump(mode="json", exclude_none=True)],
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
+    first_report_path = tmp_path / "report-first.json"
+    second_report_path = tmp_path / "report-second.json"
+    first_cases_path = tmp_path / "cases-first.json"
+    second_cases_path = tmp_path / "cases-second.json"
     monkeypatch.setattr(
         sys,
         "argv",
         [
             "claim_benchmark",
-            "--cases",
-            str(cases_path),
             "--output",
-            str(report_path),
+            str(first_report_path),
+            "--cases-output",
+            str(first_cases_path),
         ],
     )
-
     assert claim_benchmark_main() == 0
-    report = LiteratureClaimBenchmarkReport.model_validate_json(
-        report_path.read_text(encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "claim_benchmark",
+            "--output",
+            str(second_report_path),
+            "--cases-output",
+            str(second_cases_path),
+        ],
     )
-    assert report.sample_count == 1
-    assert report.scientific_review_accuracy == 1.0
+    assert claim_benchmark_main() == 0
+
+    report = LiteratureClaimBenchmarkReport.model_validate_json(
+        first_report_path.read_text(encoding="utf-8")
+    )
+    assert report.sample_count == 12
+    assert report.scientific_label_items_total == 8
+    assert report.scientific_label_exact_match_rate == 1.0
+    assert first_report_path.read_bytes() == second_report_path.read_bytes()
+    assert first_cases_path.read_bytes() == second_cases_path.read_bytes()
+    assert b"\r" not in first_report_path.read_bytes()
+    assert b"\r" not in first_cases_path.read_bytes()
     assert report.output_hash.startswith("sha256:")
 
 

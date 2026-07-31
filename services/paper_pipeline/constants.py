@@ -1,4 +1,4 @@
-"""Frozen D-01 inputs and D-02 producer rule versions."""
+"""Frozen benchmark inputs and paper-pipeline contract versions."""
 
 from __future__ import annotations
 
@@ -36,5 +36,6 @@ SUMMARY_PRODUCER_VERSION = "1.0.0"
 SUMMARY_PARAMETERS_VERSION = "1.0.0"
 CLAIM_PRODUCER_NAME = "xingwen.literature_claim"
 CLAIM_PRODUCER_VERSION = "1.0.0"
+CLAIM_SCHEMA_VERSION = "1.0.0"
 CLAIM_PARAMETERS_VERSION = "1.0.0"
 CLAIM_NORMALIZATION_VERSION = "1.0.0"

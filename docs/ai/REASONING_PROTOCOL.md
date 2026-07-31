@@ -38,15 +38,20 @@ PaperSummary ArtifactVersion
 
 LiteratureClaim 至少包含：
 
-- paper id 和输入 Summary version；
-- claim type；
+- paper id、输入 PaperSummary ArtifactVersion、Summary/statement id；
+- claim type、polarity；
 - 原始可核验表述与规范化表述；
-- 对象、指标、单位、范围和 conditions；
-- evidence ids；
-- confidence；
-- `candidate | accepted | rejected` 状态及拒绝原因。
+- objects、metric/unit、conditions、scope、limitations、qualifiers、uncertainty
+  和 comparison basis；
+- Evidence/SourceSnapshot ids、normalization version 与稳定 fingerprint；
+- Prompt/model/parameters/ProducerExecution、input/model-response/output hash；
+- `candidate | accepted | rejected` 状态、failure stage 及拒绝原因。
 
 Claim normalization 不得改变结论方向、删除关键限制或合并不可比较对象。
+confidence 不属于 D-07 Claim Schema，也不能作为科学正确性或准入依据。D-07 唯一
+编写源是 `apps/api/src/app/schemas/literature_claim.py`；Phase 0
+`app.schemas.reasoning.LiteratureClaim` 及其 `LiteratureReasoningResponse` 包络只保留
+冻结传输兼容，不能进入 Publisher。
 
 ## 4. Relation 类型
 

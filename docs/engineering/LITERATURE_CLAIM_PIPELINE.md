@@ -1,10 +1,10 @@
 # LiteratureClaim Pipeline
 
-| 元数据       | 值                                                                 |
-| ------------ | ------------------------------------------------------------------ |
-| Status       | Implemented                                                        |
-| Authority    | D-07 LiteratureClaim 抽取、规范化、准入、固定 Benchmark 与交接边界 |
-| Implementation | detached Claim admission 与 publisher-ready typed candidate Current；生产模型、Workflow/数据库发布、HTTP 读取 Pending |
+| 元数据    | 值                                                                 |
+| --------- | ------------------------------------------------------------------ |
+| Status    | Accepted                                                           |
+| Authority | D-07 LiteratureClaim 抽取、规范化、准入、固定 Benchmark 与交接边界 |
+| Scope     | Detached Claim admission、可复现 Benchmark 与 typed candidate 契约  |
 
 本文是 D-07 运行规则和操作方式的唯一完整事实源。Claim 字段与不变量仍由
 [Data Model](../architecture/DATA_MODEL.md) 负责，ArtifactVersion/hash 规则由
@@ -29,7 +29,7 @@ objects、metric/unit、conditions、scope、limitations、qualifiers、uncertai
 Evidence/SourceSnapshot、状态和稳定拒绝原因。
 
 只要批次中至少有一条 `candidate` 或 `accepted` Claim，结果同时提供经过 Pipeline
-封印的 `LiteratureClaimsCandidate`。该类型可以直接交给 #78 structured publisher
+封印的 `LiteratureClaimsCandidate`。该类型可以直接交给 ArtifactVersion structured
 admission port；D-07 自身不创建数据库 ArtifactVersion。
 
 ## 2. 固定准入顺序
@@ -76,8 +76,14 @@ Relation 输入只能选择 candidate/accepted Claim。
 
 唯一 Pydantic 编写源是
 `apps/api/src/app/schemas/literature_claim.py`。中间模型
-`LiteratureClaimExtractionOutput` 不能绕过 D-07 直接进入 Publisher；完整
-`LiteratureClaimsCandidate@1.0.0` 才是领域 typed candidate。
+`LiteratureClaimModelCandidate`、`LiteratureClaimExtractionOutput`、单条
+`LiteratureClaimCandidate` 和 `LiteratureClaimAdmissionResult` 不能绕过 D-07 直接进入
+Publisher；只有 Pipeline 封印的完整
+`LiteratureClaimsCandidate@1.0.0` 才是领域 typed candidate。Phase 0
+`app.schemas.reasoning.LiteratureClaim` 及其 `LiteratureReasoningResponse` 包络与 core
+`LiteratureClaimsArtifactContent` 只是冻结传输/投影兼容，同样带不可发布 marker，
+不是第二套 D-07 编写源。独立 tracked JSON Schema 位于
+`packages/schemas/generated/literature_claim`，不进入 HTTP OpenAPI。
 
 生产 Prompt 位于 `packages/prompts/literature_claim/v1.md`，通过
 `packages/prompts/registry.json` 的 immutable hash-pinned record 加载。Prompt 要求：
@@ -88,8 +94,11 @@ Relation 输入只能选择 candidate/accepted Claim。
 - 保留方向、否定、conditions、scope、limitations、qualifiers 和 uncertainty；
 - 只输出 JSON，不输出 confidence、Relation、ReasoningTrace、Graph 或私有推理。
 
-ProducerExecution 固定记录 Prompt/schema/model/parameters/producer/normalization
-版本。parameters 复用 D-03 安全标量和敏感键拒绝策略。
+Extraction、Claim candidate、admission、publisher candidate 与 Benchmark report
+schema/report version 均固定为 `1.0.0`；producer、parameters 和 normalization
+version 也均为 `1.0.0`。ProducerExecution 固定记录
+Prompt/schema/model/parameters/producer/normalization 版本。parameters 复用 D-03
+安全标量和敏感键拒绝策略。
 
 ## 5. Normalization 与 duplicate
 
@@ -120,45 +129,62 @@ fingerprint；不使用模糊文本相似度。
 
 因此相同版本化输入产生相同 hash；Prompt、parameters 或输入 ArtifactVersion 变化会
 改变 input/output hash。随机 id、时间戳和 Claim 集合遍历顺序不会破坏稳定性。
+ArtifactVersion admission 另对准备持久化的完整 JSON 计算 `content_hash`；该 hash
+覆盖嵌入的审计字段，和 D-07 稳定 `output_hash` 职责不同，不要求相等。后续持久化
+边界使用 admitted `content_hash` 对照数据库 ProducerExecution。
 
 ## 7. 固定 Benchmark
 
-`services.paper_pipeline.claim_benchmark.evaluate_literature_claims` 只读取冻结 D-01
-`1.3.0` Package 及其中 `review_status=approved` 的 Claim 标签，不调用线上模型，
-不修改 Benchmark，不编造科研正确性标签。CLI 接收已经序列化的
-`LiteratureClaimBenchmarkEvaluationCase[]`：
+`services.paper_pipeline.claim_benchmark` 只读取 tracked 冻结 D-01 `1.3.0`
+Package，校验其 schema/version/scientific payload/content 四项 pin，并动态遍历其中
+全部 `review_status=approved` 的 Claim 标签。默认 CLI 通过
+`claim_benchmark_cases.build_frozen_claim_benchmark_cases` 确定性派生准入输入，不调用
+线上模型、不修改 D-01，也不依赖 ignored `.artifacts` 输入：
 
 ```powershell
 uv run --project apps/api python -m services.paper_pipeline.claim_benchmark `
-  --cases .artifacts/d07-claim-cases.json `
+  --cases-output .artifacts/d07-claim-cases.json `
   --output .artifacts/d07-claim-benchmark-report.json
 ```
 
-报告字段：
+冻结的 D-01 `1.3.0` 实际有 8 条适用于 D-07 的 approved Claim（method 3、dataset 2、
+limitation 2、finding 1）；生成器逐条产生科研标签 case，并从同一 tracked 包派生
+invalid JSON、ownership、Evidence missing、duplicate 四类负例。正式 CLI 要求科研
+case id 与全部 approved Claim 一一对应；`--cases` 只用于重放已序列化的完整 suite，
+不能提交子集。`--cases-output` 是可选审计输出，不是运行前置输入。
 
-- `sample_count`、`claim_type_counts`：样本总数和冻结标签分类；
-- `schema_pass_rate`：通过 JSON/Pydantic 的 case / 全部 case；
-- `evidence_coverage`：D-03 supported Evidence references / 全部 Claim Evidence
-  references；分母为零时是 `null`；
-- `scientific_review_accuracy`：与 D-01 approved Claim 的 paper/type/raw
-  text/normalized text/conditions/Evidence/status 全字段 exact match / 全部 case；
+四个指标都同时保存分子、分母和 rate：
+
+- `schema_pass_rate`：通过 JSON 与 `LiteratureClaimExtractionOutput` Pydantic 的 case /
+  全部 case；正式 suite 非空；
+- `rejection_case_pass_rate`：实际 `rejected` 且 failure stage/reason 都精确命中预期的
+  负例 / 全部 `rejection_case`；无负例时为 `null`；
+- `evidence_coverage_rate`：进入科研标签比较的 Schema-valid Claim 中，Publisher
+  candidate 保留且状态为 `supported` 的 Evidence reference / 这些 Claim 声明的全部
+  Evidence obligation；分母为零时为 `null`；
+- `scientific_label_exact_match_rate`：paper/type/raw text/normalized
+  text/conditions/Evidence/status 与 D-01 approved 标签全字段 exact match / 仅
+  `scientific_label`、Schema-valid 且存在可比较 record 的 case；无适用科研 case 时为
+  `null`。invalid JSON、ownership、Evidence missing、duplicate 等负例不进入该分母；
+- `sample_count`、`claim_type_counts` 记录总样本和已比较科研标签类型；
 - `status_counts`：accepted/candidate/rejected case 数；
 - `rejection_counts`：按稳定拒绝枚举聚合的数量和排序后 case id；
 - 每个 case 的 input/output hash 以及 report input/output hash。
 
-exact match 是对既有人工审核标签的回归指标，不表示 hash 或字符串匹配本身证明科学
-正确。
+case、类型、拒绝原因与序列化 key 均稳定排序；report content hash 不包含 execution
+id、时间戳或 latency。exact match 只是对既有 D-01 人工审核标签和 admission 行为的
+回归，不是线上模型科学质量、泛化能力或新科学结论指标。
 
-## 8. D-08 / B-08 交接
+## 8. Relation、持久化与读取边界交接
 
-- D-08 直接导入 `LiteratureClaimsCandidate.claims`，只把 status 为 candidate 或
+- Relation 边界直接导入 `LiteratureClaimsCandidate.claims`，只把 status 为 candidate 或
   accepted 的记录送入 Relation pairing；使用 objects、metric、unit、conditions、
   scope、limitations、Evidence/SourceSnapshot 和 Summary version 做可比性与
   provenance 校验。
-- B-08 接收完整 `LiteratureClaimsCandidate`，重新验证 Pydantic、Pipeline seal、
-  schema/input/output hash 和 Evidence references 后调用 #78 Publisher。B-08 负责
-  ArtifactVersion persistence 与 version-pinned HTTP projection，不复制 D-07 Schema
-  或重做 Claim admission。
+- 持久化边界接收完整 `LiteratureClaimsCandidate`，重新验证 Pydantic、Pipeline seal、
+  schema/input/output hash 和 Evidence references 后调用 ArtifactVersion Publisher。
+  读取边界提供 version-pinned HTTP projection；两者都不复制 D-07 Schema 或重做
+  Claim admission。
 
 ## 9. 验证
 
@@ -171,7 +197,9 @@ uv run --project apps/api pytest
 ```
 
 针对性测试覆盖四类 Claim、三态、全部稳定拒绝原因、优先级、normalization、
-duplicate、hash 漂移/稳定、Publisher seal、D01 Benchmark 字段与排序。
+duplicate、hash 漂移/稳定、Publisher seal、D01 全部 approved 标签、四项 Benchmark
+分母/空子集、CLI 生成与排序。tracked Schema 使用文档中的正式 export/`--check`
+命令验证；core contracts 仍执行 `sync-contracts`，且不在 D-07 中新增 HTTP DTO。
 
 ## 10. 明确非目标
 
