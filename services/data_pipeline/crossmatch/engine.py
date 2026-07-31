@@ -54,6 +54,19 @@ _CONFIDENCE_ORDER = {
     ConfidenceBand.medium: 2,
     ConfidenceBand.high: 3,
 }
+_COORDINATE_THRESHOLD_REL_TOL = 1e-12
+_COORDINATE_THRESHOLD_ABS_TOL = 1e-7
+
+
+def _within_threshold(separation: float, threshold: float) -> bool:
+    """Apply one shared numeric tolerance policy to every coordinate band."""
+
+    return separation <= threshold or math.isclose(
+        separation,
+        threshold,
+        rel_tol=_COORDINATE_THRESHOLD_REL_TOL,
+        abs_tol=_COORDINATE_THRESHOLD_ABS_TOL,
+    )
 
 
 def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
@@ -397,17 +410,12 @@ def _match_host_candidates(
     coordinate_threshold = (
         input.rule_set.coordinate.manual_review_separation_arcsec
     )
-    coordinate_match = separation is not None and (
-        separation <= coordinate_threshold
-        or math.isclose(
-            separation,
-            coordinate_threshold,
-            rel_tol=1e-12,
-            abs_tol=1e-7,
-        )
+    coordinate_match = separation is not None and _within_threshold(
+        separation, coordinate_threshold
     )
     coordinate_conflict = (
         separation is not None
+        and not coordinate_match
         and separation > coordinate_threshold
         and bool(exact_fields)
     )
@@ -497,7 +505,8 @@ def _match_host_candidates(
         decision = MatchDecision.review_required
         confidence = (
             input.rule_set.method_confidence.coordinate_strict
-            if separation is not None and separation <= strict_threshold
+            if separation is not None
+            and _within_threshold(separation, strict_threshold)
             else input.rule_set.method_confidence.coordinate_review
         )
         conflict_code = None

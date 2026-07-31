@@ -1025,3 +1025,117 @@ def test_manual_review_candidate_binding_mismatch_is_rejected() -> None:
         align_cross_source_records(reviewed_input)
 
     assert error.value.code == "CROSSMATCH_MANUAL_DECISION_BINDING_MISMATCH"
+
+
+def _coordinate_separation_arcsec(ra_left: float, ra_right: float, dec: float) -> float:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("900.01", tic_id=None, ra=ra_left, dec=dec),),
+            (
+                ps_record(
+                    "Separation Probe b",
+                    "Reference",
+                    tic_id=None,
+                    ra=ra_right,
+                    dec=dec,
+                ),
+            ),
+        )
+    )
+    condition = next(
+        item
+        for evidence in result.evidence
+        if evidence.method is CrossmatchMethod.coordinate
+        for item in evidence.conditions
+        if item.separation_arcsec is not None
+    )
+    return condition.separation_arcsec
+
+
+def _rule_set_with_coordinate(
+    *, strict: float, manual_review: float
+) -> CrossmatchRuleSet:
+    rule_payload = load_crossmatch_rule_set().model_dump(mode="json")
+    rule_payload["coordinate"]["strict_separation_arcsec"] = strict
+    rule_payload["coordinate"]["manual_review_separation_arcsec"] = manual_review
+    rule_payload["content_hash"] = compute_crossmatch_content_hash(rule_payload)
+    return CrossmatchRuleSet.model_validate(rule_payload)
+
+
+def test_identifier_match_within_manual_tolerance_is_not_coordinate_conflict() -> None:
+    separation = _coordinate_separation_arcsec(10.0, 10.00025, 20.0)
+    # Place the manual-review threshold just below the real separation so the
+    # value falls inside the shared isclose window (abs_tol=1e-7) and also
+    # strictly exceeds the threshold: the pre-fix coordinate_conflict branch.
+    rule_set = _rule_set_with_coordinate(
+        strict=separation - 5e-7,
+        manual_review=separation - 5e-8,
+    )
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("901.01", tic_id=901, ra=10.0, dec=20.0),),
+            (
+                ps_record(
+                    "Tolerant Host b",
+                    "Reference",
+                    tic_id="TIC 901",
+                    ra=10.00025,
+                    dec=20.0,
+                ),
+            ),
+            rule_set=rule_set,
+        )
+    )
+
+    host_match = next(
+        record
+        for record in paired_records(result)
+        if record.entity_level is EntityLevel.host_star
+    )
+    assert host_match.method is CrossmatchMethod.exact_identifier
+    assert host_match.decision is MatchDecision.accepted
+    assert conflict_records(result) == []
+    coordinate_condition = next(
+        item
+        for evidence in result.evidence
+        if evidence.method is CrossmatchMethod.exact_identifier
+        for item in evidence.conditions
+        if item.separation_arcsec is not None
+    )
+    assert (
+        coordinate_condition.operator.value == "angular_separation_lte"
+    )
+
+
+def test_strict_band_uses_shared_tolerance_at_boundary() -> None:
+    separation = _coordinate_separation_arcsec(10.0, 10.00025, 20.0)
+    # Strict threshold just below separation: with the shared tolerance the
+    # value is still treated as strict (medium), not review (low).
+    rule_set = _rule_set_with_coordinate(
+        strict=separation - 5e-8,
+        manual_review=separation + 1.0,
+    )
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("902.01", tic_id=None, ra=10.0, dec=20.0),),
+            (
+                ps_record(
+                    "Strict Boundary b",
+                    "Reference",
+                    tic_id=None,
+                    ra=10.00025,
+                    dec=20.0,
+                ),
+            ),
+            rule_set=rule_set,
+        )
+    )
+
+    coordinate_match = next(
+        record
+        for record in paired_records(result)
+        if record.entity_level is EntityLevel.host_star
+    )
+    assert coordinate_match.method is CrossmatchMethod.coordinate
+    assert coordinate_match.decision is MatchDecision.review_required
+    assert coordinate_match.confidence_band is ConfidenceBand.medium
