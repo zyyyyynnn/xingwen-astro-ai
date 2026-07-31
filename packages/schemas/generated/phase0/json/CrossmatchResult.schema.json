@@ -426,6 +426,9 @@
         "alias_catalog": {
           "$ref": "#/$defs/EntityAliasCatalog"
         },
+        "left": {
+          "$ref": "#/$defs/CrossmatchAdmissionSourceContext"
+        },
         "manual_review_decisions": {
           "default": [],
           "items": {
@@ -434,6 +437,9 @@
           "title": "Manual Review Decisions",
           "type": "array"
         },
+        "right": {
+          "$ref": "#/$defs/CrossmatchAdmissionSourceContext"
+        },
         "rule_set": {
           "$ref": "#/$defs/CrossmatchRuleSet"
         },
@@ -441,14 +447,65 @@
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Source Input Hash",
           "type": "string"
+        },
+        "source_policy": {
+          "$ref": "#/$defs/CrossmatchSourcePolicy"
         }
       },
       "required": [
         "source_input_hash",
         "rule_set",
-        "alias_catalog"
+        "alias_catalog",
+        "source_policy",
+        "left",
+        "right"
       ],
       "title": "CrossmatchAdmissionContext",
+      "type": "object"
+    },
+    "CrossmatchAdmissionSourceContext": {
+      "additionalProperties": false,
+      "properties": {
+        "completion": {
+          "$ref": "#/$defs/DataSourceCompletion"
+        },
+        "data_level": {
+          "$ref": "#/$defs/DataSourceDataLevel"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_mode",
+        "data_level",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "source_id",
+        "query_hash",
+        "completion"
+      ],
+      "title": "CrossmatchAdmissionSourceContext",
       "type": "object"
     },
     "CrossmatchCapacityPolicy": {
@@ -1112,6 +1169,73 @@
       ],
       "title": "CrossmatchSide",
       "type": "string"
+    },
+    "CrossmatchSourceOriginPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "data_levels": {
+          "items": {
+            "$ref": "#/$defs/DataSourceDataLevel"
+          },
+          "minItems": 1,
+          "title": "Data Levels",
+          "type": "array"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        }
+      },
+      "required": [
+        "source_mode",
+        "data_levels"
+      ],
+      "title": "CrossmatchSourceOriginPolicy",
+      "type": "object"
+    },
+    "CrossmatchSourcePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_origins": {
+          "items": {
+            "$ref": "#/$defs/CrossmatchSourceOriginPolicy"
+          },
+          "minItems": 1,
+          "title": "Allowed Origins",
+          "type": "array"
+        },
+        "completion_statuses": {
+          "items": {
+            "$ref": "#/$defs/DataSourceCompletionStatus"
+          },
+          "minItems": 1,
+          "title": "Completion Statuses",
+          "type": "array"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "policy_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Policy Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy_id",
+        "version",
+        "allowed_origins",
+        "completion_statuses",
+        "content_hash"
+      ],
+      "title": "CrossmatchSourcePolicy",
+      "type": "object"
     },
     "DataQueryCursor": {
       "additionalProperties": false,

@@ -137,12 +137,16 @@ review records the adjudication audit fields but preserves the automatic
 scientific approval.
 
 Every result carries a typed `admission_context` containing the frozen RuleSet,
-AliasCatalog, source-input hash, and complete manual-decision inputs required
-for independent admission. The result validator binds curated-alias conditions
-to an actual catalog entry and binds every projected adjudication field to its
-typed decision and `input_hash`; a caller cannot substitute a same-row field,
-fabricated alias ID, conflict code, or reviewer while retaining the admitted
-provenance hashes.
+AliasCatalog, SourcePolicy, source-input hash, both source origins/completion
+scopes, and complete manual-decision inputs required for admission. The result
+validator binds curated-alias conditions to an actual catalog entry, binds
+source mode/data level to Snapshot metadata, and binds every projected
+adjudication field to its typed decision and `input_hash`; a caller cannot
+substitute a same-row field, false-live origin, completion scope, fabricated
+alias ID, conflict code, or reviewer while retaining the admitted provenance
+hashes. The externally trusted `input_hash`/`source_input_hash` remains the
+authenticity anchor; the embedded context provides a complete typed consistency
+check and does not replace trust in that upstream hash.
 
 A record logical match key is derived from the record type, entity level, and
 both candidate-id sets, so paired and conflict-group records over the same

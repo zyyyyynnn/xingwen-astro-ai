@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import math
 import re
-import unicodedata
 
 from app.schemas.crossmatch import SkyCoordinate
 from app.schemas.crossmatch import (
     angular_separation_arcsec as angular_separation_arcsec,
+)
+from app.schemas.crossmatch import (
+    normalize_crossmatch_name as _normalize_crossmatch_name,
+)
+from app.schemas.crossmatch import (
+    normalize_crossmatch_toi_id as _normalize_crossmatch_toi_id,
 )
 
 
@@ -17,11 +22,15 @@ _GAIA_DR3_IDENTIFIER = re.compile(
     r"^(?:gaia\s*dr3\s*)?([0-9]+)$",
     re.IGNORECASE,
 )
-_TOI_IDENTIFIER = re.compile(
-    r"^(?:toi(?:\s*-\s*|\s*))?([0-9]+)(?:\.([0-9]+))?$",
-    re.IGNORECASE,
-)
 _MAX_CATALOG_IDENTIFIER_DIGITS = 19
+
+
+def normalize_toi_id(value: object) -> str:
+    return _normalize_crossmatch_toi_id(value)
+
+
+def normalize_name(value: object) -> str:
+    return _normalize_crossmatch_name(value)
 
 
 def normalize_tic_id(value: object) -> str:
@@ -33,21 +42,6 @@ def normalize_gaia_dr3_id(value: object) -> str:
         value,
         _GAIA_DR3_IDENTIFIER,
         "Gaia DR3",
-    )
-
-
-def normalize_toi_id(value: object) -> str:
-    if not isinstance(value, str):
-        raise ValueError("TOI identifier must be a string")
-    normalized = " ".join(unicodedata.normalize("NFKC", value).strip().split())
-    match = _TOI_IDENTIFIER.fullmatch(normalized)
-    if match is None or int(match.group(1)) == 0:
-        raise ValueError("invalid TOI identifier")
-    candidate_number = match.group(2)
-    return (
-        str(int(match.group(1)))
-        if candidate_number is None
-        else f"{int(match.group(1))}.{str(int(candidate_number)).zfill(2)}"
     )
 
 
@@ -65,15 +59,6 @@ def normalize_sky_coordinate(
         right_ascension=0.0 if ra == 360 else ra,
         declination=dec,
     )
-
-
-def normalize_name(value: object) -> str:
-    if not isinstance(value, str):
-        raise ValueError("entity name must be a string")
-    normalized = " ".join(unicodedata.normalize("NFKC", value).strip().split())
-    if not normalized:
-        raise ValueError("entity name must not be blank")
-    return normalized.casefold()
 
 
 def _normalize_catalog_identifier(

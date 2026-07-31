@@ -291,8 +291,9 @@ completion scope、origin 与 canonical raw-record references；SourcePolicy
 `CrossmatchResult` 保存 source-side
 candidate、candidate edge、双方 locator 的 CrossmatchEvidence、paired/unpaired/
 conflict record、显式人工裁决审计、可解释指标及稳定 input/output hash；其 typed
-`admission_context` 内嵌准入所需的冻结 RuleSet、AliasCatalog、source-input hash
-与完整 ManualReviewDecision，使 Condition、冲突码和审计投影可由同一事实源重验。
+`admission_context` 内嵌准入所需的冻结 RuleSet、AliasCatalog、SourcePolicy、source-input hash
+、两侧 source origin/completion scope 与完整 ManualReviewDecision，使
+Condition、来源口径、冲突码和审计投影可由同一事实源重验。
 `SourceRecordReference` 只复制定位和 hash，不复制任意 raw payload。
 `manual_review` 不属于自动匹配方法；显式 `ManualReviewDecision` 绑定当前
 source-input/RuleSet/candidate/Evidence 后才可附加审计，且不会覆盖自动判定。

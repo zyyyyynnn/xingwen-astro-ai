@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.crossmatch import (
     CanonicalIdentityValue,
     CrossmatchRuleSet,
@@ -12,6 +11,7 @@ from app.schemas.crossmatch import (
     EvidenceLocator,
     SkyCoordinate,
     SourceRecordReference,
+    compute_crossmatch_candidate_id,
     compute_crossmatch_content_hash,
 )
 from app.schemas.evidence import SourceSnapshotRecord
@@ -134,9 +134,7 @@ def _host_candidate(
                     side=side,
                     snapshot=snapshot,
                     raw_field=raw_field,
-                    normalization_rule_version=(
-                        rule_set.coordinate_policy_version
-                    ),
+                    normalization_rule_version=(rule_set.coordinate_policy_version),
                 )
             )
     if not values:
@@ -262,13 +260,6 @@ def _candidate(
     identity_values: tuple[CanonicalIdentityValue, ...],
     coordinate: SkyCoordinate | None,
 ) -> EntityCandidate:
-    identity_payload = {
-        "side": side.value,
-        "entity_level": entity_level.value,
-        "source_id": record.source_id,
-        "row_key": record.row_key,
-    }
-    identity_hash = compute_canonical_payload_hash(identity_payload)
     source_record = SourceRecordReference(
         side=side,
         source_snapshot_id=snapshot.snapshot_id,
@@ -277,23 +268,22 @@ def _candidate(
         query_hash=snapshot.query_hash,
         row_key=record.row_key,
         record_content_hash=record.content_hash,
-        object_type=(
-            "star" if entity_level is EntityLevel.host_star else "planet"
-        ),
+        object_type=("star" if entity_level is EntityLevel.host_star else "planet"),
         source_entity_key="|".join(
             f"{field}={value}" for field, value in record.row_key
         ),
     )
     payload = {
-        "candidate_id": (
-            f"candidate.{identity_hash.removeprefix('sha256:')[:24]}"
+        "candidate_id": compute_crossmatch_candidate_id(
+            side=side,
+            entity_level=entity_level,
+            source_id=record.source_id,
+            row_key=record.row_key,
         ),
         "side": side,
         "entity_level": entity_level,
         "source_record": source_record.model_dump(mode="json"),
-        "identity_values": [
-            value.model_dump(mode="json") for value in identity_values
-        ],
+        "identity_values": [value.model_dump(mode="json") for value in identity_values],
         "coordinate": (
             coordinate.model_dump(mode="json") if coordinate is not None else None
         ),

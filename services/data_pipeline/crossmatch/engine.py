@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable
 
-from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.crossmatch import (
     CandidateEdge,
     CanonicalIdentityValue,
@@ -14,6 +13,7 @@ from app.schemas.crossmatch import (
     ConflictGroup,
     CrossmatchCondition,
     CrossmatchAdmissionContext,
+    CrossmatchAdmissionSourceContext,
     CrossmatchEvidence,
     CrossmatchInput,
     CrossmatchMethod,
@@ -30,6 +30,10 @@ from app.schemas.crossmatch import (
     angular_separation_arcsec,
     compute_crossmatch_condition_id,
     compute_crossmatch_content_hash,
+    compute_crossmatch_edge_id,
+    compute_crossmatch_edge_logical_match_key,
+    compute_crossmatch_evidence_id,
+    derive_crossmatch_confidence_band,
     derive_crossmatch_record_semantics,
     group_crossmatch_edge_components,
     within_crossmatch_coordinate_threshold,
@@ -312,6 +316,25 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
             source_input_hash=input.source_input_hash,
             rule_set=input.rule_set,
             alias_catalog=input.alias_catalog,
+            source_policy=input.source_policy,
+            left=CrossmatchAdmissionSourceContext(
+                source_mode=input.left.source_mode,
+                data_level=input.left.data_level,
+                source_snapshot_id=input.left.snapshot.snapshot_id,
+                source_snapshot_content_hash=input.left.snapshot.content_hash,
+                source_id=input.left.snapshot.source_id,
+                query_hash=input.left.snapshot.query_hash,
+                completion=input.left.completion,
+            ),
+            right=CrossmatchAdmissionSourceContext(
+                source_mode=input.right.source_mode,
+                data_level=input.right.data_level,
+                source_snapshot_id=input.right.snapshot.snapshot_id,
+                source_snapshot_content_hash=input.right.snapshot.content_hash,
+                source_id=input.right.snapshot.source_id,
+                query_hash=input.right.snapshot.query_hash,
+                completion=input.right.completion,
+            ),
             manual_review_decisions=input.manual_review_decisions,
         ).model_dump(mode="json"),
         "candidates": [candidate.model_dump(mode="json") for candidate in candidates],
@@ -600,18 +623,13 @@ def _build_edge_and_evidence(
         (right,),
     )
     confidence_band = _confidence_band(input, confidence, decision)
-    evidence_identity = compute_canonical_payload_hash(
-        {
-            "logical_match_key": logical_match_key,
-            "method": method.value,
-            "decision": decision.value,
-            "condition_ids": [condition.condition_id for condition in conditions],
-            "rule_set_content_hash": input.rule_set.content_hash,
-        }
-    )
     evidence_payload = {
-        "evidence_id": (
-            f"evidence.crossmatch_{evidence_identity.removeprefix('sha256:')[:24]}"
+        "evidence_id": compute_crossmatch_evidence_id(
+            logical_match_key=logical_match_key,
+            method=method,
+            decision=decision,
+            condition_ids=(condition.condition_id for condition in conditions),
+            rule_set_content_hash=input.rule_set.content_hash,
         ),
         "entity_level": entity_level,
         "method": method,
@@ -634,16 +652,13 @@ def _build_edge_and_evidence(
         "rule_set_content_hash": input.rule_set.content_hash,
     }
     evidence = CrossmatchEvidence.model_validate(_with_hash(evidence_payload))
-    edge_identity = compute_canonical_payload_hash(
-        {
-            "logical_match_key": logical_match_key,
-            "method": method.value,
-            "decision": decision.value,
-            "evidence_id": evidence.evidence_id,
-        }
-    )
     edge_payload = {
-        "edge_id": f"edge.crossmatch_{edge_identity.removeprefix('sha256:')[:24]}",
+        "edge_id": compute_crossmatch_edge_id(
+            logical_match_key=logical_match_key,
+            method=method,
+            decision=decision,
+            evidence_id=evidence.evidence_id,
+        ),
         "logical_match_key": logical_match_key,
         "entity_level": entity_level,
         "left_candidate_id": left.candidate_id,
@@ -883,25 +898,7 @@ def _logical_match_key(
     left: tuple[EntityCandidate, ...],
     right: tuple[EntityCandidate, ...],
 ) -> str:
-    return compute_canonical_payload_hash(
-        {
-            "entity_level": entity_level.value,
-            "left": [
-                {
-                    "source_id": candidate.source_record.source_id,
-                    "row_key": candidate.source_record.row_key,
-                }
-                for candidate in sorted(left, key=_candidate_sort_key)
-            ],
-            "right": [
-                {
-                    "source_id": candidate.source_record.source_id,
-                    "row_key": candidate.source_record.row_key,
-                }
-                for candidate in sorted(right, key=_candidate_sort_key)
-            ],
-        }
-    )
+    return compute_crossmatch_edge_logical_match_key(entity_level, left, right)
 
 
 def _confidence_band(
@@ -909,14 +906,11 @@ def _confidence_band(
     confidence: float,
     decision: MatchDecision,
 ) -> ConfidenceBand:
-    if decision is MatchDecision.conflict:
-        return ConfidenceBand.not_applicable
-    policy = input.rule_set.confidence
-    if confidence >= policy.high_minimum:
-        return ConfidenceBand.high
-    if confidence >= policy.medium_minimum:
-        return ConfidenceBand.medium
-    return ConfidenceBand.low
+    return derive_crossmatch_confidence_band(
+        input.rule_set,
+        confidence,
+        decision,
+    )
 
 
 def _with_hash(payload: dict) -> dict:
