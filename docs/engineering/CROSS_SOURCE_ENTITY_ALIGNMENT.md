@@ -1,9 +1,9 @@
 # Cross-source Entity Alignment
 
-| Field | Value |
-| --- | --- |
-| Status | Accepted |
-| Scope | C-08 deterministic TOI/PS entity alignment |
+| Field     | Value                                                         |
+| --------- | ------------------------------------------------------------- |
+| Status    | Accepted                                                      |
+| Scope     | C-08 deterministic TOI/PS entity alignment                    |
 | Authority | Runtime behavior, Evidence, review input, and benchmark rules |
 
 ## 1. Scope and boundaries
@@ -23,7 +23,8 @@ align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult
 The function is deterministic and has no HTTP, database, cache, Run, Router, or
 Artifact side effects. It never invokes either source Adapter. C-04 canonical
 field mapping, C-05 quality scoring, unit conversion, Dataset construction,
-Artifact publication, and runtime orchestration remain Pending.
+Artifact publication, and runtime orchestration are owned by their respective
+responsibility boundaries.
 
 ## 2. Versioned inputs
 

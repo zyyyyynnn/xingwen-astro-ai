@@ -143,7 +143,7 @@ raw-record hashes、Manifest/RuleSet/SourcePolicy/alias pins 和可选人工裁�
 RuleSet version/hash。运行规则见
 [Cross-source Entity Alignment](../engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md)。
 
-D-02 已为成功 Crossref metadata execution 生成完整不可变 SourceSnapshot；失败请求保存 SourceExecution 的 query/pagination/hash/error，不伪造 Snapshot。Cached PaperCollection 要求 Snapshot 额外绑定真实 `origin_run_id` 与 `origin_artifact_version_id`，但 CacheSelector 与 origin persistence 仍为 Pending。
+成功的 Crossref metadata execution 生成完整不可变 SourceSnapshot；失败请求保存 SourceExecution 的 query/pagination/hash/error，不伪造 Snapshot。Cached PaperCollection 要求 Snapshot 额外绑定真实 `origin_run_id` 与 `origin_artifact_version_id`；CacheSelector 与 origin persistence 由 B/Workflow 边界负责。
 
 ## 6. Hash 规则
 

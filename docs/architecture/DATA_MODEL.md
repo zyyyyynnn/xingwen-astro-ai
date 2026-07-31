@@ -1,9 +1,9 @@
 # Data Model
 
-| 项目状态       | 口径                                                                                                                                                                                                                                                                                       |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status         | Accepted                     |
-| Authority      | 领域实体、字段、枚举与不变量 |
+| 项目状态  | 口径                         |
+| --------- | ---------------------------- |
+| Status    | Accepted                     |
+| Authority | 领域实体、字段、枚举与不变量 |
 
 本文冻结 `/api` 与前端 Domain Model 的目标实体和不变量。Core 模型为 Project / Run / Artifact / ArtifactVersion；Phase 0 的 ResearchTask 与结果 DTO 冻结决策见 [Phase 0 API Contract（归档）](../archive/phase0/PHASE0_API_CONTRACT.md)，其字段以 `apps/api/src/app/schemas/` 与 `packages/schemas/generated/phase0/` 为准。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
@@ -296,7 +296,7 @@ conflict record、显式人工裁决审计、可解释指标及稳定 input/outp
 source-input/RuleSet/candidate/Evidence 后才可附加审计，且不会覆盖自动判定。
 完整运行语义见
 [Cross-source Entity Alignment](../engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md)。
-C-04 canonical mapping 与 C-05 quality scoring 仍为 Pending。
+Canonical mapping 与 quality scoring 分别由对应数据处理职责边界定义。
 
 Evidence：
 
