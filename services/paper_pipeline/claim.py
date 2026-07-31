@@ -45,6 +45,7 @@ from .constants import (
     CLAIM_PARAMETERS_VERSION,
     CLAIM_PRODUCER_NAME,
     CLAIM_PRODUCER_VERSION,
+    CLAIM_SCHEMA_VERSION,
 )
 from .summary import ParameterValue, _validate_parameters
 
@@ -139,6 +140,7 @@ class LiteratureClaimPipeline:
                 "parameters_version": parameters_version,
                 "parameters_hash": parameters_hash,
                 "producer_version": CLAIM_PRODUCER_VERSION,
+                "schema_version": CLAIM_SCHEMA_VERSION,
                 "normalization_version": CLAIM_NORMALIZATION_VERSION,
             }
         )
@@ -156,7 +158,7 @@ class LiteratureClaimPipeline:
             "prompt_name": prompt.name,
             "prompt_version": prompt.version,
             "prompt_hash": prompt.content_hash,
-            "schema_version": "1.0.0",
+            "schema_version": CLAIM_SCHEMA_VERSION,
             "parameters_version": parameters_version,
             "parameters_hash": parameters_hash,
             "input_versions": input_versions,
@@ -250,7 +252,7 @@ class LiteratureClaimPipeline:
         )
         candidate_payload = {
             "kind": "literature_claims",
-            "schema_version": "1.0.0",
+            "schema_version": CLAIM_SCHEMA_VERSION,
             "input_versions": input_versions.model_dump(
                 mode="json", exclude_none=True
             ),
