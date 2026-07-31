@@ -45,7 +45,7 @@ def normalize_toi_id(value: object) -> str:
     return (
         str(int(match.group(1)))
         if candidate_number is None
-        else f"{int(match.group(1))}.{candidate_number}"
+        else f"{int(match.group(1))}.{str(int(candidate_number)).zfill(2)}"
     )
 
 

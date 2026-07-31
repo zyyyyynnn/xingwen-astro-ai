@@ -32,6 +32,12 @@ _TOI_SOURCE_ID = "nasa_exoplanet_archive.toi"
 _PS_SOURCE_ID = "nasa_exoplanet_archive.ps"
 
 
+def _is_missing(value: object) -> bool:
+    """Blank and whitespace-only strings are missing; ``0`` and ``False`` are not."""
+
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
 def normalize_source_candidates(
     records: tuple[RawDataSourceRecord, ...],
     *,
@@ -89,7 +95,7 @@ def _host_candidate(
         if raw_field is None:
             continue
         raw_value = record.payload.get(raw_field)
-        if raw_value is None or raw_value == "":
+        if _is_missing(raw_value):
             continue
         try:
             normalized = normalizer(raw_value)
@@ -167,7 +173,7 @@ def _planet_candidate(
         return None
     raw_field = _required_raw_field(bundle, record.source_id, field_id)
     raw_value = record.payload.get(raw_field)
-    if raw_value is None or raw_value == "":
+    if _is_missing(raw_value):
         return None
     try:
         normalized = normalizer(raw_value)
@@ -213,7 +219,7 @@ def _coordinate(
         return None
     ra = record.payload.get(ra_field)
     dec = record.payload.get(dec_field)
-    if ra in (None, "") or dec in (None, ""):
+    if _is_missing(ra) or _is_missing(dec):
         return None
     try:
         return normalize_sky_coordinate(ra, dec)

@@ -67,6 +67,9 @@ def test_tic_identifier_rejects_values_beyond_frozen_length_boundary() -> None:
         ("toi-1243.01", "1243.01"),
         ("TOI - 1243.01", "1243.01"),
         (" TOI   001243.01 ", "1243.01"),
+        ("1243.1", "1243.01"),
+        ("1243.001", "1243.01"),
+        ("1243.123", "1243.123"),
     ],
 )
 def test_toi_identifier_normalization_preserves_candidate_number(

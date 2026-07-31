@@ -1212,3 +1212,30 @@ def test_record_logical_key_is_namespaced_by_record_type() -> None:
     decisions = {conflict_record.logical_match_key: object()}
     assert decisions.get(conflict_record.logical_match_key) is not None
     assert decisions.get(paired_record.logical_match_key) is None
+
+
+def test_blank_identifier_values_are_treated_as_missing_not_invalid() -> None:
+    # Whitespace-only identifier fields must be skipped as missing rather than
+    # raising CROSSMATCH_INVALID_IDENTIFIER; coordinates still drive the match.
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("905.01", tic_id="   ", ra=10.0, dec=20.0),),
+            (
+                ps_record(
+                    "Blank Identifier b",
+                    "Reference",
+                    tic_id="   ",
+                    ra=10.00025,
+                    dec=20.0,
+                ),
+            ),
+        )
+    )
+
+    host_match = next(
+        record
+        for record in paired_records(result)
+        if record.entity_level is EntityLevel.host_star
+    )
+    assert host_match.method is CrossmatchMethod.coordinate
+    assert host_match.decision is MatchDecision.review_required
