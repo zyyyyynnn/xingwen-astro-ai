@@ -69,6 +69,11 @@ class LiteratureClaimPolarity(StrEnum):
     mixed = "mixed"
 
 
+class LiteratureClaimBenchmarkCaseKind(StrEnum):
+    scientific_label = "scientific_label"
+    rejection_case = "rejection_case"
+
+
 class LiteratureClaimInputVersions(BaseModel):
     """Trace retained even when the requested Summary version cannot be resolved."""
 
@@ -105,6 +110,7 @@ class LiteratureClaimModelCandidate(BaseModel):
     """One strict model-produced Claim before provenance admission."""
 
     model_config = MODEL_CONFIG
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     source_statement_id: Identifier
     text: NonEmptyString
@@ -166,6 +172,7 @@ class LiteratureClaimCandidate(BaseModel):
     """Schema-valid Claim with the outcome of deterministic D-07 admission."""
 
     model_config = MODEL_CONFIG
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     claim_id: Identifier
     source_statement_id: Identifier
@@ -279,11 +286,11 @@ class LiteratureClaimStatusCounts(BaseModel):
 
 
 class LiteratureClaimsCandidate(BaseModel):
-    """Publisher-ready typed candidate; B-08 may consume this without a DTO copy."""
+    """Publisher-ready typed candidate produced only by the D-07 pipeline."""
 
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
-    _artifact_publication_seal: object | None = PrivateAttr(default=None)
+    _artifact_publication_seal: tuple[object, int] | None = PrivateAttr(default=None)
 
     kind: Literal["literature_claims"] = "literature_claims"
     schema_version: Literal["1.0.0"] = "1.0.0"
@@ -410,11 +417,18 @@ class LiteratureClaimsCandidate(BaseModel):
         return self
 
     def __artifact_publication_is_admitted__(self) -> bool:
-        return self._artifact_publication_seal is _ARTIFACT_PUBLICATION_SEAL
+        seal = self._artifact_publication_seal
+        return (
+            isinstance(seal, tuple)
+            and len(seal) == 2
+            and seal[0] is _ARTIFACT_PUBLICATION_SEAL
+            and seal[1] == id(self)
+        )
 
 
 class LiteratureClaimAdmissionResult(BaseModel):
     model_config = MODEL_CONFIG
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     admission_status: LiteratureClaimStatus
     failure_stage: LiteratureClaimFailureStage | None = None
@@ -469,40 +483,106 @@ class LiteratureClaimBenchmarkEvaluationCase(BaseModel):
     model_config = MODEL_CONFIG
 
     case_id: Identifier
-    benchmark_claim_id: Identifier
+    case_kind: LiteratureClaimBenchmarkCaseKind
+    benchmark_claim_id: Identifier | None = None
     record_claim_id: Identifier | None = None
+    expected_failure_stage: LiteratureClaimFailureStage | None = None
+    expected_rejection_reason: LiteratureClaimRejectionReason | None = None
     admission: LiteratureClaimAdmissionResult
+
+    @model_validator(mode="after")
+    def validate_expectation(self) -> Self:
+        if self.case_kind is LiteratureClaimBenchmarkCaseKind.scientific_label:
+            if self.benchmark_claim_id is None:
+                raise ValueError("scientific benchmark case requires a D-01 Claim id")
+            if (
+                self.expected_failure_stage is not None
+                or self.expected_rejection_reason is not None
+            ):
+                raise ValueError(
+                    "scientific benchmark case cannot declare rejection expectations"
+                )
+        else:
+            if self.benchmark_claim_id is not None:
+                raise ValueError(
+                    "rejection benchmark case cannot consume a scientific label"
+                )
+            if (
+                self.expected_failure_stage is None
+                or self.expected_rejection_reason is None
+            ):
+                raise ValueError(
+                    "rejection benchmark case requires expected stage and reason"
+                )
+        return self
 
 
 class LiteratureClaimBenchmarkCaseResult(BaseModel):
     model_config = MODEL_CONFIG
 
     case_id: Identifier
-    benchmark_claim_id: Identifier
-    claim_type: ClaimType
+    case_kind: LiteratureClaimBenchmarkCaseKind
+    benchmark_claim_id: Identifier | None = None
+    claim_type: ClaimType | None = None
+    expected_failure_stage: LiteratureClaimFailureStage | None = None
+    expected_rejection_reason: LiteratureClaimRejectionReason | None = None
     schema_valid: bool
     evidence_items_supported: int = Field(ge=0)
     evidence_items_total: int = Field(ge=0)
-    scientific_review_correct: bool
+    scientific_label_compared: bool
+    scientific_label_exact_match: bool | None = None
+    rejection_case_pass: bool | None = None
     status: LiteratureClaimStatus
+    failure_stage: LiteratureClaimFailureStage | None = None
     rejection_reason: LiteratureClaimRejectionReason | None = None
     input_hash: ContentHash
     output_hash: ContentHash
 
     @model_validator(mode="after")
     def validate_outcome(self) -> Self:
-        if (
-            self.status is LiteratureClaimStatus.rejected
-            and self.rejection_reason is None
-        ):
-            raise ValueError("rejected benchmark case requires rejection reason")
-        if (
-            self.status is not LiteratureClaimStatus.rejected
-            and self.rejection_reason is not None
-        ):
-            raise ValueError("non-rejected benchmark case cannot have rejection reason")
+        if self.status is LiteratureClaimStatus.rejected:
+            if self.failure_stage is None or self.rejection_reason is None:
+                raise ValueError(
+                    "rejected benchmark case requires failure stage and reason"
+                )
+        elif self.failure_stage is not None or self.rejection_reason is not None:
+            raise ValueError(
+                "non-rejected benchmark case cannot have rejection metadata"
+            )
         if self.evidence_items_supported > self.evidence_items_total:
             raise ValueError("case Evidence numerator cannot exceed denominator")
+        if self.case_kind is LiteratureClaimBenchmarkCaseKind.scientific_label:
+            if self.benchmark_claim_id is None or self.claim_type is None:
+                raise ValueError(
+                    "scientific result requires a D-01 Claim id and Claim type"
+                )
+            if (
+                self.expected_failure_stage is not None
+                or self.expected_rejection_reason is not None
+                or self.rejection_case_pass is not None
+            ):
+                raise ValueError(
+                    "scientific result cannot declare rejection expectations"
+                )
+            if self.scientific_label_compared != (
+                self.scientific_label_exact_match is not None
+            ):
+                raise ValueError(
+                    "scientific comparison flag must match exact-match applicability"
+                )
+        else:
+            if (
+                self.benchmark_claim_id is not None
+                or self.claim_type is not None
+                or self.expected_failure_stage is None
+                or self.expected_rejection_reason is None
+                or self.rejection_case_pass is None
+                or self.scientific_label_compared
+                or self.scientific_label_exact_match is not None
+            ):
+                raise ValueError(
+                    "rejection result must contain only its expected rejection outcome"
+                )
         return self
 
 
@@ -538,20 +618,27 @@ class LiteratureClaimBenchmarkReport(BaseModel):
     parameters_version: SemanticVersion
     parameters_hash: ContentHash
     producer_version: SemanticVersion
-    sample_count: int = Field(ge=1)
+    sample_count: int = Field(ge=0)
     claim_type_counts: tuple[LiteratureClaimTypeCount, ...]
     schema_items_valid: int = Field(ge=0)
-    schema_items_total: int = Field(ge=1)
-    schema_pass_rate: float = Field(ge=0.0, le=1.0)
+    schema_items_total: int = Field(ge=0)
+    schema_pass_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    rejection_cases_passed: int = Field(ge=0)
+    rejection_cases_total: int = Field(ge=0)
+    rejection_case_pass_rate: float | None = Field(
+        default=None, ge=0.0, le=1.0
+    )
     evidence_items_supported: int = Field(ge=0)
     evidence_items_total: int = Field(ge=0)
-    evidence_coverage: float | None = Field(default=None, ge=0.0, le=1.0)
-    scientific_review_items_correct: int = Field(ge=0)
-    scientific_review_items_total: int = Field(ge=1)
-    scientific_review_accuracy: float = Field(ge=0.0, le=1.0)
+    evidence_coverage_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    scientific_label_items_exact: int = Field(ge=0)
+    scientific_label_items_total: int = Field(ge=0)
+    scientific_label_exact_match_rate: float | None = Field(
+        default=None, ge=0.0, le=1.0
+    )
     status_counts: LiteratureClaimStatusCounts
     rejection_counts: tuple[LiteratureClaimRejectionCount, ...]
-    cases: tuple[LiteratureClaimBenchmarkCaseResult, ...] = Field(min_length=1)
+    cases: tuple[LiteratureClaimBenchmarkCaseResult, ...]
     input_hash: ContentHash
     output_hash: ContentHash
 
@@ -572,8 +659,10 @@ class LiteratureClaimBenchmarkReport(BaseModel):
             raise ValueError("schema numerator cannot exceed denominator")
         if self.evidence_items_supported > self.evidence_items_total:
             raise ValueError("Evidence numerator cannot exceed denominator")
-        if self.scientific_review_items_correct > self.scientific_review_items_total:
-            raise ValueError("scientific review numerator cannot exceed denominator")
+        if self.rejection_cases_passed > self.rejection_cases_total:
+            raise ValueError("rejection numerator cannot exceed denominator")
+        if self.scientific_label_items_exact > self.scientific_label_items_total:
+            raise ValueError("scientific label numerator cannot exceed denominator")
         if tuple(item.case_id for item in self.cases) != tuple(
             sorted(item.case_id for item in self.cases)
         ):
@@ -588,8 +677,13 @@ class LiteratureClaimBenchmarkReport(BaseModel):
             sorted(item.rejection_reason.value for item in self.rejection_counts)
         ):
             raise ValueError("rejection counts must use stable enum order")
-        if sum(item.count for item in self.claim_type_counts) != self.sample_count:
-            raise ValueError("Claim type counts must equal sample_count")
+        if (
+            sum(item.count for item in self.claim_type_counts)
+            != self.scientific_label_items_total
+        ):
+            raise ValueError(
+                "Claim type counts must equal compared scientific label count"
+            )
         if (
             self.status_counts.accepted
             + self.status_counts.candidate
@@ -597,27 +691,90 @@ class LiteratureClaimBenchmarkReport(BaseModel):
             != self.sample_count
         ):
             raise ValueError("status_counts must equal sample_count")
-        if (
-            self.schema_items_total != self.sample_count
-            or self.scientific_review_items_total != self.sample_count
-        ):
-            raise ValueError("benchmark denominators must equal sample_count")
-        if self.schema_pass_rate != (
+        if self.schema_items_total != self.sample_count:
+            raise ValueError("schema denominator must equal sample_count")
+        expected_schema_rate = (
             self.schema_items_valid / self.schema_items_total
-        ):
+            if self.schema_items_total
+            else None
+        )
+        if self.schema_pass_rate != expected_schema_rate:
             raise ValueError("schema_pass_rate does not match counts")
-        expected_evidence_coverage = (
+        expected_rejection_rate = (
+            self.rejection_cases_passed / self.rejection_cases_total
+            if self.rejection_cases_total
+            else None
+        )
+        if self.rejection_case_pass_rate != expected_rejection_rate:
+            raise ValueError("rejection_case_pass_rate does not match counts")
+        expected_evidence_coverage_rate = (
             self.evidence_items_supported / self.evidence_items_total
             if self.evidence_items_total
             else None
         )
-        if self.evidence_coverage != expected_evidence_coverage:
-            raise ValueError("evidence_coverage does not match counts")
-        if self.scientific_review_accuracy != (
-            self.scientific_review_items_correct
-            / self.scientific_review_items_total
+        if self.evidence_coverage_rate != expected_evidence_coverage_rate:
+            raise ValueError("evidence_coverage_rate does not match counts")
+        expected_scientific_rate = (
+            self.scientific_label_items_exact / self.scientific_label_items_total
+            if self.scientific_label_items_total
+            else None
+        )
+        if self.scientific_label_exact_match_rate != expected_scientific_rate:
+            raise ValueError(
+                "scientific_label_exact_match_rate does not match counts"
+            )
+        expected_schema_valid = sum(item.schema_valid for item in self.cases)
+        expected_rejection_total = sum(
+            item.case_kind is LiteratureClaimBenchmarkCaseKind.rejection_case
+            for item in self.cases
+        )
+        expected_rejection_passed = sum(
+            item.rejection_case_pass is True for item in self.cases
+        )
+        expected_scientific_total = sum(
+            item.scientific_label_compared for item in self.cases
+        )
+        expected_scientific_exact = sum(
+            item.scientific_label_exact_match is True for item in self.cases
+        )
+        expected_evidence_supported = sum(
+            item.evidence_items_supported for item in self.cases
+        )
+        expected_evidence_total = sum(item.evidence_items_total for item in self.cases)
+        if (
+            self.schema_items_valid != expected_schema_valid
+            or self.rejection_cases_total != expected_rejection_total
+            or self.rejection_cases_passed != expected_rejection_passed
+            or self.scientific_label_items_total != expected_scientific_total
+            or self.scientific_label_items_exact != expected_scientific_exact
+            or self.evidence_items_supported != expected_evidence_supported
+            or self.evidence_items_total != expected_evidence_total
         ):
-            raise ValueError("scientific_review_accuracy does not match counts")
+            raise ValueError("benchmark metric counts do not match case results")
+        expected_status_counts = LiteratureClaimStatusCounts(
+            accepted=sum(
+                item.status is LiteratureClaimStatus.accepted for item in self.cases
+            ),
+            candidate=sum(
+                item.status is LiteratureClaimStatus.candidate for item in self.cases
+            ),
+            rejected=sum(
+                item.status is LiteratureClaimStatus.rejected for item in self.cases
+            ),
+        )
+        if self.status_counts != expected_status_counts:
+            raise ValueError("status_counts do not match case results")
+        expected_type_counts: dict[ClaimType, int] = {}
+        for item in self.cases:
+            if not item.scientific_label_compared or item.claim_type is None:
+                continue
+            expected_type_counts[item.claim_type] = (
+                expected_type_counts.get(item.claim_type, 0) + 1
+            )
+        if {
+            item.claim_type: item.count for item in self.claim_type_counts
+        } != expected_type_counts:
+            raise ValueError("Claim type counts do not match scientific cases")
         for item in self.rejection_counts:
             if (
                 item.count != len(item.sample_case_ids)
@@ -627,6 +784,25 @@ class LiteratureClaimBenchmarkReport(BaseModel):
                 raise ValueError(
                     "rejection samples must be unique, sorted, and match count"
                 )
+        expected_rejection_samples: dict[
+            LiteratureClaimRejectionReason, tuple[str, ...]
+        ] = {}
+        for reason in LiteratureClaimRejectionReason:
+            case_ids = tuple(
+                sorted(
+                    item.case_id
+                    for item in self.cases
+                    if item.rejection_reason is reason
+                )
+            )
+            if case_ids:
+                expected_rejection_samples[reason] = case_ids
+        actual_rejection_samples = {
+            item.rejection_reason: item.sample_case_ids
+            for item in self.rejection_counts
+        }
+        if actual_rejection_samples != expected_rejection_samples:
+            raise ValueError("rejection counts do not match case results")
         expected_hash = compute_literature_claim_benchmark_output_hash(self)
         if self.output_hash != expected_hash:
             raise ValueError(
@@ -670,6 +846,7 @@ def compute_literature_claims_output_hash(
     payload = _model_or_dict(value)
     payload.pop("output_hash", None)
     _drop_execution_runtime(payload.get("producer"))
+    _drop_claim_execution_runtime(payload)
     return compute_canonical_payload_hash(payload)
 
 
@@ -679,6 +856,7 @@ def compute_literature_claim_admission_output_hash(
     payload = _model_or_dict(value)
     payload.pop("output_hash", None)
     _drop_execution_runtime(payload.get("producer"))
+    _drop_claim_execution_runtime(payload)
     return compute_canonical_payload_hash(payload)
 
 
@@ -696,7 +874,7 @@ def _seal_literature_claims_for_publication(
     object.__setattr__(
         value,
         "_artifact_publication_seal",
-        _ARTIFACT_PUBLICATION_SEAL,
+        (_ARTIFACT_PUBLICATION_SEAL, id(value)),
     )
     return value
 
@@ -743,6 +921,20 @@ def _drop_execution_runtime(value: Any) -> None:
         "latency_ms",
     ):
         value.pop(field, None)
+
+
+def _drop_claim_execution_runtime(payload: dict[str, Any]) -> None:
+    for field in ("claims", "records"):
+        records = payload.get(field)
+        if not isinstance(records, list):
+            continue
+        for record in records:
+            if isinstance(record, dict):
+                record.pop("producer_execution_id", None)
+    publisher_candidate = payload.get("publisher_candidate")
+    if isinstance(publisher_candidate, dict):
+        _drop_execution_runtime(publisher_candidate.get("producer"))
+        _drop_claim_execution_runtime(publisher_candidate)
 
 
 def _require_unique(values: tuple[Any, ...], label: str) -> None:

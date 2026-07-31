@@ -1,7 +1,7 @@
 # Data Model
 
-| 项目状态       | 口径                       |
-| -------------- | -------------------------- |
+| 项目状态       | 口径                                                                                                                                                                                                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Status         | Accepted                     |
 | Authority      | 领域实体、字段、枚举与不变量 |
 
@@ -259,9 +259,9 @@ D-03 来源版本冲突保留 `claimed_source_version` 与 SourceSnapshot 声明
 
 ### 9.3 Claim、Relation 与 ReasoningTrace
 
-LiteratureClaim 的 D-07 唯一 Pipeline Pydantic 编写源是 `apps/api/src/app/schemas/literature_claim.py`。Schema-valid Claim 包含输入 PaperSummary ArtifactVersion/summary statement/paper、原始与规范化表述、claim type、polarity、objects、metric/unit、conditions、scope、limitations、qualifiers、uncertainty、Evidence/SourceSnapshot、Prompt/model/ProducerExecution、input/model-response/output hash、`candidate | accepted | rejected` 和稳定拒绝原因。JSON/Schema 失败只产生无 Claim 的统一 admission result，不伪造领域对象。完整字段、固定准入顺序和运行方式见 [LiteratureClaim Pipeline](../engineering/LITERATURE_CLAIM_PIPELINE.md)。
+LiteratureClaim 的 D-07 唯一 Pipeline Pydantic 编写源是 `apps/api/src/app/schemas/literature_claim.py`。Schema-valid Claim 包含输入 PaperSummary ArtifactVersion/summary statement/paper、原始与规范化表述、claim type、polarity、objects、metric/unit、conditions、scope、limitations、qualifiers、uncertainty、comparison basis、Evidence/SourceSnapshot、normalization version、稳定 fingerprint、Prompt/model/ProducerExecution、input/model-response/output hash、`candidate | accepted | rejected`、failure stage 和稳定拒绝原因。JSON/Schema 失败只产生无 Claim 的统一 admission result，不伪造领域对象。完整拒绝枚举、固定准入顺序和运行方式的唯一正文见 [LiteratureClaim Pipeline](../engineering/LITERATURE_CLAIM_PIPELINE.md)。
 
-D-07 的 `LiteratureClaimsCandidate@1.0.0` 是交给后续 Relation/读取边界与 ArtifactVersion 准入端口的领域 typed candidate，不是 HTTP DTO。accepted 要求全部 Evidence 为 D-03 `supported`；unsupported/unverifiable Evidence 只能形成 candidate；版本、Evidence/SourceSnapshot、ownership、normalization 或 duplicate 硬错误形成 rejected。confidence、模糊相似度和 hash 不用于科学正确性判定。
+D-07 的 `LiteratureClaimsCandidate@1.0.0` 是交给后续 Relation/读取边界与 ArtifactVersion 准入端口的领域 typed candidate，不是 HTTP DTO。只有 D-07 Pipeline 返回的封印批次可进入 Publisher；单条模型输出或 admission record/result、Phase 0 `app.schemas.reasoning.LiteratureClaim` 及其 `LiteratureReasoningResponse` 包络、core `LiteratureClaimsArtifactContent` 投影都不是发布编写源，并由 Publisher marker 拒绝。accepted 要求全部 Evidence 为 D-03 `supported`；unsupported/unverifiable Evidence 只能形成 candidate；版本、Evidence/SourceSnapshot、ownership、normalization 或 duplicate 硬错误形成 rejected。confidence、模糊相似度和 hash 不用于科学正确性判定。
 
 LiteratureRelation：source/target claim、relation_type、conditions、reasoning_trace_id、evidence_ids、confidence、状态。方向统一为 `source_claim_id relation_type target_claim_id`；source 是关系主语，target 是关系宾语。Accepted Relation 必须同时有 Evidence 和 ReasoningTrace。
 
