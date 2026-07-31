@@ -120,9 +120,10 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
     edges: list[CandidateEdge] = []
     evidence: list[CrossmatchEvidence] = []
     conflict_codes: dict[str, str] = {}
-    accepted_host_record_pairs: set[
-        tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]]
-    ] = set()
+    accepted_host_record_pairs: dict[
+        tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]],
+        tuple[str, ...],
+    ] = {}
     conflicting_host_record_pairs: set[
         tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]]
     ] = set()
@@ -132,18 +133,18 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
             built = _match_host_candidates(input, left, right)
             if built is None:
                 continue
-            edge, item, conflict_code = built
+            edge, item, conflict_code, host_exact_fields = built
             edges.append(edge)
             evidence.append(item)
             if conflict_code:
                 conflict_codes[edge.edge_id] = conflict_code
             if edge.decision is MatchDecision.accepted:
-                accepted_host_record_pairs.add(
+                accepted_host_record_pairs[
                     (
                         left.source_record.row_key,
                         right.source_record.row_key,
                     )
-                )
+                ] = host_exact_fields
             elif edge.decision is MatchDecision.conflict:
                 conflicting_host_record_pairs.add(
                     (
@@ -197,6 +198,8 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
                 rule_reference=entry.alias_id,
             )
         ]
+        left_host_locators: tuple[EvidenceLocator, ...] = ()
+        right_host_locators: tuple[EvidenceLocator, ...] = ()
         if host_corroborated:
             left_host = host_by_record[
                 (CrossmatchSide.left, left.source_record.row_key)
@@ -204,16 +207,28 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
             right_host = host_by_record[
                 (CrossmatchSide.right, right.source_record.row_key)
             ]
-            conditions.append(
-                _condition(
-                    operator=ConditionOperator.exact,
-                    field_id="star.tic_id",
-                    left_value=_source_value(left_host, "star.tic_id"),
-                    right_value=_source_value(right_host, "star.tic_id"),
-                    rule_reference=(
-                        f"{input.rule_set.rule_set_id}:host_corroboration"
-                    ),
+            corroborating_fields = accepted_host_record_pairs[
+                (left.source_record.row_key, right.source_record.row_key)
+            ]
+            for field_id in corroborating_fields:
+                conditions.append(
+                    _condition(
+                        operator=ConditionOperator.exact,
+                        field_id=field_id,
+                        left_value=_source_value(left_host, field_id),
+                        right_value=_source_value(right_host, field_id),
+                        rule_reference=(
+                            f"{input.rule_set.rule_set_id}:host_corroboration"
+                        ),
+                    )
                 )
+            left_host_locators = tuple(
+                _identity(left_host, field_id).locator
+                for field_id in corroborating_fields
+            )
+            right_host_locators = tuple(
+                _identity(right_host, field_id).locator
+                for field_id in corroborating_fields
             )
         edge, item = _build_edge_and_evidence(
             input,
@@ -234,19 +249,11 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
             conditions=tuple(conditions),
             left_locators=(
                 _identity(left, "planet.toi_id").locator,
-                *(
-                    (_identity(left_host, "star.tic_id").locator,)
-                    if host_corroborated
-                    else ()
-                ),
+                *left_host_locators,
             ),
             right_locators=(
                 _identity(right, "planet.name").locator,
-                *(
-                    (_identity(right_host, "star.tic_id").locator,)
-                    if host_corroborated
-                    else ()
-                ),
+                *right_host_locators,
             ),
         )
         edges.append(edge)
@@ -390,7 +397,7 @@ def _match_host_candidates(
     input: CrossmatchInput,
     left: EntityCandidate,
     right: EntityCandidate,
-) -> tuple[CandidateEdge, CrossmatchEvidence, str | None] | None:
+) -> tuple[CandidateEdge, CrossmatchEvidence, str | None, tuple[str, ...]] | None:
     exact_fields: list[str] = []
     conflicting_fields: list[str] = []
     for field_id in _HOST_IDENTIFIER_FIELDS:
@@ -523,7 +530,7 @@ def _match_host_candidates(
         left_locators=tuple(_dedupe_locators(left_locators)),
         right_locators=tuple(_dedupe_locators(right_locators)),
     )
-    return edge, evidence, conflict_code
+    return edge, evidence, conflict_code, tuple(exact_fields)
 
 
 def _matching_alias(
