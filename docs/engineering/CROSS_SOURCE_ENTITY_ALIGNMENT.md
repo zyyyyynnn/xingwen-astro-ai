@@ -161,14 +161,14 @@ or final data quality.
 ## 7. Frozen benchmark and limitations
 
 `services/data_pipeline/benchmarks/exoplanet_host_star/crossmatch-benchmark.v1.json`
-contains 27 machine-executable synthetic scenarios. It covers exact identifier
-topologies, host-only TIC semantics, reference-row preservation, the absent TOI
-Gaia mapping, strict/manual coordinate bands, RA wrap and poles, multiple
-candidates, aliases and conflicts, completion scope, duplicate record and
-Snapshot/source failures, invalid coordinates, and valid/stale manual-review
-bindings. Its capacity scenario expands four raw record pairs into eight
-eligible entity-level comparisons and verifies fail-fast rejection.
-Parameterized pipeline tests additionally cover `unknown` scope.
+contains 28 machine-executable synthetic scenarios. It covers exact identifier
+topologies (including many-to-many), host-only TIC semantics, reference-row
+preservation, the absent TOI Gaia mapping, strict/manual coordinate bands, RA
+wrap and poles, multiple candidates, aliases and conflicts, completion scope,
+duplicate record and Snapshot/source failures, invalid coordinates, and
+valid/stale manual-review bindings. Its capacity scenario expands four raw
+record pairs into eight eligible entity-level comparisons and verifies fail-fast
+rejection. Parameterized pipeline tests additionally cover `unknown` scope.
 
 The benchmark and alias entries are synthetic fixtures, not scientific ground
 truth. The frozen TOI Manifest does not expose Gaia DR3, so C-08 retains PS Gaia

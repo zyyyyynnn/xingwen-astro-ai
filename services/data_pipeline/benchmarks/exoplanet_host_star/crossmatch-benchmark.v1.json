@@ -1,7 +1,7 @@
 {
   "benchmark_id": "exoplanet_host_star.crossmatch_benchmark",
   "version": "1.0.0",
-  "content_hash": "sha256:b7fb6e57a938e288fb9017b2969f6a1b960207bde5e4a4035b5d8dea889fd5af",
+  "content_hash": "sha256:31469b5959b8ed4e5635ae08585ec57e7d88c657028f47ccd57eafea219206ca",
   "data_level": "synthetic_fixture",
   "provenance_note": "Versioned synthetic fixture for deterministic C-08 review; not scientific ground truth.",
   "rule_set_id": "exoplanet_host_star.crossmatch_rules",
@@ -126,6 +126,54 @@
         ],
         "topologies": [
           "many_to_one"
+        ],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "exact_many_to_many",
+      "description": "Two TOI candidates and two PS assertions share one host TIC, forming a single many-to-many host component.",
+      "category": "topology",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "104.01",
+          "tic_id": 104
+        },
+        {
+          "record_type": "toi",
+          "toi": "104.02",
+          "tic_id": 104
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Topology Four b",
+          "reference": "Reference 1",
+          "tic_id": "TIC 104"
+        },
+        {
+          "record_type": "ps",
+          "planet_name": "Topology Four c",
+          "reference": "Reference 2",
+          "tic_id": "104"
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 4,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 2,
+        "methods": [
+          "exact_identifier"
+        ],
+        "topologies": [
+          "many_to_many"
         ],
         "conflict_codes": []
       }
