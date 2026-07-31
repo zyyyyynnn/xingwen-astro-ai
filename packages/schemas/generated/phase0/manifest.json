@@ -7,6 +7,31 @@
       "path": "json/ColumnInfo.schema.json"
     },
     {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchBenchmarkManifest",
+      "path": "json/CrossmatchBenchmarkManifest.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchBenchmarkReport",
+      "path": "json/CrossmatchBenchmarkReport.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchInput",
+      "path": "json/CrossmatchInput.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchResult",
+      "path": "json/CrossmatchResult.schema.json"
+    },
+    {
+      "module": "app.schemas.source_acquisition",
+      "name": "DataSourceCompletion",
+      "path": "json/DataSourceCompletion.schema.json"
+    },
+    {
       "module": "app.schemas.dataset",
       "name": "DatasetResponse",
       "path": "json/DatasetResponse.schema.json"

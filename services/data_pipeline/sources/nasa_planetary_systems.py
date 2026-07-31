@@ -241,10 +241,7 @@ class NasaPlanetarySystemsSupplementalAdapter:
             record_limit=query.pagination.record_limit,
             max_pages=query.pagination.max_pages,
         )
-        completion_payload = {
-            "status": completion.status,
-            "continuation_cursor": completion.continuation_cursor,
-        }
+        completion_payload = completion.model_dump(mode="json")
         content_hash = compute_canonical_payload_hash(
             {
                 "source_id": self.source_id,
@@ -334,8 +331,8 @@ class NasaPlanetarySystemsSupplementalAdapter:
                 "timeout_seconds": self.timeout_seconds,
                 "pagination_strategy": "keyset:pl_name,pl_refname",
                 "result_status": "non_empty" if records else "empty",
-                "completion_status": completion.status,
-                "continuation_cursor": completion.continuation_cursor,
+                "completion_status": completion_payload["status"],
+                "continuation_cursor": completion_payload["continuation_cursor"],
                 "request_id_status": availability_status(request_ids),
                 "locators": {
                     "endpoint": NASA_TAP_SYNC_URL,
@@ -401,6 +398,7 @@ class NasaPlanetarySystemsSupplementalAdapter:
             records=tuple(records),
             pages=tuple(pages),
             snapshot=snapshot,
+            completion=completion,
             retry_count=total_retries,
         )
 

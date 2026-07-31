@@ -1,0 +1,181 @@
+# Cross-source Entity Alignment
+
+| Field | Value |
+| --- | --- |
+| Status | Implemented |
+| Scope | C-08 deterministic TOI/PS entity alignment |
+| Authority | Runtime behavior, Evidence, review input, and benchmark rules |
+
+## 1. Scope and boundaries
+
+C-08 consumes the immutable outputs of C-02 and C-07. The primary source is
+`nasa_exoplanet_archive.toi`; the supplemental source is
+`nasa_exoplanet_archive.ps`. Each side retains its own `SourceSnapshotRecord`,
+query hash, content hash, source mode, data level, completion status, cursor,
+raw row key, and raw-record content hash.
+
+The public data-layer entry point is:
+
+```python
+align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult
+```
+
+The function is deterministic and has no HTTP, database, cache, Run, Router, or
+Artifact side effects. It never invokes either source Adapter. C-04 canonical
+field mapping, C-05 quality scoring, unit conversion, Dataset construction,
+Artifact publication, and runtime orchestration remain Pending.
+
+## 2. Versioned inputs
+
+The Pydantic authoring source is
+`apps/api/src/app/schemas/crossmatch.py`. All contracts are immutable and reject
+extra fields. The pipeline pins:
+
+- Case and Field Manifest versions and content hashes;
+- the versioned Crossmatch RuleSet and its content hash;
+- producer name and version;
+- the versioned entity-alias catalog;
+- the acquisition-origin policy hash;
+- both complete `SourceSnapshotRecord` values;
+- both completion scopes and canonical raw-record references;
+- optional explicit `ManualReviewDecision` hashes.
+
+Crossmatch source fields are discovered through Field Manifest `SourceAlias`
+entries only when the canonical field is declared as a `crossmatch_key`.
+`SourceAlias` maps a source column to a canonical field; it is not a value-level
+name alias registry. Value aliases live only in the versioned entity-alias
+catalog.
+
+## 3. Input invariants and completion scope
+
+`CrossmatchSourceInput` is a typed projection of one acquisition result. It
+rejects:
+
+- a record `source_id` that differs from its Snapshot;
+- duplicate row keys or record hashes;
+- incompatible `source_mode` / `data_level`;
+- Snapshot request metadata that contradicts the declared origin.
+
+The engine also rejects reversed or unauthorized sources and any source absent
+from the frozen Manifest bundle. Capacity overflow fails with
+`CROSSMATCH_CAPACITY_EXCEEDED`; records are never silently truncated.
+
+With a complete opposite source, a candidate without an edge is `unmatched`.
+With a `truncated` or `unknown` opposite source, it is `inconclusive`. The result
+retains both completion objects, so coverage always means the observed
+Snapshot scope and never proves that an object is absent upstream.
+
+## 4. Normalization and matching policy
+
+Normalization is conservative and versioned:
+
+- TIC and Gaia DR3 identifiers accept only positive catalog integers and known
+  prefixes; catalog identifiers are bounded to 19 digits.
+- TOI accepts the C-02 numeric form plus `TOI 1243.01` and `TOI-1243.01`, while
+  retaining the numeric candidate suffix. It never infers a lettered planet
+  name.
+- Names use Unicode NFKC, trimmed/collapsed whitespace, and `casefold`.
+- ICRS degree coordinates require finite RA in `[0, 360)` (with `360`
+  normalized to `0`) and Dec in `[-90, 90]`.
+- Angular separation uses a stable spherical haversine calculation and handles
+  RA wrap-around and poles.
+
+Closed automatic methods are `exact_identifier`, `curated_entity_alias`,
+`coordinate`, and `compound`. `manual_review` is deliberately not an automatic
+method. Coordinate-only edges are never automatically accepted. The frozen
+RuleSet records the strict and manual-review thresholds, method priority,
+confidence values, conflict policy versions, and capacity limits.
+
+Equal TIC values confirm host-star identity only; they do not infer planet
+identity. Distinct PS `pl_refname` rows remain distinct planet assertions.
+Curated planet aliases require independent host corroboration for automatic
+acceptance. Conflicting identifiers, identifier/coordinate disagreement, and
+competing aliases remain explicit conflict groups.
+
+## 5. Evidence and review
+
+Every candidate retains a `SourceRecordReference` with Snapshot/query/content
+hashes, source-specific row key, raw-record hash, object type, and source entity
+key. Each normalized identity value retains its Manifest-derived raw-field
+locator and normalization-rule version.
+
+Every edge has deterministic conditions and `CrossmatchEvidence` tied to both
+candidate sides, both Snapshot/query boundaries, raw fields, RuleSet identity,
+confidence, confidence band, and automatic decision. Coordinate Evidence
+records separation plus both strict and manual-review thresholds. The
+`CrossmatchResult` validator cross-checks Candidate, Edge, Evidence, Record,
+Snapshot, RuleSet, and producer references even if a caller recomputes hashes.
+
+An optional `ManualReviewDecision` is a separate, hashed input. It binds the
+pre-adjudication source-input hash, full RuleSet identity, logical match key,
+left/right candidate IDs, Evidence IDs, reviewer kind, rationale, and
+timezone-aware timestamp. Stale or mismatched bindings fail closed. Applying a
+review records the adjudication audit fields but preserves the automatic
+`review_required` or `conflict` decision. Benchmark decisions use
+`reviewer_kind=benchmark_fixture` and are not represented as human or
+scientific approval.
+
+## 6. Stable identity and metrics
+
+`source_input_hash` covers manifests, rules, aliases, snapshots, completion
+scope, origin, and canonically sorted raw records. `input_hash` additionally
+binds sorted manual-decision hashes. `output_hash` covers the stable result and
+equals the canonical result `content_hash`. All hashes exclude wall-clock
+latency, logs, branch names, output paths, and the hash field itself.
+
+Logical match keys are based on source identities and row keys; they are
+separate from mutable result content hashes. Input record order and JSON object
+key order do not affect output ordering or hashes.
+
+Metrics report record/candidate counts, paired/matched/ambiguous/conflict and
+side-specific unmatched counts, inconclusive and manual-review-required counts,
+topology counts, confidence and method distributions, deterministic error
+references, and numerator/denominator/value triples for coverage and rates.
+They describe processing coverage and traceability, not scientific correctness
+or final data quality.
+
+## 7. Frozen benchmark and limitations
+
+`services/data_pipeline/benchmarks/exoplanet_host_star/crossmatch-benchmark.v1.json`
+contains 26 machine-executable synthetic scenarios. It covers exact identifier
+topologies, host-only TIC semantics, reference-row preservation, the absent TOI
+Gaia mapping, strict/manual coordinate bands, RA wrap and poles, multiple
+candidates, aliases and conflicts, completion scope, duplicate record and
+Snapshot/source failures, invalid coordinates, and valid/stale manual-review
+bindings. Parameterized pipeline tests additionally cover `unknown` scope.
+
+The benchmark and alias entries are synthetic fixtures, not scientific ground
+truth. The frozen TOI Manifest does not expose Gaia DR3, so C-08 retains PS Gaia
+values but does not fabricate a TOI Gaia field merely to claim an exact Gaia
+cross-source case. Existing recorded TOI and PS fixtures also do not share a
+verified entity identity; they are acquisition evidence and are not presented
+as a real successful crossmatch.
+
+## 8. Validation
+
+Relevant checks are:
+
+```powershell
+uv run --project apps/api pytest apps/api/tests/test_crossmatch_contract.py `
+  apps/api/tests/test_crossmatch_identity.py `
+  apps/api/tests/test_crossmatch_policy.py `
+  apps/api/tests/test_crossmatch_pipeline.py `
+  apps/api/tests/test_crossmatch_benchmark.py
+uv run --project apps/api python scripts/export_schemas.py `
+  --output packages/schemas/generated/phase0 `
+  --include DatasetResponse --include ColumnInfo --include QualityScore `
+  --include SourceRecordItem --include PaperSearchQuery `
+  --include PaperAcquisitionRun --include PaperCandidate --include PaperSummary `
+  --include LiteratureClaim --include LiteratureRelation `
+  --include ReasoningTrace --include EvidenceResponse --include SourceSnapshot `
+  --include DataSourceCompletion --include CrossmatchInput `
+  --include CrossmatchResult --include CrossmatchBenchmarkManifest `
+  --include CrossmatchBenchmarkReport --check
+python scripts/check_foundation.py
+node scripts/check-docs.mjs
+git diff --check
+```
+
+The JSON Schema export includes the public C-08 input, output, completion,
+benchmark-manifest, and benchmark-report contracts. No HTTP route or duplicate
+transport DTO is introduced.

@@ -556,7 +556,10 @@ def test_nasa_tap_adapter_rejects_non_finite_json_numbers() -> None:
 
 def test_nasa_tap_adapter_treats_empty_result_as_success() -> None:
     from app.schemas.enums import SourceMode
-    from app.schemas.source_acquisition import DataSourceDataLevel
+    from app.schemas.source_acquisition import (
+        DataSourceCompletion,
+        DataSourceDataLevel,
+    )
     from services.data_pipeline.sources.nasa_exoplanet_archive import (
         NasaExoplanetArchiveAdapter,
     )
@@ -585,6 +588,7 @@ def test_nasa_tap_adapter_treats_empty_result_as_success() -> None:
     assert result.records == ()
     assert len(result.pages) == 1
     assert result.pages[0].returned_rows == 0
+    assert result.completion == DataSourceCompletion(status="complete")
     assert result.snapshot.content_hash.startswith("sha256:")
     assert result.snapshot.request_metadata["pages"][0]["returned_rows"] == 0
 

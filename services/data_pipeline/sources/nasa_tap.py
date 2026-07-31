@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
 import socket
 import time
@@ -11,12 +10,12 @@ import urllib.parse
 import urllib.request
 from collections.abc import Mapping
 from email.message import Message
-from typing import Any, Literal
+from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import UpstreamFailureClass
 from app.schemas.evidence import SourceSnapshotRecord
-from app.schemas.source_acquisition import DataSourcePage
+from app.schemas.source_acquisition import DataSourceCompletion, DataSourcePage
 
 from .base import (
     HttpResponse,
@@ -310,31 +309,25 @@ def tap_type_category(datatype: str) -> str | None:
     return None
 
 
-@dataclass(frozen=True)
-class BoundedCompletion:
-    status: Literal["complete", "truncated", "unknown"]
-    continuation_cursor: dict[str, Any] | None
-
-
 def classify_bounded_completion(
     *,
     pages: list[DataSourcePage],
     record_count: int,
     record_limit: int,
     max_pages: int,
-) -> BoundedCompletion:
+) -> DataSourceCompletion:
     if not pages:
-        return BoundedCompletion(status="unknown", continuation_cursor=None)
+        return DataSourceCompletion(status="unknown")
     last_page = pages[-1]
     if last_page.returned_rows < last_page.requested_rows:
-        return BoundedCompletion(status="complete", continuation_cursor=None)
+        return DataSourceCompletion(status="complete")
     bounded = record_count >= record_limit or len(pages) >= max_pages
     continuation_cursor = (
-        last_page.cursor_after.model_dump(mode="json")
+        last_page.cursor_after
         if bounded and last_page.cursor_after is not None
         else None
     )
-    return BoundedCompletion(
+    return DataSourceCompletion(
         status="truncated" if bounded else "unknown",
         continuation_cursor=continuation_cursor,
     )
