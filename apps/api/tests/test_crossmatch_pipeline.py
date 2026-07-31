@@ -14,7 +14,6 @@ from app.schemas.crossmatch import (
     CrossmatchMethod,
     CrossmatchResult,
     CrossmatchRuleSet,
-    CrossmatchSide,
     CrossmatchSourceInput,
     EntityLevel,
     ManualReviewDecision,
