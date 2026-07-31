@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
+from collections import defaultdict
 from collections.abc import Iterable
 import math
 
@@ -160,9 +160,10 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
         (candidate.side, candidate.source_record.row_key): candidate
         for candidate in (*left_hosts, *right_hosts)
     }
+    alias_index = _build_alias_index(input)
     for left in left_planets:
         for right in right_assertions:
-            entry = _matching_alias(input, left, right)
+            entry = _matching_alias(alias_index, left, right)
             if entry is None:
                 continue
             host_corroborated = (
@@ -533,25 +534,40 @@ def _match_host_candidates(
     return edge, evidence, conflict_code, tuple(exact_fields)
 
 
-def _matching_alias(
+def _build_alias_index(
     input: CrossmatchInput,
-    left: EntityCandidate,
-    right: EntityCandidate,
-):
-    left_value = _identity(left, "planet.toi_id").normalized_value
-    right_value = _identity(right, "planet.name").normalized_value
+) -> dict[tuple[str, str, str, str], object]:
+    """Index planet alias entries once; first catalog entry wins per key."""
+
+    index: dict[tuple[str, str, str, str], object] = {}
     for entry in input.alias_catalog.entries:
         if (
             entry.entity_level is EntityLevel.planet_candidate
-            and entry.left_source_id == left.source_record.source_id
-            and entry.right_source_id == right.source_record.source_id
             and entry.left_field_id == "planet.toi_id"
             and entry.right_field_id == "planet.name"
-            and normalize_toi_id(entry.left_value) == left_value
-            and normalize_name(entry.right_value) == right_value
         ):
-            return entry
-    return None
+            key = (
+                entry.left_source_id,
+                entry.right_source_id,
+                normalize_toi_id(entry.left_value),
+                normalize_name(entry.right_value),
+            )
+            index.setdefault(key, entry)
+    return index
+
+
+def _matching_alias(
+    alias_index: dict[tuple[str, str, str, str], object],
+    left: EntityCandidate,
+    right: EntityCandidate,
+):
+    key = (
+        left.source_record.source_id,
+        right.source_record.source_id,
+        _identity(left, "planet.toi_id").normalized_value,
+        _identity(right, "planet.name").normalized_value,
+    )
+    return alias_index.get(key)
 
 
 def _alias_conflicting_pairs(alias_matches) -> set[tuple[str, str]]:
@@ -655,18 +671,60 @@ def _build_edge_and_evidence(
     return CandidateEdge.model_validate(_with_hash(edge_payload)), evidence
 
 
+def _connected_edge_components(
+    edges: list[CandidateEdge],
+) -> list[list[CandidateEdge]]:
+    """Group edges into connected components within each (entity_level,
+    is_conflict) partition using one union-find pass. Components are ordered by
+    their minimum edge_id and each component's edges are sorted by edge_id, so
+    the result is identical to repeated per-edge traversal."""
+
+    parent: dict[str, str] = {edge.edge_id: edge.edge_id for edge in edges}
+
+    def find(node: str) -> str:
+        root = node
+        while parent[root] != root:
+            root = parent[root]
+        while parent[node] != root:
+            parent[node], node = root, parent[node]
+        return root
+
+    def union(left: str, right: str) -> None:
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            parent[max(left_root, right_root)] = min(left_root, right_root)
+
+    partitions: dict[
+        tuple[EntityLevel, bool], dict[str, str]
+    ] = defaultdict(dict)
+    for edge in edges:
+        key = (edge.entity_level, edge.decision is MatchDecision.conflict)
+        by_candidate = partitions[key]
+        for candidate_id in (edge.left_candidate_id, edge.right_candidate_id):
+            if candidate_id in by_candidate:
+                union(by_candidate[candidate_id], edge.edge_id)
+            else:
+                by_candidate[candidate_id] = edge.edge_id
+
+    grouped: dict[str, list[CandidateEdge]] = defaultdict(list)
+    for edge in edges:
+        grouped[find(edge.edge_id)].append(edge)
+    components = [
+        sorted(component, key=lambda edge: edge.edge_id)
+        for component in grouped.values()
+    ]
+    components.sort(key=lambda component: component[0].edge_id)
+    return components
+
+
 def _records_from_edges(
     edges: list[CandidateEdge],
     *,
     conflict_codes: dict[str, str],
 ) -> tuple[PairedMatch | ConflictGroup, ...]:
-    remaining = {edge.edge_id: edge for edge in edges}
     records: list[PairedMatch | ConflictGroup] = []
-    while remaining:
-        first_id = min(remaining)
-        first = remaining[first_id]
-        component_ids = _edge_component(first, tuple(remaining.values()))
-        component = [remaining.pop(edge_id) for edge_id in sorted(component_ids)]
+    for component in _connected_edge_components(edges):
+        first = component[0]
         left_ids = tuple(sorted({edge.left_candidate_id for edge in component}))
         right_ids = tuple(sorted({edge.right_candidate_id for edge in component}))
         is_conflict = any(
@@ -739,33 +797,6 @@ def _records_from_edges(
         }
         records.append(PairedMatch.model_validate(_with_hash(payload)))
     return tuple(records)
-
-
-def _edge_component(
-    first: CandidateEdge,
-    edges: tuple[CandidateEdge, ...],
-) -> set[str]:
-    eligible = [
-        edge
-        for edge in edges
-        if edge.entity_level is first.entity_level
-        and (edge.decision is MatchDecision.conflict)
-        == (first.decision is MatchDecision.conflict)
-    ]
-    by_candidate: dict[str, list[CandidateEdge]] = defaultdict(list)
-    for edge in eligible:
-        by_candidate[edge.left_candidate_id].append(edge)
-        by_candidate[edge.right_candidate_id].append(edge)
-    queue = deque([first])
-    visited: set[str] = set()
-    while queue:
-        edge = queue.popleft()
-        if edge.edge_id in visited:
-            continue
-        visited.add(edge.edge_id)
-        for candidate_id in (edge.left_candidate_id, edge.right_candidate_id):
-            queue.extend(by_candidate[candidate_id])
-    return visited
 
 
 def _unpaired_records(
