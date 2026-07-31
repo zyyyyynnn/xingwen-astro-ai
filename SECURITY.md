@@ -39,7 +39,7 @@ Artifact provenance 响应使用 `no-store`，并在数据库读取后再次过�
 
 Session 创建按客户端地址限流，ShareSnapshot 创建按 Session 独立限流。进程内限流状态在重启后清空；多实例生产部署需在边界层配置共享限流。
 
-目标 `/api` 的免登录体验仍需要完整授权边界：
+免登录 `/api` 体验需要完整授权边界：
 
 - Session 使用服务端签发的高熵标识和明确过期时间；
 - Cookie 使用 `Secure`、`HttpOnly`、合适的 `SameSite` 与最小 Path/Domain；
@@ -61,7 +61,7 @@ Session 创建按客户端地址限流，ShareSnapshot 创建按 Session 独立�
 - 分享页面使用严格 CSP、`Referrer-Policy: no-referrer` 和默认 `Cache-Control: no-store`。
 - 无效、撤销和过期 token 不泄露底层 Project 或 Version 是否存在。
 
-当前公开 Share 错误使用固定 instance，不回显 token 路径；Uvicorn access log 通过 Filter 将 token path segment 替换为 `[REDACTED]`。成功和失败响应都使用 `no-store`、`no-referrer`、严格 CSP、`nosniff` 与最小 Permissions Policy。M1 只允许 `public_metadata_only`，原始 Artifact content 和 Evidence locator 不进入公开 DTO；公网反向代理日志仍必须由部署配置执行相同脱敏。
+公开 Share 错误使用固定 instance，不回显 token 路径；Uvicorn access log 通过 Filter 将 token path segment 替换为 `[REDACTED]`。成功和失败响应都使用 `no-store`、`no-referrer`、严格 CSP、`nosniff` 与最小 Permissions Policy。Redaction policy 只允许 `public_metadata_only`，原始 Artifact content 和 Evidence locator 不进入公开 DTO；公网反向代理日志仍必须由部署配置执行相同脱敏。
 
 ## 5. 外部来源访问
 
