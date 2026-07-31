@@ -209,6 +209,14 @@ def crossmatch_input(
     return CrossmatchInput.model_validate(payload)
 
 
+def rehash_result_payload(payload: dict[str, object]) -> None:
+    payload["content_hash"] = compute_crossmatch_content_hash(payload)
+    payload["output_hash"] = payload["content_hash"]
+    payload["result_id"] = (
+        f"crossmatch.{str(payload['content_hash']).removeprefix('sha256:')[:24]}"
+    )
+
+
 def rule_set_with_capacity(
     *,
     max_left_records: int,
@@ -867,6 +875,33 @@ def test_crossmatch_result_rejects_rehashed_snapshot_reference_mismatch() -> Non
     )
 
     with pytest.raises(ValidationError, match="Snapshot"):
+        CrossmatchResult.model_validate(tampered)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("row_key", [["toi", "different-row"]]),
+        ("raw_field", "unrelated_raw_field"),
+    ],
+)
+def test_crossmatch_result_rejects_rehashed_evidence_locator_tampering(
+    field: str,
+    value: object,
+) -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("636.01", tic_id=636),),
+            (ps_record("Locator Bound b", "Reference", tic_id="TIC 636"),),
+        )
+    )
+    tampered = result.model_dump(mode="json")
+    evidence = tampered["evidence"][0]
+    evidence["left_locators"][0][field] = value
+    evidence["content_hash"] = compute_crossmatch_content_hash(evidence)
+    rehash_result_payload(tampered)
+
+    with pytest.raises(ValidationError, match="Evidence locator disagrees with candidate"):
         CrossmatchResult.model_validate(tampered)
 
 

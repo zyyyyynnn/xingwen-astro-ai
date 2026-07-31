@@ -1033,6 +1033,22 @@ class CrossmatchResult(BaseModel):
                     raise ValueError(
                         "candidate identity locator disagrees with source reference"
                     )
+        identity_locators_by_source_record: dict[
+            tuple[CrossmatchSide, str, str, str, tuple[tuple[str, str], ...]],
+            list[EvidenceLocator],
+        ] = {}
+        for candidate in self.candidates:
+            reference = candidate.source_record
+            source_record_key = (
+                candidate.side,
+                reference.source_snapshot_id,
+                reference.source_id,
+                reference.query_hash,
+                reference.row_key,
+            )
+            identity_locators_by_source_record.setdefault(
+                source_record_key, []
+            ).extend(identity.locator for identity in candidate.identity_values)
         evidence_by_id = {
             item.evidence_id: item for item in self.evidence
         }
@@ -1062,6 +1078,23 @@ class CrossmatchResult(BaseModel):
                 or item.rule_set_content_hash != self.rule_set_content_hash
             ):
                 raise ValueError("Evidence disagrees with result RuleSet")
+            for locators, candidate in (
+                (item.left_locators, left_candidate),
+                (item.right_locators, right_candidate),
+            ):
+                reference = candidate.source_record
+                allowed_locators = identity_locators_by_source_record.get(
+                    (
+                        candidate.side,
+                        reference.source_snapshot_id,
+                        reference.source_id,
+                        reference.query_hash,
+                        reference.row_key,
+                    ),
+                    [],
+                )
+                if any(locator not in allowed_locators for locator in locators):
+                    raise ValueError("Evidence locator disagrees with candidate")
             for locator in (*item.left_locators, *item.right_locators):
                 snapshot = snapshots[locator.side]
                 if (
