@@ -316,12 +316,16 @@ def classify_bounded_completion(
     record_limit: int,
     max_pages: int,
 ) -> DataSourceCompletion:
+    # No pages means completeness cannot be proven, so the result is `unknown`
+    # rather than a fabricated `complete`.
     if not pages:
         return DataSourceCompletion(status="unknown")
     last_page = pages[-1]
     if last_page.returned_rows < last_page.requested_rows:
         return DataSourceCompletion(status="complete")
     bounded = record_count >= record_limit or len(pages) >= max_pages
+    # `truncated` depends on the DataSourcePage invariant that a full page always
+    # carries a `cursor_after`; a continuation cursor is never fabricated.
     continuation_cursor = (
         last_page.cursor_after
         if bounded and last_page.cursor_after is not None
