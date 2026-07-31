@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Annotated, ClassVar, Generic, Literal, TypeVar
+from typing import Annotated, Generic, Literal, TypeVar
 
 from pydantic import (
     AfterValidator,
@@ -450,8 +450,6 @@ class PaperCollectionArtifactContent(BaseModel):
 
 class LiteratureClaimsArtifactContent(BaseModel):
     model_config = CORE_MODEL_CONFIG
-    # Legacy core projection; it is not a D-07 publication candidate.
-    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     kind: Literal[ArtifactKind.literature_claims]
     claim_ids: tuple[Identifier, ...]
