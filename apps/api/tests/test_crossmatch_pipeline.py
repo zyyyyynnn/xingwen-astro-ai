@@ -1139,3 +1139,76 @@ def test_strict_band_uses_shared_tolerance_at_boundary() -> None:
     assert coordinate_match.method is CrossmatchMethod.coordinate
     assert coordinate_match.decision is MatchDecision.review_required
     assert coordinate_match.confidence_band is ConfidenceBand.medium
+
+
+def _edge(left_id: str, right_id: str, decision: MatchDecision) -> object:
+    from app.schemas.crossmatch import CandidateEdge
+
+    payload = {
+        "edge_id": f"edge.crossmatch_{left_id}_{right_id}",
+        "logical_match_key": "sha256:" + "a" * 64,
+        "entity_level": EntityLevel.host_star,
+        "left_candidate_id": left_id,
+        "right_candidate_id": right_id,
+        "method": CrossmatchMethod.exact_identifier,
+        "decision": decision,
+        "confidence": 1.0 if decision is MatchDecision.accepted else 0.0,
+        "confidence_band": (
+            ConfidenceBand.high
+            if decision is MatchDecision.accepted
+            else ConfidenceBand.not_applicable
+        ),
+        "condition_ids": (f"condition.{left_id}_{right_id}",),
+        "evidence_ids": (f"evidence.{left_id}_{right_id}",),
+    }
+    return CandidateEdge.model_validate(crossmatch_engine._with_hash(payload))
+
+
+def test_record_logical_key_is_namespaced_by_record_type() -> None:
+    # Two edge-disjoint host components that both span the same candidate sets
+    # (left {L0,L1,L2}, right {R0,R1,R2,R3}): one accepted spanning tree and one
+    # conflict spanning tree. Pre-fix the record logical keys collided.
+    accepted = [
+        _edge("candidate.left.0", "candidate.right.0", MatchDecision.accepted),
+        _edge("candidate.left.0", "candidate.right.2", MatchDecision.accepted),
+        _edge("candidate.left.1", "candidate.right.0", MatchDecision.accepted),
+        _edge("candidate.left.1", "candidate.right.3", MatchDecision.accepted),
+        _edge("candidate.left.2", "candidate.right.1", MatchDecision.accepted),
+        _edge("candidate.left.2", "candidate.right.3", MatchDecision.accepted),
+    ]
+    conflict = [
+        _edge("candidate.left.0", "candidate.right.1", MatchDecision.conflict),
+        _edge("candidate.left.0", "candidate.right.3", MatchDecision.conflict),
+        _edge("candidate.left.1", "candidate.right.1", MatchDecision.conflict),
+        _edge("candidate.left.1", "candidate.right.2", MatchDecision.conflict),
+        _edge("candidate.left.2", "candidate.right.0", MatchDecision.conflict),
+        _edge("candidate.left.2", "candidate.right.2", MatchDecision.conflict),
+    ]
+
+    records = crossmatch_engine._records_from_edges(
+        accepted + conflict, conflict_codes={}
+    )
+
+    paired = [record for record in records if isinstance(record, PairedMatch)]
+    conflicts = [record for record in records if isinstance(record, ConflictGroup)]
+    assert len(paired) == 1
+    assert len(conflicts) == 1
+    paired_record = paired[0]
+    conflict_record = conflicts[0]
+
+    # Same entity level and identical left/right candidate projections.
+    assert paired_record.entity_level is conflict_record.entity_level
+    assert set(paired_record.left_candidate_ids) == set(
+        conflict_record.left_candidate_ids
+    )
+    assert set(paired_record.right_candidate_ids) == set(
+        conflict_record.right_candidate_ids
+    )
+    # The fix: record-type namespacing keeps their logical keys distinct.
+    assert paired_record.logical_match_key != conflict_record.logical_match_key
+
+    # A decision map keyed by logical_match_key (as _apply_manual_decisions builds)
+    # routes a conflict-group decision only to the conflict group.
+    decisions = {conflict_record.logical_match_key: object()}
+    assert decisions.get(conflict_record.logical_match_key) is not None
+    assert decisions.get(paired_record.logical_match_key) is None

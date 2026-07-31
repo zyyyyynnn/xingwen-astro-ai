@@ -662,8 +662,12 @@ def _records_from_edges(
         component = [remaining.pop(edge_id) for edge_id in sorted(component_ids)]
         left_ids = tuple(sorted({edge.left_candidate_id for edge in component}))
         right_ids = tuple(sorted({edge.right_candidate_id for edge in component}))
+        is_conflict = any(
+            edge.decision is MatchDecision.conflict for edge in component
+        )
         logical_match_key = compute_canonical_payload_hash(
             {
+                "record_type": "conflict_group" if is_conflict else "paired",
                 "entity_level": first.entity_level.value,
                 "left_candidate_ids": left_ids,
                 "right_candidate_ids": right_ids,
@@ -683,9 +687,6 @@ def _records_from_edges(
             next(iter(methods))
             if len(methods) == 1
             else CrossmatchMethod.compound
-        )
-        is_conflict = any(
-            edge.decision is MatchDecision.conflict for edge in component
         )
         if is_conflict:
             codes = sorted(

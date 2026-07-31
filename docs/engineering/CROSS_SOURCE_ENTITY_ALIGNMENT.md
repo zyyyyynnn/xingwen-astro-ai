@@ -125,6 +125,11 @@ review records the adjudication audit fields but preserves the automatic
 `reviewer_kind=benchmark_fixture` and are not represented as human or
 scientific approval.
 
+A record logical match key is derived from the record type, entity level, and
+both candidate-id sets, so paired and conflict-group records over the same
+candidates stay in separate namespaces and manual-review bindings resolve
+unambiguously.
+
 ## 6. Stable identity and metrics
 
 `source_input_hash` covers manifests, rules, aliases, snapshots, completion
