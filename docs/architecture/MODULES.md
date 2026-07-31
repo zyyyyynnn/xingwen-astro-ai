@@ -1,9 +1,9 @@
 # Module Boundaries
 
-| 元数据         | 值                                                                                                                                                                                                                              |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status         | Accepted                                                                                                                                                                                                                        |
-| Authority      | 跨模块职责、输入输出、依赖方向和交接边界                                                                                                                                                                                        |
+| 元数据    | 值                                       |
+| --------- | ---------------------------------------- |
+| Status    | Accepted                                 |
+| Authority | 跨模块职责、输入输出、依赖方向和交接边界 |
 
 本文不维护完整前端目录、技术选型或任务顺序。前端包结构见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)，实时任务依赖见 [Backlog](../product/BACKLOG.md)。
 
@@ -49,9 +49,8 @@ flowchart LR
 - Research Contract、项目/运行导航和最多三面板 Research Canvas；
 - Provenance Observatory、Research Console、分享和反馈体验；
 - Fixture / HTTP Adapter、Domain mapper 和前端状态模型；
-- A-16 的 Tour、Workspace 与匿名 Share 页面通过 Repository Port 消费 Domain Model；
-- A-05 论文获取与候选审查工作区：`PaperAcquisitionRepository` 深 Port 隐藏 B-06 读端点与分页，Fixture/HTTP 共享同一装配函数产出 `PaperAcquisitionReview`；论文 Fixture 由真实 D-02 Pipeline（`services/paper_pipeline/demo_fixture.py`）基于冻结 benchmark 生成，经后端 Pydantic 语义门禁验证，前端只消费生成结果；
-- A-06 文献总结与 Evidence 阅读工作区：`PaperSummaryRepository` 深 Port 隐藏 B-07 读端点，Fixture/HTTP 共享同一 `assemblePaperSummaryReview` 产出 `PaperSummaryReview`（论文元信息、revision/supersedes、Cached 审计、五区语句、逐项 Evidence 与 supported/unsupported/unverifiable 状态）；`LiteratureSummaryWorkspace` 提供单篇 Evidence 审查与当前 Run 最多三篇的可达对照模式，对比列分别保留 model/Prompt、Evidence 覆盖与 Cached origin/Live 失败上下文。PaperSummary Fixture 由真实 D-03 `PaperSummaryPipeline`（`services/paper_pipeline/demo_summary_fixture.py`）生成并经后端 Pydantic 语义门禁验证，前端只消费生成结果；
+- 论文获取、文献总结、Evidence 审查与跨产物对照体验；
+- Tour、Workspace 与匿名 Share 通过 Repository Port 消费 Domain Model，Fixture 与 HTTP 路径共享相同装配和映射边界；
 - a11y、visual、E2E、性能和降级测试。
 
 ### 不负责
@@ -59,7 +58,7 @@ flowchart LR
 - 直接调用模型、数据源或论文源；
 - 决定 Run 状态、缓存选择、版本发布或访问权限；
 - 自行补造后端未返回的科研事实；
-- 在 Site 与 Workspace 重复维护同一业务状态。
+- 在 Site 与 Workspace 重复维护同一业务状态；
 - 将 Fixture E2E 或 HTTP-shaped 组件测试表述为真实 HTTP Browser / Compose 集成证据。
 
 ## 3. B：API、Application 与 Workflow
@@ -101,7 +100,7 @@ flowchart LR
 - mapping / unit / quality rule version、input/output hash；
 - 数据修订内容和 Export 输入。
 
-当前 C-02 只实现 `exoplanet_host_star` 的 NASA Exoplanet Archive TOI TAP 主来源 Adapter、原始记录、SourceSnapshot、Recorded Fixture 与有界 smoke 入口；运行规则见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md)。Crossmatch、字段合并、单位统一、质量评分、ArtifactVersion 发布和 Run 编排仍由后续原子 Issue 负责。
+主来源与补充来源的查询、原始记录、SourceSnapshot、Recorded Fixture 和有界 smoke 规则分别见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md) 与 [Supplemental Source Acquisition](../engineering/SUPPLEMENTAL_SOURCE_ACQUISITION.md)。Crossmatch、字段合并、单位统一、质量评分、ArtifactVersion 发布和 Run 编排由对应职责边界处理。
 
 ### 不负责
 
@@ -125,7 +124,7 @@ flowchart LR
 - Prompt/model/producer、input/output hash 和评测报告；
 - 文献、推理和 Graph 修订内容。
 
-当前 D-02 仅实现 Crossref metadata 检索到 validated PaperCollection content 的边界；运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。ArtifactVersion 事务、领域读取 API 与 Run 编排仍由 B/Workflow 负责。
+论文元数据检索、PaperCollection/PaperSummary 准入与运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。ArtifactVersion 事务、领域读取 API 与 Run 编排由 B/Workflow 边界负责。
 
 ### 不负责
 
