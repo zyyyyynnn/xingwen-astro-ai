@@ -35,8 +35,8 @@ Frozen Benchmark scenario
 -> deterministic ranking + selection / exclusion reasons
 -> ProducerExecution + metrics + stable hashes
 -> validated PaperCollection content
--> #78 ArtifactVersion publisher
--> B-06 typed detail and candidate pagination reads
+-> ArtifactVersion publisher
+-> typed detail and candidate pagination reads
 ```
 
 本 Pipeline 的 Live Adapter 为 Crossref REST `/works` metadata API：
@@ -115,7 +115,7 @@ Seed 不是来源模式，也不作为检索候选输入；其用途仅限 bench
 
 `input_hash` 覆盖固定 Benchmark reference、query hash 和所有规则版本。`output_hash` 覆盖规范化查询、来源 response/content hash、全部候选、分组、冲突、排序、选择、指标与 producer；抓取时间、执行时间和 latency 不进入 content hash，避免同一内容因 wall clock 漂移。完整时间仍保存在 content 中。ProducerExecution 的 input/output hash 与顶层一致。
 
-## 8. PaperCollection 与 B-06 边界
+## 8. PaperCollection 与读取投影边界
 
 Pydantic 编写源是 `apps/api/src/app/schemas/paper_collection.py`。内容至少包含：
 
@@ -128,7 +128,7 @@ Pydantic 编写源是 `apps/api/src/app/schemas/paper_collection.py`。内容至
 - source failure、empty result、candidate recall 和 duplicate rate 指标；
 - ProducerExecution、input hash 和 output hash。
 
-#78 Publisher 可以把已校验且符合质量策略的 content 原样放入 `kind=paper_collection` ArtifactVersion，并登记 content/input hash、producer 与 snapshot ids。B-06 不复制 Publisher，也不重新运行检索、canonicalization、去重或排序；它通过 #83 ownership 边界重新校验冻结 content 和 provenance，提供 detail 与候选 cursor 分页。`acquisition_run.status=failed` 的诊断 content 不得发布为成功 ArtifactVersion；若读取到遗留或损坏记录，B-06 使用稳定 Problem Details 失败关闭。
+Publisher 可以把已校验且符合质量策略的 content 原样放入 `kind=paper_collection` ArtifactVersion，并登记 content/input hash、producer 与 snapshot ids。读取投影不复制 Publisher，也不重新运行检索、canonicalization、去重或排序；它通过 ownership 边界重新校验冻结 content 和 provenance，提供 detail 与候选 cursor 分页。`acquisition_run.status=failed` 的诊断 content 不得发布为成功 ArtifactVersion；读取遗留或损坏记录时使用稳定 Problem Details 失败关闭。
 
 ## 9. PaperSummary Prompt Registry
 
@@ -160,11 +160,11 @@ SourceSnapshot 版本是冲突时的权威运行版本。若 caller 声明其他
 
 Evidence 或 unsupported 指标分母为零时报告 `null`，与 D-01 `report_not_available` 空集规则一致，不用 `0.0` 冒充已计算结果。
 
-评测函数不调用模型；同一版本化 case 输入产生相同 report input/output hash。真实模型调用、成本/延迟采集和生产 Benchmark 执行器由对应 Issue 定义。
+评测函数不调用模型；同一版本化 case 输入产生相同 report input/output hash。模型执行、成本/延迟采集和生产 Benchmark 调度不属于该评测函数边界。
 
-## 12. D-03 与 Publisher/B-07 边界
+## 12. D-03 与 Publisher/读取投影边界
 
-D-03 输出的 `PaperSummaryArtifactContent` 直接作为 `ArtifactContent` 的 `kind=paper_summary` 判别分支，并通过现有 #78 structured admission port；不生成第二套 Transport Schema。`PaperSummaryModelOutput` 明确标记为中间模型，通用 Publisher 会拒绝其绕过 D-03 Evidence admission，只有完整 `PaperSummaryArtifactContent` 可进入发布准入。D-03 不执行 ArtifactVersion 数据库事务、不推进 ResearchRun、不实现 B-07 HTTP/domain read、不实现 CacheSelector。下游 Publisher 必须登记 content/input hash、ProducerExecution、SourceSnapshot ids 与 Evidence ids，且不得把 rejected execution 发布成成功 ArtifactVersion。
+D-03 输出的 `PaperSummaryArtifactContent` 直接作为 `ArtifactContent` 的 `kind=paper_summary` 判别分支，并通过 structured admission port；不生成第二套 Transport Schema。`PaperSummaryModelOutput` 明确标记为中间模型，通用 Publisher 会拒绝其绕过 D-03 Evidence admission，只有完整 `PaperSummaryArtifactContent` 可进入发布准入。D-03 不执行 ArtifactVersion 数据库事务、不推进 ResearchRun、不实现 HTTP/domain read、不实现 CacheSelector。下游 Publisher 必须登记 content/input hash、ProducerExecution、SourceSnapshot ids 与 Evidence ids，且不得把 rejected execution 发布成成功 ArtifactVersion。
 
 ## 13. 验证命令
 
@@ -197,7 +197,7 @@ Set-Location apps/api
 uv run pytest -m live tests/test_paper_collection_pipeline.py
 ```
 
-## 14. Issue #38 验收映射
+## 14. 验证映射
 
 | #     | 验收项                     | 自动化证据                                                              |
 | ----- | -------------------------- | ----------------------------------------------------------------------- |
@@ -227,11 +227,10 @@ uv run pytest -m live tests/test_paper_collection_pipeline.py
 ## 15. 已知限制
 
 - D-03 不调用真实模型，不抓取 abstract/PDF/全文，也不做表格/图像 OCR；Evidence 可访问片段必须由上游依法提供。
-- D-03 不实现跨文献 Relation/Graph、论文写作、ResearchRun 推进、B-07 读取或 ArtifactVersion 事务。
-
+- D-03 不实现跨文献 Relation/Graph、论文写作、ResearchRun 推进、读取投影或 ArtifactVersion 事务。
 - 本 Pipeline 只集成 Crossref metadata Adapter；arXiv 与需要 token 的 NASA ADS 不在其范围。
 - Crossref relevance 是上游排序输入，最终本地评分是可解释的词法基线，不是科研相关性人工结论。
 - 只支持最多 100 个候选和 offset pagination；不抓取 abstract、PDF 或任意全文。
 - Crossref 数据会更新；SourceSnapshot 固定本次结果，但不能保证未来同 query 返回相同 metadata。
-- Cached 只定义可校验的消费边界；真实 CacheSelector、origin persistence 和发布由 B/Workflow Issue 负责。
+- Cached 只定义可校验的消费边界；真实 CacheSelector、origin persistence 和发布由 B/Workflow 边界负责。
 - Live smoke 依赖公网和 Crossref 运行状态，因此普通 CI 默认跳过，并且不得用 Fixture 结果替代 Live 结论。
