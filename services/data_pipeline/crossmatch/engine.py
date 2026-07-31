@@ -25,10 +25,11 @@ from app.schemas.crossmatch import (
     EntityLevel,
     EvidenceLocator,
     MatchDecision,
-    MatchTopology,
     PairedMatch,
     UnpairedRecord,
     compute_crossmatch_content_hash,
+    derive_crossmatch_record_semantics,
+    group_crossmatch_edge_components,
 )
 from app.schemas.manifest import ManifestBundle
 from app.schemas.source_acquisition import DataSourceCompletionStatus
@@ -48,12 +49,6 @@ _TOI_SOURCE_ID = "nasa_exoplanet_archive.toi"
 _PS_SOURCE_ID = "nasa_exoplanet_archive.ps"
 _HOST_IDENTIFIER_FIELDS = ("star.tic_id", "star.gaia_dr3_id")
 _COORDINATE_FIELDS = ("system.right_ascension", "system.declination")
-_CONFIDENCE_ORDER = {
-    ConfidenceBand.not_applicable: 0,
-    ConfidenceBand.low: 1,
-    ConfidenceBand.medium: 2,
-    ConfidenceBand.high: 3,
-}
 _COORDINATE_THRESHOLD_REL_TOL = 1e-12
 _COORDINATE_THRESHOLD_ABS_TOL = 1e-7
 
@@ -671,89 +666,15 @@ def _build_edge_and_evidence(
     return CandidateEdge.model_validate(_with_hash(edge_payload)), evidence
 
 
-def _connected_edge_components(
-    edges: list[CandidateEdge],
-) -> list[list[CandidateEdge]]:
-    """Group edges into connected components within each (entity_level,
-    is_conflict) partition using one union-find pass. Components are ordered by
-    their minimum edge_id and each component's edges are sorted by edge_id, so
-    the result is identical to repeated per-edge traversal."""
-
-    parent: dict[str, str] = {edge.edge_id: edge.edge_id for edge in edges}
-
-    def find(node: str) -> str:
-        root = node
-        while parent[root] != root:
-            root = parent[root]
-        while parent[node] != root:
-            parent[node], node = root, parent[node]
-        return root
-
-    def union(left: str, right: str) -> None:
-        left_root, right_root = find(left), find(right)
-        if left_root != right_root:
-            parent[max(left_root, right_root)] = min(left_root, right_root)
-
-    partitions: dict[
-        tuple[EntityLevel, bool], dict[str, str]
-    ] = defaultdict(dict)
-    for edge in edges:
-        key = (edge.entity_level, edge.decision is MatchDecision.conflict)
-        by_candidate = partitions[key]
-        for candidate_id in (edge.left_candidate_id, edge.right_candidate_id):
-            if candidate_id in by_candidate:
-                union(by_candidate[candidate_id], edge.edge_id)
-            else:
-                by_candidate[candidate_id] = edge.edge_id
-
-    grouped: dict[str, list[CandidateEdge]] = defaultdict(list)
-    for edge in edges:
-        grouped[find(edge.edge_id)].append(edge)
-    components = [
-        sorted(component, key=lambda edge: edge.edge_id)
-        for component in grouped.values()
-    ]
-    components.sort(key=lambda component: component[0].edge_id)
-    return components
-
-
 def _records_from_edges(
     edges: list[CandidateEdge],
     *,
     conflict_codes: dict[str, str],
 ) -> tuple[PairedMatch | ConflictGroup, ...]:
     records: list[PairedMatch | ConflictGroup] = []
-    for component in _connected_edge_components(edges):
-        first = component[0]
-        left_ids = tuple(sorted({edge.left_candidate_id for edge in component}))
-        right_ids = tuple(sorted({edge.right_candidate_id for edge in component}))
-        is_conflict = any(
-            edge.decision is MatchDecision.conflict for edge in component
-        )
-        logical_match_key = compute_canonical_payload_hash(
-            {
-                "record_type": "conflict_group" if is_conflict else "paired",
-                "entity_level": first.entity_level.value,
-                "left_candidate_ids": left_ids,
-                "right_candidate_ids": right_ids,
-            }
-        )
-        evidence_ids = tuple(
-            sorted(
-                {
-                    evidence_id
-                    for edge in component
-                    for evidence_id in edge.evidence_ids
-                }
-            )
-        )
-        methods = {edge.method for edge in component}
-        method = (
-            next(iter(methods))
-            if len(methods) == 1
-            else CrossmatchMethod.compound
-        )
-        if is_conflict:
+    for component in group_crossmatch_edge_components(edges):
+        semantics = derive_crossmatch_record_semantics(component)
+        if semantics.record_type == "conflict_group":
             codes = sorted(
                 {
                     conflict_codes.get(edge.edge_id, "crossmatch.candidate_conflict")
@@ -762,38 +683,29 @@ def _records_from_edges(
             )
             payload = {
                 "record_type": "conflict_group",
-                "logical_match_key": logical_match_key,
-                "entity_level": first.entity_level,
-                "left_candidate_ids": left_ids,
-                "right_candidate_ids": right_ids,
-                "method": method,
-                "decision": MatchDecision.conflict,
+                "logical_match_key": semantics.logical_match_key,
+                "entity_level": semantics.entity_level,
+                "left_candidate_ids": semantics.left_candidate_ids,
+                "right_candidate_ids": semantics.right_candidate_ids,
+                "method": semantics.method,
+                "decision": semantics.decision,
                 "conflict_code": codes[0],
-                "evidence_ids": evidence_ids,
+                "evidence_ids": semantics.evidence_ids,
             }
             records.append(ConflictGroup.model_validate(_with_hash(payload)))
             continue
 
-        decision = (
-            MatchDecision.accepted
-            if all(edge.decision is MatchDecision.accepted for edge in component)
-            else MatchDecision.review_required
-        )
-        confidence_band = min(
-            (edge.confidence_band for edge in component),
-            key=lambda value: _CONFIDENCE_ORDER[value],
-        )
         payload = {
             "record_type": "paired",
-            "logical_match_key": logical_match_key,
-            "entity_level": first.entity_level,
-            "topology": _topology(len(left_ids), len(right_ids)),
-            "left_candidate_ids": left_ids,
-            "right_candidate_ids": right_ids,
-            "method": method,
-            "decision": decision,
-            "confidence_band": confidence_band,
-            "evidence_ids": evidence_ids,
+            "logical_match_key": semantics.logical_match_key,
+            "entity_level": semantics.entity_level,
+            "topology": semantics.topology,
+            "left_candidate_ids": semantics.left_candidate_ids,
+            "right_candidate_ids": semantics.right_candidate_ids,
+            "method": semantics.method,
+            "decision": semantics.decision,
+            "confidence_band": semantics.confidence_band,
+            "evidence_ids": semantics.evidence_ids,
         }
         records.append(PairedMatch.model_validate(_with_hash(payload)))
     return tuple(records)
@@ -1026,16 +938,6 @@ def _confidence_band(
     if confidence >= policy.medium_minimum:
         return ConfidenceBand.medium
     return ConfidenceBand.low
-
-
-def _topology(left_count: int, right_count: int) -> MatchTopology:
-    if left_count == 1 and right_count == 1:
-        return MatchTopology.one_to_one
-    if left_count == 1:
-        return MatchTopology.one_to_many
-    if right_count == 1:
-        return MatchTopology.many_to_one
-    return MatchTopology.many_to_many
 
 
 def _with_hash(payload: dict) -> dict:

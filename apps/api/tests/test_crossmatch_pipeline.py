@@ -905,6 +905,74 @@ def test_crossmatch_result_rejects_rehashed_evidence_locator_tampering(
         CrossmatchResult.model_validate(tampered)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("decision", MatchDecision.accepted.value),
+        ("logical_match_key", "sha256:" + "a" * 64),
+    ],
+)
+def test_crossmatch_result_rejects_rehashed_record_semantic_tampering(
+    field: str,
+    value: str,
+) -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("637.01", tic_id=None, ra=10.0, dec=20.0),),
+            (
+                ps_record(
+                    "Semantic Review b",
+                    "Reference",
+                    tic_id=None,
+                    ra=10.00025,
+                    dec=20.0,
+                ),
+            ),
+        )
+    )
+    tampered = result.model_dump(mode="json")
+    record = next(
+        item
+        for item in tampered["records"]
+        if item["record_type"] == "paired"
+        and item["entity_level"] == EntityLevel.host_star.value
+    )
+    record[field] = value
+    if field == "decision":
+        record["method"] = CrossmatchMethod.exact_identifier.value
+    record["content_hash"] = compute_crossmatch_content_hash(record)
+    rehash_result_payload(tampered)
+
+    with pytest.raises(ValidationError, match="record semantics disagree"):
+        CrossmatchResult.model_validate(tampered)
+
+
+def test_crossmatch_result_rejects_rehashed_conflict_evidence_omission() -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (toi_record("900.01", tic_id=900),),
+            (
+                ps_record("Planet Nine b", "Reference B", tic_id="TIC 900"),
+                ps_record("Planet Nine c", "Reference C", tic_id="TIC 900"),
+            ),
+        )
+    )
+    tampered = result.model_dump(mode="json")
+    record = next(
+        item
+        for item in tampered["records"]
+        if item["record_type"] == "conflict_group"
+        and item["entity_level"] == EntityLevel.planet_candidate.value
+    )
+    assert len(record["evidence_ids"]) > 1
+    record["evidence_ids"] = record["evidence_ids"][:-1]
+    record["content_hash"] = compute_crossmatch_content_hash(record)
+    rehash_result_payload(tampered)
+
+    with pytest.raises(ValidationError, match="record semantics disagree"):
+        CrossmatchResult.model_validate(tampered)
+
+
 def test_manual_review_decision_is_auditable_and_preserves_automatic_status() -> None:
     automatic_input = crossmatch_input(
         (toi_record("640.01", tic_id=None, ra=10.0, dec=20.0),),

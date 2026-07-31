@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 import math
@@ -676,6 +678,155 @@ class CandidateEdge(BaseModel):
         return self
 
 
+@dataclass(frozen=True)
+class CrossmatchRecordSemantics:
+    record_type: Literal["paired", "conflict_group"]
+    logical_match_key: str
+    entity_level: EntityLevel
+    left_candidate_ids: tuple[str, ...]
+    right_candidate_ids: tuple[str, ...]
+    method: CrossmatchMethod
+    decision: MatchDecision
+    confidence_band: ConfidenceBand | None
+    topology: MatchTopology | None
+    evidence_ids: tuple[str, ...]
+
+
+def group_crossmatch_edge_components(
+    edges: Iterable[CandidateEdge],
+) -> tuple[tuple[CandidateEdge, ...], ...]:
+    ordered_edges = tuple(sorted(edges, key=lambda edge: edge.edge_id))
+    parent = {edge.edge_id: edge.edge_id for edge in ordered_edges}
+
+    def find(node: str) -> str:
+        root = node
+        while parent[root] != root:
+            root = parent[root]
+        while parent[node] != root:
+            parent[node], node = root, parent[node]
+        return root
+
+    def union(left: str, right: str) -> None:
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            parent[max(left_root, right_root)] = min(left_root, right_root)
+
+    partitions: dict[tuple[EntityLevel, bool], dict[str, str]] = {}
+    for edge in ordered_edges:
+        partition = partitions.setdefault(
+            (edge.entity_level, edge.decision is MatchDecision.conflict),
+            {},
+        )
+        for candidate_id in (edge.left_candidate_id, edge.right_candidate_id):
+            if candidate_id in partition:
+                union(partition[candidate_id], edge.edge_id)
+            else:
+                partition[candidate_id] = edge.edge_id
+
+    grouped: dict[str, list[CandidateEdge]] = {}
+    for edge in ordered_edges:
+        grouped.setdefault(find(edge.edge_id), []).append(edge)
+    components = tuple(
+        sorted(
+            (tuple(component) for component in grouped.values()),
+            key=lambda component: component[0].edge_id,
+        )
+    )
+    return components
+
+
+def derive_crossmatch_record_semantics(
+    component: Iterable[CandidateEdge],
+) -> CrossmatchRecordSemantics:
+    edges = tuple(sorted(component, key=lambda edge: edge.edge_id))
+    if not edges:
+        raise ValueError("crossmatch record component must not be empty")
+    first = edges[0]
+    left_ids = tuple(sorted({edge.left_candidate_id for edge in edges}))
+    right_ids = tuple(sorted({edge.right_candidate_id for edge in edges}))
+    is_conflict = any(edge.decision is MatchDecision.conflict for edge in edges)
+    record_type: Literal["paired", "conflict_group"] = (
+        "conflict_group" if is_conflict else "paired"
+    )
+    logical_match_key = compute_canonical_payload_hash(
+        {
+            "record_type": record_type,
+            "entity_level": first.entity_level.value,
+            "left_candidate_ids": left_ids,
+            "right_candidate_ids": right_ids,
+        }
+    )
+    methods = {edge.method for edge in edges}
+    method = (
+        next(iter(methods))
+        if len(methods) == 1
+        else CrossmatchMethod.compound
+    )
+    evidence_ids = tuple(
+        sorted({item for edge in edges for item in edge.evidence_ids})
+    )
+    if is_conflict:
+        return CrossmatchRecordSemantics(
+            record_type=record_type,
+            logical_match_key=logical_match_key,
+            entity_level=first.entity_level,
+            left_candidate_ids=left_ids,
+            right_candidate_ids=right_ids,
+            method=method,
+            decision=MatchDecision.conflict,
+            confidence_band=None,
+            topology=None,
+            evidence_ids=evidence_ids,
+        )
+    decisions = {edge.decision for edge in edges}
+    decision = (
+        MatchDecision.accepted
+        if decisions == {MatchDecision.accepted}
+        else (
+            MatchDecision.rejected
+            if decisions == {MatchDecision.rejected}
+            else MatchDecision.review_required
+        )
+    )
+    confidence_order = {
+        ConfidenceBand.not_applicable: 0,
+        ConfidenceBand.low: 1,
+        ConfidenceBand.medium: 2,
+        ConfidenceBand.high: 3,
+    }
+    confidence_band = min(
+        (edge.confidence_band for edge in edges),
+        key=confidence_order.__getitem__,
+    )
+    left_count = len(left_ids)
+    right_count = len(right_ids)
+    topology = (
+        MatchTopology.one_to_one
+        if left_count == 1 and right_count == 1
+        else (
+            MatchTopology.one_to_many
+            if left_count == 1
+            else (
+                MatchTopology.many_to_one
+                if right_count == 1
+                else MatchTopology.many_to_many
+            )
+        )
+    )
+    return CrossmatchRecordSemantics(
+        record_type=record_type,
+        logical_match_key=logical_match_key,
+        entity_level=first.entity_level,
+        left_candidate_ids=left_ids,
+        right_candidate_ids=right_ids,
+        method=method,
+        decision=decision,
+        confidence_band=confidence_band,
+        topology=topology,
+        evidence_ids=evidence_ids,
+    )
+
+
 class _AdjudicableRecord(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -1143,6 +1294,34 @@ class CrossmatchResult(BaseModel):
             }
             if set(edge.condition_ids) != condition_ids:
                 raise ValueError("candidate edge condition IDs disagree with Evidence")
+        edge_evidence_ids = [
+            evidence_id
+            for edge in self.candidate_edges
+            for evidence_id in edge.evidence_ids
+        ]
+        if (
+            len(edge_evidence_ids) != len(set(edge_evidence_ids))
+            or set(edge_evidence_ids) != evidence_ids
+        ):
+            raise ValueError("Evidence must belong to exactly one candidate edge")
+        expected_record_semantics = {
+            (semantics.record_type, semantics.logical_match_key): semantics
+            for semantics in (
+                derive_crossmatch_record_semantics(component)
+                for component in group_crossmatch_edge_components(
+                    self.candidate_edges
+                )
+            )
+        }
+        observed_record_semantics: set[tuple[str, str]] = set()
+        participating_candidate_ids = {
+            candidate_id
+            for edge in self.candidate_edges
+            for candidate_id in (
+                edge.left_candidate_id,
+                edge.right_candidate_id,
+            )
+        }
         for record in self.records:
             if isinstance(record, PairedMatch | ConflictGroup):
                 if not set(record.left_candidate_ids).issubset(candidate_ids):
@@ -1182,6 +1361,25 @@ class CrossmatchResult(BaseModel):
                     )
                 ):
                     raise ValueError("record membership disagrees with Evidence")
+                semantics_key = (record.record_type, record.logical_match_key)
+                semantics = expected_record_semantics.get(semantics_key)
+                if semantics is None or semantics_key in observed_record_semantics:
+                    raise ValueError("record semantics disagree with candidate edges")
+                observed_record_semantics.add(semantics_key)
+                if (
+                    record.entity_level is not semantics.entity_level
+                    or record.left_candidate_ids != semantics.left_candidate_ids
+                    or record.right_candidate_ids != semantics.right_candidate_ids
+                    or record.method is not semantics.method
+                    or record.decision is not semantics.decision
+                    or record.evidence_ids != semantics.evidence_ids
+                ):
+                    raise ValueError("record semantics disagree with candidate edges")
+                if isinstance(record, PairedMatch) and (
+                    record.topology is not semantics.topology
+                    or record.confidence_band is not semantics.confidence_band
+                ):
+                    raise ValueError("record semantics disagree with candidate edges")
             else:
                 candidate = candidates_by_id.get(record.candidate_id)
                 if candidate is None:
@@ -1195,6 +1393,39 @@ class CrossmatchResult(BaseModel):
                     raise ValueError(
                         "unpaired record disagrees with candidate identity"
                     )
+                if record.candidate_id in participating_candidate_ids:
+                    raise ValueError("paired candidate cannot have an unpaired record")
+                opposite_completion = (
+                    self.right_completion.status
+                    if record.side is CrossmatchSide.left
+                    else self.left_completion.status
+                )
+                expected_decision = (
+                    MatchDecision.unmatched
+                    if opposite_completion is DataSourceCompletionStatus.complete
+                    else MatchDecision.inconclusive
+                )
+                expected_reason = (
+                    "no candidate in a complete opposite source scope"
+                    if expected_decision is MatchDecision.unmatched
+                    else "opposite source scope is incomplete"
+                )
+                if (
+                    record.decision is not expected_decision
+                    or record.source_completion_status != opposite_completion.value
+                    or record.reason != expected_reason
+                ):
+                    raise ValueError("unpaired record semantics disagree with scope")
+        if observed_record_semantics != set(expected_record_semantics):
+            raise ValueError("record semantics disagree with candidate edges")
+        observed_unpaired_ids = {
+            record.candidate_id
+            for record in self.records
+            if isinstance(record, UnpairedRecord)
+        }
+        expected_unpaired_ids = candidate_ids - participating_candidate_ids
+        if observed_unpaired_ids != expected_unpaired_ids:
+            raise ValueError("unpaired records do not cover unmatched candidates")
         if (
             self.left_source_id != self.left_source_snapshot.source_id
             or self.right_source_id != self.right_source_snapshot.source_id
