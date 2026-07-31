@@ -80,3 +80,24 @@ def test_crossmatch_benchmark_rejects_content_tampering() -> None:
 
     with pytest.raises(ValidationError, match="content_hash"):
         CrossmatchBenchmarkManifest.model_validate(payload)
+
+
+def test_engine_never_emits_reserved_rejected_decision() -> None:
+    # `MatchDecision.rejected` is a reserved Contract value; the automatic
+    # engine must not emit it on any frozen benchmark scenario.
+    from services.data_pipeline.crossmatch import align_cross_source_records
+    from services.data_pipeline.crossmatch.benchmark import _scenario_input
+    from services.data_pipeline.crossmatch.errors import CrossmatchError
+    from app.schemas.crossmatch import MatchDecision
+
+    benchmark = load_crossmatch_benchmark()
+    for scenario in benchmark.scenarios:
+        try:
+            result = align_cross_source_records(_scenario_input(scenario))
+        except (CrossmatchError, ValidationError):
+            # Negative scenarios raise by design and produce no records.
+            continue
+        assert all(
+            record.decision is not MatchDecision.rejected
+            for record in result.records
+        ), scenario.scenario_id

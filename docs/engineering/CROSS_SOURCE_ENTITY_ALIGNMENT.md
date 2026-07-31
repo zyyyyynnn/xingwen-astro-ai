@@ -130,6 +130,13 @@ both candidate-id sets, so paired and conflict-group records over the same
 candidates stay in separate namespaces and manual-review bindings resolve
 unambiguously.
 
+`MatchDecision.rejected` is a reserved Contract value: a structured record may
+carry it and still passes candidate, Evidence, RuleSet, and reference
+validation, but the automatic engine does not emit it. `manual_review` is not a
+method, and a human `AdjudicationDecision.rejected` is a separate audit input
+that records the adjudication without overriding the automatic decision; it is
+never presented as an automatic `MatchDecision.rejected` engine output.
+
 ## 6. Stable identity and metrics
 
 `source_input_hash` covers manifests, rules, aliases, snapshots, completion

@@ -91,3 +91,41 @@ def test_crossmatch_record_json_schema_is_a_discriminated_union() -> None:
         CrossmatchRecordType.unpaired.value,
         CrossmatchRecordType.conflict_group.value,
     }
+
+
+def test_paired_match_admits_reserved_rejected_decision() -> None:
+    # `MatchDecision.rejected` is a reserved Contract value. A structured paired
+    # record may carry it and must still pass the record-level schema, but the
+    # automatic engine never emits it (see test_crossmatch_benchmark).
+    from app.schemas._hashing import compute_canonical_payload_hash
+    from app.schemas.crossmatch import PairedMatch, compute_crossmatch_content_hash
+
+    payload = {
+        "record_type": "paired",
+        "logical_match_key": compute_canonical_payload_hash(
+            {
+                "record_type": "paired",
+                "entity_level": "host_star",
+                "left_candidate_ids": ("candidate.left.0",),
+                "right_candidate_ids": ("candidate.right.0",),
+            }
+        ),
+        "entity_level": EntityLevel.host_star,
+        "topology": "one_to_one",
+        "left_candidate_ids": ("candidate.left.0",),
+        "right_candidate_ids": ("candidate.right.0",),
+        "method": CrossmatchMethod.exact_identifier,
+        "decision": MatchDecision.rejected,
+        "confidence_band": ConfidenceBand.not_applicable,
+        "evidence_ids": ("evidence.host.0",),
+    }
+    payload["content_hash"] = compute_crossmatch_content_hash(payload)
+    record = PairedMatch.model_validate(payload)
+
+    assert record.decision is MatchDecision.rejected
+    # A tampered content hash must still fail: reserved value does not bypass
+    # reference/consistency validation.
+    tampered = dict(payload)
+    tampered["content_hash"] = "sha256:" + "0" * 64
+    with pytest.raises(ValidationError):
+        PairedMatch.model_validate(tampered)
