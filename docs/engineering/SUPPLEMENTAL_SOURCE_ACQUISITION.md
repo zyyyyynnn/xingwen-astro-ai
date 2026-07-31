@@ -28,7 +28,7 @@ Fixture、seed 或 TOI 结果副本当作补充来源。
   provenance 列；
 - `star.tic_id` 是 Case Manifest 的宿主恒星 identity field，并由 Field
   Manifest 映射到 `ps.tic_id`；
-- 实现复用既有 provider/table 映射，不创建第二套 source registry，也不修改
+- Provider/table 映射复用既有 registry，不创建第二套 source registry，也不修改
   X-00 冻结包。
 
 固定输入先归一化为排序且去重的 `TIC <positive integer>`。单次最多 100 个标识符，
@@ -85,7 +85,7 @@ Manifest 声明，而是将其记录为 `live_unavailable_columns`，只查询�
 - 页内及跨页 keyset 单调顺序。
 
 任一列缺失、重复、类型漂移或数据页字段不一致均以
-`NASA_PS_SCHEMA_DRIFT` 或对应的 stable invalid-response code 关闭；实现不会根据单次
+`NASA_PS_SCHEMA_DRIFT` 或对应的 stable invalid-response code 关闭；运行时不得根据单次
 live 结果改写 Manifest 或类型契约。
 
 ## 4. 请求、分页与完成状态
@@ -142,15 +142,15 @@ Token、credential 及其值不会进入 Snapshot、Fixture 或错误日志。
 
 ## 6. Live、Recorded、Fixture 与 Seed
 
-| 实际来源               | `source_mode` | `data_level`        | 规则                      |
-| ---------------------- | ------------- | ------------------- | ------------------------- |
-| 官方 endpoint 当前响应 | `live`        | `live_result`       | 唯一可标记 Live 的组合    |
-| 版本化真实响应回放     | `fixture`     | `recorded_response` | 默认 CI smoke             |
-| 合成测试样例           | `fixture`     | `fixture`           | 必须携带版本化 provenance |
-| seed 输入或样例        | `fixture`     | `seed`              | 不得标记 Live             |
+| 实际来源             | `source_mode` | `data_level`        | 规则                      |
+| -------------------- | ------------- | ------------------- | ------------------------- |
+| 官方 endpoint 实时响应 | `live`        | `live_result`       | 唯一可标记 Live 的组合    |
+| 版本化真实响应回放   | `fixture`     | `recorded_response` | 默认 CI smoke             |
+| 合成测试样例         | `fixture`     | `fixture`           | 必须携带版本化 provenance |
+| seed 输入或样例      | `fixture`     | `seed`              | 不得标记 Live             |
 
-该 Adapter 不接受 `cached`。未来缓存只有在引用真实历史 Run、ArtifactVersion 和
-SourceSnapshot 时才能接入；C-07 不实现该能力。
+该 Adapter 不接受 `cached`。任何缓存集成都必须引用真实历史 Run、ArtifactVersion 和
+SourceSnapshot，并由 CacheSelector 所属边界负责。
 
 ## 7. Recorded Fixture
 
@@ -170,7 +170,7 @@ Recorded schema 明确限制：
 - schema/page response hash 和整体 content hash 必须通过校验；
 - Replay transport 只接受与 capture 完全相同的 schema query 和第一页 query。
 
-Fixture 只证明录制时刻的一页响应，不表示完整 PS 结果集。当前两条记录恰好填满边界，
+Fixture 只证明录制时刻的一页响应，不表示完整 PS 结果集。录制的两条记录填满边界，
 因此 replay 输出为 `completion_status=truncated`。
 
 ## 8. 运行与验证
@@ -220,10 +220,10 @@ NASA Exoplanet Archive metadata 可公开查询。产物必须保留 archive att
 PS 是动态表，同步 endpoint 不提供稳定 release id。Schema response hash 只是结构
 证据，不代表全库版本；recorded 响应只证明录制时刻的内容。网络、限流和上游维护仍可能
 使 opt-in Live smoke 失败。PS 与 TOI 虽是独立真实表和独立 SourceSnapshot，但属于
-同一 NASA provider，这是被冻结 Case SourcePolicy 允许的最小 C-07 实现。
+同一 NASA provider，符合冻结 Case SourcePolicy 对补充来源的约束。
 
 输出只包含原始 PS 记录及其 provenance。如何把 TOI 与 PS 实体进行 exact、alias、
-coordinate 或人工对齐属于 Issue #91，本实现不提供任何匹配结论。
+coordinate 或人工对齐属于 Issue #91，本文边界不提供任何匹配结论。
 
 | 验收能力                                    | 代码或测试证据                                |
 | ------------------------------------------- | --------------------------------------------- |
