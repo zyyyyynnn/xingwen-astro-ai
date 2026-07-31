@@ -31,6 +31,20 @@ test("detects inconsistent table columns", () => {
   );
 });
 
+test("counts an unescaped pipe inside a code span as a separator", () => {
+  const source = "# Title\n\n## T\n\n| A | B |\n| --- | --- |\n| `x | y` | z |";
+  assert.match(
+    inspectMarkdown(source).errors.join("\n"),
+    /3 columns; expected 2/u,
+  );
+});
+
+test("treats an escaped pipe inside a code span as cell content", () => {
+  const source =
+    "# Title\n\n## T\n\n| A | B |\n| --- | --- |\n| `x \\| y` | z |";
+  assert.deepEqual(inspectMarkdown(source).errors, []);
+});
+
 test("extracts local links and Mermaid blocks", () => {
   const source =
     "# Title\n\n[Docs](docs/README.md)\n\n```mermaid\nflowchart LR\n A-->B\n```";
@@ -81,6 +95,34 @@ test("rejects Current runtime as a metadata field", () => {
   assert.match(
     inspectMarkdown(source).errors.join("\n"),
     /forbidden progress field: Current runtime/u,
+  );
+});
+
+test("rejects a metadata field that is not on the allowlist", () => {
+  const source = metadataDoc([
+    "| Status | Accepted |",
+    "| Authority | X |",
+    "| Source | somewhere |",
+  ]);
+  assert.match(
+    inspectMarkdown(source).errors.join("\n"),
+    /not on the allowlist: Source/u,
+  );
+});
+
+test("requires Status when metadata is mandatory", () => {
+  const source = metadataDoc(["| Authority | X |"]);
+  assert.match(
+    inspectMarkdown(source, { requireMetadata: true }).errors.join("\n"),
+    /missing Status metadata/u,
+  );
+});
+
+test("requires Authority when metadata is mandatory", () => {
+  const source = metadataDoc(["| Status | Accepted |"]);
+  assert.match(
+    inspectMarkdown(source, { requireMetadata: true }).errors.join("\n"),
+    /missing Authority metadata/u,
   );
 });
 

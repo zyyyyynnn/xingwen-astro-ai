@@ -1,11 +1,11 @@
 # API Contract
 
-| 元数据         | 值                                                                                                                                                                      |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status         | Accepted                                                                                                                                                                |
-| Authority      | HTTP 资源、传输结构、错误、授权语义与 Schema authoring                                                                                                                  |
+| 元数据    | 值                                                     |
+| --------- | ------------------------------------------------------ |
+| Status    | Accepted                                               |
+| Authority | HTTP 资源、传输结构、错误、授权语义与 Schema authoring |
 
-本文定义无版本前缀的单一 `/api/*` 面（[ADR-030](DECISIONS.md)），分为 Core APIs（七个核心资源）与 Pipeline APIs（`/api/health`、`/api/tasks*`）。Core 七个核心资源的 Pydantic、JSON Schema、契约 OpenAPI，以及匿名 Session / CSRF / ownership 已实现；M1 Runtime 已挂载 Project、ContractDraft、Contract、Run、RunEvent、Artifact、ArtifactVersion、Evidence、SourceSnapshot、WorkspaceSnapshot 与 ShareSnapshot。Compose 配置 `DATABASE_URL` 并强制启用 `PERSISTENT_WORKFLOW_ENABLED`，资源归属、Research 写路径与公开分享投影读取 PostgreSQL 权威事实；真实 HTTP Browser 已验证 A-03/X-01 主链路。Snapshot/Share 状态当前仍为进程生命周期存储。API 只做加法演进，不引入 URL 版本升级；Pipeline APIs 保持兼容，不得原地修改 Pipeline 响应来伪装 M2 完成。
+本文定义无版本前缀的单一 `/api/*` 面（[ADR-030](DECISIONS.md)），分为 Core APIs 与 Pipeline APIs（`/api/health`、`/api/tasks*`）。Core APIs 以 Pydantic、JSON Schema 与契约 OpenAPI 定义 Session、Project、Contract、Run、Artifact、Evidence、Workspace 与 Share 资源及其从属实体（ContractDraft、RunEvent、ArtifactVersion、SourceSnapshot），并约束匿名 Session、CSRF 与 ownership 语义。Project ownership、Research 写路径与 ArtifactVersion / Evidence 读取以 PostgreSQL 为权威事实源；WorkspaceSnapshot 与 ShareSnapshot 记录由进程内 Adapter 保存，不跨重启或实例共享，替换持久化 Adapter 时必须保持 revision、冻结投影、过期与撤销语义。Compose 通过 `DATABASE_URL` 与 `PERSISTENT_WORKFLOW_ENABLED` 提供该运行时。API 只做加法演进，不引入 URL 版本升级；Pipeline APIs 保持兼容，不原地修改 Pipeline 响应结构。运行状态以代码、测试与 GitHub 证据为准。
 
 ## 1. 设计原则
 
@@ -35,10 +35,10 @@ flowchart LR
 
 ## 2. API 面与演进
 
-| 分类          | 面                                                                                                        | 说明                                                                                                                                                                                                                              |
-| ------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 分类          | 面                                                                                                       | 说明                                                                                                                                                            |
+| ------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Core APIs     | `/api/*`（Session、Project、Contract、Run、Event、Artifact、Evidence、SourceSnapshot、Workspace、Share） | 27 个冻结 operation，含公开 Authoring Chain（`listResearchProjects`、`createResearchProject`、`createResearchContractDraft`）；Compose 启用持久 Research 写路径 |
-| Pipeline APIs | `/api/health`、`/api/tasks*`                                                                               | Phase 0 Task Contract，Fixture-backed                                                                                                                                                                                            |
+| Pipeline APIs | `/api/health`、`/api/tasks*`                                                                             | Phase 0 Task Contract，Fixture-backed                                                                                                                           |
 
 演进规则（additive-only，见 [ADR-030](DECISIONS.md)）：
 
@@ -236,8 +236,8 @@ export
 
 ## 8. Project 与不可变 Contract
 
-| Method  | Path                                                     | 说明                                                 |
-| ------- | -------------------------------------------------------- | ---------------------------------------------------- |
+| Method  | Path                                                  | 说明                                                 |
+| ------- | ----------------------------------------------------- | ---------------------------------------------------- |
 | `GET`   | `/api/projects?cursor=&limit=`                        | 当前会话的 Project 列表                              |
 | `POST`  | `/api/projects`                                       | 创建临时 ResearchProject                             |
 | `GET`   | `/api/projects/{project_id}`                          | Project 聚合：当前 Contract、Run 摘要、Artifact 摘要 |
@@ -258,8 +258,8 @@ export
 
 ## 9. Run 与进度
 
-| Method | Path                                                | 说明                                     |
-| ------ | --------------------------------------------------- | ---------------------------------------- |
+| Method | Path                                             | 说明                                     |
+| ------ | ------------------------------------------------ | ---------------------------------------- |
 | `GET`  | `/api/projects/{project_id}/runs?cursor=&limit=` | Run 列表，默认按创建时间倒序             |
 | `POST` | `/api/projects/{project_id}/runs`                | 创建 Live Run；要求 `Idempotency-Key`    |
 | `GET`  | `/api/runs/{run_id}`                             | Run 状态快照、steps、产物摘要和可用动作  |
@@ -314,8 +314,8 @@ Run Snapshot 至少返回：
 
 ## 11. Artifact 与统一 Envelope
 
-| Method | Path                                                                     | 说明                                    |
-| ------ | ------------------------------------------------------------------------ | --------------------------------------- |
+| Method | Path                                                                  | 说明                                    |
+| ------ | --------------------------------------------------------------------- | --------------------------------------- |
 | `GET`  | `/api/runs/{run_id}/artifacts?kind=&cursor=&limit=`                   | Run 的 Artifact 摘要                    |
 | `GET`  | `/api/artifacts/{artifact_id}`                                        | Artifact 身份和版本列表摘要             |
 | `GET`  | `/api/artifact-versions/{version_id}`                                 | 统一 ArtifactVersion Envelope           |
@@ -374,8 +374,8 @@ cached 来源执行的审计字段（`cache_applicability` 与 `live_failure_cla
 
 ## 12. Workspace 恢复
 
-| Method | Path                                               | 说明                             |
-| ------ | -------------------------------------------------- | -------------------------------- |
+| Method | Path                                            | 说明                             |
+| ------ | ----------------------------------------------- | -------------------------------- |
 | `GET`  | `/api/projects/{project_id}/workspace-snapshot` | 当前会话的工作台恢复状态         |
 | `PUT`  | `/api/projects/{project_id}/workspace-snapshot` | 幂等保存布局、打开产物和选择对象 |
 
@@ -384,16 +384,16 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 - `PUT` 使用数字 revision 的 `If-Match` 前置条件；成功响应通过 `ETag` 返回当前 revision。
 - 同 payload 重放不增加 revision；不同 payload 使用陈旧 revision 时返回 `409 VERSION_CONFLICT`。
 - Snapshot 按 `session + project` 私有隔离，跨 Session 与不存在 Project 使用不泄露存在性的 `404`。
-- 当前运行适配器为进程内恢复边界，进程重启后失效；不得描述为跨实例持久化。
+- 运行适配器为进程内恢复边界，进程重启后失效；不得描述为跨实例持久化。
 
 ## 13. 分享
 
-| Method   | Path                                                  | 说明                                      |
-| -------- | ----------------------------------------------------- | ----------------------------------------- |
+| Method   | Path                                               | 说明                                      |
+| -------- | -------------------------------------------------- | ----------------------------------------- |
 | `GET`    | `/api/projects/{project_id}/shares?cursor=&limit=` | 私有分享记录，不返回原 token              |
 | `POST`   | `/api/projects/{project_id}/shares`                | 创建冻结的 ShareSnapshot 与一次性可见 URL |
 | `DELETE` | `/api/projects/{project_id}/shares/{share_id}`     | 撤销分享                                  |
-| `GET`    | `/api/public/shares/{share_token}`                        | 无编辑权限的公开快照                      |
+| `GET`    | `/api/public/shares/{share_token}`                 | 无编辑权限的公开快照                      |
 
 创建请求必须列出 `artifact_version_ids`、可公开 Evidence 范围、`expires_at` 和 redaction policy。公开响应只能包含 ShareSnapshot 锁定内容。
 
@@ -406,8 +406,8 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 ## 14. Feedback 与修订计划
 
-| Method | Path                             | 说明                                                                    |
-| ------ | -------------------------------- | ----------------------------------------------------------------------- |
+| Method | Path                          | 说明                                                                    |
+| ------ | ----------------------------- | ----------------------------------------------------------------------- |
 | `POST` | `/api/feedback`               | 针对 Field、Source、Paper、Claim、Relation、Trace 或 GraphEdge 提交反馈 |
 | `GET`  | `/api/feedback/{feedback_id}` | 反馈状态、影响范围与 RevisionPlan                                       |
 
@@ -428,8 +428,8 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 ## 15. 导出
 
-| Method | Path                                             | 说明                              |
-| ------ | ------------------------------------------------ | --------------------------------- |
+| Method | Path                                          | 说明                              |
+| ------ | --------------------------------------------- | --------------------------------- |
 | `POST` | `/api/artifact-versions/{version_id}/exports` | 创建 CSV、JSON 或溯源报告导出任务 |
 | `GET`  | `/api/exports/{export_id}`                    | 查询状态与短期下载 URL            |
 

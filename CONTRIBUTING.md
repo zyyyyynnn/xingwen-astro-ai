@@ -13,7 +13,7 @@ Agent 的执行协议与项目约束见 [AGENTS](AGENTS.md)；文档分类和唯
 2. 到 GitHub Issues 中查看已明确指派给自己的未关闭任务，即 Assignee 包含自己的 Issue。开始前完整阅读任务的目标、范围、依赖、边界和验收标准；未明确指派的任务不要自行开工，用户在当前会话直接明确授权的任务除外。根据工作类型选择处于 `ready` 的 Task、Bug 或 Gate。
 3. 从 `main` 创建任务分支；空分支本身不改变 Issue 状态。
 4. 分支产生首个实质改动时，如有关联的主要 Issue，将其更新为 `in-progress`；随后实施、测试并同步受影响的权威文档。
-5. 本地 Codex Commit、Push 并创建或更新 Draft Pull Request，原则上关联一个主要 Task、Bug 或 Gate；直接用户授权的单次治理或维护任务可在 PR 描述中记录授权来源。Epic 只能作为父级补充引用。
+5. 本地 Codex Commit、Push 并创建或更新 Draft Pull Request。每个 Task、Bug 或 Gate 对应一个且仅一个主要交付 PR；每个交付 PR 也只能有一个主要 Task、Bug 或 Gate。同一 Issue 同时只能存在一个有效 Open PR。直接用户授权的单次治理或维护任务可在 PR 描述中记录授权来源；Epic 只能作为父级补充引用。
 6. Draft PR 等待正式技术 Review 时，如有关联的主要 Issue，将其更新为 `review`。
 7. 处理正式技术 Review 和 CI 结果；新 Commit 会使旧 Review 失效，必须在新 HEAD 上重新审查，新 Review 显式 supersede 同 scope 旧 Review。
 8. 当前 HEAD 的 `pr_technical_review` 为 `PASS`、标准 CI 均通过、PR 可合并且没有未解决的真实阻塞问题后，可由审查者或 Codex 转 Ready 并 Squash merge；核对 `main` 合并结果后关闭关联 Issue，随后删除已合并分支。
@@ -56,7 +56,7 @@ Issue 正文只保留：
 - **技术范围**：涉及的能力和主要模块；
 - **核心不变量**：不能破坏的契约、数据和权限边界；
 - **验收标准**：可执行、可验证的完成条件；
-- **PR 交付计划**：可独立验证的纵向切片；
+- **PR 交付计划**：单一交付 PR 的范围、内部实施阶段和合并条件；
 - **边界**：明确不做什么。
 
 `open` 只表示 Issue 尚未关闭，不表示可以开工。GitHub 原生 Sub-issue 表示层级，Dependency 表示直接阻塞；正文不复制父子关系或直接依赖清单。
@@ -71,10 +71,10 @@ Assignee 只表示任务执行归属，不表示额外审查权或合并审批�
 
 | Role | 标题与标签                                           | 职责                                         | PR 规则                                             |
 | ---- | ---------------------------------------------------- | -------------------------------------------- | --------------------------------------------------- |
-| Epic | 标题包含 `Epic`，使用 `type:feature`                 | 维护子任务、总体边界和退出条件               | 只能作为父级引用，不能作为生产实现 PR 的唯一 Issue  |
-| Task | 标准 `[A/B/C/D/X] ID 标题`，使用 `type:task`         | 一个主要模块、一个主要负责人、一个主要交付物 | 生产实现 PR 的主要 Issue，原则上对应一个 PR         |
-| Gate | `[X] ID Gate：...`，使用 `type:task` 和 `area:infra` | 验证跨模块输入、阶段证据和退出结论           | 阶段验证或证据 PR 的主要 Issue，不替代 A/B/C/D 实现 |
-| Bug  | 使用 `bug`                                           | 修复 Current 行为与已批准契约的偏差          | 修复 PR 的主要 Issue，不夹带新能力或架构迁移        |
+| Epic | 标题包含 `Epic`，使用 `type:feature`                 | 维护子任务、总体边界和退出条件               | 只能作为父级引用，不能作为生产实现 PR 的主要 Issue  |
+| Task | 标准 `[A/B/C/D/X] ID 标题`，使用 `type:task`         | 一个主要模块、一个主要负责人、一个主要交付物 | 必须对应一个主要交付 PR                             |
+| Gate | `[X] ID Gate：...`，使用 `type:task` 和 `area:infra` | 验证跨模块输入、阶段证据和退出结论           | 必须对应一个阶段验证或证据 PR，不替代 A/B/C/D 实现  |
+| Bug  | 使用 `bug`                                           | 修复实际行为与已批准契约的偏差               | 必须对应一个主要修复 PR，不夹带新能力或架构迁移     |
 
 Feature 模板仅用于 Epic。原子 Task 使用 Chore/Task 模板；不得创建 `Role=Task + type:feature` 的组合。
 
@@ -124,6 +124,7 @@ Priority 表达所属交付阶段，不表达 Issue 当前是否可开工：
 - 主要目录、模块 Owner 和边界明确；
 - 不与其他 Issue 重复实现同一状态机、事务或领域算法；
 - 验收标准可执行；
+- `PR 交付计划` 只定义一个主要交付 PR；若存在多个可独立合并的交付，应先拆分 Issue；
 - Critical / High 风险具有 Owner 和验证计划。
 
 Parent Epic 保持 Open 不影响子 Task 进入 `ready`；父子层级不得被当作 prerequisite。
@@ -150,13 +151,13 @@ ready → in-progress → review → closed
 - 一个 `in-progress` 实现 Task 或 Bug；
 - 一个 `review` 或 Gate。
 
-同一方向出现多个 P0/P1 Issue 时，只允许依赖图上最靠前且状态为 `ready` 的 Task 或 Bug开工。需要抢占时必须记录被暂停 Issue、原因和恢复条件。
+同一方向出现多个 P0/P1 Issue 时，只允许依赖图上最靠前且状态为 `ready` 的 Task 或 Bug 开工。需要抢占时必须记录被暂停 Issue、原因和恢复条件。
 
 ### 3.7 Definition of Done
 
 Task、Bug 或 Gate 关闭必须提供与其角色相符的证据，至少包括：
 
-- 关联 PR / Commit；
+- 唯一 merged 交付 PR / Commit；
 - 实际验证命令和结果；
 - Contract、Manifest、Prompt、Fixture 或 Benchmark 版本；
 - 测试数据等级；
@@ -169,12 +170,22 @@ Gate 还必须记录输入版本、阶段证据和明确退出结论。
 
 GitHub Issue 是任务状态的实时事实来源；[Backlog](docs/product/BACKLOG.md) 只维护 Open Issue 的角色、父级、范围和执行依赖地图，不复制实时状态。
 
+### 3.8 Issue 与 PR 一对一
+
+- 每个 Task、Bug 或 Gate 在其生命周期内只能由一个 merged 主要交付 PR 完成并关闭。
+- 每个交付 PR 只能有一个主要 Task、Bug 或 Gate；Epic、上级 Gate 或相关 Issue 只能作为补充引用。
+- 同一 Issue 同时只能存在一个有效 Open PR。旧 PR 被关闭且未合并时，可以创建替代 PR，但新 PR 必须说明 supersede 关系，旧 PR 不计为交付完成。
+- 一个 PR 可以包含多个 Commit 和内部实施阶段，但不得将同一 Issue 写成 `PR 1`、`PR 2` 或多个连续交付 PR。
+- 若范围天然需要多个可独立合并的 PR，应在开工前拆分为多个原子 Task，并用 Epic/Sub-issue 与原生 Dependency 表达关系。
+- Review 后发现的独立后续工作必须创建新的 Bug 或 Task，不得让原 Issue 在唯一交付 PR 合并后继续等待第二个 PR。
+- 不得为了满足一对一而把无人消费的 Schema、Port、临时 Contract 或不完整纵切强行塞入 `main`；必要时先调整 Issue 边界。
+
 ## 4. PR 规范
 
 PR 描述至少包含：
 
-- 一个主要关联 Issue，或用户在当前会话直接授权任务的可追溯授权背景；
-- 所属 Epic 或上级 Gate 的补充引用（适用时）；
+- 一个且仅一个主要关联 Task、Bug 或 Gate，或用户在当前会话直接授权任务的可追溯授权背景；
+- 所属 Epic、上级 Gate 或相关 Issue 的补充引用（适用时）；
 - 改动范围与明确非目标；
 - 验证命令、结果和未执行原因；
 - API、Data Model、Workflow、Version、UI、部署和安全影响；
@@ -184,6 +195,9 @@ PR 描述至少包含：
 PR 不接受：
 
 - 生产实现只关联 Epic，没有明确 Task 或 Bug；
+- 一个 PR 以多个 Task、Bug 或 Gate 为主要 Issue；
+- 同一 Task、Bug 或 Gate 同时关联多个有效 Open PR；
+- Issue 正文要求 `PR 1`、`PR 2` 或多个交付 PR；
 - Gate PR 接管 A/B/C/D 生产实现；
 - 没有明确 Issue 或可追溯的用户直接授权；
 - 大量无关改动；
@@ -208,6 +222,7 @@ PR 不接受：
 审查者负责：
 
 - 先检查 Issue 角色、范围、契约、依赖和不变量，再检查局部实现；
+- 核对 Issue 与 PR 的一对一关系及替代 PR 历史；
 - 区分阻塞问题、建议优化和非本 PR 范围；
 - 不以个人风格偏好扩大范围；
 - 对安全、数据损坏、来源失真和不可逆迁移优先请求修改。
@@ -252,7 +267,8 @@ review_evidence_state: COMMENTED | APPROVED | CHANGES_REQUESTED
 
 PR 同时满足以下条件才可合并：
 
-- 生产实现关联明确的 Task 或 Bug；阶段验证或证据 PR 关联明确的 Gate；Epic 只作为父级补充引用；
+- 生产实现关联一个且仅一个明确 Task 或 Bug；阶段验证或证据 PR 关联一个且仅一个明确 Gate；Epic 只作为父级补充引用；
+- 主要 Issue 没有其他有效 Open PR，且该 Issue 的交付计划只定义当前单一 PR；
 - 解决一个清晰目标且边界明确；
 - 适用测试和 CI 通过；
 - 最新正式技术 Review 绑定当前 HEAD、结论为 `PASS`，且所有阻塞项已处理；
