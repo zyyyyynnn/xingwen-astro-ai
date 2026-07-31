@@ -1,9 +1,9 @@
 # Data Model
 
-| 项目状态       | 口径                                                                                                                                                                                                                                                                                       |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status         | Accepted                     |
-| Authority      | 领域实体、字段、枚举与不变量 |
+| 项目状态  | 口径                         |
+| --------- | ---------------------------- |
+| Status    | Accepted                     |
+| Authority | 领域实体、字段、枚举与不变量 |
 
 本文冻结 `/api` 与前端 Domain Model 的目标实体和不变量。Core 模型为 Project / Run / Artifact / ArtifactVersion；Phase 0 的 ResearchTask 与结果 DTO 冻结决策见 [Phase 0 API Contract（归档）](../archive/phase0/PHASE0_API_CONTRACT.md)，其字段以 `apps/api/src/app/schemas/` 与 `packages/schemas/generated/phase0/` 为准。字段使用 snake_case；时间统一为带时区 UTC ISO 8601。
 
@@ -282,6 +282,24 @@ Benchmark 的 PaperSummary、Evidence、Claim、Relation 和 ReasoningTrace 分�
 Crossref SourcePolicy 分离 `documented_policy` 与 `observed_runtime_limits`：前者版本化保存官方页面声明、适用说明和已知冲突，后者保存显式请求的 endpoint、request class、时间、响应状态与实际 `x-api-pool`、rate-limit、interval、concurrency 响应头。缺失头显式记为 `unavailable`；运行时 Adapter 必须优先服从当前响应头、处理 429/backoff，并在缺失头时使用保守策略。D-01 只保存快照，不实现 Adapter。
 
 ## 10. Evidence 与 SourceSnapshot
+
+C-08 的唯一 Pydantic 编写源是
+`apps/api/src/app/schemas/crossmatch.py`。`CrossmatchInput` 固定 Case/Field
+Manifest、RuleSet、完整冻结 SourcePolicy、alias catalog、两侧 SourceSnapshot、
+completion scope、origin 与 canonical raw-record references；SourcePolicy
+内容和 RuleSet pin 必须一致，并作为唯一 source-mode/data-level 准入表。
+`CrossmatchResult` 保存 source-side
+candidate、candidate edge、双方 locator 的 CrossmatchEvidence、paired/unpaired/
+conflict record、显式人工裁决审计、可解释指标及稳定 input/output hash；其 typed
+`admission_context` 内嵌准入所需的冻结 RuleSet、AliasCatalog、SourcePolicy、source-input hash
+、两侧 source origin/completion scope 与完整 ManualReviewDecision，使
+Condition、来源口径、冲突码和审计投影可由同一事实源重验。
+`SourceRecordReference` 只复制定位和 hash，不复制任意 raw payload。
+`manual_review` 不属于自动匹配方法；显式 `ManualReviewDecision` 绑定当前
+source-input/RuleSet/candidate/Evidence 后才可附加审计，且不会覆盖自动判定。
+完整运行语义见
+[Cross-source Entity Alignment](../engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md)。
+Canonical mapping 与 quality scoring 分别由对应数据处理职责边界定义。
 
 Evidence：
 

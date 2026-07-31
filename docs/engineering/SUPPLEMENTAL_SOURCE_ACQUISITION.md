@@ -13,6 +13,10 @@
 [Data Versioning](../architecture/DATA_VERSIONING.md) 管理。本文不定义跨源匹配、
 字段合并、单位转换、质量评分、ResearchRun 状态或 HTTP DTO。
 
+本 Adapter 的输出由
+[Cross-source Entity Alignment](CROSS_SOURCE_ENTITY_ALIGNMENT.md)
+以纯确定性方式消费；本 Adapter 不导入或控制 crossmatch。
+
 ## 1. 来源选择与冻结边界
 
 补充来源是 NASA Exoplanet Archive 的 `ps`（Planetary Systems）真实 TAP

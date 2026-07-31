@@ -512,7 +512,7 @@ def test_v1_http_wire_keeps_legacy_ids_and_required_provenance() -> None:
     assert evidence_data["source_snapshot"]["retrieved_at"]
 
 
-def test_generated_manifest_covers_issue_26_models() -> None:
+def test_generated_manifest_covers_phase0_and_crossmatch_models() -> None:
     manifest_path = (
         Path(__file__).parents[3]
         / "packages"
@@ -537,4 +537,9 @@ def test_generated_manifest_covers_issue_26_models() -> None:
         "SourceSnapshot",
         "SourceRecordItem",
         "QualityScore",
+        "DataSourceCompletion",
+        "CrossmatchInput",
+        "CrossmatchResult",
+        "CrossmatchBenchmarkManifest",
+        "CrossmatchBenchmarkReport",
     }
