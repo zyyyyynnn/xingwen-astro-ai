@@ -283,8 +283,10 @@ Crossref SourcePolicy 分离 `documented_policy` 与 `observed_runtime_limits`�
 
 C-08 的唯一 Pydantic 编写源是
 `apps/api/src/app/schemas/crossmatch.py`。`CrossmatchInput` 固定 Case/Field
-Manifest、RuleSet、alias catalog、两侧 SourceSnapshot、completion scope、
-origin 与 canonical raw-record references；`CrossmatchResult` 保存 source-side
+Manifest、RuleSet、完整冻结 SourcePolicy、alias catalog、两侧 SourceSnapshot、
+completion scope、origin 与 canonical raw-record references；SourcePolicy
+内容和 RuleSet pin 必须一致，并作为唯一 source-mode/data-level 准入表。
+`CrossmatchResult` 保存 source-side
 candidate、candidate edge、双方 locator 的 CrossmatchEvidence、paired/unpaired/
 conflict record、显式人工裁决审计、可解释指标及稳定 input/output hash。
 `SourceRecordReference` 只复制定位和 hash，不复制任意 raw payload。

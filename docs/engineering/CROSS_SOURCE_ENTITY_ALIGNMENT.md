@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Implemented |
+| Status | Accepted |
 | Scope | C-08 deterministic TOI/PS entity alignment |
 | Authority | Runtime behavior, Evidence, review input, and benchmark rules |
 
@@ -35,7 +35,7 @@ extra fields. The pipeline pins:
 - the versioned Crossmatch RuleSet and its content hash;
 - producer name and version;
 - the versioned entity-alias catalog;
-- the acquisition-origin policy hash;
+- the complete frozen acquisition SourcePolicy and its version/content hash;
 - both complete `SourceSnapshotRecord` values;
 - both completion scopes and canonical raw-record references;
 - optional explicit `ManualReviewDecision` hashes.
@@ -53,12 +53,21 @@ rejects:
 
 - a record `source_id` that differs from its Snapshot;
 - duplicate row keys or record hashes;
-- incompatible `source_mode` / `data_level`;
 - Snapshot request metadata that contradicts the declared origin.
 
+`CrossmatchInput` validates both typed source origins against the versioned
+`source-policy.v1.json` carried by the input and pinned by the RuleSet. The
+frozen SourcePolicy is the only allowlist; neither the Schema nor the engine
+keeps a second hard-coded source-mode/data-level matrix.
+
 The engine also rejects reversed or unauthorized sources and any source absent
-from the frozen Manifest bundle. Capacity overflow fails with
-`CROSSMATCH_CAPACITY_EXCEEDED`; records are never silently truncated.
+from the frozen Manifest bundle. It first checks `max_left_records` and
+`max_right_records`, then normalizes candidates and computes
+`left_hosts × right_hosts + left_planets × right_assertions` before entering
+any matching loop. That eligible comparison count is checked against
+`max_candidate_pairs`. Capacity overflow fails with
+`CROSSMATCH_CAPACITY_EXCEEDED`; records and candidates are never silently
+truncated.
 
 With a complete opposite source, a candidate without an edge is `unmatched`.
 With a `truncated` or `unknown` opposite source, it is `inconclusive`. The result
@@ -131,18 +140,22 @@ Metrics report record/candidate counts, paired/matched/ambiguous/conflict and
 side-specific unmatched counts, inconclusive and manual-review-required counts,
 topology counts, confidence and method distributions, deterministic error
 references, and numerator/denominator/value triples for coverage and rates.
+`candidate_pair_count` is the number of materialized `CandidateEdge` records,
+not the eligible comparison count used by the capacity preflight.
 They describe processing coverage and traceability, not scientific correctness
 or final data quality.
 
 ## 7. Frozen benchmark and limitations
 
 `services/data_pipeline/benchmarks/exoplanet_host_star/crossmatch-benchmark.v1.json`
-contains 26 machine-executable synthetic scenarios. It covers exact identifier
+contains 27 machine-executable synthetic scenarios. It covers exact identifier
 topologies, host-only TIC semantics, reference-row preservation, the absent TOI
 Gaia mapping, strict/manual coordinate bands, RA wrap and poles, multiple
 candidates, aliases and conflicts, completion scope, duplicate record and
 Snapshot/source failures, invalid coordinates, and valid/stale manual-review
-bindings. Parameterized pipeline tests additionally cover `unknown` scope.
+bindings. Its capacity scenario expands four raw record pairs into eight
+eligible entity-level comparisons and verifies fail-fast rejection.
+Parameterized pipeline tests additionally cover `unknown` scope.
 
 The benchmark and alias entries are synthetic fixtures, not scientific ground
 truth. The frozen TOI Manifest does not expose Gaia DR3, so C-08 retains PS Gaia

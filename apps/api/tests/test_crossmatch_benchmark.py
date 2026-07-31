@@ -43,16 +43,17 @@ REQUIRED_SCENARIOS = {
     "record_source_mismatch",
     "manual_decision_valid",
     "manual_decision_stale_binding",
+    "eligible_capacity_exceeded",
 }
 
 
-def test_frozen_crossmatch_benchmark_has_all_26_required_scenarios() -> None:
+def test_frozen_crossmatch_benchmark_has_all_27_required_scenarios() -> None:
     benchmark = load_crossmatch_benchmark()
     raw_payload = json.loads(
         DEFAULT_CROSSMATCH_BENCHMARK_PATH.read_text(encoding="utf-8")
     )
 
-    assert len(benchmark.scenarios) == 26
+    assert len(benchmark.scenarios) == 27
     assert {scenario.scenario_id for scenario in benchmark.scenarios} == (
         REQUIRED_SCENARIOS
     )
@@ -64,8 +65,8 @@ def test_frozen_crossmatch_benchmark_has_all_26_required_scenarios() -> None:
 def test_frozen_crossmatch_benchmark_is_machine_executable_and_green() -> None:
     report = evaluate_crossmatch_benchmark(load_crossmatch_benchmark())
 
-    assert report.scenario_count == 26
-    assert report.passed_count == 26
+    assert report.scenario_count == 27
+    assert report.passed_count == 27
     assert report.failed_count == 0
     assert all(result.status == "passed" for result in report.results)
     assert report.content_hash.startswith("sha256:")

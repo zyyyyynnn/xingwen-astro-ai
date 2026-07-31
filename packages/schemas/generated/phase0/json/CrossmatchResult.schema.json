@@ -593,6 +593,7 @@
           "type": "integer"
         },
         "candidate_pair_count": {
+          "description": "Materialized CandidateEdge count after matching; this is not the eligible candidate-pair count used by the capacity preflight.",
           "minimum": 0,
           "title": "Candidate Pair Count",
           "type": "integer"

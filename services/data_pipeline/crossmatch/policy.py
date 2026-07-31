@@ -7,7 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.crossmatch import CrossmatchRuleSet, EntityAliasCatalog
+from app.schemas.crossmatch import (
+    CrossmatchRuleSet,
+    CrossmatchSourcePolicy,
+    EntityAliasCatalog,
+)
 
 from ..constants import (
     CROSSMATCH_PRODUCER_NAME,
@@ -41,6 +45,12 @@ def load_entity_alias_catalog(
     return EntityAliasCatalog.model_validate(_load_versioned_payload(path))
 
 
+def load_crossmatch_source_policy(
+    path: Path = DEFAULT_SOURCE_POLICY_PATH,
+) -> CrossmatchSourcePolicy:
+    return CrossmatchSourcePolicy.model_validate(_load_versioned_payload(path))
+
+
 def load_crossmatch_rule_set(
     path: Path = DEFAULT_CROSSMATCH_RULE_SET_PATH,
     *,
@@ -48,10 +58,10 @@ def load_crossmatch_rule_set(
     source_policy_path: Path = DEFAULT_SOURCE_POLICY_PATH,
 ) -> CrossmatchRuleSet:
     alias_catalog = load_entity_alias_catalog(alias_catalog_path)
-    source_policy = _load_versioned_payload(source_policy_path)
+    source_policy = load_crossmatch_source_policy(source_policy_path)
     if (
-        source_policy.get("version") != SOURCE_POLICY_VERSION
-        or source_policy.get("content_hash") != SOURCE_POLICY_CONTENT_HASH
+        source_policy.version != SOURCE_POLICY_VERSION
+        or source_policy.content_hash != SOURCE_POLICY_CONTENT_HASH
     ):
         raise ValueError(
             "source policy identity does not match frozen acquisition policy"

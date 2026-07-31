@@ -21,9 +21,11 @@ from services.data_pipeline.constants import (
 )
 from services.data_pipeline.crossmatch.policy import (
     DEFAULT_ALIAS_CATALOG_PATH,
+    DEFAULT_SOURCE_POLICY_PATH,
     load_crossmatch_rule_set,
     load_entity_alias_catalog,
 )
+from services.data_pipeline.crossmatch import policy as crossmatch_policy
 
 
 def test_versioned_crossmatch_policy_pins_all_frozen_inputs() -> None:
@@ -41,10 +43,25 @@ def test_versioned_crossmatch_policy_pins_all_frozen_inputs() -> None:
     assert rule_set.producer_version == CROSSMATCH_PRODUCER_VERSION
     assert rule_set.entity_alias_catalog_version == catalog.version
     assert rule_set.entity_alias_catalog_content_hash == catalog.content_hash
-    assert rule_set.capacity.max_candidate_pairs >= (
-        rule_set.capacity.max_left_records
-        * rule_set.capacity.max_right_records
-    )
+
+
+def test_frozen_source_policy_is_the_typed_origin_authority() -> None:
+    loader = getattr(crossmatch_policy, "load_crossmatch_source_policy", None)
+
+    assert loader is not None
+    policy = loader()
+    expected = json.loads(DEFAULT_SOURCE_POLICY_PATH.read_text(encoding="utf-8"))
+
+    assert policy.model_dump(mode="json") == expected
+    assert {
+        origin.source_mode.value: {
+            data_level.value for data_level in origin.data_levels
+        }
+        for origin in policy.allowed_origins
+    } == {
+        "fixture": {"fixture", "recorded_response"},
+        "live": {"live_result"},
+    }
 
 
 def test_alias_catalog_is_explicit_versioned_evidence_not_name_guessing() -> None:

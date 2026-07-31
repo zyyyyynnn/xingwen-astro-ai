@@ -213,6 +213,47 @@ class EntityAliasCatalog(BaseModel):
         return self
 
 
+class CrossmatchSourceOriginPolicy(BaseModel):
+    model_config = MODEL_CONFIG
+
+    source_mode: SourceMode
+    data_levels: tuple[DataSourceDataLevel, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_data_levels(self) -> Self:
+        if len(self.data_levels) != len(set(self.data_levels)):
+            raise ValueError("source origin policy contains duplicate data level")
+        return self
+
+
+class CrossmatchSourcePolicy(BaseModel):
+    model_config = MODEL_CONFIG
+
+    policy_id: Identifier
+    version: SemanticVersion
+    allowed_origins: tuple[CrossmatchSourceOriginPolicy, ...] = Field(
+        min_length=1
+    )
+    completion_statuses: tuple[DataSourceCompletionStatus, ...] = Field(
+        min_length=1
+    )
+    content_hash: ContentHash
+
+    @model_validator(mode="after")
+    def validate_policy(self) -> Self:
+        source_modes = [origin.source_mode for origin in self.allowed_origins]
+        if len(source_modes) != len(set(source_modes)):
+            raise ValueError("source policy contains duplicate source mode")
+        if len(self.completion_statuses) != len(set(self.completion_statuses)):
+            raise ValueError("source policy contains duplicate completion status")
+        if set(self.completion_statuses) != set(DataSourceCompletionStatus):
+            raise ValueError(
+                "source policy completion statuses must cover the closed contract"
+            )
+        _validate_content_hash(self)
+        return self
+
+
 class CrossmatchRuleSet(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -294,16 +335,6 @@ class CrossmatchSourceInput(BaseModel):
             raise ValueError("source input mode disagrees with source snapshot")
         if metadata.get("data_level") not in (None, self.data_level.value):
             raise ValueError("source input data level disagrees with source snapshot")
-        allowed_origins = {
-            SourceMode.live: {DataSourceDataLevel.live_result},
-            SourceMode.fixture: {
-                DataSourceDataLevel.fixture,
-                DataSourceDataLevel.recorded_response,
-                DataSourceDataLevel.seed,
-            },
-        }
-        if self.data_level not in allowed_origins.get(self.source_mode, set()):
-            raise ValueError("source input mode and data level are incompatible")
         return self
 
 
@@ -352,6 +383,7 @@ class CrossmatchInput(BaseModel):
     field_manifest_content_hash: ContentHash
     rule_set: CrossmatchRuleSet
     alias_catalog: EntityAliasCatalog
+    source_policy: CrossmatchSourcePolicy
     left: CrossmatchSourceInput
     right: CrossmatchSourceInput
     source_input_hash: ContentHash
@@ -385,6 +417,24 @@ class CrossmatchInput(BaseModel):
             != rule_set.entity_alias_catalog_content_hash
         ):
             raise ValueError("crossmatch input alias catalog disagrees with RuleSet")
+        if (
+            self.source_policy.version != rule_set.source_policy_version
+            or self.source_policy.content_hash
+            != rule_set.source_policy_content_hash
+        ):
+            raise ValueError("crossmatch input SourcePolicy disagrees with RuleSet")
+        allowed_origins = {
+            origin.source_mode: set(origin.data_levels)
+            for origin in self.source_policy.allowed_origins
+        }
+        for source in (self.left, self.right):
+            if source.data_level not in allowed_origins.get(
+                source.source_mode,
+                set(),
+            ):
+                raise ValueError(
+                    "source input origin is absent from the frozen SourcePolicy"
+                )
         if self.left.snapshot.source_id == self.right.snapshot.source_id:
             raise ValueError("crossmatch input sources must be distinct")
         expected_source_hash = compute_crossmatch_source_input_hash(self)
@@ -803,7 +853,13 @@ class CrossmatchMetrics(BaseModel):
     right_record_count: int = Field(ge=0)
     left_candidate_count: int = Field(ge=0)
     right_candidate_count: int = Field(ge=0)
-    candidate_pair_count: int = Field(ge=0)
+    candidate_pair_count: int = Field(
+        ge=0,
+        description=(
+            "Materialized CandidateEdge count after matching; this is not the "
+            "eligible candidate-pair count used by the capacity preflight."
+        ),
+    )
     paired_group_count: int = Field(ge=0)
     matched_group_count: int = Field(ge=0)
     ambiguous_group_count: int = Field(ge=0)

@@ -1,7 +1,7 @@
 {
   "benchmark_id": "exoplanet_host_star.crossmatch_benchmark",
   "version": "1.0.0",
-  "content_hash": "sha256:d627e432874a55063d484a4e8ff4f66a06e14eb2249e3d89f51a5c8c39729557",
+  "content_hash": "sha256:b7fb6e57a938e288fb9017b2969f6a1b960207bde5e4a4035b5d8dea889fd5af",
   "data_level": "synthetic_fixture",
   "provenance_note": "Versioned synthetic fixture for deterministic C-08 review; not scientific ground truth.",
   "rule_set_id": "exoplanet_host_star.crossmatch_rules",
@@ -971,6 +971,56 @@
         "topologies": [],
         "conflict_codes": [],
         "expected_error_code": "CROSSMATCH_MANUAL_DECISION_RULE_SET_MISMATCH"
+      }
+    },
+    {
+      "scenario_id": "eligible_capacity_exceeded",
+      "description": "Two entity levels expand four raw record pairs into eight eligible comparisons and exceed the frozen candidate-pair limit before matching.",
+      "category": "capacity",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "1400.01",
+          "tic_id": 1400
+        },
+        {
+          "record_type": "toi",
+          "toi": "1401.01",
+          "tic_id": 1401
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Capacity Planet b",
+          "reference": "Reference 1",
+          "tic_id": "TIC 1400"
+        },
+        {
+          "record_type": "ps",
+          "planet_name": "Capacity Planet c",
+          "reference": "Reference 2",
+          "tic_id": "TIC 1401"
+        }
+      ],
+      "capacity_override": {
+        "max_left_records": 2,
+        "max_right_records": 2,
+        "max_candidate_pairs": 4
+      },
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 0,
+        "unmatched_count": 0,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 0,
+        "methods": [],
+        "topologies": [],
+        "conflict_codes": [],
+        "expected_error_code": "CROSSMATCH_CAPACITY_EXCEEDED"
       }
     }
   ],

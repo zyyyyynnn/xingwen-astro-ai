@@ -59,7 +59,7 @@ _CONFIDENCE_ORDER = {
 def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
     """Align two typed acquisition inputs without publishing or mutating Run state."""
 
-    _validate_capacity(input)
+    _validate_record_capacity(input)
     bundle = load_frozen_manifest_bundle()
     _validate_source_contract(input, bundle)
 
@@ -95,6 +95,13 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
         candidates,
         CrossmatchSide.right,
         EntityLevel.planet_assertion,
+    )
+    _validate_eligible_candidate_capacity(
+        input,
+        left_hosts=left_hosts,
+        right_hosts=right_hosts,
+        left_planets=left_planets,
+        right_assertions=right_assertions,
     )
 
     edges: list[CandidateEdge] = []
@@ -309,19 +316,36 @@ def align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult:
     )
 
 
-def _validate_capacity(input: CrossmatchInput) -> None:
+def _validate_record_capacity(input: CrossmatchInput) -> None:
     capacity = input.rule_set.capacity
     left_count = len(input.left.records)
     right_count = len(input.right.records)
-    candidate_pairs = left_count * right_count
     if (
         left_count > capacity.max_left_records
         or right_count > capacity.max_right_records
-        or candidate_pairs > capacity.max_candidate_pairs
     ):
         raise CrossmatchCapacityError(
             "CROSSMATCH_CAPACITY_EXCEEDED",
             "crossmatch input exceeds the frozen capacity policy",
+        )
+
+
+def _validate_eligible_candidate_capacity(
+    input: CrossmatchInput,
+    *,
+    left_hosts: tuple[EntityCandidate, ...],
+    right_hosts: tuple[EntityCandidate, ...],
+    left_planets: tuple[EntityCandidate, ...],
+    right_assertions: tuple[EntityCandidate, ...],
+) -> None:
+    eligible_candidate_pairs = (
+        len(left_hosts) * len(right_hosts)
+        + len(left_planets) * len(right_assertions)
+    )
+    if eligible_candidate_pairs > input.rule_set.capacity.max_candidate_pairs:
+        raise CrossmatchCapacityError(
+            "CROSSMATCH_CAPACITY_EXCEEDED",
+            "crossmatch candidates exceed the frozen capacity policy",
         )
 
 

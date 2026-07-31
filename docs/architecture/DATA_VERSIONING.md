@@ -135,7 +135,7 @@ C-02 已为成功 NASA Exoplanet Archive TOI acquisition 生成完整不可变 S
 
 C-07 对 PS 补充来源生成独立 SourceSnapshot；C-08 不合并或重写两侧
 Snapshot，而是把双方 Snapshot/query/content hash、completion、origin、排序后的
-raw-record hashes、Manifest/RuleSet/alias pins 和可选人工裁决 hash 绑定到稳定
+raw-record hashes、Manifest/RuleSet/SourcePolicy/alias pins 和可选人工裁决 hash 绑定到稳定
 `source_input_hash` / `input_hash`。`output_hash` 绑定 candidate、edge、Evidence、
 未解决结果和指标，不包含 wall-clock、日志或输出路径。规则语义变化必须发布新
 RuleSet version/hash。运行规则见

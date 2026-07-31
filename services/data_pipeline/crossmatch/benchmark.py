@@ -51,7 +51,11 @@ from ..constants import (
 )
 from .engine import align_cross_source_records
 from .errors import CrossmatchError
-from .policy import load_crossmatch_rule_set, load_entity_alias_catalog
+from .policy import (
+    load_crossmatch_rule_set,
+    load_crossmatch_source_policy,
+    load_entity_alias_catalog,
+)
 
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -228,6 +232,7 @@ def _scenario_input(scenario: CrossmatchBenchmarkScenario) -> CrossmatchInput:
         "field_manifest_content_hash": FROZEN_FIELD_MANIFEST_CONTENT_HASH,
         "rule_set": rule_set.model_dump(mode="json"),
         "alias_catalog": load_entity_alias_catalog().model_dump(mode="json"),
+        "source_policy": load_crossmatch_source_policy().model_dump(mode="json"),
         "left": left_source_payload,
         "right": right_source_payload,
         "manual_review_decisions": (),

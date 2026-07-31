@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 
 import pytest
 from pydantic import ValidationError
@@ -43,11 +44,13 @@ from services.data_pipeline.constants import (
     FROZEN_FIELD_MANIFEST_VERSION,
 )
 from services.data_pipeline.crossmatch import align_cross_source_records
+from services.data_pipeline.crossmatch import engine as crossmatch_engine
 from services.data_pipeline.crossmatch.errors import (
     CrossmatchCapacityError,
     CrossmatchError,
 )
 from services.data_pipeline.crossmatch.policy import (
+    DEFAULT_SOURCE_POLICY_PATH,
     load_crossmatch_rule_set,
     load_entity_alias_catalog,
 )
@@ -119,6 +122,8 @@ def source_input(
     records: tuple[RawDataSourceRecord, ...],
     *,
     completion_status: str = "complete",
+    source_mode: SourceMode = SourceMode.fixture,
+    data_level: DataSourceDataLevel = DataSourceDataLevel.fixture,
 ) -> CrossmatchSourceInput:
     is_toi = source_id.endswith(".toi")
     cursor = None
@@ -132,8 +137,8 @@ def source_input(
             )
         )
     return CrossmatchSourceInput(
-        source_mode=SourceMode.fixture,
-        data_level=DataSourceDataLevel.fixture,
+        source_mode=source_mode,
+        data_level=data_level,
         records=records,
         snapshot=SourceSnapshotRecord(
             snapshot_id=(
@@ -149,8 +154,8 @@ def source_input(
             content_hash="sha256:" + ("3" if is_toi else "4") * 64,
             license_note="Synthetic benchmark fixture; not scientific ground truth.",
             request_metadata={
-                "source_mode": "fixture",
-                "data_level": "fixture",
+                "source_mode": source_mode.value,
+                "data_level": data_level.value,
             },
         ),
         completion=DataSourceCompletion(
@@ -167,6 +172,10 @@ def crossmatch_input(
     left_completion: str = "complete",
     right_completion: str = "complete",
     rule_set: CrossmatchRuleSet | None = None,
+    left_source_mode: SourceMode = SourceMode.fixture,
+    left_data_level: DataSourceDataLevel = DataSourceDataLevel.fixture,
+    right_source_mode: SourceMode = SourceMode.fixture,
+    right_data_level: DataSourceDataLevel = DataSourceDataLevel.fixture,
 ) -> CrossmatchInput:
     payload = {
         "case_manifest_id": "exoplanet_host_star",
@@ -177,21 +186,91 @@ def crossmatch_input(
         "field_manifest_content_hash": FROZEN_FIELD_MANIFEST_CONTENT_HASH,
         "rule_set": (rule_set or load_crossmatch_rule_set()).model_dump(mode="json"),
         "alias_catalog": load_entity_alias_catalog().model_dump(mode="json"),
+        "source_policy": json.loads(
+            DEFAULT_SOURCE_POLICY_PATH.read_text(encoding="utf-8")
+        ),
         "left": source_input(
             "nasa_exoplanet_archive.toi",
             left_records,
             completion_status=left_completion,
+            source_mode=left_source_mode,
+            data_level=left_data_level,
         ).model_dump(mode="json"),
         "right": source_input(
             "nasa_exoplanet_archive.ps",
             right_records,
             completion_status=right_completion,
+            source_mode=right_source_mode,
+            data_level=right_data_level,
         ).model_dump(mode="json"),
         "manual_review_decisions": [],
     }
     payload["source_input_hash"] = compute_crossmatch_source_input_hash(payload)
     payload["input_hash"] = compute_crossmatch_input_hash(payload)
     return CrossmatchInput.model_validate(payload)
+
+
+def rule_set_with_capacity(
+    *,
+    max_left_records: int,
+    max_right_records: int,
+    max_candidate_pairs: int,
+) -> CrossmatchRuleSet:
+    payload = load_crossmatch_rule_set().model_dump(mode="json")
+    payload["capacity"] = {
+        "max_left_records": max_left_records,
+        "max_right_records": max_right_records,
+        "max_candidate_pairs": max_candidate_pairs,
+    }
+    payload["content_hash"] = compute_crossmatch_content_hash(payload)
+    return CrossmatchRuleSet.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("source_mode", "data_level"),
+    [
+        (SourceMode.fixture, DataSourceDataLevel.fixture),
+        (SourceMode.fixture, DataSourceDataLevel.recorded_response),
+        (SourceMode.live, DataSourceDataLevel.live_result),
+    ],
+)
+def test_crossmatch_contract_accepts_origins_allowed_by_frozen_source_policy(
+    source_mode: SourceMode,
+    data_level: DataSourceDataLevel,
+) -> None:
+    input_value = crossmatch_input(
+        (toi_record("90.01", tic_id=90),),
+        (ps_record("Policy b", "Reference", tic_id=90),),
+        left_source_mode=source_mode,
+        left_data_level=data_level,
+    )
+
+    allowed = {
+        origin.source_mode: set(origin.data_levels)
+        for origin in input_value.source_policy.allowed_origins
+    }
+    assert data_level in allowed[source_mode]
+
+
+@pytest.mark.parametrize(
+    ("source_mode", "data_level"),
+    [
+        (SourceMode.fixture, DataSourceDataLevel.seed),
+        (SourceMode.live, DataSourceDataLevel.fixture),
+        (SourceMode.fixture, DataSourceDataLevel.live_result),
+    ],
+)
+def test_crossmatch_contract_rejects_origins_absent_from_frozen_source_policy(
+    source_mode: SourceMode,
+    data_level: DataSourceDataLevel,
+) -> None:
+    with pytest.raises(ValidationError, match="frozen SourcePolicy"):
+        crossmatch_input(
+            (toi_record("91.01", tic_id=91),),
+            (ps_record("Policy c", "Reference", tic_id=91),),
+            left_source_mode=source_mode,
+            left_data_level=data_level,
+        )
 
 
 def paired_records(result) -> list[PairedMatch]:
@@ -405,27 +484,165 @@ def test_no_candidate_semantics_follow_opposite_source_completion(
 
 
 def test_crossmatch_rejects_capacity_excess_without_truncating() -> None:
-    rule_payload = load_crossmatch_rule_set().model_dump(mode="json")
-    rule_payload["capacity"] = {
-        "max_left_records": 1,
-        "max_right_records": 1,
-        "max_candidate_pairs": 1,
-    }
-    rule_payload["content_hash"] = compute_crossmatch_content_hash(rule_payload)
-    rule_set = CrossmatchRuleSet.model_validate(rule_payload)
     input_value = crossmatch_input(
         (
             toi_record("500.01", tic_id=500),
             toi_record("500.02", tic_id=500),
         ),
         (ps_record("Planet Five b", "Reference", tic_id="TIC 500"),),
-        rule_set=rule_set,
+        rule_set=rule_set_with_capacity(
+            max_left_records=1,
+            max_right_records=1,
+            max_candidate_pairs=1,
+        ),
     )
 
     with pytest.raises(CrossmatchCapacityError) as error:
         align_cross_source_records(input_value)
 
     assert error.value.code == "CROSSMATCH_CAPACITY_EXCEEDED"
+
+
+def test_capacity_allows_raw_record_counts_at_both_limits() -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (
+                toi_record("510.01", tic_id=510),
+                toi_record("511.01", tic_id=511),
+            ),
+            (
+                ps_record("Limit b", "Reference 1", tic_id=510),
+                ps_record("Limit c", "Reference 2", tic_id=511),
+            ),
+            rule_set=rule_set_with_capacity(
+                max_left_records=2,
+                max_right_records=2,
+                max_candidate_pairs=9,
+            ),
+        )
+    )
+
+    assert result.metrics.left_record_count == 2
+    assert result.metrics.right_record_count == 2
+
+
+def test_capacity_allows_eligible_candidate_pairs_at_exact_limit() -> None:
+    result = align_cross_source_records(
+        crossmatch_input(
+            (
+                toi_record("520.01", tic_id=520),
+                toi_record("521.01", tic_id=521),
+            ),
+            (ps_record("Exact limit b", "Reference", tic_id=520),),
+            rule_set=rule_set_with_capacity(
+                max_left_records=2,
+                max_right_records=1,
+                max_candidate_pairs=4,
+            ),
+        )
+    )
+
+    assert result.metrics.left_candidate_count == 4
+    assert result.metrics.right_candidate_count == 2
+
+
+def test_capacity_rejects_eligible_candidate_pairs_over_limit_by_one() -> None:
+    input_value = crossmatch_input(
+        (toi_record("530.01", tic_id=530),),
+        (ps_record("Over limit b", "Reference", tic_id=530),),
+        rule_set=rule_set_with_capacity(
+            max_left_records=1,
+            max_right_records=1,
+            max_candidate_pairs=1,
+        ),
+    )
+
+    with pytest.raises(CrossmatchCapacityError) as error:
+        align_cross_source_records(input_value)
+
+    assert error.value.code == "CROSSMATCH_CAPACITY_EXCEEDED"
+
+
+def test_capacity_counts_both_entity_level_comparison_spaces() -> None:
+    input_value = crossmatch_input(
+        (
+            toi_record("540.01", tic_id=540),
+            toi_record("541.01", tic_id=541),
+        ),
+        (
+            ps_record("Double layer b", "Reference 1", tic_id=540),
+            ps_record("Double layer c", "Reference 2", tic_id=541),
+        ),
+        rule_set=rule_set_with_capacity(
+            max_left_records=2,
+            max_right_records=2,
+            max_candidate_pairs=4,
+        ),
+    )
+
+    with pytest.raises(CrossmatchCapacityError) as error:
+        align_cross_source_records(input_value)
+
+    assert error.value.code == "CROSSMATCH_CAPACITY_EXCEEDED"
+
+
+def test_capacity_failure_precedes_any_matching_loop(monkeypatch) -> None:
+    match_calls = 0
+
+    def record_match_call(*args, **kwargs):
+        nonlocal match_calls
+        match_calls += 1
+        return None
+
+    monkeypatch.setattr(
+        crossmatch_engine,
+        "_match_host_candidates",
+        record_match_call,
+    )
+    input_value = crossmatch_input(
+        (toi_record("550.01", tic_id=550),),
+        (ps_record("No partial b", "Reference", tic_id=550),),
+        rule_set=rule_set_with_capacity(
+            max_left_records=1,
+            max_right_records=1,
+            max_candidate_pairs=1,
+        ),
+    )
+
+    with pytest.raises(CrossmatchCapacityError):
+        align_cross_source_records(input_value)
+
+    assert match_calls == 0
+
+
+def test_capacity_decision_is_stable_under_input_reordering() -> None:
+    left = (
+        toi_record("560.01", tic_id=560),
+        toi_record("561.01", tic_id=561),
+    )
+    right = (
+        ps_record("Reorder b", "Reference 1", tic_id=560),
+        ps_record("Reorder c", "Reference 2", tic_id=561),
+    )
+    rule_set = rule_set_with_capacity(
+        max_left_records=2,
+        max_right_records=2,
+        max_candidate_pairs=7,
+    )
+
+    for left_records, right_records in (
+        (left, right),
+        (tuple(reversed(left)), tuple(reversed(right))),
+    ):
+        with pytest.raises(CrossmatchCapacityError) as error:
+            align_cross_source_records(
+                crossmatch_input(
+                    left_records,
+                    right_records,
+                    rule_set=rule_set,
+                )
+            )
+        assert error.value.code == "CROSSMATCH_CAPACITY_EXCEEDED"
 
 
 def test_crossmatch_order_identity_and_hash_are_stable_under_input_reordering() -> None:
