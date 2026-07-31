@@ -114,7 +114,14 @@ candidate sides, both Snapshot/query boundaries, raw fields, RuleSet identity,
 confidence, confidence band, and automatic decision. Coordinate Evidence
 records separation plus both strict and manual-review thresholds. The
 `CrossmatchResult` validator cross-checks Candidate, Edge, Evidence, Record,
-Snapshot, RuleSet, and producer references even if a caller recomputes hashes.
+metrics, Snapshot, RuleSet, and producer references even if a caller recomputes
+hashes. Each Evidence locator must identify the referenced candidate's source
+row and a normalized identity raw field admitted for that row.
+
+Identifier and alias conditions carry only field/left/right values; coordinate
+conditions carry only separation plus both thresholds. `source_scope` remains a
+reserved v1 operator value and is rejected as an executable condition because
+v1 defines no dedicated payload for it.
 
 An optional `ManualReviewDecision` is a separate, hashed input. It binds the
 pre-adjudication source-input hash, full RuleSet identity, logical match key,
@@ -153,6 +160,10 @@ Metrics report record/candidate counts, paired/matched/ambiguous/conflict and
 side-specific unmatched counts, inconclusive and manual-review-required counts,
 topology counts, confidence and method distributions, deterministic error
 references, and numerator/denominator/value triples for coverage and rates.
+Metrics are recomputed during admission from Candidate, Edge, Evidence, and
+Record members. `left_record_count` and `right_record_count` count distinct
+source-row references represented by admitted candidates rather than trusting
+caller-provided totals.
 `candidate_pair_count` is the number of materialized `CandidateEdge` records,
 not the eligible comparison count used by the capacity preflight.
 They describe processing coverage and traceability, not scientific correctness
