@@ -9,8 +9,11 @@ from services.data_pipeline.crossmatch.policy import (
     load_entity_alias_catalog,
 )
 
+from . import pipeline as _pipeline_module
 from .errors import DataArtifactError
-from .pipeline import build_data_artifact_candidates as _build_data_artifact_candidates
+
+
+_build_data_artifact_candidates = _pipeline_module.build_data_artifact_candidates
 
 
 def _validate_frozen_crossmatch_handoff(input_value: DataArtifactBuildInput) -> None:
@@ -75,6 +78,11 @@ def build_data_artifact_candidates(
         # from JSON, hashes, generated schemas, and published Artifact content.
         object.__setattr__(candidate, "_artifact_publication_context", input)
     return result
+
+
+# The module used to expose the unchecked implementation directly. Keep one
+# production entrypoint even for callers that import the submodule explicitly.
+_pipeline_module.build_data_artifact_candidates = build_data_artifact_candidates
 
 
 __all__ = ["build_data_artifact_candidates"]
