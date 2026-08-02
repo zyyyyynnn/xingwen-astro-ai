@@ -20,9 +20,14 @@ build_data_artifact_candidates(
 
 ## 2. 输入与冻结策略
 
-`DataArtifactBuildInput` 绑定 Case/Field Manifest pins、左右 acquisition 的 records/Snapshot/mode/data level/completion、C-08 结果、requested canonical fields、`MappingRuleSet`、`UnitConversionCatalog`、producer version、可选质量约束引用和稳定 `input_hash`。左右来源、Snapshot、record set、row key 与 raw-record hash 必须与 C-08 引用精确一致；来源列名不能冒充 canonical field ID。公共入口由 `policy.py` 从仓库 JSON 加载冻结 RuleSet/Catalog，并对 caller 对象做完整等值比较；仅重算 caller 的 policy hash 与 input hash 不能形成新的获准执行策略。
+`DataArtifactBuildInput` 绑定 Case/Field Manifest pins、左右 acquisition 的 records/Snapshot/mode/data level/completion、C-08 结果、requested canonical fields、`MappingRuleSet`、`UnitConversionCatalog`、producer version、可选质量约束引用和稳定 `input_hash`。左右来源、Snapshot、record set、row key 与 raw-record hash 必须与 C-08 引用精确一致；来源列名不能冒充 canonical field ID。
 
-当前规则文件位于 `services/data_pipeline/manifests/exoplanet_host_star/mapping-rules/`：
+公共入口同时执行两层真实性绑定：
+
+- `policy.py` 从仓库 JSON 加载冻结 C-04 MappingRuleSet/UnitConversionCatalog，并对 caller 对象做完整 Pydantic 等值比较；仅重算 caller 的 policy hash 与 input hash 不能形成新的获准执行策略。
+- C-08 handoff 的 embedded RuleSet、EntityAliasCatalog、SourcePolicy、top-level IDs/hashes 与 producer 必须完整等于 #158 的仓库冻结策略；内部自洽但由 caller 改写的 CrossmatchResult 会稳定拒绝。
+
+当前 C-04 规则文件位于 `services/data_pipeline/manifests/exoplanet_host_star/mapping-rules/`：
 
 - `mapping-rules.v1.json`：执行顺序、row-grain 投影矩阵、冲突/缺失策略、集合数值比较和容量边界；不复制字段 alias、priority、unit 或 companion columns。
 - `unit-conversions.v1.json`：Manifest declaration-only conversion 的唯一执行因子与 Decimal 容量目录。
@@ -31,7 +36,9 @@ Field alias、source priority、alias priority、null、uncertainty、limit、un
 
 ## 3. 数值与单位
 
-换算使用 `Decimal`、28 位精度、`ROUND_HALF_EVEN` 上下文和无指数 plain-decimal JSON 字符串；不进行隐式量化。所有数值零（包括 `-0`、`-0.0` 与带 exponent 的负零）统一序列化为 `0`。Catalog 版本化限制输入文本长度、significant digits、adjusted exponent、fractional scale 和最终 plain string 长度，并在物化极端长字符串前 fail closed。初版只实现 Manifest 已授权的 identity、Jupiter radius → Earth radius、Jupiter mass → Earth mass。identity 要求来源/目标单位相同，所有规则同时核对 ID、版本、单位对和 quantity kind；NaN、Infinity、bool、非法数字与超容量数字均稳定拒绝。
+换算使用 `Decimal`、28 位精度、`ROUND_HALF_EVEN` 上下文和无指数 plain-decimal JSON 字符串；不进行隐式量化。所有 canonical 数值零（包括 `-0`、`-0.0` 与带 exponent 的负零）统一序列化为 `0`。Catalog 版本化限制输入文本长度、significant digits、adjusted exponent、fractional scale 和最终 plain string 长度，并在物化极端长字符串前 fail closed。初版只实现 Manifest 已授权的 identity、Jupiter radius → Earth radius、Jupiter mass → Earth mass。identity 要求来源/目标单位相同，所有规则同时核对 ID、版本、单位对和 quantity kind；NaN、Infinity、bool、非法数字与超容量数字均稳定拒绝。
+
+raw value 仍按来源原样保留用于 lineage，因此 raw-record/input/Publisher content hash 可以区分 `0.0` 与 `-0.0` 等来源表示；该差异不改变 canonical value。不得把 canonical zero policy 解释为删除或重写原始 provenance。
 
 半径与质量比例来自 [IAU 2015 Resolution B3](https://arxiv.org/abs/1510.07674) 的精确 nominal equatorial radii 与 nominal mass parameters：
 
@@ -67,21 +74,23 @@ Field alias、source priority、alias priority、null、uncertainty、limit、un
 
 字段候选按 Field Manifest 的 source priority、alias priority、stable source-value ID 排序。最高优先级只决定展示值，所有低优先级值和 provenance 均保留；不同 canonical value 形成 `FieldConflictRecord`，并由 `FieldSelectionRecord` 记录 row/field、候选集合、策略与原因。numeric conflict 与 selection priority 无关：absolute tolerance 使用集合 `max-min`，relative tolerance 使用 `span / max(abs(max), abs(min), relative_denominator_floor)`；absolute/relative 任一满足即一致，阈值包含性由冻结规则控制。identity conflict 不受字段 source priority 覆盖。
 
-## 6. Evidence、候选与 hash
+## 6. Evidence、候选、replay 与 hash
 
-`TransformationEvidence` 将 dataset row/field/source value 绑定到 raw cell、raw/canonical value、uncertainty/limit、reference/provenance 值与 locator、conversion catalog、C-08 result/logical key/Evidence 和 selection 状态。Dataset 对 SourceValue、Transformation Evidence、selection 与 conflict 执行双向 exact-set 校验；Evidence 值与 SourceValue 逐项相等，conflict 的 row/field/candidate set、scope 与数值差异均重新派生。三类 candidate 共享精确 Manifest/policy/catalog/producer/input/Snapshot/Evidence pins，且只有通过完整 `DataArtifactBuildResult` 跨 candidate 校验的原始 Pipeline 实例获得 instance-bound publication seal：
+`TransformationEvidence` 将 dataset row/field/source value 绑定到 raw cell、raw/canonical value、uncertainty/limit、reference/provenance 值与 locator、conversion catalog、C-08 result/logical key/Evidence 和 selection 状态。Dataset 对 SourceValue、Transformation Evidence、selection 与 conflict 执行双向 exact-set 校验；Evidence 值与 SourceValue 逐项相等，conflict 的 row/field/candidate set、scope 与数值差异均重新派生。
+
+三类候选共享精确 Manifest/policy/catalog/producer/input/Snapshot/Evidence pins。公共入口在原始 sealed instance 上附加 process-local、不会进入 JSON/hash/generated Schema/Artifact content 的 typed `DataArtifactBuildInput` admission context。Publisher 的 Evidence/domain/quality-prerequisite gates 会从该上下文重新执行完整构建，然后把待发布候选与 replay 结果逐字段比较。因此同步修改 SourceValue、Evidence、outcome、hash，或删除未参与 requested fields 的 acquisition record，都不能仅凭 instance seal 通过。copy/reparse 不包含有效 seal/context。
 
 - Dataset：columns、rows、判别字段 outcome、全部 source values、Evidence、selection/conflict 和 C-05 metric input 声明；不含 quality score。
 - FieldDictionary：requested fields 对 Field Manifest `FieldDefinition` 的精确投影。
-- SourceCollection：恰好一个 left 和一个 right `SourceCollectionMember`。每个成员将 source、完整 SourceSnapshot、mode/data level/completion、license 与全部 acquisition `RawSourceRecordReference` 绑定；record reference 只含 source/Snapshot/query/row key/raw-record hash，采用规范顺序，并由 record count 与 registry hash 封闭完整集合，cell-level `raw_field` 只属于 Transformation Evidence。
+- SourceCollection：恰好一个 left 和一个 right `SourceCollectionMember`。每个成员将 source、完整 SourceSnapshot、mode/data level/completion、license 与全部 acquisition `RawSourceRecordReference` 绑定；record reference 只含 source/Snapshot/query/row key/raw-record hash，采用规范顺序，并由 record count 与 registry hash 封闭结构。完整性最终由 Publisher replay 与原始 typed acquisition 双向比较，cell-level `raw_field` 只属于 Transformation Evidence。
 
 BuildResult 进一步校验 Dataset columns 与 FieldDictionary definitions 完全相等、三类 candidate 的共同 pins 完全相等、Dataset 使用的 raw records 均属于 SourceCollection、alignment keys 覆盖 Dataset rows、C-08 identity 一致，且 bundle 不接受未封印或来自另一次 build 的 candidate。
 
-稳定 hash 排除 wall-clock、日志、分支、数据库 ID、ArtifactVersion number 与 Publisher content hash。requested fields 和输出集合使用确定顺序；内容、规则、Manifest 或 conversion 版本变化会改变相应 hash。
+稳定 hash 排除 wall-clock、日志、分支、数据库 ID、ArtifactVersion number 与 Publisher content hash。requested fields 和输出集合使用确定顺序；内容、规则、Manifest 或 conversion 版本变化会改变相应 hash。raw provenance hash 与 canonical scientific value 的职责必须分别解释，不得把来源表示差异误述为 canonical value 差异。
 
 ## 7. Publisher 与 C-05 交接
 
-C-04 生产模块不反向依赖 `app.workflow.publisher`。`services/data_pipeline/data_artifacts/admission.py` 提供 Evidence、domain、quality-prerequisite validators；它们独立重验 typed content、closed-world registries、冻结 policy/Manifest、row projection、conflict 真实性和 FieldDictionary projection。API/B 边界将三个 sealed candidate 分别交给 #78 `admit_artifact_candidate(...)`。复制、重新解析、bundle intermediate、dict 或 free text 不能绕过 bundle-derived instance seal。该端口只生成 `AdmittedArtifactCandidate`，数据库发布事务与 `ArtifactVersion` 仍属于 #78/B。
+C-04 生产模块不反向依赖 `app.workflow.publisher`。`services/data_pipeline/data_artifacts/admission.py` 提供 Evidence、domain、quality-prerequisite validators；它们先重新解析 typed content，再通过 process-local typed input replay 重验 C-08/C-04 冻结策略、raw payload、Manifest alias、主值/uncertainty/limit 转换、row projection、Evidence、conflict 和 SourceCollection 完整 records。API/B 边界将三个 sealed candidate 分别交给 #78 `admit_artifact_candidate(...)`。复制、重新解析、bundle intermediate、dict 或 free text 不能绕过 bundle-derived instance seal。该端口只生成 `AdmittedArtifactCandidate`，数据库发布事务与 `ArtifactVersion` 仍属于 #78/B。
 
 C-05 #35 后续消费 Dataset 的 field outcomes、conflicts、Evidence coverage、Crossmatch status 和 `quality_metric_input_declarations` 计算质量；C-04 始终输出 `quality_evaluation_status=not_evaluated`。
 
@@ -91,7 +100,7 @@ C-05 #35 后续消费 Dataset 的 field outcomes、conflicts、Evidence coverage
 
 ```powershell
 Set-Location apps/api
-uv run pytest tests/test_data_artifact_contract.py tests/test_field_mapping.py tests/test_unit_conversion.py tests/test_data_artifact_pipeline.py tests/test_data_artifact_publisher_port.py tests/test_data_artifact_review_fixes.py
+uv run pytest tests/test_data_artifact_contract.py tests/test_field_mapping.py tests/test_unit_conversion.py tests/test_data_artifact_pipeline.py tests/test_data_artifact_publisher_port.py tests/test_data_artifact_review_fixes.py tests/test_data_artifact_admission_replay.py
 uv run pytest -q
 
 Set-Location ../..
