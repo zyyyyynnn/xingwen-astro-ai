@@ -239,6 +239,10 @@ created_at
 
 ### 9.1 Dataset 与 FieldDefinition
 
+C-04 的唯一 Pipeline Pydantic 编写源是 `apps/api/src/app/schemas/data_artifacts.py`。`DatasetArtifactCandidate` 保存 Manifest 精确列投影、按 C-08 record 分层的 rows、`mapped | declared_null | unresolved` 字段 outcome、全部原始/规范化 `SourceValueCandidate`、Transformation Evidence、selection/conflict、两侧 SourceSnapshot 引用、规则/catalog/producer 与稳定 input/output hash；它只声明 C-05 metric inputs，`quality_evaluation_status` 固定为 `not_evaluated`。`FieldDictionaryArtifactCandidate` 是 requested `FieldDefinition` 的精确投影，`SourceCollectionArtifactCandidate` 保存 acquisition mode/data level/completion、raw locators、C-08 alignment/conflict/review/inconclusive keys 和 license provenance。
+
+三者是封印后的领域 typed candidate，不是旧 Phase 0 `DatasetResponse`、HTTP DTO、数据库 `ArtifactVersion` 或 bundle intermediate。完整映射、单位、null/uncertainty/limit、Evidence 与 Publisher handoff 规则见 [Versioned Data Artifacts](../engineering/VERSIONED_DATA_ARTIFACTS.md)。
+
 Dataset 包含 name、columns、rows 或 page_reference、row_count、quality_score、source_snapshot_ids。大型数据集保存 manifest 与分页引用，不强制嵌入全部 rows。
 
 FieldDefinition 包含 name、label、description、data_type、canonical_unit、source_field、source_snapshot_ids、transformation_rule、missing_rate、evidence_ids。

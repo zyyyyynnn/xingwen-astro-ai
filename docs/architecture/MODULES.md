@@ -100,7 +100,7 @@ flowchart LR
 - mapping / unit / quality rule version、input/output hash；
 - 数据修订内容和 Export 输入。
 
-主来源与补充来源的查询、原始记录、SourceSnapshot、Recorded Fixture 和有界 smoke 规则分别见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md) 与 [Supplemental Source Acquisition](../engineering/SUPPLEMENTAL_SOURCE_ACQUISITION.md)。跨源候选投影、匹配 Edge、Evidence、冲突与未匹配结果、显式人工裁决输入和冻结 Benchmark 见 [Cross-source Entity Alignment](../engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md)。字段映射、单位统一、质量评分、ArtifactVersion 发布和 Run 编排由对应职责边界处理。
+主来源与补充来源的查询、原始记录、SourceSnapshot、Recorded Fixture 和有界 smoke 规则分别见 [Data Source Acquisition](../engineering/DATA_SOURCE_ACQUISITION.md) 与 [Supplemental Source Acquisition](../engineering/SUPPLEMENTAL_SOURCE_ACQUISITION.md)。跨源候选投影、匹配 Edge、Evidence、冲突与未匹配结果、显式人工裁决输入和冻结 Benchmark 见 [Cross-source Entity Alignment](../engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md)。C-04 的 Manifest-driven 字段映射、单位统一、Transformation Evidence 与三类 publisher-ready typed candidate 见 [Versioned Data Artifacts](../engineering/VERSIONED_DATA_ARTIFACTS.md)。质量评分、ArtifactVersion 发布和 Run 编排仍由 C-05、Publisher/B 与 Workflow 边界处理。
 
 ### 不负责
 

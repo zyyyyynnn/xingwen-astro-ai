@@ -27,9 +27,24 @@
       "path": "json/CrossmatchResult.schema.json"
     },
     {
+      "module": "app.schemas.data_artifacts",
+      "name": "DataArtifactBuildInput",
+      "path": "json/DataArtifactBuildInput.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DataArtifactBuildResult",
+      "path": "json/DataArtifactBuildResult.schema.json"
+    },
+    {
       "module": "app.schemas.source_acquisition",
       "name": "DataSourceCompletion",
       "path": "json/DataSourceCompletion.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DatasetArtifactCandidate",
+      "path": "json/DatasetArtifactCandidate.schema.json"
     },
     {
       "module": "app.schemas.dataset",
@@ -42,6 +57,11 @@
       "path": "json/EvidenceResponse.schema.json"
     },
     {
+      "module": "app.schemas.data_artifacts",
+      "name": "FieldDictionaryArtifactCandidate",
+      "path": "json/FieldDictionaryArtifactCandidate.schema.json"
+    },
+    {
       "module": "app.schemas.reasoning",
       "name": "LiteratureClaim",
       "path": "json/LiteratureClaim.schema.json"
@@ -50,6 +70,11 @@
       "module": "app.schemas.reasoning",
       "name": "LiteratureRelation",
       "path": "json/LiteratureRelation.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "MappingRuleSet",
+      "path": "json/MappingRuleSet.schema.json"
     },
     {
       "module": "app.schemas.paper",
@@ -82,6 +107,11 @@
       "path": "json/ReasoningTrace.schema.json"
     },
     {
+      "module": "app.schemas.data_artifacts",
+      "name": "SourceCollectionArtifactCandidate",
+      "path": "json/SourceCollectionArtifactCandidate.schema.json"
+    },
+    {
       "module": "app.schemas.source",
       "name": "SourceRecordItem",
       "path": "json/SourceRecordItem.schema.json"
@@ -90,6 +120,11 @@
       "module": "app.schemas.evidence",
       "name": "SourceSnapshot",
       "path": "json/SourceSnapshot.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "UnitConversionCatalog",
+      "path": "json/UnitConversionCatalog.schema.json"
     }
   ],
   "schema_version": 1
