@@ -55,8 +55,9 @@ def test_canonical_assertion_identity_ignores_source_entity_key() -> None:
 
     assert baseline == tampered
     assertion_key = baseline["member_entities"][0]["logical_assertion_key"]
-    assert assertion_key.startswith("assertion.")
-    assert "Reference" not in assertion_key
+    assert assertion_key == "pl_name=Assertion Planet b|pl_refname=Reference A"
+    assert "caller-controlled" not in assertion_key
+    assert "self-consistent-forgery" not in assertion_key
 
 
 def test_canonical_assertion_identity_normalizes_raw_row_key_representation() -> None:
@@ -78,11 +79,9 @@ def test_canonical_assertion_identity_distinguishes_assertion_discriminator() ->
     assert first != second
 
 
-def test_canonical_assertion_identity_is_namespaced_by_source() -> None:
-    first = _identity(_member(source_id="nasa_exoplanet_archive.ps"))
-    second = _identity(_member(source_id="future_catalog.assertions"))
-
-    assert first != second
+def test_canonical_assertion_identity_requires_source_namespace() -> None:
+    with pytest.raises(ValueError, match="source namespace"):
+        _identity(_member(source_id=""))
 
 
 def test_canonical_assertion_identity_requires_non_identity_discriminator() -> None:
