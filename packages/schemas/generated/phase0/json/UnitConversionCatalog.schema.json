@@ -1,0 +1,249 @@
+{
+  "$defs": {
+    "ConversionConstantsProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "authority": {
+          "minLength": 1,
+          "title": "Authority",
+          "type": "string"
+        },
+        "note": {
+          "minLength": 1,
+          "title": "Note",
+          "type": "string"
+        },
+        "resolution_date": {
+          "format": "date",
+          "title": "Resolution Date",
+          "type": "string"
+        },
+        "source_url": {
+          "minLength": 1,
+          "title": "Source Url",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "authority",
+        "source_url",
+        "resolution_date",
+        "note"
+      ],
+      "title": "ConversionConstantsProvenance",
+      "type": "object"
+    },
+    "QuantityKind": {
+      "description": "Physical dimensions used for static compatibility checks only.",
+      "enum": [
+        "none",
+        "angle",
+        "time",
+        "length",
+        "mass",
+        "temperature",
+        "logarithmic_abundance"
+      ],
+      "title": "QuantityKind",
+      "type": "string"
+    },
+    "UnitConversionImplementation": {
+      "additionalProperties": false,
+      "properties": {
+        "factor": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Factor"
+        },
+        "factor_denominator": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Factor Denominator"
+        },
+        "factor_numerator": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Factor Numerator"
+        },
+        "quantity_kind": {
+          "$ref": "#/$defs/QuantityKind"
+        },
+        "rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "source_unit": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Unit"
+        },
+        "target_unit": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Unit"
+        }
+      },
+      "required": [
+        "rule_id",
+        "rule_version",
+        "quantity_kind",
+        "factor",
+        "factor_numerator",
+        "factor_denominator"
+      ],
+      "title": "UnitConversionImplementation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "catalog_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Catalog Id",
+      "type": "string"
+    },
+    "constants_provenance": {
+      "$ref": "#/$defs/ConversionConstantsProvenance"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date",
+      "title": "Created At",
+      "type": "string"
+    },
+    "field_manifest_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Field Manifest Content Hash",
+      "type": "string"
+    },
+    "field_manifest_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Field Manifest Id",
+      "type": "string"
+    },
+    "field_manifest_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Field Manifest Version",
+      "type": "string"
+    },
+    "maintained_by": {
+      "minLength": 1,
+      "title": "Maintained By",
+      "type": "string"
+    },
+    "numeric_implementation_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Numeric Implementation Version",
+      "type": "string"
+    },
+    "precision_digits": {
+      "maximum": 50,
+      "minimum": 18,
+      "title": "Precision Digits",
+      "type": "integer"
+    },
+    "rounding_mode": {
+      "const": "ROUND_HALF_EVEN",
+      "title": "Rounding Mode",
+      "type": "string"
+    },
+    "rules": {
+      "items": {
+        "$ref": "#/$defs/UnitConversionImplementation"
+      },
+      "minItems": 1,
+      "title": "Rules",
+      "type": "array"
+    },
+    "schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "serialization_policy": {
+      "const": "plain_decimal_string_no_exponent",
+      "title": "Serialization Policy",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "catalog_id",
+    "schema_version",
+    "version",
+    "content_hash",
+    "field_manifest_id",
+    "field_manifest_version",
+    "field_manifest_content_hash",
+    "numeric_implementation_version",
+    "precision_digits",
+    "rounding_mode",
+    "serialization_policy",
+    "rules",
+    "constants_provenance",
+    "maintained_by",
+    "created_at"
+  ],
+  "title": "UnitConversionCatalog",
+  "type": "object"
+}

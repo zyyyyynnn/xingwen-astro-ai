@@ -1,0 +1,39 @@
+{
+  "rule_set_id": "exoplanet_host_star.mapping_rules",
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "content_hash": "sha256:ef0d33da2af81c2750cf2994abf09cac4e193c0b06bb5ad0662127d4cd17e63f",
+  "case_manifest_id": "exoplanet_host_star",
+  "case_manifest_version": "1.0.1",
+  "case_manifest_content_hash": "sha256:bb870d3c8b6b6c972cd8d7139b9cfcb672bb9ce75401109271aaf05a147819d3",
+  "field_manifest_id": "exoplanet_host_star.fields",
+  "field_manifest_version": "1.0.1",
+  "field_manifest_content_hash": "sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53",
+  "producer_name": "xingwen.c04.data_artifacts",
+  "producer_version": "1.0.0",
+  "source_selection_policy_version": "1.0.0",
+  "conflict_comparison_policy_version": "1.0.0",
+  "null_derivation_policy_version": "1.0.0",
+  "uncertainty_policy_implementation_version": "1.0.0",
+  "limit_policy_implementation_version": "1.0.0",
+  "numeric_normalization_serialization_version": "1.0.0",
+  "canonical_ordering_policy": "field_manifest_then_stable_identity",
+  "same_source_conflict_policy": "preserve_conflict_no_scientific_winner",
+  "unresolved_identity_policy": "preserve_unresolved_rows",
+  "non_nullable_missing_policy": "fail_admission",
+  "numeric_comparison": {
+    "absolute_tolerance": "0",
+    "relative_tolerance": "0",
+    "threshold_inclusive": true
+  },
+  "capacity": {
+    "max_rows": 10000,
+    "max_requested_fields": 64,
+    "max_source_values_per_field": 32,
+    "max_transformation_evidence": 500000,
+    "max_conflict_candidates": 128,
+    "max_total_cell_outcomes": 500000
+  },
+  "created_at": "2026-08-02",
+  "maintained_by": "C data_pipeline"
+}

@@ -63,6 +63,7 @@
 | [Data Source Acquisition](engineering/DATA_SOURCE_ACQUISITION.md) | 主数据源查询、原始记录、失败语义与 SourceSnapshot |
 | [Supplemental Source Acquisition](engineering/SUPPLEMENTAL_SOURCE_ACQUISITION.md) | 补充来源查询、录制响应、失败语义与独立 SourceSnapshot |
 | [Cross-source Entity Alignment](engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md) | 确定性跨源实体对齐、匹配 Evidence、人工审查输入与冻结 Benchmark |
+| [Versioned Data Artifacts](engineering/VERSIONED_DATA_ARTIFACTS.md) | C-04 Manifest-driven 字段映射、单位统一、Transformation Evidence 与 typed candidates |
 | [PaperCollection Pipeline](engineering/PAPER_COLLECTION_PIPELINE.md) | 论文检索、规范化、去重、排序与运行来源 |
 | [LiteratureClaim Pipeline](engineering/LITERATURE_CLAIM_PIPELINE.md) | D-07 Claim 抽取、Evidence 准入、固定 Benchmark 与 typed candidate |
 | [Roadmap](product/ROADMAP.md)                           | 里程碑目标与顺序                                |
