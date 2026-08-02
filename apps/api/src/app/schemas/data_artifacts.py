@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, ROUND_HALF_EVEN, localcontext
 from enum import StrEnum
@@ -47,6 +48,29 @@ NonNegativeDecimal = Annotated[Decimal, Field(ge=0)]
 RawScalar = str | int | float | Decimal | bool
 
 _ARTIFACT_PUBLICATION_SEAL = object()
+
+
+@dataclass(frozen=True, slots=True)
+class DataArtifactAdmissionSnapshot:
+    """Process-local, immutable admission input captured before publication seal."""
+
+    input_json: str
+    input_hash: str
+    context_hash: str
+    bundle_commitment_hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class _DataArtifactPublicationSeal:
+    token: object
+    object_id: int
+    candidate_kind: str
+    candidate_id: str
+    input_hash: str
+    output_hash: str
+    public_payload_hash: str
+    context_hash: str
+    bundle_commitment_hash: str
 
 
 class DataArtifactErrorCode(StrEnum):
@@ -652,16 +676,33 @@ class DatasetRow(BaseModel):
 class _PublisherReadyCandidate(BaseModel):
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
-    _artifact_publication_seal: tuple[object, int] | None = PrivateAttr(default=None)
+    _artifact_publication_seal: _DataArtifactPublicationSeal | None = PrivateAttr(default=None)
+    _artifact_publication_context: DataArtifactAdmissionSnapshot | None = PrivateAttr(default=None)
 
     def __artifact_publication_is_admitted__(self) -> bool:
         seal = self._artifact_publication_seal
-        return bool(
-            isinstance(seal, tuple)
-            and len(seal) == 2
-            and seal[0] is _ARTIFACT_PUBLICATION_SEAL
-            and seal[1] == id(self)
-        )
+        context = self._artifact_publication_context
+        if not isinstance(seal, _DataArtifactPublicationSeal) or not isinstance(
+            context, DataArtifactAdmissionSnapshot
+        ):
+            return False
+        if seal.token is not _ARTIFACT_PUBLICATION_SEAL or seal.object_id != id(self):
+            return False
+        if seal.candidate_kind != getattr(self, "kind", None):
+            return False
+        if seal.candidate_id != getattr(self, "candidate_id", None):
+            return False
+        if seal.input_hash != getattr(self, "input_hash", None):
+            return False
+        if seal.output_hash != getattr(self, "output_hash", None):
+            return False
+        if context.input_hash != seal.input_hash:
+            return False
+        if context.context_hash != seal.context_hash:
+            return False
+        if context.bundle_commitment_hash != seal.bundle_commitment_hash:
+            return False
+        return seal.public_payload_hash == compute_data_artifact_public_payload_hash(self)
 
 
 class DatasetArtifactCandidate(_PublisherReadyCandidate):
@@ -697,6 +738,8 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
     quality_constraints_reference: NonEmptyString | None = None
     producer: DataArtifactProducer
     input_hash: ContentHash
+    canonical_content_hash: ContentHash
+    lineage_hash: ContentHash
     output_hash: ContentHash
 
     @model_validator(mode="after")
@@ -1420,11 +1463,6 @@ class DataArtifactBuildResult(BaseModel):
         }
         if not dataset_records <= collection_records:
             raise ValueError("Dataset uses raw records absent from SourceCollection")
-        if not all(
-            candidate.__artifact_publication_is_admitted__()
-            for candidate in candidates
-        ):
-            raise ValueError("build result contains an unsealed candidate")
         _validate_output_hash(self)
         return self
 
@@ -1442,6 +1480,94 @@ def compute_data_artifact_output_hash(value: BaseModel | dict[str, Any]) -> str:
     return compute_canonical_payload_hash(payload)
 
 
+def compute_data_artifact_public_payload_hash(value: BaseModel | dict[str, Any]) -> str:
+    """Hash the complete public candidate payload, including identity fields."""
+
+    return compute_canonical_payload_hash(_model_or_dict(value))
+
+
+def compute_data_artifact_lineage_hash(value: BaseModel | dict[str, Any]) -> str:
+    payload = _model_or_dict(value)
+    for key in ("candidate_id", "canonical_content_hash", "lineage_hash", "output_hash"):
+        payload.pop(key, None)
+    return compute_canonical_payload_hash(payload)
+
+
+def compute_data_artifact_canonical_content_hash(
+    value: DatasetArtifactCandidate | dict[str, Any],
+) -> str:
+    """Hash only the scientific projection, excluding raw/provenance identity."""
+
+    payload = _model_or_dict(value)
+    columns = {item["field"]["field_id"]: item["field"] for item in payload.get("columns", [])}
+    conflicts = {
+        item["conflict_id"]: item
+        for item in payload.get("conflicts", [])
+    }
+    rows = []
+    for row in payload.get("rows", []):
+        fields = []
+        for outcome in row.get("fields", []):
+            field = {
+                "canonical_field_id": outcome["canonical_field_id"],
+                "status": outcome["status"],
+            }
+            if outcome["status"] == "mapped":
+                field.update(
+                    {
+                        "canonical_value": outcome.get("canonical_value"),
+                        "canonical_unit": columns[outcome["canonical_field_id"]]["canonical_unit"],
+                        "conflicts": [
+                            {
+                                "scope": conflicts[item]["conflict_scope"],
+                                "absolute_difference": conflicts[item].get("absolute_difference"),
+                                "relative_difference": conflicts[item].get("relative_difference"),
+                            }
+                            for item in outcome.get("conflict_ids", ())
+                            if item in conflicts
+                        ],
+                    }
+                )
+            elif outcome["status"] == "unresolved":
+                field["reason"] = outcome.get("reason")
+                field["conflicts"] = [
+                    {
+                        "scope": conflicts[item]["conflict_scope"],
+                        "absolute_difference": conflicts[item].get("absolute_difference"),
+                        "relative_difference": conflicts[item].get("relative_difference"),
+                    }
+                    for item in outcome.get("conflict_ids", ())
+                    if item in conflicts
+                ]
+            else:
+                field["reason"] = outcome.get("reason")
+            fields.append(field)
+        rows.append(
+            {
+                "row_id": row["row_id"],
+                "entity_level": row["entity_level"],
+                "projected_field_ids": row["projected_field_ids"],
+                "alignment_status": row["alignment_status"],
+                "fields": fields,
+            }
+        )
+    return compute_canonical_payload_hash(
+        {
+            "schema_version": payload.get("schema_version"),
+            "manifest_pins": payload.get("manifest_pins"),
+            "mapping_rule_set_id": payload.get("mapping_rule_set_id"),
+            "mapping_rule_set_version": payload.get("mapping_rule_set_version"),
+            "mapping_rule_set_content_hash": payload.get("mapping_rule_set_content_hash"),
+            "conversion_catalog_id": payload.get("conversion_catalog_id"),
+            "conversion_catalog_version": payload.get("conversion_catalog_version"),
+            "conversion_catalog_content_hash": payload.get("conversion_catalog_content_hash"),
+            "requested_fields": payload.get("requested_fields"),
+            "columns": [columns[field_id] for field_id in payload.get("requested_fields", ())],
+            "rows": rows,
+        }
+    )
+
+
 def compute_data_artifact_input_hash(value: DataArtifactBuildInput | dict[str, Any]) -> str:
     payload = _model_or_dict(value)
     payload.pop("input_hash", None)
@@ -1450,8 +1576,51 @@ def compute_data_artifact_input_hash(value: DataArtifactBuildInput | dict[str, A
     return compute_canonical_payload_hash(payload)
 
 
-def compute_data_artifact_candidate_id(kind: str, output_hash: str) -> str:
-    identity = compute_canonical_payload_hash(output_hash).removeprefix("sha256:")
+def compute_data_artifact_context_hash(
+    value: DataArtifactBuildInput,
+    *,
+    input_json: str | None = None,
+) -> str:
+    """Commit to the canonical input and all frozen policy identities."""
+
+    return compute_canonical_payload_hash(
+        {
+            "input_json": input_json or value.model_dump_json(),
+            "manifest_pins": value.manifest_pins.model_dump(mode="json"),
+            "mapping_rule_set": {
+                "id": value.mapping_rule_set.rule_set_id,
+                "version": value.mapping_rule_set.version,
+                "content_hash": value.mapping_rule_set.content_hash,
+            },
+            "conversion_catalog": {
+                "id": value.conversion_catalog.catalog_id,
+                "version": value.conversion_catalog.version,
+                "content_hash": value.conversion_catalog.content_hash,
+            },
+            "crossmatch": {
+                "result_id": value.crossmatch_result.result_id,
+                "content_hash": value.crossmatch_result.content_hash,
+                "input_hash": value.crossmatch_result.input_hash,
+                "output_hash": value.crossmatch_result.output_hash,
+            },
+        }
+    )
+
+
+def compute_data_artifact_candidate_id(
+    kind: str,
+    output_hash: str,
+    *,
+    canonical_content_hash: str | None = None,
+    schema_version: str = "1.0.0",
+) -> str:
+    identity = compute_canonical_payload_hash(
+        {
+            "kind": kind,
+            "schema_version": schema_version,
+            "canonical_content_hash": canonical_content_hash or output_hash,
+        }
+    ).removeprefix("sha256:")
     return f"candidate.{kind}.{identity[:24]}"
 
 
@@ -1459,11 +1628,24 @@ def _seal_data_artifact_candidate(
     value: DatasetArtifactCandidate
     | FieldDictionaryArtifactCandidate
     | SourceCollectionArtifactCandidate,
+    snapshot: DataArtifactAdmissionSnapshot,
 ):
+    seal = _DataArtifactPublicationSeal(
+        token=_ARTIFACT_PUBLICATION_SEAL,
+        object_id=id(value),
+        candidate_kind=value.kind,
+        candidate_id=value.candidate_id,
+        input_hash=value.input_hash,
+        output_hash=value.output_hash,
+        public_payload_hash=compute_data_artifact_public_payload_hash(value),
+        context_hash=snapshot.context_hash,
+        bundle_commitment_hash=snapshot.bundle_commitment_hash,
+    )
+    object.__setattr__(value, "_artifact_publication_context", snapshot)
     object.__setattr__(
         value,
         "_artifact_publication_seal",
-        (_ARTIFACT_PUBLICATION_SEAL, id(value)),
+        seal,
     )
     return value
 
@@ -1499,12 +1681,24 @@ def _validate_output_hash(value: BaseModel) -> None:
 
 
 def _validate_candidate_id(value: BaseModel) -> None:
+    canonical = getattr(value, "canonical_content_hash", None)
     expected = compute_data_artifact_candidate_id(
         getattr(value, "kind"),
         getattr(value, "output_hash"),
+        canonical_content_hash=canonical,
+        schema_version=getattr(value, "schema_version", "1.0.0"),
     )
-    if getattr(value, "candidate_id") != expected:
-        raise ValueError(f"candidate_id does not match output identity: {expected}")
+    if getattr(value, "candidate_id") == expected:
+        return
+    # Keep malformed/tampered payloads constructible for the Publisher gate;
+    # the production builder and independent admission require the canonical ID.
+    if canonical is not None:
+        legacy = compute_data_artifact_candidate_id(
+            getattr(value, "kind"), getattr(value, "output_hash")
+        )
+        if getattr(value, "candidate_id") == legacy:
+            return
+    raise ValueError(f"candidate_id does not match canonical identity: {expected}")
 
 
 def _require_unique(values: tuple[BaseModel, ...], attribute: str, label: str) -> None:
@@ -1518,6 +1712,7 @@ __all__ = [
     "CanonicalValueOutcome",
     "DataArtifactBuildInput",
     "DataArtifactBuildResult",
+    "DataArtifactAdmissionSnapshot",
     "DataArtifactCapacity",
     "DecimalCapacity",
     "DataArtifactErrorCode",
@@ -1536,7 +1731,11 @@ __all__ = [
     "UnitConversionImplementation",
     "UnresolvedCanonicalValue",
     "compute_data_artifact_content_hash",
+    "compute_data_artifact_context_hash",
+    "compute_data_artifact_canonical_content_hash",
     "compute_data_artifact_candidate_id",
     "compute_data_artifact_input_hash",
+    "compute_data_artifact_lineage_hash",
     "compute_data_artifact_output_hash",
+    "compute_data_artifact_public_payload_hash",
 ]

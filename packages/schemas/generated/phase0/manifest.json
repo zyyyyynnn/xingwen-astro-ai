@@ -32,11 +32,6 @@
       "path": "json/DataArtifactBuildInput.schema.json"
     },
     {
-      "module": "app.schemas.data_artifacts",
-      "name": "DataArtifactBuildResult",
-      "path": "json/DataArtifactBuildResult.schema.json"
-    },
-    {
       "module": "app.schemas.source_acquisition",
       "name": "DataSourceCompletion",
       "path": "json/DataSourceCompletion.schema.json"

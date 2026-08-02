@@ -41,10 +41,15 @@ from app.schemas.data_artifacts import (
     UncertaintyValue,
     UnresolvedCanonicalValue,
     _seal_data_artifact_candidate,
+    DataArtifactAdmissionSnapshot,
+    compute_data_artifact_canonical_content_hash,
+    compute_data_artifact_context_hash,
     compute_data_artifact_candidate_id,
     compute_data_artifact_content_hash,
     compute_data_artifact_input_hash,
+    compute_data_artifact_lineage_hash,
     compute_data_artifact_output_hash,
+    compute_data_artifact_public_payload_hash,
     compute_raw_record_reference_registry_hash,
 )
 from app.schemas.manifest import DataType, FieldDefinition, NullReason, QuantityKind
@@ -54,6 +59,11 @@ from services.data_pipeline.manifest import load_frozen_manifest_bundle
 from .conversion import convert_decimal_value, decimal_from_source, serialize_decimal
 from .errors import DataArtifactError
 from .policy import load_mapping_rule_set, load_unit_conversion_catalog
+from services.data_pipeline.crossmatch.policy import (
+    load_crossmatch_rule_set,
+    load_crossmatch_source_policy,
+    load_entity_alias_catalog,
+)
 
 
 def _stable_id(prefix: str, payload: object) -> str:
@@ -69,8 +79,16 @@ def _hashed(model_type, payload: dict[str, Any]):
 def _candidate(model_type, payload: dict[str, Any]):
     payload.setdefault("schema_version", "1.0.0")
     payload.setdefault("quality_evaluation_status", "not_evaluated")
+    if model_type is DatasetArtifactCandidate:
+        payload["canonical_content_hash"] = compute_data_artifact_canonical_content_hash(payload)
+        payload["lineage_hash"] = compute_data_artifact_lineage_hash(payload)
     output_hash = compute_data_artifact_output_hash(payload)
-    payload["candidate_id"] = compute_data_artifact_candidate_id(payload["kind"], output_hash)
+    payload["candidate_id"] = compute_data_artifact_candidate_id(
+        payload["kind"],
+        output_hash,
+        canonical_content_hash=payload.get("canonical_content_hash"),
+        schema_version=payload["schema_version"],
+    )
     payload["output_hash"] = output_hash
     return model_type.model_validate(payload)
 
@@ -670,7 +688,7 @@ def _conflicts(field, non_null_values, rule_set, *, row_id="dataset_row.unit"):
     return (_hashed(FieldConflictRecord, payload),)
 
 
-def build_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifactBuildResult:
+def _build_unsealed_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifactBuildResult:
     """Transform already-acquired, already-crossmatched inputs without external I/O."""
 
     _validate_runtime_input_integrity(input)
@@ -997,6 +1015,110 @@ def build_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifac
         "input_hash": input.input_hash,
         "output_hash": compute_data_artifact_output_hash(hash_payload),
     }
-    for candidate in (dataset, field_dictionary, source_collection):
-        _seal_data_artifact_candidate(candidate)
     return DataArtifactBuildResult.model_validate(payload)
+
+
+def _validate_frozen_crossmatch_handoff(input_value: DataArtifactBuildInput) -> None:
+    """Require the C-08 handoff to use the repository-frozen execution policy."""
+
+    result = input_value.crossmatch_result
+    context = result.admission_context
+    frozen_rule_set = load_crossmatch_rule_set()
+    frozen_alias_catalog = load_entity_alias_catalog()
+    frozen_source_policy = load_crossmatch_source_policy()
+    if (
+        (context.rule_set, context.alias_catalog, context.source_policy)
+        != (frozen_rule_set, frozen_alias_catalog, frozen_source_policy)
+    ):
+        raise DataArtifactError(
+            DataArtifactErrorCode.crossmatch_result_mismatch,
+            "CrossmatchResult is not bound to the repository-frozen C-08 policies",
+        )
+    expected = (
+        frozen_rule_set.rule_set_id,
+        frozen_rule_set.version,
+        frozen_rule_set.content_hash,
+        frozen_alias_catalog.catalog_id,
+        frozen_alias_catalog.version,
+        frozen_alias_catalog.content_hash,
+        frozen_rule_set.producer_name,
+        frozen_rule_set.producer_version,
+    )
+    actual = (
+        result.rule_set_id,
+        result.rule_set_version,
+        result.rule_set_content_hash,
+        result.alias_catalog_id,
+        result.alias_catalog_version,
+        result.alias_catalog_content_hash,
+        result.producer_execution.producer_name,
+        result.producer_execution.producer_version,
+    )
+    if actual != expected:
+        raise DataArtifactError(
+            DataArtifactErrorCode.crossmatch_result_mismatch,
+            "CrossmatchResult execution bindings are not repository-frozen",
+        )
+
+
+def _bundle_commitment(result: DataArtifactBuildResult) -> str:
+    return compute_canonical_payload_hash(
+        [
+            {
+                "kind": candidate.kind,
+                "candidate_id": candidate.candidate_id,
+                "public_payload_hash": compute_data_artifact_public_payload_hash(candidate),
+            }
+            for candidate in (
+                result.dataset,
+                result.field_dictionary,
+                result.source_collection,
+            )
+        ]
+    )
+
+
+def build_data_artifact_candidates(
+    input: DataArtifactBuildInput,
+) -> DataArtifactBuildResult:
+    """Validate, independently admit, and finally seal one C-04 bundle."""
+
+    try:
+        validated_input = DataArtifactBuildInput.model_validate_json(input.model_dump_json())
+    except Exception as exc:
+        # Preserve the domain-specific failure code for callers that supplied a
+        # post-validation-corrupted model, while still refusing the object at
+        # the canonical JSON boundary.
+        for check in (_validate_runtime_input_integrity, _validate_policy_bindings):
+            try:
+                check(input)
+            except DataArtifactError as domain_error:
+                raise domain_error from exc
+        raise DataArtifactError(
+            DataArtifactErrorCode.input_hash_mismatch,
+            "C-04 input cannot be reparsed as a valid canonical build input",
+            cause=exc,
+        ) from exc
+    _validate_frozen_crossmatch_handoff(validated_input)
+    result = _build_unsealed_data_artifact_candidates(validated_input)
+    from .admission import validate_data_artifact_candidates_against_input
+
+    validate_data_artifact_candidates_against_input(result, validated_input)
+    input_json = validated_input.model_dump_json()
+    commitment = _bundle_commitment(result)
+    snapshot = DataArtifactAdmissionSnapshot(
+        input_json=input_json,
+        input_hash=validated_input.input_hash,
+        context_hash=compute_data_artifact_context_hash(
+            validated_input,
+            input_json=input_json,
+        ),
+        bundle_commitment_hash=commitment,
+    )
+    for candidate in (
+        result.dataset,
+        result.field_dictionary,
+        result.source_collection,
+    ):
+        _seal_data_artifact_candidate(candidate, snapshot)
+    return result

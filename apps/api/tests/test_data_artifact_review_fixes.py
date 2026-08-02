@@ -552,8 +552,10 @@ def test_build_result_rejects_candidate_from_another_build() -> None:
 def test_build_result_json_reparse_cannot_recreate_bundle_seals() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
 
-    with pytest.raises(ValidationError, match="unsealed candidate"):
-        DataArtifactBuildResult.model_validate(result.model_dump(mode="json"))
+    reparsed = DataArtifactBuildResult.model_validate(result.model_dump(mode="json"))
+    assert reparsed.dataset.__artifact_publication_is_admitted__() is False
+    assert reparsed.field_dictionary.__artifact_publication_is_admitted__() is False
+    assert reparsed.source_collection.__artifact_publication_is_admitted__() is False
 
 
 def test_build_result_rejects_source_collection_missing_used_raw_record() -> None:
