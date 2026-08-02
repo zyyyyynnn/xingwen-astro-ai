@@ -75,6 +75,91 @@ def _canonical_column(value: Mapping[str, Any]) -> dict[str, Any]:
     return {key: item for key, item in field.items() if key not in excluded}
 
 
+def _canonical_entity_identity(value: Any) -> dict[str, Any]:
+    """Project one admitted C-08 entity without source-lineage identity."""
+
+    payload = _payload(value)
+    identity_values = sorted(
+        (
+            {
+                "field_id": item.get("field_id"),
+                "normalized_value": item.get("normalized_value"),
+                "normalization_rule_version": item.get(
+                    "normalization_rule_version"
+                ),
+            }
+            for item in payload.get("identity_values", ())
+        ),
+        key=compute_canonical_payload_hash,
+    )
+    projected: dict[str, Any] = {
+        "entity_level": payload.get("entity_level"),
+        "identity_values": identity_values,
+    }
+    if payload.get("entity_level") == "planet_assertion":
+        # C-08 admits source_entity_key as the logical assertion key. It preserves
+        # separate assertions for the same normalized planet without importing
+        # Snapshot/query/record hashes, locators, Evidence, or generated IDs.
+        projected["logical_assertion_key"] = payload.get(
+            "logical_assertion_key"
+        ) or payload.get("source_record", {}).get(
+            "source_entity_key"
+        )
+    return projected
+
+
+def derive_canonical_row_identity(
+    record: Any,
+    members: Any,
+    *,
+    alignment_status: Any,
+) -> dict[str, Any]:
+    """Derive the sole canonical row/entity identity from admitted C-08 semantics."""
+
+    record_payload = _payload(record)
+    member_identities = {
+        compute_canonical_payload_hash(identity): identity
+        for identity in (_canonical_entity_identity(member) for member in members)
+    }
+    projected: dict[str, Any] = {
+        "identity_version": "1.0.0",
+        "record_type": record_payload.get("record_type"),
+        "entity_level": record_payload.get("entity_level"),
+        "alignment_status": getattr(alignment_status, "value", alignment_status),
+        "member_entities": [
+            member_identities[key] for key in sorted(member_identities)
+        ],
+    }
+    conflict_code = record_payload.get("conflict_code")
+    if conflict_code is not None:
+        projected["conflict_code"] = conflict_code
+    return projected
+
+
+def _canonical_row_identity(value: Any) -> dict[str, Any]:
+    """Normalize a serialized canonical row identity for scientific hashing."""
+
+    payload = _payload(value)
+    members_by_hash = {
+        compute_canonical_payload_hash(identity): identity
+        for identity in (
+            _canonical_entity_identity(member)
+            for member in payload.get("member_entities", ())
+        )
+    }
+    members = [members_by_hash[key] for key in sorted(members_by_hash)]
+    projected = {
+        "identity_version": payload.get("identity_version"),
+        "record_type": payload.get("record_type"),
+        "entity_level": payload.get("entity_level"),
+        "alignment_status": payload.get("alignment_status"),
+        "member_entities": members,
+    }
+    if payload.get("conflict_code") is not None:
+        projected["conflict_code"] = payload["conflict_code"]
+    return projected
+
+
 def dataset_scientific_projection(value: Any) -> dict[str, Any]:
     """Return the complete C-04 scientific projection used for Dataset identity."""
 
@@ -149,14 +234,16 @@ def dataset_scientific_projection(value: Any) -> dict[str, Any]:
             outcomes.append(projected)
         rows.append(
             {
-                "crossmatch_record_type": row.get("crossmatch_record_type"),
-                "entity_level": row.get("entity_level"),
+                "canonical_row_identity": _canonical_row_identity(
+                    row.get("canonical_row_identity", {})
+                ),
                 "projection_policy_version": row.get("projection_policy_version"),
                 "projected_field_ids": row.get("projected_field_ids"),
-                "alignment_status": row.get("alignment_status"),
                 "fields": outcomes,
             }
         )
+
+    rows.sort(key=compute_canonical_payload_hash)
 
     return {
         "schema_version": payload.get("schema_version"),
@@ -219,4 +306,5 @@ __all__ = [
     "compute_dataset_lineage_hash",
     "dataset_lineage_projection",
     "dataset_scientific_projection",
+    "derive_canonical_row_identity",
 ]
