@@ -93,7 +93,7 @@ BuildResult 是进程内编排结果，不是 generated JSON Contract；它进�
 Dataset identity 只在 `data_artifact_identity.py` 定义：
 
 - `canonical_content_hash` 覆盖 Manifest/policy/requested canonical schema、canonical row identity、row grain/entity projection/alignment、canonical 主值与单位、canonical uncertainty、limit status、null/unresolved、完整 canonical candidate 集合及其 source/alias priority、selection winner/order/reason 和 conflict scope/differences；排除 raw value/unit/table、locator、Snapshot/query/record/Evidence、source-value/conflict/selection 等派生 ID。所有 canonical Decimal 零在该投影中归一为 `0`。
-- `canonical_row_identity` 仅在 `data_artifact_identity.py` 派生：它由 C-08 已准入的 record type/entity level/alignment、去重排序后的 normalized entity identity values 与 normalization rule version 构成；crossmatch conflict 还包含 conflict code。`planet_assertion` 额外保留 C-08 `source_entity_key` 这一 logical assertion key，使相同 planet identity 下的不同来源断言不折叠。该结构不读取 candidate/logical-match/Snapshot/query/raw-record/Evidence/source-value 等派生 ID；空字段、unmatched/inconclusive/review-required/rejected/conflict row 也因此具有稳定科学身份。Dataset 科学投影按该身份排序 rows，输入记录枚举顺序不参与 identity。
+- `canonical_row_identity` 仅在 `data_artifact_identity.py` 派生：它由 C-08 已准入的 record type/entity level/alignment、去重排序后的 normalized entity identity values 与 normalization rule version 构成；crossmatch conflict 还包含 conflict code。`planet_assertion` 的 logical assertion key 由版本化结构重新派生，输入仅包含 source namespace、normalized entity identity 和 row key 中去除 identity raw field 后的 assertion discriminator；字符串只做空白规范化。该计算不读取或信任 `source_entity_key`，也不引入 Snapshot/query/raw-record/Evidence/source-value 等 lineage 与派生 ID。空字段、unmatched/inconclusive/review-required/rejected/conflict row 也因此具有稳定科学身份。Dataset 科学投影按该身份排序 rows，输入记录枚举顺序不参与 identity。
 - `lineage_hash` 覆盖除 candidate/hash identity 字段以外的完整 Dataset public representation，因而包含 raw representation、Snapshot/query/record、locator、Evidence、input/C-08 lineage，并由 Schema 与 admission 严格复算。
 - `output_hash` 覆盖除 candidate ID 与 output hash 自身外的完整公开候选内容，因此同时承诺 canonical 与 lineage hash。
 - Dataset `candidate_id` 只能由 kind、schema version 与 `canonical_content_hash` 派生；不存在 legacy output-hash fallback。FieldDictionary/SourceCollection 继续以完整 output hash 作为自身 candidate identity 输入。
@@ -112,7 +112,7 @@ C-05 #35 后续消费 Dataset 的 field outcomes、conflicts、Evidence coverage
 
 ```powershell
 Set-Location apps/api
-uv run pytest tests/test_data_artifact_contract.py tests/test_field_mapping.py tests/test_unit_conversion.py tests/test_data_artifact_pipeline.py tests/test_data_artifact_publisher_port.py tests/test_data_artifact_review_fixes.py tests/test_data_artifact_admission_replay.py
+uv run pytest tests/test_data_artifact_contract.py tests/test_field_mapping.py tests/test_unit_conversion.py tests/test_data_artifact_pipeline.py tests/test_data_artifact_publisher_port.py tests/test_data_artifact_review_fixes.py tests/test_data_artifact_admission_replay.py tests/test_data_artifact_assertion_identity.py
 uv run pytest -q
 
 Set-Location ../..
