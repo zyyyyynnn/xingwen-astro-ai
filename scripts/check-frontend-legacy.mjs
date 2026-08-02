@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import process from "node:process";
 
@@ -26,7 +26,8 @@ const files = execFileSync("git", ["ls-files", "-co", "--exclude-standard"], {
 })
   .split(/\r?\n/u)
   .filter(Boolean)
-  .map((file) => file.replaceAll("\\", "/"));
+  .map((file) => file.replaceAll("\\", "/"))
+  .filter((file) => existsSync(resolve(root, file)));
 const failures = [];
 
 for (const file of files) {

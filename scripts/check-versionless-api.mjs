@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import process from "node:process";
 
@@ -75,7 +75,11 @@ function collectFiles() {
     .filter(Boolean)
     .map((file) => file.replaceAll("\\", "/"));
 
-  return listed.filter((file) => {
+  // A generated Contract may be intentionally removed in the working tree;
+  // do not attempt to read deleted tracked paths before the next commit.
+  const existing = listed.filter((file) => existsSync(join(root, file)));
+
+  return existing.filter((file) => {
     if (file.split("/").some((segment) => SKIP_DIR_NAMES.has(segment))) {
       return false;
     }

@@ -9,6 +9,8 @@
 
 ## 1. 版本边界
 
+C-04 的 `MappingRuleSet` 与 `UnitConversionCatalog` 是 Artifact 内容生成条件：两者的完整仓库冻结内容（包括 entity projection、集合 tolerance、容量和 Decimal 安全边界）的 id/version/content hash、Case/Field Manifest pins、C-08 result、acquisition SourceSnapshot/record set 和 requested fields 全部进入 `DataArtifactBuildInput.input_hash`。公共入口拒绝 caller 自行修改并重算 hash 的替代策略。Dataset、FieldDictionary、SourceCollection 和 bundle 分别计算 output hash；bundle 对三类 candidate 执行共同 pins、producer、input、Snapshot/Evidence、FieldDefinition 与 raw-record 引用闭包校验后才封印实例。Pipeline typed candidate 尚未成为 `ArtifactVersion`；只有通过 #78 structured admission port 并进入 Publisher 事务后，才能分配数据库版本号。
+
 | 对象              | 是否不可变           | 用途                                                        |
 | ----------------- | -------------------- | ----------------------------------------------------------- |
 | ResearchContract  | 确认后不可变         | 固定一次 Run 的研究输入和质量要求                           |
@@ -146,6 +148,8 @@ RuleSet version/hash。运行规则见
 成功的 Crossref metadata execution 生成完整不可变 SourceSnapshot；失败请求保存 SourceExecution 的 query/pagination/hash/error，不伪造 Snapshot。Cached PaperCollection 要求 Snapshot 额外绑定真实 `origin_run_id` 与 `origin_artifact_version_id`；CacheSelector 与 origin persistence 由 B/Workflow 边界负责。
 
 ## 6. Hash 规则
+
+C-04 数值使用版本化 Decimal/serialization 策略；Transformation Evidence、source value、row、selection、conflict 与三类 candidate 均重算稳定 hash。hash 不包含 wall-clock、Git 分支、日志、数据库 ID、ArtifactVersion number 或 Publisher content hash，不能用重新解析/复制实例绕过 publication seal。具体字段见 [Versioned Data Artifacts](../engineering/VERSIONED_DATA_ARTIFACTS.md)。
 
 - JSON hash 前使用稳定键顺序、明确数字/日期编码和 UTF-8。
 - 文本统一 UTF-8 与 LF 后计算；二进制使用 SHA-256。
