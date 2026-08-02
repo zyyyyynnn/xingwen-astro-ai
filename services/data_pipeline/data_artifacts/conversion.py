@@ -7,6 +7,7 @@ from functools import lru_cache
 import math
 
 from app.schemas.data_artifacts import (
+    DecimalCapacity,
     DataArtifactErrorCode,
     UnitConversionCatalog,
 )
@@ -14,7 +15,42 @@ from app.schemas.data_artifacts import (
 from .errors import DataArtifactError
 
 
-def decimal_from_source(value: object) -> Decimal:
+@lru_cache(maxsize=1)
+def _frozen_decimal_capacity() -> DecimalCapacity:
+    from .policy import load_unit_conversion_catalog
+
+    return load_unit_conversion_catalog().decimal_capacity
+
+
+def _validate_decimal_capacity(
+    value: Decimal,
+    *,
+    source_text: str,
+    capacity: DecimalCapacity,
+) -> None:
+    if len(source_text) > capacity.max_input_text_length:
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded,
+            "numeric input text capacity exceeded",
+        )
+    digits = value.as_tuple().digits
+    exponent = value.as_tuple().exponent
+    if (
+        len(digits) > capacity.max_significant_digits
+        or abs(value.adjusted()) > capacity.max_adjusted_exponent
+        or (isinstance(exponent, int) and max(-exponent, 0) > capacity.max_fractional_scale)
+    ):
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded,
+            "numeric exponent, precision, or scale capacity exceeded",
+        )
+
+
+def decimal_from_source(
+    value: object,
+    *,
+    capacity: DecimalCapacity | None = None,
+) -> Decimal:
     if isinstance(value, bool) or not isinstance(value, (int, float, str, Decimal)):
         raise DataArtifactError(
             DataArtifactErrorCode.invalid_numeric_value,
@@ -26,7 +62,21 @@ def decimal_from_source(value: object) -> Decimal:
             "source numeric value must be finite",
         )
     try:
-        converted = Decimal(str(value))
+        source_text = str(value)
+    except (ValueError, OverflowError) as exc:
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded,
+            "numeric input cannot be represented within bounded text capacity",
+            cause=exc,
+        ) from exc
+    active_capacity = capacity or _frozen_decimal_capacity()
+    if len(source_text) > active_capacity.max_input_text_length:
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded,
+            "numeric input text capacity exceeded",
+        )
+    try:
+        converted = Decimal(source_text)
     except InvalidOperation as exc:
         raise DataArtifactError(
             DataArtifactErrorCode.invalid_numeric_value,
@@ -38,7 +88,12 @@ def decimal_from_source(value: object) -> Decimal:
             DataArtifactErrorCode.non_finite_numeric_value,
             "source numeric value must be finite",
         )
-    return converted
+    _validate_decimal_capacity(
+        converted,
+        source_text=source_text,
+        capacity=active_capacity,
+    )
+    return Decimal(0) if converted.is_zero() else converted
 
 
 def convert_decimal_value(
@@ -51,7 +106,7 @@ def convert_decimal_value(
     quantity_kind: str,
     catalog: UnitConversionCatalog,
 ) -> Decimal:
-    source = decimal_from_source(value)
+    source = decimal_from_source(value, capacity=catalog.decimal_capacity)
     rule = _catalog_index(catalog).get(rule_id)
     if rule is None:
         raise DataArtifactError(
@@ -82,16 +137,39 @@ def convert_decimal_value(
     with localcontext() as context:
         context.prec = catalog.precision_digits
         context.rounding = ROUND_HALF_EVEN
-        return source * rule.factor
+        converted = source * rule.factor
+    _validate_decimal_capacity(
+        converted,
+        source_text=str(converted),
+        capacity=catalog.decimal_capacity,
+    )
+    return Decimal(0) if converted.is_zero() else converted
 
 
-def serialize_decimal(value: Decimal) -> str:
+def serialize_decimal(
+    value: Decimal,
+    *,
+    capacity: DecimalCapacity | None = None,
+) -> str:
     if not value.is_finite():
         raise DataArtifactError(
             DataArtifactErrorCode.non_finite_numeric_value,
             "canonical numeric value must be finite",
         )
+    active_capacity = capacity or _frozen_decimal_capacity()
+    _validate_decimal_capacity(
+        value,
+        source_text=str(value),
+        capacity=active_capacity,
+    )
+    if value.is_zero():
+        return "0"
     rendered = format(value, "f")
+    if len(rendered) > active_capacity.max_plain_string_length:
+        raise DataArtifactError(
+            DataArtifactErrorCode.capacity_exceeded,
+            "plain decimal serialization capacity exceeded",
+        )
     if "." in rendered:
         rendered = rendered.rstrip("0").rstrip(".")
     return rendered or "0"

@@ -39,6 +39,45 @@
       "title": "ConversionConstantsProvenance",
       "type": "object"
     },
+    "DecimalCapacity": {
+      "additionalProperties": false,
+      "properties": {
+        "max_adjusted_exponent": {
+          "exclusiveMinimum": 0,
+          "title": "Max Adjusted Exponent",
+          "type": "integer"
+        },
+        "max_fractional_scale": {
+          "exclusiveMinimum": 0,
+          "title": "Max Fractional Scale",
+          "type": "integer"
+        },
+        "max_input_text_length": {
+          "exclusiveMinimum": 0,
+          "title": "Max Input Text Length",
+          "type": "integer"
+        },
+        "max_plain_string_length": {
+          "exclusiveMinimum": 0,
+          "title": "Max Plain String Length",
+          "type": "integer"
+        },
+        "max_significant_digits": {
+          "exclusiveMinimum": 0,
+          "title": "Max Significant Digits",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_input_text_length",
+        "max_significant_digits",
+        "max_adjusted_exponent",
+        "max_fractional_scale",
+        "max_plain_string_length"
+      ],
+      "title": "DecimalCapacity",
+      "type": "object"
+    },
     "QuantityKind": {
       "description": "Physical dimensions used for static compatibility checks only.",
       "enum": [
@@ -167,6 +206,9 @@
       "title": "Created At",
       "type": "string"
     },
+    "decimal_capacity": {
+      "$ref": "#/$defs/DecimalCapacity"
+    },
     "field_manifest_content_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "title": "Field Manifest Content Hash",
@@ -225,6 +267,11 @@
       "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
       "title": "Version",
       "type": "string"
+    },
+    "zero_serialization_policy": {
+      "const": "canonical_unsigned_zero",
+      "title": "Zero Serialization Policy",
+      "type": "string"
     }
   },
   "required": [
@@ -239,6 +286,8 @@
     "precision_digits",
     "rounding_mode",
     "serialization_policy",
+    "zero_serialization_policy",
+    "decimal_capacity",
     "rules",
     "constants_provenance",
     "maintained_by",

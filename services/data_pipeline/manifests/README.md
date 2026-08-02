@@ -14,7 +14,7 @@
 
 - `services/data_pipeline/manifests/exoplanet_host_star/` 保存 Case Manifest 和 Field Manifest 数据。
 - `services/data_pipeline/manifests/exoplanet_host_star/source-evidence/` 保存官方定义、TAP_SCHEMA 观测和裁决记录；证据解释来源列裁决，但不替代 Manifest 的生产契约。
-- `services/data_pipeline/manifests/exoplanet_host_star/mapping-rules/` 保存 C-04 执行策略与单位换算实现 catalog；它固定执行语义和常数 provenance，但不复制 Field Manifest 字段事实。
+- `services/data_pipeline/manifests/exoplanet_host_star/mapping-rules/` 保存 C-04 唯一执行策略与单位换算实现 catalog；它固定 Dataset row-grain/entity projection、集合 tolerance、容量、Decimal serialization limits 和常数 provenance，但不复制 Field Manifest 字段事实。生产入口必须从这些 JSON 加载并拒绝 caller-owned 替代策略。
 - `apps/api/src/app/schemas/manifest.py` 是 Pydantic v2 Schema authoring source，只定义结构、稳定 hash 和静态校验，不新增 API 端点。
 - `packages/schemas/generated/` 只保存现有导出脚本生成的 JSON Schema，不手写第二套生产 Schema。
 - `packages/domain`、`packages/contracts`、前端和 Pipeline 运行时代码只能按版本引用 Manifest，不复制字段清单。

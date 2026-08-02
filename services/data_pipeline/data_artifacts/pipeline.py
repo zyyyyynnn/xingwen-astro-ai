@@ -31,8 +31,10 @@ from app.schemas.data_artifacts import (
     LimitValue,
     MappedCanonicalValue,
     SelectionStatus,
+    RawSourceRecordReference,
     SourceCellLocator,
     SourceCollectionArtifactCandidate,
+    SourceCollectionMember,
     SourceValueCandidate,
     TransformationEvidence,
     UncertaintyStatus,
@@ -43,6 +45,7 @@ from app.schemas.data_artifacts import (
     compute_data_artifact_content_hash,
     compute_data_artifact_input_hash,
     compute_data_artifact_output_hash,
+    compute_raw_record_reference_registry_hash,
 )
 from app.schemas.manifest import DataType, FieldDefinition, NullReason, QuantityKind
 from app.schemas.source_acquisition import RawDataSourceRecord, compute_raw_data_record_hash
@@ -50,6 +53,7 @@ from services.data_pipeline.manifest import load_frozen_manifest_bundle
 
 from .conversion import convert_decimal_value, decimal_from_source, serialize_decimal
 from .errors import DataArtifactError
+from .policy import load_mapping_rule_set, load_unit_conversion_catalog
 
 
 def _stable_id(prefix: str, payload: object) -> str:
@@ -68,7 +72,7 @@ def _candidate(model_type, payload: dict[str, Any]):
     output_hash = compute_data_artifact_output_hash(payload)
     payload["candidate_id"] = compute_data_artifact_candidate_id(payload["kind"], output_hash)
     payload["output_hash"] = output_hash
-    return _seal_data_artifact_candidate(model_type.model_validate(payload))
+    return model_type.model_validate(payload)
 
 
 def _validate_policy_bindings(input_value: DataArtifactBuildInput):
@@ -96,6 +100,19 @@ def _validate_policy_bindings(input_value: DataArtifactBuildInput):
         raise DataArtifactError(
             DataArtifactErrorCode.manifest_pin_mismatch,
             "frozen manifests disagree with the C-04 input pins",
+        )
+
+    frozen_rule_set = load_mapping_rule_set()
+    if input_value.mapping_rule_set != frozen_rule_set:
+        raise DataArtifactError(
+            DataArtifactErrorCode.mapping_rule_mismatch,
+            "caller MappingRuleSet is not the repository-frozen execution policy",
+        )
+    frozen_catalog = load_unit_conversion_catalog()
+    if input_value.conversion_catalog != frozen_catalog:
+        raise DataArtifactError(
+            DataArtifactErrorCode.conversion_catalog_mismatch,
+            "caller UnitConversionCatalog is not the repository-frozen execution policy",
         )
 
     fields_by_id = {field.field_id: field for field in field_manifest.fields}
@@ -139,6 +156,16 @@ def _validate_policy_bindings(input_value: DataArtifactBuildInput):
                 raise DataArtifactError(
                     DataArtifactErrorCode.conversion_catalog_mismatch,
                     "conversion declaration and implementation versions disagree",
+                )
+            expected_quantity_kind = (
+                QuantityKind.none
+                if implemented.rule_id == "unit.identity.v1"
+                else QuantityKind(_quantity_kind(field, bundle))
+            )
+            if implemented.quantity_kind is not expected_quantity_kind:
+                raise DataArtifactError(
+                    DataArtifactErrorCode.conversion_catalog_mismatch,
+                    "conversion declaration and implementation quantity kinds disagree",
                 )
             if declared.source_unit is not None and (
                 declared.source_unit != implemented.source_unit
@@ -328,7 +355,10 @@ def _canonical_value(
             DataArtifactErrorCode.invalid_numeric_value,
             f"{field.field_id} requires an integral canonical value",
         )
-    return serialize_decimal(numeric)
+    return serialize_decimal(
+        numeric,
+        capacity=input_value.conversion_catalog.decimal_capacity,
+    )
 
 
 def _companion_decimal(
@@ -378,7 +408,10 @@ def _uncertainty(
             locators.append(locator)
         else:
             try:
-                value = decimal_from_source(raw)
+                value = decimal_from_source(
+                    raw,
+                    capacity=input_value.conversion_catalog.decimal_capacity,
+                )
                 converted = _companion_decimal(
                     raw,
                     field,
@@ -541,9 +574,15 @@ def _build_evidence(source_value, *, row_id, logical_key, record, result, input_
         "conversion_catalog_version": input_value.conversion_catalog.version,
         "conversion_catalog_content_hash": input_value.conversion_catalog.content_hash,
         "transformation_rule_version": source_value.transformation_rule_version,
+        "uncertainty": source_value.uncertainty.model_dump(mode="json"),
+        "limit": source_value.limit.model_dump(mode="json"),
         "uncertainty_locators": [value.model_dump(mode="json") for value in _distinct_locators(source_value)],
         "limit_locator": None if source_value.limit.locator is None else source_value.limit.locator.model_dump(mode="json"),
+        "reference_field": source_value.reference_field,
+        "reference_value": source_value.reference_value,
         "reference_locator": None if source_value.reference_field is None else _replace_raw_field(source_value.evidence_locator, source_value.reference_field).model_dump(mode="json"),
+        "provenance_field": source_value.provenance_field,
+        "provenance_value": source_value.provenance_value,
         "provenance_locator": None if source_value.provenance_field is None else _replace_raw_field(source_value.evidence_locator, source_value.provenance_field).model_dump(mode="json"),
         "crossmatch_result_id": result.result_id,
         "crossmatch_result_content_hash": result.content_hash,
@@ -563,25 +602,44 @@ def _numeric_values_agree(left: Decimal, right: Decimal, rule_set) -> bool:
     difference = abs(left - right)
     if difference == 0:
         return True
-    denominator = max(abs(left), abs(right))
-    relative = Decimal("Infinity") if denominator == 0 else difference / denominator
     comparison = rule_set.numeric_comparison
+    denominator = max(
+        abs(left),
+        abs(right),
+        comparison.relative_denominator_floor,
+    )
+    relative = difference / denominator
     compare = (lambda value, threshold: value <= threshold) if comparison.threshold_inclusive else (lambda value, threshold: value < threshold)
     return compare(difference, comparison.absolute_tolerance) or compare(relative, comparison.relative_tolerance)
 
 
-def _conflicts(field, non_null_values, rule_set):
+def _conflicts(field, non_null_values, rule_set, *, row_id="dataset_row.unit"):
     if len(non_null_values) <= 1:
         return ()
     if len(non_null_values) > rule_set.capacity.max_conflict_candidates:
         raise DataArtifactError(DataArtifactErrorCode.capacity_exceeded, "conflict-candidate capacity exceeded")
-    first = non_null_values[0]
     if field.data_type in {DataType.integer, DataType.number}:
-        agrees = all(
-            _numeric_values_agree(Decimal(first.canonical_value), Decimal(item.canonical_value), rule_set)
-            for item in non_null_values[1:]
+        numbers = [Decimal(item.canonical_value) for item in non_null_values]
+        minimum = min(numbers)
+        maximum = max(numbers)
+        difference = maximum - minimum
+        comparison = rule_set.numeric_comparison
+        denominator = max(
+            abs(maximum),
+            abs(minimum),
+            comparison.relative_denominator_floor,
         )
+        relative = difference / denominator
+        compare = (
+            (lambda value, threshold: value <= threshold)
+            if comparison.threshold_inclusive
+            else (lambda value, threshold: value < threshold)
+        )
+        agrees = difference == 0 or compare(
+            difference, comparison.absolute_tolerance
+        ) or compare(relative, comparison.relative_tolerance)
     else:
+        first = non_null_values[0]
         agrees = all(first.canonical_value == item.canonical_value for item in non_null_values[1:])
     if agrees:
         return ()
@@ -592,15 +650,21 @@ def _conflicts(field, non_null_values, rule_set):
     if numeric:
         numbers = [Decimal(item.canonical_value) for item in non_null_values]
         absolute = max(numbers) - min(numbers)
-        denominator = max(abs(value) for value in numbers)
-        relative = None if denominator == 0 else absolute / denominator
+        denominator = max(
+            *(abs(value) for value in numbers),
+            rule_set.numeric_comparison.relative_denominator_floor,
+        )
+        relative = absolute / denominator
     payload = {
         "conflict_id": _stable_id("conflict.field", {"field": field.field_id, "ids": ids}),
+        "dataset_row_id": row_id,
         "canonical_field_id": field.field_id,
         "source_value_ids": ids,
         "conflict_scope": "same_source" if len(sources) == 1 else "cross_source",
         "reason": "distinct canonical values are retained; source priority selects display only",
+        "comparison_policy_version": rule_set.conflict_comparison_policy_version,
         "absolute_difference": None if absolute is None else serialize_decimal(absolute),
+        "relative_denominator": None if not numeric else serialize_decimal(denominator),
         "relative_difference": None if relative is None else serialize_decimal(relative),
     }
     return (_hashed(FieldConflictRecord, payload),)
@@ -643,7 +707,12 @@ def build_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifac
         outcomes = []
         row_conflict_ids: list[str] = []
         row_evidence_ids: list[str] = []
+        allowed_object_types = input.mapping_rule_set.entity_projection_policy.allowed_for(
+            record.entity_level
+        )
         for field in fields:
+            if field.object_type not in allowed_object_types:
+                continue
             source_values: list[SourceValueCandidate] = []
             for member in members:
                 source_id = member.source_record.source_id
@@ -672,7 +741,12 @@ def build_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifac
             if len(source_values) > input.mapping_rule_set.capacity.max_source_values_per_field:
                 raise DataArtifactError(DataArtifactErrorCode.capacity_exceeded, "source-value capacity exceeded")
             non_null = [value for value in source_values if value.canonical_value is not None]
-            conflicts = _conflicts(field, non_null, input.mapping_rule_set)
+            conflicts = _conflicts(
+                field,
+                non_null,
+                input.mapping_rule_set,
+                row_id=row_id,
+            )
             selected = non_null[0] if non_null else None
             identity_unresolved = alignment in {AlignmentStatus.review_required, AlignmentStatus.rejected, AlignmentStatus.conflict}
             selection_reason = (
@@ -684,6 +758,7 @@ def build_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifac
             if selected is not None and not identity_unresolved:
                 selection_payload = {
                     "selection_id": _stable_id("selection.field", {"row_id": row_id, "field": field.field_id}),
+                    "dataset_row_id": row_id,
                     "canonical_field_id": field.field_id,
                     "selected_source_value_id": selected.source_value_id,
                     "candidate_source_value_ids": tuple(item.source_value_id for item in source_values),
@@ -766,6 +841,8 @@ def build_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifac
             "crossmatch_record_type": record.record_type,
             "crossmatch_logical_key": logical_key,
             "entity_level": record.entity_level,
+            "projection_policy_version": input.mapping_rule_set.entity_projection_policy.version,
+            "projected_field_ids": tuple(item.canonical_field_id for item in outcomes),
             "alignment_status": alignment,
             "source_member_ids": member_ids,
             "fields": [item.model_dump(mode="json") for item in outcomes],
@@ -820,6 +897,8 @@ def build_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifac
             "crossmatch_input_hash": result.input_hash,
             "crossmatch_output_hash": result.output_hash,
             "crossmatch_content_hash": result.content_hash,
+            "crossmatch_source_snapshot_ids": snapshot_ids,
+            "crossmatch_evidence_ids": crossmatch_evidence_ids,
             "requested_fields": tuple(field.field_id for field in fields),
             "columns": [DatasetColumn(field=field).model_dump(mode="json") for field in fields],
             "rows": [row.model_dump(mode="json") for row in rows],
@@ -843,25 +922,57 @@ def build_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifac
         },
     )
     alignments = tuple(_record_key(record) for record in result.records)
-    raw_references = {
-        compute_canonical_payload_hash(value.evidence_locator.model_dump(mode="json")): value.evidence_locator
-        for value in all_source_values
-    }
+    source_members = []
+    for side, acquisition in (
+        ("left", input.left_acquisition),
+        ("right", input.right_acquisition),
+    ):
+        snapshot = acquisition.snapshot
+        references = tuple(
+            sorted(
+                (
+                    RawSourceRecordReference(
+                        source_id=record.source_id,
+                        source_snapshot_id=snapshot.snapshot_id,
+                        source_snapshot_content_hash=snapshot.content_hash,
+                        query_hash=snapshot.query_hash,
+                        row_key=record.row_key,
+                        raw_record_content_hash=record.content_hash,
+                    )
+                    for record in acquisition.records
+                ),
+                key=lambda item: (
+                    item.source_id,
+                    item.row_key,
+                    item.raw_record_content_hash,
+                ),
+            )
+        )
+        source_members.append(
+            SourceCollectionMember(
+                side=side,
+                source_snapshot=snapshot,
+                source_id=snapshot.source_id,
+                source_snapshot_id=snapshot.snapshot_id,
+                source_snapshot_content_hash=snapshot.content_hash,
+                query_hash=snapshot.query_hash,
+                source_mode=acquisition.source_mode,
+                data_level=acquisition.data_level,
+                completion=acquisition.completion,
+                license_note=snapshot.license_note,
+                raw_record_references=references,
+                raw_record_count=len(references),
+                raw_record_reference_registry_hash=(
+                    compute_raw_record_reference_registry_hash(references)
+                ),
+            )
+        )
     source_collection = _candidate(
         SourceCollectionArtifactCandidate,
         {
             "kind": "source_collection",
             **common,
-            "source_modes": (result.left_source_mode, result.right_source_mode),
-            "data_levels": (result.left_data_level, result.right_data_level),
-            "completions": (
-                result.left_completion.model_dump(mode="json"),
-                result.right_completion.model_dump(mode="json"),
-            ),
-            "raw_record_references": [
-                raw_references[key].model_dump(mode="json")
-                for key in sorted(raw_references)
-            ],
+            "members": [member.model_dump(mode="json") for member in source_members],
             "source_value_ids": tuple(value.source_value_id for value in all_source_values),
             "crossmatch_result_id": result.result_id,
             "crossmatch_content_hash": result.content_hash,
@@ -869,7 +980,6 @@ def build_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifac
             "conflict_record_keys": tuple(_record_key(record) for record in result.records if _alignment_status(record) is AlignmentStatus.conflict),
             "review_required_record_keys": tuple(_record_key(record) for record in result.records if _alignment_status(record) is AlignmentStatus.review_required),
             "inconclusive_record_keys": tuple(_record_key(record) for record in result.records if _alignment_status(record) is AlignmentStatus.inconclusive),
-            "license_notes": tuple(sorted({result.left_source_snapshot.license_note, result.right_source_snapshot.license_note})),
         },
     )
     hash_payload = {
@@ -887,4 +997,6 @@ def build_data_artifact_candidates(input: DataArtifactBuildInput) -> DataArtifac
         "input_hash": input.input_hash,
         "output_hash": compute_data_artifact_output_hash(hash_payload),
     }
+    for candidate in (dataset, field_dictionary, source_collection):
+        _seal_data_artifact_candidate(candidate)
     return DataArtifactBuildResult.model_validate(payload)

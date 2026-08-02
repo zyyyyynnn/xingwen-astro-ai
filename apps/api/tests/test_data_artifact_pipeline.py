@@ -29,9 +29,11 @@ def test_pipeline_builds_three_deterministic_evidence_first_candidates() -> None
     assert len(first.dataset.source_snapshot_ids) == 2
     assert first.dataset.evidence_ids
     assert first.dataset.quality_evaluation_status == "not_evaluated"
+    projected = [field for row in first.dataset.rows for field in row.fields]
+    assert projected
+    assert all(isinstance(field, MappedCanonicalValue) for field in projected)
     assert all(
-        isinstance(row.fields[0], MappedCanonicalValue)
-        for row in first.dataset.rows
+        not row.fields for row in first.dataset.rows if row.entity_level == "planet_candidate"
     )
     assert {
         evidence.locator.source_snapshot_id

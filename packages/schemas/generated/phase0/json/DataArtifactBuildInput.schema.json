@@ -1644,6 +1644,45 @@
       "title": "DataSourceDataLevel",
       "type": "string"
     },
+    "DecimalCapacity": {
+      "additionalProperties": false,
+      "properties": {
+        "max_adjusted_exponent": {
+          "exclusiveMinimum": 0,
+          "title": "Max Adjusted Exponent",
+          "type": "integer"
+        },
+        "max_fractional_scale": {
+          "exclusiveMinimum": 0,
+          "title": "Max Fractional Scale",
+          "type": "integer"
+        },
+        "max_input_text_length": {
+          "exclusiveMinimum": 0,
+          "title": "Max Input Text Length",
+          "type": "integer"
+        },
+        "max_plain_string_length": {
+          "exclusiveMinimum": 0,
+          "title": "Max Plain String Length",
+          "type": "integer"
+        },
+        "max_significant_digits": {
+          "exclusiveMinimum": 0,
+          "title": "Max Significant Digits",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_input_text_length",
+        "max_significant_digits",
+        "max_adjusted_exponent",
+        "max_fractional_scale",
+        "max_plain_string_length"
+      ],
+      "title": "DecimalCapacity",
+      "type": "object"
+    },
     "EntityAliasCatalog": {
       "additionalProperties": false,
       "properties": {
@@ -1819,6 +1858,58 @@
       ],
       "title": "EntityLevel",
       "type": "string"
+    },
+    "EntityProjectionPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/EntityProjectionRule"
+          },
+          "minItems": 1,
+          "title": "Rules",
+          "type": "array"
+        },
+        "system_context_policy": {
+          "const": "host_and_source_assertion_only_no_implicit_join",
+          "title": "System Context Policy",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "system_context_policy",
+        "rules"
+      ],
+      "title": "EntityProjectionPolicy",
+      "type": "object"
+    },
+    "EntityProjectionRule": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_object_types": {
+          "items": {
+            "$ref": "#/$defs/ObjectType"
+          },
+          "minItems": 1,
+          "title": "Allowed Object Types",
+          "type": "array"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        }
+      },
+      "required": [
+        "entity_level",
+        "allowed_object_types"
+      ],
+      "title": "EntityProjectionRule",
+      "type": "object"
     },
     "EvidenceLocator": {
       "additionalProperties": false,
@@ -2083,6 +2174,9 @@
           "title": "Created At",
           "type": "string"
         },
+        "entity_projection_policy": {
+          "$ref": "#/$defs/EntityProjectionPolicy"
+        },
         "field_manifest_content_hash": {
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Field Manifest Content Hash",
@@ -2195,6 +2289,7 @@
         "same_source_conflict_policy",
         "unresolved_identity_policy",
         "non_nullable_missing_policy",
+        "entity_projection_policy",
         "numeric_comparison",
         "capacity",
         "created_at",
@@ -2318,6 +2413,24 @@
           ],
           "title": "Absolute Tolerance"
         },
+        "collection_semantics": {
+          "const": "span_absolute_or_relative_max_magnitude",
+          "title": "Collection Semantics",
+          "type": "string"
+        },
+        "relative_denominator_floor": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Relative Denominator Floor"
+        },
         "relative_tolerance": {
           "anyOf": [
             {
@@ -2339,7 +2452,9 @@
       },
       "required": [
         "absolute_tolerance",
-        "relative_tolerance"
+        "relative_tolerance",
+        "collection_semantics",
+        "relative_denominator_floor"
       ],
       "title": "NumericComparisonPolicy",
       "type": "object"
@@ -2885,6 +3000,9 @@
           "title": "Created At",
           "type": "string"
         },
+        "decimal_capacity": {
+          "$ref": "#/$defs/DecimalCapacity"
+        },
         "field_manifest_content_hash": {
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Field Manifest Content Hash",
@@ -2943,6 +3061,11 @@
           "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
           "title": "Version",
           "type": "string"
+        },
+        "zero_serialization_policy": {
+          "const": "canonical_unsigned_zero",
+          "title": "Zero Serialization Policy",
+          "type": "string"
         }
       },
       "required": [
@@ -2957,6 +3080,8 @@
         "precision_digits",
         "rounding_mode",
         "serialization_policy",
+        "zero_serialization_policy",
+        "decimal_capacity",
         "rules",
         "constants_provenance",
         "maintained_by",
