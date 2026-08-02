@@ -2,7 +2,7 @@
   "catalog_id": "exoplanet_host_star.unit_conversions",
   "schema_version": "1.0.0",
   "version": "1.0.0",
-  "content_hash": "sha256:ec314790385dd2f3d2ecb0e237cd6ad24787d7bb26b54a7111fdae2a3c2058ec",
+  "content_hash": "sha256:f5188897c8e4c12ef806d4c5f1ddd3fb474c1feedbcb684ee516e5c4805eb077",
   "field_manifest_id": "exoplanet_host_star.fields",
   "field_manifest_version": "1.0.1",
   "field_manifest_content_hash": "sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53",
@@ -10,6 +10,14 @@
   "precision_digits": 28,
   "rounding_mode": "ROUND_HALF_EVEN",
   "serialization_policy": "plain_decimal_string_no_exponent",
+  "zero_serialization_policy": "canonical_unsigned_zero",
+  "decimal_capacity": {
+    "max_input_text_length": 128,
+    "max_significant_digits": 64,
+    "max_adjusted_exponent": 1000,
+    "max_fractional_scale": 1000,
+    "max_plain_string_length": 2048
+  },
   "rules": [
     {
       "rule_id": "unit.identity.v1",

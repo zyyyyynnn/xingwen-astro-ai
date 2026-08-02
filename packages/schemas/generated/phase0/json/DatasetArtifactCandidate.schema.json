@@ -179,6 +179,19 @@
           "title": "Fields",
           "type": "array"
         },
+        "projected_field_ids": {
+          "items": {
+            "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "title": "Projected Field Ids",
+          "type": "array"
+        },
+        "projection_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Projection Policy Version",
+          "type": "string"
+        },
         "row_id": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
           "title": "Row Id",
@@ -206,6 +219,8 @@
         "crossmatch_record_type",
         "crossmatch_logical_key",
         "entity_level",
+        "projection_policy_version",
+        "projected_field_ids",
         "alignment_status",
         "source_member_ids",
         "fields",
@@ -293,6 +308,11 @@
           "title": "Canonical Field Id",
           "type": "string"
         },
+        "comparison_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Comparison Policy Version",
+          "type": "string"
+        },
         "conflict_id": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
           "title": "Conflict Id",
@@ -312,10 +332,31 @@
           "title": "Content Hash",
           "type": "string"
         },
+        "dataset_row_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Dataset Row Id",
+          "type": "string"
+        },
         "reason": {
-          "minLength": 1,
+          "const": "distinct canonical values are retained; source priority selects display only",
           "title": "Reason",
           "type": "string"
+        },
+        "relative_denominator": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relative Denominator"
         },
         "relative_difference": {
           "anyOf": [
@@ -345,10 +386,12 @@
       },
       "required": [
         "conflict_id",
+        "dataset_row_id",
         "canonical_field_id",
         "source_value_ids",
         "conflict_scope",
         "reason",
+        "comparison_policy_version",
         "content_hash"
       ],
       "title": "FieldConflictRecord",
@@ -518,6 +561,11 @@
           "title": "Content Hash",
           "type": "string"
         },
+        "dataset_row_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Dataset Row Id",
+          "type": "string"
+        },
         "reason": {
           "minLength": 1,
           "title": "Reason",
@@ -548,6 +596,7 @@
       },
       "required": [
         "selection_id",
+        "dataset_row_id",
         "canonical_field_id",
         "selected_source_value_id",
         "candidate_source_value_ids",
@@ -1392,6 +1441,9 @@
           "title": "Evidence Id",
           "type": "string"
         },
+        "limit": {
+          "$ref": "#/$defs/LimitValue"
+        },
         "limit_locator": {
           "anyOf": [
             {
@@ -1406,6 +1458,19 @@
         "locator": {
           "$ref": "#/$defs/SourceCellLocator"
         },
+        "provenance_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provenance Field"
+        },
         "provenance_locator": {
           "anyOf": [
             {
@@ -1416,6 +1481,31 @@
             }
           ],
           "default": null
+        },
+        "provenance_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provenance Value"
         },
         "raw_value": {
           "anyOf": [
@@ -1441,6 +1531,19 @@
           ],
           "title": "Raw Value"
         },
+        "reference_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Field"
+        },
         "reference_locator": {
           "anyOf": [
             {
@@ -1451,6 +1554,31 @@
             }
           ],
           "default": null
+        },
+        "reference_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Value"
         },
         "selection_reason": {
           "minLength": 1,
@@ -1481,6 +1609,9 @@
           "title": "Transformation Rule Version",
           "type": "string"
         },
+        "uncertainty": {
+          "$ref": "#/$defs/UncertaintyValue"
+        },
         "uncertainty_locators": {
           "items": {
             "$ref": "#/$defs/SourceCellLocator"
@@ -1505,6 +1636,8 @@
         "conversion_catalog_version",
         "conversion_catalog_content_hash",
         "transformation_rule_version",
+        "uncertainty",
+        "limit",
         "uncertainty_locators",
         "crossmatch_result_id",
         "crossmatch_result_content_hash",
@@ -1756,6 +1889,14 @@
       "title": "Crossmatch Content Hash",
       "type": "string"
     },
+    "crossmatch_evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Crossmatch Evidence Ids",
+      "type": "array"
+    },
     "crossmatch_input_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "title": "Crossmatch Input Hash",
@@ -1770,6 +1911,14 @@
       "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
       "title": "Crossmatch Result Id",
       "type": "string"
+    },
+    "crossmatch_source_snapshot_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Crossmatch Source Snapshot Ids",
+      "type": "array"
     },
     "evidence_ids": {
       "items": {
@@ -1911,6 +2060,7 @@
     "crossmatch_input_hash",
     "crossmatch_output_hash",
     "crossmatch_content_hash",
+    "crossmatch_source_snapshot_ids",
     "requested_fields",
     "columns",
     "rows",
@@ -1922,6 +2072,7 @@
     "field_count",
     "source_snapshot_ids",
     "evidence_ids",
+    "crossmatch_evidence_ids",
     "mapping_rule_set_id",
     "mapping_rule_set_version",
     "mapping_rule_set_content_hash",
