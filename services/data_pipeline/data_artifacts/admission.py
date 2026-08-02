@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Protocol
 
 from app.schemas.data_artifacts import (
+    DataArtifactBuildInput,
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
     SourceCollectionArtifactCandidate,
@@ -35,6 +36,70 @@ def _candidate(context: AdmissionContext) -> Candidate:
 
 def _revalidate(candidate: Candidate) -> Candidate:
     return type(candidate).model_validate(candidate.model_dump(mode="json"))
+
+
+def _publication_context(candidate: Candidate) -> DataArtifactBuildInput:
+    context = getattr(candidate, "_artifact_publication_context", None)
+    if not isinstance(context, DataArtifactBuildInput):
+        raise ValueError("candidate lacks its original typed C-04 admission context")
+    if context.input_hash != candidate.input_hash:
+        raise ValueError("candidate input hash disagrees with its admission context")
+    return context
+
+
+def _replay_candidate(candidate: Candidate) -> Candidate:
+    """Rebuild the candidate from frozen raw inputs and compare exact typed content."""
+
+    fingerprint = compute_data_artifact_output_hash(candidate)
+    if fingerprint != candidate.output_hash:
+        raise ValueError("candidate output hash mismatch")
+    cached = getattr(candidate, "_artifact_publication_replay_cache", None)
+    if (
+        isinstance(cached, tuple)
+        and len(cached) == 2
+        and cached[0] == fingerprint
+        and isinstance(
+            cached[1],
+            (
+                DatasetArtifactCandidate,
+                FieldDictionaryArtifactCandidate,
+                SourceCollectionArtifactCandidate,
+            ),
+        )
+    ):
+        return cached[1]
+
+    # Import locally so the package-level public entrypoint can attach the same
+    # frozen C-08 checks and process-local admission context without a cycle.
+    from services.data_pipeline.data_artifacts import build_data_artifact_candidates
+
+    replayed = build_data_artifact_candidates(_publication_context(candidate))
+    expected: Candidate
+    if isinstance(candidate, DatasetArtifactCandidate):
+        expected = replayed.dataset
+    elif isinstance(candidate, FieldDictionaryArtifactCandidate):
+        expected = replayed.field_dictionary
+    else:
+        expected = replayed.source_collection
+
+    candidate_payload = candidate.model_dump(mode="json", exclude_none=True)
+    expected_payload = expected.model_dump(mode="json", exclude_none=True)
+    if candidate_payload != expected_payload:
+        raise ValueError(
+            "candidate content does not match deterministic replay from its typed input"
+        )
+    object.__setattr__(
+        candidate,
+        "_artifact_publication_replay_cache",
+        (fingerprint, expected),
+    )
+    return expected
+
+
+def _revalidate_and_replay(candidate: Candidate) -> Candidate:
+    revalidated = _revalidate(candidate)
+    _replay_candidate(candidate)
+    return revalidated
 
 
 def _validate_frozen_bindings(candidate: Candidate) -> None:
@@ -109,7 +174,7 @@ def _numeric_collection_agrees(values: list[Decimal], rule_set) -> bool:
 
 
 def validate_data_artifact_evidence(context: AdmissionContext) -> None:
-    candidate = _revalidate(_candidate(context))
+    candidate = _revalidate_and_replay(_candidate(context))
     if tuple(context.source_snapshot_ids) != candidate.source_snapshot_ids:
         raise ValueError("SourceSnapshot references disagree with candidate")
     if tuple(context.evidence_ids) != candidate.evidence_ids:
@@ -130,7 +195,7 @@ def validate_data_artifact_evidence(context: AdmissionContext) -> None:
 
 
 def validate_data_artifact_domain(context: AdmissionContext) -> None:
-    candidate = _revalidate(_candidate(context))
+    candidate = _revalidate_and_replay(_candidate(context))
     _validate_frozen_bindings(candidate)
     if candidate.output_hash != compute_data_artifact_output_hash(candidate):
         raise ValueError("candidate output hash mismatch")
@@ -217,7 +282,7 @@ def validate_data_artifact_domain(context: AdmissionContext) -> None:
 
 
 def validate_data_artifact_quality_prerequisites(context: AdmissionContext) -> None:
-    candidate = _candidate(context)
+    candidate = _revalidate_and_replay(_candidate(context))
     if candidate.quality_evaluation_status != "not_evaluated":
         raise ValueError("C-04 must not evaluate C-05 quality")
     if isinstance(candidate, DatasetArtifactCandidate) and not candidate.quality_metric_input_declarations:
