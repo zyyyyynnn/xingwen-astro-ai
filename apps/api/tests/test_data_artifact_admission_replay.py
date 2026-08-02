@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from app.schemas.data_artifacts import (
     DataArtifactBuildInput,
+    DataArtifactAdmissionSnapshot,
     DatasetArtifactCandidate,
     ManifestPins,
     RawSourceRecordReference,
@@ -24,6 +25,8 @@ from services.data_pipeline.crossmatch.benchmark import (
     load_crossmatch_benchmark,
 )
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
+from services.data_pipeline.data_artifacts import build_data_artifact_candidates as package_entry
+from services.data_pipeline.data_artifacts.pipeline import build_data_artifact_candidates as module_entry
 from services.data_pipeline.data_artifacts.admission import (
     validate_data_artifact_domain,
     validate_data_artifact_evidence,
@@ -44,6 +47,10 @@ def _admit(candidate):
         domain_validator=validate_data_artifact_domain,
         quality_validator=validate_data_artifact_quality_prerequisites,
     )
+
+
+def test_package_and_module_builder_are_one_import_order_independent_entrypoint() -> None:
+    assert package_entry is module_entry
 
 
 def _input_from_crossmatch(crossmatch_input, *requested_fields: str) -> DataArtifactBuildInput:
@@ -210,7 +217,7 @@ def test_publisher_replay_rejects_missing_unused_acquisition_record() -> None:
         _admit(original)
 
 
-def test_original_candidates_retain_typed_replay_context() -> None:
+def test_original_candidates_retain_immutable_replay_snapshot() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
 
     for candidate in (
@@ -219,8 +226,9 @@ def test_original_candidates_retain_typed_replay_context() -> None:
         result.source_collection,
     ):
         context = getattr(candidate, "_artifact_publication_context", None)
-        assert isinstance(context, DataArtifactBuildInput)
+        assert isinstance(context, DataArtifactAdmissionSnapshot)
         assert context.input_hash == candidate.input_hash
+        assert not isinstance(context, DataArtifactBuildInput)
         assert _admit(candidate).content["kind"] == candidate.kind
 
 
@@ -231,3 +239,65 @@ def test_reparsed_candidate_still_cannot_recreate_replay_context() -> None:
     assert getattr(reparsed, "_artifact_publication_context", None) is None
     with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
         _admit(reparsed)
+
+
+@pytest.mark.parametrize("candidate_name", ["dataset", "field_dictionary", "source_collection"])
+@pytest.mark.parametrize("mutation", ["context", "payload", "payload_context", "seal"])
+def test_publisher_rejects_cross_build_candidate_transplant(candidate_name, mutation) -> None:
+    first = build_data_artifact_candidates(build_input("star.tic_id"))
+    second = build_data_artifact_candidates(build_input("planet.name"))
+    original = getattr(first, candidate_name)
+    replacement = getattr(second, candidate_name)
+    if mutation in {"payload", "payload_context"}:
+        _replace_public_fields(original, replacement)
+    if mutation in {"context", "payload_context"}:
+        object.__setattr__(
+            original,
+            "_artifact_publication_context",
+            getattr(replacement, "_artifact_publication_context"),
+        )
+    if mutation == "seal":
+        object.__setattr__(
+            original,
+            "_artifact_publication_seal",
+            getattr(replacement, "_artifact_publication_seal"),
+        )
+    with pytest.raises(PublicationAdmissionError, match="admission|bypass"):
+        _admit(original)
+
+
+def test_publisher_rejects_copy_and_deepcopy_without_publication_identity() -> None:
+    candidate = build_data_artifact_candidates(build_input("star.tic_id")).dataset
+    for copied in (candidate.model_copy(deep=True), deepcopy(candidate)):
+        with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
+            _admit(copied)
+
+
+def test_public_builder_revalidates_constructed_and_corrupted_input() -> None:
+    source = build_input("star.tic_id")
+    forged = DataArtifactBuildInput.model_construct(**source.model_dump())
+    object.__setattr__(forged, "input_hash", "sha256:" + "0" * 64)
+    with pytest.raises(Exception):
+        build_data_artifact_candidates(forged)
+
+    corrupted = source.model_copy()
+    object.__setattr__(corrupted, "requested_fields", ("planet.name",))
+    with pytest.raises(Exception):
+        build_data_artifact_candidates(corrupted)
+
+
+def test_independent_admission_rejects_producer_canonical_value_bug(monkeypatch) -> None:
+    import services.data_pipeline.data_artifacts.pipeline as pipeline
+
+    original = pipeline._source_value
+
+    def broken_source_value(**kwargs):
+        value = original(**kwargs)
+        payload = value.model_dump(mode="json")
+        payload["canonical_value"] = "forged"
+        payload["content_hash"] = compute_data_artifact_content_hash(payload)
+        return type(value).model_validate(payload)
+
+    monkeypatch.setattr(pipeline, "_source_value", broken_source_value)
+    with pytest.raises(ValueError, match="independent conversion"):
+        build_data_artifact_candidates(build_input("planet.name"))

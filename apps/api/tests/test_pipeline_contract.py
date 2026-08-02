@@ -543,7 +543,6 @@ def test_generated_manifest_covers_phase0_and_crossmatch_models() -> None:
             "CrossmatchBenchmarkManifest",
             "CrossmatchBenchmarkReport",
             "DataArtifactBuildInput",
-            "DataArtifactBuildResult",
             "DatasetArtifactCandidate",
             "FieldDictionaryArtifactCandidate",
             "SourceCollectionArtifactCandidate",

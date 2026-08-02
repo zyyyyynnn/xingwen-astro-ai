@@ -2,7 +2,7 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
+| Status | Proposed |
 | Authority | C-04 字段映射、单位统一、Transformation Evidence 与 typed Artifact candidate 运行规范 |
 | Issue | [#34](https://github.com/zyyyyynnn/xingwen-astro-ai/issues/34) |
 
@@ -15,6 +15,8 @@ build_data_artifact_candidates(
     input: DataArtifactBuildInput,
 ) -> DataArtifactBuildResult
 ```
+
+`DataArtifactBuildResult` 是进程内编排返回值；公共可序列化 Contract 是三个 typed candidate 与对应的输入/策略模型。
 
 实现位于 `services/data_pipeline/data_artifacts/`，唯一 Pydantic 编写源位于 `apps/api/src/app/schemas/data_artifacts.py`。C-04 不访问 NASA endpoint，不重新运行 Adapter/Crossmatch，不访问数据库，不分配 `ArtifactVersion`，不推进 Run，不发布 HTTP DTO，也不计算 C-05 质量分。
 
@@ -78,19 +80,19 @@ raw value 仍按来源原样保留用于 lineage，因此 raw-record/input/Publi
 
 `TransformationEvidence` 将 dataset row/field/source value 绑定到 raw cell、raw/canonical value、uncertainty/limit、reference/provenance 值与 locator、conversion catalog、C-08 result/logical key/Evidence 和 selection 状态。Dataset 对 SourceValue、Transformation Evidence、selection 与 conflict 执行双向 exact-set 校验；Evidence 值与 SourceValue 逐项相等，conflict 的 row/field/candidate set、scope 与数值差异均重新派生。
 
-三类候选共享精确 Manifest/policy/catalog/producer/input/Snapshot/Evidence pins。公共入口在原始 sealed instance 上附加 process-local、不会进入 JSON/hash/generated Schema/Artifact content 的 typed `DataArtifactBuildInput` admission context。Publisher 的 Evidence/domain/quality-prerequisite gates 会从该上下文重新执行完整构建，然后把待发布候选与 replay 结果逐字段比较。因此同步修改 SourceValue、Evidence、outcome、hash，或删除未参与 requested fields 的 acquisition record，都不能仅凭 instance seal 通过。copy/reparse 不包含有效 seal/context。
+三类候选共享精确 Manifest/policy/catalog/producer/input/Snapshot/Evidence pins。公共入口先完成独立领域准入，再以不可变 process-local `DataArtifactAdmissionSnapshot`（canonical input JSON、冻结策略 commitment、bundle commitment）绑定完整公开 payload，最后写入带 object id、candidate/input/output/public-payload/context/bundle commitment 的 publication seal。Publisher gates 只从该 snapshot 重新解析输入并调用独立 validator，不再执行完整 builder。同步修改 SourceValue、Evidence、outcome、hash、context 或跨 build 移植字段都会在 seal 或独立准入阶段拒绝；copy/reparse 只得到合法内容模型，不具 publication 资格。
 
 - Dataset：columns、rows、判别字段 outcome、全部 source values、Evidence、selection/conflict 和 C-05 metric input 声明；不含 quality score。
 - FieldDictionary：requested fields 对 Field Manifest `FieldDefinition` 的精确投影。
-- SourceCollection：恰好一个 left 和一个 right `SourceCollectionMember`。每个成员将 source、完整 SourceSnapshot、mode/data level/completion、license 与全部 acquisition `RawSourceRecordReference` 绑定；record reference 只含 source/Snapshot/query/row key/raw-record hash，采用规范顺序，并由 record count 与 registry hash 封闭结构。完整性最终由 Publisher replay 与原始 typed acquisition 双向比较，cell-level `raw_field` 只属于 Transformation Evidence。
+- SourceCollection：恰好一个 left 和一个 right `SourceCollectionMember`。每个成员将 source、完整 SourceSnapshot、mode/data level/completion、license 与全部 acquisition `RawSourceRecordReference` 绑定；record reference 只含 source/Snapshot/query/row key/raw-record hash，采用规范顺序，并由 record count 与 registry hash 封闭结构。完整性由 Publisher 的独立 validator 与原始 acquisition 双向比较，cell-level `raw_field` 只属于 Transformation Evidence。
 
-BuildResult 进一步校验 Dataset columns 与 FieldDictionary definitions 完全相等、三类 candidate 的共同 pins 完全相等、Dataset 使用的 raw records 均属于 SourceCollection、alignment keys 覆盖 Dataset rows、C-08 identity 一致，且 bundle 不接受未封印或来自另一次 build 的 candidate。
+BuildResult 是进程内编排结果，不是 generated JSON Contract；它进一步校验 Dataset columns 与 FieldDictionary definitions 完全相等、三类 candidate 的共同 pins 完全相等、Dataset 使用的 raw records 均属于 SourceCollection、alignment keys 覆盖 Dataset rows、C-08 identity 一致。公共序列化 Contract 是 DataArtifactBuildInput、Dataset、FieldDictionary、SourceCollection、MappingRuleSet 与 UnitConversionCatalog；候选 JSON/Pydantic round-trip 不会恢复 seal/context。
 
-稳定 hash 排除 wall-clock、日志、分支、数据库 ID、ArtifactVersion number 与 Publisher content hash。requested fields 和输出集合使用确定顺序；内容、规则、Manifest 或 conversion 版本变化会改变相应 hash。raw provenance hash 与 canonical scientific value 的职责必须分别解释，不得把来源表示差异误述为 canonical value 差异。
+Dataset 同时暴露 `canonical_content_hash`（Manifest/policy/requested fields/row grain/规范化值、单位、不确定度、limit、null/conflict/selection 科学投影）与 `lineage_hash`（raw representation、record/snapshot/query/Evidence/source-value/input 等 provenance）。Dataset candidate ID 由 kind、schema version 与 canonical content hash 派生；它不是 ArtifactVersion identity 或 publication idempotency key。稳定 hash 排除 wall-clock、日志、分支、数据库 ID、ArtifactVersion number 与 Publisher content hash。raw provenance hash 可以区分 `0.0` 与 `-0.0`，但等价负零保持相同 canonical Dataset identity；Publisher content hash/output hash 仍可因 lineage 不同而不同。
 
 ## 7. Publisher 与 C-05 交接
 
-C-04 生产模块不反向依赖 `app.workflow.publisher`。`services/data_pipeline/data_artifacts/admission.py` 提供 Evidence、domain、quality-prerequisite validators；它们先重新解析 typed content，再通过 process-local typed input replay 重验 C-08/C-04 冻结策略、raw payload、Manifest alias、主值/uncertainty/limit 转换、row projection、Evidence、conflict 和 SourceCollection 完整 records。API/B 边界将三个 sealed candidate 分别交给 #78 `admit_artifact_candidate(...)`。复制、重新解析、bundle intermediate、dict 或 free text 不能绕过 bundle-derived instance seal。该端口只生成 `AdmittedArtifactCandidate`，数据库发布事务与 `ArtifactVersion` 仍属于 #78/B。
+C-04 生产模块不反向依赖 `app.workflow.publisher`。`services/data_pipeline/data_artifacts/admission.py` 提供 Evidence、domain、quality-prerequisite validators；它们从 immutable snapshot 重新解析输入，再独立重验 C-08/C-04 冻结策略、raw payload、Manifest alias、主值/uncertainty/limit 转换、row projection、Evidence、conflict 和 SourceCollection 完整 records。API/B 边界将三个 sealed candidate 分别交给 #78 `admit_artifact_candidate(...)`。复制、重新解析、bundle intermediate、dict 或 free text 不能绕过 instance seal。该端口只生成 `AdmittedArtifactCandidate`，数据库发布事务与 `ArtifactVersion` 仍属于 #78/B。
 
 C-05 #35 后续消费 Dataset 的 field outcomes、conflicts、Evidence coverage、Crossmatch status 和 `quality_metric_input_declarations` 计算质量；C-04 始终输出 `quality_evaluation_status=not_evaluated`。
 

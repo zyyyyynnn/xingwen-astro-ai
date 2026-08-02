@@ -1855,6 +1855,11 @@
       "title": "Candidate Id",
       "type": "string"
     },
+    "canonical_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Canonical Content Hash",
+      "type": "string"
+    },
     "columns": {
       "items": {
         "$ref": "#/$defs/DatasetColumn"
@@ -1942,6 +1947,11 @@
       "const": "dataset",
       "default": "dataset",
       "title": "Kind",
+      "type": "string"
+    },
+    "lineage_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Lineage Hash",
       "type": "string"
     },
     "manifest_pins": {
@@ -2082,6 +2092,8 @@
     "quality_metric_input_declarations",
     "producer",
     "input_hash",
+    "canonical_content_hash",
+    "lineage_hash",
     "output_hash"
   ],
   "title": "DatasetArtifactCandidate",
