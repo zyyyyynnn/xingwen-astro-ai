@@ -19,6 +19,7 @@ from app.schemas.data_artifacts import (
     compute_raw_record_reference_registry_hash,
 )
 from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
+from app.schemas.source_acquisition import RawDataSourceRecord, compute_raw_data_record_hash
 from services.data_pipeline.crossmatch import align_cross_source_records
 from services.data_pipeline.crossmatch.benchmark import (
     _scenario_input,
@@ -79,6 +80,44 @@ def _input_from_crossmatch(crossmatch_input, *requested_fields: str) -> DataArti
     payload = unhashed.model_dump(mode="json")
     payload["input_hash"] = compute_data_artifact_input_hash(unhashed)
     return DataArtifactBuildInput.model_validate(payload)
+
+
+def _negative_zero_build_input(raw_value: float) -> DataArtifactBuildInput:
+    benchmark = load_crossmatch_benchmark()
+    scenario = next(
+        item for item in benchmark.scenarios if item.scenario_id == "exact_one_to_one"
+    )
+    source_input = _scenario_input(scenario)
+
+    def add_numeric_column(acquisition):
+        records = []
+        for record in acquisition.records:
+            payload = {
+                **record.payload,
+                "pl_orbper": raw_value,
+                "pl_orbperlim": 0,
+            }
+            records.append(
+                RawDataSourceRecord(
+                    source_id=record.source_id,
+                    row_key=record.row_key,
+                    payload=payload,
+                    content_hash=compute_raw_data_record_hash(
+                        source_id=record.source_id,
+                        row_key=record.row_key,
+                        payload=payload,
+                    ),
+                )
+            )
+        return acquisition.model_copy(update={"records": tuple(records)})
+
+    mutated = source_input.model_copy(
+        update={
+            "left": add_numeric_column(source_input.left),
+            "right": add_numeric_column(source_input.right),
+        }
+    )
+    return _input_from_crossmatch(mutated, "planet.orbital_period")
 
 
 def _rehash_candidate_payload(payload: dict) -> dict:
@@ -301,3 +340,21 @@ def test_independent_admission_rejects_producer_canonical_value_bug(monkeypatch)
     monkeypatch.setattr(pipeline, "_source_value", broken_source_value)
     with pytest.raises(ValueError, match="independent conversion"):
         build_data_artifact_candidates(build_input("planet.name"))
+
+
+def test_negative_zero_preserves_raw_provenance_but_not_canonical_dataset_identity() -> None:
+    positive = build_data_artifact_candidates(_negative_zero_build_input(0.0))
+    negative = build_data_artifact_candidates(_negative_zero_build_input(-0.0))
+
+    assert {
+        value.canonical_value for value in positive.dataset.source_values
+    } == {"0"}
+    assert {
+        value.canonical_value for value in negative.dataset.source_values
+    } == {"0"}
+    assert positive.dataset.canonical_content_hash == negative.dataset.canonical_content_hash
+    assert positive.dataset.candidate_id == negative.dataset.candidate_id
+    assert positive.dataset.lineage_hash != negative.dataset.lineage_hash
+    assert positive.dataset.output_hash != negative.dataset.output_hash
+    assert positive.source_collection.output_hash != negative.source_collection.output_hash
+    assert positive.input_hash != negative.input_hash
