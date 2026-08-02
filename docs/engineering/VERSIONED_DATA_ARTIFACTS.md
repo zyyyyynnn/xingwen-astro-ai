@@ -18,7 +18,7 @@ build_data_artifact_candidates(
 
 `DataArtifactBuildResult` 是进程内编排返回值；公共可序列化 Contract 是三个 typed candidate 与对应的输入/策略模型。
 
-实现位于 `services/data_pipeline/data_artifacts/`，唯一 Pydantic 编写源位于 `apps/api/src/app/schemas/data_artifacts.py`。C-04 不访问 NASA endpoint，不重新运行 Adapter/Crossmatch，不访问数据库，不分配 `ArtifactVersion`，不推进 Run，不发布 HTTP DTO，也不计算 C-05 质量分。
+实现位于 `services/data_pipeline/data_artifacts/`，唯一 Pydantic Contract 编写源位于 `apps/api/src/app/schemas/data_artifacts.py`。科学 hash 投影位于 `app.schemas.data_artifact_identity`，process-local seal 位于 `app.schemas.data_artifact_seal`；二者都不定义或导出另一套 JSON Contract。C-04 不访问 NASA endpoint，不重新运行 Adapter/Crossmatch，不访问数据库，不分配 `ArtifactVersion`，不推进 Run，不发布 HTTP DTO，也不计算 C-05 质量分。
 
 ## 2. 输入与冻结策略
 
@@ -78,9 +78,11 @@ raw value 仍按来源原样保留用于 lineage，因此 raw-record/input/Publi
 
 ## 6. Evidence、候选、replay 与 hash
 
-`TransformationEvidence` 将 dataset row/field/source value 绑定到 raw cell、raw/canonical value、uncertainty/limit、reference/provenance 值与 locator、conversion catalog、C-08 result/logical key/Evidence 和 selection 状态。Dataset 对 SourceValue、Transformation Evidence、selection 与 conflict 执行双向 exact-set 校验；Evidence 值与 SourceValue 逐项相等，conflict 的 row/field/candidate set、scope 与数值差异均重新派生。
+`TransformationEvidence` 将 dataset row/field/source value 绑定到 raw cell、raw/canonical value、uncertainty/limit、reference/provenance 值与 locator、conversion catalog、C-08 result/logical key/Evidence 和 selection 状态。`projection.py` 是唯一领域派生源：它只从 canonical `DataArtifactBuildInput`、冻结 Field Manifest、MappingRuleSet、UnitConversionCatalog 与 C-08 `CrossmatchResult` 生成不可变 `DataArtifactDomainProjection`。该投影封闭 rows/entity projection、完整 SourceValue/raw locator/canonical value/unit/uncertainty/limit/null、Evidence、source/alias priority、selection/conflict 与 SourceCollection acquisition exact set。
 
-三类候选共享精确 Manifest/policy/catalog/producer/input/Snapshot/Evidence pins。公共入口先完成独立领域准入，再以不可变 process-local `DataArtifactAdmissionSnapshot`（canonical input JSON、冻结策略 commitment、bundle commitment）绑定完整公开 payload，最后写入带 object id、candidate/input/output/public-payload/context/bundle commitment 的 publication seal。Publisher gates 只从该 snapshot 重新解析输入并调用独立 validator，不再执行完整 builder。同步修改 SourceValue、Evidence、outcome、hash、context 或跨 build 移植字段都会在 seal 或独立准入阶段拒绝；copy/reparse 只得到合法内容模型，不具 publication 资格。
+`pipeline.py` 只把领域投影序列化成三个候选，不拥有 selection、uncertainty、limit 或 conflict 算法。`admission.py` 不调用该装配器，也不读取候选已有集合来推测期望值；它从 immutable input 重新派生一份领域投影，然后对 rows、SourceValue、Evidence、selection、conflict、FieldDictionary 和 SourceCollection 做完整等值准入。因此 producer 漏值、选错 winner、改写 null/uncertainty/limit、改变 row member/alignment 或隐藏 conflict 都会在 seal 前拒绝。Pydantic 模型只负责可序列化类型、局部结构与 registry closure；领域真实性由 projection/admission 负责。
+
+三类候选共享精确 Manifest/policy/catalog/producer/input/Snapshot/Evidence pins。公共入口先完成独立领域准入，再以不可变 process-local `DataArtifactAdmissionSnapshot`（canonical input JSON、冻结策略 commitment、bundle commitment）绑定完整公开 payload，最后写入带 object id、candidate/input/output/public-payload/context/bundle commitment 的 publication seal。Publisher gates 只从该 snapshot 重新解析输入并调用独立 validator，不执行候选装配器。同步修改 SourceValue、Evidence、outcome、hash、context 或跨 build 移植字段都会在 seal 或独立准入阶段拒绝；copy/reparse 只得到领域内容有效的 Contract，不恢复 seal/context，也不具 publication 资格。
 
 - Dataset：columns、rows、判别字段 outcome、全部 source values、Evidence、selection/conflict 和 C-05 metric input 声明；不含 quality score。
 - FieldDictionary：requested fields 对 Field Manifest `FieldDefinition` 的精确投影。
@@ -88,11 +90,18 @@ raw value 仍按来源原样保留用于 lineage，因此 raw-record/input/Publi
 
 BuildResult 是进程内编排结果，不是 generated JSON Contract；它进一步校验 Dataset columns 与 FieldDictionary definitions 完全相等、三类 candidate 的共同 pins 完全相等、Dataset 使用的 raw records 均属于 SourceCollection、alignment keys 覆盖 Dataset rows、C-08 identity 一致。公共序列化 Contract 是 DataArtifactBuildInput、Dataset、FieldDictionary、SourceCollection、MappingRuleSet 与 UnitConversionCatalog；候选 JSON/Pydantic round-trip 不会恢复 seal/context。
 
-Dataset 同时暴露 `canonical_content_hash`（Manifest/policy/requested fields/row grain/规范化值、单位、不确定度、limit、null/conflict/selection 科学投影）与 `lineage_hash`（raw representation、record/snapshot/query/Evidence/source-value/input 等 provenance）。Dataset candidate ID 由 kind、schema version 与 canonical content hash 派生；它不是 ArtifactVersion identity 或 publication idempotency key。稳定 hash 排除 wall-clock、日志、分支、数据库 ID、ArtifactVersion number 与 Publisher content hash。raw provenance hash 可以区分 `0.0` 与 `-0.0`，但等价负零保持相同 canonical Dataset identity；Publisher content hash/output hash 仍可因 lineage 不同而不同。
+Dataset identity 只在 `data_artifact_identity.py` 定义：
+
+- `canonical_content_hash` 覆盖 Manifest/policy/requested canonical schema、row grain/entity projection/alignment、canonical 主值与单位、canonical uncertainty、limit status、null/unresolved、完整 canonical candidate 集合及其 source/alias priority、selection winner/order/reason 和 conflict scope/differences；排除 raw value/unit/table、locator、Snapshot/query/record/Evidence、source-value/conflict/selection 等派生 ID。所有 canonical Decimal 零在该投影中归一为 `0`。
+- `lineage_hash` 覆盖除 candidate/hash identity 字段以外的完整 Dataset public representation，因而包含 raw representation、Snapshot/query/record、locator、Evidence、input/C-08 lineage，并由 Schema 与 admission 严格复算。
+- `output_hash` 覆盖除 candidate ID 与 output hash 自身外的完整公开候选内容，因此同时承诺 canonical 与 lineage hash。
+- Dataset `candidate_id` 只能由 kind、schema version 与 `canonical_content_hash` 派生；不存在 legacy output-hash fallback。FieldDictionary/SourceCollection 继续以完整 output hash 作为自身 candidate identity 输入。
+
+Dataset candidate ID 不是 ArtifactVersion identity 或 publication idempotency key。稳定 hash 排除 wall-clock、日志、分支、数据库 ID、ArtifactVersion number 与 Publisher content hash。raw provenance hash 可以区分 `0.0` 与 `-0.0`，但等价负零保持相同 canonical Dataset identity；Publisher content hash/output hash 仍可因 lineage 不同而不同。
 
 ## 7. Publisher 与 C-05 交接
 
-C-04 生产模块不反向依赖 `app.workflow.publisher`。`services/data_pipeline/data_artifacts/admission.py` 提供 Evidence、domain、quality-prerequisite validators；它们从 immutable snapshot 重新解析输入，再独立重验 C-08/C-04 冻结策略、raw payload、Manifest alias、主值/uncertainty/limit 转换、row projection、Evidence、conflict 和 SourceCollection 完整 records。API/B 边界将三个 sealed candidate 分别交给 #78 `admit_artifact_candidate(...)`。复制、重新解析、bundle intermediate、dict 或 free text 不能绕过 instance seal。该端口只生成 `AdmittedArtifactCandidate`，数据库发布事务与 `ArtifactVersion` 仍属于 #78/B。
+C-04 生产模块不反向依赖 `app.workflow.publisher`。`services/data_pipeline/data_artifacts/admission.py` 提供 Evidence、domain、quality-prerequisite validators；它们从 immutable snapshot 重新解析输入，以同一领域投影规则重新派生完整期望值，并与候选逐集合比较，不导入或调用生产候选装配器。API/B 边界将三个 sealed candidate 分别交给 #78 `admit_artifact_candidate(...)`。复制、重新解析、bundle intermediate、dict 或 free text 不能绕过 instance seal。该端口只生成 `AdmittedArtifactCandidate`，数据库发布事务与 `ArtifactVersion` 仍属于 #78/B。
 
 C-05 #35 后续消费 Dataset 的 field outcomes、conflicts、Evidence coverage、Crossmatch status 和 `quality_metric_input_declarations` 计算质量；C-04 始终输出 `quality_evaluation_status=not_evaluated`。
 

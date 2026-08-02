@@ -8,10 +8,10 @@ import pytest
 from app.schemas.data_artifacts import LimitStatus, MappedCanonicalValue, UncertaintyStatus
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
 from services.data_pipeline.data_artifacts.errors import DataArtifactError
-from services.data_pipeline.data_artifacts.pipeline import (
+from services.data_pipeline.data_artifacts.projection import (
     _limit,
-    _numeric_values_agree,
     _uncertainty,
+    numeric_values_agree as _numeric_values_agree,
 )
 from services.data_pipeline.data_artifacts.policy import load_mapping_rule_set
 from services.data_pipeline.manifest import load_frozen_manifest_bundle

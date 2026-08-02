@@ -18,7 +18,9 @@ from app.schemas.data_artifacts import (
     UnitConversionCatalog,
     compute_data_artifact_content_hash,
     compute_data_artifact_candidate_id,
+    compute_data_artifact_canonical_content_hash,
     compute_data_artifact_input_hash,
+    compute_data_artifact_lineage_hash,
     compute_data_artifact_output_hash,
     compute_raw_record_reference_registry_hash,
 )
@@ -32,7 +34,9 @@ from services.data_pipeline.data_artifacts.admission import (
     validate_data_artifact_evidence,
 )
 from services.data_pipeline.data_artifacts.errors import DataArtifactError
-from services.data_pipeline.data_artifacts.pipeline import _conflicts
+from services.data_pipeline.data_artifacts.projection import (
+    derive_field_conflicts as _conflicts,
+)
 from services.data_pipeline.data_artifacts.policy import load_mapping_rule_set
 from services.data_pipeline.data_artifacts.policy import load_unit_conversion_catalog
 from services.data_pipeline.manifest import load_frozen_manifest_bundle
@@ -151,9 +155,15 @@ def test_public_build_rejects_self_consistent_non_frozen_conversion_catalog() ->
 
 
 def _rehash_candidate_payload(payload: dict) -> dict:
+    if payload["kind"] == "dataset":
+        payload["canonical_content_hash"] = (
+            compute_data_artifact_canonical_content_hash(payload)
+        )
+        payload["lineage_hash"] = compute_data_artifact_lineage_hash(payload)
     payload["output_hash"] = compute_data_artifact_output_hash(payload)
+    identity_hash = payload.get("canonical_content_hash", payload["output_hash"])
     payload["candidate_id"] = compute_data_artifact_candidate_id(
-        payload["kind"], payload["output_hash"]
+        payload["kind"], identity_hash
     )
     return payload
 
@@ -642,9 +652,13 @@ def test_publisher_validators_independently_revalidate_damaged_candidate() -> No
         evidence_ids=tuple(payload["evidence_ids"]),
     )
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(
+        ValueError, match="Dataset Evidence set.*complete domain projection"
+    ):
         validate_data_artifact_evidence(context)
-    with pytest.raises(ValidationError):
+    with pytest.raises(
+        ValueError, match="Dataset Evidence set.*complete domain projection"
+    ):
         validate_data_artifact_domain(context)
 
 
