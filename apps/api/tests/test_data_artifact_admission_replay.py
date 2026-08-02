@@ -6,18 +6,26 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.data_artifacts import (
+    AlignmentStatus,
     DataArtifactBuildInput,
     DataArtifactAdmissionSnapshot,
     DatasetArtifactCandidate,
+    LimitStatus,
+    LimitValue,
     ManifestPins,
     RawSourceRecordReference,
     SourceCollectionArtifactCandidate,
+    UncertaintyStatus,
+    UncertaintyValue,
     compute_data_artifact_candidate_id,
+    compute_data_artifact_canonical_content_hash,
     compute_data_artifact_content_hash,
     compute_data_artifact_input_hash,
+    compute_data_artifact_lineage_hash,
     compute_data_artifact_output_hash,
     compute_raw_record_reference_registry_hash,
 )
+from app.schemas.manifest import NullReason
 from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
 from app.schemas.source_acquisition import RawDataSourceRecord, compute_raw_data_record_hash
 from services.data_pipeline.crossmatch import align_cross_source_records
@@ -29,6 +37,7 @@ from services.data_pipeline.data_artifacts import build_data_artifact_candidates
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates as package_entry
 from services.data_pipeline.data_artifacts.pipeline import build_data_artifact_candidates as module_entry
 from services.data_pipeline.data_artifacts.admission import (
+    validate_data_artifact_candidates_against_input,
     validate_data_artifact_domain,
     validate_data_artifact_evidence,
     validate_data_artifact_quality_prerequisites,
@@ -121,9 +130,15 @@ def _negative_zero_build_input(raw_value: float) -> DataArtifactBuildInput:
 
 
 def _rehash_candidate_payload(payload: dict) -> dict:
+    if payload["kind"] == "dataset":
+        payload["canonical_content_hash"] = (
+            compute_data_artifact_canonical_content_hash(payload)
+        )
+        payload["lineage_hash"] = compute_data_artifact_lineage_hash(payload)
     payload["output_hash"] = compute_data_artifact_output_hash(payload)
+    identity_hash = payload.get("canonical_content_hash", payload["output_hash"])
     payload["candidate_id"] = compute_data_artifact_candidate_id(
-        payload["kind"], payload["output_hash"]
+        payload["kind"], identity_hash
     )
     return payload
 
@@ -280,6 +295,29 @@ def test_reparsed_candidate_still_cannot_recreate_replay_context() -> None:
         _admit(reparsed)
 
 
+def test_six_public_c04_models_round_trip_without_publication_authority() -> None:
+    input_value = build_input("star.tic_id")
+    result = build_data_artifact_candidates(input_value)
+    public_models = (
+        input_value,
+        result.dataset,
+        result.field_dictionary,
+        result.source_collection,
+        input_value.mapping_rule_set,
+        input_value.conversion_catalog,
+    )
+
+    reparsed = tuple(
+        type(value).model_validate_json(value.model_dump_json())
+        for value in public_models
+    )
+    assert reparsed == public_models
+    for candidate in reparsed[1:4]:
+        validate_data_artifact_candidates_against_input(candidate, reparsed[0])
+        assert getattr(candidate, "_artifact_publication_context", None) is None
+        assert not candidate.__artifact_publication_is_admitted__()
+
+
 @pytest.mark.parametrize("candidate_name", ["dataset", "field_dictionary", "source_collection"])
 @pytest.mark.parametrize("mutation", ["context", "payload", "payload_context", "seal"])
 def test_publisher_rejects_cross_build_candidate_transplant(candidate_name, mutation) -> None:
@@ -314,32 +352,261 @@ def test_publisher_rejects_copy_and_deepcopy_without_publication_identity() -> N
 
 def test_public_builder_revalidates_constructed_and_corrupted_input() -> None:
     source = build_input("star.tic_id")
-    forged = DataArtifactBuildInput.model_construct(**source.model_dump())
+    forged = DataArtifactBuildInput.model_construct(
+        **{
+            field_name: getattr(source, field_name)
+            for field_name in DataArtifactBuildInput.model_fields
+        }
+    )
     object.__setattr__(forged, "input_hash", "sha256:" + "0" * 64)
-    with pytest.raises(Exception):
+    with pytest.raises(DataArtifactError) as forged_error:
         build_data_artifact_candidates(forged)
+    assert forged_error.value.code == "INPUT_HASH_MISMATCH"
 
     corrupted = source.model_copy()
     object.__setattr__(corrupted, "requested_fields", ("planet.name",))
-    with pytest.raises(Exception):
+    with pytest.raises(DataArtifactError) as corrupted_error:
         build_data_artifact_candidates(corrupted)
+    assert corrupted_error.value.code == "INPUT_HASH_MISMATCH"
 
 
-def test_independent_admission_rejects_producer_canonical_value_bug(monkeypatch) -> None:
+def _install_broken_assembler(monkeypatch, mutate) -> None:
     import services.data_pipeline.data_artifacts.pipeline as pipeline
 
-    original = pipeline._source_value
+    original = pipeline._assemble_data_artifact_candidates
 
-    def broken_source_value(**kwargs):
-        value = original(**kwargs)
-        payload = value.model_dump(mode="json")
-        payload["canonical_value"] = "forged"
-        payload["content_hash"] = compute_data_artifact_content_hash(payload)
-        return type(value).model_validate(payload)
+    def broken_assembler(projection):
+        result = original(projection)
+        mutate(result)
+        return result
 
-    monkeypatch.setattr(pipeline, "_source_value", broken_source_value)
-    with pytest.raises(ValueError, match="independent conversion"):
-        build_data_artifact_candidates(build_input("planet.name"))
+    monkeypatch.setattr(pipeline, "_assemble_data_artifact_candidates", broken_assembler)
+
+
+def test_projection_admission_rejects_producer_omitted_source_value(monkeypatch) -> None:
+    def mutate(result):
+        object.__setattr__(result.dataset, "source_values", result.dataset.source_values[1:])
+
+    _install_broken_assembler(monkeypatch, mutate)
+    with pytest.raises(ValueError, match="SourceValue set.*complete domain projection"):
+        build_data_artifact_candidates(
+            build_input("star.tic_id", scenario_id="same_tic_host_only")
+        )
+
+
+def test_projection_admission_rejects_wrong_winner(monkeypatch) -> None:
+    def mutate(result):
+        outcome = next(
+            outcome
+            for row in result.dataset.rows
+            for outcome in row.fields
+            if outcome.status == "mapped" and len(outcome.candidate_source_value_ids) > 1
+        )
+        object.__setattr__(
+            outcome,
+            "selected_source_value_id",
+            outcome.candidate_source_value_ids[-1],
+        )
+
+    _install_broken_assembler(monkeypatch, mutate)
+    with pytest.raises(ValueError, match="Dataset rows.*complete domain projection"):
+        build_data_artifact_candidates(
+            build_input("star.tic_id", scenario_id="same_tic_host_only")
+        )
+
+
+def test_projection_admission_rejects_wrong_declared_null_reason(monkeypatch) -> None:
+    def mutate(result):
+        outcome = next(
+            outcome
+            for row in result.dataset.rows
+            for outcome in row.fields
+            if outcome.status == "declared_null"
+        )
+        object.__setattr__(outcome, "reason", NullReason.not_measured)
+
+    _install_broken_assembler(monkeypatch, mutate)
+    with pytest.raises(ValueError, match="Dataset rows.*complete domain projection"):
+        build_data_artifact_candidates(
+            build_input("planet.radius", scenario_id="exact_one_to_one")
+        )
+
+
+def test_projection_admission_rejects_uncertainty_and_limit_drift(monkeypatch) -> None:
+    def mutate(result):
+        value = result.dataset.source_values[0]
+        object.__setattr__(
+            value,
+            "uncertainty",
+            UncertaintyValue(status=UncertaintyStatus.not_applicable),
+        )
+        object.__setattr__(
+            value,
+            "limit",
+            LimitValue(
+                status=LimitStatus.upper_limit,
+                raw_flag=1,
+                locator=value.limit.locator,
+            ),
+        )
+
+    _install_broken_assembler(monkeypatch, mutate)
+    with pytest.raises(ValueError, match="SourceValue set.*complete domain projection"):
+        build_data_artifact_candidates(_negative_zero_build_input(0.0))
+
+
+def test_projection_admission_rejects_row_alignment_drift(monkeypatch) -> None:
+    def mutate(result):
+        row = result.dataset.rows[0]
+        replacement = (
+            AlignmentStatus.rejected
+            if row.alignment_status is not AlignmentStatus.rejected
+            else AlignmentStatus.accepted
+        )
+        object.__setattr__(row, "alignment_status", replacement)
+
+    _install_broken_assembler(monkeypatch, mutate)
+    with pytest.raises(ValueError, match="Dataset rows.*complete domain projection"):
+        build_data_artifact_candidates(build_input("star.tic_id"))
+
+
+def test_projection_admission_rejects_hidden_conflict(monkeypatch) -> None:
+    def mutate(result):
+        assert result.dataset.conflicts
+        object.__setattr__(result.dataset, "conflicts", ())
+
+    _install_broken_assembler(monkeypatch, mutate)
+    with pytest.raises(ValueError, match="Dataset conflict set.*complete domain projection"):
+        build_data_artifact_candidates(
+            build_input("planet.name", scenario_id="alias_conflict")
+        )
+
+
+def test_dataset_candidate_id_rejects_output_hash_legacy_identity() -> None:
+    candidate = build_data_artifact_candidates(build_input("star.tic_id")).dataset
+    payload = candidate.model_dump(mode="json")
+    payload["candidate_id"] = compute_data_artifact_candidate_id(
+        payload["kind"], payload["output_hash"]
+    )
+
+    with pytest.raises(ValidationError, match="candidate_id.*canonical identity"):
+        DatasetArtifactCandidate.model_validate(payload)
+
+
+def test_dataset_hashes_separate_scientific_semantics_from_raw_lineage() -> None:
+    candidate = build_data_artifact_candidates(_negative_zero_build_input(0.0)).dataset
+    baseline = candidate.model_dump(mode="json")
+    raw_drift = deepcopy(baseline)
+    raw_drift["source_values"][0]["raw_value"] = -0.0
+    raw_drift["source_values"][0]["raw_record_content_hash"] = "sha256:" + "1" * 64
+
+    assert compute_data_artifact_canonical_content_hash(raw_drift) == (
+        candidate.canonical_content_hash
+    )
+    assert compute_data_artifact_lineage_hash(raw_drift) != candidate.lineage_hash
+
+    scientific_variants = []
+    canonical_value = deepcopy(baseline)
+    canonical_value["source_values"][0]["canonical_value"] = "1"
+    scientific_variants.append(canonical_value)
+
+    uncertainty = deepcopy(baseline)
+    uncertainty["source_values"][0]["uncertainty"].update(
+        {
+            "status": "complete",
+            "canonical_positive": "1",
+            "canonical_negative": "2",
+        }
+    )
+    scientific_variants.append(uncertainty)
+
+    limit = deepcopy(baseline)
+    limit["source_values"][0]["limit"]["status"] = "upper_limit"
+    scientific_variants.append(limit)
+
+    removed_candidate = deepcopy(baseline)
+    outcome = next(
+        outcome
+        for row in removed_candidate["rows"]
+        for outcome in row["fields"]
+        if outcome["candidate_source_value_ids"]
+    )
+    outcome["candidate_source_value_ids"] = []
+    scientific_variants.append(removed_candidate)
+
+    assert all(
+        compute_data_artifact_canonical_content_hash(payload)
+        != candidate.canonical_content_hash
+        for payload in scientific_variants
+    )
+
+
+def test_dataset_model_strictly_recomputes_lineage_hash() -> None:
+    candidate = build_data_artifact_candidates(
+        build_input("planet.name", scenario_id="same_tic_host_only")
+    ).dataset
+    payload = candidate.model_dump(mode="json")
+    source_value = payload["source_values"][0]
+    source_value["raw_value"] = "raw-lineage-drift"
+    source_value["content_hash"] = compute_data_artifact_content_hash(source_value)
+    evidence = next(
+        item
+        for item in payload["transformation_evidence"]
+        if item["source_value_id"] == source_value["source_value_id"]
+    )
+    evidence["raw_value"] = "raw-lineage-drift"
+    evidence["content_hash"] = compute_data_artifact_content_hash(evidence)
+
+    with pytest.raises(ValidationError, match="lineage_hash.*complete raw/input lineage"):
+        DatasetArtifactCandidate.model_validate(payload)
+
+
+def test_canonical_hash_covers_selection_null_and_conflict_semantics() -> None:
+    selected = build_data_artifact_candidates(
+        build_input("star.tic_id", scenario_id="same_tic_host_only")
+    ).dataset
+    selected_payload = selected.model_dump(mode="json")
+    mapped = next(
+        outcome
+        for row in selected_payload["rows"]
+        for outcome in row["fields"]
+        if outcome["status"] == "mapped"
+        and len(outcome["candidate_source_value_ids"]) > 1
+    )
+    mapped["selected_source_value_id"] = mapped["candidate_source_value_ids"][-1]
+    assert compute_data_artifact_canonical_content_hash(selected_payload) != (
+        selected.canonical_content_hash
+    )
+
+    declared_null = build_data_artifact_candidates(
+        build_input("planet.radius", scenario_id="exact_one_to_one")
+    ).dataset
+    null_payload = declared_null.model_dump(mode="json")
+    null_outcome = next(
+        outcome
+        for row in null_payload["rows"]
+        for outcome in row["fields"]
+        if outcome["status"] == "declared_null"
+    )
+    null_outcome["reason"] = "not_measured"
+    assert compute_data_artifact_canonical_content_hash(null_payload) != (
+        declared_null.canonical_content_hash
+    )
+
+    conflicted = build_data_artifact_candidates(
+        build_input("planet.name", scenario_id="alias_conflict")
+    ).dataset
+    conflict_payload = conflicted.model_dump(mode="json")
+    conflict_outcome = next(
+        outcome
+        for row in conflict_payload["rows"]
+        for outcome in row["fields"]
+        if outcome.get("conflict_ids")
+    )
+    conflict_outcome["conflict_ids"] = []
+    assert compute_data_artifact_canonical_content_hash(conflict_payload) != (
+        conflicted.canonical_content_hash
+    )
 
 
 def test_negative_zero_preserves_raw_provenance_but_not_canonical_dataset_identity() -> None:
