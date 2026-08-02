@@ -1,0 +1,62 @@
+{
+  "catalog_id": "exoplanet_host_star.unit_conversions",
+  "schema_version": "1.0.0",
+  "version": "1.0.0",
+  "content_hash": "sha256:f5188897c8e4c12ef806d4c5f1ddd3fb474c1feedbcb684ee516e5c4805eb077",
+  "field_manifest_id": "exoplanet_host_star.fields",
+  "field_manifest_version": "1.0.1",
+  "field_manifest_content_hash": "sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53",
+  "numeric_implementation_version": "1.0.0",
+  "precision_digits": 28,
+  "rounding_mode": "ROUND_HALF_EVEN",
+  "serialization_policy": "plain_decimal_string_no_exponent",
+  "zero_serialization_policy": "canonical_unsigned_zero",
+  "decimal_capacity": {
+    "max_input_text_length": 128,
+    "max_significant_digits": 64,
+    "max_adjusted_exponent": 1000,
+    "max_fractional_scale": 1000,
+    "max_plain_string_length": 2048
+  },
+  "rules": [
+    {
+      "rule_id": "unit.identity.v1",
+      "rule_version": "1.0.0",
+      "source_unit": null,
+      "target_unit": null,
+      "quantity_kind": "none",
+      "factor": "1",
+      "factor_numerator": "1",
+      "factor_denominator": "1"
+    },
+    {
+      "rule_id": "unit.jupiter_radius_to_earth_radius.v1",
+      "rule_version": "1.0.0",
+      "source_unit": "jupiter_radius",
+      "target_unit": "earth_radius",
+      "quantity_kind": "length",
+      "factor": "11.20898073093868079835687744",
+      "factor_numerator": "71492000",
+      "factor_denominator": "6378100"
+    },
+    {
+      "rule_id": "unit.jupiter_mass_to_earth_mass.v1",
+      "rule_version": "1.0.0",
+      "source_unit": "jupiter_mass",
+      "target_unit": "earth_mass",
+      "quantity_kind": "mass",
+      "factor": "317.8284065946747670097671753",
+      "factor_numerator": "126686530000000000",
+      "factor_denominator": "398600400000000"
+    }
+  ],
+  "constants_provenance": {
+    "title": "IAU 2015 Resolution B3 on Recommended Nominal Conversion Constants for Selected Solar and Planetary Properties",
+    "authority": "International Astronomical Union",
+    "source_url": "https://www.iau.org/static/resolutions/IAU2015_English.pdf",
+    "resolution_date": "2015-08-13",
+    "note": "Ratios use the exact nominal equatorial radii R_eJ/R_eE and nominal mass parameters (GM)_J/(GM)_E adopted by Resolution B3; these are conversion factors, not current best estimates."
+  },
+  "maintained_by": "C data_pipeline",
+  "created_at": "2026-08-02"
+}

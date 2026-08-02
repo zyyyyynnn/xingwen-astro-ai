@@ -14,6 +14,7 @@
 
 - `services/data_pipeline/manifests/exoplanet_host_star/` 保存 Case Manifest 和 Field Manifest 数据。
 - `services/data_pipeline/manifests/exoplanet_host_star/source-evidence/` 保存官方定义、TAP_SCHEMA 观测和裁决记录；证据解释来源列裁决，但不替代 Manifest 的生产契约。
+- `services/data_pipeline/manifests/exoplanet_host_star/mapping-rules/` 保存 C-04 唯一执行策略与单位换算实现 catalog；它固定 Dataset row-grain/entity projection、集合 tolerance、容量、Decimal serialization limits 和常数 provenance，但不复制 Field Manifest 字段事实。生产入口必须从这些 JSON 加载并拒绝 caller-owned 替代策略。
 - `apps/api/src/app/schemas/manifest.py` 是 Pydantic v2 Schema authoring source，只定义结构、稳定 hash 和静态校验，不新增 API 端点。
 - `packages/schemas/generated/` 只保存现有导出脚本生成的 JSON Schema，不手写第二套生产 Schema。
 - `packages/domain`、`packages/contracts`、前端和 Pipeline 运行时代码只能按版本引用 Manifest，不复制字段清单。
@@ -58,7 +59,7 @@ C-01 只声明来源元数据和选择规则，不访问来源：
 
 API/Case Manifest 使用 provider source id `nasa_exoplanet_archive`；Field Manifest 复用同一组 `SourceDefinition`，以 `provider_source_id + source_table` 派生 table source id：`nasa_exoplanet_archive.ps`、`nasa_exoplanet_archive.toi` 和 `nasa_exoplanet_archive.pscomppars`。不得为 API 粒度另建第二套来源注册表。
 
-table source 的选择顺序和字段适用范围直接读取 Field Manifest 的 `source_priority` 与 `source_aliases`，README 不复制这些字段事实。优先级不能静默删除低优先级原值；C-04 后续只能按 Manifest 策略选择 canonical value，同时保留全部来源值和 Evidence。
+table source 的选择顺序和字段适用范围直接读取 Field Manifest 的 `source_priority` 与 `source_aliases`，README 不复制这些字段事实。优先级不能静默删除低优先级原值；C-04 按 Manifest 策略选择展示 canonical value，同时保留全部来源值、冲突和 Transformation Evidence。完整运行规则见 [Versioned Data Artifacts](../../../docs/engineering/VERSIONED_DATA_ARTIFACTS.md)。
 
 ## 6. 规则声明
 

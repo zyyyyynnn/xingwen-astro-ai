@@ -111,6 +111,12 @@ jobs:
           --include CrossmatchResult
           --include CrossmatchBenchmarkManifest
           --include CrossmatchBenchmarkReport
+          --include DataArtifactBuildInput
+          --include DatasetArtifactCandidate
+          --include FieldDictionaryArtifactCandidate
+          --include SourceCollectionArtifactCandidate
+          --include MappingRuleSet
+          --include UnitConversionCatalog
           --check
 
       - name: Check D07 LiteratureClaim pipeline contracts
