@@ -75,6 +75,68 @@ def _canonical_column(value: Mapping[str, Any]) -> dict[str, Any]:
     return {key: item for key, item in field.items() if key not in excluded}
 
 
+def _normalized_identity_text(value: Any, *, label: str) -> str:
+    normalized = " ".join(str(value).strip().split())
+    if not normalized:
+        raise ValueError(f"canonical assertion {label} must not be empty")
+    return normalized
+
+
+def _canonical_assertion_key(
+    payload: Mapping[str, Any], identity_values: list[dict[str, Any]]
+) -> str:
+    """Derive a versioned assertion key without trusting source_entity_key."""
+
+    source_record = payload.get("source_record", {})
+    if not isinstance(source_record, Mapping):
+        raise ValueError("planet assertion lacks a structured source record")
+    source_namespace = _normalized_identity_text(
+        source_record.get("source_id"), label="source namespace"
+    )
+
+    identity_raw_fields = {
+        locator.get("raw_field")
+        for item in payload.get("identity_values", ())
+        if isinstance(item, Mapping)
+        and isinstance((locator := item.get("locator", {})), Mapping)
+        and locator.get("raw_field") is not None
+    }
+    discriminators: list[dict[str, str]] = []
+    seen_fields: set[str] = set()
+    for item in source_record.get("row_key", ()):
+        if not isinstance(item, (list, tuple)) or len(item) != 2:
+            raise ValueError("planet assertion row key is malformed")
+        field = _normalized_identity_text(item[0], label="row-key field")
+        if field in seen_fields:
+            raise ValueError("planet assertion row key contains duplicate fields")
+        seen_fields.add(field)
+        if field in identity_raw_fields:
+            continue
+        discriminators.append(
+            {
+                "field": field,
+                "normalized_value": _normalized_identity_text(
+                    item[1], label=f"row-key value for {field}"
+                ),
+            }
+        )
+    if not discriminators:
+        raise ValueError(
+            "planet assertion requires a non-identity row-key discriminator"
+        )
+    discriminators.sort(key=compute_canonical_payload_hash)
+    digest = compute_canonical_payload_hash(
+        {
+            "assertion_identity_version": "1.0.0",
+            "source_namespace": source_namespace,
+            "entity_level": "planet_assertion",
+            "entity_identity_values": identity_values,
+            "assertion_discriminators": discriminators,
+        }
+    ).removeprefix("sha256:")
+    return f"assertion.{digest[:24]}"
+
+
 def _canonical_entity_identity(value: Any) -> dict[str, Any]:
     """Project one admitted C-08 entity without source-lineage identity."""
 
@@ -97,13 +159,8 @@ def _canonical_entity_identity(value: Any) -> dict[str, Any]:
         "identity_values": identity_values,
     }
     if payload.get("entity_level") == "planet_assertion":
-        # C-08 admits source_entity_key as the logical assertion key. It preserves
-        # separate assertions for the same normalized planet without importing
-        # Snapshot/query/record hashes, locators, Evidence, or generated IDs.
-        projected["logical_assertion_key"] = payload.get(
-            "logical_assertion_key"
-        ) or payload.get("source_record", {}).get(
-            "source_entity_key"
+        projected["logical_assertion_key"] = _canonical_assertion_key(
+            payload, identity_values
         )
     return projected
 
