@@ -138,7 +138,7 @@ def _canonical_assertion_key(
 
 
 def _canonical_entity_identity(value: Any) -> dict[str, Any]:
-    """Project one admitted C-08 entity without source-lineage identity."""
+    """Project one admitted or already-canonical C-08 entity identity."""
 
     payload = _payload(value)
     identity_values = sorted(
@@ -159,8 +159,11 @@ def _canonical_entity_identity(value: Any) -> dict[str, Any]:
         "identity_values": identity_values,
     }
     if payload.get("entity_level") == "planet_assertion":
-        projected["logical_assertion_key"] = _canonical_assertion_key(
-            payload, identity_values
+        existing_key = payload.get("logical_assertion_key")
+        projected["logical_assertion_key"] = (
+            _normalized_identity_text(existing_key, label="logical assertion key")
+            if existing_key is not None
+            else _canonical_assertion_key(payload, identity_values)
         )
     return projected
 
