@@ -98,6 +98,14 @@ def test_multiple_planet_assertions_stay_out_of_the_host_row() -> None:
     assert len(assertions) == 2
     assert all(len(row.fields) == 1 for row in assertions)
     assert all(not row.conflict_ids for row in assertions)
+    assert {
+        row.canonical_row_identity.member_entities[0].logical_assertion_key
+        for row in assertions
+    } == {
+        "pl_name=Assertion Planet b|pl_refname=Reference A",
+        "pl_name=Assertion Planet b|pl_refname=Reference B",
+    }
+    assert len({row.canonical_row_identity for row in assertions}) == 2
 
 
 @pytest.mark.parametrize(

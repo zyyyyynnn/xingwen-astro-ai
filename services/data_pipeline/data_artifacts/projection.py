@@ -20,6 +20,7 @@ from app.schemas.crossmatch import (
     UnpairedRecord,
     compute_crossmatch_content_hash,
 )
+from app.schemas.data_artifact_identity import derive_canonical_row_identity
 from app.schemas.data_artifacts import (
     AlignmentStatus,
     DataArtifactBuildInput,
@@ -979,6 +980,11 @@ def derive_data_artifact_domain_projection(
                     "crossmatch_record_type": record.record_type,
                     "crossmatch_logical_key": logical_key,
                     "entity_level": record.entity_level,
+                    "canonical_row_identity": derive_canonical_row_identity(
+                        record,
+                        members,
+                        alignment_status=alignment,
+                    ),
                     "projection_policy_version": input_value.mapping_rule_set.entity_projection_policy.version,
                     "projected_field_ids": tuple(
                         item.canonical_field_id for item in outcomes

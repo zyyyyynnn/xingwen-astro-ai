@@ -620,6 +620,54 @@ class DatasetColumn(BaseModel):
     field: FieldDefinition
 
 
+class CanonicalEntityIdentityValue(BaseModel):
+    model_config = MODEL_CONFIG
+
+    field_id: CanonicalFieldId
+    normalized_value: NonEmptyString
+    normalization_rule_version: SemanticVersion
+
+
+class CanonicalEntityIdentity(BaseModel):
+    model_config = MODEL_CONFIG
+
+    entity_level: EntityLevel
+    identity_values: tuple[CanonicalEntityIdentityValue, ...] = Field(min_length=1)
+    logical_assertion_key: NonEmptyString | None = None
+
+    @model_validator(mode="after")
+    def validate_identity(self) -> Self:
+        field_ids = [value.field_id for value in self.identity_values]
+        if len(field_ids) != len(set(field_ids)):
+            raise ValueError("canonical entity identity fields must be unique")
+        if (self.entity_level is EntityLevel.planet_assertion) != (
+            self.logical_assertion_key is not None
+        ):
+            raise ValueError(
+                "planet assertion identity alone requires a logical assertion key"
+            )
+        return self
+
+
+class CanonicalRowIdentity(BaseModel):
+    model_config = MODEL_CONFIG
+
+    identity_version: Literal["1.0.0"] = "1.0.0"
+    record_type: Literal["paired", "unpaired", "conflict_group"]
+    entity_level: EntityLevel
+    alignment_status: AlignmentStatus
+    member_entities: tuple[CanonicalEntityIdentity, ...] = Field(min_length=1)
+    conflict_code: Identifier | None = None
+
+    @model_validator(mode="after")
+    def validate_identity(self) -> Self:
+        if (self.record_type == "conflict_group") != (self.conflict_code is not None):
+            raise ValueError(
+                "conflict row identity alone requires a crossmatch conflict code"
+            )
+        return self
+
+
 class DatasetRow(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -627,6 +675,7 @@ class DatasetRow(BaseModel):
     crossmatch_record_type: NonEmptyString
     crossmatch_logical_key: ContentHash
     entity_level: EntityLevel
+    canonical_row_identity: CanonicalRowIdentity
     projection_policy_version: SemanticVersion
     projected_field_ids: tuple[CanonicalFieldId, ...]
     alignment_status: AlignmentStatus
@@ -652,6 +701,14 @@ class DatasetRow(BaseModel):
             outcome.canonical_field_id for outcome in self.fields
         ):
             raise ValueError("Dataset row projection does not match its field outcomes")
+        if (
+            self.canonical_row_identity.record_type != self.crossmatch_record_type
+            or self.canonical_row_identity.entity_level is not self.entity_level
+            or self.canonical_row_identity.alignment_status is not self.alignment_status
+        ):
+            raise ValueError(
+                "Dataset row fields disagree with its canonical row identity"
+            )
         _validate_content_hash(self)
         return self
 
@@ -1572,6 +1629,9 @@ def _require_unique(values: tuple[BaseModel, ...], attribute: str, label: str) -
 
 __all__ = [
     "AlignmentStatus",
+    "CanonicalEntityIdentity",
+    "CanonicalEntityIdentityValue",
+    "CanonicalRowIdentity",
     "CanonicalValueOutcome",
     "DataArtifactBuildInput",
     "DataArtifactBuildResult",

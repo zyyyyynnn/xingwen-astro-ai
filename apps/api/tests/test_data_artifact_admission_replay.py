@@ -499,6 +499,10 @@ def test_dataset_hashes_separate_scientific_semantics_from_raw_lineage() -> None
     raw_drift = deepcopy(baseline)
     raw_drift["source_values"][0]["raw_value"] = -0.0
     raw_drift["source_values"][0]["raw_record_content_hash"] = "sha256:" + "1" * 64
+    raw_drift["rows"][0]["row_id"] = "dataset_row.lineage-drift"
+    raw_drift["rows"][0]["crossmatch_logical_key"] = "sha256:" + "2" * 64
+    raw_drift["rows"][0]["source_member_ids"] = ["candidate.lineage-drift"]
+    raw_drift["rows"][0]["source_snapshot_ids"] = ["snapshot.lineage-drift"]
 
     assert compute_data_artifact_canonical_content_hash(raw_drift) == (
         candidate.canonical_content_hash
@@ -506,6 +510,12 @@ def test_dataset_hashes_separate_scientific_semantics_from_raw_lineage() -> None
     assert compute_data_artifact_lineage_hash(raw_drift) != candidate.lineage_hash
 
     scientific_variants = []
+    entity_identity = deepcopy(baseline)
+    entity_identity["rows"][0]["canonical_row_identity"]["member_entities"][0][
+        "identity_values"
+    ][0]["normalized_value"] = "different normalized entity"
+    scientific_variants.append(entity_identity)
+
     canonical_value = deepcopy(baseline)
     canonical_value["source_values"][0]["canonical_value"] = "1"
     scientific_variants.append(canonical_value)
@@ -621,6 +631,9 @@ def test_negative_zero_preserves_raw_provenance_but_not_canonical_dataset_identi
     } == {"0"}
     assert positive.dataset.canonical_content_hash == negative.dataset.canonical_content_hash
     assert positive.dataset.candidate_id == negative.dataset.candidate_id
+    assert tuple(
+        row.canonical_row_identity for row in positive.dataset.rows
+    ) == tuple(row.canonical_row_identity for row in negative.dataset.rows)
     assert positive.dataset.lineage_hash != negative.dataset.lineage_hash
     assert positive.dataset.output_hash != negative.dataset.output_hash
     assert positive.source_collection.output_hash != negative.source_collection.output_hash
