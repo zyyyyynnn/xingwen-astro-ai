@@ -46,23 +46,27 @@
       ],
       "title": "QualityMetricScope",
       "type": "string"
-    },
-    "QualityMetricStatus": {
-      "enum": [
-        "determinate",
-        "insufficient",
-        "not_applicable"
-      ],
-      "title": "QualityMetricStatus",
-      "type": "string"
     }
   },
   "additionalProperties": false,
+  "description": "One compiled metric definition used by both execution and validation.",
   "properties": {
-    "denominator": {
-      "minimum": 0,
-      "title": "Denominator",
-      "type": "integer"
+    "applicability": {
+      "enum": [
+        "projected_field_ids_only",
+        "dataset_scope",
+        "row_scope"
+      ],
+      "title": "Applicability",
+      "type": "string"
+    },
+    "empty_denominator_policy": {
+      "enum": [
+        "not_applicable",
+        "insufficient"
+      ],
+      "title": "Empty Denominator Policy",
+      "type": "string"
     },
     "formula_id": {
       "maxLength": 128,
@@ -70,52 +74,23 @@
       "title": "Formula Id",
       "type": "string"
     },
-    "formula_scope": {
-      "$ref": "#/$defs/QualityMetricScope"
-    },
     "formula_version": {
       "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
       "title": "Formula Version",
       "type": "string"
     },
-    "input_locator": {
-      "minLength": 1,
-      "title": "Input Locator",
+    "incomplete_source_policy": {
+      "enum": [
+        "insufficient",
+        "not_applicable"
+      ],
+      "title": "Incomplete Source Policy",
       "type": "string"
     },
-    "metric_id": {
-      "$ref": "#/$defs/QualityMetricId"
-    },
-    "numerator": {
-      "minimum": 0,
-      "title": "Numerator",
-      "type": "integer"
-    },
-    "precision_digits": {
-      "exclusiveMinimum": 0,
-      "maximum": 64,
-      "title": "Precision Digits",
-      "type": "integer"
-    },
-    "scope": {
-      "$ref": "#/$defs/QualityMetricScope"
-    },
-    "status": {
-      "$ref": "#/$defs/QualityMetricStatus"
-    },
-    "target_id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Target Id",
-      "type": "string"
-    },
-    "value": {
+    "manifest_input": {
       "anyOf": [
         {
-          "type": "number"
-        },
-        {
-          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "minLength": 1,
           "type": "string"
         },
         {
@@ -123,22 +98,30 @@
         }
       ],
       "default": null,
-      "title": "Value"
+      "title": "Manifest Input"
+    },
+    "metric_id": {
+      "$ref": "#/$defs/QualityMetricId"
+    },
+    "result_field": {
+      "minLength": 1,
+      "title": "Result Field",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/QualityMetricScope"
     }
   },
   "required": [
     "metric_id",
     "scope",
-    "target_id",
-    "status",
-    "numerator",
-    "denominator",
     "formula_id",
     "formula_version",
-    "formula_scope",
-    "precision_digits",
-    "input_locator"
+    "result_field",
+    "applicability",
+    "incomplete_source_policy",
+    "empty_denominator_policy"
   ],
-  "title": "QualityMetricResult",
+  "title": "QualityMetricPlan",
   "type": "object"
 }

@@ -24,6 +24,11 @@
             }
           ]
         },
+        "observation_key": {
+          "minLength": 1,
+          "title": "Observation Key",
+          "type": "string"
+        },
         "observed_status": {
           "anyOf": [
             {
@@ -92,6 +97,7 @@
         "constraint_id",
         "source_field",
         "metric_id",
+        "observation_key",
         "observed_status",
         "observed_value",
         "threshold",
@@ -120,7 +126,8 @@
         "field_provenance_coverage",
         "field_evidence_coverage",
         "field_unit_consistency",
-        "field_conflict_rate",
+        "field_same_source_conflict_rate",
+        "field_cross_source_conflict_rate",
         "row_completeness",
         "row_missingness",
         "row_unresolved_rate",
@@ -128,6 +135,9 @@
         "row_evidence_coverage",
         "row_unit_consistency",
         "row_conflict_rate",
+        "row_low_confidence_flag",
+        "row_review_required_flag",
+        "row_inconclusive_flag",
         "dataset_completeness",
         "dataset_missingness",
         "dataset_unresolved_rate",

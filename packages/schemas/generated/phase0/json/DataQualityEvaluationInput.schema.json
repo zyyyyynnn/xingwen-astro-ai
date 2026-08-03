@@ -4477,6 +4477,19 @@
           "title": "Incomplete Source Policy",
           "type": "string"
         },
+        "manifest_input": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manifest Input"
+        },
         "metric_id": {
           "$ref": "#/$defs/QualityMetricId"
         },
@@ -4484,6 +4497,14 @@
           "minLength": 1,
           "title": "Numerator Definition",
           "type": "string"
+        },
+        "result_field": {
+          "minLength": 1,
+          "title": "Result Field",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/QualityMetricScope"
         },
         "version": {
           "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
@@ -4494,7 +4515,9 @@
       "required": [
         "formula_id",
         "metric_id",
+        "scope",
         "version",
+        "result_field",
         "numerator_definition",
         "denominator_definition",
         "applicability",
@@ -4534,6 +4557,20 @@
           ],
           "default": null
         },
+        "not_applicable_result": {
+          "default": "insufficient",
+          "enum": [
+            "insufficient",
+            "pass"
+          ],
+          "title": "Not Applicable Result",
+          "type": "string"
+        },
+        "observation_key": {
+          "minLength": 1,
+          "title": "Observation Key",
+          "type": "string"
+        },
         "operator": {
           "enum": [
             "gte",
@@ -4541,6 +4578,19 @@
           ],
           "title": "Operator",
           "type": "string"
+        },
+        "result_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Result Field"
         },
         "rule_binding_version": {
           "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
@@ -4551,6 +4601,7 @@
       "required": [
         "constraint_id",
         "contract_path",
+        "observation_key",
         "operator",
         "rule_binding_version",
         "input_locator"
@@ -4566,7 +4617,8 @@
         "field_provenance_coverage",
         "field_evidence_coverage",
         "field_unit_consistency",
-        "field_conflict_rate",
+        "field_same_source_conflict_rate",
+        "field_cross_source_conflict_rate",
         "row_completeness",
         "row_missingness",
         "row_unresolved_rate",
@@ -4574,6 +4626,9 @@
         "row_evidence_coverage",
         "row_unit_consistency",
         "row_conflict_rate",
+        "row_low_confidence_flag",
+        "row_review_required_flag",
+        "row_inconclusive_flag",
         "dataset_completeness",
         "dataset_missingness",
         "dataset_unresolved_rate",
@@ -4603,6 +4658,15 @@
         "crossmatch_coverage"
       ],
       "title": "QualityMetricInput",
+      "type": "string"
+    },
+    "QualityMetricScope": {
+      "enum": [
+        "field",
+        "row",
+        "dataset"
+      ],
+      "title": "QualityMetricScope",
       "type": "string"
     },
     "QuantityKind": {

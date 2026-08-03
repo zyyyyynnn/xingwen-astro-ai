@@ -47,6 +47,9 @@ class DataQualityAdmissionSnapshot:
     result_id: str
     result_input_hash: str
     result_output_hash: str
+    result_content_hash: str
+    plan_content_hash: str
+    evaluation_commitment: str
     contract_id: str
     contract_version: int
     contract_content_hash: str
@@ -103,6 +106,8 @@ def admit_data_artifact_quality(
         reparsed_input = DataQualityEvaluationInput.model_validate_json(
             evaluation_input.model_dump_json()
         )
+        if not isinstance(evaluation_result, DataQualityEvaluationResult):
+            raise ValueError("only a typed C-05 result can be admitted")
         reparsed_result = DataQualityEvaluationResult.model_validate_json(
             evaluation_result.model_dump_json()
         )
@@ -119,10 +124,33 @@ def admit_data_artifact_quality(
             "quality admission input or result changed during revalidation",
             stage=QualityFailureStage.admission_validation,
         )
-    if evaluation_result.contract_gate.overall_status.value != "pass":
+    try:
+        require_frozen_quality_rule_set(reparsed_input.quality_rule_set)
+    except Exception as error:
+        raise DataQualityError(
+            QualityErrorCode.QUALITY_RULE_SET_MISMATCH,
+            "quality admission RuleSet is not the frozen repository RuleSet",
+            stage=QualityFailureStage.admission_validation,
+            cause=error,
+        ) from error
+    canonical_result = evaluate_data_quality(reparsed_input)
+    if not isinstance(canonical_result, DataQualityEvaluationResult):
+        raise DataQualityError(
+            QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
+            "quality admission input does not produce a typed C-05 result",
+            stage=QualityFailureStage.admission_validation,
+        )
+    if canonical_result != reparsed_result:
+        raise DataQualityError(
+            QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
+            "quality admission result is not the canonical evaluator output",
+            stage=QualityFailureStage.admission_validation,
+        )
+    trusted_result = canonical_result
+    if trusted_result.contract_gate.overall_status.value != "pass":
         code = (
             QualityErrorCode.QUALITY_CONSTRAINT_FAILED
-            if evaluation_result.contract_gate.overall_status.value == "fail"
+            if trusted_result.contract_gate.overall_status.value == "fail"
             else QualityErrorCode.QUALITY_CONSTRAINT_INSUFFICIENT
         )
         raise DataQualityError(
@@ -130,7 +158,7 @@ def admit_data_artifact_quality(
             "only a passing ResearchContract quality gate can be admitted",
             stage=QualityFailureStage.admission_validation,
         )
-    if evaluation_result.input_hash != evaluation_input.input_hash:
+    if trusted_result.input_hash != reparsed_input.input_hash:
         raise DataQualityError(
             QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
             "quality result input_hash differs from quality input",
@@ -158,7 +186,7 @@ def admit_data_artifact_quality(
             output_hash=build_result.source_collection.output_hash,
         ),
     )
-    references = evaluation_result.input_references
+    references = trusted_result.input_references
     if (
         references.c04_input_hash != evaluation_input.data_artifact_input.input_hash
         or references.candidates != expected_candidate_references
@@ -178,33 +206,24 @@ def admit_data_artifact_quality(
         or references.quality_rule_set_version != evaluation_input.quality_rule_set.version
         or references.quality_rule_set_content_hash
         != evaluation_input.quality_rule_set.content_hash
-        or evaluation_result.result_id
+        or trusted_result.result_id
         != compute_data_quality_result_id(
             evaluation_input.input_hash,
             evaluation_input.quality_rule_set.content_hash,
         )
-        or evaluation_result.source_snapshot_ids != build_result.dataset.source_snapshot_ids
-        or evaluation_result.evidence_ids != build_result.dataset.evidence_ids
+        or trusted_result.source_snapshot_ids != build_result.dataset.source_snapshot_ids
+        or trusted_result.evidence_ids != build_result.dataset.evidence_ids
     ):
         raise DataQualityError(
             QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
             "quality result references do not match the exact C-04/C-05 input",
             stage=QualityFailureStage.admission_validation,
         )
-    try:
-        require_frozen_quality_rule_set(evaluation_input.quality_rule_set)
-    except Exception as error:
-        raise DataQualityError(
-            QualityErrorCode.QUALITY_RULE_SET_MISMATCH,
-            "quality admission RuleSet is not the frozen repository RuleSet",
-            stage=QualityFailureStage.admission_validation,
-            cause=error,
-        ) from error
-    snapshot = _make_snapshot(build_result, evaluation_input, evaluation_result)
+    snapshot = _make_snapshot(build_result, reparsed_input, trusted_result)
     return QualityAdmittedDataArtifacts(
         build_result=build_result,
-        evaluation_input=evaluation_input,
-        evaluation_result=evaluation_result,
+        evaluation_input=reparsed_input,
+        evaluation_result=trusted_result,
         snapshot=snapshot,
     )
 
@@ -268,26 +287,51 @@ def build_data_quality_publication_validator(
             "field_dictionary": 1,
             "source_collection": 2,
         }[candidate_kind]
-        if candidate.input_hash != admitted.snapshot.candidate_input_hashes[candidate_index]:
+        if (
+            candidate.candidate_id != admitted.snapshot.candidate_ids[candidate_index]
+            or candidate.input_hash != admitted.snapshot.candidate_input_hashes[candidate_index]
+            or candidate.output_hash != admitted.snapshot.candidate_output_hashes[candidate_index]
+        ):
             raise DataQualityError(
                 QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH,
-                "candidate input_hash differs from C-05 admission candidate binding",
+                "candidate payload differs from C-05 admission candidate binding",
                 stage=QualityFailureStage.admission_validation,
             )
-        recomputed = evaluate_data_quality(immutable_input)
-        if not isinstance(recomputed, DataQualityEvaluationResult):
+        if (
+            admitted.snapshot.result_id != admitted.evaluation_result.result_id
+            or admitted.snapshot.result_input_hash != admitted.evaluation_result.input_hash
+            or admitted.snapshot.result_output_hash != admitted.evaluation_result.output_hash
+            or admitted.snapshot.result_content_hash != admitted.evaluation_result.content_hash
+            or admitted.snapshot.plan_content_hash
+            != admitted.evaluation_result.evaluation_plan.content_hash
+        ):
             raise DataQualityError(
                 QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
-                "immutable C-05 input no longer produces a typed quality result",
+                "C-05 result fields differ from the admission commitment",
                 stage=QualityFailureStage.admission_validation,
             )
-        if recomputed != admitted.evaluation_result:
+        if immutable_input != admitted.evaluation_input:
             raise DataQualityError(
                 QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
-                "recomputed C-05 result differs from admitted quality result",
+                "immutable C-05 input differs from the admission commitment",
                 stage=QualityFailureStage.admission_validation,
             )
-        if recomputed.contract_gate.overall_status.value != "pass":
+        if admitted.snapshot.evaluation_commitment != _evaluation_commitment(
+            admitted.evaluation_input,
+            admitted.evaluation_result,
+        ):
+            raise DataQualityError(
+                QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
+                "C-05 evaluation commitment is not self-consistent",
+                stage=QualityFailureStage.admission_validation,
+            )
+        if admitted.snapshot.bundle_commitment != _bundle_commitment(admitted.snapshot):
+            raise DataQualityError(
+                QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
+                "C-04/C-05 bundle commitment is not self-consistent",
+                stage=QualityFailureStage.admission_validation,
+            )
+        if admitted.evaluation_result.contract_gate.overall_status.value != "pass":
             raise DataQualityError(
                 QualityErrorCode.QUALITY_CONSTRAINT_FAILED,
                 "Publisher quality gate is not passing",
@@ -310,17 +354,17 @@ def _make_snapshot(
     candidate_ids = tuple(item.candidate_id for item in candidates)
     candidate_inputs = tuple(item.input_hash for item in candidates)
     candidate_outputs = tuple(item.output_hash for item in candidates)
-    bundle_commitment = compute_canonical_payload_hash(
-        {
-            "candidate_ids": candidate_ids,
-            "candidate_input_hashes": candidate_inputs,
-            "candidate_output_hashes": candidate_outputs,
-            "dataset_canonical_content_hash": build_result.dataset.canonical_content_hash,
-            "dataset_lineage_hash": build_result.dataset.lineage_hash,
-            "quality_input_hash": evaluation_input.input_hash,
-            "quality_result_id": evaluation_result.result_id,
-            "quality_result_output_hash": evaluation_result.output_hash,
-        }
+    evaluation_commitment = _evaluation_commitment(evaluation_input, evaluation_result)
+    bundle_commitment = _bundle_commitment_values(
+        candidate_ids=candidate_ids,
+        candidate_input_hashes=candidate_inputs,
+        candidate_output_hashes=candidate_outputs,
+        dataset_canonical_content_hash=build_result.dataset.canonical_content_hash,
+        dataset_lineage_hash=build_result.dataset.lineage_hash,
+        quality_input_hash=evaluation_input.input_hash,
+        quality_result_id=evaluation_result.result_id,
+        quality_result_output_hash=evaluation_result.output_hash,
+        evaluation_commitment=evaluation_commitment,
     )
     return DataQualityAdmissionSnapshot(
         input_json=evaluation_input.model_dump_json(),
@@ -328,6 +372,9 @@ def _make_snapshot(
         result_id=evaluation_result.result_id,
         result_input_hash=evaluation_result.input_hash,
         result_output_hash=evaluation_result.output_hash,
+        result_content_hash=evaluation_result.content_hash,
+        plan_content_hash=evaluation_result.evaluation_plan.content_hash,
+        evaluation_commitment=evaluation_commitment,
         contract_id=evaluation_input.research_contract.id,
         contract_version=evaluation_input.research_contract.version,
         contract_content_hash=evaluation_input.research_contract.content_hash,
@@ -343,6 +390,73 @@ def _make_snapshot(
         evidence_ids=build_result.dataset.evidence_ids,
         original_candidate_object_ids=tuple(id(item) for item in candidates),
         bundle_commitment=bundle_commitment,
+    )
+
+
+def _evaluation_commitment(
+    evaluation_input: DataQualityEvaluationInput,
+    evaluation_result: DataQualityEvaluationResult,
+) -> str:
+    return compute_canonical_payload_hash(
+        {
+            "quality_input_hash": evaluation_input.input_hash,
+            "quality_result_id": evaluation_result.result_id,
+            "quality_result_input_hash": evaluation_result.input_hash,
+            "quality_result_output_hash": evaluation_result.output_hash,
+            "quality_result_content_hash": evaluation_result.content_hash,
+            "quality_plan_content_hash": evaluation_result.evaluation_plan.content_hash,
+            "contract": {
+                "id": evaluation_input.research_contract.id,
+                "version": evaluation_input.research_contract.version,
+                "content_hash": evaluation_input.research_contract.content_hash,
+            },
+            "rule_set": {
+                "id": evaluation_input.quality_rule_set.rule_set_id,
+                "version": evaluation_input.quality_rule_set.version,
+                "content_hash": evaluation_input.quality_rule_set.content_hash,
+            },
+        }
+    )
+
+
+def _bundle_commitment(snapshot: DataQualityAdmissionSnapshot) -> str:
+    return _bundle_commitment_values(
+        candidate_ids=snapshot.candidate_ids,
+        candidate_input_hashes=snapshot.candidate_input_hashes,
+        candidate_output_hashes=snapshot.candidate_output_hashes,
+        dataset_canonical_content_hash=snapshot.dataset_canonical_content_hash,
+        dataset_lineage_hash=snapshot.dataset_lineage_hash,
+        quality_input_hash=snapshot.input_hash,
+        quality_result_id=snapshot.result_id,
+        quality_result_output_hash=snapshot.result_output_hash,
+        evaluation_commitment=snapshot.evaluation_commitment,
+    )
+
+
+def _bundle_commitment_values(
+    *,
+    candidate_ids: tuple[str, ...],
+    candidate_input_hashes: tuple[str, ...],
+    candidate_output_hashes: tuple[str, ...],
+    dataset_canonical_content_hash: str,
+    dataset_lineage_hash: str,
+    quality_input_hash: str,
+    quality_result_id: str,
+    quality_result_output_hash: str,
+    evaluation_commitment: str,
+) -> str:
+    return compute_canonical_payload_hash(
+        {
+            "candidate_ids": candidate_ids,
+            "candidate_input_hashes": candidate_input_hashes,
+            "candidate_output_hashes": candidate_output_hashes,
+            "dataset_canonical_content_hash": dataset_canonical_content_hash,
+            "dataset_lineage_hash": dataset_lineage_hash,
+            "quality_input_hash": quality_input_hash,
+            "quality_result_id": quality_result_id,
+            "quality_result_output_hash": quality_result_output_hash,
+            "evaluation_commitment": evaluation_commitment,
+        }
     )
 
 

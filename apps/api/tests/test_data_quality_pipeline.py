@@ -10,6 +10,7 @@ from app.schemas.data_quality import (
     QualityErrorCode,
     QualityMetricStatus,
     compute_data_quality_input_hash,
+    compute_research_contract_content_hash,
     compute_quality_rule_set_content_hash,
 )
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
@@ -20,32 +21,32 @@ from data_artifact_test_support import build_input
 
 
 def _contract(*requested_fields: str, source_min: float = 1.0) -> ResearchContract:
-    return ResearchContract.model_validate(
-        {
-            "id": "rc_c05_test",
-            "project_id": "proj_c05_test",
-            "version": 1,
-            "research_goal": "Evaluate evidence-bound exoplanet data quality",
-            "target_objects": ["exoplanet_candidate", "host_star"],
-            "data_requirements": {"unit_policy": "canonical"},
-            "requested_fields": list(requested_fields),
-            "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
-            "paper_search_scope": {"max_candidates": 20},
-            "output_requirements": ["dataset"],
-            "evidence_requirements": {
-                "require_locator": True,
-                "require_source_snapshot": True,
-                "minimum_coverage": 1.0,
-            },
-            "quality_constraints": {
-                "source_completeness_min": source_min,
-                "unit_consistency_min": 1.0,
-            },
-            "created_from_draft_id": "rcd_c05_test",
-            "created_at": datetime(2026, 8, 3, tzinfo=timezone.utc),
-            "content_hash": "sha256:" + "1" * 64,
-        }
-    )
+    payload = {
+        "id": "rc_c05_test",
+        "project_id": "proj_c05_test",
+        "version": 1,
+        "research_goal": "Evaluate evidence-bound exoplanet data quality",
+        "target_objects": ["exoplanet_candidate", "host_star"],
+        "data_requirements": {"unit_policy": "canonical"},
+        "requested_fields": list(requested_fields),
+        "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+        "paper_search_scope": {"max_candidates": 20},
+        "output_requirements": ["dataset"],
+        "evidence_requirements": {
+            "require_locator": True,
+            "require_source_snapshot": True,
+            "minimum_coverage": 1.0,
+        },
+        "quality_constraints": {
+            "source_completeness_min": source_min,
+            "unit_consistency_min": 1.0,
+        },
+        "created_from_draft_id": "rcd_c05_test",
+        "created_at": datetime(2026, 8, 3, tzinfo=timezone.utc),
+        "content_hash": "sha256:" + "1" * 64,
+    }
+    payload["content_hash"] = compute_research_contract_content_hash(payload)
+    return ResearchContract.model_validate(payload)
 
 
 def make_quality_input(
@@ -152,8 +153,8 @@ def test_inconclusive_unpaired_scope_does_not_become_evidence_gap() -> None:
 
     assert isinstance(result, DataQualityEvaluationResult)
     assert result.dataset_result.inconclusive_record_rate.numerator > 0
-    assert result.dataset_result.inconclusive_record_rate.status is QualityMetricStatus.determinate
-    assert result.dataset_result.evidence_coverage.status is QualityMetricStatus.determinate
+    assert result.dataset_result.inconclusive_record_rate.status is QualityMetricStatus.insufficient
+    assert result.dataset_result.evidence_coverage.status is QualityMetricStatus.insufficient
 
 
 def test_recomputed_tampered_rule_set_is_rejected_as_non_frozen() -> None:
