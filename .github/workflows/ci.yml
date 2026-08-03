@@ -117,6 +117,16 @@ jobs:
           --include SourceCollectionArtifactCandidate
           --include MappingRuleSet
           --include UnitConversionCatalog
+          --include DataQualityRuleSet
+          --include DataQualityEvaluationInput
+          --include DataQualityEvaluationResult
+          --include DataQualityEvaluationRejected
+          --include FieldQualityResult
+          --include RowQualityResult
+          --include DatasetQualityResult
+          --include ResearchContractQualityGate
+          --include QualityConstraintResult
+          --include QualityMetricResult
           --check
 
       - name: Check D07 LiteratureClaim pipeline contracts

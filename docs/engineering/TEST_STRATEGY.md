@@ -27,6 +27,7 @@
 - Run 状态转换、retry policy 和 CacheSelector；
 - Schema、mapper、hash、版本与 supersedes；
 - Evidence、Relation 和 Graph 完整性准入；
+- C-05 quality RuleSet、Decimal ratio、projected-field applicability、Evidence coverage、Contract gate 和 admission hash；
 - 前端 selector、quality tier 和 Visual Model mapper。
 
 ### Component

@@ -243,6 +243,8 @@ C-04 的唯一 Pipeline Pydantic 编写源是 `apps/api/src/app/schemas/data_art
 
 三者是封印后的领域 typed candidate，不是旧 Phase 0 `DatasetResponse`、HTTP DTO、数据库 `ArtifactVersion` 或 bundle intermediate。完整映射、单位、null/uncertainty/limit、Evidence 与 Publisher handoff 规则见 [Versioned Data Artifacts](../engineering/VERSIONED_DATA_ARTIFACTS.md)。
 
+C-05 的唯一公共 Pydantic 编写源是 `apps/api/src/app/schemas/data_quality.py`。它生成 `DataQualityEvaluationResult`（`kind=data_quality`）或 `DataQualityEvaluationRejected`，分别保存 field/row/dataset 原始指标、公式/规则/locator、Evidence/Snapshot 引用与 `ResearchContractQualityGate`。该 typed result 不是 Core `ArtifactKind`，不替代 Dataset candidate 的 `quality_evaluation_status=not_evaluated`，也不代表科学结论正确率。完整指标、状态、哈希和 Publisher 交接见 [Data Quality Evaluation](../engineering/DATA_QUALITY_EVALUATION.md)。
+
 Dataset 包含 name、columns、rows 或 page_reference、row_count、quality_score、source_snapshot_ids。大型数据集保存 manifest 与分页引用，不强制嵌入全部 rows。
 
 FieldDefinition 包含 name、label、description、data_type、canonical_unit、source_field、source_snapshot_ids、transformation_rule、missing_rate、evidence_ids。

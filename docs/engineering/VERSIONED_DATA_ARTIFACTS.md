@@ -104,7 +104,7 @@ Dataset candidate ID 不是 ArtifactVersion identity 或 publication idempotency
 
 C-04 生产模块不反向依赖 `app.workflow.publisher`。`services/data_pipeline/data_artifacts/admission.py` 提供 Evidence、domain、quality-prerequisite validators；它们从 immutable snapshot 重新解析输入，以同一领域投影规则重新派生完整期望值，并与候选逐集合比较，不导入或调用生产候选装配器。API/B 边界将三个 sealed candidate 分别交给 #78 `admit_artifact_candidate(...)`。复制、重新解析、bundle intermediate、dict 或 free text 不能绕过 instance seal。该端口只生成 `AdmittedArtifactCandidate`，数据库发布事务与 `ArtifactVersion` 仍属于 #78/B。
 
-C-05 #35 后续消费 Dataset 的 field outcomes、conflicts、Evidence coverage、Crossmatch status 和 `quality_metric_input_declarations` 计算质量；C-04 始终输出 `quality_evaluation_status=not_evaluated`。
+C-05 #35 消费 Dataset 的 field outcomes、conflicts、Evidence coverage、Crossmatch status 和 `quality_metric_input_declarations`，通过冻结 RuleSet 计算 per-field/row/dataset raw metrics 与 ResearchContract gate；C-04 始终输出 `quality_evaluation_status=not_evaluated`。C-05 的公共 Schema、hash、状态和 Publisher handoff 见 [Data Quality Evaluation](DATA_QUALITY_EVALUATION.md)。C-05 不改写 C-04 candidate，也不把质量结果当作 Core ArtifactKind 或 ArtifactVersion。
 
 ## 8. 数据等级、限制与验证
 
@@ -112,7 +112,7 @@ C-05 #35 后续消费 Dataset 的 field outcomes、conflicts、Evidence coverage
 
 ```powershell
 Set-Location apps/api
-uv run pytest tests/test_data_artifact_contract.py tests/test_field_mapping.py tests/test_unit_conversion.py tests/test_data_artifact_pipeline.py tests/test_data_artifact_publisher_port.py tests/test_data_artifact_review_fixes.py tests/test_data_artifact_admission_replay.py tests/test_data_artifact_assertion_identity.py
+uv run pytest tests/test_data_artifact_contract.py tests/test_field_mapping.py tests/test_unit_conversion.py tests/test_data_artifact_pipeline.py tests/test_data_artifact_publisher_port.py tests/test_data_artifact_review_fixes.py tests/test_data_artifact_admission_replay.py tests/test_data_artifact_assertion_identity.py tests/test_data_quality_contract.py tests/test_data_quality_pipeline.py tests/test_data_quality_publisher_port.py
 uv run pytest -q
 
 Set-Location ../..
