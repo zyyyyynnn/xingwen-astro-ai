@@ -64,7 +64,8 @@
         "field_provenance_coverage",
         "field_evidence_coverage",
         "field_unit_consistency",
-        "field_conflict_rate",
+        "field_same_source_conflict_rate",
+        "field_cross_source_conflict_rate",
         "row_completeness",
         "row_missingness",
         "row_unresolved_rate",
@@ -72,6 +73,9 @@
         "row_evidence_coverage",
         "row_unit_consistency",
         "row_conflict_rate",
+        "row_low_confidence_flag",
+        "row_review_required_flag",
+        "row_inconclusive_flag",
         "dataset_completeness",
         "dataset_missingness",
         "dataset_unresolved_rate",
@@ -104,6 +108,9 @@
           "title": "Formula Id",
           "type": "string"
         },
+        "formula_scope": {
+          "$ref": "#/$defs/QualityMetricScope"
+        },
         "formula_version": {
           "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
           "title": "Formula Version",
@@ -122,6 +129,12 @@
           "title": "Numerator",
           "type": "integer"
         },
+        "precision_digits": {
+          "exclusiveMinimum": 0,
+          "maximum": 64,
+          "title": "Precision Digits",
+          "type": "integer"
+        },
         "scope": {
           "$ref": "#/$defs/QualityMetricScope"
         },
@@ -133,35 +146,6 @@
           "minLength": 1,
           "title": "Target Id",
           "type": "string"
-        },
-        "threshold": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Threshold"
-        },
-        "threshold_source": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Threshold Source"
         },
         "value": {
           "anyOf": [
@@ -189,6 +173,8 @@
         "denominator",
         "formula_id",
         "formula_version",
+        "formula_scope",
+        "precision_digits",
         "input_locator"
       ],
       "title": "QualityMetricResult",

@@ -27,8 +27,8 @@ def test_quality_metric_uses_closed_decimal_ratio_states() -> None:
         value=Decimal("0.6666666666666666666666666667"),
         formula_id="field_completeness.v1",
         formula_version="1.0.0",
-        threshold=None,
-        threshold_source=None,
+        formula_scope="field",
+        precision_digits=28,
         input_locator="dataset.field.planet.toi_id",
     )
 
@@ -48,8 +48,8 @@ def test_quality_metric_rejects_empty_determinate_ratio() -> None:
             value=None,
             formula_id="field_completeness.v1",
             formula_version="1.0.0",
-            threshold=None,
-            threshold_source=None,
+            formula_scope="field",
+            precision_digits=28,
             input_locator="dataset.field.planet.toi_id",
         )
 

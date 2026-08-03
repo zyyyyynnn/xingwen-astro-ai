@@ -1,25 +1,26 @@
-"""ResearchContract quality gate; it consumes C-05 metrics only."""
+"""Compile Contract gate observations from the immutable C-05 plan."""
 
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Iterable
+from typing import Any
 
-from app.schemas.core import ArtifactKind, UnitPolicy
+from app.schemas.core import ResearchContract, UnitPolicy
+from app.schemas.data_artifacts import (
+    DatasetArtifactCandidate,
+    SourceCollectionArtifactCandidate,
+)
 from app.schemas.data_quality import (
-    DataQualityRuleSet,
     DatasetQualityResult,
     QualityConstraintResult,
+    QualityEvaluationPlan,
     QualityGateStatus,
-    QualityMetricId,
     QualityMetricResult,
     QualityMetricStatus,
     ResearchContractQualityGate,
     compute_quality_content_hash,
 )
-from app.schemas.data_artifacts import DatasetArtifactCandidate, SourceCollectionArtifactCandidate
 from app.schemas.manifest import ManifestBundle
-from app.schemas.core import ResearchContract
 
 
 def evaluate_contract_gate(
@@ -29,99 +30,31 @@ def evaluate_contract_gate(
     source_collection_candidate: SourceCollectionArtifactCandidate,
     dataset_result: DatasetQualityResult,
     manifests: ManifestBundle,
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
 ) -> ResearchContractQualityGate:
-    checks: list[QualityConstraintResult] = []
-    checks.append(
-        _metric_check(
-            rules,
-            constraint_id="contract.source_completeness_min",
-            source_field="quality_constraints.source_completeness_min",
-            metric=dataset_result.source_scope_completeness,
-            threshold=Decimal(str(contract.quality_constraints.source_completeness_min)),
-        )
+    """Evaluate exactly the gate bindings compiled from the frozen RuleSet.
+
+    The binding list is the only source of gate order, metric target, operator,
+    Contract threshold locator, and result locator.  The observation catalogue
+    below contains domain facts; it does not decide which facts are gates.
+    """
+
+    observations = _collect_observations(
+        contract,
+        dataset_candidate=dataset_candidate,
+        source_collection_candidate=source_collection_candidate,
+        dataset_result=dataset_result,
+        manifests=manifests,
     )
-    checks.append(
-        _metric_check(
-            rules,
-            constraint_id="contract.unit_consistency_min",
-            source_field="quality_constraints.unit_consistency_min",
-            metric=dataset_result.unit_consistency,
-            threshold=Decimal(str(contract.quality_constraints.unit_consistency_min)),
-            not_applicable_is_pass=True,
-        )
+    checks = tuple(
+        _evaluate_binding(contract, binding, observations, dataset_result)
+        for binding in plan.gate_bindings
     )
-    checks.append(
-        _metric_check(
-            rules,
-            constraint_id="contract.evidence_minimum_coverage",
-            source_field="evidence_requirements.minimum_coverage",
-            metric=dataset_result.evidence_coverage,
-            threshold=Decimal(str(contract.evidence_requirements.minimum_coverage)),
-        )
-    )
-    checks.append(
-        _boolean_check(
-            rules,
-            constraint_id="contract.unit_policy",
-            source_field="data_requirements.unit_policy",
-            observed=contract.data_requirements.unit_policy is UnitPolicy.canonical,
-            input_locator="research_contract.data_requirements.unit_policy",
-        )
-    )
-    checks.append(
-        _boolean_check(
-            rules,
-            constraint_id="contract.requested_fields",
-            source_field="requested_fields",
-            observed=tuple(contract.requested_fields) == tuple(dataset_candidate.requested_fields),
-            input_locator="research_contract.requested_fields",
-        )
-    )
-    allowed_table_sources = set(manifests.resolve_source_scope(contract.source_scope.allowed_sources))
-    actual_table_sources = {member.source_id for member in source_collection_candidate.members}
-    checks.append(
-        _boolean_check(
-            rules,
-            constraint_id="contract.source_scope",
-            source_field="source_scope.allowed_sources",
-            observed=actual_table_sources <= allowed_table_sources,
-            input_locator="research_contract.source_scope.allowed_sources",
-        )
-    )
-    locator_ok = not contract.evidence_requirements.require_locator or bool(dataset_candidate.evidence_ids)
-    snapshot_ok = not contract.evidence_requirements.require_source_snapshot or bool(
-        dataset_candidate.source_snapshot_ids
-    )
-    checks.append(
-        _boolean_check(
-            rules,
-            constraint_id="contract.require_locator",
-            source_field="evidence_requirements.require_locator",
-            observed=locator_ok,
-            input_locator="research_contract.evidence_requirements.require_locator",
-        )
-    )
-    checks.append(
-        _boolean_check(
-            rules,
-            constraint_id="contract.require_source_snapshot",
-            source_field="evidence_requirements.require_source_snapshot",
-            observed=snapshot_ok,
-            input_locator="research_contract.evidence_requirements.require_source_snapshot",
-        )
-    )
-    status = (
-        QualityGateStatus.fail
-        if any(item.result is QualityGateStatus.fail for item in checks)
-        else QualityGateStatus.insufficient
-        if any(item.result is QualityGateStatus.insufficient for item in checks)
-        else QualityGateStatus.pass_
-    )
+    overall_status = _aggregate_gate_status(checks)
     payload = {
-        "overall_status": status,
+        "overall_status": overall_status,
         "checks": [item.model_dump(mode="json") for item in checks],
-        "rule_binding_version": rules.version,
+        "rule_binding_version": plan.rule_set_version,
         "input_locator": "research_contract",
     }
     return ResearchContractQualityGate(
@@ -130,57 +63,144 @@ def evaluate_contract_gate(
     )
 
 
-def _metric_check(
-    rules: DataQualityRuleSet,
+def _collect_observations(
+    contract: ResearchContract,
     *,
-    constraint_id: str,
-    source_field: str,
+    dataset_candidate: DatasetArtifactCandidate,
+    source_collection_candidate: SourceCollectionArtifactCandidate,
+    dataset_result: DatasetQualityResult,
+    manifests: ManifestBundle,
+) -> dict[str, QualityMetricResult | bool]:
+    allowed_sources = set(manifests.resolve_source_scope(contract.source_scope.allowed_sources))
+    actual_sources = {member.source_id for member in source_collection_candidate.members}
+    observations: dict[str, QualityMetricResult | bool] = {
+        f"dataset.{field_name}": getattr(dataset_result, field_name)
+        for field_name in DatasetQualityResult.model_fields
+        if isinstance(getattr(dataset_result, field_name), QualityMetricResult)
+    }
+    observations.update({
+        "contract.unit_policy_canonical": contract.data_requirements.unit_policy
+        is UnitPolicy.canonical,
+        "candidate.requested_fields_exact": set(contract.requested_fields)
+        == set(dataset_candidate.requested_fields),
+        "candidate.source_scope_allowed": actual_sources <= allowed_sources,
+        "candidate.evidence_locator_present": (
+            not contract.evidence_requirements.require_locator
+            or bool(dataset_candidate.evidence_ids)
+        ),
+        "candidate.source_snapshot_present": (
+            not contract.evidence_requirements.require_source_snapshot
+            or bool(dataset_candidate.source_snapshot_ids)
+        ),
+    })
+    return observations
+
+
+def _evaluate_binding(
+    contract: ResearchContract,
+    binding,
+    observations: dict[str, QualityMetricResult | bool],
+    dataset_result: DatasetQualityResult,
+) -> QualityConstraintResult:
+    if binding.metric_id is None:
+        try:
+            observed = observations[binding.observation_key]
+        except KeyError as error:
+            raise ValueError(
+                f"quality gate binding references unknown observation: {binding.observation_key}"
+            ) from error
+        if not isinstance(observed, bool):
+            raise ValueError("non-metric quality gate observation must be boolean")
+        return QualityConstraintResult(
+            constraint_id=binding.constraint_id,
+            source_field=binding.contract_path,
+            metric_id=None,
+            observation_key=binding.observation_key,
+            observed_status="not_checked",
+            observed_value=None,
+            threshold=None,
+            operator=binding.operator,
+            result=QualityGateStatus.pass_ if observed else QualityGateStatus.fail,
+            rule_binding_version=binding.rule_binding_version,
+            input_locator=binding.input_locator,
+        )
+    try:
+        observed = getattr(dataset_result, binding.result_field or "")
+    except AttributeError as error:
+        raise ValueError(
+            f"metric quality gate binding references unknown result field: {binding.result_field}"
+        ) from error
+    if not isinstance(observed, QualityMetricResult) or observed.metric_id != binding.metric_id:
+        raise ValueError("metric quality gate binding does not resolve to its declared metric")
+    try:
+        if observations[binding.observation_key] is not observed:
+            raise ValueError("metric quality gate observation key is not bound to result field")
+    except KeyError as error:
+        raise ValueError(
+            f"quality gate binding references unknown observation: {binding.observation_key}"
+        ) from error
+    threshold = _contract_decimal(contract, binding.contract_path)
+    return QualityConstraintResult(
+        constraint_id=binding.constraint_id,
+        source_field=binding.contract_path,
+        metric_id=observed.metric_id,
+        observation_key=binding.observation_key,
+        observed_status=observed.status,
+        observed_value=observed.value,
+        threshold=threshold,
+        operator=binding.operator,
+        result=_metric_gate_status(
+            observed,
+            threshold,
+            binding.operator,
+            binding.not_applicable_result,
+        ),
+        rule_binding_version=binding.rule_binding_version,
+        input_locator=binding.input_locator,
+    )
+
+
+def _contract_decimal(contract: ResearchContract, path: str) -> Decimal:
+    current: Any = contract
+    for segment in path.split("."):
+        try:
+            current = getattr(current, segment)
+        except AttributeError as error:
+            raise ValueError(f"Contract threshold locator is invalid: {path}") from error
+    if isinstance(current, bool) or not isinstance(current, (int, float, Decimal)):
+        raise ValueError(f"Contract gate locator is not numeric: {path}")
+    return Decimal(str(current))
+
+
+def _metric_gate_status(
     metric: QualityMetricResult,
     threshold: Decimal,
-    not_applicable_is_pass: bool = False,
-) -> QualityConstraintResult:
+    operator: str,
+    not_applicable_result: str,
+) -> QualityGateStatus:
     if metric.status is QualityMetricStatus.insufficient:
-        result = QualityGateStatus.insufficient
-    elif metric.status is QualityMetricStatus.not_applicable and not_applicable_is_pass:
-        result = QualityGateStatus.pass_
-    elif metric.status is QualityMetricStatus.not_applicable or metric.value is None:
-        result = QualityGateStatus.insufficient
-    else:
-        result = QualityGateStatus.pass_ if metric.value >= threshold else QualityGateStatus.fail
-    return QualityConstraintResult(
-        constraint_id=constraint_id,
-        source_field=source_field,
-        metric_id=metric.metric_id,
-        observed_status=metric.status,
-        observed_value=metric.value,
-        threshold=threshold,
-        operator="gte",
-        result=result,
-        rule_binding_version=rules.version,
-        input_locator=metric.input_locator,
-    )
+        return QualityGateStatus.insufficient
+    if metric.status is QualityMetricStatus.not_applicable:
+        return (
+            QualityGateStatus.pass_
+            if not_applicable_result == "pass"
+            else QualityGateStatus.insufficient
+        )
+    if metric.value is None:
+        return QualityGateStatus.insufficient
+    if operator == "gte" and metric.value >= threshold:
+        return QualityGateStatus.pass_
+    if operator == "equals" and metric.value == threshold:
+        return QualityGateStatus.pass_
+    return QualityGateStatus.fail
 
 
-def _boolean_check(
-    rules: DataQualityRuleSet,
-    *,
-    constraint_id: str,
-    source_field: str,
-    observed: bool,
-    input_locator: str,
-) -> QualityConstraintResult:
-    return QualityConstraintResult(
-        constraint_id=constraint_id,
-        source_field=source_field,
-        metric_id=None,
-        observed_status="not_checked",
-        observed_value=None,
-        threshold=None,
-        operator="equals",
-        result=QualityGateStatus.pass_ if observed else QualityGateStatus.fail,
-        rule_binding_version=rules.version,
-        input_locator=input_locator,
-    )
+def _aggregate_gate_status(checks: tuple[QualityConstraintResult, ...]) -> QualityGateStatus:
+    if any(item.result is QualityGateStatus.fail for item in checks):
+        return QualityGateStatus.fail
+    if any(item.result is QualityGateStatus.insufficient for item in checks):
+        return QualityGateStatus.insufficient
+    return QualityGateStatus.pass_
 
 
 __all__ = ["evaluate_contract_gate"]

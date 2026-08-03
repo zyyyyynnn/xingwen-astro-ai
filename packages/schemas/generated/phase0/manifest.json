@@ -128,6 +128,16 @@
     },
     {
       "module": "app.schemas.data_quality",
+      "name": "QualityEvaluationPlan",
+      "path": "json/QualityEvaluationPlan.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityMetricPlan",
+      "path": "json/QualityMetricPlan.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
       "name": "QualityMetricResult",
       "path": "json/QualityMetricResult.schema.json"
     },

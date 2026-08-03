@@ -27,9 +27,9 @@ from app.schemas.data_quality import (
     DataQualityRuleSet,
     DatasetQualityResult,
     FieldQualityResult,
-    QualityAggregateScorePolicy,
     QualityArtifactReference,
     QualityCount,
+    QualityEvaluationPlan,
     QualityErrorCode,
     QualityFailureStage,
     QualityGateStatus,
@@ -45,6 +45,7 @@ from app.schemas.data_quality import (
     compute_data_quality_result_id,
     compute_quality_content_hash,
     compute_quality_output_hash,
+    compute_research_contract_content_hash,
 )
 from app.schemas.manifest import ManifestBundle, load_manifest_bundle
 from services.data_pipeline.data_artifacts.admission import (
@@ -61,7 +62,7 @@ from .observations import (
     RowObservation,
     observe_quality,
 )
-from .policy import require_frozen_quality_rule_set
+from .policy import compile_quality_evaluation_plan, require_frozen_quality_rule_set
 
 
 def evaluate_data_quality(
@@ -82,6 +83,7 @@ def evaluate_data_quality(
                 stage=QualityFailureStage.rule_validation,
                 cause=error,
             ) from error
+        plan = compile_quality_evaluation_plan(rules)
         manifests = load_frozen_manifest_bundle()
         _validate_input_bindings(evaluation_input, manifests, rules)
         observations = observe_quality(
@@ -89,20 +91,38 @@ def evaluate_data_quality(
             evaluation_input.data_artifact_input.crossmatch_result,
             manifests,
         )
-        field_results = _build_field_results(evaluation_input, observations, rules, manifests)
-        row_results = _build_row_results(evaluation_input, observations, rules)
-        dataset_result = _build_dataset_result(evaluation_input, observations, rules)
+        incomplete_source = observations.dataset.source_scope_insufficient
+        field_results = _build_field_results(
+            evaluation_input,
+            observations,
+            plan,
+            manifests,
+            incomplete_source=incomplete_source,
+        )
+        row_results = _build_row_results(
+            evaluation_input,
+            observations,
+            plan,
+            incomplete_source=incomplete_source,
+        )
+        dataset_result = _build_dataset_result(
+            evaluation_input,
+            observations,
+            plan,
+            incomplete_source=incomplete_source,
+        )
         gate = evaluate_contract_gate(
             evaluation_input.research_contract,
             dataset_candidate=evaluation_input.dataset_candidate,
             source_collection_candidate=evaluation_input.source_collection_candidate,
             dataset_result=dataset_result,
             manifests=manifests,
-            rules=rules,
+            plan=plan,
         )
         return _build_result(
             evaluation_input,
             rules,
+            plan,
             field_results,
             row_results,
             dataset_result,
@@ -228,8 +248,10 @@ def _validate_research_contract(value: DataQualityEvaluationInput, manifests: Ma
     contract = value.research_contract
     dataset = value.dataset_candidate
     try:
+        if compute_research_contract_content_hash(contract) != contract.content_hash:
+            raise ValueError("ResearchContract content_hash does not match canonical content")
         manifests.validate_requested_fields(contract.requested_fields)
-        if tuple(sorted(contract.requested_fields)) != tuple(dataset.requested_fields):
+        if set(contract.requested_fields) != set(dataset.requested_fields):
             raise ValueError("Contract requested_fields differ from Dataset projection")
         if contract.data_requirements.unit_policy.value != "canonical":
             raise ValueError("only canonical unit policy is admitted")
@@ -318,8 +340,10 @@ def _validate_capacity(value: DataQualityEvaluationInput, rules: DataQualityRule
 def _build_field_results(
     value: DataQualityEvaluationInput,
     observations: QualityObservationBundle,
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
     manifests: ManifestBundle,
+    *,
+    incomplete_source: bool,
 ) -> tuple[FieldQualityResult, ...]:
     results: list[FieldQualityResult] = []
     for observation in observations.fields:
@@ -327,84 +351,92 @@ def _build_field_results(
         declared = {item.value for item in field.quality_metric_inputs}
         prefix = f"dataset.field.{field.field_id}"
         completeness = _declared_metric(
-            rules,
+            plan,
             QualityMetricId.field_completeness,
             QualityMetricScope.field,
             field.field_id,
-            "completeness" in declared,
+            declared,
             observation.mapped_count,
             observation.applicable_count,
             f"{prefix}.completeness",
+            incomplete_source=incomplete_source,
         )
         missingness = _declared_metric(
-            rules,
+            plan,
             QualityMetricId.field_missingness,
             QualityMetricScope.field,
             field.field_id,
-            "missingness" in declared,
+            declared,
             observation.declared_null_count + observation.unresolved_count,
             observation.applicable_count,
             f"{prefix}.missingness",
+            incomplete_source=incomplete_source,
         )
         unresolved = _declared_metric(
-            rules,
+            plan,
             QualityMetricId.field_unresolved_rate,
             QualityMetricScope.field,
             field.field_id,
-            "missingness" in declared,
+            declared,
             observation.unresolved_count,
             observation.applicable_count,
             f"{prefix}.unresolved_rate",
+            incomplete_source=incomplete_source,
         )
         provenance = _declared_metric(
-            rules,
+            plan,
             QualityMetricId.field_provenance_coverage,
             QualityMetricScope.field,
             field.field_id,
-            "evidence_coverage" in declared,
+            declared,
             observation.provenance_numerator,
             observation.mapped_count,
             f"{prefix}.provenance_coverage",
+            incomplete_source=incomplete_source,
         )
         evidence = _declared_metric(
-            rules,
+            plan,
             QualityMetricId.field_evidence_coverage,
             QualityMetricScope.field,
             field.field_id,
-            "evidence_coverage" in declared,
+            declared,
             observation.evidence_numerator,
             observation.mapped_count,
             f"{prefix}.evidence_coverage",
+            incomplete_source=incomplete_source,
         )
         unit = _declared_metric(
-            rules,
+            plan,
             QualityMetricId.field_unit_consistency,
             QualityMetricScope.field,
             field.field_id,
-            "unit_consistency" in declared,
+            declared,
             observation.unit_numerator,
             observation.unit_denominator,
             f"{prefix}.unit_consistency",
+            incomplete_source=incomplete_source,
         )
         same = _declared_metric(
-            rules,
-            QualityMetricId.field_conflict_rate,
+            plan,
+            QualityMetricId.field_same_source_conflict_rate,
             QualityMetricScope.field,
             field.field_id,
-            "conflict" in declared,
+            declared,
             observation.same_source_conflict_cell_count,
             observation.applicable_count,
             f"{prefix}.same_source_conflict_rate",
+            incomplete_source=incomplete_source,
         )
         cross = _declared_metric(
-            rules,
-            QualityMetricId.field_conflict_rate,
+            plan,
+            QualityMetricId.field_cross_source_conflict_rate,
             QualityMetricScope.field,
             field.field_id,
-            "conflict" in declared,
+            declared,
             observation.cross_source_conflict_cell_count,
             observation.applicable_count,
             f"{prefix}.cross_source_conflict_rate",
+            incomplete_source=incomplete_source,
         )
         payload = {
             "field_id": field.field_id,
@@ -432,7 +464,7 @@ def _build_field_results(
             "source_snapshot_ids": list(observation.source_snapshot_ids),
             "evidence_ids": list(observation.evidence_ids),
             "row_ids": list(observation.row_ids),
-            "rule_references": [rules.rule_set_id, field.field_id],
+            "rule_references": [plan.rule_set_id, field.field_id],
         }
         results.append(FieldQualityResult(**payload, content_hash=compute_quality_content_hash(payload)))
     return tuple(results)
@@ -441,23 +473,25 @@ def _build_field_results(
 def _build_row_results(
     value: DataQualityEvaluationInput,
     observations: QualityObservationBundle,
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
+    *,
+    incomplete_source: bool,
 ) -> tuple[RowQualityResult, ...]:
     results: list[RowQualityResult] = []
     for observation in observations.rows:
         row = observation.row
         prefix = f"dataset.row.{row.row_id}"
         metrics = {
-            "completeness": _metric_or_na(rules, QualityMetricId.row_completeness, QualityMetricScope.row, row.row_id, observation.mapped_count, len(row.projected_field_ids), f"{prefix}.completeness"),
-            "missingness": _metric_or_na(rules, QualityMetricId.row_missingness, QualityMetricScope.row, row.row_id, observation.declared_null_count + observation.unresolved_count, len(row.projected_field_ids), f"{prefix}.missingness"),
-            "unresolved_rate": _metric_or_na(rules, QualityMetricId.row_unresolved_rate, QualityMetricScope.row, row.row_id, observation.unresolved_count, len(row.projected_field_ids), f"{prefix}.unresolved_rate"),
-            "provenance_coverage": _metric_or_na(rules, QualityMetricId.row_provenance_coverage, QualityMetricScope.row, row.row_id, observation.provenance_numerator, observation.mapped_count, f"{prefix}.provenance_coverage"),
-            "evidence_coverage": _metric_or_na(rules, QualityMetricId.row_evidence_coverage, QualityMetricScope.row, row.row_id, observation.evidence_numerator, observation.mapped_count, f"{prefix}.evidence_coverage"),
-            "unit_consistency": _metric_or_na(rules, QualityMetricId.row_unit_consistency, QualityMetricScope.row, row.row_id, observation.unit_numerator, observation.unit_denominator, f"{prefix}.unit_consistency"),
-            "conflict_rate": _metric_or_na(rules, QualityMetricId.row_conflict_rate, QualityMetricScope.row, row.row_id, observation.conflict_count, len(row.projected_field_ids), f"{prefix}.conflict_rate"),
-            "low_confidence": _boolean_metric(rules, QualityMetricId.low_confidence_edge_rate, QualityMetricScope.row, row.row_id, observation.low_confidence, f"{prefix}.low_confidence"),
-            "review_required": _boolean_metric(rules, QualityMetricId.review_required_record_rate, QualityMetricScope.row, row.row_id, observation.review_required, f"{prefix}.review_required"),
-            "inconclusive": _boolean_metric(rules, QualityMetricId.inconclusive_record_rate, QualityMetricScope.row, row.row_id, observation.inconclusive, f"{prefix}.inconclusive"),
+            "completeness": _metric_or_na(plan, QualityMetricId.row_completeness, QualityMetricScope.row, row.row_id, observation.mapped_count, len(row.projected_field_ids), f"{prefix}.completeness", incomplete_source=incomplete_source),
+            "missingness": _metric_or_na(plan, QualityMetricId.row_missingness, QualityMetricScope.row, row.row_id, observation.declared_null_count + observation.unresolved_count, len(row.projected_field_ids), f"{prefix}.missingness", incomplete_source=incomplete_source),
+            "unresolved_rate": _metric_or_na(plan, QualityMetricId.row_unresolved_rate, QualityMetricScope.row, row.row_id, observation.unresolved_count, len(row.projected_field_ids), f"{prefix}.unresolved_rate", incomplete_source=incomplete_source),
+            "provenance_coverage": _metric_or_na(plan, QualityMetricId.row_provenance_coverage, QualityMetricScope.row, row.row_id, observation.provenance_numerator, observation.mapped_count, f"{prefix}.provenance_coverage", incomplete_source=incomplete_source),
+            "evidence_coverage": _metric_or_na(plan, QualityMetricId.row_evidence_coverage, QualityMetricScope.row, row.row_id, observation.evidence_numerator, observation.mapped_count, f"{prefix}.evidence_coverage", incomplete_source=incomplete_source),
+            "unit_consistency": _metric_or_na(plan, QualityMetricId.row_unit_consistency, QualityMetricScope.row, row.row_id, observation.unit_numerator, observation.unit_denominator, f"{prefix}.unit_consistency", incomplete_source=incomplete_source),
+            "conflict_rate": _metric_or_na(plan, QualityMetricId.row_conflict_rate, QualityMetricScope.row, row.row_id, observation.conflict_count, len(row.projected_field_ids), f"{prefix}.conflict_rate", incomplete_source=incomplete_source),
+            "low_confidence": _boolean_metric(plan, QualityMetricId.row_low_confidence_flag, QualityMetricScope.row, row.row_id, observation.low_confidence, f"{prefix}.low_confidence", incomplete_source=incomplete_source),
+            "review_required": _boolean_metric(plan, QualityMetricId.row_review_required_flag, QualityMetricScope.row, row.row_id, observation.review_required, f"{prefix}.review_required", incomplete_source=incomplete_source),
+            "inconclusive": _boolean_metric(plan, QualityMetricId.row_inconclusive_flag, QualityMetricScope.row, row.row_id, observation.inconclusive, f"{prefix}.inconclusive", incomplete_source=incomplete_source),
         }
         payload = {
             "row_id": row.row_id,
@@ -482,25 +516,27 @@ def _build_row_results(
 def _build_dataset_result(
     value: DataQualityEvaluationInput,
     observations: QualityObservationBundle,
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
+    *,
+    incomplete_source: bool,
 ) -> DatasetQualityResult:
     item = observations.dataset
     prefix = "dataset"
     metrics = {
-        "completeness": _metric_or_na(rules, QualityMetricId.dataset_completeness, QualityMetricScope.dataset, "dataset", item.mapped_count, item.applicable_cell_count, f"{prefix}.completeness"),
-        "missingness": _metric_or_na(rules, QualityMetricId.dataset_missingness, QualityMetricScope.dataset, "dataset", item.declared_null_count + item.unresolved_count, item.applicable_cell_count, f"{prefix}.missingness"),
-        "unresolved_rate": _metric_or_na(rules, QualityMetricId.dataset_unresolved_rate, QualityMetricScope.dataset, "dataset", item.unresolved_count, item.applicable_cell_count, f"{prefix}.unresolved_rate"),
-        "provenance_coverage": _metric_or_na(rules, QualityMetricId.dataset_provenance_coverage, QualityMetricScope.dataset, "dataset", item.provenance_numerator, item.mapped_count, f"{prefix}.provenance_coverage"),
-        "evidence_coverage": _metric_or_na(rules, QualityMetricId.dataset_evidence_coverage, QualityMetricScope.dataset, "dataset", item.evidence_numerator, item.evidence_denominator, f"{prefix}.evidence_coverage"),
-        "unit_consistency": _metric_or_na(rules, QualityMetricId.dataset_unit_consistency, QualityMetricScope.dataset, "dataset", item.unit_numerator, item.unit_denominator, f"{prefix}.unit_consistency"),
-        "same_source_conflict_rate": _metric_or_na(rules, QualityMetricId.dataset_same_source_conflict_rate, QualityMetricScope.dataset, "dataset", item.same_source_conflict_cell_count, item.applicable_cell_count, f"{prefix}.same_source_conflict_rate"),
-        "cross_source_conflict_rate": _metric_or_na(rules, QualityMetricId.dataset_cross_source_conflict_rate, QualityMetricScope.dataset, "dataset", item.cross_source_conflict_cell_count, item.applicable_cell_count, f"{prefix}.cross_source_conflict_rate"),
-        "object_match_coverage": _ratio_from_crossmatch(rules, QualityMetricId.object_match_coverage, item.crossmatch_metrics.match_coverage.numerator, item.crossmatch_metrics.match_coverage.denominator, f"{prefix}.object_match_coverage"),
-        "low_confidence_edge_rate": _ratio_from_crossmatch(rules, QualityMetricId.low_confidence_edge_rate, item.crossmatch_metrics.low_confidence_count, item.crossmatch_metrics.candidate_pair_count, f"{prefix}.low_confidence_edge_rate"),
-        "review_required_record_rate": _ratio_from_crossmatch(rules, QualityMetricId.review_required_record_rate, item.crossmatch_metrics.manual_review_required_count, item.crossmatch_metrics.paired_group_count + item.crossmatch_metrics.conflict_group_count, f"{prefix}.review_required_record_rate"),
-        "inconclusive_record_rate": _ratio_from_crossmatch(rules, QualityMetricId.inconclusive_record_rate, item.crossmatch_metrics.inconclusive_record_count, item.crossmatch_record_count, f"{prefix}.inconclusive_record_rate"),
-        "source_scope_completeness": _metric_or_na(rules, QualityMetricId.source_scope_completeness, QualityMetricScope.dataset, "dataset", item.source_scope_numerator, item.source_scope_denominator, f"{prefix}.source_scope_completeness", insufficient=item.source_scope_insufficient),
-        "validation_integrity": _ratio_from_crossmatch(rules, QualityMetricId.validation_integrity, 1 if item.validation_integrity else 0, 1, f"{prefix}.validation_integrity"),
+        "completeness": _metric_or_na(plan, QualityMetricId.dataset_completeness, QualityMetricScope.dataset, "dataset", item.mapped_count, item.applicable_cell_count, f"{prefix}.completeness", incomplete_source=incomplete_source),
+        "missingness": _metric_or_na(plan, QualityMetricId.dataset_missingness, QualityMetricScope.dataset, "dataset", item.declared_null_count + item.unresolved_count, item.applicable_cell_count, f"{prefix}.missingness", incomplete_source=incomplete_source),
+        "unresolved_rate": _metric_or_na(plan, QualityMetricId.dataset_unresolved_rate, QualityMetricScope.dataset, "dataset", item.unresolved_count, item.applicable_cell_count, f"{prefix}.unresolved_rate", incomplete_source=incomplete_source),
+        "provenance_coverage": _metric_or_na(plan, QualityMetricId.dataset_provenance_coverage, QualityMetricScope.dataset, "dataset", item.provenance_numerator, item.mapped_count, f"{prefix}.provenance_coverage", incomplete_source=incomplete_source),
+        "evidence_coverage": _metric_or_na(plan, QualityMetricId.dataset_evidence_coverage, QualityMetricScope.dataset, "dataset", item.evidence_numerator, item.evidence_denominator, f"{prefix}.evidence_coverage", incomplete_source=incomplete_source),
+        "unit_consistency": _metric_or_na(plan, QualityMetricId.dataset_unit_consistency, QualityMetricScope.dataset, "dataset", item.unit_numerator, item.unit_denominator, f"{prefix}.unit_consistency", incomplete_source=incomplete_source),
+        "same_source_conflict_rate": _metric_or_na(plan, QualityMetricId.dataset_same_source_conflict_rate, QualityMetricScope.dataset, "dataset", item.same_source_conflict_cell_count, item.applicable_cell_count, f"{prefix}.same_source_conflict_rate", incomplete_source=incomplete_source),
+        "cross_source_conflict_rate": _metric_or_na(plan, QualityMetricId.dataset_cross_source_conflict_rate, QualityMetricScope.dataset, "dataset", item.cross_source_conflict_cell_count, item.applicable_cell_count, f"{prefix}.cross_source_conflict_rate", incomplete_source=incomplete_source),
+        "object_match_coverage": _ratio_from_crossmatch(plan, QualityMetricId.object_match_coverage, item.crossmatch_metrics.match_coverage.numerator, item.crossmatch_metrics.match_coverage.denominator, f"{prefix}.object_match_coverage", incomplete_source=incomplete_source),
+        "low_confidence_edge_rate": _ratio_from_crossmatch(plan, QualityMetricId.low_confidence_edge_rate, item.crossmatch_metrics.low_confidence_count, item.crossmatch_metrics.candidate_pair_count, f"{prefix}.low_confidence_edge_rate", incomplete_source=incomplete_source),
+        "review_required_record_rate": _ratio_from_crossmatch(plan, QualityMetricId.review_required_record_rate, item.crossmatch_metrics.manual_review_required_count, item.crossmatch_metrics.paired_group_count + item.crossmatch_metrics.conflict_group_count, f"{prefix}.review_required_record_rate", incomplete_source=incomplete_source),
+        "inconclusive_record_rate": _ratio_from_crossmatch(plan, QualityMetricId.inconclusive_record_rate, item.crossmatch_metrics.inconclusive_record_count, item.crossmatch_record_count, f"{prefix}.inconclusive_record_rate", incomplete_source=incomplete_source),
+        "source_scope_completeness": _metric_or_na(plan, QualityMetricId.source_scope_completeness, QualityMetricScope.dataset, "dataset", item.source_scope_numerator, item.source_scope_denominator, f"{prefix}.source_scope_completeness", incomplete_source=incomplete_source),
+        "validation_integrity": _ratio_from_crossmatch(plan, QualityMetricId.validation_integrity, 1 if item.validation_integrity else 0, 1, f"{prefix}.validation_integrity", incomplete_source=incomplete_source),
     }
     payload = {
         "row_count": item.row_count,
@@ -526,6 +562,7 @@ def _build_dataset_result(
 def _build_result(
     value: DataQualityEvaluationInput,
     rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
     fields: tuple[FieldQualityResult, ...],
     rows: tuple[RowQualityResult, ...],
     dataset: DatasetQualityResult,
@@ -559,6 +596,8 @@ def _build_result(
     input_refs = QualityInputReferences(
         c04_input_hash=value.data_artifact_input.input_hash,
         candidates=candidates,
+        requested_field_ids=value.dataset_candidate.requested_fields,
+        row_ids=tuple(item.row_id for item in value.dataset_candidate.rows),
         crossmatch_result_id=value.data_artifact_input.crossmatch_result.result_id,
         crossmatch_input_hash=value.data_artifact_input.crossmatch_result.input_hash,
         crossmatch_output_hash=value.data_artifact_input.crossmatch_result.output_hash,
@@ -587,6 +626,7 @@ def _build_result(
         "schema_version": "1.0.0",
         "result_id": compute_data_quality_result_id(value.input_hash, rules.content_hash),
         "input_references": input_refs.model_dump(mode="json"),
+        "evaluation_plan": plan.model_dump(mode="json"),
         "quality_rule_set_reference": rule_reference.model_dump(mode="json"),
         "research_contract_reference": contract_reference.model_dump(mode="json"),
         "field_results": [item.model_dump(mode="json") for item in fields],
@@ -611,22 +651,38 @@ def _build_result(
 
 
 def _declared_metric(
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
     metric_id: QualityMetricId,
     scope: QualityMetricScope,
     target_id: str,
-    declared: bool,
+    declared_inputs: set[str],
     numerator: int,
     denominator: int,
     locator: str,
+    *,
+    incomplete_source: bool,
 ) -> QualityMetricResult:
+    metric_plan = next(item for item in plan.metrics if item.metric_id is metric_id)
+    declared = (
+        metric_plan.manifest_input is None
+        or metric_plan.manifest_input in declared_inputs
+    )
     if not declared:
-        return not_applicable_metric(rules, metric_id=metric_id, scope=scope, target_id=target_id, input_locator=locator)
-    return _metric_or_na(rules, metric_id, scope, target_id, numerator, denominator, locator)
+        return not_applicable_metric(plan, metric_id=metric_id, scope=scope, target_id=target_id, input_locator=locator)
+    return _metric_or_na(
+        plan,
+        metric_id,
+        scope,
+        target_id,
+        numerator,
+        denominator,
+        locator,
+        incomplete_source=incomplete_source,
+    )
 
 
 def _metric_or_na(
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
     metric_id: QualityMetricId,
     scope: QualityMetricScope,
     target_id: str,
@@ -634,59 +690,63 @@ def _metric_or_na(
     denominator: int,
     locator: str,
     *,
-    insufficient: bool = False,
+    incomplete_source: bool = False,
 ) -> QualityMetricResult:
-    if insufficient:
-        return make_metric(
-            rules,
-            metric_id=metric_id,
-            scope=scope,
-            target_id=target_id,
-            numerator=numerator,
-            denominator=denominator,
-            status=QualityMetricStatus.insufficient,
-            input_locator=locator,
-        )
     if denominator <= 0:
-        return not_applicable_metric(rules, metric_id=metric_id, scope=scope, target_id=target_id, input_locator=locator)
+        return not_applicable_metric(plan, metric_id=metric_id, scope=scope, target_id=target_id, input_locator=locator)
     return make_metric(
-        rules,
+        plan,
         metric_id=metric_id,
         scope=scope,
         target_id=target_id,
         numerator=numerator,
         denominator=denominator,
+        incomplete_source=incomplete_source,
         input_locator=locator,
     )
 
 
 def _ratio_from_crossmatch(
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
     metric_id: QualityMetricId,
     numerator: int,
     denominator: int,
     locator: str,
+    *,
+    incomplete_source: bool,
 ) -> QualityMetricResult:
-    return _metric_or_na(rules, metric_id, QualityMetricScope.dataset, "dataset", numerator, denominator, locator)
+    return _metric_or_na(
+        plan,
+        metric_id,
+        QualityMetricScope.dataset,
+        "dataset",
+        numerator,
+        denominator,
+        locator,
+        incomplete_source=incomplete_source,
+    )
 
 
 def _boolean_metric(
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
     metric_id: QualityMetricId,
     scope: QualityMetricScope,
     target_id: str,
     value: bool | None,
     locator: str,
+    *,
+    incomplete_source: bool,
 ) -> QualityMetricResult:
     if value is None:
-        return not_applicable_metric(rules, metric_id=metric_id, scope=scope, target_id=target_id, input_locator=locator)
+        return not_applicable_metric(plan, metric_id=metric_id, scope=scope, target_id=target_id, input_locator=locator)
     return make_metric(
-        rules,
+        plan,
         metric_id=metric_id,
         scope=scope,
         target_id=target_id,
         numerator=int(value),
         denominator=1,
+        incomplete_source=incomplete_source,
         input_locator=locator,
     )
 

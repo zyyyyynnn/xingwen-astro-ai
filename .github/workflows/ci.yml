@@ -118,6 +118,8 @@ jobs:
           --include MappingRuleSet
           --include UnitConversionCatalog
           --include DataQualityRuleSet
+          --include QualityEvaluationPlan
+          --include QualityMetricPlan
           --include DataQualityEvaluationInput
           --include DataQualityEvaluationResult
           --include DataQualityEvaluationRejected

@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal, ROUND_HALF_EVEN, localcontext
 
 from app.schemas.data_quality import (
-    DataQualityRuleSet,
+    QualityEvaluationPlan,
     QualityMetricId,
     QualityMetricResult,
     QualityMetricScope,
@@ -14,7 +14,7 @@ from app.schemas.data_quality import (
 
 
 def make_metric(
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
     *,
     metric_id: QualityMetricId,
     scope: QualityMetricScope,
@@ -22,27 +22,41 @@ def make_metric(
     numerator: int = 0,
     denominator: int = 0,
     status: QualityMetricStatus | None = None,
-    threshold: Decimal | None = None,
-    threshold_source: str | None = None,
+    incomplete_source: bool = False,
+    applicable: bool = True,
     input_locator: str,
 ) -> QualityMetricResult:
-    """Create one metric from a RuleSet formula; no dynamic expressions run."""
+    """Create one metric from the compiled plan; no dynamic expressions run."""
 
-    formula = next((item for item in rules.formula_registry if item.metric_id is metric_id), None)
-    if formula is None:
+    metric_id = QualityMetricId(metric_id)
+    scope = QualityMetricScope(scope)
+    metric_plan = next((item for item in plan.metrics if item.metric_id is metric_id), None)
+    if metric_plan is None:
         raise ValueError(f"unregistered quality metric: {metric_id.value}")
+    if metric_plan.scope is not scope:
+        raise ValueError("quality metric scope does not match compiled plan")
     if numerator < 0 or denominator < 0 or numerator > denominator:
         raise ValueError("quality ratio counts are invalid")
-    if status is None:
+    if not applicable:
+        status = QualityMetricStatus.not_applicable
+    elif incomplete_source and metric_plan.incomplete_source_policy == "insufficient":
+        status = QualityMetricStatus.insufficient
+    elif status is None and denominator <= 0:
+        status = (
+            QualityMetricStatus.not_applicable
+            if metric_plan.empty_denominator_policy == "not_applicable"
+            else QualityMetricStatus.insufficient
+        )
+    elif status is None:
         status = (
             QualityMetricStatus.determinate
             if denominator > 0
-            else QualityMetricStatus.not_applicable
+            else QualityMetricStatus.insufficient
         )
     value: Decimal | None = None
     if status is QualityMetricStatus.determinate:
         with localcontext() as context:
-            context.prec = rules.precision_digits
+            context.prec = plan.precision_digits
             context.rounding = ROUND_HALF_EVEN
             value = Decimal(numerator) / Decimal(denominator)
     elif status is QualityMetricStatus.not_applicable:
@@ -56,16 +70,16 @@ def make_metric(
         numerator=numerator,
         denominator=denominator,
         value=value,
-        formula_id=formula.formula_id,
-        formula_version=formula.version,
-        threshold=threshold,
-        threshold_source=threshold_source,
+        formula_id=metric_plan.formula_id,
+        formula_version=metric_plan.formula_version,
+        formula_scope=metric_plan.scope,
+        precision_digits=plan.precision_digits,
         input_locator=input_locator,
     )
 
 
 def insufficient_metric(
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
     *,
     metric_id: QualityMetricId,
     scope: QualityMetricScope,
@@ -75,7 +89,7 @@ def insufficient_metric(
     input_locator: str,
 ) -> QualityMetricResult:
     return make_metric(
-        rules,
+        plan,
         metric_id=metric_id,
         scope=scope,
         target_id=target_id,
@@ -87,7 +101,7 @@ def insufficient_metric(
 
 
 def not_applicable_metric(
-    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
     *,
     metric_id: QualityMetricId,
     scope: QualityMetricScope,
@@ -95,7 +109,7 @@ def not_applicable_metric(
     input_locator: str,
 ) -> QualityMetricResult:
     return make_metric(
-        rules,
+        plan,
         metric_id=metric_id,
         scope=scope,
         target_id=target_id,
