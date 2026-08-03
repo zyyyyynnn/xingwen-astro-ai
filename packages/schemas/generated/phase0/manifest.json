@@ -32,6 +32,26 @@
       "path": "json/DataArtifactBuildInput.schema.json"
     },
     {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityEvaluationInput",
+      "path": "json/DataQualityEvaluationInput.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityEvaluationRejected",
+      "path": "json/DataQualityEvaluationRejected.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityEvaluationResult",
+      "path": "json/DataQualityEvaluationResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityRuleSet",
+      "path": "json/DataQualityRuleSet.schema.json"
+    },
+    {
       "module": "app.schemas.source_acquisition",
       "name": "DataSourceCompletion",
       "path": "json/DataSourceCompletion.schema.json"
@@ -40,6 +60,11 @@
       "module": "app.schemas.data_artifacts",
       "name": "DatasetArtifactCandidate",
       "path": "json/DatasetArtifactCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DatasetQualityResult",
+      "path": "json/DatasetQualityResult.schema.json"
     },
     {
       "module": "app.schemas.dataset",
@@ -55,6 +80,11 @@
       "module": "app.schemas.data_artifacts",
       "name": "FieldDictionaryArtifactCandidate",
       "path": "json/FieldDictionaryArtifactCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "FieldQualityResult",
+      "path": "json/FieldQualityResult.schema.json"
     },
     {
       "module": "app.schemas.reasoning",
@@ -92,6 +122,16 @@
       "path": "json/PaperSummary.schema.json"
     },
     {
+      "module": "app.schemas.data_quality",
+      "name": "QualityConstraintResult",
+      "path": "json/QualityConstraintResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityMetricResult",
+      "path": "json/QualityMetricResult.schema.json"
+    },
+    {
       "module": "app.schemas.dataset",
       "name": "QualityScore",
       "path": "json/QualityScore.schema.json"
@@ -100,6 +140,16 @@
       "module": "app.schemas.reasoning",
       "name": "ReasoningTrace",
       "path": "json/ReasoningTrace.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "ResearchContractQualityGate",
+      "path": "json/ResearchContractQualityGate.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "RowQualityResult",
+      "path": "json/RowQualityResult.schema.json"
     },
     {
       "module": "app.schemas.data_artifacts",

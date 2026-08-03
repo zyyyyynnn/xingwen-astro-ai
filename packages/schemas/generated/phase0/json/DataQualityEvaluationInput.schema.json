@@ -1,0 +1,6690 @@
+{
+  "$defs": {
+    "AdjudicationDecision": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "keep_unresolved"
+      ],
+      "title": "AdjudicationDecision",
+      "type": "string"
+    },
+    "AlignmentStatus": {
+      "enum": [
+        "accepted",
+        "review_required",
+        "rejected",
+        "conflict",
+        "unmatched",
+        "inconclusive"
+      ],
+      "title": "AlignmentStatus",
+      "type": "string"
+    },
+    "ArtifactKind": {
+      "enum": [
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+        "paper_collection",
+        "paper_summary",
+        "literature_claims",
+        "literature_relations",
+        "reasoning_traces",
+        "graph",
+        "export"
+      ],
+      "title": "ArtifactKind",
+      "type": "string"
+    },
+    "CandidateEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "condition_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Condition Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "confidence_band": {
+          "$ref": "#/$defs/ConfidenceBand"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "decision": {
+          "$ref": "#/$defs/MatchDecision"
+        },
+        "edge_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "left_candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Left Candidate Id",
+          "type": "string"
+        },
+        "logical_match_key": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Logical Match Key",
+          "type": "string"
+        },
+        "method": {
+          "$ref": "#/$defs/CrossmatchMethod"
+        },
+        "right_candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Right Candidate Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id",
+        "logical_match_key",
+        "entity_level",
+        "left_candidate_id",
+        "right_candidate_id",
+        "method",
+        "decision",
+        "confidence",
+        "confidence_band",
+        "condition_ids",
+        "evidence_ids",
+        "content_hash"
+      ],
+      "title": "CandidateEdge",
+      "type": "object"
+    },
+    "CanonicalEntityIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "identity_values": {
+          "items": {
+            "$ref": "#/$defs/CanonicalEntityIdentityValue"
+          },
+          "minItems": 1,
+          "title": "Identity Values",
+          "type": "array"
+        },
+        "logical_assertion_key": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Assertion Key"
+        }
+      },
+      "required": [
+        "entity_level",
+        "identity_values"
+      ],
+      "title": "CanonicalEntityIdentity",
+      "type": "object"
+    },
+    "CanonicalEntityIdentityValue": {
+      "additionalProperties": false,
+      "properties": {
+        "field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Field Id",
+          "type": "string"
+        },
+        "normalization_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Normalization Rule Version",
+          "type": "string"
+        },
+        "normalized_value": {
+          "minLength": 1,
+          "title": "Normalized Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_id",
+        "normalized_value",
+        "normalization_rule_version"
+      ],
+      "title": "CanonicalEntityIdentityValue",
+      "type": "object"
+    },
+    "CanonicalIdentityValue": {
+      "additionalProperties": false,
+      "properties": {
+        "field_id": {
+          "pattern": "^(planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Field Id",
+          "type": "string"
+        },
+        "locator": {
+          "$ref": "#/$defs/EvidenceLocator"
+        },
+        "normalization_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Normalization Rule Version",
+          "type": "string"
+        },
+        "normalized_value": {
+          "minLength": 1,
+          "title": "Normalized Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_id",
+        "normalized_value",
+        "normalization_rule_version",
+        "locator"
+      ],
+      "title": "CanonicalIdentityValue",
+      "type": "object"
+    },
+    "CanonicalRowIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "alignment_status": {
+          "$ref": "#/$defs/AlignmentStatus"
+        },
+        "conflict_code": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conflict Code"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "identity_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Identity Version",
+          "type": "string"
+        },
+        "member_entities": {
+          "items": {
+            "$ref": "#/$defs/CanonicalEntityIdentity"
+          },
+          "minItems": 1,
+          "title": "Member Entities",
+          "type": "array"
+        },
+        "record_type": {
+          "enum": [
+            "paired",
+            "unpaired",
+            "conflict_group"
+          ],
+          "title": "Record Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "record_type",
+        "entity_level",
+        "alignment_status",
+        "member_entities"
+      ],
+      "title": "CanonicalRowIdentity",
+      "type": "object"
+    },
+    "ConditionOperator": {
+      "enum": [
+        "exact",
+        "curated_alias",
+        "angular_separation_lte",
+        "angular_separation_gt",
+        "contradicts",
+        "source_scope"
+      ],
+      "title": "ConditionOperator",
+      "type": "string"
+    },
+    "ConfidenceBand": {
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        "not_applicable"
+      ],
+      "title": "ConfidenceBand",
+      "type": "string"
+    },
+    "ConfidenceDistribution": {
+      "additionalProperties": false,
+      "properties": {
+        "high": {
+          "minimum": 0,
+          "title": "High",
+          "type": "integer"
+        },
+        "low": {
+          "minimum": 0,
+          "title": "Low",
+          "type": "integer"
+        },
+        "medium": {
+          "minimum": 0,
+          "title": "Medium",
+          "type": "integer"
+        },
+        "not_applicable": {
+          "minimum": 0,
+          "title": "Not Applicable",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "high",
+        "medium",
+        "low",
+        "not_applicable"
+      ],
+      "title": "ConfidenceDistribution",
+      "type": "object"
+    },
+    "ConfidencePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "high_minimum": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "High Minimum",
+          "type": "number"
+        },
+        "low_minimum": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Low Minimum",
+          "type": "number"
+        },
+        "medium_minimum": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Medium Minimum",
+          "type": "number"
+        }
+      },
+      "required": [
+        "high_minimum",
+        "medium_minimum",
+        "low_minimum"
+      ],
+      "title": "ConfidencePolicy",
+      "type": "object"
+    },
+    "ConflictGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "adjudicated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adjudicated At"
+        },
+        "adjudicated_by": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adjudicated By"
+        },
+        "adjudication": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AdjudicationDecision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "adjudication_rationale": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adjudication Rationale"
+        },
+        "adjudication_rule_or_actor": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adjudication Rule Or Actor"
+        },
+        "conflict_code": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conflict Code",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "decision": {
+          "const": "conflict",
+          "default": "conflict",
+          "title": "Decision",
+          "type": "string"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "left_candidate_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Left Candidate Ids",
+          "type": "array"
+        },
+        "logical_match_key": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Logical Match Key",
+          "type": "string"
+        },
+        "manual_decision_content_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manual Decision Content Hash"
+        },
+        "manual_decision_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manual Decision Id"
+        },
+        "method": {
+          "$ref": "#/$defs/CrossmatchMethod"
+        },
+        "record_type": {
+          "const": "conflict_group",
+          "default": "conflict_group",
+          "title": "Record Type",
+          "type": "string"
+        },
+        "reviewer_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReviewerKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "right_candidate_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Right Candidate Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "logical_match_key",
+        "entity_level",
+        "left_candidate_ids",
+        "right_candidate_ids",
+        "method",
+        "conflict_code",
+        "evidence_ids",
+        "content_hash"
+      ],
+      "title": "ConflictGroup",
+      "type": "object"
+    },
+    "ConflictResolutionStrategy": {
+      "description": "The only C-01 selection declaration approved for this case.",
+      "enum": [
+        "prefer_source_priority_preserve_all"
+      ],
+      "title": "ConflictResolutionStrategy",
+      "type": "string"
+    },
+    "ConversionConstantsProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "authority": {
+          "minLength": 1,
+          "title": "Authority",
+          "type": "string"
+        },
+        "note": {
+          "minLength": 1,
+          "title": "Note",
+          "type": "string"
+        },
+        "resolution_date": {
+          "format": "date",
+          "title": "Resolution Date",
+          "type": "string"
+        },
+        "source_url": {
+          "minLength": 1,
+          "title": "Source Url",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "authority",
+        "source_url",
+        "resolution_date",
+        "note"
+      ],
+      "title": "ConversionConstantsProvenance",
+      "type": "object"
+    },
+    "CoordinatePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "frame": {
+          "const": "ICRS",
+          "default": "ICRS",
+          "title": "Frame",
+          "type": "string"
+        },
+        "manual_review_separation_arcsec": {
+          "exclusiveMinimum": 0,
+          "maximum": 3600,
+          "title": "Manual Review Separation Arcsec",
+          "type": "number"
+        },
+        "strict_separation_arcsec": {
+          "exclusiveMinimum": 0,
+          "maximum": 3600,
+          "title": "Strict Separation Arcsec",
+          "type": "number"
+        },
+        "unit": {
+          "const": "degree",
+          "default": "degree",
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strict_separation_arcsec",
+        "manual_review_separation_arcsec"
+      ],
+      "title": "CoordinatePolicy",
+      "type": "object"
+    },
+    "CrossmatchAdmissionContext": {
+      "additionalProperties": false,
+      "description": "Frozen facts required to independently admit a CrossmatchResult.",
+      "properties": {
+        "alias_catalog": {
+          "$ref": "#/$defs/EntityAliasCatalog"
+        },
+        "left": {
+          "$ref": "#/$defs/CrossmatchAdmissionSourceContext"
+        },
+        "manual_review_decisions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ManualReviewDecision"
+          },
+          "title": "Manual Review Decisions",
+          "type": "array"
+        },
+        "right": {
+          "$ref": "#/$defs/CrossmatchAdmissionSourceContext"
+        },
+        "rule_set": {
+          "$ref": "#/$defs/CrossmatchRuleSet"
+        },
+        "source_input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Input Hash",
+          "type": "string"
+        },
+        "source_policy": {
+          "$ref": "#/$defs/CrossmatchSourcePolicy"
+        }
+      },
+      "required": [
+        "source_input_hash",
+        "rule_set",
+        "alias_catalog",
+        "source_policy",
+        "left",
+        "right"
+      ],
+      "title": "CrossmatchAdmissionContext",
+      "type": "object"
+    },
+    "CrossmatchAdmissionSourceContext": {
+      "additionalProperties": false,
+      "properties": {
+        "completion": {
+          "$ref": "#/$defs/DataSourceCompletion"
+        },
+        "data_level": {
+          "$ref": "#/$defs/DataSourceDataLevel"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_mode",
+        "data_level",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "source_id",
+        "query_hash",
+        "completion"
+      ],
+      "title": "CrossmatchAdmissionSourceContext",
+      "type": "object"
+    },
+    "CrossmatchCapacityPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "max_candidate_pairs": {
+          "exclusiveMinimum": 0,
+          "maximum": 10000000,
+          "title": "Max Candidate Pairs",
+          "type": "integer"
+        },
+        "max_left_records": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Max Left Records",
+          "type": "integer"
+        },
+        "max_right_records": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Max Right Records",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_left_records",
+        "max_right_records",
+        "max_candidate_pairs"
+      ],
+      "title": "CrossmatchCapacityPolicy",
+      "type": "object"
+    },
+    "CrossmatchCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "condition_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Condition Id",
+          "type": "string"
+        },
+        "field_id": {
+          "anyOf": [
+            {
+              "pattern": "^(planet|star|system)\\.[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field Id"
+        },
+        "left_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Left Value"
+        },
+        "manual_review_threshold_arcsec": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manual Review Threshold Arcsec"
+        },
+        "operator": {
+          "$ref": "#/$defs/ConditionOperator"
+        },
+        "right_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Right Value"
+        },
+        "rule_reference": {
+          "minLength": 1,
+          "title": "Rule Reference",
+          "type": "string"
+        },
+        "separation_arcsec": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Separation Arcsec"
+        },
+        "strict_threshold_arcsec": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Strict Threshold Arcsec"
+        }
+      },
+      "required": [
+        "condition_id",
+        "operator",
+        "rule_reference"
+      ],
+      "title": "CrossmatchCondition",
+      "type": "object"
+    },
+    "CrossmatchEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "conditions": {
+          "items": {
+            "$ref": "#/$defs/CrossmatchCondition"
+          },
+          "minItems": 1,
+          "title": "Conditions",
+          "type": "array"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "confidence_band": {
+          "$ref": "#/$defs/ConfidenceBand"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "decision": {
+          "$ref": "#/$defs/MatchDecision"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "evidence_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "left_candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Left Candidate Id",
+          "type": "string"
+        },
+        "left_locators": {
+          "items": {
+            "$ref": "#/$defs/EvidenceLocator"
+          },
+          "minItems": 1,
+          "title": "Left Locators",
+          "type": "array"
+        },
+        "method": {
+          "$ref": "#/$defs/CrossmatchMethod"
+        },
+        "right_candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Right Candidate Id",
+          "type": "string"
+        },
+        "right_locators": {
+          "items": {
+            "$ref": "#/$defs/EvidenceLocator"
+          },
+          "minItems": 1,
+          "title": "Right Locators",
+          "type": "array"
+        },
+        "rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Rule Set Content Hash",
+          "type": "string"
+        },
+        "rule_set_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Rule Set Id",
+          "type": "string"
+        },
+        "rule_set_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Set Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "entity_level",
+        "method",
+        "decision",
+        "confidence",
+        "confidence_band",
+        "left_candidate_id",
+        "right_candidate_id",
+        "left_locators",
+        "right_locators",
+        "conditions",
+        "rule_set_id",
+        "rule_set_version",
+        "rule_set_content_hash",
+        "content_hash"
+      ],
+      "title": "CrossmatchEvidence",
+      "type": "object"
+    },
+    "CrossmatchMethod": {
+      "enum": [
+        "exact_identifier",
+        "curated_entity_alias",
+        "coordinate",
+        "compound"
+      ],
+      "title": "CrossmatchMethod",
+      "type": "string"
+    },
+    "CrossmatchMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "ambiguous_group_count": {
+          "minimum": 0,
+          "title": "Ambiguous Group Count",
+          "type": "integer"
+        },
+        "candidate_pair_count": {
+          "description": "Materialized CandidateEdge count after matching; this is not the eligible candidate-pair count used by the capacity preflight.",
+          "minimum": 0,
+          "title": "Candidate Pair Count",
+          "type": "integer"
+        },
+        "confidence_distribution": {
+          "$ref": "#/$defs/ConfidenceDistribution"
+        },
+        "conflict_group_count": {
+          "minimum": 0,
+          "title": "Conflict Group Count",
+          "type": "integer"
+        },
+        "conflict_rate": {
+          "$ref": "#/$defs/RatioMetric"
+        },
+        "error_example_references": {
+          "items": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Error Example References",
+          "type": "array"
+        },
+        "evidence_coverage": {
+          "$ref": "#/$defs/RatioMetric"
+        },
+        "inconclusive_record_count": {
+          "minimum": 0,
+          "title": "Inconclusive Record Count",
+          "type": "integer"
+        },
+        "left_candidate_count": {
+          "minimum": 0,
+          "title": "Left Candidate Count",
+          "type": "integer"
+        },
+        "left_record_count": {
+          "minimum": 0,
+          "title": "Left Record Count",
+          "type": "integer"
+        },
+        "low_confidence_count": {
+          "minimum": 0,
+          "title": "Low Confidence Count",
+          "type": "integer"
+        },
+        "manual_adjudication_count": {
+          "minimum": 0,
+          "title": "Manual Adjudication Count",
+          "type": "integer"
+        },
+        "manual_review_required_count": {
+          "minimum": 0,
+          "title": "Manual Review Required Count",
+          "type": "integer"
+        },
+        "many_to_many_count": {
+          "minimum": 0,
+          "title": "Many To Many Count",
+          "type": "integer"
+        },
+        "many_to_one_count": {
+          "minimum": 0,
+          "title": "Many To One Count",
+          "type": "integer"
+        },
+        "match_coverage": {
+          "$ref": "#/$defs/RatioMetric"
+        },
+        "matched_group_count": {
+          "minimum": 0,
+          "title": "Matched Group Count",
+          "type": "integer"
+        },
+        "method_distribution": {
+          "$ref": "#/$defs/MethodDistribution"
+        },
+        "one_to_many_count": {
+          "minimum": 0,
+          "title": "One To Many Count",
+          "type": "integer"
+        },
+        "one_to_one_count": {
+          "minimum": 0,
+          "title": "One To One Count",
+          "type": "integer"
+        },
+        "paired_group_count": {
+          "minimum": 0,
+          "title": "Paired Group Count",
+          "type": "integer"
+        },
+        "right_candidate_count": {
+          "minimum": 0,
+          "title": "Right Candidate Count",
+          "type": "integer"
+        },
+        "right_record_count": {
+          "minimum": 0,
+          "title": "Right Record Count",
+          "type": "integer"
+        },
+        "unmatched_left_record_count": {
+          "minimum": 0,
+          "title": "Unmatched Left Record Count",
+          "type": "integer"
+        },
+        "unmatched_rate": {
+          "$ref": "#/$defs/RatioMetric"
+        },
+        "unmatched_record_count": {
+          "minimum": 0,
+          "title": "Unmatched Record Count",
+          "type": "integer"
+        },
+        "unmatched_right_record_count": {
+          "minimum": 0,
+          "title": "Unmatched Right Record Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "left_record_count",
+        "right_record_count",
+        "left_candidate_count",
+        "right_candidate_count",
+        "candidate_pair_count",
+        "paired_group_count",
+        "matched_group_count",
+        "ambiguous_group_count",
+        "conflict_group_count",
+        "unmatched_record_count",
+        "unmatched_left_record_count",
+        "unmatched_right_record_count",
+        "inconclusive_record_count",
+        "manual_review_required_count",
+        "low_confidence_count",
+        "manual_adjudication_count",
+        "one_to_one_count",
+        "one_to_many_count",
+        "many_to_one_count",
+        "many_to_many_count",
+        "confidence_distribution",
+        "method_distribution",
+        "error_example_references",
+        "match_coverage",
+        "conflict_rate",
+        "unmatched_rate",
+        "evidence_coverage"
+      ],
+      "title": "CrossmatchMetrics",
+      "type": "object"
+    },
+    "CrossmatchProducerExecution": {
+      "additionalProperties": false,
+      "properties": {
+        "producer_name": {
+          "minLength": 1,
+          "title": "Producer Name",
+          "type": "string"
+        },
+        "producer_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Producer Version",
+          "type": "string"
+        },
+        "rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Rule Set Content Hash",
+          "type": "string"
+        },
+        "rule_set_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Rule Set Id",
+          "type": "string"
+        },
+        "rule_set_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Set Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "producer_name",
+        "producer_version",
+        "rule_set_id",
+        "rule_set_version",
+        "rule_set_content_hash"
+      ],
+      "title": "CrossmatchProducerExecution",
+      "type": "object"
+    },
+    "CrossmatchResult": {
+      "additionalProperties": false,
+      "description": "Typed C-04 handoff; publication and ArtifactVersion identity are out of scope.",
+      "properties": {
+        "admission_context": {
+          "$ref": "#/$defs/CrossmatchAdmissionContext"
+        },
+        "alias_catalog_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Alias Catalog Content Hash",
+          "type": "string"
+        },
+        "alias_catalog_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Alias Catalog Id",
+          "type": "string"
+        },
+        "alias_catalog_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Alias Catalog Version",
+          "type": "string"
+        },
+        "candidate_edges": {
+          "items": {
+            "$ref": "#/$defs/CandidateEdge"
+          },
+          "title": "Candidate Edges",
+          "type": "array"
+        },
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/EntityCandidate"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "case_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Case Manifest Content Hash",
+          "type": "string"
+        },
+        "case_manifest_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Case Manifest Id",
+          "type": "string"
+        },
+        "case_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Case Manifest Version",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/CrossmatchEvidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "field_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Field Manifest Content Hash",
+          "type": "string"
+        },
+        "field_manifest_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Field Manifest Id",
+          "type": "string"
+        },
+        "field_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Field Manifest Version",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "left_completion": {
+          "$ref": "#/$defs/DataSourceCompletion"
+        },
+        "left_data_level": {
+          "$ref": "#/$defs/DataSourceDataLevel"
+        },
+        "left_source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Left Source Id",
+          "type": "string"
+        },
+        "left_source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        },
+        "left_source_snapshot": {
+          "$ref": "#/$defs/SourceSnapshotRecord"
+        },
+        "metrics": {
+          "$ref": "#/$defs/CrossmatchMetrics"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "producer_execution": {
+          "$ref": "#/$defs/CrossmatchProducerExecution"
+        },
+        "records": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "conflict_group": "#/$defs/ConflictGroup",
+                "paired": "#/$defs/PairedMatch",
+                "unpaired": "#/$defs/UnpairedRecord"
+              },
+              "propertyName": "record_type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/PairedMatch"
+              },
+              {
+                "$ref": "#/$defs/UnpairedRecord"
+              },
+              {
+                "$ref": "#/$defs/ConflictGroup"
+              }
+            ]
+          },
+          "title": "Records",
+          "type": "array"
+        },
+        "result_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Result Id",
+          "type": "string"
+        },
+        "right_completion": {
+          "$ref": "#/$defs/DataSourceCompletion"
+        },
+        "right_data_level": {
+          "$ref": "#/$defs/DataSourceDataLevel"
+        },
+        "right_source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Right Source Id",
+          "type": "string"
+        },
+        "right_source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        },
+        "right_source_snapshot": {
+          "$ref": "#/$defs/SourceSnapshotRecord"
+        },
+        "rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Rule Set Content Hash",
+          "type": "string"
+        },
+        "rule_set_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Rule Set Id",
+          "type": "string"
+        },
+        "rule_set_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Set Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result_id",
+        "schema_version",
+        "input_hash",
+        "case_manifest_id",
+        "case_manifest_version",
+        "case_manifest_content_hash",
+        "field_manifest_id",
+        "field_manifest_version",
+        "field_manifest_content_hash",
+        "left_source_id",
+        "right_source_id",
+        "left_source_mode",
+        "right_source_mode",
+        "left_data_level",
+        "right_data_level",
+        "left_source_snapshot",
+        "right_source_snapshot",
+        "left_completion",
+        "right_completion",
+        "rule_set_id",
+        "rule_set_version",
+        "rule_set_content_hash",
+        "alias_catalog_id",
+        "alias_catalog_version",
+        "alias_catalog_content_hash",
+        "admission_context",
+        "candidates",
+        "candidate_edges",
+        "evidence",
+        "records",
+        "metrics",
+        "producer_execution",
+        "output_hash",
+        "content_hash"
+      ],
+      "title": "CrossmatchResult",
+      "type": "object"
+    },
+    "CrossmatchRuleSet": {
+      "additionalProperties": false,
+      "properties": {
+        "alias_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Alias Policy Version",
+          "type": "string"
+        },
+        "alias_requires_corroboration": {
+          "title": "Alias Requires Corroboration",
+          "type": "boolean"
+        },
+        "capacity": {
+          "$ref": "#/$defs/CrossmatchCapacityPolicy"
+        },
+        "capacity_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Capacity Policy Version",
+          "type": "string"
+        },
+        "case_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Case Manifest Content Hash",
+          "type": "string"
+        },
+        "case_manifest_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Case Manifest Id",
+          "type": "string"
+        },
+        "case_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Case Manifest Version",
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/ConfidencePolicy"
+        },
+        "conflict_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conflict Policy Version",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "coordinate": {
+          "$ref": "#/$defs/CoordinatePolicy"
+        },
+        "coordinate_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Coordinate Policy Version",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date",
+          "title": "Created At",
+          "type": "string"
+        },
+        "entity_alias_catalog_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Entity Alias Catalog Content Hash",
+          "type": "string"
+        },
+        "entity_alias_catalog_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Entity Alias Catalog Version",
+          "type": "string"
+        },
+        "field_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Field Manifest Content Hash",
+          "type": "string"
+        },
+        "field_manifest_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Field Manifest Id",
+          "type": "string"
+        },
+        "field_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Field Manifest Version",
+          "type": "string"
+        },
+        "identifier_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Identifier Policy Version",
+          "type": "string"
+        },
+        "maintained_by": {
+          "minLength": 1,
+          "title": "Maintained By",
+          "type": "string"
+        },
+        "method_confidence": {
+          "$ref": "#/$defs/MethodConfidencePolicy"
+        },
+        "method_priority": {
+          "items": {
+            "$ref": "#/$defs/CrossmatchMethod"
+          },
+          "minItems": 1,
+          "title": "Method Priority",
+          "type": "array"
+        },
+        "name_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Name Policy Version",
+          "type": "string"
+        },
+        "producer_name": {
+          "minLength": 1,
+          "title": "Producer Name",
+          "type": "string"
+        },
+        "producer_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Producer Version",
+          "type": "string"
+        },
+        "rule_set_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Rule Set Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_policy_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Policy Content Hash",
+          "type": "string"
+        },
+        "source_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Source Policy Version",
+          "type": "string"
+        },
+        "supported_entity_levels": {
+          "items": {
+            "$ref": "#/$defs/EntityLevel"
+          },
+          "minItems": 1,
+          "title": "Supported Entity Levels",
+          "type": "array"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_set_id",
+        "schema_version",
+        "version",
+        "content_hash",
+        "producer_name",
+        "producer_version",
+        "case_manifest_id",
+        "case_manifest_version",
+        "case_manifest_content_hash",
+        "field_manifest_id",
+        "field_manifest_version",
+        "field_manifest_content_hash",
+        "source_policy_version",
+        "source_policy_content_hash",
+        "identifier_policy_version",
+        "name_policy_version",
+        "alias_policy_version",
+        "coordinate_policy_version",
+        "entity_alias_catalog_version",
+        "entity_alias_catalog_content_hash",
+        "capacity_policy_version",
+        "conflict_policy_version",
+        "supported_entity_levels",
+        "method_priority",
+        "alias_requires_corroboration",
+        "capacity",
+        "coordinate",
+        "confidence",
+        "method_confidence",
+        "created_at",
+        "maintained_by"
+      ],
+      "title": "CrossmatchRuleSet",
+      "type": "object"
+    },
+    "CrossmatchSide": {
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "CrossmatchSide",
+      "type": "string"
+    },
+    "CrossmatchSourceInput": {
+      "additionalProperties": false,
+      "description": "Typed projection of one C-02/C-07 acquisition result.",
+      "properties": {
+        "completion": {
+          "$ref": "#/$defs/DataSourceCompletion"
+        },
+        "data_level": {
+          "$ref": "#/$defs/DataSourceDataLevel"
+        },
+        "records": {
+          "items": {
+            "$ref": "#/$defs/RawDataSourceRecord"
+          },
+          "title": "Records",
+          "type": "array"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/SourceSnapshotRecord"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        }
+      },
+      "required": [
+        "source_mode",
+        "data_level",
+        "records",
+        "snapshot",
+        "completion"
+      ],
+      "title": "CrossmatchSourceInput",
+      "type": "object"
+    },
+    "CrossmatchSourceOriginPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "data_levels": {
+          "items": {
+            "$ref": "#/$defs/DataSourceDataLevel"
+          },
+          "minItems": 1,
+          "title": "Data Levels",
+          "type": "array"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        }
+      },
+      "required": [
+        "source_mode",
+        "data_levels"
+      ],
+      "title": "CrossmatchSourceOriginPolicy",
+      "type": "object"
+    },
+    "CrossmatchSourcePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_origins": {
+          "items": {
+            "$ref": "#/$defs/CrossmatchSourceOriginPolicy"
+          },
+          "minItems": 1,
+          "title": "Allowed Origins",
+          "type": "array"
+        },
+        "completion_statuses": {
+          "items": {
+            "$ref": "#/$defs/DataSourceCompletionStatus"
+          },
+          "minItems": 1,
+          "title": "Completion Statuses",
+          "type": "array"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "policy_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Policy Id",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy_id",
+        "version",
+        "allowed_origins",
+        "completion_statuses",
+        "content_hash"
+      ],
+      "title": "CrossmatchSourcePolicy",
+      "type": "object"
+    },
+    "DataArtifactBuildInput": {
+      "additionalProperties": false,
+      "properties": {
+        "conversion_catalog": {
+          "$ref": "#/$defs/UnitConversionCatalog"
+        },
+        "crossmatch_result": {
+          "$ref": "#/$defs/CrossmatchResult"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "left_acquisition": {
+          "$ref": "#/$defs/CrossmatchSourceInput"
+        },
+        "manifest_pins": {
+          "$ref": "#/$defs/ManifestPins"
+        },
+        "mapping_rule_set": {
+          "$ref": "#/$defs/MappingRuleSet"
+        },
+        "producer_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Producer Version",
+          "type": "string"
+        },
+        "quality_constraints_reference": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quality Constraints Reference"
+        },
+        "requested_fields": {
+          "items": {
+            "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Requested Fields",
+          "type": "array"
+        },
+        "right_acquisition": {
+          "$ref": "#/$defs/CrossmatchSourceInput"
+        }
+      },
+      "required": [
+        "manifest_pins",
+        "requested_fields",
+        "left_acquisition",
+        "right_acquisition",
+        "crossmatch_result",
+        "mapping_rule_set",
+        "conversion_catalog",
+        "producer_version",
+        "input_hash"
+      ],
+      "title": "DataArtifactBuildInput",
+      "type": "object"
+    },
+    "DataArtifactCapacity": {
+      "additionalProperties": false,
+      "properties": {
+        "max_conflict_candidates": {
+          "exclusiveMinimum": 0,
+          "title": "Max Conflict Candidates",
+          "type": "integer"
+        },
+        "max_requested_fields": {
+          "exclusiveMinimum": 0,
+          "title": "Max Requested Fields",
+          "type": "integer"
+        },
+        "max_rows": {
+          "exclusiveMinimum": 0,
+          "title": "Max Rows",
+          "type": "integer"
+        },
+        "max_source_values_per_field": {
+          "exclusiveMinimum": 0,
+          "title": "Max Source Values Per Field",
+          "type": "integer"
+        },
+        "max_total_cell_outcomes": {
+          "exclusiveMinimum": 0,
+          "title": "Max Total Cell Outcomes",
+          "type": "integer"
+        },
+        "max_transformation_evidence": {
+          "exclusiveMinimum": 0,
+          "title": "Max Transformation Evidence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_rows",
+        "max_requested_fields",
+        "max_source_values_per_field",
+        "max_transformation_evidence",
+        "max_conflict_candidates",
+        "max_total_cell_outcomes"
+      ],
+      "title": "DataArtifactCapacity",
+      "type": "object"
+    },
+    "DataArtifactProducer": {
+      "additionalProperties": false,
+      "properties": {
+        "conversion_catalog_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Conversion Catalog Content Hash",
+          "type": "string"
+        },
+        "conversion_catalog_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conversion Catalog Id",
+          "type": "string"
+        },
+        "conversion_catalog_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conversion Catalog Version",
+          "type": "string"
+        },
+        "mapping_rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Mapping Rule Set Content Hash",
+          "type": "string"
+        },
+        "mapping_rule_set_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Mapping Rule Set Id",
+          "type": "string"
+        },
+        "mapping_rule_set_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Mapping Rule Set Version",
+          "type": "string"
+        },
+        "producer_name": {
+          "minLength": 1,
+          "title": "Producer Name",
+          "type": "string"
+        },
+        "producer_type": {
+          "const": "algorithm",
+          "default": "algorithm",
+          "title": "Producer Type",
+          "type": "string"
+        },
+        "producer_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Producer Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "producer_name",
+        "producer_version",
+        "mapping_rule_set_id",
+        "mapping_rule_set_version",
+        "mapping_rule_set_content_hash",
+        "conversion_catalog_id",
+        "conversion_catalog_version",
+        "conversion_catalog_content_hash"
+      ],
+      "title": "DataArtifactProducer",
+      "type": "object"
+    },
+    "DataQualityRuleSet": {
+      "additionalProperties": false,
+      "description": "Frozen C-05 rules and all upstream identities they bind.",
+      "properties": {
+        "aggregate_score_policy": {
+          "$ref": "#/$defs/QualityAggregateScorePolicy"
+        },
+        "applicability_policy": {
+          "const": "projected_field_ids_only",
+          "title": "Applicability Policy",
+          "type": "string"
+        },
+        "capacity": {
+          "$ref": "#/$defs/QualityCapacityPolicy"
+        },
+        "case_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Case Manifest Content Hash",
+          "type": "string"
+        },
+        "case_manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Case Manifest Id",
+          "type": "string"
+        },
+        "case_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Case Manifest Version",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date",
+          "title": "Created At",
+          "type": "string"
+        },
+        "crossmatch_rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Crossmatch Rule Set Content Hash",
+          "type": "string"
+        },
+        "crossmatch_rule_set_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Crossmatch Rule Set Id",
+          "type": "string"
+        },
+        "crossmatch_rule_set_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Crossmatch Rule Set Version",
+          "type": "string"
+        },
+        "crossmatch_schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Crossmatch Schema Version",
+          "type": "string"
+        },
+        "data_artifact_candidate_schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Data Artifact Candidate Schema Version",
+          "type": "string"
+        },
+        "data_artifact_input_schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Data Artifact Input Schema Version",
+          "type": "string"
+        },
+        "empty_denominator_policy": {
+          "enum": [
+            "not_applicable",
+            "insufficient"
+          ],
+          "title": "Empty Denominator Policy",
+          "type": "string"
+        },
+        "field_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Field Manifest Content Hash",
+          "type": "string"
+        },
+        "field_manifest_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Field Manifest Id",
+          "type": "string"
+        },
+        "field_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Field Manifest Version",
+          "type": "string"
+        },
+        "formula_registry": {
+          "items": {
+            "$ref": "#/$defs/QualityFormulaDefinition"
+          },
+          "minItems": 1,
+          "title": "Formula Registry",
+          "type": "array"
+        },
+        "gate_bindings": {
+          "items": {
+            "$ref": "#/$defs/QualityGateBinding"
+          },
+          "minItems": 1,
+          "title": "Gate Bindings",
+          "type": "array"
+        },
+        "incomplete_source_policy": {
+          "const": "insufficient",
+          "title": "Incomplete Source Policy",
+          "type": "string"
+        },
+        "maintained_by": {
+          "minLength": 1,
+          "title": "Maintained By",
+          "type": "string"
+        },
+        "precision_digits": {
+          "exclusiveMinimum": 0,
+          "maximum": 64,
+          "title": "Precision Digits",
+          "type": "integer"
+        },
+        "producer_name": {
+          "minLength": 1,
+          "title": "Producer Name",
+          "type": "string"
+        },
+        "producer_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Producer Version",
+          "type": "string"
+        },
+        "publisher_gate_policy": {
+          "const": "pass_only",
+          "title": "Publisher Gate Policy",
+          "type": "string"
+        },
+        "ratio_serialization": {
+          "const": "plain_decimal_string_no_exponent",
+          "title": "Ratio Serialization",
+          "type": "string"
+        },
+        "rounding_mode": {
+          "const": "ROUND_HALF_EVEN",
+          "title": "Rounding Mode",
+          "type": "string"
+        },
+        "rule_set_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Rule Set Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_set_id",
+        "schema_version",
+        "version",
+        "content_hash",
+        "case_manifest_id",
+        "case_manifest_version",
+        "case_manifest_content_hash",
+        "field_manifest_id",
+        "field_manifest_version",
+        "field_manifest_content_hash",
+        "data_artifact_input_schema_version",
+        "data_artifact_candidate_schema_version",
+        "crossmatch_schema_version",
+        "crossmatch_rule_set_id",
+        "crossmatch_rule_set_version",
+        "crossmatch_rule_set_content_hash",
+        "producer_name",
+        "producer_version",
+        "precision_digits",
+        "rounding_mode",
+        "ratio_serialization",
+        "applicability_policy",
+        "incomplete_source_policy",
+        "empty_denominator_policy",
+        "formula_registry",
+        "gate_bindings",
+        "publisher_gate_policy",
+        "aggregate_score_policy",
+        "capacity",
+        "created_at",
+        "maintained_by"
+      ],
+      "title": "DataQualityRuleSet",
+      "type": "object"
+    },
+    "DataQueryCursor": {
+      "additionalProperties": false,
+      "properties": {
+        "tid": {
+          "minimum": 0,
+          "title": "Tid",
+          "type": "integer"
+        },
+        "toi": {
+          "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+          "title": "Toi",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tid",
+        "toi"
+      ],
+      "title": "DataQueryCursor",
+      "type": "object"
+    },
+    "DataRequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "unit_policy": {
+          "$ref": "#/$defs/UnitPolicy",
+          "default": "canonical"
+        }
+      },
+      "title": "DataRequirements",
+      "type": "object"
+    },
+    "DataSourceCompletion": {
+      "additionalProperties": false,
+      "description": "Typed source-completion semantics consumed by downstream data stages.",
+      "properties": {
+        "continuation_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataQueryCursor"
+            },
+            {
+              "$ref": "#/$defs/SupplementalDataQueryCursor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Continuation Cursor"
+        },
+        "status": {
+          "$ref": "#/$defs/DataSourceCompletionStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "DataSourceCompletion",
+      "type": "object"
+    },
+    "DataSourceCompletionStatus": {
+      "description": "Whether the bounded acquisition proved that its source scope is complete.",
+      "enum": [
+        "complete",
+        "truncated",
+        "unknown"
+      ],
+      "title": "DataSourceCompletionStatus",
+      "type": "string"
+    },
+    "DataSourceDataLevel": {
+      "description": "Acquisition evidence level, kept separate from the source origin.",
+      "enum": [
+        "live_result",
+        "recorded_response",
+        "fixture",
+        "seed"
+      ],
+      "title": "DataSourceDataLevel",
+      "type": "string"
+    },
+    "DataType": {
+      "description": "Canonical scalar types supported by the frozen case.",
+      "enum": [
+        "string",
+        "integer",
+        "number"
+      ],
+      "title": "DataType",
+      "type": "string"
+    },
+    "DatasetArtifactCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "canonical_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Canonical Content Hash",
+          "type": "string"
+        },
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/DatasetColumn"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "conflicts": {
+          "items": {
+            "$ref": "#/$defs/FieldConflictRecord"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "conversion_catalog_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Conversion Catalog Content Hash",
+          "type": "string"
+        },
+        "conversion_catalog_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conversion Catalog Id",
+          "type": "string"
+        },
+        "conversion_catalog_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conversion Catalog Version",
+          "type": "string"
+        },
+        "crossmatch_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Crossmatch Content Hash",
+          "type": "string"
+        },
+        "crossmatch_evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Crossmatch Evidence Ids",
+          "type": "array"
+        },
+        "crossmatch_input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Crossmatch Input Hash",
+          "type": "string"
+        },
+        "crossmatch_output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Crossmatch Output Hash",
+          "type": "string"
+        },
+        "crossmatch_result_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Crossmatch Result Id",
+          "type": "string"
+        },
+        "crossmatch_source_snapshot_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Crossmatch Source Snapshot Ids",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "field_count": {
+          "minimum": 0,
+          "title": "Field Count",
+          "type": "integer"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "kind": {
+          "const": "dataset",
+          "default": "dataset",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lineage_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Lineage Hash",
+          "type": "string"
+        },
+        "manifest_pins": {
+          "$ref": "#/$defs/ManifestPins"
+        },
+        "mapping_rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Mapping Rule Set Content Hash",
+          "type": "string"
+        },
+        "mapping_rule_set_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Mapping Rule Set Id",
+          "type": "string"
+        },
+        "mapping_rule_set_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Mapping Rule Set Version",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/DataArtifactProducer"
+        },
+        "quality_constraints_reference": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quality Constraints Reference"
+        },
+        "quality_evaluation_status": {
+          "const": "not_evaluated",
+          "default": "not_evaluated",
+          "title": "Quality Evaluation Status",
+          "type": "string"
+        },
+        "quality_metric_input_declarations": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Quality Metric Input Declarations",
+          "type": "array"
+        },
+        "requested_fields": {
+          "items": {
+            "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "title": "Requested Fields",
+          "type": "array"
+        },
+        "row_count": {
+          "minimum": 0,
+          "title": "Row Count",
+          "type": "integer"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/DatasetRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "selections": {
+          "items": {
+            "$ref": "#/$defs/FieldSelectionRecord"
+          },
+          "title": "Selections",
+          "type": "array"
+        },
+        "source_snapshot_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Source Snapshot Ids",
+          "type": "array"
+        },
+        "source_values": {
+          "items": {
+            "$ref": "#/$defs/SourceValueCandidate"
+          },
+          "title": "Source Values",
+          "type": "array"
+        },
+        "transformation_evidence": {
+          "items": {
+            "$ref": "#/$defs/TransformationEvidence"
+          },
+          "title": "Transformation Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "manifest_pins",
+        "crossmatch_result_id",
+        "crossmatch_input_hash",
+        "crossmatch_output_hash",
+        "crossmatch_content_hash",
+        "crossmatch_source_snapshot_ids",
+        "requested_fields",
+        "columns",
+        "rows",
+        "source_values",
+        "transformation_evidence",
+        "selections",
+        "conflicts",
+        "row_count",
+        "field_count",
+        "source_snapshot_ids",
+        "evidence_ids",
+        "crossmatch_evidence_ids",
+        "mapping_rule_set_id",
+        "mapping_rule_set_version",
+        "mapping_rule_set_content_hash",
+        "conversion_catalog_id",
+        "conversion_catalog_version",
+        "conversion_catalog_content_hash",
+        "quality_metric_input_declarations",
+        "producer",
+        "input_hash",
+        "canonical_content_hash",
+        "lineage_hash",
+        "output_hash"
+      ],
+      "title": "DatasetArtifactCandidate",
+      "type": "object"
+    },
+    "DatasetColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "$ref": "#/$defs/FieldDefinition"
+        }
+      },
+      "required": [
+        "field"
+      ],
+      "title": "DatasetColumn",
+      "type": "object"
+    },
+    "DatasetRow": {
+      "additionalProperties": false,
+      "properties": {
+        "alignment_status": {
+          "$ref": "#/$defs/AlignmentStatus"
+        },
+        "canonical_row_identity": {
+          "$ref": "#/$defs/CanonicalRowIdentity"
+        },
+        "conflict_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Conflict Ids",
+          "type": "array"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "crossmatch_logical_key": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Crossmatch Logical Key",
+          "type": "string"
+        },
+        "crossmatch_record_type": {
+          "minLength": 1,
+          "title": "Crossmatch Record Type",
+          "type": "string"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "fields": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "declared_null": "#/$defs/DeclaredNullValue",
+                "mapped": "#/$defs/MappedCanonicalValue",
+                "unresolved": "#/$defs/UnresolvedCanonicalValue"
+              },
+              "propertyName": "status"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/MappedCanonicalValue"
+              },
+              {
+                "$ref": "#/$defs/DeclaredNullValue"
+              },
+              {
+                "$ref": "#/$defs/UnresolvedCanonicalValue"
+              }
+            ]
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "projected_field_ids": {
+          "items": {
+            "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "title": "Projected Field Ids",
+          "type": "array"
+        },
+        "projection_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Projection Policy Version",
+          "type": "string"
+        },
+        "row_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Row Id",
+          "type": "string"
+        },
+        "source_member_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Source Member Ids",
+          "type": "array"
+        },
+        "source_snapshot_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Source Snapshot Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "row_id",
+        "crossmatch_record_type",
+        "crossmatch_logical_key",
+        "entity_level",
+        "canonical_row_identity",
+        "projection_policy_version",
+        "projected_field_ids",
+        "alignment_status",
+        "source_member_ids",
+        "fields",
+        "conflict_ids",
+        "evidence_ids",
+        "source_snapshot_ids",
+        "content_hash"
+      ],
+      "title": "DatasetRow",
+      "type": "object"
+    },
+    "DecimalCapacity": {
+      "additionalProperties": false,
+      "properties": {
+        "max_adjusted_exponent": {
+          "exclusiveMinimum": 0,
+          "title": "Max Adjusted Exponent",
+          "type": "integer"
+        },
+        "max_fractional_scale": {
+          "exclusiveMinimum": 0,
+          "title": "Max Fractional Scale",
+          "type": "integer"
+        },
+        "max_input_text_length": {
+          "exclusiveMinimum": 0,
+          "title": "Max Input Text Length",
+          "type": "integer"
+        },
+        "max_plain_string_length": {
+          "exclusiveMinimum": 0,
+          "title": "Max Plain String Length",
+          "type": "integer"
+        },
+        "max_significant_digits": {
+          "exclusiveMinimum": 0,
+          "title": "Max Significant Digits",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_input_text_length",
+        "max_significant_digits",
+        "max_adjusted_exponent",
+        "max_fractional_scale",
+        "max_plain_string_length"
+      ],
+      "title": "DecimalCapacity",
+      "type": "object"
+    },
+    "DeclaredNullValue": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_source_value_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Candidate Source Value Ids",
+          "type": "array"
+        },
+        "canonical_field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Canonical Field Id",
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/$defs/NullReason"
+        },
+        "status": {
+          "const": "declared_null",
+          "default": "declared_null",
+          "title": "Status",
+          "type": "string"
+        },
+        "transformation_evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Transformation Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "canonical_field_id",
+        "reason",
+        "candidate_source_value_ids",
+        "transformation_evidence_ids"
+      ],
+      "title": "DeclaredNullValue",
+      "type": "object"
+    },
+    "EntityAliasCatalog": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Catalog Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date",
+          "title": "Created At",
+          "type": "string"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/EntityAliasEntry"
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "maintainer": {
+          "minLength": 1,
+          "title": "Maintainer",
+          "type": "string"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "catalog_id",
+        "version",
+        "content_hash",
+        "entries",
+        "source",
+        "maintainer",
+        "created_at"
+      ],
+      "title": "EntityAliasCatalog",
+      "type": "object"
+    },
+    "EntityAliasEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "alias_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Alias Id",
+          "type": "string"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "left_field_id": {
+          "pattern": "^(planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Left Field Id",
+          "type": "string"
+        },
+        "left_source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Left Source Id",
+          "type": "string"
+        },
+        "left_value": {
+          "minLength": 1,
+          "title": "Left Value",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "right_field_id": {
+          "pattern": "^(planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Right Field Id",
+          "type": "string"
+        },
+        "right_source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Right Source Id",
+          "type": "string"
+        },
+        "right_value": {
+          "minLength": 1,
+          "title": "Right Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "alias_id",
+        "entity_level",
+        "left_source_id",
+        "left_field_id",
+        "left_value",
+        "right_source_id",
+        "right_field_id",
+        "right_value",
+        "rationale"
+      ],
+      "title": "EntityAliasEntry",
+      "type": "object"
+    },
+    "EntityCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "coordinate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SkyCoordinate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "identity_values": {
+          "items": {
+            "$ref": "#/$defs/CanonicalIdentityValue"
+          },
+          "minItems": 1,
+          "title": "Identity Values",
+          "type": "array"
+        },
+        "side": {
+          "$ref": "#/$defs/CrossmatchSide"
+        },
+        "source_record": {
+          "$ref": "#/$defs/SourceRecordReference"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "side",
+        "entity_level",
+        "source_record",
+        "identity_values",
+        "content_hash"
+      ],
+      "title": "EntityCandidate",
+      "type": "object"
+    },
+    "EntityLevel": {
+      "enum": [
+        "host_star",
+        "planet_candidate",
+        "planet_assertion"
+      ],
+      "title": "EntityLevel",
+      "type": "string"
+    },
+    "EntityProjectionPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/EntityProjectionRule"
+          },
+          "minItems": 1,
+          "title": "Rules",
+          "type": "array"
+        },
+        "system_context_policy": {
+          "const": "host_and_source_assertion_only_no_implicit_join",
+          "title": "System Context Policy",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "system_context_policy",
+        "rules"
+      ],
+      "title": "EntityProjectionPolicy",
+      "type": "object"
+    },
+    "EntityProjectionRule": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_object_types": {
+          "items": {
+            "$ref": "#/$defs/ObjectType"
+          },
+          "minItems": 1,
+          "title": "Allowed Object Types",
+          "type": "array"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        }
+      },
+      "required": [
+        "entity_level",
+        "allowed_object_types"
+      ],
+      "title": "EntityProjectionRule",
+      "type": "object"
+    },
+    "EvidenceLocator": {
+      "additionalProperties": false,
+      "properties": {
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "side": {
+          "$ref": "#/$defs/CrossmatchSide"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "source_snapshot_id",
+        "source_id",
+        "query_hash",
+        "row_key",
+        "raw_field"
+      ],
+      "title": "EvidenceLocator",
+      "type": "object"
+    },
+    "EvidenceRequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "minimum_coverage": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Minimum Coverage",
+          "type": "number"
+        },
+        "require_locator": {
+          "default": true,
+          "title": "Require Locator",
+          "type": "boolean"
+        },
+        "require_source_snapshot": {
+          "default": true,
+          "title": "Require Source Snapshot",
+          "type": "boolean"
+        }
+      },
+      "title": "EvidenceRequirements",
+      "type": "object"
+    },
+    "FieldConflictRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "absolute_difference": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Absolute Difference"
+        },
+        "canonical_field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Canonical Field Id",
+          "type": "string"
+        },
+        "comparison_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Comparison Policy Version",
+          "type": "string"
+        },
+        "conflict_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conflict Id",
+          "type": "string"
+        },
+        "conflict_scope": {
+          "enum": [
+            "same_source",
+            "cross_source",
+            "identity_unresolved"
+          ],
+          "title": "Conflict Scope",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "dataset_row_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Dataset Row Id",
+          "type": "string"
+        },
+        "reason": {
+          "const": "distinct canonical values are retained; source priority selects display only",
+          "title": "Reason",
+          "type": "string"
+        },
+        "relative_denominator": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relative Denominator"
+        },
+        "relative_difference": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relative Difference"
+        },
+        "source_value_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Source Value Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "conflict_id",
+        "dataset_row_id",
+        "canonical_field_id",
+        "source_value_ids",
+        "conflict_scope",
+        "reason",
+        "comparison_policy_version",
+        "content_hash"
+      ],
+      "title": "FieldConflictRecord",
+      "type": "object"
+    },
+    "FieldDefinition": {
+      "additionalProperties": false,
+      "description": "The complete C-01 contract for one canonical field.",
+      "properties": {
+        "canonical_unit": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "conflict_resolution_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conflict Resolution Rule Version",
+          "type": "string"
+        },
+        "conflict_resolution_strategy": {
+          "$ref": "#/$defs/ConflictResolutionStrategy"
+        },
+        "crossmatch_key": {
+          "title": "Crossmatch Key",
+          "type": "boolean"
+        },
+        "crossmatch_rule_version": {
+          "anyOf": [
+            {
+              "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Crossmatch Rule Version"
+        },
+        "data_type": {
+          "$ref": "#/$defs/DataType"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_locator_rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Evidence Locator Rule Id",
+          "type": "string"
+        },
+        "field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Field Id",
+          "type": "string"
+        },
+        "label_en": {
+          "minLength": 1,
+          "title": "Label En",
+          "type": "string"
+        },
+        "limit_policy": {
+          "$ref": "#/$defs/LimitPolicy"
+        },
+        "meaning_zh": {
+          "minLength": 1,
+          "title": "Meaning Zh",
+          "type": "string"
+        },
+        "null_policy": {
+          "$ref": "#/$defs/NullPolicy"
+        },
+        "nullable": {
+          "title": "Nullable",
+          "type": "boolean"
+        },
+        "object_identity_key": {
+          "title": "Object Identity Key",
+          "type": "boolean"
+        },
+        "object_type": {
+          "$ref": "#/$defs/ObjectType"
+        },
+        "quality_metric_inputs": {
+          "items": {
+            "$ref": "#/$defs/QualityMetricInput"
+          },
+          "minItems": 1,
+          "title": "Quality Metric Inputs",
+          "type": "array"
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        },
+        "source_aliases": {
+          "items": {
+            "$ref": "#/$defs/SourceAlias"
+          },
+          "minItems": 1,
+          "title": "Source Aliases",
+          "type": "array"
+        },
+        "source_priority": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Priority",
+          "type": "array"
+        },
+        "transformation_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Transformation Rule Version",
+          "type": "string"
+        },
+        "uncertainty_policy": {
+          "$ref": "#/$defs/UncertaintyPolicy"
+        }
+      },
+      "required": [
+        "field_id",
+        "meaning_zh",
+        "label_en",
+        "description",
+        "object_type",
+        "data_type",
+        "canonical_unit",
+        "source_aliases",
+        "source_priority",
+        "conflict_resolution_strategy",
+        "conflict_resolution_rule_version",
+        "required",
+        "nullable",
+        "null_policy",
+        "limit_policy",
+        "uncertainty_policy",
+        "object_identity_key",
+        "crossmatch_key",
+        "evidence_locator_rule_id",
+        "transformation_rule_version",
+        "quality_metric_inputs"
+      ],
+      "title": "FieldDefinition",
+      "type": "object"
+    },
+    "FieldDictionaryArtifactCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "conversion_catalog_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Conversion Catalog Content Hash",
+          "type": "string"
+        },
+        "conversion_catalog_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conversion Catalog Id",
+          "type": "string"
+        },
+        "conversion_catalog_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conversion Catalog Version",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "field_definitions": {
+          "items": {
+            "$ref": "#/$defs/FieldDefinition"
+          },
+          "title": "Field Definitions",
+          "type": "array"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "kind": {
+          "const": "field_dictionary",
+          "default": "field_dictionary",
+          "title": "Kind",
+          "type": "string"
+        },
+        "manifest_pins": {
+          "$ref": "#/$defs/ManifestPins"
+        },
+        "mapping_rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Mapping Rule Set Content Hash",
+          "type": "string"
+        },
+        "mapping_rule_set_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Mapping Rule Set Id",
+          "type": "string"
+        },
+        "mapping_rule_set_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Mapping Rule Set Version",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/DataArtifactProducer"
+        },
+        "quality_evaluation_status": {
+          "const": "not_evaluated",
+          "default": "not_evaluated",
+          "title": "Quality Evaluation Status",
+          "type": "string"
+        },
+        "requested_fields": {
+          "items": {
+            "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "title": "Requested Fields",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_snapshot_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Source Snapshot Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "manifest_pins",
+        "requested_fields",
+        "field_definitions",
+        "source_snapshot_ids",
+        "evidence_ids",
+        "mapping_rule_set_id",
+        "mapping_rule_set_version",
+        "mapping_rule_set_content_hash",
+        "conversion_catalog_id",
+        "conversion_catalog_version",
+        "conversion_catalog_content_hash",
+        "producer",
+        "input_hash",
+        "output_hash"
+      ],
+      "title": "FieldDictionaryArtifactCandidate",
+      "type": "object"
+    },
+    "FieldSelectionRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_source_value_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Candidate Source Value Ids",
+          "type": "array"
+        },
+        "canonical_field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Canonical Field Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "dataset_row_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Dataset Row Id",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "selected_source_value_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Selected Source Value Id"
+        },
+        "selection_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Selection Id",
+          "type": "string"
+        },
+        "strategy": {
+          "const": "prefer_source_priority_preserve_all",
+          "title": "Strategy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "selection_id",
+        "dataset_row_id",
+        "canonical_field_id",
+        "selected_source_value_id",
+        "candidate_source_value_ids",
+        "strategy",
+        "reason",
+        "content_hash"
+      ],
+      "title": "FieldSelectionRecord",
+      "type": "object"
+    },
+    "LimitFlagMapping": {
+      "additionalProperties": false,
+      "description": "Source flag meanings for a bounded value.",
+      "properties": {
+        "lower_limit": {
+          "default": 1,
+          "title": "Lower Limit",
+          "type": "integer"
+        },
+        "measured": {
+          "default": 0,
+          "title": "Measured",
+          "type": "integer"
+        },
+        "upper_limit": {
+          "default": -1,
+          "title": "Upper Limit",
+          "type": "integer"
+        }
+      },
+      "title": "LimitFlagMapping",
+      "type": "object"
+    },
+    "LimitPolicy": {
+      "additionalProperties": false,
+      "description": "Whether the field can carry upper or lower limit semantics.",
+      "properties": {
+        "lower_limit_supported": {
+          "title": "Lower Limit Supported",
+          "type": "boolean"
+        },
+        "rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "upper_limit_supported": {
+          "title": "Upper Limit Supported",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "rule_version",
+        "lower_limit_supported",
+        "upper_limit_supported"
+      ],
+      "title": "LimitPolicy",
+      "type": "object"
+    },
+    "LimitStatus": {
+      "enum": [
+        "measured",
+        "lower_limit",
+        "upper_limit",
+        "not_applicable"
+      ],
+      "title": "LimitStatus",
+      "type": "string"
+    },
+    "LimitValue": {
+      "additionalProperties": false,
+      "properties": {
+        "locator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceCellLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "raw_flag": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Raw Flag"
+        },
+        "status": {
+          "$ref": "#/$defs/LimitStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "LimitValue",
+      "type": "object"
+    },
+    "ManifestPins": {
+      "additionalProperties": false,
+      "properties": {
+        "case_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Case Manifest Content Hash",
+          "type": "string"
+        },
+        "case_manifest_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Case Manifest Id",
+          "type": "string"
+        },
+        "case_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Case Manifest Version",
+          "type": "string"
+        },
+        "field_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Field Manifest Content Hash",
+          "type": "string"
+        },
+        "field_manifest_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Field Manifest Id",
+          "type": "string"
+        },
+        "field_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Field Manifest Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "case_manifest_id",
+        "case_manifest_version",
+        "case_manifest_content_hash",
+        "field_manifest_id",
+        "field_manifest_version",
+        "field_manifest_content_hash"
+      ],
+      "title": "ManifestPins",
+      "type": "object"
+    },
+    "ManualReviewDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "adjudicated_at": {
+          "format": "date-time",
+          "title": "Adjudicated At",
+          "type": "string"
+        },
+        "adjudicated_by": {
+          "minLength": 1,
+          "title": "Adjudicated By",
+          "type": "string"
+        },
+        "adjudication": {
+          "$ref": "#/$defs/AdjudicationDecision"
+        },
+        "adjudication_rule_or_actor": {
+          "minLength": 1,
+          "title": "Adjudication Rule Or Actor",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "decision_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "left_candidate_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Left Candidate Ids",
+          "type": "array"
+        },
+        "logical_match_key": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Logical Match Key",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "reviewer_kind": {
+          "$ref": "#/$defs/ReviewerKind"
+        },
+        "right_candidate_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Right Candidate Ids",
+          "type": "array"
+        },
+        "rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Rule Set Content Hash",
+          "type": "string"
+        },
+        "rule_set_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Rule Set Id",
+          "type": "string"
+        },
+        "rule_set_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Set Version",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Input Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision_id",
+        "logical_match_key",
+        "adjudication",
+        "adjudicated_by",
+        "reviewer_kind",
+        "adjudication_rule_or_actor",
+        "adjudicated_at",
+        "rationale",
+        "source_input_hash",
+        "rule_set_id",
+        "rule_set_version",
+        "rule_set_content_hash",
+        "left_candidate_ids",
+        "right_candidate_ids",
+        "evidence_ids",
+        "content_hash"
+      ],
+      "title": "ManualReviewDecision",
+      "type": "object"
+    },
+    "MappedCanonicalValue": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_source_value_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Candidate Source Value Ids",
+          "type": "array"
+        },
+        "canonical_field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Canonical Field Id",
+          "type": "string"
+        },
+        "canonical_unit": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "canonical_value": {
+          "title": "Canonical Value",
+          "type": "string"
+        },
+        "conflict_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Conflict Ids",
+          "type": "array"
+        },
+        "selected_source_value_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Selected Source Value Id",
+          "type": "string"
+        },
+        "selection_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Selection Id",
+          "type": "string"
+        },
+        "status": {
+          "const": "mapped",
+          "default": "mapped",
+          "title": "Status",
+          "type": "string"
+        },
+        "transformation_evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Transformation Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "canonical_field_id",
+        "canonical_value",
+        "canonical_unit",
+        "selected_source_value_id",
+        "candidate_source_value_ids",
+        "transformation_evidence_ids",
+        "selection_id",
+        "conflict_ids"
+      ],
+      "title": "MappedCanonicalValue",
+      "type": "object"
+    },
+    "MappingRuleSet": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical_ordering_policy": {
+          "const": "field_manifest_then_stable_identity",
+          "title": "Canonical Ordering Policy",
+          "type": "string"
+        },
+        "capacity": {
+          "$ref": "#/$defs/DataArtifactCapacity"
+        },
+        "case_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Case Manifest Content Hash",
+          "type": "string"
+        },
+        "case_manifest_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Case Manifest Id",
+          "type": "string"
+        },
+        "case_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Case Manifest Version",
+          "type": "string"
+        },
+        "conflict_comparison_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conflict Comparison Policy Version",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date",
+          "title": "Created At",
+          "type": "string"
+        },
+        "entity_projection_policy": {
+          "$ref": "#/$defs/EntityProjectionPolicy"
+        },
+        "field_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Field Manifest Content Hash",
+          "type": "string"
+        },
+        "field_manifest_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Field Manifest Id",
+          "type": "string"
+        },
+        "field_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Field Manifest Version",
+          "type": "string"
+        },
+        "limit_policy_implementation_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Limit Policy Implementation Version",
+          "type": "string"
+        },
+        "maintained_by": {
+          "minLength": 1,
+          "title": "Maintained By",
+          "type": "string"
+        },
+        "non_nullable_missing_policy": {
+          "const": "fail_admission",
+          "title": "Non Nullable Missing Policy",
+          "type": "string"
+        },
+        "null_derivation_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Null Derivation Policy Version",
+          "type": "string"
+        },
+        "numeric_comparison": {
+          "$ref": "#/$defs/NumericComparisonPolicy"
+        },
+        "numeric_normalization_serialization_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Numeric Normalization Serialization Version",
+          "type": "string"
+        },
+        "producer_name": {
+          "minLength": 1,
+          "title": "Producer Name",
+          "type": "string"
+        },
+        "producer_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Producer Version",
+          "type": "string"
+        },
+        "rule_set_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Rule Set Id",
+          "type": "string"
+        },
+        "same_source_conflict_policy": {
+          "const": "preserve_conflict_no_scientific_winner",
+          "title": "Same Source Conflict Policy",
+          "type": "string"
+        },
+        "schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_selection_policy_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Source Selection Policy Version",
+          "type": "string"
+        },
+        "uncertainty_policy_implementation_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Uncertainty Policy Implementation Version",
+          "type": "string"
+        },
+        "unresolved_identity_policy": {
+          "const": "preserve_unresolved_rows",
+          "title": "Unresolved Identity Policy",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_set_id",
+        "schema_version",
+        "version",
+        "content_hash",
+        "case_manifest_id",
+        "case_manifest_version",
+        "case_manifest_content_hash",
+        "field_manifest_id",
+        "field_manifest_version",
+        "field_manifest_content_hash",
+        "producer_name",
+        "producer_version",
+        "source_selection_policy_version",
+        "conflict_comparison_policy_version",
+        "null_derivation_policy_version",
+        "uncertainty_policy_implementation_version",
+        "limit_policy_implementation_version",
+        "numeric_normalization_serialization_version",
+        "canonical_ordering_policy",
+        "same_source_conflict_policy",
+        "unresolved_identity_policy",
+        "non_nullable_missing_policy",
+        "entity_projection_policy",
+        "numeric_comparison",
+        "capacity",
+        "created_at",
+        "maintained_by"
+      ],
+      "title": "MappingRuleSet",
+      "type": "object"
+    },
+    "MatchDecision": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "review_required",
+        "conflict",
+        "inconclusive",
+        "unmatched"
+      ],
+      "title": "MatchDecision",
+      "type": "string"
+    },
+    "MatchTopology": {
+      "enum": [
+        "one_to_one",
+        "one_to_many",
+        "many_to_one",
+        "many_to_many"
+      ],
+      "title": "MatchTopology",
+      "type": "string"
+    },
+    "MethodConfidencePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "compound": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Compound",
+          "type": "number"
+        },
+        "coordinate_review": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Coordinate Review",
+          "type": "number"
+        },
+        "coordinate_strict": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Coordinate Strict",
+          "type": "number"
+        },
+        "curated_entity_alias": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Curated Entity Alias",
+          "type": "number"
+        },
+        "exact_identifier": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Exact Identifier",
+          "type": "number"
+        }
+      },
+      "required": [
+        "exact_identifier",
+        "curated_entity_alias",
+        "coordinate_strict",
+        "coordinate_review",
+        "compound"
+      ],
+      "title": "MethodConfidencePolicy",
+      "type": "object"
+    },
+    "MethodDistribution": {
+      "additionalProperties": false,
+      "properties": {
+        "compound": {
+          "minimum": 0,
+          "title": "Compound",
+          "type": "integer"
+        },
+        "coordinate": {
+          "minimum": 0,
+          "title": "Coordinate",
+          "type": "integer"
+        },
+        "curated_entity_alias": {
+          "minimum": 0,
+          "title": "Curated Entity Alias",
+          "type": "integer"
+        },
+        "exact_identifier": {
+          "minimum": 0,
+          "title": "Exact Identifier",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "exact_identifier",
+        "curated_entity_alias",
+        "coordinate",
+        "compound"
+      ],
+      "title": "MethodDistribution",
+      "type": "object"
+    },
+    "NullPolicy": {
+      "additionalProperties": false,
+      "description": "Nullability semantics for one canonical field.",
+      "properties": {
+        "allowed_reasons": {
+          "items": {
+            "$ref": "#/$defs/NullReason"
+          },
+          "title": "Allowed Reasons",
+          "type": "array"
+        },
+        "reason_required_when_null": {
+          "title": "Reason Required When Null",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason_required_when_null",
+        "allowed_reasons"
+      ],
+      "title": "NullPolicy",
+      "type": "object"
+    },
+    "NullReason": {
+      "description": "Controlled reasons for a nullable scientific value.",
+      "enum": [
+        "not_in_source",
+        "not_measured",
+        "not_applicable",
+        "unresolved_conflict",
+        "below_detection_limit"
+      ],
+      "title": "NullReason",
+      "type": "string"
+    },
+    "NumericComparisonPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "absolute_tolerance": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Absolute Tolerance"
+        },
+        "collection_semantics": {
+          "const": "span_absolute_or_relative_max_magnitude",
+          "title": "Collection Semantics",
+          "type": "string"
+        },
+        "relative_denominator_floor": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Relative Denominator Floor"
+        },
+        "relative_tolerance": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Relative Tolerance"
+        },
+        "threshold_inclusive": {
+          "default": true,
+          "title": "Threshold Inclusive",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "absolute_tolerance",
+        "relative_tolerance",
+        "collection_semantics",
+        "relative_denominator_floor"
+      ],
+      "title": "NumericComparisonPolicy",
+      "type": "object"
+    },
+    "ObjectType": {
+      "description": "Objects represented by the exoplanet/host-star case.",
+      "enum": [
+        "planet",
+        "star",
+        "system"
+      ],
+      "title": "ObjectType",
+      "type": "string"
+    },
+    "PairedMatch": {
+      "additionalProperties": false,
+      "properties": {
+        "adjudicated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adjudicated At"
+        },
+        "adjudicated_by": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adjudicated By"
+        },
+        "adjudication": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AdjudicationDecision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "adjudication_rationale": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adjudication Rationale"
+        },
+        "adjudication_rule_or_actor": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adjudication Rule Or Actor"
+        },
+        "confidence_band": {
+          "$ref": "#/$defs/ConfidenceBand"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "decision": {
+          "$ref": "#/$defs/MatchDecision"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "left_candidate_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Left Candidate Ids",
+          "type": "array"
+        },
+        "logical_match_key": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Logical Match Key",
+          "type": "string"
+        },
+        "manual_decision_content_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manual Decision Content Hash"
+        },
+        "manual_decision_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manual Decision Id"
+        },
+        "method": {
+          "$ref": "#/$defs/CrossmatchMethod"
+        },
+        "record_type": {
+          "const": "paired",
+          "default": "paired",
+          "title": "Record Type",
+          "type": "string"
+        },
+        "reviewer_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReviewerKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "right_candidate_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Right Candidate Ids",
+          "type": "array"
+        },
+        "topology": {
+          "$ref": "#/$defs/MatchTopology"
+        }
+      },
+      "required": [
+        "logical_match_key",
+        "entity_level",
+        "topology",
+        "left_candidate_ids",
+        "right_candidate_ids",
+        "method",
+        "decision",
+        "confidence_band",
+        "evidence_ids",
+        "content_hash"
+      ],
+      "title": "PairedMatch",
+      "type": "object"
+    },
+    "PaperSearchScope": {
+      "additionalProperties": false,
+      "properties": {
+        "keywords": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Keywords",
+          "type": "array"
+        },
+        "max_candidates": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Max Candidates",
+          "type": "integer"
+        },
+        "source_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "year_from": {
+          "anyOf": [
+            {
+              "maximum": 9999,
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year From"
+        },
+        "year_to": {
+          "anyOf": [
+            {
+              "maximum": 9999,
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year To"
+        }
+      },
+      "title": "PaperSearchScope",
+      "type": "object"
+    },
+    "QualityAggregateScorePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "const": false,
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "score": {
+          "default": null,
+          "title": "Score",
+          "type": "null"
+        },
+        "weights": {
+          "default": [],
+          "maxItems": 0,
+          "minItems": 0,
+          "title": "Weights",
+          "type": "array"
+        }
+      },
+      "title": "QualityAggregateScorePolicy",
+      "type": "object"
+    },
+    "QualityCapacityPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "max_cells": {
+          "exclusiveMinimum": 0,
+          "maximum": 10000000,
+          "title": "Max Cells",
+          "type": "integer"
+        },
+        "max_conflict_references": {
+          "exclusiveMinimum": 0,
+          "maximum": 10000000,
+          "title": "Max Conflict References",
+          "type": "integer"
+        },
+        "max_crossmatch_edges": {
+          "exclusiveMinimum": 0,
+          "maximum": 10000000,
+          "title": "Max Crossmatch Edges",
+          "type": "integer"
+        },
+        "max_diagnostic_references": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Max Diagnostic References",
+          "type": "integer"
+        },
+        "max_evidence": {
+          "exclusiveMinimum": 0,
+          "maximum": 10000000,
+          "title": "Max Evidence",
+          "type": "integer"
+        },
+        "max_fields": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Max Fields",
+          "type": "integer"
+        },
+        "max_metric_records": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "title": "Max Metric Records",
+          "type": "integer"
+        },
+        "max_rows": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Max Rows",
+          "type": "integer"
+        },
+        "max_source_values": {
+          "exclusiveMinimum": 0,
+          "maximum": 10000000,
+          "title": "Max Source Values",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_rows",
+        "max_fields",
+        "max_cells",
+        "max_source_values",
+        "max_evidence",
+        "max_conflict_references",
+        "max_crossmatch_edges",
+        "max_metric_records",
+        "max_diagnostic_references"
+      ],
+      "title": "QualityCapacityPolicy",
+      "type": "object"
+    },
+    "QualityConstraints": {
+      "additionalProperties": false,
+      "properties": {
+        "source_completeness_min": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Source Completeness Min",
+          "type": "number"
+        },
+        "unit_consistency_min": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Unit Consistency Min",
+          "type": "number"
+        }
+      },
+      "title": "QualityConstraints",
+      "type": "object"
+    },
+    "QualityFormulaDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "applicability": {
+          "enum": [
+            "projected_field_ids_only",
+            "dataset_scope",
+            "row_scope"
+          ],
+          "title": "Applicability",
+          "type": "string"
+        },
+        "denominator_definition": {
+          "minLength": 1,
+          "title": "Denominator Definition",
+          "type": "string"
+        },
+        "empty_denominator_policy": {
+          "enum": [
+            "not_applicable",
+            "insufficient"
+          ],
+          "title": "Empty Denominator Policy",
+          "type": "string"
+        },
+        "formula_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Formula Id",
+          "type": "string"
+        },
+        "incomplete_source_policy": {
+          "enum": [
+            "insufficient",
+            "not_applicable"
+          ],
+          "title": "Incomplete Source Policy",
+          "type": "string"
+        },
+        "metric_id": {
+          "$ref": "#/$defs/QualityMetricId"
+        },
+        "numerator_definition": {
+          "minLength": 1,
+          "title": "Numerator Definition",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "formula_id",
+        "metric_id",
+        "version",
+        "numerator_definition",
+        "denominator_definition",
+        "applicability",
+        "incomplete_source_policy",
+        "empty_denominator_policy"
+      ],
+      "title": "QualityFormulaDefinition",
+      "type": "object"
+    },
+    "QualityGateBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "constraint_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Constraint Id",
+          "type": "string"
+        },
+        "contract_path": {
+          "minLength": 1,
+          "title": "Contract Path",
+          "type": "string"
+        },
+        "input_locator": {
+          "minLength": 1,
+          "title": "Input Locator",
+          "type": "string"
+        },
+        "metric_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityMetricId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "operator": {
+          "enum": [
+            "gte",
+            "equals"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "rule_binding_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Binding Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "constraint_id",
+        "contract_path",
+        "operator",
+        "rule_binding_version",
+        "input_locator"
+      ],
+      "title": "QualityGateBinding",
+      "type": "object"
+    },
+    "QualityMetricId": {
+      "enum": [
+        "field_completeness",
+        "field_missingness",
+        "field_unresolved_rate",
+        "field_provenance_coverage",
+        "field_evidence_coverage",
+        "field_unit_consistency",
+        "field_conflict_rate",
+        "row_completeness",
+        "row_missingness",
+        "row_unresolved_rate",
+        "row_provenance_coverage",
+        "row_evidence_coverage",
+        "row_unit_consistency",
+        "row_conflict_rate",
+        "dataset_completeness",
+        "dataset_missingness",
+        "dataset_unresolved_rate",
+        "dataset_provenance_coverage",
+        "dataset_evidence_coverage",
+        "dataset_unit_consistency",
+        "dataset_cross_source_conflict_rate",
+        "dataset_same_source_conflict_rate",
+        "object_match_coverage",
+        "low_confidence_edge_rate",
+        "review_required_record_rate",
+        "inconclusive_record_rate",
+        "source_scope_completeness",
+        "validation_integrity"
+      ],
+      "title": "QualityMetricId",
+      "type": "string"
+    },
+    "QualityMetricInput": {
+      "description": "Future quality dimensions to which a field contributes.",
+      "enum": [
+        "completeness",
+        "missingness",
+        "conflict",
+        "unit_consistency",
+        "evidence_coverage",
+        "crossmatch_coverage"
+      ],
+      "title": "QualityMetricInput",
+      "type": "string"
+    },
+    "QuantityKind": {
+      "description": "Physical dimensions used for static compatibility checks only.",
+      "enum": [
+        "none",
+        "angle",
+        "time",
+        "length",
+        "mass",
+        "temperature",
+        "logarithmic_abundance"
+      ],
+      "title": "QuantityKind",
+      "type": "string"
+    },
+    "RatioMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator": {
+          "minimum": 0,
+          "title": "Denominator",
+          "type": "integer"
+        },
+        "numerator": {
+          "minimum": 0,
+          "title": "Numerator",
+          "type": "integer"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "numerator",
+        "denominator"
+      ],
+      "title": "RatioMetric",
+      "type": "object"
+    },
+    "RawDataSourceRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "row_key",
+        "payload",
+        "content_hash"
+      ],
+      "title": "RawDataSourceRecord",
+      "type": "object"
+    },
+    "RawSourceRecordReference": {
+      "additionalProperties": false,
+      "properties": {
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "raw_record_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Raw Record Content Hash",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "query_hash",
+        "row_key",
+        "raw_record_content_hash"
+      ],
+      "title": "RawSourceRecordReference",
+      "type": "object"
+    },
+    "ResearchContract": {
+      "additionalProperties": false,
+      "examples": [
+        {
+          "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "created_at": "2026-07-21T08:00:00Z",
+          "created_from_draft_id": "rcd_01JEXAMPLE",
+          "data_requirements": {
+            "unit_policy": "canonical"
+          },
+          "evidence_requirements": {},
+          "id": "rc_01JEXAMPLE",
+          "output_requirements": [
+            "dataset",
+            "graph"
+          ],
+          "paper_search_scope": {
+            "max_candidates": 20
+          },
+          "project_id": "proj_01JEXAMPLE",
+          "quality_constraints": {},
+          "requested_fields": [
+            "planet.toi_id",
+            "star.tic_id"
+          ],
+          "research_goal": "Integrate exoplanet candidates and host-star parameters",
+          "source_scope": {
+            "allowed_sources": [
+              "nasa_exoplanet_archive"
+            ]
+          },
+          "target_objects": [
+            "exoplanet_candidate",
+            "host_star"
+          ],
+          "version": 1
+        }
+      ],
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "created_from_draft_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Created From Draft Id",
+          "type": "string"
+        },
+        "data_requirements": {
+          "$ref": "#/$defs/DataRequirements"
+        },
+        "evidence_requirements": {
+          "$ref": "#/$defs/EvidenceRequirements"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "output_requirements": {
+          "items": {
+            "$ref": "#/$defs/ArtifactKind"
+          },
+          "minItems": 1,
+          "title": "Output Requirements",
+          "type": "array"
+        },
+        "paper_search_scope": {
+          "$ref": "#/$defs/PaperSearchScope"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "quality_constraints": {
+          "$ref": "#/$defs/QualityConstraints"
+        },
+        "requested_fields": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Requested Fields",
+          "type": "array"
+        },
+        "research_goal": {
+          "maxLength": 500,
+          "minLength": 4,
+          "title": "Research Goal",
+          "type": "string"
+        },
+        "source_scope": {
+          "$ref": "#/$defs/SourceScope"
+        },
+        "target_objects": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Target Objects",
+          "type": "array"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "research_goal",
+        "target_objects",
+        "data_requirements",
+        "requested_fields",
+        "source_scope",
+        "paper_search_scope",
+        "output_requirements",
+        "evidence_requirements",
+        "quality_constraints",
+        "id",
+        "project_id",
+        "version",
+        "created_from_draft_id",
+        "created_at",
+        "content_hash"
+      ],
+      "title": "ResearchContract",
+      "type": "object"
+    },
+    "ReviewerKind": {
+      "enum": [
+        "human",
+        "benchmark_fixture"
+      ],
+      "title": "ReviewerKind",
+      "type": "string"
+    },
+    "SelectionStatus": {
+      "enum": [
+        "selected",
+        "unselected",
+        "conflict"
+      ],
+      "title": "SelectionStatus",
+      "type": "string"
+    },
+    "SkyCoordinate": {
+      "additionalProperties": false,
+      "properties": {
+        "declination": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Declination",
+          "type": "number"
+        },
+        "frame": {
+          "const": "ICRS",
+          "default": "ICRS",
+          "title": "Frame",
+          "type": "string"
+        },
+        "right_ascension": {
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "title": "Right Ascension",
+          "type": "number"
+        },
+        "unit": {
+          "const": "degree",
+          "default": "degree",
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "right_ascension",
+        "declination"
+      ],
+      "title": "SkyCoordinate",
+      "type": "object"
+    },
+    "SourceAlias": {
+      "additionalProperties": false,
+      "description": "A source column mapped to one canonical field.",
+      "properties": {
+        "conversion_rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conversion Rule Id",
+          "type": "string"
+        },
+        "limit_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit Field"
+        },
+        "limit_flags": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LimitFlagMapping"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "negative_error_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Negative Error Field"
+        },
+        "positive_error_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Positive Error Field"
+        },
+        "priority": {
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "provenance_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provenance Field"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "reference_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Field"
+        },
+        "row_key_fields": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Row Key Fields",
+          "type": "array"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_table": {
+          "minLength": 1,
+          "title": "Source Table",
+          "type": "string"
+        },
+        "source_unit": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_table",
+        "raw_field",
+        "source_unit",
+        "conversion_rule_id",
+        "priority",
+        "row_key_fields"
+      ],
+      "title": "SourceAlias",
+      "type": "object"
+    },
+    "SourceCellLocator": {
+      "additionalProperties": false,
+      "properties": {
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "raw_record_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Raw Record Content Hash",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "side": {
+          "$ref": "#/$defs/CrossmatchSide"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "source_id",
+        "query_hash",
+        "row_key",
+        "raw_record_content_hash",
+        "raw_field"
+      ],
+      "title": "SourceCellLocator",
+      "type": "object"
+    },
+    "SourceCollectionArtifactCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "alignment_record_keys": {
+          "items": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Alignment Record Keys",
+          "type": "array"
+        },
+        "candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "conflict_record_keys": {
+          "items": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Conflict Record Keys",
+          "type": "array"
+        },
+        "conversion_catalog_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Conversion Catalog Content Hash",
+          "type": "string"
+        },
+        "conversion_catalog_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conversion Catalog Id",
+          "type": "string"
+        },
+        "conversion_catalog_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conversion Catalog Version",
+          "type": "string"
+        },
+        "crossmatch_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Crossmatch Content Hash",
+          "type": "string"
+        },
+        "crossmatch_result_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Crossmatch Result Id",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "inconclusive_record_keys": {
+          "items": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Inconclusive Record Keys",
+          "type": "array"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "kind": {
+          "const": "source_collection",
+          "default": "source_collection",
+          "title": "Kind",
+          "type": "string"
+        },
+        "manifest_pins": {
+          "$ref": "#/$defs/ManifestPins"
+        },
+        "mapping_rule_set_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Mapping Rule Set Content Hash",
+          "type": "string"
+        },
+        "mapping_rule_set_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Mapping Rule Set Id",
+          "type": "string"
+        },
+        "mapping_rule_set_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Mapping Rule Set Version",
+          "type": "string"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/SourceCollectionMember"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/DataArtifactProducer"
+        },
+        "quality_evaluation_status": {
+          "const": "not_evaluated",
+          "default": "not_evaluated",
+          "title": "Quality Evaluation Status",
+          "type": "string"
+        },
+        "review_required_record_keys": {
+          "items": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "title": "Review Required Record Keys",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_snapshot_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Source Snapshot Ids",
+          "type": "array"
+        },
+        "source_value_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Source Value Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "manifest_pins",
+        "source_snapshot_ids",
+        "evidence_ids",
+        "members",
+        "source_value_ids",
+        "crossmatch_result_id",
+        "crossmatch_content_hash",
+        "alignment_record_keys",
+        "conflict_record_keys",
+        "review_required_record_keys",
+        "inconclusive_record_keys",
+        "mapping_rule_set_id",
+        "mapping_rule_set_version",
+        "mapping_rule_set_content_hash",
+        "conversion_catalog_id",
+        "conversion_catalog_version",
+        "conversion_catalog_content_hash",
+        "producer",
+        "input_hash",
+        "output_hash"
+      ],
+      "title": "SourceCollectionArtifactCandidate",
+      "type": "object"
+    },
+    "SourceCollectionMember": {
+      "additionalProperties": false,
+      "properties": {
+        "completion": {
+          "$ref": "#/$defs/DataSourceCompletion"
+        },
+        "data_level": {
+          "$ref": "#/$defs/DataSourceDataLevel"
+        },
+        "license_note": {
+          "minLength": 1,
+          "title": "License Note",
+          "type": "string"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "raw_record_count": {
+          "minimum": 0,
+          "title": "Raw Record Count",
+          "type": "integer"
+        },
+        "raw_record_reference_registry_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Raw Record Reference Registry Hash",
+          "type": "string"
+        },
+        "raw_record_references": {
+          "items": {
+            "$ref": "#/$defs/RawSourceRecordReference"
+          },
+          "title": "Raw Record References",
+          "type": "array"
+        },
+        "side": {
+          "$ref": "#/$defs/CrossmatchSide"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        },
+        "source_snapshot": {
+          "$ref": "#/$defs/SourceSnapshotRecord"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "source_snapshot",
+        "source_id",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "query_hash",
+        "source_mode",
+        "data_level",
+        "completion",
+        "license_note",
+        "raw_record_references",
+        "raw_record_count",
+        "raw_record_reference_registry_hash"
+      ],
+      "title": "SourceCollectionMember",
+      "type": "object"
+    },
+    "SourceMode": {
+      "description": "Actual origin of an ArtifactVersion-compatible pipeline payload.",
+      "enum": [
+        "fixture",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
+    },
+    "SourceRecordReference": {
+      "additionalProperties": false,
+      "properties": {
+        "object_type": {
+          "$ref": "#/$defs/ObjectType"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "record_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Record Content Hash",
+          "type": "string"
+        },
+        "row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 1,
+          "title": "Row Key",
+          "type": "array"
+        },
+        "side": {
+          "$ref": "#/$defs/CrossmatchSide"
+        },
+        "source_entity_key": {
+          "minLength": 1,
+          "title": "Source Entity Key",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "side",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "source_id",
+        "query_hash",
+        "row_key",
+        "record_content_hash",
+        "object_type",
+        "source_entity_key"
+      ],
+      "title": "SourceRecordReference",
+      "type": "object"
+    },
+    "SourceScope": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_sources": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Allowed Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "allowed_sources"
+      ],
+      "title": "SourceScope",
+      "type": "object"
+    },
+    "SourceSnapshotRecord": {
+      "additionalProperties": false,
+      "description": "Immutable pipeline source record consumed by the future publisher.\n\nImplements the core ``SourceSnapshot`` target entity described in\n``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen\nPhase 0 ``SourceSnapshot`` projection above stays unchanged.",
+      "properties": {
+        "cache_version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Version"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "license_note": {
+          "minLength": 1,
+          "title": "License Note",
+          "type": "string"
+        },
+        "query": {
+          "minLength": 1,
+          "title": "Query",
+          "type": "string"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "request_metadata": {
+          "additionalProperties": true,
+          "title": "Request Metadata",
+          "type": "object"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "minLength": 1,
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_version_or_etag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Version Or Etag"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "source_id",
+        "source_type",
+        "retrieved_at",
+        "query",
+        "query_hash",
+        "content_hash",
+        "license_note"
+      ],
+      "title": "SourceSnapshotRecord",
+      "type": "object"
+    },
+    "SourceValueCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "alias_priority": {
+          "exclusiveMinimum": 0,
+          "title": "Alias Priority",
+          "type": "integer"
+        },
+        "canonical_field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Canonical Field Id",
+          "type": "string"
+        },
+        "canonical_unit": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "canonical_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Canonical Value"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "conversion_rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conversion Rule Id",
+          "type": "string"
+        },
+        "conversion_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conversion Rule Version",
+          "type": "string"
+        },
+        "evidence_locator": {
+          "$ref": "#/$defs/SourceCellLocator"
+        },
+        "limit": {
+          "$ref": "#/$defs/LimitValue"
+        },
+        "null_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NullReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provenance_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provenance Field"
+        },
+        "provenance_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provenance Value"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "raw_field": {
+          "minLength": 1,
+          "title": "Raw Field",
+          "type": "string"
+        },
+        "raw_record_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Raw Record Content Hash",
+          "type": "string"
+        },
+        "raw_record_row_key": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Raw Record Row Key",
+          "type": "array"
+        },
+        "raw_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Raw Value"
+        },
+        "reference_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Field"
+        },
+        "reference_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Value"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_priority": {
+          "exclusiveMinimum": 0,
+          "title": "Source Priority",
+          "type": "integer"
+        },
+        "source_snapshot_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Snapshot Content Hash",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "source_table": {
+          "minLength": 1,
+          "title": "Source Table",
+          "type": "string"
+        },
+        "source_unit": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Unit",
+          "type": "string"
+        },
+        "source_value_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Value Id",
+          "type": "string"
+        },
+        "transformation_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Transformation Rule Version",
+          "type": "string"
+        },
+        "uncertainty": {
+          "$ref": "#/$defs/UncertaintyValue"
+        }
+      },
+      "required": [
+        "source_value_id",
+        "canonical_field_id",
+        "source_id",
+        "source_table",
+        "source_snapshot_id",
+        "source_snapshot_content_hash",
+        "query_hash",
+        "raw_record_row_key",
+        "raw_record_content_hash",
+        "raw_field",
+        "raw_value",
+        "source_unit",
+        "canonical_value",
+        "canonical_unit",
+        "alias_priority",
+        "source_priority",
+        "transformation_rule_version",
+        "conversion_rule_id",
+        "conversion_rule_version",
+        "uncertainty",
+        "limit",
+        "evidence_locator",
+        "content_hash"
+      ],
+      "title": "SourceValueCandidate",
+      "type": "object"
+    },
+    "SupplementalDataQueryCursor": {
+      "additionalProperties": false,
+      "properties": {
+        "pl_name": {
+          "minLength": 1,
+          "title": "Pl Name",
+          "type": "string"
+        },
+        "pl_refname": {
+          "minLength": 1,
+          "title": "Pl Refname",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pl_name",
+        "pl_refname"
+      ],
+      "title": "SupplementalDataQueryCursor",
+      "type": "object"
+    },
+    "TransformationEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical_field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Canonical Field Id",
+          "type": "string"
+        },
+        "canonical_unit": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Canonical Unit",
+          "type": "string"
+        },
+        "canonical_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Canonical Value"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "conversion_catalog_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Conversion Catalog Content Hash",
+          "type": "string"
+        },
+        "conversion_catalog_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conversion Catalog Id",
+          "type": "string"
+        },
+        "conversion_catalog_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conversion Catalog Version",
+          "type": "string"
+        },
+        "conversion_rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Conversion Rule Id",
+          "type": "string"
+        },
+        "conversion_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Conversion Rule Version",
+          "type": "string"
+        },
+        "crossmatch_evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Crossmatch Evidence Ids",
+          "type": "array"
+        },
+        "crossmatch_logical_key": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Crossmatch Logical Key",
+          "type": "string"
+        },
+        "crossmatch_result_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Crossmatch Result Content Hash",
+          "type": "string"
+        },
+        "crossmatch_result_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Crossmatch Result Id",
+          "type": "string"
+        },
+        "dataset_row_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Dataset Row Id",
+          "type": "string"
+        },
+        "evidence_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "limit": {
+          "$ref": "#/$defs/LimitValue"
+        },
+        "limit_locator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceCellLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "locator": {
+          "$ref": "#/$defs/SourceCellLocator"
+        },
+        "provenance_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provenance Field"
+        },
+        "provenance_locator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceCellLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provenance_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provenance Value"
+        },
+        "raw_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Raw Value"
+        },
+        "reference_field": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Field"
+        },
+        "reference_locator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceCellLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reference_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Value"
+        },
+        "selection_reason": {
+          "minLength": 1,
+          "title": "Selection Reason",
+          "type": "string"
+        },
+        "selection_status": {
+          "$ref": "#/$defs/SelectionStatus"
+        },
+        "source_unit": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Unit",
+          "type": "string"
+        },
+        "source_value_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Value Id",
+          "type": "string"
+        },
+        "target_candidate_kind": {
+          "const": "dataset",
+          "default": "dataset",
+          "title": "Target Candidate Kind",
+          "type": "string"
+        },
+        "transformation_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Transformation Rule Version",
+          "type": "string"
+        },
+        "uncertainty": {
+          "$ref": "#/$defs/UncertaintyValue"
+        },
+        "uncertainty_locators": {
+          "items": {
+            "$ref": "#/$defs/SourceCellLocator"
+          },
+          "title": "Uncertainty Locators",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "dataset_row_id",
+        "canonical_field_id",
+        "source_value_id",
+        "locator",
+        "raw_value",
+        "source_unit",
+        "canonical_value",
+        "canonical_unit",
+        "conversion_rule_id",
+        "conversion_rule_version",
+        "conversion_catalog_id",
+        "conversion_catalog_version",
+        "conversion_catalog_content_hash",
+        "transformation_rule_version",
+        "uncertainty",
+        "limit",
+        "uncertainty_locators",
+        "crossmatch_result_id",
+        "crossmatch_result_content_hash",
+        "crossmatch_logical_key",
+        "crossmatch_evidence_ids",
+        "selection_status",
+        "selection_reason",
+        "content_hash"
+      ],
+      "title": "TransformationEvidence",
+      "type": "object"
+    },
+    "UncertaintyMode": {
+      "description": "How source uncertainty columns are declared, not evaluated.",
+      "enum": [
+        "not_applicable",
+        "asymmetric_source_errors"
+      ],
+      "title": "UncertaintyMode",
+      "type": "string"
+    },
+    "UncertaintyPolicy": {
+      "additionalProperties": false,
+      "description": "Versioned declaration for preserving source uncertainties.",
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/UncertaintyMode"
+        },
+        "preserve_asymmetric_errors": {
+          "title": "Preserve Asymmetric Errors",
+          "type": "boolean"
+        },
+        "rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_version",
+        "mode",
+        "preserve_asymmetric_errors"
+      ],
+      "title": "UncertaintyPolicy",
+      "type": "object"
+    },
+    "UncertaintyStatus": {
+      "enum": [
+        "complete",
+        "partial",
+        "missing",
+        "not_applicable"
+      ],
+      "title": "UncertaintyStatus",
+      "type": "string"
+    },
+    "UncertaintyValue": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical_negative": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical Negative"
+        },
+        "canonical_positive": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical Positive"
+        },
+        "negative_locator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceCellLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "positive_locator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceCellLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source_negative": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Negative"
+        },
+        "source_positive": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Positive"
+        },
+        "status": {
+          "$ref": "#/$defs/UncertaintyStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "UncertaintyValue",
+      "type": "object"
+    },
+    "UnitConversionCatalog": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Catalog Id",
+          "type": "string"
+        },
+        "constants_provenance": {
+          "$ref": "#/$defs/ConversionConstantsProvenance"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date",
+          "title": "Created At",
+          "type": "string"
+        },
+        "decimal_capacity": {
+          "$ref": "#/$defs/DecimalCapacity"
+        },
+        "field_manifest_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Field Manifest Content Hash",
+          "type": "string"
+        },
+        "field_manifest_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Field Manifest Id",
+          "type": "string"
+        },
+        "field_manifest_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Field Manifest Version",
+          "type": "string"
+        },
+        "maintained_by": {
+          "minLength": 1,
+          "title": "Maintained By",
+          "type": "string"
+        },
+        "numeric_implementation_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Numeric Implementation Version",
+          "type": "string"
+        },
+        "precision_digits": {
+          "maximum": 50,
+          "minimum": 18,
+          "title": "Precision Digits",
+          "type": "integer"
+        },
+        "rounding_mode": {
+          "const": "ROUND_HALF_EVEN",
+          "title": "Rounding Mode",
+          "type": "string"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/UnitConversionImplementation"
+          },
+          "minItems": 1,
+          "title": "Rules",
+          "type": "array"
+        },
+        "schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "serialization_policy": {
+          "const": "plain_decimal_string_no_exponent",
+          "title": "Serialization Policy",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        },
+        "zero_serialization_policy": {
+          "const": "canonical_unsigned_zero",
+          "title": "Zero Serialization Policy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "catalog_id",
+        "schema_version",
+        "version",
+        "content_hash",
+        "field_manifest_id",
+        "field_manifest_version",
+        "field_manifest_content_hash",
+        "numeric_implementation_version",
+        "precision_digits",
+        "rounding_mode",
+        "serialization_policy",
+        "zero_serialization_policy",
+        "decimal_capacity",
+        "rules",
+        "constants_provenance",
+        "maintained_by",
+        "created_at"
+      ],
+      "title": "UnitConversionCatalog",
+      "type": "object"
+    },
+    "UnitConversionImplementation": {
+      "additionalProperties": false,
+      "properties": {
+        "factor": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Factor"
+        },
+        "factor_denominator": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Factor Denominator"
+        },
+        "factor_numerator": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Factor Numerator"
+        },
+        "quantity_kind": {
+          "$ref": "#/$defs/QuantityKind"
+        },
+        "rule_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "source_unit": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Unit"
+        },
+        "target_unit": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Unit"
+        }
+      },
+      "required": [
+        "rule_id",
+        "rule_version",
+        "quantity_kind",
+        "factor",
+        "factor_numerator",
+        "factor_denominator"
+      ],
+      "title": "UnitConversionImplementation",
+      "type": "object"
+    },
+    "UnitPolicy": {
+      "enum": [
+        "canonical"
+      ],
+      "title": "UnitPolicy",
+      "type": "string"
+    },
+    "UnpairedRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "decision": {
+          "$ref": "#/$defs/MatchDecision"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "record_type": {
+          "const": "unpaired",
+          "default": "unpaired",
+          "title": "Record Type",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/CrossmatchSide"
+        },
+        "source_completion_status": {
+          "enum": [
+            "complete",
+            "truncated",
+            "unknown"
+          ],
+          "title": "Source Completion Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "side",
+        "entity_level",
+        "decision",
+        "source_completion_status",
+        "reason",
+        "content_hash"
+      ],
+      "title": "UnpairedRecord",
+      "type": "object"
+    },
+    "UnresolvedCanonicalValue": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_source_value_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Candidate Source Value Ids",
+          "type": "array"
+        },
+        "canonical_field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Canonical Field Id",
+          "type": "string"
+        },
+        "conflict_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Conflict Ids",
+          "type": "array"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "status": {
+          "const": "unresolved",
+          "default": "unresolved",
+          "title": "Status",
+          "type": "string"
+        },
+        "transformation_evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Transformation Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "canonical_field_id",
+        "reason",
+        "candidate_source_value_ids",
+        "transformation_evidence_ids",
+        "conflict_ids"
+      ],
+      "title": "UnresolvedCanonicalValue",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Canonical public input to the C-05 evaluator.",
+  "properties": {
+    "data_artifact_input": {
+      "$ref": "#/$defs/DataArtifactBuildInput"
+    },
+    "dataset_candidate": {
+      "$ref": "#/$defs/DatasetArtifactCandidate"
+    },
+    "field_dictionary_candidate": {
+      "$ref": "#/$defs/FieldDictionaryArtifactCandidate"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "quality_rule_set": {
+      "$ref": "#/$defs/DataQualityRuleSet"
+    },
+    "research_contract": {
+      "$ref": "#/$defs/ResearchContract"
+    },
+    "source_collection_candidate": {
+      "$ref": "#/$defs/SourceCollectionArtifactCandidate"
+    }
+  },
+  "required": [
+    "data_artifact_input",
+    "dataset_candidate",
+    "field_dictionary_candidate",
+    "source_collection_candidate",
+    "research_contract",
+    "quality_rule_set",
+    "input_hash"
+  ],
+  "title": "DataQualityEvaluationInput",
+  "type": "object"
+}
