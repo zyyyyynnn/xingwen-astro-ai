@@ -8,11 +8,9 @@ from typing import Any
 
 from app.schemas.crossmatch import (
     CandidateEdge,
-    ConflictGroup,
-    CrossmatchResult,
-    PairedMatch,
     ConfidenceBand,
-    MatchDecision,
+    CrossmatchResult,
+    resolve_crossmatch_record_edge_components,
 )
 from app.schemas.data_artifacts import (
     DatasetArtifactCandidate,
@@ -102,18 +100,7 @@ def observe_quality(
     source_values = {item.source_value_id: item for item in candidate.source_values}
     evidence = {item.evidence_id: item for item in candidate.transformation_evidence}
     conflicts = {item.conflict_id: item for item in candidate.conflicts}
-    records_by_key = {
-        record.logical_match_key: record
-        for record in crossmatch_result.records
-        if isinstance(record, (PairedMatch, ConflictGroup))
-    }
-    edges_by_record_key: dict[str, tuple[CandidateEdge, ...]] = {}
-    for record_key, record in records_by_key.items():
-        edges_by_record_key[record_key] = tuple(
-            edge
-            for edge in crossmatch_result.candidate_edges
-            if edge.logical_match_key == record_key or edge.edge_id in record.evidence_ids
-        )
+    edges_by_record_key = resolve_crossmatch_record_edge_components(crossmatch_result)
 
     field_observations = tuple(
         _observe_field(
@@ -133,7 +120,6 @@ def observe_quality(
             source_values,
             evidence,
             conflicts,
-            records_by_key,
             edges_by_record_key,
             candidate.source_snapshot_ids,
             field_by_id,
@@ -274,7 +260,6 @@ def _observe_row(
     source_values: dict[str, SourceValueCandidate],
     evidence: dict[str, Any],
     conflicts: dict[str, FieldConflictRecord],
-    records_by_key: dict[str, Any],
     edges_by_record_key: dict[str, tuple[CandidateEdge, ...]],
     source_snapshot_ids: tuple[str, ...],
     field_by_id: dict[str, FieldDefinition],
@@ -313,9 +298,8 @@ def _observe_row(
         elif isinstance(outcome, UnresolvedCanonicalValue):
             unresolved_count += 1
             conflict_count += len(outcome.conflict_ids) > 0
-    record = records_by_key.get(row.crossmatch_logical_key)
     edges = edges_by_record_key.get(row.crossmatch_logical_key, ())
-    is_paired_or_conflict = record is not None
+    is_paired_or_conflict = row.crossmatch_record_type in {"paired", "conflict_group"}
     low_confidence = (
         any(edge.confidence_band is ConfidenceBand.low for edge in edges)
         if is_paired_or_conflict
@@ -323,12 +307,6 @@ def _observe_row(
     )
     review_required = (
         row.alignment_status.value in {"review_required", "conflict"}
-        or (
-            isinstance(record, PairedMatch)
-            and record.decision is MatchDecision.review_required
-            and record.adjudication is None
-        )
-        or isinstance(record, ConflictGroup)
         if is_paired_or_conflict
         else None
     )
@@ -353,4 +331,87 @@ def _observe_row(
     )
 
 
-__all__ = ["DatasetObservation", "FieldObservation", "QualityObservationBundle", "RowObservation", "observe_quality"]
+def field_metric_observations(item: FieldObservation) -> dict[str, int | bool]:
+    """Project raw field observations into the closed plan observation vocabulary."""
+
+    return {
+        "field.mapped_count": item.mapped_count,
+        "field.applicable_count": item.applicable_count,
+        "field.declared_null_count": item.declared_null_count,
+        "field.missing_count": item.declared_null_count + item.unresolved_count,
+        "field.unresolved_count": item.unresolved_count,
+        "field.provenance_count": item.provenance_numerator,
+        "field.evidence_count": item.evidence_numerator,
+        "field.unit_consistent_count": item.unit_numerator,
+        "field.unit_applicable_count": item.unit_denominator,
+        "field.same_source_conflict_count": item.same_source_conflict_cell_count,
+        "field.cross_source_conflict_count": item.cross_source_conflict_cell_count,
+    }
+
+
+def row_metric_observations(item: RowObservation) -> dict[str, int | bool]:
+    """Project raw row observations without recreating C-04/C-08 decisions."""
+
+    is_adjudicable = item.row.crossmatch_record_type in {"paired", "conflict_group"}
+    is_unpaired = item.row.crossmatch_record_type == "unpaired"
+    return {
+        "row.mapped_count": item.mapped_count,
+        "row.applicable_field_count": len(item.row.projected_field_ids),
+        "row.missing_count": item.declared_null_count + item.unresolved_count,
+        "row.unresolved_count": item.unresolved_count,
+        "row.provenance_count": item.provenance_numerator,
+        "row.evidence_count": item.evidence_numerator,
+        "row.unit_consistent_count": item.unit_numerator,
+        "row.unit_applicable_count": item.unit_denominator,
+        "row.conflict_count": item.conflict_count,
+        "row.low_confidence_flag": bool(item.low_confidence),
+        "row.review_required_flag": bool(item.review_required),
+        "row.inconclusive_flag": bool(item.inconclusive),
+        "row.adjudicable_record_count": int(is_adjudicable),
+        "row.unpaired_record_count": int(is_unpaired),
+    }
+
+
+def dataset_metric_observations(item: DatasetObservation) -> dict[str, int | bool]:
+    """Project dataset and authoritative C-08 counters for plan execution."""
+
+    metrics = item.crossmatch_metrics
+    return {
+        "dataset.mapped_count": item.mapped_count,
+        "dataset.applicable_cell_count": item.applicable_cell_count,
+        "dataset.missing_count": item.declared_null_count + item.unresolved_count,
+        "dataset.unresolved_count": item.unresolved_count,
+        "dataset.provenance_count": item.provenance_numerator,
+        "dataset.evidence_count": item.evidence_numerator,
+        "dataset.evidence_applicable_count": item.evidence_denominator,
+        "dataset.unit_consistent_count": item.unit_numerator,
+        "dataset.unit_applicable_count": item.unit_denominator,
+        "dataset.same_source_conflict_count": item.same_source_conflict_cell_count,
+        "dataset.cross_source_conflict_count": item.cross_source_conflict_cell_count,
+        "dataset.object_match_count": metrics.match_coverage.numerator,
+        "dataset.object_candidate_count": metrics.match_coverage.denominator,
+        "dataset.low_confidence_edge_count": metrics.low_confidence_count,
+        "dataset.candidate_edge_count": metrics.candidate_pair_count,
+        "dataset.review_required_record_count": metrics.manual_review_required_count,
+        "dataset.adjudicable_record_count": (
+            metrics.paired_group_count + metrics.conflict_group_count
+        ),
+        "dataset.inconclusive_record_count": metrics.inconclusive_record_count,
+        "dataset.crossmatch_record_count": item.crossmatch_record_count,
+        "dataset.complete_source_count": item.source_scope_numerator,
+        "dataset.required_source_count": item.source_scope_denominator,
+        "dataset.validation_pass_count": int(item.validation_integrity),
+        "dataset.validation_check_count": 1,
+    }
+
+
+__all__ = [
+    "DatasetObservation",
+    "FieldObservation",
+    "QualityObservationBundle",
+    "RowObservation",
+    "dataset_metric_observations",
+    "field_metric_observations",
+    "observe_quality",
+    "row_metric_observations",
+]

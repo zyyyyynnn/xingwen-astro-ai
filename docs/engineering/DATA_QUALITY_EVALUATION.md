@@ -22,21 +22,26 @@ hash，再由 `compile_quality_evaluation_plan()` 把冻结 RuleSet 编译为不
 不得在 Python 中另行维护公式选择或 Contract gate 清单。
 
 计划固定绑定：RuleSet identity、Decimal precision/serialization、每个 metric
-的 scope/result field/formula/version、适用范围、空 denominator 策略、不完整来源
-策略，以及每个 gate 的 metric target、threshold Contract locator、operator、
-observation key、binding version 和输入 locator。计划本身也有 canonical
-`content_hash`。
+的 scope/result field/formula/version、封闭的 formula kind、numerator observation、
+denominator observation、适用范围、空 denominator 策略、不完整来源策略，以及每个
+gate 的 metric target、threshold Contract locator、operator、observation key、
+binding version 和输入 locator。计划本身也有 canonical `content_hash`。三层
+builder 只组装 observations 和 typed result；统一 plan interpreter 负责公式计数、
+适用性、空 denominator 与 incomplete-source 状态，不允许 builder 提前改写状态。
 
 ## 2. Contract 与输入绑定
 
-`ResearchContract.content_hash` 必须由 Contract 内容 canonical 重算；canonical
-payload 排除 `content_hash` 并把 `requested_fields` 作为集合排序。C-05 在计算
-任何指标或 gate 前验证该 hash，随后才绑定质量阈值、requested fields、source
-scope、Evidence requirements 和 unit policy。修改 Contract 后保留旧 hash，或只
-重算外层 C-05 `input_hash`，都只能得到
+`ResearchContract.content_hash` 使用 Core/Contract 边界的生产内容身份算法：完整
+持久化 Contract 先精确投影为 `ResearchContractInput`，再对该输入内容做 canonical
+hash。`id`、`project_id`、`version`、`created_from_draft_id`、`created_at` 等持久化
+元数据不参与内容身份；C-05 不重新定义 Contract hash。Contract 确认流程、持久化
+读取校验与 C-05 都调用同一算法。C-05 在计算任何指标或 gate 前验证该 hash，随后
+才绑定质量阈值、requested fields、source scope、Evidence requirements 和 unit
+policy。修改 Contract 内容后保留旧 hash，或只重算外层 C-05 `input_hash`，都只能得到
 `QUALITY_RESEARCH_CONTRACT_MISMATCH`。
 
-C-04 的 requested field 顺序仍由其 Manifest 投影决定；Contract gate 使用集合
+Contract 内容身份保留生产输入的 canonical 序列语义；C-04 的 requested field
+顺序仍由其 Manifest 投影决定，而 C-05 质量绑定和 Contract gate 明确使用字段集合
 等价语义。合法的多字段顺序差异不会 fail，但重复字段和字段集合差异仍会拒绝。
 
 ## 3. 指标闭包与状态
@@ -61,6 +66,14 @@ scope、precision、整数 numerator/denominator、Decimal value 和 input locat
   dataset rate 公式；
 - dataset 层保留对应的 edge/record rate，另有 object match、source-scope 和
   validation integrity 指标。
+
+row low-confidence 不比较 edge logical key、record logical key 或 Evidence ID。
+C-08 使用 candidate membership 和 connected component 语义提供权威
+record-to-edge component 投影，C-05 只消费该投影；因此 row flag 与 dataset
+low-confidence edge 计数来自同一组真实 edge。row review-required 只读取 C-04
+冻结的最终 `alignment_status`：`review_required`/`conflict` 为 true，已经裁决的
+`accepted`/`rejected` 为 false，unpaired row 不适用；ConflictGroup 本身不构成
+无条件待审查判定。
 
 RuleSet 的 `incomplete_source_policy=insufficient` 对所有三层适用 metric
 一致传播：completeness、missingness、provenance、Evidence、unit、conflict、
@@ -109,6 +122,7 @@ Set-Location apps/api
 Set-Location ../..
 ```
 
-根因回归覆盖 formula scope mismatch、三层不完整来源传播、Contract hash drift、
-多字段顺序等价、伪造 result admission、RuleSet binding 驱动算法、结果领域闭包和
-Publisher 单次评估 commitment。
+根因回归覆盖 formula scope mismatch、生产 Contract 确认/读取兼容与 hash drift、
+三层不完整来源传播、多字段顺序等价、C-08 edge component 的 row 定位、Conflict
+最终裁决矩阵、plan 公式计数/空 denominator/incomplete policy、伪造 result
+admission、结果领域闭包和 Publisher 单次评估 commitment。

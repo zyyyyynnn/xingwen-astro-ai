@@ -53,6 +53,62 @@ class QualityMetricScope(StrEnum):
     dataset = "dataset"
 
 
+class QualityFormulaKind(StrEnum):
+    ratio = "ratio"
+    flag = "flag"
+
+
+class QualityObservationId(StrEnum):
+    field_mapped_count = "field.mapped_count"
+    field_applicable_count = "field.applicable_count"
+    field_declared_null_count = "field.declared_null_count"
+    field_missing_count = "field.missing_count"
+    field_unresolved_count = "field.unresolved_count"
+    field_provenance_count = "field.provenance_count"
+    field_evidence_count = "field.evidence_count"
+    field_unit_consistent_count = "field.unit_consistent_count"
+    field_unit_applicable_count = "field.unit_applicable_count"
+    field_same_source_conflict_count = "field.same_source_conflict_count"
+    field_cross_source_conflict_count = "field.cross_source_conflict_count"
+    row_mapped_count = "row.mapped_count"
+    row_applicable_field_count = "row.applicable_field_count"
+    row_missing_count = "row.missing_count"
+    row_unresolved_count = "row.unresolved_count"
+    row_provenance_count = "row.provenance_count"
+    row_evidence_count = "row.evidence_count"
+    row_unit_consistent_count = "row.unit_consistent_count"
+    row_unit_applicable_count = "row.unit_applicable_count"
+    row_conflict_count = "row.conflict_count"
+    row_low_confidence_flag = "row.low_confidence_flag"
+    row_review_required_flag = "row.review_required_flag"
+    row_inconclusive_flag = "row.inconclusive_flag"
+    row_adjudicable_record_count = "row.adjudicable_record_count"
+    row_unpaired_record_count = "row.unpaired_record_count"
+    dataset_mapped_count = "dataset.mapped_count"
+    dataset_applicable_cell_count = "dataset.applicable_cell_count"
+    dataset_missing_count = "dataset.missing_count"
+    dataset_unresolved_count = "dataset.unresolved_count"
+    dataset_provenance_count = "dataset.provenance_count"
+    dataset_evidence_count = "dataset.evidence_count"
+    dataset_evidence_applicable_count = "dataset.evidence_applicable_count"
+    dataset_unit_consistent_count = "dataset.unit_consistent_count"
+    dataset_unit_applicable_count = "dataset.unit_applicable_count"
+    dataset_same_source_conflict_count = "dataset.same_source_conflict_count"
+    dataset_cross_source_conflict_count = "dataset.cross_source_conflict_count"
+    dataset_object_match_count = "dataset.object_match_count"
+    dataset_object_candidate_count = "dataset.object_candidate_count"
+    dataset_low_confidence_edge_count = "dataset.low_confidence_edge_count"
+    dataset_candidate_edge_count = "dataset.candidate_edge_count"
+    dataset_review_required_record_count = "dataset.review_required_record_count"
+    dataset_adjudicable_record_count = "dataset.adjudicable_record_count"
+    dataset_inconclusive_record_count = "dataset.inconclusive_record_count"
+    dataset_crossmatch_record_count = "dataset.crossmatch_record_count"
+    dataset_complete_source_count = "dataset.complete_source_count"
+    dataset_required_source_count = "dataset.required_source_count"
+    dataset_validation_pass_count = "dataset.validation_pass_count"
+    dataset_validation_check_count = "dataset.validation_check_count"
+
+
 class QualityGateStatus(StrEnum):
     pass_ = "pass"
     fail = "fail"
@@ -132,6 +188,9 @@ class QualityFormulaDefinition(BaseModel):
     version: SemanticVersion
     result_field: NonEmptyString
     manifest_input: NonEmptyString | None = None
+    formula_kind: QualityFormulaKind
+    numerator_observation: QualityObservationId
+    denominator_observation: QualityObservationId
     numerator_definition: NonEmptyString
     denominator_definition: NonEmptyString
     applicability: Literal["projected_field_ids_only", "dataset_scope", "row_scope"]
@@ -206,6 +265,36 @@ _QUALITY_APPLICABILITY: dict[QualityMetricScope, str] = {
     QualityMetricScope.dataset: "dataset_scope",
 }
 
+_QUALITY_FLAG_METRICS = frozenset(
+    {
+        QualityMetricId.row_low_confidence_flag,
+        QualityMetricId.row_review_required_flag,
+        QualityMetricId.row_inconclusive_flag,
+    }
+)
+
+
+def _validate_formula_execution_binding(
+    *,
+    metric_id: QualityMetricId,
+    scope: QualityMetricScope,
+    formula_kind: QualityFormulaKind,
+    numerator_observation: QualityObservationId,
+    denominator_observation: QualityObservationId,
+) -> None:
+    expected_kind = (
+        QualityFormulaKind.flag
+        if metric_id in _QUALITY_FLAG_METRICS
+        else QualityFormulaKind.ratio
+    )
+    if formula_kind is not expected_kind:
+        raise ValueError("quality formula kind does not match metric semantics")
+    prefix = f"{scope.value}."
+    if not numerator_observation.value.startswith(
+        prefix
+    ) or not denominator_observation.value.startswith(prefix):
+        raise ValueError("quality formula observation scope does not match metric scope")
+
 
 class QualityMetricPlan(BaseModel):
     """One compiled metric definition used by both execution and validation."""
@@ -218,6 +307,9 @@ class QualityMetricPlan(BaseModel):
     formula_version: SemanticVersion
     result_field: NonEmptyString
     manifest_input: NonEmptyString | None = None
+    formula_kind: QualityFormulaKind
+    numerator_observation: QualityObservationId
+    denominator_observation: QualityObservationId
     applicability: Literal["projected_field_ids_only", "dataset_scope", "row_scope"]
     incomplete_source_policy: Literal["insufficient", "not_applicable"]
     empty_denominator_policy: Literal["not_applicable", "insufficient"]
@@ -256,6 +348,14 @@ class QualityEvaluationPlan(BaseModel):
             raise ValueError("quality plan metric result_field does not match its scope")
         if any(item.applicability != _QUALITY_APPLICABILITY[item.scope] for item in self.metrics):
             raise ValueError("quality plan metric applicability does not match its scope")
+        for item in self.metrics:
+            _validate_formula_execution_binding(
+                metric_id=item.metric_id,
+                scope=item.scope,
+                formula_kind=item.formula_kind,
+                numerator_observation=item.numerator_observation,
+                denominator_observation=item.denominator_observation,
+            )
         result_fields = tuple((item.scope, item.result_field) for item in self.metrics)
         if len(result_fields) != len(set(result_fields)):
             raise ValueError("quality plan contains duplicate scope/result_field")
@@ -364,6 +464,14 @@ class DataQualityRuleSet(BaseModel):
             raise ValueError("quality RuleSet formula result_field does not match its scope")
         if any(item.applicability != _QUALITY_APPLICABILITY[item.scope] for item in self.formula_registry):
             raise ValueError("quality RuleSet formula applicability does not match its scope")
+        for item in self.formula_registry:
+            _validate_formula_execution_binding(
+                metric_id=item.metric_id,
+                scope=item.scope,
+                formula_kind=item.formula_kind,
+                numerator_observation=item.numerator_observation,
+                denominator_observation=item.denominator_observation,
+            )
         formula_scopes = tuple((item.scope, item.result_field) for item in self.formula_registry)
         expected_result_fields = {
             (scope, result_field)
@@ -954,25 +1062,6 @@ def _drop_none(value: Any) -> Any:
     return value
 
 
-def _canonical_research_contract_payload(value: ResearchContract | dict[str, Any]) -> dict[str, Any]:
-    if isinstance(value, ResearchContract):
-        payload = value.model_dump(mode="json", exclude_none=True, exclude={"content_hash"})
-    else:
-        payload = ResearchContract.model_validate(value).model_dump(
-            mode="json",
-            exclude_none=True,
-            exclude={"content_hash"},
-        )
-    requested_fields = payload.get("requested_fields")
-    if isinstance(requested_fields, (list, tuple)):
-        payload["requested_fields"] = sorted(requested_fields)
-    return payload
-
-
-def compute_research_contract_content_hash(value: ResearchContract | dict[str, Any]) -> str:
-    return compute_canonical_payload_hash(_canonical_research_contract_payload(value))
-
-
 def compute_quality_evaluation_plan_content_hash(
     value: QualityEvaluationPlan | dict[str, Any],
 ) -> str:
@@ -1032,6 +1121,7 @@ __all__ = [
     "QualityErrorCode",
     "QualityFailureStage",
     "QualityFormulaDefinition",
+    "QualityFormulaKind",
     "QualityGateBinding",
     "QualityGateStatus",
     "QualityEvaluationPlan",
@@ -1042,6 +1132,7 @@ __all__ = [
     "QualityMetricResult",
     "QualityMetricScope",
     "QualityMetricStatus",
+    "QualityObservationId",
     "QualityProducerReference",
     "QualityCount",
     "ResearchContractQualityGate",
@@ -1052,5 +1143,4 @@ __all__ = [
     "compute_quality_content_hash",
     "compute_quality_output_hash",
     "compute_quality_rule_set_content_hash",
-    "compute_research_contract_content_hash",
 ]
