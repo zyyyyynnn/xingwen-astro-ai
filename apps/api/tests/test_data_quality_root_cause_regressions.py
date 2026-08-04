@@ -34,6 +34,7 @@ from services.data_pipeline.crossmatch.benchmark import (
     load_crossmatch_benchmark,
 )
 from services.data_pipeline.data_artifacts.admission import (
+    validate_data_artifact_candidates_against_input,
     validate_data_artifact_domain,
     validate_data_artifact_evidence,
 )
@@ -43,7 +44,12 @@ from services.data_pipeline.data_quality import (
     evaluate_data_quality,
 )
 from services.data_pipeline.data_quality.errors import DataQualityError
-from services.data_pipeline.data_quality.policy import load_frozen_quality_rule_set
+from services.data_pipeline.data_quality.observations import observe_quality
+from services.data_pipeline.data_quality.policy import (
+    compile_quality_evaluation_plan,
+    load_frozen_quality_rule_set,
+)
+from services.data_pipeline.manifest import load_frozen_manifest_bundle
 
 from data_artifact_test_support import build_input
 from test_data_artifact_pipeline import _build_input_from_crossmatch
@@ -221,6 +227,7 @@ def test_low_confidence_edge_component_marks_only_its_dataset_row() -> None:
         row for row in ordinary_result.row_results if row.alignment_status.value == "accepted"
     )
     assert ordinary_row.low_confidence.value == Decimal("0")
+    assert ordinary_row.low_confidence.denominator == 1
 
 
 @pytest.mark.parametrize(
@@ -260,7 +267,159 @@ def test_conflict_review_required_follows_final_c04_alignment(
         if row.canonical_row_identity.record_type == "conflict_group"
     )
     assert conflict_row.alignment_status.value == expected_alignment
+    assert conflict_row.low_confidence.status is QualityMetricStatus.not_applicable
+    assert conflict_row.low_confidence.denominator == 0
     assert conflict_row.review_required.value == expected_review
+
+
+def test_unpaired_row_confidence_is_not_applicable() -> None:
+    quality_input, _ = make_quality_input(
+        "star.tic_id",
+        scenario_id="truncated_inconclusive",
+    )
+
+    result = evaluate_data_quality(quality_input)
+
+    assert isinstance(result, DataQualityEvaluationResult)
+    unpaired = next(
+        row
+        for row in result.row_results
+        if row.canonical_row_identity.record_type == "unpaired"
+    )
+    assert unpaired.low_confidence.status is QualityMetricStatus.not_applicable
+    assert unpaired.low_confidence.denominator == 0
+
+
+def test_metric_capacity_counts_exact_public_plan_records_at_boundary() -> None:
+    from services.data_pipeline.data_quality.evaluator import (
+        _count_public_metric_records,
+        _validate_capacity,
+    )
+
+    quality_input, _ = make_quality_input("star.tic_id")
+    rules = load_frozen_quality_rule_set()
+    plan = compile_quality_evaluation_plan(rules)
+    exact_count = _count_public_metric_records(quality_input, plan)
+    old_estimate = (
+        len(quality_input.dataset_candidate.rows)
+        * len(quality_input.dataset_candidate.columns)
+        * 30
+    )
+    at_limit = rules.model_copy(
+        update={
+            "capacity": rules.capacity.model_copy(
+                update={"max_metric_records": exact_count}
+            )
+        }
+    )
+
+    _validate_capacity(quality_input, at_limit, plan)
+
+    assert exact_count == (
+        len(quality_input.dataset_candidate.columns)
+        * sum(metric.scope.value == "field" for metric in plan.metrics)
+        + len(quality_input.dataset_candidate.rows)
+        * sum(metric.scope.value == "row" for metric in plan.metrics)
+        + sum(metric.scope.value == "dataset" for metric in plan.metrics)
+        + len(plan.gate_bindings)
+    )
+    assert exact_count < old_estimate
+
+
+def test_metric_capacity_rejects_one_record_over_limit_with_stable_code() -> None:
+    from services.data_pipeline.data_quality.evaluator import (
+        _count_public_metric_records,
+        _validate_capacity,
+    )
+
+    quality_input, _ = make_quality_input("star.tic_id")
+    rules = load_frozen_quality_rule_set()
+    plan = compile_quality_evaluation_plan(rules)
+    exact_count = _count_public_metric_records(quality_input, plan)
+    below_limit = rules.model_copy(
+        update={
+            "capacity": rules.capacity.model_copy(
+                update={"max_metric_records": exact_count - 1}
+            )
+        }
+    )
+
+    with pytest.raises(DataQualityError) as exc_info:
+        _validate_capacity(quality_input, below_limit, plan)
+
+    assert exc_info.value.code is QualityErrorCode.QUALITY_CAPACITY_EXCEEDED
+
+
+class _CountingTuple(tuple):
+    def __new__(cls, values, visits: list[int]):
+        instance = super().__new__(cls, values)
+        instance.visits = visits
+        return instance
+
+    def __iter__(self):
+        self.visits[0] += 1
+        return super().__iter__()
+
+
+def test_observations_visit_each_row_outcome_sequence_once() -> None:
+    quality_input, _ = make_quality_input("star.tic_id")
+    visits = [0]
+    rows = tuple(
+        row.model_copy(update={"fields": _CountingTuple(row.fields, visits)})
+        for row in quality_input.dataset_candidate.rows
+    )
+    candidate = quality_input.dataset_candidate.model_copy(update={"rows": rows})
+
+    observations = observe_quality(
+        candidate,
+        quality_input.data_artifact_input.crossmatch_result,
+        load_frozen_manifest_bundle(),
+    )
+
+    assert len(observations.rows) == len(rows)
+    assert visits[0] == len(rows)
+
+
+def test_missing_c04_evidence_is_rejected_at_c04_boundary() -> None:
+    quality_input, build_result = make_quality_input("star.tic_id")
+    malformed = build_result.dataset.model_copy(update={"transformation_evidence": ()})
+
+    with pytest.raises(ValueError, match="Evidence set differs"):
+        validate_data_artifact_candidates_against_input(
+            malformed,
+            quality_input.data_artifact_input,
+        )
+
+    assert "QUALITY_EVIDENCE_GAP" not in QualityErrorCode.__members__
+
+
+def test_unit_consistency_counts_retained_source_value_assertions() -> None:
+    quality_input, _ = make_quality_input(
+        "system.right_ascension",
+        scenario_id="manual_decision_valid",
+    )
+    rules = load_frozen_quality_rule_set()
+
+    result = evaluate_data_quality(quality_input)
+
+    assert isinstance(result, DataQualityEvaluationResult)
+    field = result.field_results[0]
+    assert field.mapped_count == 2
+    assert field.unit_consistency.denominator == 3
+    assert result.dataset_result.unit_consistency.denominator == 3
+    unit_formulas = [
+        formula
+        for formula in rules.formula_registry
+        if "unit_consistency" in formula.metric_id.value
+    ]
+    assert all(
+        "retained non-null SourceValue assertions" in formula.denominator_definition
+        for formula in unit_formulas
+    )
+    assert all(
+        formula.denominator_observation.value.endswith("unit_applicable_assertion_count")
+        for formula in unit_formulas
+    )
 
 
 def test_self_consistent_fake_result_is_rejected_by_canonical_admission() -> None:
