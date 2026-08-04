@@ -86,7 +86,7 @@ def evaluate_data_quality(
             ) from error
         plan = compile_quality_evaluation_plan(rules)
         manifests = load_frozen_manifest_bundle()
-        _validate_input_bindings(evaluation_input, manifests, rules)
+        _validate_input_bindings(evaluation_input, manifests, rules, plan)
         observations = observe_quality(
             evaluation_input.dataset_candidate,
             evaluation_input.data_artifact_input.crossmatch_result,
@@ -164,6 +164,7 @@ def _validate_input_bindings(
     value: DataQualityEvaluationInput,
     manifests: ManifestBundle,
     rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
 ) -> None:
     data_input = value.data_artifact_input
     candidates = (
@@ -215,8 +216,7 @@ def _validate_input_bindings(
             QualityFailureStage.crossmatch_validation,
         )
     _validate_research_contract(value, manifests)
-    _validate_quality_evidence(value)
-    _validate_capacity(value, rules)
+    _validate_capacity(value, rules, plan)
 
 
 def _validate_candidate_cross_bindings(
@@ -267,43 +267,26 @@ def _validate_research_contract(value: DataQualityEvaluationInput, manifests: Ma
         ) from error
 
 
-def _validate_quality_evidence(value: DataQualityEvaluationInput) -> None:
-    dataset = value.dataset_candidate
-    source_values = {item.source_value_id: item for item in dataset.source_values}
-    evidence = {item.evidence_id: item for item in dataset.transformation_evidence}
-    snapshots = set(dataset.source_snapshot_ids)
-    try:
-        for row in dataset.rows:
-            for outcome in row.fields:
-                if getattr(outcome, "status", None) != "mapped":
-                    continue
-                source_items = [source_values[item] for item in outcome.candidate_source_value_ids]
-                evidence_items = [evidence[item] for item in outcome.transformation_evidence_ids]
-                if not source_items or not evidence_items:
-                    raise ValueError("mapped outcome lacks retained SourceValue/Evidence")
-                if any(item.evidence_locator.source_snapshot_id not in snapshots for item in source_items):
-                    raise ValueError("SourceValue Evidence locator lacks its SourceSnapshot")
-                if any(item.locator.source_snapshot_id not in snapshots for item in evidence_items):
-                    raise ValueError("Transformation Evidence locator lacks its SourceSnapshot")
-                if {item.source_value_id for item in evidence_items} != {
-                    item.source_value_id for item in source_items
-                }:
-                    raise ValueError("mapped outcome does not retain Evidence for every candidate")
-        crossmatch_evidence_ids = set(dataset.crossmatch_evidence_ids)
-        for record in value.data_artifact_input.crossmatch_result.records:
-            if getattr(record, "record_type", None) in {"paired", "conflict_group"}:
-                if not set(record.evidence_ids) <= crossmatch_evidence_ids:
-                    raise ValueError("audited Crossmatch record lacks Crossmatch Evidence")
-    except Exception as error:
-        raise DataQualityError(
-            QualityErrorCode.QUALITY_EVIDENCE_GAP,
-            "required Evidence locator or SourceSnapshot coverage is incomplete",
-            stage=QualityFailureStage.evidence_validation,
-            cause=error,
-        ) from error
+def _count_public_metric_records(
+    value: DataQualityEvaluationInput,
+    plan: QualityEvaluationPlan,
+) -> int:
+    """Count every public metric result and Contract gate check emitted by C-05."""
+
+    metrics_by_scope = Counter(metric.scope for metric in plan.metrics)
+    return (
+        len(value.dataset_candidate.columns) * metrics_by_scope[QualityMetricScope.field]
+        + len(value.dataset_candidate.rows) * metrics_by_scope[QualityMetricScope.row]
+        + metrics_by_scope[QualityMetricScope.dataset]
+        + len(plan.gate_bindings)
+    )
 
 
-def _validate_capacity(value: DataQualityEvaluationInput, rules: DataQualityRuleSet) -> None:
+def _validate_capacity(
+    value: DataQualityEvaluationInput,
+    rules: DataQualityRuleSet,
+    plan: QualityEvaluationPlan,
+) -> None:
     dataset = value.dataset_candidate
     result = value.data_artifact_input.crossmatch_result
     counts = {
@@ -314,7 +297,7 @@ def _validate_capacity(value: DataQualityEvaluationInput, rules: DataQualityRule
         "evidence": len(dataset.evidence_ids),
         "conflict_references": sum(len(row.conflict_ids) for row in dataset.rows),
         "crossmatch_edges": len(result.candidate_edges),
-        "metric_records": len(dataset.rows) * max(1, len(dataset.columns)) * 30,
+        "metric_records": _count_public_metric_records(value, plan),
         "diagnostic_references": len(result.metrics.error_example_references),
     }
     limits = {

@@ -25,8 +25,22 @@ empty-denominator behavior and incomplete-source behavior are part of the
 versioned plan.
 
 Row low-confidence consumes the C-08 record-to-edge component projection based
-on candidate membership. Row review-required consumes the final frozen C-04
-alignment status, so accepted/rejected adjudications are not reopened by C-05.
+on candidate membership and has a dedicated confidence-applicable denominator.
+Only paired records with an interpretable C-08 confidence band are applicable;
+ConflictGroup and unpaired records are not applicable. Row review-required has
+its own paired/conflict adjudicable denominator and consumes the final frozen
+C-04 alignment status, so accepted/rejected adjudications are not reopened.
+
+Unit consistency counts retained non-null `SourceValue` assertions, not mapped
+cells. Observation IDs and formula definitions explicitly use that assertion
+granularity. Observations traverse each C-04 row outcome once while accumulating
+field, row and dataset counters.
+
+`max_metric_records` is the exact count of emitted field metrics, row metrics,
+dataset metrics and Contract gate checks derived from the compiled plan. It is
+not an estimate of cell-processing work. Missing Evidence remains a C-04
+candidate-admission failure; C-05 coverage metrics audit only admitted typed
+Evidence and do not maintain a duplicate unreachable Evidence-gap rejection.
 
 The JSON `content_hash` is the canonical C-01 hash of the payload without the
 `content_hash` member.  Changes to formulas, policies, thresholds, bindings or

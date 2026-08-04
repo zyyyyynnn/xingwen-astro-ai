@@ -69,7 +69,6 @@
         "QUALITY_RULE_SET_MISMATCH",
         "QUALITY_METRIC_FORMULA_INVALID",
         "QUALITY_METRIC_REFERENCE_INVALID",
-        "QUALITY_EVIDENCE_GAP",
         "QUALITY_SOURCE_SCOPE_INSUFFICIENT",
         "QUALITY_CONSTRAINT_FAILED",
         "QUALITY_CONSTRAINT_INSUFFICIENT",
@@ -88,7 +87,6 @@
         "contract_validation",
         "rule_validation",
         "metric_validation",
-        "evidence_validation",
         "capacity_preflight",
         "admission_validation"
       ],
