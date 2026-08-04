@@ -13,7 +13,7 @@ from app.schemas.core import (
     ResearchArtifact,
     SourceSnapshotDetail,
 )
-from app.services.data_artifacts import DataArtifactReadService
+from app.services.data_artifacts import DataArtifactReadService, _csv_cell
 from app.security import SecurityProblem
 
 from data_artifact_test_support import build_input
@@ -148,3 +148,9 @@ def test_dataset_export_is_idempotent_and_rejects_unknown_format() -> None:
             export_format="csv",
         )
     assert conflict.value.code == "IDEMPOTENCY_CONFLICT"
+
+
+def test_dataset_csv_export_neutralizes_formula_cells() -> None:
+    assert _csv_cell("=SUM(A1)") == "'=SUM(A1)"
+    assert _csv_cell("@user") == "'@user"
+    assert _csv_cell("plain text") == "plain text"

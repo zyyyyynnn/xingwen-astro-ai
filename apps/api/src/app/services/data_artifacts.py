@@ -352,13 +352,22 @@ def _render_export(
     writer.writerow(["row_id", *fields])
     for row in typed.dataset.rows:
         values = {item.canonical_field_id: _outcome_value(item) for item in row.fields}
-        writer.writerow([row.row_id, *(values.get(field) for field in fields)])
+        writer.writerow(
+            [row.row_id, *(_csv_cell(values.get(field)) for field in fields)]
+        )
     return output.getvalue().encode("utf-8"), "text/csv; charset=utf-8", f"{version_id}.csv"
 
 
 def _outcome_value(outcome: Any) -> Any:
     value = outcome.model_dump(mode="json")
     return value.get("canonical_value", value.get("reason", value.get("status", "")))
+
+
+def _csv_cell(value: Any) -> Any:
+    """Keep exported text from being interpreted as a spreadsheet formula."""
+    if isinstance(value, str) and value[:1] in {"=", "+", "-", "@"}:
+        return "'" + value
+    return value
 
 
 def _encode_cursor(*, version_id: str, row_id: str) -> str:
