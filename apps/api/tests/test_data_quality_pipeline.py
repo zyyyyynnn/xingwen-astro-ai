@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.schemas.core import ResearchContract
+from app.schemas.core import ResearchContract, compute_research_contract_content_hash
 from app.schemas.data_quality import (
     DataQualityEvaluationInput,
     DataQualityEvaluationRejected,
@@ -10,7 +10,6 @@ from app.schemas.data_quality import (
     QualityErrorCode,
     QualityMetricStatus,
     compute_data_quality_input_hash,
-    compute_research_contract_content_hash,
     compute_quality_rule_set_content_hash,
 )
 from services.data_pipeline.data_artifacts import build_data_artifact_candidates
@@ -54,8 +53,9 @@ def make_quality_input(
     scenario_id: str = "exact_one_to_one",
     rules=None,
     contract: ResearchContract | None = None,
+    data_input=None,
 ):
-    data_input = build_input(*requested_fields, scenario_id=scenario_id)
+    data_input = data_input or build_input(*requested_fields, scenario_id=scenario_id)
     build_result = build_data_artifact_candidates(data_input)
     quality_rules = rules or load_frozen_quality_rule_set()
     contract_value = contract or _contract(*requested_fields)
