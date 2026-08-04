@@ -74,7 +74,10 @@ def execute_metric(
     if numerator < 0 or denominator < 0 or numerator > denominator:
         raise _formula_error("quality formula counts are invalid")
 
-    if not applicable:
+    structurally_not_applicable = not applicable or (
+        metric_plan.formula_kind is QualityFormulaKind.flag and denominator == 0
+    )
+    if structurally_not_applicable:
         status = QualityMetricStatus.not_applicable
     elif incomplete_source:
         status = QualityMetricStatus(metric_plan.incomplete_source_policy)
