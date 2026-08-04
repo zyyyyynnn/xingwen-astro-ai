@@ -76,10 +76,10 @@ def execute_metric(
 
     if not applicable:
         status = QualityMetricStatus.not_applicable
-    elif denominator == 0:
-        status = QualityMetricStatus(metric_plan.empty_denominator_policy)
     elif incomplete_source:
         status = QualityMetricStatus(metric_plan.incomplete_source_policy)
+    elif denominator == 0:
+        status = QualityMetricStatus(metric_plan.empty_denominator_policy)
     else:
         status = QualityMetricStatus.determinate
 
