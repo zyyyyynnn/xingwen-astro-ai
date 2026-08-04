@@ -267,9 +267,58 @@ LiteratureClaim 的 D-07 唯一 Pipeline Pydantic 编写源是 `apps/api/src/app
 
 D-07 的 `LiteratureClaimsCandidate@1.0.0` 是交给后续 Relation/读取边界与 ArtifactVersion 准入端口的领域 typed candidate，不是 HTTP DTO。只有 D-07 Pipeline 返回的封印批次可进入 Publisher；单条模型输出或 admission record/result、Phase 0 `app.schemas.reasoning.LiteratureClaim` 及其 `LiteratureReasoningResponse` 包络、core `LiteratureClaimsArtifactContent` 投影都不是发布编写源，并由 Publisher marker 拒绝。accepted 要求全部 Evidence 为 D-03 `supported`；unsupported/unverifiable Evidence 只能形成 candidate；版本、Evidence/SourceSnapshot、ownership、normalization 或 duplicate 硬错误形成 rejected。confidence、模糊相似度和 hash 不用于科学正确性判定。
 
-LiteratureRelation：source/target claim、relation_type、conditions、reasoning_trace_id、evidence_ids、confidence、状态。方向统一为 `source_claim_id relation_type target_claim_id`；source 是关系主语，target 是关系宾语。Accepted Relation 必须同时有 Evidence 和 ReasoningTrace。
+D-08 LiteratureRelation/ReasoningTrace 的唯一 Pipeline Pydantic 编写源是
+`apps/api/src/app/schemas/literature_relation.py`。模型输出
+`LiteratureRelationExtractionOutput` 只包含严格 JSON candidate；经过固定的
+JSON/Schema、输入版本、Claim、Evidence、ownership、pairing、direction、duplicate、
+conditions、object/metric/unit comparability、Trace 和 confidence 顺序后，形成
+`LiteratureRelationCandidate`、`LiteratureReasoningTraceCandidate` 与统一 admission
+result。完整拒绝枚举、优先级、hash 和运行方式见
+[LiteratureRelation Pipeline](../engineering/LITERATURE_RELATION_PIPELINE.md)。
 
-ReasoningTrace：relation_id、premise_claim_ids、显式 steps、conditions、evidence_ids、review_status。`premise_claim_ids` 按 Relation 的 source、target 顺序保存。Step 只描述引用、比较条件和结构化结论，不记录隐藏 prompt、内部 token 或逐 token 推理。
+LiteratureRelation 包含 pair/relation id、source/target Claim 及各自 Claim/PaperSummary
+ArtifactVersion、relation type、方向依据、conditions/conflicts/uncertainties、
+object/metric/unit comparability、双方 Evidence/SourceSnapshot、ReasoningTrace、外部版本化
+confidence assessment、稳定 fingerprint、`candidate | accepted | rejected`、failure stage、
+rejection/review reason、ProducerExecution 与 input/model-response hash。方向统一为
+`source_claim_id relation_type target_claim_id`；source 是关系主语，target 是关系宾语，
+输入排序不得改变方向、identity 或 hash。
+
+object 必须显式标记 `comparable`，提供公开 basis，并由 Trace 的 `compare_objects` 步骤
+和双方 Evidence 支撑；`incomparable` 为硬拒绝。metric、unit 还分别核对双方 Claim 的
+实际字段：双方都缺失时只能是 `not_applicable`，双方存在且值相同时才可标记
+`comparable`；一侧缺失或实际值不同时为硬拒绝，不能靠模型填写的 status/basis 绕过。
+
+confidence assessment 保存 `assessed | not_evaluable`、可选 score、definition 和
+calibration id/version/method、applicability scope、threshold 与依据。其 subject 精确绑定
+source/target Claim ArtifactVersion/id、relation type 和 subject fingerprint，并显式绑定
+当前 `accepted | candidate | rejected` decision；跨方向、版本、relation type 或 decision
+复用均为硬拒绝。score 是对完整 `relation type + admission decision` 的校准置信，不是
+Relation 为真或 accepted 的概率；硬门优先。阈值 `0.9` 只在其他门通过后决定
+accepted/candidate，`not_evaluable` 为 candidate，undefined/unversioned/uncalibrated 为
+rejected。D-01 rejected Relation 的 `0.99` 不得解释为可接受概率。
+
+ReasoningTrace 包含 relation id、按 source/target 排列的 premise Claim、从 1 连续的显式
+steps、conditions、limitations、conflicts、结构化 conclusion、Evidence、Trace protocol
+version、relation admission status、ProducerExecution 与 hash。Step 只描述闭合操作枚举、
+公开 statement、Claim/Evidence 引用，不记录隐藏 Prompt、内部 token、逐 token 推理或
+私有 chain-of-thought。Trace conditions/conflicts 分别与 Relation conditions/
+condition_conflicts 精确闭合；任一冲突在 conditions 阶段拒绝，不一致的 Trace 不作为
+完整 Trace 保留。rejected Relation 仅在 Trace 的 Claim/Evidence/SourceSnapshot 引用与
+Relation 精确闭合时可保留安全负例 Trace；Claim、Evidence 或 ownership 的较早拒绝不
+保留伪完整 Trace，也不能进入 Graph。
+
+`LiteratureRelationsCandidate@1.0.0` 是唯一 publisher-ready typed candidate；一个
+`kind=literature_relations` 内容同时封闭 Claims、Relations、ReasoningTraces、Evidence/
+SourceSnapshot、confidence、Producer 与 hash，不另行发布 `reasoning_traces` Artifact。
+raw extraction、单条 Relation/Trace、重解析/复制对象、Phase 0/core 兼容投影和被修改的
+candidate 均不能通过 admission seal。seal authority 的弱引用与不可变快照 registry、
+唯一 minter 只存在于进程内闭包；一次性 binder 只接受 `sys.modules` 中的 exact Pipeline
+owner class，把 minter 绑定进 `admit` 闭包后删除自身，不暴露可导入 mint、token 或可写
+registry。公开 verifier 逐层反射只能读取 tuple/NamedTuple 不可变快照。只有
+原始 `admit` exact code frame 才能为其局部完成全部 gate 后构造的 candidate 注册
+authority；反射取得 callable 后脱离该调用点执行仍会拒绝。只有 Pipeline 产生的原对象
+可通过 Publisher 复验。
 
 ### 9.4 Graph
 
