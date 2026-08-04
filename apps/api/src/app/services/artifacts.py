@@ -197,7 +197,11 @@ class ArtifactReadService:
             )
 
     def get_version(
-        self, *, version_id: str, session_id: str
+        self,
+        *,
+        version_id: str,
+        session_id: str,
+        full_content: bool = False,
     ) -> ArtifactVersionDetail:
         version_uuid = _uuid_or_not_found(version_id, "ARTIFACT_VERSION_NOT_FOUND")
         with self._factory() as session:
@@ -223,7 +227,11 @@ class ArtifactReadService:
                 created_by_run_id=str(row.created_by_run_id),
                 version_number=row.version_number,
                 schema_version=row.schema_version,
-                content=_sanitize_object(row.content, max_string=8192),
+                content=_sanitize_object(
+                    row.content,
+                    max_string=1_000_000 if full_content else 8192,
+                    max_items=None if full_content else 500,
+                ),
                 content_hash=row.content_hash,
                 input_hash=row.input_hash,
                 source_mode=row.source_mode,
@@ -454,12 +462,16 @@ def _safe_quote(value: Any) -> Any:
     return _sanitize_string(value, 2000)
 
 
-def _sanitize_object(value: Mapping[str, Any], *, max_string: int) -> dict[str, Any]:
-    sanitized = _sanitize_json(dict(value), max_string=max_string)
+def _sanitize_object(
+    value: Mapping[str, Any], *, max_string: int, max_items: int | None = 500
+) -> dict[str, Any]:
+    sanitized = _sanitize_json(dict(value), max_string=max_string, max_items=max_items)
     return sanitized if isinstance(sanitized, dict) else {}
 
 
-def _sanitize_json(value: Any, *, max_string: int) -> Any:
+def _sanitize_json(
+    value: Any, *, max_string: int, max_items: int | None = 500
+) -> Any:
     if value is None or isinstance(value, (bool, int)):
         return value
     if isinstance(value, float):
@@ -468,12 +480,16 @@ def _sanitize_json(value: Any, *, max_string: int) -> Any:
         return _sanitize_string(value, max_string)
     if isinstance(value, Mapping):
         return {
-            str(key): _sanitize_json(nested, max_string=max_string)
+            str(key): _sanitize_json(nested, max_string=max_string, max_items=max_items)
             for key, nested in value.items()
             if not _sensitive_key(str(key))
         }
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        return [_sanitize_json(item, max_string=max_string) for item in value[:500]]
+        items = value if max_items is None else value[:max_items]
+        return [
+            _sanitize_json(item, max_string=max_string, max_items=max_items)
+            for item in items
+        ]
     return None
 
 

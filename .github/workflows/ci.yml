@@ -160,6 +160,13 @@ jobs:
             --include PaperSummaryRead \
             --include PaperCollectionRead \
             --include PaperCollectionCandidateRead \
+            --include DataArtifactReadBase \
+            --include DatasetArtifactRead \
+            --include FieldDictionaryArtifactRead \
+            --include SourceCollectionArtifactRead \
+            --include DataArtifactRowRead \
+            --include CreateArtifactExportRequest \
+            --include ArtifactExportRead \
             --include EvidenceRead \
             --include SourceSnapshotDetail \
             --include SessionCreated \
