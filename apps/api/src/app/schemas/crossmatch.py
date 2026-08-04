@@ -2484,6 +2484,47 @@ class CrossmatchResult(BaseModel):
         return self
 
 
+def resolve_crossmatch_record_edge_components(
+    result: CrossmatchResult,
+) -> dict[str, tuple[CandidateEdge, ...]]:
+    """Resolve paired/conflict records to C-08 edge components by membership.
+
+    CandidateEdge logical keys identify individual candidate pairs, while
+    record logical keys identify connected components. Consumers must use
+    this projection instead of comparing those distinct ID domains.
+    """
+
+    components: dict[tuple[str, str], tuple[CandidateEdge, ...]] = {}
+    for component in group_crossmatch_edge_components(result.candidate_edges):
+        semantics = derive_crossmatch_record_semantics(component)
+        key = (semantics.record_type, semantics.logical_match_key)
+        if key in components:
+            raise ValueError("crossmatch edge components contain duplicate record identity")
+        components[key] = component
+
+    resolved: dict[str, tuple[CandidateEdge, ...]] = {}
+    observed: set[tuple[str, str]] = set()
+    for record in result.records:
+        if not isinstance(record, PairedMatch | ConflictGroup):
+            continue
+        key = (record.record_type, record.logical_match_key)
+        component = components.get(key)
+        if component is None or key in observed:
+            raise ValueError("crossmatch record has no unique candidate-edge component")
+        semantics = derive_crossmatch_record_semantics(component)
+        if (
+            record.left_candidate_ids != semantics.left_candidate_ids
+            or record.right_candidate_ids != semantics.right_candidate_ids
+            or record.entity_level is not semantics.entity_level
+        ):
+            raise ValueError("crossmatch record candidate membership disagrees with component")
+        observed.add(key)
+        resolved[record.logical_match_key] = component
+    if observed != set(components):
+        raise ValueError("crossmatch record-edge component projection is incomplete")
+    return resolved
+
+
 class BenchmarkToiRecord(BaseModel):
     model_config = MODEL_CONFIG
 
