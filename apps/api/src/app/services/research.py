@@ -41,6 +41,8 @@ from app.schemas.core import (
     ResearchRun,
     RunEvent,
     UpdateResearchContractDraftRequest,
+    compute_research_contract_content_hash,
+    validate_research_contract_content_hash,
 )
 from app.security import SecurityProblem, canonical_request_hash, require_revision
 from app.workflow.store import (
@@ -342,7 +344,7 @@ class ResearchApplicationService:
                 expected=request.expected_draft_version, current=draft.version
             )
             contract_input = _contract_input(draft.contract)
-            content_hash = canonical_request_hash(contract_input.model_dump(mode="json"))
+            content_hash = compute_research_contract_content_hash(contract_input)
             next_version = (
                 session.scalar(
                     select(func.coalesce(func.max(ResearchContractModel.version), 0)).where(
@@ -623,7 +625,7 @@ def _draft(row: ResearchContractDraftModel) -> ResearchContractDraft:
 
 def _contract(row: ResearchContractModel) -> ResearchContract:
     payload = dict(row.content or {})
-    return ResearchContract(
+    contract = ResearchContract(
         **payload,
         id=str(row.id),
         project_id=str(row.project_id),
@@ -632,6 +634,7 @@ def _contract(row: ResearchContractModel) -> ResearchContract:
         created_at=_utc(row.created_at),
         content_hash=row.content_hash,
     )
+    return validate_research_contract_content_hash(contract)
 
 
 def _contract_input(payload: dict[str, object]) -> ResearchContractInput:

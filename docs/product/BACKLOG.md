@@ -20,8 +20,7 @@ GitHub Open Issues 是标题、正文、标签、Milestone、负责人、实时�
 
 ```text
 #33
-├─ #90（Completed baseline）
-└─ #91
+└─ #90（Completed baseline）
 
 #44
 ├─ #92
@@ -35,9 +34,7 @@ GitHub Open Issues 是标题、正文、标签、Milestone、负责人、实时�
 | ID  | Role | Issue title                                          | Parent | Owner | Direct dependency | Deliverable                                       |
 | --- | ---- | ---------------------------------------------------- | ------ | ----- | ----------------- | ------------------------------------------------- |
 | #33 | Epic | [C] C-03 Epic：完成补充来源与跨源实体对齐            | —      | C     | —                 | 补充来源、crossmatch、匹配 Evidence               |
-| #91 | Task | [C] C-08 实现跨源实体对齐、匹配 Evidence 与审查基准  | #33    | C     | —                 | crossmatch 规则、冲突保留、人工审查指标           |
-| #34 | Task | [C] C-04 实现版本化字段映射、单位统一与数据 Artifact | —      | C     | #91               | Dataset、FieldDictionary、Evidence、规则版本/hash |
-| #35 | Task | [C] C-05 实现分层数据质量与 Evidence 覆盖评估        | —      | C     | #34               | per-field/row/dataset 质量与 Contract 质量门      |
+| #35 | Task | [C] C-05 实现分层数据质量与 Evidence 覆盖评估        | —      | C     | —                 | per-field/row/dataset 质量与 Contract 质量门      |
 | #36 | Task | [B] B-05 实现数据 Artifact、分页与导出 API           | —      | B     | #35               | 数据领域读取、行分页、锁定版本导出                |
 | #37 | Task | [A] A-04 构建数据产物研究画布                        | —      | A     | #36               | 数据表、字段、质量、来源与 Evidence 对照          |
 

@@ -5,7 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.schemas.manifest import ManifestBundle
-from app.schemas.core import ResearchContract, ResearchContractInput
+from app.schemas.core import (
+    ResearchContract,
+    ResearchContractInput,
+    compute_research_contract_content_hash,
+    validate_research_contract_content_hash,
+)
 
 
 def validate_contract_against_manifest(
@@ -47,7 +52,12 @@ def confirm_research_contract(
         case_key=case_key,
         manifests=manifests,
     )
-    return ResearchContract.model_validate(
+    expected_hash = compute_research_contract_content_hash(contract)
+    if content_hash != expected_hash:
+        raise ValueError(
+            f"ResearchContract content_hash does not match ResearchContractInput: {expected_hash}"
+        )
+    confirmed = ResearchContract.model_validate(
         {
             **contract.model_dump(mode="python"),
             "id": id,
@@ -58,3 +68,4 @@ def confirm_research_contract(
             "content_hash": content_hash,
         }
     )
+    return validate_research_contract_content_hash(confirmed)

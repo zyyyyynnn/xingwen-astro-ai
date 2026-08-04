@@ -11,6 +11,8 @@
 
 C-04 的 `MappingRuleSet` 与 `UnitConversionCatalog` 是 Artifact 内容生成条件：两者的完整仓库冻结内容（包括 entity projection、集合 tolerance、容量和 Decimal 安全边界）的 id/version/content hash、Case/Field Manifest pins、C-08 result、acquisition SourceSnapshot/record set 和 requested fields 全部进入 `DataArtifactBuildInput.input_hash`。公共入口拒绝 caller 自行修改并重算 hash 的替代策略。Dataset、FieldDictionary、SourceCollection 和 bundle 分别计算 output hash；bundle 对三类 candidate 执行共同 pins、producer、input、Snapshot/Evidence、FieldDefinition 与 raw-record 引用闭包校验后才封印实例。Pipeline typed candidate 尚未成为 `ArtifactVersion`；只有通过 #78 structured admission port 并进入 Publisher 事务后，才能分配数据库版本号。
 
+C-05 的 `DataQualityEvaluationInput.input_hash` 进一步绑定 C-04 input/candidate IDs/output hashes、Dataset canonical/lineage hash、C-08 identity、ResearchContract projection、冻结 `DataQualityRuleSet`、SourceSnapshot/Evidence IDs 和 producer version。`DataQualityEvaluationResult` 的 output/content hash 不包含自身 hash、wall-clock、日志、分支、数据库 ID、ArtifactVersion number 或 private seal；它仍不是 `ArtifactVersion`。只有通过 process-local C-05 pass-only gate 与 #78 Publisher port 后，B 才能创建数据库版本。
+
 | 对象              | 是否不可变           | 用途                                                        |
 | ----------------- | -------------------- | ----------------------------------------------------------- |
 | ResearchContract  | 确认后不可变         | 固定一次 Run 的研究输入和质量要求                           |

@@ -1,0 +1,426 @@
+{
+  "$defs": {
+    "AlignmentStatus": {
+      "enum": [
+        "accepted",
+        "review_required",
+        "rejected",
+        "conflict",
+        "unmatched",
+        "inconclusive"
+      ],
+      "title": "AlignmentStatus",
+      "type": "string"
+    },
+    "CanonicalEntityIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "identity_values": {
+          "items": {
+            "$ref": "#/$defs/CanonicalEntityIdentityValue"
+          },
+          "minItems": 1,
+          "title": "Identity Values",
+          "type": "array"
+        },
+        "logical_assertion_key": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Assertion Key"
+        }
+      },
+      "required": [
+        "entity_level",
+        "identity_values"
+      ],
+      "title": "CanonicalEntityIdentity",
+      "type": "object"
+    },
+    "CanonicalEntityIdentityValue": {
+      "additionalProperties": false,
+      "properties": {
+        "field_id": {
+          "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "title": "Field Id",
+          "type": "string"
+        },
+        "normalization_rule_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Normalization Rule Version",
+          "type": "string"
+        },
+        "normalized_value": {
+          "minLength": 1,
+          "title": "Normalized Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_id",
+        "normalized_value",
+        "normalization_rule_version"
+      ],
+      "title": "CanonicalEntityIdentityValue",
+      "type": "object"
+    },
+    "CanonicalRowIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "alignment_status": {
+          "$ref": "#/$defs/AlignmentStatus"
+        },
+        "conflict_code": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conflict Code"
+        },
+        "entity_level": {
+          "$ref": "#/$defs/EntityLevel"
+        },
+        "identity_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Identity Version",
+          "type": "string"
+        },
+        "member_entities": {
+          "items": {
+            "$ref": "#/$defs/CanonicalEntityIdentity"
+          },
+          "minItems": 1,
+          "title": "Member Entities",
+          "type": "array"
+        },
+        "record_type": {
+          "enum": [
+            "paired",
+            "unpaired",
+            "conflict_group"
+          ],
+          "title": "Record Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "record_type",
+        "entity_level",
+        "alignment_status",
+        "member_entities"
+      ],
+      "title": "CanonicalRowIdentity",
+      "type": "object"
+    },
+    "EntityLevel": {
+      "enum": [
+        "host_star",
+        "planet_candidate",
+        "planet_assertion"
+      ],
+      "title": "EntityLevel",
+      "type": "string"
+    },
+    "QualityMetricId": {
+      "enum": [
+        "field_completeness",
+        "field_missingness",
+        "field_unresolved_rate",
+        "field_provenance_coverage",
+        "field_evidence_coverage",
+        "field_unit_consistency",
+        "field_same_source_conflict_rate",
+        "field_cross_source_conflict_rate",
+        "row_completeness",
+        "row_missingness",
+        "row_unresolved_rate",
+        "row_provenance_coverage",
+        "row_evidence_coverage",
+        "row_unit_consistency",
+        "row_conflict_rate",
+        "row_low_confidence_flag",
+        "row_review_required_flag",
+        "row_inconclusive_flag",
+        "dataset_completeness",
+        "dataset_missingness",
+        "dataset_unresolved_rate",
+        "dataset_provenance_coverage",
+        "dataset_evidence_coverage",
+        "dataset_unit_consistency",
+        "dataset_cross_source_conflict_rate",
+        "dataset_same_source_conflict_rate",
+        "object_match_coverage",
+        "low_confidence_edge_rate",
+        "review_required_record_rate",
+        "inconclusive_record_rate",
+        "source_scope_completeness",
+        "validation_integrity"
+      ],
+      "title": "QualityMetricId",
+      "type": "string"
+    },
+    "QualityMetricResult": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator": {
+          "minimum": 0,
+          "title": "Denominator",
+          "type": "integer"
+        },
+        "formula_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Formula Id",
+          "type": "string"
+        },
+        "formula_scope": {
+          "$ref": "#/$defs/QualityMetricScope"
+        },
+        "formula_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Formula Version",
+          "type": "string"
+        },
+        "input_locator": {
+          "minLength": 1,
+          "title": "Input Locator",
+          "type": "string"
+        },
+        "metric_id": {
+          "$ref": "#/$defs/QualityMetricId"
+        },
+        "numerator": {
+          "minimum": 0,
+          "title": "Numerator",
+          "type": "integer"
+        },
+        "precision_digits": {
+          "exclusiveMinimum": 0,
+          "maximum": 64,
+          "title": "Precision Digits",
+          "type": "integer"
+        },
+        "scope": {
+          "$ref": "#/$defs/QualityMetricScope"
+        },
+        "status": {
+          "$ref": "#/$defs/QualityMetricStatus"
+        },
+        "target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "metric_id",
+        "scope",
+        "target_id",
+        "status",
+        "numerator",
+        "denominator",
+        "formula_id",
+        "formula_version",
+        "formula_scope",
+        "precision_digits",
+        "input_locator"
+      ],
+      "title": "QualityMetricResult",
+      "type": "object"
+    },
+    "QualityMetricScope": {
+      "enum": [
+        "field",
+        "row",
+        "dataset"
+      ],
+      "title": "QualityMetricScope",
+      "type": "string"
+    },
+    "QualityMetricStatus": {
+      "enum": [
+        "determinate",
+        "insufficient",
+        "not_applicable"
+      ],
+      "title": "QualityMetricStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "alignment_status": {
+      "$ref": "#/$defs/AlignmentStatus"
+    },
+    "applicable_field_count": {
+      "minimum": 0,
+      "title": "Applicable Field Count",
+      "type": "integer"
+    },
+    "canonical_row_identity": {
+      "$ref": "#/$defs/CanonicalRowIdentity"
+    },
+    "completeness": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "conflict_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Conflict Ids",
+      "type": "array"
+    },
+    "conflict_rate": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "crossmatch_logical_key": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Crossmatch Logical Key",
+      "type": "string"
+    },
+    "declared_null_count": {
+      "minimum": 0,
+      "title": "Declared Null Count",
+      "type": "integer"
+    },
+    "entity_level": {
+      "$ref": "#/$defs/EntityLevel"
+    },
+    "evidence_coverage": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "evidence_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "field_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Field Ids",
+      "type": "array"
+    },
+    "inconclusive": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "low_confidence": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "mapped_count": {
+      "minimum": 0,
+      "title": "Mapped Count",
+      "type": "integer"
+    },
+    "missingness": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "provenance_coverage": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "review_required": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "row_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Row Id",
+      "type": "string"
+    },
+    "source_snapshot_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Source Snapshot Ids",
+      "type": "array"
+    },
+    "unit_consistency": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "unresolved_count": {
+      "minimum": 0,
+      "title": "Unresolved Count",
+      "type": "integer"
+    },
+    "unresolved_rate": {
+      "$ref": "#/$defs/QualityMetricResult"
+    }
+  },
+  "required": [
+    "row_id",
+    "canonical_row_identity",
+    "entity_level",
+    "alignment_status",
+    "applicable_field_count",
+    "mapped_count",
+    "declared_null_count",
+    "unresolved_count",
+    "completeness",
+    "missingness",
+    "unresolved_rate",
+    "provenance_coverage",
+    "evidence_coverage",
+    "unit_consistency",
+    "conflict_rate",
+    "low_confidence",
+    "review_required",
+    "inconclusive",
+    "field_ids",
+    "conflict_ids",
+    "evidence_ids",
+    "source_snapshot_ids",
+    "crossmatch_logical_key",
+    "content_hash"
+  ],
+  "title": "RowQualityResult",
+  "type": "object"
+}
