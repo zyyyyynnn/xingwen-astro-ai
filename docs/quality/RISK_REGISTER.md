@@ -34,6 +34,7 @@
 | R-14 | Medium   | 第三方许可或字体来源不清                | 无许可证、受限全文或不可分发资产进入发布物                 | 来源/许可记录、Reference 隔离、资产审查                                                                        | A-02、X-03 资产清单通过                |
 | R-15 | Low      | 材料与系统版本不一致                    | 视频、PDF、截图和网页展示不同结果                          | provenance manifest、固定 Run/Version、content hash                                                            | X-03 自主走读通过                      |
 | R-16 | Medium   | Core Session/限流/幂等使用内存存储      | API 重启或水平扩容后匿名 Session、限流窗口、幂等键全部丢失 | PostgreSQL 持久化适配器（对应 Issue）；单实例本地基线使用内存                                                  | 持久化 Session 适配器 + 跨实例测试通过 |
+| R-17 | High     | 质量指标被误读为科学结论正确率或被伪造发布 | aggregate score 取代 raw metrics；inconclusive 被折成低分；caller 重算 RuleSet/hash 后进入 Publisher | C-05 闭合 Decimal 状态、逐层 typed result、冻结 RuleSet 等值校验、Contract gate 分离 fail/insufficient、C-04 exact candidate seal 与 #78 pass-only validator | C-05 契约/边界/Publisher-port 回归和 X-06 Gate 持续通过 |
 
 ## 3. 风险处理流程
 

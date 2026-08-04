@@ -1,0 +1,328 @@
+{
+  "$defs": {
+    "QualityCount": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        },
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "count"
+      ],
+      "title": "QualityCount",
+      "type": "object"
+    },
+    "QualityMetricId": {
+      "enum": [
+        "field_completeness",
+        "field_missingness",
+        "field_unresolved_rate",
+        "field_provenance_coverage",
+        "field_evidence_coverage",
+        "field_unit_consistency",
+        "field_same_source_conflict_rate",
+        "field_cross_source_conflict_rate",
+        "row_completeness",
+        "row_missingness",
+        "row_unresolved_rate",
+        "row_provenance_coverage",
+        "row_evidence_coverage",
+        "row_unit_consistency",
+        "row_conflict_rate",
+        "row_low_confidence_flag",
+        "row_review_required_flag",
+        "row_inconclusive_flag",
+        "dataset_completeness",
+        "dataset_missingness",
+        "dataset_unresolved_rate",
+        "dataset_provenance_coverage",
+        "dataset_evidence_coverage",
+        "dataset_unit_consistency",
+        "dataset_cross_source_conflict_rate",
+        "dataset_same_source_conflict_rate",
+        "object_match_coverage",
+        "low_confidence_edge_rate",
+        "review_required_record_rate",
+        "inconclusive_record_rate",
+        "source_scope_completeness",
+        "validation_integrity"
+      ],
+      "title": "QualityMetricId",
+      "type": "string"
+    },
+    "QualityMetricResult": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator": {
+          "minimum": 0,
+          "title": "Denominator",
+          "type": "integer"
+        },
+        "formula_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Formula Id",
+          "type": "string"
+        },
+        "formula_scope": {
+          "$ref": "#/$defs/QualityMetricScope"
+        },
+        "formula_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Formula Version",
+          "type": "string"
+        },
+        "input_locator": {
+          "minLength": 1,
+          "title": "Input Locator",
+          "type": "string"
+        },
+        "metric_id": {
+          "$ref": "#/$defs/QualityMetricId"
+        },
+        "numerator": {
+          "minimum": 0,
+          "title": "Numerator",
+          "type": "integer"
+        },
+        "precision_digits": {
+          "exclusiveMinimum": 0,
+          "maximum": 64,
+          "title": "Precision Digits",
+          "type": "integer"
+        },
+        "scope": {
+          "$ref": "#/$defs/QualityMetricScope"
+        },
+        "status": {
+          "$ref": "#/$defs/QualityMetricStatus"
+        },
+        "target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "metric_id",
+        "scope",
+        "target_id",
+        "status",
+        "numerator",
+        "denominator",
+        "formula_id",
+        "formula_version",
+        "formula_scope",
+        "precision_digits",
+        "input_locator"
+      ],
+      "title": "QualityMetricResult",
+      "type": "object"
+    },
+    "QualityMetricScope": {
+      "enum": [
+        "field",
+        "row",
+        "dataset"
+      ],
+      "title": "QualityMetricScope",
+      "type": "string"
+    },
+    "QualityMetricStatus": {
+      "enum": [
+        "determinate",
+        "insufficient",
+        "not_applicable"
+      ],
+      "title": "QualityMetricStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "applicable_cell_count": {
+      "minimum": 0,
+      "title": "Applicable Cell Count",
+      "type": "integer"
+    },
+    "completeness": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "cross_source_conflict_rate": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "declared_null_count": {
+      "minimum": 0,
+      "title": "Declared Null Count",
+      "type": "integer"
+    },
+    "evidence_coverage": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "evidence_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "field_count": {
+      "minimum": 0,
+      "title": "Field Count",
+      "type": "integer"
+    },
+    "field_result_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Field Result Ids",
+      "type": "array"
+    },
+    "inconclusive_record_rate": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "low_confidence_edge_rate": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "mapped_count": {
+      "minimum": 0,
+      "title": "Mapped Count",
+      "type": "integer"
+    },
+    "missingness": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "null_reason_distribution": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/QualityCount"
+      },
+      "title": "Null Reason Distribution",
+      "type": "array"
+    },
+    "object_match_coverage": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "provenance_coverage": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "raw_status_distribution": {
+      "items": {
+        "$ref": "#/$defs/QualityCount"
+      },
+      "title": "Raw Status Distribution",
+      "type": "array"
+    },
+    "review_required_record_rate": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "row_count": {
+      "minimum": 0,
+      "title": "Row Count",
+      "type": "integer"
+    },
+    "row_result_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Row Result Ids",
+      "type": "array"
+    },
+    "same_source_conflict_rate": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "source_scope_completeness": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "source_snapshot_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Source Snapshot Ids",
+      "type": "array"
+    },
+    "unit_consistency": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "unresolved_count": {
+      "minimum": 0,
+      "title": "Unresolved Count",
+      "type": "integer"
+    },
+    "unresolved_rate": {
+      "$ref": "#/$defs/QualityMetricResult"
+    },
+    "validation_integrity": {
+      "$ref": "#/$defs/QualityMetricResult"
+    }
+  },
+  "required": [
+    "row_count",
+    "field_count",
+    "applicable_cell_count",
+    "mapped_count",
+    "declared_null_count",
+    "unresolved_count",
+    "completeness",
+    "missingness",
+    "unresolved_rate",
+    "provenance_coverage",
+    "evidence_coverage",
+    "unit_consistency",
+    "same_source_conflict_rate",
+    "cross_source_conflict_rate",
+    "object_match_coverage",
+    "low_confidence_edge_rate",
+    "review_required_record_rate",
+    "inconclusive_record_rate",
+    "source_scope_completeness",
+    "validation_integrity",
+    "field_result_ids",
+    "row_result_ids",
+    "source_snapshot_ids",
+    "evidence_ids",
+    "raw_status_distribution",
+    "content_hash"
+  ],
+  "title": "DatasetQualityResult",
+  "type": "object"
+}
