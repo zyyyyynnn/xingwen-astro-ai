@@ -11,7 +11,7 @@ from io import StringIO
 import json
 import secrets
 from threading import RLock
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from pydantic import ValidationError
 
@@ -31,12 +31,17 @@ from app.schemas.data_artifacts import (
     FieldDictionaryArtifactCandidate,
     SourceCollectionArtifactCandidate,
 )
+from app.schemas.manifest import DataType
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 
 
 _MAX_PAGE_SIZE = 100
 _EXPORT_TTL = timedelta(minutes=15)
+_MAX_EXPORTS_PER_SESSION = 8
+_MAX_EXPORT_BYTES_PER_SESSION = 50 * 1024 * 1024
+_MAX_ARTIFACT_CONTENT_BYTES = 50 * 1024 * 1024
+_MAX_DATASET_ROWS = 1_000_000
 DataKind = Literal["dataset", "field_dictionary", "source_collection"]
 
 
@@ -204,14 +209,28 @@ class DataArtifactReadService:
             candidate = model.model_validate(version.content)
         except ValidationError as exc:
             raise _schema_problem() from exc
+        if len(json.dumps(version.content, ensure_ascii=False).encode("utf-8")) > _MAX_ARTIFACT_CONTENT_BYTES:
+            raise _problem(413, "ARTIFACT_SIZE_LIMIT_EXCEEDED", "Artifact size limit exceeded", "The ArtifactVersion exceeds the API read size limit")
+        if isinstance(candidate, DatasetArtifactCandidate) and len(candidate.rows) > _MAX_DATASET_ROWS:
+            raise _problem(413, "DATASET_ROW_LIMIT_EXCEEDED", "Dataset row limit exceeded", "The Dataset exceeds the API row limit")
+        snapshot_ids = tuple(item.id for item in version.source_snapshots)
+        evidence_ids = tuple(item.id for item in version.evidence)
+        candidate_snapshot_ids = tuple(candidate.source_snapshot_ids)
+        candidate_evidence_ids = tuple(candidate.evidence_ids)
+        candidate_snapshot_set = set(candidate_snapshot_ids)
         if (
             version.schema_version != candidate.schema_version
             or version.content_hash != compute_canonical_payload_hash(version.content)
             or version.input_hash != candidate.input_hash
-            or len(version.source_snapshot_ids) != len(candidate.source_snapshot_ids)
-            or len(version.evidence_ids) != len(candidate.evidence_ids)
-            or len(version.source_snapshots) != len(candidate.source_snapshot_ids)
-            or len(version.evidence) != len(candidate.evidence_ids)
+            or tuple(version.source_snapshot_ids) != candidate_snapshot_ids
+            or tuple(version.evidence_ids) != candidate_evidence_ids
+            or snapshot_ids != candidate_snapshot_ids
+            or evidence_ids != candidate_evidence_ids
+            or any(
+                item.artifact_version_id != version.id
+                or item.source_snapshot_id not in candidate_snapshot_set
+                for item in version.evidence
+            )
         ):
             raise _schema_problem()
         if _contains_unsafe_html(candidate.model_dump(mode="json")):
@@ -236,10 +255,23 @@ class DataArtifactReadService:
 
 
 class _ExportStore:
-    def __init__(self) -> None:
+    def __init__(self, *, clock: Callable[[], datetime] | None = None) -> None:
         self._items: dict[str, tuple[str, ArtifactExportDownload]] = {}
         self._idempotency: dict[tuple[str, str], tuple[str, str, str]] = {}
         self._lock = RLock()
+        self._clock = clock or (lambda: datetime.now(UTC))
+
+    def _cleanup(self, now: datetime) -> None:
+        expired_ids = {
+            export_id
+            for export_id, (_, item) in self._items.items()
+            if item.export.expires_at <= now
+        }
+        for export_id in expired_ids:
+            self._items.pop(export_id, None)
+        for key, value in tuple(self._idempotency.items()):
+            if value[2] in expired_ids:
+                self._idempotency.pop(key, None)
 
     def put(
         self,
@@ -252,6 +284,7 @@ class _ExportStore:
         item: ArtifactExportDownload,
     ) -> ArtifactExportDownload:
         with self._lock:
+            self._cleanup(self._clock())
             key = (session_id, idempotency_key)
             existing = self._idempotency.get(key)
             if existing is not None:
@@ -265,6 +298,16 @@ class _ExportStore:
                 stored = self._items.get(existing[2])
                 if stored is not None:
                     return stored[1]
+            session_items = [
+                stored
+                for owner, stored in self._items.values()
+                if owner == session_id
+            ]
+            session_bytes = sum(len(stored.content) for stored in session_items)
+            if len(session_items) >= _MAX_EXPORTS_PER_SESSION:
+                raise _problem(429, "EXPORT_QUOTA_EXCEEDED", "Export quota exceeded", "Too many active exports for this session")
+            if session_bytes + len(item.content) > _MAX_EXPORT_BYTES_PER_SESSION:
+                raise _problem(413, "EXPORT_SIZE_LIMIT_EXCEEDED", "Export size limit exceeded", "The session export byte limit was exceeded")
             self._items[export_id] = (session_id, item)
             self._idempotency[key] = (
                 version_id,
@@ -282,6 +325,7 @@ class _ExportStore:
         export_format: str,
     ) -> ArtifactExportDownload | None:
         with self._lock:
+            self._cleanup(self._clock())
             replay = self._idempotency.get((session_id, idempotency_key))
             if replay is None:
                 return None
@@ -293,17 +337,16 @@ class _ExportStore:
                     "The Idempotency-Key was already used for a different export",
                 )
             item = self._items.get(replay[2])
-        if item is None or item[1].export.expires_at <= datetime.now(UTC):
+        if item is None:
             return None
         return item[1]
 
     def get(self, export_id: str, session_id: str) -> ArtifactExportDownload:
         with self._lock:
+            self._cleanup(self._clock())
             item = self._items.get(export_id)
         if item is None or item[0] != session_id:
             raise _not_found("EXPORT_NOT_FOUND")
-        if item[1].export.expires_at <= datetime.now(UTC):
-            raise _problem(404, "EXPORT_EXPIRED", "Export expired", "The export is no longer available")
         return item[1]
 
 
@@ -348,12 +391,18 @@ def _render_export(
         raise _problem(422, "EXPORT_FORMAT_UNSUPPORTED", "Export format unsupported", "CSV export is only supported for Dataset artifacts")
     output = StringIO(newline="")
     writer = csv.writer(output, lineterminator="\n")
-    fields = [column.field.field_id for column in typed.dataset.columns]
-    writer.writerow(["row_id", *fields])
+    fields = [column.field for column in typed.dataset.columns]
+    writer.writerow(["row_id", *(field.field_id for field in fields)])
     for row in typed.dataset.rows:
         values = {item.canonical_field_id: _outcome_value(item) for item in row.fields}
         writer.writerow(
-            [row.row_id, *(_csv_cell(values.get(field)) for field in fields)]
+            [
+                row.row_id,
+                *(
+                    _csv_cell(values.get(field.field_id), field.data_type)
+                    for field in fields
+                ),
+            ]
         )
     return output.getvalue().encode("utf-8"), "text/csv; charset=utf-8", f"{version_id}.csv"
 
@@ -363,9 +412,13 @@ def _outcome_value(outcome: Any) -> Any:
     return value.get("canonical_value", value.get("reason", value.get("status", "")))
 
 
-def _csv_cell(value: Any) -> Any:
+def _csv_cell(value: Any, data_type: DataType | None = None) -> Any:
     """Keep exported text from being interpreted as a spreadsheet formula."""
-    if isinstance(value, str) and value[:1] in {"=", "+", "-", "@"}:
+    if (
+        isinstance(value, str)
+        and data_type not in {DataType.integer, DataType.number}
+        and value.lstrip(" \t\r\n")[:1] in {"=", "+", "-", "@"}
+    ):
         return "'" + value
     return value
 
