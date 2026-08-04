@@ -30,6 +30,7 @@ from app.schemas.core import (
     RunEvent,
     RunStatus,
     SourceMode,
+    compute_research_contract_content_hash,
 )
 from app.security import canonical_request_hash
 
@@ -172,7 +173,9 @@ def test_contract_has_no_execution_mode_and_manifest_admission_is_authoritative(
         version=1,
         created_from_draft_id="rcd_01J",
         created_at=NOW,
-        content_hash=HASH,
+        content_hash=compute_research_contract_content_hash(
+            ResearchContractInput.model_validate(contract_input())
+        ),
         case_key="exoplanet_host_star",
         manifests=manifests,
     )
@@ -234,6 +237,37 @@ def test_fixture_contract_hash_matches_pydantic_canonical_payload() -> None:
     assert canonical_request_hash(normalized) == (
         "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986"
     )
+    assert compute_research_contract_content_hash(
+        ResearchContractInput.model_validate(payload)
+    ) == canonical_request_hash(normalized)
+
+
+def test_contract_content_identity_projects_full_contract_to_input_payload() -> None:
+    input_value = ResearchContractInput.model_validate(contract_input())
+    expected = compute_research_contract_content_hash(input_value)
+    first = ResearchContract.model_validate(
+        {
+            **input_value.model_dump(mode="json"),
+            "id": "rc_first",
+            "project_id": "project_first",
+            "version": 1,
+            "created_from_draft_id": "draft_first",
+            "created_at": NOW,
+            "content_hash": expected,
+        }
+    )
+    second = first.model_copy(
+        update={
+            "id": "rc_second",
+            "project_id": "project_second",
+            "version": 9,
+            "created_from_draft_id": "draft_second",
+            "created_at": NOW + timedelta(hours=2),
+        }
+    )
+
+    assert compute_research_contract_content_hash(first) == expected
+    assert compute_research_contract_content_hash(second) == expected
 
 
 def test_contract_rejects_whitespace_goal() -> None:

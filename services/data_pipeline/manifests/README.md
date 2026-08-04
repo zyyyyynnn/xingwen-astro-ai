@@ -15,6 +15,7 @@
 - `services/data_pipeline/manifests/exoplanet_host_star/` 保存 Case Manifest 和 Field Manifest 数据。
 - `services/data_pipeline/manifests/exoplanet_host_star/source-evidence/` 保存官方定义、TAP_SCHEMA 观测和裁决记录；证据解释来源列裁决，但不替代 Manifest 的生产契约。
 - `services/data_pipeline/manifests/exoplanet_host_star/mapping-rules/` 保存 C-04 唯一执行策略与单位换算实现 catalog；它固定 Dataset row-grain/entity projection、集合 tolerance、容量、Decimal serialization limits 和常数 provenance，但不复制 Field Manifest 字段事实。生产入口必须从这些 JSON 加载并拒绝 caller-owned 替代策略。
+- `services/data_pipeline/manifests/exoplanet_host_star/quality-rules/` 保存 C-05 唯一质量 RuleSet、公式注册表、Decimal ratio/status policy、Contract bindings、Publisher pass-only policy 和容量边界；它引用 C-02/C-04/C-08 pins，不复制 Field Manifest 的字段—指标关系。生产入口必须与该冻结实例完整等值。
 - `apps/api/src/app/schemas/manifest.py` 是 Pydantic v2 Schema authoring source，只定义结构、稳定 hash 和静态校验，不新增 API 端点。
 - `packages/schemas/generated/` 只保存现有导出脚本生成的 JSON Schema，不手写第二套生产 Schema。
 - `packages/domain`、`packages/contracts`、前端和 Pipeline 运行时代码只能按版本引用 Manifest，不复制字段清单。
@@ -74,7 +75,7 @@ table source 的选择顺序和字段适用范围直接读取 Field Manifest 的
 - coordinate matching 只声明所需字段和规则版本，阈值与算法由 C-03 实现。
 - Evidence locator 至少要求 `source_snapshot_id`、`query_hash`、`row_key`、`raw_field` 和来源 reference locator（若来源提供）。
 - transformation rule 只保存不可变规则 id/version；C-01 不包含执行代码。
-- quality metric inputs 只声明字段参与 `completeness`、`missingness`、`conflict`、`unit_consistency`、`evidence_coverage` 或 `crossmatch_coverage`，不计算分数。
+- quality metric inputs 只声明字段参与 `completeness`、`missingness`、`conflict`、`unit_consistency`、`evidence_coverage` 或 `crossmatch_coverage`，不计算分数；C-05 读取该声明计算 raw metrics，不把 quality score 写回 Manifest。
 
 ## 7. 稳定 hash
 

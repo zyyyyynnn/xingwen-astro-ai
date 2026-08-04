@@ -1,0 +1,202 @@
+{
+  "$defs": {
+    "QualityFormulaKind": {
+      "enum": [
+        "ratio",
+        "flag"
+      ],
+      "title": "QualityFormulaKind",
+      "type": "string"
+    },
+    "QualityMetricId": {
+      "enum": [
+        "field_completeness",
+        "field_missingness",
+        "field_unresolved_rate",
+        "field_provenance_coverage",
+        "field_evidence_coverage",
+        "field_unit_consistency",
+        "field_same_source_conflict_rate",
+        "field_cross_source_conflict_rate",
+        "row_completeness",
+        "row_missingness",
+        "row_unresolved_rate",
+        "row_provenance_coverage",
+        "row_evidence_coverage",
+        "row_unit_consistency",
+        "row_conflict_rate",
+        "row_low_confidence_flag",
+        "row_review_required_flag",
+        "row_inconclusive_flag",
+        "dataset_completeness",
+        "dataset_missingness",
+        "dataset_unresolved_rate",
+        "dataset_provenance_coverage",
+        "dataset_evidence_coverage",
+        "dataset_unit_consistency",
+        "dataset_cross_source_conflict_rate",
+        "dataset_same_source_conflict_rate",
+        "object_match_coverage",
+        "low_confidence_edge_rate",
+        "review_required_record_rate",
+        "inconclusive_record_rate",
+        "source_scope_completeness",
+        "validation_integrity"
+      ],
+      "title": "QualityMetricId",
+      "type": "string"
+    },
+    "QualityMetricScope": {
+      "enum": [
+        "field",
+        "row",
+        "dataset"
+      ],
+      "title": "QualityMetricScope",
+      "type": "string"
+    },
+    "QualityObservationId": {
+      "enum": [
+        "field.mapped_count",
+        "field.applicable_count",
+        "field.declared_null_count",
+        "field.missing_count",
+        "field.unresolved_count",
+        "field.provenance_count",
+        "field.evidence_count",
+        "field.unit_consistent_assertion_count",
+        "field.unit_applicable_assertion_count",
+        "field.same_source_conflict_count",
+        "field.cross_source_conflict_count",
+        "row.mapped_count",
+        "row.applicable_field_count",
+        "row.missing_count",
+        "row.unresolved_count",
+        "row.provenance_count",
+        "row.evidence_count",
+        "row.unit_consistent_assertion_count",
+        "row.unit_applicable_assertion_count",
+        "row.conflict_count",
+        "row.low_confidence_flag",
+        "row.review_required_flag",
+        "row.inconclusive_flag",
+        "row.confidence_applicable_record_count",
+        "row.adjudicable_record_count",
+        "row.unpaired_record_count",
+        "dataset.mapped_count",
+        "dataset.applicable_cell_count",
+        "dataset.missing_count",
+        "dataset.unresolved_count",
+        "dataset.provenance_count",
+        "dataset.evidence_count",
+        "dataset.evidence_applicable_count",
+        "dataset.unit_consistent_assertion_count",
+        "dataset.unit_applicable_assertion_count",
+        "dataset.same_source_conflict_count",
+        "dataset.cross_source_conflict_count",
+        "dataset.object_match_count",
+        "dataset.object_candidate_count",
+        "dataset.low_confidence_edge_count",
+        "dataset.candidate_edge_count",
+        "dataset.review_required_record_count",
+        "dataset.adjudicable_record_count",
+        "dataset.inconclusive_record_count",
+        "dataset.crossmatch_record_count",
+        "dataset.complete_source_count",
+        "dataset.required_source_count",
+        "dataset.validation_pass_count",
+        "dataset.validation_check_count"
+      ],
+      "title": "QualityObservationId",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One compiled metric definition used by both execution and validation.",
+  "properties": {
+    "applicability": {
+      "enum": [
+        "projected_field_ids_only",
+        "dataset_scope",
+        "row_scope"
+      ],
+      "title": "Applicability",
+      "type": "string"
+    },
+    "denominator_observation": {
+      "$ref": "#/$defs/QualityObservationId"
+    },
+    "empty_denominator_policy": {
+      "enum": [
+        "not_applicable",
+        "insufficient"
+      ],
+      "title": "Empty Denominator Policy",
+      "type": "string"
+    },
+    "formula_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Formula Id",
+      "type": "string"
+    },
+    "formula_kind": {
+      "$ref": "#/$defs/QualityFormulaKind"
+    },
+    "formula_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Formula Version",
+      "type": "string"
+    },
+    "incomplete_source_policy": {
+      "enum": [
+        "insufficient",
+        "not_applicable"
+      ],
+      "title": "Incomplete Source Policy",
+      "type": "string"
+    },
+    "manifest_input": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Manifest Input"
+    },
+    "metric_id": {
+      "$ref": "#/$defs/QualityMetricId"
+    },
+    "numerator_observation": {
+      "$ref": "#/$defs/QualityObservationId"
+    },
+    "result_field": {
+      "minLength": 1,
+      "title": "Result Field",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/QualityMetricScope"
+    }
+  },
+  "required": [
+    "metric_id",
+    "scope",
+    "formula_id",
+    "formula_version",
+    "result_field",
+    "formula_kind",
+    "numerator_observation",
+    "denominator_observation",
+    "applicability",
+    "incomplete_source_policy",
+    "empty_denominator_policy"
+  ],
+  "title": "QualityMetricPlan",
+  "type": "object"
+}

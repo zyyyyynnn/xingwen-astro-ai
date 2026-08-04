@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Annotated, ClassVar, Generic, Literal, TypeVar
+from typing import Annotated, Any, ClassVar, Generic, Literal, TypeVar
 
 from pydantic import (
     AfterValidator,
@@ -17,6 +17,7 @@ from pydantic import (
     model_validator,
 )
 
+from ._hashing import compute_canonical_payload_hash
 from .paper_summary import PaperSummaryArtifactContent
 
 
@@ -282,6 +283,41 @@ class ResearchContract(ResearchContractInput):
     created_from_draft_id: Identifier
     created_at: UtcDateTime
     content_hash: ContentHash
+
+
+def project_research_contract_input(
+    value: ResearchContractInput | ResearchContract | dict[str, Any],
+) -> ResearchContractInput:
+    """Project a persisted Contract onto its authoritative scientific content."""
+
+    payload = value.model_dump(mode="json") if isinstance(value, BaseModel) else dict(value)
+    input_payload = {
+        field_name: payload[field_name]
+        for field_name in ResearchContractInput.model_fields
+    }
+    return ResearchContractInput.model_validate(input_payload)
+
+
+def compute_research_contract_content_hash(
+    value: ResearchContractInput | ResearchContract | dict[str, Any],
+) -> str:
+    """Return the production Contract identity over ``ResearchContractInput`` only."""
+
+    contract_input = project_research_contract_input(value)
+    return compute_canonical_payload_hash(contract_input.model_dump(mode="json"))
+
+
+def validate_research_contract_content_hash(
+    value: ResearchContract,
+) -> ResearchContract:
+    """Fail closed when persisted Contract content and identity diverge."""
+
+    expected = compute_research_contract_content_hash(value)
+    if value.content_hash != expected:
+        raise ValueError(
+            f"ResearchContract content_hash does not match ResearchContractInput: {expected}"
+        )
+    return value
 
 
 class ResearchRun(BaseModel):
