@@ -1,0 +1,19 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "enum": [
+        "csv",
+        "json",
+        "provenance_report"
+      ],
+      "title": "Format",
+      "type": "string"
+    }
+  },
+  "required": [
+    "format"
+  ],
+  "title": "CreateArtifactExportRequest",
+  "type": "object"
+}

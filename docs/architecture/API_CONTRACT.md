@@ -324,6 +324,10 @@ Run Snapshot 至少返回：
 | `GET`  | `/api/artifact-versions/{version_id}/paper-collection`                | 校验后的 PaperCollection 与完整溯源     |
 | `GET`  | `/api/artifact-versions/{version_id}/paper-summary`                   | 校验后的 PaperSummary 与完整溯源        |
 | `GET`  | `/api/artifact-versions/{version_id}/paper-candidates?cursor=&limit=` | 稳定排序的候选、去重组、来源与 Evidence |
+| `GET`  | `/api/artifact-versions/{version_id}/dataset`                         | 校验后的 Dataset 与完整溯源           |
+| `GET`  | `/api/artifact-versions/{version_id}/dataset/rows?cursor=&limit=`     | Dataset 行的版本固定 cursor 分页      |
+| `GET`  | `/api/artifact-versions/{version_id}/field-dictionary`                | 校验后的 FieldDictionary 与溯源       |
+| `GET`  | `/api/artifact-versions/{version_id}/source-collection`               | 校验后的 SourceCollection 与溯源      |
 
 ArtifactVersion Envelope：
 
@@ -432,8 +436,11 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 | ------ | --------------------------------------------- | --------------------------------- |
 | `POST` | `/api/artifact-versions/{version_id}/exports` | 创建 CSV、JSON 或溯源报告导出任务 |
 | `GET`  | `/api/exports/{export_id}`                    | 查询状态与短期下载 URL            |
+| `GET`  | `/api/exports/{export_id}/download`           | 下载已生成的版本锁定内容          |
 
 导出必须锁定 ArtifactVersion、内容 hash、生成时间与 provenance；下载 URL 短期有效且不暴露底层文件路径。
+
+B-05 的数据领域读取只接受 `kind=dataset`、`field_dictionary` 或 `source_collection` 的已发布版本；读取重新执行对应 Pydantic candidate、schema/content/input hash 和 provenance 完整性校验，但不重新计算 C-04/C-05 算法。Dataset 行 cursor 绑定 ArtifactVersion 与 row ordering，跨版本或错误 row key 返回 `400 INVALID_CURSOR`。CSV 仅适用于 Dataset；JSON 与 provenance report 锁定版本 content hash。创建导出必须携带 `Idempotency-Key`，同键同版本/格式重放原结果，冲突请求返回 `409 IDEMPOTENCY_CONFLICT`。导出当前为进程内短期任务边界，不能表述为跨实例持久化或对象存储能力。
 
 ## 16. Cache 语义
 

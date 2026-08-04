@@ -144,6 +144,104 @@ export type UnitPolicy1 = "canonical";
  * via the `definition` "SourceMode".
  */
 export type SourceMode = "fixture" | "live" | "cached";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "AlignmentStatus".
+ */
+export type AlignmentStatus =
+  "accepted" | "review_required" | "rejected" | "conflict" | "unmatched" | "inconclusive";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "EntityLevel".
+ */
+export type EntityLevel = "host_star" | "planet_candidate" | "planet_assertion";
+/**
+ * Controlled reasons for a nullable scientific value.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "NullReason".
+ */
+export type NullReason =
+  | "not_in_source"
+  | "not_measured"
+  | "not_applicable"
+  | "unresolved_conflict"
+  | "below_detection_limit";
+/**
+ * The only C-01 selection declaration approved for this case.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ConflictResolutionStrategy".
+ */
+export type ConflictResolutionStrategy = "prefer_source_priority_preserve_all";
+/**
+ * Canonical scalar types supported by the frozen case.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataType".
+ */
+export type DataType = "string" | "integer" | "number";
+/**
+ * Objects represented by the exoplanet/host-star case.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ObjectType".
+ */
+export type ObjectType = "planet" | "star" | "system";
+/**
+ * Future quality dimensions to which a field contributes.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "QualityMetricInput".
+ */
+export type QualityMetricInput =
+  | "completeness"
+  | "missingness"
+  | "conflict"
+  | "unit_consistency"
+  | "evidence_coverage"
+  | "crossmatch_coverage";
+/**
+ * How source uncertainty columns are declared, not evaluated.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UncertaintyMode".
+ */
+export type UncertaintyMode = "not_applicable" | "asymmetric_source_errors";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CrossmatchSide".
+ */
+export type CrossmatchSide = "left" | "right";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LimitStatus".
+ */
+export type LimitStatus = "measured" | "lower_limit" | "upper_limit" | "not_applicable";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UncertaintyStatus".
+ */
+export type UncertaintyStatus = "complete" | "partial" | "missing" | "not_applicable";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SelectionStatus".
+ */
+export type SelectionStatus = "selected" | "unselected" | "conflict";
+/**
+ * Whether the bounded acquisition proved that its source scope is complete.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataSourceCompletionStatus".
+ */
+export type DataSourceCompletionStatus = "complete" | "truncated" | "unknown";
+/**
+ * Acquisition evidence level, kept separate from the source origin.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataSourceDataLevel".
+ */
+export type DataSourceDataLevel = "live_result" | "recorded_response" | "fixture" | "seed";
 
 /**
  * Unified immutable content and provenance read projection.
@@ -1535,6 +1633,21 @@ export interface WorkspaceSnapshotInput {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ArtifactExportRead".
+ */
+export interface ArtifactExportRead {
+  artifact_version_id: string;
+  content_hash: string;
+  download_url?: string | null;
+  expires_at: string;
+  format: "csv" | "json" | "provenance_report";
+  generated_at: string;
+  id: string;
+  project_id: string;
+  status: "completed" | "expired";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ArtifactVersion".
  */
 export interface ArtifactVersion {
@@ -1652,4 +1765,627 @@ export interface ExportArtifactContent {
   artifact_version_ids: [string, ...string[]];
   format: "csv" | "json" | "provenance_report";
   kind: "export";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CreateArtifactExportRequest".
+ */
+export interface CreateArtifactExportRequest {
+  format: "csv" | "json" | "provenance_report";
+}
+/**
+ * A typed candidate pinned to one immutable ArtifactVersion.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataArtifactReadBase".
+ */
+export interface DataArtifactReadBase {
+  artifact_id: string;
+  artifact_version_id: string;
+  content_hash: string;
+  created_at: string;
+  evidence: EvidenceDetail[];
+  input_hash: string;
+  producer_execution: ProducerExecutionDetail;
+  project_id: string;
+  schema_version: string;
+  source_mode: SourceMode;
+  source_snapshots: SourceSnapshotDetail[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataArtifactRowRead".
+ */
+export interface DataArtifactRowRead {
+  artifact_version_id: string;
+  row: DatasetRow;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DatasetRow".
+ */
+export interface DatasetRow {
+  alignment_status: AlignmentStatus;
+  canonical_row_identity: CanonicalRowIdentity;
+  conflict_ids: string[];
+  content_hash: string;
+  crossmatch_logical_key: string;
+  crossmatch_record_type: string;
+  entity_level: EntityLevel;
+  evidence_ids: string[];
+  fields: (MappedCanonicalValue | DeclaredNullValue | UnresolvedCanonicalValue)[];
+  projected_field_ids: string[];
+  projection_policy_version: string;
+  row_id: string;
+  source_member_ids: string[];
+  source_snapshot_ids: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CanonicalRowIdentity".
+ */
+export interface CanonicalRowIdentity {
+  alignment_status: AlignmentStatus;
+  conflict_code?: string | null;
+  entity_level: EntityLevel;
+  identity_version?: "1.0.0";
+  /**
+   * @minItems 1
+   */
+  member_entities: [CanonicalEntityIdentity, ...CanonicalEntityIdentity[]];
+  record_type: "paired" | "unpaired" | "conflict_group";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CanonicalEntityIdentity".
+ */
+export interface CanonicalEntityIdentity {
+  entity_level: EntityLevel;
+  /**
+   * @minItems 1
+   */
+  identity_values: [CanonicalEntityIdentityValue, ...CanonicalEntityIdentityValue[]];
+  logical_assertion_key?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CanonicalEntityIdentityValue".
+ */
+export interface CanonicalEntityIdentityValue {
+  field_id: string;
+  normalization_rule_version: string;
+  normalized_value: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "MappedCanonicalValue".
+ */
+export interface MappedCanonicalValue {
+  candidate_source_value_ids: string[];
+  canonical_field_id: string;
+  canonical_unit: string;
+  canonical_value: string;
+  conflict_ids: string[];
+  selected_source_value_id: string;
+  selection_id: string;
+  status?: "mapped";
+  transformation_evidence_ids: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DeclaredNullValue".
+ */
+export interface DeclaredNullValue {
+  candidate_source_value_ids: string[];
+  canonical_field_id: string;
+  reason: NullReason;
+  status?: "declared_null";
+  transformation_evidence_ids: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UnresolvedCanonicalValue".
+ */
+export interface UnresolvedCanonicalValue {
+  candidate_source_value_ids: string[];
+  canonical_field_id: string;
+  conflict_ids: string[];
+  reason: string;
+  status?: "unresolved";
+  transformation_evidence_ids: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DatasetArtifactRead".
+ */
+export interface DatasetArtifactRead {
+  artifact_id: string;
+  artifact_version_id: string;
+  content_hash: string;
+  created_at: string;
+  dataset: DatasetArtifactCandidate;
+  evidence: EvidenceDetail[];
+  input_hash: string;
+  producer_execution: ProducerExecutionDetail;
+  project_id: string;
+  schema_version: string;
+  source_mode: SourceMode;
+  source_snapshots: SourceSnapshotDetail[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DatasetArtifactCandidate".
+ */
+export interface DatasetArtifactCandidate {
+  candidate_id: string;
+  canonical_content_hash: string;
+  columns: DatasetColumn[];
+  conflicts: FieldConflictRecord[];
+  conversion_catalog_content_hash: string;
+  conversion_catalog_id: string;
+  conversion_catalog_version: string;
+  crossmatch_content_hash: string;
+  crossmatch_evidence_ids: string[];
+  crossmatch_input_hash: string;
+  crossmatch_output_hash: string;
+  crossmatch_result_id: string;
+  crossmatch_source_snapshot_ids: string[];
+  evidence_ids: string[];
+  field_count: number;
+  input_hash: string;
+  kind?: "dataset";
+  lineage_hash: string;
+  manifest_pins: ManifestPins;
+  mapping_rule_set_content_hash: string;
+  mapping_rule_set_id: string;
+  mapping_rule_set_version: string;
+  output_hash: string;
+  producer: DataArtifactProducer;
+  quality_constraints_reference?: string | null;
+  quality_evaluation_status?: "not_evaluated";
+  quality_metric_input_declarations: string[];
+  requested_fields: string[];
+  row_count: number;
+  rows: DatasetRow[];
+  schema_version?: "1.0.0";
+  selections: FieldSelectionRecord[];
+  source_snapshot_ids: string[];
+  source_values: SourceValueCandidate[];
+  transformation_evidence: TransformationEvidence[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DatasetColumn".
+ */
+export interface DatasetColumn {
+  field: FieldDefinition;
+}
+/**
+ * The complete C-01 contract for one canonical field.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "FieldDefinition".
+ */
+export interface FieldDefinition {
+  canonical_unit: string;
+  conflict_resolution_rule_version: string;
+  conflict_resolution_strategy: ConflictResolutionStrategy;
+  crossmatch_key: boolean;
+  crossmatch_rule_version?: string | null;
+  data_type: DataType;
+  description: string;
+  evidence_locator_rule_id: string;
+  field_id: string;
+  label_en: string;
+  limit_policy: LimitPolicy;
+  meaning_zh: string;
+  null_policy: NullPolicy;
+  nullable: boolean;
+  object_identity_key: boolean;
+  object_type: ObjectType;
+  /**
+   * @minItems 1
+   */
+  quality_metric_inputs: [QualityMetricInput, ...QualityMetricInput[]];
+  required: boolean;
+  /**
+   * @minItems 1
+   */
+  source_aliases: [SourceAlias, ...SourceAlias[]];
+  /**
+   * @minItems 1
+   */
+  source_priority: [string, ...string[]];
+  transformation_rule_version: string;
+  uncertainty_policy: UncertaintyPolicy;
+}
+/**
+ * Whether the field can carry upper or lower limit semantics.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LimitPolicy".
+ */
+export interface LimitPolicy {
+  lower_limit_supported: boolean;
+  rule_version: string;
+  upper_limit_supported: boolean;
+}
+/**
+ * Nullability semantics for one canonical field.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "NullPolicy".
+ */
+export interface NullPolicy {
+  allowed_reasons: NullReason[];
+  reason_required_when_null: boolean;
+}
+/**
+ * A source column mapped to one canonical field.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceAlias".
+ */
+export interface SourceAlias {
+  conversion_rule_id: string;
+  limit_field?: string | null;
+  limit_flags?: LimitFlagMapping | null;
+  negative_error_field?: string | null;
+  positive_error_field?: string | null;
+  priority: number;
+  provenance_field?: string | null;
+  raw_field: string;
+  reference_field?: string | null;
+  /**
+   * @minItems 1
+   */
+  row_key_fields: [string, ...string[]];
+  source_id: string;
+  source_table: string;
+  source_unit: string;
+}
+/**
+ * Source flag meanings for a bounded value.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LimitFlagMapping".
+ */
+export interface LimitFlagMapping {
+  lower_limit?: number;
+  measured?: number;
+  upper_limit?: number;
+}
+/**
+ * Versioned declaration for preserving source uncertainties.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UncertaintyPolicy".
+ */
+export interface UncertaintyPolicy {
+  mode: UncertaintyMode;
+  preserve_asymmetric_errors: boolean;
+  rule_version: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "FieldConflictRecord".
+ */
+export interface FieldConflictRecord {
+  absolute_difference?: number | string | null;
+  canonical_field_id: string;
+  comparison_policy_version: string;
+  conflict_id: string;
+  conflict_scope: "same_source" | "cross_source" | "identity_unresolved";
+  content_hash: string;
+  dataset_row_id: string;
+  reason: "distinct canonical values are retained; source priority selects display only";
+  relative_denominator?: number | string | null;
+  relative_difference?: number | string | null;
+  /**
+   * @minItems 2
+   */
+  source_value_ids: [string, string, ...string[]];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ManifestPins".
+ */
+export interface ManifestPins {
+  case_manifest_content_hash: string;
+  case_manifest_id: string;
+  case_manifest_version: string;
+  field_manifest_content_hash: string;
+  field_manifest_id: string;
+  field_manifest_version: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataArtifactProducer".
+ */
+export interface DataArtifactProducer {
+  conversion_catalog_content_hash: string;
+  conversion_catalog_id: string;
+  conversion_catalog_version: string;
+  mapping_rule_set_content_hash: string;
+  mapping_rule_set_id: string;
+  mapping_rule_set_version: string;
+  producer_name: string;
+  producer_type?: "algorithm";
+  producer_version: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "FieldSelectionRecord".
+ */
+export interface FieldSelectionRecord {
+  candidate_source_value_ids: string[];
+  canonical_field_id: string;
+  content_hash: string;
+  dataset_row_id: string;
+  reason: string;
+  selected_source_value_id: string | null;
+  selection_id: string;
+  strategy: "prefer_source_priority_preserve_all";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceValueCandidate".
+ */
+export interface SourceValueCandidate {
+  alias_priority: number;
+  canonical_field_id: string;
+  canonical_unit: string;
+  canonical_value: string | null;
+  content_hash: string;
+  conversion_rule_id: string;
+  conversion_rule_version: string;
+  evidence_locator: SourceCellLocator;
+  limit: LimitValue;
+  null_status?: NullReason | null;
+  provenance_field?: string | null;
+  provenance_value?: string | number | boolean | null;
+  query_hash: string;
+  raw_field: string;
+  raw_record_content_hash: string;
+  raw_record_row_key: [unknown, unknown][];
+  raw_value: string | number | boolean | null;
+  reference_field?: string | null;
+  reference_value?: string | number | boolean | null;
+  source_id: string;
+  source_priority: number;
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
+  source_table: string;
+  source_unit: string;
+  source_value_id: string;
+  transformation_rule_version: string;
+  uncertainty: UncertaintyValue;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceCellLocator".
+ */
+export interface SourceCellLocator {
+  query_hash: string;
+  raw_field: string;
+  raw_record_content_hash: string;
+  /**
+   * @minItems 1
+   */
+  row_key: [[unknown, unknown], ...[unknown, unknown][]];
+  side: CrossmatchSide;
+  source_id: string;
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LimitValue".
+ */
+export interface LimitValue {
+  locator?: SourceCellLocator | null;
+  raw_flag?: number | null;
+  status: LimitStatus;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UncertaintyValue".
+ */
+export interface UncertaintyValue {
+  canonical_negative?: number | string | null;
+  canonical_positive?: number | string | null;
+  negative_locator?: SourceCellLocator | null;
+  positive_locator?: SourceCellLocator | null;
+  source_negative?: number | string | null;
+  source_positive?: number | string | null;
+  status: UncertaintyStatus;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "TransformationEvidence".
+ */
+export interface TransformationEvidence {
+  canonical_field_id: string;
+  canonical_unit: string;
+  canonical_value: string | null;
+  content_hash: string;
+  conversion_catalog_content_hash: string;
+  conversion_catalog_id: string;
+  conversion_catalog_version: string;
+  conversion_rule_id: string;
+  conversion_rule_version: string;
+  crossmatch_evidence_ids: string[];
+  crossmatch_logical_key: string;
+  crossmatch_result_content_hash: string;
+  crossmatch_result_id: string;
+  dataset_row_id: string;
+  evidence_id: string;
+  limit: LimitValue;
+  limit_locator?: SourceCellLocator | null;
+  locator: SourceCellLocator;
+  provenance_field?: string | null;
+  provenance_locator?: SourceCellLocator | null;
+  provenance_value?: string | number | boolean | null;
+  raw_value: string | number | boolean | null;
+  reference_field?: string | null;
+  reference_locator?: SourceCellLocator | null;
+  reference_value?: string | number | boolean | null;
+  selection_reason: string;
+  selection_status: SelectionStatus;
+  source_unit: string;
+  source_value_id: string;
+  target_candidate_kind?: "dataset";
+  transformation_rule_version: string;
+  uncertainty: UncertaintyValue;
+  uncertainty_locators: SourceCellLocator[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "FieldDictionaryArtifactRead".
+ */
+export interface FieldDictionaryArtifactRead {
+  artifact_id: string;
+  artifact_version_id: string;
+  content_hash: string;
+  created_at: string;
+  evidence: EvidenceDetail[];
+  field_dictionary: FieldDictionaryArtifactCandidate;
+  input_hash: string;
+  producer_execution: ProducerExecutionDetail;
+  project_id: string;
+  schema_version: string;
+  source_mode: SourceMode;
+  source_snapshots: SourceSnapshotDetail[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "FieldDictionaryArtifactCandidate".
+ */
+export interface FieldDictionaryArtifactCandidate {
+  candidate_id: string;
+  conversion_catalog_content_hash: string;
+  conversion_catalog_id: string;
+  conversion_catalog_version: string;
+  evidence_ids: string[];
+  field_definitions: FieldDefinition[];
+  input_hash: string;
+  kind?: "field_dictionary";
+  manifest_pins: ManifestPins;
+  mapping_rule_set_content_hash: string;
+  mapping_rule_set_id: string;
+  mapping_rule_set_version: string;
+  output_hash: string;
+  producer: DataArtifactProducer;
+  quality_evaluation_status?: "not_evaluated";
+  requested_fields: string[];
+  schema_version?: "1.0.0";
+  source_snapshot_ids: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceCollectionArtifactRead".
+ */
+export interface SourceCollectionArtifactRead {
+  artifact_id: string;
+  artifact_version_id: string;
+  content_hash: string;
+  created_at: string;
+  evidence: EvidenceDetail[];
+  input_hash: string;
+  producer_execution: ProducerExecutionDetail;
+  project_id: string;
+  schema_version: string;
+  source_collection: SourceCollectionArtifactCandidate;
+  source_mode: App_Schemas_Core__SourceMode;
+  source_snapshots: SourceSnapshotDetail[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceCollectionArtifactCandidate".
+ */
+export interface SourceCollectionArtifactCandidate {
+  alignment_record_keys: string[];
+  candidate_id: string;
+  conflict_record_keys: string[];
+  conversion_catalog_content_hash: string;
+  conversion_catalog_id: string;
+  conversion_catalog_version: string;
+  crossmatch_content_hash: string;
+  crossmatch_result_id: string;
+  evidence_ids: string[];
+  inconclusive_record_keys: string[];
+  input_hash: string;
+  kind?: "source_collection";
+  manifest_pins: ManifestPins;
+  mapping_rule_set_content_hash: string;
+  mapping_rule_set_id: string;
+  mapping_rule_set_version: string;
+  members: SourceCollectionMember[];
+  output_hash: string;
+  producer: DataArtifactProducer;
+  quality_evaluation_status?: "not_evaluated";
+  review_required_record_keys: string[];
+  schema_version?: "1.0.0";
+  source_snapshot_ids: string[];
+  source_value_ids: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SourceCollectionMember".
+ */
+export interface SourceCollectionMember {
+  completion: DataSourceCompletion;
+  data_level: DataSourceDataLevel;
+  license_note: string;
+  query_hash: string;
+  raw_record_count: number;
+  raw_record_reference_registry_hash: string;
+  raw_record_references: RawSourceRecordReference[];
+  side: CrossmatchSide;
+  source_id: string;
+  source_mode: App_Schemas_Enums__SourceMode;
+  source_snapshot: SourceSnapshotRecord;
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
+}
+/**
+ * Typed source-completion semantics consumed by downstream data stages.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataSourceCompletion".
+ */
+export interface DataSourceCompletion {
+  continuation_cursor?: DataQueryCursor | SupplementalDataQueryCursor | null;
+  status: DataSourceCompletionStatus;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataQueryCursor".
+ */
+export interface DataQueryCursor {
+  tid: number;
+  toi: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SupplementalDataQueryCursor".
+ */
+export interface SupplementalDataQueryCursor {
+  pl_name: string;
+  pl_refname: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RawSourceRecordReference".
+ */
+export interface RawSourceRecordReference {
+  query_hash: string;
+  raw_record_content_hash: string;
+  /**
+   * @minItems 1
+   */
+  row_key: [[unknown, unknown], ...[unknown, unknown][]];
+  source_id: string;
+  source_snapshot_content_hash: string;
+  source_snapshot_id: string;
 }

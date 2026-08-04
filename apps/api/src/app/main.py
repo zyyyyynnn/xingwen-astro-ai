@@ -45,6 +45,7 @@ from app.security import (
 )
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 from app.services.artifacts import ArtifactReadService
+from app.services.data_artifacts import DataArtifactReadService
 from app.services.research import ResearchApplicationService
 from app.services.resource_authority import (
     PersistentResourceAuthority,
@@ -87,6 +88,7 @@ def create_app() -> FastAPI:
     app.state.workflow_store = None
     app.state.workflow_executor = None
     app.state.artifact_read_service = None
+    app.state.data_artifact_read_service = None
     app.state.research_service = None
     app.state.db_session_factory = None
     database_engine = None
@@ -98,6 +100,9 @@ def create_app() -> FastAPI:
         app.state.db_session_factory = session_factory(database_engine)
         app.state.artifact_read_service = ArtifactReadService(
             session_factory(database_engine)
+        )
+        app.state.data_artifact_read_service = DataArtifactReadService(
+            app.state.artifact_read_service
         )
         resource_authority = PersistentResourceAuthority(
             session_factory(database_engine)
