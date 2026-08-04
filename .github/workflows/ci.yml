@@ -89,6 +89,13 @@ jobs:
           uv run --project apps/api python -m services.paper_pipeline.claim_benchmark
           --output .artifacts/d07-claim-benchmark-report.json
 
+      - name: Run reproducible D08 relation benchmark
+        working-directory: .
+        run: >
+          uv run --project apps/api python -m services.paper_pipeline.relation_benchmark
+          --cases-output .artifacts/d08-relation-benchmark-cases.json
+          --output .artifacts/d08-relation-benchmark-report.json
+
       - name: Check phase0 pipeline schema contracts
         run: >
           uv run python ../../scripts/export_schemas.py
@@ -129,6 +136,19 @@ jobs:
           --include LiteratureClaimsCandidate
           --include LiteratureClaimBenchmarkEvaluationCase
           --include LiteratureClaimBenchmarkReport
+          --check
+
+      - name: Check D08 LiteratureRelation pipeline contracts
+        run: >
+          uv run python ../../scripts/export_schemas.py
+          --output ../../packages/schemas/generated/literature_relation
+          --include LiteratureRelationExtractionOutput
+          --include LiteratureRelationCandidate
+          --include LiteratureRelationAdmissionResult
+          --include LiteratureRelationsCandidate
+          --include LiteratureReasoningTraceCandidate
+          --include LiteratureRelationBenchmarkEvaluationCase
+          --include LiteratureRelationBenchmarkReport
           --check
 
       - name: Check core contracts

@@ -98,6 +98,26 @@ D-03 PaperSummary 的 detached 准入顺序为 `JSON 解析 -> PaperSummaryModel
 
 D-07 LiteratureClaim 的 detached 顺序固定为 `JSON -> Pydantic -> PaperSummary Version -> Evidence/SourceSnapshot existence -> ownership -> normalization -> exact structured duplicate -> final admission`。JSON/Schema 失败保留安全 ProducerExecution 和 hash 而不伪造 Claim；accepted 要求 supported Evidence，弱 Evidence 保留 candidate，硬错误稳定 rejected。`LiteratureClaimExtractionOutput` 不能绕过 Pipeline；封印后的 `LiteratureClaimsCandidate` 可交给 ArtifactVersion 准入端口。D-07 同样不推进 Run、不发布数据库 Version，也不实现 Relation/Trace/Graph 或 HTTP。
 
+D-08 LiteratureRelation 的 detached 顺序固定为 `JSON -> Schema -> input
+ArtifactVersion/content -> Claim existence/status -> Evidence/SourceSnapshot -> ownership ->
+pairing -> direction -> duplicate -> conditions -> comparability(object/metric/unit) ->
+ReasoningTrace -> confidence`。多重失败只保留最早阶段的稳定拒绝原因；Evidence、方向、
+conditions、可比性和 Trace 硬门先于 confidence。confidence 只引用外部版本化且已校准的
+assessment；阈值 `0.9` 仅在其他门通过后区分 accepted/candidate，`not_evaluable` 为
+candidate，未定义/未版本化/未校准为 rejected。assessment subject 必须精确绑定双方
+Claim ArtifactVersion/id、方向和 relation type fingerprint，并绑定最终 admission decision；
+跨方向、版本、类型或 decision 复用为硬拒绝。comparability 声明必须受输入和 Trace
+约束：object 必须显式 comparable 并由 basis、Trace 和 Evidence 支撑；
+metric/unit 双方都缺失才是 `not_applicable`，同一非空值才是 `comparable`。
+Trace conditions/conflicts 必须与 Relation conditions/condition conflicts 精确闭合；
+任一 conflict 在 conditions 阶段拒绝，不一致时不保留伪完整 Trace。
+
+`LiteratureRelationExtractionOutput` 不能绕过 Pipeline；封印后的单一
+`LiteratureRelationsCandidate@1.0.0` 在 `kind=literature_relations` 内容中同时携带
+Relation、ReasoningTrace 与 Evidence/SourceSnapshot 闭包，可交给 ArtifactVersion 准入
+端口。D-08 不推进 Run、不发布数据库 Version/HTTP、不另行发布 `reasoning_traces`
+Artifact，也不生成 Graph。
+
 ## 4. 进度快照与事件
 
 - `GET /runs/{id}` 返回可恢复的权威快照。
@@ -127,7 +147,7 @@ MVP 可继续使用 FastAPI BackgroundTasks，但不得以进程内字典作为�
 - 创建 Live Run 要求 `Idempotency-Key`；同一 key 与同一请求返回同一 Run。
 - 外部读取和模型调用以 input hash、producer version、source scope 组成幂等键。
 - 超时、限流和临时网络错误可自动重试；Schema、Evidence、权限和非法状态错误不可自动重试。
-- D-03/D-07 的 JSON/Schema、Evidence、ownership、normalization 和 duplicate 结果是确定性准入结论，不在 detached pipeline 内自动重试模型；上层若重试必须创建新的 StepAttempt/ProducerExecution 并保留旧终态。
+- D-03/D-07/D-08 的 JSON/Schema、Evidence、ownership、normalization/pairing、方向、可比性、Trace、confidence 和 duplicate 结果是确定性准入结论，不在 detached pipeline 内自动重试模型；上层若重试必须创建新的 StepAttempt/ProducerExecution 并保留旧终态。
 - 每次自动重试创建 StepAttempt，保留 attempt、时间、上游 request id 和错误分类。
 - 重试不得覆盖失败 Attempt，也不得重复发布相同 ArtifactVersion。
 
@@ -203,5 +223,6 @@ Core 持久化边界覆盖 PostgreSQL Schema、Alembic migration 与最小 Repos
 - Event 丢失恢复、SSE 断线和 Snapshot 一致性有测试。
 - Run 状态、`execution_mode`、`source_mode` 与修订派生关系分别有 Contract 测试，且不会混作同一枚举。
 - RevisionPlan 只重算影响闭包，旧版本保持可读。
+- Relation/ReasoningTrace 的固定准入顺序、三态、Evidence 闭包、confidence 与 publication seal 有单元/Benchmark 回归，Pipeline 不推进 Run 或分配 Version。
 - Graph 发布验证全部 Evidence，跨文献边验证 Relation / Trace。
 - 权限、CSRF、匿名配额和跨会话访问在应用服务层验证。

@@ -66,6 +66,7 @@
 | [Versioned Data Artifacts](engineering/VERSIONED_DATA_ARTIFACTS.md) | C-04 Manifest-driven 字段映射、单位统一、Transformation Evidence 与 typed candidates |
 | [PaperCollection Pipeline](engineering/PAPER_COLLECTION_PIPELINE.md) | 论文检索、规范化、去重、排序与运行来源 |
 | [LiteratureClaim Pipeline](engineering/LITERATURE_CLAIM_PIPELINE.md) | D-07 Claim 抽取、Evidence 准入、固定 Benchmark 与 typed candidate |
+| [LiteratureRelation Pipeline](engineering/LITERATURE_RELATION_PIPELINE.md) | D-08 Relation/ReasoningTrace 准入、confidence 与固定 Benchmark |
 | [Roadmap](product/ROADMAP.md)                           | 里程碑目标与顺序                                |
 | [Backlog](product/BACKLOG.md)                           | Open Issue 角色与直接依赖索引；GitHub Issue 保存实时状态 |
 | [Acceptance](product/ACCEPTANCE.md)                     | 阶段退出标准及所需证据                          |
