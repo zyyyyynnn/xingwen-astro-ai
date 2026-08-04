@@ -14,6 +14,8 @@ from app.schemas.core import (
     SourceSnapshotDetail,
 )
 from app.services.data_artifacts import DataArtifactReadService, _csv_cell
+from app.schemas.manifest import DataType
+from app.schemas.data_artifacts import DatasetArtifactCandidate
 from app.security import SecurityProblem
 
 from data_artifact_test_support import build_input
@@ -26,7 +28,7 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
     version_id = "version-1"
     snapshots = tuple(
         SourceSnapshotDetail.model_construct(
-            id=f"snapshot-{index}",
+            id=candidate.source_snapshot_ids[index],
             source_id=f"source-{index}",
             source_type="fixture",
             retrieved_at=datetime.now(UTC),
@@ -40,12 +42,12 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
     )
     evidence = tuple(
         EvidenceDetail.model_construct(
-            id=f"evidence-{index}",
+            id=candidate.evidence_ids[index],
             artifact_version_id=version_id,
             target_type="dataset",
             target_id="target",
             evidence_type="source",
-            source_snapshot_id=snapshots[0].id,
+            source_snapshot_id=candidate.source_snapshot_ids[0],
             locator={},
             extraction_method="fixture",
             confidence=1.0,
@@ -105,7 +107,20 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
             return artifact
 
     version_id_value = version_id
-    return DataArtifactReadService(FakeArtifacts()), version_id
+    fake = FakeArtifacts()
+    fake.version = version
+    return DataArtifactReadService(fake), version_id
+
+
+def test_candidate_rejects_same_count_with_different_provenance_ids() -> None:
+    service, _ = _service_for_dataset()
+    version = service._artifacts.version
+    invalid = version.model_copy(
+        update={"source_snapshot_ids": tuple("wrong-snapshot" for _ in version.source_snapshot_ids)}
+    )
+    with pytest.raises(SecurityProblem) as exc_info:
+        service._candidate(invalid, DatasetArtifactCandidate)
+    assert exc_info.value.code == "DATA_ARTIFACT_SCHEMA_INVALID"
 
 
 def test_dataset_rows_cursor_is_bound_to_version() -> None:
@@ -153,4 +168,6 @@ def test_dataset_export_is_idempotent_and_rejects_unknown_format() -> None:
 def test_dataset_csv_export_neutralizes_formula_cells() -> None:
     assert _csv_cell("=SUM(A1)") == "'=SUM(A1)"
     assert _csv_cell("@user") == "'@user"
+    assert _csv_cell("-12.5", DataType.number) == "-12.5"
+    assert _csv_cell("\t=SUM(A1)") == "'\t=SUM(A1)"
     assert _csv_cell("plain text") == "plain text"
