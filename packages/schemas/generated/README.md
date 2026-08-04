@@ -10,5 +10,6 @@ CI 将契约导出到临时 Artifact 目录验证生成能力，不默认提交�
 
 - `phase0/`：冻结的 `/api` Phase 0 DTO JSON Schema。
 - `literature_claim/`：D-07 extraction、admission、publisher-ready candidate 与 Benchmark report 的领域 Pipeline JSON Schema；不是 HTTP DTO。
+- `literature_relation/`：D-08 Relation/ReasoningTrace extraction、admission、publisher-ready candidate 与 Benchmark report 的领域 Pipeline JSON Schema；不是 HTTP DTO。
 - `core/`：核心资源与 Artifact provenance read 投影的 JSON Schema、manifest 和契约 OpenAPI 3.1；路由挂载状态以 API Contract 为准。
 - `security/`：Session、CSRF/Problem Details 相关传输 Schema。

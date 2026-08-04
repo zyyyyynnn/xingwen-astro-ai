@@ -15,7 +15,7 @@
       }
     },
     "literature_reasoning": {
-      "current": "v1",
+      "current": "v2",
       "versions": {
         "v1": {
           "path": "literature_reasoning/v1.md",
@@ -24,6 +24,14 @@
             "LiteratureClaim",
             "LiteratureRelation",
             "ReasoningTrace"
+          ],
+          "status": "deprecated"
+        },
+        "v2": {
+          "path": "literature_reasoning/v2.md",
+          "content_hash": "sha256:0027fe9c00efa8f205d4af97c1b219809e7b78400dbc1a7e6f95486474038b6d",
+          "output_models": [
+            "LiteratureRelationExtractionOutput"
           ],
           "status": "active"
         }

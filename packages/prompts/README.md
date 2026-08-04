@@ -18,7 +18,8 @@ packages/prompts/
 ├─ paper_summary/
 │  └─ v1.md
 └─ literature_reasoning/
-   └─ v1.md
+   ├─ v1.md
+   └─ v2.md
 ```
 
 ## 使用规则
@@ -33,6 +34,10 @@ packages/prompts/
   `literature_reasoning@v1` 只保留 Phase 0 多输出兼容。后者可由 Registry 读取不表示其旧
   `LiteratureClaim` 或 `LiteratureReasoningResponse` 包络可发布，旧模型由 Publisher
   admission marker 拒绝。
+- `literature_reasoning@v2` 是 D-08 Relation extraction Prompt，只输出
+  `LiteratureRelationExtractionOutput`。它引用已经通过 D-07 准入的 Claim、Evidence、
+  SourceSnapshot 和外部版本化 confidence assessment；最终 Relation/ReasoningTrace
+  状态、hash 与发布资格仍由 D-08 Pipeline 决定。
 
 ## 变更验证
 
