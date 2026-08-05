@@ -1,8 +1,17 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
+from types import SimpleNamespace
+from uuid import uuid4
 
-from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
+from app.workflow.publisher import (
+    ArtifactPublication,
+    PublicationAdmissionError,
+    PublicationConflictError,
+    _require_same_publication,
+    admit_artifact_candidate,
+)
 from services.data_pipeline.data_artifacts.admission import (
     validate_data_artifact_domain,
     validate_data_artifact_evidence,
@@ -59,11 +68,51 @@ def test_real_publisher_port_accepts_each_exact_c04_candidate_with_c05_gate() ->
     for candidate in admitted_candidates:
         projection = candidate.quality_projection
         assert projection is not None
-        assert projection["result_id"] == admitted.evaluation_result.result_id
-        assert projection["overall_status"] == "pass"
-        assert projection["evaluation_commitment"] == admitted.snapshot.evaluation_commitment
-        assert projection["rule_set"]["content_hash"] == admitted.snapshot.rule_set_content_hash
-        assert projection["research_contract"]["content_hash"] == admitted.snapshot.contract_content_hash
+        assert projection.quality_result_id == admitted.evaluation_result.result_id
+        assert projection.candidate_content_hash == candidate.content_hash
+        assert projection.overall_status == "pass"
+        assert projection.evaluation_commitment == admitted.snapshot.evaluation_commitment
+        assert projection.rule_set.content_hash == admitted.snapshot.rule_set_content_hash
+        assert projection.research_contract.content_hash == admitted.snapshot.contract_content_hash
+        with pytest.raises(ValidationError):
+            projection.rule_set.content_hash = "sha256:" + "f" * 64
+
+    candidate = admitted_candidates[0]
+    run_id, step_id, attempt_id, artifact_id, producer_id = (
+        uuid4(), uuid4(), uuid4(), uuid4(), uuid4()
+    )
+    publication = ArtifactPublication(
+        artifact_id=artifact_id,
+        publication_key="quality-replay",
+        producer_execution_id=producer_id,
+        candidate=candidate,
+        source_mode="fixture",
+    )
+    stored = SimpleNamespace(
+        artifact_id=artifact_id,
+        created_by_run_id=run_id,
+        run_step_id=step_id,
+        step_attempt_id=attempt_id,
+        producer_execution_id=producer_id,
+        publication_key="quality-replay",
+        schema_version=candidate.schema_version,
+        content=candidate.content,
+        content_hash=candidate.content_hash,
+        source_mode="fixture",
+        source_snapshot_ids=list(candidate.source_snapshot_ids),
+        evidence_ids=list(candidate.evidence_ids),
+        quality_projection={"forged": True},
+        quality_projection_hash=candidate.quality_projection_hash,
+        supersedes_version_id=None,
+    )
+    with pytest.raises(PublicationConflictError):
+        _require_same_publication(
+            stored,
+            run_id=run_id,
+            step_id=step_id,
+            attempt_id=attempt_id,
+            output=publication,
+        )
 
 
 def test_reparsed_or_foreign_candidate_cannot_use_c05_admission() -> None:

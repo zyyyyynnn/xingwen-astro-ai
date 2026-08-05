@@ -25,6 +25,7 @@ from app.db.models import (
     StepAttemptModel,
 )
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.data_quality import DataQualityProjection
 from app.workflow.store import TERMINAL_RUN_STATUSES
 
 
@@ -168,7 +169,8 @@ class AdmittedArtifactCandidate:
     schema_version: str
     source_snapshot_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...]
-    quality_projection: Mapping[str, object] | None
+    _quality_projection_json: str | None
+    quality_projection_hash: str | None
 
     def __init__(
         self,
@@ -178,7 +180,7 @@ class AdmittedArtifactCandidate:
         schema_version: str,
         source_snapshot_ids: tuple[str, ...],
         evidence_ids: tuple[str, ...],
-        quality_projection: Mapping[str, object] | None = None,
+        quality_projection: DataQualityProjection | None = None,
         _seal: object,
     ) -> None:
         if _seal is not _ADMISSION_SEAL:
@@ -190,11 +192,32 @@ class AdmittedArtifactCandidate:
         object.__setattr__(self, "schema_version", schema_version)
         object.__setattr__(self, "source_snapshot_ids", source_snapshot_ids)
         object.__setattr__(self, "evidence_ids", evidence_ids)
-        object.__setattr__(self, "quality_projection", quality_projection)
+        projection_json = (
+            json.dumps(
+                quality_projection.model_dump(mode="json"),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            if quality_projection is not None
+            else None
+        )
+        object.__setattr__(self, "_quality_projection_json", projection_json)
+        object.__setattr__(
+            self,
+            "quality_projection_hash",
+            quality_projection.content_hash if quality_projection is not None else None,
+        )
 
     @property
     def content(self) -> dict[str, object]:
         return json.loads(self._content_json)
+
+    @property
+    def quality_projection(self) -> DataQualityProjection | None:
+        if self._quality_projection_json is None:
+            return None
+        return DataQualityProjection.model_validate_json(self._quality_projection_json)
 
 
 @dataclass(frozen=True, slots=True)
@@ -564,10 +587,11 @@ class ArtifactPublisher:
                     source_snapshot_ids=list(output.candidate.source_snapshot_ids),
                     evidence_ids=list(output.candidate.evidence_ids),
                     quality_projection=(
-                        dict(output.candidate.quality_projection)
+                        output.candidate.quality_projection.model_dump(mode="json")
                         if output.candidate.quality_projection is not None
                         else None
                     ),
+                    quality_projection_hash=output.candidate.quality_projection_hash,
                     supersedes_version_id=output.supersedes_version_id,
                 )
                 session.add(version)
@@ -1088,6 +1112,12 @@ def _require_same_publication(
         output.source_mode,
         list(output.candidate.source_snapshot_ids),
         list(output.candidate.evidence_ids),
+        (
+            output.candidate.quality_projection.model_dump(mode="json")
+            if output.candidate.quality_projection is not None
+            else None
+        ),
+        output.candidate.quality_projection_hash,
         output.supersedes_version_id,
     )
     actual = (
@@ -1103,6 +1133,8 @@ def _require_same_publication(
         version.source_mode,
         version.source_snapshot_ids,
         version.evidence_ids,
+        version.quality_projection,
+        version.quality_projection_hash,
         version.supersedes_version_id,
     )
     if actual != expected:

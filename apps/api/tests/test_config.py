@@ -33,6 +33,7 @@ def test_production_accepts_managed_database_url_without_postgres_password() -> 
         DASHSCOPE_API_KEY="dashscope-secret",
         CORS_ORIGINS="https://astro.example",
         SESSION_COOKIE_SECURE=True,
+        CURSOR_SIGNING_KEY="production-cursor-signing-key-with-high-entropy",
     )
 
     assert settings.APP_ENV == "production"
@@ -82,4 +83,17 @@ def test_production_requires_secure_session_cookie() -> None:
             DASHSCOPE_API_KEY="dashscope-secret",
             CORS_ORIGINS="https://astro.example",
             SESSION_COOKIE_SECURE=False,
+        )
+
+
+def test_production_requires_non_default_cursor_signing_key() -> None:
+    with pytest.raises(ValidationError, match="CURSOR_SIGNING_KEY must be changed"):
+        Settings(
+            _env_file=None,
+            APP_ENV="production",
+            DEBUG=False,
+            DATABASE_URL="postgresql+psycopg://app:secret@db.example/xingwen",
+            DASHSCOPE_API_KEY="dashscope-secret",
+            CORS_ORIGINS="https://astro.example",
+            SESSION_COOKIE_SECURE=True,
         )
