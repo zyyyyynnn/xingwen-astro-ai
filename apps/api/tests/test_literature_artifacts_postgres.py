@@ -1,0 +1,512 @@
+"""PostgreSQL integration coverage for B-08 literature artifact reads."""
+
+from __future__ import annotations
+
+import os
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any
+from uuid import UUID
+
+import pytest
+from alembic import command
+from alembic.config import Config
+from app.config import settings
+from app.db.models import (
+    ArtifactVersionModel,
+    EvidenceModel,
+    ProducerExecutionModel,
+    ResearchArtifactModel,
+    ResearchContractModel,
+    ResearchProjectModel,
+    ResearchRunModel,
+    RunStepModel,
+    SourceSnapshotModel,
+    StepAttemptModel,
+)
+from app.db.session import create_engine_from_url, session_factory
+from app.main import create_app
+from app.schemas.literature_relation import LiteratureRelationStatus
+from app.services.artifacts import ArtifactReadService
+from fastapi.testclient import TestClient
+from literature_artifact_test_support import (
+    _claim_version,
+    _relation_version,
+    _summary_version,
+)
+from sqlalchemy import Engine
+
+from services.paper_pipeline.benchmark import load_frozen_benchmark
+from services.paper_pipeline.claim import PaperSummaryArtifactVersionInput
+from services.paper_pipeline.claim_benchmark_cases import (
+    _REPLAY_MODEL_NAME as CLAIM_MODEL_NAME,
+)
+from services.paper_pipeline.claim_benchmark_cases import (
+    _REPLAY_PARAMETERS as CLAIM_PARAMETERS,
+)
+from services.paper_pipeline.claim_benchmark_cases import (
+    _build_claim_fixture,
+)
+from services.paper_pipeline.relation import LiteratureClaimsArtifactVersionInput
+from services.paper_pipeline.relation_benchmark_cases import (
+    _REPLAY_MODEL_NAME as RELATION_MODEL_NAME,
+)
+from services.paper_pipeline.relation_benchmark_cases import (
+    _REPLAY_PARAMETERS as RELATION_PARAMETERS,
+)
+from services.paper_pipeline.relation_benchmark_cases import (
+    _ClaimInput,
+    _relation_fixture,
+    _response,
+)
+
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
+pytestmark = pytest.mark.skipif(
+    not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
+)
+NOW = datetime(2026, 8, 5, 8, 0, tzinfo=UTC)
+HASH_A = "sha256:" + "a" * 64
+HASH_B = "sha256:" + "b" * 64
+
+
+def _alembic_config(url: str) -> Config:
+    root = Path(__file__).resolve().parents[1]
+    config = Config(root / "alembic.ini")
+    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
+    return config
+
+
+@pytest.fixture(scope="module")
+def postgres_engine() -> Engine:
+    assert TEST_DATABASE_URL is not None
+    assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
+        "refusing non-test database"
+    )
+    config = _alembic_config(TEST_DATABASE_URL)
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
+    engine = create_engine_from_url(TEST_DATABASE_URL)
+    yield engine
+    engine.dispose()
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
+
+
+@pytest.fixture(scope="module")
+def literature_context(postgres_engine: Engine) -> dict[str, Any]:
+    project_id = UUID(int=1001)
+    contract_id = UUID(int=1002)
+    run_id = UUID(int=1003)
+    step_id = UUID(int=1004)
+    attempt_id = UUID(int=1005)
+    benchmark = load_frozen_benchmark()
+    accepted_relation = next(
+        item
+        for item in benchmark.relations
+        if item.status.value == LiteratureRelationStatus.accepted.value
+    )
+    trace = next(
+        item
+        for item in benchmark.reasoning_traces
+        if item.trace_id == accepted_relation.reasoning_trace_id
+    )
+    benchmark_claims = {item.claim_id: item for item in benchmark.claims}
+
+    version_counter = 1100
+    summaries = []
+    claims = []
+    relation_inputs: dict[str, _ClaimInput] = {}
+    for benchmark_claim_id in (
+        accepted_relation.source_claim_id,
+        accepted_relation.target_claim_id,
+    ):
+        benchmark_claim = benchmark_claims[benchmark_claim_id]
+        fixture = _build_claim_fixture(benchmark, benchmark_claim)
+        summary_id = UUID(int=version_counter)
+        claim_id = UUID(int=version_counter + 1)
+        version_counter += 2
+        original_summary = next(iter(fixture["versions"].values())).content
+        summary_input = PaperSummaryArtifactVersionInput(
+            artifact_version_id=str(summary_id),
+            schema_version=original_summary.schema_version,
+            content=original_summary,
+        )
+        admission = fixture["pipeline"].admit(
+            paper_summary_artifact_version_id=str(summary_id),
+            paper_id=benchmark_claim.paper_id,
+            paper_summary_versions={str(summary_id): summary_input},
+            model_response=fixture["response"],
+            model_name=CLAIM_MODEL_NAME,
+            parameters=CLAIM_PARAMETERS,
+        )
+        candidate = admission.publisher_candidate
+        assert candidate is not None
+        summary_version = _summary_version(str(summary_id), original_summary)
+        claim_version = _claim_version(str(claim_id), candidate)
+        summaries.append(summary_version)
+        claims.append(claim_version)
+        relation_inputs[benchmark_claim_id] = _ClaimInput(
+            benchmark_claim_id=benchmark_claim_id,
+            record_claim=admission.records[0],
+            artifact_version_id=str(claim_id),
+            version=LiteratureClaimsArtifactVersionInput(
+                artifact_version_id=str(claim_id),
+                schema_version=candidate.schema_version,
+                content_hash=claim_version.content_hash,
+                project_id=str(project_id),
+                content=candidate,
+            ),
+        )
+
+    relation_fixture = _relation_fixture(
+        benchmark=benchmark,
+        relation=accepted_relation,
+        trace=trace,
+        claims=relation_inputs,
+    )
+    relation_admission = relation_fixture.pipeline.admit(
+        literature_claim_artifact_version_ids=relation_fixture.version_ids,
+        literature_claim_versions=relation_fixture.versions,
+        project_id=str(project_id),
+        model_response=_response(relation_fixture.payload),
+        model_name=RELATION_MODEL_NAME,
+        parameters=RELATION_PARAMETERS,
+        confidence_assessments={
+            relation_fixture.confidence.assessment_id: relation_fixture.confidence
+        },
+        available_paper_summary_artifact_version_ids=frozenset(
+            str(item.id) for item in summaries
+        ),
+    )
+    relation_candidate = relation_admission.publisher_candidate
+    assert relation_candidate is not None
+    relation_version = _relation_version(str(UUID(int=1200)), relation_candidate)
+    versions = (*summaries, *claims, relation_version)
+
+    factory = session_factory(postgres_engine)
+    app = create_app()
+    app.state.artifact_read_service = ArtifactReadService(factory)
+    owner, owner_credential, _ = app.state.session_service.create(now=NOW)
+    _, other_credential, _ = app.state.session_service.create(now=NOW)
+
+    artifact_ids = {
+        version.artifact_id: UUID(int=1300 + index)
+        for index, version in enumerate(versions)
+    }
+    snapshot_details = {
+        snapshot.id: snapshot
+        for version in versions
+        for snapshot in version.source_snapshots
+    }
+    snapshot_ids = {
+        key: UUID(int=1400 + index)
+        for index, key in enumerate(sorted(snapshot_details))
+    }
+    evidence_details = {
+        evidence.id: evidence for version in versions for evidence in version.evidence
+    }
+    evidence_ids = {
+        key: UUID(int=1500 + index)
+        for index, key in enumerate(sorted(evidence_details))
+    }
+
+    with factory() as session, session.begin():
+        project = ResearchProjectModel(
+            id=project_id,
+            session_id=owner.id,
+            name="B-08 PostgreSQL reads",
+            case_key="exoplanet_host_star",
+            revision=1,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        contract = ResearchContractModel(
+            id=contract_id,
+            project_id=project_id,
+            version=1,
+            content_hash=HASH_A,
+            created_at=NOW,
+        )
+        run = ResearchRunModel(
+            id=run_id,
+            project_id=project_id,
+            contract_id=contract_id,
+            execution_mode="live",
+            status="completed",
+            progress=100,
+            derivation_kind="original",
+            cache_policy="disabled",
+            latest_event_sequence=0,
+            revision=1,
+            idempotency_key="b08-postgres-run",
+            request_hash=HASH_B,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        step = RunStepModel(
+            id=step_id,
+            run_id=run_id,
+            position=0,
+            key="reasoning_literature",
+            label="Reason literature",
+            enter_status="reasoning_literature",
+            success_status="building_graph",
+            status="completed",
+            progress=100,
+            public_message="Completed",
+            created_at=NOW,
+        )
+        attempt = StepAttemptModel(
+            id=attempt_id,
+            run_step_id=step_id,
+            attempt_number=1,
+            idempotency_key="b08-attempt",
+            status="completed",
+            started_at=NOW,
+            finished_at=NOW + timedelta(seconds=1),
+            created_at=NOW,
+        )
+        session.add(project)
+        session.flush()
+        session.add(contract)
+        session.flush()
+        session.add(run)
+        session.flush()
+        session.add(step)
+        session.flush()
+        session.add(attempt)
+        session.flush()
+        for key, detail in snapshot_details.items():
+            session.add(
+                SourceSnapshotModel(
+                    id=snapshot_ids[key],
+                    project_id=project_id,
+                    source_id=detail.source_id,
+                    source_type=detail.source_type,
+                    retrieved_at=detail.retrieved_at,
+                    query=detail.query,
+                    query_hash=detail.query_hash,
+                    source_version_or_etag=detail.source_version_or_etag,
+                    content_hash=detail.content_hash,
+                    license_note=detail.license_note,
+                    cache_version=detail.cache_version,
+                    request_metadata=detail.request_metadata,
+                )
+            )
+        session.flush()
+
+        for index, version in enumerate(versions):
+            artifact_id = artifact_ids[version.artifact_id]
+            kind = version.content["kind"]
+            artifact = ResearchArtifactModel(
+                id=artifact_id,
+                project_id=project_id,
+                kind=kind,
+                title=f"B-08 {kind}",
+                logical_key=f"{kind}.{index}",
+                created_at=NOW,
+            )
+            execution_id = UUID(int=1600 + index)
+            runtime = version.producer_execution
+            producer = runtime.producer
+            session.add(artifact)
+            session.flush()
+            session.add(
+                ProducerExecutionModel(
+                    id=execution_id,
+                    run_id=run_id,
+                    run_step_id=step_id,
+                    step_attempt_id=attempt_id,
+                    step_key=runtime.step_key,
+                    idempotency_key=f"producer-{index}",
+                    lease_generation=1,
+                    producer_type=producer.type,
+                    producer_name=producer.name,
+                    producer_version=producer.version,
+                    model_provider=producer.model_provider,
+                    model_name=producer.model_name,
+                    prompt_name=producer.prompt_name,
+                    prompt_version=producer.prompt_version,
+                    prompt_hash=producer.prompt_hash,
+                    parameters=runtime.parameters,
+                    parameters_hash=runtime.parameters_hash,
+                    input_hash=runtime.input_hash,
+                    output_hash=runtime.output_hash,
+                    status=runtime.status,
+                    started_at=runtime.started_at,
+                    finished_at=runtime.finished_at,
+                    token_usage=runtime.token_usage,
+                    latency_ms=runtime.latency_ms,
+                    error_code=runtime.error_code,
+                    created_at=NOW,
+                )
+            )
+            session.flush()
+            row = ArtifactVersionModel(
+                id=UUID(version.id),
+                artifact_id=artifact_id,
+                project_id=project_id,
+                created_by_run_id=run_id,
+                run_step_id=step_id,
+                step_attempt_id=attempt_id,
+                producer_execution_id=execution_id,
+                version_number=1,
+                publication_key=f"publication-{index}",
+                schema_version=version.schema_version,
+                content=version.content,
+                content_hash=version.content_hash,
+                input_hash=version.input_hash,
+                source_mode=version.source_mode,
+                producer=version.producer.model_dump(mode="json", exclude_none=True),
+                source_snapshot_ids=[
+                    str(snapshot_ids[item.id]) for item in version.source_snapshots
+                ],
+                evidence_ids=[str(evidence_ids[item.id]) for item in version.evidence],
+                created_at=NOW,
+            )
+            session.add(row)
+            session.flush()
+            artifact.latest_version_id = row.id
+
+        for key, detail in evidence_details.items():
+            session.add(
+                EvidenceModel(
+                    id=evidence_ids[key],
+                    project_id=project_id,
+                    artifact_version_id=UUID(detail.artifact_version_id),
+                    target_type=detail.target_type,
+                    target_id=detail.target_id,
+                    evidence_type=detail.evidence_type,
+                    source_snapshot_id=snapshot_ids[detail.source_snapshot_id],
+                    paper_id=detail.paper_id,
+                    locator=detail.locator,
+                    quote_or_value=detail.quote_or_value,
+                    extraction_method=detail.extraction_method,
+                    confidence=detail.confidence,
+                    is_restricted=False,
+                    created_at=NOW,
+                )
+            )
+
+    def client(credential: str) -> TestClient:
+        result = TestClient(app)
+        result.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api")
+        return result
+
+    accepted = next(
+        item
+        for item in relation_candidate.relations
+        if item.status is LiteratureRelationStatus.accepted
+    )
+    assert accepted.reasoning_trace_id is not None
+    return {
+        "factory": factory,
+        "owner": client(owner_credential),
+        "other": client(other_credential),
+        "claim_version_id": claims[0].id,
+        "relation_version_id": relation_version.id,
+        "relation_id": accepted.relation_id,
+        "trace_id": accepted.reasoning_trace_id,
+        "relation_evidence_ids": tuple(
+            str(evidence_ids[item.id]) for item in relation_version.evidence
+        ),
+    }
+
+
+def test_postgres_claim_relation_and_trace_reads_close_uuid_provenance(
+    literature_context: dict[str, Any],
+) -> None:
+    owner = literature_context["owner"]
+    claim = owner.get(
+        f"/api/artifact-versions/{literature_context['claim_version_id']}"
+        "/literature-claims"
+    )
+    relation = owner.get(
+        f"/api/artifact-versions/{literature_context['relation_version_id']}"
+        f"/literature-relations/{literature_context['relation_id']}"
+    )
+    trace = owner.get(
+        f"/api/artifact-versions/{literature_context['relation_version_id']}"
+        f"/reasoning-traces/{literature_context['trace_id']}"
+    )
+
+    assert claim.status_code == relation.status_code == trace.status_code == 200
+    relation_data = relation.json()["data"]
+    assert relation_data["graph_eligible"] is True
+    assert relation_data["source_claim"]["claim"]["status"] == "accepted"
+    assert relation_data["target_claim"]["claim"]["status"] == "accepted"
+    persisted = relation_data["evidence"][0]
+    UUID(persisted["id"])
+    UUID(persisted["source_snapshot_id"])
+    assert persisted["id"] != persisted["locator"]["summary_evidence_id"]
+    assert (
+        persisted["source_snapshot_id"]
+        not in relation_data["relation"]["source_snapshot_ids"]
+    )
+    assert "chain_of_thought" not in trace.text
+    assert "raw_model_response" not in trace.text
+
+
+def test_postgres_literature_reads_hide_cross_session_versions(
+    literature_context: dict[str, Any],
+) -> None:
+    response = literature_context["other"].get(
+        f"/api/artifact-versions/{literature_context['relation_version_id']}"
+        "/literature-relations"
+    )
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "ARTIFACT_VERSION_NOT_FOUND"
+
+
+def test_postgres_literature_reads_reject_missing_persisted_evidence_binding(
+    literature_context: dict[str, Any],
+) -> None:
+    factory = literature_context["factory"]
+    evidence_id = UUID(literature_context["relation_evidence_ids"][0])
+    with factory() as session, session.begin():
+        evidence = session.get(EvidenceModel, evidence_id)
+        assert evidence is not None
+        original = dict(evidence.locator)
+        evidence.locator = {**original, "summary_evidence_id": "evidence.missing"}
+    try:
+        response = literature_context["owner"].get(
+            f"/api/artifact-versions/{literature_context['relation_version_id']}"
+            "/literature-relations"
+        )
+        assert response.status_code == 403
+        assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+    finally:
+        with factory() as session, session.begin():
+            evidence = session.get(EvidenceModel, evidence_id)
+            assert evidence is not None
+            evidence.locator = original
+
+
+def test_postgres_literature_reads_reject_swapped_persisted_evidence_snapshot(
+    literature_context: dict[str, Any],
+) -> None:
+    factory = literature_context["factory"]
+    evidence_ids = tuple(
+        UUID(item) for item in literature_context["relation_evidence_ids"]
+    )
+    assert len(evidence_ids) >= 2
+    with factory() as session, session.begin():
+        first = session.get(EvidenceModel, evidence_ids[0])
+        second = session.get(EvidenceModel, evidence_ids[1])
+        assert first is not None and second is not None
+        original_snapshot_id = first.source_snapshot_id
+        assert original_snapshot_id != second.source_snapshot_id
+        first.source_snapshot_id = second.source_snapshot_id
+    try:
+        response = literature_context["owner"].get(
+            f"/api/artifact-versions/{literature_context['relation_version_id']}"
+            "/literature-relations"
+        )
+        assert response.status_code == 403
+        assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+    finally:
+        with factory() as session, session.begin():
+            first = session.get(EvidenceModel, evidence_ids[0])
+            assert first is not None
+            first.source_snapshot_id = original_snapshot_id

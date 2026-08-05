@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from hashlib import sha256
 import json
-from pathlib import Path
 import shutil
 import sys
+from datetime import datetime, timedelta, timezone
+from hashlib import sha256
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from pydantic import ValidationError
-
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import ArtifactKind, LiteratureClaimsArtifactContent
 from app.schemas.enums import ClaimType
@@ -40,16 +38,22 @@ from app.schemas.paper_summary import (
     _seal_paper_summary_for_publication,
     compute_paper_summary_output_hash,
 )
+from app.schemas.reasoning import (
+    LiteratureClaim as Phase0LiteratureClaim,
+)
+from app.schemas.reasoning import (
+    LiteratureReasoningResponse as Phase0LiteratureReasoningResponse,
+)
 from app.workflow.publisher import (
     ArtifactAdmissionContext,
+    ArtifactEvidenceBinding,
     ArtifactPublication,
+    ArtifactSourceSnapshotBinding,
     PublicationAdmissionError,
     admit_artifact_candidate,
 )
-from app.schemas.reasoning import (
-    LiteratureClaim as Phase0LiteratureClaim,
-    LiteratureReasoningResponse as Phase0LiteratureReasoningResponse,
-)
+from pydantic import ValidationError
+
 from packages.prompts.registry import (
     PromptRegistry,
     compute_prompt_content_hash,
@@ -61,8 +65,10 @@ from services.paper_pipeline.claim import (
 )
 from services.paper_pipeline.claim_benchmark import (
     evaluate_literature_claims,
-    main as claim_benchmark_main,
     validate_scientific_label_coverage,
+)
+from services.paper_pipeline.claim_benchmark import (
+    main as claim_benchmark_main,
 )
 from services.paper_pipeline.claim_benchmark_cases import (
     build_frozen_claim_benchmark_cases,
@@ -79,7 +85,6 @@ from services.paper_pipeline.constants import (
     FROZEN_SCIENTIFIC_PAYLOAD_HASH,
     FROZEN_X00_MAIN_SHA,
 )
-
 
 FIXED_TIME = datetime(2026, 7, 30, 9, 0, tzinfo=timezone.utc)
 ROOT = Path(__file__).parents[3]
@@ -153,7 +158,10 @@ def _summary(
         validation_code=evidence.validation_code,
     )
     input_hash = compute_canonical_payload_hash(
-        {"summary": summary_id, "input_versions": input_versions.model_dump(mode="json")}
+        {
+            "summary": summary_id,
+            "input_versions": input_versions.model_dump(mode="json"),
+        }
     )
     producer = PaperSummaryProducerExecution(
         execution_id="execution.paper_summary.fixture",
@@ -239,9 +247,7 @@ def _claim(
         "Mission design described before completion of the prime mission",
     ),
     scope: tuple[str, ...] = ("TESS mission design",),
-    limitations: tuple[str, ...] = (
-        "Evidence is limited to the public abstract",
-    ),
+    limitations: tuple[str, ...] = ("Evidence is limited to the public abstract",),
     qualifiers: tuple[str, ...] = (),
     uncertainty: str | None = None,
     comparison_basis: str | None = None,
@@ -501,9 +507,7 @@ def test_unsupported_input_schema_version_is_stably_rejected() -> None:
 
 def test_missing_evidence_is_distinct_from_unknown_evidence() -> None:
     missing = _admit(_response(_claim(evidence_ids=())))
-    unknown = _admit(
-        _response(_claim(evidence_ids=("evidence.unknown",)))
-    )
+    unknown = _admit(_response(_claim(evidence_ids=("evidence.unknown",))))
 
     assert missing.records[0].rejection_reason is (
         LiteratureClaimRejectionReason.evidence_missing
@@ -578,8 +582,7 @@ def test_summary_version_repository_ownership_mismatch_is_rejected() -> None:
         LiteratureClaimRejectionReason.ownership_mismatch
     )
     assert (
-        result.records[0].source_paper_summary_artifact_version_id
-        == SUMMARY_VERSION_ID
+        result.records[0].source_paper_summary_artifact_version_id == SUMMARY_VERSION_ID
     )
 
 
@@ -641,18 +644,19 @@ def test_known_unit_alias_is_normalized_without_conversion() -> None:
 def test_exact_structured_duplicate_is_rejected_but_conditions_are_not_merged() -> None:
     first = _claim()
     duplicate = _claim()
-    different_condition = _claim(
-        conditions=("Applies to the completed prime mission",)
-    )
+    different_condition = _claim(conditions=("Applies to the completed prime mission",))
     result = _admit(_response(first, duplicate, different_condition))
 
     assert result.publisher_candidate is not None
     assert result.publisher_candidate.status_counts.accepted == 2
     assert result.publisher_candidate.status_counts.rejected == 1
-    assert sum(
-        item.rejection_reason is LiteratureClaimRejectionReason.duplicate_claim
-        for item in result.records
-    ) == 1
+    assert (
+        sum(
+            item.rejection_reason is LiteratureClaimRejectionReason.duplicate_claim
+            for item in result.records
+        )
+        == 1
+    )
     assert len({item.fingerprint for item in result.records}) == 2
 
 
@@ -670,12 +674,17 @@ def test_existing_structured_fingerprint_is_rejected() -> None:
 
 
 def test_hashes_are_stable_across_key_claim_and_parameter_order() -> None:
-    first_payload = json.loads(_response(_claim(), _claim(
-        claim_type=ClaimType.limitation,
-        text="The abstract does not establish observed mission yield.",
-        normalized_text="The abstract does not establish observed mission yield.",
-        polarity="negative",
-    )))
+    first_payload = json.loads(
+        _response(
+            _claim(),
+            _claim(
+                claim_type=ClaimType.limitation,
+                text="The abstract does not establish observed mission yield.",
+                normalized_text="The abstract does not establish observed mission yield.",
+                polarity="negative",
+            ),
+        )
+    )
     reversed_payload = dict(reversed(tuple(first_payload.items())))
     reversed_payload["claims"] = list(reversed(first_payload["claims"]))
 
@@ -814,11 +823,42 @@ def test_output_hash_tampering_fails_candidate_schema() -> None:
 def test_publisher_ready_candidate_passes_structured_admission_port() -> None:
     result = _admit(_response())
     assert result.publisher_candidate is not None
+    snapshot_bindings = tuple(
+        ArtifactSourceSnapshotBinding(
+            pipeline_source_snapshot_id=item,
+            persisted_source_snapshot_id=f"persisted.{item}",
+        )
+        for item in result.publisher_candidate.source_snapshot_ids
+    )
+    persisted_snapshots = {
+        item.pipeline_source_snapshot_id: item.persisted_source_snapshot_id
+        for item in snapshot_bindings
+    }
+    evidence_bindings = tuple(
+        ArtifactEvidenceBinding(
+            target_type="claim",
+            target_id=item.claim_id,
+            pipeline_evidence_id=item.evidence_id,
+            pipeline_source_snapshot_id=item.source_snapshot_id,
+            persisted_evidence_id=(f"persisted.{item.claim_id}.{item.evidence_id}"),
+            persisted_source_snapshot_id=persisted_snapshots[item.source_snapshot_id],
+        )
+        for item in result.publisher_candidate.evidence_references
+    )
 
     def validate_context(context: ArtifactAdmissionContext) -> None:
         assert context.candidate is result.publisher_candidate
-        assert context.source_snapshot_ids == result.publisher_candidate.source_snapshot_ids
+        assert (
+            context.source_snapshot_ids
+            == result.publisher_candidate.source_snapshot_ids
+        )
         assert context.evidence_ids == result.publisher_candidate.evidence_ids
+        assert context.persisted_source_snapshot_ids == tuple(
+            item.persisted_source_snapshot_id for item in snapshot_bindings
+        )
+        assert context.persisted_evidence_ids == tuple(
+            item.persisted_evidence_id for item in evidence_bindings
+        )
 
     admitted = admit_artifact_candidate(
         result.publisher_candidate,
@@ -828,6 +868,8 @@ def test_publisher_ready_candidate_passes_structured_admission_port() -> None:
         evidence_validator=validate_context,
         domain_validator=validate_context,
         quality_validator=validate_context,
+        source_snapshot_bindings=snapshot_bindings,
+        evidence_bindings=evidence_bindings,
     )
     publication = ArtifactPublication(
         artifact_id=uuid4(),

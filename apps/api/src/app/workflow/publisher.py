@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-import json
-import re
 from typing import TypeAlias
 from uuid import UUID, uuid4
 
@@ -27,7 +27,6 @@ from app.db.models import (
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.data_quality import DataQualityProjection
 from app.workflow.store import TERMINAL_RUN_STATUSES
-
 
 _HASH_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 _PARAMETER_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
@@ -280,9 +279,7 @@ def _quality_projection_from_attestation(
     content_hash = compute_canonical_payload_hash(
         candidate.model_dump(mode="json", exclude_none=True)
     )
-    projection = DataQualityProjection.model_validate_json(
-        attestation.projection_json
-    )
+    projection = DataQualityProjection.model_validate_json(attestation.projection_json)
     if (
         attestation.token is not _QUALITY_ATTESTATION_SEAL
         or attestation.candidate_object_id != id(candidate)
@@ -305,6 +302,28 @@ class ArtifactAdmissionContext:
     candidate: BaseModel
     source_snapshot_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...]
+    persisted_source_snapshot_ids: tuple[str, ...]
+    persisted_evidence_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactSourceSnapshotBinding:
+    """Bind one Pipeline snapshot identity to its persisted SourceSnapshot id."""
+
+    pipeline_source_snapshot_id: str
+    persisted_source_snapshot_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactEvidenceBinding:
+    """Bind one domain Evidence use to its persisted Evidence/Snapshot ids."""
+
+    target_type: str
+    target_id: str
+    pipeline_evidence_id: str
+    pipeline_source_snapshot_id: str
+    persisted_evidence_id: str
+    persisted_source_snapshot_id: str
 
 
 def admit_artifact_candidate(
@@ -316,6 +335,8 @@ def admit_artifact_candidate(
     evidence_validator: AdmissionValidator,
     domain_validator: AdmissionValidator,
     quality_validator: AdmissionValidator,
+    source_snapshot_bindings: Sequence[ArtifactSourceSnapshotBinding] | None = None,
+    evidence_bindings: Sequence[ArtifactEvidenceBinding] | None = None,
 ) -> AdmittedArtifactCandidate:
     """Run the caller-owned Evidence, domain, and quality gates on typed content."""
 
@@ -337,10 +358,19 @@ def admit_artifact_candidate(
         source_snapshot_ids=snapshots,
         evidence_ids=evidence,
     )
+    persisted_snapshots, persisted_evidence = _publication_references(
+        candidate,
+        source_snapshot_ids=snapshots,
+        evidence_ids=evidence,
+        source_snapshot_bindings=source_snapshot_bindings,
+        evidence_bindings=evidence_bindings,
+    )
     context = ArtifactAdmissionContext(
         candidate=candidate,
         source_snapshot_ids=snapshots,
         evidence_ids=evidence,
+        persisted_source_snapshot_ids=persisted_snapshots,
+        persisted_evidence_ids=persisted_evidence,
     )
     for validator in (evidence_validator, domain_validator, quality_validator):
         if not callable(validator):
@@ -387,8 +417,8 @@ def admit_artifact_candidate(
         content_json=content_json,
         content_hash=compute_canonical_payload_hash(content),
         schema_version=normalized_schema_version,
-        source_snapshot_ids=snapshots,
-        evidence_ids=evidence,
+        source_snapshot_ids=persisted_snapshots,
+        evidence_ids=persisted_evidence,
         quality_projection=quality_projection,
         _seal=_ADMISSION_SEAL,
     )
@@ -1084,18 +1114,14 @@ def _require_declared_candidate_context(
         declared_schema_version is not None
         and declared_schema_version != schema_version
     ):
-        raise PublicationAdmissionError(
-            "schema_version must match the typed candidate"
-        )
+        raise PublicationAdmissionError("schema_version must match the typed candidate")
     for field, supplied in (
         ("source_snapshot_ids", source_snapshot_ids),
         ("evidence_ids", evidence_ids),
     ):
         declared = getattr(candidate, field, None)
         if declared is not None and tuple(declared) != supplied:
-            raise PublicationAdmissionError(
-                f"{field} must match the typed candidate"
-            )
+            raise PublicationAdmissionError(f"{field} must match the typed candidate")
 
 
 def _require_pipeline_admission(candidate: BaseModel) -> None:
@@ -1104,9 +1130,16 @@ def _require_pipeline_admission(candidate: BaseModel) -> None:
     if hasattr(candidate_kind, "value"):
         candidate_kind = candidate_kind.value
 
-    # D-08 owns this Artifact kind exclusively. A caller-defined wrapper must not
-    # opt out of admission by omitting the marker or opt in with a forged method.
-    if candidate_kind == "literature_relations":
+    # D-07/D-08 own these Artifact kinds exclusively. Caller-defined wrappers
+    # cannot opt out by omitting the marker or opt in with a forged method.
+    if candidate_kind == "literature_claims":
+        from app.schemas.literature_claim import LiteratureClaimsCandidate
+
+        if candidate_class is not LiteratureClaimsCandidate:
+            raise PublicationAdmissionError(
+                "literature_claims cannot bypass its authoritative Pipeline candidate"
+            )
+    elif candidate_kind == "literature_relations":
         from app.schemas.literature_relation import LiteratureRelationsCandidate
 
         if candidate_class is not LiteratureRelationsCandidate:
@@ -1138,6 +1171,118 @@ def _require_pipeline_admission(candidate: BaseModel) -> None:
         raise PublicationAdmissionError(
             "Model output cannot bypass its artifact admission pipeline"
         )
+
+
+def _publication_references(
+    candidate: BaseModel,
+    *,
+    source_snapshot_ids: tuple[str, ...],
+    evidence_ids: tuple[str, ...],
+    source_snapshot_bindings: Sequence[ArtifactSourceSnapshotBinding] | None,
+    evidence_bindings: Sequence[ArtifactEvidenceBinding] | None,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    candidate_kind = getattr(candidate, "kind", None)
+    if hasattr(candidate_kind, "value"):
+        candidate_kind = candidate_kind.value
+    if candidate_kind not in {"literature_claims", "literature_relations"}:
+        if source_snapshot_bindings is not None or evidence_bindings is not None:
+            raise PublicationAdmissionError(
+                "Explicit provenance bindings are only supported for literature artifacts"
+            )
+        return source_snapshot_ids, evidence_ids
+    if source_snapshot_bindings is None or evidence_bindings is None:
+        raise PublicationAdmissionError(
+            "Literature artifact publication requires explicit persisted provenance bindings"
+        )
+
+    snapshots = tuple(source_snapshot_bindings)
+    pipeline_snapshot_ids = tuple(
+        item.pipeline_source_snapshot_id for item in snapshots
+    )
+    persisted_snapshot_ids = tuple(
+        item.persisted_source_snapshot_id for item in snapshots
+    )
+    if (
+        tuple(sorted(pipeline_snapshot_ids)) != tuple(sorted(source_snapshot_ids))
+        or len(pipeline_snapshot_ids) != len(set(pipeline_snapshot_ids))
+        or len(persisted_snapshot_ids) != len(set(persisted_snapshot_ids))
+        or any(
+            not item.pipeline_source_snapshot_id.strip()
+            or not item.persisted_source_snapshot_id.strip()
+            for item in snapshots
+        )
+    ):
+        raise PublicationAdmissionError(
+            "SourceSnapshot bindings must exactly cover the literature candidate"
+        )
+    persisted_snapshot_by_pipeline = {
+        item.pipeline_source_snapshot_id: item.persisted_source_snapshot_id
+        for item in snapshots
+    }
+
+    if candidate_kind == "literature_claims":
+        expected_evidence = {
+            (
+                "claim",
+                item.claim_id,
+                item.evidence_id,
+                item.source_snapshot_id,
+            )
+            for item in getattr(candidate, "evidence_references", ())
+        }
+    else:
+        expected_evidence = {
+            (
+                "relation",
+                item.relation_id,
+                item.evidence_id,
+                item.source_snapshot_id,
+            )
+            for item in getattr(candidate, "evidence_references", ())
+        }
+    bindings = tuple(evidence_bindings)
+    actual_evidence = {
+        (
+            item.target_type,
+            item.target_id,
+            item.pipeline_evidence_id,
+            item.pipeline_source_snapshot_id,
+        )
+        for item in bindings
+    }
+    persisted_evidence_ids = tuple(item.persisted_evidence_id for item in bindings)
+    if (
+        actual_evidence != expected_evidence
+        or len(actual_evidence) != len(bindings)
+        or len(persisted_evidence_ids) != len(set(persisted_evidence_ids))
+        or any(
+            item.pipeline_evidence_id not in evidence_ids
+            or not item.persisted_evidence_id.strip()
+            or item.persisted_source_snapshot_id
+            != persisted_snapshot_by_pipeline.get(item.pipeline_source_snapshot_id)
+            for item in bindings
+        )
+    ):
+        raise PublicationAdmissionError(
+            "Evidence bindings must exactly close the literature provenance graph"
+        )
+
+    ordered_snapshots = tuple(
+        item.persisted_source_snapshot_id
+        for item in sorted(snapshots, key=lambda item: item.pipeline_source_snapshot_id)
+    )
+    ordered_evidence = tuple(
+        item.persisted_evidence_id
+        for item in sorted(
+            bindings,
+            key=lambda item: (
+                item.target_type,
+                item.target_id,
+                item.pipeline_evidence_id,
+            ),
+        )
+    )
+    return ordered_snapshots, ordered_evidence
 
 
 def _validated_publications(
@@ -1345,8 +1490,10 @@ def _require_hash(value: str, name: str) -> None:
 __all__ = [
     "AdmittedArtifactCandidate",
     "ArtifactAdmissionContext",
+    "ArtifactEvidenceBinding",
     "ArtifactPublication",
     "ArtifactPublisher",
+    "ArtifactSourceSnapshotBinding",
     "ProducerExecutionConflictError",
     "ProducerExecutionNotFoundError",
     "ProducerExecutionRequest",

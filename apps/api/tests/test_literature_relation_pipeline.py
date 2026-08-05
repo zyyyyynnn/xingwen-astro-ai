@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from copy import deepcopy
-from dataclasses import replace
-from datetime import datetime, timezone
 import inspect
 import json
 import weakref
+from copy import deepcopy
+from dataclasses import replace
+from datetime import datetime, timezone
 from typing import ClassVar, Literal
 
 import pytest
-from pydantic import BaseModel, ValidationError
-
+from app.schemas import _literature_relation_seal as relation_seal
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
     ArtifactKind,
@@ -30,19 +29,17 @@ from app.schemas.literature_claim import (
     compute_literature_claims_output_hash,
 )
 from app.schemas.literature_relation import (
-    LiteratureComparabilityStatus,
     LiteratureRelationConfidenceAssessment,
     LiteratureRelationConfidenceStatus,
     LiteratureRelationExtractionOutput,
     LiteratureRelationFailureStage,
     LiteratureRelationRejectionReason,
-    LiteratureRelationStatus,
     LiteratureRelationsCandidate,
+    LiteratureRelationStatus,
     build_literature_relation_confidence_subject,
     compute_literature_relations_output_hash,
     compute_literature_relations_public_payload_hash,
 )
-from app.schemas import _literature_relation_seal as relation_seal
 from app.schemas.paper_summary import (
     PaperSummaryEvidence,
     PaperSummaryEvidenceLocator,
@@ -51,12 +48,18 @@ from app.schemas.paper_summary import (
 )
 from app.schemas.reasoning import (
     LiteratureRelation as Phase0LiteratureRelation,
+)
+from app.schemas.reasoning import (
     ReasoningTrace as Phase0ReasoningTrace,
 )
 from app.workflow.publisher import (
+    ArtifactEvidenceBinding,
+    ArtifactSourceSnapshotBinding,
     PublicationAdmissionError,
     admit_artifact_candidate,
 )
+from pydantic import BaseModel, ValidationError
+
 from packages.prompts.registry import PromptRegistry
 from services.paper_pipeline.constants import (
     FROZEN_BENCHMARK_CONTENT_HASH,
@@ -70,11 +73,10 @@ from services.paper_pipeline.constants import (
     RELATION_CONFIDENCE_DEFINITION_VERSION,
 )
 from services.paper_pipeline.relation import (
+    RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE,
     LiteratureClaimsArtifactVersionInput,
     LiteratureRelationPipeline,
-    RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE,
 )
-
 
 FIXED_TIME = datetime(2026, 8, 4, 9, 0, tzinfo=timezone.utc)
 SAFE_PARAMETERS = {
@@ -156,7 +158,9 @@ def _claim_version(
         "normalization_version": "1.0.0",
         "fingerprint": "sha256:" + "0" * 64,
         "status": status,
-        "failure_stage": "evidence" if status is LiteratureClaimStatus.rejected else None,
+        "failure_stage": "evidence"
+        if status is LiteratureClaimStatus.rejected
+        else None,
         "rejection_reason": (
             "literature_claim.evidence_missing"
             if status is LiteratureClaimStatus.rejected
@@ -378,9 +382,8 @@ def _admit(
     model_response: str | None = None,
     *,
     versions: tuple[LiteratureClaimsArtifactVersionInput, ...] | None = None,
-    confidence_assessments: dict[
-        str, LiteratureRelationConfidenceAssessment
-    ] | None = None,
+    confidence_assessments: dict[str, LiteratureRelationConfidenceAssessment]
+    | None = None,
     model_name: str = "model.relation.fixture",
     parameters: dict[str, object] | None = None,
     requested_ids: tuple[str, ...] | None = None,
@@ -416,7 +419,34 @@ def _admit(
     )
 
 
+def _publication_bindings(candidate):
+    snapshot_bindings = tuple(
+        ArtifactSourceSnapshotBinding(
+            pipeline_source_snapshot_id=item,
+            persisted_source_snapshot_id=f"persisted.{item}",
+        )
+        for item in candidate.source_snapshot_ids
+    )
+    persisted_snapshots = {
+        item.pipeline_source_snapshot_id: item.persisted_source_snapshot_id
+        for item in snapshot_bindings
+    }
+    evidence_bindings = tuple(
+        ArtifactEvidenceBinding(
+            target_type="relation",
+            target_id=item.relation_id,
+            pipeline_evidence_id=item.evidence_id,
+            pipeline_source_snapshot_id=item.source_snapshot_id,
+            persisted_evidence_id=(f"persisted.{item.relation_id}.{item.evidence_id}"),
+            persisted_source_snapshot_id=persisted_snapshots[item.source_snapshot_id],
+        )
+        for item in getattr(candidate, "evidence_references", ())
+    )
+    return snapshot_bindings, evidence_bindings
+
+
 def _publish(candidate, *, schema_version=None, snapshots=None, evidence=None):
+    snapshot_bindings, evidence_bindings = _publication_bindings(candidate)
     return admit_artifact_candidate(
         candidate,
         schema_version=schema_version or candidate.schema_version,
@@ -425,6 +455,8 @@ def _publish(candidate, *, schema_version=None, snapshots=None, evidence=None):
         evidence_validator=lambda _context: None,
         domain_validator=lambda _context: None,
         quality_validator=lambda _context: None,
+        source_snapshot_bindings=snapshot_bindings,
+        evidence_bindings=evidence_bindings,
     )
 
 
@@ -441,13 +473,19 @@ def test_happy_path_builds_sealed_relation_and_trace_candidate() -> None:
     assert trace.scientific_review_status == "pending_scientific_review"
     assert result.publisher_candidate is not None
     assert result.publisher_candidate.__artifact_publication_is_admitted__()
-    assert result.producer.confidence_calibration_id == RELATION_CONFIDENCE_CALIBRATION_ID
+    assert (
+        result.producer.confidence_calibration_id == RELATION_CONFIDENCE_CALIBRATION_ID
+    )
     assert result.producer.confidence_calibration_content_hash == (
         FROZEN_BENCHMARK_CONTENT_HASH
     )
     assert result.producer.confidence_calibration_sample_size == 4
     published = _publish(result.publisher_candidate)
     assert published.content["kind"] == "literature_relations"
+    assert (
+        published.source_snapshot_ids != result.publisher_candidate.source_snapshot_ids
+    )
+    assert published.evidence_ids != result.publisher_candidate.evidence_ids
 
 
 def test_complete_relation_taxonomy_is_admitted() -> None:
@@ -465,14 +503,14 @@ def test_complete_relation_taxonomy_is_admitted() -> None:
             assessment_id,
             relation_type=relation_type,
         )
-    result = _admit(
-        _response(*relations), confidence_assessments=assessments
-    )
+    result = _admit(_response(*relations), confidence_assessments=assessments)
 
     assert {item.relation_type for item in result.records} == set(
         LiteratureRelationType
     )
-    assert all(item.status is LiteratureRelationStatus.accepted for item in result.records)
+    assert all(
+        item.status is LiteratureRelationStatus.accepted for item in result.records
+    )
 
 
 def test_publisher_blocks_unsealed_copy_raw_records_and_legacy_projections() -> None:
@@ -542,14 +580,10 @@ def test_publisher_blocks_unsealed_copy_raw_records_and_legacy_projections() -> 
 
 
 def test_public_hashes_and_handmade_seals_cannot_mint_publication_authority() -> None:
-    assert not hasattr(
-        relation_seal, "seal_literature_relations_candidate"
-    )
+    assert not hasattr(relation_seal, "seal_literature_relations_candidate")
     assert not hasattr(relation_seal, "_mint_literature_relations_candidate")
     assert not hasattr(relation_seal, "_take_literature_relation_minter")
-    assert not hasattr(
-        relation_seal, "_bind_literature_relation_pipeline_authority"
-    )
+    assert not hasattr(relation_seal, "_bind_literature_relation_pipeline_authority")
     assert not hasattr(relation_seal, "_PUBLICATION_AUTHORITIES")
     original = _admit().publisher_candidate
     assert original is not None
@@ -654,9 +688,12 @@ def test_public_hashes_and_handmade_seals_cannot_mint_publication_authority() ->
     )
     reflected_registry = registry + (forged_authority,)
     assert forged_authority in reflected_registry
-    assert forged_authority not in inspect.getclosurevars(load_authority).nonlocals[
-        "publication_authorities"
-    ]
+    assert (
+        forged_authority
+        not in inspect.getclosurevars(load_authority).nonlocals[
+            "publication_authorities"
+        ]
+    )
     minter_closure = inspect.getclosurevars(reflected_minter).nonlocals
     with pytest.raises(RuntimeError, match="mint-private"):
         minter_closure["register_authority"](id(rebuilt), forged_authority)
@@ -725,6 +762,7 @@ def test_publisher_rechecks_seal_after_validator_mutation() -> None:
     def mutate_evidence(context) -> None:
         object.__setattr__(context.candidate, "evidence_ids", ("evidence.tampered",))
 
+    snapshot_bindings, evidence_bindings = _publication_bindings(evidence_candidate)
     with pytest.raises(PublicationAdmissionError):
         admit_artifact_candidate(
             evidence_candidate,
@@ -734,6 +772,8 @@ def test_publisher_rechecks_seal_after_validator_mutation() -> None:
             evidence_validator=mutate_evidence,
             domain_validator=lambda _context: None,
             quality_validator=lambda _context: None,
+            source_snapshot_bindings=snapshot_bindings,
+            evidence_bindings=evidence_bindings,
         )
 
 
@@ -782,6 +822,7 @@ def test_publisher_seal_blocks_candidate_and_rejected_status_escalation() -> Non
     def mutate_relations(context) -> None:
         object.__setattr__(context.candidate, "relations", ())
 
+    snapshot_bindings, evidence_bindings = _publication_bindings(relation_candidate)
     with pytest.raises(PublicationAdmissionError):
         admit_artifact_candidate(
             relation_candidate,
@@ -791,6 +832,50 @@ def test_publisher_seal_blocks_candidate_and_rejected_status_escalation() -> Non
             evidence_validator=lambda _context: None,
             domain_validator=mutate_relations,
             quality_validator=lambda _context: None,
+            source_snapshot_bindings=snapshot_bindings,
+            evidence_bindings=evidence_bindings,
+        )
+
+
+def test_publisher_requires_exact_persisted_literature_provenance_bindings() -> None:
+    candidate = _admit().publisher_candidate
+    assert candidate is not None
+    snapshot_bindings, evidence_bindings = _publication_bindings(candidate)
+
+    with pytest.raises(PublicationAdmissionError, match="persisted provenance"):
+        admit_artifact_candidate(
+            candidate,
+            schema_version=candidate.schema_version,
+            source_snapshot_ids=candidate.source_snapshot_ids,
+            evidence_ids=candidate.evidence_ids,
+            evidence_validator=lambda _context: None,
+            domain_validator=lambda _context: None,
+            quality_validator=lambda _context: None,
+        )
+
+    first = evidence_bindings[0]
+    invalid_evidence = (
+        first.__class__(
+            target_type=first.target_type,
+            target_id=first.target_id,
+            pipeline_evidence_id=first.pipeline_evidence_id,
+            pipeline_source_snapshot_id=first.pipeline_source_snapshot_id,
+            persisted_evidence_id=first.persisted_evidence_id,
+            persisted_source_snapshot_id="snapshot.persisted.wrong",
+        ),
+        *evidence_bindings[1:],
+    )
+    with pytest.raises(PublicationAdmissionError, match="provenance graph"):
+        admit_artifact_candidate(
+            candidate,
+            schema_version=candidate.schema_version,
+            source_snapshot_ids=candidate.source_snapshot_ids,
+            evidence_ids=candidate.evidence_ids,
+            evidence_validator=lambda _context: None,
+            domain_validator=lambda _context: None,
+            quality_validator=lambda _context: None,
+            source_snapshot_bindings=snapshot_bindings,
+            evidence_bindings=invalid_evidence,
         )
 
 
@@ -1071,7 +1156,9 @@ def test_record_level_gates_use_stable_stage_and_reason(
         **kwargs,
     )
     rejected = tuple(
-        item for item in result.records if item.status is LiteratureRelationStatus.rejected
+        item
+        for item in result.records
+        if item.status is LiteratureRelationStatus.rejected
     )
 
     assert rejected
@@ -1153,9 +1240,7 @@ def test_trace_and_relation_conflicts_are_closed_at_conditions_gate() -> None:
 def test_tri_state_and_not_evaluable_confidence_are_explicit() -> None:
     accepted = _admit()
     low = _confidence(score=0.5)
-    candidate = _admit(
-        confidence_assessments={low.assessment_id: low}
-    )
+    candidate = _admit(confidence_assessments={low.assessment_id: low})
     unavailable = _confidence(
         status=LiteratureRelationConfidenceStatus.not_evaluable,
         score=None,
@@ -1225,9 +1310,7 @@ def test_confidence_subject_and_decision_are_relation_specific() -> None:
         update={"decision": LiteratureRelationStatus.rejected}
     )
     rejected_decision_result = _admit(
-        confidence_assessments={
-            rejected_decision.assessment_id: rejected_decision
-        }
+        confidence_assessments={rejected_decision.assessment_id: rejected_decision}
     )
     assert rejected_decision_result.records[0].rejection_reason is (
         LiteratureRelationRejectionReason.confidence_decision_mismatch
@@ -1264,7 +1347,9 @@ def test_one_confidence_assessment_cannot_be_reused_across_relation_types() -> N
     )
 
 
-def test_mixed_batch_retains_rejected_record_without_publishing_it_as_accepted() -> None:
+def test_mixed_batch_retains_rejected_record_without_publishing_it_as_accepted() -> (
+    None
+):
     valid = _relation(relation_type="supports")
     dangling = _relation(
         source="claim.unknown",
@@ -1389,7 +1474,9 @@ def test_input_and_response_order_do_not_change_identity_or_hash() -> None:
     assert first.output_hash == second.output_hash
 
 
-def test_upstream_claim_execution_runtime_is_excluded_only_from_stable_output_hash() -> None:
+def test_upstream_claim_execution_runtime_is_excluded_only_from_stable_output_hash() -> (
+    None
+):
     candidate = _admit().publisher_candidate
     assert candidate is not None
     original = candidate.model_dump(mode="json", exclude_none=True)
@@ -1446,24 +1533,30 @@ def test_prompt_model_parameters_and_input_versions_are_hash_pinned() -> None:
         )
     )
 
-    assert len(
-        {
-            baseline.producer.input_hash,
-            prompt_changed.producer.input_hash,
-            model_changed.producer.input_hash,
-            parameters_changed.producer.input_hash,
-            extra_input.producer.input_hash,
-        }
-    ) == 5
-    assert len(
-        {
-            baseline.output_hash,
-            prompt_changed.output_hash,
-            model_changed.output_hash,
-            parameters_changed.output_hash,
-            extra_input.output_hash,
-        }
-    ) == 5
+    assert (
+        len(
+            {
+                baseline.producer.input_hash,
+                prompt_changed.producer.input_hash,
+                model_changed.producer.input_hash,
+                parameters_changed.producer.input_hash,
+                extra_input.producer.input_hash,
+            }
+        )
+        == 5
+    )
+    assert (
+        len(
+            {
+                baseline.output_hash,
+                prompt_changed.output_hash,
+                model_changed.output_hash,
+                parameters_changed.output_hash,
+                extra_input.output_hash,
+            }
+        )
+        == 5
+    )
 
 
 def test_deprecated_or_wrong_output_prompt_contract_cannot_execute() -> None:
@@ -1548,9 +1641,7 @@ def test_external_admission_context_is_hash_pinned() -> None:
     baseline = _admit()
     variations = (
         _admit(
-            available_evidence_ids=frozenset(
-                {"evidence.source", "evidence.target"}
-            )
+            available_evidence_ids=frozenset({"evidence.source", "evidence.target"})
         ),
         _admit(
             available_source_snapshot_ids=frozenset(
@@ -1576,9 +1667,15 @@ def test_external_admission_context_is_hash_pinned() -> None:
         item.admission_status is LiteratureRelationStatus.accepted
         for item in variations
     )
-    assert len(
-        {baseline.producer.input_hash, *(item.producer.input_hash for item in variations)}
-    ) == 5
+    assert (
+        len(
+            {
+                baseline.producer.input_hash,
+                *(item.producer.input_hash for item in variations),
+            }
+        )
+        == 5
+    )
 
 
 def test_schema_valid_duplicate_trace_references_reject_without_crashing() -> None:
@@ -1734,5 +1831,7 @@ def test_truthful_incomparable_metric_or_unit_is_still_rejected(
     )
     result = _admit(_response(relation), versions=(source, target))
 
-    assert result.records[0].failure_stage is LiteratureRelationFailureStage.comparability
+    assert (
+        result.records[0].failure_stage is LiteratureRelationFailureStage.comparability
+    )
     assert result.records[0].rejection_reason is reason
