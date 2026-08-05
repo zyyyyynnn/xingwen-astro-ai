@@ -48,26 +48,20 @@ a {
   font-size: var(--font-size-1);
 }
 
-/* Hero section — ≥50% viewport height, full width, no text overlay */
+/* Hero section — ~58% viewport height, full width, no text overlay.
+   The visual subject fills the area and is bleed-cropped by overflow. */
 .hero {
   width: 100%;
-  min-height: 55vh;
-  height: 55vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  min-height: 58vh;
+  height: 58vh;
   overflow: hidden;
-  background: var(--color-surface-muted);
+  background: var(--color-canvas);
 }
 
 .hero-visual {
   position: relative;
   width: 100%;
   height: 100%;
-  max-width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .hero-poster {
@@ -80,11 +74,11 @@ a {
 }
 
 .hero-canvas {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 1;
   width: 100%;
   height: 100%;
-  display: block;
 }
 
 /* Hero content — below the hero, DOM text not baked into Canvas */
@@ -150,12 +144,12 @@ a {
 
 .hero-content h1 {
   margin: 0;
-  max-width: 22ch;
+  max-width: 26ch;
   font-family: var(--xw-font-serif);
   font-size: var(--font-size-7);
   font-weight: 520;
   letter-spacing: -0.035em;
-  line-height: 1.12;
+  line-height: 1.18;
 }
 
 .hero-notes {

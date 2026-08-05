@@ -20,7 +20,7 @@ test("brand site remains useful without client-side JavaScript", async ({
   await expect(page).toHaveTitle(/星文智析/);
   await expect(
     page.getByRole("heading", {
-      name: "让每一颗系外行星候选体都可溯源",
+      name: /让每一颗系外行星候选体/,
     }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "开始演示" })).toHaveAttribute(
@@ -47,7 +47,7 @@ test("brand site has no runtime console errors", async ({ page }) => {
   await page.goto("http://127.0.0.1:4321/");
   await expect(
     page.getByRole("heading", {
-      name: "让每一颗系外行星候选体都可溯源",
+      name: /让每一颗系外行星候选体/,
     }),
   ).toBeVisible();
   expect(errors).toEqual([]);

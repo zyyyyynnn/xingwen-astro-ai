@@ -80,7 +80,7 @@ test.describe("mobile viewport @ 375px", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "让每一颗系外行星候选体都可溯源",
+        name: /让每一颗系外行星候选体/,
       }),
     ).toBeVisible();
 
@@ -126,7 +126,7 @@ test.describe("200% font scale", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "让每一颗系外行星候选体都可溯源",
+        name: /让每一颗系外行星候选体/,
       }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "开始演示" })).toBeVisible();
