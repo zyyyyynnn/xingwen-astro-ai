@@ -49,7 +49,7 @@ const allowedLocalDependencies = new Map([
 const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
   ["@xingwen/ui", new Set(["react"])],
-  ["@xingwen/visual-engine", new Set()],
+  ["@xingwen/visual-engine", new Set(["three"])],
 ]);
 
 const failures = [];
