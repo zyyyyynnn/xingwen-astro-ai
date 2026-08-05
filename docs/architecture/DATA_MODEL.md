@@ -322,6 +322,22 @@ registry。公开 verifier 逐层反射只能读取 tuple/NamedTuple 不可变�
 authority；反射取得 callable 后脱离该调用点执行仍会拒绝。只有 Pipeline 产生的原对象
 可通过 Publisher 复验。
 
+B-08 的 HTTP 读取投影直接复用上述 D-07/D-08 candidate，不建立第二套 Claim、Relation
+或 ReasoningTrace 领域模型。`LiteratureClaimRead` 固定 Claim 所属 ArtifactVersion、输入
+PaperSummary Version、Evidence 与 SourceSnapshot；`LiteratureRelationRead` 固定 Relation
+Version、双方 Claim Version、Trace 与 provenance；`LiteratureReasoningTraceRead` 从同一
+Relation Version 投影公开 premise、步骤、条件、限制、冲突、结构化结论和引用。只有
+accepted Relation 且双方 accepted Claim、Trace、Evidence、SourceSnapshot 精确闭合时，
+`graph_eligible` 才为 true；该字段是读取完整性结果，不是新的科学判定。
+
+Pipeline candidate 中的 ArtifactVersion、Evidence 与 SourceSnapshot 标识保留不可变领域
+命名空间；PostgreSQL 使用独立 UUID。Publisher 通过显式 binding 将 Pipeline SourceSnapshot
+标识映射到 source identity/version/content hash 对应的持久化 UUID，并将 Pipeline Evidence
+标识写入持久化 Evidence locator 的 `summary_evidence_id`，同时保存 `source_record_id`。
+Claim Evidence 的 target 为 `claim`，Relation 与其 Trace 的持久化 Evidence target 为
+`relation`；读取时要求 binding、ArtifactVersion registry 和实际记录一一精确覆盖，禁止
+按数量匹配、隐式改写 frozen candidate 或独立发布 ReasoningTrace。
+
 ### 9.4 Graph
 
 Graph 包含 nodes、edges、layout_hint 和 filters。每条 GraphEdge 必须有 evidence_ids；跨文献边还必须有 relation_id 和 reasoning_trace_id。不得为装饰生成无科研意义的边。

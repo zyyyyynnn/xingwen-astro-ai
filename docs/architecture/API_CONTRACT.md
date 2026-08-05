@@ -328,6 +328,12 @@ Run Snapshot 至少返回：
 | `GET`  | `/api/artifact-versions/{version_id}/dataset/rows?cursor=&limit=`     | Dataset 行的版本固定 cursor 分页      |
 | `GET`  | `/api/artifact-versions/{version_id}/field-dictionary`                | 校验后的 FieldDictionary 与溯源       |
 | `GET`  | `/api/artifact-versions/{version_id}/source-collection`               | 校验后的 SourceCollection 与溯源      |
+| `GET`  | `/api/artifact-versions/{version_id}/literature-claims?status=&cursor=&limit=` | Claim、PaperSummary 与完整溯源 |
+| `GET`  | `/api/artifact-versions/{version_id}/literature-claims/{claim_id}` | 单个版本固定 Claim |
+| `GET`  | `/api/artifact-versions/{version_id}/literature-relations?status=&cursor=&limit=` | Relation、双方 Claim、Trace 与溯源 |
+| `GET`  | `/api/artifact-versions/{version_id}/literature-relations/{relation_id}` | 单个版本固定 Relation |
+| `GET`  | `/api/artifact-versions/{version_id}/reasoning-traces?status=&cursor=&limit=` | 可审查 ReasoningTrace 集合 |
+| `GET`  | `/api/artifact-versions/{version_id}/reasoning-traces/{trace_id}` | 单个版本固定 ReasoningTrace |
 
 ArtifactVersion Envelope：
 
@@ -365,6 +371,12 @@ ArtifactVersion Envelope：
 `content` 是 #78 已经 Pydantic 准入并以 hash 固定的发布 payload；通用读取边界不重复执行领域算法。B-05～B-09 必须在各自领域端点继续映射为判别联合读取模型。读取层会删除凭据、认证头、Cookie、受限全文、原始模型长输出和内部堆栈类字段；SourceSnapshot `request_metadata` 只保留明确允许的可复现字段。
 
 `kind=paper_summary` 的通用 ArtifactVersion `content` 已直接使用 D-03 `PaperSummaryArtifactContent` 判别 Schema，包含核心总结字段、逐项 support 状态、Evidence/SourceSnapshot 版本、来源冲突、ProducerExecution 与 hash。B-07 已提供 `GET /api/artifact-versions/{version_id}/paper-summary` 联合读取端点：它重新校验 Summary schema/content/input/output hash、ProducerExecution 对照、同项目 PaperCollection 的完整 Pydantic Schema 与稳定 `output_hash`、SourceSnapshot 稳定指纹和 Evidence target 归属；响应同时返回从该类型化 PaperCollection 候选派生的 `paper`（title/authors/year）、`version_number`、`supersedes_version_id`，以及仅在 `source_mode=cached` 时存在的 `cache_audits`（适用性、cache version、Live 失败分类/code、origin Run/ArtifactVersion）。每条 Cached audit 的 `source_id` 必须与其 SourceSnapshot 一致，Cached 与非 Cached Summary 的审计有无必须和 `source_mode` 精确对应。D-03 的管线内 `summary_evidence_id` 与数据库 Evidence UUID 属于不同命名空间，持久化 Evidence locator 必须携带 `summary_evidence_id` 显式交叉引用；B-07 要求两侧一一对应且拒绝缺失、调包、重复或未引用的 Evidence。校验失败使用 Problem Details（`422 PAPER_SUMMARY_SCHEMA_INVALID` 或 `403 PROVENANCE_SCOPE_VIOLATION`）。通用读取与领域读取均不得返回 D-03 校验时使用的 `accessible_excerpt` 或原始模型响应。
+
+B-08 只读取已发布的 `kind=literature_claims` 与 `kind=literature_relations` typed candidate；ReasoningTrace 内嵌在 Relation ArtifactVersion 中，不单独发布 `reasoning_traces` Version。Claim 投影固定 PaperSummary ArtifactVersion，并闭合数据库 Evidence/SourceSnapshot；Relation 投影固定双方 LiteratureClaims ArtifactVersion，组合双方 Claim、conditions、可审查 Trace 与 provenance。只有 `accepted` 且双方 accepted Claim、Trace、Evidence 和 SourceSnapshot 全部闭合的 Relation 返回 `graph_eligible=true`，B 层不重新执行抽取、Relation 推理、confidence 或 admission。
+
+三类集合默认 `limit=20`、最大 100，按稳定领域 id 升序；不透明 cursor 使用服务端 HMAC，绑定 ArtifactVersion、集合、`status` filter 与 `stable_id.asc.v1` ordering，跨版本、跨集合、跨过滤条件、悬空 row key 或签名篡改返回 `400 INVALID_CURSOR`。单个 ArtifactVersion content 最大 10 MiB，Claim、Relation 或 Trace 集合最大 10,000 项，超过限制返回 `413`。未知领域对象返回不泄露其他版本内容的 `404`；kind 漂移返回 `409 ARTIFACT_KIND_MISMATCH`，Schema/hash/ProducerExecution 漂移返回 `422 LITERATURE_*_SCHEMA_INVALID`，跨项目、悬空、调包或不完整 provenance 返回 `403 PROVENANCE_SCOPE_VIOLATION`。响应不包含私有 chain-of-thought、原始模型长输出、凭据或受限全文。
+
+Pipeline 的 Evidence/SourceSnapshot id 与 PostgreSQL UUID 是两个命名空间。发布时必须显式保存一一映射：SourceSnapshot 通过 source identity、version 和 content hash 绑定；Evidence 通过 `summary_evidence_id`、`source_record_id`、target type/id、paper 与持久化 SourceSnapshot UUID 绑定。读取端要求 ArtifactVersion registry 与实际记录精确覆盖，不接受仅数量一致的替代记录。
 
 Artifact 列表 cursor 同时绑定 `run_id` 和 `kind` 过滤条件；不得跨 Run 或跨过滤条件复用，scope 不匹配时返回 `400 INVALID_CURSOR`。
 
