@@ -55,8 +55,11 @@ test("brand site has no runtime console errors", async ({ page }) => {
 
 test("brand site hero has a Poster fallback image", async ({ page }) => {
   await page.goto("http://127.0.0.1:4321/");
+  // The Poster <img> is always present in the DOM; it stays visible until
+  // the WebGL first frame is ready (covered by homepage-visual.spec.ts).
   const poster = page.locator(".hero-poster");
-  await expect(poster).toBeVisible();
+  await expect(poster).toHaveCount(1);
+  await expect(poster).toHaveAttribute("alt", /系外行星 Transit/);
 });
 
 for (const entry of [

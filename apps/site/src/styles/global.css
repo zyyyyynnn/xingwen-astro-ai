@@ -27,6 +27,9 @@ a {
   min-height: 100vh;
 }
 
+/* Standalone masthead — only rendered when masthead="default" (404 etc.).
+   The homepage renders masthead="hidden" and hosts its own brand mark
+   inside the editorial frame, so no ~70px bar pushes the hero down. */
 .site-header {
   display: flex;
   align-items: center;
@@ -42,20 +45,44 @@ a {
 }
 
 .site-footer {
-  padding: 1.25rem 1.5rem;
-  border-top: 1px solid var(--color-border);
-  color: var(--color-ink-secondary);
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-ink-tertiary);
   font-size: var(--font-size-1);
+  letter-spacing: 0.02em;
 }
 
-/* Hero section — ~58% viewport height, full width, no text overlay.
-   The visual subject fills the area and is bleed-cropped by overflow. */
+/* ── Homepage editorial paper frame ───────────────────────────────────
+   A single centered paper sheet hosts the visual region and the content
+   region in one continuous frame (~78% of desktop width), with thin
+   left/right boundaries. No independent masthead, no full-bleed black. */
+
+.home-frame {
+  width: min(100% - 2.5rem, 70rem);
+  margin: 1.25rem auto 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.home-frame__topbar {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Hero / visual region — large upper area on the paper sheet. Background
+   is the canvas token so the WebGL clear color and Poster match the page. */
 .hero {
+  position: relative;
   width: 100%;
-  min-height: 58vh;
-  height: 58vh;
+  height: clamp(22rem, 56vh, 34rem);
   overflow: hidden;
   background: var(--color-canvas);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .hero-visual {
@@ -64,13 +91,15 @@ a {
   height: 100%;
 }
 
+/* Poster sits on top (z-index 2) until the WebGL first frame is ready,
+   so no partially-initialized canvas is ever visible. */
 .hero-poster {
   position: absolute;
   inset: 0;
+  z-index: 2;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 0;
 }
 
 .hero-canvas {
@@ -81,31 +110,45 @@ a {
   height: 100%;
 }
 
-/* Hero content — below the hero, DOM text not baked into Canvas */
-.hero-content {
+/* ── Content region ──────────────────────────────────────────────────
+   Left main column holds compact CTAs and the two-line serif headline;
+   the right aside is structural whitespace balancing the title. Four
+   note columns span the full frame at the bottom. */
+
+.home-content {
+  padding: 1.75rem 1.5rem 2rem;
+}
+
+.home-content__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.home-content__main {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
-  width: min(100% - 3rem, 64rem);
-  margin-inline: auto;
-  padding: 2.5rem 1.5rem 3.5rem;
+  gap: 1.25rem;
+  max-width: 30rem;
 }
 
 .cta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.875rem;
+  gap: 0.625rem;
 }
 
 .cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.75rem;
-  padding-inline: 1.5rem;
+  min-height: 2.5rem;
+  padding-inline: 1.15rem;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   font: inherit;
+  font-size: var(--font-size-2);
   font-weight: 600;
   text-decoration: none;
   transition:
@@ -119,21 +162,22 @@ a {
   outline-offset: 2px;
 }
 
+/* Primary CTA uses the deep Ink token for unambiguous weight. */
 .cta--primary {
-  background: var(--color-brand);
+  background: var(--color-ink-primary);
   color: var(--color-brand-on);
 }
 
 .cta--primary:hover {
-  background: var(--color-brand-hover);
+  background: var(--raw-bluegray-800);
 }
 
 .cta--primary:active {
-  background: var(--color-brand-pressed);
+  background: var(--raw-bluegray-900);
 }
 
 .cta--secondary {
-  background: var(--color-surface);
+  background: transparent;
   border-color: var(--color-border-strong);
   color: var(--color-ink-primary);
 }
@@ -142,28 +186,47 @@ a {
   background: var(--color-surface-hover);
 }
 
-.hero-content h1 {
+.home-content__main h1 {
   margin: 0;
-  max-width: 26ch;
+  max-width: 22ch;
   font-family: var(--xw-font-serif);
-  font-size: var(--font-size-7);
-  font-weight: 520;
-  letter-spacing: -0.035em;
-  line-height: 1.18;
+  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+  font-weight: 540;
+  letter-spacing: -0.02em;
+  line-height: 1.22;
+  color: var(--color-ink-primary);
 }
 
-.hero-notes {
+.home-content__aside {
+  min-height: 6rem;
+}
+
+/* Four-column notes — thin separators, no card backgrounds. */
+.home-notes {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.25rem 2rem;
-  max-width: 64rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 1.75rem 0 0;
+  padding: 1.25rem 0 0;
+  border-top: 1px solid var(--color-border);
+  list-style: none;
 }
 
-.hero-notes p {
-  margin: 0;
+.home-notes__item {
+  padding: 0 1rem;
+  border-left: 1px solid var(--color-border);
   color: var(--color-ink-secondary);
-  font-size: var(--font-size-2);
-  line-height: 1.65;
+  font-size: var(--font-size-1);
+  line-height: 1.6;
+}
+
+.home-notes__item:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.home-notes__item:last-child {
+  padding-right: 0;
 }
 
 /* 404 page */
@@ -192,27 +255,60 @@ a {
   line-height: 1.6;
 }
 
+/* ── Responsive ──────────────────────────────────────────────────────
+   Mobile reflows the grid and notes instead of mechanically stacking
+   the desktop regions. */
+
 @media (max-width: 56rem) {
-  .hero-notes {
-    grid-template-columns: repeat(2, 1fr);
+  .home-content__row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .home-content__aside {
+    display: none;
+  }
+
+  .home-notes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 1rem;
+  }
+
+  .home-notes__item:nth-child(odd) {
+    border-left: none;
+    padding-left: 0;
   }
 }
 
 @media (max-width: 40rem) {
+  .home-frame {
+    width: 100%;
+    margin-top: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
   .hero {
-    min-height: 45vh;
-    height: 45vh;
+    height: clamp(18rem, 48vh, 26rem);
   }
 
-  .hero-content {
-    padding: 2rem 1rem 2.5rem;
+  .home-content {
+    padding: 1.5rem 1.125rem 1.75rem;
   }
 
-  .hero-content h1 {
-    font-size: clamp(2rem, 8vw, 3.5rem);
+  .home-content__main h1 {
+    font-size: clamp(1.5rem, 6vw, 2.125rem);
   }
 
-  .hero-notes {
+  .home-notes {
     grid-template-columns: 1fr;
+    row-gap: 0.75rem;
+  }
+
+  .home-notes__item {
+    border-left: none;
+    padding-left: 0;
+    padding-right: 0;
   }
 }

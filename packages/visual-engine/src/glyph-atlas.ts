@@ -12,7 +12,7 @@ export interface GlyphAtlas {
   readonly cellSize: number;
 }
 
-const ATLAS_FONT = `600 45px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Courier New", monospace`;
+const ATLAS_FONT = `600 54px ui-monospace, "SFMono-Regular", Menlo, Consolas, "Courier New", monospace`;
 
 export function createGlyphAtlas(doc: Document): GlyphAtlas | null {
   const canvas = doc.createElement("canvas");

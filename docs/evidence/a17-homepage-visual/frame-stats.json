@@ -1,0 +1,1189 @@
+{
+  "generatedAt": "2026-08-05T14:40:31.601Z",
+  "phases": {
+    "full": {
+      "idx": 1,
+      "sample": {
+        "t": 94,
+        "width": 1118,
+        "height": 503,
+        "paperRatio": 0.8914313759660285,
+        "glyphRatio": 0.09928443649373882,
+        "blackRatio": 0
+      }
+    },
+    "converge": {
+      "idx": 17,
+      "sample": {
+        "t": 1115,
+        "width": 1118,
+        "height": 503,
+        "paperRatio": 0.9472005178232928,
+        "glyphRatio": 0.04591058301354663,
+        "blackRatio": 0
+      }
+    },
+    "nearEmpty": {
+      "idx": 26,
+      "sample": {
+        "t": 1611,
+        "width": 1118,
+        "height": 503,
+        "paperRatio": 0.9806545343324667,
+        "glyphRatio": 0.015701853281029386,
+        "blackRatio": 0
+      }
+    },
+    "rebuild": {
+      "idx": 40,
+      "sample": {
+        "t": 2521,
+        "width": 1118,
+        "height": 503,
+        "paperRatio": 0.924286125821102,
+        "glyphRatio": 0.06806922330062558,
+        "blackRatio": 0
+      }
+    },
+    "fullRatio": 0.09928443649373882,
+    "emptyRatio": 0.015701853281029386,
+    "mid": 0.0574931448873841
+  },
+  "captured": {
+    "frame-1-full": {
+      "glyphRatio": 0.09419511553220924,
+      "width": 1118,
+      "height": 503,
+      "paperRatio": 0.8970488340084716,
+      "blackRatio": 0
+    },
+    "frame-2-converge": {
+      "glyphRatio": 0.05467196819085487,
+      "width": 1118,
+      "height": 503,
+      "paperRatio": 0.9379127738044007,
+      "blackRatio": 0
+    },
+    "frame-3-near-empty": {
+      "glyphRatio": 0.01574275278561191,
+      "width": 1118,
+      "height": 503,
+      "paperRatio": 0.9806243042638623,
+      "blackRatio": 0
+    },
+    "frame-4-rebuild": {
+      "glyphRatio": 0.06257090729327079,
+      "width": 1118,
+      "height": 503,
+      "paperRatio": 0.9299000273848856,
+      "blackRatio": 0
+    }
+  },
+  "sampleCount": 184,
+  "samples": [
+    {
+      "t": 33,
+      "glyphRatio": 0.09927198881843109,
+      "paperRatio": 0.8913815852647976,
+      "blackRatio": 0
+    },
+    {
+      "t": 94,
+      "glyphRatio": 0.09928443649373882,
+      "paperRatio": 0.8914313759660285,
+      "blackRatio": 0
+    },
+    {
+      "t": 152,
+      "glyphRatio": 0.09922931107451889,
+      "paperRatio": 0.8912731126656874,
+      "blackRatio": 0
+    },
+    {
+      "t": 213,
+      "glyphRatio": 0.09927910177574979,
+      "paperRatio": 0.8913406857602151,
+      "blackRatio": 0
+    },
+    {
+      "t": 274,
+      "glyphRatio": 0.09917418565529898,
+      "paperRatio": 0.8913051209736216,
+      "blackRatio": 0
+    },
+    {
+      "t": 333,
+      "glyphRatio": 0.09920619396323313,
+      "paperRatio": 0.8913566899141822,
+      "blackRatio": 0
+    },
+    {
+      "t": 398,
+      "glyphRatio": 0.09912795143272743,
+      "paperRatio": 0.8913371292815557,
+      "blackRatio": 0
+    },
+    {
+      "t": 478,
+      "glyphRatio": 0.09923998051049694,
+      "paperRatio": 0.8914135935727318,
+      "blackRatio": 0
+    },
+    {
+      "t": 547,
+      "glyphRatio": 0.09916173797999125,
+      "paperRatio": 0.8914278194873692,
+      "blackRatio": 0
+    },
+    {
+      "t": 611,
+      "glyphRatio": 0.09906215657752945,
+      "paperRatio": 0.8914918361032375,
+      "blackRatio": 0
+    },
+    {
+      "t": 673,
+      "glyphRatio": 0.09901058763696888,
+      "paperRatio": 0.8916785512328533,
+      "blackRatio": 0
+    },
+    {
+      "t": 733,
+      "glyphRatio": 0.09878475124210018,
+      "paperRatio": 0.8919026093883924,
+      "blackRatio": 0
+    },
+    {
+      "t": 793,
+      "glyphRatio": 0.09803433424497736,
+      "paperRatio": 0.8927970637712188,
+      "blackRatio": 0
+    },
+    {
+      "t": 865,
+      "glyphRatio": 0.09393549259007672,
+      "paperRatio": 0.8970861770343947,
+      "blackRatio": 0
+    },
+    {
+      "t": 923,
+      "glyphRatio": 0.08720307848792754,
+      "paperRatio": 0.9042346991396878,
+      "blackRatio": 0
+    },
+    {
+      "t": 983,
+      "glyphRatio": 0.07720226049783588,
+      "paperRatio": 0.9142781948736917,
+      "blackRatio": 0
+    },
+    {
+      "t": 1059,
+      "glyphRatio": 0.05962080824534012,
+      "paperRatio": 0.9330297286051135,
+      "blackRatio": 0
+    },
+    {
+      "t": 1115,
+      "glyphRatio": 0.04591058301354663,
+      "paperRatio": 0.9472005178232928,
+      "blackRatio": 0
+    },
+    {
+      "t": 1170,
+      "glyphRatio": 0.03464899333871547,
+      "paperRatio": 0.9598064564313582,
+      "blackRatio": 0
+    },
+    {
+      "t": 1225,
+      "glyphRatio": 0.026296603207232455,
+      "paperRatio": 0.9689270459532607,
+      "blackRatio": 0
+    },
+    {
+      "t": 1280,
+      "glyphRatio": 0.02091920747429555,
+      "paperRatio": 0.9749677249561663,
+      "blackRatio": 0
+    },
+    {
+      "t": 1334,
+      "glyphRatio": 0.017878418220551466,
+      "paperRatio": 0.9784015051017686,
+      "blackRatio": 0
+    },
+    {
+      "t": 1389,
+      "glyphRatio": 0.01648961330407537,
+      "paperRatio": 0.9799112302926626,
+      "blackRatio": 0
+    },
+    {
+      "t": 1445,
+      "glyphRatio": 0.015874342496007852,
+      "paperRatio": 0.980565622365983,
+      "blackRatio": 0
+    },
+    {
+      "t": 1500,
+      "glyphRatio": 0.01573919630695256,
+      "paperRatio": 0.9806847644010712,
+      "blackRatio": 0
+    },
+    {
+      "t": 1555,
+      "glyphRatio": 0.015723192152985486,
+      "paperRatio": 0.9806634255291151,
+      "blackRatio": 0
+    },
+    {
+      "t": 1611,
+      "glyphRatio": 0.015701853281029386,
+      "paperRatio": 0.9806545343324667,
+      "blackRatio": 0
+    },
+    {
+      "t": 1684,
+      "glyphRatio": 0.015737418067622886,
+      "paperRatio": 0.9806669820077745,
+      "blackRatio": 0
+    },
+    {
+      "t": 1740,
+      "glyphRatio": 0.015744531024941586,
+      "paperRatio": 0.9806634255291151,
+      "blackRatio": 0
+    },
+    {
+      "t": 1813,
+      "glyphRatio": 0.015778317572205408,
+      "paperRatio": 0.9806652037684448,
+      "blackRatio": 0
+    },
+    {
+      "t": 1869,
+      "glyphRatio": 0.015803212922820855,
+      "paperRatio": 0.9806687602471041,
+      "blackRatio": 0
+    },
+    {
+      "t": 1923,
+      "glyphRatio": 0.01580854764080988,
+      "paperRatio": 0.9806669820077745,
+      "blackRatio": 0
+    },
+    {
+      "t": 1983,
+      "glyphRatio": 0.015801434683491183,
+      "paperRatio": 0.9806669820077745,
+      "blackRatio": 0
+    },
+    {
+      "t": 2048,
+      "glyphRatio": 0.015824551794776955,
+      "paperRatio": 0.9805460617333566,
+      "blackRatio": 0
+    },
+    {
+      "t": 2113,
+      "glyphRatio": 0.016450492038822522,
+      "paperRatio": 0.9798632178307614,
+      "blackRatio": 0
+    },
+    {
+      "t": 2181,
+      "glyphRatio": 0.018106032854749855,
+      "paperRatio": 0.9782005640575153,
+      "blackRatio": 0
+    },
+    {
+      "t": 2243,
+      "glyphRatio": 0.021570043068956563,
+      "paperRatio": 0.9741248395139005,
+      "blackRatio": 0
+    },
+    {
+      "t": 2307,
+      "glyphRatio": 0.027534257780686185,
+      "paperRatio": 0.9678031986969062,
+      "blackRatio": 0
+    },
+    {
+      "t": 2388,
+      "glyphRatio": 0.040534965519939396,
+      "paperRatio": 0.9532678704161436,
+      "blackRatio": 0
+    },
+    {
+      "t": 2453,
+      "glyphRatio": 0.053361405804884465,
+      "paperRatio": 0.939470511457196,
+      "blackRatio": 0
+    },
+    {
+      "t": 2521,
+      "glyphRatio": 0.06806922330062558,
+      "paperRatio": 0.924286125821102,
+      "blackRatio": 0
+    },
+    {
+      "t": 2593,
+      "glyphRatio": 0.0804528819924816,
+      "paperRatio": 0.9113761082876622,
+      "blackRatio": 0
+    },
+    {
+      "t": 2673,
+      "glyphRatio": 0.08912891168196545,
+      "paperRatio": 0.9024208950234194,
+      "blackRatio": 0
+    },
+    {
+      "t": 2744,
+      "glyphRatio": 0.09417911137824217,
+      "paperRatio": 0.8969439178880207,
+      "blackRatio": 0
+    },
+    {
+      "t": 2810,
+      "glyphRatio": 0.09567105417583942,
+      "paperRatio": 0.8954857616376873,
+      "blackRatio": 0
+    },
+    {
+      "t": 2878,
+      "glyphRatio": 0.0961476223161923,
+      "paperRatio": 0.8949380639241474,
+      "blackRatio": 0
+    },
+    {
+      "t": 2970,
+      "glyphRatio": 0.096083605700324,
+      "paperRatio": 0.894918503291521,
+      "blackRatio": 0
+    },
+    {
+      "t": 3055,
+      "glyphRatio": 0.09604448443507115,
+      "paperRatio": 0.8950749883525324,
+      "blackRatio": 0
+    },
+    {
+      "t": 3123,
+      "glyphRatio": 0.09592712063931261,
+      "paperRatio": 0.8951603438403568,
+      "blackRatio": 0
+    },
+    {
+      "t": 3199,
+      "glyphRatio": 0.09570484072310324,
+      "paperRatio": 0.8955248829029402,
+      "blackRatio": 0
+    },
+    {
+      "t": 3276,
+      "glyphRatio": 0.0955447991834325,
+      "paperRatio": 0.8956635855706547,
+      "blackRatio": 0
+    },
+    {
+      "t": 3349,
+      "glyphRatio": 0.09569950600511422,
+      "paperRatio": 0.8957347151438417,
+      "blackRatio": 0
+    },
+    {
+      "t": 3420,
+      "glyphRatio": 0.0954096529943772,
+      "paperRatio": 0.8955728953648414,
+      "blackRatio": 0
+    },
+    {
+      "t": 3497,
+      "glyphRatio": 0.09535452757515729,
+      "paperRatio": 0.89579873175971,
+      "blackRatio": 0
+    },
+    {
+      "t": 3567,
+      "glyphRatio": 0.09537586644711338,
+      "paperRatio": 0.8960441287872052,
+      "blackRatio": 0
+    },
+    {
+      "t": 3617,
+      "glyphRatio": 0.09532963222454184,
+      "paperRatio": 0.8961988356088869,
+      "blackRatio": 0
+    },
+    {
+      "t": 3675,
+      "glyphRatio": 0.09528517624129997,
+      "paperRatio": 0.8963090864473268,
+      "blackRatio": 0
+    },
+    {
+      "t": 3755,
+      "glyphRatio": 0.09510735230833248,
+      "paperRatio": 0.896367768345206,
+      "blackRatio": 0
+    },
+    {
+      "t": 3857,
+      "glyphRatio": 0.09492241541804629,
+      "paperRatio": 0.8962006138482166,
+      "blackRatio": 0
+    },
+    {
+      "t": 3919,
+      "glyphRatio": 0.09468235310854017,
+      "paperRatio": 0.8966060524153825,
+      "blackRatio": 0
+    },
+    {
+      "t": 3991,
+      "glyphRatio": 0.0947019137411666,
+      "paperRatio": 0.8966113871333715,
+      "blackRatio": 0
+    },
+    {
+      "t": 4059,
+      "glyphRatio": 0.09451697685088041,
+      "paperRatio": 0.8967323074077894,
+      "blackRatio": 0
+    },
+    {
+      "t": 4130,
+      "glyphRatio": 0.09457565874875967,
+      "paperRatio": 0.8966860731852179,
+      "blackRatio": 0
+    },
+    {
+      "t": 4198,
+      "glyphRatio": 0.0946165582533422,
+      "paperRatio": 0.8967803198696906,
+      "blackRatio": 0
+    },
+    {
+      "t": 4264,
+      "glyphRatio": 0.09448852502160561,
+      "paperRatio": 0.8966576213559431,
+      "blackRatio": 0
+    },
+    {
+      "t": 4343,
+      "glyphRatio": 0.09440316953378121,
+      "paperRatio": 0.8968372235282402,
+      "blackRatio": 0
+    },
+    {
+      "t": 4403,
+      "glyphRatio": 0.09438360890115478,
+      "paperRatio": 0.8968923489474602,
+      "blackRatio": 0
+    },
+    {
+      "t": 4460,
+      "glyphRatio": 0.09434448763590195,
+      "paperRatio": 0.8971235200603179,
+      "blackRatio": 0
+    },
+    {
+      "t": 4520,
+      "glyphRatio": 0.09440672601244056,
+      "paperRatio": 0.8973120134292634,
+      "blackRatio": 0
+    },
+    {
+      "t": 4579,
+      "glyphRatio": 0.0943480441145613,
+      "paperRatio": 0.8972319926594281,
+      "blackRatio": 0
+    },
+    {
+      "t": 4639,
+      "glyphRatio": 0.09436404826852836,
+      "paperRatio": 0.8973351305405491,
+      "blackRatio": 0
+    },
+    {
+      "t": 4701,
+      "glyphRatio": 0.09419689377153892,
+      "paperRatio": 0.8973333523012195,
+      "blackRatio": 0
+    },
+    {
+      "t": 4761,
+      "glyphRatio": 0.09420756320751697,
+      "paperRatio": 0.8973955906777581,
+      "blackRatio": 0
+    },
+    {
+      "t": 4829,
+      "glyphRatio": 0.09436404826852836,
+      "paperRatio": 0.8973475782158569,
+      "blackRatio": 0
+    },
+    {
+      "t": 4889,
+      "glyphRatio": 0.09429291869534137,
+      "paperRatio": 0.8972551097707138,
+      "blackRatio": 0
+    },
+    {
+      "t": 4949,
+      "glyphRatio": 0.09434270939657227,
+      "paperRatio": 0.8974613855329561,
+      "blackRatio": 0
+    },
+    {
+      "t": 5011,
+      "glyphRatio": 0.09425201919075885,
+      "paperRatio": 0.8975520757387695,
+      "blackRatio": 0
+    },
+    {
+      "t": 5074,
+      "glyphRatio": 0.09414532483097836,
+      "paperRatio": 0.8974756114475935,
+      "blackRatio": 0
+    },
+    {
+      "t": 5135,
+      "glyphRatio": 0.09402973927454948,
+      "paperRatio": 0.8975609669354179,
+      "blackRatio": 0
+    },
+    {
+      "t": 5241,
+      "glyphRatio": 0.09393549259007672,
+      "paperRatio": 0.897648100662572,
+      "blackRatio": 0
+    },
+    {
+      "t": 5303,
+      "glyphRatio": 0.0939514967440438,
+      "paperRatio": 0.8978152551595614,
+      "blackRatio": 0
+    },
+    {
+      "t": 5362,
+      "glyphRatio": 0.09391237547879094,
+      "paperRatio": 0.8977138955177699,
+      "blackRatio": 0
+    },
+    {
+      "t": 5423,
+      "glyphRatio": 0.09387681069219744,
+      "paperRatio": 0.8976712177738577,
+      "blackRatio": 0
+    },
+    {
+      "t": 5503,
+      "glyphRatio": 0.09392837963275802,
+      "paperRatio": 0.8977530167830228,
+      "blackRatio": 0
+    },
+    {
+      "t": 5565,
+      "glyphRatio": 0.09384658062359297,
+      "paperRatio": 0.8977494603043634,
+      "blackRatio": 0
+    },
+    {
+      "t": 5638,
+      "glyphRatio": 0.093923044914769,
+      "paperRatio": 0.8976143141153081,
+      "blackRatio": 0
+    },
+    {
+      "t": 5695,
+      "glyphRatio": 0.09393904906873607,
+      "paperRatio": 0.8974524943363077,
+      "blackRatio": 0
+    },
+    {
+      "t": 5775,
+      "glyphRatio": 0.09408308645443973,
+      "paperRatio": 0.8974827244049122,
+      "blackRatio": 0
+    },
+    {
+      "t": 5849,
+      "glyphRatio": 0.09396750089801086,
+      "paperRatio": 0.8976054229186597,
+      "blackRatio": 0
+    },
+    {
+      "t": 5919,
+      "glyphRatio": 0.09380923759766979,
+      "paperRatio": 0.8975485192601101,
+      "blackRatio": 0
+    },
+    {
+      "t": 5983,
+      "glyphRatio": 0.09392660139342834,
+      "paperRatio": 0.8974880591229012,
+      "blackRatio": 0
+    },
+    {
+      "t": 6043,
+      "glyphRatio": 0.09377722928973564,
+      "paperRatio": 0.8976356529872642,
+      "blackRatio": 0
+    },
+    {
+      "t": 6103,
+      "glyphRatio": 0.09385369358091167,
+      "paperRatio": 0.8976178705939675,
+      "blackRatio": 0
+    },
+    {
+      "t": 6162,
+      "glyphRatio": 0.09392126667543932,
+      "paperRatio": 0.8976658830558687,
+      "blackRatio": 0
+    },
+    {
+      "t": 6244,
+      "glyphRatio": 0.09375411217844987,
+      "paperRatio": 0.8977743556549789,
+      "blackRatio": 0
+    },
+    {
+      "t": 6302,
+      "glyphRatio": 0.09371499091319703,
+      "paperRatio": 0.8979290624766606,
+      "blackRatio": 0
+    },
+    {
+      "t": 6369,
+      "glyphRatio": 0.09301614285663479,
+      "paperRatio": 0.8982687061886285,
+      "blackRatio": 0
+    },
+    {
+      "t": 6426,
+      "glyphRatio": 0.09161666850418064,
+      "paperRatio": 0.9001518616387543,
+      "blackRatio": 0
+    },
+    {
+      "t": 6505,
+      "glyphRatio": 0.08526835409724123,
+      "paperRatio": 0.9068095896890571,
+      "blackRatio": 0
+    },
+    {
+      "t": 6565,
+      "glyphRatio": 0.07695508523101108,
+      "paperRatio": 0.9151175238372982,
+      "blackRatio": 0
+    },
+    {
+      "t": 6625,
+      "glyphRatio": 0.0663105446035771,
+      "paperRatio": 0.9260608086721176,
+      "blackRatio": 0
+    },
+    {
+      "t": 6699,
+      "glyphRatio": 0.04932835900518179,
+      "paperRatio": 0.9438698755588117,
+      "blackRatio": 0
+    },
+    {
+      "t": 6757,
+      "glyphRatio": 0.03739103838507417,
+      "paperRatio": 0.9568367967508011,
+      "blackRatio": 0
+    },
+    {
+      "t": 6813,
+      "glyphRatio": 0.02846072047144681,
+      "paperRatio": 0.966661569047255,
+      "blackRatio": 0
+    },
+    {
+      "t": 6870,
+      "glyphRatio": 0.022123075500485458,
+      "paperRatio": 0.9735042339878439,
+      "blackRatio": 0
+    },
+    {
+      "t": 6926,
+      "glyphRatio": 0.018632391696333628,
+      "paperRatio": 0.9773736827692165,
+      "blackRatio": 0
+    },
+    {
+      "t": 6982,
+      "glyphRatio": 0.016975072641076616,
+      "paperRatio": 0.9792728423733094,
+      "blackRatio": 0
+    },
+    {
+      "t": 7038,
+      "glyphRatio": 0.016096622412217217,
+      "paperRatio": 0.9799770251478606,
+      "blackRatio": 0
+    },
+    {
+      "t": 7092,
+      "glyphRatio": 0.01605394466830502,
+      "paperRatio": 0.9801263972515533,
+      "blackRatio": 0
+    },
+    {
+      "t": 7147,
+      "glyphRatio": 0.01605038818964567,
+      "paperRatio": 0.9800997236616081,
+      "blackRatio": 0
+    },
+    {
+      "t": 7203,
+      "glyphRatio": 0.016002375727744447,
+      "paperRatio": 0.9801459578841797,
+      "blackRatio": 0
+    },
+    {
+      "t": 7258,
+      "glyphRatio": 0.01601837988171152,
+      "paperRatio": 0.9801424014055203,
+      "blackRatio": 0
+    },
+    {
+      "t": 7313,
+      "glyphRatio": 0.016030827557019244,
+      "paperRatio": 0.9800961671829488,
+      "blackRatio": 0
+    },
+    {
+      "t": 7367,
+      "glyphRatio": 0.016020158121041194,
+      "paperRatio": 0.9800997236616081,
+      "blackRatio": 0
+    },
+    {
+      "t": 7423,
+      "glyphRatio": 0.016071727061601766,
+      "paperRatio": 0.9800570459176959,
+      "blackRatio": 0
+    },
+    {
+      "t": 7479,
+      "glyphRatio": 0.016075283540261116,
+      "paperRatio": 0.9800641588750146,
+      "blackRatio": 0
+    },
+    {
+      "t": 7536,
+      "glyphRatio": 0.01608773121556884,
+      "paperRatio": 0.9800517111997069,
+      "blackRatio": 0
+    },
+    {
+      "t": 7591,
+      "glyphRatio": 0.016078840018920466,
+      "paperRatio": 0.9800214811311024,
+      "blackRatio": 0
+    },
+    {
+      "t": 7648,
+      "glyphRatio": 0.01612685248082169,
+      "paperRatio": 0.9800054769771354,
+      "blackRatio": 0
+    },
+    {
+      "t": 7702,
+      "glyphRatio": 0.016615868296482286,
+      "paperRatio": 0.9795271305974529,
+      "blackRatio": 0
+    },
+    {
+      "t": 7759,
+      "glyphRatio": 0.01796910842636489,
+      "paperRatio": 0.9781489951169549,
+      "blackRatio": 0
+    },
+    {
+      "t": 7815,
+      "glyphRatio": 0.020323497298854458,
+      "paperRatio": 0.9753536028907058,
+      "blackRatio": 0
+    },
+    {
+      "t": 7869,
+      "glyphRatio": 0.024621501758678697,
+      "paperRatio": 0.9705825867691881,
+      "blackRatio": 0
+    },
+    {
+      "t": 7942,
+      "glyphRatio": 0.033521589603701586,
+      "paperRatio": 0.9609303036877127,
+      "blackRatio": 0
+    },
+    {
+      "t": 8004,
+      "glyphRatio": 0.043392596122726966,
+      "paperRatio": 0.9502359723590479,
+      "blackRatio": 0
+    },
+    {
+      "t": 8083,
+      "glyphRatio": 0.05962436472399947,
+      "paperRatio": 0.933070628109696,
+      "blackRatio": 0
+    },
+    {
+      "t": 8159,
+      "glyphRatio": 0.07368312486440926,
+      "paperRatio": 0.9185352998289333,
+      "blackRatio": 0
+    },
+    {
+      "t": 8237,
+      "glyphRatio": 0.08400758241250174,
+      "paperRatio": 0.9083459884698962,
+      "blackRatio": 0
+    },
+    {
+      "t": 8298,
+      "glyphRatio": 0.08924983195638335,
+      "paperRatio": 0.902614723110354,
+      "blackRatio": 0
+    },
+    {
+      "t": 8355,
+      "glyphRatio": 0.09172336286396114,
+      "paperRatio": 0.8996788499770607,
+      "blackRatio": 0
+    },
+    {
+      "t": 8419,
+      "glyphRatio": 0.09314061960971204,
+      "paperRatio": 0.8986296887725526,
+      "blackRatio": 0
+    },
+    {
+      "t": 8480,
+      "glyphRatio": 0.09337534720122911,
+      "paperRatio": 0.8980019702891773,
+      "blackRatio": 0
+    },
+    {
+      "t": 8545,
+      "glyphRatio": 0.09328643523474538,
+      "paperRatio": 0.8981388947175623,
+      "blackRatio": 0
+    },
+    {
+      "t": 8611,
+      "glyphRatio": 0.09354605817687792,
+      "paperRatio": 0.8980499827510785,
+      "blackRatio": 0
+    },
+    {
+      "t": 8670,
+      "glyphRatio": 0.09362252246805393,
+      "paperRatio": 0.8980215309218037,
+      "blackRatio": 0
+    },
+    {
+      "t": 8747,
+      "glyphRatio": 0.09351049339028442,
+      "paperRatio": 0.8980393133151005,
+      "blackRatio": 0
+    },
+    {
+      "t": 8814,
+      "glyphRatio": 0.09357806648481205,
+      "paperRatio": 0.8979343971946496,
+      "blackRatio": 0
+    },
+    {
+      "t": 8877,
+      "glyphRatio": 0.09348559803966897,
+      "paperRatio": 0.8980428697937598,
+      "blackRatio": 0
+    },
+    {
+      "t": 8944,
+      "glyphRatio": 0.09350515867229539,
+      "paperRatio": 0.8979361754339793,
+      "blackRatio": 0
+    },
+    {
+      "t": 9002,
+      "glyphRatio": 0.0935887359207901,
+      "paperRatio": 0.8979183930406825,
+      "blackRatio": 0
+    },
+    {
+      "t": 9085,
+      "glyphRatio": 0.09364919605799905,
+      "paperRatio": 0.8979788531778915,
+      "blackRatio": 0
+    },
+    {
+      "t": 9148,
+      "glyphRatio": 0.09370432147721898,
+      "paperRatio": 0.8978437069888362,
+      "blackRatio": 0
+    },
+    {
+      "t": 9213,
+      "glyphRatio": 0.09374699922113118,
+      "paperRatio": 0.8978952759293968,
+      "blackRatio": 0
+    },
+    {
+      "t": 9279,
+      "glyphRatio": 0.09369365204124093,
+      "paperRatio": 0.8978774935361,
+      "blackRatio": 0
+    },
+    {
+      "t": 9340,
+      "glyphRatio": 0.09383057646962589,
+      "paperRatio": 0.8978739370574407,
+      "blackRatio": 0
+    },
+    {
+      "t": 9403,
+      "glyphRatio": 0.09374344274247183,
+      "paperRatio": 0.8978881629720781,
+      "blackRatio": 0
+    },
+    {
+      "t": 9465,
+      "glyphRatio": 0.0935816229634714,
+      "paperRatio": 0.897943288391298,
+      "blackRatio": 0
+    },
+    {
+      "t": 9559,
+      "glyphRatio": 0.09362785718604295,
+      "paperRatio": 0.8981424511962216,
+      "blackRatio": 0
+    },
+    {
+      "t": 9623,
+      "glyphRatio": 0.09351938458693279,
+      "paperRatio": 0.8980464262724192,
+      "blackRatio": 0
+    },
+    {
+      "t": 9705,
+      "glyphRatio": 0.09350515867229539,
+      "paperRatio": 0.898090882255661,
+      "blackRatio": 0
+    },
+    {
+      "t": 9781,
+      "glyphRatio": 0.0936243007073836,
+      "paperRatio": 0.8979752966992322,
+      "blackRatio": 0
+    },
+    {
+      "t": 9840,
+      "glyphRatio": 0.09349982395430637,
+      "paperRatio": 0.8978846064934187,
+      "blackRatio": 0
+    },
+    {
+      "t": 9902,
+      "glyphRatio": 0.09327398755943765,
+      "paperRatio": 0.8980161962038147,
+      "blackRatio": 0
+    },
+    {
+      "t": 9962,
+      "glyphRatio": 0.09317618439630553,
+      "paperRatio": 0.8982562585133208,
+      "blackRatio": 0
+    },
+    {
+      "t": 10045,
+      "glyphRatio": 0.09319396678960228,
+      "paperRatio": 0.8984287477282993,
+      "blackRatio": 0
+    },
+    {
+      "t": 10104,
+      "glyphRatio": 0.0933202217820092,
+      "paperRatio": 0.8983202751291891,
+      "blackRatio": 0
+    },
+    {
+      "t": 10166,
+      "glyphRatio": 0.09320285798625065,
+      "paperRatio": 0.8981780159828151,
+      "blackRatio": 0
+    },
+    {
+      "t": 10234,
+      "glyphRatio": 0.09334689537195431,
+      "paperRatio": 0.898238476120024,
+      "blackRatio": 0
+    },
+    {
+      "t": 10300,
+      "glyphRatio": 0.09339846431251489,
+      "paperRatio": 0.8980944387343204,
+      "blackRatio": 0
+    },
+    {
+      "t": 10353,
+      "glyphRatio": 0.093567397048834,
+      "paperRatio": 0.8980730998623643,
+      "blackRatio": 0
+    },
+    {
+      "t": 10419,
+      "glyphRatio": 0.09350160219363604,
+      "paperRatio": 0.8978597111428033,
+      "blackRatio": 0
+    },
+    {
+      "t": 10487,
+      "glyphRatio": 0.09353894521955922,
+      "paperRatio": 0.8981246688029249,
+      "blackRatio": 0
+    },
+    {
+      "t": 10554,
+      "glyphRatio": 0.09345892444972384,
+      "paperRatio": 0.8981442294355513,
+      "blackRatio": 0
+    },
+    {
+      "t": 10610,
+      "glyphRatio": 0.09336289952592139,
+      "paperRatio": 0.8981406729568919,
+      "blackRatio": 0
+    },
+    {
+      "t": 10684,
+      "glyphRatio": 0.09362607894671328,
+      "paperRatio": 0.8979984138105179,
+      "blackRatio": 0
+    },
+    {
+      "t": 10753,
+      "glyphRatio": 0.09374699922113118,
+      "paperRatio": 0.8979575143059354,
+      "blackRatio": 0
+    },
+    {
+      "t": 10827,
+      "glyphRatio": 0.09361896598939458,
+      "paperRatio": 0.8979930790925289,
+      "blackRatio": 0
+    },
+    {
+      "t": 10896,
+      "glyphRatio": 0.09348381980033929,
+      "paperRatio": 0.8980322003577818,
+      "blackRatio": 0
+    },
+    {
+      "t": 10988,
+      "glyphRatio": 0.09346959388570189,
+      "paperRatio": 0.8980837692983423,
+      "blackRatio": 0
+    },
+    {
+      "t": 11067,
+      "glyphRatio": 0.09327932227742668,
+      "paperRatio": 0.8982740409066176,
+      "blackRatio": 0
+    },
+    {
+      "t": 11158,
+      "glyphRatio": 0.09341446846648196,
+      "paperRatio": 0.898359396394442,
+      "blackRatio": 0
+    },
+    {
+      "t": 11234,
+      "glyphRatio": 0.09326153988412993,
+      "paperRatio": 0.8983024927358924,
+      "blackRatio": 0
+    },
+    {
+      "t": 11300,
+      "glyphRatio": 0.09340735550916326,
+      "paperRatio": 0.8981442294355513,
+      "blackRatio": 0
+    },
+    {
+      "t": 11360,
+      "glyphRatio": 0.09338957311586651,
+      "paperRatio": 0.8981726812648261,
+      "blackRatio": 0
+    },
+    {
+      "t": 11422,
+      "glyphRatio": 0.09337534720122911,
+      "paperRatio": 0.8980375350757708,
+      "blackRatio": 0
+    },
+    {
+      "t": 11505,
+      "glyphRatio": 0.0932419792515035,
+      "paperRatio": 0.8980179744431444,
+      "blackRatio": 0
+    },
+    {
+      "t": 11571,
+      "glyphRatio": 0.09328643523474538,
+      "paperRatio": 0.8981833507008041,
+      "blackRatio": 0
+    },
+    {
+      "t": 11634,
+      "glyphRatio": 0.09341446846648196,
+      "paperRatio": 0.898167346546837,
+      "blackRatio": 0
+    },
+    {
+      "t": 11694,
+      "glyphRatio": 0.09337356896189944,
+      "paperRatio": 0.8980979952129797,
+      "blackRatio": 0
+    },
+    {
+      "t": 11756,
+      "glyphRatio": 0.09348559803966897,
+      "paperRatio": 0.8979824096565509,
+      "blackRatio": 0
+    },
+    {
+      "t": 11818,
+      "glyphRatio": 0.09344292029575677,
+      "paperRatio": 0.8980499827510785,
+      "blackRatio": 0
+    },
+    {
+      "t": 11879,
+      "glyphRatio": 0.09334511713262465,
+      "paperRatio": 0.8983131621718704,
+      "blackRatio": 0
+    },
+    {
+      "t": 11940,
+      "glyphRatio": 0.0932633181234596,
+      "paperRatio": 0.8981851289401338,
+      "blackRatio": 0
+    },
+    {
+      "t": 12018,
+      "glyphRatio": 0.09149041351177373,
+      "paperRatio": 0.9001376357241169,
+      "blackRatio": 0
+    }
+  ]
+}

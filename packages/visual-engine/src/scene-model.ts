@@ -1,64 +1,64 @@
 import { createDeterministicRandom } from "./random";
+import { normalizedBayerThreshold, quantizeGlyphLevel } from "./dither";
 
 /**
  * ResearchSceneModel — the single source of truth consumed by the WebGL
  * dynamic renderer, the reduced-motion static phase, the SVG Poster and
  * offline review frames.
  *
- * The subject is the "Transit Evidence System": a star core (恒星核心,
- * formerly the flower heart), orbit rings (轨道), paper node petals
- * (论文节点瓣状层), Evidence anchors (Evidence 锚点) and sparse signal
- * characters (数据字符). Composition mirrors the reference hero: the
- * subject is extra-large, off-axis, bleed-cropped on top/left/right and
+ * The subject is a "Transit Evidence System": a star core (恒星核心),
+ * multi-layer orbit bands (多层轨道), a continuous paper-node character
+ * field (论文节点/字符层) and a few Evidence anchors (Evidence 锚点).
+ * Composition mirrors the reference hero: the subject is extra-large,
+ * off-axis (lower-center-right), bleed-cropped on the sides and
  * hard-cropped at the bottom edge.
  *
- * All randomness is deterministic: the same seed always yields the same
- * model. No DOM dependency — safe for SSR (Poster) and node tests.
+ * Motion is research-semantic convergence, NOT floral bloom: across the
+ * 5.6s loop the outer orbits and character field contract toward the
+ * core, sink, thin out, then rebuild — "evidence system focusing and
+ * re-organizing", never petals folding.
+ *
+ * The character field is a stable object-space lattice sampled over a
+ * continuous analytic density field; glyph levels come from real Bayer
+ * ordered dithering so the surface reads as a continuous half-tone, not
+ * random scatter. All randomness is deterministic.
  */
 
+export { GLYPH_RAMP } from "./dither";
 export const DESIGN_WIDTH = 3.2;
 export const DESIGN_HEIGHT = 2.2;
 export const LOOP_SECONDS = 5.6;
 
-export const GLYPH_RAMP = ["·", ":", "+", "*", "#", "%", "@"] as const;
+/** 恒星核心 anchor in design space: lower-center-right. */
+export const HEART = Object.freeze({ x: 0.18, y: -0.5 });
 
-/** 花心/恒星核心 in design space: lower-center-right. */
-export const HEART = Object.freeze({ x: 0.16, y: -0.55 });
+export type SceneUnitType = "star" | "orbit" | "field" | "anchor";
 
-export type SceneUnitType =
-  "star" | "orbit" | "paperNode" | "signal" | "anchor";
-
-export interface FoldParams {
-  /** Global fold phase (0..1) at which this layer starts folding. */
-  readonly foldStart: number;
-  /** Fold phase window over which the layer completes its fold. */
-  readonly foldWindow: number;
-  /** Independent local pivot (design space). */
-  readonly pivotX: number;
-  readonly pivotY: number;
-  /** Maximum pitch angle around the local pivot (radians). */
-  readonly pitch: number;
-  /** Maximum bend (arc deflection along the layer direction). */
-  readonly bend: number;
-  /** Maximum twist around the layer axis (radians). */
-  readonly twist: number;
-  /** Non-uniform horizontal shrink at full fold (0..1). */
-  readonly shrinkX: number;
-  /** Non-uniform vertical shrink at full fold (0..1). */
-  readonly shrinkY: number;
-  /** Extra downward sink at full fold (design units). */
+export interface ConvergeParams {
+  /** Global convergence phase (0..1) at which this layer starts converging. */
+  readonly convergeStart: number;
+  /** Phase window over which the layer completes its convergence. */
+  readonly convergeWindow: number;
+  /** Convergence target — the core the layer contracts toward. */
+  readonly coreX: number;
+  readonly coreY: number;
+  /** Radial contraction toward core at full converge (0..1). */
+  readonly contract: number;
+  /** Downward sink at full converge (design units). */
   readonly sink: number;
+  /** Subtle organizing twist around the core (radians). */
+  readonly twist: number;
+  /** Lateral drift amplitude while open. */
+  readonly drift: number;
 }
 
-export interface SceneUnit extends FoldParams {
+export interface SceneUnit extends ConvergeParams {
   readonly id: number;
   readonly type: SceneUnitType;
   readonly label: string;
   /** Draw order; lower depth is drawn first (behind). */
   readonly depth: number;
-  /** Amplitude of the slow internal drift while fully open. */
-  readonly driftAmp: number;
-  /** 0 = character (soft→ink), 1 = orbit/signal (particle), 2 = anchor. */
+  /** 0 = character (soft→ink), 1 = orbit (particle), 2 = anchor. */
   readonly colorClass: number;
   readonly geometry: {
     readonly kind: "ellipse" | "ring" | "point";
@@ -70,21 +70,24 @@ export interface SceneUnit extends FoldParams {
   };
 }
 
-export interface SceneParticle extends FoldParams {
+export interface SceneParticle extends ConvergeParams {
+  readonly id: number;
   readonly unitId: number;
   readonly type: SceneUnitType;
   readonly colorClass: number;
   readonly depth: number;
-  readonly driftAmp: number;
-  /** Design-space position at full open (fold = 0). */
+  /** Design-space position at full open (converge phase = 0). */
   readonly x: number;
   readonly y: number;
   /** Character size in design units. */
   readonly size: number;
-  /** Glyph ramp index 0..6 (7 = anchor square, colorClass 2 only). */
+  /** Glyph ramp index 0..6 (Bayer-dithered); 7 = anchor square. */
   readonly glyph: number;
-  /** 0..1 — shading density; drives glyph and ink mix. */
+  /** Continuous density 0..1 driving the dither and ink mix. */
   readonly density: number;
+  /** Object-space lattice coordinates — stable, drive Bayer threshold. */
+  readonly latticeX: number;
+  readonly latticeY: number;
   readonly seedA: number;
   readonly seedB: number;
 }
@@ -99,9 +102,9 @@ export interface ResearchSceneModel {
 }
 
 /**
- * Global fold phase curve over one 5.6s loop, matching the reference
- * rhythm: long full hold → accelerating close → brief near-empty pause →
- * fast re-open → long full hold.
+ * Global convergence phase curve over one 5.6s loop, matching the
+ * reference rhythm: long full hold → accelerating convergence → brief
+ * near-empty pause → fast rebuild → long full hold.
  */
 export function foldAt(timeSeconds: number): number {
   const t = ((timeSeconds % LOOP_SECONDS) + LOOP_SECONDS) % LOOP_SECONDS;
@@ -117,9 +120,13 @@ function smoothstep01(x: number): number {
   return v * v * (3 - 2 * v);
 }
 
-/** Per-particle fold progress 0..1 for a given global fold phase. */
-export function particleFold(particle: FoldParams, fold: number): number {
-  const raw = (fold - particle.foldStart) / Math.max(particle.foldWindow, 1e-4);
+/** Per-particle convergence progress 0..1 for a given global phase. */
+export function particleConverge(
+  particle: ConvergeParams,
+  phase: number,
+): number {
+  const raw =
+    (phase - particle.convergeStart) / Math.max(particle.convergeWindow, 1e-4);
   return smoothstep01(raw);
 }
 
@@ -131,196 +138,145 @@ export interface DeformedParticle {
 }
 
 /**
- * Layered parameterized deformation — the exact CPU mirror of the GLSL
- * vertex deformation used by the WebGL renderer (kept in lockstep by
- * tests): local pivot pitch, non-uniform shrink, radius-gradient twist,
- * directional bend, downward sink, slow internal drift and a supporting
- * (non-primary) alpha fade. No uniform scale, no global opacity.
+ * Research-semantic convergence deformation — the CPU mirror of the GLSL
+ * vertex deformation (kept in lockstep by tests): radial contraction
+ * toward the core, organizing twist, downward sink, slow internal drift
+ * and a supporting (non-primary) alpha fade. No petal pitch/bend, no
+ * floral fold — the system contracts, sinks and thins.
  */
-export function applyFold(
+export function applyConverge(
   particle: SceneParticle,
-  fold: number,
+  phase: number,
   timeSeconds: number,
 ): DeformedParticle {
-  const p = particleFold(particle, fold);
+  const p = particleConverge(particle, phase);
 
-  const dx = particle.x - particle.pivotX;
-  const dy = particle.y - particle.pivotY;
+  const dx = particle.x - particle.coreX;
+  const dy = particle.y - particle.coreY;
 
-  const ang = p * particle.pitch;
-  const ca = Math.cos(ang);
-  const sa = Math.sin(ang);
-  let rx = dx * ca - dy * sa;
-  let ry = dx * sa + dy * ca;
+  // Radial contraction toward core.
+  const rx = dx * (1 - p * particle.contract);
+  const ry = dy * (1 - p * particle.contract);
 
-  rx *= 1 - p * particle.shrinkX * 0.55;
-  ry *= 1 - p * particle.shrinkY;
-
-  const tw = p * particle.twist * Math.min(1, Math.hypot(rx, ry) * 0.9);
+  // Subtle organizing twist (stronger at radius, fades to zero at core).
+  const tw = p * particle.twist * Math.min(1, Math.hypot(rx, ry) * 0.85);
   const ct = Math.cos(tw);
   const st = Math.sin(tw);
   const qx = rx * ct - ry * st;
   const qy = rx * st + ry * ct;
 
-  const bend = p * particle.bend * Math.min(1, Math.abs(qy) * 0.7);
-  let x = particle.pivotX + qx + bend * Math.sign(dx || 1e-4);
-  let y = particle.pivotY + qy + p * particle.sink;
+  // Downward sink (design space +y is up, so subtract to sink).
+  let x = particle.coreX + qx;
+  let y = particle.coreY + qy - p * particle.sink;
 
-  const wobble =
+  // Slow internal drift (breathing) — dampens as the system converges.
+  const wob =
     (Math.sin(timeSeconds * 0.35 + particle.seedA * 40.6) -
       Math.sin(particle.seedA * 40.6)) *
       0.016 +
     (Math.cos(timeSeconds * 0.28 + particle.seedB * 31.7) -
       Math.cos(particle.seedB * 31.7)) *
       0.014;
-  const drift = wobble * particle.driftAmp * (1 - 0.4 * p);
+  const drift = wob * particle.drift * (1 - 0.4 * p);
   x += drift;
   y += drift * 0.7;
 
   return {
     x,
     y,
-    alpha: (1 - 0.55 * p) * 0.92,
-    size: particle.size * (1 - 0.22 * p),
+    alpha: (1 - 0.6 * p) * 0.92,
+    size: particle.size * (1 - 0.18 * p),
   };
 }
 
-function densityToGlyph(density: number): number {
-  const d = Math.min(1, Math.max(0, density));
-  if (d > 0.72) return 6;
-  if (d > 0.58) return 5;
-  if (d > 0.45) return 4;
-  if (d > 0.32) return 3;
-  if (d > 0.2) return 2;
-  if (d > 0.08) return 1;
-  return 0;
-}
+// ── Subject body definition ──────────────────────────────────────────
+// The subject is a union of overlapping ellipses forming one continuous
+// asymmetric body, bleed-cropped. Each ellipse contributes a local
+// density field; the composite density is the max over all ellipses,
+// giving a continuous half-tone surface (no gaps between "petals").
 
-interface PaperNodePreset {
-  label: string;
+interface BodyEllipse {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
   angle: number;
-  len: number;
-  width: number;
-  foldStart: number;
-  pitch: number;
-  bend: number;
-  twist: number;
-  shrinkX: number;
-  shrinkY: number;
-  sink: number;
+  base: number; // peak density contribution
+}
+
+const BODY_ELLIPSES: readonly BodyEllipse[] = [
+  // Core — highest density, the visual anchor.
+  { cx: HEART.x, cy: HEART.y, rx: 0.52, ry: 0.44, angle: 0, base: 0.95 },
+  // Right dominant mass — extends the body rightward (bleed-crop).
+  {
+    cx: HEART.x + 0.5,
+    cy: HEART.y - 0.04,
+    rx: 0.46,
+    ry: 0.34,
+    angle: -0.12,
+    base: 0.72,
+  },
+  // Upper-left shoulder.
+  {
+    cx: HEART.x - 0.34,
+    cy: HEART.y + 0.38,
+    rx: 0.34,
+    ry: 0.3,
+    angle: 0.55,
+    base: 0.6,
+  },
+  // Lower apron — extends toward bottom crop.
+  {
+    cx: HEART.x + 0.12,
+    cy: HEART.y - 0.42,
+    rx: 0.32,
+    ry: 0.26,
+    angle: 0.1,
+    base: 0.55,
+  },
+];
+
+/** Continuous density at a design-space point — max over body ellipses. */
+function densityAt(x: number, y: number): number {
+  let best = 0;
+  for (const e of BODY_ELLIPSES) {
+    const dx = x - e.cx;
+    const dy = y - e.cy;
+    const ca = Math.cos(-e.angle);
+    const sa = Math.sin(-e.angle);
+    const lx = dx * ca - dy * sa;
+    const ly = dx * sa + dy * ca;
+    const nd = Math.hypot(lx / e.rx, ly / e.ry);
+    if (nd >= 1) continue;
+    const local = e.base * (1 - nd * 0.92);
+    if (local > best) best = local;
+  }
+  return best;
+}
+
+interface OrbitDef {
+  r: number;
+  tilt: number;
+  yc: number;
+  convergeStart: number;
   depth: number;
 }
 
-/**
- * 论文节点瓣状层 — petal layers around the star core. foldStart drives
- * the fold order: the right long petal folds first, then upper-right and
- * left, then the vertical center, then the star core itself last.
- */
-const PAPER_NODE_PRESETS: readonly PaperNodePreset[] = [
-  {
-    label: "rightLong",
-    angle: -0.12,
-    len: 1.02,
-    width: 0.2,
-    foldStart: 0.0,
-    pitch: 1.75,
-    bend: 0.42,
-    twist: 0.5,
-    shrinkX: 0.55,
-    shrinkY: 0.82,
-    sink: 0.34,
-    depth: 1.4,
-  },
-  {
-    label: "upRight",
-    angle: 0.85,
-    len: 0.78,
-    width: 0.18,
-    foldStart: 0.08,
-    pitch: 1.6,
-    bend: 0.38,
-    twist: 0.4,
-    shrinkX: 0.5,
-    shrinkY: 0.8,
-    sink: 0.28,
-    depth: 1.5,
-  },
-  {
-    label: "leftUp",
-    angle: 1.95,
-    len: 0.58,
-    width: 0.14,
-    foldStart: 0.12,
-    pitch: 1.7,
-    bend: 0.4,
-    twist: 0.35,
-    shrinkX: 0.5,
-    shrinkY: 0.78,
-    sink: 0.26,
-    depth: 1.3,
-  },
-  {
-    label: "leftBig",
-    angle: 2.55,
-    len: 0.88,
-    width: 0.28,
-    foldStart: 0.15,
-    pitch: 1.65,
-    bend: 0.45,
-    twist: 0.55,
-    shrinkX: 0.55,
-    shrinkY: 0.8,
-    sink: 0.3,
-    depth: 1.6,
-  },
-  {
-    label: "upVertical",
-    angle: 1.45,
-    len: 0.72,
-    width: 0.13,
-    foldStart: 0.22,
-    pitch: 1.5,
-    bend: 0.35,
-    twist: 0.3,
-    shrinkX: 0.45,
-    shrinkY: 0.78,
-    sink: 0.24,
-    depth: 1.7,
-  },
-  {
-    label: "lowerCenter",
-    angle: 3.35,
-    len: 0.5,
-    width: 0.16,
-    foldStart: 0.28,
-    pitch: 1.4,
-    bend: 0.3,
-    twist: 0.25,
-    shrinkX: 0.4,
-    shrinkY: 0.7,
-    sink: 0.2,
-    depth: 1.2,
-  },
+const ORBIT_DEFS: readonly OrbitDef[] = [
+  { r: 0.62, tilt: -0.16, yc: 0.62, convergeStart: 0.18, depth: 0.9 },
+  { r: 0.92, tilt: -0.16, yc: 0.62, convergeStart: 0.0, depth: 0.8 },
+  { r: 1.18, tilt: -0.14, yc: 0.6, convergeStart: 0.0, depth: 0.7 },
 ];
 
-const ORBIT_DEFS: readonly {
-  r: number;
-  foldStart: number;
-  sink: number;
-  depth: number;
-}[] = [
-  { r: 0.85, foldStart: 0.32, sink: 0.2, depth: 0.8 },
-  { r: 1.05, foldStart: 0.38, sink: 0.22, depth: 0.9 },
-];
-
-const ORBIT_TILT = -0.18;
-const ORBIT_YC = 0.55;
+const LATTICE_STEP = 0.026;
+const LATTICE_JITTER = 0.011;
 
 export function createResearchSceneModel(seed: number): ResearchSceneModel {
   const rng = createDeterministicRandom(seed);
   const units: SceneUnit[] = [];
   const particles: SceneParticle[] = [];
   let unitId = 0;
+  let particleId = 0;
 
   function pushUnit(unit: Omit<SceneUnit, "id">): SceneUnit {
     const full = { ...unit, id: unitId++ };
@@ -329,311 +285,260 @@ export function createResearchSceneModel(seed: number): ResearchSceneModel {
   }
 
   function pushParticle(
-    particle: Omit<SceneParticle, "seedA" | "seedB">,
+    particle: Omit<SceneParticle, "id" | "seedA" | "seedB">,
   ): void {
     particles.push({
       ...particle,
+      id: particleId++,
       seedA: rng.next(),
       seedB: rng.next(),
     });
   }
 
-  // --- star core (花心) --------------------------------------------
+  // ── Star core unit (恒星核心) ──────────────────────────────────────
+  // Converges last and mildly — it survives the near-empty pause as the
+  // residual core. High density, dense cluster.
   const starUnit = pushUnit({
     type: "star",
     label: "star",
-    foldStart: 0.45,
-    foldWindow: 0.55,
-    pivotX: HEART.x,
-    pivotY: HEART.y,
-    pitch: 1.2,
-    bend: 0.25,
-    twist: 0.2,
-    shrinkX: 0.35,
-    shrinkY: 0.6,
-    sink: 0.16,
+    convergeStart: 0.42,
+    convergeWindow: 0.58,
+    coreX: HEART.x,
+    coreY: HEART.y,
+    contract: 0.32,
+    sink: 0.14,
+    twist: 0.18,
+    drift: 0.4,
     depth: 2.0,
-    driftAmp: 0.4,
     colorClass: 0,
     geometry: {
       kind: "ellipse",
       cx: HEART.x,
       cy: HEART.y,
       rx: 0.5,
-      ry: 0.5,
+      ry: 0.44,
       angle: 0,
     },
   });
 
-  const STAR_COUNT = 900;
-  for (let i = 0; i < STAR_COUNT; i++) {
-    const r = Math.sqrt(rng.next()) * 0.5;
+  // ── Character field (论文节点/字符层) ──────────────────────────────
+  // The continuous subject surface: a stable lattice sampled over the
+  // body density field, glyphs assigned by real Bayer ordered dithering.
+  // This replaces the old discrete petals — no gaps, one continuous body.
+  const fieldUnit = pushUnit({
+    type: "field",
+    label: "field",
+    convergeStart: 0.08,
+    convergeWindow: 0.92,
+    coreX: HEART.x,
+    coreY: HEART.y,
+    contract: 0.78,
+    sink: 0.3,
+    twist: 0.32,
+    drift: 0.85,
+    depth: 1.4,
+    colorClass: 0,
+    geometry: {
+      kind: "ellipse",
+      cx: HEART.x,
+      cy: HEART.y,
+      rx: 1.0,
+      ry: 0.8,
+      angle: 0,
+    },
+  });
+
+  const xMin = -DESIGN_WIDTH / 2 - 0.1;
+  const xMax = DESIGN_WIDTH / 2 + 0.1;
+  const yMin = -DESIGN_HEIGHT / 2 - 0.1;
+  const yMax = DESIGN_HEIGHT / 2 + 0.1;
+  let latY = 0;
+  for (let gy = yMin; gy <= yMax; gy += LATTICE_STEP) {
+    let latX = 0;
+    for (let gx = xMin; gx <= xMax; gx += LATTICE_STEP) {
+      const jx = (rng.next() * 2 - 1) * LATTICE_JITTER;
+      const jy = (rng.next() * 2 - 1) * LATTICE_JITTER;
+      const x = gx + jx;
+      const y = gy + jy;
+      const density = densityAt(x, y);
+      if (density < 0.1) {
+        latX++;
+        continue;
+      }
+      const threshold = normalizedBayerThreshold(latX, latY);
+      const glyph = quantizeGlyphLevel(density, threshold);
+      // Density ramp for ink color mix in the shader.
+      const inkMix = Math.min(1, density);
+      pushParticle({
+        unitId: fieldUnit.id,
+        type: "field",
+        colorClass: 0,
+        depth: fieldUnit.depth + (1 - density) * 0.3,
+        x,
+        y,
+        size: 0.02 + density * 0.012 + rng.next() * 0.002,
+        glyph,
+        density: inkMix,
+        latticeX: latX,
+        latticeY: latY,
+        convergeStart: fieldUnit.convergeStart,
+        convergeWindow: fieldUnit.convergeWindow,
+        coreX: fieldUnit.coreX,
+        coreY: fieldUnit.coreY,
+        contract: fieldUnit.contract,
+        sink: fieldUnit.sink,
+        twist: fieldUnit.twist,
+        drift: fieldUnit.drift,
+      });
+      latX++;
+    }
+    latY++;
+  }
+
+  // ── Star core cluster ─────────────────────────────────────────────
+  // Extra dense particles at the core for a stable, recognizable anchor.
+  const STAR_EXTRA = 360;
+  for (let i = 0; i < STAR_EXTRA; i++) {
+    const r = Math.sqrt(rng.next()) * 0.34;
     const a = rng.next() * Math.PI * 2;
-    const density = 1 - r / 0.5;
+    const x = HEART.x + Math.cos(a) * r;
+    const y = HEART.y + Math.sin(a) * r * 0.85;
+    const density = 1 - r / 0.34;
+    const latX = Math.floor((x - xMin) / LATTICE_STEP);
+    const latY = Math.floor((y - yMin) / LATTICE_STEP);
+    const threshold = normalizedBayerThreshold(latX, latY);
+    const glyph = quantizeGlyphLevel(density, threshold);
     pushParticle({
       unitId: starUnit.id,
       type: "star",
       colorClass: 0,
       depth: starUnit.depth,
-      driftAmp: starUnit.driftAmp,
-      foldStart: starUnit.foldStart,
-      foldWindow: starUnit.foldWindow,
-      pivotX: starUnit.pivotX,
-      pivotY: starUnit.pivotY,
-      pitch: starUnit.pitch,
-      bend: starUnit.bend,
-      twist: starUnit.twist,
-      shrinkX: starUnit.shrinkX,
-      shrinkY: starUnit.shrinkY,
-      sink: starUnit.sink,
-      x: HEART.x + Math.cos(a) * r,
-      y: HEART.y + Math.sin(a) * r,
-      size: 0.014 + density * 0.007 + rng.next() * 0.002,
-      glyph: densityToGlyph(density),
+      x,
+      y,
+      size: 0.022 + density * 0.01 + rng.next() * 0.002,
+      glyph,
       density,
+      latticeX: latX,
+      latticeY: latY,
+      convergeStart: starUnit.convergeStart,
+      convergeWindow: starUnit.convergeWindow,
+      coreX: starUnit.coreX,
+      coreY: starUnit.coreY,
+      contract: starUnit.contract,
+      sink: starUnit.sink,
+      twist: starUnit.twist,
+      drift: starUnit.drift,
     });
   }
 
-  // --- orbit rings (轨道) -------------------------------------------
+  // ── Orbit bands (多层轨道) ─────────────────────────────────────────
+  // Off-axis, asymmetric, with local density variation. Converge before
+  // the core — outer rings contract first.
   for (const def of ORBIT_DEFS) {
     const orbitUnit = pushUnit({
       type: "orbit",
       label: `orbit-${def.r.toFixed(2)}`,
-      foldStart: def.foldStart,
-      foldWindow: 1 - def.foldStart,
-      pivotX: HEART.x,
-      pivotY: HEART.y,
-      pitch: 1.1,
-      bend: 0.15,
-      twist: 0.15,
-      shrinkX: 0.4,
-      shrinkY: 0.6,
-      sink: def.sink,
+      convergeStart: def.convergeStart,
+      convergeWindow: 1 - def.convergeStart,
+      coreX: HEART.x,
+      coreY: HEART.y,
+      contract: 0.7,
+      sink: 0.22,
+      twist: 0.22,
+      drift: 0.6,
       depth: def.depth,
-      driftAmp: 0.6,
       colorClass: 1,
       geometry: {
         kind: "ring",
         cx: HEART.x,
         cy: HEART.y,
         rx: def.r,
-        ry: def.r * ORBIT_YC,
-        angle: ORBIT_TILT,
+        ry: def.r * def.yc,
+        angle: def.tilt,
       },
     });
 
-    const RING_COUNT = 130;
+    const RING_COUNT = 150;
     for (let i = 0; i < RING_COUNT; i++) {
       const a = (i / RING_COUNT) * Math.PI * 2;
-      const rr = def.r * (1 + (rng.next() * 2 - 1) * 0.015);
-      const x = HEART.x + Math.cos(a + ORBIT_TILT) * rr;
-      const y = HEART.y + Math.sin(a + ORBIT_TILT) * rr * ORBIT_YC;
-      const density = 0.5 + (rng.next() - 0.5) * 0.24;
+      // Local density variation along the band — denser on the leading arc.
+      const arcDensity = 0.45 + 0.3 * (0.5 + 0.5 * Math.cos(a + 0.6));
+      const rr = def.r * (1 + (rng.next() * 2 - 1) * 0.018);
+      const x = HEART.x + Math.cos(a + def.tilt) * rr;
+      const y = HEART.y + Math.sin(a + def.tilt) * rr * def.yc;
+      const latX = Math.floor((x - xMin) / LATTICE_STEP);
+      const latY = Math.floor((y - yMin) / LATTICE_STEP);
+      const threshold = normalizedBayerThreshold(latX, latY);
+      const glyph = quantizeGlyphLevel(arcDensity, threshold);
       pushParticle({
         unitId: orbitUnit.id,
         type: "orbit",
         colorClass: 1,
         depth: orbitUnit.depth,
-        driftAmp: orbitUnit.driftAmp,
-        foldStart: orbitUnit.foldStart,
-        foldWindow: orbitUnit.foldWindow,
-        pivotX: orbitUnit.pivotX,
-        pivotY: orbitUnit.pivotY,
-        pitch: orbitUnit.pitch,
-        bend: orbitUnit.bend,
-        twist: orbitUnit.twist,
-        shrinkX: orbitUnit.shrinkX,
-        shrinkY: orbitUnit.shrinkY,
+        x,
+        y,
+        size: 0.018,
+        glyph,
+        density: arcDensity,
+        latticeX: latX,
+        latticeY: latY,
+        convergeStart: orbitUnit.convergeStart,
+        convergeWindow: orbitUnit.convergeWindow,
+        coreX: orbitUnit.coreX,
+        coreY: orbitUnit.coreY,
+        contract: orbitUnit.contract,
         sink: orbitUnit.sink,
-        x,
-        y,
-        size: 0.013,
-        glyph: densityToGlyph(density),
-        density,
+        twist: orbitUnit.twist,
+        drift: orbitUnit.drift,
       });
     }
   }
 
-  // --- paper node petals (论文节点瓣状层) ----------------------------
-  for (const preset of PAPER_NODE_PRESETS) {
-    const dirX = Math.cos(preset.angle);
-    const dirY = Math.sin(preset.angle);
-    const perpX = -dirY;
-    const perpY = dirX;
-    const pivotX = HEART.x + dirX * preset.len * 0.12;
-    const pivotY = HEART.y + dirY * preset.len * 0.12;
-
-    const nodeUnit = pushUnit({
-      type: "paperNode",
-      label: preset.label,
-      foldStart: preset.foldStart,
-      foldWindow: 1 - preset.foldStart,
-      pivotX,
-      pivotY,
-      pitch: preset.pitch,
-      bend: preset.bend,
-      twist: preset.twist,
-      shrinkX: preset.shrinkX,
-      shrinkY: preset.shrinkY,
-      sink: preset.sink,
-      depth: preset.depth,
-      driftAmp: 0.85 + rng.next() * 0.15,
-      colorClass: 0,
-      geometry: {
-        kind: "ellipse",
-        cx: HEART.x + dirX * preset.len * 0.5,
-        cy: HEART.y + dirY * preset.len * 0.5,
-        rx: preset.len * 0.55,
-        ry: preset.width,
-        angle: preset.angle,
-      },
-    });
-
-    const count = Math.round(preset.len * preset.width * 1500);
-    for (let i = 0; i < count; i++) {
-      const t = 0.12 + 0.88 * Math.sqrt(rng.next());
-      const spread = (rng.next() * 2 - 1) * preset.width * (0.75 + 0.25 * t);
-      const x = HEART.x + dirX * t * preset.len + perpX * spread;
-      const y = HEART.y + dirY * t * preset.len + perpY * spread;
-      const density =
-        Math.min(
-          1,
-          Math.max(0.08, 1 - Math.abs(spread) / (preset.width * 1.1)),
-        ) *
-        (0.55 + 0.45 * t);
-      pushParticle({
-        unitId: nodeUnit.id,
-        type: "paperNode",
-        colorClass: 0,
-        depth: nodeUnit.depth,
-        driftAmp: nodeUnit.driftAmp,
-        foldStart: nodeUnit.foldStart,
-        foldWindow: nodeUnit.foldWindow,
-        pivotX: nodeUnit.pivotX,
-        pivotY: nodeUnit.pivotY,
-        pitch: nodeUnit.pitch,
-        bend: nodeUnit.bend,
-        twist: nodeUnit.twist,
-        shrinkX: nodeUnit.shrinkX,
-        shrinkY: nodeUnit.shrinkY,
-        sink: nodeUnit.sink,
-        x,
-        y,
-        size: 0.014 + density * 0.006 + rng.next() * 0.002,
-        glyph: densityToGlyph(density),
-        density,
-      });
-    }
-  }
-
-  // --- Evidence anchors (Evidence 锚点) ------------------------------
-  const anchorFoldSource = [
-    ...PAPER_NODE_PRESETS,
-    { label: "star-top", angle: -Math.PI / 2, len: 0.52 },
+  // ── Evidence anchors (Evidence 锚点) ───────────────────────────────
+  // Few stable structural points at orbit intersections / lobe tips.
+  const ANCHOR_POINTS = [
+    { x: HEART.x + 0.92, y: HEART.y - 0.04, label: "right" },
+    { x: HEART.x - 0.34, y: HEART.y + 0.62, label: "upperLeft" },
+    { x: HEART.x + 0.12, y: HEART.y - 0.66, label: "lower" },
+    { x: HEART.x - 0.78, y: HEART.y + 0.1, label: "left" },
   ];
-  for (const preset of anchorFoldSource) {
-    const dirX = Math.cos(preset.angle);
-    const dirY = Math.sin(preset.angle);
-    const ax = HEART.x + dirX * preset.len;
-    const ay = HEART.y + dirY * preset.len;
-    const matchingNode =
-      preset.label === "star-top"
-        ? starUnit
-        : units.find((u) => u.label === preset.label);
+  for (const ap of ANCHOR_POINTS) {
     const anchorUnit = pushUnit({
       type: "anchor",
-      label: `anchor-${preset.label}`,
-      foldStart: (matchingNode?.foldStart ?? 0.2) + 0.02,
-      foldWindow: (matchingNode?.foldWindow ?? 0.8) + 0.02,
-      pivotX: matchingNode?.pivotX ?? HEART.x,
-      pivotY: matchingNode?.pivotY ?? HEART.y,
-      pitch: matchingNode?.pitch ?? 1.2,
-      bend: matchingNode?.bend ?? 0.25,
-      twist: matchingNode?.twist ?? 0.2,
-      shrinkX: matchingNode?.shrinkX ?? 0.4,
-      shrinkY: matchingNode?.shrinkY ?? 0.6,
-      sink: (matchingNode?.sink ?? 0.2) + 0.05,
+      label: `anchor-${ap.label}`,
+      convergeStart: 0.12,
+      convergeWindow: 0.88,
+      coreX: HEART.x,
+      coreY: HEART.y,
+      contract: 0.55,
+      sink: 0.18,
+      twist: 0.2,
+      drift: 0.5,
       depth: 3.0,
-      driftAmp: 0.5,
       colorClass: 2,
-      geometry: { kind: "point", cx: ax, cy: ay, rx: 0, ry: 0, angle: 0 },
+      geometry: { kind: "point", cx: ap.x, cy: ap.y, rx: 0, ry: 0, angle: 0 },
     });
     pushParticle({
       unitId: anchorUnit.id,
       type: "anchor",
       colorClass: 2,
       depth: anchorUnit.depth,
-      driftAmp: anchorUnit.driftAmp,
-      foldStart: anchorUnit.foldStart,
-      foldWindow: anchorUnit.foldWindow,
-      pivotX: anchorUnit.pivotX,
-      pivotY: anchorUnit.pivotY,
-      pitch: anchorUnit.pitch,
-      bend: anchorUnit.bend,
-      twist: anchorUnit.twist,
-      shrinkX: anchorUnit.shrinkX,
-      shrinkY: anchorUnit.shrinkY,
-      sink: anchorUnit.sink,
-      x: ax,
-      y: ay,
-      size: 0.024,
+      x: ap.x,
+      y: ap.y,
+      size: 0.032,
       glyph: 7,
       density: 1,
+      latticeX: Math.floor((ap.x - xMin) / LATTICE_STEP),
+      latticeY: Math.floor((ap.y - yMin) / LATTICE_STEP),
+      convergeStart: anchorUnit.convergeStart,
+      convergeWindow: anchorUnit.convergeWindow,
+      coreX: anchorUnit.coreX,
+      coreY: anchorUnit.coreY,
+      contract: anchorUnit.contract,
+      sink: anchorUnit.sink,
+      twist: anchorUnit.twist,
+      drift: anchorUnit.drift,
     });
-  }
-
-  // --- sparse signal characters (数据字符) ---------------------------
-  const signalUnit = pushUnit({
-    type: "signal",
-    label: "signal",
-    foldStart: 0.2,
-    foldWindow: 0.8,
-    pivotX: HEART.x,
-    pivotY: HEART.y,
-    pitch: 1.1,
-    bend: 0.2,
-    twist: 0.2,
-    shrinkX: 0.35,
-    shrinkY: 0.55,
-    sink: 0.22,
-    depth: 0.5,
-    driftAmp: 0.9,
-    colorClass: 1,
-    geometry: { kind: "point", cx: 0, cy: 0, rx: 0, ry: 0, angle: 0 },
-  });
-
-  let signals = 0;
-  let tries = 0;
-  while (signals < 36 && tries < 4000) {
-    tries++;
-    const x = rng.next() * 2.9 - 1.45;
-    const y = rng.next() * 1.9 - 0.95;
-    const distToHeart = Math.hypot(x - HEART.x, y - HEART.y);
-    if (distToHeart < 0.62 || Math.abs(y) > 0.85) continue;
-    const density = 0.12 + rng.next() * 0.18;
-    pushParticle({
-      unitId: signalUnit.id,
-      type: "signal",
-      colorClass: 1,
-      depth: signalUnit.depth,
-      driftAmp: signalUnit.driftAmp,
-      foldStart: signalUnit.foldStart,
-      foldWindow: signalUnit.foldWindow,
-      pivotX: signalUnit.pivotX,
-      pivotY: signalUnit.pivotY,
-      pitch: signalUnit.pitch,
-      bend: signalUnit.bend,
-      twist: signalUnit.twist,
-      shrinkX: signalUnit.shrinkX,
-      shrinkY: signalUnit.shrinkY,
-      sink: signalUnit.sink,
-      x,
-      y,
-      size: 0.011,
-      glyph: densityToGlyph(density),
-      density,
-    });
-    signals++;
   }
 
   // Draw order: lower depth first (behind). Stable sort keeps generation

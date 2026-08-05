@@ -49,7 +49,10 @@ const allowedLocalDependencies = new Map([
 const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
   ["@xingwen/ui", new Set(["react"])],
-  ["@xingwen/visual-engine", new Set(["three"])],
+  // visual-engine is a framework-agnostic boundary: scene model, palette
+  // contract, glyph atlas, GLSL source and Poster data only. Three.js is
+  // owned by the Site Visual Adapter, never imported here.
+  ["@xingwen/visual-engine", new Set()],
 ]);
 
 const failures = [];
@@ -211,8 +214,8 @@ const boundaryRules = new Map([
   [
     "packages/visual-engine",
     {
-      description: "the presentation-only visual boundary",
-      allowedBareImports: new Set(["three"]),
+      description: "the framework-agnostic visual boundary",
+      allowedBareImports: new Set(),
       forbiddenIdentifiers: networkAndStorageGlobals,
       forbidRepositorySymbols: true,
     },
@@ -359,6 +362,7 @@ const boundaryRuleFixtures = [
   ["packages/domain", 'localStorage.getItem("token");'],
   ["packages/ui", 'import axios from "axios";'],
   ["packages/visual-engine", 'globalThis["fetch"]("/api");'],
+  ["packages/visual-engine", 'import * as THREE from "three";'],
 ];
 
 for (const [location, content] of boundaryRuleFixtures) {

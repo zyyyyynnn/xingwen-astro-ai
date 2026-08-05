@@ -1,5 +1,5 @@
 import {
-  applyFold,
+  applyConverge,
   DESIGN_HEIGHT,
   DESIGN_WIDTH,
   GLYPH_RAMP,
@@ -40,7 +40,7 @@ export function sampleSceneFrame(
   const rowScale = rows / DESIGN_HEIGHT;
 
   for (const particle of model.particles) {
-    const deformed = applyFold(particle, fold, timeSeconds);
+    const deformed = applyConverge(particle, fold, timeSeconds);
     if (deformed.alpha < 0.05) continue;
 
     const col = Math.floor((deformed.x + DESIGN_WIDTH / 2) * colScale);

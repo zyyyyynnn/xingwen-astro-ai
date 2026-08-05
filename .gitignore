@@ -44,3 +44,6 @@ tmp/
 
 # CodeGraph
 .codegraph/
+
+# Reference materials (not for repo)
+*.mp4

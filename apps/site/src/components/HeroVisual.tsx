@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Canvas } from "@react-three/fiber";
 import {
   createResearchSceneModel,
@@ -16,8 +22,6 @@ interface HeroVisualProps {
   seed?: number;
   quality?: Quality;
 }
-
-type RenderMode = "poster" | "webgl";
 
 const QUALITY_DPR: Record<Quality, [number, number]> = {
   high: [1, 2],
@@ -38,12 +42,14 @@ function supportsWebGl2(): boolean {
 /**
  * Brand Site hero visual.
  *
- * - SSR / no-JS: the SVG Poster <img> is always in the initial HTML.
- * - On hydration the Poster stays visible until WebGL2 is confirmed and
- *   the palette is read from the semantic CSS tokens; only then is the
- *   R3F Canvas mounted.
- * - Context loss (or an unavailable glyph atlas / renderer failure)
- *   reveals the Poster again; a successful restore remounts the Canvas.
+ * - SSR / no-JS: the SVG Poster `<img>` is always in the initial HTML.
+ * - On hydration the Poster stays visible (and on top of the Canvas)
+ *   until WebGL2 is confirmed AND the DynamicRenderer has submitted its
+ *   first valid frame (`ready`). The Canvas mounts behind the Poster so
+ *   no partially-initialized (black) surface is ever shown.
+ * - Glyph atlas / palette parse failure, context loss, or WebGL2
+ *   unavailable keeps the Poster; a successful restore remounts the
+ *   Canvas and re-runs the first-frame readiness gate.
  * - Reduced motion renders a single static phase (frameloop="never").
  * - On unmount the DynamicRenderer and its GPU resources are disposed.
  */
@@ -52,23 +58,28 @@ export function HeroVisual({
   seed = 42,
   quality = "high",
 }: HeroVisualProps) {
-  const [initial] = useState(() => {
-    if (typeof document === "undefined") {
-      return { mode: "poster" as const, palette: null };
-    }
-    if (!supportsWebGl2()) {
-      return { mode: "poster" as const, palette: null };
-    }
-    return { mode: "webgl" as const, palette: readScenePalette(document) };
+  const [palette] = useState<ScenePalette | null>(() => {
+    if (typeof document === "undefined") return null;
+    if (!supportsWebGl2()) return null;
+    return readScenePalette(document);
   });
-  const [mode, setMode] = useState<RenderMode>(initial.mode);
-  const [palette] = useState<ScenePalette | null>(initial.palette);
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [reducedMotion, setReducedMotion] = useState<boolean>(
     () =>
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
-  const [attempt, setAttempt] = useState(0);
+  // Canvas mounts only after client-side hydration — R3F's Canvas renders
+  // a container <div> via useLayoutEffect which cannot run during SSR, so
+  // rendering it in the initial tree causes a hydration mismatch. The
+  // Poster covers the area until the first WebGL frame is ready.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const model = useMemo(() => createResearchSceneModel(seed), [seed]);
 
@@ -82,17 +93,30 @@ export function HeroVisual({
   }, []);
 
   const handleStatus = useCallback((status: TransitStatus) => {
-    if (status === "unavailable" || status === "lost") {
-      setMode("poster");
+    if (status === "ready") {
+      setReady(true);
+      return;
+    }
+    if (status === "unavailable") {
+      // Permanent failure (no WebGL2 / atlas / palette) — unmount canvas.
+      setReady(false);
+      setFailed(true);
+      return;
+    }
+    if (status === "lost") {
+      // Transient failure — keep canvas mounted so the context can be
+      // restored; just reveal the Poster while the surface is gone.
+      setReady(false);
       return;
     }
     if (status === "restored") {
+      setReady(false);
       setAttempt((current) => current + 1);
-      setMode("webgl");
     }
   }, []);
 
-  const showWebgl = mode === "webgl" && palette !== null;
+  const mountCanvas = hydrated && palette !== null && !failed;
+  const showPoster = !ready || !mountCanvas;
 
   return (
     <div className="hero-visual">
@@ -102,14 +126,14 @@ export function HeroVisual({
         alt="系外行星 Transit 证据系统 ASCII 字符视觉"
         width={480}
         height={330}
-        hidden={showWebgl}
+        hidden={!showPoster}
       />
-      {showWebgl && (
+      {mountCanvas && palette && (
         <Canvas
           key={attempt}
           className="hero-canvas"
           aria-hidden="true"
-          frameloop={reducedMotion ? "never" : "always"}
+          frameloop="always"
           dpr={QUALITY_DPR[quality]}
           gl={{
             antialias: false,

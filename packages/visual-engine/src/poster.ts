@@ -1,7 +1,7 @@
 import type { ScenePalette } from "./palette";
 import { createDeterministicRandom } from "./random";
 import {
-  applyFold,
+  applyConverge,
   DESIGN_HEIGHT,
   DESIGN_WIDTH,
   GLYPH_RAMP,
@@ -81,7 +81,7 @@ export function createPoster(
     }
     if (rng.next() > SAMPLE_KEEP) continue;
 
-    const deformed = applyFold(particle, 0, 0);
+    const deformed = applyConverge(particle, 0, 0);
     const x = toX(deformed.x);
     const y = toY(deformed.y);
     if (x < -4 || x > width + 4 || y < -4 || y > height + 4) continue;

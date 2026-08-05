@@ -1,14 +1,17 @@
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import type {
+  Quality,
+  ResearchSceneModel,
+  ScenePalette,
+} from "@xingwen/visual-engine";
+
 import {
   createDynamicRenderer,
   type DynamicRenderer,
-  type Quality,
-  type ResearchSceneModel,
-  type ScenePalette,
-} from "@xingwen/visual-engine";
+} from "./visual/dynamic-renderer";
 
-export type TransitStatus = "unavailable" | "lost" | "restored";
+export type TransitStatus = "unavailable" | "lost" | "restored" | "ready";
 
 interface TransitSceneProps {
   model: ResearchSceneModel;
@@ -20,11 +23,15 @@ interface TransitSceneProps {
 }
 
 /**
- * R3F Site Adapter — owns the WebGL canvas lifecycle (via the Canvas
- * from @react-three/fiber) and drives @xingwen/visual-engine's
- * DynamicRenderer: geometry is created once, then every frame the
- * renderer is resized to the current CSS size and advanced. Reduced
- * motion renders a single static phase instead of a continuous loop.
+ * R3F Site Adapter — owns the WebGL canvas lifecycle (via the R3F Canvas)
+ * and drives the Site Visual Adapter's `DynamicRenderer`.
+ *
+ * Render ownership: `useFrame` is registered with priority `1`, which
+ * disables R3F's default automatic render loop. The DynamicRenderer's
+ * internal `gl.render(scene, camera)` is therefore the single
+ * authoritative draw call — the empty R3F scene graph can never clear
+ * the canvas to black. Reduced motion renders a single static phase
+ * (`renderAt`) on invalidated frames instead of a continuous loop.
  */
 export function TransitScene({
   model,
@@ -52,6 +59,9 @@ export function TransitScene({
         model,
         palette,
         quality,
+        onReady: () => onStatusRef.current?.("ready"),
+        onContextLost: () => onStatusRef.current?.("lost"),
+        onContextRestored: () => onStatusRef.current?.("restored"),
       });
     } catch {
       onStatusRef.current?.("unavailable");
@@ -59,20 +69,7 @@ export function TransitScene({
     }
     rendererRef.current = renderer;
 
-    const canvas = gl.domElement;
-    const handleLost = (event: Event): void => {
-      event.preventDefault();
-      onStatusRef.current?.("lost");
-    };
-    const handleRestored = (): void => {
-      onStatusRef.current?.("restored");
-    };
-    canvas.addEventListener("webglcontextlost", handleLost, false);
-    canvas.addEventListener("webglcontextrestored", handleRestored, false);
-
     return () => {
-      canvas.removeEventListener("webglcontextlost", handleLost, false);
-      canvas.removeEventListener("webglcontextrestored", handleRestored, false);
       renderer?.dispose();
       rendererRef.current = null;
     };
@@ -80,21 +77,23 @@ export function TransitScene({
 
   useEffect(() => {
     if (!reducedMotion) return;
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-    renderer.resize(size.width, size.height);
-    renderer.renderAt(freezeTime);
+    // Reduced motion uses frameloop="never"; request one frame so the
+    // static phase renders whenever the freeze time or viewport changes.
     invalidate();
   }, [reducedMotion, freezeTime, invalidate, size]);
 
+  // Priority 1 disables R3F automatic rendering; this callback is the
+  // sole renderer and must call into the DynamicRenderer every frame.
   useFrame((_, delta) => {
     const renderer = rendererRef.current;
     if (!renderer) return;
     renderer.resize(size.width, size.height);
-    if (!reducedMotion) {
+    if (reducedMotion) {
+      renderer.renderAt(freezeTime);
+    } else {
       renderer.update(delta);
     }
-  });
+  }, 1);
 
   return null;
 }
