@@ -43,6 +43,7 @@ class DataArtifactReadBase(BaseModel):
     producer_execution: ProducerExecutionDetail
     source_snapshots: tuple[SourceSnapshotDetail, ...]
     evidence: tuple[EvidenceDetail, ...]
+    quality_projection: dict[str, object] | None = None
 
 
 class DatasetArtifactRead(DataArtifactReadBase):

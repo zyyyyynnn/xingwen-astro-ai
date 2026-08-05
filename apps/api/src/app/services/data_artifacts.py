@@ -28,6 +28,7 @@ from app.schemas.data_artifact_api import (
 )
 from app.schemas.data_artifacts import (
     DatasetArtifactCandidate,
+    DatasetRow,
     FieldDictionaryArtifactCandidate,
     SourceCollectionArtifactCandidate,
 )
@@ -93,6 +94,45 @@ class DataArtifactReadService:
     ) -> tuple[tuple[DataArtifactRowRead, ...], str | None, bool]:
         if not 1 <= limit <= _MAX_PAGE_SIZE:
             raise _problem(422, "SCHEMA_VALIDATION_FAILED", "Request validation failed", "limit must be between 1 and 100")
+        projected_reader = getattr(self._artifacts, "list_dataset_rows", None)
+        if callable(projected_reader):
+            version = self._version(
+                version_id=version_id,
+                session_id=session_id,
+                kind="dataset",
+                full_content=False,
+            )
+            cursor_id = (
+                _decode_cursor(cursor, version_id=version.id)
+                if cursor is not None
+                else None
+            )
+            raw_rows = projected_reader(
+                version_id=version.id,
+                session_id=session_id,
+                after_row_id=cursor_id,
+                limit=limit + 1,
+            )
+            try:
+                rows = tuple(DatasetRow.model_validate(row) for row in raw_rows)
+            except ValidationError as exc:
+                raise _schema_problem() from exc
+            has_more = len(rows) > limit
+            selected = rows[:limit]
+            next_cursor = (
+                _encode_cursor(version_id=version.id, row_id=selected[-1].row_id)
+                if selected and has_more
+                else None
+            )
+            return (
+                tuple(
+                    DataArtifactRowRead(artifact_version_id=version.id, row=row)
+                    for row in selected
+                ),
+                next_cursor,
+                has_more,
+            )
+
         detail = self.get_dataset(version_id=version_id, session_id=session_id)
         rows = tuple(sorted(detail.dataset.rows, key=lambda row: row.row_id))
         row_ids = tuple(row.row_id for row in rows)
@@ -190,10 +230,17 @@ class DataArtifactReadService:
         return _EXPORTS.get(export_id, session_id)
 
     def _version(
-        self, *, version_id: str, session_id: str, kind: DataKind | None
+        self,
+        *,
+        version_id: str,
+        session_id: str,
+        kind: DataKind | None,
+        full_content: bool = True,
     ) -> ArtifactVersionDetail:
         version = self._artifacts.get_version(
-            version_id=version_id, session_id=session_id, full_content=True
+            version_id=version_id,
+            session_id=session_id,
+            full_content=full_content,
         )
         if kind is not None:
             artifact = self._artifacts.get_artifact(
@@ -366,6 +413,7 @@ def _base(version: ArtifactVersionDetail) -> DataArtifactReadBase:
         producer_execution=version.producer_execution,
         source_snapshots=version.source_snapshots,
         evidence=version.evidence,
+        quality_projection=version.quality_projection,
     )
 
 

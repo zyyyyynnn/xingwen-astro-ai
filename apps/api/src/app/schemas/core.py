@@ -678,6 +678,7 @@ class ArtifactVersionDetail(ArtifactVersion):
     producer_execution: ProducerExecutionDetail
     source_snapshots: tuple[SourceSnapshotDetail, ...]
     evidence: tuple[EvidenceDetail, ...]
+    quality_projection: dict[str, JsonValue] | None = Field(default=None, exclude=True)
 
 
 class WorkspaceObjectRef(BaseModel):
