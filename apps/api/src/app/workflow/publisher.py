@@ -363,11 +363,11 @@ def admit_artifact_candidate(
         separators=(",", ":"),
         allow_nan=False,
     )
-    requires_quality_attestation = (
-        getattr(candidate.__class__, "__artifact_publication_requires_admission__", False)
-        and getattr(candidate, "kind", None)
-        in {"dataset", "field_dictionary", "source_collection"}
-    )
+    requires_quality_attestation = getattr(candidate, "kind", None) in {
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+    }
     quality_projection = None
     if requires_quality_attestation:
         quality_projection = _quality_projection_from_attestation(
