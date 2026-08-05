@@ -1,0 +1,827 @@
+{
+  "$defs": {
+    "LiteratureRelationBenchmarkCaseKind": {
+      "enum": [
+        "scientific_label",
+        "rejection_case"
+      ],
+      "title": "LiteratureRelationBenchmarkCaseKind",
+      "type": "string"
+    },
+    "LiteratureRelationBenchmarkCaseResult": {
+      "additionalProperties": false,
+      "properties": {
+        "benchmark_relation_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Benchmark Relation Id"
+        },
+        "benchmark_trace_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Benchmark Trace Id"
+        },
+        "candidate_pair_matched": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Candidate Pair Matched"
+        },
+        "case_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Case Id",
+          "type": "string"
+        },
+        "case_kind": {
+          "$ref": "#/$defs/LiteratureRelationBenchmarkCaseKind"
+        },
+        "confidence_calibrated": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence Calibrated"
+        },
+        "confidence_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence Score"
+        },
+        "confidence_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureRelationConfidenceStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence_less_blocked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Less Blocked"
+        },
+        "evidence_less_case": {
+          "title": "Evidence Less Case",
+          "type": "boolean"
+        },
+        "expected_failure_stage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureRelationFailureStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "expected_rejection_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureRelationRejectionReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "failure_stage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureRelationFailureStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "record_relation_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record Relation Id"
+        },
+        "rejection_case_pass": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rejection Case Pass"
+        },
+        "rejection_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureRelationRejectionReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "relation_evidence_items_supported": {
+          "minimum": 0,
+          "title": "Relation Evidence Items Supported",
+          "type": "integer"
+        },
+        "relation_evidence_items_total": {
+          "minimum": 0,
+          "title": "Relation Evidence Items Total",
+          "type": "integer"
+        },
+        "relation_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureRelationType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_valid": {
+          "title": "Schema Valid",
+          "type": "boolean"
+        },
+        "scientific_label_compared": {
+          "title": "Scientific Label Compared",
+          "type": "boolean"
+        },
+        "scientific_label_exact_match": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scientific Label Exact Match"
+        },
+        "status": {
+          "$ref": "#/$defs/LiteratureRelationStatus"
+        },
+        "trace_step_evidence_items_supported": {
+          "minimum": 0,
+          "title": "Trace Step Evidence Items Supported",
+          "type": "integer"
+        },
+        "trace_step_evidence_items_total": {
+          "minimum": 0,
+          "title": "Trace Step Evidence Items Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "case_id",
+        "case_kind",
+        "schema_valid",
+        "scientific_label_compared",
+        "relation_evidence_items_supported",
+        "relation_evidence_items_total",
+        "trace_step_evidence_items_supported",
+        "trace_step_evidence_items_total",
+        "evidence_less_case",
+        "status",
+        "input_hash",
+        "output_hash"
+      ],
+      "title": "LiteratureRelationBenchmarkCaseResult",
+      "type": "object"
+    },
+    "LiteratureRelationConfidenceBin": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        },
+        "label": {
+          "enum": [
+            "[0.0,0.5)",
+            "[0.5,0.9)",
+            "[0.9,1.0]"
+          ],
+          "title": "Label",
+          "type": "string"
+        },
+        "lower_bound": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Lower Bound",
+          "type": "number"
+        },
+        "upper_bound": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Upper Bound",
+          "type": "number"
+        },
+        "upper_inclusive": {
+          "title": "Upper Inclusive",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "label",
+        "lower_bound",
+        "upper_bound",
+        "upper_inclusive",
+        "count"
+      ],
+      "title": "LiteratureRelationConfidenceBin",
+      "type": "object"
+    },
+    "LiteratureRelationConfidenceStatus": {
+      "enum": [
+        "assessed",
+        "not_evaluable"
+      ],
+      "title": "LiteratureRelationConfidenceStatus",
+      "type": "string"
+    },
+    "LiteratureRelationFailureStage": {
+      "enum": [
+        "json",
+        "schema",
+        "input",
+        "claim",
+        "evidence",
+        "ownership",
+        "pairing",
+        "direction",
+        "duplicate",
+        "conditions",
+        "comparability",
+        "trace",
+        "confidence"
+      ],
+      "title": "LiteratureRelationFailureStage",
+      "type": "string"
+    },
+    "LiteratureRelationRejectionCount": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "rejection_reason": {
+          "$ref": "#/$defs/LiteratureRelationRejectionReason"
+        },
+        "sample_case_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sample Case Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "rejection_reason",
+        "count",
+        "sample_case_ids"
+      ],
+      "title": "LiteratureRelationRejectionCount",
+      "type": "object"
+    },
+    "LiteratureRelationRejectionReason": {
+      "enum": [
+        "literature_relation.json_invalid",
+        "literature_relation.schema_invalid",
+        "literature_relation.input_artifact_version_unknown",
+        "literature_relation.input_schema_version_unsupported",
+        "literature_relation.input_content_hash_mismatch",
+        "literature_relation.claim_not_found",
+        "literature_relation.paper_summary_artifact_version_unknown",
+        "literature_relation.claim_status_invalid",
+        "literature_relation.evidence_missing",
+        "literature_relation.evidence_not_found",
+        "literature_relation.source_snapshot_not_found",
+        "literature_relation.evidence_inconsistent",
+        "literature_relation.ownership_mismatch",
+        "literature_relation.self_pair",
+        "literature_relation.direction_mismatch",
+        "literature_relation.duplicate",
+        "literature_relation.conditions_missing",
+        "literature_relation.conditions_conflict",
+        "literature_relation.object_incomparable",
+        "literature_relation.metric_incomparable",
+        "literature_relation.unit_incomparable",
+        "literature_relation.trace_missing",
+        "literature_relation.trace_incomplete",
+        "literature_relation.trace_unsafe",
+        "literature_relation.trace_direction_mismatch",
+        "literature_relation.trace_evidence_incomplete",
+        "literature_relation.confidence_undefined",
+        "literature_relation.confidence_definition_unsupported",
+        "literature_relation.confidence_subject_mismatch",
+        "literature_relation.confidence_decision_mismatch",
+        "literature_relation.confidence_calibration_missing"
+      ],
+      "title": "LiteratureRelationRejectionReason",
+      "type": "string"
+    },
+    "LiteratureRelationStatus": {
+      "enum": [
+        "candidate",
+        "accepted",
+        "rejected"
+      ],
+      "title": "LiteratureRelationStatus",
+      "type": "string"
+    },
+    "LiteratureRelationStatusCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "minimum": 0,
+          "title": "Accepted",
+          "type": "integer"
+        },
+        "candidate": {
+          "minimum": 0,
+          "title": "Candidate",
+          "type": "integer"
+        },
+        "rejected": {
+          "minimum": 0,
+          "title": "Rejected",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "accepted",
+        "candidate",
+        "rejected"
+      ],
+      "title": "LiteratureRelationStatusCounts",
+      "type": "object"
+    },
+    "LiteratureRelationType": {
+      "enum": [
+        "supports",
+        "extends",
+        "derived_from",
+        "limits",
+        "contradicts",
+        "uses_same_dataset",
+        "compares_method"
+      ],
+      "title": "LiteratureRelationType",
+      "type": "string"
+    },
+    "LiteratureRelationTypeCount": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "relation_type": {
+          "$ref": "#/$defs/LiteratureRelationType"
+        }
+      },
+      "required": [
+        "relation_type",
+        "count"
+      ],
+      "title": "LiteratureRelationTypeCount",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "benchmark_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Benchmark Content Hash",
+      "type": "string"
+    },
+    "benchmark_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Benchmark Id",
+      "type": "string"
+    },
+    "benchmark_schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Benchmark Schema Version",
+      "type": "string"
+    },
+    "benchmark_scientific_payload_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Benchmark Scientific Payload Hash",
+      "type": "string"
+    },
+    "benchmark_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Benchmark Version",
+      "type": "string"
+    },
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/LiteratureRelationBenchmarkCaseResult"
+      },
+      "title": "Cases",
+      "type": "array"
+    },
+    "confidence_assessed_count": {
+      "minimum": 0,
+      "title": "Confidence Assessed Count",
+      "type": "integer"
+    },
+    "confidence_calibrated_count": {
+      "minimum": 0,
+      "title": "Confidence Calibrated Count",
+      "type": "integer"
+    },
+    "confidence_distribution": {
+      "items": {
+        "$ref": "#/$defs/LiteratureRelationConfidenceBin"
+      },
+      "title": "Confidence Distribution",
+      "type": "array"
+    },
+    "confidence_items_total": {
+      "minimum": 0,
+      "title": "Confidence Items Total",
+      "type": "integer"
+    },
+    "confidence_not_evaluable_count": {
+      "minimum": 0,
+      "title": "Confidence Not Evaluable Count",
+      "type": "integer"
+    },
+    "evidence_less_block_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Evidence Less Block Rate"
+    },
+    "evidence_less_cases_blocked": {
+      "minimum": 0,
+      "title": "Evidence Less Cases Blocked",
+      "type": "integer"
+    },
+    "evidence_less_cases_total": {
+      "minimum": 0,
+      "title": "Evidence Less Cases Total",
+      "type": "integer"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "model_name": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Model Name",
+      "type": "string"
+    },
+    "output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "parameters_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Parameters Hash",
+      "type": "string"
+    },
+    "parameters_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Parameters Version",
+      "type": "string"
+    },
+    "producer_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Producer Version",
+      "type": "string"
+    },
+    "prompt_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Prompt Hash",
+      "type": "string"
+    },
+    "prompt_name": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Prompt Name",
+      "type": "string"
+    },
+    "prompt_version": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Prompt Version",
+      "type": "string"
+    },
+    "rejection_case_pass_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rejection Case Pass Rate"
+    },
+    "rejection_cases_passed": {
+      "minimum": 0,
+      "title": "Rejection Cases Passed",
+      "type": "integer"
+    },
+    "rejection_cases_total": {
+      "minimum": 0,
+      "title": "Rejection Cases Total",
+      "type": "integer"
+    },
+    "rejection_counts": {
+      "items": {
+        "$ref": "#/$defs/LiteratureRelationRejectionCount"
+      },
+      "title": "Rejection Counts",
+      "type": "array"
+    },
+    "relation_evidence_coverage_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Relation Evidence Coverage Rate"
+    },
+    "relation_evidence_items_supported": {
+      "minimum": 0,
+      "title": "Relation Evidence Items Supported",
+      "type": "integer"
+    },
+    "relation_evidence_items_total": {
+      "minimum": 0,
+      "title": "Relation Evidence Items Total",
+      "type": "integer"
+    },
+    "relation_schema_version": {
+      "const": "1.0.0",
+      "title": "Relation Schema Version",
+      "type": "string"
+    },
+    "relation_type_counts": {
+      "items": {
+        "$ref": "#/$defs/LiteratureRelationTypeCount"
+      },
+      "title": "Relation Type Counts",
+      "type": "array"
+    },
+    "report_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Report Version",
+      "type": "string"
+    },
+    "sample_count": {
+      "minimum": 0,
+      "title": "Sample Count",
+      "type": "integer"
+    },
+    "schema_items_total": {
+      "minimum": 0,
+      "title": "Schema Items Total",
+      "type": "integer"
+    },
+    "schema_items_valid": {
+      "minimum": 0,
+      "title": "Schema Items Valid",
+      "type": "integer"
+    },
+    "schema_pass_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Schema Pass Rate"
+    },
+    "scientific_pair_coverage_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scientific Pair Coverage Rate"
+    },
+    "scientific_pair_items_matched": {
+      "minimum": 0,
+      "title": "Scientific Pair Items Matched",
+      "type": "integer"
+    },
+    "scientific_pair_items_total": {
+      "minimum": 0,
+      "title": "Scientific Pair Items Total",
+      "type": "integer"
+    },
+    "scientific_relation_exact_match_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scientific Relation Exact Match Rate"
+    },
+    "scientific_relation_items_exact": {
+      "minimum": 0,
+      "title": "Scientific Relation Items Exact",
+      "type": "integer"
+    },
+    "scientific_relation_items_total": {
+      "minimum": 0,
+      "title": "Scientific Relation Items Total",
+      "type": "integer"
+    },
+    "scientific_status_counts": {
+      "$ref": "#/$defs/LiteratureRelationStatusCounts"
+    },
+    "status_counts": {
+      "$ref": "#/$defs/LiteratureRelationStatusCounts"
+    },
+    "trace_step_evidence_coverage_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Trace Step Evidence Coverage Rate"
+    },
+    "trace_step_evidence_items_supported": {
+      "minimum": 0,
+      "title": "Trace Step Evidence Items Supported",
+      "type": "integer"
+    },
+    "trace_step_evidence_items_total": {
+      "minimum": 0,
+      "title": "Trace Step Evidence Items Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "benchmark_id",
+    "benchmark_schema_version",
+    "benchmark_version",
+    "benchmark_scientific_payload_hash",
+    "benchmark_content_hash",
+    "prompt_name",
+    "prompt_version",
+    "prompt_hash",
+    "relation_schema_version",
+    "model_name",
+    "parameters_version",
+    "parameters_hash",
+    "producer_version",
+    "sample_count",
+    "schema_items_valid",
+    "schema_items_total",
+    "scientific_pair_items_matched",
+    "scientific_pair_items_total",
+    "scientific_relation_items_exact",
+    "scientific_relation_items_total",
+    "relation_evidence_items_supported",
+    "relation_evidence_items_total",
+    "trace_step_evidence_items_supported",
+    "trace_step_evidence_items_total",
+    "evidence_less_cases_blocked",
+    "evidence_less_cases_total",
+    "rejection_cases_passed",
+    "rejection_cases_total",
+    "confidence_items_total",
+    "confidence_assessed_count",
+    "confidence_not_evaluable_count",
+    "confidence_calibrated_count",
+    "confidence_distribution",
+    "scientific_status_counts",
+    "status_counts",
+    "relation_type_counts",
+    "rejection_counts",
+    "cases",
+    "input_hash",
+    "output_hash"
+  ],
+  "title": "LiteratureRelationBenchmarkReport",
+  "type": "object"
+}

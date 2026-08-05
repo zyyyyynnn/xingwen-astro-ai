@@ -118,6 +118,27 @@ D-03 同样生成 detached PaperSummary ProducerExecution，记录 `model_name`�
 
 D-07 生成 detached LiteratureClaim ProducerExecution，固定 PaperSummary ArtifactVersion/schema/output hash、paper/summary、SourceSnapshot versions、Prompt/schema/model/parameters/producer/normalization version 与 input/model-response/output hash。JSON/Schema rejected result 不保存原始响应；Schema-valid Claim 的 accepted/candidate/rejected record 均保留输入与 execution 引用。`LiteratureClaimsCandidate` 已通过 Pipeline seal，可进入 structured ArtifactVersion admission；其内部稳定 `output_hash` 排除 execution/run id、wall-clock 与 latency，ArtifactVersion admission 返回的 `content_hash` 则覆盖准备持久化的完整 JSON，两者不要求相等。后续持久化与读取边界使用 admitted `content_hash` 对照数据库 ProducerExecution，并负责 ArtifactVersion 接线和 version-pinned HTTP projection。
 
+D-08 生成 detached LiteratureRelation ProducerExecution，固定一个或多个 sealed
+LiteratureClaims ArtifactVersion/schema/content/output hash、双方 Claim/PaperSummary
+versions、Evidence/SourceSnapshot、`literature_reasoning@v2`、model/parameters、pairing、
+comparison、Trace protocol、confidence definition/calibration 与 input/model-response/output
+hash。confidence score 来自外部版本化 assessment，不由模型生成；它表示完整
+`relation type + admission decision` 的置信，不表示 accepted probability。assessment
+subject 绑定 source/target Claim ArtifactVersion/id、relation type 与 fingerprint，并绑定
+当前 admission decision；跨方向、版本、类型或 decision 复用必须拒绝。JSON/Schema
+rejected result 只保存稳定 error code 和响应 hash，不保存原始模型响应。
+
+`LiteratureRelationsCandidate@1.0.0` 是 D-08 唯一 structured ArtifactVersion admission
+输入。单个 `kind=literature_relations` candidate 同时内嵌 Relation 与 ReasoningTrace
+闭包，不单独发布 `reasoning_traces` Artifact。私有 seal 绑定对象身份、schema、
+input/output hash、admission context/commitment 与完整 public payload hash；authority
+registry 与唯一 minter 仅存在于进程内闭包，一次性 binder 只绑定 exact Pipeline owner
+class 后删除自身，不序列化为可窃取 token，也不保留可导入 mint/registry。
+mint 同时绑定原始 `admit` code frame 与其局部 gate-complete candidate；脱离该调用点的
+反射调用不能注册 authority。JSON/Pydantic round-trip、
+copy/deepcopy、手工重建、Phase 0/core 投影或字段/hash 修改都不能恢复 seal。D-08 不分配
+数据库版本号；后续 Publisher 对 admitted 完整 JSON 计算 `content_hash` 并执行事务。
+
 ## 5. SourceSnapshot
 
 最低字段：
@@ -160,6 +181,7 @@ C-04 数值使用版本化 Decimal/serialization 策略；Transformation Evidenc
 - D-03 `input_hash` 覆盖 PaperCollection Version/schema/output hash、SourceSnapshot id/version/content hash、目标 paper、Evidence 输入 hash、Prompt name/version/hash、model、parameters version/hash；相同版本化输入可定位同一 input hash。
 - D-03 `model_response_hash` 标识原始响应而不保存原文；`output_hash` 固定经过 Evidence 准入后的稳定 Summary 内容，排除 execution id、run id、wall-clock、latency 与 producer output hash 自引用。
 - D-07 `input_hash` 继续覆盖 PaperSummary Version/schema/output hash、paper/summary、SourceSnapshot 版本、Prompt/model/parameters 与 producer/normalization version；valid `model_response_hash` 对 Claim 集合做稳定排序，`output_hash` 覆盖准入后的结构、Evidence、状态和拒绝原因并排除 execution/run id、wall-clock、latency 与自引用。
+- D-08 `input_hash` 覆盖 sealed LiteratureClaims 输入版本、双方 Claim/PaperSummary、Evidence/SourceSnapshot、Prompt/model/parameters、pairing/comparison/Trace policy 与 confidence definition/calibration；valid `model_response_hash` 对固定方向 Relation 结构做稳定排序。Relation fingerprint 覆盖双方 Claim ArtifactVersion/id 与 relation type；`output_hash` 覆盖 Relation/Trace、Evidence 闭包、confidence、三态和拒绝原因，并排除 execution/run id、wall-clock、latency、嵌套 producer execution id 与自引用。
 - Prompt 文件按 UTF-8/LF 归一后计算 SHA-256；registry 明确列出每个不可变版本的 path/content hash/status，历史版本不原地改写。
 - hash 识别内容，不替代 Project、Run、Artifact 或 Version 主键。
 
