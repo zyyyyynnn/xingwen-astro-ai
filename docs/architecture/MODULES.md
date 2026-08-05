@@ -124,7 +124,7 @@ flowchart LR
 - Prompt/model/producer、input/output hash 和评测报告；
 - 文献、推理和 Graph 修订内容。
 
-论文元数据检索、PaperCollection/PaperSummary 准入与运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。D-07 LiteratureClaim 的 detached 准入、固定 Benchmark 与 publisher-ready typed candidate 见 [LiteratureClaim Pipeline](../engineering/LITERATURE_CLAIM_PIPELINE.md)。ArtifactVersion 事务、领域读取 API 与 Run 编排由 B/Workflow 边界负责。
+论文元数据检索、PaperCollection/PaperSummary 准入与运行规则见 [PaperCollection Pipeline](../engineering/PAPER_COLLECTION_PIPELINE.md)。D-07 LiteratureClaim 的 detached 准入、固定 Benchmark 与 publisher-ready typed candidate 见 [LiteratureClaim Pipeline](../engineering/LITERATURE_CLAIM_PIPELINE.md)。D-08 Relation/ReasoningTrace 的固定准入顺序、外部版本化 confidence、单一 sealed `literature_relations` candidate 与评测见 [LiteratureRelation Pipeline](../engineering/LITERATURE_RELATION_PIPELINE.md)。D-08 不另行发布 `reasoning_traces` Artifact；ArtifactVersion 事务、领域读取 API、Graph 发布与 Run 编排分别由 B/Workflow 与后续 Graph 边界负责。
 
 ### 不负责
 

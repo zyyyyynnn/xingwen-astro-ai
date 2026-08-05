@@ -177,10 +177,14 @@ id、时间戳或 latency。exact match 只是对既有 D-01 人工审核标签�
 
 ## 8. Relation、持久化与读取边界交接
 
-- Relation 边界直接导入 `LiteratureClaimsCandidate.claims`，只把 status 为 candidate 或
-  accepted 的记录送入 Relation pairing；使用 objects、metric、unit、conditions、
-  scope、limitations、Evidence/SourceSnapshot 和 Summary version 做可比性与
-  provenance 校验。
+- D-08 [LiteratureRelation Pipeline](LITERATURE_RELATION_PIPELINE.md) 直接接收经过 D-07
+  封印的 `LiteratureClaimsCandidate`；只把 status 为 candidate 或 accepted 的 Claim
+  送入稳定 pairing。它使用 objects、metric、unit、conditions、scope、limitations、
+  Evidence/SourceSnapshot 和 Summary version 做可比性与 provenance 校验，不复制或
+  重做 Claim admission。
+- D-08 输出的唯一发布交接是同时内嵌 Relation 与 `LiteratureReasoningTraceCandidate` 的
+  `LiteratureRelationsCandidate@1.0.0`。单条 Relation、Trace、模型 extraction、Phase 0
+  包络和重解析批次不能替代该封印对象。
 - 持久化边界接收完整 `LiteratureClaimsCandidate`，重新验证 Pydantic、Pipeline seal、
   schema/input/output hash 和 Evidence references 后调用 ArtifactVersion Publisher。
   读取边界提供 version-pinned HTTP projection；两者都不复制 D-07 Schema 或重做
