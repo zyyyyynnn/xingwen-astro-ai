@@ -32,6 +32,8 @@ class TraceStep(BaseModel):
 
 class ReasoningTrace(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+    # Frozen Phase 0 transport model; never a D-08 publication candidate.
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     id: str = Field(alias="trace_id")
     task_id: str
@@ -44,6 +46,8 @@ class ReasoningTrace(BaseModel):
 
 class LiteratureRelation(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+    # Frozen Phase 0 transport model; never a D-08 publication candidate.
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     id: str = Field(alias="relation_id")
     task_id: str
