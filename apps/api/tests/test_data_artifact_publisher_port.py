@@ -26,24 +26,16 @@ def _admit(candidate):
     )
 
 
-def test_all_three_original_sealed_candidates_pass_the_publisher_port() -> None:
+def test_c04_prerequisites_cannot_bypass_final_c05_publication_gate() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
 
-    admitted = tuple(
-        _admit(candidate)
-        for candidate in (
-            result.dataset,
-            result.field_dictionary,
-            result.source_collection,
-        )
-    )
-
-    assert tuple(item.content["kind"] for item in admitted) == (
-        "dataset",
-        "field_dictionary",
-        "source_collection",
-    )
-    assert all(item.content_hash.startswith("sha256:") for item in admitted)
+    for candidate in (
+        result.dataset,
+        result.field_dictionary,
+        result.source_collection,
+    ):
+        with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
+            _admit(candidate)
 
 
 def test_reparsed_copied_and_intermediate_candidates_cannot_bypass_port() -> None:

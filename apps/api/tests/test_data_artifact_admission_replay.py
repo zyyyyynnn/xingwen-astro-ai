@@ -283,7 +283,8 @@ def test_original_candidates_retain_immutable_replay_snapshot() -> None:
         assert isinstance(context, DataArtifactAdmissionSnapshot)
         assert context.input_hash == candidate.input_hash
         assert not isinstance(context, DataArtifactBuildInput)
-        assert _admit(candidate).content["kind"] == candidate.kind
+        with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
+            _admit(candidate)
 
 
 def test_reparsed_candidate_still_cannot_recreate_replay_context() -> None:

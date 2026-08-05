@@ -24,7 +24,7 @@ from app.schemas.data_quality import (
     QualityArtifactReference,
     compute_data_quality_result_id,
 )
-from app.workflow.publisher import AdmissionValidator
+from app.workflow.publisher import AdmissionValidator, _seal_data_quality_attestation
 
 from .errors import DataQualityError
 from .evaluator import evaluate_data_quality
@@ -368,9 +368,13 @@ def build_data_quality_publication_validator(
         },
         "overall_status": admitted.evaluation_result.contract_gate.overall_status.value,
     }
-    validate.quality_projection = DataQualityProjection(
+    projection = DataQualityProjection(
         **projection_payload,
         content_hash=compute_canonical_payload_hash(projection_payload),
+    )
+    validate._data_quality_attestation = _seal_data_quality_attestation(
+        expected,
+        projection,
     )
     return validate
 

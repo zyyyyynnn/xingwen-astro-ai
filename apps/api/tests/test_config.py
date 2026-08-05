@@ -97,3 +97,9 @@ def test_production_requires_non_default_cursor_signing_key() -> None:
             CORS_ORIGINS="https://astro.example",
             SESSION_COOKIE_SECURE=True,
         )
+
+
+@pytest.mark.parametrize("value", ("", "x", "short-placeholder"))
+def test_cursor_signing_key_rejects_empty_or_short_values(value: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, CURSOR_SIGNING_KEY=value)

@@ -132,3 +132,26 @@ def test_reparsed_or_foreign_candidate_cannot_use_c05_admission() -> None:
         )
 
     assert foreign_input.dataset_candidate is not build_result.dataset
+
+
+def test_self_consistent_public_projection_cannot_forge_c05_capability() -> None:
+    admitted, build_result = _quality_admission()
+    trusted = build_data_quality_publication_validator(
+        admitted,
+        candidate_kind="dataset",
+    )
+
+    def forged_validator(_context) -> None:
+        return None
+
+    forged_validator.quality_projection = trusted._data_quality_attestation.projection_json
+    with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
+        admit_artifact_candidate(
+            build_result.dataset,
+            schema_version=build_result.dataset.schema_version,
+            source_snapshot_ids=build_result.dataset.source_snapshot_ids,
+            evidence_ids=build_result.dataset.evidence_ids,
+            evidence_validator=validate_data_artifact_evidence,
+            domain_validator=validate_data_artifact_domain,
+            quality_validator=forged_validator,
+        )
