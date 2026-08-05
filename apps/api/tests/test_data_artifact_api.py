@@ -140,6 +140,28 @@ def test_dataset_rows_cursor_is_bound_to_version() -> None:
     assert getattr(exc_info.value, "code", None) == "INVALID_CURSOR"
 
 
+def test_dataset_rows_use_bounded_repository_projection() -> None:
+    service, version_id = _service_for_dataset()
+    candidate = DatasetArtifactCandidate.model_validate(service._artifacts.version.content)
+    calls: list[tuple[str | None, int]] = []
+
+    def list_rows(*, version_id: str, session_id: str, after_row_id: str | None, limit: int):
+        assert version_id == "version-1"
+        assert session_id == "session-1"
+        calls.append((after_row_id, limit))
+        return tuple(row.model_dump(mode="json") for row in candidate.rows[:limit])
+
+    service._artifacts.list_dataset_rows = list_rows
+    rows, _, _ = service.list_dataset_rows(
+        version_id=version_id,
+        session_id="session-1",
+        cursor=None,
+        limit=1,
+    )
+    assert rows
+    assert calls == [(None, 2)]
+
+
 def test_dataset_export_is_idempotent_and_rejects_unknown_format() -> None:
     service, version_id = _service_for_dataset()
     first = service.create_export(

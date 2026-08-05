@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
+    DatasetRowProjectionModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
     ResearchRunModel,
@@ -167,6 +168,7 @@ class AdmittedArtifactCandidate:
     schema_version: str
     source_snapshot_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...]
+    quality_projection: Mapping[str, object] | None
 
     def __init__(
         self,
@@ -176,6 +178,7 @@ class AdmittedArtifactCandidate:
         schema_version: str,
         source_snapshot_ids: tuple[str, ...],
         evidence_ids: tuple[str, ...],
+        quality_projection: Mapping[str, object] | None = None,
         _seal: object,
     ) -> None:
         if _seal is not _ADMISSION_SEAL:
@@ -187,6 +190,7 @@ class AdmittedArtifactCandidate:
         object.__setattr__(self, "schema_version", schema_version)
         object.__setattr__(self, "source_snapshot_ids", source_snapshot_ids)
         object.__setattr__(self, "evidence_ids", evidence_ids)
+        object.__setattr__(self, "quality_projection", quality_projection)
 
     @property
     def content(self) -> dict[str, object]:
@@ -262,6 +266,7 @@ def admit_artifact_candidate(
         schema_version=schema_version.strip(),
         source_snapshot_ids=snapshots,
         evidence_ids=evidence,
+        quality_projection=getattr(quality_validator, "quality_projection", None),
         _seal=_ADMISSION_SEAL,
     )
 
@@ -558,9 +563,25 @@ class ArtifactPublisher:
                     producer=_public_producer_metadata(producer),
                     source_snapshot_ids=list(output.candidate.source_snapshot_ids),
                     evidence_ids=list(output.candidate.evidence_ids),
+                    quality_projection=(
+                        dict(output.candidate.quality_projection)
+                        if output.candidate.quality_projection is not None
+                        else None
+                    ),
                     supersedes_version_id=output.supersedes_version_id,
                 )
                 session.add(version)
+                if output.candidate.content.get("kind") == "dataset":
+                    for row in output.candidate.content.get("rows", []):
+                        if isinstance(row, dict) and isinstance(row.get("row_id"), str):
+                            session.add(
+                                DatasetRowProjectionModel(
+                                    artifact_version_id=version.id,
+                                    project_id=version.project_id,
+                                    row_id=row["row_id"],
+                                    row=row,
+                                )
+                            )
                 versions.append(version)
             session.flush()
             for version in versions:

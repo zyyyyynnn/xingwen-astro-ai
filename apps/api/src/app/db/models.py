@@ -21,6 +21,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     Text,
     UniqueConstraint,
@@ -429,6 +430,7 @@ class ArtifactVersionModel(TimestampMixin, Base):
     producer: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     source_snapshot_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     evidence_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    quality_projection: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     supersedes_version_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
 
     __table_args__ = (
@@ -478,6 +480,34 @@ class ArtifactVersionModel(TimestampMixin, Base):
         Index("ix_artifact_versions_producer_execution_id", "producer_execution_id"),
         CheckConstraint("version_number >= 1", name="version_positive"),
         CheckConstraint("source_mode IN ('fixture','live','cached')", name="source_mode"),
+    )
+
+
+class DatasetRowProjectionModel(Base):
+    """Immutable row projection used by bounded Dataset reads."""
+
+    __tablename__ = "dataset_row_projections"
+
+    artifact_version_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("artifact_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    row_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    row: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("artifact_version_id", "row_id"),
+        Index(
+            "ix_dataset_row_projection_project_version",
+            "project_id",
+            "artifact_version_id",
+        ),
     )
 
 

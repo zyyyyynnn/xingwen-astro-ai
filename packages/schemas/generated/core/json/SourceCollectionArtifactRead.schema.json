@@ -1122,6 +1122,19 @@
       "title": "Project Id",
       "type": "string"
     },
+    "quality_projection": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Quality Projection"
+    },
     "schema_version": {
       "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
       "title": "Schema Version",

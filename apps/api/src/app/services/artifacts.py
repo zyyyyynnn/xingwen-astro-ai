@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
+    DatasetRowProjectionModel,
     EvidenceModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
@@ -247,7 +248,39 @@ class ArtifactReadService:
                 producer_execution=_producer_execution(producer),
                 source_snapshots=tuple(_source_snapshot(item) for item in snapshots),
                 evidence=tuple(_evidence(item) for item in evidence),
+                quality_projection=row.quality_projection,
             )
+
+    def list_dataset_rows(
+        self,
+        *,
+        version_id: str,
+        session_id: str,
+        after_row_id: str | None,
+        limit: int,
+    ) -> tuple[dict[str, Any], ...]:
+        """Read one bounded, stable row page without loading ArtifactVersion.content."""
+        version_uuid = _uuid_or_not_found(version_id, "ARTIFACT_VERSION_NOT_FOUND")
+        with self._factory() as session:
+            version = session.get(ArtifactVersionModel, version_uuid)
+            if version is None:
+                raise _not_found("ARTIFACT_VERSION_NOT_FOUND")
+            self._require_project_owner(
+                session,
+                version.project_id,
+                session_id,
+                "ARTIFACT_VERSION_NOT_FOUND",
+            )
+            query = select(DatasetRowProjectionModel).where(
+                DatasetRowProjectionModel.artifact_version_id == version_uuid,
+                DatasetRowProjectionModel.project_id == version.project_id,
+            )
+            if after_row_id is not None:
+                query = query.where(DatasetRowProjectionModel.row_id > after_row_id)
+            rows = session.scalars(
+                query.order_by(DatasetRowProjectionModel.row_id).limit(limit)
+            )
+            return tuple(dict(row.row) for row in rows)
 
     def get_evidence(self, *, evidence_id: str, session_id: str) -> EvidenceRead:
         evidence_uuid = _uuid_or_not_found(evidence_id, "EVIDENCE_NOT_FOUND")

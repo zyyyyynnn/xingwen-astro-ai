@@ -338,6 +338,27 @@ def build_data_quality_publication_validator(
                 stage=QualityFailureStage.admission_validation,
             )
 
+    # The publisher copies this immutable, hash-bound projection into the
+    # ArtifactVersion row; readers never need the process-local evaluator state.
+    validate.quality_projection = {
+        "result_id": admitted.snapshot.result_id,
+        "input_hash": admitted.snapshot.result_input_hash,
+        "output_hash": admitted.snapshot.result_output_hash,
+        "content_hash": admitted.snapshot.result_content_hash,
+        "evaluation_plan_content_hash": admitted.snapshot.plan_content_hash,
+        "evaluation_commitment": admitted.snapshot.evaluation_commitment,
+        "rule_set": {
+            "id": admitted.snapshot.rule_set_id,
+            "version": admitted.snapshot.rule_set_version,
+            "content_hash": admitted.snapshot.rule_set_content_hash,
+        },
+        "research_contract": {
+            "id": admitted.snapshot.contract_id,
+            "version": admitted.snapshot.contract_version,
+            "content_hash": admitted.snapshot.contract_content_hash,
+        },
+        "overall_status": admitted.evaluation_result.contract_gate.overall_status.value,
+    }
     return validate
 
 

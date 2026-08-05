@@ -1788,6 +1788,9 @@ export interface DataArtifactReadBase {
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
+  quality_projection?: {
+    [k: string]: unknown;
+  } | null;
   schema_version: string;
   source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
@@ -1908,6 +1911,9 @@ export interface DatasetArtifactRead {
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
+  quality_projection?: {
+    [k: string]: unknown;
+  } | null;
   schema_version: string;
   source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
@@ -2253,6 +2259,9 @@ export interface FieldDictionaryArtifactRead {
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
+  quality_projection?: {
+    [k: string]: unknown;
+  } | null;
   schema_version: string;
   source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
@@ -2294,6 +2303,9 @@ export interface SourceCollectionArtifactRead {
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
+  quality_projection?: {
+    [k: string]: unknown;
+  } | null;
   schema_version: string;
   source_collection: SourceCollectionArtifactCandidate;
   source_mode: App_Schemas_Core__SourceMode;

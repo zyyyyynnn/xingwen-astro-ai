@@ -56,6 +56,14 @@ def test_real_publisher_port_accepts_each_exact_c04_candidate_with_c05_gate() ->
         "field_dictionary",
         "source_collection",
     )
+    for candidate in admitted_candidates:
+        projection = candidate.quality_projection
+        assert projection is not None
+        assert projection["result_id"] == admitted.evaluation_result.result_id
+        assert projection["overall_status"] == "pass"
+        assert projection["evaluation_commitment"] == admitted.snapshot.evaluation_commitment
+        assert projection["rule_set"]["content_hash"] == admitted.snapshot.rule_set_content_hash
+        assert projection["research_contract"]["content_hash"] == admitted.snapshot.contract_content_hash
 
 
 def test_reparsed_or_foreign_candidate_cannot_use_c05_admission() -> None:
