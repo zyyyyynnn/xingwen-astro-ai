@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
+    DatasetRowProjectionModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
     ResearchRunModel,
@@ -24,6 +25,7 @@ from app.db.models import (
     StepAttemptModel,
 )
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.data_quality import DataQualityProjection
 from app.workflow.store import TERMINAL_RUN_STATUSES
 
 
@@ -75,6 +77,7 @@ _PRODUCER_TERMINAL_STATUSES = frozenset(
 )
 _SOURCE_MODES = frozenset({"fixture", "live", "cached"})
 _ADMISSION_SEAL = object()
+_QUALITY_ATTESTATION_SEAL = object()
 _SEMANTIC_VERSION_PATTERN = re.compile(r"^[1-9]\d*\.\d+\.\d+$")
 
 ProducerParameter: TypeAlias = str | int | float | bool | None
@@ -167,6 +170,8 @@ class AdmittedArtifactCandidate:
     schema_version: str
     source_snapshot_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...]
+    _quality_projection_json: str | None
+    quality_projection_hash: str | None
 
     def __init__(
         self,
@@ -176,6 +181,7 @@ class AdmittedArtifactCandidate:
         schema_version: str,
         source_snapshot_ids: tuple[str, ...],
         evidence_ids: tuple[str, ...],
+        quality_projection: DataQualityProjection | None = None,
         _seal: object,
     ) -> None:
         if _seal is not _ADMISSION_SEAL:
@@ -187,10 +193,111 @@ class AdmittedArtifactCandidate:
         object.__setattr__(self, "schema_version", schema_version)
         object.__setattr__(self, "source_snapshot_ids", source_snapshot_ids)
         object.__setattr__(self, "evidence_ids", evidence_ids)
+        projection_json = (
+            json.dumps(
+                quality_projection.model_dump(mode="json"),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            if quality_projection is not None
+            else None
+        )
+        object.__setattr__(self, "_quality_projection_json", projection_json)
+        object.__setattr__(
+            self,
+            "quality_projection_hash",
+            quality_projection.content_hash if quality_projection is not None else None,
+        )
 
     @property
     def content(self) -> dict[str, object]:
         return json.loads(self._content_json)
+
+    @property
+    def quality_projection(self) -> DataQualityProjection | None:
+        if self._quality_projection_json is None:
+            return None
+        return DataQualityProjection.model_validate_json(self._quality_projection_json)
+
+
+@dataclass(frozen=True, slots=True)
+class _DataQualityPublicationAttestation:
+    token: object
+    candidate_object_id: int
+    candidate_kind: str
+    candidate_id: str
+    candidate_input_hash: str
+    candidate_output_hash: str
+    candidate_content_hash: str
+    projection_json: str
+    projection_hash: str
+
+
+def _seal_data_quality_attestation(
+    candidate: BaseModel,
+    projection: DataQualityProjection,
+) -> _DataQualityPublicationAttestation:
+    content = candidate.model_dump(mode="json", exclude_none=True)
+    candidate_content_hash = compute_canonical_payload_hash(content)
+    if (
+        projection.candidate_kind != getattr(candidate, "kind", None)
+        or projection.candidate_id != getattr(candidate, "candidate_id", None)
+        or projection.candidate_input_hash != getattr(candidate, "input_hash", None)
+        or projection.candidate_output_hash != getattr(candidate, "output_hash", None)
+        or projection.candidate_content_hash != candidate_content_hash
+    ):
+        raise PublicationAdmissionError(
+            "C-05 attestation does not match the exact data candidate"
+        )
+    projection_json = json.dumps(
+        projection.model_dump(mode="json"),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return _DataQualityPublicationAttestation(
+        token=_QUALITY_ATTESTATION_SEAL,
+        candidate_object_id=id(candidate),
+        candidate_kind=projection.candidate_kind,
+        candidate_id=projection.candidate_id,
+        candidate_input_hash=projection.candidate_input_hash,
+        candidate_output_hash=projection.candidate_output_hash,
+        candidate_content_hash=candidate_content_hash,
+        projection_json=projection_json,
+        projection_hash=projection.content_hash,
+    )
+
+
+def _quality_projection_from_attestation(
+    candidate: BaseModel,
+    attestation: object,
+) -> DataQualityProjection:
+    if not isinstance(attestation, _DataQualityPublicationAttestation):
+        raise PublicationAdmissionError(
+            "Final data Artifact publication requires a C-05 attestation"
+        )
+    content_hash = compute_canonical_payload_hash(
+        candidate.model_dump(mode="json", exclude_none=True)
+    )
+    projection = DataQualityProjection.model_validate_json(
+        attestation.projection_json
+    )
+    if (
+        attestation.token is not _QUALITY_ATTESTATION_SEAL
+        or attestation.candidate_object_id != id(candidate)
+        or attestation.candidate_kind != getattr(candidate, "kind", None)
+        or attestation.candidate_id != getattr(candidate, "candidate_id", None)
+        or attestation.candidate_input_hash != getattr(candidate, "input_hash", None)
+        or attestation.candidate_output_hash != getattr(candidate, "output_hash", None)
+        or attestation.candidate_content_hash != content_hash
+        or attestation.projection_hash != projection.content_hash
+        or projection.candidate_content_hash != content_hash
+    ):
+        raise PublicationAdmissionError(
+            "C-05 attestation is not sealed to the exact data candidate"
+        )
+    return projection
 
 
 @dataclass(frozen=True, slots=True)
@@ -265,12 +372,24 @@ def admit_artifact_candidate(
         separators=(",", ":"),
         allow_nan=False,
     )
+    requires_quality_attestation = getattr(candidate, "kind", None) in {
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+    }
+    quality_projection = None
+    if requires_quality_attestation:
+        quality_projection = _quality_projection_from_attestation(
+            candidate,
+            getattr(quality_validator, "_data_quality_attestation", None),
+        )
     return AdmittedArtifactCandidate(
         content_json=content_json,
         content_hash=compute_canonical_payload_hash(content),
         schema_version=normalized_schema_version,
         source_snapshot_ids=snapshots,
         evidence_ids=evidence,
+        quality_projection=quality_projection,
         _seal=_ADMISSION_SEAL,
     )
 
@@ -567,9 +686,26 @@ class ArtifactPublisher:
                     producer=_public_producer_metadata(producer),
                     source_snapshot_ids=list(output.candidate.source_snapshot_ids),
                     evidence_ids=list(output.candidate.evidence_ids),
+                    quality_projection=(
+                        output.candidate.quality_projection.model_dump(mode="json")
+                        if output.candidate.quality_projection is not None
+                        else None
+                    ),
+                    quality_projection_hash=output.candidate.quality_projection_hash,
                     supersedes_version_id=output.supersedes_version_id,
                 )
                 session.add(version)
+                if output.candidate.content.get("kind") == "dataset":
+                    for row in output.candidate.content.get("rows", []):
+                        if isinstance(row, dict) and isinstance(row.get("row_id"), str):
+                            session.add(
+                                DatasetRowProjectionModel(
+                                    artifact_version_id=version.id,
+                                    project_id=version.project_id,
+                                    row_id=row["row_id"],
+                                    row=row,
+                                )
+                            )
                 versions.append(version)
             session.flush()
             for version in versions:
@@ -1151,6 +1287,12 @@ def _require_same_publication(
         output.source_mode,
         list(output.candidate.source_snapshot_ids),
         list(output.candidate.evidence_ids),
+        (
+            output.candidate.quality_projection.model_dump(mode="json")
+            if output.candidate.quality_projection is not None
+            else None
+        ),
+        output.candidate.quality_projection_hash,
         output.supersedes_version_id,
     )
     actual = (
@@ -1166,6 +1308,8 @@ def _require_same_publication(
         version.source_mode,
         version.source_snapshot_ids,
         version.evidence_ids,
+        version.quality_projection,
+        version.quality_projection_hash,
         version.supersedes_version_id,
     )
     if actual != expected:

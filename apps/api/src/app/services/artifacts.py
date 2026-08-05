@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
+    DatasetRowProjectionModel,
     EvidenceModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
@@ -36,6 +37,8 @@ from app.schemas.core import (
     ResearchArtifactDetail,
     SourceSnapshotDetail,
 )
+from app.schemas.data_quality import DataQualityProjection
+from pydantic import ValidationError
 from app.security import SecurityProblem
 from app.workflow.publisher import producer_parameter_key_is_sensitive
 
@@ -197,7 +200,11 @@ class ArtifactReadService:
             )
 
     def get_version(
-        self, *, version_id: str, session_id: str
+        self,
+        *,
+        version_id: str,
+        session_id: str,
+        full_content: bool = False,
     ) -> ArtifactVersionDetail:
         version_uuid = _uuid_or_not_found(version_id, "ARTIFACT_VERSION_NOT_FOUND")
         with self._factory() as session:
@@ -223,7 +230,11 @@ class ArtifactReadService:
                 created_by_run_id=str(row.created_by_run_id),
                 version_number=row.version_number,
                 schema_version=row.schema_version,
-                content=_sanitize_object(row.content, max_string=8192),
+                content=_sanitize_object(
+                    row.content,
+                    max_string=1_000_000 if full_content else 8192,
+                    max_items=None if full_content else 500,
+                ),
                 content_hash=row.content_hash,
                 input_hash=row.input_hash,
                 source_mode=row.source_mode,
@@ -239,7 +250,122 @@ class ArtifactReadService:
                 producer_execution=_producer_execution(producer),
                 source_snapshots=tuple(_source_snapshot(item) for item in snapshots),
                 evidence=tuple(_evidence(item) for item in evidence),
+                quality_projection=row.quality_projection,
+                quality_projection_hash=row.quality_projection_hash,
             )
+
+    def list_dataset_rows(
+        self,
+        *,
+        version_id: str,
+        session_id: str,
+        after_row_id: str | None,
+        limit: int,
+    ) -> tuple[dict[str, Any], ...]:
+        """Read one bounded, stable row page without loading ArtifactVersion.content."""
+        version_uuid = _uuid_or_not_found(version_id, "ARTIFACT_VERSION_NOT_FOUND")
+        with self._factory() as session:
+            version = session.execute(
+                select(
+                    ArtifactVersionModel.id,
+                    ArtifactVersionModel.project_id,
+                    ArtifactVersionModel.artifact_id,
+                    ArtifactVersionModel.content_hash,
+                    ArtifactVersionModel.content["candidate_id"].astext.label("candidate_id"),
+                    ArtifactVersionModel.content["input_hash"].astext.label("candidate_input_hash"),
+                    ArtifactVersionModel.content["output_hash"].astext.label("candidate_output_hash"),
+                    ArtifactVersionModel.content["row_count"].astext.label("row_count"),
+                    ArtifactVersionModel.quality_projection,
+                    ArtifactVersionModel.quality_projection_hash,
+                    ResearchArtifactModel.kind,
+                )
+                .join(
+                    ResearchArtifactModel,
+                    ResearchArtifactModel.id == ArtifactVersionModel.artifact_id,
+                )
+                .where(ArtifactVersionModel.id == version_uuid)
+            ).one_or_none()
+            if version is None:
+                raise _not_found("ARTIFACT_VERSION_NOT_FOUND")
+            self._require_project_owner(
+                session,
+                version.project_id,
+                session_id,
+                "ARTIFACT_VERSION_NOT_FOUND",
+            )
+            if version.kind != "dataset":
+                raise SecurityProblem(
+                    status=409,
+                    code="ARTIFACT_KIND_MISMATCH",
+                    title="Artifact kind mismatch",
+                    detail="The ArtifactVersion is not a dataset",
+                )
+            try:
+                projection = DataQualityProjection.model_validate(
+                    version.quality_projection
+                )
+            except ValidationError as exc:
+                raise SecurityProblem(
+                    status=409,
+                    code="DATA_QUALITY_PROJECTION_REQUIRED",
+                    title="Data quality projection required",
+                    detail="The ArtifactVersion has no valid passing C-05 quality projection",
+                ) from exc
+            if (
+                version.quality_projection_hash != projection.content_hash
+                or projection.candidate_kind != "dataset"
+                or projection.candidate_id != version.candidate_id
+                or projection.candidate_input_hash != version.candidate_input_hash
+                or projection.candidate_output_hash != version.candidate_output_hash
+                or projection.candidate_content_hash != version.content_hash
+                or projection.quality_result_input_hash
+                != projection.quality_input_hash
+            ):
+                raise SecurityProblem(
+                    status=409,
+                    code="DATA_QUALITY_PROJECTION_INVALID",
+                    title="Data quality projection invalid",
+                    detail="The C-05 projection is not bound to this ArtifactVersion",
+                )
+            projected_count = session.scalar(
+                select(func.count())
+                .select_from(DatasetRowProjectionModel)
+                .where(
+                    DatasetRowProjectionModel.artifact_version_id == version_uuid,
+                    DatasetRowProjectionModel.project_id == version.project_id,
+                )
+            )
+            try:
+                expected_count = int(version.row_count)
+            except (TypeError, ValueError) as exc:
+                raise _integrity_problem() from exc
+            if projected_count != expected_count:
+                raise _integrity_problem()
+            if after_row_id is not None:
+                exists = session.scalar(
+                    select(DatasetRowProjectionModel.row_id).where(
+                        DatasetRowProjectionModel.artifact_version_id == version_uuid,
+                        DatasetRowProjectionModel.project_id == version.project_id,
+                        DatasetRowProjectionModel.row_id == after_row_id,
+                    )
+                )
+                if exists is None:
+                    raise SecurityProblem(
+                        status=400,
+                        code="INVALID_CURSOR",
+                        title="Invalid cursor",
+                        detail="The cursor row does not belong to this Dataset",
+                    )
+            query = select(DatasetRowProjectionModel).where(
+                DatasetRowProjectionModel.artifact_version_id == version_uuid,
+                DatasetRowProjectionModel.project_id == version.project_id,
+            )
+            if after_row_id is not None:
+                query = query.where(DatasetRowProjectionModel.row_id > after_row_id)
+            rows = session.scalars(
+                query.order_by(DatasetRowProjectionModel.row_id).limit(limit)
+            )
+            return tuple(dict(row.row) for row in rows)
 
     def get_evidence(self, *, evidence_id: str, session_id: str) -> EvidenceRead:
         evidence_uuid = _uuid_or_not_found(evidence_id, "EVIDENCE_NOT_FOUND")
@@ -454,12 +580,16 @@ def _safe_quote(value: Any) -> Any:
     return _sanitize_string(value, 2000)
 
 
-def _sanitize_object(value: Mapping[str, Any], *, max_string: int) -> dict[str, Any]:
-    sanitized = _sanitize_json(dict(value), max_string=max_string)
+def _sanitize_object(
+    value: Mapping[str, Any], *, max_string: int, max_items: int | None = 500
+) -> dict[str, Any]:
+    sanitized = _sanitize_json(dict(value), max_string=max_string, max_items=max_items)
     return sanitized if isinstance(sanitized, dict) else {}
 
 
-def _sanitize_json(value: Any, *, max_string: int) -> Any:
+def _sanitize_json(
+    value: Any, *, max_string: int, max_items: int | None = 500
+) -> Any:
     if value is None or isinstance(value, (bool, int)):
         return value
     if isinstance(value, float):
@@ -468,12 +598,16 @@ def _sanitize_json(value: Any, *, max_string: int) -> Any:
         return _sanitize_string(value, max_string)
     if isinstance(value, Mapping):
         return {
-            str(key): _sanitize_json(nested, max_string=max_string)
+            str(key): _sanitize_json(nested, max_string=max_string, max_items=max_items)
             for key, nested in value.items()
             if not _sensitive_key(str(key))
         }
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        return [_sanitize_json(item, max_string=max_string) for item in value[:500]]
+        items = value if max_items is None else value[:max_items]
+        return [
+            _sanitize_json(item, max_string=max_string, max_items=max_items)
+            for item in items
+        ]
     return None
 
 

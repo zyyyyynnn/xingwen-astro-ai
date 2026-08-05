@@ -145,7 +145,7 @@ def _create_artifact(
     artifact = ResearchArtifactModel(
         id=uuid4(),
         project_id=project_id,
-        kind="dataset",
+        kind="export",
         title=logical_key,
         logical_key=logical_key,
     )
@@ -157,7 +157,7 @@ def _create_artifact(
 def _admit(*, revision: int = 1):
     return admit_artifact_candidate(
         FixtureArtifactCandidate(
-            kind="dataset",
+            kind="export",
             object_ids=(f"TOI-700-d-r{revision}",),
             revision=revision,
         ),
