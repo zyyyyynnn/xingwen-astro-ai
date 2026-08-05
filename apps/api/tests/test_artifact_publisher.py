@@ -25,6 +25,13 @@ class DatasetCandidate(BaseModel):
     quality_score: float
 
 
+class UnmarkedDataArtifactCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: str = "dataset"
+    rows: tuple[dict[str, str], ...]
+
+
 class PaperSummaryCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -128,6 +135,21 @@ def test_any_failed_admission_gate_prevents_candidate_creation() -> None:
             evidence_validator=_accept,
             domain_validator=_accept,
             quality_validator=reject,
+        )
+
+
+def test_unmarked_data_kind_cannot_bypass_c05_attestation() -> None:
+    candidate = UnmarkedDataArtifactCandidate(rows=({"object_id": "TOI-700 d"},))
+
+    with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
+        admit_artifact_candidate(
+            candidate,
+            schema_version="2.0.0",
+            source_snapshot_ids=("source_fixture_01",),
+            evidence_ids=("evidence_fixture_01",),
+            evidence_validator=_accept,
+            domain_validator=_accept,
+            quality_validator=_accept,
         )
 
 
