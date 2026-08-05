@@ -61,7 +61,7 @@ NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
 
 
 class _FixtureDatasetCandidate(BaseModel):
-    kind: Literal["dataset"] = "dataset"
+    kind: Literal["export"] = "export"
     field_ids: tuple[str, ...]
     rows: tuple[dict[str, str], ...]
 
@@ -246,7 +246,7 @@ def _publish_fixture_artifact(
             ResearchArtifactModel(
                 id=artifact_id,
                 project_id=project_uuid,
-                kind="dataset",
+                kind="export",
                 title="X-01 gap fixture dataset",
                 logical_key=f"gap-fixture-{run_id}",
             )

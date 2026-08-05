@@ -60,7 +60,7 @@ def _seed_uuid(run_id: str, entity: str) -> UUID:
 
 
 class _FixtureDatasetCandidate(BaseModel):
-    kind: Literal["dataset"] = "dataset"
+    kind: Literal["export"] = "export"
     field_ids: tuple[str, ...]
     rows: tuple[dict[str, str], ...]
 
@@ -224,7 +224,7 @@ def _publish_fixture_version(
                 ResearchArtifactModel(
                     id=artifact_id,
                     project_id=project_id,
-                    kind="dataset",
+                    kind="export",
                     title="Exoplanet host-star dataset",
                     logical_key="dataset.primary",
                 )
