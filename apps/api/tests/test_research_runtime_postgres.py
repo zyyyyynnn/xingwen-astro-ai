@@ -59,7 +59,7 @@ NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
 
 
 class _FixtureDatasetCandidate(BaseModel):
-    kind: Literal["dataset"] = "dataset"
+    kind: Literal["export"] = "export"
     field_ids: tuple[str, ...]
     rows: tuple[dict[str, str], ...]
 
@@ -429,7 +429,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
             ResearchArtifactModel(
                 id=artifact_id,
                 project_id=UUID(str(project_id)),
-                kind="dataset",
+                kind="export",
                 title="Deterministic exoplanet fixture",
                 logical_key="x01-demo-fixture-dataset",
             )
