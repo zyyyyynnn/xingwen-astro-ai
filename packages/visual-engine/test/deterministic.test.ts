@@ -1,112 +1,58 @@
-import { createAsciiDitherRenderer } from "../src/renderer";
+import { describe, expect, it } from "vitest";
+
 import { createDeterministicRandom } from "../src/random";
 import { createPoster } from "../src/poster";
+import { createResearchSceneModel } from "../src/scene-model";
+import { sampleSceneFrame } from "../src/sample-frame";
+import type { ScenePalette } from "../src/palette";
 
-/**
- * Hash frame data into a stable string for deterministic comparison.
- */
-function hashFrame(frame: {
-  width: number;
-  height: number;
-  cells: readonly { char: string; alpha: number }[];
-}): string {
-  const cellHash = frame.cells
-    .map((c) => `${c.char}${c.alpha.toFixed(4)}`)
-    .join("|");
-  return `${frame.width}x${frame.height}:${cellHash}`;
-}
+const TEST_PALETTE: ScenePalette = {
+  paper: "oklch(0.978 0.004 230)",
+  ink: "oklch(0.38 0.022 235)",
+  deep: "oklch(0.21 0.026 235)",
+  soft: "oklch(0.885 0.011 235)",
+  particle: "oklch(0.57 0.018 235)",
+  anchor: "oklch(0.38 0.022 235)",
+};
 
 describe("deterministic output", () => {
-  it("createDeterministicRandom produces same sequence for same seed", () => {
+  it("createDeterministicRandom produces the same sequence for the same seed", () => {
     const a = createDeterministicRandom(42);
     const b = createDeterministicRandom(42);
-    const seqA = [a.next(), a.next(), a.next(), a.next(), a.next()];
-    const seqB = [b.next(), b.next(), b.next(), b.next(), b.next()];
-    expect(seqA).toEqual(seqB);
+    expect([a.next(), a.next(), a.next()]).toEqual([
+      b.next(),
+      b.next(),
+      b.next(),
+    ]);
   });
 
   it("different seeds produce different sequences", () => {
     const a = createDeterministicRandom(42);
     const b = createDeterministicRandom(99);
-    const seqA = [a.next(), a.next(), a.next()];
-    const seqB = [b.next(), b.next(), b.next()];
-    expect(seqA).not.toEqual(seqB);
+    expect([a.next(), a.next(), a.next()]).not.toEqual([
+      b.next(),
+      b.next(),
+      b.next(),
+    ]);
   });
 
-  it("renderer produces identical frame data for same seed + time + viewport", () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 160;
-    canvas.height = 100;
-
-    const config = {
-      seed: 12345,
-      width: 160,
-      height: 100,
-      quality: "medium" as const,
-      freezeTime: 5000,
-      canvas,
-    };
-
-    const rendererA = createAsciiDitherRenderer(config);
-    const rendererB = createAsciiDitherRenderer(config);
-
-    const frameA = rendererA.getFrameData(5000);
-    const frameB = rendererB.getFrameData(5000);
-
-    expect(hashFrame(frameA)).toBe(hashFrame(frameB));
+  it("poster is deterministic for the same model", () => {
+    const model = createResearchSceneModel(42);
+    expect(createPoster(model, TEST_PALETTE).svg).toBe(
+      createPoster(model, TEST_PALETTE).svg,
+    );
   });
 
-  it("renderer produces identical frame data across two calls (stability)", () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 160;
-    canvas.height = 100;
-
-    const renderer = createAsciiDitherRenderer({
-      seed: 777,
-      width: 160,
-      height: 100,
-      quality: "high" as const,
-      freezeTime: 3000,
-      canvas,
-    });
-
-    const frame1 = renderer.getFrameData(3000);
-    const frame2 = renderer.getFrameData(3000);
-
-    expect(hashFrame(frame1)).toBe(hashFrame(frame2));
+  it("sample frames are deterministic for the same time", () => {
+    const model = createResearchSceneModel(12345);
+    const a = sampleSceneFrame(model, 1.9, { cols: 64, rows: 36 });
+    const b = sampleSceneFrame(model, 1.9, { cols: 64, rows: 36 });
+    expect(a).toEqual(b);
   });
 
-  it("freezeTime fixes temporal variation", () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 160;
-    canvas.height = 100;
-
-    const renderer = createAsciiDitherRenderer({
-      seed: 42,
-      width: 160,
-      height: 100,
-      quality: "medium" as const,
-      freezeTime: 10000,
-      canvas,
-    });
-
-    // Different "time" arguments should produce same output when frozen
-    const frame1 = renderer.getFrameData(10000);
-    const frame2 = renderer.getFrameData(99999);
-
-    expect(hashFrame(frame1)).toBe(hashFrame(frame2));
-  });
-
-  it("poster is deterministic for same seed", () => {
-    const posterA = createPoster({ seed: 42 });
-    const posterB = createPoster({ seed: 42 });
-    expect(posterA.svg).toBe(posterB.svg);
-    expect(posterA.dataUrl).toBe(posterB.dataUrl);
-  });
-
-  it("poster differs for different seeds", () => {
-    const posterA = createPoster({ seed: 42 });
-    const posterB = createPoster({ seed: 99 });
-    expect(posterA.svg).not.toBe(posterB.svg);
+  it("different seeds produce different posters", () => {
+    const a = createPoster(createResearchSceneModel(42), TEST_PALETTE);
+    const b = createPoster(createResearchSceneModel(99), TEST_PALETTE);
+    expect(a.svg).not.toBe(b.svg);
   });
 });

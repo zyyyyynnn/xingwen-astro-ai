@@ -212,7 +212,7 @@ const boundaryRules = new Map([
     "packages/visual-engine",
     {
       description: "the presentation-only visual boundary",
-      allowedBareImports: new Set(),
+      allowedBareImports: new Set(["three"]),
       forbiddenIdentifiers: networkAndStorageGlobals,
       forbidRepositorySymbols: true,
     },

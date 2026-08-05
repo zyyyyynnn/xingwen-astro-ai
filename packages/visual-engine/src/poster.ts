@@ -1,62 +1,112 @@
+import type { ScenePalette } from "./palette";
 import { createDeterministicRandom } from "./random";
-import type { PosterConfig, PosterSource } from "./types";
+import {
+  applyFold,
+  DESIGN_HEIGHT,
+  DESIGN_WIDTH,
+  GLYPH_RAMP,
+} from "./scene-model";
+import type { ResearchSceneModel } from "./scene-model";
+import type { PosterSource } from "./types";
 
 /**
- * bluegray anchor from ADR-029.
- * Visual Engine is pure TS (no design-tokens dependency), so raw
- * oklch strings are inlined. These mirror packages/design-tokens/base.css.
+ * Deterministic SVG Poster — the no-JS / reduced-motion / WebGL-loss
+ * fallback. It consumes the exact same ResearchSceneModel and ScenePalette
+ * as the WebGL dynamic renderer (static phase fold = 0), so the Poster is
+ * a still of the same subject, never a second composition.
+ *
+ * Sample fraction keeps the SVG lean while preserving the composition.
  */
-const BLUEGRAY_300 = "oklch(0.805 0.014 235)";
-const BLUEGRAY_500 = "oklch(0.57 0.018 235)";
-const BLUEGRAY_700 = "oklch(0.38 0.022 235)";
-const BLUEGRAY_900 = "oklch(0.21 0.026 235)";
-const PAPER_0 = "oklch(0.995 0.002 230)";
 
-const CHAR_RAMP = ["·", ":", "+", "*", "#", "%", "@"] as const;
-const CHAR_COUNT = 48;
+export interface PosterConfig {
+  readonly width?: number;
+  readonly height?: number;
+}
 
-/**
- * Deterministic SVG Poster: off-axis exoplanet outline + character texture.
- * Same seed always produces the same Poster.
- */
-export function createPoster(config: PosterConfig): PosterSource {
-  const { seed, width = 320, height = 200 } = config;
-  const rng = createDeterministicRandom(seed);
+const SAMPLE_KEEP = 0.45;
 
-  // Off-axis exoplanet: ellipse offset from center (偏轴构图)
-  const cx = width * (0.52 + rng.next() * 0.08);
-  const cy = height * (0.46 + rng.next() * 0.08);
-  const rx = width * (0.28 + rng.next() * 0.06);
-  const ry = height * (0.34 + rng.next() * 0.06);
+function formatColor(
+  particleColorClass: number,
+  density: number,
+  palette: ScenePalette,
+): {
+  fill: string;
+  opacity: number;
+} {
+  if (particleColorClass === 2) {
+    return { fill: palette.anchor, opacity: 0.95 };
+  }
+  if (particleColorClass === 1) {
+    return { fill: palette.particle, opacity: 0.6 };
+  }
+  return {
+    fill: density > 0.55 ? palette.ink : palette.soft,
+    opacity: 0.5 + density * 0.45,
+  };
+}
 
-  // Scatter character texture inside and around the planet
-  const chars: { x: number; y: number; char: string; opacity: number }[] = [];
-  for (let i = 0; i < CHAR_COUNT; i++) {
-    const angle = rng.next() * Math.PI * 2;
-    const dist = rng.next() * 1.15;
-    const x = cx + Math.cos(angle) * rx * dist;
-    const y = cy + Math.sin(angle) * ry * dist;
-    const char = CHAR_RAMP[Math.floor(rng.next() * CHAR_RAMP.length)] ?? "·";
-    const opacity = 0.15 + rng.next() * 0.55;
-    chars.push({ x, y, char, opacity });
+export function createPoster(
+  model: ResearchSceneModel,
+  palette: ScenePalette,
+  config: PosterConfig = {},
+): PosterSource {
+  const { width = 480, height = 330 } = config;
+  const scale = Math.max(width / DESIGN_WIDTH, height / DESIGN_HEIGHT);
+  const toX = (x: number): number => width / 2 + x * scale;
+  const toY = (y: number): number => height / 2 - y * scale;
+
+  const rng = createDeterministicRandom((model.seed + 1013) >>> 0);
+
+  const orbitElements: string[] = [];
+  const charElements: string[] = [];
+
+  for (const unit of model.units) {
+    if (unit.type === "orbit") {
+      const { cx, cy, rx, ry, angle } = unit.geometry;
+      orbitElements.push(
+        `    <ellipse cx="${toX(cx).toFixed(1)}" cy="${toY(cy).toFixed(1)}" rx="${(rx * scale).toFixed(1)}" ry="${(ry * scale).toFixed(1)}" transform="rotate(${((-angle * 180) / Math.PI).toFixed(1)} ${toX(cx).toFixed(1)} ${toY(cy).toFixed(1)})" fill="none" stroke="${palette.particle}" stroke-width="1.2" opacity="0.45"/>`,
+      );
+    }
   }
 
-  const charElements = chars
-    .map(
-      (c) =>
-        `    <text x="${c.x.toFixed(1)}" y="${c.y.toFixed(1)}" font-family="ui-monospace, monospace" font-size="8" fill="${BLUEGRAY_700}" opacity="${c.opacity.toFixed(2)}">${c.char}</text>`,
-    )
-    .join("\n");
+  for (const particle of model.particles) {
+    if (particle.type === "anchor") {
+      const x = toX(particle.x);
+      const y = toY(particle.y);
+      const s = particle.size * scale;
+      charElements.push(
+        `    <rect x="${(x - s / 2).toFixed(1)}" y="${(y - s / 2).toFixed(1)}" width="${s.toFixed(1)}" height="${s.toFixed(1)}" fill="${palette.anchor}" opacity="0.95"/>`,
+      );
+      continue;
+    }
+    if (rng.next() > SAMPLE_KEEP) continue;
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="系外行星 ASCII 视觉">
-  <rect width="${width}" height="${height}" fill="${PAPER_0}"/>
-  <ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${BLUEGRAY_900}" opacity="0.06"/>
-  <ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="none" stroke="${BLUEGRAY_500}" stroke-width="1.2" opacity="0.55"/>
-  <ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${(rx * 0.82).toFixed(1)}" ry="${(ry * 0.82).toFixed(1)}" fill="none" stroke="${BLUEGRAY_300}" stroke-width="0.6" opacity="0.35"/>
-${charElements}
+    const deformed = applyFold(particle, 0, 0);
+    const x = toX(deformed.x);
+    const y = toY(deformed.y);
+    if (x < -4 || x > width + 4 || y < -4 || y > height + 4) continue;
+
+    const { fill, opacity } = formatColor(
+      particle.colorClass,
+      particle.density,
+      palette,
+    );
+    const fontSize = Math.max(3, particle.size * scale * 1.6);
+    const glyph = GLYPH_RAMP[Math.min(6, particle.glyph)] ?? "·";
+    charElements.push(
+      `    <text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace" font-size="${fontSize.toFixed(1)}" text-anchor="middle" dominant-baseline="central" fill="${fill}" opacity="${opacity.toFixed(2)}">${glyph}</text>`,
+    );
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="系外行星 Transit 证据系统 ASCII 字符视觉">
+  <rect width="${width}" height="${height}" fill="${palette.paper}"/>
+  <ellipse cx="${toX(model.heart.x).toFixed(1)}" cy="${toY(model.heart.y).toFixed(1)}" rx="${(0.5 * scale).toFixed(1)}" ry="${(0.5 * scale).toFixed(1)}" fill="${palette.deep}" opacity="0.05"/>
+${orbitElements.join("\n")}
+${charElements.join("\n")}
 </svg>`;
 
-  const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-
-  return { svg, dataUrl };
+  return {
+    svg,
+    dataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+  };
 }
