@@ -432,8 +432,10 @@ def _render_export(
                 "artifact_version_id", "artifact_id", "project_id", "schema_version",
                 "source_mode", "content_hash", "input_hash", "created_at",
                 "producer_execution", "source_snapshots", "evidence",
+                "quality_projection",
             )
         }
+        report["quality_projection_hash"] = payload["quality_projection"]["content_hash"]
         return json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2).encode("utf-8"), "application/json", f"{version_id}.provenance.json"
     if not isinstance(typed, DatasetArtifactRead):
         raise _problem(422, "EXPORT_FORMAT_UNSUPPORTED", "Export format unsupported", "CSV export is only supported for Dataset artifacts")

@@ -258,6 +258,22 @@ def test_dataset_export_is_idempotent_and_rejects_unknown_format() -> None:
     assert conflict.value.code == "IDEMPOTENCY_CONFLICT"
 
 
+def test_provenance_export_includes_c05_quality_attestation() -> None:
+    service, version_id = _service_for_dataset()
+    exported = service.create_export(
+        version_id=version_id,
+        session_id="session-1",
+        idempotency_key="provenance-1",
+        export_format="provenance_report",
+    )
+    payload = json.loads(exported.content)
+    projection = payload["quality_projection"]
+    assert projection["overall_status"] == "pass"
+    assert projection["rule_set"]["content_hash"]
+    assert projection["research_contract"]["content_hash"]
+    assert payload["quality_projection_hash"] == projection["content_hash"]
+
+
 def test_dataset_csv_export_neutralizes_formula_cells() -> None:
     assert _csv_cell("=SUM(A1)") == "'=SUM(A1)"
     assert _csv_cell("@user") == "'@user"
