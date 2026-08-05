@@ -321,22 +321,22 @@ def admit_artifact_candidate(
 
     if not isinstance(candidate, BaseModel) or candidate.__class__ is BaseModel:
         raise PublicationAdmissionError("A validated Pydantic model is required")
-    if getattr(
-        candidate.__class__, "__artifact_publication_requires_admission__", False
-    ):
-        admission_check = getattr(candidate, "__artifact_publication_is_admitted__", None)
-        if not callable(admission_check) or admission_check() is not True:
-            raise PublicationAdmissionError(
-                "Model output cannot bypass its artifact admission pipeline"
-            )
+    _require_pipeline_admission(candidate)
     if not candidate.__class__.model_fields:
         raise PublicationAdmissionError(
             "An empty or untyped candidate cannot be published"
         )
-    if not _SEMANTIC_VERSION_PATTERN.fullmatch(schema_version.strip()):
+    normalized_schema_version = schema_version.strip()
+    if not _SEMANTIC_VERSION_PATTERN.fullmatch(normalized_schema_version):
         raise PublicationAdmissionError("schema_version must be semantic version text")
     snapshots = _validated_references(source_snapshot_ids, "source_snapshot_ids")
     evidence = _validated_references(evidence_ids, "evidence_ids")
+    _require_declared_candidate_context(
+        candidate,
+        schema_version=normalized_schema_version,
+        source_snapshot_ids=snapshots,
+        evidence_ids=evidence,
+    )
     context = ArtifactAdmissionContext(
         candidate=candidate,
         source_snapshot_ids=snapshots,
@@ -355,6 +355,15 @@ def admit_artifact_candidate(
             raise PublicationAdmissionError(
                 "Publication validators must reject by raising and otherwise return None"
             )
+    # Validators receive the typed object. Recheck the process-local commitment
+    # before serialization so even an illicit in-validator mutation cannot publish.
+    _require_pipeline_admission(candidate)
+    _require_declared_candidate_context(
+        candidate,
+        schema_version=normalized_schema_version,
+        source_snapshot_ids=snapshots,
+        evidence_ids=evidence,
+    )
     content = candidate.model_dump(mode="json", exclude_none=True)
     content_json = json.dumps(
         content,
@@ -377,7 +386,7 @@ def admit_artifact_candidate(
     return AdmittedArtifactCandidate(
         content_json=content_json,
         content_hash=compute_canonical_payload_hash(content),
-        schema_version=schema_version.strip(),
+        schema_version=normalized_schema_version,
         source_snapshot_ids=snapshots,
         evidence_ids=evidence,
         quality_projection=quality_projection,
@@ -1054,6 +1063,81 @@ def _validated_references(values: Sequence[str], name: str) -> tuple[str, ...]:
     ):
         raise PublicationAdmissionError(f"{name} must contain unique nonempty ids")
     return references
+
+
+def _require_declared_candidate_context(
+    candidate: BaseModel,
+    *,
+    schema_version: str,
+    source_snapshot_ids: tuple[str, ...],
+    evidence_ids: tuple[str, ...],
+) -> None:
+    """Keep caller-supplied publication context bound to typed candidate fields."""
+
+    if not getattr(
+        candidate.__class__, "__artifact_publication_requires_admission__", False
+    ):
+        return
+
+    declared_schema_version = getattr(candidate, "schema_version", None)
+    if (
+        declared_schema_version is not None
+        and declared_schema_version != schema_version
+    ):
+        raise PublicationAdmissionError(
+            "schema_version must match the typed candidate"
+        )
+    for field, supplied in (
+        ("source_snapshot_ids", source_snapshot_ids),
+        ("evidence_ids", evidence_ids),
+    ):
+        declared = getattr(candidate, field, None)
+        if declared is not None and tuple(declared) != supplied:
+            raise PublicationAdmissionError(
+                f"{field} must match the typed candidate"
+            )
+
+
+def _require_pipeline_admission(candidate: BaseModel) -> None:
+    candidate_class = candidate.__class__
+    candidate_kind = getattr(candidate, "kind", None)
+    if hasattr(candidate_kind, "value"):
+        candidate_kind = candidate_kind.value
+
+    # D-08 owns this Artifact kind exclusively. A caller-defined wrapper must not
+    # opt out of admission by omitting the marker or opt in with a forged method.
+    if candidate_kind == "literature_relations":
+        from app.schemas.literature_relation import LiteratureRelationsCandidate
+
+        if candidate_class is not LiteratureRelationsCandidate:
+            raise PublicationAdmissionError(
+                "literature_relations requires the authoritative Pipeline candidate"
+            )
+    elif candidate_kind == "reasoning_traces":
+        raise PublicationAdmissionError(
+            "ReasoningTrace cannot be published outside literature_relations"
+        )
+
+    if not getattr(
+        candidate_class, "__artifact_publication_requires_admission__", False
+    ):
+        return
+    # Resolve the verifier on the class and invoke it unbound. Looking it up on
+    # the instance would let an injected instance attribute shadow the sealed
+    # implementation.
+    admission_check = getattr(
+        candidate_class, "__artifact_publication_is_admitted__", None
+    )
+    try:
+        admitted = callable(admission_check) and admission_check(candidate) is True
+    except Exception as exc:
+        raise PublicationAdmissionError(
+            "Model output cannot bypass its artifact admission pipeline"
+        ) from exc
+    if not admitted:
+        raise PublicationAdmissionError(
+            "Model output cannot bypass its artifact admission pipeline"
+        )
 
 
 def _validated_publications(

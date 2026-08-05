@@ -495,6 +495,8 @@ class LiteratureClaimsArtifactContent(BaseModel):
 
 class LiteratureRelationsArtifactContent(BaseModel):
     model_config = CORE_MODEL_CONFIG
+    # Legacy core projection; it is not a D-08 publication candidate.
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     kind: Literal[ArtifactKind.literature_relations]
     relation_ids: tuple[Identifier, ...]
@@ -502,6 +504,8 @@ class LiteratureRelationsArtifactContent(BaseModel):
 
 class ReasoningTracesArtifactContent(BaseModel):
     model_config = CORE_MODEL_CONFIG
+    # Legacy core projection; it is not a D-08 publication candidate.
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     kind: Literal[ArtifactKind.reasoning_traces]
     reasoning_trace_ids: tuple[Identifier, ...]

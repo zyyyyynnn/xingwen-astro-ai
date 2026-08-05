@@ -1,0 +1,41 @@
+{
+  "authoring_source": "apps/api/src/app/schemas",
+  "models": [
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureReasoningTraceCandidate",
+      "path": "json/LiteratureReasoningTraceCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationAdmissionResult",
+      "path": "json/LiteratureRelationAdmissionResult.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationBenchmarkEvaluationCase",
+      "path": "json/LiteratureRelationBenchmarkEvaluationCase.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationBenchmarkReport",
+      "path": "json/LiteratureRelationBenchmarkReport.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationCandidate",
+      "path": "json/LiteratureRelationCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationExtractionOutput",
+      "path": "json/LiteratureRelationExtractionOutput.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationsCandidate",
+      "path": "json/LiteratureRelationsCandidate.schema.json"
+    }
+  ],
+  "schema_version": 1
+}
