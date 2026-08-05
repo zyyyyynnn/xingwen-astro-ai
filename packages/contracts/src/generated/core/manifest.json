@@ -2,6 +2,11 @@
   "authoring_source": "apps/api/src/app/schemas",
   "models": [
     {
+      "module": "app.schemas.data_artifact_api",
+      "name": "ArtifactExportRead",
+      "path": "json/ArtifactExportRead.schema.json"
+    },
+    {
       "module": "app.schemas.core",
       "name": "ArtifactVersion",
       "path": "json/ArtifactVersion.schema.json"
@@ -12,9 +17,34 @@
       "path": "json/ArtifactVersionDetail.schema.json"
     },
     {
+      "module": "app.schemas.data_artifact_api",
+      "name": "CreateArtifactExportRequest",
+      "path": "json/CreateArtifactExportRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "DataArtifactReadBase",
+      "path": "json/DataArtifactReadBase.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "DataArtifactRowRead",
+      "path": "json/DataArtifactRowRead.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "DatasetArtifactRead",
+      "path": "json/DatasetArtifactRead.schema.json"
+    },
+    {
       "module": "app.schemas.core",
       "name": "EvidenceRead",
       "path": "json/EvidenceRead.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "FieldDictionaryArtifactRead",
+      "path": "json/FieldDictionaryArtifactRead.schema.json"
     },
     {
       "module": "app.schemas.paper_collection_api",
@@ -90,6 +120,11 @@
       "module": "app.schemas.core",
       "name": "ShareSnapshotCreated",
       "path": "json/ShareSnapshotCreated.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "SourceCollectionArtifactRead",
+      "path": "json/SourceCollectionArtifactRead.schema.json"
     },
     {
       "module": "app.schemas.core",

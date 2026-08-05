@@ -1,5 +1,160 @@
 {
   "$defs": {
+    "DataQualityProjection": {
+      "additionalProperties": false,
+      "description": "Persisted C-05 attestation bound to one published data candidate.",
+      "properties": {
+        "bundle_commitment": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Bundle Commitment",
+          "type": "string"
+        },
+        "candidate_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Candidate Content Hash",
+          "type": "string"
+        },
+        "candidate_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "candidate_input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Candidate Input Hash",
+          "type": "string"
+        },
+        "candidate_kind": {
+          "enum": [
+            "dataset",
+            "field_dictionary",
+            "source_collection"
+          ],
+          "title": "Candidate Kind",
+          "type": "string"
+        },
+        "candidate_output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Candidate Output Hash",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "evaluation_commitment": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Evaluation Commitment",
+          "type": "string"
+        },
+        "evaluation_plan_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Evaluation Plan Content Hash",
+          "type": "string"
+        },
+        "overall_status": {
+          "const": "pass",
+          "title": "Overall Status",
+          "type": "string"
+        },
+        "quality_input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Quality Input Hash",
+          "type": "string"
+        },
+        "quality_result_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Quality Result Content Hash",
+          "type": "string"
+        },
+        "quality_result_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Quality Result Id",
+          "type": "string"
+        },
+        "quality_result_input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Quality Result Input Hash",
+          "type": "string"
+        },
+        "quality_result_output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Quality Result Output Hash",
+          "type": "string"
+        },
+        "research_contract": {
+          "$ref": "#/$defs/DataQualityProjectionReference"
+        },
+        "rule_set": {
+          "$ref": "#/$defs/DataQualityProjectionReference"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_kind",
+        "candidate_id",
+        "candidate_input_hash",
+        "candidate_output_hash",
+        "candidate_content_hash",
+        "quality_input_hash",
+        "quality_result_id",
+        "quality_result_input_hash",
+        "quality_result_output_hash",
+        "quality_result_content_hash",
+        "evaluation_plan_content_hash",
+        "evaluation_commitment",
+        "bundle_commitment",
+        "rule_set",
+        "research_contract",
+        "overall_status",
+        "content_hash"
+      ],
+      "title": "DataQualityProjection",
+      "type": "object"
+    },
+    "DataQualityProjectionReference": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Version"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "content_hash"
+      ],
+      "title": "DataQualityProjectionReference",
+      "type": "object"
+    },
     "EvidenceDetail": {
       "additionalProperties": false,
       "description": "Evidence bound to one immutable version and source snapshot.",
@@ -461,36 +616,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Unified immutable content and provenance read projection.",
-  "examples": [
-    {
-      "artifact_id": "art_01JEXAMPLE",
-      "content": {
-        "field_ids": [
-          "planet.toi_id"
-        ],
-        "kind": "dataset",
-        "rows": []
-      },
-      "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "created_at": "2026-07-21T08:00:00Z",
-      "created_by_run_id": "run_01JEXAMPLE",
-      "evidence_ids": [],
-      "id": "artv_01JEXAMPLE",
-      "input_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      "producer": {
-        "name": "data",
-        "type": "pipeline",
-        "version": "1.0.0"
-      },
-      "project_id": "proj_01JEXAMPLE",
-      "schema_version": "2.0.0",
-      "source_mode": "live",
-      "source_snapshot_ids": [],
-      "supersedes_version_id": null,
-      "version_number": 1
-    }
-  ],
+  "description": "A typed candidate pinned to one immutable ArtifactVersion.",
   "properties": {
     "artifact_id": {
       "maxLength": 128,
@@ -498,12 +624,11 @@
       "title": "Artifact Id",
       "type": "string"
     },
-    "content": {
-      "additionalProperties": {
-        "$ref": "#/$defs/JsonValue"
-      },
-      "title": "Content",
-      "type": "object"
+    "artifact_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Artifact Version Id",
+      "type": "string"
     },
     "content_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
@@ -515,12 +640,6 @@
       "title": "Created At",
       "type": "string"
     },
-    "created_by_run_id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Created By Run Id",
-      "type": "string"
-    },
     "evidence": {
       "items": {
         "$ref": "#/$defs/EvidenceDetail"
@@ -528,29 +647,10 @@
       "title": "Evidence",
       "type": "array"
     },
-    "evidence_ids": {
-      "default": [],
-      "items": {
-        "maxLength": 128,
-        "minLength": 1,
-        "type": "string"
-      },
-      "title": "Evidence Ids",
-      "type": "array"
-    },
-    "id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Id",
-      "type": "string"
-    },
     "input_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
       "title": "Input Hash",
       "type": "string"
-    },
-    "producer": {
-      "$ref": "#/$defs/ProducerReference"
     },
     "producer_execution": {
       "$ref": "#/$defs/ProducerExecutionDetail"
@@ -562,32 +662,7 @@
       "type": "string"
     },
     "quality_projection": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "$ref": "#/$defs/JsonValue"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Quality Projection"
-    },
-    "quality_projection_hash": {
-      "anyOf": [
-        {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Quality Projection Hash"
+      "$ref": "#/$defs/DataQualityProjection"
     },
     "schema_version": {
       "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
@@ -597,60 +672,28 @@
     "source_mode": {
       "$ref": "#/$defs/SourceMode"
     },
-    "source_snapshot_ids": {
-      "default": [],
-      "items": {
-        "maxLength": 128,
-        "minLength": 1,
-        "type": "string"
-      },
-      "title": "Source Snapshot Ids",
-      "type": "array"
-    },
     "source_snapshots": {
       "items": {
         "$ref": "#/$defs/SourceSnapshotDetail"
       },
       "title": "Source Snapshots",
       "type": "array"
-    },
-    "supersedes_version_id": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Supersedes Version Id"
-    },
-    "version_number": {
-      "minimum": 1,
-      "title": "Version Number",
-      "type": "integer"
     }
   },
   "required": [
-    "id",
+    "artifact_version_id",
     "artifact_id",
     "project_id",
-    "created_by_run_id",
-    "version_number",
     "schema_version",
-    "content",
+    "source_mode",
     "content_hash",
     "input_hash",
-    "source_mode",
-    "producer",
     "created_at",
     "producer_execution",
     "source_snapshots",
-    "evidence"
+    "evidence",
+    "quality_projection"
   ],
-  "title": "ArtifactVersionDetail",
+  "title": "DataArtifactReadBase",
   "type": "object"
 }

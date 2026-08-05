@@ -18,12 +18,13 @@ from app.schemas.data_artifacts import (
 from app.schemas.data_quality import (
     DataQualityEvaluationInput,
     DataQualityEvaluationResult,
+    DataQualityProjection,
     QualityErrorCode,
     QualityFailureStage,
     QualityArtifactReference,
     compute_data_quality_result_id,
 )
-from app.workflow.publisher import AdmissionValidator
+from app.workflow.publisher import AdmissionValidator, _seal_data_quality_attestation
 
 from .errors import DataQualityError
 from .evaluator import evaluate_data_quality
@@ -338,6 +339,43 @@ def build_data_quality_publication_validator(
                 stage=QualityFailureStage.admission_validation,
             )
 
+    # The publisher copies this immutable, hash-bound projection into the
+    # ArtifactVersion row; readers never need the process-local evaluator state.
+    projection_payload = {
+        "schema_version": "1.0.0",
+        "candidate_kind": candidate_kind,
+        "candidate_id": expected.candidate_id,
+        "candidate_input_hash": expected.input_hash,
+        "candidate_output_hash": expected.output_hash,
+        "candidate_content_hash": compute_data_artifact_public_payload_hash(expected),
+        "quality_input_hash": admitted.snapshot.input_hash,
+        "quality_result_id": admitted.snapshot.result_id,
+        "quality_result_input_hash": admitted.snapshot.result_input_hash,
+        "quality_result_output_hash": admitted.snapshot.result_output_hash,
+        "quality_result_content_hash": admitted.snapshot.result_content_hash,
+        "evaluation_plan_content_hash": admitted.snapshot.plan_content_hash,
+        "evaluation_commitment": admitted.snapshot.evaluation_commitment,
+        "bundle_commitment": admitted.snapshot.bundle_commitment,
+        "rule_set": {
+            "id": admitted.snapshot.rule_set_id,
+            "version": admitted.snapshot.rule_set_version,
+            "content_hash": admitted.snapshot.rule_set_content_hash,
+        },
+        "research_contract": {
+            "id": admitted.snapshot.contract_id,
+            "version": admitted.snapshot.contract_version,
+            "content_hash": admitted.snapshot.contract_content_hash,
+        },
+        "overall_status": admitted.evaluation_result.contract_gate.overall_status.value,
+    }
+    projection = DataQualityProjection(
+        **projection_payload,
+        content_hash=compute_canonical_payload_hash(projection_payload),
+    )
+    validate._data_quality_attestation = _seal_data_quality_attestation(
+        expected,
+        projection,
+    )
     return validate
 
 

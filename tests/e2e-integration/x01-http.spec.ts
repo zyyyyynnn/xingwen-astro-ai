@@ -330,7 +330,7 @@ test("real HTTP Adapter returns the same M1 Domain Model as the frozen Fixture",
       "latestVersionId",
     ]),
   ).toEqual(
-    without(fixtureArtifacts[0]!, [
+    without({ ...fixtureArtifacts[0]!, kind: "export" }, [
       "id",
       "projectId",
       "createdAt",
@@ -536,8 +536,15 @@ test("real HTTP and Fixture adapters align Workspace and Share Domain Models", a
   expect(normalizeDomain(httpListed, httpAliases, shareOmissions)).toEqual(
     normalizeDomain(fixtureListed, fixtureAliases, shareOmissions),
   );
+  const fixturePublicForBootstrap = {
+    ...fixturePublic,
+    artifactVersions: fixturePublic.artifactVersions.map((version) => ({
+      ...version,
+      kind: "export" as const,
+    })),
+  };
   expect(normalizeDomain(httpPublic, httpAliases, publicOmissions)).toEqual(
-    normalizeDomain(fixturePublic, fixtureAliases, publicOmissions),
+    normalizeDomain(fixturePublicForBootstrap, fixtureAliases, publicOmissions),
   );
 
   await Promise.all([

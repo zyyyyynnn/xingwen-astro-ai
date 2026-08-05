@@ -41,6 +41,48 @@ MODEL_CONFIG = ConfigDict(
 )
 
 
+class DataQualityProjectionReference(BaseModel):
+    model_config = MODEL_CONFIG
+
+    id: Identifier
+    version: SemanticVersion | int
+    content_hash: ContentHash
+
+
+class DataQualityProjection(BaseModel):
+    """Persisted C-05 attestation bound to one published data candidate."""
+
+    model_config = MODEL_CONFIG
+
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    candidate_kind: Literal["dataset", "field_dictionary", "source_collection"]
+    candidate_id: Identifier
+    candidate_input_hash: ContentHash
+    candidate_output_hash: ContentHash
+    candidate_content_hash: ContentHash
+    quality_input_hash: ContentHash
+    quality_result_id: Identifier
+    quality_result_input_hash: ContentHash
+    quality_result_output_hash: ContentHash
+    quality_result_content_hash: ContentHash
+    evaluation_plan_content_hash: ContentHash
+    evaluation_commitment: ContentHash
+    bundle_commitment: ContentHash
+    rule_set: DataQualityProjectionReference
+    research_contract: DataQualityProjectionReference
+    overall_status: Literal["pass"]
+    content_hash: ContentHash
+
+    @model_validator(mode="after")
+    def validate_content_hash(self) -> DataQualityProjection:
+        expected = compute_canonical_payload_hash(
+            self.model_dump(mode="json", exclude={"content_hash"})
+        )
+        if self.content_hash != expected:
+            raise ValueError("quality projection content_hash mismatch")
+        return self
+
+
 class QualityMetricStatus(StrEnum):
     determinate = "determinate"
     insufficient = "insufficient"
@@ -1110,6 +1152,8 @@ __all__ = [
     "DataQualityEvaluationOutcome",
     "DataQualityEvaluationRejected",
     "DataQualityEvaluationResult",
+    "DataQualityProjection",
+    "DataQualityProjectionReference",
     "DataQualityRuleSet",
     "DatasetQualityResult",
     "FieldQualityResult",

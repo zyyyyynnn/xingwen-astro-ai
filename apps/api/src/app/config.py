@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     SESSION_COOKIE_SAMESITE: str = "lax"
     SESSION_CREATE_RATE_LIMIT: int = Field(default=30, gt=0)
     SHARE_CREATE_RATE_LIMIT: int = Field(default=20, gt=0)
+    CURSOR_SIGNING_KEY: SecretStr = Field(
+        default=SecretStr("development-only-cursor-signing-key"),
+        min_length=32,
+    )
     PERSISTENT_WORKFLOW_ENABLED: bool = False
 
     DATABASE_URL: SecretStr | None = None
@@ -61,6 +65,13 @@ class Settings(BaseSettings):
             errors.append("CORS_ORIGINS must not contain '*' in production")
         if not self.SESSION_COOKIE_SECURE:
             errors.append("SESSION_COOKIE_SECURE must be true in production")
+        cursor_signing_key = self._secret_value(self.CURSOR_SIGNING_KEY)
+        if cursor_signing_key.lower() in {
+            "development-only-cursor-signing-key",
+            "change_me_change_me_change_me_change_me",
+            "replace_me_replace_me_replace_me_replace_me",
+        }:
+            errors.append("CURSOR_SIGNING_KEY must be changed in production")
 
         if errors:
             raise ValueError("; ".join(errors))
