@@ -440,7 +440,7 @@ WorkspaceSnapshot 最多保存三个 panel slot；不得保存未提交敏感文
 
 导出必须锁定 ArtifactVersion、内容 hash、生成时间与 provenance；下载 URL 短期有效且不暴露底层文件路径。
 
-B-05 的数据领域读取只接受 `kind=dataset`、`field_dictionary` 或 `source_collection` 的已发布版本；读取重新执行对应 Pydantic candidate、schema/content/input hash 和 provenance 完整性校验，但不重新计算 C-04/C-05 算法。Dataset 行 cursor 绑定 ArtifactVersion 与 row ordering，跨版本或错误 row key 返回 `400 INVALID_CURSOR`。CSV 仅适用于 Dataset；JSON 与 provenance report 锁定版本 content hash。创建导出必须携带 `Idempotency-Key`，同键同版本/格式重放原结果，冲突请求返回 `409 IDEMPOTENCY_CONFLICT`。导出当前为进程内短期任务边界，不能表述为跨实例持久化或对象存储能力。
+B-05 的数据领域读取只接受 `kind=dataset`、`field_dictionary` 或 `source_collection` 的已发布版本；读取重新执行对应 Pydantic candidate、schema/content/input hash 和 provenance 完整性校验，并强制验证持久化 C-05 `DataQualityProjection` 为 `pass` 且精确绑定 candidate、ArtifactVersion、RuleSet、ResearchContract、evaluation plan 和 bundle commitment，但不重新计算 C-04/C-05 算法。Dataset 行分页使用独立的版本固定 row projection，不加载完整 Dataset JSONB；cursor 使用服务端 HMAC 签名并绑定 ArtifactVersion、`row_id.asc.v1` ordering 和当前无过滤的 `all_rows` query scope，跨版本、错误 row key、ordering、scope 或签名篡改返回 `400 INVALID_CURSOR`。当前接口未公开 Dataset 行过滤参数，因此不存在可跨用的其他 filter scope；新增过滤条件时必须同步扩展 cursor commitment。CSV 仅适用于 Dataset；JSON 与 provenance report 锁定版本 content hash。创建导出必须携带 `Idempotency-Key`，同键同版本/格式重放原结果，冲突请求返回 `409 IDEMPOTENCY_CONFLICT`。导出当前为进程内短期任务边界，不能表述为跨实例持久化或对象存储能力。
 
 ## 16. Cache 语义
 

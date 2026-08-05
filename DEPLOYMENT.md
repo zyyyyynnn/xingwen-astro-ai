@@ -89,6 +89,7 @@ Astro 使用明确的 `PUBLIC_` 前缀，Workspace 使用 `VITE_` 前缀。所�
 - 模型、论文源和数据源凭据；
 - Session / share signing or hashing secrets；
 - Session 和 ShareSnapshot 创建限流配置（`SESSION_CREATE_RATE_LIMIT` / `SHARE_CREATE_RATE_LIMIT`）；
+- Production 独立高熵 cursor HMAC 密钥（`CURSOR_SIGNING_KEY`），不得使用开发默认值；
 - 内部服务地址和管理开关。
 
 `.env.example` 只存占位值和说明。生产环境必须拒绝 DEBUG、默认数据库凭据、空/占位密钥和通配 CORS。完整安全要求见 [Security](SECURITY.md)。

@@ -1788,12 +1788,45 @@ export interface DataArtifactReadBase {
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
-  quality_projection?: {
-    [k: string]: unknown;
-  } | null;
+  quality_projection: DataQualityProjection;
   schema_version: string;
   source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
+}
+/**
+ * Persisted C-05 attestation bound to one published data candidate.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataQualityProjection".
+ */
+export interface DataQualityProjection {
+  bundle_commitment: string;
+  candidate_content_hash: string;
+  candidate_id: string;
+  candidate_input_hash: string;
+  candidate_kind: "dataset" | "field_dictionary" | "source_collection";
+  candidate_output_hash: string;
+  content_hash: string;
+  evaluation_commitment: string;
+  evaluation_plan_content_hash: string;
+  overall_status: "pass";
+  quality_input_hash: string;
+  quality_result_content_hash: string;
+  quality_result_id: string;
+  quality_result_input_hash: string;
+  quality_result_output_hash: string;
+  research_contract: DataQualityProjectionReference;
+  rule_set: DataQualityProjectionReference;
+  schema_version?: "1.0.0";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DataQualityProjectionReference".
+ */
+export interface DataQualityProjectionReference {
+  content_hash: string;
+  id: string;
+  version: string | number;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1911,9 +1944,7 @@ export interface DatasetArtifactRead {
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
-  quality_projection?: {
-    [k: string]: unknown;
-  } | null;
+  quality_projection: DataQualityProjection;
   schema_version: string;
   source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
@@ -2259,9 +2290,7 @@ export interface FieldDictionaryArtifactRead {
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
-  quality_projection?: {
-    [k: string]: unknown;
-  } | null;
+  quality_projection: DataQualityProjection;
   schema_version: string;
   source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
@@ -2303,9 +2332,7 @@ export interface SourceCollectionArtifactRead {
   input_hash: string;
   producer_execution: ProducerExecutionDetail;
   project_id: string;
-  quality_projection?: {
-    [k: string]: unknown;
-  } | null;
+  quality_projection: DataQualityProjection;
   schema_version: string;
   source_collection: SourceCollectionArtifactCandidate;
   source_mode: App_Schemas_Core__SourceMode;

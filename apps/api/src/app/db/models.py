@@ -431,6 +431,7 @@ class ArtifactVersionModel(TimestampMixin, Base):
     source_snapshot_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     evidence_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     quality_projection: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    quality_projection_hash: Mapped[str | None] = mapped_column(String(71), nullable=True)
     supersedes_version_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
 
     __table_args__ = (

@@ -22,6 +22,7 @@ from .data_artifacts import (
     FieldDictionaryArtifactCandidate,
     SourceCollectionArtifactCandidate,
 )
+from .data_quality import DataQualityProjection
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -43,7 +44,7 @@ class DataArtifactReadBase(BaseModel):
     producer_execution: ProducerExecutionDetail
     source_snapshots: tuple[SourceSnapshotDetail, ...]
     evidence: tuple[EvidenceDetail, ...]
-    quality_projection: dict[str, object] | None = None
+    quality_projection: DataQualityProjection
 
 
 class DatasetArtifactRead(DataArtifactReadBase):

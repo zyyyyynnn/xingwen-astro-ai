@@ -18,7 +18,12 @@ def upgrade() -> None:
         "artifact_versions",
         sa.Column("quality_projection", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     )
+    op.add_column(
+        "artifact_versions",
+        sa.Column("quality_projection_hash", sa.String(length=71), nullable=True),
+    )
 
 
 def downgrade() -> None:
+    op.drop_column("artifact_versions", "quality_projection_hash")
     op.drop_column("artifact_versions", "quality_projection")

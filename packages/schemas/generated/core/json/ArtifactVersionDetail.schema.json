@@ -576,6 +576,19 @@
       "default": null,
       "title": "Quality Projection"
     },
+    "quality_projection_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Quality Projection Hash"
+    },
     "schema_version": {
       "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
       "title": "Schema Version",

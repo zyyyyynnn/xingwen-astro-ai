@@ -5,7 +5,8 @@ from __future__ import annotations
 import base64
 import binascii
 import csv
-from collections.abc import Mapping
+import hashlib
+import hmac
 from datetime import UTC, datetime, timedelta
 from io import StringIO
 import json
@@ -33,7 +34,9 @@ from app.schemas.data_artifacts import (
     SourceCollectionArtifactCandidate,
 )
 from app.schemas.manifest import DataType
+from app.schemas.data_quality import DataQualityProjection
 from app.security import SecurityProblem
+from app.config import settings
 from app.services.artifacts import ArtifactReadService
 
 
@@ -43,6 +46,8 @@ _MAX_EXPORTS_PER_SESSION = 8
 _MAX_EXPORT_BYTES_PER_SESSION = 50 * 1024 * 1024
 _MAX_ARTIFACT_CONTENT_BYTES = 50 * 1024 * 1024
 _MAX_DATASET_ROWS = 1_000_000
+_ROW_ORDERING = "row_id.asc.v1"
+_ROW_QUERY_SCOPE = compute_canonical_payload_hash({"filters": {}, "ordering": _ROW_ORDERING})
 DataKind = Literal["dataset", "field_dictionary", "source_collection"]
 
 
@@ -96,19 +101,13 @@ class DataArtifactReadService:
             raise _problem(422, "SCHEMA_VALIDATION_FAILED", "Request validation failed", "limit must be between 1 and 100")
         projected_reader = getattr(self._artifacts, "list_dataset_rows", None)
         if callable(projected_reader):
-            version = self._version(
-                version_id=version_id,
-                session_id=session_id,
-                kind="dataset",
-                full_content=False,
-            )
             cursor_id = (
-                _decode_cursor(cursor, version_id=version.id)
+                _decode_cursor(cursor, version_id=version_id)
                 if cursor is not None
                 else None
             )
             raw_rows = projected_reader(
-                version_id=version.id,
+                version_id=version_id,
                 session_id=session_id,
                 after_row_id=cursor_id,
                 limit=limit + 1,
@@ -120,13 +119,13 @@ class DataArtifactReadService:
             has_more = len(rows) > limit
             selected = rows[:limit]
             next_cursor = (
-                _encode_cursor(version_id=version.id, row_id=selected[-1].row_id)
+                _encode_cursor(version_id=version_id, row_id=selected[-1].row_id)
                 if selected and has_more
                 else None
             )
             return (
                 tuple(
-                    DataArtifactRowRead(artifact_version_id=version.id, row=row)
+                    DataArtifactRowRead(artifact_version_id=version_id, row=row)
                     for row in selected
                 ),
                 next_cursor,
@@ -280,8 +279,7 @@ class DataArtifactReadService:
             )
         ):
             raise _schema_problem()
-        if _contains_unsafe_html(candidate.model_dump(mode="json")):
-            raise _schema_problem()
+        _quality_projection(version, candidate)
         return candidate
 
     def _typed_for_export(
@@ -413,7 +411,9 @@ def _base(version: ArtifactVersionDetail) -> DataArtifactReadBase:
         producer_execution=version.producer_execution,
         source_snapshots=version.source_snapshots,
         evidence=version.evidence,
-        quality_projection=version.quality_projection,
+        quality_projection=DataQualityProjection.model_validate(
+            version.quality_projection
+        ),
     )
 
 
@@ -472,8 +472,20 @@ def _csv_cell(value: Any, data_type: DataType | None = None) -> Any:
 
 
 def _encode_cursor(*, version_id: str, row_id: str) -> str:
-    payload = json.dumps({"v": 1, "version_id": version_id, "row_id": row_id}, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    return base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+    payload = {
+        "v": 2,
+        "version_id": version_id,
+        "row_id": row_id,
+        "ordering": _ROW_ORDERING,
+        "query_scope": _ROW_QUERY_SCOPE,
+    }
+    payload["signature"] = _cursor_signature(payload)
+    encoded = json.dumps(
+        payload,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return base64.urlsafe_b64encode(encoded).decode("ascii").rstrip("=")
 
 
 def _decode_cursor(value: str, *, version_id: str) -> str:
@@ -482,7 +494,21 @@ def _decode_cursor(value: str, *, version_id: str) -> str:
             raise ValueError
         padded = value + "=" * (-len(value) % 4)
         payload = json.loads(base64.b64decode(padded, altchars=b"-_", validate=True))
-        if set(payload) != {"v", "version_id", "row_id"} or payload["v"] != 1 or payload["version_id"] != version_id:
+        if (
+            set(payload)
+            != {"v", "version_id", "row_id", "ordering", "query_scope", "signature"}
+            or payload["v"] != 2
+            or payload["version_id"] != version_id
+            or payload["ordering"] != _ROW_ORDERING
+            or payload["query_scope"] != _ROW_QUERY_SCOPE
+            or not isinstance(payload["signature"], str)
+            or not hmac.compare_digest(
+                payload["signature"],
+                _cursor_signature(
+                    {key: item for key, item in payload.items() if key != "signature"}
+                ),
+            )
+        ):
             raise ValueError
         if not isinstance(payload["row_id"], str) or not payload["row_id"]:
             raise ValueError
@@ -491,14 +517,45 @@ def _decode_cursor(value: str, *, version_id: str) -> str:
         raise _invalid_cursor() from exc
 
 
-def _contains_unsafe_html(value: Any) -> bool:
-    if isinstance(value, str):
-        return "<script" in value.lower() or "</" in value.lower()
-    if isinstance(value, Mapping):
-        return any(_contains_unsafe_html(item) for item in value.values())
-    if isinstance(value, (list, tuple)):
-        return any(_contains_unsafe_html(item) for item in value)
-    return False
+def _cursor_signature(payload: dict[str, Any]) -> str:
+    canonical = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode(
+        "utf-8"
+    )
+    key = settings.CURSOR_SIGNING_KEY.get_secret_value().encode("utf-8")
+    return hmac.new(key, canonical, hashlib.sha256).hexdigest()
+
+
+def _quality_projection(
+    version: ArtifactVersionDetail,
+    candidate: DatasetArtifactCandidate
+    | FieldDictionaryArtifactCandidate
+    | SourceCollectionArtifactCandidate,
+) -> DataQualityProjection:
+    try:
+        projection = DataQualityProjection.model_validate(version.quality_projection)
+    except ValidationError as exc:
+        raise _problem(
+            409,
+            "DATA_QUALITY_PROJECTION_REQUIRED",
+            "Data quality projection required",
+            "The ArtifactVersion has no valid passing C-05 quality projection",
+        ) from exc
+    if (
+        version.quality_projection_hash != projection.content_hash
+        or projection.candidate_kind != candidate.kind
+        or projection.candidate_id != candidate.candidate_id
+        or projection.candidate_input_hash != candidate.input_hash
+        or projection.candidate_output_hash != candidate.output_hash
+        or projection.candidate_content_hash != version.content_hash
+        or projection.quality_result_input_hash != projection.quality_input_hash
+    ):
+        raise _problem(
+            409,
+            "DATA_QUALITY_PROJECTION_INVALID",
+            "Data quality projection invalid",
+            "The C-05 projection is not bound to this ArtifactVersion",
+        )
+    return projection
 
 
 def _problem(status: int, code: str, title: str, detail: str) -> SecurityProblem:

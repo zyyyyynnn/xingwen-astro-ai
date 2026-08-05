@@ -46,9 +46,10 @@ Session 服务端变量：
 | `SESSION_TTL_SECONDS` | `86400` | 匿名 Session 有效期 |
 | `SESSION_CREATE_RATE_LIMIT` | `30` | 单客户端每分钟创建 Session 的上限 |
 | `SHARE_CREATE_RATE_LIMIT` | `20` | 单 Session 每分钟创建 ShareSnapshot 的上限 |
+| `CURSOR_SIGNING_KEY` | `development-only-cursor-signing-key` | 不透明分页 cursor 的 HMAC 密钥；Production 必须替换 |
 | `PERSISTENT_WORKFLOW_ENABLED` | `false` | 本机 uvicorn 的持久 Runtime 开关；Compose 的 API 强制为 `true`，Pipeline `/api` 保留原执行路径 |
 
-Production 必须保持 `SESSION_COOKIE_SECURE=true`。Session 与 CSRF token 不得写入浏览器持久化存储或日志。
+Production 必须保持 `SESSION_COOKIE_SECURE=true` 并设置独立高熵 `CURSOR_SIGNING_KEY`。Session、CSRF token 与 cursor 签名密钥不得写入浏览器持久化存储或日志。
 
 ## 3. Docker Compose
 
