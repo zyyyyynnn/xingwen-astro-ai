@@ -14,6 +14,7 @@ from .literature_claim import (
     LiteratureClaimCandidate,
     LiteratureClaimStatus,
     LiteratureClaimsCandidate,
+    PersistentResourceIdentifier,
 )
 from .manifest import ContentHash, Identifier, SemanticVersion
 from .paper_summary import MODEL_CONFIG, NonEmptyString, PaperSummaryEvidence, ShortString
@@ -203,9 +204,9 @@ class LiteratureRelationExtractionOutput(BaseModel):
 class LiteratureRelationConfidenceSubject(BaseModel):
     model_config = MODEL_CONFIG
 
-    source_claim_artifact_version_id: Identifier
+    source_claim_artifact_version_id: PersistentResourceIdentifier
     source_claim_id: Identifier
-    target_claim_artifact_version_id: Identifier
+    target_claim_artifact_version_id: PersistentResourceIdentifier
     target_claim_id: Identifier
     relation_type: LiteratureRelationType
     fingerprint: ContentHash
@@ -257,13 +258,13 @@ class LiteratureRelationConfidenceAssessment(BaseModel):
 class LiteratureClaimArtifactVersionReference(BaseModel):
     model_config = MODEL_CONFIG
 
-    artifact_version_id: Identifier
+    artifact_version_id: PersistentResourceIdentifier
     schema_version: SemanticVersion | None = None
     content_hash: ContentHash | None = None
     output_hash: ContentHash | None = None
-    project_id: Identifier | None = None
+    project_id: PersistentResourceIdentifier | None = None
     claim_ids: tuple[Identifier, ...] = ()
-    paper_summary_artifact_version_ids: tuple[Identifier, ...] = ()
+    paper_summary_artifact_version_ids: tuple[PersistentResourceIdentifier, ...] = ()
     source_snapshot_ids: tuple[Identifier, ...] = ()
 
     @model_validator(mode="after")
@@ -307,7 +308,7 @@ class LiteratureClaimArtifactVersionReference(BaseModel):
 class LiteratureRelationInputVersions(BaseModel):
     model_config = MODEL_CONFIG
 
-    project_id: Identifier
+    project_id: PersistentResourceIdentifier
     claim_artifact_versions: tuple[LiteratureClaimArtifactVersionReference, ...] = (
         Field(min_length=1)
     )
@@ -325,8 +326,8 @@ class LiteratureRelationEvidenceReference(BaseModel):
     relation_id: Identifier
     side: Literal["source", "target"]
     claim_id: Identifier
-    claim_artifact_version_id: Identifier
-    paper_summary_artifact_version_id: Identifier
+    claim_artifact_version_id: PersistentResourceIdentifier
+    paper_summary_artifact_version_id: PersistentResourceIdentifier
     evidence_id: Identifier
     paper_id: Identifier
     source_snapshot_id: Identifier
@@ -380,10 +381,10 @@ class LiteratureRelationCandidate(BaseModel):
     pair_id: Identifier
     source_claim_id: Identifier
     target_claim_id: Identifier
-    source_claim_artifact_version_id: Identifier | None = None
-    target_claim_artifact_version_id: Identifier | None = None
-    source_paper_summary_artifact_version_id: Identifier | None = None
-    target_paper_summary_artifact_version_id: Identifier | None = None
+    source_claim_artifact_version_id: PersistentResourceIdentifier | None = None
+    target_claim_artifact_version_id: PersistentResourceIdentifier | None = None
+    source_paper_summary_artifact_version_id: PersistentResourceIdentifier | None = None
+    target_paper_summary_artifact_version_id: PersistentResourceIdentifier | None = None
     relation_type: LiteratureRelationType
     direction: LiteratureRelationDirectionCandidate
     conditions: tuple[NonEmptyString, ...]
@@ -478,7 +479,7 @@ class LiteratureRelationProducerExecution(BaseModel):
     model_config = MODEL_CONFIG
 
     execution_id: Identifier
-    run_id: Identifier | None = None
+    run_id: PersistentResourceIdentifier | None = None
     step_key: Literal["reasoning_literature"] = "reasoning_literature"
     producer_type: Literal["model"] = "model"
     producer_name: NonEmptyString

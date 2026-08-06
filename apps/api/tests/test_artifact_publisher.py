@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Literal
 from uuid import uuid4
 
 import pytest
-from pydantic import BaseModel, ConfigDict
-
 from app.workflow.publisher import (
     ArtifactAdmissionContext,
     ArtifactPublication,
@@ -16,6 +15,7 @@ from app.workflow.publisher import (
     PublicationAdmissionError,
     admit_artifact_candidate,
 )
+from pydantic import BaseModel, ConfigDict
 
 
 class DatasetCandidate(BaseModel):
@@ -30,6 +30,14 @@ class UnmarkedDataArtifactCandidate(BaseModel):
 
     kind: str = "dataset"
     rows: tuple[dict[str, str], ...]
+
+
+class UnmarkedLiteratureClaimsCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["literature_claims"] = "literature_claims"
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    claim_ids: tuple[str, ...]
 
 
 class PaperSummaryCandidate(BaseModel):
@@ -147,6 +155,24 @@ def test_unmarked_data_kind_cannot_bypass_c05_attestation() -> None:
             schema_version="2.0.0",
             source_snapshot_ids=("source_fixture_01",),
             evidence_ids=("evidence_fixture_01",),
+            evidence_validator=_accept,
+            domain_validator=_accept,
+            quality_validator=_accept,
+        )
+
+
+def test_unmarked_literature_claims_cannot_bypass_d07_admission() -> None:
+    candidate = UnmarkedLiteratureClaimsCandidate(claim_ids=("claim.fixture",))
+
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="authoritative Pipeline candidate",
+    ):
+        admit_artifact_candidate(
+            candidate,
+            schema_version="1.0.0",
+            source_snapshot_ids=(),
+            evidence_ids=(),
             evidence_validator=_accept,
             domain_validator=_accept,
             quality_validator=_accept,

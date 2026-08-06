@@ -21,11 +21,6 @@ from app.schemas.core import (
     ResponseMeta,
     SourceSnapshotDetail,
 )
-from app.schemas.paper_collection_api import (
-    PaperCollectionCandidateRead,
-    PaperCollectionRead,
-)
-from app.schemas.paper_summary_api import PaperSummaryRead
 from app.schemas.data_artifact_api import (
     ArtifactExportRead,
     CreateArtifactExportRequest,
@@ -34,12 +29,24 @@ from app.schemas.data_artifact_api import (
     FieldDictionaryArtifactRead,
     SourceCollectionArtifactRead,
 )
+from app.schemas.literature_artifact_api import (
+    LiteratureClaimRead,
+    LiteratureReasoningTraceRead,
+    LiteratureRelationRead,
+)
+from app.schemas.literature_claim import LiteratureClaimStatus
+from app.schemas.literature_relation import LiteratureRelationStatus
+from app.schemas.paper_collection_api import (
+    PaperCollectionCandidateRead,
+    PaperCollectionRead,
+)
+from app.schemas.paper_summary_api import PaperSummaryRead
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
+from app.services.literature_artifacts import LiteratureArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.paper_summaries import PaperSummaryReadService
-
 
 router = APIRouter(prefix="/api", tags=["artifacts"])
 
@@ -81,6 +88,10 @@ def _data_service(request: Request) -> DataArtifactReadService:
             detail="The persistent data artifact read adapter is not configured",
         )
     return service
+
+
+def _literature_service(request: Request) -> LiteratureArtifactReadService:
+    return LiteratureArtifactReadService(_service(request))
 
 
 def _meta(request: Request) -> ResponseMeta:
@@ -192,6 +203,159 @@ def get_paper_summary(
     )
     _no_store(response)
     path = f"/api/artifact-versions/{version_id}/paper-summary"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/literature-claims",
+    operation_id="listLiteratureClaims",
+    response_model=CollectionEnvelope[LiteratureClaimRead],
+)
+def list_literature_claims(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+    status: Annotated[LiteratureClaimStatus | None, Query()] = None,
+    cursor: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> CollectionEnvelope[LiteratureClaimRead]:
+    items, next_cursor, has_more = _literature_service(request).list_claims(
+        version_id=version_id,
+        session_id=_session_id(request),
+        status=status,
+        cursor=cursor,
+        limit=limit,
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/literature-claims"
+    return CollectionEnvelope(
+        data=items,
+        page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
+        meta=_meta(request),
+        links=ResponseLinks(self=path),
+    )
+
+
+@router.get(
+    "/artifact-versions/{version_id}/literature-claims/{claim_id}",
+    operation_id="getLiteratureClaim",
+    response_model=Envelope[LiteratureClaimRead],
+)
+def get_literature_claim(
+    version_id: Annotated[str, Path(min_length=1)],
+    claim_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[LiteratureClaimRead]:
+    data = _literature_service(request).get_claim(
+        version_id=version_id,
+        claim_id=claim_id,
+        session_id=_session_id(request),
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/literature-claims/{claim_id}"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/literature-relations",
+    operation_id="listLiteratureRelations",
+    response_model=CollectionEnvelope[LiteratureRelationRead],
+)
+def list_literature_relations(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+    status: Annotated[LiteratureRelationStatus | None, Query()] = None,
+    cursor: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> CollectionEnvelope[LiteratureRelationRead]:
+    items, next_cursor, has_more = _literature_service(request).list_relations(
+        version_id=version_id,
+        session_id=_session_id(request),
+        status=status,
+        cursor=cursor,
+        limit=limit,
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/literature-relations"
+    return CollectionEnvelope(
+        data=items,
+        page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
+        meta=_meta(request),
+        links=ResponseLinks(self=path),
+    )
+
+
+@router.get(
+    "/artifact-versions/{version_id}/literature-relations/{relation_id}",
+    operation_id="getLiteratureRelation",
+    response_model=Envelope[LiteratureRelationRead],
+)
+def get_literature_relation(
+    version_id: Annotated[str, Path(min_length=1)],
+    relation_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[LiteratureRelationRead]:
+    data = _literature_service(request).get_relation(
+        version_id=version_id,
+        relation_id=relation_id,
+        session_id=_session_id(request),
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/literature-relations/{relation_id}"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/reasoning-traces",
+    operation_id="listReasoningTraces",
+    response_model=CollectionEnvelope[LiteratureReasoningTraceRead],
+)
+def list_reasoning_traces(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+    status: Annotated[LiteratureRelationStatus | None, Query()] = None,
+    cursor: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> CollectionEnvelope[LiteratureReasoningTraceRead]:
+    items, next_cursor, has_more = _literature_service(request).list_reasoning_traces(
+        version_id=version_id,
+        session_id=_session_id(request),
+        status=status,
+        cursor=cursor,
+        limit=limit,
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/reasoning-traces"
+    return CollectionEnvelope(
+        data=items,
+        page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
+        meta=_meta(request),
+        links=ResponseLinks(self=path),
+    )
+
+
+@router.get(
+    "/artifact-versions/{version_id}/reasoning-traces/{trace_id}",
+    operation_id="getReasoningTrace",
+    response_model=Envelope[LiteratureReasoningTraceRead],
+)
+def get_reasoning_trace(
+    version_id: Annotated[str, Path(min_length=1)],
+    trace_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[LiteratureReasoningTraceRead]:
+    data = _literature_service(request).get_reasoning_trace(
+        version_id=version_id,
+        trace_id=trace_id,
+        session_id=_session_id(request),
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/reasoning-traces/{trace_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 
