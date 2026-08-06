@@ -43,20 +43,67 @@
 - [ ] 修订创建新版本，不原地覆盖历史产物。
 - [ ] 示例、Fixture 或视觉映射没有扩展产品承诺或暗示不存在的科学精度。
 
-## 4. 前端与交互
+## 4. 前端范围与 Authority
 
-适用于 Brand Site、Guided Tour、Workspace、设计系统或 Visual Engine：
+- [ ] PR 只解决一个清晰前端目标。
+- [ ] DESIGN、WORKSPACE_UX、VISUAL_LANGUAGE、FRONTEND_ARCHITECTURE 与 ADR 一致。
+- [ ] Current、Target、Pending 与 Superseded 未混写。
+- [ ] 变更未夹带无关后端、基础设施、依赖升级或文档重构。
 
-- [ ] Site、Workspace、shared packages 的依赖方向符合 Frontend Architecture。
-- [ ] 工作台以科研产物为主，不退化为聊天流、工具日志、IDE 或无限窗口。
-- [ ] 中央 Canvas 不超过三个受控面板。
-- [ ] Raw Color、字体、动效和 ASCII/Dither 规则符合 Visual Language。
-- [ ] 关键状态不只靠颜色表达，键盘、焦点、读屏和 200% 字体缩放可用。
-- [ ] WebGL、字体或 JavaScript 失败时仍有 DOM 内容、Poster 和主操作。
-- [ ] 页面隐藏时暂停实时渲染，卸载时释放 GPU 和观察器资源。
-- [ ] 外部 HTML、URL 和用户文本按安全规则校验或净化。
+## 5. 上游源码
 
-## 5. 后端、数据与 Pipeline
+- [ ] Repository、Tag、Commit 与 License 已固定。
+- [ ] 采用与排除目录明确。
+- [ ] Upstream → Local 映射完整。
+- [ ] 适用版权与 NOTICE 已保留。
+- [ ] 未引入不兼容或企业专属目录。
+- [ ] 未以截图参考、样式复制或手写相似实现冒充上游采用。
+- [ ] 仓库内只有一个 Workspace Shell。
+
+## 6. 架构与状态
+
+- [ ] 页面通过 Repository Port 消费 Domain。
+- [ ] 页面不读取 Transport DTO 或直接调用 `fetch`。
+- [ ] App 不跨包读取 Fixture 内部文件。
+- [ ] 无路径别名或 `@ts-expect-error` 绕过边界。
+- [ ] Router、Query、Workspace Controller 与上游 Runtime 未重复持有同一事实。
+- [ ] Run status、execution mode、source mode 与 revision 分别表达。
+- [ ] Runtime 不创建 ArtifactVersion、Evidence 或 SourceSnapshot。
+
+## 7. 产品交互
+
+- [ ] Navigation、Agent Activity、Artifact Workspace、Context Inspector 与 Composer 可用。
+- [ ] Tool 与 Deliverable 分离。
+- [ ] Completed 状态允许继续研究、修订和派生。
+- [ ] Loading、Empty、Error、Cancel、Retry 与 Recovery 可用。
+- [ ] 核心 Artifact 使用专属 Renderer。
+- [ ] Statement / Cell / Claim 可定位 Evidence 与来源。
+- [ ] 未知 Artifact / Event 明确失败。
+- [ ] 不展示模型私有推理。
+
+## 8. 视觉与可访问性
+
+- [ ] 使用语义 Token，无业务组件 Raw Color。
+- [ ] 未复制上游默认皮肤。
+- [ ] 未以换肤重新设计成熟骨架。
+- [ ] 默认界面无全屏深色、卡片墙、IDE 或工程 Preview 风格。
+- [ ] 状态不只靠颜色。
+- [ ] 中文产品语言优先。
+- [ ] 无内部 ID、Hash、Adapter、Fixture 等默认文案。
+- [ ] 键盘、焦点、读屏、Reduced Motion 与 200% 字体可用。
+- [ ] 1440×900、1280×800 与 390×844 通过。
+- [ ] 用户视觉验收已记录。
+
+## 9. 前端测试与退役
+
+- [ ] Upstream Contract、Unit、Component、Integration 与 E2E 通过。
+- [ ] Fixture / HTTP 使用同一组件路径。
+- [ ] Build、Architecture、Retirement 与 Compose 通过。
+- [ ] 无 Preview Route、假数据、旧 UI 选择器或未消费依赖。
+- [ ] 未通过删除测试或降低 Gate 隐藏问题。
+- [ ] PR 描述与最终 Diff 一致。
+
+## 10. 后端、数据与 Pipeline
 
 - [ ] Router 只负责传输、授权和 Application Service 调用。
 - [ ] Workflow 管理 Run/Step/Event；Pipeline 不推进主状态。
@@ -67,7 +114,7 @@
 - [ ] Graph 无悬空引用，不为视觉效果创建无意义节点或边。
 - [ ] 外部来源的超时、限流、无效结构和空结果具有稳定错误分类。
 
-## 6. 安全与隐私
+## 11. 安全与隐私
 
 - [ ] 未提交 `.env`、API Key、token、私钥、连接串或真实密码。
 - [ ] 浏览器构建变量只包含非敏感配置。
@@ -77,7 +124,7 @@
 - [ ] 日志和公开错误不含堆栈、密钥、受限全文、完整模型响应或私有推理。
 - [ ] CSP、CORS、外部 URL allowlist 和输入长度限制在适用范围内验证。
 
-## 7. 测试与验证证据
+## 12. 测试与验证证据
 
 - [ ] PR 描述列出实际执行的命令和结果。
 - [ ] 未执行项说明原因、风险和替代验证。
@@ -87,7 +134,7 @@
 - [ ] 回归范围覆盖 Phase 0 和受影响的目标路径。
 - [ ] 验证可在声明的环境中重复，不依赖个人电脑隐式状态。
 
-## 8. 文档专项审查
+## 13. 文档专项审查
 
 - [ ] 关键规范包含 Status 与 Authority 元数据。
 - [ ] 标题层级连续，代码块闭合，表格列数一致，Mermaid 可解析。
@@ -97,7 +144,7 @@
 - [ ] 文档不包含个人本地路径、易失价格、未经核验的当前职位/状态或“最新版”等失效表述。
 - [ ] 新规则具有可执行验收，不使用“合理”“完善”“尽量”等模糊结论。
 
-## 9. 正式技术 Review 记录
+## 14. 正式技术 Review 记录
 
 - [ ] 记录载体是 GitHub Pull Request Review，不是普通 PR Comment、Issue Comment 或线程回复。
 - [ ] `evidence_actor_identity` 等于 GitHub API 返回的 Review actor；它与 `reviewer_identity` 分别记录发布账号和实际审查主体。
@@ -114,7 +161,7 @@
 - [ ] 多轮 Review 的最新记录显式 supersede 同 purpose/scope 的上一轮，不存在分叉、循环或未解决的 `BLOCKED` scope。
 - [ ] Review 后若出现新 Commit，旧记录已视为 stale，并在新 HEAD 上重新 Review。
 
-## 10. 合并条件
+## 15. 合并条件
 
 - [ ] 主要 Task、Bug 或 Gate 与当前 PR 满足一对一关系；Epic 仅作为补充引用。
 - [ ] 主要 Issue 没有其他有效 Open PR，且其交付计划只定义当前单一 PR。

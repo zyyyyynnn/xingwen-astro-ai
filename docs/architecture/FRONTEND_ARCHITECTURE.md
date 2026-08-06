@@ -1,231 +1,240 @@
 # Frontend Architecture
 
-| 元数据         | 值                                                                                                                                         |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status         | Accepted                                                                                                                                   |
-| Authority      | 前端运行时、目录、依赖方向、构建与质量门禁                                                                                                 |
+| 元数据 | 值 |
+| --- | --- |
+| Status | Accepted |
+| Authority | 前端运行时、上游源码治理、模块边界、依赖方向与状态所有权 |
 
-本文是前端运行时、目录、依赖方向、构建和质量门禁的唯一正文来源。
+本文定义 Brand Site 与 Research Workspace 的工程边界。具体上游产品、版本与源码范围由单独 ADR 冻结。
 
-## 1. 运行时决策
+## 1. 运行时
 
-- `apps/site` 使用 Astro 静态输出，负责 Brand Site 与静态 404。
-- `apps/workspace` 使用 React、Vite 与 TanStack Router，负责 Guided Tour、Research Workspace 与 Share 路由入口。
-- 根 pnpm workspace 管理两个 App 和八个共享 Package。
-- Pydantic 仍是生产 Transport Schema 的唯一编写源；前端不得手写第二套同名生产 Schema。
-- Site 与 Workspace 不保存密钥，不直连模型、论文源或天文数据源。
-- `runtime.ts` 未配置 `VITE_API_BASE_URL` 时选择 Fixture，配置合法 HTTP origin 时选择 HTTP Adapter；带路径、查询或 fragment 的值明确失败，不静默回退。
-- 私有 Tour / Workspace 页面仅在 HTTP 模式调用 `SessionManager.ensureSession()`；公开 Share 页面只调用 `shares.getPublic()`，不创建 Session。
-- 页面只消费 Domain Model、Repository Port 和 Controller；`pages/` 与 `components/` 由架构门禁禁止 `fetch`、XHR、SSE、WebSocket、`@xingwen/contracts` 与硬编码 `/api`。
-- 这些行为有 Fixture 与 HTTP-shaped 组件测试、Fixture Playwright E2E，以及独立真实 HTTP Browser/Compose 测试；后者验证 Session、Contract、Run/Event、Workspace 冲突与刷新恢复、冻结 Share 和匿名撤销语义。
+| 应用 | 技术 | 职责 |
+| --- | --- | --- |
+| `apps/site` | Astro | Brand Site 与静态入口 |
+| `apps/workspace` | React + Vite | Workspace 宿主、路由与运行时组合 |
+| `apps/api` | FastAPI | API、Workflow 与持久化 |
 
-## 2. 目录结构
+精确依赖版本以根 `package.json`、`pnpm-lock.yaml` 与包清单为准，不在本文重复维护。
+
+## 2. Workspace 重建基线
+
+### 保留
+
+- Brand Site；
+- Design Token；
+- 通用 UI Primitive；
+- Domain；
+- Contract；
+- Repository Port；
+- Fixture / HTTP Adapter；
+- WorkspaceSnapshot 与通用 Controller；
+- 后端、Workflow、Pipeline 与持久化。
+
+### 退役
+
+- 旧 Workspace 产品 UI；
+- 项目内自研 Agent Shell；
+- Preview Route 与静态产品原型；
+- 假 Project、Run、Artifact 与 Evidence；
+- 只服务旧 UI 的样式、依赖和测试。
+
+退役后 `apps/workspace` 只保留可构建宿主，直至上游产品冻结。
+
+## 3. 分层
 
 ```text
-apps/
-├─ site/                         # Astro 静态 Brand Site
-├─ workspace/                    # React Research Workspace SPA
-│  └─ src/
-│     ├─ runtime.ts               # Fixture / HTTP Runtime 选择与边界组合
-│     ├─ pages/                   # Tour、Workspace、匿名 Share 页面
-│     ├─ components/              # 无请求的 ResearchShell、ProvenanceObservatory、ArtifactCanvas
-│     ├─ features/                # 按产物种类拆分的审查面（paper-acquisition、literature-summary）
-│     └─ hooks/                   # Controller 与私有 Session 订阅
-└─ api/                          # FastAPI（前端边界之外）
+Workspace Host
+→ Router / Provider / Runtime Composition
 
-packages/
-├─ design-tokens/                # 基础 Token 与 CSS 公开入口
-├─ ui/                           # 共享 React UI 公开入口
-├─ domain/                       # 纯 TypeScript 领域边界
-├─ contracts/                    # Pydantic Contract 消费边界
-├─ data-access/                  # Repository Port、Fixture/HTTP Adapter 与 Contract 校验
-├─ workspace-core/               # Guided Tour FSM 与 WorkspaceSnapshot Controller
-├─ visual-engine/                # 视觉运行时边界，仅公开接口类型
-└─ testing/                      # 共享测试入口
+Upstream Agent UI
+→ Shell / Navigation / Activity / Workspace / Composer
 
-package.json
-pnpm-workspace.yaml
-pnpm-lock.yaml
-turbo.json
-tsconfig.base.json
-eslint.config.mjs
-prettier.config.mjs
-playwright.config.ts
+Research UI
+→ Event Renderer / Artifact Renderer / Evidence Inspector / Version Diff
+
+Research Adapter
+→ Domain → UI ViewModel
+→ UI Intent → Application Command
+
+Existing Core
+→ Domain / Repository Port / Fixture / HTTP / Workspace Controller
 ```
 
-每个共享 Package 都有独立 `package.json`、`tsconfig.json`、公开 `exports`、build/typecheck/lint/test 脚本。未实现能力只用类型和明确 Issue 边界表达。
+## 4. 上游源码治理
 
-## 3. 依赖方向
+正式采用上游前必须记录：
+
+| 字段 | 要求 |
+| --- | --- |
+| Repository | 官方仓库 |
+| Release | 固定 Tag |
+| Commit | 固定完整 SHA |
+| License | 兼容且保留适用版权 |
+| Source Scope | 采用与排除目录 |
+| Mapping | Upstream File → Local File |
+| Modification | 本地语义与结构变化 |
+| Verification | 上游合同与本地回归 |
+
+该记录是版本化工程证据。
+
+禁止：
+
+- 跟随浮动 `main` 或 latest；
+- 未核验许可证即复制源码；
+- 复制企业或非兼容目录；
+- 参考上游后手写相似实现；
+- 失去源码来源映射；
+- 同时维护两套 Shell。
+
+## 5. 目录职责
+
+上游冻结前只定义职责，不固定最终目录名。
 
 ```text
-apps/site
-  -> @xingwen/design-tokens
-  -> @xingwen/ui
-  -> @xingwen/visual-engine  (仅允许公开接口)
+apps/workspace/src/
+├── app/             # Router、Provider、Runtime composition
+├── upstream/        # 选定上游源码或薄适配入口
+├── adapters/        # Domain 与 UI Runtime 映射
+├── events/          # Research Event Renderer
+├── artifacts/       # Artifact Renderer
+├── evidence/        # Evidence / Source / Version Inspector
+└── routes/          # 正式路由
+```
 
+上游适合独立 Package 时，由对应 ADR 调整。仓库内始终只保留一个 Workspace Shell。
+
+## 6. 依赖方向
+
+```text
 apps/workspace
-  -> @xingwen/design-tokens
-  -> @xingwen/ui
-  -> @xingwen/workspace-core
-  -> @xingwen/data-access
+  → Upstream Agent UI
+  → Research Adapter
+  → @xingwen/ui
+  → @xingwen/design-tokens
+  → @xingwen/workspace-core
+  → @xingwen/data-access
+  → @xingwen/domain
 
-@xingwen/workspace-core
-  -> @xingwen/domain
+Research Adapter
+  → @xingwen/domain
+  → Repository Port
+  → Upstream public contracts
 
-@xingwen/data-access
-  -> @xingwen/domain
-  -> @xingwen/contracts
+Artifact / Evidence Renderer
+  → @xingwen/domain
+  → @xingwen/ui
 ```
 
 约束：
 
-- Shared Package 不依赖 App。
-- `domain` 不依赖 React、Astro、Vite、HTTP、DOM 或 Browser API。
-- `ui` 与 `visual-engine` 不调用 `fetch` 或 Repository。
-- App 只能从 Package 的公开 `exports` 导入，不跨包读取内部文件。
-- 不使用 TypeScript 路径别名绕过 Package public entry。
-- 不建立第二套路由、全局状态或生产 API 类型系统。
+- Shared Package 不依赖 App；
+- Domain 不依赖 React、DOM、HTTP 或上游 UI；
+- 页面不直接调用 `fetch`；
+- 页面不读取 Transport DTO；
+- App 不跨包读取 Fixture 内部文件；
+- App 只通过公开 exports 导入；
+- 不建立第二套生产 API 类型；
+- 不以 `@ts-expect-error` 绕过架构边界。
 
-这些约束由 `pnpm check:architecture` 自动验证。
-
-## 4. 精确版本基线
-
-| 类别                             | 版本            |
-| -------------------------------- | --------------- |
-| Node.js                          | 24.18.0 LTS     |
-| pnpm                             | 11.13.1         |
-| Astro / React integration        | 7.0.9 / 6.0.1   |
-| React / React DOM                | 19.2.7 / 19.2.7 |
-| Vite / React plugin              | 8.1.5 / 6.0.3   |
-| Tailwind CSS / Vite plugin       | 4.3.2 / 4.3.2   |
-| TypeScript                       | 6.0.3           |
-| Turborepo                        | 2.10.5          |
-| TanStack Router                  | 1.170.18        |
-| Vitest                           | 4.1.10          |
-| Testing Library React / jest-dom | 16.3.2 / 6.9.1  |
-| Playwright                       | 1.61.1          |
-| ESLint / typescript-eslint       | 10.7.0 / 8.64.0 |
-| Prettier / Astro plugin          | 3.9.5 / 0.14.1  |
-
-### TypeScript 版本说明
-
-TypeScript 7.0.2 已发布，但不进入基线：
-
-- `typescript-eslint@8.64.0` 的 peer 范围为 `>=4.8.4 <6.1.0`。
-- `@astrojs/check@0.9.9` 依赖 TypeScript `^5 || ^6`。
-
-因此选择所有实际依赖共同支持的最高稳定版 6.0.3。升级条件是上述两项同时正式声明支持 TypeScript 7；不得使用 beta、rc、nightly 或 canary 绕过。
-
-## 5. Brand Site 最小入口
-
-`apps/site` 静态输出：
-
-- `/`：中文标题“星文智析”、产品说明、Workspace CTA 和基础 metadata。
-- `/404.html`：清晰的 Not Found 内容与返回首页链接。
-- `PUBLIC_WORKSPACE_URL`：控制 CTA 地址，默认 `http://localhost:5173/workspace`。
-- React integration：用于服务端渲染共享 `BrandMark`，不增加客户端 hydration。
-- 无 JavaScript 时：首页标题、说明与 CTA 仍存在于静态 HTML。
-
-完整首页叙事、WebGL、字体资产、社交预览与视觉系统不属于 Brand Site 最小入口范围。
-
-## 6. Research Workspace 入口
-
-`apps/workspace` 使用一棵 TanStack Router route tree：
-
-| 路径                 | 页面身份                                                                                                                                |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                  | 科研工作台入口                                                                                                                          |
-| `/tour`              | Guided Tour FSM、Draft / Contract 与 Run 启动；Fixture 禁用 Live                                                                        |
-| `/workspace`         | Project、Run/Event、ArtifactVersion/Evidence、WorkspaceSnapshot 与私有 Share；`paper_collection` 版本在中央画布渲染论文获取与候选审查面 |
-| `/share/$shareToken` | 匿名只读的冻结 PublicShareSnapshot；不创建 Session、不回显 token                                                                        |
-| 其他                 | Not Found boundary                                                                                                                      |
-
-私有根布局提供可访问的主要导航和 skip link；窄屏的 Atlas 与 Observatory 保持原生 `details` 入口。Router 提供 Error Boundary、Loading fallback 与 Not Found boundary。Tour / Workspace 通过同一组 Repository Port 消费 Domain Model；公开 Share 不进入私有 Shell。不引入第二套 DTO、页面 `fetch` 或状态库。
-
-## 7. Shared Package 边界
-
-| Package          | 职责                                                                                                                                                                                                                                 |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `design-tokens`  | 基础浅色语义变量、字体 fallback、CSS 与 TS 入口                                                                                                                                                                                          |
-| `ui`             | 静态 `BrandMark` 与 UI 基元                                                                                                                                                                                                              |
-| `domain`         | 前端 Domain Model（Project、Contract、Run、ArtifactVersion、Evidence、ProvenanceState）与 `PaperAcquisitionReview`（含 `safeExternalUrl` 与 `ArtifactVersionMetadata` 收窄）                                                             |
-| `contracts`      | 生成的 Core DTO、JSON Schema 与 ajv 运行时校验（含 PaperCollection 读模型）                                                                                                                                                              |
-| `data-access`    | 收窄 Repository Port、版本化 Fixture、`/api` HTTP Adapter 与 `PaperAcquisitionRepository`（内部分页、完整性防护含声明总量上限、共享装配）；论文 Fixture 由后端论文获取 Pipeline 生成为 JSON 并经 Pydantic 门禁验证，TypeScript 只消费生成结果 |
-| `workspace-core` | Guided Tour FSM 与 WorkspaceSnapshot Controller                                                                                                                                                                                          |
-| `visual-engine`  | 视觉运行时公开边界类型                                                                                                                                                                                                                   |
-| `testing`        | 共享测试入口地址                                                                                                                                                                                                                         |
-
-基础 Token 为页面提供可读浅色 fallback，不构成完整设计系统。
-
-## 8. 根工具链
-
-根脚本：
+## 7. 数据边界
 
 ```text
-pnpm dev
-pnpm build
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:e2e
-pnpm format:check
-pnpm check:docs
-pnpm check:architecture
-pnpm check:legacy
-pnpm check
+Transport DTO
+→ Contract Validation
+→ Domain Mapping
+→ Repository Port
+→ Query / Application State
+→ Research Adapter
+→ UI
 ```
 
-Turborepo 调度 `build`、`dev`、`lint`、`typecheck` 与 `test`。`pnpm check` 顺序聚合 format、documentation、lint、typecheck、unit、build、architecture 和 runtime-retirement gate；E2E 独立运行以便先安装浏览器。
+Fixture 与 HTTP Adapter 返回同一 Domain Model。上游 Runtime 不拥有 ArtifactVersion、Evidence、SourceSnapshot 或 ShareSnapshot。
 
-pnpm 11 配置位于 `pnpm-workspace.yaml`：
+## 8. 状态所有权
 
-- 只链接显式 `workspace:*` 依赖。
-- `engineStrict` 与 `nodeVersion: 24.18.0` 固定运行时。
-- `strictPeerDependencies` 拒绝不兼容 peer。
-- `allowBuilds` 只允许已审查的 esbuild 安装脚本。
-- Vite transitive 版本统一覆盖为 8.1.5。
-- 仓库只允许一个根 `pnpm-lock.yaml`。
+| 状态 | 权威 |
+| --- | --- |
+| Project / Run / Artifact 路由选择 | Router |
+| Server state、分页、缓存、Mutation | Query Layer，经 Repository Port |
+| Run、Artifact、Evidence 事实 | Domain / Repository |
+| 流式交互与待发送输入 | Upstream Runtime |
+| Workspace 布局与恢复 | Workspace Controller 或经 ADR 冻结的唯一布局状态 |
+| Hover、Popover、临时筛选 | Local Component State |
+| Share / Export 版本 | Server / ShareSnapshot |
 
-## 9. 测试边界
+同一事实不得由多个 Store 重复持有。
 
-- Unit：Vitest + Testing Library 验证共享深链接、生成 Contract 校验、Fixture/HTTP 一致性、错误映射、Workspace Controller、Tour、冲突、Artifact/Evidence、Share 与匿名状态，以及论文获取工作区的分页装配、完整性防护（含 cursor 声明总量上限）、错误分类（含非空 404）、cached 审计、稳定排名筛选、旧 review 清理与候选/Evidence 选择；论文获取 React HTTP 路径注入真实 `createHttpRepositories`（HTTP client/契约解析/cursor 分页真实执行，服务端为已验证 Fixture 的副本，不等于真实 FastAPI Runtime）。论文获取 Fixture 本身由 `apps/api/tests/test_paper_acquisition_fixture.py` 的 Pydantic 语义门禁（正向 + 变异负向 + 确定性重建防漂移）在后端 CI 路径验证；前端 AJV 只覆盖结构层，不等同于 Pydantic 语义通过。
-- E2E：Playwright 验证 Site、无 JavaScript Site、Site 404、Workspace 四个入口、Fixture Tour / Workspace / Share、论文候选审查主流程与视口（1440/1280/390/200% 字体）、键盘、375px、200% 字体、Not Found 与页面控制台错误。
-- Typecheck：两个 App 与全部共享 Package 分别执行。
-- Build：Site 与 Workspace 分别产出 `dist`；共享 Package 产出 JS 与声明文件。
-- Architecture：验证依赖方向、公开入口、Domain 纯度、单 lockfile 与禁止路径别名。
-- Foundation/runtime-retirement：验证必需目录、环境变量、依赖状态和已退役实现不会重新进入仓库。
+## 9. Agent Runtime
 
-## 10. Docker 与本地运行
+```text
+Run Event
+→ Research Event Normalizer
+→ Upstream Runtime Event
+→ Research Event Renderer
+```
 
-`docker/frontend.Dockerfile` 是 Site 与 Workspace 共用的前端镜像定义：
+```text
+Upstream Composer
+→ Research Intent
+→ Application Service / Repository Mutation
+```
 
-- 基于 `node:24.18.0-bookworm-slim`。
-- Corepack 激活 pnpm 11.13.1。
-- 从根 workspace 执行 `pnpm install --frozen-lockfile`。
-- Compose 通过 filter 命令分别启动 Site 与 Workspace，并绑定 `0.0.0.0`。
+Runtime 只管理交互生命周期，不创建科研事实或推进服务端状态机。
 
-Compose 服务与默认端口：
+## 10. Artifact 与 Evidence
 
-| Service     | Port         |
-| ----------- | ------------ |
-| `site`      | 4321         |
-| `workspace` | 5173         |
-| `api`       | 8000         |
-| `migrate`   | 无；one-shot |
-| `postgres`  | 5432         |
+Artifact Renderer 只消费 Domain ViewModel。
 
-前端容器只接收 `PUBLIC_WORKSPACE_URL` 或 `VITE_API_BASE_URL`，不通过 `env_file` 接收后端密钥。`VITE_API_BASE_URL` 仅为 origin，API 路径来自生成的 operation metadata。Compose 以 `postgres healthy → migrate exited 0 → api healthy → workspace` 启动，并有独立真实 Browser/刷新恢复证据。
+```text
+Artifact Kind
+→ Renderer
+→ Evidence Anchor
+→ Source / Version Inspector
+```
 
-## 11. CI
+未知类型明确失败。
 
-Frontend job 从仓库根目录执行 frozen install、format、lint、typecheck、unit、build、architecture、runtime-retirement 和 Fixture Playwright E2E。Foundation job 执行 Python 基建检查与 Compose config；Backend job 使用 PostgreSQL 17 执行迁移、pytest 与 Pydantic Schema export；独立集成 job 启动 fresh Compose 并运行真实 HTTP Browser E2E。
+Evidence Inspector 只展示可审查内容：
 
-CI 不允许 App 私有 lockfile、第二套包管理器状态或跨包深层导入。
+- target；
+- Evidence status；
+- SourceSnapshot；
+- locator；
+- quote / value；
+- extraction method；
+- version；
+- related objects。
 
-## 12. 科研工作区组成
+## 11. 路由
 
-- 论文获取与候选审查工作区：`PaperAcquisitionRepository` 深 Port、完整参数/分页/hash 审查域模型、cached 审计、execution/source 正交标识、由后端论文获取 Pipeline 生成并经 Pydantic 门禁验证的 PaperCollection Fixture、`/workspace` 中央画布集成与 Fixture E2E；真实 HTTP 数据来自后端论文获取运行链路。
-- 文献总结与 Evidence 阅读工作区：`PaperSummaryRepository` 深 Port（`getSummary` 隐藏后端读端点、契约解析与装配，Fixture/HTTP 共享同一 `assemblePaperSummaryReview`）、`PaperSummaryReview` 域模型（论文 title/authors/year、ArtifactVersion revision/supersedes、研究目标/方法/数据集/发现/局限与未来工作五区语句、逐项 summaryEvidence、supported/unsupported/unverifiable 状态、来源冲突、Cached 审计与模型/Prompt provenance）、`paper_summary` 版本经 `artifact-canvas` 路由到 `LiteratureSummaryWorkspace`、点击语句驱动 Provenance Observatory；当前 Run 的最多三个 PaperSummary latest versions 可切换到用户可达的 `LiteratureComparisonGrid`，每列独立保留版本、来源、论文元信息、model/Prompt、Evidence 覆盖及 Cached origin/Live 失败条件。PaperSummary Fixture 由后端 `PaperSummaryPipeline` 生成并经 `apps/api/tests/test_paper_summary_fixture.py` Pydantic 语义门禁验证；真实 HTTP 数据来自后端总结运行链路。
-- Desktop/Tauri 形态需要独立 Platform Adapter，不在本目录内创建。
+| 路径 | 职责 |
+| --- | --- |
+| `/workspace` | 私有 Research Workspace |
+| `/share/$shareToken` | 冻结匿名 Share |
+| `/` | Workspace App 入口或重定向 |
+| 其他 | Not Found |
 
-实施进度与 Milestone 状态由 GitHub Issues 表达，本文不记录任务级进展。能力不得因存在空接口、路由占位或设计文档而被视为已交付。
+开发 Preview Route 不进入生产 Route Tree。
+
+## 12. 上游同步
+
+上游升级必须：
+
+1. 固定新 Tag 与 SHA；
+2. 审查 Release Notes 与 License；
+3. 更新源码映射；
+4. 生成 Upstream Diff；
+5. 运行上游合同测试；
+6. 运行 Adapter、E2E、A11y 与视觉回归；
+7. 通过独立变更合并。
+
+## 13. 构建与质量
+
+- 单一根 `pnpm-lock.yaml`；
+- 依赖在引入时真实消费；
+- 大型 Renderer 与非首屏能力代码分割；
+- Docker / Compose 不引用已删除 Package；
+- 架构检查验证依赖方向、公开入口、单一 Shell 与禁止深层导入；
+- 具体测试方法见 [Test Strategy](../engineering/TEST_STRATEGY.md)；
+- 完成标准见 [Acceptance](../product/ACCEPTANCE.md)。

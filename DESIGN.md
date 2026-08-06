@@ -1,121 +1,115 @@
 # Product Design
 
-| 元数据         | 值                                                                                                                |
-| -------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Status         | Accepted                                                                                                          |
-| Authority      | 产品设计原则、体验域关系、交互模型与设计不变量                                                                    |
+| 元数据 | 值 |
+| --- | --- |
+| Status | Accepted |
+| Authority | 产品设计原则、体验域关系与设计不变量 |
 
-本文定义星文智析的设计判断标准，不重复产品主流程、页面规格、技术栈、领域枚举或验收清单。
+本文定义星文智析的设计判断标准。页面规格见 [Workspace UX](docs/design/WORKSPACE_UX.md)，视觉规则见 [Visual Language](docs/design/VISUAL_LANGUAGE.md)，工程边界见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
 
-- 产品范围与成功指标见 [PRD](PRD.md)。
-- 视觉规则见 [Visual Language](docs/design/VISUAL_LANGUAGE.md)。
-- 首页、Guided Tour 和工作台交互见 [Workspace UX](docs/design/WORKSPACE_UX.md)。
-- 前端工程方案见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
+## 1. 产品命题
 
-## 1. 设计命题
-
-星文智析不是通用聊天 Agent，也不是装饰性天文数据大屏。产品围绕“从科学问题到可用数据与可核验证据”，把 AI 能力收束为可审查的科研产物、运行和版本。
-
-产品需要同时建立两个识别面：
-
-- **艺术化天文入口**：让用户快速理解主题、主案例和可信边界。
-- **科研产物工作台**：以 Project、Run、Contract、Artifact、Version 和 Evidence 组织研究。
-
-## 2. 设计原则
-
-| 原则           | 判断标准                                                         |
-| -------------- | ---------------------------------------------------------------- |
-| 科研产物优先   | 中央内容以结构化产物为主，对话和日志不得占据主界面               |
-| Evidence-first | 关键数据、结论、关系和图谱边可定位来源、证据和版本               |
-| 自主可理解     | 无现场讲解时，用户仍能理解价值、流程和限制                       |
-| 渐进复杂度     | 先说明问题与主动作，再揭示来源、版本和审查工具                   |
-| 真实性分层     | Demo、Live、Cached 和 Revision 分别表达，不互相冒充              |
-| 视觉服从阅读   | 强视觉集中在品牌入口天体；首页极简留白；高密度内容保持克制和可读 |
-| 降级仍可用     | Canvas、字体或动效失败时，DOM 内容和主操作继续可用               |
-| 当前与目标分明 | Current、Target、Pending 和 Archived 不得混写                    |
-
-## 3. 体验域
-
-| 体验域             | 核心职责                                            | 不负责                              |
-| ------------------ | --------------------------------------------------- | ----------------------------------- |
-| Brand Site         | 极简单英雄首页建立品牌识别与双入口（演示 / 工作台） | 产品说明书、项目管理、Live 模式开关 |
-| Guided Tour        | 用确定性场景解释 Contract、Run、Artifact、Evidence  | 代替真实工作台或伪装 Live           |
-| Research Workspace | 管理项目、运行、产物审查、反馈、分享和导出          | 以聊天历史或工具日志组织研究        |
-
-三个体验域共享领域语言、设计 Token、证据规则和数据访问边界，但不共享不必要的页面状态。
-
-## 4. 核心交互模型
+星文智析以科研任务为上下文，由 Agent 执行研究、生成版本化科研产物，并通过 Evidence、SourceSnapshot、Version 与人类复核建立可信闭环。
 
 ```text
-Research intent
--> editable ResearchContractDraft
--> immutable ResearchContract
--> Demo Replay or Live ResearchRun
--> versioned ResearchArtifacts
--> Evidence and SourceSnapshot inspection
--> Export / Share / Feedback
--> RevisionPlan and derived Run
+Research Intent
+→ Research Contract
+→ Research Run
+→ Agent Activity
+→ Scientific Artifact
+→ Evidence Review
+→ Revision / Export / Share
 ```
 
-交互要求：
+产品不以聊天历史、工具日志、文件浏览器或静态 Dashboard 组织科研工作。
 
-- 用户确认 Contract 后才执行；
-- 工作台中央最多三个受控面板；
-- AI 响应优先产生结构化建议、计划或产物；
-- Provenance Observatory 保持当前上下文并提供来源、证据和版本；
-- Research Console 是命令与协作入口，不是永久聊天时间线；
-- 原始执行日志只用于诊断。
+## 2. 体验域
 
-## 5. 系统边界
+| 体验域 | 核心职责 | 边界 |
+| --- | --- | --- |
+| Brand Site | 建立品牌识别并进入 Workspace | 不承担研究配置、Agent 执行或项目管理 |
+| Research Workspace | 执行研究、审查产物、核验证据、推进修订 | 不承担营销叙事或通用 IDE 能力 |
+| Public Share | 展示冻结 ArtifactVersion 与必要证据 | 不提供编辑、运行或动态 latest |
 
-```mermaid
-flowchart LR
-  User["研究者 / 评审"] --> Experience["Brand Site / Tour / Workspace"]
-  Experience --> App["Application Services + Domain Model"]
-  App --> Port["Repository Port"]
-  Port --> Fixture["Fixture Adapter"]
-  Port --> HTTP["HTTP Adapter"]
-  HTTP --> API["API / Workflow / Persistence"]
-  API --> Pipeline["Data / Paper / Reasoning / Graph"]
-  Pipeline --> Artifact["ArtifactVersion / Evidence / SourceSnapshot"]
-  Artifact --> API
+Guided Tour 不属于当前前端基线；重新引入时必须使用独立规范和交付范围。
+
+## 3. 设计原则
+
+| 原则 | 判断标准 |
+| --- | --- |
+| 成熟骨架优先 | Shell、导航、Agent Thread、Workspace、Composer 与状态反馈优先采用成熟开源 Agent 产品源码 |
+| 科研产物优先 | Artifact 与 Evidence 是主要工作对象；对话与执行事件承担协作和解释 |
+| Evidence-first | 关键数据、结论、关系与版本可定位 Evidence、来源和快照 |
+| 人类控制 | 研究协议、证据集和结论修订具有明确决策点 |
+| 渐进复杂度 | 先呈现任务、Agent 状态、主产物和下一步，再披露执行细节 |
+| 真实性分层 | Fixture、Live、Cached、Revision 与失败分别表达 |
+| 单一事实源 | UI 不复制 Domain、Workflow、Version 或 Transport 规则 |
+| 视觉服从阅读 | Homepage 承担品牌冲击；Workspace 保持克制、高密度和长时间可读 |
+| 可恢复 | 运行、页面和布局状态具有明确恢复路径 |
+| 人工视觉门禁 | 自动化测试不能替代用户对产品骨架和可用性的确认 |
+
+## 4. 开源 Agent 产品采用
+
+采用必须同时满足：
+
+```text
+可运行的上游产品
++ 固定 Repository / Tag / Commit
++ 兼容许可证
++ 明确源码范围
++ Upstream → Local 映射
++ 可重复验证
 ```
 
-边界规则：
+以下行为不构成采用：
 
-- 体验组件只依赖稳定 Domain Model，不读取 Transport DTO 或直接调用外部来源。
-- Fixture 与 HTTP 通过同一 Repository Port 返回同一领域形状。
-- Workflow、权限、版本发布、缓存选择和分享冻结由服务端负责。
-- Prompt 只由版本化 registry 管理；模型输出先通过 Schema 与 Evidence 校验。
-- ArtifactVersion、Evidence、SourceSnapshot 和 ShareSnapshot 是复现边界。
+- 参考截图后重新实现；
+- 只复制布局或样式；
+- 只安装组件库；
+- 以静态 Preview 代替真实运行骨架；
+- 用项目内 Shell 替代上游已有能力。
 
-跨模块职责见 [Module Boundaries](docs/architecture/MODULES.md)。
+具体上游产品由独立架构决策冻结。
+
+## 5. 产品对象
+
+| 产品语言 | 领域对象 |
+| --- | --- |
+| 研究项目 | ResearchProject |
+| 研究运行 | ResearchRun |
+| 研究协议 | ResearchContract |
+| 科研产物 | Artifact / ArtifactVersion |
+| 证据 | Evidence |
+| 来源快照 | SourceSnapshot |
+| 修订 | 派生 Run / 新 ArtifactVersion |
+| 分享 | ShareSnapshot |
+
+产品语言不得创建第二套持久化模型。
 
 ## 6. 设计不变量
 
 - Project 表示持续研究上下文，Run 表示一次执行。
-- Artifact 表示稳定身份，ArtifactVersion 表示不可变内容。
 - Contract 固定研究输入和质量约束，不保存执行方式。
-- 执行方式、产物来源和修订派生关系相互独立。
-- 用户重试、修订或改变研究范围时创建派生 Run。
-- 缓存只能引用真实历史 Run、ArtifactVersion 和 SourceSnapshot。
-- Summary、Accepted Relation、ReasoningTrace 和 GraphEdge 按契约绑定 Evidence。
-- ReasoningTrace 只记录可审查依据、条件和引用。
-- WorkspaceSnapshot 是私有恢复状态；ShareSnapshot 是冻结的只读公开投影。
+- Artifact 表示稳定身份，ArtifactVersion 表示不可变内容。
+- Run status、execution mode、source mode 与 revision 关系分别表达。
+- 改变研究条件时创建新 Contract 或派生 Run。
+- 缓存只引用真实历史 Run、ArtifactVersion 与 SourceSnapshot。
+- 关键科研内容按契约绑定 Evidence。
+- ReasoningTrace 只展示可审查依据，不包含模型私有推理。
+- WorkspaceSnapshot 保存私有恢复状态；ShareSnapshot 保存冻结公开投影。
+- 技术 ID、Hash、Adapter 与内部模式不进入默认产品视图。
+- 未实现能力不得以假数据、禁用主控件或虚构状态呈现。
 
-精确领域规则分别由 [Data Model](docs/architecture/DATA_MODEL.md)、[Workflow Design](docs/architecture/WORKFLOW_DESIGN.md) 和 [Data Versioning](docs/architecture/DATA_VERSIONING.md) 维护。
+## 7. 当前前端边界
 
-## 7. 可信与安全边界
+### Brand Site
 
-- 前端不持有模型、论文源或天文数据源密钥。
-- 私有 Project、Run 和 Artifact 必须由服务端会话所有权隔离。
-- 用户输入与外部文本默认按纯文本处理。
-- Seed、Fixture、缓存、模型推断和真实结果必须明确标注。
-- 视觉效果不得承载唯一信息，也不得暗示不存在的科学精度。
-- 未实现能力不得在产品或材料中写成已交付。
+保留已确认的 MP4、固定标题和单一“进入工作台”CTA。后续调整使用独立范围。
 
-安全要求见 [Security](SECURITY.md)，HTTP 与授权语义见 [API Contract](docs/architecture/API_CONTRACT.md)。
+### Research Workspace
 
-## 8. 实施边界
+旧 Workspace 产品 UI 不构成重建基线。新的 Workspace 在上游产品冻结后实施。
 
-设计实现必须由对应 Issue 驱动。工作台以科研产物为中心，同一组件路径同时消费 Fixture 与 HTTP Repository Port，返回同一 Domain Model。论文获取与候选审查、推理与图谱、反馈修正等体验域各自以对应 Issue 的代码、测试和运行证据为准；实时实现状态见 GitHub Issues。设计不得把 Fixture 或模型推断表述为真实科研结论。
+### 既有核心
+
+Domain、Contract、Repository Port、Fixture / HTTP Adapter、Workflow、Version 与后端服务保持权威，不因前端上游选型而改变。

@@ -31,10 +31,13 @@
 | 019     | Superseded in part by ADR-027  | 追加式版本原则保留，运行对象重新分层                   |
 | 020     | Accepted                       | 暂不引入通用图数据库和万能实体层                       |
 | 021     | Implemented                    | Astro Brand Site + React Workspace Monorepo 运行时     |
-| 022–027 | Accepted；Pending              | 产品体验、领域与安全方案                               |
+| 022     | Superseded by ADR-031          | 原三栏科研工作台（已由 ADR-031 取代并重构成上游 Agent 骨架） |
+| 023–027 | Accepted；Pending              | 领域、安全与状态分层方案                               |
 | 028     | Superseded by ADR-029          | 浅色雾霾蓝视觉体系（已由 bluegray 取代）              |
 | 029     | Accepted；Pending              | 浅色 bluegray 视觉 + Brand Site 极简单英雄首页         |
 | 030     | Accepted for implementation    | 无版本化单面 API（/api/*）与追加式演进                 |
+| 031     | Accepted                       | Workspace 重建采用成熟开源 Agent 产品源码骨架          |
+| 032     | Pending                        | 冻结最终上游产品、版本、源码范围与同步策略             |
 
 ## ADR-001：MVP 固定主案例
 
@@ -230,7 +233,7 @@
 
 **Context:** 品牌静态首屏、SEO、WebGL 场景和桌面级工作台具有不同运行特征。
 
-**Decision:** pnpm Monorepo；`apps/site` 使用 Astro 静态输出，`apps/workspace` 使用 React 与 Vite；共享 `design-tokens`、`ui`、`domain`、`contracts`、`data-access`、`workspace-core`、`visual-engine` 和 `testing`。
+**Decision:** pnpm Monorepo；`apps/site` 使用 Astro 静态输出，`apps/workspace` 使用 React 与 Vite；共享 `design-tokens`、`ui`、`domain`、`contracts`、`data-access`、`workspace-core` 和 `testing`。
 
 **Consequences:** Brand Site 与 Research Workspace 分离构建，共享包依赖方向由自动门禁约束；A-02/A-03 继续在该边界内实现。
 
@@ -240,9 +243,9 @@
 
 ## ADR-022：工作台采用科研产物优先
 
-**Status:** Accepted for implementation; Pending
+**Status:** Superseded by ADR-031
 
-**Decision:** Research Atlas、最多三面板 Research Canvas、Provenance Observatory 和 Research Console 构成核心工作台；中央默认显示科研产物。
+**Decision:** （已由 ADR-031 Superseded）早期设想的原三栏工作台构成；中央默认显示科研产物。
 
 **Rationale:** 聊天线程和工具日志无法稳定承载高密度数据、Evidence 和版本对照。
 
@@ -321,7 +324,7 @@
 - 只实现浅色系统。Cold Paper（hue 230）仅服务 canvas / surface；brand、ink、border、celestial 共用 **bluegray** 刻度（hue 235，chroma 约 0.006–0.026）。
 - 主题色锚点 `#6E7981` = `oklch(0.57 0.018 235)` = bluegray-500。
 - 状态色保留独立色相；业务组件只消费语义 Token，Raw 仅在 `packages/design-tokens`。
-- Brand Site 首页为**单英雄区极简入口**：偏轴系外行星 ASCII/Dither Hero、双短 CTA（开始演示 / 进入工作台）、一句主标题、三至四段无标题短注。
+- Brand Site 首页为**单英雄区极简入口**：偏轴系外行星 ASCII/Dither Hero、单一“进入工作台”CTA、一句主标题、三至四段无标题短注。
 - 多幕叙事职责归属 Guided Tour；Live 仅在 Tour 或启动门选择。
 
 **Rationale:** 单一色相刻度避免配色漂移；首页克制留白提升竞赛场景下的识别与转化；复杂可信说明放到 Tour 与工作台，避免首屏信息堆砌。
@@ -352,6 +355,31 @@
 **Rejected:** 保留 v1/v2 别名或双挂载；用 URL 版本号表达破坏性变更；跨模块搬迁端点归属（保持按域扁平）。
 
 **Boundary:** 不触碰 Alembic 迁移文件（revision id 不可变）；文档冻结不等于 Implemented，以代码与运行证据为准。
+
+## ADR-031：Workspace 重建采用成熟开源 Agent 产品源码骨架
+
+**Status:** Accepted
+
+**Decision:** Research Workspace 不再自研 Shell、导航、Agent Activity、Workspace、Composer、焦点、键盘、响应式和运行反馈。前端先完成错误实现退役与独立上游选型，再以固定 Tag / Commit 的真实开源 Agent 产品源码为骨架进行领域改造。
+
+**Rationale:** 旧 Workspace 实现重复构造产品骨架，未形成可用 Agent 交互，并造成信息架构、状态与视觉持续漂移。
+
+**Consequences:**
+
+- 上游冻结前不实施正式 Workspace 产品 UI。
+- 复制源码必须记录 Repository、Tag、Commit、License 与 Upstream → Local 映射。
+- Research Domain 通过 Adapter 接入，不为上游修改领域模型。
+- 视觉适配保留上游成熟交互，不复制其默认皮肤。
+- 仓库内只保留一个 Workspace Shell。
+- 最终上游选择由 ADR-032 冻结。
+
+**Rejected:**
+
+- 继续修补旧 Workspace；
+- 参考成熟产品后手写相似骨架；
+- 以单一组件库替代完整产品骨架；
+- 跟随浮动 `main` 或 latest；
+- 在上游选型前构建静态产品原型。
 
 ## 2. 新增与修改规则
 

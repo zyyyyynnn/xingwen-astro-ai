@@ -10,10 +10,14 @@
 ## 1. 测试原则
 
 - 先测试不可逆数据损坏、来源失真、权限越权和版本覆盖风险。
-- 领域规则优先于页面快照数量。
+- 领域规则与上游骨架合同优先于页面快照数量。
+- Research Adapter 独立测试，不通过页面假数据验证。
+- Fixture 与 HTTP 使用同一 UI 路径和 Domain ViewModel。
 - 外部服务不作为每个 PR 的稳定前置，但必须有可选 Live smoke。
 - Fixture、recorded、Live 和 Cached 必须使用相同 Contract，并明确真实等级。
 - 无法自动判断的论文相关性、Summary 事实性和 Relation 正确性使用版本化 Benchmark，并由网页端 GPT 科研审查。
+- 不为使测试通过恢复已退役 UI。
+- 自动化测试不能替代用户视觉验收。
 - 测试失败不得通过降低 Evidence、Schema、安全或质量要求规避。
 
 ## 2. 测试分层
@@ -30,28 +34,48 @@
 - C-05 quality RuleSet、Decimal ratio、projected-field applicability、Evidence coverage、Contract gate 和 admission hash；
 - 前端 selector、quality tier 和 Visual Model mapper。
 
+### Upstream Contract
+
+覆盖选定上游的 Shell、Navigation、Agent Activity、Workspace、Composer、Command、Loading / Empty / Error、Cancel / Retry / Recovery、Keyboard 与 Responsive 行为。
+
+### Unit
+
+覆盖纯规则与映射边界：
+
+- Case / Field Manifest 与单位转换；
+- crossmatch、去重、排序和质量公式；
+- Run 状态转换、retry policy 和 CacheSelector；
+- Schema、mapper、hash、版本与 supersedes；
+- Evidence、Relation 和 Graph 完整性准入；
+- C-05 quality RuleSet、Decimal ratio、projected-field applicability、Evidence coverage、Contract gate 和 admission hash；
+- Domain → UI ViewModel、Run Event → Research Event、Composer Input → Research Intent、Artifact Kind → Renderer；
+- Evidence / Source / Version selection；
+- source mode、execution mode、status 与 revision 分离；
+- 未知 Artifact / Event 的稳定失败。
+
 ### Component
 
-覆盖可访问的 UI 行为：
+覆盖：
 
-- Research Contract 编辑与确认；
-- Atlas、受控 Split Panels、Observatory 和 Console；
-- Dataset、Paper、Summary、Reasoning、Graph 和 Feedback 状态；
-- Fixture/Live/Cached/Revision、错误、空和部分结果；
-- 键盘、焦点、读屏、Reduced Motion 和 Poster fallback。
+- Navigation 的选择、Pin、Recent、Collapse；
+- Agent Activity 的流式事件、Tool、Deliverable、Error 与 Checkpoint；
+- Artifact Workspace 的 Docked、Focus、Compare；
+- Context Inspector 的历史与焦点恢复；
+- Composer 的提交、取消、附件与结构化动作；
+- Empty、Draft、Running、Needs Review、Completed、Failed 状态；
+- Keyboard、Screen Reader、Reduced Motion 与 200% 字体。
 
 ### Integration
 
-覆盖模块协作：
+覆盖模块协作与契约边界：
 
 - FastAPI Router → Application Service → Repository；
 - Workflow → Pipeline Adapter → ArtifactVersion 发布；
 - PostgreSQL transaction、lease、Event 和版本登记；
 - Qwen/Data/Paper Client 的 stub 或 recorded response；
 - Session、CSRF、ownership、Share 和 Problem Details；
-- Fixture / HTTP Repository Adapter 的 Domain 一致性。
-- 真实 PostgreSQL + FastAPI Runtime 的 Session → Project → Contract → Run/Event → ArtifactVersion/Evidence → Workspace/Share 链路；
-- fresh Compose 上不使用 MSW 的真实 HTTP Browser、冲突、刷新恢复与匿名 Share。
+- Repository Port → Domain → Research Adapter → Upstream UI；
+- 验证 Fixture / HTTP 一致、Run Event 恢复、WorkspaceSnapshot、ArtifactVersion、Evidence、SourceSnapshot、ShareSnapshot 与 Session ownership。
 
 ### Contract
 
@@ -87,24 +111,40 @@ Contract
 
 ### End-to-end
 
-覆盖核心用户路径：
+核心路径：
 
-- Brand Site 静态首屏与 Guided Tour；
-- Demo Replay 完整流程；
-- Project → Draft → Contract → Live Run；
-- Dataset / Summary / Relation / Graph 到 Evidence；
-- Run Event 断线恢复；
-- Feedback → RevisionPlan → revision Run → 新 Version；
-- ShareSnapshot、Export、会话过期和授权失败；
-- 外部服务失败、缓存建议和无缓存失败。
+```text
+进入 Workspace
+→ 新建或选择 Project
+→ 确认 Contract
+→ 启动 Run
+→ 查看 Agent Activity
+→ 打开 Artifact
+→ 定位 Evidence
+→ 打开 Source
+→ 完成 Checkpoint
+→ 请求修订
+→ 查看新 ArtifactVersion
+→ Compare
+→ Export / Share
+→ 刷新恢复
+```
 
-### Visual and performance
+同时覆盖 Brand Site 静态首屏、Demo Replay 完整流程、ShareSnapshot、Export、会话过期、授权失败与外部服务降级。
 
-- 固定 viewport、seed、时间和数据版本的视觉回归；
-- High / Medium / Low 图形质量；
-- WebGL/context loss、Poster 和 Reduced Motion；
-- 页面隐藏暂停与资源释放 smoke；
-- 大表虚拟化、Graph 规模和关键 Web Vitals 预算。
+### Visual and Accessibility
+
+固定视口：
+
+```text
+1440×900
+1280×800
+390×844
+200% font scale
+```
+
+覆盖 Empty、Running、Needs Review、Completed、Artifact Review、Evidence Inspector、Compare、Error 与移动端。
+视觉证据由用户确认。页面隐藏暂停与资源释放、关键 Web Vitals 预算保持验证。
 
 ## 3. 测试数据等级
 
@@ -165,7 +205,7 @@ D-02 的 Crossref 单元/集成测试使用 fixture 或 recorded response 并标
 - 字段、单位、crossmatch 和质量规则；
 - ArtifactVersion、CacheSelector 和 RevisionPlan；
 - Session、Share、CSRF 和跨会话授权；
-- Visual Engine fallback 与资源释放。
+- 视觉与渲染 fallback 与资源释放。
 
 包级覆盖率阈值可在实现 Issue 中冻结，但不得通过排除关键文件虚增指标。
 
@@ -173,13 +213,12 @@ D-02 的 Crossref 单元/集成测试使用 fixture 或 recorded response 并标
 
 PR 或阶段报告至少记录：
 
+- 上游 Repository、Tag、Commit 与 License（若涉及前端）；
 - 命令和环境；
 - Commit、Contract、Fixture/Benchmark 版本；
 - 通过、失败和跳过数量；
-- 未执行项及原因；
-- 使用的数据等级；
-- Live 依赖和降级行为；
-- 失败日志或报告位置；
-- 性能/评测指标及与基线的差异。
+- 使用的数据等级（Fixture / Live / Cached / Revision）；
+- 截图路径与用户视觉结论；
+- 未执行项及原因、剩余风险。
 
-“本地通过”但没有命令、版本和结果摘要，不构成可复现证据。
+“本地通过”但没有命令、版本、截图和结果摘要，不构成可复现证据。
