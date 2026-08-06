@@ -57,7 +57,30 @@ jobs:
             git diff --name-only --diff-filter=U
             exit 1
           fi
-          python scripts/.agent_fix_pr166.py
+          python - <<'PY'
+          import base64
+          import gzip
+          import re
+          from pathlib import Path
+
+          wrapper = Path("scripts/.agent_fix_pr166.py").read_text(encoding="utf-8")
+          match = re.search(r"b64decode\('([^']+)'\)", wrapper)
+          if match is None:
+              raise RuntimeError("cannot decode staged PR #166 repair script")
+          source = gzip.decompress(base64.b64decode(match.group(1))).decode("utf-8")
+          old = '''replace_once(
+              publisher,
+              "                version = ArtifactVersionModel(\\n                    artifact_id=artifact.id,\\n",
+              "                _validate_literature_source_snapshots(\\n"'''
+          new = '''replace_regex(
+              publisher,
+              r"                version = ArtifactVersionModel\\(\\n(?:                    id=uuid4\\(\\),\\n)?                    artifact_id=artifact\\.id,\\n",
+              "                _validate_literature_source_snapshots(\\n"'''
+          if old not in source:
+              raise RuntimeError("publisher version-allocation repair anchor not found")
+          source = source.replace(old, new, 1)
+          exec(compile(source, "<agent-fix-pr166>", "exec"))
+          PY
           git rm -f \
             .github/workflows/agent-fix-pr166.yml \
             .github/workflows/agent-pr166-remote-fix.yml \
