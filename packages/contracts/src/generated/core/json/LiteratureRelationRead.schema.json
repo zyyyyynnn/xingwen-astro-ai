@@ -12,27 +12,57 @@
       "title": "ClaimType",
       "type": "string"
     },
-    "LiteratureClaimArtifactVersionReference": {
+    "EvidenceDetail": {
       "additionalProperties": false,
+      "description": "Evidence bound to one immutable version and source snapshot.",
       "properties": {
         "artifact_version_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "maxLength": 128,
+          "minLength": 1,
           "title": "Artifact Version Id",
           "type": "string"
         },
-        "claim_ids": {
-          "default": [],
-          "items": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "type": "string"
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "evidence_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Evidence Type",
+          "type": "string"
+        },
+        "extraction_method": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Extraction Method",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "locator": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
           },
-          "title": "Claim Ids",
-          "type": "array"
+          "title": "Locator",
+          "type": "object"
         },
-        "content_hash": {
+        "paper_id": {
           "anyOf": [
             {
-              "pattern": "^sha256:[0-9a-f]{64}$",
+              "maxLength": 128,
+              "minLength": 1,
               "type": "string"
             },
             {
@@ -40,70 +70,141 @@
             }
           ],
           "default": null,
-          "title": "Content Hash"
+          "title": "Paper Id"
         },
-        "output_hash": {
+        "quote_or_value": {
           "anyOf": [
             {
-              "pattern": "^sha256:[0-9a-f]{64}$",
-              "type": "string"
+              "$ref": "#/$defs/JsonValue"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Output Hash"
+          "default": null
         },
-        "paper_summary_artifact_version_ids": {
-          "default": [],
-          "items": {
-            "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
-            "type": "string"
-          },
-          "title": "Paper Summary Artifact Version Ids",
-          "type": "array"
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
         },
-        "project_id": {
-          "anyOf": [
-            {
-              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Project Id"
+        "target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
         },
-        "schema_version": {
-          "anyOf": [
-            {
-              "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Schema Version"
-        },
-        "source_snapshot_ids": {
-          "default": [],
-          "items": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "type": "string"
-          },
-          "title": "Source Snapshot Ids",
-          "type": "array"
+        "target_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Type",
+          "type": "string"
         }
       },
       "required": [
-        "artifact_version_id"
+        "id",
+        "artifact_version_id",
+        "target_type",
+        "target_id",
+        "evidence_type",
+        "source_snapshot_id",
+        "locator",
+        "extraction_method",
+        "confidence",
+        "created_at"
       ],
-      "title": "LiteratureClaimArtifactVersionReference",
+      "title": "EvidenceDetail",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "LiteratureArtifactVersionContext": {
+      "additionalProperties": false,
+      "description": "Immutable publication context shared by one paged domain item.",
+      "properties": {
+        "artifact_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "producer_execution": {
+          "$ref": "#/$defs/ProducerExecutionDetail"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        },
+        "supersedes_version_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Supersedes Version Id"
+        },
+        "version_number": {
+          "minimum": 1,
+          "title": "Version Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_version_id",
+        "artifact_id",
+        "project_id",
+        "version_number",
+        "supersedes_version_id",
+        "source_mode",
+        "schema_version",
+        "content_hash",
+        "input_hash",
+        "output_hash",
+        "created_at",
+        "producer_execution"
+      ],
+      "title": "LiteratureArtifactVersionContext",
       "type": "object"
     },
     "LiteratureClaimCandidate": {
@@ -379,6 +480,44 @@
       "title": "LiteratureClaimPolarity",
       "type": "string"
     },
+    "LiteratureClaimRead": {
+      "additionalProperties": false,
+      "description": "One Claim with its pinned Summary and persisted provenance projection.",
+      "properties": {
+        "claim": {
+          "$ref": "#/$defs/LiteratureClaimCandidate"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceDetail"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "paper_summary": {
+          "$ref": "#/$defs/LiteraturePaperSummaryReference"
+        },
+        "source_snapshots": {
+          "items": {
+            "$ref": "#/$defs/SourceSnapshotDetail"
+          },
+          "title": "Source Snapshots",
+          "type": "array"
+        },
+        "version": {
+          "$ref": "#/$defs/LiteratureArtifactVersionContext"
+        }
+      },
+      "required": [
+        "version",
+        "claim",
+        "paper_summary",
+        "source_snapshots",
+        "evidence"
+      ],
+      "title": "LiteratureClaimRead",
+      "type": "object"
+    },
     "LiteratureClaimRejectionReason": {
       "enum": [
         "literature_claim.json_invalid",
@@ -412,6 +551,56 @@
       ],
       "title": "LiteratureComparabilityStatus",
       "type": "string"
+    },
+    "LiteraturePaperSummaryReference": {
+      "additionalProperties": false,
+      "description": "Pinned PaperSummary identity used by an admitted LiteratureClaim.",
+      "properties": {
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "paper_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Paper Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "summary_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Summary Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_version_id",
+        "summary_id",
+        "paper_id",
+        "schema_version",
+        "content_hash",
+        "output_hash"
+      ],
+      "title": "LiteraturePaperSummaryReference",
+      "type": "object"
     },
     "LiteratureReasoningTraceCandidate": {
       "additionalProperties": false,
@@ -1065,95 +1254,6 @@
       "title": "LiteratureRelationDirectionCandidate",
       "type": "object"
     },
-    "LiteratureRelationEvidenceReference": {
-      "additionalProperties": false,
-      "properties": {
-        "claim_artifact_version_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
-          "title": "Claim Artifact Version Id",
-          "type": "string"
-        },
-        "claim_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Claim Id",
-          "type": "string"
-        },
-        "evidence_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Evidence Id",
-          "type": "string"
-        },
-        "paper_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Paper Id",
-          "type": "string"
-        },
-        "paper_summary_artifact_version_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
-          "title": "Paper Summary Artifact Version Id",
-          "type": "string"
-        },
-        "relation_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Relation Id",
-          "type": "string"
-        },
-        "side": {
-          "enum": [
-            "source",
-            "target"
-          ],
-          "title": "Side",
-          "type": "string"
-        },
-        "source_snapshot_content_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Source Snapshot Content Hash",
-          "type": "string"
-        },
-        "source_snapshot_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Snapshot Id",
-          "type": "string"
-        },
-        "source_snapshot_version": {
-          "maxLength": 512,
-          "minLength": 1,
-          "title": "Source Snapshot Version",
-          "type": "string"
-        },
-        "status": {
-          "enum": [
-            "supported",
-            "unsupported",
-            "unverifiable"
-          ],
-          "title": "Status",
-          "type": "string"
-        },
-        "validation_code": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Validation Code",
-          "type": "string"
-        }
-      },
-      "required": [
-        "relation_id",
-        "side",
-        "claim_id",
-        "claim_artifact_version_id",
-        "paper_summary_artifact_version_id",
-        "evidence_id",
-        "paper_id",
-        "source_snapshot_id",
-        "source_snapshot_version",
-        "source_snapshot_content_hash",
-        "status",
-        "validation_code"
-      ],
-      "title": "LiteratureRelationEvidenceReference",
-      "type": "object"
-    },
     "LiteratureRelationFailureStage": {
       "enum": [
         "json",
@@ -1172,266 +1272,6 @@
       ],
       "title": "LiteratureRelationFailureStage",
       "type": "string"
-    },
-    "LiteratureRelationInputVersions": {
-      "additionalProperties": false,
-      "properties": {
-        "claim_artifact_versions": {
-          "items": {
-            "$ref": "#/$defs/LiteratureClaimArtifactVersionReference"
-          },
-          "minItems": 1,
-          "title": "Claim Artifact Versions",
-          "type": "array"
-        },
-        "project_id": {
-          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
-          "title": "Project Id",
-          "type": "string"
-        }
-      },
-      "required": [
-        "project_id",
-        "claim_artifact_versions"
-      ],
-      "title": "LiteratureRelationInputVersions",
-      "type": "object"
-    },
-    "LiteratureRelationProducerExecution": {
-      "additionalProperties": false,
-      "properties": {
-        "comparison_policy_version": {
-          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-          "title": "Comparison Policy Version",
-          "type": "string"
-        },
-        "confidence_acceptance_threshold": {
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence Acceptance Threshold",
-          "type": "number"
-        },
-        "confidence_applicability_scope": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Confidence Applicability Scope",
-          "type": "string"
-        },
-        "confidence_calibration_content_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Confidence Calibration Content Hash",
-          "type": "string"
-        },
-        "confidence_calibration_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Confidence Calibration Id",
-          "type": "string"
-        },
-        "confidence_calibration_method": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Confidence Calibration Method",
-          "type": "string"
-        },
-        "confidence_calibration_sample_size": {
-          "minimum": 1,
-          "title": "Confidence Calibration Sample Size",
-          "type": "integer"
-        },
-        "confidence_calibration_scientific_payload_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Confidence Calibration Scientific Payload Hash",
-          "type": "string"
-        },
-        "confidence_calibration_version": {
-          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-          "title": "Confidence Calibration Version",
-          "type": "string"
-        },
-        "confidence_definition_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Confidence Definition Id",
-          "type": "string"
-        },
-        "confidence_definition_version": {
-          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-          "title": "Confidence Definition Version",
-          "type": "string"
-        },
-        "error_code": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LiteratureRelationRejectionReason"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "execution_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Execution Id",
-          "type": "string"
-        },
-        "finished_at": {
-          "format": "date-time",
-          "title": "Finished At",
-          "type": "string"
-        },
-        "input_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Input Hash",
-          "type": "string"
-        },
-        "input_versions": {
-          "$ref": "#/$defs/LiteratureRelationInputVersions"
-        },
-        "latency_ms": {
-          "minimum": 0,
-          "title": "Latency Ms",
-          "type": "integer"
-        },
-        "model_name": {
-          "maxLength": 512,
-          "minLength": 1,
-          "title": "Model Name",
-          "type": "string"
-        },
-        "model_response_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Model Response Hash",
-          "type": "string"
-        },
-        "output_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Output Hash",
-          "type": "string"
-        },
-        "pairing_version": {
-          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-          "title": "Pairing Version",
-          "type": "string"
-        },
-        "parameters_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Parameters Hash",
-          "type": "string"
-        },
-        "parameters_version": {
-          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-          "title": "Parameters Version",
-          "type": "string"
-        },
-        "producer_name": {
-          "maxLength": 4000,
-          "minLength": 1,
-          "title": "Producer Name",
-          "type": "string"
-        },
-        "producer_type": {
-          "const": "model",
-          "default": "model",
-          "title": "Producer Type",
-          "type": "string"
-        },
-        "producer_version": {
-          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-          "title": "Producer Version",
-          "type": "string"
-        },
-        "prompt_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Prompt Hash",
-          "type": "string"
-        },
-        "prompt_name": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Prompt Name",
-          "type": "string"
-        },
-        "prompt_version": {
-          "maxLength": 512,
-          "minLength": 1,
-          "title": "Prompt Version",
-          "type": "string"
-        },
-        "run_id": {
-          "anyOf": [
-            {
-              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Run Id"
-        },
-        "schema_version": {
-          "const": "1.0.0",
-          "title": "Schema Version",
-          "type": "string"
-        },
-        "started_at": {
-          "format": "date-time",
-          "title": "Started At",
-          "type": "string"
-        },
-        "status": {
-          "enum": [
-            "completed",
-            "rejected"
-          ],
-          "title": "Status",
-          "type": "string"
-        },
-        "step_key": {
-          "const": "reasoning_literature",
-          "default": "reasoning_literature",
-          "title": "Step Key",
-          "type": "string"
-        },
-        "trace_protocol_version": {
-          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-          "title": "Trace Protocol Version",
-          "type": "string"
-        }
-      },
-      "required": [
-        "execution_id",
-        "producer_name",
-        "producer_version",
-        "model_name",
-        "prompt_name",
-        "prompt_version",
-        "prompt_hash",
-        "schema_version",
-        "parameters_version",
-        "parameters_hash",
-        "pairing_version",
-        "comparison_policy_version",
-        "trace_protocol_version",
-        "confidence_definition_id",
-        "confidence_definition_version",
-        "confidence_calibration_id",
-        "confidence_calibration_version",
-        "confidence_calibration_scientific_payload_hash",
-        "confidence_calibration_content_hash",
-        "confidence_calibration_sample_size",
-        "confidence_calibration_method",
-        "confidence_applicability_scope",
-        "confidence_acceptance_threshold",
-        "input_versions",
-        "input_hash",
-        "model_response_hash",
-        "output_hash",
-        "status",
-        "started_at",
-        "finished_at",
-        "latency_ms"
-      ],
-      "title": "LiteratureRelationProducerExecution",
-      "type": "object"
     },
     "LiteratureRelationRejectionReason": {
       "enum": [
@@ -1489,33 +1329,6 @@
       "title": "LiteratureRelationStatus",
       "type": "string"
     },
-    "LiteratureRelationStatusCounts": {
-      "additionalProperties": false,
-      "properties": {
-        "accepted": {
-          "minimum": 0,
-          "title": "Accepted",
-          "type": "integer"
-        },
-        "candidate": {
-          "minimum": 0,
-          "title": "Candidate",
-          "type": "integer"
-        },
-        "rejected": {
-          "minimum": 0,
-          "title": "Rejected",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "accepted",
-        "candidate",
-        "rejected"
-      ],
-      "title": "LiteratureRelationStatusCounts",
-      "type": "object"
-    },
     "LiteratureRelationType": {
       "enum": [
         "supports",
@@ -1528,117 +1341,6 @@
       ],
       "title": "LiteratureRelationType",
       "type": "string"
-    },
-    "LiteratureRelationsCandidate": {
-      "additionalProperties": false,
-      "description": "The only D-08 typed candidate accepted by the generic Publisher port.",
-      "properties": {
-        "claims": {
-          "items": {
-            "$ref": "#/$defs/LiteratureClaimCandidate"
-          },
-          "minItems": 2,
-          "title": "Claims",
-          "type": "array"
-        },
-        "evidence": {
-          "items": {
-            "$ref": "#/$defs/PaperSummaryEvidence"
-          },
-          "minItems": 1,
-          "title": "Evidence",
-          "type": "array"
-        },
-        "evidence_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "type": "string"
-          },
-          "minItems": 1,
-          "title": "Evidence Ids",
-          "type": "array"
-        },
-        "evidence_references": {
-          "items": {
-            "$ref": "#/$defs/LiteratureRelationEvidenceReference"
-          },
-          "minItems": 1,
-          "title": "Evidence References",
-          "type": "array"
-        },
-        "input_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Input Hash",
-          "type": "string"
-        },
-        "input_versions": {
-          "$ref": "#/$defs/LiteratureRelationInputVersions"
-        },
-        "kind": {
-          "const": "literature_relations",
-          "default": "literature_relations",
-          "title": "Kind",
-          "type": "string"
-        },
-        "output_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Output Hash",
-          "type": "string"
-        },
-        "producer": {
-          "$ref": "#/$defs/LiteratureRelationProducerExecution"
-        },
-        "reasoning_traces": {
-          "items": {
-            "$ref": "#/$defs/LiteratureReasoningTraceCandidate"
-          },
-          "minItems": 1,
-          "title": "Reasoning Traces",
-          "type": "array"
-        },
-        "relations": {
-          "items": {
-            "$ref": "#/$defs/LiteratureRelationCandidate"
-          },
-          "minItems": 1,
-          "title": "Relations",
-          "type": "array"
-        },
-        "schema_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
-          "title": "Schema Version",
-          "type": "string"
-        },
-        "source_snapshot_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "type": "string"
-          },
-          "minItems": 1,
-          "title": "Source Snapshot Ids",
-          "type": "array"
-        },
-        "status_counts": {
-          "$ref": "#/$defs/LiteratureRelationStatusCounts"
-        }
-      },
-      "required": [
-        "input_versions",
-        "claims",
-        "relations",
-        "reasoning_traces",
-        "evidence",
-        "evidence_references",
-        "evidence_ids",
-        "source_snapshot_ids",
-        "status_counts",
-        "producer",
-        "input_hash",
-        "output_hash"
-      ],
-      "title": "LiteratureRelationsCandidate",
-      "type": "object"
     },
     "LiteratureTraceOperation": {
       "enum": [
@@ -1654,109 +1356,15 @@
       "title": "LiteratureTraceOperation",
       "type": "string"
     },
-    "PaperSummaryEvidence": {
+    "ProducerExecutionDetail": {
       "additionalProperties": false,
+      "description": "Reproducible producer metadata with private execution state excluded.",
       "properties": {
-        "candidate_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Candidate Id",
-          "type": "string"
-        },
-        "evidence_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Evidence Id",
-          "type": "string"
-        },
-        "locator": {
-          "$ref": "#/$defs/PaperSummaryEvidenceLocator"
-        },
-        "paper_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Paper Id",
-          "type": "string"
-        },
-        "quote_or_value": {
-          "maxLength": 4000,
-          "minLength": 1,
-          "title": "Quote Or Value",
-          "type": "string"
-        },
-        "source_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Id",
-          "type": "string"
-        },
-        "source_record_id": {
-          "maxLength": 512,
-          "minLength": 1,
-          "title": "Source Record Id",
-          "type": "string"
-        },
-        "source_snapshot_content_hash": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "title": "Source Snapshot Content Hash",
-          "type": "string"
-        },
-        "source_snapshot_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Source Snapshot Id",
-          "type": "string"
-        },
-        "source_snapshot_version": {
-          "maxLength": 512,
-          "minLength": 1,
-          "title": "Source Snapshot Version",
-          "type": "string"
-        },
-        "status": {
-          "$ref": "#/$defs/PaperSummarySupportStatus"
-        },
-        "validation_code": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-          "title": "Validation Code",
-          "type": "string"
-        }
-      },
-      "required": [
-        "evidence_id",
-        "paper_id",
-        "candidate_id",
-        "source_id",
-        "source_record_id",
-        "source_snapshot_id",
-        "source_snapshot_version",
-        "source_snapshot_content_hash",
-        "locator",
-        "quote_or_value",
-        "status",
-        "validation_code"
-      ],
-      "title": "PaperSummaryEvidence",
-      "type": "object"
-    },
-    "PaperSummaryEvidenceLocator": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "enum": [
-            "paper_text",
-            "paper_metadata"
-          ],
-          "title": "Kind",
-          "type": "string"
-        },
-        "metadata_field": {
+        "error_code": {
           "anyOf": [
             {
-              "enum": [
-                "source_record_id",
-                "title",
-                "authors",
-                "year",
-                "doi",
-                "arxiv_id",
-                "url"
-              ],
+              "maxLength": 128,
+              "minLength": 1,
               "type": "string"
             },
             {
@@ -1764,12 +1372,36 @@
             }
           ],
           "default": null,
-          "title": "Metadata Field"
+          "title": "Error Code"
         },
-        "paragraph": {
+        "finished_at": {
           "anyOf": [
             {
-              "minimum": 1,
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
               "type": "integer"
             },
             {
@@ -1777,13 +1409,12 @@
             }
           ],
           "default": null,
-          "title": "Paragraph"
+          "title": "Latency Ms"
         },
-        "section": {
+        "output_hash": {
           "anyOf": [
             {
-              "maxLength": 512,
-              "minLength": 1,
+              "pattern": "^sha256:[0-9a-f]{64}$",
               "type": "string"
             },
             {
@@ -1791,115 +1422,362 @@
             }
           ],
           "default": null,
-          "title": "Section"
+          "title": "Output Hash"
         },
-        "source_url": {
-          "format": "uri",
-          "maxLength": 2083,
-          "minLength": 1,
-          "title": "Source Url",
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "parameters_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Parameters Hash",
           "type": "string"
         },
-        "text_range": {
+        "producer": {
+          "$ref": "#/$defs/ProducerReference"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "running",
+            "completed",
+            "failed",
+            "rejected",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "step_attempt_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Step Attempt Id",
+          "type": "string"
+        },
+        "step_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Step Key",
+          "type": "string"
+        },
+        "token_usage": {
           "anyOf": [
             {
-              "maxLength": 512,
-              "minLength": 1,
-              "type": "string"
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "title": "Text Range"
+          "title": "Token Usage"
         }
       },
       "required": [
-        "kind",
-        "source_url"
+        "id",
+        "run_id",
+        "step_key",
+        "step_attempt_id",
+        "producer",
+        "parameters",
+        "parameters_hash",
+        "input_hash",
+        "status",
+        "started_at"
       ],
-      "title": "PaperSummaryEvidenceLocator",
+      "title": "ProducerExecutionDetail",
       "type": "object"
     },
-    "PaperSummarySupportStatus": {
-      "enum": [
-        "supported",
-        "unsupported",
-        "unverifiable"
+    "ProducerReference": {
+      "additionalProperties": false,
+      "properties": {
+        "model_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Name"
+        },
+        "model_provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Provider"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parameters_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameters Hash"
+        },
+        "prompt_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Hash"
+        },
+        "prompt_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Name"
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Version"
+        },
+        "type": {
+          "enum": [
+            "pipeline",
+            "model",
+            "algorithm"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "version"
       ],
-      "title": "PaperSummarySupportStatus",
+      "title": "ProducerReference",
+      "type": "object"
+    },
+    "SourceMode": {
+      "enum": [
+        "fixture",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
       "type": "string"
+    },
+    "SourceSnapshotDetail": {
+      "additionalProperties": false,
+      "description": "Reproducible source metadata after the application redaction boundary.",
+      "properties": {
+        "cache_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Version"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "license_note": {
+          "minLength": 1,
+          "title": "License Note",
+          "type": "string"
+        },
+        "query": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "request_metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Request Metadata",
+          "type": "object"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_version_or_etag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Version Or Etag"
+        }
+      },
+      "required": [
+        "id",
+        "source_id",
+        "source_type",
+        "retrieved_at",
+        "query",
+        "query_hash",
+        "content_hash",
+        "license_note",
+        "request_metadata"
+      ],
+      "title": "SourceSnapshotDetail",
+      "type": "object"
     }
   },
   "additionalProperties": false,
+  "description": "One Relation with both Claim endpoints and its auditable Trace.",
   "properties": {
-    "admission_status": {
-      "$ref": "#/$defs/LiteratureRelationStatus"
-    },
-    "failure_stage": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/LiteratureRelationFailureStage"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
-    },
-    "output_hash": {
-      "pattern": "^sha256:[0-9a-f]{64}$",
-      "title": "Output Hash",
-      "type": "string"
-    },
-    "producer": {
-      "$ref": "#/$defs/LiteratureRelationProducerExecution"
-    },
-    "publisher_candidate": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/LiteratureRelationsCandidate"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
-    },
-    "reasoning_traces": {
+    "evidence": {
       "items": {
-        "$ref": "#/$defs/LiteratureReasoningTraceCandidate"
+        "$ref": "#/$defs/EvidenceDetail"
       },
-      "title": "Reasoning Traces",
+      "title": "Evidence",
       "type": "array"
     },
-    "records": {
-      "items": {
-        "$ref": "#/$defs/LiteratureRelationCandidate"
-      },
-      "title": "Records",
-      "type": "array"
+    "graph_eligible": {
+      "title": "Graph Eligible",
+      "type": "boolean"
     },
-    "rejection_reason": {
+    "reasoning_trace": {
       "anyOf": [
         {
-          "$ref": "#/$defs/LiteratureRelationRejectionReason"
+          "$ref": "#/$defs/LiteratureReasoningTraceCandidate"
         },
         {
           "type": "null"
         }
-      ],
-      "default": null
+      ]
+    },
+    "relation": {
+      "$ref": "#/$defs/LiteratureRelationCandidate"
+    },
+    "source_claim": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiteratureClaimRead"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source_snapshots": {
+      "items": {
+        "$ref": "#/$defs/SourceSnapshotDetail"
+      },
+      "title": "Source Snapshots",
+      "type": "array"
+    },
+    "target_claim": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiteratureClaimRead"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "version": {
+      "$ref": "#/$defs/LiteratureArtifactVersionContext"
     }
   },
   "required": [
-    "admission_status",
-    "records",
-    "reasoning_traces",
-    "producer",
-    "output_hash"
+    "version",
+    "relation",
+    "source_claim",
+    "target_claim",
+    "reasoning_trace",
+    "source_snapshots",
+    "evidence",
+    "graph_eligible"
   ],
-  "title": "LiteratureRelationAdmissionResult",
+  "title": "LiteratureRelationRead",
   "type": "object"
 }

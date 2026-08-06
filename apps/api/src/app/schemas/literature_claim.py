@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from enum import StrEnum
-from typing import Any, ClassVar, Literal, Self
+from typing import Annotated, Any, ClassVar, Literal, Self
 
 from pydantic import (
     AwareDatetime,
@@ -27,6 +27,14 @@ from .paper_summary import (
 
 
 _ARTIFACT_PUBLICATION_SEAL = object()
+PERSISTENT_RESOURCE_IDENTIFIER_PATTERN = (
+    r"^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|"
+    r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$"
+)
+PersistentResourceIdentifier = Annotated[
+    str,
+    Field(pattern=PERSISTENT_RESOURCE_IDENTIFIER_PATTERN),
+]
 
 
 class LiteratureClaimStatus(StrEnum):
@@ -79,7 +87,7 @@ class LiteratureClaimInputVersions(BaseModel):
 
     model_config = MODEL_CONFIG
 
-    paper_summary_artifact_version_id: Identifier
+    paper_summary_artifact_version_id: PersistentResourceIdentifier
     paper_summary_schema_version: SemanticVersion | None = None
     paper_summary_output_hash: ContentHash | None = None
     summary_id: Identifier | None = None
@@ -177,7 +185,7 @@ class LiteratureClaimCandidate(BaseModel):
     claim_id: Identifier
     source_statement_id: Identifier
     paper_id: Identifier
-    source_paper_summary_artifact_version_id: Identifier
+    source_paper_summary_artifact_version_id: PersistentResourceIdentifier
     source_summary_id: Identifier | None = None
     text: NonEmptyString
     normalized_text: NonEmptyString
@@ -243,7 +251,7 @@ class LiteratureClaimProducerExecution(BaseModel):
     model_config = MODEL_CONFIG
 
     execution_id: Identifier
-    run_id: Identifier | None = None
+    run_id: PersistentResourceIdentifier | None = None
     step_key: Literal["reasoning_literature"] = "reasoning_literature"
     producer_type: Literal["model"] = "model"
     producer_name: NonEmptyString
