@@ -14,6 +14,7 @@ const packageLocations = new Map([
   ["@xingwen/contracts", "packages/contracts"],
   ["@xingwen/data-access", "packages/data-access"],
   ["@xingwen/workspace-core", "packages/workspace-core"],
+  ["@xingwen/research-canvas", "packages/research-canvas"],
   ["@xingwen/testing", "packages/testing"],
 ]);
 
@@ -25,6 +26,7 @@ const allowedLocalDependencies = new Map([
       "@xingwen/design-tokens",
       "@xingwen/ui",
       "@xingwen/workspace-core",
+      "@xingwen/research-canvas",
       "@xingwen/data-access",
     ]),
   ],
@@ -34,6 +36,10 @@ const allowedLocalDependencies = new Map([
   ["@xingwen/contracts", new Set()],
   ["@xingwen/data-access", new Set(["@xingwen/domain", "@xingwen/contracts"])],
   ["@xingwen/workspace-core", new Set(["@xingwen/domain"])],
+  [
+    "@xingwen/research-canvas",
+    new Set(["@xingwen/domain", "@xingwen/workspace-core", "@xingwen/ui"]),
+  ],
   ["@xingwen/testing", new Set()],
 ]);
 
@@ -48,6 +54,10 @@ const boundaryRuntimeDependencyAllowlist = new Map([
       "@radix-ui/react-scroll-area",
       "@radix-ui/react-tooltip",
     ]),
+  ],
+  [
+    "@xingwen/research-canvas",
+    new Set(["react", "react-dom", "@assistant-ui/react"]),
   ],
 ]);
 

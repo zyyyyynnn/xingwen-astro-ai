@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../../packages/research-canvas/src";
 @import "@xingwen/design-tokens/base.css";
 @import "@xingwen/ui/styles.css";
 

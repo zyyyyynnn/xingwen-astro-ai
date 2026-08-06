@@ -18,6 +18,7 @@
     "@xingwen/design-tokens": "workspace:*",
     "@xingwen/ui": "workspace:*",
     "@xingwen/workspace-core": "workspace:*",
+    "@xingwen/research-canvas": "workspace:*",
     "cmdk": "1.0.4",
     "react": "19.2.7",
     "react-dom": "19.2.7",

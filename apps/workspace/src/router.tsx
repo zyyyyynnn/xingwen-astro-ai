@@ -11,6 +11,7 @@ import type {
   RouterHistory,
 } from "@tanstack/react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 
 import type { WorkspaceRuntimeBoundaries } from "./boundaries";
 import { EntryPage } from "./pages/entry-page";
@@ -162,11 +163,33 @@ const shareRoute = createRoute({
   component: ShareRoute,
 });
 
+const previewRoute = import.meta.env.DEV
+  ? createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/__a17-research-canvas-preview",
+      validateSearch: validateWorkspaceSearch,
+      component: function PreviewRoute() {
+        const PreviewPage = React.lazy(() =>
+          import("./pages/preview-page").then((m) => ({
+            default: m.PreviewPage,
+          })),
+        );
+        const search = previewRoute!.useSearch();
+        return (
+          <React.Suspense fallback={<LoadingPage />}>
+            <PreviewPage {...search} />
+          </React.Suspense>
+        );
+      },
+    })
+  : null;
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   tourRoute,
   workspaceRoute,
   shareRoute,
+  ...(previewRoute ? [previewRoute] : []),
 ]);
 
 export function createAppRouter(
