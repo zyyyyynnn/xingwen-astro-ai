@@ -13,15 +13,19 @@ const documentWindow = new JSDOM("<!doctype html><html><body></body></html>")
 globalThis.window = documentWindow;
 globalThis.document = documentWindow.document;
 const { default: mermaid } = await import("mermaid");
-const files = execFileSync(
-  "git",
-  ["-c", "core.quotepath=false", "ls-files", "*.md", "**/*.md"],
-  { cwd: root, encoding: "utf8" },
-)
-  .split(/\r?\n/u)
-  .filter(Boolean)
-  .map((file) => file.replaceAll("\\", "/"))
-  .filter((file) => existsSync(resolve(root, file)));
+const files = Array.from(
+  new Set(
+    execFileSync(
+      "git",
+      ["-c", "core.quotepath=false", "ls-files", "*.md", "**/*.md"],
+      { cwd: root, encoding: "utf8" },
+    )
+      .split(/\r?\n/u)
+      .filter(Boolean)
+      .map((file) => file.replaceAll("\\", "/"))
+      .filter((file) => existsSync(resolve(root, file))),
+  ),
+);
 const results = new Map();
 const errors = [];
 const authorities = new Map();
