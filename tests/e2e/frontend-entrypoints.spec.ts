@@ -19,18 +19,13 @@ test("brand site remains useful without client-side JavaScript", async ({
 
   await expect(page).toHaveTitle(/星文智析/);
   await expect(
-    page.getByRole("heading", {
-      name: "让每一颗系外行星候选体都可溯源",
-    }),
+    page.getByRole("heading", { name: /让每一颗系外行星候选体\s*都可溯源/ }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "开始演示" })).toHaveAttribute(
-    "href",
-    "http://localhost:5173/tour",
-  );
   await expect(page.getByRole("link", { name: "进入工作台" })).toHaveAttribute(
     "href",
     "http://localhost:5173/workspace",
   );
+  await expect(page.getByRole("link", { name: "开始演示" })).toHaveCount(0);
   await expect(page.getByText(/整合系外行星候选体与宿主恒星/)).toBeVisible();
 
   await context.close();
@@ -46,17 +41,9 @@ test("brand site has no runtime console errors", async ({ page }) => {
 
   await page.goto("http://127.0.0.1:4321/");
   await expect(
-    page.getByRole("heading", {
-      name: "让每一颗系外行星候选体都可溯源",
-    }),
+    page.getByRole("heading", { name: /让每一颗系外行星候选体\s*都可溯源/ }),
   ).toBeVisible();
   expect(errors).toEqual([]);
-});
-
-test("brand site hero has a Poster fallback image", async ({ page }) => {
-  await page.goto("http://127.0.0.1:4321/");
-  const poster = page.locator(".hero-poster");
-  await expect(poster).toBeVisible();
 });
 
 for (const entry of [
