@@ -1,34 +1,58 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { HeroVisual } from "../components/HeroVisual.tsx";
+import { BrandMark } from "@xingwen/ui";
 import { resolvePublicHttpUrl } from "../lib/public-url";
 
-const tourUrl = resolvePublicHttpUrl(
-  import.meta.env.PUBLIC_WORKSPACE_URL,
-  "http://localhost:5173/tour",
-);
 const workspaceUrl = resolvePublicHttpUrl(
   import.meta.env.PUBLIC_WORKSPACE_URL,
   "http://localhost:5173/workspace",
 );
 const description = "面向天文科研证据整合与可复现分析的智能工作平台。";
+
+const notes = [
+  "整合系外行星候选体与宿主恒星的关键参数，建立结构化研究目标。",
+  "从开放天文数据库与论文中获取原始数据，保留完整的来源快照。",
+  "每个字段绑定可审查的证据、引用与推理链，不虚构观测值。",
+  "生成可复现的整合数据、文献理解、推理图谱与溯源报告。",
+];
 ---
 
-<BaseLayout title="星文智析｜天文科研智能工作平台" description={description}>
-  <section class="hero" aria-label="品牌主视觉">
-    <HeroVisual client:visible seed={42} />
-  </section>
-  <section class="hero-content" aria-labelledby="hero-title">
-    <div class="cta-row">
-      <a class="cta cta--primary" href={tourUrl}>开始演示</a>
-      <a class="cta cta--secondary" href={workspaceUrl}>进入工作台</a>
+<BaseLayout
+  title="星文智析｜天文科研智能工作平台"
+  description={description}
+  masthead="hidden"
+>
+  <div class="home-frame">
+    <div class="home-frame__topbar">
+      <BrandMark showSubtitle={true} />
     </div>
-    <h1 id="hero-title">让每一颗系外行星候选体都可溯源</h1>
-    <div class="hero-notes">
-      <p>整合系外行星候选体与宿主恒星的关键参数，建立结构化研究目标。</p>
-      <p>从开放天文数据库与论文中获取原始数据，保留完整的来源快照。</p>
-      <p>每个字段绑定可审查的证据、引用与推理链，不虚构观测值。</p>
-      <p>生成可复现的整合数据、文献理解、推理图谱与溯源报告。</p>
-    </div>
-  </section>
+    <section class="hero" aria-label="品牌主视觉">
+      <video
+        class="hero-video"
+        autoplay
+        muted
+        loop
+        playsinline
+        role="img"
+        aria-label="系外行星 ASCII 视觉"
+      >
+        <source src="/visual/homepage-ascii.mp4" type="video/mp4" />
+        您的浏览器不支持视频播放。
+      </video>
+    </section>
+    <section class="home-content" aria-labelledby="hero-title">
+      <div class="home-content__row">
+        <div class="home-content__main">
+          <div class="cta-row">
+            <a class="cta cta--primary" href={workspaceUrl}>进入工作台</a>
+          </div>
+          <h1 id="hero-title">让每一颗系外行星候选体<br />都可溯源</h1>
+        </div>
+        <div class="home-content__aside" aria-hidden="true"></div>
+      </div>
+      <ol class="home-notes" aria-label="平台能力说明">
+        {notes.map((note) => <li class="home-notes__item">{note}</li>)}
+      </ol>
+    </section>
+  </div>
 </BaseLayout>

@@ -5,25 +5,22 @@ import { expect, test } from "@playwright/test";
  * 覆盖 frontend-entrypoints.spec.ts 未涉及的 a11y 与响应式证据。
  */
 
-test("brand site keyboard navigation reaches CTAs in sequence", async ({
+test("brand site keyboard navigation reaches the single CTA", async ({
   page,
 }) => {
   await page.goto("http://127.0.0.1:4321/");
 
   // Tab from body: skip-link is not present on brand site (only workspace has it),
-  // so first focusable should be the first CTA "开始演示"
+  // so first focusable should be the only CTA "进入工作台"
   await page.keyboard.press("Tab");
 
-  const primaryCta = page.getByRole("link", { name: "开始演示" });
-  await expect(primaryCta).toBeFocused();
-
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "进入工作台" })).toBeFocused();
+  const cta = page.getByRole("link", { name: "进入工作台" });
+  await expect(cta).toBeFocused();
 });
 
 test("brand site focus outline is visible on CTAs", async ({ page }) => {
   await page.goto("http://127.0.0.1:4321/");
-  const cta = page.getByRole("link", { name: "开始演示" });
+  const cta = page.getByRole("link", { name: "进入工作台" });
   await cta.focus();
   // focus-visible outline must be non-empty
   const outlineStyle = await cta.evaluate(
@@ -80,7 +77,7 @@ test.describe("mobile viewport @ 375px", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "让每一颗系外行星候选体都可溯源",
+        name: /让每一颗系外行星候选体\s*都可溯源/,
       }),
     ).toBeVisible();
 
@@ -126,10 +123,10 @@ test.describe("200% font scale", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "让每一颗系外行星候选体都可溯源",
+        name: /让每一颗系外行星候选体\s*都可溯源/,
       }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: "开始演示" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "进入工作台" })).toBeVisible();
     await expect(page.getByText(/整合系外行星候选体与宿主恒星/)).toBeVisible();
 
     // No horizontal overflow caused by enlarged text
