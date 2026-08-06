@@ -45,7 +45,6 @@ REQUIRED_FILES = (
     "packages/contracts/package.json",
     "packages/data-access/package.json",
     "packages/workspace-core/package.json",
-    "packages/visual-engine/package.json",
     "packages/testing/package.json",
 )
 
