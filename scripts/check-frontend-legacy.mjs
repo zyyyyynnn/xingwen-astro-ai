@@ -10,7 +10,8 @@ import {
   findRetiredTextTerms,
   findRetiredWorkspaceCssTerms,
   findRetiredWorkspaceManifestDependencies,
-  findRetiredWorkspaceTextTerms,
+  findRetiredWorkspaceIdentifiers,
+  findFakeWorkspaceCapabilityPhrases,
   findTourRouteRefs,
   isRetiredPath,
   tourRouteAllowlist,
@@ -77,9 +78,14 @@ for (const file of files) {
     );
   }
   if (file.startsWith("apps/workspace/src/")) {
-    for (const term of findRetiredWorkspaceTextTerms(content)) {
+    for (const identifier of findRetiredWorkspaceIdentifiers(content)) {
       failures.push(
-        `${file}: contains retired Workspace symbol or placeholder ${JSON.stringify(term)}.`,
+        `${file}: contains retired Workspace identifier ${JSON.stringify(identifier)}.`,
+      );
+    }
+    for (const phrase of findFakeWorkspaceCapabilityPhrases(content)) {
+      failures.push(
+        `${file}: contains fake Workspace capability phrase ${JSON.stringify(phrase)}.`,
       );
     }
     if (file.endsWith(".css")) {

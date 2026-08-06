@@ -8,14 +8,16 @@ import {
   findRetiredTextTerms,
   findRetiredWorkspaceCssTerms,
   findRetiredWorkspaceManifestDependencies,
-  findRetiredWorkspaceTextTerms,
+  findRetiredWorkspaceIdentifiers,
+  findFakeWorkspaceCapabilityPhrases,
   findTourRouteRefs,
   frameworkName,
   isRetiredPackageName,
   isRetiredPath,
   retiredWorkspacePackageNames,
   retiredWorkspacePaths,
-  retiredWorkspaceSymbolAndPlaceholderTerms,
+  retiredWorkspaceIdentifierNames,
+  fakeWorkspaceCapabilityPhrases,
   retiredWorkspaceCssTermsExport,
   tourRouteAllowlist,
   tourRouteTermsExport,
@@ -108,20 +110,75 @@ test("accepts an empty retired Workspace dependency list", () => {
   assert.deepEqual(findRetiredWorkspaceManifestDependencies(manifest), []);
 });
 
-test("rejects retired Workspace symbols and placeholder copy in Workspace source", () => {
-  const symbol = retiredWorkspaceSymbolAndPlaceholderTerms[0];
-  assert.deepEqual(findRetiredWorkspaceTextTerms(`export function ${symbol}`), [
-    symbol,
+test("rejects exact retired Workspace identifiers", () => {
+  assert.deepEqual(findRetiredWorkspaceIdentifiers("WorkspacePage"), [
+    "WorkspacePage",
   ]);
-  const placeholder = retiredWorkspaceSymbolAndPlaceholderTerms.at(-1);
-  assert.deepEqual(findRetiredWorkspaceTextTerms(placeholder), [placeholder]);
+  assert.deepEqual(
+    findRetiredWorkspaceIdentifiers("const page = WorkspacePage;"),
+    ["WorkspacePage"],
+  );
+  assert.deepEqual(
+    findRetiredWorkspaceIdentifiers("function ResearchShell() {}"),
+    ["ResearchShell"],
+  );
+  assert.deepEqual(
+    findRetiredWorkspaceIdentifiers("createGuidedTourController()"),
+    ["createGuidedTourController"],
+  );
 });
 
-test("rejects fake capability text in Workspace source", () => {
-  const terms = findRetiredWorkspaceTextTerms(
-    "科研工作台将在此提供研究画布。",
+test("allows legitimate compound Workspace identifiers", () => {
+  const compoundIdentifiers = [
+    "NewWorkspacePage",
+    "AgentWorkspacePage",
+    "WorkspacePageModel",
+    "ResearchShellAdapter",
+    "ArtifactCanvasState",
+    "ArtifactPreview",
+    "PreviewPane",
+    "previewState",
+    "workspacePage",
+  ];
+  for (const name of compoundIdentifiers) {
+    assert.deepEqual(
+      findRetiredWorkspaceIdentifiers(`export function ${name}() {}`),
+      [],
+      `Expected ${name} to be allowed as an identifier`,
+    );
+  }
+});
+
+test("rejects explicit placeholder and fake capability phrases", () => {
+  assert.ok(
+    findFakeWorkspaceCapabilityPhrases("科研工作台将在此提供研究画布。")
+      .length > 0,
   );
-  assert.ok(terms.length > 0, "将在此提供 should be caught");
+  assert.ok(
+    findFakeWorkspaceCapabilityPhrases("功能开发中").includes("功能开发中"),
+  );
+  assert.ok(
+    findFakeWorkspaceCapabilityPhrases("Coming soon").includes("Coming soon"),
+  );
+  assert.ok(
+    findFakeWorkspaceCapabilityPhrases("coming soon").includes("Coming soon"),
+  );
+});
+
+test("allows stable Workspace content and legitimate preview text", () => {
+  const allowedTexts = [
+    "研究工作台",
+    "请使用桌面设备",
+    "研究工作台需要更宽的浏览器窗口。",
+    "Artifact preview is available from the completed renderer.",
+  ];
+  for (const text of allowedTexts) {
+    assert.deepEqual(
+      findFakeWorkspaceCapabilityPhrases(text),
+      [],
+      `Expected "${text}" to contain no fake capability phrases`,
+    );
+  }
 });
 
 test("rejects retired Workspace stylesheet rules", () => {

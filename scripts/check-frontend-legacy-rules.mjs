@@ -37,9 +37,13 @@ const retiredTextTerms = [
 const retiredWorkspacePackages = ruleSource.retiredWorkspacePackageParts.map(
   (parts) => parts.join("").toLowerCase(),
 );
-const retiredWorkspaceTextTerms = [
+const retiredWorkspaceIdentifiers = [
+  ...new Set(
+    ruleSource.retiredWorkspaceSymbolParts.map((parts) => parts.join("")),
+  ),
+];
+const fakeCapabilityPhrases = [
   ...new Set([
-    ...ruleSource.retiredWorkspaceSymbolParts.map((parts) => parts.join("")),
     ...ruleSource.fakeCapabilityCodePoints.map((codes) =>
       String.fromCharCode(...codes),
     ),
@@ -56,9 +60,8 @@ export const tourRouteAllowlist = new Set(ruleSource.tourRouteAllowlist);
 
 export const retiredWorkspacePaths = [...retiredPaths];
 export const retiredWorkspacePackageNames = [...retiredWorkspacePackages];
-export const retiredWorkspaceSymbolAndPlaceholderTerms = [
-  ...retiredWorkspaceTextTerms,
-];
+export const retiredWorkspaceIdentifierNames = [...retiredWorkspaceIdentifiers];
+export const fakeWorkspaceCapabilityPhrases = [...fakeCapabilityPhrases];
 export const retiredWorkspaceCssTermsExport = [...retiredWorkspaceCssTerms];
 export const tourRouteTermsExport = [...tourRouteTerms];
 
@@ -105,10 +108,24 @@ export function findRetiredTextTerms(content) {
   );
 }
 
-export function findRetiredWorkspaceTextTerms(content) {
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+export function findRetiredWorkspaceIdentifiers(content) {
+  return retiredWorkspaceIdentifiers.filter((identifier) => {
+    const pattern = new RegExp(
+      `(?<![$\\p{ID_Continue}])${escapeRegExp(identifier)}(?![$\\p{ID_Continue}])`,
+      "u",
+    );
+    return pattern.test(content);
+  });
+}
+
+export function findFakeWorkspaceCapabilityPhrases(content) {
   const normalized = content.toLowerCase();
-  return retiredWorkspaceTextTerms.filter((term) =>
-    normalized.includes(term.toLowerCase()),
+  return fakeCapabilityPhrases.filter((phrase) =>
+    normalized.includes(phrase.toLowerCase()),
   );
 }
 
