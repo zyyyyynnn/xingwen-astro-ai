@@ -376,6 +376,11 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "createShareSnapshot",
         "revokeShareSnapshot",
         "getPublicShareSnapshot",
+        "createResearchInput",
+        "listResearchInputs",
+        "getResearchInput",
+        "deleteResearchInput",
+        "bindResearchInput",
     } == set(operation_ids)
 
     create_run = document["paths"]["/api/projects/{project_id}/runs"]["post"]
