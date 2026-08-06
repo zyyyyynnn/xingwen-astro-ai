@@ -20,6 +20,7 @@ from app.schemas.literature_claim import (
     LiteratureClaimCandidate,
     LiteratureClaimExtractionOutput,
     LiteratureClaimFailureStage,
+    LiteratureClaimInputVersions,
     LiteratureClaimRejectionReason,
     LiteratureClaimsCandidate,
     LiteratureClaimStatus,
@@ -99,6 +100,18 @@ SUMMARY_ID = "summary.ricker_2015_tess"
 STATEMENT_ID = "summary_statement.ricker_method"
 EVIDENCE_ID = "evidence.claim_ricker_method"
 SNAPSHOT_ID = "snapshot.arxiv.ricker_2015_tess"
+
+
+def test_literature_claim_input_accepts_digit_leading_persistent_uuid() -> None:
+    artifact_version_id = "00000000-0000-0000-0000-00000000044c"
+
+    input_versions = LiteratureClaimInputVersions(
+        paper_summary_artifact_version_id=artifact_version_id,
+        paper_id=PAPER_ID,
+        source_snapshots=(),
+    )
+
+    assert input_versions.paper_summary_artifact_version_id == artifact_version_id
 
 
 def _summary(

@@ -330,13 +330,14 @@ Relation Version 投影公开 premise、步骤、条件、限制、冲突、结�
 accepted Relation 且双方 accepted Claim、Trace、Evidence、SourceSnapshot 精确闭合时，
 `graph_eligible` 才为 true；该字段是读取完整性结果，不是新的科学判定。
 
-Pipeline candidate 中的 ArtifactVersion、Evidence 与 SourceSnapshot 标识保留不可变领域
-命名空间；PostgreSQL 使用独立 UUID。Publisher 通过显式 binding 将 Pipeline SourceSnapshot
-标识映射到 source identity/version/content hash 对应的持久化 UUID，并将 Pipeline Evidence
-标识写入持久化 Evidence locator 的 `summary_evidence_id`，同时保存 `source_record_id`。
-Claim Evidence 的 target 为 `claim`，Relation 与其 Trace 的持久化 Evidence target 为
-`relation`；读取时要求 binding、ArtifactVersion registry 和实际记录一一精确覆盖，禁止
-按数量匹配、隐式改写 frozen candidate 或独立发布 ReasoningTrace。
+Candidate 中的 ArtifactVersion、Project 与 Run 引用接受规范领域 ID 或标准 PostgreSQL UUID；
+最终发布内容必须保存可直接定位持久资源的精确 ID。Pipeline Evidence 与 SourceSnapshot ID
+仍是独立的不可变领域命名空间。Publisher 通过显式 binding 将 Pipeline SourceSnapshot 标识
+映射到 source identity/version/content hash 对应的持久化 UUID，并将 Pipeline Evidence 标识
+写入持久化 Evidence locator 的 `summary_evidence_id`，同时保存 `source_record_id`。Claim
+Evidence 的 target 为 `claim`，Relation 与其 Trace 的持久化 Evidence target 为 `relation`；
+读取时要求 binding、ArtifactVersion registry 和实际记录一一精确覆盖，禁止按数量匹配、
+隐式改写 frozen candidate 或独立发布 ReasoningTrace。
 
 ### 9.4 Graph
 
