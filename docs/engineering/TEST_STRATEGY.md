@@ -22,32 +22,21 @@
 
 ## 2. 测试分层
 
-### Unit
-
-覆盖纯规则和边界：
-
-- Case / Field Manifest 与单位转换；
-- crossmatch、去重、排序和质量公式；
-- Run 状态转换、retry policy 和 CacheSelector；
-- Schema、mapper、hash、版本与 supersedes；
-- Evidence、Relation 和 Graph 完整性准入；
-- C-05 quality RuleSet、Decimal ratio、projected-field applicability、Evidence coverage、Contract gate 和 admission hash；
-- 前端 selector、quality tier 和 Visual Model mapper。
-
 ### Upstream Contract
 
 覆盖选定上游的 Shell、Navigation、Agent Activity、Workspace、Composer、Command、Loading / Empty / Error、Cancel / Retry / Recovery、Keyboard 与 Responsive 行为。
 
 ### Unit
 
-覆盖纯规则与映射边界：
-
+**领域与 Pipeline 规则：**
 - Case / Field Manifest 与单位转换；
 - crossmatch、去重、排序和质量公式；
 - Run 状态转换、retry policy 和 CacheSelector；
 - Schema、mapper、hash、版本与 supersedes；
 - Evidence、Relation 和 Graph 完整性准入；
-- C-05 quality RuleSet、Decimal ratio、projected-field applicability、Evidence coverage、Contract gate 和 admission hash；
+- C-05 quality RuleSet、Decimal ratio、projected-field applicability、Evidence coverage、Contract gate 和 admission hash。
+
+**前端 Adapter 与 Renderer 映射：**
 - Domain → UI ViewModel、Run Event → Research Event、Composer Input → Research Intent、Artifact Kind → Renderer；
 - Evidence / Source / Version selection；
 - source mode、execution mode、status 与 revision 分离；
@@ -130,7 +119,7 @@ Contract
 → 刷新恢复
 ```
 
-同时覆盖 Brand Site 静态首屏、Demo Replay 完整流程、ShareSnapshot、Export、会话过期、授权失败与外部服务降级。
+同时覆盖 Brand Site 静态首屏、ShareSnapshot、Export、会话过期、授权失败与外部服务降级。（注：Demo Replay 与 Guided Tour 已从当前前端重建基线移除，不作为必选 E2E）。
 
 ### Visual and Accessibility
 
@@ -150,7 +139,7 @@ Contract
 
 | 等级              | 用途                              | 能否表述为真实结果                      |
 | ----------------- | --------------------------------- | --------------------------------------- |
-| Fixture           | Unit、组件、Demo Replay、视觉回归 | 否；必须标记 scenario 与 schema version |
+| Fixture           | Unit、组件、视觉回归             | 否；必须标记 scenario 与 schema version |
 | Recorded response | 稳定集成测试                      | 否；只能说明为录制的外部响应            |
 | Benchmark / seed  | 网页端 GPT 科研审查、回归、校验   | 否；不能冒充自动获取                    |
 | Live result       | 可选 Live smoke 或真实运行        | 是；必须保留来源、时间和参数            |
@@ -173,27 +162,15 @@ D-02 的 Crossref 单元/集成测试使用 fixture 或 recorded response 并标
 
 ## 5. 阶段门禁
 
-### M1
+### 当前重置与宿主基线 (Reset & Host Baseline)
 
-- Foundation、frozen install/sync、lint、typecheck、unit、build；
-- Schema/OpenAPI 生成和 stale check；
-- Phase 0 回归、Site/Workspace 入口与共享包 smoke；
-- Fixture/HTTP Domain 一致性；
-- PostgreSQL 17、Alembic upgrade、真实 FastAPI Runtime 与 `/api` 回归；
-- fresh Compose 的 `postgres → migrate → api → workspace` 与真实 HTTP Browser/刷新恢复/Share 撤销；
-- 静态首屏、键盘和 WebGL fallback。
+- Workspace 仅要求 `apps/workspace` 宿主 Router、Runtime Composition、Repository Port 与 Minimal Host Route 可运行并通过 build/architecture/retirement 校验；
+- 不要求当前重置宿主完成完整 Agent 产品主链路 E2E。
 
-### X-06
+### 目标 Agent 产品验收 (Target Workspace Acceptance)
 
-增加数据库 Integration、数据/论文 Pipeline、Artifact/Evidence、A-04～A-06 E2E 和固定 Benchmark。
-
-### X-07
-
-增加 Relation 准入、Trace 安全、Graph 完整性、A-07/A-08 E2E 和评测指标。
-
-### X-08
-
-增加版本事务、并发冲突、CacheSelector、RevisionPlan、Session/Share 安全、部署 smoke、材料 provenance 和降级验证。
+- 适用时期：ADR-032 冻结上游选型与 F-03~F-08 骨架及 Adapter 落地后；
+- 覆盖 Session → Project → Contract → Run → Artifact → Evidence → Revision → Share 产品链。
 
 ## 6. 覆盖策略
 

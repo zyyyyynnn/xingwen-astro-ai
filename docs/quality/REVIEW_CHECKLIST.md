@@ -45,12 +45,16 @@
 
 ## 4. 前端范围与 Authority
 
+适用于所有前端治理文档或实现变更：
+
 - [ ] PR 只解决一个清晰前端目标。
 - [ ] DESIGN、WORKSPACE_UX、VISUAL_LANGUAGE、FRONTEND_ARCHITECTURE 与 ADR 一致。
 - [ ] Current、Target、Pending 与 Superseded 未混写。
 - [ ] 变更未夹带无关后端、基础设施、依赖升级或文档重构。
 
 ## 5. 上游源码
+
+适用于上游选型冻结、源码导入和上游同步 PR；非上游变更记录 N/A 及原因：
 
 - [ ] Repository、Tag、Commit 与 License 已固定。
 - [ ] 采用与排除目录明确。
@@ -62,6 +66,8 @@
 
 ## 6. 架构与状态
 
+适用于前端代码、组件或 Adapter 修改 PR；纯文档 PR 记录 N/A 及原因：
+
 - [ ] 页面通过 Repository Port 消费 Domain。
 - [ ] 页面不读取 Transport DTO 或直接调用 `fetch`。
 - [ ] App 不跨包读取 Fixture 内部文件。
@@ -71,6 +77,8 @@
 - [ ] Runtime 不创建 ArtifactVersion、Evidence 或 SourceSnapshot。
 
 ## 7. 产品交互
+
+适用于 Workspace UI / Runtime / Adapter / Renderer 功能变更 PR；纯文档或重置宿主 PR 记录 N/A 及原因：
 
 - [ ] Navigation、Agent Activity、Artifact Workspace、Context Inspector 与 Composer 可用。
 - [ ] Tool 与 Deliverable 分离。
@@ -82,6 +90,8 @@
 - [ ] 不展示模型私有推理。
 
 ## 8. 视觉与可访问性
+
+适用于可见 UI 变更 PR；无界面变更记录 N/A 及原因：
 
 - [ ] 使用语义 Token，无业务组件 Raw Color。
 - [ ] 未复制上游默认皮肤。
@@ -95,6 +105,8 @@
 - [ ] 用户视觉验收已记录。
 
 ## 9. 前端测试与退役
+
+按 PR 实际变更范围选择适用项，非适用项可记录 N/A 及原因：
 
 - [ ] Upstream Contract、Unit、Component、Integration 与 E2E 通过。
 - [ ] Fixture / HTTP 使用同一组件路径。

@@ -31,11 +31,12 @@
 
 ### 产品体验
 
-| 文档                                                           | Authority                                              |
-| -------------------------------------------------------------- | ------------------------------------------------------ |
-| [Visual Language](design/VISUAL_LANGUAGE.md)                   | 品牌、Token、字体、ASCII/Dither、动效和视觉降级        |
-| [Workspace UX](design/WORKSPACE_UX.md)                         | Brand Site、Guided Tour、Workspace、面板和具体交互     |
-| [Frontend Architecture](architecture/FRONTEND_ARCHITECTURE.md) | Astro/React Monorepo、包边界、数据访问、构建和质量门禁 |
+| 文档 | Authority |
+| --- | --- |
+| [Product Design](../DESIGN.md) | 产品设计原则、体验域关系、交互模型与设计不变量 |
+| [Visual Language](design/VISUAL_LANGUAGE.md) | 品牌、Token、字体、排版、密度与组件外观 |
+| [Workspace UX](design/WORKSPACE_UX.md) | Workspace 信息架构、页面状态与核心交互 |
+| [Frontend Architecture](architecture/FRONTEND_ARCHITECTURE.md) | 前端运行时、上游源码治理、模块边界与状态所有权 |
 
 ### AI 与推理
 

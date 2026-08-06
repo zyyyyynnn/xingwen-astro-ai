@@ -245,7 +245,9 @@
 
 **Status:** Superseded by ADR-031
 
-**Decision:** （已由 ADR-031 Superseded）早期设想的原三栏工作台构成；中央默认显示科研产物。
+**Replacement:** ADR-031
+
+**Decision:** Research Atlas、最多三面板 Research Canvas、Provenance Observatory 和 Research Console 构成核心工作台；中央默认显示科研产物。
 
 **Rationale:** 聊天线程和工具日志无法稳定承载高密度数据、Evidence 和版本对照。
 
@@ -263,9 +265,11 @@
 
 ## ADR-024：ASCII / Dither 使用 GPU 实时渲染和确定性降级
 
-**Status:** Accepted for implementation; Pending
+**Status:** Superseded by single MP4 Homepage and upstream agent architecture
 
-**Decision:** Three.js、React Three Fiber、自定义 GLSL、glyph atlas 和 instancing；使用 deterministic seed、质量档和 Poster fallback。
+**Replacement:** [Visual Language](../design/VISUAL_LANGUAGE.md) §2 & ADR-031
+
+**Decision:** （已由单 MP4 视频 Hero 方案与 ADR-031 取代）原计划的 GPU Three.js / R3F WebGL 实时场景不再作为当前实施要求。
 
 **Rationale:** 大量 DOM glyph 不可控，纯预渲染视频无法响应状态。
 
@@ -331,7 +335,7 @@
 
 **Rejected:** haze 与 gray 双色板并存；黑底星空；高饱和蓝紫网点；首页滚动四幕或 PRD 参数墙；首页 Live 模式开关。
 
-**Boundary:** 文档冻结不等于 Implemented；A-01 运行时 Token 可能仍为旧子集，以代码与测试证据为准。WebGL Hero、完整 Token 落地与视觉回归由 A-02 交付。字体资产提交前验证许可、来源、字符覆盖和加载策略。
+**Boundary:** 文档冻结不等于 Implemented；Guided Tour 与 WebGL Hero 不属于当前前端重建实施范围，相关实施要求已被新治理规范与 MP4 方案取代。字体资产提交前验证许可、来源、字符覆盖和加载策略。
 
 **See also:** [Visual Language](../design/VISUAL_LANGUAGE.md), [Workspace UX](../design/WORKSPACE_UX.md) §2.1 / §2.4。
 

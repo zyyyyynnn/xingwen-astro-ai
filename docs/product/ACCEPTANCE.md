@@ -48,6 +48,11 @@
 - 未手写替代上游已有成熟能力；
 - 仓库内不存在第二套 Workspace Shell。
 
+## 当前重置阶段与目标产品验收说明
+
+- **当前重置宿主阶段（F-00 ~ F-01）**：`apps/workspace` 仅需完成最小宿主 Router、Runtime Composition、Repository Port 与 Share 边界验证，通过 build、architecture 与 retirement 检查；不要求当前重置宿主运行完整 Agent 产品主链路。
+- **目标产品验收（F-02 ~ F-08）**：在 ADR-032 冻结上游选型并完成源码导入与 Adapter 适配后，全面执行下述“前端产品标准”与主路径退出校验。
+
 ## 前端产品标准
 
 - 用户可识别当前研究上下文、Agent 状态、主产物与下一步。
@@ -120,7 +125,7 @@ X-08 完成需要证明：
 | 维度   | 必须达到                                                 |
 | ------ | -------------------------------------------------------- |
 | 可理解 | 无现场讲解可识别产品目标、主流程和可信边界               |
-| 可运行 | Demo Replay 稳定；Live Run 有明确等待、失败和恢复        |
+| 可运行 | Workspace 宿主与 Agent 流程可运行；Live Run 有明确等待、失败和恢复 |
 | 可复现 | 关键结果可定位 Contract、Run、Version、来源和生成条件    |
 | 可溯源 | 关键数据、Summary、Relation 和 GraphEdge 可定位 Evidence |
 | 可对照 | Workspace 基于成熟 Agent 骨架与 Panel Host 可完成审查    |

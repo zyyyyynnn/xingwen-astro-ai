@@ -24,88 +24,24 @@
 
 ## 2. Brand Site 基线
 
-Homepage 保留：
+- **Current Baseline**：`main` 代码当前仍维护旧 `HeroVisual` 组件与双短 CTA (`/tour`)；
+- **Accepted Target**：品牌极简首屏目标确定为：
+  - 紧凑品牌栏
+  - `apps/site/public/visual/homepage-ascii.mp4`
+  - 单一“进入工作台”CTA（目标 `/workspace`）
+  - 两行衬线标题（“让每一颗系外行星候选体 / 都可溯源”）
+  - 四列能力说明
+- 视频使用原生 `<video>`，无音频；Reduced Motion 和页面隐藏时暂停。视频失败不影响标题、说明与 CTA。
 
-```text
-紧凑品牌栏
-→ homepage-ascii.mp4
-→ 单一“进入工作台”CTA
-→ 两行衬线标题
-→ 四列能力说明
-```
+## 3. 色彩系统与 Token 权威
 
-固定资产：
-
-```text
-apps/site/public/visual/homepage-ascii.mp4
-```
-
-固定标题：
-
-```text
-让每一颗系外行星候选体
-都可溯源
-```
-
-唯一 CTA：`进入工作台`，目标 `/workspace`。
-
-视频使用原生 `<video>`，无音频；Reduced Motion 和页面隐藏时暂停。视频失败不影响标题、说明与 CTA。
-
-## 3. 色彩系统
-
-```css
-:root {
-  --raw-paper-0: #fcfefe;
-  --raw-paper-50: #f5f8fa;
-  --raw-paper-100: #ecf1f3;
-  --raw-paper-200: #e1e7eb;
-
-  --raw-bluegray-50: #f3f7fa;
-  --raw-bluegray-100: #e8eef1;
-  --raw-bluegray-200: #d2dadf;
-  --raw-bluegray-300: #b7c1c7;
-  --raw-bluegray-400: #919ca2;
-  --raw-bluegray-500: #6e7981;
-  --raw-bluegray-600: #505d65;
-  --raw-bluegray-700: #37444d;
-  --raw-bluegray-800: #202d36;
-  --raw-bluegray-900: #0c1a23;
-
-  --raw-success-500: #2e8b6f;
-  --raw-warning-500: #b8862b;
-  --raw-error-500: #a8483e;
-  --raw-info-500: #5078a8;
-}
-```
-
-```css
-:root {
-  --color-canvas: var(--raw-paper-50);
-  --color-surface: var(--raw-paper-0);
-  --color-surface-muted: var(--raw-paper-100);
-  --color-surface-hover: var(--raw-paper-200);
-
-  --color-ink-primary: var(--raw-bluegray-900);
-  --color-ink-secondary: var(--raw-bluegray-600);
-  --color-ink-tertiary: var(--raw-bluegray-500);
-
-  --color-border: var(--raw-bluegray-200);
-  --color-border-strong: var(--raw-bluegray-400);
-
-  --color-brand: var(--raw-bluegray-500);
-  --color-brand-hover: var(--raw-bluegray-600);
-  --color-brand-pressed: var(--raw-bluegray-700);
-  --color-brand-on: var(--raw-paper-0);
-  --color-focus: var(--raw-bluegray-400);
-
-  --color-success: var(--raw-success-500);
-  --color-warning: var(--raw-warning-500);
-  --color-error: var(--raw-error-500);
-  --color-info: var(--raw-info-500);
-}
-```
-
-Raw Token 只定义于 `packages/design-tokens`。
+- **精确 Token 名称与数值**：唯一定义于代码源 [`packages/design-tokens/src/base.css`](file:///E:/xingwen-astro-ai/packages/design-tokens/src/base.css)。
+- **品牌色锚点**：主题色锚点为 `#6E7981` (`--raw-bluegray-500`)。
+- **视觉角色分工**：
+  - Cold Paper：用于背景、画布 (`--color-canvas`) 与表面 (`--color-surface`)；
+  - Bluegray：用于品牌、文字 (`--color-ink-primary`)、边框 (`--color-border`)；
+  - 语义状态色：用于成功 (`--color-success`)、警告 (`--color-warning`)、错误 (`--color-error`) 和信息 (`--color-info`)。
+- **使用约束**：业务组件只消费语义 Token，不得硬编码 Raw 色值。
 
 ## 4. 色彩比例
 

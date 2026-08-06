@@ -5,7 +5,7 @@
 | Status | Accepted |
 | Authority | 产品设计原则、体验域关系与设计不变量 |
 
-本文定义星文智析的设计判断标准。页面规格见 [Workspace UX](docs/design/WORKSPACE_UX.md)，视觉规则见 [Visual Language](docs/design/VISUAL_LANGUAGE.md)，工程边界见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
+本文定义星文智析的设计判断标准。产品范围与成功指标见 [PRD.md](PRD.md)。页面规格见 [Workspace UX](docs/design/WORKSPACE_UX.md)，视觉规则见 [Visual Language](docs/design/VISUAL_LANGUAGE.md)，工程边界见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
 
 ## 1. 产品命题
 
@@ -31,7 +31,7 @@ Research Intent
 | Research Workspace | 执行研究、审查产物、核验证据、推进修订 | 不承担营销叙事或通用 IDE 能力 |
 | Public Share | 展示冻结 ArtifactVersion 与必要证据 | 不提供编辑、运行或动态 latest |
 
-Guided Tour 不属于当前前端基线；重新引入时必须使用独立规范和交付范围。
+Guided Tour 与 Demo Replay 不属于当前前端重建基线；重新引入时必须使用独立规范和交付范围。
 
 ## 3. 设计原则
 
@@ -50,26 +50,7 @@ Guided Tour 不属于当前前端基线；重新引入时必须使用独立规�
 
 ## 4. 开源 Agent 产品采用
 
-采用必须同时满足：
-
-```text
-可运行的上游产品
-+ 固定 Repository / Tag / Commit
-+ 兼容许可证
-+ 明确源码范围
-+ Upstream → Local 映射
-+ 可重复验证
-```
-
-以下行为不构成采用：
-
-- 参考截图后重新实现；
-- 只复制布局或样式；
-- 只安装组件库；
-- 以静态 Preview 代替真实运行骨架；
-- 用项目内 Shell 替代上游已有能力。
-
-具体上游产品由独立架构决策冻结。
+前端重建坚持“成熟骨架优先，不得参考后重新手写”。采用上游产品要求以固定 Repository / Tag / Commit 的真实源码为骨架进行领域改造。具体 Ledger、版本与工程约束见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md) 与 [DECISIONS](docs/architecture/DECISIONS.md)。
 
 ## 5. 产品对象
 
@@ -104,7 +85,9 @@ Guided Tour 不属于当前前端基线；重新引入时必须使用独立规�
 
 ### Brand Site
 
-保留已确认的 MP4、固定标题和单一“进入工作台”CTA。后续调整使用独立范围。
+- **Current Baseline**：`main` 仓库代码目前仍为旧 `HeroVisual` 组件、双短 CTA 与 `/tour` 路由；
+- **Accepted Target**：品牌极简首屏已对齐为单英雄区（`homepage-ascii.mp4` + 单一“进入工作台”CTA + `/workspace` 目标）；
+- **Implementation**：在 F-01 错误退役或独立 Homepage 修复 Issue 中完成代码层落地方案，不暗示代码已存在。
 
 ### Research Workspace
 
