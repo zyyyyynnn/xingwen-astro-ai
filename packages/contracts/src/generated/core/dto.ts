@@ -37,6 +37,20 @@ export type App_Schemas_Core__SourceMode = "fixture" | "live" | "cached";
  */
 export type CachePolicy = "disabled" | "fallback_on_recoverable_failure";
 /**
+ * Lifecycle of a controlled research input after ingestion.
+ *
+ * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+ * content is frozen behind an immutable content hash. ``unsupported_processing``
+ * and ``failed_ingestion`` are reserved states the API exposes so consumers
+ * never mistake "uploaded" for "understood".
+ */
+export type ResearchInputStatus = "accepted" | "unsupported_processing" | "failed_ingestion";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchInputType".
+ */
+export type ResearchInputType = "url" | "pdf" | "csv" | "json" | "image" | "text";
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ShareRedactionPolicy".
  */
@@ -113,6 +127,15 @@ export type PaperSourceExecutionStatus = "completed" | "failed";
 export type PaperSummarySupportStatus = "supported" | "unsupported" | "unverifiable";
 export type ContractDraftStatus1 = "draft" | "confirmed" | "expired";
 /**
+ * Lifecycle of a controlled research input after ingestion.
+ *
+ * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+ * content is frozen behind an immutable content hash. ``unsupported_processing``
+ * and ``failed_ingestion`` are reserved states the API exposes so consumers
+ * never mistake "uploaded" for "understood".
+ */
+export type ResearchInputStatus1 = "accepted" | "unsupported_processing" | "failed_ingestion";
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "RunStatus".
  */
@@ -134,6 +157,18 @@ export type RunStatus =
  * via the `definition` "SessionStatus".
  */
 export type SessionStatus = "active" | "expired" | "revoked";
+/**
+ * Lifecycle of a controlled research input after ingestion.
+ *
+ * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+ * content is frozen behind an immutable content hash. ``unsupported_processing``
+ * and ``failed_ingestion`` are reserved states the API exposes so consumers
+ * never mistake "uploaded" for "understood".
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchInputStatus".
+ */
+export type ResearchInputStatus2 = "accepted" | "unsupported_processing" | "failed_ingestion";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "UnitPolicy".
@@ -399,6 +434,20 @@ export interface WorkspaceObjectRef {
   object_type: string;
 }
 /**
+ * Attach an ingested input reference to a ContractDraft or a Run.
+ *
+ * Only the reference is bound; binary content and full text never enter the
+ * public DTO.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "BindResearchInputRequest".
+ */
+export interface BindResearchInputRequest {
+  contract_draft_id?: string | null;
+  project_id: string;
+  run_id?: string | null;
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CollectionEnvelope_PaperCollectionCandidateRead_".
  */
@@ -542,6 +591,34 @@ export interface ResearchArtifact {
   logical_key: string;
   project_id: string;
   title: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_ResearchInputRef_".
+ */
+export interface CollectionEnvelope_ResearchInputRef_ {
+  data: ResearchInputRef[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * Immutable reference to one ingested input; never carries binary content.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchInputRef".
+ */
+export interface ResearchInputRef {
+  content_hash: string;
+  created_at: string;
+  filename?: string | null;
+  id: string;
+  mime_type?: string | null;
+  size_bytes: number;
+  source_snapshot_id?: string | null;
+  source_type: string;
+  status?: ResearchInputStatus;
+  type: ResearchInputType;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -712,6 +789,20 @@ export interface SourceScope {
    * @minItems 1
    */
   allowed_sources: [string, ...string[]];
+}
+/**
+ * JSON transport for URL and text ingestion (files use multipart).
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CreateResearchInputRequest".
+ */
+export interface CreateResearchInputRequest {
+  filename?: string | null;
+  mime_type?: string | null;
+  project_id: string;
+  text_content?: string | null;
+  type: ResearchInputType;
+  url?: string | null;
 }
 /**
  * Minimal M1 project creation payload; `case_key` stays frozen to the main case.
@@ -1388,6 +1479,44 @@ export interface ResearchContract {
    */
   target_objects: [string, ...string[]];
   version: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_ResearchInputDetail_".
+ */
+export interface Envelope_ResearchInputDetail_ {
+  data: ResearchInputDetail;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * Metadata-only detail read; adds the owning project and the redacted URL.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchInputDetail".
+ */
+export interface ResearchInputDetail {
+  content_hash: string;
+  created_at: string;
+  filename?: string | null;
+  id: string;
+  mime_type?: string | null;
+  project_id: string;
+  size_bytes: number;
+  source_snapshot_id?: string | null;
+  source_type: string;
+  status?: ResearchInputStatus1;
+  type: ResearchInputType;
+  url?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_ResearchInputRef_".
+ */
+export interface Envelope_ResearchInputRef_ {
+  data: ResearchInputRef;
+  links: ResponseLinks;
+  meta: ResponseMeta;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

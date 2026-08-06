@@ -194,6 +194,10 @@ jobs:
             --include ShareSnapshot \
             --include ShareSnapshotCreated \
             --include PublicShareSnapshot \
+            --include ResearchInputRef \
+            --include ResearchInputDetail \
+            --include CreateResearchInputRequest \
+            --include BindResearchInputRequest \
             --check
           uv run python ../../scripts/export_openapi.py \
             --output ../../packages/schemas/generated/core/openapi.json \

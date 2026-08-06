@@ -71,9 +71,10 @@
 
 ```text
 Session -> Project -> ContractDraft / Contract -> Run -> RunEvent
-                                                     -> ArtifactVersion -> Evidence -> SourceSnapshot
+                                                      -> ArtifactVersion -> Evidence -> SourceSnapshot
 Project -> WorkspaceSnapshot
 Project -> ShareSnapshot -> ArtifactVersion
+Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 ```
 
 - **Project**：表示持续研究上下文。
@@ -82,3 +83,14 @@ Project -> ShareSnapshot -> ArtifactVersion
 - **ArtifactVersion**：不可变的科研产物快照，绑定 Evidence 与 SourceSnapshot。
 - **WorkspaceSnapshot**：工作台私有恢复布局状态。
 - **ShareSnapshot**：冻结的公开只读投影。
+- **ResearchInput**：受控输入边界（URL / PDF / CSV / JSON / 图片 / 文本）的不可变引用与溯源；二进制内容与全文永不进入公开 DTO。
+
+## 6. Research Input 摄取契约
+
+- **内容寻址**：摄取内容以 `sha256:<hex>` 内容哈希冻结，服务端按哈希校验写入且不覆盖既有 blob。
+- **MIME 不可信**：客户端声明不具效力；所有字节先经 magic bytes 嗅探，声明类型、客户端 MIME 与嗅探结果三方一致才接受，否则 `415`。
+- **文件名净化**：路径穿越与分隔符在服务端剥离，仅保留显示用 basename；扩展名与内容类型不一致返回 `415`。
+- **URL 抓取失败关闭**：协议与主机 allowlist、SSRF 拒绝内网地址、每次重定向重新校验、流式大小上限、超时、不转发凭据。
+- **错误码**：`RESEARCH_INPUT_INVALID`（400，载荷组合非法）、`RESEARCH_INPUT_TOO_LARGE`（413）、`RESEARCH_INPUT_MIME_REJECTED`（415）、`RESEARCH_INPUT_FILENAME_INVALID`（400）、`RESEARCH_INPUT_NOT_FOUND`（404）、`URL_FETCH_BLOCKED`（422，策略拒绝）、`URL_FETCH_TOO_LARGE` / `URL_FETCH_FAILED`（502，上游失败）。
+- **绑定语义**：`POST /api/research-inputs/{input_id}/bind` 只绑定引用，不产生所有权转移；输入删除后既有绑定不受影响。
+- **状态语义**：`accepted` 表示摄取成功且内容已冻结；`unsupported_processing` 与 `failed_ingestion` 为预留状态，摄取成功不等于已理解。
