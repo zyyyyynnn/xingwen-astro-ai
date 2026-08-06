@@ -40,7 +40,7 @@ uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/ge
 uv run python ../../scripts/export_openapi.py --output ../../packages/schemas/generated/core/openapi.json --check
 ```
 
-D-07 LiteratureClaim 领域 Pipeline 使用独立的已提交漂移基线；它不是 HTTP DTO：
+LiteratureClaim 领域 Pipeline 使用独立的已提交漂移基线；它不是 HTTP DTO：
 
 ```powershell
 Set-Location apps/api
@@ -48,7 +48,7 @@ uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/ge
 uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/literature_claim --include LiteratureClaimExtractionOutput --include LiteratureClaimCandidate --include LiteratureClaimAdmissionResult --include LiteratureClaimsCandidate --include LiteratureClaimBenchmarkEvaluationCase --include LiteratureClaimBenchmarkReport --check
 ```
 
-D-08 LiteratureRelation/ReasoningTrace 领域 Pipeline 同样使用独立的已提交漂移基线；它
+LiteratureRelation/ReasoningTrace 领域 Pipeline 同样使用独立的已提交漂移基线；它
 不是 HTTP DTO：
 
 ```powershell
@@ -74,20 +74,20 @@ CI 使用临时目录执行导出和 stale diff。只有作为契约漂移基线
 - `Benchmark*` Pydantic 模型属于 **Benchmark / Pipeline Contract**，会进入全量 JSON Schema 导出。
 - `PaperCollection`、完整 `SourceSnapshot` 与 `ProducerExecution` 是 Pipeline content Contract；HTTP 投影直接组合这些模型与 provenance DTO，不复制第二套 PaperCollection，也不承担 Publisher。
 - Benchmark Contract 不是 HTTP Transport API；只有被 FastAPI Router 引用的模型才会自动进入运行 OpenAPI。
-- `generated/literature_claim` 固定 D-07 唯一领域编写源的 extraction、admission、publisher candidate 与 Benchmark report；Phase 0 `reasoning.LiteratureClaim`/`LiteratureReasoningResponse` 和 core `LiteratureClaimsArtifactContent` 只保留冻结传输/投影兼容，不能进入 Publisher。
-- `generated/literature_relation` 固定 D-08 唯一领域编写源的 extraction、Relation/ReasoningTrace admission、publisher candidate 与 Benchmark report；Phase 0 `reasoning.LiteratureRelation`/`ReasoningTrace` 和 core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 只保留冻结传输/投影兼容，不能进入 Publisher。
-- `generated/phase0` 同步导出 C-04 的 build input、三类 typed candidate、MappingRuleSet 与 UnitConversionCatalog；`DataArtifactBuildResult`、领域投影和 publication seal 仅是进程内对象，不是公共 JSON Contract。六个公共模型均可 JSON/Pydantic round-trip，但 round-trip candidate 不恢复 publication seal。这些 Schema 是 Pipeline Contract，不会因此成为 HTTP DTO 或数据库记录。
-- `Benchmark*` Schema 不改变 Phase 0 `/api` DTO 或路由；Schema 导出不等于运行 Pipeline 接线。
+- `generated/literature_claim` 固定唯一领域编写源的 extraction、admission、publisher candidate 与 Benchmark report；旧版 `reasoning.LiteratureClaim`/`LiteratureReasoningResponse` 和 core `LiteratureClaimsArtifactContent` 只保留冻结传输/投影兼容，不能进入 Publisher。
+- `generated/literature_relation` 固定唯一领域编写源的 extraction、Relation/ReasoningTrace admission、publisher candidate 与 Benchmark report；旧版 `reasoning.LiteratureRelation`/`ReasoningTrace` 和 core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 只保留冻结传输/投影兼容，不能进入 Publisher。
+- `generated/phase0` 同步导出 build input、三类 typed candidate、MappingRuleSet 与 UnitConversionCatalog；`DataArtifactBuildResult`、领域投影和 publication seal 仅是进程内对象，不是公共 JSON Contract。六个公共模型均可 JSON/Pydantic round-trip，但 round-trip candidate 不恢复 publication seal。这些 Schema 是 Pipeline Contract，不会因此成为 HTTP DTO 或数据库记录。
+- `Benchmark*` Schema 不改变 `/api` DTO 或路由；Schema 导出不等于运行 Pipeline 接线。
 - Pydantic Contract 的统一编写源为 `apps/api/src/app/schemas`，Pipeline 和文档不得复制同名生产 Schema 形成第二事实源。
 
 ## 4. 编写源与生成边界
 
-- Phase 0 `/api` Schema 用于回归；核心资源及 Workspace/Share Contract 的 Pydantic / OpenAPI 由编写源生成。
-- D-07 LiteratureClaim Pipeline Schema 使用独立 tracked JSON Schema 基线，不进入 HTTP OpenAPI。
-- D-08 LiteratureRelation/ReasoningTrace Pipeline Schema 使用独立 tracked JSON Schema 基线，不进入 HTTP OpenAPI。
-- 契约字段集以 `packages/schemas/generated/core/openapi.json` 与 `packages/contracts/src/generated/core/dto.ts` 为权威来源；本文不维护里程碑级状态叙述，实时状态见 GitHub Issues。
+- 核心资源及 Workspace/Share Contract 的 Pydantic / OpenAPI 由编写源生成。
+- LiteratureClaim Pipeline Schema 使用独立 tracked JSON Schema 基线，不进入 HTTP OpenAPI。
+- LiteratureRelation/ReasoningTrace Pipeline Schema 使用独立 tracked JSON Schema 基线，不进入 HTTP OpenAPI。
+- 契约字段集以 `packages/schemas/generated/core/openapi.json` 与 `packages/contracts/src/generated/core/dto.ts` 为权威来源；本文不维护状态叙述，实时状态见 GitHub Issues。
 - `packages/contracts` 是前端 Contract 包边界：从生成 Schema 得到 Transport Type，经 validation 与 mapper 转为 Domain Model。
-- 独立手写 IDL 未采用；改变编写源需要新 ADR。
+- 独立手写 IDL 未采用。
 
 Contract 实现不得复制 generated 文件作为第二编写源，必须由后端编写源、生成流程和前端 Contract package 共同落地。
 

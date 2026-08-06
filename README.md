@@ -1,14 +1,6 @@
-<div align="center">
-
 # 星文智析 AI 科研工具
 
-_面向天文科研场景的数据分析、文献获取、跨文献推理与证据图谱工作流_
-
-![Astro](https://img.shields.io/badge/Astro-7-BC52EE) ![React](https://img.shields.io/badge/React-19.2-149ECA) ![Vite](https://img.shields.io/badge/Vite-8.1-646CFF) ![FastAPI](https://img.shields.io/badge/FastAPI-Python%203.13-009688) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED) [![License: MIT](https://img.shields.io/badge/license-MIT-64748b)](LICENSE)
-
-</div>
-
----
+面向天文科研场景的数据分析、文献获取、跨文献推理与证据图谱工作流。
 
 ## 项目定位
 
@@ -18,7 +10,7 @@ _面向天文科研场景的数据分析、文献获取、跨文献推理与证�
 科研目标 -> 数据获取 -> 字段清洗 -> 论文获取 -> 文献理解 -> 跨文献推理 -> 证据图谱 -> 结果导出 -> 反馈修正
 ```
 
-项目聚焦挑战杯“基于国产开源大模型的 AI Scientist 研发与应用”赛题中“科学数据查找、解析与整合”方向。MVP 不承诺任意天文方向、任意 PDF 全文高精度解析、任意图表全自动处理或无边界科学发现。
+项目聚焦“科学数据查找、解析与整合”方向。MVP 不承诺任意天文方向、任意 PDF 全文高精度解析、任意图表全自动处理或无边界科学发现。
 
 ## 快速开始
 
@@ -27,13 +19,13 @@ Copy-Item .env.example .env
 docker compose up --build --wait
 ```
 
-| 服务               | 地址                                |
-| ------------------ | ----------------------------------- |
-| Brand Site         | `http://127.0.0.1:4321`             |
-| Research Workspace | `http://127.0.0.1:5173`             |
-| 后端 API           | `http://127.0.0.1:8000`             |
-| API 文档           | `http://127.0.0.1:8000/api/docs` |
-| PostgreSQL         | `127.0.0.1:5432`                    |
+| 服务 | 地址 |
+| --- | --- |
+| Brand Site | `http://127.0.0.1:4321` |
+| Research Workspace | `http://127.0.0.1:5173` |
+| 后端 API | `http://127.0.0.1:8000` |
+| API 文档 | `http://127.0.0.1:8000/api/docs` |
+| PostgreSQL | `127.0.0.1:5432` |
 
 前端本机调试从仓库根目录执行：
 
@@ -44,47 +36,18 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-环境变量、后端命令和故障排查见 [docs/setup.md](docs/setup.md)。真实密钥只写入本地 `.env` 或部署平台 Secrets。
-
-## 仓库结构
-
-```text
-apps/site                 Astro 静态品牌站
-apps/workspace            React 科研工作台入口
-apps/api                  FastAPI 后端
-packages/design-tokens    原始颜色与语义 Token
-packages/ui               共享 React UI 基元与 BrandMark
-packages/domain           纯 TypeScript 领域边界
-packages/contracts        Pydantic Contract 前端边界
-packages/data-access      Repository 边界
-packages/workspace-core   工作台编排边界
-packages/visual-engine    纯 TS 视觉运行时（Canvas / Poster / 生命周期）
-packages/schemas          JSON Schema / OpenAPI 生成产物
-packages/prompts          生产 Prompt 注册中心
-packages/testing          共享测试入口
-services                  数据、论文与图谱 Pipeline
-scripts                   架构、基建与 Schema 脚本
-docs                      架构、产品、质量、交接文档
-```
-
-实现状态以 GitHub Issues 与 [Roadmap](docs/product/ROADMAP.md) 为准。
+环境变量、后端命令与故障排查见 [docs/setup.md](docs/setup.md)。真实密钥只写入本地 `.env` 或部署平台 Secrets。
 
 ## 核心文档
 
-| 唯一事实范围                           | 文档                                                                |
-| -------------------------------------- | ------------------------------------------------------------------- |
-| 用户、场景、范围、成功标准与产品主流程 | [PRD](PRD.md)                                                       |
-| 产品设计总纲、体验域与系统边界         | [DESIGN](DESIGN.md)                                                 |
-| 前端技术栈、目录、依赖与构建           | [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md) |
-| HTTP 资源与传输契约                    | [API Contract](docs/architecture/API_CONTRACT.md)                   |
-| 领域实体与不变量                       | [Data Model](docs/architecture/DATA_MODEL.md)                       |
-| 本地启动与环境变量                     | [Setup](docs/setup.md)                                              |
-| 产品退出标准                           | [Acceptance](docs/product/ACCEPTANCE.md)                            |
-| PR 与发布检查                          | [Review Checklist](docs/quality/REVIEW_CHECKLIST.md)                |
-| 文档治理                               | [Documentation Governance](docs/DOCUMENTATION_GOVERNANCE.md)        |
-| Agent 执行协议与项目约束               | [AGENTS](AGENTS.md)                                                 |
+| 唯一事实范围 | 文档 |
+| --- | --- |
+| 阶段与退出标准 | [PRD](PRD.md) / [Acceptance](docs/product/ACCEPTANCE.md) |
+| 产品设计与体验 | [Design](DESIGN.md) / [Workspace UX](docs/design/WORKSPACE_UX.md) / [Visual Language](docs/design/VISUAL_LANGUAGE.md) |
+| 系统架构与契约 | [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md) / [API Contract](docs/architecture/API_CONTRACT.md) / [Data Model](docs/architecture/DATA_MODEL.md) |
+| 执行与审查规范 | [AGENTS](AGENTS.md) / [Contributing](CONTRIBUTING.md) / [Review Checklist](docs/quality/REVIEW_CHECKLIST.md) |
 
-其他资料按任务类型从 [docs/README.md](docs/README.md) 定位。
+完整规范索引见 [docs/README.md](docs/README.md)。
 
 ## License
 

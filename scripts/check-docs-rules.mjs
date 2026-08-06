@@ -21,7 +21,7 @@ const allowedMetadataFields = new Set([
 ]);
 
 // Metadata keys that describe volatile progress. They are rejected with a
-// dedicated message; real-time status lives in Issues, Roadmap, Backlog and
+// dedicated message; real-time status lives in GitHub Issues, PRs, Milestones and
 // verified run evidence.
 const forbiddenMetadataFields = new Set([
   "Implementation",
