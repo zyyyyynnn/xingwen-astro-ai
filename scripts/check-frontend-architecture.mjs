@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import ts from "typescript";
@@ -14,19 +14,11 @@ const packageLocations = new Map([
   ["@xingwen/contracts", "packages/contracts"],
   ["@xingwen/data-access", "packages/data-access"],
   ["@xingwen/workspace-core", "packages/workspace-core"],
-  ["@xingwen/visual-engine", "packages/visual-engine"],
   ["@xingwen/testing", "packages/testing"],
 ]);
 
 const allowedLocalDependencies = new Map([
-  [
-    "@xingwen/site",
-    new Set([
-      "@xingwen/design-tokens",
-      "@xingwen/ui",
-      "@xingwen/visual-engine",
-    ]),
-  ],
+  ["@xingwen/site", new Set(["@xingwen/design-tokens", "@xingwen/ui"])],
   [
     "@xingwen/workspace",
     new Set([
@@ -42,17 +34,21 @@ const allowedLocalDependencies = new Map([
   ["@xingwen/contracts", new Set()],
   ["@xingwen/data-access", new Set(["@xingwen/domain", "@xingwen/contracts"])],
   ["@xingwen/workspace-core", new Set(["@xingwen/domain"])],
-  ["@xingwen/visual-engine", new Set()],
   ["@xingwen/testing", new Set()],
 ]);
 
 const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
-  ["@xingwen/ui", new Set(["react"])],
-  // visual-engine is a framework-agnostic boundary: scene model, palette
-  // contract, glyph atlas, GLSL source and Poster data only. Three.js is
-  // owned by the Site Visual Adapter, never imported here.
-  ["@xingwen/visual-engine", new Set()],
+  [
+    "@xingwen/ui",
+    new Set([
+      "react",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-collapsible",
+      "@radix-ui/react-scroll-area",
+      "@radix-ui/react-tooltip",
+    ]),
+  ],
 ]);
 
 const failures = [];
@@ -153,7 +149,9 @@ const sourceFiles = listedFiles.filter((file) =>
 const importPattern = /(?:from\s+|import\s*)["'](@xingwen\/[^"']+)["']/gu;
 
 for (const file of sourceFiles) {
-  const content = readFileSync(resolve(root, file), "utf8");
+  const filePath = resolve(root, file);
+  if (!existsSync(filePath)) continue;
+  const content = readFileSync(filePath, "utf8");
   for (const match of content.matchAll(importPattern)) {
     const specifier = match[1];
     if (specifier && !exportedSpecifiers.has(specifier)) {
@@ -165,7 +163,9 @@ for (const file of sourceFiles) {
 for (const file of listedFiles.filter((entry) =>
   /(?:^|\/)tsconfig[^/]*\.json$/u.test(entry),
 )) {
-  const content = readFileSync(resolve(root, file), "utf8");
+  const filePath = resolve(root, file);
+  if (!existsSync(filePath)) continue;
+  const content = readFileSync(filePath, "utf8");
   const config = JSON.parse(content);
   if (config.compilerOptions?.paths) {
     failures.push(`${file} must not define package-bypassing path aliases.`);
@@ -206,16 +206,11 @@ const boundaryRules = new Map([
         "react",
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
+        "@radix-ui/react-dialog",
+        "@radix-ui/react-collapsible",
+        "@radix-ui/react-scroll-area",
+        "@radix-ui/react-tooltip",
       ]),
-      forbiddenIdentifiers: networkAndStorageGlobals,
-      forbidRepositorySymbols: true,
-    },
-  ],
-  [
-    "packages/visual-engine",
-    {
-      description: "the framework-agnostic visual boundary",
-      allowedBareImports: new Set(),
       forbiddenIdentifiers: networkAndStorageGlobals,
       forbidRepositorySymbols: true,
     },
@@ -333,12 +328,10 @@ for (const [location, rule] of boundaryRules) {
   for (const file of sourceFiles.filter((entry) =>
     entry.startsWith(`${location}/src/`),
   )) {
+    const filePath = resolve(root, file);
+    if (!existsSync(filePath)) continue;
     failures.push(
-      ...collectBoundaryViolations(
-        file,
-        readFileSync(resolve(root, file), "utf8"),
-        rule,
-      ),
+      ...collectBoundaryViolations(file, readFileSync(filePath, "utf8"), rule),
     );
   }
 }
@@ -348,10 +341,12 @@ for (const file of sourceFiles.filter(
     entry.startsWith("apps/workspace/src/pages/") ||
     entry.startsWith("apps/workspace/src/components/"),
 )) {
+  const filePath = resolve(root, file);
+  if (!existsSync(filePath)) continue;
   failures.push(
     ...collectBoundaryViolations(
       file,
-      readFileSync(resolve(root, file), "utf8"),
+      readFileSync(filePath, "utf8"),
       workspacePresentationRule,
     ),
   );
@@ -361,8 +356,6 @@ const boundaryRuleFixtures = [
   ["packages/domain", 'import http from "node:http";'],
   ["packages/domain", 'localStorage.getItem("token");'],
   ["packages/ui", 'import axios from "axios";'],
-  ["packages/visual-engine", 'globalThis["fetch"]("/api");'],
-  ["packages/visual-engine", 'import * as THREE from "three";'],
 ];
 
 for (const [location, content] of boundaryRuleFixtures) {

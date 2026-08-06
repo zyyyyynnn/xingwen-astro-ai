@@ -41,6 +41,7 @@ samples/outputs/*
 exports/
 logs/
 tmp/
+*.log
 
 # CodeGraph
 .codegraph/

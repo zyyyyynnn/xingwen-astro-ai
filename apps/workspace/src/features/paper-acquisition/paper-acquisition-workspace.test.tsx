@@ -159,6 +159,7 @@ function httpPaperRuntime(): WorkspaceRuntimeBoundaries {
     },
     tour: fixture.tour,
     workspaceController: fixture.workspaceController,
+    queryClient: fixture.queryClient,
     session,
   };
 }
@@ -343,7 +344,7 @@ describe("PaperAcquisitionWorkspace — fixture main path", () => {
 
     fireEvent.click(screen.getByRole("button", { name: REVISED_TITLE }));
     const observatory = within(
-      screen.getByRole("complementary", { name: "Provenance Observatory" }),
+      screen.getByRole("region", { name: "Provenance Observatory" }),
     );
     await waitFor(() => {
       expect(
@@ -637,6 +638,7 @@ describe("PaperAcquisitionWorkspace — cached provenance", () => {
         },
         tour: fixture.tour,
         workspaceController: fixture.workspaceController,
+        queryClient: fixture.queryClient,
         session,
       },
       `/workspace?projectId=${String(fixture.bootstrap.projectId)}&runId=${String(fixture.bootstrap.runId)}`,

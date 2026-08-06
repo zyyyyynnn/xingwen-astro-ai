@@ -14,6 +14,7 @@ import type {
   FixtureBootstrapContext,
   WorkspaceRuntimeBoundaries,
 } from "./boundaries";
+import { createWorkspaceQueryClient } from "./queries/query-client";
 
 type RepositoryEntityId = Parameters<RepositorySet["projects"]["getById"]>[0];
 
@@ -70,6 +71,7 @@ export function createWorkspaceRuntime(
       bootstrap: FIXTURE_BOOTSTRAP,
       tour: createGuidedTourController(),
       workspaceController: createWorkspaceController(repositories.workspaces),
+      queryClient: createWorkspaceQueryClient(),
     };
   }
 
@@ -91,5 +93,6 @@ export function createWorkspaceRuntime(
     session,
     tour: createGuidedTourController(),
     workspaceController: createWorkspaceController(repositories.workspaces),
+    queryClient: createWorkspaceQueryClient(),
   };
 }

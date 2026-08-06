@@ -3,6 +3,7 @@ import type {
   RepositorySet,
   SessionManager,
 } from "@xingwen/data-access";
+import type { QueryClient } from "@tanstack/react-query";
 import type {
   GuidedTourController,
   WorkspaceController,
@@ -21,6 +22,7 @@ interface WorkspaceRuntimeBase {
   readonly repositories: RepositorySet;
   readonly tour: GuidedTourController;
   readonly workspaceController: WorkspaceController;
+  readonly queryClient: QueryClient;
 }
 
 export interface FixtureWorkspaceRuntimeBoundaries extends WorkspaceRuntimeBase {

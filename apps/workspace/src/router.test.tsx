@@ -69,6 +69,7 @@ function httpShapedRuntime(
     repositories: fixture.repositories,
     tour: fixture.tour,
     workspaceController: fixture.workspaceController,
+    queryClient: fixture.queryClient,
     session,
   };
 }
@@ -476,14 +477,14 @@ describe("Workspace routes", () => {
     await waitFor(() => {
       expect(runtime.workspaceController.getState().status).toBe("draft");
     });
-    fireEvent.change(screen.getByLabelText("布局"), {
-      target: { value: "focus" },
+    fireEvent.change(screen.getByLabelText("主舞台视图"), {
+      target: { value: "artifact_review" },
     });
     await waitFor(() => {
       const state = runtime.workspaceController.getState();
       expect(state.status).toBe("draft");
       if (state.status === "draft") {
-        expect(state.draft.layoutPreset).toBe("focus");
+        expect(state.draft.layoutPreset).toBe("artifact_review");
       }
     });
     if (!expireListener) {
@@ -498,7 +499,7 @@ describe("Workspace routes", () => {
       const state = runtime.workspaceController.getState();
       expect(state.status).toBe("draft");
       if (state.status === "draft") {
-        expect(state.draft.layoutPreset).toBe("focus");
+        expect(state.draft.layoutPreset).toBe("artifact_review");
       }
     });
   });
@@ -566,8 +567,8 @@ describe("Workspace routes", () => {
       0,
     );
 
-    fireEvent.change(screen.getByLabelText("布局"), {
-      target: { value: "focus" },
+    fireEvent.change(screen.getByLabelText("主舞台视图"), {
+      target: { value: "artifact_review" },
     });
     fireEvent.click(screen.getByRole("button", { name: "保存工作区" }));
 
@@ -575,7 +576,7 @@ describe("Workspace routes", () => {
     expect(screen.getByText("本地更改尚未保存。")).toBeInTheDocument();
     expect(screen.getByText("服务器 revision 1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "保存工作区" })).toBeDisabled();
-    expect(screen.getByLabelText("布局")).toBeDisabled();
+    expect(screen.getByLabelText("主舞台视图")).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "采用服务器最新版本" }));
     await waitFor(() => {
@@ -602,8 +603,8 @@ describe("Workspace routes", () => {
     await waitFor(() => {
       expect(runtime.workspaceController.getState().status).toBe("draft");
     });
-    fireEvent.change(screen.getByLabelText("布局"), {
-      target: { value: "focus" },
+    fireEvent.change(screen.getByLabelText("主舞台视图"), {
+      target: { value: "artifact_review" },
     });
     fireEvent.click(screen.getByRole("button", { name: "保存工作区" }));
 
@@ -620,14 +621,14 @@ describe("Workspace routes", () => {
     renderRoute("/workspace", runtime);
 
     await screen.findByRole("heading", { name: "科研工作区" });
-    fireEvent.change(screen.getByLabelText("布局"), {
-      target: { value: "focus" },
+    fireEvent.change(screen.getByLabelText("主舞台视图"), {
+      target: { value: "artifact_review" },
     });
     await waitFor(() => {
       const state = runtime.workspaceController.getState();
       expect(state.status).toBe("draft");
       if (state.status === "draft") {
-        expect(state.draft.layoutPreset).toBe("focus");
+        expect(state.draft.layoutPreset).toBe("artifact_review");
       }
     });
 
@@ -637,7 +638,7 @@ describe("Workspace routes", () => {
       const state = runtime.workspaceController.getState();
       expect(state.status).toBe("draft");
       if (state.status === "draft") {
-        expect(state.draft.layoutPreset).toBe("focus");
+        expect(state.draft.layoutPreset).toBe("artifact_review");
       }
     });
   });
@@ -698,8 +699,8 @@ describe("Workspace routes", () => {
     fireEvent.change(runSelect, {
       target: { value: fixture.bootstrap.runId },
     });
-    fireEvent.change(screen.getByLabelText("布局"), {
-      target: { value: "focus" },
+    fireEvent.change(screen.getByLabelText("主舞台视图"), {
+      target: { value: "artifact_review" },
     });
     await waitFor(() => {
       const state = runtime.workspaceController.getState();
@@ -717,7 +718,7 @@ describe("Workspace routes", () => {
       });
     });
 
-    await screen.findByText("Target Project");
+    await screen.findByText("研究使命：Target Project");
     await waitFor(() => {
       const state = runtime.workspaceController.getState();
       expect(state.status).toBe("draft");
@@ -870,8 +871,8 @@ describe("Workspace routes", () => {
     expect(screen.getAllByText(/completed/u).length).toBeGreaterThan(0);
     await screen.findByRole("button", { name: "Exoplanet host-star dataset" });
 
-    fireEvent.change(screen.getByLabelText("布局"), {
-      target: { value: "focus" },
+    fireEvent.change(screen.getByLabelText("主舞台视图"), {
+      target: { value: "artifact_review" },
     });
     fireEvent.click(screen.getByRole("button", { name: "保存工作区" }));
 
@@ -908,7 +909,7 @@ describe("Workspace routes", () => {
     await runtime.repositories.workspaces.save(
       runtime.bootstrap.projectId,
       {
-        layoutPreset: "focus",
+        layoutPreset: "artifact_review",
         activeRunId: runtime.bootstrap.runId,
         panelSlots: [
           {
@@ -929,7 +930,7 @@ describe("Workspace routes", () => {
     renderRoute("/workspace", runtime);
 
     await screen.findByRole("heading", { name: artifact.title });
-    expect(screen.getByLabelText("布局")).toHaveValue("focus");
+    expect(screen.getByLabelText("主舞台视图")).toHaveValue("artifact_review");
     expect(
       screen.getByRole("heading", { name: "Evidence" }),
     ).toBeInTheDocument();

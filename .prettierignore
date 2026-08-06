@@ -5,3 +5,4 @@
 **/node_modules/
 packages/schemas/generated/
 packages/contracts/src/generated/
+pnpm-lock.yaml

@@ -4,11 +4,13 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  useRouteContext,
 } from "@tanstack/react-router";
 import type {
   ErrorComponentProps,
   RouterHistory,
 } from "@tanstack/react-router";
+import { QueryClientProvider } from "@tanstack/react-query";
 
 import type { WorkspaceRuntimeBoundaries } from "./boundaries";
 import { EntryPage } from "./pages/entry-page";
@@ -63,7 +65,12 @@ function validateWorkspaceSearch(
 }
 
 function RootLayout() {
-  return <Outlet />;
+  const { queryClient } = useRouteContext({ from: "__root__" });
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Outlet />
+    </QueryClientProvider>
+  );
 }
 
 function TourRoute() {

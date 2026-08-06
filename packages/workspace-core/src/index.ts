@@ -23,8 +23,16 @@ export type {
   TourListener,
 } from "./guided-tour";
 export { createWorkspaceController } from "./workspace-controller";
+export {
+  getMainStageView,
+  getContextRailMode,
+  getPinnedObject,
+} from "./workspace-controller";
 export type {
+  ContextRailMode,
+  MainStageView,
   WorkspaceController,
+  WorkspaceSessionState,
   WorkspaceSnapshotPort,
   WorkspaceState,
   WorkspaceListener,

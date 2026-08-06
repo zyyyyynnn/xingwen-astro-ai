@@ -12,13 +12,16 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@tanstack/react-query": "5.62.16",
     "@tanstack/react-router": "1.170.18",
     "@xingwen/data-access": "workspace:*",
     "@xingwen/design-tokens": "workspace:*",
     "@xingwen/ui": "workspace:*",
     "@xingwen/workspace-core": "workspace:*",
+    "cmdk": "1.0.4",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "react-resizable-panels": "2.1.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.2",

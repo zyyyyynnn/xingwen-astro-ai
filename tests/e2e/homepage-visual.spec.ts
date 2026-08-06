@@ -2,24 +2,21 @@ import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
- * A-17 Homepage Visual — real-browser acceptance for the rebuilt hero.
+ * A-17 Homepage Visual — real-browser acceptance for the MP4 hero.
  *
- * Covers the regressions that unit tests cannot prove:
- *  - Poster is visible first, then hidden only after the WebGL first frame.
- *  - The WebGL canvas is never pure black; the paper background and a
- *    meaningful glyph population are present at the full-open phase.
- *  - The 5.6s fold loop actually moves (full-open density ≫ near-empty).
- *  - No `pageerror`, no unexpected console errors, no duplicate Three.js.
- *  - Degradation paths: no-JS, WebGL2 unavailable, context loss, and
- *    reduced motion all keep a visible, non-black Poster/static frame.
- *
- * Pixel checks read the WebGL drawing buffer directly. To make
- * `readPixels` reliable in the headless browser, an init script forces
- * `preserveDrawingBuffer: true` for the test context only — the
- * production renderer never sets that flag.
+ * The homepage uses a single native `<video>` element for brand visual.
+ * These tests verify the product contract:
+ *  - The video element is present in static HTML (no-JS safe).
+ *  - The video has the correct src, attributes (autoplay, muted, loop,
+ *    playsinline) and is visible.
+ *  - There is exactly one CTA ("进入工作台"); no "开始演示" button.
+ *  - No WebGL canvas remains on the page.
+ *  - prefers-reduced-motion pauses the video.
+ *  - No pageerror, no unexpected console errors.
+ *  - 1440×900 and 390×844 viewports have no horizontal scroll.
  */
 
 const ARTIFACT_DIR = join(tmpdir(), "a17-homepage-visual");
@@ -27,257 +24,152 @@ mkdirSync(ARTIFACT_DIR, { recursive: true });
 
 const SITE = "http://127.0.0.1:4321/";
 
-interface FrameStats {
-  width: number;
-  height: number;
-  paperRatio: number;
-  glyphRatio: number;
-  blackRatio: number;
-}
-
-/** Force preserveDrawingBuffer so readPixels is reliable in tests. */
-async function forcePreservedDrawingBuffer(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const original = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (...args) {
-      const kind = String(args[0] ?? "");
-      if (kind.startsWith("webgl")) {
-        const opts =
-          typeof args[1] === "object" && args[1] !== null ? { ...args[1] } : {};
-        opts.preserveDrawingBuffer = true;
-        args[1] = opts;
-      }
-      return original.apply(this, args);
-    };
-  });
-}
-
-function collectErrors(page: Page): string[] {
+function collectErrors(page: import("@playwright/test").Page): string[] {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
     if (message.type() === "error")
       errors.push(`console.error: ${message.text()}`);
-    if (
-      message.type() === "warning" &&
-      /multiple instances/iu.test(message.text())
-    ) {
-      errors.push(`console.warn: ${message.text()}`);
-    }
   });
   return errors;
 }
 
-async function readFrameStats(page: Page): Promise<FrameStats> {
-  return page.evaluate(() => {
-    const canvas = document.querySelector<HTMLCanvasElement>(
-      ".hero-canvas canvas",
-    );
-    if (!canvas) throw new Error("canvas missing");
-    const gl = canvas.getContext("webgl2");
-    if (!gl) throw new Error("webgl2 context missing");
-    const w = canvas.width;
-    const h = canvas.height;
-    const px = new Uint8Array(w * h * 4);
-    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
-    let paper = 0;
-    let glyph = 0;
-    let black = 0;
-    for (let i = 0; i < px.length; i += 4) {
-      const r = px[i] ?? 0;
-      const g = px[i + 1] ?? 0;
-      const b = px[i + 2] ?? 0;
-      const min = Math.min(r, g, b);
-      if (r < 12 && g < 12 && b < 12) black++;
-      if (r >= 230 && g >= 230 && b >= 230) paper++;
-      else if (min < 205) glyph++;
-    }
-    const total = w * h;
-    return {
-      width: w,
-      height: h,
-      paperRatio: paper / total,
-      glyphRatio: glyph / total,
-      blackRatio: black / total,
-    };
-  });
-}
-
-async function waitForReady(page: Page, timeoutMs = 15_000): Promise<void> {
-  await page.goto(SITE);
-  await page.waitForSelector(".hero-canvas canvas", { timeout: timeoutMs });
-  // Poster is hidden only after the first valid WebGL frame ("ready").
-  await page.waitForFunction(
-    () =>
-      document.querySelector(".hero-poster")?.hasAttribute("hidden") === true,
-    { timeout: timeoutMs },
-  );
-}
-
-test.describe("A-17 homepage visual", () => {
-  test.describe.configure({ mode: "serial" });
-
-  test("desktop 1440×900: WebGL first frame hides Poster, canvas is not black", async ({
+test.describe("A-17 homepage visual (MP4)", () => {
+  test("desktop 1440×900: video element is present, visible and correctly attributed", async ({
     page,
   }) => {
     const errors = collectErrors(page);
-    await forcePreservedDrawingBuffer(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(SITE);
 
-    // Poster is present and visible before WebGL is ready.
-    const poster = page.locator(".hero-poster");
-    await expect(poster).toBeVisible();
+    const video = page.locator(".hero-video");
+    await expect(video).toHaveCount(1);
+    await expect(video).toBeVisible();
+    await expect(video).toHaveAttribute("autoplay", "");
+    await expect(video).toHaveAttribute("muted", "");
+    await expect(video).toHaveAttribute("loop", "");
+    await expect(video).toHaveAttribute("playsinline", "");
+    await expect(video).toHaveAttribute("preload", "metadata");
+    await expect(video).toHaveAttribute("aria-hidden", "true");
 
-    await waitForReady(page);
-    await expect(poster).not.toBeVisible();
+    const source = video.locator("source");
+    await expect(source).toHaveAttribute("src", "/visual/homepage-ascii.mp4");
+    await expect(source).toHaveAttribute("type", "video/mp4");
 
-    const stats = await readFrameStats(page);
-    expect(stats.blackRatio).toBeLessThan(0.02);
-    expect(stats.paperRatio).toBeGreaterThan(0.3);
-    expect(stats.glyphRatio).toBeGreaterThan(0.05);
+    // No WebGL canvas should remain.
+    await expect(page.locator(".hero-canvas canvas")).toHaveCount(0);
+    await expect(page.locator(".hero-poster")).toHaveCount(0);
 
     await page.screenshot({ path: join(ARTIFACT_DIR, "desktop-1440x900.png") });
     expect(errors).toEqual([]);
   });
 
-  test("motion loop: full-open frame is dense, near-empty frame is sparse, no black", async ({
+  test("single CTA: only '进入工作台' exists, no '开始演示'", async ({
+    page,
+  }) => {
+    await page.goto(SITE);
+
+    await expect(page.getByRole("link", { name: "进入工作台" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "开始演示" })).toHaveCount(0);
+  });
+
+  test("headline is the two-line serif title", async ({ page }) => {
+    await page.goto(SITE);
+    await expect(
+      page.getByRole("heading", {
+        name: /让每一颗系外行星候选体/,
+      }),
+    ).toBeVisible();
+    await expect(page.locator("#hero-title")).toContainText("都可溯源");
+  });
+
+  test("mobile 390×844: hero video visible, no horizontal scroll", async ({
     page,
   }) => {
     const errors = collectErrors(page);
-    await forcePreservedDrawingBuffer(page);
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await waitForReady(page);
-
-    // Sample a full 5.6s+ loop and capture representative frames.
-    const frames: { t: number; stats: FrameStats }[] = [];
-    const started = Date.now();
-    for (let i = 0; i <= 30; i++) {
-      const stats = await readFrameStats(page);
-      frames.push({ t: Date.now() - started, stats });
-      if (i === 30) break;
-      await page.waitForTimeout(200);
-    }
-
-    const ratios = frames.map((f) => f.stats.glyphRatio);
-    const maxIndex = ratios.indexOf(Math.max(...ratios));
-    const minIndex = ratios.indexOf(Math.min(...ratios));
-    const fullOpen = frames[maxIndex]?.stats;
-    const nearEmpty = frames[minIndex]?.stats;
-    if (!fullOpen || !nearEmpty) throw new Error("frame capture failed");
-
-    // Full-open phase must fill the visual area with glyphs.
-    expect(fullOpen.glyphRatio).toBeGreaterThan(0.06);
-    expect(fullOpen.blackRatio).toBeLessThan(0.02);
-    // Motion must occur: density swings across the loop.
-    expect(fullOpen.glyphRatio - nearEmpty.glyphRatio).toBeGreaterThan(0.025);
-    // Near-empty may be sparse but never all-black.
-    expect(nearEmpty.blackRatio).toBeLessThan(0.05);
-    expect(nearEmpty.paperRatio).toBeGreaterThan(0.4);
-
-    // Capture representative frames as evidence.
-    await page.screenshot({ path: join(ARTIFACT_DIR, "motion-full-open.png") });
-    expect(errors).toEqual([]);
-  });
-
-  test("mobile 390×844: hero is visible and not black", async ({ page }) => {
-    const errors = collectErrors(page);
-    await forcePreservedDrawingBuffer(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(SITE);
-    await page.waitForSelector(".hero-canvas canvas", { timeout: 15_000 });
-    await page.waitForFunction(
-      () =>
-        document.querySelector(".hero-poster")?.hasAttribute("hidden") === true,
-      { timeout: 15_000 },
-    );
 
-    const stats = await readFrameStats(page);
-    expect(stats.blackRatio).toBeLessThan(0.05);
-    expect(stats.glyphRatio).toBeGreaterThan(0.03);
+    await expect(page.locator(".hero-video")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /让每一颗系外行星候选体/ }),
+    ).toBeVisible();
+
+    const scrollWidth = await page.evaluate(
+      () => document.documentElement.scrollWidth,
+    );
+    expect(scrollWidth).toBeLessThanOrEqual(390);
 
     await page.screenshot({ path: join(ARTIFACT_DIR, "mobile-390x844.png") });
     expect(errors).toEqual([]);
   });
 
-  test("no-JS: Poster is shown, no canvas is mounted", async ({ browser }) => {
+  test("no-JS: video element is in static HTML, headline and CTA visible", async ({
+    browser,
+  }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto(SITE);
-    await expect(page.locator(".hero-poster")).toBeVisible();
-    await expect(page.locator(".hero-canvas canvas")).toHaveCount(0);
+
+    // The <video> element is server-rendered in the static HTML.
+    const video = page.locator(".hero-video");
+    await expect(video).toHaveCount(1);
+    const source = video.locator("source");
+    await expect(source).toHaveAttribute("src", "/visual/homepage-ascii.mp4");
+
+    // Title, CTA and notes are still visible without JavaScript.
+    await expect(
+      page.getByRole("heading", { name: /让每一颗系外行星候选体/ }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "进入工作台" })).toBeVisible();
+    await expect(page.getByText(/整合系外行星候选体与宿主恒星/)).toBeVisible();
+
     await context.close();
   });
 
-  test("WebGL2 unavailable: Poster stays, no canvas", async ({ page }) => {
-    await page.addInitScript(() => {
-      const original = HTMLCanvasElement.prototype.getContext;
-      HTMLCanvasElement.prototype.getContext = function (...args) {
-        if (String(args[0] ?? "").startsWith("webgl")) return null;
-        return original.apply(this, args);
-      };
-    });
-    await page.goto(SITE);
-    await expect(page.locator(".hero-poster")).toBeVisible();
-    await expect(page.locator(".hero-canvas canvas")).toHaveCount(0);
-  });
-
-  test("context loss reveals Poster; restore remounts a visible canvas", async ({
-    page,
-  }) => {
-    const errors = collectErrors(page);
-    await forcePreservedDrawingBuffer(page);
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await waitForReady(page);
-
-    const canvas = page.locator(".hero-canvas canvas");
-    await canvas.evaluate((el) =>
-      el.dispatchEvent(new Event("webglcontextlost", { cancelable: true })),
-    );
-    await expect(page.locator(".hero-poster")).toBeVisible();
-
-    await canvas.evaluate((el) =>
-      el.dispatchEvent(new Event("webglcontextrestored")),
-    );
-    // Restore remounts the Canvas (key bump) and re-runs readiness.
-    await page.waitForFunction(
-      () =>
-        document.querySelector(".hero-poster")?.hasAttribute("hidden") === true,
-      { timeout: 15_000 },
-    );
-    const stats = await readFrameStats(page);
-    expect(stats.blackRatio).toBeLessThan(0.05);
-    expect(errors).toEqual([]);
-  });
-
-  test("reduced motion: static frame, no continuous animation, not black", async ({
-    browser,
-  }) => {
+  test("reduced motion: video is paused", async ({ browser }) => {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 900 },
       reducedMotion: "reduce",
     });
     const page = await context.newPage();
     const errors = collectErrors(page);
-    await forcePreservedDrawingBuffer(page);
     await page.goto(SITE);
-    await page.waitForSelector(".hero-canvas canvas", { timeout: 15_000 });
+
+    await page.locator(".hero-video").waitFor({ state: "attached" });
+    // Wait for the inline script to evaluate and pause the video.
     await page.waitForFunction(
-      () =>
-        document.querySelector(".hero-poster")?.hasAttribute("hidden") === true,
-      { timeout: 15_000 },
+      () => {
+        const v = document.querySelector<HTMLVideoElement>(".hero-video");
+        return v !== null && v.paused;
+      },
+      { timeout: 5000 },
     );
 
-    const first = await readFrameStats(page);
-    await page.waitForTimeout(800);
-    const second = await readFrameStats(page);
-    // Same static phase across two samples (no continuous animation).
-    expect(Math.abs(first.glyphRatio - second.glyphRatio)).toBeLessThan(0.005);
-    expect(first.blackRatio).toBeLessThan(0.05);
-    expect(first.glyphRatio).toBeGreaterThan(0.03);
+    const paused = await page.evaluate(() => {
+      const v = document.querySelector<HTMLVideoElement>(".hero-video");
+      return v?.paused ?? false;
+    });
+    expect(paused).toBe(true);
 
     await page.screenshot({ path: join(ARTIFACT_DIR, "reduced-motion.png") });
     expect(errors).toEqual([]);
     await context.close();
+  });
+
+  test("1280×800: no horizontal overflow at standard laptop width", async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(SITE);
+
+    const scrollWidth = await page.evaluate(
+      () => document.documentElement.scrollWidth,
+    );
+    expect(scrollWidth).toBeLessThanOrEqual(1280);
+
+    await page.screenshot({ path: join(ARTIFACT_DIR, "laptop-1280x800.png") });
+    expect(errors).toEqual([]);
   });
 });

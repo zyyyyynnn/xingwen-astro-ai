@@ -1,5 +1,5 @@
 ---
-import { BrandMark } from "@xingwen/ui";
+import BrandMark from "../components/BrandMark.astro";
 
 import "../styles/global.css";
 
@@ -12,9 +12,20 @@ interface Props {
    * Other pages keep the default behavior.
    */
   masthead?: "default" | "hidden";
+  /**
+   * "default" renders the site footer; "hidden" omits it so the homepage
+   * can present a compact editorial frame without a large footer pushing
+   * the visual region above the fold.
+   */
+  footer?: "default" | "hidden";
 }
 
-const { title, description, masthead = "default" } = Astro.props;
+const {
+  title,
+  description,
+  masthead = "default",
+  footer = "default",
+} = Astro.props;
 ---
 
 <!doctype html>
@@ -38,7 +49,11 @@ const { title, description, masthead = "default" } = Astro.props;
       <main class="site-main">
         <slot />
       </main>
-      <footer class="site-footer">星文智析 · 天文科研智能工作平台</footer>
+      {
+        footer === "default" && (
+          <footer class="site-footer">星文智析 · 天文科研智能工作平台</footer>
+        )
+      }
     </div>
   </body>
 </html>

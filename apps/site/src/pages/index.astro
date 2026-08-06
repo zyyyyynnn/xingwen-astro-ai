@@ -1,31 +1,13 @@
 ---
-import { createPoster, createResearchSceneModel } from "@xingwen/visual-engine";
-import { VISUAL_TOKEN_FALLBACK } from "@xingwen/design-tokens";
-import { BrandMark } from "@xingwen/ui";
+import BrandMark from "../components/BrandMark.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { HeroVisual } from "../components/HeroVisual.tsx";
 import { resolvePublicHttpUrl } from "../lib/public-url";
 
-const tourUrl = resolvePublicHttpUrl(
-  import.meta.env.PUBLIC_WORKSPACE_URL,
-  "http://localhost:5173/tour",
-);
 const workspaceUrl = resolvePublicHttpUrl(
   import.meta.env.PUBLIC_WORKSPACE_URL,
   "http://localhost:5173/workspace",
 );
 const description = "面向天文科研证据整合与可复现分析的智能工作平台。";
-
-const seed = 42;
-const model = createResearchSceneModel(seed);
-const poster = createPoster(model, {
-  paper: VISUAL_TOKEN_FALLBACK.canvas,
-  ink: VISUAL_TOKEN_FALLBACK.celestialInk,
-  deep: VISUAL_TOKEN_FALLBACK.celestialDeep,
-  soft: VISUAL_TOKEN_FALLBACK.celestialSoft,
-  particle: VISUAL_TOKEN_FALLBACK.particle,
-  anchor: VISUAL_TOKEN_FALLBACK.celestialInk,
-});
 
 const notes = [
   "整合系外行星候选体与宿主恒星的关键参数，建立结构化研究目标。",
@@ -39,20 +21,31 @@ const notes = [
   title="星文智析｜天文科研智能工作平台"
   description={description}
   masthead="hidden"
+  footer="hidden"
 >
   <div class="home-frame">
     <div class="home-frame__topbar">
       <BrandMark showSubtitle={false} />
     </div>
     <section class="hero" aria-label="品牌主视觉">
-      <HeroVisual client:visible seed={seed} poster={poster} />
+      <video
+        class="hero-video"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="metadata"
+        aria-hidden="true"
+        data-hero-video
+      >
+        <source src="/visual/homepage-ascii.mp4" type="video/mp4" />
+      </video>
     </section>
     <section class="home-content" aria-labelledby="hero-title">
       <div class="home-content__row">
         <div class="home-content__main">
           <div class="cta-row">
-            <a class="cta cta--primary" href={tourUrl}>开始演示</a>
-            <a class="cta cta--secondary" href={workspaceUrl}>进入工作台</a>
+            <a class="cta cta--primary" href={workspaceUrl}>进入工作台</a>
           </div>
           <h1 id="hero-title">
             让每一颗系外行星候选体<br />都可溯源
@@ -65,4 +58,29 @@ const notes = [
       </ol>
     </section>
   </div>
+  <script>
+    const video = document.querySelector<HTMLVideoElement>("[data-hero-video]");
+    if (video) {
+      const motionMedia = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const updateMotion = () => {
+        if (motionMedia.matches) {
+          video.pause();
+        } else {
+          void video.play().catch(() => {
+            /* autoplay may be blocked; the video element stays visible */
+          });
+        }
+      };
+      updateMotion();
+      motionMedia.addEventListener("change", updateMotion);
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          video.pause();
+        } else if (!motionMedia.matches) {
+          void video.play().catch(() => {});
+        }
+      });
+    }
+  </script>
 </BaseLayout>

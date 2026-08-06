@@ -75,7 +75,7 @@ a {
 }
 
 /* Hero / visual region — large upper area on the paper sheet. Background
-   is the canvas token so the WebGL clear color and Poster match the page. */
+   is the canvas token so the MP4 video and fallback match the page. */
 .hero {
   position: relative;
   width: 100%;
@@ -85,29 +85,13 @@ a {
   border-bottom: 1px solid var(--color-border);
 }
 
-.hero-visual {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-/* Poster sits on top (z-index 2) until the WebGL first frame is ready,
-   so no partially-initialized canvas is ever visible. */
-.hero-poster {
+.hero-video {
   position: absolute;
   inset: 0;
-  z-index: 2;
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.hero-canvas {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
+  object-position: center;
 }
 
 /* ── Content region ──────────────────────────────────────────────────
@@ -174,16 +158,6 @@ a {
 
 .cta--primary:active {
   background: var(--raw-bluegray-900);
-}
-
-.cta--secondary {
-  background: transparent;
-  border-color: var(--color-border-strong);
-  color: var(--color-ink-primary);
-}
-
-.cta--secondary:hover {
-  background: var(--color-surface-hover);
 }
 
 .home-content__main h1 {

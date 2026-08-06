@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useRouteContext } from "@tanstack/react-router";
 import type { RepositorySet } from "@xingwen/data-access";
-import { GUIDED_TOUR_STAGES } from "@xingwen/workspace-core";
+import {
+  GUIDED_TOUR_STAGES,
+  type GuidedTourStage,
+} from "@xingwen/workspace-core";
+import { BrandMark } from "@xingwen/ui";
 
-import { ResearchShell } from "../components/research-shell";
+import { MissionSpine } from "../components/mission-spine";
+import { ResearchComposer } from "../components/research-composer";
+import { WorkspaceShell } from "../components/workspace-shell";
 import { useControllerState } from "../hooks/use-controller-state";
 import { usePrivateSession } from "../hooks/use-private-session";
 
@@ -49,6 +55,12 @@ function toEntityId(value: string | undefined): EntityId | null {
 
 function stageLabel(stage: string | null): string {
   return stage ? stage.toUpperCase() : "未开始";
+}
+
+function tourStageToPhase(stage: string | null): number {
+  if (!stage) return 0;
+  const index = GUIDED_TOUR_STAGES.indexOf(stage as GuidedTourStage);
+  return index === -1 ? 0 : index;
 }
 
 export function TourPage({
@@ -282,45 +294,108 @@ export function TourPage({
           : runtime.adapterKind === "fixture"
             ? "Fixture / Demo Replay"
             : "HTTP 适配器";
-  const navigation = {
-    projectId: projectId ? String(projectId) : undefined,
-    draftId: draftId ? String(draftId) : undefined,
-    contractId: contract ? String(contract.id) : undefined,
-    runId: run ? String(run.id) : runId ? String(runId) : undefined,
-  };
   const workspaceSearch = {
-    ...(navigation.projectId ? { projectId: navigation.projectId } : {}),
-    ...(navigation.draftId ? { draftId: navigation.draftId } : {}),
-    ...(navigation.contractId ? { contractId: navigation.contractId } : {}),
-    ...(navigation.runId ? { runId: navigation.runId } : {}),
+    ...(projectId ? { projectId: String(projectId) } : {}),
+    ...(draftId ? { draftId: String(draftId) } : {}),
+    ...(contract ? { contractId: String(contract.id) } : {}),
+    ...(run
+      ? { runId: String(run.id) }
+      : runId
+        ? { runId: String(runId) }
+        : {}),
+  };
+
+  const handleComposerSubmit = () => {
+    sendTourEvent({ type: "next" });
   };
 
   return (
-    <ResearchShell
-      status={sessionLabel}
-      navigation={navigation}
-      atlas={
-        <>
-          <p className="region-label">Research Contract</p>
-          <p className="region-placeholder">
-            {contract ? `已确认 v${contract.version}` : "等待确认"}
-          </p>
-          <p className="region-label">Run</p>
-          <p className="region-placeholder">
-            {run ? `${run.executionMode} / ${run.status}` : "尚未启动"}
-          </p>
-        </>
-      }
-      observatory={
-        <>
-          <p className="region-label">Guided Stage</p>
+    <WorkspaceShell
+      navigator={
+        <nav aria-label="研究导航">
+          <p className="region-label">引导阶段</p>
           <p className="region-placeholder">{stageLabel(tourState.stage)}</p>
           <p className="region-placeholder">
             {tourState.visited.length} 个阶段已访问
           </p>
+        </nav>
+      }
+      missionHeader={
+        <header className="mission-header" aria-label="研究使命">
+          <h2 className="mission-header__title">
+            研究引导：{data?.project?.name ?? "未选择项目"}
+          </h2>
+          <p className="mission-header__goal">
+            研究目标：
+            {contract?.researchGoal ??
+              draft?.contract.researchGoal ??
+              "尚无 Contract"}
+          </p>
+          <div className="mission-header__status-row">
+            <span
+              className="mission-header__status"
+              data-run-status={run?.status ?? "idle"}
+            >
+              {stageLabel(tourState.stage)}
+              {tourState.status === "paused" ? "（已暂停）" : ""}
+            </span>
+            {run ? (
+              <span className="mission-header__progress">
+                {run.executionMode} / {run.status} / {run.progress}%
+              </span>
+            ) : null}
+          </div>
+        </header>
+      }
+      missionSpine={
+        <MissionSpine
+          currentPhase={tourStageToPhase(tourState.stage)}
+          onPhaseClick={(phase) => {
+            const stage = GUIDED_TOUR_STAGES[phase];
+            if (stage) sendTourEvent({ type: "next" });
+          }}
+        />
+      }
+      contextRail={
+        <div className="research-context-rail">
+          <div className="research-context-rail__header">
+            <span className="region-label">引导上下文</span>
+          </div>
+          <p className="region-placeholder">
+            Contract: {contract ? `已确认 v${contract.version}` : "等待确认"}
+          </p>
+          <p className="region-placeholder">
+            Run: {run ? `${run.executionMode} / ${run.status}` : "尚未启动"}
+          </p>
+          <p className="region-placeholder">{sessionLabel}</p>
+        </div>
+      }
+      composer={
+        <ResearchComposer
+          mode="docked"
+          onSubmit={handleComposerSubmit}
+          disabled={
+            sessionState.status !== "ready" || tourState.status !== "active"
+          }
+        />
+      }
+      headerBrand={
+        <>
+          <BrandMark />
+          <nav aria-label="主要导航">
+            <Link to="/" activeOptions={{ exact: true }}>
+              入口
+            </Link>
+            <Link to="/tour" search={workspaceSearch}>
+              引导
+            </Link>
+            <Link to="/workspace" search={workspaceSearch}>
+              工作区
+            </Link>
+          </nav>
         </>
       }
-      console={
+      headerActions={
         <div className="console-actions">
           <button
             type="button"
@@ -351,10 +426,7 @@ export function TourPage({
         aria-labelledby="route-title"
       >
         <h1 id="route-title">研究引导</h1>
-        <p className="status-line">
-          阶段：{stageLabel(tourState.stage)}
-          {tourState.status === "paused" ? "（已暂停）" : ""}
-        </p>
+        <p className="status-line">阶段：{stageLabel(tourState.stage)}</p>
         <ol className="event-list" aria-label="引导阶段">
           {GUIDED_TOUR_STAGES.map((stage) => {
             const status =
@@ -582,6 +654,6 @@ export function TourPage({
           <p role="alert">当前操作未完成，请检查上下文后重试。</p>
         )}
       </section>
-    </ResearchShell>
+    </WorkspaceShell>
   );
 }

@@ -1,0 +1,15 @@
+---
+interface Props {
+  showSubtitle?: boolean;
+}
+const { showSubtitle = false } = Astro.props;
+---
+
+<span class="xw-brand-mark">
+  <span class="xw-brand-mark__title">星文智析</span>
+  {
+    showSubtitle && (
+      <span class="xw-brand-mark__subtitle">XINGWEN ASTRO AI</span>
+    )
+  }
+</span>

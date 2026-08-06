@@ -1,17 +1,42 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useRouteContext } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import type { RepositorySet } from "@xingwen/data-access";
-import type { PaperCandidateReview } from "@xingwen/domain";
-import type { WorkspaceState } from "@xingwen/workspace-core";
+import type { PaperCandidateReview, RunStatus } from "@xingwen/domain";
+import { BrandMark } from "@xingwen/ui";
+import {
+  getContextRailMode,
+  getMainStageView,
+  type WorkspaceState,
+} from "@xingwen/workspace-core";
 
 import { ArtifactCanvas } from "../components/artifact-canvas";
+import { MissionHeader } from "../components/mission-header";
+import { MissionSpine, phaseFromRunStatus } from "../components/mission-spine";
 import {
   evidenceSummary,
   ProvenanceObservatory,
 } from "../components/provenance-observatory";
-import { ResearchShell } from "../components/research-shell";
+import { ResearchCommandMenu } from "../components/research-command-menu";
+import type { CommandGroup } from "../components/research-command-menu";
+import {
+  ResearchComposer,
+  type AttachedObject,
+} from "../components/research-composer";
+import {
+  ResearchContextRail,
+  type ContextHistoryEntry,
+  type ContextRailScene,
+} from "../components/research-context-rail";
+import type {
+  NavigatorProject,
+  ProjectUserStatus,
+} from "../components/research-navigator";
+import { ResearchNavigator } from "../components/research-navigator";
+import { WorkspaceShell } from "../components/workspace-shell";
 import { useControllerState } from "../hooks/use-controller-state";
 import { usePrivateSession } from "../hooks/use-private-session";
+import { useWorkspaceSessionState } from "../hooks/use-workspace-session-state";
+import { useProjectsQuery } from "../queries/workspace-queries";
 
 type EntityId = Parameters<RepositorySet["projects"]["getById"]>[0];
 type Project = NonNullable<
@@ -118,6 +143,47 @@ function belongsToProject(state: WorkspaceState, projectId: EntityId): boolean {
   return state.status !== "idle" && state.projectId === projectId;
 }
 
+function deriveUserStatus(
+  project: Project,
+  runStatus: RunStatus | null,
+): ProjectUserStatus {
+  if (!project.latestRunId) return "draft";
+  if (!runStatus) return "draft";
+  switch (runStatus) {
+    case "completed":
+      return "completed";
+    case "failed":
+    case "cancelled":
+      return "failed";
+    case "waiting_for_input":
+      return "needs_review";
+    default:
+      return "running";
+  }
+}
+
+function mapProjectToNavigator(
+  project: Project,
+  activeRunStatus: RunStatus | null,
+): NavigatorProject {
+  return {
+    id: String(project.id),
+    name: project.name,
+    userStatus: deriveUserStatus(project, activeRunStatus),
+    updatedAt: project.updatedAt,
+    latestRunId: project.latestRunId ? String(project.latestRunId) : null,
+  };
+}
+
+const PHASE_TO_VIEW: readonly ContextRailScene[] = [
+  "brief",
+  "brief",
+  "active",
+  "active",
+  "source_review",
+  "completion",
+];
+
 export function WorkspacePage({
   projectId: projectIdProp,
   draftId: draftIdProp,
@@ -125,8 +191,12 @@ export function WorkspacePage({
   runId: runIdProp,
 }: WorkspacePageProps) {
   const runtime = useRouteContext({ from: "/workspace" });
+  const navigate = useNavigate();
   const sessionState = usePrivateSession(runtime);
   const controllerState = useControllerState(runtime.workspaceController);
+  const sessionControllerState = useWorkspaceSessionState(
+    runtime.workspaceController,
+  );
   const fixtureContext =
     runtime.adapterKind === "fixture" ? runtime.bootstrap : null;
   const projectId =
@@ -147,16 +217,33 @@ export function WorkspacePage({
   const [selectionError, setSelectionError] = useState(false);
   const [eventRecoveryError, setEventRecoveryError] = useState(false);
   const [eventRecoveryPending, setEventRecoveryPending] = useState(false);
-  // Candidate review context; cleared whenever the Artifact/Run changes so a
-  // stale candidate never survives into an unrelated version.
   const [selectedCandidate, setSelectedCandidate] =
     useState<PaperCandidateReview | null>(null);
+  const [composerMode, setComposerMode] = useState<"docked" | "focus">(
+    "docked",
+  );
+  const [attachedObjects, setAttachedObjects] = useState<AttachedObject[]>([]);
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false);
+  const [pinnedProjectIds, setPinnedProjectIds] = useState<readonly string[]>(
+    [],
+  );
+  const [recentProjectIds, setRecentProjectIds] = useState<readonly string[]>(
+    [],
+  );
+  const [lastTrackedProjectId, setLastTrackedProjectId] =
+    useState<EntityId | null>(null);
   const loadSequence = useRef(0);
   const selectionSequence = useRef(0);
   const recoverySequence = useRef(0);
   const shareRequestPending = useRef(false);
   const selectedRunId =
     selectedRun?.projectId === projectId ? selectedRun.runId : null;
+
+  const projectsQuery = useProjectsQuery(runtime.repositories);
+  const projects = useMemo(
+    () => projectsQuery.data ?? [],
+    [projectsQuery.data],
+  );
 
   const loadWorkspace = useCallback(async () => {
     const request = ++loadSequence.current;
@@ -292,65 +379,93 @@ export function WorkspacePage({
     void Promise.resolve().then(loadWorkspace);
   }, [loadWorkspace]);
 
+  if (
+    projectId &&
+    sessionState.status === "ready" &&
+    lastTrackedProjectId !== projectId
+  ) {
+    setLastTrackedProjectId(projectId);
+    setRecentProjectIds((prev) => {
+      const id = String(projectId);
+      const filtered = prev.filter((p) => p !== id);
+      return [id, ...filtered].slice(0, 8);
+    });
+  }
+
   const data = loadState.status === "ready" ? loadState.data : null;
 
-  const selectRun = async (run: ResearchRun) => {
-    const selection = ++selectionSequence.current;
-    try {
-      await runtime.workspaceController.setActiveRun(run.id);
-      if (selection !== selectionSequence.current) return;
-      if (!data) return;
-      setSelectedCandidate(null);
-      setSelectedRun({ projectId: data.project.id, runId: run.id });
-      setSelectionError(false);
-    } catch {
-      if (selection === selectionSequence.current) setSelectionError(true);
-    }
-  };
+  const navigatorProjects = useMemo<readonly NavigatorProject[]>(() => {
+    return projects.map((project) =>
+      mapProjectToNavigator(
+        project,
+        project.id === data?.project.id ? (data.run?.status ?? null) : null,
+      ),
+    );
+  }, [projects, data]);
 
-  const selectArtifact = async (artifact: Artifact) => {
-    const selection = ++selectionSequence.current;
-    try {
-      const version = artifact.latestVersionId
-        ? await runtime.repositories.artifacts.getVersion(
-            artifact.latestVersionId,
-          )
-        : null;
-      if (selection !== selectionSequence.current) return;
-      const evidence = version?.evidenceIds[0]
-        ? await runtime.repositories.artifacts.getEvidence(
-            version.evidenceIds[0],
-          )
-        : null;
-      if (selection !== selectionSequence.current) return;
-      if (version) {
-        await runtime.workspaceController.setPanelSlot({
-          slotId: "primary",
-          panelType: "observatory",
-          artifactVersionId: version.id,
-          evidenceId: evidence?.id ?? null,
-        });
+  const selectRun = useCallback(
+    async (run: ResearchRun) => {
+      const selection = ++selectionSequence.current;
+      try {
+        await runtime.workspaceController.setActiveRun(run.id);
         if (selection !== selectionSequence.current) return;
+        if (!data) return;
+        setSelectedCandidate(null);
+        setSelectedRun({ projectId: data.project.id, runId: run.id });
+        setSelectionError(false);
+      } catch {
+        if (selection === selectionSequence.current) setSelectionError(true);
       }
-      setLoadState((current) =>
-        current.status === "ready"
-          ? {
-              status: "ready",
-              data: {
-                ...current.data,
-                selectedArtifact: artifact,
-                selectedVersion: version,
-                selectedEvidence: evidence,
-              },
-            }
-          : current,
-      );
-      setSelectedCandidate(null);
-      setSelectionError(false);
-    } catch {
-      if (selection === selectionSequence.current) setSelectionError(true);
-    }
-  };
+    },
+    [data, runtime.workspaceController],
+  );
+
+  const selectArtifact = useCallback(
+    async (artifact: Artifact) => {
+      const selection = ++selectionSequence.current;
+      try {
+        const version = artifact.latestVersionId
+          ? await runtime.repositories.artifacts.getVersion(
+              artifact.latestVersionId,
+            )
+          : null;
+        if (selection !== selectionSequence.current) return;
+        const evidence = version?.evidenceIds[0]
+          ? await runtime.repositories.artifacts.getEvidence(
+              version.evidenceIds[0],
+            )
+          : null;
+        if (selection !== selectionSequence.current) return;
+        if (version) {
+          await runtime.workspaceController.setPanelSlot({
+            slotId: "primary",
+            panelType: "observatory",
+            artifactVersionId: version.id,
+            evidenceId: evidence?.id ?? null,
+          });
+          if (selection !== selectionSequence.current) return;
+        }
+        setLoadState((current) =>
+          current.status === "ready"
+            ? {
+                status: "ready",
+                data: {
+                  ...current.data,
+                  selectedArtifact: artifact,
+                  selectedVersion: version,
+                  selectedEvidence: evidence,
+                },
+              }
+            : current,
+        );
+        setSelectedCandidate(null);
+        setSelectionError(false);
+      } catch {
+        if (selection === selectionSequence.current) setSelectionError(true);
+      }
+    },
+    [runtime.repositories.artifacts, runtime.workspaceController],
+  );
 
   const selectCandidate = (candidate: PaperCandidateReview) => {
     setSelectedCandidate(candidate);
@@ -495,6 +610,245 @@ export function WorkspacePage({
     }
   };
 
+  const handleSelectProject = (project: NavigatorProject) => {
+    void navigate({
+      to: "/workspace",
+      search: { projectId: project.id },
+    });
+  };
+
+  const handleCreateProject = () => {
+    void navigate({ to: "/", search: {} });
+  };
+
+  const handleTogglePin = (projectId: string) => {
+    setPinnedProjectIds((prev) =>
+      prev.includes(projectId)
+        ? prev.filter((id) => id !== projectId)
+        : [...prev, projectId],
+    );
+  };
+
+  const handleContextRailModeChange = (
+    mode: "hidden" | "summary" | "detail",
+  ) => {
+    void runtime.workspaceController.setContextRailMode(mode).catch(() => {});
+  };
+
+  const handleContextCardClick = (cardType: string) => {
+    void runtime.workspaceController
+      .setActiveContextPanel(cardType)
+      .catch(() => {});
+  };
+
+  const handleComposerSubmit = (
+    input: string,
+    objects?: readonly AttachedObject[],
+  ) => {
+    if (!data?.run) return;
+    const runId = data.run.id;
+    const runRef = {
+      artifactVersionId: null,
+      objectType: "run",
+      objectId: runId,
+    };
+    runtime.workspaceController.pushContextHistory(runRef);
+    for (const object of objects ?? []) {
+      runtime.workspaceController.pushContextHistory({
+        artifactVersionId:
+          object.kind === "artifact" ? (object.id as EntityId) : null,
+        objectType: object.kind,
+        objectId: object.id as EntityId,
+      });
+    }
+    setLoadState((current) =>
+      current.status === "ready" && current.data.run?.id === runId
+        ? {
+            status: "ready",
+            data: {
+              ...current.data,
+              events: [
+                ...current.data.events,
+                {
+                  runId,
+                  sequence: current.data.events.length + 1,
+                  eventType: "user_input" as EntityId,
+                  stepKey: null,
+                  progress: null,
+                  publicMessage: objects?.length
+                    ? `${input}（附加 ${objects.length} 个对象）`
+                    : input,
+                  artifactVersionIds:
+                    objects
+                      ?.filter((object) => object.kind === "artifact")
+                      .map((object) => object.id as EntityId) ?? [],
+                  occurredAt: new Date().toISOString(),
+                },
+              ],
+            },
+          }
+        : current,
+    );
+    setAttachedObjects([]);
+  };
+
+  const handleAttachObject = (object: AttachedObject) => {
+    setAttachedObjects((prev) =>
+      prev.some((item) => item.id === object.id) ? prev : [...prev, object],
+    );
+  };
+
+  const handleDetachObject = (id: string) => {
+    setAttachedObjects((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handlePhaseClick = (phase: number) => {
+    const view = PHASE_TO_VIEW[phase] ?? "active";
+    void runtime.workspaceController.setMainStageView(view).catch(() => {});
+  };
+
+  const handleMissionAction = () => {
+    if (!data?.run) {
+      void navigate({
+        to: "/tour",
+        search: projectId ? { projectId: String(projectId) } : {},
+      });
+      return;
+    }
+    const status = data.run.status;
+    if (status === "completed") {
+      void runtime.workspaceController
+        .setMainStageView("completion")
+        .catch(() => {});
+    } else if (status === "waiting_for_input") {
+      void runtime.workspaceController
+        .setMainStageView("source_review")
+        .catch(() => {});
+    } else if (status === "failed" || status === "cancelled") {
+      void navigate({
+        to: "/tour",
+        search: { projectId: String(data.project.id) },
+      });
+    } else {
+      void runtime.workspaceController
+        .setMainStageView("active")
+        .catch(() => {});
+    }
+  };
+
+  const handleRailWidthChange = (width: number) => {
+    runtime.workspaceController.setRailWidth(width);
+  };
+
+  const handleClearHistory = () => {
+    runtime.workspaceController.clearContextHistory();
+  };
+
+  const commandGroups = useMemo<readonly CommandGroup[]>(() => {
+    const groups: CommandGroup[] = [];
+    groups.push({
+      label: "导航",
+      items: [
+        {
+          id: "nav-home",
+          label: "返回入口",
+          onSelect: () => void navigate({ to: "/", search: {} }),
+        },
+        {
+          id: "nav-tour",
+          label: "进入引导",
+          onSelect: () =>
+            void navigate({
+              to: "/tour",
+              search: projectId ? { projectId: String(projectId) } : {},
+            }),
+        },
+        {
+          id: "nav-workspace",
+          label: "进入工作区",
+          onSelect: () =>
+            void navigate({
+              to: "/workspace",
+              search: projectId ? { projectId: String(projectId) } : {},
+            }),
+        },
+      ],
+    });
+    if (data?.runs.length) {
+      groups.push({
+        label: "切换 Run",
+        items: data.runs.map((run) => ({
+          id: `run-${run.id}`,
+          label: `${run.id} / ${run.executionMode} / ${run.status}`,
+          onSelect: () => void selectRun(run),
+        })),
+      });
+    }
+    if (data?.artifacts.length) {
+      groups.push({
+        label: "选择产物",
+        items: data.artifacts.map((artifact) => ({
+          id: `artifact-${artifact.id}`,
+          label: artifact.title,
+          onSelect: () => void selectArtifact(artifact),
+        })),
+      });
+    }
+    groups.push({
+      label: "视图",
+      items: [
+        {
+          id: "view-brief",
+          label: "概览",
+          onSelect: () =>
+            void runtime.workspaceController
+              .setMainStageView("brief")
+              .catch(() => {}),
+        },
+        {
+          id: "view-active",
+          label: "活动研究",
+          onSelect: () =>
+            void runtime.workspaceController
+              .setMainStageView("active")
+              .catch(() => {}),
+        },
+        {
+          id: "view-artifact-review",
+          label: "产物复核",
+          onSelect: () =>
+            void runtime.workspaceController
+              .setMainStageView("artifact_review")
+              .catch(() => {}),
+        },
+        {
+          id: "view-source-review",
+          label: "来源复核",
+          onSelect: () =>
+            void runtime.workspaceController
+              .setMainStageView("source_review")
+              .catch(() => {}),
+        },
+        {
+          id: "view-completion",
+          label: "完成总结",
+          onSelect: () =>
+            void runtime.workspaceController
+              .setMainStageView("completion")
+              .catch(() => {}),
+        },
+      ],
+    });
+    return groups;
+  }, [
+    data,
+    navigate,
+    projectId,
+    runtime.workspaceController,
+    selectArtifact,
+    selectRun,
+  ]);
+
   const sessionLabel =
     sessionState.status === "loading"
       ? "正在建立会话"
@@ -547,78 +901,144 @@ export function WorkspacePage({
         ? String(routeRunId)
         : undefined,
   };
+  const contextualSearch = {
+    ...(navigation.projectId ? { projectId: navigation.projectId } : {}),
+    ...(navigation.draftId ? { draftId: navigation.draftId } : {}),
+    ...(navigation.contractId ? { contractId: navigation.contractId } : {}),
+    ...(navigation.runId ? { runId: navigation.runId } : {}),
+  };
+  const currentArtifactForRail =
+    data?.selectedArtifact && data?.selectedVersion
+      ? {
+          title: data.selectedArtifact.title,
+          kind: data.selectedArtifact.kind,
+          version: data.selectedVersion.versionNumber,
+          status: data.run?.status ?? "未选择",
+        }
+      : null;
+  const attachableCandidates = useMemo<readonly AttachedObject[]>(() => {
+    const candidates: AttachedObject[] = [];
+    if (data?.selectedArtifact && data?.selectedVersion) {
+      candidates.push({
+        id: String(data.selectedVersion.id),
+        label: `${data.selectedArtifact.title} v${data.selectedVersion.versionNumber}`,
+        kind: "artifact",
+      });
+    }
+    if (data?.selectedEvidence) {
+      candidates.push({
+        id: String(data.selectedEvidence.id),
+        label: `Evidence ${data.selectedEvidence.id}`,
+        kind: "evidence",
+      });
+    }
+    return candidates;
+  }, [data]);
+  const mainStageView = getMainStageView(controllerState);
+  const railScene = mainStageView as ContextRailScene;
+  const missionContext = data?.contract
+    ? {
+        researchGoal: data.contract.researchGoal,
+        requestedFields: data.contract.requestedFields,
+      }
+    : null;
+  const contextHistoryEntries: readonly ContextHistoryEntry[] =
+    sessionControllerState.contextHistory.map((ref, index) => ({
+      id: `${ref.objectType}-${ref.objectId}-${index}`,
+      label: String(ref.objectId),
+      kind: ref.objectType,
+    }));
+  const railWidth = sessionControllerState.railWidth ?? undefined;
 
   return (
-    <ResearchShell
-      status={railStatus}
-      navigation={navigation}
-      atlas={
-        data ? (
-          <>
-            <p className="region-label">Project</p>
-            <p className="region-placeholder">{data.project.name}</p>
-            <p className="region-label">Run</p>
-            <p className="region-placeholder">
-              {data.run
-                ? `${data.run.executionMode} / ${data.run.status}`
-                : "未选择"}
-            </p>
-            {data.runs.length > 0 && (
-              <label className="run-control">
-                选择 Run
-                <select
-                  value={data.run?.id ?? ""}
-                  onChange={(event) => {
-                    const nextRun = data.runs.find(
-                      (candidate) => candidate.id === event.target.value,
-                    );
-                    if (nextRun) void selectRun(nextRun);
-                  }}
-                  disabled={!canAdjustWorkspace}
-                >
-                  {data.runs.map((candidate) => (
-                    <option key={candidate.id} value={candidate.id}>
-                      {candidate.id} / {candidate.executionMode} /{" "}
-                      {candidate.status}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <p className="region-label">Contract</p>
-            <p className="region-placeholder">
-              {data.contract
-                ? `${data.contract.researchGoal} / v${data.contract.version}`
-                : "未确认"}
-            </p>
-            <p className="region-label">Artifacts</p>
-            {data.artifacts.map((artifact) => (
-              <button
-                key={artifact.id}
-                type="button"
-                className="atlas-item"
-                onClick={() => void selectArtifact(artifact)}
-                disabled={!canAdjustWorkspace}
-              >
-                {artifact.title}
-              </button>
-            ))}
-          </>
-        ) : (
-          <p className="region-placeholder">等待 Project 上下文。</p>
-        )
-      }
-      observatory={
-        <ProvenanceObservatory
-          version={data?.selectedVersion ?? null}
-          evidence={data?.selectedEvidence ?? null}
-          candidate={selectedCandidate}
-          canAdjust={canAdjustWorkspace}
-          onSelectEvidence={(evidence) => void selectEvidence(evidence)}
+    <WorkspaceShell
+      navigator={
+        <ResearchNavigator
+          projects={navigatorProjects}
+          activeProjectId={projectId ? String(projectId) : null}
+          pinnedProjectIds={pinnedProjectIds}
+          recentProjectIds={recentProjectIds}
+          onSelectProject={handleSelectProject}
+          onCreateProject={handleCreateProject}
+          onTogglePin={handleTogglePin}
+          disabled={sessionState.status !== "ready"}
         />
       }
-      console={
+      missionHeader={
+        <MissionHeader
+          project={data?.project ?? null}
+          contract={data?.contract ?? null}
+          run={data?.run ?? null}
+          onPrimaryAction={handleMissionAction}
+          primaryActionDisabled={!canAdjustWorkspace}
+        />
+      }
+      missionSpine={
+        <MissionSpine
+          currentPhase={phaseFromRunStatus(data?.run?.status ?? null)}
+          onPhaseClick={handlePhaseClick}
+        />
+      }
+      contextRail={
+        <ResearchContextRail
+          mode={getContextRailMode(controllerState)}
+          scene={railScene}
+          pendingReviewCount={
+            data?.events.filter((e) => e.publicMessage.includes("review"))
+              .length
+          }
+          currentArtifact={currentArtifactForRail}
+          missionContext={missionContext}
+          contextHistory={contextHistoryEntries}
+          railWidth={railWidth}
+          onModeChange={handleContextRailModeChange}
+          onCardClick={handleContextCardClick}
+          onClearHistory={handleClearHistory}
+          onRailWidthChange={handleRailWidthChange}
+        />
+      }
+      composer={
+        <ResearchComposer
+          mode={composerMode}
+          onSubmit={handleComposerSubmit}
+          onModeChange={setComposerMode}
+          disabled={!data?.run || sessionState.status !== "ready"}
+          attachedObjects={attachedObjects}
+          attachableCandidates={attachableCandidates}
+          onAttachObject={handleAttachObject}
+          onDetachObject={handleDetachObject}
+        />
+      }
+      headerBrand={
+        <>
+          <BrandMark />
+          <nav aria-label="主要导航">
+            <Link to="/" activeOptions={{ exact: true }}>
+              入口
+            </Link>
+            <Link to="/tour" search={contextualSearch}>
+              引导
+            </Link>
+            <Link to="/workspace" search={contextualSearch}>
+              工作区
+            </Link>
+          </nav>
+        </>
+      }
+      headerBreadcrumb={
+        <span className="rail-status" aria-label="当前状态">
+          {railStatus}
+        </span>
+      }
+      headerActions={
         <div className="console-actions">
+          <button
+            type="button"
+            onClick={() => setCommandMenuOpen(true)}
+            aria-label="打开命令面板"
+          >
+            命令面板 (Ctrl+K)
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -650,6 +1070,11 @@ export function WorkspacePage({
         </div>
       }
     >
+      <ResearchCommandMenu
+        open={commandMenuOpen}
+        onOpenChange={setCommandMenuOpen}
+        groups={commandGroups}
+      />
       <section
         className="route-content workspace-page"
         aria-labelledby="route-title"
@@ -727,31 +1152,66 @@ export function WorkspacePage({
         {eventRecoveryError && <p role="alert">无法恢复运行事件，请重试。</p>}
 
         <label className="layout-control">
-          布局
+          主舞台视图
           <select
-            value={
-              controllerState.status === "ready" ||
-              controllerState.status === "draft" ||
-              controllerState.status === "saving" ||
-              controllerState.status === "error"
-                ? controllerState.draft.layoutPreset
-                : "comparative"
-            }
+            value={mainStageView}
             onChange={(event) =>
               void runtime.workspaceController
-                .setLayoutPreset(event.target.value)
+                .setMainStageView(event.target.value)
                 .catch(() => {})
             }
             disabled={!canAdjustWorkspace}
           >
-            <option value="comparative">对照</option>
-            <option value="focus">聚焦</option>
-            <option value="grid">网格</option>
+            <option value="brief">概览</option>
+            <option value="active">活动</option>
+            <option value="artifact_review">产物复核</option>
+            <option value="source_review">来源复核</option>
+            <option value="completion">完成</option>
           </select>
         </label>
 
         {data && (
           <>
+            {data.runs.length > 0 && (
+              <label className="run-control">
+                选择 Run
+                <select
+                  value={data.run?.id ?? ""}
+                  onChange={(event) => {
+                    const nextRun = data.runs.find(
+                      (candidate) => candidate.id === event.target.value,
+                    );
+                    if (nextRun) void selectRun(nextRun);
+                  }}
+                  disabled={!canAdjustWorkspace}
+                >
+                  {data.runs.map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>
+                      {candidate.id} / {candidate.executionMode} /{" "}
+                      {candidate.status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {data.artifacts.length > 0 && (
+              <details className="region-details" open>
+                <summary>Artifacts</summary>
+                {data.artifacts.map((artifact) => (
+                  <button
+                    key={artifact.id}
+                    type="button"
+                    className="atlas-item"
+                    onClick={() => void selectArtifact(artifact)}
+                    disabled={!canAdjustWorkspace}
+                  >
+                    {artifact.title}
+                  </button>
+                ))}
+              </details>
+            )}
+
             <section className="work-panel" aria-labelledby="contract-title">
               <h2 id="contract-title">Research Contract</h2>
               <p>{data.contract?.researchGoal ?? "尚无已确认 Contract。"}</p>
@@ -816,6 +1276,17 @@ export function WorkspacePage({
               </section>
             )}
 
+            <section className="work-panel" aria-labelledby="provenance-title">
+              <h2 id="provenance-title">Provenance Observatory</h2>
+              <ProvenanceObservatory
+                version={data?.selectedVersion ?? null}
+                evidence={data?.selectedEvidence ?? null}
+                candidate={selectedCandidate}
+                canAdjust={canAdjustWorkspace}
+                onSelectEvidence={(evidence) => void selectEvidence(evidence)}
+              />
+            </section>
+
             <section className="work-panel" aria-labelledby="share-title">
               <h2 id="share-title">Share</h2>
               {shareUrl && (
@@ -850,6 +1321,6 @@ export function WorkspacePage({
           </>
         )}
       </section>
-    </ResearchShell>
+    </WorkspaceShell>
   );
 }

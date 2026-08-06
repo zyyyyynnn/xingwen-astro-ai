@@ -1,20 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import type { RepositorySet } from "@xingwen/data-access";
+import { BrandMark } from "@xingwen/ui";
 
-import { ResearchShell } from "../components/research-shell";
+import { ResearchNavigator } from "../components/research-navigator";
+import type { NavigatorProject } from "../components/research-navigator";
+import { WorkspaceShell } from "../components/workspace-shell";
 import { usePrivateSession } from "../hooks/use-private-session";
+import { useProjectsQuery } from "../queries/workspace-queries";
 import { NEW_DRAFT_CONTRACT_INPUT } from "../research-defaults";
 
 type Project = NonNullable<
   Awaited<ReturnType<RepositorySet["projects"]["getById"]>>
 >;
-
-interface ProjectLoad {
-  readonly attempt: number;
-  readonly projects: readonly Project[] | null;
-  readonly error: boolean;
-}
 
 type ListState =
   | { readonly status: "loading" }
@@ -25,6 +23,16 @@ function newActionKey(scope: string): string {
   return `${scope}-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2, 8)}`;
+}
+
+function mapProjectToNavigator(project: Project): NavigatorProject {
+  return {
+    id: String(project.id),
+    name: project.name,
+    userStatus: "draft",
+    updatedAt: project.updatedAt,
+    latestRunId: project.latestRunId ? String(project.latestRunId) : null,
+  };
 }
 
 /**
@@ -39,52 +47,23 @@ export function EntryPage() {
   const runtime = useRouteContext({ from: "/" });
   const navigate = useNavigate();
   const sessionState = usePrivateSession(runtime);
-  const [load, setLoad] = useState<ProjectLoad | null>(null);
-  const [reloadAttempt, setReloadAttempt] = useState(0);
+  const projectsQuery = useProjectsQuery(runtime.repositories);
   const [projectName, setProjectName] = useState("");
   const [pending, setPending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  // Idempotency keys are stable per logical action and reused across retries
-  // (e.g. after a network timeout) so the server replays instead of creating a
-  // duplicate; they reset only once the action succeeds. Project keys are
-  // keyed by the trimmed name; draft keys by the target project id.
   const projectKeyRef = useRef<{ name: string; key: string } | null>(null);
   const draftKeysRef = useRef<Map<string, string>>(new Map());
 
   const ready = sessionState.status === "ready";
-
-  useEffect(() => {
-    if (!ready) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const page = await runtime.repositories.projects.list();
-        if (!cancelled) {
-          setLoad({
-            attempt: reloadAttempt,
-            projects: page.items,
-            error: false,
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setLoad({ attempt: reloadAttempt, projects: null, error: true });
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, reloadAttempt, runtime.repositories]);
-
-  const current = load?.attempt === reloadAttempt ? load : null;
+  const projects = projectsQuery.data ?? [];
+  const loadError = projectsQuery.isError && !projectsQuery.isLoading;
   const listState: ListState = !ready
     ? { status: "loading" }
-    : current === null
+    : projectsQuery.isLoading
       ? { status: "loading" }
-      : current.error
+      : loadError
         ? { status: "error" }
-        : { status: "ready", projects: current.projects ?? [] };
+        : { status: "ready", projects };
 
   const createProject = useCallback(async () => {
     const name = projectName.trim();
@@ -103,13 +82,13 @@ export function EntryPage() {
       });
       projectKeyRef.current = null;
       setProjectName("");
-      setReloadAttempt((attempt) => attempt + 1);
+      void projectsQuery.refetch();
     } catch {
       setActionError("无法创建 Project，请重试。");
     } finally {
       setPending(false);
     }
-  }, [pending, projectName, ready, runtime.repositories]);
+  }, [pending, projectName, projectsQuery, ready, runtime.repositories]);
 
   const startDraft = useCallback(
     async (project: Project) => {
@@ -144,44 +123,56 @@ export function EntryPage() {
     [navigate, pending, ready, runtime.repositories],
   );
 
-  const projects =
-    listState.status === "ready" ? listState.projects : ([] as const);
+  const navigatorProjects = projects.map(mapProjectToNavigator);
+  const sessionLabel =
+    sessionState.status === "loading"
+      ? "正在建立会话"
+      : sessionState.status === "error"
+        ? "会话不可用"
+        : sessionState.status === "expired"
+          ? "会话已过期"
+          : runtime.adapterKind === "fixture"
+            ? "Fixture / Demo Replay"
+            : "HTTP 适配器";
 
   return (
-    <ResearchShell
-      status={
-        sessionState.status === "loading"
-          ? "正在建立会话"
-          : sessionState.status === "error"
-            ? "会话不可用"
-            : sessionState.status === "expired"
-              ? "会话已过期"
-              : runtime.adapterKind === "fixture"
-                ? "Fixture / Demo Replay"
-                : "HTTP 适配器"
+    <WorkspaceShell
+      navigator={
+        <ResearchNavigator
+          projects={navigatorProjects}
+          activeProjectId={null}
+          pinnedProjectIds={[]}
+          recentProjectIds={[]}
+          onSelectProject={(project) =>
+            void navigate({
+              to: "/workspace",
+              search: { projectId: project.id },
+            })
+          }
+          onCreateProject={() => undefined}
+          disabled={!ready}
+        />
       }
-      atlas={
-        <>
-          <p className="region-label">Projects</p>
-          <p className="region-placeholder">
-            {listState.status === "ready"
-              ? `${String(projects.length)} 个 Project`
-              : "读取中"}
+      missionHeader={
+        <header className="mission-header" aria-label="研究使命">
+          <h2 className="mission-header__title">科研工作台入口</h2>
+          <p className="mission-header__goal">
+            创建研究 Project，为其建立 Contract Draft，再进入引导完成确认。
           </p>
-        </>
+        </header>
       }
-      observatory={
-        <p className="region-placeholder">创建或选择 Project 后进入引导。</p>
+      contextRail={
+        <div className="research-context-rail">
+          <div className="research-context-rail__header">
+            <span className="region-label">会话</span>
+          </div>
+          <p className="region-placeholder">{sessionLabel}</p>
+        </div>
       }
-      console={
-        <p className="region-placeholder">
-          在入口创建 Project 与 Draft，再进入引导确认 Contract。
-        </p>
-      }
+      headerBrand={<BrandMark showSubtitle />}
     >
       <section className="route-content" aria-labelledby="route-title">
         <h1 id="route-title">科研工作台入口</h1>
-        <p>创建研究 Project，为其建立 Contract Draft，再进入引导完成确认。</p>
 
         {sessionState.status === "loading" && <p>正在准备私有研究上下文。</p>}
         {(sessionState.status === "error" ||
@@ -234,18 +225,19 @@ export function EntryPage() {
                 <p>无法读取 Project 列表。</p>
                 <button
                   type="button"
-                  onClick={() => setReloadAttempt((attempt) => attempt + 1)}
+                  onClick={() => void projectsQuery.refetch()}
                 >
                   重新读取
                 </button>
               </div>
             )}
-            {listState.status === "ready" && projects.length === 0 && (
-              <p>尚无 Project，请先在上方创建。</p>
-            )}
-            {listState.status === "ready" && projects.length > 0 && (
+            {listState.status === "ready" &&
+              listState.projects.length === 0 && (
+                <p>尚无 Project，请先在上方创建。</p>
+              )}
+            {listState.status === "ready" && listState.projects.length > 0 && (
               <ul className="event-list" aria-label="Project 列表">
-                {projects.map((project) => (
+                {listState.projects.map((project) => (
                   <li key={String(project.id)}>
                     <span>{project.name}</span>
                     <button
@@ -264,6 +256,6 @@ export function EntryPage() {
 
         {actionError && <p role="alert">{actionError}</p>}
       </section>
-    </ResearchShell>
+    </WorkspaceShell>
   );
 }

@@ -130,6 +130,7 @@ function httpSummaryRuntime(): WorkspaceRuntimeBoundaries {
     },
     tour: fixture.tour,
     workspaceController: fixture.workspaceController,
+    queryClient: fixture.queryClient,
     session,
   };
 }
@@ -306,7 +307,7 @@ describe("LiteratureSummaryWorkspace — fixture main path", () => {
       }
     });
     const observatory = within(
-      screen.getByRole("complementary", { name: "Provenance Observatory" }),
+      screen.getByRole("region", { name: "Provenance Observatory" }),
     );
     expect(
       await observatory.findByRole("button", { name: "evd_papsum_03" }),
