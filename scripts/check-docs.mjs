@@ -20,7 +20,8 @@ const files = execFileSync(
 )
   .split(/\r?\n/u)
   .filter(Boolean)
-  .map((file) => file.replaceAll("\\", "/"));
+  .map((file) => file.replaceAll("\\", "/"))
+  .filter((file) => existsSync(resolve(root, file)));
 const results = new Map();
 const errors = [];
 const authorities = new Map();
@@ -35,13 +36,10 @@ function requiresMetadata(file) {
       "SECURITY.md",
     ].includes(file) ||
     file === "docs/README.md" ||
-    file === "docs/DOCUMENTATION_GOVERNANCE.md" ||
     file === "docs/setup.md" ||
     /^docs\/(?:ai|architecture|design|engineering|product|quality)\/[^/]+\.md$/u.test(
       file,
     ) ||
-    file.startsWith("docs/handoff/") ||
-    file.startsWith("docs/archive/") ||
     file.startsWith("docs/references/") ||
     file === "packages/prompts/README.md" ||
     file === "packages/schemas/README.md"
@@ -66,11 +64,9 @@ function localTarget(rawTarget) {
 }
 
 for (const file of files) {
-  const expectedStatus = file.startsWith("docs/archive/")
-    ? "Archived"
-    : file.startsWith("docs/references/")
-      ? "Reference"
-      : null;
+  const expectedStatus = file.startsWith("docs/references/")
+    ? "Reference"
+    : null;
   const result = inspectMarkdown(readFileSync(resolve(root, file), "utf8"), {
     requireSingleH1:
       !file.startsWith(".github/") &&

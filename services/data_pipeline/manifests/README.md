@@ -56,7 +56,7 @@ README 不维护 canonical 字段表或 NASA 原始列清单，避免与 JSON �
 
 ## 5. 来源和优先级声明
 
-C-01 只声明来源元数据和选择规则，不访问来源：
+Manifest 只声明来源元数据和选择规则，不访问来源：
 
 API/Case Manifest 使用 provider source id `nasa_exoplanet_archive`；Field Manifest 复用同一组 `SourceDefinition`，以 `provider_source_id + source_table` 派生 table source id：`nasa_exoplanet_archive.ps`、`nasa_exoplanet_archive.toi` 和 `nasa_exoplanet_archive.pscomppars`。不得为 API 粒度另建第二套来源注册表。
 
@@ -105,7 +105,7 @@ Schema/模型校验必须覆盖：
 
 ## 9. 维护规则
 
-- C-01 初始版本由 C 负责人维护，X-00 只做跨模块集成冻结。
-- 修改字段事实必须关联 Issue，并同步 `CHANGELOG.md`、版本和 hash。
-- C-02～C-05、B-04、A-03 和 D/X 消费方必须固定 manifest version/hash；不得读取动态“latest”作为可复现输入。
+- 初始版本由数据负责人维护。
+- 修改字段事实必须关联 GitHub Issue，并同步 `CHANGELOG.md`、版本和 hash。
+- 消费方必须固定 manifest version/hash；不得读取动态“latest”作为可复现输入。
 - Fixture 可以引用 Manifest，但必须另带 fixture/scenario/schema/provenance 标记；Manifest 本身不是 Fixture、Live 或 Cached 数据结果。

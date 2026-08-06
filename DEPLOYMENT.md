@@ -1,179 +1,61 @@
 # Deployment
 
-| 元数据         | 值                                                           |
-| -------------- | ------------------------------------------------------------ |
-| Status         | Accepted                                                     |
-| Authority      | 环境拓扑、配置边界、迁移、健康检查和发布验证                 |
+| 元数据 | 值 |
+| --- | --- |
+| Status | Accepted |
+| Authority | 环境拓扑、配置边界、迁移、健康检查与发布验证 |
 
-本文说明系统如何运行和发布。安全要求由 [Security](SECURITY.md) 定义，产品退出标准由 [Acceptance](docs/product/ACCEPTANCE.md) 定义，本地开发命令由 [Local Setup](docs/setup.md) 维护。
+本文定义系统在本地与生产环境的部署、运行与发布规范。安全要求见 [Security](SECURITY.md)，退出标准见 [Acceptance](docs/product/ACCEPTANCE.md)，本地开发命令见 [Setup](docs/setup.md)。
 
-## 1. 部署目标
+## 1. 部署拓扑
 
-MVP 需要提供稳定、可复现的公网作品环境，而不是大规模通用 SaaS。部署必须支持：
-
-- 静态 Brand Site；
-- Guided Tour 与 Research Workspace；
-- FastAPI 单一 `/api/*` 面：Pipeline APIs（`/api/health`、`/api/tasks*`）与 Core APIs（Session、Project/Contract/Run/Event、Artifact/Evidence 与 Workspace/Share）；
-- PostgreSQL Schema、Alembic migration、Workflow 恢复和 ArtifactVersion 原子发布；
-- Demo Replay、Live Run、真实缓存、分享和导出；
-- WebGL 或外部服务失败时的可用降级；
-- 版本、来源、Evidence 和请求追踪。
-
-## 2. 本地运行基线
-
-当前 Compose 包含：
-
-| Service     | Runtime                        | Purpose                              |
-| ----------- | ------------------------------ | ------------------------------------ |
-| `site`      | Node.js 24.18.0 + pnpm 11.13.1 | Astro Brand Site                     |
-| `workspace` | Node.js 24.18.0 + pnpm 11.13.1 | React Research Workspace + HTTP Adapter |
-| `api`       | Python 3.13 + uv               | FastAPI 单一 `/api/*` 面（Pipeline APIs 与 Core APIs M1 Runtime） |
-| `migrate`   | Python 3.13 + uv               | Alembic `upgrade head` one-shot |
-| `postgres`  | PostgreSQL 17                  | Project/Contract/Run/Event/Artifact 权威事实 |
-
-`postgres healthy → migrate exited 0 → api` 是固定启动顺序；迁移失败时 API 不启动。当前启动、端口、X-01 隔离 Project 和故障排查只在 [Local Setup](docs/setup.md) 维护。
-
-## 3. Target：公网拓扑
-
-```mermaid
-flowchart LR
-  Browser --> Site["Static Brand Site"]
-  Browser --> Workspace["Workspace SPA"]
-  Site --> Workspace
-  Workspace --> API["FastAPI API"]
-  API --> DB["PostgreSQL"]
-  API --> Model["Qwen / model provider"]
-  API --> Data["Astronomy data sources"]
-  API --> Paper["Paper sources"]
+```text
+Browser -> Static Brand Site (Astro)
+Browser -> Workspace SPA (React)
+Workspace SPA -> FastAPI Backend (/api/*)
+FastAPI Backend -> PostgreSQL 17
+FastAPI Backend -> Model Provider / Data Sources / Paper Sources
 ```
 
-目标边界：
+- Brand Site 输出静态 HTML/CSS，工作台输出 SPA 静态资源。
+- 后端服务托管 FastAPI 单一 `/api/*` 面，连接 PostgreSQL 权威事实源。
+- 外部模型、论文与数据源凭据严格锁定在后端环境，前端仅通过 API 交互。
 
-- Site 输出静态 HTML/CSS 和按需 Islands；
-- Workspace 输出 SPA 静态资源；
-- `/tour/*`、`/workspace/*`、`/share/*` 必须支持刷新 fallback；
-- API、模型、数据库和外部来源凭据只在后端环境；
-- 浏览器只接收非敏感公共配置；
-- 同域优先简化 Cookie、CSRF 和 CORS；跨域部署必须显式验证凭据策略；
-- Production 必须设置 `SESSION_COOKIE_SECURE=true`，并通过 HTTPS 验证 HttpOnly、SameSite、CSRF 与跨会话 404 行为；
-- MVP 不要求 Nginx、Redis、Celery、对象存储或图数据库作为前置。
+## 2. 环境矩阵
 
-具体前端构建产物见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
+| 环境 | 主要用途 | 数据与外部调用 |
+| --- | --- | --- |
+| local | 本地开发与测试 | Fixture、stub、recorded，按需 Live |
+| preview | PR 浏览器、路由、安全与部署 smoke | 隔离配置、受控 Live 或测试凭据 |
+| production | 生产环境 | 受限主案例、配额与只读来源范围 |
 
-## 4. 环境
+## 3. 配置与 Secrets
 
-| Environment | Purpose                           | Data and external calls            |
-| ----------- | --------------------------------- | ---------------------------------- |
-| local       | 开发与完整本地复现                | Fixture、stub、recorded，按需 Live |
-| preview     | PR 浏览器、路由、安全和部署 smoke | 隔离配置、受控 Live 或测试凭据     |
-| production  | 公网作品环境                      | 限制主案例、配额和来源范围         |
+- **Browser-visible**：仅包含 API 公开 origin、公开配置与 `VITE_` / `PUBLIC_` 变量，均视为公开信息。
+- **Backend-only**：包含数据库连接、模型 API Key、Session/Share 散列密钥与限流配置。
+- 生产环境严禁使用 DEBUG 模式、默认数据库密码、占位密钥或通配 CORS。
 
-每个环境使用独立配置和数据库边界。Preview 不得复用 Production 的高权限凭据或会话数据。
+## 4. 数据库迁移
 
-## 5. 配置与 Secrets
+- 数据库迁移（Alembic）在应用实例启动前独立执行 (`migrate` one-shot 成功退出后启动 API)。
+- 运行应用进程不得隐式执行结构破坏性 migration。
+- 破坏性迁移必须具备先备份、可回滚或双读过渡方案。
 
-配置分类：
+## 5. 健康检查与可观测性
 
-### Browser-visible
+- **Health**：
+  - API liveness (`/api/health`) 检查进程响应，不依赖外部模型；
+  - API readiness 校验数据库连接与 migration 状态；
+  - 数据库使用 `pg_isready` 或健康检查命令。
+- **Observability**：
+  - 日志必须包含 request id、Run id、step key、error code 与延迟；
+  - 严禁记录 Secrets、Cookie、share 原 token、受限全文或模型私有推理。
 
-- API public origin；
-- 公开部署标识；
-- 非敏感 feature flag；
-- 静态资源和监测的公开配置。
+## 6. 发布与验证
 
-Astro 使用明确的 `PUBLIC_` 前缀，Workspace 使用 `VITE_` 前缀。所有此类值都应视为公开信息。
-
-### Backend-only
-
-- 数据库连接和密码；
-- 模型、论文源和数据源凭据；
-- Session / share signing or hashing secrets；
-- Session 和 ShareSnapshot 创建限流配置（`SESSION_CREATE_RATE_LIMIT` / `SHARE_CREATE_RATE_LIMIT`）；
-- Production 独立高熵 cursor HMAC 密钥（`CURSOR_SIGNING_KEY`），不得使用开发默认值；
-- 内部服务地址和管理开关。
-
-`.env.example` 只存占位值和说明。生产环境必须拒绝 DEBUG、默认数据库凭据、空/占位密钥和通配 CORS。完整安全要求见 [Security](SECURITY.md)。
-
-## 6. 路由与缓存边界
-
-| Path                 | Owner     | Requirement                                       |
-| -------------------- | --------- | ------------------------------------------------- |
-| `/`、`/404.html`     | Site      | 静态输出，核心内容不依赖 JavaScript       |
-| `/tour`              | Workspace | Guided Tour、Contract 与 Run 启动 |
-| `/workspace`         | Workspace | 私有 Session、WorkspaceSnapshot 与恢复 |
-| `/share/$shareToken` | Workspace | 匿名只读冻结 ShareSnapshot |
-| `/api/health`、`/api/tasks*` | API       | Pipeline APIs（Phase 0 基线）          |
-| `/api/*`             | API       | Core APIs 资源 Runtime |
-
-CDN 或平台缓存不得缓存私有 Workspace/API 响应。公开分享默认 `no-store`，除非安全和撤销语义证明可采用其他策略。静态资产可使用内容 hash 长缓存。
-
-## 7. 数据库迁移与保留
-
-- Migration 必须在应用切换前运行，并具有明确失败退出；
-- 本地 Compose 使用独立 `migrate` one-shot，API 只在其成功退出后启动；应用进程不执行 migration；
-- 破坏性迁移需要备份、回滚或双读/迁移方案；
-- Run、ArtifactVersion、Evidence、SourceSnapshot 和 Share 的事务不变量必须保持；
-- Session 过期、Share 保留和临时导出清理策略需要配置并测试；
-- 生产环境不使用应用启动时的隐式 destructive migration；
-- 回滚应用版本时必须确认 Schema 兼容性。
-
-## 8. 健康检查与可观测性
-
-### Health
-
-- Site 静态入口可返回有效 HTML；
-- Workspace 入口和 fallback 可返回应用资源；
-- API liveness 不依赖外部模型；
-- API readiness 验证必要数据库和迁移状态；
-- PostgreSQL 使用平台或 `pg_isready` 等价检查。
-
-### Observability
-
-至少记录：
-
-- request id、Run id、step key 和公开 error code；
-- API latency、错误率和限流；
-- 外部数据/论文/模型超时和无效响应；
-- Run 终态、失败步骤、CacheSelector 选择；
-- migration、部署版本和健康检查结果。
-
-日志不得记录密钥、Cookie、share 原 token、受限全文或模型私有推理。
-
-## 9. 发布流程
-
-1. 锁定 Commit、Contract 和数据库 migration。
-2. 执行 frozen install/sync、lint、typecheck、test、build 和生成物检查。
-3. 在 Preview 运行路由、Session、Share、安全、WebGL fallback 和 E2E smoke。
-4. 备份或确认数据库恢复点，执行 migration。
-5. 部署 Site、Workspace 和 API/DB 变更。
-6. 执行 Production smoke 和关键主案例读取。
-7. 记录部署版本、时间、URL、migration 和验证结果。
-8. 失败时停止流量切换或按预案回滚；不得用缓存或 Fixture 掩盖部署故障。
-
-## 10. 发布验证
-
-至少验证：
-
-- 静态首屏、SEO 元信息和无 WebGL fallback；
-- `/tour/*`、`/workspace/*`、`/share/*` 深链接与刷新；
-- Pipeline APIs（`/api/health`、`/api/tasks*`）回归与 Core APIs 契约；
-- Session、CSRF、401/403/404、Share 撤销/过期；
-- Project、Run、ArtifactVersion、Evidence 和导出读取；
-- Demo Replay 与 Live/Cached 语义；
-- 外部服务失败和无缓存失败；
-- 数据库 migration、readiness 和恢复流程；
-- CSP、HSTS、MIME、Referrer、Permissions Policy 和 CORS；
-- 移动端、Reduced Motion、context loss 和 Poster。
-
-阶段级完整标准见 [Acceptance](docs/product/ACCEPTANCE.md)。
-
-## 11. 禁止事项
-
-- 前端或静态站携带后端 Secrets；
-- 浏览器使用 Docker 内部服务名访问 API；
-- Production 使用 DEBUG、默认密码、占位密钥或通配 CORS；
-- 私有数据或可撤销分享被不可控 CDN 缓存；
-- 未运行 migration/回归验证就切换流量；
-- 把 Fixture、seed 或手写数据当作真实缓存；
-- 用部署成功替代科研产物、Evidence 和版本验收；
-- 未经 ADR 和负载依据引入复杂基础设施。
+- 发布流程：锁定 Commit/Contract -> 自动化 CI 通过 -> Preview smoke -> 数据库 migration -> 部署前端/后端 -> 生产 smoke。
+- 验证要点：
+  - 静态首屏、`/workspace` SPA 路由与刷新；
+  - `/api/health` 与 Core APIs 契约完整性；
+  - Session、CSRF、401/403/404 与 Share 撤销/过期逻辑；
+  - PostgreSQL migration 与数据完整性。

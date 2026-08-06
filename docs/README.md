@@ -1,121 +1,64 @@
 # Documentation Index
 
-| 元数据    | 值                               |
-| --------- | -------------------------------- |
-| Status    | Accepted                         |
-| Authority | 文档地图、唯一事实来源与文档类型 |
-
-本文件是仓库文档的完整索引。文档分类、状态、合并、拆分和归档规则见 [Documentation Governance](DOCUMENTATION_GOVERNANCE.md)。
-
-## 1. 入口
-
-| 文档                             | 职责                                 |
-| -------------------------------- | ------------------------------------ |
-| [README](../README.md)           | 项目定位、快速启动和最小文档入口     |
-| [Documentation Index](README.md) | 完整文档地图和权威边界               |
-
-入口文档只提供摘要和导航，不维护完整规范正文，不维护实现进度。
-
-## 2. 规范
-
-| 权威范围                                | 唯一事实来源                                        |
-| --------------------------------------- | --------------------------------------------------- |
-| 用户、问题、产品范围、主流程、成功指标  | [PRD](../PRD.md)                                    |
-| 设计原则、体验域、交互模型              | [Product Design](../DESIGN.md)                      |
-| HTTP 资源、传输结构、错误、授权         | [API Contract](architecture/API_CONTRACT.md)        |
-| 领域实体、字段和不变量                  | [Data Model](architecture/DATA_MODEL.md)            |
-| Run 状态、事件、取消、重试和派生        | [Workflow Design](architecture/WORKFLOW_DESIGN.md)  |
-| ArtifactVersion、缓存、修订、分享和保留 | [Data Versioning](architecture/DATA_VERSIONING.md)  |
-| 跨模块职责、输入输出和依赖              | [Module Boundaries](architecture/MODULES.md)        |
-| 不可逆架构决策与替代关系                | [Architecture Decisions](architecture/DECISIONS.md) |
-
-### 产品体验
-
-| 文档 | Authority |
+| 元数据 | 值 |
 | --- | --- |
-| [Product Design](../DESIGN.md) | 产品设计原则、体验域关系、交互模型与设计不变量 |
-| [Visual Language](design/VISUAL_LANGUAGE.md) | 品牌、Token、字体、排版、密度与组件外观 |
-| [Workspace UX](design/WORKSPACE_UX.md) | Workspace 信息架构、页面状态与核心交互 |
-| [Frontend Architecture](architecture/FRONTEND_ARCHITECTURE.md) | 前端运行时、上游源码治理、模块边界与状态所有权 |
+| Status | Accepted |
+| Authority | 权威规范地图、文档治理规则与 Agent 默认读取规范 |
 
-### AI 与推理
+本文件是星文智析仓库权威规范的唯一地图与治理规则。
 
-| 文档                                           | Authority                                  |
-| ---------------------------------------------- | ------------------------------------------ |
-| [Model Policy](ai/MODEL_POLICY.md)             | 模型调用准入、记录、降级与评测             |
-| [Prompt Versioning](ai/PROMPT_VERSIONING.md)   | Prompt 不可变版本、registry 和发布流程     |
-| [Reasoning Protocol](ai/REASONING_PROTOCOL.md) | Claim、Relation、ReasoningTrace 准入与修订 |
+## 1. 核心 Authority 索引
 
-### 安全
+| 权威范围 | 唯一事实来源 | Status | Authority |
+| --- | --- | --- | --- |
+| 阶段目标与产品需求 | [PRD](../PRD.md) | Accepted | 用户、问题、产品范围、主流程、成功指标与非目标 |
+| 体验域与设计原则 | [Product Design](../DESIGN.md) | Accepted | 产品设计原则、体验域关系与设计不变量 |
+| 页面状态与交互规则 | [Workspace UX](design/WORKSPACE_UX.md) | Accepted | Workspace 信息架构、页面状态与核心交互 |
+| 视觉风格与 Token | [Visual Language](design/VISUAL_LANGUAGE.md) | Accepted | 品牌、Token、字体、排版、密度与组件外观 |
+| 前端架构与源码治理 | [Frontend Architecture](architecture/FRONTEND_ARCHITECTURE.md) | Accepted | 前端运行时、上游源码治理、模块分层与状态所有权 |
+| 模块边界与依赖方向 | [Module Boundaries](architecture/MODULES.md) | Accepted | 模块职责、输入输出、依赖方向与跨模块交接 |
+| HTTP 资源与传输契约 | [API Contract](architecture/API_CONTRACT.md) | Accepted | URL 资源、认证授权、Envelope、Problem Details 与演进 |
+| 领域实体与不变量 | [Data Model](architecture/DATA_MODEL.md) | Accepted | 核心实体、实体关系、所有权与领域语义 |
+| 运行状态与并发控制 | [Workflow Design](architecture/WORKFLOW_DESIGN.md) | Accepted | Run 状态机、Step、重试、取消与并发控制 |
+| 版本、缓存与修订 | [Data Versioning](architecture/DATA_VERSIONING.md) | Accepted | ArtifactVersion、SourceSnapshot、CacheRecord 与 Revision |
+| 模型准入与降级 | [Model Policy](ai/MODEL_POLICY.md) | Accepted | 模型调用准入、记录、降级与评测 |
+| Prompt 管理 | [Prompt Versioning](ai/PROMPT_VERSIONING.md) | Accepted | Prompt 不可变版本、Registry 与运行引用 |
+| Prompt Registry 包 | [Prompt Registry](../packages/prompts/README.md) | Accepted | packages/prompts 目录结构与本地使用方式 |
+| Schema 包 | [Schema Package](../packages/schemas/README.md) | Accepted | Schema 导出与消费边界 |
+| 证据准入与推导协议 | [Reasoning Protocol](ai/REASONING_PROTOCOL.md) | Accepted | Claim、Relation、ReasoningTrace 与 Graph 发布门 |
+| 代码规范 | [Coding Standard](engineering/CODING_STANDARD.md) | Accepted | 代码组织、命名与实现基础 |
+| 测试分层与证据 | [Test Strategy](engineering/TEST_STRATEGY.md) | Accepted | 测试分层、数据等级、环境与测试证据 |
+| 跨源实体对齐 | [Cross-source Alignment](engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md) | Accepted | 跨源实体匹配、Evidences 与人工裁决 |
+| 数据质量评估 | [Data Quality Evaluation](engineering/DATA_QUALITY_EVALUATION.md) | Accepted | 数据质量评估规则、指标与门禁 |
+| 主数据源获取 | [Data Source Acquisition](engineering/DATA_SOURCE_ACQUISITION.md) | Accepted | 主数据源 TAP 获取与 Snapshot |
+| 补充数据源获取 | [Supplemental Source Acquisition](engineering/SUPPLEMENTAL_SOURCE_ACQUISITION.md) | Accepted | 补充数据源获取与 Snapshot |
+| 版本化数据产物 | [Versioned Data Artifacts](engineering/VERSIONED_DATA_ARTIFACTS.md) | Accepted | 数据产物构建、字段映射与转换证据 |
+| 文献抽取 Pipeline | [LiteratureClaim Pipeline](engineering/LITERATURE_CLAIM_PIPELINE.md) | Accepted | LiteratureClaim 抽取、规范化与准入 |
+| 文献推理 Pipeline | [LiteratureRelation Pipeline](engineering/LITERATURE_RELATION_PIPELINE.md) | Accepted | LiteratureRelation、ReasoningTrace 准入 |
+| 文献检索 Pipeline | [PaperCollection Pipeline](engineering/PAPER_COLLECTION_PIPELINE.md) | Accepted | 论文检索、去重、排序与 Summary 准入 |
+| 退出验收标准 | [Acceptance](product/ACCEPTANCE.md) | Accepted | 阶段与产品退出标准、一票否决项 |
+| PR 审查清单 | [Review Checklist](quality/REVIEW_CHECKLIST.md) | Accepted | 单个 PR 的审查清单与合并条件 |
+| 安全要求 | [Security](../SECURITY.md) | Accepted | 密钥、信任边界、输入、会话、分享与日志要求 |
+| 部署与运维 | [Deployment](../DEPLOYMENT.md) | Accepted | 环境拓扑、配置边界、迁移与健康检查 |
+| 本地启动 | [Setup](setup.md) | Accepted | 本地与 Docker 启动方式、环境变量与调试命令 |
+| Agent 执行协议 | [AGENTS](../AGENTS.md) | Accepted | Agent 执行协议与工作区安全约束 |
+| 协作与 PR 流程 | [Contributing](../CONTRIBUTING.md) | Accepted | GitHub 分支、提交、PR、Review 与 Squash Merge |
 
-| 文档                       | Authority                              |
-| -------------------------- | -------------------------------------- |
-| [Security](../SECURITY.md) | 密钥、输入、会话、分享、日志和安全要求 |
+第三方参考资料位于 [docs/references/](references/README.md)，仅作参考，不具有规范约束力。
 
-## 3. 工程与交付
+## 2. Agent 默认读取规则
 
-| 文档                                                    | 职责                                            |
-| ------------------------------------------------------- | ----------------------------------------------- |
-| [AGENTS](../AGENTS.md)                                  | Agent 执行协议与项目约束                        |
-| [Contributing](../CONTRIBUTING.md)                      | Git、Issue、PR、Review 和合并流程               |
-| [Coding Standard](engineering/CODING_STANDARD.md)       | 代码组织、命名和基础实现规范                    |
-| [Error Handling](engineering/ERROR_HANDLING.md)         | 内部错误分类、公开错误和日志关联                |
-| [Test Strategy](engineering/TEST_STRATEGY.md)           | 测试分层、数据等级、环境和测试证据              |
-| [Data Source Acquisition](engineering/DATA_SOURCE_ACQUISITION.md) | 主数据源查询、原始记录、失败语义与 SourceSnapshot |
-| [Supplemental Source Acquisition](engineering/SUPPLEMENTAL_SOURCE_ACQUISITION.md) | 补充来源查询、录制响应、失败语义与独立 SourceSnapshot |
-| [Cross-source Entity Alignment](engineering/CROSS_SOURCE_ENTITY_ALIGNMENT.md) | 确定性跨源实体对齐、匹配 Evidence、人工审查输入与冻结 Benchmark |
-| [Versioned Data Artifacts](engineering/VERSIONED_DATA_ARTIFACTS.md) | C-04 Manifest-driven 字段映射、单位统一、Transformation Evidence 与 typed candidates |
-| [Data Quality Evaluation](engineering/DATA_QUALITY_EVALUATION.md) | C-05 分层质量指标、Evidence 覆盖、Contract gate 与 Publisher handoff |
-| [PaperCollection Pipeline](engineering/PAPER_COLLECTION_PIPELINE.md) | 论文检索、规范化、去重、排序与运行来源 |
-| [LiteratureClaim Pipeline](engineering/LITERATURE_CLAIM_PIPELINE.md) | D-07 Claim 抽取、Evidence 准入、固定 Benchmark 与 typed candidate |
-| [LiteratureRelation Pipeline](engineering/LITERATURE_RELATION_PIPELINE.md) | D-08 Relation/ReasoningTrace 准入、confidence 与固定 Benchmark |
-| [Roadmap](product/ROADMAP.md)                           | 里程碑目标与顺序                                |
-| [Backlog](product/BACKLOG.md)                           | Open Issue 角色与直接依赖索引；GitHub Issue 保存实时状态 |
-| [Acceptance](product/ACCEPTANCE.md)                     | 阶段退出标准及所需证据                          |
-| [Review Checklist](quality/REVIEW_CHECKLIST.md)         | 单个 PR 的审查清单                              |
-| [Risk Register](quality/RISK_REGISTER.md)               | 有效风险、影响、触发条件和缓解措施              |
-| [Deployment](../DEPLOYMENT.md)                          | 环境拓扑、配置、迁移、健康检查和发布验证        |
-| [Local Setup](setup.md)                                 | 本地启动、测试命令和故障排查                    |
-| [Handoff](handoff/README.md)                            | 唯一作品提交顺序和材料 provenance 要求          |
-| [Documentation Governance](DOCUMENTATION_GOVERNANCE.md) | 文档分类、唯一事实来源规则与文档门禁            |
+1. Agent 默认按 `AGENTS.md` 指定顺序读取，优先读取任务直接相关的 1–3 份 Authority 文档。
+2. 严禁默认递归摄入全量 Markdown 文档、历史 Commit 或已关闭 PR。
+3. 参考资料（`docs/references/`）不进入默认 Agent 读取路径。
 
-## 4. 包级文档与生成物
+## 3. 文档治理规则
 
-| 文档                                                    | 类型                | 说明                               |
-| ------------------------------------------------------- | ------------------- | ---------------------------------- |
-| [Prompt Registry README](../packages/prompts/README.md) | Package operational | Prompt 文件结构和 registry 用法    |
-| [Schema README](../packages/schemas/README.md)          | Package operational | Schema 导出与消费边界              |
-| `packages/prompts/*/vN.md`                              | Versioned artifact  | 不可变 Prompt 内容，不重复项目规范 |
-
-## 5. 参考与归档
-
-| 文档                                               | 类型            | 使用限制                         |
-| -------------------------------------------------- | --------------- | -------------------------------- |
-| [Competition Requirements](references/赛题要求.md) | Reference       | 外部要求，不直接定义内部实现     |
-| [Reference Materials](references/README.md)        | Reference index | 第三方论文、代码和摘要，仅供研究 |
-| [MAVIS Reference Summary](references/mavis/摘要.md) | Reference       | 已核验事实、许可裁决与项目边界   |
-
-参考代码和论文必须先被规范文档明确采纳，才能成为实现约束。归档资料位于 `docs/archive/`，不作为实现依据。
-
-## 6. 按任务定位
-
-| 任务                         | 先查                                                   |
-| ---------------------------- | ------------------------------------------------------ |
-| 调整产品承诺或主流程         | PRD → Acceptance                                       |
-| 修改首页、Tour 或 Workspace  | DESIGN → Workspace UX → Visual Language                |
-| 修改前端目录、依赖或状态管理 | Frontend Architecture → Module Boundaries → ADR        |
-| 修改 API、实体、状态或版本   | API Contract → Data Model → Workflow → Data Versioning |
-| 修改模型、Prompt 或 Relation | Model Policy → Prompt Versioning → Reasoning Protocol  |
-| 修改测试、错误或安全         | Test Strategy / Error Handling / Security              |
-| 修改本地启动或部署           | Local Setup / Deployment                               |
-| 拆任务、排期或判断完成       | Backlog / Roadmap / Acceptance                         |
-| 准备提交材料                 | Handoff                                                |
-| 新增、移动、合并或删除文档   | Documentation Governance                               |
-
-## 7. 维护要求
-
-- 新文档必须有明确 Authority、消费者和更新触发。
-- 同一事实只在一个文档完整定义，其他文件只摘要并链接。
-- 新增、移动、合并、归档或删除文档必须同步本索引。
-- 参考和历史文档不得伪装为当前事实；实现进度由 GitHub Issues 与运行证据表达。
-- 文档 PR 必须执行链接、标题、代码块、表格、Mermaid 和索引覆盖检查。
+1. **单一事实源**：一项事实只能有一个完整规范正文，其他文档仅提供相对链接或单行摘要。
+2. **仅保留有效规范**：活跃文档只描述当前已批准且有效的规范，不记录历史方案、废弃过程或 ADR 比较。
+3. ** Git 保存历史**：历史演进、废弃决策和迁移原因由 Git Commit 记录，不在活跃树保留 Superseded / Archive 文档。
+4. **GitHub 保存状态**：任务实时状态、WIP 进度、Milestone 与依赖由 GitHub Issues / PRs 保存，不在 Markdown 维护 Backlog / Roadmap。
+5. **禁写过程代号**：规范正文中不使用特定任务编号、临时阶段代号或个人本地路径。
+6. **约束优先**：规范正文可以超前定义已批准但尚未代码实现的要求，但不描述代码完成进度。
+7. **元数据一致性**：规范性 Authority 文档顶部必须包含 `Status: Accepted` 与 `Authority` 元数据。
+8. **同步更新**：删除或移动 Markdown 文件时，必须同步更新本索引与相关相对链接。

@@ -50,7 +50,7 @@ Guided Tour 与 Demo Replay 不属于当前前端重建基线；重新引入时�
 
 ## 4. 开源 Agent 产品采用
 
-前端重建坚持“成熟骨架优先，不得参考后重新手写”。采用上游产品要求以固定 Repository / Tag / Commit 的真实源码为骨架进行领域改造。具体 Ledger、版本与工程约束见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md) 与 [DECISIONS](docs/architecture/DECISIONS.md)。
+前端重建坚持“成熟骨架优先，不得参考后重新手写”。采用上游产品要求以固定 Repository / Tag / Commit 的真实源码为骨架进行领域改造。具体 Ledger、版本与工程约束见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
 
 ## 5. 产品对象
 
@@ -87,7 +87,7 @@ Guided Tour 与 Demo Replay 不属于当前前端重建基线；重新引入时�
 
 - **Current Baseline**：`main` 仓库代码目前仍为旧 `HeroVisual` 组件、双短 CTA 与 `/tour` 路由；
 - **Accepted Target**：品牌极简首屏已对齐为单英雄区（`homepage-ascii.mp4` + 单一“进入工作台”CTA + `/workspace` 目标）；
-- **Implementation**：在 F-01 错误退役或独立 Homepage 修复 Issue 中完成代码层落地方案，不暗示代码已存在。
+- **Implementation**：在 Homepage 修复中完成代码层落地方案，不暗示代码已存在。
 
 ### Research Workspace
 
