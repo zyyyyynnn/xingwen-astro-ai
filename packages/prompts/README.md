@@ -30,14 +30,14 @@ packages/prompts/
 - `registry.json` 的默认版本变化必须通过 PR 和回归验证。
 - 新 Prompt 或新版本包含完整 front matter，并与目标输出 Schema 对齐。
 - 包内文件不保存运行凭据、用户数据、受限全文或实际模型响应。
-- `literature_claim@v1` 是 D-07 单 Claim extraction Prompt；
-  `literature_reasoning@v1` 只保留 Phase 0 多输出兼容。后者可由 Registry 读取不表示其旧
+- `literature_claim@v1` 是单 Claim extraction Prompt；
+  `literature_reasoning@v1` 只保留旧版多输出兼容。后者可由 Registry 读取不表示其旧
   `LiteratureClaim` 或 `LiteratureReasoningResponse` 包络可发布，旧模型由 Publisher
   admission marker 拒绝。
-- `literature_reasoning@v2` 是 D-08 Relation extraction Prompt，只输出
-  `LiteratureRelationExtractionOutput`。它引用已经通过 D-07 准入的 Claim、Evidence、
+- `literature_reasoning@v2` 是 Relation extraction Prompt，只输出
+  `LiteratureRelationExtractionOutput`。它引用已经通过准入的 Claim、Evidence、
   SourceSnapshot 和外部版本化 confidence assessment；最终 Relation/ReasoningTrace
-  状态、hash 与发布资格仍由 D-08 Pipeline 决定。
+  状态、hash 与发布资格仍由 Pipeline 决定。
 
 ## 变更验证
 
