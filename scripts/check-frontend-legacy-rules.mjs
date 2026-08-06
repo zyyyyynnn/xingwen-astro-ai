@@ -38,11 +38,13 @@ const retiredWorkspacePackages = ruleSource.retiredWorkspacePackageParts.map(
   (parts) => parts.join("").toLowerCase(),
 );
 const retiredWorkspaceTextTerms = [
-  ...ruleSource.retiredWorkspaceSymbolParts.map((parts) => parts.join("")),
-  ...ruleSource.fakeCapabilityCodePoints.map((codes) =>
-    String.fromCharCode(...codes),
-  ),
-  ...ruleSource.fakeCapabilityTextParts.map((parts) => parts.join("")),
+  ...new Set([
+    ...ruleSource.retiredWorkspaceSymbolParts.map((parts) => parts.join("")),
+    ...ruleSource.fakeCapabilityCodePoints.map((codes) =>
+      String.fromCharCode(...codes),
+    ),
+    ...ruleSource.fakeCapabilityTextParts.map((parts) => parts.join("")),
+  ]),
 ];
 const retiredWorkspaceCssTerms = ruleSource.retiredWorkspaceCssParts.map(
   (parts) => parts.join(""),

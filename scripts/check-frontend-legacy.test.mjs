@@ -11,6 +11,7 @@ import {
   findRetiredWorkspaceTextTerms,
   findTourRouteRefs,
   frameworkName,
+  isRetiredPackageName,
   isRetiredPath,
   retiredWorkspacePackageNames,
   retiredWorkspacePaths,
@@ -73,21 +74,38 @@ test("rejects namespace packages in the resolved dependency tree", () => {
 
 test("rejects retired Workspace application paths", () => {
   for (const path of retiredWorkspacePaths) {
-    assert.equal(isRetiredPath(`${path}/main.ts`), true, path);
+    assert.equal(isRetiredPath(path), true, path);
   }
 });
 
-test("rejects retired Workspace dependencies in the Workspace manifest", () => {
-  const manifest = {
-    dependencies: {},
-    devDependencies: Object.fromEntries(
-      retiredWorkspacePackageNames.map((name) => [name, "1"]),
-    ),
-  };
-  assert.deepEqual(
-    findRetiredWorkspaceManifestDependencies(manifest),
-    retiredWorkspacePackageNames.map((name) => `devDependencies.${name}`),
+test("allows legitimate new Workspace paths not retired by A-20", () => {
+  assert.equal(
+    isRetiredPath("apps/workspace/src/pages/new-workspace-page.tsx"),
+    false,
   );
+  assert.equal(
+    isRetiredPath("apps/workspace/src/components/new-navigation.tsx"),
+    false,
+  );
+  assert.equal(
+    isRetiredPath("apps/workspace/src/features/research-adapter/index.ts"),
+    false,
+  );
+  assert.equal(
+    isRetiredPath("apps/workspace/src/hooks/use-agent-runtime.ts"),
+    false,
+  );
+});
+
+test("does not permanently ban Tailwind from the Workspace", () => {
+  assert.equal(isRetiredPackageName("tailwindcss"), false);
+  assert.equal(isRetiredPackageName("@tailwindcss/vite"), false);
+});
+
+test("accepts an empty retired Workspace dependency list", () => {
+  assert.deepEqual(retiredWorkspacePackageNames, []);
+  const manifest = { dependencies: { tailwindcss: "4" } };
+  assert.deepEqual(findRetiredWorkspaceManifestDependencies(manifest), []);
 });
 
 test("rejects retired Workspace symbols and placeholder copy in Workspace source", () => {
@@ -97,6 +115,13 @@ test("rejects retired Workspace symbols and placeholder copy in Workspace source
   ]);
   const placeholder = retiredWorkspaceSymbolAndPlaceholderTerms.at(-1);
   assert.deepEqual(findRetiredWorkspaceTextTerms(placeholder), [placeholder]);
+});
+
+test("rejects fake capability text in Workspace source", () => {
+  const terms = findRetiredWorkspaceTextTerms(
+    "科研工作台将在此提供研究画布。",
+  );
+  assert.ok(terms.length > 0, "将在此提供 should be caught");
 });
 
 test("rejects retired Workspace stylesheet rules", () => {

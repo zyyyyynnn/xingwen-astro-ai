@@ -2,11 +2,22 @@
   "frameworkCodePoints": [118, 117, 101],
   "retiredAppParts": ["apps", "web"],
   "retiredPathParts": [
-    ["apps", "workspace", "src", "pages"],
-    ["apps", "workspace", "src", "components"],
-    ["apps", "workspace", "src", "features"],
-    ["apps", "workspace", "src", "hooks"],
-    ["apps", "workspace", "src", "research-defaults.ts"]
+    ["apps", "workspace", "src", "pages", "entry-page.tsx"],
+    ["apps", "workspace", "src", "pages", "tour-page.tsx"],
+    ["apps", "workspace", "src", "pages", "workspace-page.tsx"],
+    ["apps", "workspace", "src", "components", "research-shell.tsx"],
+    ["apps", "workspace", "src", "components", "artifact-canvas.tsx"],
+    ["apps", "workspace", "src", "components", "provenance-observatory.tsx"],
+    ["apps", "workspace", "src", "features", "literature-summary", "literature-comparison-grid.tsx"],
+    ["apps", "workspace", "src", "features", "literature-summary", "literature-summary-state.ts"],
+    ["apps", "workspace", "src", "features", "literature-summary", "literature-summary-workspace.tsx"],
+    ["apps", "workspace", "src", "features", "paper-acquisition", "candidate-review-list.tsx"],
+    ["apps", "workspace", "src", "features", "paper-acquisition", "paper-acquisition-state.ts"],
+    ["apps", "workspace", "src", "features", "paper-acquisition", "paper-acquisition-workspace.tsx"],
+    ["apps", "workspace", "src", "hooks", "use-controller-state.ts"],
+    ["apps", "workspace", "src", "hooks", "use-private-session.ts"],
+    ["apps", "workspace", "src", "research-defaults.ts"],
+    ["packages", "workspace-core", "src", "guided-tour.ts"]
   ],
   "dependencyFields": [
     "dependencies",
@@ -36,10 +47,7 @@
     [22238, 36864, 21069, 31471]
   ],
   "retiredTextParts": [["WEB", "_", "PORT"]],
-  "retiredWorkspacePackageParts": [
-    ["tailwindcss"],
-    ["@tailwindcss", "/vite"]
-  ],
+  "retiredWorkspacePackageParts": [],
   "retiredWorkspaceSymbolParts": [
     ["WorkspacePage"],
     ["TourPage"],
@@ -48,10 +56,12 @@
     ["ArtifactCanvas"],
     ["ProvenanceObservatory"],
     ["CandidateReviewList"],
-    ["LiteratureComparisonGrid"]
+    ["LiteratureComparisonGrid"],
+    ["GUIDED_TOUR_STAGES"],
+    ["createGuidedTourController"],
+    ["GuidedTourController"]
   ],
   "retiredWorkspaceCssParts": [
-    ["@import", " ", "\"tailwindcss\""],
     [".workspace-shell"],
     [".workspace-body"],
     [".top-status-rail"],
@@ -73,7 +83,10 @@
   ],
   "fakeCapabilityTextParts": [
     ["Preview"],
-    ["Coming", " ", "soon"]
+    ["Coming", " ", "soon"],
+    ["将在此提供"],
+    ["即将上线"],
+    ["敬请期待"]
   ],
   "tourRouteTextParts": [["/", "tour"]],
   "tourRouteAllowlist": [

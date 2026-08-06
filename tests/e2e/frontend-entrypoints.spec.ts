@@ -47,9 +47,9 @@ test("brand site has no runtime console errors", async ({ page }) => {
 });
 
 for (const entry of [
-  ["/", "研究工作台", "工作台"],
-  ["/tour", "研究工作台", "工作台"],
-  ["/workspace", "研究工作台", "工作台"],
+  ["/", "研究工作台", null],
+  ["/tour", "研究工作台", null],
+  ["/workspace", "研究工作台", null],
   ["/share/demo-token", "共享结果当前不可用", null],
 ] as const) {
   test(`workspace route ${entry[0]} is directly addressable`, async ({

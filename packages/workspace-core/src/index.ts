@@ -1,11 +1,11 @@
 /**
  * @xingwen/workspace-core — workspace orchestration boundary.
  *
- * Provides the framework-free workspace snapshot controller that drives the
- * /workspace host (layout presets, panel slots, evidence pinning, active run)
+ * Provides the framework-free WorkspaceSnapshot orchestration boundary
+ * retained for future Workspace product integration. The snapshot controller
+ * manages layout presets, panel slots, evidence pinning, and active run state
  * through the `WorkspaceSnapshotPort`. The port is satisfied structurally by
- * the `WorkspaceSnapshotRepository` in `@xingwen/data-access`; UI bindings
- * are added by `apps/workspace`.
+ * the `WorkspaceSnapshotRepository` in `@xingwen/data-access`.
  */
 
 export { createWorkspaceController } from "./workspace-controller";

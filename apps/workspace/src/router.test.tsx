@@ -6,7 +6,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionManager } from "@xingwen/data-access";
@@ -114,15 +113,15 @@ describe("Workspace routes", () => {
     expect(redirected.get("utm_source")).toBeNull();
   });
 
-  it("rejects an invalid /tour identifier without appending it to /workspace", async () => {
+  it("redirects /tour to /workspace dropping invalid identifiers", async () => {
     const { history } = renderRoute(
       `/tour?projectId=${"a".repeat(129)}`,
       fixtureRuntime(),
     );
 
-    await screen.findByRole("heading", { name: "页面载入失败" });
-    expect(history.location.pathname).toBe("/tour");
-    expect(history.location.pathname).not.toBe("/workspace");
+    await screen.findByRole("heading", { name: "研究工作台" });
+    expect(history.location.pathname).toBe("/workspace");
+    expect(history.location.search).toBe("");
   });
 
   it("renders the minimal Workspace host with brand, skip link and title", async () => {
@@ -132,14 +131,7 @@ describe("Workspace routes", () => {
     const skipLink = screen.getByRole("link", { name: "跳到主要内容" });
     expect(skipLink).toHaveAttribute("href", "#main-content");
 
-    expect(screen.getByRole("link", { name: "星文智析" })).toHaveAttribute(
-      "href",
-      "/workspace",
-    );
-    const navigation = screen.getByRole("navigation", { name: "主要导航" });
-    expect(
-      within(navigation).getByRole("link", { name: "研究工作台" }),
-    ).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("星文智析")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "研究工作台" }),
     ).toBeInTheDocument();

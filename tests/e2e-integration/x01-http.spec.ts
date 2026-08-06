@@ -579,9 +579,6 @@ test("real browser session stays silent on the retired-safe Workspace and Share 
   // HTTP adapter but no API traffic leaves the page.
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "研究工作台" })).toBeVisible();
-  await expect(
-    page.getByRole("navigation", { name: "主要导航" }),
-  ).toBeVisible();
   expect(apiRequests).toEqual([]);
   expect(requestFailures).toEqual([]);
 

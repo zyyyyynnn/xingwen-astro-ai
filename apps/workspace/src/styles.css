@@ -46,7 +46,7 @@ button:focus-visible {
   min-height: 100vh;
 }
 
-.workspace-host__rail {
+.workspace-host__brand {
   display: flex;
   align-items: center;
   gap: 1.5rem;
@@ -54,29 +54,6 @@ button:focus-visible {
   padding: 0 1rem;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
-}
-
-.workspace-host__rail nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.workspace-host__rail nav a {
-  padding-block: 0.35rem;
-  color: var(--color-ink-secondary);
-  text-decoration: none;
-  font-size: var(--font-size-2);
-}
-
-.workspace-host__rail nav a[aria-current="page"] {
-  border-bottom: 2px solid var(--color-brand);
-  color: var(--color-ink-primary);
-}
-
-.workspace-host__brand {
-  display: inline-flex;
-  align-items: center;
   color: var(--color-ink-primary);
   font-family: var(--xw-font-serif);
   font-size: var(--font-size-4);
@@ -196,8 +173,7 @@ button:disabled {
 
 /* Desktop-only host: below 64rem only the fixed narrow copy remains. */
 @media (max-width: 64rem) {
-  .workspace-host__rail,
-  .workspace-host__intro {
+  .workspace-host__brand {
     display: none;
   }
 

@@ -57,9 +57,11 @@ test("legacy tour route never forwards invalid identifiers", async ({
   await page.goto(`http://127.0.0.1:5173/tour?projectId=${"a".repeat(129)}`);
 
   await expect(
-    page.getByRole("heading", { name: "页面载入失败" }),
+    page.getByRole("heading", { name: "研究工作台" }),
   ).toBeVisible();
-  expect(page.url()).toContain("/tour");
+  const url = new URL(page.url());
+  expect(url.pathname).toBe("/workspace");
+  expect(url.search).toBe("");
   expect(errors).toEqual([]);
 });
 
@@ -69,10 +71,7 @@ test("Workspace host renders the desktop shell", async ({ page }) => {
   await page.goto("http://127.0.0.1:5173/workspace");
 
   await expect(page.getByRole("heading", { name: "研究工作台" })).toBeVisible();
-  await expect(
-    page.getByRole("navigation", { name: "主要导航" }),
-  ).toBeVisible();
-  await expect(page.getByRole("link", { name: "星文智析" })).toBeVisible();
+  await expect(page.getByText("星文智析")).toBeVisible();
   await expect(
     page.getByRole("link", { name: "跳到主要内容" }),
   ).toHaveAttribute("href", "#main-content");

@@ -321,15 +321,21 @@ for (const [location, rule] of boundaryRules) {
   }
 }
 
-const workspacePresentationFiles = new Set([
-  "apps/workspace/src/router.tsx",
-  "apps/workspace/src/share-page.tsx",
-  "apps/workspace/src/workspace-host.tsx",
+const workspaceRuntimeCompositionFiles = new Set([
+  "apps/workspace/src/main.tsx",
+  "apps/workspace/src/runtime.ts",
+  "apps/workspace/src/boundaries.ts",
 ]);
 
-for (const file of sourceFiles.filter((entry) =>
-  workspacePresentationFiles.has(entry),
-)) {
+const workspaceProductionFiles = sourceFiles.filter(
+  (entry) =>
+    entry.startsWith("apps/workspace/src/") &&
+    !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(entry) &&
+    !/\.d\.ts$/u.test(entry) &&
+    !workspaceRuntimeCompositionFiles.has(entry),
+);
+
+for (const file of workspaceProductionFiles) {
   failures.push(
     ...collectBoundaryViolations(
       file,
@@ -376,6 +382,40 @@ for (const content of workspacePresentationRuleFixtures) {
       "Architecture boundary self-test failed for Workspace pages.",
     );
   }
+}
+
+const workspaceNewFileFixtures = [
+  ["apps/workspace/src/features/example.tsx", 'fetch("/api/projects");'],
+  ["apps/workspace/src/components/example.tsx", "new XMLHttpRequest();"],
+  ["apps/workspace/src/pages/example.tsx", 'new EventSource("/events");'],
+  [
+    "apps/workspace/src/pages/example.tsx",
+    'import schema from "@xingwen/contracts";',
+  ],
+  [
+    "apps/workspace/src/features/example.tsx",
+    'const path = "/api/v1/projects";',
+  ],
+];
+
+for (const [file, content] of workspaceNewFileFixtures) {
+  if (
+    collectBoundaryViolations(file, content, workspacePresentationRule)
+      .length === 0
+  ) {
+    failures.push(
+      `Architecture boundary self-test failed for new Workspace file ${file}.`,
+    );
+  }
+}
+
+if (
+  !workspaceRuntimeCompositionFiles.has("apps/workspace/src/runtime.ts") ||
+  workspaceProductionFiles.includes("apps/workspace/src/runtime.ts")
+) {
+  failures.push(
+    "Architecture boundary self-test: runtime.ts must be excluded from Workspace presentation checks.",
+  );
 }
 
 if (failures.length > 0) {

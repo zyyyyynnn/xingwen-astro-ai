@@ -105,18 +105,6 @@ function NotFoundPage() {
   );
 }
 
-function TourCompatBoundary() {
-  return (
-    <section className="route-content" role="alert">
-      <h1>页面载入失败</h1>
-      <p>请重试；若问题持续，请返回工作台入口。</p>
-      <Link className="text-link" to="/workspace">
-        返回工作台入口
-      </Link>
-    </section>
-  );
-}
-
 const rootRoute = createRootRouteWithContext<WorkspaceRuntimeBoundaries>()({
   component: RootLayout,
   errorComponent: RouteErrorPage,
@@ -136,21 +124,22 @@ const tourRoute = createRoute({
   path: "/tour",
   beforeLoad: ({ search }) => {
     const record = search as Record<string, unknown>;
-    // Reject invalid identifiers without throwing so the compat boundary
-    // renders cleanly: nothing is forwarded and no console error is logged.
-    if (!hasValidIdentifiers(record)) return;
+
+    const forwardedSearch = hasValidIdentifiers(record)
+      ? {
+          projectId: optionalIdentifier(record, "projectId"),
+          draftId: optionalIdentifier(record, "draftId"),
+          contractId: optionalIdentifier(record, "contractId"),
+          runId: optionalIdentifier(record, "runId"),
+        }
+      : {};
+
     throw redirect({
       to: "/workspace",
       replace: true,
-      search: {
-        projectId: optionalIdentifier(record, "projectId"),
-        draftId: optionalIdentifier(record, "draftId"),
-        contractId: optionalIdentifier(record, "contractId"),
-        runId: optionalIdentifier(record, "runId"),
-      },
+      search: forwardedSearch,
     });
   },
-  component: TourCompatBoundary,
 });
 
 const workspaceRoute = createRoute({

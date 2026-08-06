@@ -52,17 +52,7 @@ test("workspace skip link appears on focus and targets main content", async ({
   await expect(mainContent).toBeFocused();
 });
 
-test("workspace keyboard tab sequence reaches the brand mark first", async ({
-  page,
-}) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
 
-  // Tab past skip link to the first rail link (brand mark)
-  await page.keyboard.press("Tab"); // skip-link
-  await page.keyboard.press("Tab"); // brand mark
-
-  await expect(page.getByRole("link", { name: "星文智析" })).toBeFocused();
-});
 
 test.describe("mobile viewport @ 375px", () => {
   test.use({ viewport: { width: 375, height: 667 } });
@@ -98,10 +88,6 @@ test.describe("mobile viewport @ 375px", () => {
       page.getByText("研究工作台需要更宽的浏览器窗口。"),
     ).toBeVisible();
 
-    // The desktop rail is not offered on narrow viewports.
-    await expect(
-      page.getByRole("navigation", { name: "主要导航" }),
-    ).toBeHidden();
 
     // No horizontal scroll
     const scrollWidth = await page.evaluate(
@@ -147,9 +133,6 @@ test.describe("200% font scale", () => {
 
     await expect(
       page.getByRole("heading", { name: "研究工作台" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("navigation", { name: "主要导航" }),
     ).toBeVisible();
 
     // No horizontal overflow
