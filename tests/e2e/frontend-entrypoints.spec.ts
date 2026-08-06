@@ -47,10 +47,10 @@ test("brand site has no runtime console errors", async ({ page }) => {
 });
 
 for (const entry of [
-  ["/", "科研工作台入口", "入口"],
-  ["/tour", "研究引导", "引导"],
-  ["/workspace", "科研工作区", "工作区"],
-  ["/share/demo-token", "共享结果不可用", null],
+  ["/", "研究工作台", "工作台"],
+  ["/tour", "研究工作台", "工作台"],
+  ["/workspace", "研究工作台", "工作台"],
+  ["/share/demo-token", "共享结果当前不可用", null],
 ] as const) {
   test(`workspace route ${entry[0]} is directly addressable`, async ({
     page,

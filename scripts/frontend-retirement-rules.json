@@ -1,6 +1,13 @@
 {
   "frameworkCodePoints": [118, 117, 101],
   "retiredAppParts": ["apps", "web"],
+  "retiredPathParts": [
+    ["apps", "workspace", "src", "pages"],
+    ["apps", "workspace", "src", "components"],
+    ["apps", "workspace", "src", "features"],
+    ["apps", "workspace", "src", "hooks"],
+    ["apps", "workspace", "src", "research-defaults.ts"]
+  ],
   "dependencyFields": [
     "dependencies",
     "devDependencies",
@@ -28,5 +35,55 @@
     [36801, 31227, 28304],
     [22238, 36864, 21069, 31471]
   ],
-  "retiredTextParts": [["WEB", "_", "PORT"]]
+  "retiredTextParts": [["WEB", "_", "PORT"]],
+  "retiredWorkspacePackageParts": [
+    ["tailwindcss"],
+    ["@tailwindcss", "/vite"]
+  ],
+  "retiredWorkspaceSymbolParts": [
+    ["WorkspacePage"],
+    ["TourPage"],
+    ["EntryPage"],
+    ["ResearchShell"],
+    ["ArtifactCanvas"],
+    ["ProvenanceObservatory"],
+    ["CandidateReviewList"],
+    ["LiteratureComparisonGrid"]
+  ],
+  "retiredWorkspaceCssParts": [
+    ["@import", " ", "\"tailwindcss\""],
+    [".workspace-shell"],
+    [".workspace-body"],
+    [".top-status-rail"],
+    [".research-atlas"],
+    [".research-canvas"],
+    [".research-console"],
+    [".provenance-observatory"],
+    [".paper-review-grid"],
+    [".paper-summary-grid"],
+    [".candidate-list"],
+    [".candidate-item"]
+  ],
+  "fakeCapabilityCodePoints": [
+    [37325, 24314, 20013],
+    [27491, 22312, 36801, 31227],
+    [21518, 32493, 23454, 29616],
+    [21151, 33021, 24320, 21457, 20013],
+    [21069, 31471, 20999, 25442, 20013]
+  ],
+  "fakeCapabilityTextParts": [
+    ["Preview"],
+    ["Coming", " ", "soon"]
+  ],
+  "tourRouteTextParts": [["/", "tour"]],
+  "tourRouteAllowlist": [
+    "apps/workspace/src/router.tsx",
+    "apps/workspace/src/router.test.tsx",
+    "scripts/check-frontend-legacy.mjs",
+    "scripts/check-frontend-legacy-rules.mjs",
+    "scripts/check-frontend-legacy.test.mjs",
+    "scripts/frontend-retirement-rules.json",
+    "tests/e2e/frontend-entrypoints.spec.ts",
+    "tests/e2e/workspace-retirement.spec.ts"
+  ]
 }

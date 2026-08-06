@@ -321,10 +321,14 @@ for (const [location, rule] of boundaryRules) {
   }
 }
 
-for (const file of sourceFiles.filter(
-  (entry) =>
-    entry.startsWith("apps/workspace/src/pages/") ||
-    entry.startsWith("apps/workspace/src/components/"),
+const workspacePresentationFiles = new Set([
+  "apps/workspace/src/router.tsx",
+  "apps/workspace/src/share-page.tsx",
+  "apps/workspace/src/workspace-host.tsx",
+]);
+
+for (const file of sourceFiles.filter((entry) =>
+  workspacePresentationFiles.has(entry),
 )) {
   failures.push(
     ...collectBoundaryViolations(

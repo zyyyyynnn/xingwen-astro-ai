@@ -13,6 +13,9 @@ export const frameworkName = String.fromCharCode(
 const expandRuleParts = (parts) =>
   parts.join("").replaceAll("{framework}", frameworkName);
 const retiredApp = ruleSource.retiredAppParts.join("/");
+const retiredPaths = ruleSource.retiredPathParts.map((parts) =>
+  parts.join("/"),
+);
 
 const dependencyFields = ruleSource.dependencyFields;
 const retiredExactPackages = new Set(
@@ -31,12 +34,42 @@ const retiredTextTerms = [
   ...ruleSource.retiredTextParts.map((parts) => parts.join("")),
 ];
 
+const retiredWorkspacePackages = ruleSource.retiredWorkspacePackageParts.map(
+  (parts) => parts.join("").toLowerCase(),
+);
+const retiredWorkspaceTextTerms = [
+  ...ruleSource.retiredWorkspaceSymbolParts.map((parts) => parts.join("")),
+  ...ruleSource.fakeCapabilityCodePoints.map((codes) =>
+    String.fromCharCode(...codes),
+  ),
+  ...ruleSource.fakeCapabilityTextParts.map((parts) => parts.join("")),
+];
+const retiredWorkspaceCssTerms = ruleSource.retiredWorkspaceCssParts.map(
+  (parts) => parts.join(""),
+);
+const tourRouteTerms = ruleSource.tourRouteTextParts.map((parts) =>
+  parts.join(""),
+);
+export const tourRouteAllowlist = new Set(ruleSource.tourRouteAllowlist);
+
+export const retiredWorkspacePaths = [...retiredPaths];
+export const retiredWorkspacePackageNames = [...retiredWorkspacePackages];
+export const retiredWorkspaceSymbolAndPlaceholderTerms = [
+  ...retiredWorkspaceTextTerms,
+];
+export const retiredWorkspaceCssTermsExport = [...retiredWorkspaceCssTerms];
+export const tourRouteTermsExport = [...tourRouteTerms];
+
 export function isRetiredPackageName(name) {
   const normalized = name.toLowerCase();
   return (
     retiredExactPackages.has(normalized) ||
     retiredPackagePrefixes.some((prefix) => normalized.startsWith(prefix))
   );
+}
+
+export function isRetiredWorkspacePackageName(name) {
+  return retiredWorkspacePackages.includes(name.toLowerCase());
 }
 
 export function findRetiredManifestDependencies(manifest) {
@@ -51,6 +84,18 @@ export function findRetiredManifestDependencies(manifest) {
   return failures;
 }
 
+export function findRetiredWorkspaceManifestDependencies(manifest) {
+  const failures = [];
+  for (const field of dependencyFields) {
+    for (const name of Object.keys(manifest[field] ?? {})) {
+      if (isRetiredWorkspacePackageName(name)) {
+        failures.push(`${field}.${name}`);
+      }
+    }
+  }
+  return failures;
+}
+
 export function findRetiredTextTerms(content) {
   const normalized = content.toLowerCase();
   return retiredTextTerms.filter((term) =>
@@ -58,12 +103,31 @@ export function findRetiredTextTerms(content) {
   );
 }
 
+export function findRetiredWorkspaceTextTerms(content) {
+  const normalized = content.toLowerCase();
+  return retiredWorkspaceTextTerms.filter((term) =>
+    normalized.includes(term.toLowerCase()),
+  );
+}
+
+export function findRetiredWorkspaceCssTerms(content) {
+  return retiredWorkspaceCssTerms.filter((term) => content.includes(term));
+}
+
+export function findTourRouteRefs(content) {
+  const normalized = content.toLowerCase();
+  return tourRouteTerms.filter((term) => normalized.includes(term));
+}
+
 export function isRetiredPath(file) {
   const normalized = file.replaceAll("\\", "/").toLowerCase();
   return (
     normalized === retiredApp ||
     normalized.startsWith(`${retiredApp}/`) ||
-    normalized.endsWith(`.${frameworkName}`)
+    normalized.endsWith(`.${frameworkName}`) ||
+    retiredPaths.some(
+      (path) => normalized === path || normalized.startsWith(`${path}/`),
+    )
   );
 }
 

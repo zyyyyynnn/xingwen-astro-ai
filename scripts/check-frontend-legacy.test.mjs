@@ -6,8 +6,18 @@ import {
   findRetiredManifestDependencies,
   findRetiredResolvedDependencies,
   findRetiredTextTerms,
+  findRetiredWorkspaceCssTerms,
+  findRetiredWorkspaceManifestDependencies,
+  findRetiredWorkspaceTextTerms,
+  findTourRouteRefs,
   frameworkName,
   isRetiredPath,
+  retiredWorkspacePackageNames,
+  retiredWorkspacePaths,
+  retiredWorkspaceSymbolAndPlaceholderTerms,
+  retiredWorkspaceCssTermsExport,
+  tourRouteAllowlist,
+  tourRouteTermsExport,
 } from "./check-frontend-legacy-rules.mjs";
 
 test("rejects the bare retired runtime in a manifest", () => {
@@ -58,5 +68,48 @@ test("rejects namespace packages in the resolved dependency tree", () => {
   assert.deepEqual(
     findRetiredResolvedDependencies([{ dependencies: { [name]: { name } } }]),
     [name],
+  );
+});
+
+test("rejects retired Workspace application paths", () => {
+  for (const path of retiredWorkspacePaths) {
+    assert.equal(isRetiredPath(`${path}/main.ts`), true, path);
+  }
+});
+
+test("rejects retired Workspace dependencies in the Workspace manifest", () => {
+  const manifest = {
+    dependencies: {},
+    devDependencies: Object.fromEntries(
+      retiredWorkspacePackageNames.map((name) => [name, "1"]),
+    ),
+  };
+  assert.deepEqual(
+    findRetiredWorkspaceManifestDependencies(manifest),
+    retiredWorkspacePackageNames.map((name) => `devDependencies.${name}`),
+  );
+});
+
+test("rejects retired Workspace symbols and placeholder copy in Workspace source", () => {
+  const symbol = retiredWorkspaceSymbolAndPlaceholderTerms[0];
+  assert.deepEqual(findRetiredWorkspaceTextTerms(`export function ${symbol}`), [
+    symbol,
+  ]);
+  const placeholder = retiredWorkspaceSymbolAndPlaceholderTerms.at(-1);
+  assert.deepEqual(findRetiredWorkspaceTextTerms(placeholder), [placeholder]);
+});
+
+test("rejects retired Workspace stylesheet rules", () => {
+  const rule = retiredWorkspaceCssTermsExport[1];
+  assert.deepEqual(findRetiredWorkspaceCssTerms(rule), [rule]);
+});
+
+test("rejects the retired route term outside the compatibility allowlist", () => {
+  const term = tourRouteTermsExport[0];
+  assert.deepEqual(findTourRouteRefs(`link to ${term} here`), [term]);
+  assert.equal(tourRouteAllowlist.has("apps/workspace/src/router.tsx"), true);
+  assert.equal(
+    tourRouteAllowlist.has("apps/site/src/pages/index.astro"),
+    false,
   );
 });

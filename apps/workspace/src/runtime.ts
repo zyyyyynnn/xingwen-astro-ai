@@ -4,35 +4,15 @@ import {
   createSessionManager,
   exoplanetHostStarFixture,
 } from "@xingwen/data-access";
-import type { RepositorySet } from "@xingwen/data-access";
-import {
-  createGuidedTourController,
-  createWorkspaceController,
-} from "@xingwen/workspace-core";
+import { createWorkspaceController } from "@xingwen/workspace-core";
 
-import type {
-  FixtureBootstrapContext,
-  WorkspaceRuntimeBoundaries,
-} from "./boundaries";
-
-type RepositoryEntityId = Parameters<RepositorySet["projects"]["getById"]>[0];
+import type { WorkspaceRuntimeBoundaries } from "./boundaries";
 
 export interface WorkspaceRuntimeOptions {
   /** Public API origin, without an API version or path prefix. */
   readonly apiBaseUrl?: string;
   readonly fetchImpl?: typeof fetch;
 }
-
-function asRepositoryEntityId(value: string): RepositoryEntityId {
-  return value as RepositoryEntityId;
-}
-
-export const FIXTURE_BOOTSTRAP: FixtureBootstrapContext = {
-  projectId: asRepositoryEntityId("proj_01JEXAMPLE"),
-  draftId: asRepositoryEntityId("rcd_01JTOUR"),
-  contractId: asRepositoryEntityId("rc_01JEXAMPLE"),
-  runId: asRepositoryEntityId("run_01JEXAMPLE"),
-};
 
 function parseApiOrigin(value: string): string {
   let url: URL;
@@ -67,8 +47,6 @@ export function createWorkspaceRuntime(
     return {
       adapterKind: "fixture",
       repositories,
-      bootstrap: FIXTURE_BOOTSTRAP,
-      tour: createGuidedTourController(),
       workspaceController: createWorkspaceController(repositories.workspaces),
     };
   }
@@ -89,7 +67,6 @@ export function createWorkspaceRuntime(
     adapterKind: "http",
     repositories,
     session,
-    tour: createGuidedTourController(),
     workspaceController: createWorkspaceController(repositories.workspaces),
   };
 }
