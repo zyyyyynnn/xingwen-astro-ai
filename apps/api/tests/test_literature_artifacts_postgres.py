@@ -203,8 +203,13 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
         FixturePaperSummaryReads(artifact_reads),
     )
     app.state.artifact_read_service = artifact_reads
-    owner, owner_credential, _ = app.state.session_service.create(now=NOW)
-    _, other_credential, _ = app.state.session_service.create(now=NOW)
+    session_now = datetime.now(UTC)
+    owner, owner_credential, _ = app.state.session_service.create(
+        now=session_now
+    )
+    _, other_credential, _ = app.state.session_service.create(
+        now=session_now
+    )
 
     artifact_ids = {
         version.artifact_id: UUID(int=1300 + index)
@@ -574,6 +579,7 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
                 updated_at=now,
             )
         )
+        session.flush()
         session.add(
             RunStepModel(
                 id=step_id,
@@ -589,6 +595,7 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
                 created_at=now,
             )
         )
+        session.flush()
         session.add(
             StepAttemptModel(
                 id=attempt_id,
@@ -600,6 +607,7 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
                 created_at=now,
             )
         )
+        session.flush()
         session.add(
             ResearchArtifactModel(
                 id=artifact_id,
@@ -610,6 +618,7 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
                 created_at=now,
             )
         )
+        session.flush()
         producer = candidate.producer
         session.add(
             ProducerExecutionModel(
