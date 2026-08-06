@@ -3,10 +3,10 @@
 | 元数据    | 值                                                                          |
 | --------- | --------------------------------------------------------------------------- |
 | Status    | Accepted                                                                    |
-| Authority | D-08 Relation、ReasoningTrace 准入、confidence、固定 Benchmark 与交接边界 |
-| Scope     | Detached Relation admission、可复现 Benchmark 与 typed candidate 契约      |
+| Authority | LiteratureRelation、ReasoningTrace 准入、confidence、固定 Benchmark 与交接边界 |
+| Scope | Detached Relation admission、可复现 Benchmark 与 typed candidate 契约 |
 
-本文是 D-08 运行规则和操作方式的唯一完整事实源。Relation taxonomy 与科研准入原则由
+本文是 LiteratureRelation 运行规则和操作方式的唯一完整事实源。Relation taxonomy 与科研准入原则由
 [Reasoning Protocol](../ai/REASONING_PROTOCOL.md) 负责，字段和领域不变量由
 [Data Model](../architecture/DATA_MODEL.md) 负责，ArtifactVersion/hash 规则由
 [Data Versioning](../architecture/DATA_VERSIONING.md) 负责。
@@ -15,7 +15,7 @@
 
 运行入口是 `services.paper_pipeline.relation.LiteratureRelationPipeline`。它接收：
 
-- 经过 D-07 Pipeline 封印的 `LiteratureClaimsCandidate@1.0.0`，以及每个 Claim 所属
+- 经过 LiteratureClaim Pipeline 封印的 `LiteratureClaimsCandidate@1.0.0`，以及每个 Claim 所属
   LiteratureClaims/PaperSummary ArtifactVersion、Project、Evidence 和 SourceSnapshot；
 - `literature_reasoning@v2` 对应的模型 JSON 响应；
 - model、parameters version 与安全 parameters；
@@ -24,13 +24,13 @@
 - 可选的已知 ArtifactVersion、Claim、Evidence、SourceSnapshot、ownership 与既有
   Relation fingerprint 集合。
 
-只有 D-07 status 为 `candidate | accepted` 的 Claim 可以进入稳定 pairing；rejected
+只有 LiteratureClaim status 为 `candidate | accepted` 的 Claim 可以进入稳定 pairing；rejected
 Claim 保留在上游审计中，不进入 Relation endpoint。输出
 `LiteratureRelationAdmissionResult`，始终包含 ProducerExecution、输入版本、
 input/model-response/output hash 和稳定准入结论。JSON/Schema 失败不伪造 Relation 或
 Trace。
 
-pairing 的完整输入边界就是调用方固定的 LiteratureClaims ArtifactVersion 集合。v2
+pairing 的完整输入边界就是调用方固定的 LiteratureClaims ArtifactVersion 集合。
 Prompt 不再接收未版本化的独立 `research_goal`；若工作流需要按 ResearchContract 缩小
 范围，必须先固定传入的 ArtifactVersion 集合，而不能让未进入 input hash 的模板变量
 暗中改变 Relation 输出。
@@ -38,13 +38,13 @@ Prompt 不再接收未版本化的独立 `research_goal`；若工作流需要按
 只要至少一条 Relation 为 `candidate | accepted`，结果同时提供经过 Pipeline 封印的
 `LiteratureRelationsCandidate@1.0.0`。它是一个 `kind=literature_relations` 的领域
 typed candidate，并在同一内容闭包内保存 Relation、对应 ReasoningTrace、双方 Claim、
-Evidence/SourceSnapshot 与 ProducerExecution；D-08 不另行发布 `reasoning_traces`
-Artifact。D-08 自身不创建数据库 ArtifactVersion、不推进 ResearchRun、不发布 HTTP
+Evidence/SourceSnapshot 与 ProducerExecution；Pipeline 不另行发布 `reasoning_traces`
+Artifact。Pipeline 自身不创建数据库 ArtifactVersion、不推进 ResearchRun、不发布 HTTP
 DTO，也不生成 Graph 或 GraphEdge。
 
 ## 2. Schema
 
-唯一 Pydantic 编写源是 `apps/api/src/app/schemas/literature_relation.py`，所有 D-08
+唯一 Pydantic 编写源是 `apps/api/src/app/schemas/literature_relation.py`，所有
 公共 contract version 为 `1.0.0`：
 
 | 模型                                         | 职责                                                                    |
@@ -78,9 +78,9 @@ object 必须显式为 comparable；metric/unit 只有双方都缺失时可为 `
 如实声明 incomparable 也必须拒绝，不能把“声明一致”误当成“数据可比”。
 
 独立 tracked JSON Schema 位于 `packages/schemas/generated/literature_relation`，不进入
-HTTP OpenAPI。Phase 0 `app.schemas.reasoning.LiteratureRelation`/`ReasoningTrace` 与
+HTTP OpenAPI。旧版 `app.schemas.reasoning.LiteratureRelation`/`ReasoningTrace` 与
 core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 仅保留冻结传输
-兼容，不是 D-08 编写源，也不能进入 Publisher。
+兼容，不是编写源，也不能进入 Publisher。
 
 ## 3. 固定准入顺序与拒绝优先级
 
@@ -167,13 +167,13 @@ confidence 不是“Relation 为真”或“可接受”的概率，而是对完
 `relation type + admission decision` 决策的校准置信。Evidence、ownership、方向、
 conditions、comparability 和 Trace 硬门先执行，confidence 最后执行。
 
-D-08 冻结：
+Pipeline 冻结：
 
 | 字段 | 值 |
 | ---- | -- |
 | definition id/version | `relation_classification_decision_confidence@1.0.0` |
 | calibration id/version | `exoplanet_host_star.paper_reasoning.relation_labels@1.3.0` |
-| calibration scientific/content hash | D-01 `1.3.0` 当前 scientific payload/content hash |
+| calibration scientific/content hash | Benchmark `1.3.0` 当前 scientific payload/content hash |
 | calibration sample size | `4` 条 review-approved Relation labels |
 | calibration method | `frozen_approved_label_reference` |
 | applicability scope | `benchmark.exoplanet_host_star.relation_admission_regression` |
@@ -191,7 +191,7 @@ assessment 显式为 `not_evaluable` 时保留 candidate。
 `assessed` 且 score 低于 `0.9` 也只保留 candidate；达到 `0.9` 仅在其他门全部通过时
 允许 accepted。
 
-D-01 中两条 rejected Relation 的原始 confidence 都是 `0.99`。这恰好说明 score 不是
+基准包中两条 rejected Relation 的原始 confidence 都是 `0.99`。这恰好说明 score 不是
 accepted probability：它们表示对“当前 relation type + rejected admission decision”
 的高置信，绝不能因超过阈值改成 accepted。
 
@@ -199,7 +199,7 @@ accepted probability：它们表示对“当前 relation type + rejected admissi
 
 生产 Prompt 是 `packages/prompts/literature_reasoning/v2.md`，Registry 以不可变
 UTF-8/LF hash `sha256:0027fe9c00efa8f205d4af97c1b219809e7b78400dbc1a7e6f95486474038b6d`
-加载。`literature_reasoning@v1` 只保留 Phase 0 兼容且状态为 deprecated，不得原地修改。
+加载。`literature_reasoning@v1` 只保留旧版兼容且状态为 deprecated，不得原地修改。
 
 ProducerExecution 固定记录 producer/model、Prompt name/version/hash、schema/parameters/
 pairing/comparison/Trace/confidence definition 与完整 calibration policy、全部输入 ArtifactVersion、
@@ -214,7 +214,7 @@ input/model-response/output hash、安全终态和时间。参数只允许受限
 - Relation fingerprint 只识别固定方向的 endpoint ArtifactVersion/Claim 和 relation type；
 - `output_hash` 覆盖准入后的 Relation/Trace、Evidence 闭包、confidence、状态、拒绝原因、
   Producer 与输入版本，但排除 execution/run id、wall-clock、latency 和 producer output
-  hash 自引用，也排除内嵌 D-07 Claim 的 producer execution id；
+  hash 自引用，也排除内嵌 Claim 的 producer execution id；
 - ArtifactVersion admission 另对准备持久化的完整 JSON 计算 `content_hash`，两者职责
   不同，不要求相等。
 
@@ -243,13 +243,13 @@ mint 还要求调用帧是绑定时记录的原始 `admit` code object，且待�
 绑定完成后模块不保留可导入 mint、binder 或可写 registry。JSON/Pydantic round-trip、
 copy/deepcopy、偷取或手工构造 seal、
 手工重建、单条 Relation/Trace、raw extraction、
-Phase 0/core 兼容投影均不恢复 seal。修改 Relation、Evidence、Trace、confidence、版本、
+旧版兼容投影均不恢复 seal。修改 Relation、Evidence、Trace、confidence、版本、
 Producer 或 hash 会使 seal 失效。candidate/rejected 状态保留在批次内也不得冒充
 accepted；未来 Graph 消费端只能选择真正 accepted 的 Relation。
 
 ## 8. 固定 Benchmark
 
-`services.paper_pipeline.relation_benchmark` 只读取 tracked D-01 Package，并校验：
+`services.paper_pipeline.relation_benchmark` 只读取 tracked 基准 Package，并校验：
 
 ```text
 benchmark_id: exoplanet_host_star.paper_reasoning
@@ -261,7 +261,7 @@ tracked_file_sha256: 89fadef6a72ea484b4c22896889f9e874fe9ff9e586f1bebcb63ed1898c
 ```
 
 默认 suite 确定性派生全部四条 review-approved Relation/Trace：`extends/accepted` 1、
-`derived_from/candidate` 1、`limits/rejected` 1、`contradicts/rejected` 1。D-01 没有
+`derived_from/candidate` 1、`limits/rejected` 1、`contradicts/rejected` 1。基准包没有
 `supports`、`uses_same_dataset` 或 `compares_method` 科研标签，Benchmark 不伪造它们。
 四条 Trace 全部为 review-approved；Trace 没有独立 admission status，按绑定 Relation
 保存 1 accepted、1 candidate、2 rejected。
@@ -281,11 +281,11 @@ uv run --project apps/api python -m services.paper_pipeline.relation_benchmark `
 
 报告分别保存分子、分母和 rate：
 
-- `scientific_pair_coverage_rate`：成功稳定配对并定位预期 Relation record 的 D-01
+- `scientific_pair_coverage_rate`：成功稳定配对并定位预期 Relation record 的
   scientific cases / 4；它与分类 exact match 分开；
-- `scientific_relation_exact_match_rate`：与 D-08 可表达的 D-01 冻结科研字段精确一致的
+- `scientific_relation_exact_match_rate`：与 Pipeline 可表达的冻结科研字段精确一致的
   Relation/Trace / 固定 4 条 approved labels；缺 record/Trace 计为失败，不能缩小分母。
-  D-01 Trace 的独立 `uncertainty` 稳定映射到公开 limitations 后参与 exact；
+  Trace 的独立 `uncertainty` 稳定映射到公开 limitations 后参与 exact；
 - `relation_evidence_coverage_rate`：保留且 supported 的双方 Relation Evidence 引用 / 8；
 - `trace_step_evidence_coverage_rate`：保留且 supported 的 Trace-step Evidence 引用 / 13；
 - `evidence_less_block_rate`：确实因无 Evidence 被阻止的 evidence-less 负例 / 全部此类负例；
@@ -295,14 +295,14 @@ uv run --project apps/api python -m services.paper_pipeline.relation_benchmark `
   `[0.0,0.5)`、`[0.5,0.9)`、`[0.9,1.0]` 分布，不与 admission rejection 合并成总分；
 - `scientific_status_counts` 固定核对四条科研标签的 accepted/candidate/rejected 为
   `1/1/2`，`status_counts` 统计全部 scientific + rejection cases，
-  `relation_type_counts` 只统计四条 D-01 scientific Relation；
+  `relation_type_counts` 只统计四条 scientific Relation；
 - 逐 case input/output hash 和 report input/output hash。
 
 任一分母为零时对应 rate 为 `null`，不能报告 100%。case id、Relation、Trace、
 Evidence、拒绝原因和序列化 key 使用稳定顺序；report hash 不含时间戳、execution id 或
 latency。相同冻结输入连续运行两次的 cases/report 必须字节一致。
 
-该 Benchmark 的数据等级是 `Benchmark / seed`，不调用线上模型、不修改 D-01，也不依赖
+该 Benchmark 的数据等级是 `Benchmark / seed`，不调用线上模型、不修改基准包，也不依赖
 公网。exact match 只验证冻结人工标签和 admission 回归，不代表线上模型科学质量、
 泛化能力、新科学结论或 acceptance probability。
 
@@ -323,13 +323,13 @@ uv run --project apps/api python -m services.paper_pipeline.relation_benchmark -
 input hash 和 stable output hash 都必须相同。Prompt Registry 必须加载 v1 deprecated 和
 v2 active，且 v2 front matter、output model 与 LF 文件 hash 一致。
 
-tracked Schema 使用 [Schema Package](../../packages/schemas/README.md) 中 D-08 正式
-export/`--check` 命令验证；CI 同时运行 D-07 Benchmark、Phase 0/core/security Schema、
+tracked Schema 使用 [Schema Package](../../packages/schemas/README.md) 中正式
+export/`--check` 命令验证；CI 同时运行 Benchmark、Schema、
 OpenAPI、contracts sync/stale diff、Foundation、前端质量、Compose 与 Browser E2E。
 
 ## 10. 明确非目标
 
-D-08 不实现 Graph/GraphEdge、HTTP endpoint/DTO、前端、数据库 ArtifactVersion 事务、
-ResearchRun 推进、生产模型 client、Agent 平台或自由代码执行。它不修改 D-01 已批准
+本 Pipeline 不实现 Graph/GraphEdge、HTTP endpoint/DTO、前端、数据库 ArtifactVersion 事务、
+ResearchRun 推进、生产模型 client、Agent 平台或自由代码执行。它不修改已批准
 科研事实，不复制 MAVIS Agent/Prompt，不保存原始模型长输出、受限全文、凭据或私有
 chain-of-thought。

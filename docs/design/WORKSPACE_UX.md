@@ -1,529 +1,272 @@
 # Research Workspace UX
 
-| 元数据         | 值                                                                                                                             |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Status         | Accepted                                                                                                                       |
-| Authority      | 工作台信息架构、核心交互、页面状态与 Guided Tour                                                                               |
+| 元数据 | 值 |
+| --- | --- |
+| Status | Accepted |
+| Authority | Workspace 信息架构、页面状态与核心交互 |
 
-本文定义科研工作台的信息架构、核心交互、页面状态和 Guided Tour。工作台借鉴现代 Agent Desktop 的桌面级组织能力，但不采用“聊天线程 + 工具日志”作为产品核心。
+本文定义 Research Workspace 的产品合同，不规定具体上游产品、源码目录或实现技术。
 
-## 1. 产品差异化原则
+## 1. 目标
 
-星文智析工作台必须体现以下差异：
-
-| 通用 Agent Desktop | 星文智析 Research Workspace                   |
-| ------------------ | --------------------------------------------- |
-| 项目 / 聊天线程    | ResearchProject / ResearchRun                 |
-| 消息与工具调用     | 结构化科研产物与 Evidence                     |
-| 文件变更审查       | 数据、论文、Claim、Relation、Graph 与版本审查 |
-| Agent 日志         | TaskStep、来源快照、运行参数和错误分类        |
-| 环境面板           | Provenance Observatory                        |
-| 聊天输入框         | Research Console + Research Contract          |
-
-核心原则：**科研产物优先，AI 对话次之，执行日志降为辅助信息。**
-
-## 2. 体验域
-
-### 2.1 Brand Site
-
-- 建立品牌识别与「愿意点进去」的动机；**不**在首页讲完整产品说明书。
-- 首屏为**单英雄区极简落地页**：一张偏轴系外行星 ASCII/Dither 图、两个短 CTA、一句主标题、三至四段无标题短注。
-- 双入口：**开始演示**（Demo Replay / Guided Tour）与 **进入工作台**。Live Run **不**作为首页开关；在 Tour 或启动门选择。
-- 主案例全名、Fixture/Demo 声明、Live 依赖与失败语义 → Tour 起步或启动确认，**不进首屏**。
-- 不承担复杂项目管理，不提供研究意图输入框。
-
-视觉与 Token 细则见 [Visual Language](VISUAL_LANGUAGE.md) §6.1 与 §3。
-
-### 2.2 Guided Tour
-
-- 默认使用版本化主案例 Demo Replay。
-- 支持编辑 ResearchContractDraft、确认 ResearchContract，并在启动时选择 Live Run。
-- 通过受控镜头和焦点，依次展示关键科研产物（见 §2.4）。
-- 允许暂停、跳过、返回和直接进入工作台。
-- 任何回放内容都必须标注为示例研究运行。
-
-### 2.3 Research Workspace
-
-- 管理多个研究项目和运行。
-- 支持同时查看最多三个科研产物。
-- 提供来源、证据、版本和反馈审查。
-- 支持分享只读结果链接。
-- 不要求账号登录；使用隔离的临时研究会话。
-
-### 2.4 首页极简首屏与 Tour 叙事
-
-#### 首页（Brand Site `/`）
-
-首页是**一屏讲完**的品牌入口，不是 60–90 秒滚动叙事，也不使用强制滚动劫持。
-
-| 层   | 内容                                          | 要求                                                    |
-| ---- | --------------------------------------------- | ------------------------------------------------------- |
-| Hero | 巨型偏轴系外行星 / 凌星，ASCII + Dither       | ≥50% 视口高；其上无文案；WebGL 非 LCP 前置；须有 Poster |
-| 动作 | `开始演示` · `进入工作台`                     | 短标签 DOM 按钮；无模式徽章、无 Live 开关               |
-| 主张 | 一句衬线主标题（2 行内）                      | 无 eyebrow / 副标题 / 参数枚举                          |
-| 短注 | 三至四段无标题说明（问题→来源→证据→产物优先） | 无编号卡片；过挤可压到三列                              |
-
-首屏**禁止**：厚顶栏信息架构、主案例 chip、seed/坐标元数据、质量档 UI、可信长免责、第二屏功能墙。
-
-无 JS 时：标题、短注与双 CTA 仍存在于静态 HTML。移动端可用静态 Poster 或 Low 档，但上述四层不减少。
-
-#### Guided Tour 叙事
-
-多幕讲解只发生在 Tour，默认 Demo Replay：
-
-| 阶段      | 内容                                                        | 交互与可信性要求                                     |
-| --------- | ----------------------------------------------------------- | ---------------------------------------------------- |
-| SIGNAL    | 品牌与主案例上下文（可复用首页视觉缩略）                    | 明确标注示例运行                                     |
-| QUESTION  | 自然语言意图 → 可编辑 ResearchContractDraft → 确认 Contract | 不在确认 Contract 前启动 Live Run                    |
-| EVIDENCE  | Dataset、Paper、Claim、Evidence、Relation 逐层显现          | 视觉只解释结构，不虚构科研数据或精度                 |
-| WORKSPACE | 场景收束为真实工作台结构                                    | 可继续 Demo、切换 Live（先解释依赖）或进入 Workspace |
-
-默认路径读取确定性 Fixture；选择 Live Run 前必须解释外部依赖、等待、失败与缓存语义。
-
-## 3. 全局布局
-
-桌面完整布局：
+Workspace 支持用户在同一研究上下文中完成：
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│ Top Status Rail                                                     │
-├───────────────┬──────────────────────────────────┬──────────────────┤
-│ Research      │ Research Canvas                  │ Provenance       │
-│ Atlas         │ 1–3 controlled panes            │ Observatory      │
-│               │                                  │                  │
-├───────────────┴──────────────────────────────────┴──────────────────┤
-│ Research Console                                                    │
-└─────────────────────────────────────────────────────────────────────┘
+提出研究意图
+→ 确认研究协议
+→ 观察 Agent 执行
+→ 审查科研产物
+→ 核验证据与来源
+→ 作出人类决策
+→ 修订、导出或分享
 ```
 
-推荐尺寸范围：
+## 2. 核心工作面
 
-| 区域                   | 默认      | 可调整范围 |
-| ---------------------- | --------- | ---------- |
-| Top Status Rail        | 44px      | 固定       |
-| Research Atlas         | 276px     | 224–360px  |
-| Provenance Observatory | 360px     | 300–480px  |
-| Research Console       | 76px 收起 | 76–280px   |
-| Research Canvas        | 自适应    | 最小 560px |
+选定上游产品必须提供以下工作面；具体排列、折叠和响应式行为继承其成熟实现。
 
-空间不足时优先将右栏、再将左栏转为原生 `details` 披露区；不得以 `display: none` 移除唯一入口。中央画布小于最低宽度时切换单焦点视图。
+| 工作面 | 职责 |
+| --- | --- |
+| Research Navigation | 新建、选择、固定、分组和恢复 Project / Run |
+| Agent Activity | 展示用户指令、Agent 计划、执行事件、审批、错误和交付物 |
+| Artifact Workspace | 阅读、比较和审查科研产物 |
+| Context Inspector | 核验当前对象的 Evidence、Source、Version 与执行详情 |
+| Research Composer | 提交研究指令、修订请求、范围变化和人类决策 |
 
-主要设计与视觉回归基准为 `1440×900`、`1920×1080`；`1280px` 宽仍必须可完成 Research Contract、运行、产物审查和 Evidence 定位主流程。
+任一正式 Workspace 状态不得退化为只含静态内容的页面。
 
-## 4. Top Status Rail
+## 3. Research Navigation
 
-顶部不是传统营销导航，也不是 IDE 菜单栏。应包含：
+导航项至少展示：
 
-- 中文字标缩略版
-- 当前 ResearchProject / ResearchRun 路径
-- 执行方式：Demo Replay / Live；产物来源：Fixture / Live / Cached；修订关系独立显示
-- 当前任务状态与关键步骤
-- 全局搜索 / Command Palette
-- 分享、导出、帮助和质量档
+- 人类可读标题；
+- Run 状态；
+- 当前阶段或最近结果；
+- 最近更新时间；
+- 待复核或失败提示。
 
-状态栏不得显示过多装饰。运行状态应使用文字、图标和轻量动效共同表达。
+必须支持：
 
-## 5. Research Atlas
+- 当前项；
+- Recent；
+- Pin / Unpin；
+- Group / Filter / Sort；
+- Collapse；
+- 键盘导航；
+- 小屏 Drawer。
 
-Research Atlas 是左侧研究项目与阶段导航，不是聊天历史。
+导航不显示原始内部 ID，不使用大面积卡片替代列表结构。
 
-### 5.1 一级结构
+## 4. Agent Activity
+
+Agent Activity 以可理解的研究事件组织，不直接呈现原始日志。
+
+事件类别：
 
 ```text
-Recent Research
-├─ ResearchProject A
-│  ├─ Run 03 / Live / searching_papers
-│  ├─ Run 02 / Live · Revised
-│  └─ Run 01 / Cached
-├─ ResearchProject B
-└─ Shared Result Links
+User Instruction
+Agent Plan
+Research Step
+Tool Execution
+Human Checkpoint
+Artifact Produced
+Evidence Added
+Conflict Detected
+Revision Produced
+Error / Recovery
+Completion
 ```
 
-### 5.2 项目内部结构
+默认层回答：
 
 ```text
-Overview
-Research Contract
-Runs
-Artifacts
-├─ Data
-├─ Papers
-├─ Literature
-├─ Reasoning
-├─ Graph
-└─ Exports
-Feedback
-History
+为什么执行
+正在执行什么
+发现了什么
+产生了什么
+下一步是什么
 ```
 
-### 5.3 并行状态
+工具参数、完整请求、Hash、耗时与 Raw 输出进入可展开详情。
 
-多个运行可并行，但界面通过“运行轨道”表达，不使用聊天未读数量。完整 `RunStatus` 集合和转换规则只在 [WORKFLOW_DESIGN.md](../architecture/WORKFLOW_DESIGN.md) 定义；Workspace 直接消费服务端 `status`、当前 step、progress、时间、失败摘要与 `available_actions`，不维护第二套状态枚举。
+Tool 与 Deliverable 分离：
 
-运行轨道显示状态文本、当前阶段、耗时、执行方式、产物来源和修订关系，不显示原始模型思维过程。`cached`、`fixture` 和修订关系都不是 Run 状态；修订由 revision Run 或被替代版本关系推导。
+- Tool 表示执行过程；
+- Deliverable 表示可审查结果；
+- Artifact 事件打开 Artifact Workspace；
+- Evidence 事件打开 Context Inspector；
+- Checkpoint 阻塞后续执行并要求用户决策。
 
-## 6. Research Contract
+## 5. Artifact Workspace
 
-### 6.1 自然语言起步
+Artifact Workspace 承载：
 
-用户在 Guided Tour 或 Research Console 输入研究目标，例如：
+- Dataset；
+- Field Dictionary；
+- Source Collection；
+- Paper Collection；
+- Paper Summary；
+- Literature Claim / Relation；
+- Reasoning Trace；
+- Candidate Dossier；
+- Artifact Version；
+- Export / Share。
 
-> 整合主案例中系外行星候选体与宿主恒星的关键参数，并追踪每个字段的来源和相关论文依据。
+工作模式：
 
-系统生成可编辑的 ResearchContractDraft，而不是立即执行；用户确认后才创建不可变 ResearchContract。
+| 模式 | 用途 |
+| --- | --- |
+| Docked | 与 Agent Activity 并列查看 |
+| Focus | 长文、数据或复杂产物审查 |
+| Compare | 两个明确对象的科研比较 |
+| Source Review | 完整来源阅读与定位 |
 
-### 6.2 Draft 契约结构
+每个 Artifact Kind 使用专属 Renderer。未知类型显示明确不支持状态，不以 Hash 或内部 Metadata 充当内容。
 
-字段名是目标领域契约，不使用仅供展示的同义词替代：
+## 6. Context Inspector
 
-| 字段                    | 示例内容                                      |
-| ----------------------- | --------------------------------------------- |
-| `research_goal`         | 整合候选体与宿主恒星关键参数                  |
-| `target_objects`        | 系外行星候选体、宿主恒星                      |
-| `data_requirements`     | 单位、时间范围、缺失值和交叉匹配要求          |
-| `requested_fields`      | 半径、质量、周期、恒星温度、金属丰度等        |
-| `source_scope`          | 允许的开放天文数据库与补充来源                |
-| `paper_search_scope`    | 关键词、年份、最大候选数、选择规则            |
-| `output_requirements`   | CSV、字段字典、溯源报告、图谱                 |
-| `evidence_requirements` | locator、quote/value、SourceSnapshot 和覆盖率 |
-| `quality_constraints`   | 来源完整性、单位一致性、证据覆盖率            |
+Inspector 由当前选中对象驱动。
 
-用户可以在 Draft 中逐项编辑、接受建议或恢复默认主案例。
+| 选中对象 | Inspector 内容 |
+| --- | --- |
+| Statement / Cell / Claim | Evidence 状态与关联证据 |
+| Evidence | SourceSnapshot、locator、quote / value、版本 |
+| Artifact | Metadata、Evidence Coverage、Review |
+| ArtifactVersion | 版本关系与 Scientific Diff |
+| Human Checkpoint | 决策上下文 |
+| Tool Execution | 执行详情 |
 
-### 6.3 执行门
+Inspector 支持返回、固定和关闭，并保持最小访问历史。
 
-- Draft 必填字段不完整时不得确认或执行。
-- 系统应展示预计步骤和可能的外部依赖。
-- Contract 确认后，用户在创建 Run 或启动 Guided Tour 时选择 Demo Replay 或 Live；该选择不写入 Contract。
-- Demo Replay 和 Live Run 的差异必须在启动前说明。
-- Draft 确认后形成只读 Contract；改变科研输入时创建新 Draft/Contract，并由新 Run 引用。
+## 7. Research Composer
 
-## 7. Research Canvas
+Composer 继承上游成熟输入、附件、快捷键、提交、取消和焦点行为。
 
-中央画布支持 1–3 个受控面板。不是自由桌面，不允许无限悬浮窗口。
-
-### 7.1 面板模型
-
-每个面板包含：
-
-- Artifact 类型和标题
-- 运行来源与版本
-- 主要内容
-- Evidence / 来源入口
-- 面板操作：固定、拆分、替换、关闭、全屏
-
-### 7.2 拆分规则
-
-支持：
-
-- 单面板聚焦
-- 左右双面板
-- 主面板 + 右侧窄面板
-- 左右 + 底部三面板
-
-禁止：
-
-- 超过三个中央面板
-- 任意拖拽重叠窗口
-- 未保存的布局在不同项目间污染
-
-### 7.3 推荐对照组合
-
-| 场景     | 面板组合                                     |
-| -------- | -------------------------------------------- |
-| 字段核验 | 数据表 + Evidence                            |
-| 论文筛选 | 候选论文 + 检索运行详情                      |
-| 文献理解 | PaperSummary + 原文 Evidence                 |
-| 推理审查 | Claim / Relation + ReasoningTrace + Evidence |
-| 图谱审查 | Graph + Relation / Trace + Evidence          |
-| 反馈修正 | 当前版本 + 修订草案 + 影响范围               |
-
-## 8. Provenance Observatory
-
-右侧区域是产品的核心差异化组件。它不是普通详情栏，而是统一的来源、证据和版本观测台。
-
-### 8.1 选中对象
-
-可接受：
-
-- 数据单元格或字段
-- 数据来源
-- 论文候选
-- PaperSummary 结论
-- Claim
-- Relation
-- ReasoningTrace
-- GraphNode / GraphEdge
-- ArtifactVersion
-
-### 8.2 内容层级
+提交语义：
 
 ```text
-Object Identity
-Source Mode / Version
-Evidence
-Source / Paper
-Locator / Quote / Value
-Extraction Method
-Confidence / Quality
-Snapshot / Query Hash
-Related Objects
-Feedback Actions
+Start Research
+Continue Research
+Revise Artifact
+Verify Statement
+Change Scope
+Resolve Checkpoint
+Derive Run
 ```
 
-### 8.3 交互规则
+前端将输入映射为结构化 Research Intent，不直接创建科研事实。
 
-- 从任意产物点击 Evidence，右栏更新但不丢失中央上下文。
-- 可固定当前 Evidence，以便对照另一个对象。
-- 支持在右栏打开更完整的 Evidence 文档视图。
-- 不显示模型私有思维过程；ReasoningTrace 只展示可审查的显式依据。
-- 来源不可访问时展示快照信息和失败原因。
+Completed 状态不得禁用 Composer；必须允许继续研究、请求修订或派生 Run。
 
-## 9. Research Console
+## 8. 页面状态
 
-Research Console 位于底部，默认收起为紧凑状态。
+### Empty
 
-### 9.1 作用
+展示研究意图入口、可用输入、最近项目和真实数据边界。不得使用虚构 Project 填充空状态。
 
-- 新建研究目标
-- 追问当前产物
-- 请求改变科研输入，并创建新的 ResearchContractDraft / ResearchContract
-- 重试某个 TaskStep
-- 扩展字段或论文范围
-- 生成导出物
-- 提交反馈与局部修正
+### Draft
 
-### 9.2 上下文
+展示 Research Contract Draft 与计划预览。Contract 未确认时不得启动 Run。
 
-提交前明确显示：
+### Running
 
-- 当前项目
-- 当前运行
-- 选中产物
-- 允许影响的范围
-- execution mode 与 source mode
+展示 Agent Plan、当前步骤、最新 Deliverable、暂停或取消入口。Checkpoint 到达时突出用户决策。
 
-### 9.3 输出规则
+### Needs Review
 
-AI 响应优先生成：
+默认打开待复核对象。支持接受、请求修订、扩大来源、改变条件和继续研究。
 
-- 契约变更建议
-- 新 Artifact
-- 新运行计划
-- 结构化解释
-- 反馈修订草案
+### Completed
 
-只有解释性追问才返回纯文本。长篇 AI 回复不得把核心产物推离主工作区。
+保留完整 Agent Activity，并突出最终 Artifact、关键 Evidence、冲突、局限、未解决问题与推荐下一步。
 
-## 10. 页面与产物视图
-
-### 10.1 Project Overview
-
-展示：
-
-- Research Contract 摘要
-- 最近运行
-- 工作流阶段
-- 产物覆盖情况
-- Evidence 覆盖率
-- 风险和失败
-- 推荐下一步
-
-视觉可使用低密度 ASCII 天体缩略图，但不使用全屏动态背景。
-
-### 10.2 Data Workspace
-
-展示：
-
-- 可虚拟化数据表
-- 字段字典
-- 来源覆盖
-- 单位和缺失值
-- 质量评分
-- 导出入口
-
-关键交互：选择单元格后打开 Evidence；支持字段固定和对照；不在表格内塞入长来源文本。
-
-### 10.3 Paper Acquisition Workspace
-
-展示：
-
-- 检索 Query 与参数
-- 获取来源
-- 候选数量、去重和排序
-- PaperCandidate 列表
-- 入选 / 排除原因
-- Live / Cached / Seed Benchmark 标识
-
-必须能证明候选不是手写塞入。
-
-当前实现（A-05，含 #136 合并后纠正）：`/workspace` 选中 `paper_collection` 版本后，中央画布渲染论文获取与候选审查面——完整展示检索 Query（query id/normalization 版本/原始与规范化关键词/年份/排序/分页/来源参数/query hash）、逐来源执行审计（request parameters hash、分页请求表含 offset/rows/total/attempt/status/request·response hash/rate limit）、指标（含真实 recall）、规则/复现标识与候选列表；筛选（文本/入选状态/来源/重复与冲突）只隐藏行，不改变服务端稳定排名；入选与排除原因、重复组、不确定匹配与字段冲突逐候选展示；合成演示记录携带契约内的记录级 `synthetic_note` 并在候选行上显著标注，真实 seed 论文永不标注；`execution_mode`（Demo Replay | Live）与 `source_mode`（Fixture | Live | Cached）分列展示、互不推断；cached 状态展示 origin Run/ArtifactVersion、cache version、快照时间、适用性与本次 Live 失败原因（全部为 Contract 必填，缺失、空串或全空白均为契约违规，不会静默进入 ready）；候选选择驱动 Provenance Observatory，Evidence 打开后进入既有 pin/Share 链路；非 http(s) 原始记录链接只以纯文本呈现；empty（仅限 PAPER_COLLECTION_EMPTY）/ unavailable / rate_limited / source_failed / invalid / network_error 均有可执行下一步。Fixture 由真实 D-02 Pipeline 基于冻结 benchmark 场景离线生成（四篇 seed 论文从冻结包程序化派生 + 三条逐条标注的合成审查记录），经 Pydantic 语义门禁验证并明示非实时检索。当前为只读审查，人工改判/重跑检索属后续 Issue。
-
-### 10.4 Literature Workspace
-
-展示：
-
-- 论文元信息
-- 目标、方法、数据、发现、局限
-- 每条核心结论的 Evidence
-- 版本和 Prompt / 模型信息
-
-支持论文间并排对照。
-
-当前实现（A-06）：`/workspace` 选中 `paper_summary` 版本后，中央画布经 `artifact-canvas` 路由到 `LiteratureSummaryWorkspace`——按研究目标、方法、数据集、核心发现、局限与未来工作五区展示结构化语句，每条语句携带 supported / unsupported（未证实）/ unverifiable（证据不可核验）状态徽标，绝不把无证据或不可核验的模型表述呈现为无条件事实；每条语句内联展示其 `summaryEvidence`（paper_text: 章节/段落/文本范围；paper_metadata: 字段 + 经 `safeExternalUrl` 白名单的 http(s) 链接）与引文短句/值；点击语句经 `targetId === statementId` 定位通用 Evidence 并驱动 Provenance Observatory，进入既有 pin/Share 链路；展示标题、作者、年份、ArtifactVersion revision/supersedes、benchmark、模型/Prompt provenance 与 input_versions 复现标识、来源版本冲突，Cached 版本另显示适用性、cache version、Live 失败原因及 origin Run/ArtifactVersion；idle/loading/unavailable/invalid/network_error 状态矩阵完整（paper_summary 版本已存在即携带总结，无“空总结”后端态；未知版本走 unavailable），键盘可 Tab 聚焦语句并以 Enter/Space 触发证据侧栏。至多三篇并排对照已接入可达 UI：当前 Run 的 `paper_summary` latest versions 去重并限制为三项，`LiteratureComparisonGrid` 等宽对照研究目标/方法/数据集/发现/局限与未来工作，各列独立保留论文元信息、版本、来源、model/Prompt、Evidence 覆盖缺口和逐项状态；Cached 列同时保留适用条件、Live 失败原因及 origin Run/ArtifactVersion，不合并成无来源结论；当前 Demo Replay Fixture 只有单篇总结，因此另外两个槽位明确显示为空，但真实多产物 Run 可加载最多三列。PaperSummary Fixture 由真实 D-03 `PaperSummaryPipeline` 生成并经 Pydantic 语义门禁验证；真实 HTTP 数据取决于后端 B-07/D-03 运行链路。
-
-### 10.5 Reasoning Workspace
-
-展示：
-
-- Claim 列表
-- 候选 Relation 与最终 Relation 分离
-- Relation 类型、条件和置信度
-- ReasoningTrace
-- 双方 Evidence
-
-不得把模型推理描述为无条件科学事实。
-
-### 10.6 Graph Workspace
-
-展示：
-
-- 受控规模的证据图谱
-- 节点类型和边类型
-- 边的 Evidence / Relation / Trace
-- 过滤、聚焦和邻接探索
-
-图谱服务审查，不为视觉效果生成额外节点或无证据边。
-
-### 10.7 Feedback Workspace
-
-反馈必须定位到对象和版本：
-
-- 字段 / 单位
-- 来源
-- 论文候选
-- PaperSummary
-- Claim / Relation / Trace
-- GraphNode / GraphEdge
-
-提交后先生成影响范围和修订计划，确认后产生新 ArtifactVersion。
-
-## 11. Guided Tour
-
-### 11.1 默认主案例
-
-默认 Demo Replay 锁定“系外行星候选体与宿主恒星参数整合”，但界面和契约不写死为唯一对象类型。
-
-### 11.2 引导步骤
+主要动作：
 
 ```text
-1. Signal：认识品牌和主案例
-2. Question：查看或编辑 ResearchContractDraft，并确认 ResearchContract
-3. Acquire：数据与论文来源出现
-4. Resolve：字段、论文和 Evidence 被整理
-5. Reason：Claim、Relation 与 Trace 形成
-6. Map：证据图谱聚合
-7. Inspect：打开 Provenance Observatory
-8. Continue：进入完整 Workspace
+继续研究
+请求修订
+派生新任务
+导出
+分享
 ```
 
-### 11.3 Demo Replay 与 Live Run
+### Failed
 
-| 模式        | 行为                                       |
-| ----------- | ------------------------------------------ |
-| Demo Replay | 确定性数据、稳定时序、可重复录制、明确标识 |
-| Live Run    | 调用真实 API，允许等待、失败、缓存和重试   |
+展示失败阶段、公开错误、已产生 Artifact、重试条件、缓存边界和可执行下一步。
 
-两者共享相同领域模型与 UI 组件，不维护两套页面。
+## 9. Evidence 与来源
 
-### 11.4 A-16 当前行为边界
+核心链路在两次交互内成立：
 
-- 未配置 API origin 时，Tour 以版本化 Fixture 呈现 Demo Replay；Live 控件保留但禁用并有文字标识。
-- 配置合法 API origin 时，同一页面组件切换到 HTTP Repository Port；模式选择只传递给 Run `execution_mode`，不写入 Draft 或 Contract。
-- Draft 在确认成功后于当前页面锁定为只读；创建 Run 的单次重试复用同一 Idempotency-Key。
-- 当前证据包含组件测试、Fixture Playwright，以及独立真实 HTTP Browser/Compose 对 Draft、Contract、Run/Event、Workspace 冲突、刷新恢复和冻结 Share 的验证；外部 Live 科研服务失败仍属后续范围。
+```text
+Statement / Cell / Claim
+→ Evidence
+→ Source / Locator / Snapshot
+```
 
-## 12. 会话与分享
+Evidence 状态：
 
-### 12.1 免登录模式
+```text
+Supported
+Conflicted
+Unresolved
+Source Version Conflict
+```
 
-- 评委可直接体验 Demo Replay。
-- Live Run 创建隔离临时会话。
-- 会话具有过期时间和容量限制。
-- 不在浏览器保存敏感凭据。
+状态同时使用文字与视觉标识。未经校准的百分比不得替代 Evidence 事实。
 
-### 12.2 只读分享
+## 10. Human Checkpoints
 
-分享链接包含：
+Workspace 固定支持三类决策：
 
-- ResearchProject / ResearchRun 标识
-- 当前 ArtifactVersion
-- 来源模式
-- 可公开的 Evidence 和导出物
+| Checkpoint | 核心内容 |
+| --- | --- |
+| Protocol | 研究问题、范围、纳入排除、目标产物、停止条件 |
+| Evidence Set | 接受来源、排除理由、冲突、版本问题、数据缺口 |
+| Conclusion / Revision | 接受、修订、扩大来源、改变条件、派生 Run |
 
-只读页面不得暴露内部密钥、受限全文、原始错误堆栈或未授权输入。
+Checkpoint 的状态与可用动作由后端 Workflow 提供，前端不维护第二套状态机。
 
-A-16 的公开路由只读取冻结 `PublicShareSnapshot`，不进入私有 Shell、不创建 Session，并区分不可用（撤销、过期或 404）与网络失败。创建后的 `shareUrl` 仅保留在当前内存状态中；页面不显示 raw token。
+## 11. Version 与修订
 
-## 13. 空、加载、失败与缓存状态
+Scientific Version Diff 至少展示：
 
-每种产物视图必须覆盖：
+- Contract 变化；
+- Source Set 变化；
+- Evidence 变化；
+- Statement / Claim 变化；
+- 冲突与局限变化；
+- Artifact 内容变化。
 
-- `empty`：说明需要什么输入或前置产物
-- `loading`：布局稳定，显示具体 TaskStep
-- `partial`：部分来源或字段可用
-- `success`：产物、来源和版本完整
-- `failed`：错误分类、影响和下一步
-- `fixture`：场景版本、schema version 和明确 Demo 标识
-- `cached`：真实历史 Run、缓存时间、适用性与本次 Live 失败原因
-- `revised`：由 revision Run 或 `supersedes_version_id` 推导，显示当前修订和原版本关系，并与真实来源组合展示
+修订创建新 Contract、派生 Run 或新 ArtifactVersion，不原地覆盖历史。
 
-ASCII 动效只辅助状态表达，不替代文字和进度。
+## 12. 响应式与可访问性
 
-## 14. 键盘与命令
+- 完整键盘路径；
+- 可见 Focus Ring；
+- Skip Link；
+- 正确 Heading 层级；
+- 状态不只靠颜色；
+- 200% 字体可完成核心路径；
+- 390×844 无横向滚动；
+- Reduced Motion；
+- Overlay 关闭后恢复焦点；
+- Resize 提供键盘替代。
 
-推荐快捷键：
+具体断点、Panel 行为与移动端模式在上游产品冻结后由实现规范记录，不在本文预设。
 
-| 操作                   | 快捷键                 |
-| ---------------------- | ---------------------- |
-| Command Palette        | `Ctrl/Cmd + K`         |
-| Research Console       | `Ctrl/Cmd + J`         |
-| 新建项目               | `Ctrl/Cmd + Shift + N` |
-| 打开 Evidence          | `E`（焦点对象可用时）  |
-| 切换左栏               | `Ctrl/Cmd + B`         |
-| 切换右栏               | `Ctrl/Cmd + Shift + B` |
-| 聚焦面板 1–3           | `Alt + 1/2/3`          |
-| 退出弹层 / Guided Step | `Esc`                  |
+## 13. 产品语言
 
-快捷键不得阻断浏览器和辅助技术的基础操作。
+界面结构与操作以中文为主。标准、论文标题、DOI 与 Artifact Kind 可保留英文。
 
-## 15. 移动端降级
+默认视图禁止出现：
 
-移动端保留：
+- Preview、A-17 或内部项目代号；
+- Adapter、Fixture、Hash、Execution Mode；
+- 失效功能提示占据主操作区；
+- 假 Project、假 Run、假 Evidence；
+- 原始模型思维过程。
 
-- 首页品牌体验的简化版本
-- Research Contract 创建与确认
-- 项目和运行查看
-- 单焦点产物视图
-- Evidence 抽屉
-- 分享结果
+## 14. 验收边界
 
-移动端不提供三面板对照和完整高密度图谱编辑。WebGL 使用低质量或静态 Poster。
-
-A-16 的 375px 视图保留 Atlas 与 Observatory 的 `details` 摘要、Canvas 和 Console 主动作；不把侧栏内容直接隐藏。
-
-## 16. UX 验收
-
-- 新用户在首页 10 秒内能识别产品主题，并看到「开始演示」「进入工作台」两个主动作；首屏文字区块不超过按钮行、一句标题与三至四段短注。
-- 无人讲解完成 Guided Tour 后，用户能说明数据、论文、推理和 Evidence 的关系。
-- 首页不出现 Live 模式开关、主案例参数徽章、编号功能矩阵或滚动四幕说明书。
-- 用户可在 3 次交互内从任意结论定位到 Evidence。
-- 工作台中央默认不是聊天流。
-- 多项目并行状态可区分，但不会形成通用 Agent 线程列表的外观。
-- 数据、论文、推理和图谱之间可以通过最多三面板完成对照。
-- `execution_mode`、`source_mode` 与修订派生关系分别展示，Demo Replay、Live、Cached 和 Revised 语义不混淆。
-- 所有失败状态提供可执行下一步。
-- `1440×900`、`1920×1080` 完整布局与 `1280px` 可完成主流程均通过验证。
-- 中央最多三个拆分面板，底部 Research Console 不遮挡当前核心产物。
-- 无鼠标可以确认 Research Contract、切换产物、定位 Evidence、重试或取消运行。
-- Fixture E2E 覆盖 Tour、WorkspaceSnapshot 保存、Artifact/Evidence、冻结 Share、375px 与 200% 字体；独立 X-01 E2E 再以真实 HTTP/Compose 验证同一组件路径、冲突、刷新恢复、匿名读取与撤销。
+产品视觉由用户确认。自动化测试、构建和截图差异不能单独判定 Workspace 可用。

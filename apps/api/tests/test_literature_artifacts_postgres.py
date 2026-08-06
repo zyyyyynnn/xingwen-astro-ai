@@ -6,12 +6,13 @@ import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import pytest
 from alembic import command
 from alembic.config import Config
 from app.config import settings
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.db.models import (
     ArtifactVersionModel,
     EvidenceModel,
@@ -28,13 +29,21 @@ from app.db.session import create_engine_from_url, session_factory
 from app.main import create_app
 from app.schemas.literature_relation import LiteratureRelationStatus
 from app.services.artifacts import ArtifactReadService
+from app.workflow.publisher import (
+    ArtifactEvidenceBinding,
+    ArtifactPublication,
+    ArtifactPublisher,
+    ArtifactSourceSnapshotBinding,
+    admit_artifact_candidate,
+)
 from fastapi.testclient import TestClient
 from literature_artifact_test_support import (
+    FixturePaperSummaryReads,
     _claim_version,
     _relation_version,
     _summary_version,
 )
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 
 from services.paper_pipeline.benchmark import load_frozen_benchmark
 from services.paper_pipeline.claim import PaperSummaryArtifactVersionInput
@@ -115,6 +124,7 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
     version_counter = 1100
     summaries = []
     claims = []
+    claim_candidates = []
     relation_inputs: dict[str, _ClaimInput] = {}
     for benchmark_claim_id in (
         accepted_relation.source_claim_id,
@@ -145,6 +155,7 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
         claim_version = _claim_version(str(claim_id), candidate)
         summaries.append(summary_version)
         claims.append(claim_version)
+        claim_candidates.append(candidate)
         relation_inputs[benchmark_claim_id] = _ClaimInput(
             benchmark_claim_id=benchmark_claim_id,
             record_claim=admission.records[0],
@@ -185,7 +196,13 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
 
     factory = session_factory(postgres_engine)
     app = create_app()
-    app.state.artifact_read_service = ArtifactReadService(factory)
+    artifact_reads = ArtifactReadService(factory)
+    setattr(
+        artifact_reads,
+        "paper_summary_reader",
+        FixturePaperSummaryReads(artifact_reads),
+    )
+    app.state.artifact_read_service = artifact_reads
     owner, owner_credential, _ = app.state.session_service.create(now=NOW)
     _, other_credential, _ = app.state.session_service.create(now=NOW)
 
@@ -410,6 +427,10 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
         "relation_evidence_ids": tuple(
             str(evidence_ids[item.id]) for item in relation_version.evidence
         ),
+        "project_id": project_id,
+        "contract_id": contract_id,
+        "claim_candidate": claim_candidates[0],
+        "snapshot_ids": {key: str(value) for key, value in snapshot_ids.items()},
     }
 
 
@@ -510,3 +531,180 @@ def test_postgres_literature_reads_reject_swapped_persisted_evidence_snapshot(
             first = session.get(EvidenceModel, evidence_ids[0])
             assert first is not None
             first.source_snapshot_id = original_snapshot_id
+
+def test_postgres_publisher_materializes_literature_evidence_atomically(
+    literature_context: dict[str, Any],
+) -> None:
+    factory = literature_context["factory"]
+    project_id = literature_context["project_id"]
+    contract_id = literature_context["contract_id"]
+    candidate = literature_context["claim_candidate"]
+    snapshot_ids = literature_context["snapshot_ids"]
+
+    run_id = uuid4()
+    step_id = uuid4()
+    attempt_id = uuid4()
+    artifact_id = uuid4()
+    producer_id = uuid4()
+    lease_token = uuid4()
+    now = datetime.now(UTC)
+    content_hash = compute_canonical_payload_hash(
+        candidate.model_dump(mode="json", exclude_none=True)
+    )
+    with factory() as session, session.begin():
+        session.add(
+            ResearchRunModel(
+                id=run_id,
+                project_id=project_id,
+                contract_id=contract_id,
+                execution_mode="live",
+                status="reasoning_literature",
+                progress=50,
+                derivation_kind="original",
+                cache_policy="disabled",
+                latest_event_sequence=0,
+                revision=1,
+                idempotency_key=f"b08-publisher-{run_id}",
+                request_hash=HASH_B,
+                lease_token=lease_token,
+                lease_owner="b08-test",
+                lease_generation=1,
+                lease_expires_at=now + timedelta(minutes=5),
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        session.add(
+            RunStepModel(
+                id=step_id,
+                run_id=run_id,
+                position=0,
+                key="reasoning_literature",
+                label="Reason literature",
+                enter_status="reasoning_literature",
+                success_status="building_graph",
+                status="running",
+                progress=50,
+                public_message="Publishing",
+                created_at=now,
+            )
+        )
+        session.add(
+            StepAttemptModel(
+                id=attempt_id,
+                run_step_id=step_id,
+                attempt_number=1,
+                idempotency_key=f"b08-publisher-attempt-{run_id}",
+                status="running",
+                started_at=now,
+                created_at=now,
+            )
+        )
+        session.add(
+            ResearchArtifactModel(
+                id=artifact_id,
+                project_id=project_id,
+                kind="literature_claims",
+                title="Atomic literature claims",
+                logical_key=f"literature_claims.atomic.{run_id}",
+                created_at=now,
+            )
+        )
+        producer = candidate.producer
+        session.add(
+            ProducerExecutionModel(
+                id=producer_id,
+                run_id=run_id,
+                run_step_id=step_id,
+                step_attempt_id=attempt_id,
+                step_key=producer.step_key,
+                idempotency_key=f"b08-publisher-producer-{run_id}",
+                lease_generation=1,
+                producer_type=producer.producer_type,
+                producer_name=producer.producer_name,
+                producer_version=producer.producer_version,
+                model_name=producer.model_name,
+                prompt_name=producer.prompt_name,
+                prompt_version=producer.prompt_version,
+                prompt_hash=producer.prompt_hash,
+                parameters={},
+                parameters_hash=producer.parameters_hash,
+                input_hash=candidate.input_hash,
+                output_hash=content_hash,
+                status="completed",
+                started_at=now,
+                finished_at=now,
+                latency_ms=0,
+                created_at=now,
+            )
+        )
+
+    source_bindings = tuple(
+        ArtifactSourceSnapshotBinding(
+            pipeline_source_snapshot_id=item,
+            persisted_source_snapshot_id=snapshot_ids[item],
+        )
+        for item in candidate.source_snapshot_ids
+    )
+    evidence_bindings = tuple(
+        ArtifactEvidenceBinding(
+            target_type="claim",
+            target_id=item.claim_id,
+            pipeline_evidence_id=item.evidence_id,
+            pipeline_source_snapshot_id=item.source_snapshot_id,
+            persisted_evidence_id=str(
+                uuid5(
+                    NAMESPACE_URL,
+                    f"atomic:{run_id}:{item.claim_id}:{item.evidence_id}",
+                )
+            ),
+            persisted_source_snapshot_id=snapshot_ids[item.source_snapshot_id],
+        )
+        for item in candidate.evidence_references
+    )
+    admitted = admit_artifact_candidate(
+        candidate,
+        schema_version=candidate.schema_version,
+        source_snapshot_ids=candidate.source_snapshot_ids,
+        evidence_ids=candidate.evidence_ids,
+        evidence_validator=lambda _context: None,
+        domain_validator=lambda _context: None,
+        quality_validator=lambda _context: None,
+        source_snapshot_bindings=source_bindings,
+        evidence_bindings=evidence_bindings,
+    )
+    result = ArtifactPublisher(factory).publish_step_outputs(
+        run_id,
+        step_key="reasoning_literature",
+        attempt_id=attempt_id,
+        token=lease_token,
+        generation=1,
+        expected_status="reasoning_literature",
+        expected_revision=1,
+        publications=(
+            ArtifactPublication(
+                artifact_id=artifact_id,
+                publication_key=f"atomic-{run_id}",
+                producer_execution_id=producer_id,
+                candidate=admitted,
+                source_mode="fixture",
+            ),
+        ),
+        public_message="Published atomically",
+    )
+    version_id = result.versions[0].id
+    with factory() as session:
+        persisted = tuple(
+            session.scalars(
+                select(EvidenceModel).where(
+                    EvidenceModel.artifact_version_id == version_id
+                )
+            )
+        )
+    assert {str(item.id) for item in persisted} == set(admitted.evidence_ids)
+    assert all(item.artifact_version_id == version_id for item in persisted)
+    response = literature_context["owner"].get(
+        f"/api/artifact-versions/{version_id}/literature-claims"
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]

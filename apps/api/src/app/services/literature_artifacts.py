@@ -38,9 +38,9 @@ from app.schemas.literature_relation import (
     LiteratureRelationsCandidate,
     LiteratureRelationStatus,
 )
-from app.schemas.paper_summary import PaperSummaryArtifactContent
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
+from app.services.paper_summaries import PaperSummaryReadService
 
 _MAX_PAGE_SIZE = 100
 _MAX_CONTENT_BYTES = 10 * 1024 * 1024
@@ -71,8 +71,18 @@ class _RelationsContext:
 class LiteratureArtifactReadService:
     """Project D-07/D-08 content without rerunning scientific admission."""
 
-    def __init__(self, artifacts: ArtifactReadService) -> None:
+    def __init__(
+        self,
+        artifacts: ArtifactReadService,
+        *,
+        paper_summary_reader: object | None = None,
+    ) -> None:
         self._artifacts = artifacts
+        self._paper_summaries = (
+            paper_summary_reader
+            or getattr(artifacts, "paper_summary_reader", None)
+            or PaperSummaryReadService(artifacts)
+        )
 
     def list_claims(
         self,
@@ -208,28 +218,18 @@ class LiteratureArtifactReadService:
 
         reference = candidate.input_versions
         try:
-            summary_version = self._artifacts.get_version(
+            summary_read = self._paper_summaries.get_summary(
                 version_id=reference.paper_summary_artifact_version_id,
                 session_id=session_id,
-                full_content=True,
             )
-            summary_artifact = self._artifacts.get_artifact(
-                artifact_id=summary_version.artifact_id,
-                session_id=session_id,
-            )
-            summary = PaperSummaryArtifactContent.model_validate(
-                summary_version.content
-            )
+            summary = summary_read.summary
         except (SecurityProblem, ValidationError) as exc:
             raise _provenance_problem() from exc
         if (
-            summary_version.id != reference.paper_summary_artifact_version_id
-            or summary_artifact.kind.value != "paper_summary"
-            or summary_artifact.project_id != version.project_id
-            or summary_version.project_id != version.project_id
-            or summary_version.schema_version != summary.schema_version
-            or summary_version.content_hash
-            != compute_canonical_payload_hash(summary_version.content)
+            summary_read.artifact_version_id
+            != reference.paper_summary_artifact_version_id
+            or summary_read.project_id != version.project_id
+            or summary_read.input_hash != summary.input_hash
             or summary.schema_version != reference.paper_summary_schema_version
             or summary.output_hash != reference.paper_summary_output_hash
             or summary.summary_id != reference.summary_id
@@ -310,11 +310,11 @@ class LiteratureArtifactReadService:
 
         version_context = _version_context(version, candidate.output_hash)
         summary_reference = LiteraturePaperSummaryReference(
-            artifact_version_id=summary_version.id,
+            artifact_version_id=summary_read.artifact_version_id,
             summary_id=summary.summary_id,
             paper_id=summary.paper_id,
             schema_version=summary.schema_version,
-            content_hash=summary_version.content_hash,
+            content_hash=summary_read.content_hash,
             output_hash=summary.output_hash,
         )
         reads: dict[str, LiteratureClaimRead] = {}
@@ -368,6 +368,8 @@ class LiteratureArtifactReadService:
 
         claim_reads: dict[str, LiteratureClaimRead] = {}
         upstream_claims: dict[str, LiteratureClaimCandidate] = {}
+        claim_version_by_id: dict[str, str] = {}
+        summary_version_by_claim_id: dict[str, str] = {}
         for reference in candidate.input_versions.claim_artifact_versions:
             try:
                 context = self._claims_context(
@@ -404,10 +406,19 @@ class LiteratureArtifactReadService:
                     raise _provenance_problem()
                 claim_reads[claim_id] = read
                 upstream_claims[claim_id] = read.claim
+                claim_version_by_id[claim_id] = context.version.id
+                summary_version_by_claim_id[claim_id] = (
+                    read.paper_summary.artifact_version_id
+                )
         if set(upstream_claims) != {item.claim_id for item in candidate.claims}:
             raise _provenance_problem()
         if any(upstream_claims.get(item.claim_id) != item for item in candidate.claims):
             raise _provenance_problem()
+        _validate_relation_endpoint_versions(
+            candidate,
+            claim_version_by_id=claim_version_by_id,
+            summary_version_by_claim_id=summary_version_by_claim_id,
+        )
 
         evidence_by_pipeline_id = {
             item.evidence_id: item for item in candidate.evidence
@@ -670,6 +681,32 @@ def _snapshot_projection_map(
     return result
 
 
+
+def _validate_relation_endpoint_versions(
+    candidate: LiteratureRelationsCandidate,
+    *,
+    claim_version_by_id: Mapping[str, str],
+    summary_version_by_claim_id: Mapping[str, str],
+) -> None:
+    for relation in candidate.relations:
+        if relation.status is LiteratureRelationStatus.rejected:
+            continue
+        expected = (
+            claim_version_by_id.get(relation.source_claim_id),
+            claim_version_by_id.get(relation.target_claim_id),
+            summary_version_by_claim_id.get(relation.source_claim_id),
+            summary_version_by_claim_id.get(relation.target_claim_id),
+        )
+        actual = (
+            relation.source_claim_artifact_version_id,
+            relation.target_claim_artifact_version_id,
+            relation.source_paper_summary_artifact_version_id,
+            relation.target_paper_summary_artifact_version_id,
+        )
+        if actual != expected or any(item is None for item in expected):
+            raise _provenance_problem()
+
+
 def _relation_snapshot_references(
     candidate: LiteratureRelationsCandidate,
 ) -> dict[str, tuple[str, str, str]]:
@@ -893,4 +930,7 @@ def _problem(status: int, code: str, title: str, detail: str) -> SecurityProblem
     return SecurityProblem(status=status, code=code, title=title, detail=detail)
 
 
-__all__ = ["LiteratureArtifactReadService"]
+__all__ = [
+    "LiteratureArtifactReadService",
+    "_validate_relation_endpoint_versions",
+]
