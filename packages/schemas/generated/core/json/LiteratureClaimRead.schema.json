@@ -1,0 +1,948 @@
+{
+  "$defs": {
+    "ClaimType": {
+      "enum": [
+        "goal",
+        "method",
+        "dataset",
+        "finding",
+        "limitation",
+        "future_work"
+      ],
+      "title": "ClaimType",
+      "type": "string"
+    },
+    "EvidenceDetail": {
+      "additionalProperties": false,
+      "description": "Evidence bound to one immutable version and source snapshot.",
+      "properties": {
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "evidence_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Evidence Type",
+          "type": "string"
+        },
+        "extraction_method": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Extraction Method",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "locator": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Locator",
+          "type": "object"
+        },
+        "paper_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paper Id"
+        },
+        "quote_or_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "artifact_version_id",
+        "target_type",
+        "target_id",
+        "evidence_type",
+        "source_snapshot_id",
+        "locator",
+        "extraction_method",
+        "confidence",
+        "created_at"
+      ],
+      "title": "EvidenceDetail",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "LiteratureArtifactVersionContext": {
+      "additionalProperties": false,
+      "description": "Immutable publication context shared by one paged domain item.",
+      "properties": {
+        "artifact_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "producer_execution": {
+          "$ref": "#/$defs/ProducerExecutionDetail"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        },
+        "supersedes_version_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Supersedes Version Id"
+        },
+        "version_number": {
+          "minimum": 1,
+          "title": "Version Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_version_id",
+        "artifact_id",
+        "project_id",
+        "version_number",
+        "supersedes_version_id",
+        "source_mode",
+        "schema_version",
+        "content_hash",
+        "input_hash",
+        "output_hash",
+        "created_at",
+        "producer_execution"
+      ],
+      "title": "LiteratureArtifactVersionContext",
+      "type": "object"
+    },
+    "LiteratureClaimCandidate": {
+      "additionalProperties": false,
+      "description": "Schema-valid Claim with the outcome of deterministic D-07 admission.",
+      "properties": {
+        "claim_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "claim_type": {
+          "$ref": "#/$defs/ClaimType"
+        },
+        "comparison_basis": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Comparison Basis"
+        },
+        "conditions": {
+          "items": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Conditions",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "failure_stage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureClaimFailureStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fingerprint": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "limitations": {
+          "items": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "metric": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metric"
+        },
+        "model_response_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Model Response Hash",
+          "type": "string"
+        },
+        "normalization_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Normalization Version",
+          "type": "string"
+        },
+        "normalized_text": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Normalized Text",
+          "type": "string"
+        },
+        "objects": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Objects",
+          "type": "array"
+        },
+        "paper_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Paper Id",
+          "type": "string"
+        },
+        "polarity": {
+          "$ref": "#/$defs/LiteratureClaimPolarity"
+        },
+        "producer_execution_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Producer Execution Id",
+          "type": "string"
+        },
+        "qualifiers": {
+          "items": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Qualifiers",
+          "type": "array"
+        },
+        "rejection_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiteratureClaimRejectionReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "scope": {
+          "items": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Scope",
+          "type": "array"
+        },
+        "source_paper_summary_artifact_version_id": {
+          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "title": "Source Paper Summary Artifact Version Id",
+          "type": "string"
+        },
+        "source_snapshot_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "title": "Source Snapshot Ids",
+          "type": "array"
+        },
+        "source_statement_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Statement Id",
+          "type": "string"
+        },
+        "source_summary_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Summary Id"
+        },
+        "status": {
+          "$ref": "#/$defs/LiteratureClaimStatus"
+        },
+        "text": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "uncertainty": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "claim_id",
+        "source_statement_id",
+        "paper_id",
+        "source_paper_summary_artifact_version_id",
+        "text",
+        "normalized_text",
+        "claim_type",
+        "polarity",
+        "objects",
+        "conditions",
+        "scope",
+        "limitations",
+        "qualifiers",
+        "evidence_ids",
+        "source_snapshot_ids",
+        "normalization_version",
+        "fingerprint",
+        "status",
+        "producer_execution_id",
+        "input_hash",
+        "model_response_hash"
+      ],
+      "title": "LiteratureClaimCandidate",
+      "type": "object"
+    },
+    "LiteratureClaimFailureStage": {
+      "enum": [
+        "json",
+        "schema",
+        "input",
+        "evidence",
+        "ownership",
+        "normalization",
+        "duplicate"
+      ],
+      "title": "LiteratureClaimFailureStage",
+      "type": "string"
+    },
+    "LiteratureClaimPolarity": {
+      "enum": [
+        "positive",
+        "negative",
+        "neutral",
+        "mixed"
+      ],
+      "title": "LiteratureClaimPolarity",
+      "type": "string"
+    },
+    "LiteratureClaimRejectionReason": {
+      "enum": [
+        "literature_claim.json_invalid",
+        "literature_claim.schema_invalid",
+        "literature_claim.input_artifact_version_unknown",
+        "literature_claim.input_schema_version_unsupported",
+        "literature_claim.evidence_missing",
+        "literature_claim.evidence_not_found",
+        "literature_claim.source_snapshot_not_found",
+        "literature_claim.ownership_mismatch",
+        "literature_claim.normalization_unsafe",
+        "literature_claim.duplicate"
+      ],
+      "title": "LiteratureClaimRejectionReason",
+      "type": "string"
+    },
+    "LiteratureClaimStatus": {
+      "enum": [
+        "candidate",
+        "accepted",
+        "rejected"
+      ],
+      "title": "LiteratureClaimStatus",
+      "type": "string"
+    },
+    "LiteraturePaperSummaryReference": {
+      "additionalProperties": false,
+      "description": "Pinned PaperSummary identity used by an admitted LiteratureClaim.",
+      "properties": {
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "paper_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Paper Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "summary_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Summary Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_version_id",
+        "summary_id",
+        "paper_id",
+        "schema_version",
+        "content_hash",
+        "output_hash"
+      ],
+      "title": "LiteraturePaperSummaryReference",
+      "type": "object"
+    },
+    "ProducerExecutionDetail": {
+      "additionalProperties": false,
+      "description": "Reproducible producer metadata with private execution state excluded.",
+      "properties": {
+        "error_code": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency Ms"
+        },
+        "output_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Hash"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "parameters_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Parameters Hash",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/ProducerReference"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "running",
+            "completed",
+            "failed",
+            "rejected",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "step_attempt_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Step Attempt Id",
+          "type": "string"
+        },
+        "step_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Step Key",
+          "type": "string"
+        },
+        "token_usage": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Token Usage"
+        }
+      },
+      "required": [
+        "id",
+        "run_id",
+        "step_key",
+        "step_attempt_id",
+        "producer",
+        "parameters",
+        "parameters_hash",
+        "input_hash",
+        "status",
+        "started_at"
+      ],
+      "title": "ProducerExecutionDetail",
+      "type": "object"
+    },
+    "ProducerReference": {
+      "additionalProperties": false,
+      "properties": {
+        "model_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Name"
+        },
+        "model_provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Provider"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parameters_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameters Hash"
+        },
+        "prompt_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Hash"
+        },
+        "prompt_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Name"
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Version"
+        },
+        "type": {
+          "enum": [
+            "pipeline",
+            "model",
+            "algorithm"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "version"
+      ],
+      "title": "ProducerReference",
+      "type": "object"
+    },
+    "SourceMode": {
+      "enum": [
+        "fixture",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
+    },
+    "SourceSnapshotDetail": {
+      "additionalProperties": false,
+      "description": "Reproducible source metadata after the application redaction boundary.",
+      "properties": {
+        "cache_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Version"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "license_note": {
+          "minLength": 1,
+          "title": "License Note",
+          "type": "string"
+        },
+        "query": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "request_metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Request Metadata",
+          "type": "object"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_version_or_etag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Version Or Etag"
+        }
+      },
+      "required": [
+        "id",
+        "source_id",
+        "source_type",
+        "retrieved_at",
+        "query",
+        "query_hash",
+        "content_hash",
+        "license_note",
+        "request_metadata"
+      ],
+      "title": "SourceSnapshotDetail",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One Claim with its pinned Summary and persisted provenance projection.",
+  "properties": {
+    "claim": {
+      "$ref": "#/$defs/LiteratureClaimCandidate"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceDetail"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "paper_summary": {
+      "$ref": "#/$defs/LiteraturePaperSummaryReference"
+    },
+    "source_snapshots": {
+      "items": {
+        "$ref": "#/$defs/SourceSnapshotDetail"
+      },
+      "title": "Source Snapshots",
+      "type": "array"
+    },
+    "version": {
+      "$ref": "#/$defs/LiteratureArtifactVersionContext"
+    }
+  },
+  "required": [
+    "version",
+    "claim",
+    "paper_summary",
+    "source_snapshots",
+    "evidence"
+  ],
+  "title": "LiteratureClaimRead",
+  "type": "object"
+}

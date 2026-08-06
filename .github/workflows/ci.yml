@@ -185,6 +185,9 @@ jobs:
             --include FieldDictionaryArtifactRead \
             --include SourceCollectionArtifactRead \
             --include DataArtifactRowRead \
+            --include LiteratureClaimRead \
+            --include LiteratureRelationRead \
+            --include LiteratureReasoningTraceRead \
             --include CreateArtifactExportRequest \
             --include ArtifactExportRead \
             --include EvidenceRead \
