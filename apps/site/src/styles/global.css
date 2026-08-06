@@ -168,10 +168,6 @@ a {
   color: var(--color-ink-primary);
 }
 
-.home-content__aside {
-  min-height: 6rem;
-}
-
 /* Four-column notes — thin separators, no card backgrounds. */
 .home-notes {
   display: grid;

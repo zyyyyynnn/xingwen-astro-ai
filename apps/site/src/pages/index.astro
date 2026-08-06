@@ -29,6 +29,7 @@ const notes = [
     <section class="hero" aria-label="品牌主视觉">
       <video
         class="hero-video"
+        data-home-hero-video
         autoplay
         muted
         loop
@@ -48,7 +49,6 @@ const notes = [
           </div>
           <h1 id="hero-title">让每一颗系外行星候选体<br />都可溯源</h1>
         </div>
-        <div class="home-content__aside" aria-hidden="true"></div>
       </div>
       <ol class="home-notes" aria-label="平台能力说明">
         {notes.map((note) => <li class="home-notes__item">{note}</li>)}
@@ -56,3 +56,17 @@ const notes = [
     </section>
   </div>
 </BaseLayout>
+
+<script>
+  import {
+    bindHomeHeroVideoLifecycle,
+    createBrowserLifecycleEnvironment,
+  } from "../lib/home-hero-video-lifecycle";
+
+  const video = document.querySelector<HTMLVideoElement>(
+    "[data-home-hero-video]",
+  );
+  if (video) {
+    bindHomeHeroVideoLifecycle(video, createBrowserLifecycleEnvironment());
+  }
+</script>
