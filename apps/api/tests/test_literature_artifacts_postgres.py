@@ -556,7 +556,37 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
     content_hash = compute_canonical_payload_hash(
         candidate.model_dump(mode="json", exclude_none=True)
     )
+    atomic_snapshot_ids = {
+        item: snapshot_ids.get(item, str(uuid4()))
+        for item in candidate.source_snapshot_ids
+    }
+    candidate_snapshot_refs = {
+        item.source_snapshot_id: item
+        for item in candidate.input_versions.source_snapshots
+    }
     with factory() as session, session.begin():
+        for pipeline_id in candidate.source_snapshot_ids:
+            if pipeline_id in snapshot_ids:
+                continue
+            reference = candidate_snapshot_refs[pipeline_id]
+            session.add(
+                SourceSnapshotModel(
+                    id=UUID(atomic_snapshot_ids[pipeline_id]),
+                    project_id=project_id,
+                    source_id=reference.source_id,
+                    source_type="benchmark",
+                    retrieved_at=now,
+                    query={"fixture": pipeline_id},
+                    query_hash=compute_canonical_payload_hash(
+                        {"fixture": pipeline_id}
+                    ),
+                    source_version_or_etag=reference.source_version,
+                    content_hash=reference.content_hash,
+                    license_note="Atomic publisher fixture",
+                    request_metadata={"data_level": "benchmark"},
+                )
+            )
+        session.flush()
         session.add(
             ResearchRunModel(
                 id=run_id,
@@ -651,7 +681,7 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
     source_bindings = tuple(
         ArtifactSourceSnapshotBinding(
             pipeline_source_snapshot_id=item,
-            persisted_source_snapshot_id=snapshot_ids[item],
+            persisted_source_snapshot_id=atomic_snapshot_ids[item],
         )
         for item in candidate.source_snapshot_ids
     )
