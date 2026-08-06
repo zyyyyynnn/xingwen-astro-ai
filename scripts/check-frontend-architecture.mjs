@@ -14,19 +14,11 @@ const packageLocations = new Map([
   ["@xingwen/contracts", "packages/contracts"],
   ["@xingwen/data-access", "packages/data-access"],
   ["@xingwen/workspace-core", "packages/workspace-core"],
-  ["@xingwen/visual-engine", "packages/visual-engine"],
   ["@xingwen/testing", "packages/testing"],
 ]);
 
 const allowedLocalDependencies = new Map([
-  [
-    "@xingwen/site",
-    new Set([
-      "@xingwen/design-tokens",
-      "@xingwen/ui",
-      "@xingwen/visual-engine",
-    ]),
-  ],
+  ["@xingwen/site", new Set(["@xingwen/design-tokens", "@xingwen/ui"])],
   [
     "@xingwen/workspace",
     new Set([
@@ -42,14 +34,12 @@ const allowedLocalDependencies = new Map([
   ["@xingwen/contracts", new Set()],
   ["@xingwen/data-access", new Set(["@xingwen/domain", "@xingwen/contracts"])],
   ["@xingwen/workspace-core", new Set(["@xingwen/domain"])],
-  ["@xingwen/visual-engine", new Set()],
   ["@xingwen/testing", new Set()],
 ]);
 
 const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
   ["@xingwen/ui", new Set(["react"])],
-  ["@xingwen/visual-engine", new Set()],
 ]);
 
 const failures = [];
@@ -208,15 +198,6 @@ const boundaryRules = new Map([
       forbidRepositorySymbols: true,
     },
   ],
-  [
-    "packages/visual-engine",
-    {
-      description: "the presentation-only visual boundary",
-      allowedBareImports: new Set(),
-      forbiddenIdentifiers: networkAndStorageGlobals,
-      forbidRepositorySymbols: true,
-    },
-  ],
 ]);
 
 const workspacePresentationRule = {
@@ -358,7 +339,6 @@ const boundaryRuleFixtures = [
   ["packages/domain", 'import http from "node:http";'],
   ["packages/domain", 'localStorage.getItem("token");'],
   ["packages/ui", 'import axios from "axios";'],
-  ["packages/visual-engine", 'globalThis["fetch"]("/api");'],
 ];
 
 for (const [location, content] of boundaryRuleFixtures) {
