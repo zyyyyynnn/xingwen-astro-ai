@@ -31,28 +31,22 @@ Research Intent
 | Research Workspace | 执行研究、审查产物、核验证据、推进修订 | 不承担营销叙事或通用 IDE 能力 |
 | Public Share | 展示冻结 ArtifactVersion 与必要证据 | 不提供编辑、运行或动态 latest |
 
-Guided Tour 与 Demo Replay 不属于当前前端重建基线；重新引入时必须使用独立规范和交付范围。
-
 ## 3. 设计原则
 
 | 原则 | 判断标准 |
 | --- | --- |
-| 成熟骨架优先 | Shell、导航、Agent Thread、Workspace、Composer 与状态反馈优先采用成熟开源 Agent 产品源码 |
+| 成熟骨架优先 | Shell、导航、Agent Thread、Workspace、Composer 与状态反馈采用成熟开源 Agent 产品源码，不参考后重写 |
 | 科研产物优先 | Artifact 与 Evidence 是主要工作对象；对话与执行事件承担协作和解释 |
 | Evidence-first | 关键数据、结论、关系与版本可定位 Evidence、来源和快照 |
 | 人类控制 | 研究协议、证据集和结论修订具有明确决策点 |
 | 渐进复杂度 | 先呈现任务、Agent 状态、主产物和下一步，再披露执行细节 |
 | 真实性分层 | Fixture、Live、Cached、Revision 与失败分别表达 |
 | 单一事实源 | UI 不复制 Domain、Workflow、Version 或 Transport 规则 |
-| 视觉服从阅读 | Homepage 承担品牌冲击；Workspace 保持克制、高密度和长时间可读 |
+| 视觉服从阅读 | Brand Site 承担品牌识别；Workspace 保持克制、高密度和长时间可读 |
 | 可恢复 | 运行、页面和布局状态具有明确恢复路径 |
 | 人工视觉门禁 | 自动化测试不能替代用户对产品骨架和可用性的确认 |
 
-## 4. 开源 Agent 产品采用
-
-前端重建坚持“成熟骨架优先，不得参考后重新手写”。采用上游产品要求以固定 Repository / Tag / Commit 的真实源码为骨架进行领域改造。具体 Ledger、版本与工程约束见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。
-
-## 5. 产品对象
+## 4. 产品对象
 
 | 产品语言 | 领域对象 |
 | --- | --- |
@@ -67,7 +61,7 @@ Guided Tour 与 Demo Replay 不属于当前前端重建基线；重新引入时�
 
 产品语言不得创建第二套持久化模型。
 
-## 6. 设计不变量
+## 5. 设计不变量
 
 - Project 表示持续研究上下文，Run 表示一次执行。
 - Contract 固定研究输入和质量约束，不保存执行方式。
@@ -81,18 +75,16 @@ Guided Tour 与 Demo Replay 不属于当前前端重建基线；重新引入时�
 - 技术 ID、Hash、Adapter 与内部模式不进入默认产品视图。
 - 未实现能力不得以假数据、禁用主控件或虚构状态呈现。
 
-## 7. 当前前端边界
+## 6. 前端体验边界
 
 ### Brand Site
 
-- **Current Baseline**：`main` 仓库代码目前仍为旧 `HeroVisual` 组件、双短 CTA 与 `/tour` 路由；
-- **Accepted Target**：品牌极简首屏已对齐为单英雄区（`homepage-ascii.mp4` + 单一“进入工作台”CTA + `/workspace` 目标）；
-- **Implementation**：在 Homepage 修复中完成代码层落地方案，不暗示代码已存在。
+Brand Site 使用 `homepage-ascii.mp4` 作为唯一主视觉，保留固定标题和单一“进入工作台”CTA；CTA 指向 `/workspace`。
 
 ### Research Workspace
 
-旧 Workspace 产品 UI 不构成重建基线。新的 Workspace 在上游产品冻结后实施。
+Research Workspace 采用成熟开源 Agent 产品源码骨架，通过适配层接入既有 Domain、Repository 与 Workflow。仓库内不得保留第二套 Workspace Shell 或静态 Preview 产品路径。
 
 ### 既有核心
 
-Domain、Contract、Repository Port、Fixture / HTTP Adapter、Workflow、Version 与后端服务保持权威，不因前端上游选型而改变。
+Domain、Contract、Repository Port、Fixture / HTTP Adapter、Workflow、Version 与后端服务保持权威，不因前端产品骨架改变。
