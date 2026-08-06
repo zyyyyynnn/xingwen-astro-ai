@@ -30,7 +30,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
 
-      - name: Merge main and apply review fixes
+      - name: Merge main and apply fixes
         shell: bash
         run: |
           set -euo pipefail
@@ -78,90 +78,14 @@ jobs:
               "                _validate_literature_source_snapshots(\\n"'''
           if old not in source:
               raise RuntimeError("publisher version-allocation repair anchor not found")
-          source = source.replace(old, new, 1)
-          exec(compile(source, "<agent-fix-pr166>", "exec"))
+          exec(compile(source.replace(old, new, 1), "<agent-fix-pr166>", "exec"))
           PY
-          python - <<'PY'
-          from pathlib import Path
-
-          def replace_once(path: str, old: str, new: str) -> None:
-              target = Path(path)
-              text = target.read_text(encoding="utf-8")
-              if text.count(old) != 1:
-                  raise RuntimeError(f"{path}: fixture-seam anchor mismatch")
-              target.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
-
-          service = "apps/api/src/app/services/literature_artifacts.py"
-          replace_once(
-              service,
-              "    def __init__(self, artifacts: ArtifactReadService) -> None:\n"
-              "        self._artifacts = artifacts\n",
-              "    def __init__(\n"
-              "        self,\n"
-              "        artifacts: ArtifactReadService,\n"
-              "        *,\n"
-              "        paper_summary_reader: object | None = None,\n"
-              "    ) -> None:\n"
-              "        self._artifacts = artifacts\n"
-              "        self._paper_summaries = (\n"
-              "            paper_summary_reader\n"
-              "            or getattr(artifacts, \"paper_summary_reader\", None)\n"
-              "            or PaperSummaryReadService(artifacts)\n"
-              "        )\n",
-          )
-          replace_once(
-              service,
-              "            summary_read = PaperSummaryReadService(self._artifacts).get_summary(\n",
-              "            summary_read = self._paper_summaries.get_summary(\n",
-          )
-
-          support = "apps/api/tests/literature_artifact_test_support.py"
-          replace_once(
-              support,
-              "from app.schemas.literature_relation import (\n",
-              "from app.schemas.paper_summary_api import (\n"
-              "    PaperSummaryPaperMetadata,\n"
-              "    PaperSummaryRead,\n"
-              ")\n"
-              "from app.schemas.literature_relation import (\n",
-          )
-          replace_once(
-              support,
-              "        self.full_content_requests: list[bool] = []\n",
-              "        self.full_content_requests: list[bool] = []\n"
-              "        self.paper_summary_reader = FixturePaperSummaryReads(self)\n",
-          )
-          fixture_reader = '''\n\nclass FixturePaperSummaryReads:\n    \"\"\"Test-only Summary envelope validator for frozen D-01 benchmark inputs.\"\"\"\n\n    def __init__(self, artifacts: FixtureArtifactReads) -> None:\n        self._artifacts = artifacts\n\n    def get_summary(self, *, version_id: str, session_id: str) -> PaperSummaryRead:\n        version = self._artifacts.get_version(\n            version_id=version_id,\n            session_id=session_id,\n            full_content=True,\n        )\n        artifact = self._artifacts.get_artifact(\n            artifact_id=version.artifact_id, session_id=session_id\n        )\n        summary = PaperSummaryArtifactContent.model_validate(version.content)\n        producer = summary.producer\n        runtime = version.producer_execution\n        if (\n            artifact.kind.value != \"paper_summary\"\n            or artifact.project_id != version.project_id\n            or version.schema_version != summary.schema_version\n            or version.content_hash\n            != compute_canonical_payload_hash(version.content)\n            or version.input_hash != summary.input_hash\n            or runtime.run_id != version.created_by_run_id\n            or runtime.step_key != producer.step_key\n            or runtime.producer.type != producer.producer_type\n            or runtime.producer.name != producer.producer_name\n            or runtime.producer.version != producer.producer_version\n            or runtime.producer.model_name != producer.model_name\n            or runtime.producer.prompt_name != producer.prompt_name\n            or runtime.producer.prompt_version != producer.prompt_version\n            or runtime.producer.prompt_hash != producer.prompt_hash\n            or runtime.parameters_hash != producer.parameters_hash\n            or runtime.producer.parameters_hash != producer.parameters_hash\n            or runtime.input_hash != summary.input_hash\n            or runtime.output_hash != version.content_hash\n            or runtime.status != \"completed\"\n            or version.producer != runtime.producer\n        ):\n            raise _not_found(\"PAPER_SUMMARY_INVALID\")\n        if producer.run_id is not None and producer.run_id != version.created_by_run_id:\n            raise _not_found(\"PAPER_SUMMARY_INVALID\")\n        return PaperSummaryRead(\n            artifact_version_id=version.id,\n            artifact_id=version.artifact_id,\n            project_id=version.project_id,\n            version_number=version.version_number,\n            supersedes_version_id=version.supersedes_version_id,\n            source_mode=version.source_mode,\n            content_hash=version.content_hash,\n            input_hash=version.input_hash,\n            created_at=version.created_at,\n            paper=PaperSummaryPaperMetadata(\n                paper_id=summary.paper_id,\n                title=summary.paper_id,\n            ),\n            summary=summary,\n            producer_execution=runtime,\n            source_snapshots=version.source_snapshots,\n            evidence=version.evidence,\n        )\n'''
-          replace_once(
-              support,
-              "\ndef build_literature_fixture() -> LiteratureFixture:\n",
-              fixture_reader + "\n\ndef build_literature_fixture() -> LiteratureFixture:\n",
-          )
-
-          postgres = "apps/api/tests/test_literature_artifacts_postgres.py"
-          replace_once(
-              postgres,
-              "    LiteratureFixture,\n",
-              "    FixturePaperSummaryReads,\n    LiteratureFixture,\n",
-          )
-          replace_once(
-              postgres,
-              "    app = create_app()\n"
-              "    app.state.artifact_read_service = ArtifactReadService(factory)\n",
-              "    app = create_app()\n"
-              "    artifact_reads = ArtifactReadService(factory)\n"
-              "    setattr(\n"
-              "        artifact_reads,\n"
-              "        \"paper_summary_reader\",\n"
-              "        FixturePaperSummaryReads(artifact_reads),\n"
-              "    )\n"
-              "    app.state.artifact_read_service = artifact_reads\n",
-          )
-          PY
+          python scripts/.agent_fix_pr166_fixture.py
           git rm -f \
             .github/workflows/agent-fix-pr166.yml \
             .github/workflows/agent-pr166-remote-fix.yml \
-            scripts/.agent_fix_pr166.py
+            scripts/.agent_fix_pr166.py \
+            scripts/.agent_fix_pr166_fixture.py
           git diff --check
 
       - name: Validate focused backend changes
@@ -181,7 +105,6 @@ jobs:
           git diff --check
 
       - name: Commit and push resolved branch
-        id: publish
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
