@@ -30,6 +30,7 @@ from app.routers import (
     papers,
     reasoning,
     research,
+    research_inputs,
     sessions,
     snapshots,
     sources,
@@ -127,6 +128,25 @@ def create_app() -> FastAPI:
         snapshot_store = InMemorySnapshotStore(resource_authority)
         app.state.snapshot_store = snapshot_store
         app.state.snapshot_service = SnapshotService(snapshot_store)
+    app.state.research_input_store = None
+    app.state.content_storage = None
+    app.state.research_input_rate_limiter = InMemoryRateLimiter(
+        limit=settings.RESEARCH_INPUT_RATE_LIMIT
+    )
+    if database_engine is not None:
+        from app.services.content_storage import LocalContentStorage
+        from app.services.research_input_store import PersistentResearchInputStore
+
+        app.state.content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
+        app.state.research_input_store = PersistentResearchInputStore(
+            session_factory(database_engine)
+        )
+    else:
+        from app.services.content_storage import LocalContentStorage
+        from app.services.research_input_store import InMemoryResearchInputStore
+
+        app.state.content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
+        app.state.research_input_store = InMemoryResearchInputStore()
     app.add_middleware(
         SecurityMiddleware,
         sessions=session_service,
@@ -163,6 +183,7 @@ def create_app() -> FastAPI:
     app.include_router(artifacts.router)
     app.include_router(research.router)
     app.include_router(snapshots.router)
+    app.include_router(research_inputs.router)
 
     # Test-only bootstrap is mounted exclusively in test/integration
     # environments, outside the frozen /api contract surface. It is never

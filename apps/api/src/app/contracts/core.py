@@ -46,6 +46,12 @@ from app.schemas.paper_collection_api import (
     PaperCollectionRead,
 )
 from app.schemas.paper_summary_api import PaperSummaryRead
+from app.schemas.research_input import (
+    BindResearchInputRequest,
+    CreateResearchInputRequest,
+    ResearchInputDetail,
+    ResearchInputRef,
+)
 
 
 PROBLEM_RESPONSES = {
@@ -57,6 +63,13 @@ PROBLEM_RESPONSES = {
     403: {"model": ProblemDetails},
     429: {"model": ProblemDetails},
     502: {"model": ProblemDetails},
+}
+
+#: Research input ingestion adds body/type rejections on top of the common set.
+RESEARCH_INPUT_PROBLEM_RESPONSES = {
+    **PROBLEM_RESPONSES,
+    413: {"model": ProblemDetails},
+    415: {"model": ProblemDetails},
 }
 
 
@@ -426,6 +439,93 @@ def create_contract_app() -> FastAPI:
         share_token: Annotated[str, Path(min_length=1)],
     ) -> NoReturn:
         _ = share_token
+        return _contract_only()
+
+    @app.post(
+        "/api/research-inputs",
+        operation_id="createResearchInput",
+        response_model=Envelope[ResearchInputRef],
+        status_code=201,
+        responses=RESEARCH_INPUT_PROBLEM_RESPONSES,
+        description=(
+            "Ingests one controlled research input (URL, PDF, CSV, JSON, image or "
+            "text) into an immutable, content-addressed boundary. Files arrive as "
+            "multipart/form-data (field ``file``); URLs and text arrive as a JSON "
+            "body. The response is a reference only — binary content and full text "
+            "never leave this boundary."
+        ),
+    )
+    def create_research_input(
+        request: CreateResearchInputRequest,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> NoReturn:
+        _ = (request, idempotency_key, csrf_token)
+        return _contract_only()
+
+    @app.get(
+        "/api/research-inputs",
+        operation_id="listResearchInputs",
+        response_model=CollectionEnvelope[ResearchInputRef],
+        responses=PROBLEM_RESPONSES,
+        description="Lists only the research inputs owned by the current anonymous session.",
+    )
+    def list_research_inputs(
+        project_id: Annotated[str, Query(min_length=1)],
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (project_id, cursor, limit)
+        return _contract_only()
+
+    @app.get(
+        "/api/research-inputs/{input_id}",
+        operation_id="getResearchInput",
+        response_model=Envelope[ResearchInputDetail],
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Metadata-only detail read of one ingested input. Missing inputs are "
+            "indistinguishable from foreign inputs (404)."
+        ),
+    )
+    def get_research_input(input_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = input_id
+        return _contract_only()
+
+    @app.delete(
+        "/api/research-inputs/{input_id}",
+        operation_id="deleteResearchInput",
+        status_code=204,
+        response_model=None,
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Soft-deletes a research input reference; already-bound references are "
+            "still deleted because binding never becomes ownership."
+        ),
+    )
+    def delete_research_input(
+        input_id: Annotated[str, Path(min_length=1)],
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> Response:
+        _ = (input_id, csrf_token)
+        return _contract_only()
+
+    @app.post(
+        "/api/research-inputs/{input_id}/bind",
+        operation_id="bindResearchInput",
+        response_model=Envelope[ResearchInputRef],
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Attaches one ingested input reference to a ContractDraft or a Run "
+            "owned by the current session. Only the reference is bound."
+        ),
+    )
+    def bind_research_input(
+        input_id: Annotated[str, Path(min_length=1)],
+        request: BindResearchInputRequest,
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> NoReturn:
+        _ = (input_id, request, csrf_token)
         return _contract_only()
 
     generated_openapi = app.openapi

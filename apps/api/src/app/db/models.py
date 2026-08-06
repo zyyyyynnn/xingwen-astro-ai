@@ -575,3 +575,83 @@ class EvidenceModel(TimestampMixin, Base):
         Index("ix_evidence_artifact_version_id", "artifact_version_id"),
         Index("ix_evidence_source_snapshot_id", "source_snapshot_id"),
     )
+
+
+class ResearchInputModel(Base):
+    """Immutable content reference for one ingested Research Input (B-19).
+
+    The row points at content-addressed bytes (never owned by this table) and
+    is ownership-scoped by the anonymous session. ``expires_at`` doubles as the
+    soft-delete marker: deletion only expires the reference, never the blob.
+    """
+
+    __tablename__ = "research_inputs"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+    )
+    type: Mapped[str] = mapped_column(String(16), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    storage_ref: Mapped[str] = mapped_column(String(160), nullable=False)
+    filename: Mapped[str | None] = mapped_column(String(255))
+    mime_type: Mapped[str | None] = mapped_column(String(127))
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_snapshot_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id", "content_hash", name="uq_research_input_session_content"
+        ),
+        Index("ix_research_inputs_session_project", "session_id", "project_id"),
+        Index("ix_research_inputs_session_content", "session_id", "content_hash"),
+        CheckConstraint(
+            "type IN ('url','pdf','csv','json','image','text')", name="input_type"
+        ),
+        CheckConstraint(
+            "source_type IN ('upload','url_fetch','text')", name="source_type"
+        ),
+        CheckConstraint(
+            "status IN ('accepted','unsupported_processing','failed_ingestion')",
+            name="input_status",
+        ),
+        CheckConstraint("size_bytes >= 0", name="size_nonnegative"),
+    )
+
+
+class ResearchInputBindingModel(Base):
+    """One active binding from an ingested input to a ContractDraft or Run.
+
+    Only the immutable reference is bound; binary content and full text never
+    enter public DTOs. Re-binding to a different target replaces the binding.
+    """
+
+    __tablename__ = "research_input_bindings"
+
+    input_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_inputs.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+    )
+    contract_draft_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    bound_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "contract_draft_id IS NOT NULL OR run_id IS NOT NULL",
+            name="binding_target_present",
+        ),
+    )

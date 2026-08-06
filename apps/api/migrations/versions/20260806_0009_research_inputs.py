@@ -1,0 +1,111 @@
+"""Research Input ingestion tables (#176, B-19).
+
+Revision ID: 20260806_0009
+Revises: 20260804_0008
+Create Date: 2026-08-06
+
+`research_inputs` stores immutable content *references* (content hash, storage
+ref, metadata) ownership-scoped by the anonymous session; the bytes themselves
+live in the content-addressed local store and are never owned by a table.
+`expires_at` doubles as the soft-delete marker. `research_input_bindings`
+records one active binding from an input reference to a ContractDraft or Run
+so composer-bound inputs keep provenance without copying binary content into
+public DTOs.
+"""
+
+from __future__ import annotations
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+revision = "20260806_0009"
+down_revision = "20260804_0008"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        "research_inputs",
+        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("session_id", sa.String(length=128), nullable=False),
+        sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("type", sa.String(length=16), nullable=False),
+        sa.Column("source_type", sa.String(length=16), nullable=False),
+        sa.Column("content_hash", sa.String(length=71), nullable=False),
+        sa.Column("storage_ref", sa.String(length=160), nullable=False),
+        sa.Column("filename", sa.String(length=255), nullable=True),
+        sa.Column("mime_type", sa.String(length=127), nullable=True),
+        sa.Column("size_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("source_snapshot_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint(
+            "session_id", "content_hash", name="uq_research_input_session_content"
+        ),
+        sa.CheckConstraint(
+            "type IN ('url','pdf','csv','json','image','text')", name="ck_research_inputs_input_type"
+        ),
+        sa.CheckConstraint(
+            "source_type IN ('upload','url_fetch','text')",
+            name="ck_research_inputs_source_type",
+        ),
+        sa.CheckConstraint(
+            "status IN ('accepted','unsupported_processing','failed_ingestion')",
+            name="ck_research_inputs_input_status",
+        ),
+        sa.CheckConstraint("size_bytes >= 0", name="ck_research_inputs_size_nonnegative"),
+    )
+    op.create_index(
+        "ix_research_inputs_session_project",
+        "research_inputs",
+        ["session_id", "project_id"],
+    )
+    op.create_index(
+        "ix_research_inputs_session_content",
+        "research_inputs",
+        ["session_id", "content_hash"],
+    )
+
+    op.create_table(
+        "research_input_bindings",
+        sa.Column("input_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("contract_draft_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("run_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column(
+            "bound_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["input_id"], ["research_inputs.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("input_id"),
+        sa.CheckConstraint(
+            "contract_draft_id IS NOT NULL OR run_id IS NOT NULL",
+            name="ck_research_input_bindings_binding_target_present",
+        ),
+    )
+
+
+def downgrade() -> None:
+    op.drop_table("research_input_bindings")
+    op.drop_index("ix_research_inputs_session_content", table_name="research_inputs")
+    op.drop_index("ix_research_inputs_session_project", table_name="research_inputs")
+    op.drop_table("research_inputs")

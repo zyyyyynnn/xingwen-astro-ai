@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -32,6 +34,33 @@ class Settings(BaseSettings):
         min_length=32,
     )
     PERSISTENT_WORKFLOW_ENABLED: bool = False
+
+    # Research Input ingestion (B-19). The content-addressed local store is the
+    # reference boundary; uploads are capped, MIME-sniffed and never executed.
+    RESEARCH_INPUT_MAX_SIZE_BYTES: int = Field(default=26214400, gt=0)
+    RESEARCH_INPUT_ALLOWED_MIME_TYPES: list[str] = Field(
+        default_factory=lambda: [
+            "application/pdf",
+            "text/csv",
+            "application/json",
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "image/webp",
+            "text/plain",
+        ]
+    )
+    RESEARCH_INPUT_UPLOAD_DIR: Path = Path(".data/research-inputs")
+    RESEARCH_INPUT_RATE_LIMIT: int = Field(default=30, gt=0)
+
+    # URL fetch (B-19). Defaults are fail-closed: only HTTPS is allowed and an
+    # empty host allowlist rejects every external fetch until a domain is
+    # configured. Development may append http and allowlisted test hosts.
+    URL_FETCH_ALLOWED_PROTOCOLS: tuple[str, ...] = ("https",)
+    URL_FETCH_ALLOWED_HOSTS: list[str] | None = None
+    URL_FETCH_TIMEOUT_SECONDS: float = Field(default=15.0, gt=0)
+    URL_FETCH_MAX_REDIRECTS: int = Field(default=3, ge=0)
+    URL_FETCH_MAX_RESPONSE_BYTES: int = Field(default=26214400, gt=0)
 
     DATABASE_URL: SecretStr | None = None
     POSTGRES_PASSWORD: SecretStr | None = None
@@ -72,6 +101,14 @@ class Settings(BaseSettings):
             "replace_me_replace_me_replace_me_replace_me",
         }:
             errors.append("CURSOR_SIGNING_KEY must be changed in production")
+
+        allowed_protocols = {
+            protocol.strip().lower() for protocol in self.URL_FETCH_ALLOWED_PROTOCOLS
+        }
+        if allowed_protocols - {"https"}:
+            errors.append("URL_FETCH_ALLOWED_PROTOCOLS must be https-only in production")
+        if not self.RESEARCH_INPUT_ALLOWED_MIME_TYPES:
+            errors.append("RESEARCH_INPUT_ALLOWED_MIME_TYPES must not be empty")
 
         if errors:
             raise ValueError("; ".join(errors))
