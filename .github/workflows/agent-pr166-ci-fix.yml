@@ -1,0 +1,127 @@
+name: One-shot PR 166 CI fixture fix
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  repair:
+    if: ${{ github.event.issue.number == 166 && github.event.comment.body == '/agent-fix-pr166-ci' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/b-08-claim-relation-trace-api
+          fetch-depth: 0
+
+      - name: Patch PostgreSQL fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("apps/api/tests/test_literature_artifacts_postgres.py")
+          text = path.read_text(encoding="utf-8")
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              if text.count(old) != 1:
+                  raise RuntimeError(f"anchor mismatch: {old[:100]!r}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '    owner, owner_credential, _ = app.state.session_service.create(now=NOW)\n'
+              '    _, other_credential, _ = app.state.session_service.create(now=NOW)\n',
+              '    session_now = datetime.now(UTC)\n'
+              '    owner, owner_credential, _ = app.state.session_service.create(\n'
+              '        now=session_now\n'
+              '    )\n'
+              '    _, other_credential, _ = app.state.session_service.create(\n'
+              '        now=session_now\n'
+              '    )\n',
+          )
+          replace_once(
+              '                updated_at=now,\n'
+              '            )\n'
+              '        )\n'
+              '        session.add(\n'
+              '            RunStepModel(\n',
+              '                updated_at=now,\n'
+              '            )\n'
+              '        )\n'
+              '        session.flush()\n'
+              '        session.add(\n'
+              '            RunStepModel(\n',
+          )
+          replace_once(
+              '                public_message="Publishing",\n'
+              '                created_at=now,\n'
+              '            )\n'
+              '        )\n'
+              '        session.add(\n'
+              '            StepAttemptModel(\n',
+              '                public_message="Publishing",\n'
+              '                created_at=now,\n'
+              '            )\n'
+              '        )\n'
+              '        session.flush()\n'
+              '        session.add(\n'
+              '            StepAttemptModel(\n',
+          )
+          replace_once(
+              '                started_at=now,\n'
+              '                created_at=now,\n'
+              '            )\n'
+              '        )\n'
+              '        session.add(\n'
+              '            ResearchArtifactModel(\n',
+              '                started_at=now,\n'
+              '                created_at=now,\n'
+              '            )\n'
+              '        )\n'
+              '        session.flush()\n'
+              '        session.add(\n'
+              '            ResearchArtifactModel(\n',
+          )
+          replace_once(
+              '                logical_key=f"literature_claims.atomic.{run_id}",\n'
+              '                created_at=now,\n'
+              '            )\n'
+              '        )\n'
+              '        producer = candidate.producer\n',
+              '                logical_key=f"literature_claims.atomic.{run_id}",\n'
+              '                created_at=now,\n'
+              '            )\n'
+              '        )\n'
+              '        session.flush()\n'
+              '        producer = candidate.producer\n',
+          )
+          path.write_text(text, encoding="utf-8", newline="\n")
+          PY
+          git diff --check
+          git add apps/api/tests/test_literature_artifacts_postgres.py
+          git commit -m "test(b08): fix PostgreSQL session and FK fixture ordering"
+          git push origin HEAD:feat/b-08-claim-relation-trace-api
+          new_head=$(git rev-parse HEAD)
+          echo "updated PR #166 to ${new_head}"
+
+      - name: Report failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 166,
+              body: `PR #166 CI fixture repair failed. Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
