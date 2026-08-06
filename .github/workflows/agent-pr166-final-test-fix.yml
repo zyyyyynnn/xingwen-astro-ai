@@ -1,0 +1,103 @@
+name: One-shot PR 166 final PostgreSQL fixture fix
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  repair:
+    if: ${{ github.event.issue.number == 166 && github.event.comment.body == '/agent-fix-pr166-final' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/b-08-claim-relation-trace-api
+          fetch-depth: 0
+
+      - name: Complete atomic publisher Snapshot fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("apps/api/tests/test_literature_artifacts_postgres.py")
+          text = path.read_text(encoding="utf-8")
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              if text.count(old) != 1:
+                  raise RuntimeError(f"anchor mismatch: {old[:120]!r}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '    content_hash = compute_canonical_payload_hash(\n'
+              '        candidate.model_dump(mode="json", exclude_none=True)\n'
+              '    )\n'
+              '    with factory() as session, session.begin():\n',
+              '    content_hash = compute_canonical_payload_hash(\n'
+              '        candidate.model_dump(mode="json", exclude_none=True)\n'
+              '    )\n'
+              '    atomic_snapshot_ids = {\n'
+              '        item: snapshot_ids.get(item, str(uuid4()))\n'
+              '        for item in candidate.source_snapshot_ids\n'
+              '    }\n'
+              '    candidate_snapshot_refs = {\n'
+              '        item.source_snapshot_id: item\n'
+              '        for item in candidate.input_versions.source_snapshots\n'
+              '    }\n'
+              '    with factory() as session, session.begin():\n'
+              '        for pipeline_id in candidate.source_snapshot_ids:\n'
+              '            if pipeline_id in snapshot_ids:\n'
+              '                continue\n'
+              '            reference = candidate_snapshot_refs[pipeline_id]\n'
+              '            session.add(\n'
+              '                SourceSnapshotModel(\n'
+              '                    id=UUID(atomic_snapshot_ids[pipeline_id]),\n'
+              '                    project_id=project_id,\n'
+              '                    source_id=reference.source_id,\n'
+              '                    source_type="benchmark",\n'
+              '                    retrieved_at=now,\n'
+              '                    query={"fixture": pipeline_id},\n'
+              '                    query_hash=compute_canonical_payload_hash(\n'
+              '                        {"fixture": pipeline_id}\n'
+              '                    ),\n'
+              '                    source_version_or_etag=reference.source_version,\n'
+              '                    content_hash=reference.content_hash,\n'
+              '                    license_note="Atomic publisher fixture",\n'
+              '                    request_metadata={"data_level": "benchmark"},\n'
+              '                )\n'
+              '            )\n'
+              '        session.flush()\n',
+          )
+          replace_once(
+              '            persisted_source_snapshot_id=snapshot_ids[item],\n',
+              '            persisted_source_snapshot_id=atomic_snapshot_ids[item],\n',
+          )
+          path.write_text(text, encoding="utf-8", newline="\n")
+          PY
+          git diff --check
+          git add apps/api/tests/test_literature_artifacts_postgres.py
+          git commit -m "test(b08): materialize missing atomic publisher snapshots"
+          git push origin HEAD:feat/b-08-claim-relation-trace-api
+          echo "updated PR #166 to $(git rev-parse HEAD)"
+
+      - name: Report failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 166,
+              body: `PR #166 final PostgreSQL fixture repair failed. Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
