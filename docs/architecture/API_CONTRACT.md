@@ -94,3 +94,21 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - **错误码**：`RESEARCH_INPUT_INVALID`（400，载荷组合非法）、`RESEARCH_INPUT_TOO_LARGE`（413）、`RESEARCH_INPUT_MIME_REJECTED`（415）、`RESEARCH_INPUT_FILENAME_INVALID`（400）、`RESEARCH_INPUT_NOT_FOUND`（404）、`URL_FETCH_BLOCKED`（422，策略拒绝）、`URL_FETCH_TOO_LARGE` / `URL_FETCH_FAILED`（502，上游失败）。
 - **绑定语义**：`POST /api/research-inputs/{input_id}/bind` 只绑定引用，不产生所有权转移；输入删除后既有绑定不受影响。
 - **状态语义**：`accepted` 表示摄取成功且内容已冻结；`unsupported_processing` 与 `failed_ingestion` 为预留状态，摄取成功不等于已理解。
+
+## 7. 文献 Claim、Relation 与 Trace 读取
+
+B-08 在不可变 ArtifactVersion 边界提供以下无版本端点：
+
+- `GET /api/artifact-versions/{version_id}/literature-claims`
+- `GET /api/artifact-versions/{version_id}/literature-claims/{claim_id}`
+- `GET /api/artifact-versions/{version_id}/literature-relations`
+- `GET /api/artifact-versions/{version_id}/literature-relations/{relation_id}`
+- `GET /api/artifact-versions/{version_id}/reasoning-traces`
+- `GET /api/artifact-versions/{version_id}/reasoning-traces/{trace_id}`
+
+集合端点支持 `status`、不透明 HMAC cursor 与 `limit`（默认 20、最大 100）。cursor 绑定 ArtifactVersion、集合、过滤条件与 `stable_id.asc.v1` 排序；跨 scope、悬空 ID 或签名篡改返回 `400 INVALID_CURSOR`。响应使用 `Cache-Control: no-store`。
+
+Claim 读取必须先通过 B-07 PaperSummary 权威验证，再闭合 PaperSummary、ProducerExecution、Evidence 与 SourceSnapshot。Relation 读取必须把每个 Claim 精确绑定到声明的 Claim ArtifactVersion 和 PaperSummary ArtifactVersion。仅当 Relation 为 `accepted`，双方 Claim 为 `accepted`，且 Trace、Evidence、SourceSnapshot 全部闭合时，`graph_eligible` 才为 `true`。
+
+Pipeline ID 与 PostgreSQL UUID 属于不同命名空间。文学 Artifact 发布必须在同一 fenced transaction 内创建 ArtifactVersion 与其 Evidence，并验证所引用 SourceSnapshot 的 Project、source identity、version 与 content hash；禁止发布后补写 provenance。ReasoningTrace 只作为 LiteratureRelations 内容的一部分读取，不允许独立发布。API 不返回私有 chain-of-thought、原始模型响应、凭据或受限全文。
+>>>>>>> origin/main

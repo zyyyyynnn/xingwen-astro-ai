@@ -5,14 +5,11 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
-
+from app.contracts.core import create_contract_app
 from app.contracts.manifest_policy import (
     confirm_research_contract,
     validate_contract_against_manifest,
 )
-from app.contracts.core import create_contract_app
-from app.schemas.manifest import load_manifest_bundle
 from app.schemas.core import (
     ArtifactVersion,
     CollectionEnvelope,
@@ -23,8 +20,8 @@ from app.schemas.core import (
     ProblemDetails,
     ResearchArtifact,
     ResearchContract,
-    ResearchContractInput,
     ResearchContractDraft,
+    ResearchContractInput,
     ResearchProject,
     ResearchRun,
     RunEvent,
@@ -32,8 +29,9 @@ from app.schemas.core import (
     SourceMode,
     compute_research_contract_content_hash,
 )
+from app.schemas.manifest import load_manifest_bundle
 from app.security import canonical_request_hash
-
+from pydantic import ValidationError
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MANIFEST_ROOT = REPO_ROOT / "services/data_pipeline/manifests/exoplanet_host_star"
@@ -364,6 +362,12 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "getArtifactVersion",
         "getPaperCollection",
         "getPaperSummary",
+        "listLiteratureClaims",
+        "getLiteratureClaim",
+        "listLiteratureRelations",
+        "getLiteratureRelation",
+        "listReasoningTraces",
+        "getReasoningTrace",
         "listPaperCollectionCandidates",
         "getEvidence",
         "getSourceSnapshot",
@@ -436,6 +440,18 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
     ]["get"]
     assert paper_summary["operationId"] == "getPaperSummary"
     assert "PaperSummaryRead" in json.dumps(paper_summary)
+    literature_relations = document["paths"][
+        "/api/artifact-versions/{version_id}/literature-relations"
+    ]["get"]
+    assert {parameter["name"] for parameter in literature_relations["parameters"]} == {
+        "version_id",
+        "status",
+        "cursor",
+        "limit",
+    }
+    assert literature_relations["parameters"][-1]["schema"]["maximum"] == 100
+    assert "LiteratureRelationRead" in json.dumps(literature_relations)
+    assert "413" in literature_relations["responses"]
 
     workspace_put = document["paths"]["/api/projects/{project_id}/workspace-snapshot"][
         "put"

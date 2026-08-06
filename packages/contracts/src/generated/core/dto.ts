@@ -52,6 +52,145 @@ export type ResearchInputStatus = "accepted" | "unsupported_processing" | "faile
 export type ResearchInputType = "url" | "pdf" | "csv" | "json" | "image" | "text";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ClaimType".
+ */
+export type ClaimType = "goal" | "method" | "dataset" | "finding" | "limitation" | "future_work";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureClaimFailureStage".
+ */
+export type LiteratureClaimFailureStage =
+  "json" | "schema" | "input" | "evidence" | "ownership" | "normalization" | "duplicate";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureClaimPolarity".
+ */
+export type LiteratureClaimPolarity = "positive" | "negative" | "neutral" | "mixed";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureClaimRejectionReason".
+ */
+export type LiteratureClaimRejectionReason =
+  | "literature_claim.json_invalid"
+  | "literature_claim.schema_invalid"
+  | "literature_claim.input_artifact_version_unknown"
+  | "literature_claim.input_schema_version_unsupported"
+  | "literature_claim.evidence_missing"
+  | "literature_claim.evidence_not_found"
+  | "literature_claim.source_snapshot_not_found"
+  | "literature_claim.ownership_mismatch"
+  | "literature_claim.normalization_unsafe"
+  | "literature_claim.duplicate";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureClaimStatus".
+ */
+export type LiteratureClaimStatus = "candidate" | "accepted" | "rejected";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureComparabilityStatus".
+ */
+export type LiteratureComparabilityStatus = "comparable" | "not_applicable" | "incomparable";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationStatus".
+ */
+export type LiteratureRelationStatus = "candidate" | "accepted" | "rejected";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationConfidenceStatus".
+ */
+export type LiteratureRelationConfidenceStatus = "assessed" | "not_evaluable";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationType".
+ */
+export type LiteratureRelationType =
+  | "supports"
+  | "extends"
+  | "derived_from"
+  | "limits"
+  | "contradicts"
+  | "uses_same_dataset"
+  | "compares_method";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationFailureStage".
+ */
+export type LiteratureRelationFailureStage =
+  | "json"
+  | "schema"
+  | "input"
+  | "claim"
+  | "evidence"
+  | "ownership"
+  | "pairing"
+  | "direction"
+  | "duplicate"
+  | "conditions"
+  | "comparability"
+  | "trace"
+  | "confidence";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationRejectionReason".
+ */
+export type LiteratureRelationRejectionReason =
+  | "literature_relation.json_invalid"
+  | "literature_relation.schema_invalid"
+  | "literature_relation.input_artifact_version_unknown"
+  | "literature_relation.input_schema_version_unsupported"
+  | "literature_relation.input_content_hash_mismatch"
+  | "literature_relation.claim_not_found"
+  | "literature_relation.paper_summary_artifact_version_unknown"
+  | "literature_relation.claim_status_invalid"
+  | "literature_relation.evidence_missing"
+  | "literature_relation.evidence_not_found"
+  | "literature_relation.source_snapshot_not_found"
+  | "literature_relation.evidence_inconsistent"
+  | "literature_relation.ownership_mismatch"
+  | "literature_relation.self_pair"
+  | "literature_relation.direction_mismatch"
+  | "literature_relation.duplicate"
+  | "literature_relation.conditions_missing"
+  | "literature_relation.conditions_conflict"
+  | "literature_relation.object_incomparable"
+  | "literature_relation.metric_incomparable"
+  | "literature_relation.unit_incomparable"
+  | "literature_relation.trace_missing"
+  | "literature_relation.trace_incomplete"
+  | "literature_relation.trace_unsafe"
+  | "literature_relation.trace_direction_mismatch"
+  | "literature_relation.trace_evidence_incomplete"
+  | "literature_relation.confidence_undefined"
+  | "literature_relation.confidence_definition_unsupported"
+  | "literature_relation.confidence_subject_mismatch"
+  | "literature_relation.confidence_decision_mismatch"
+  | "literature_relation.confidence_calibration_missing";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationReviewReason".
+ */
+export type LiteratureRelationReviewReason =
+  | "literature_relation.review.claim_not_accepted"
+  | "literature_relation.review.conditions_unresolved"
+  | "literature_relation.review.confidence_not_evaluable"
+  | "literature_relation.review.confidence_below_threshold";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureTraceOperation".
+ */
+export type LiteratureTraceOperation =
+  | "identify_premises"
+  | "compare_objects"
+  | "compare_metric"
+  | "compare_unit"
+  | "check_conditions"
+  | "check_evidence"
+  | "classify_relation"
+  | "record_limitation";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ShareRedactionPolicy".
  */
 export type ShareRedactionPolicy = "public_metadata_only";
@@ -449,6 +588,319 @@ export interface BindResearchInputRequest {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_LiteratureClaimRead_".
+ */
+export interface CollectionEnvelope_LiteratureClaimRead_ {
+  data: LiteratureClaimRead[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * One Claim with its pinned Summary and persisted provenance projection.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureClaimRead".
+ */
+export interface LiteratureClaimRead {
+  claim: LiteratureClaimCandidate;
+  evidence: EvidenceDetail[];
+  paper_summary: LiteraturePaperSummaryReference;
+  source_snapshots: SourceSnapshotDetail[];
+  version: LiteratureArtifactVersionContext;
+}
+/**
+ * Schema-valid Claim with the outcome of deterministic D-07 admission.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureClaimCandidate".
+ */
+export interface LiteratureClaimCandidate {
+  claim_id: string;
+  claim_type: ClaimType;
+  comparison_basis?: string | null;
+  conditions: string[];
+  evidence_ids: string[];
+  failure_stage?: LiteratureClaimFailureStage | null;
+  fingerprint: string;
+  input_hash: string;
+  limitations: string[];
+  metric?: string | null;
+  model_response_hash: string;
+  normalization_version: string;
+  normalized_text: string;
+  /**
+   * @minItems 1
+   */
+  objects: [string, ...string[]];
+  paper_id: string;
+  polarity: LiteratureClaimPolarity;
+  producer_execution_id: string;
+  qualifiers: string[];
+  rejection_reason?: LiteratureClaimRejectionReason | null;
+  scope: string[];
+  source_paper_summary_artifact_version_id: string;
+  source_snapshot_ids: string[];
+  source_statement_id: string;
+  source_summary_id?: string | null;
+  status: LiteratureClaimStatus;
+  text: string;
+  uncertainty?: string | null;
+  unit?: string | null;
+}
+/**
+ * Pinned PaperSummary identity used by an admitted LiteratureClaim.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteraturePaperSummaryReference".
+ */
+export interface LiteraturePaperSummaryReference {
+  artifact_version_id: string;
+  content_hash: string;
+  output_hash: string;
+  paper_id: string;
+  schema_version: string;
+  summary_id: string;
+}
+/**
+ * Immutable publication context shared by one paged domain item.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureArtifactVersionContext".
+ */
+export interface LiteratureArtifactVersionContext {
+  artifact_id: string;
+  artifact_version_id: string;
+  content_hash: string;
+  created_at: string;
+  input_hash: string;
+  output_hash: string;
+  producer_execution: ProducerExecutionDetail;
+  project_id: string;
+  schema_version: string;
+  source_mode: App_Schemas_Core__SourceMode;
+  supersedes_version_id: string | null;
+  version_number: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResponseLinks".
+ */
+export interface ResponseLinks {
+  self: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResponseMeta".
+ */
+export interface ResponseMeta {
+  generated_at: string;
+  request_id: string;
+  schema_version?: "2.0.0";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CursorPage".
+ */
+export interface CursorPage {
+  has_more: boolean;
+  limit?: number;
+  next_cursor?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_LiteratureReasoningTraceRead_".
+ */
+export interface CollectionEnvelope_LiteratureReasoningTraceRead_ {
+  data: LiteratureReasoningTraceRead[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * One public Trace linked to its Relation, Claims, and Evidence.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureReasoningTraceRead".
+ */
+export interface LiteratureReasoningTraceRead {
+  evidence: EvidenceDetail[];
+  relation: LiteratureRelationCandidate;
+  source_claim: LiteratureClaimRead;
+  source_snapshots: SourceSnapshotDetail[];
+  target_claim: LiteratureClaimRead;
+  trace: LiteratureReasoningTraceCandidate;
+  version: LiteratureArtifactVersionContext;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationCandidate".
+ */
+export interface LiteratureRelationCandidate {
+  comparability: LiteratureRelationComparabilityCandidate;
+  condition_conflicts: string[];
+  condition_uncertainties: string[];
+  conditions: string[];
+  confidence?: LiteratureRelationConfidenceAssessment | null;
+  direction: LiteratureRelationDirectionCandidate;
+  evidence_ids: string[];
+  failure_stage?: LiteratureRelationFailureStage | null;
+  fingerprint: string;
+  input_hash: string;
+  model_response_hash: string;
+  pair_id: string;
+  producer_execution_id: string;
+  reasoning_trace_id?: string | null;
+  rejection_reason?: LiteratureRelationRejectionReason | null;
+  relation_id: string;
+  relation_type: LiteratureRelationType;
+  review_reason?: LiteratureRelationReviewReason | null;
+  scientific_review_status?: "pending_scientific_review";
+  source_claim_artifact_version_id?: string | null;
+  source_claim_id: string;
+  source_paper_summary_artifact_version_id?: string | null;
+  source_snapshot_ids: string[];
+  status: LiteratureRelationStatus;
+  target_claim_artifact_version_id?: string | null;
+  target_claim_id: string;
+  target_paper_summary_artifact_version_id?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationComparabilityCandidate".
+ */
+export interface LiteratureRelationComparabilityCandidate {
+  metric_basis: string;
+  metric_status: LiteratureComparabilityStatus;
+  object_basis: string;
+  object_status: LiteratureComparabilityStatus;
+  unit_basis: string;
+  unit_status: LiteratureComparabilityStatus;
+}
+/**
+ * Trusted, versioned calibration input referenced by model output by id.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationConfidenceAssessment".
+ */
+export interface LiteratureRelationConfidenceAssessment {
+  acceptance_threshold: number;
+  applicability_scope: string;
+  assessment_id: string;
+  /**
+   * @minItems 1
+   */
+  basis: [string, ...string[]];
+  calibration_content_hash: string;
+  calibration_id: string;
+  calibration_method: string;
+  calibration_sample_size: number;
+  calibration_scientific_payload_hash: string;
+  calibration_version: string;
+  decision: LiteratureRelationStatus;
+  definition_id: string;
+  definition_version: string;
+  score?: number | null;
+  score_interpretation?: "confidence_in_relation_type_and_admission_decision";
+  status: LiteratureRelationConfidenceStatus;
+  subject: LiteratureRelationConfidenceSubject;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationConfidenceSubject".
+ */
+export interface LiteratureRelationConfidenceSubject {
+  fingerprint: string;
+  relation_type: LiteratureRelationType;
+  source_claim_artifact_version_id: string;
+  source_claim_id: string;
+  target_claim_artifact_version_id: string;
+  target_claim_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationDirectionCandidate".
+ */
+export interface LiteratureRelationDirectionCandidate {
+  basis: string;
+  source_claim_id: string;
+  target_claim_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureReasoningTraceCandidate".
+ */
+export interface LiteratureReasoningTraceCandidate {
+  conclusion: string;
+  /**
+   * @minItems 1
+   */
+  conditions: [string, ...string[]];
+  conflicts: string[];
+  /**
+   * @minItems 1
+   */
+  evidence_ids: [string, ...string[]];
+  input_hash: string;
+  limitations: string[];
+  model_response_hash: string;
+  /**
+   * @minItems 2
+   * @maxItems 2
+   */
+  premise_claim_ids: [unknown, unknown];
+  producer_execution_id: string;
+  relation_id: string;
+  relation_status: LiteratureRelationStatus;
+  scientific_review_status?: "pending_scientific_review";
+  /**
+   * @minItems 1
+   */
+  steps: [LiteratureReasoningTraceStepCandidate, ...LiteratureReasoningTraceStepCandidate[]];
+  trace_id: string;
+  trace_protocol_version: string;
+}
+/**
+ * One public, verifiable operation; never a private reasoning token log.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureReasoningTraceStepCandidate".
+ */
+export interface LiteratureReasoningTraceStepCandidate {
+  claim_ids: string[];
+  evidence_ids: string[];
+  operation: LiteratureTraceOperation;
+  order: number;
+  statement: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_LiteratureRelationRead_".
+ */
+export interface CollectionEnvelope_LiteratureRelationRead_ {
+  data: LiteratureRelationRead[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * One Relation with both Claim endpoints and its auditable Trace.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LiteratureRelationRead".
+ */
+export interface LiteratureRelationRead {
+  evidence: EvidenceDetail[];
+  graph_eligible: boolean;
+  reasoning_trace: LiteratureReasoningTraceCandidate | null;
+  relation: LiteratureRelationCandidate;
+  source_claim: LiteratureClaimRead | null;
+  source_snapshots: SourceSnapshotDetail[];
+  target_claim: LiteratureClaimRead | null;
+  version: LiteratureArtifactVersionContext;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CollectionEnvelope_PaperCollectionCandidateRead_".
  */
 export interface CollectionEnvelope_PaperCollectionCandidateRead_ {
@@ -543,31 +995,6 @@ export interface PaperDuplicateGroup {
    * @minItems 1
    */
   match_basis: [string, ...string[]];
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "ResponseLinks".
- */
-export interface ResponseLinks {
-  self: string;
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "ResponseMeta".
- */
-export interface ResponseMeta {
-  generated_at: string;
-  request_id: string;
-  schema_version?: "2.0.0";
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "CursorPage".
- */
-export interface CursorPage {
-  has_more: boolean;
-  limit?: number;
-  next_cursor?: string | null;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -886,6 +1313,33 @@ export interface EvidenceRead {
   source_snapshot_id: string;
   target_id: string;
   target_type: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_LiteratureClaimRead_".
+ */
+export interface Envelope_LiteratureClaimRead_ {
+  data: LiteratureClaimRead;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_LiteratureReasoningTraceRead_".
+ */
+export interface Envelope_LiteratureReasoningTraceRead_ {
+  data: LiteratureReasoningTraceRead;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_LiteratureRelationRead_".
+ */
+export interface Envelope_LiteratureRelationRead_ {
+  data: LiteratureRelationRead;
+  links: ResponseLinks;
+  meta: ResponseMeta;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

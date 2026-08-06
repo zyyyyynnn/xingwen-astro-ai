@@ -19,8 +19,8 @@ from app.schemas.core import (
     ConfirmResearchContractRequest,
     CreateResearchContractDraftRequest,
     CreateResearchProjectRequest,
-    CreateShareSnapshotRequest,
     CreateRunRequest,
+    CreateShareSnapshotRequest,
     Envelope,
     EvidenceRead,
     ProblemDetails,
@@ -31,16 +31,23 @@ from app.schemas.core import (
     ResearchContractDraft,
     ResearchProject,
     ResearchRun,
-    RunEvent,
     ResearchSession,
+    RunEvent,
     SessionCreated,
     ShareSnapshot,
     ShareSnapshotCreated,
+    SourceSnapshotDetail,
     UpdateResearchContractDraftRequest,
     WorkspaceSnapshot,
     WorkspaceSnapshotInput,
-    SourceSnapshotDetail,
 )
+from app.schemas.literature_artifact_api import (
+    LiteratureClaimRead,
+    LiteratureReasoningTraceRead,
+    LiteratureRelationRead,
+)
+from app.schemas.literature_claim import LiteratureClaimStatus
+from app.schemas.literature_relation import LiteratureRelationStatus
 from app.schemas.paper_collection_api import (
     PaperCollectionCandidateRead,
     PaperCollectionRead,
@@ -53,11 +60,11 @@ from app.schemas.research_input import (
     ResearchInputRef,
 )
 
-
 PROBLEM_RESPONSES = {
     400: {"model": ProblemDetails},
     404: {"model": ProblemDetails},
     409: {"model": ProblemDetails},
+    413: {"model": ProblemDetails},
     422: {"model": ProblemDetails},
     401: {"model": ProblemDetails},
     403: {"model": ProblemDetails},
@@ -154,7 +161,9 @@ def create_contract_app() -> FastAPI:
         response_model=Envelope[ResearchProject],
         responses=PROBLEM_RESPONSES,
     )
-    def get_research_project(project_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+    def get_research_project(
+        project_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
         _ = project_id
         return _contract_only()
 
@@ -183,7 +192,9 @@ def create_contract_app() -> FastAPI:
         response_model=Envelope[ResearchContractDraft],
         responses=PROBLEM_RESPONSES,
     )
-    def get_research_contract_draft(draft_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+    def get_research_contract_draft(
+        draft_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
         _ = draft_id
         return _contract_only()
 
@@ -207,7 +218,9 @@ def create_contract_app() -> FastAPI:
         response_model=Envelope[ResearchContract],
         responses=PROBLEM_RESPONSES,
     )
-    def get_research_contract(contract_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+    def get_research_contract(
+        contract_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
         _ = contract_id
         return _contract_only()
 
@@ -286,7 +299,9 @@ def create_contract_app() -> FastAPI:
         response_model=Envelope[ResearchArtifactDetail],
         responses=PROBLEM_RESPONSES,
     )
-    def get_research_artifact(artifact_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+    def get_research_artifact(
+        artifact_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
         _ = artifact_id
         return _contract_only()
 
@@ -296,7 +311,9 @@ def create_contract_app() -> FastAPI:
         response_model=Envelope[ArtifactVersionDetail],
         responses=PROBLEM_RESPONSES,
     )
-    def get_artifact_version(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+    def get_artifact_version(
+        version_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
         _ = version_id
         return _contract_only()
 
@@ -306,7 +323,9 @@ def create_contract_app() -> FastAPI:
         response_model=Envelope[PaperCollectionRead],
         responses=PROBLEM_RESPONSES,
     )
-    def get_paper_collection(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+    def get_paper_collection(
+        version_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
         _ = version_id
         return _contract_only()
 
@@ -318,6 +337,90 @@ def create_contract_app() -> FastAPI:
     )
     def get_paper_summary(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
         _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/literature-claims",
+        operation_id="listLiteratureClaims",
+        response_model=CollectionEnvelope[LiteratureClaimRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def list_literature_claims(
+        version_id: Annotated[str, Path(min_length=1)],
+        status: Annotated[LiteratureClaimStatus | None, Query()] = None,
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (version_id, status, cursor, limit)
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/literature-claims/{claim_id}",
+        operation_id="getLiteratureClaim",
+        response_model=Envelope[LiteratureClaimRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_literature_claim(
+        version_id: Annotated[str, Path(min_length=1)],
+        claim_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = (version_id, claim_id)
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/literature-relations",
+        operation_id="listLiteratureRelations",
+        response_model=CollectionEnvelope[LiteratureRelationRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def list_literature_relations(
+        version_id: Annotated[str, Path(min_length=1)],
+        status: Annotated[LiteratureRelationStatus | None, Query()] = None,
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (version_id, status, cursor, limit)
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/literature-relations/{relation_id}",
+        operation_id="getLiteratureRelation",
+        response_model=Envelope[LiteratureRelationRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_literature_relation(
+        version_id: Annotated[str, Path(min_length=1)],
+        relation_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = (version_id, relation_id)
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/reasoning-traces",
+        operation_id="listReasoningTraces",
+        response_model=CollectionEnvelope[LiteratureReasoningTraceRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def list_reasoning_traces(
+        version_id: Annotated[str, Path(min_length=1)],
+        status: Annotated[LiteratureRelationStatus | None, Query()] = None,
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (version_id, status, cursor, limit)
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/reasoning-traces/{trace_id}",
+        operation_id="getReasoningTrace",
+        response_model=Envelope[LiteratureReasoningTraceRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_reasoning_trace(
+        version_id: Annotated[str, Path(min_length=1)],
+        trace_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = (version_id, trace_id)
         return _contract_only()
 
     @app.get(
@@ -362,7 +465,9 @@ def create_contract_app() -> FastAPI:
         response_model=Envelope[WorkspaceSnapshot],
         responses=PROBLEM_RESPONSES,
     )
-    def get_workspace_snapshot(project_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+    def get_workspace_snapshot(
+        project_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
         _ = project_id
         return _contract_only()
 

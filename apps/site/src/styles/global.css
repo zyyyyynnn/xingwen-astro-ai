@@ -27,6 +27,9 @@ a {
   min-height: 100vh;
 }
 
+/* Standalone masthead — only rendered when masthead="default" (404 etc.).
+   The homepage renders masthead="hidden" and hosts its own brand mark
+   inside the editorial frame, so no ~70px bar pushes the hero down. */
 .site-header {
   display: flex;
   align-items: center;
@@ -42,35 +45,47 @@ a {
 }
 
 .site-footer {
-  padding: 1.25rem 1.5rem;
-  border-top: 1px solid var(--color-border);
-  color: var(--color-ink-secondary);
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-ink-tertiary);
   font-size: var(--font-size-1);
+  letter-spacing: 0.02em;
 }
 
-/* Hero section — ≥50% viewport height, full width, no text overlay */
-.hero {
-  width: 100%;
-  min-height: 55vh;
-  height: 55vh;
+/* Homepage editorial paper frame — a single centered paper sheet hosts
+   the brand bar, the visual region and the content region in one
+   continuous frame, with thin left/right boundaries. No full-bleed
+   visual, no independent masthead. */
+.home-frame {
+  width: min(100% - 2.5rem, 70rem);
+  margin: 1.25rem auto 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.home-frame__topbar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: var(--color-surface-muted);
+  min-height: 2.75rem;
+  padding: 0.5rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.hero-visual {
+/* Hero / visual region — large upper area on the paper sheet. Background
+   is the muted surface token so a failed or hidden video still reads as
+   a calm placeholder. */
+.hero {
   position: relative;
   width: 100%;
-  height: 100%;
-  max-width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  height: clamp(22rem, 56vh, 34rem);
+  overflow: hidden;
+  background: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.hero-poster {
+.hero-video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -79,39 +94,43 @@ a {
   z-index: 0;
 }
 
-.hero-canvas {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  display: block;
+/* Content region — left main column holds the compact CTA and the
+   two-line serif headline; the right aside is structural whitespace
+   balancing the title. Four note columns span the full frame. */
+.home-content {
+  padding: 1.75rem 1.5rem 2rem;
 }
 
-/* Hero content — below the hero, DOM text not baked into Canvas */
-.hero-content {
+.home-content__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.home-content__main {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
-  width: min(100% - 3rem, 64rem);
-  margin-inline: auto;
-  padding: 2.5rem 1.5rem 3.5rem;
+  gap: 1.25rem;
+  max-width: 30rem;
 }
 
 .cta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.875rem;
+  gap: 0.625rem;
 }
 
 .cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.75rem;
-  padding-inline: 1.5rem;
+  min-height: 2.5rem;
+  padding-inline: 1.15rem;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   font: inherit;
+  font-size: var(--font-size-2);
   font-weight: 600;
   text-decoration: none;
   transition:
@@ -138,38 +157,43 @@ a {
   background: var(--color-brand-pressed);
 }
 
-.cta--secondary {
-  background: var(--color-surface);
-  border-color: var(--color-border-strong);
-  color: var(--color-ink-primary);
-}
-
-.cta--secondary:hover {
-  background: var(--color-surface-hover);
-}
-
-.hero-content h1 {
+.home-content__main h1 {
   margin: 0;
   max-width: 22ch;
   font-family: var(--xw-font-serif);
-  font-size: var(--font-size-7);
-  font-weight: 520;
-  letter-spacing: -0.035em;
-  line-height: 1.12;
+  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+  font-weight: 540;
+  letter-spacing: -0.02em;
+  line-height: 1.22;
+  color: var(--color-ink-primary);
 }
 
-.hero-notes {
+/* Four-column notes — thin separators, no card backgrounds. */
+.home-notes {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.25rem 2rem;
-  max-width: 64rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 1.75rem 0 0;
+  padding: 1.25rem 0 0;
+  border-top: 1px solid var(--color-border);
+  list-style: none;
 }
 
-.hero-notes p {
-  margin: 0;
+.home-notes__item {
+  padding: 0 1rem;
+  border-left: 1px solid var(--color-border);
   color: var(--color-ink-secondary);
-  font-size: var(--font-size-2);
-  line-height: 1.65;
+  font-size: var(--font-size-1);
+  line-height: 1.6;
+}
+
+.home-notes__item:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.home-notes__item:last-child {
+  padding-right: 0;
 }
 
 /* 404 page */
@@ -198,27 +222,62 @@ a {
   line-height: 1.6;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .hero-video {
+    display: none;
+  }
+}
+
 @media (max-width: 56rem) {
-  .hero-notes {
-    grid-template-columns: repeat(2, 1fr);
+  .home-content__row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .home-content__aside {
+    display: none;
+  }
+
+  .home-notes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 1rem;
+  }
+
+  .home-notes__item:nth-child(odd) {
+    border-left: none;
+    padding-left: 0;
   }
 }
 
 @media (max-width: 40rem) {
+  .home-frame {
+    width: 100%;
+    margin-top: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
   .hero {
-    min-height: 45vh;
-    height: 45vh;
+    height: clamp(18rem, 48vh, 26rem);
   }
 
-  .hero-content {
-    padding: 2rem 1rem 2.5rem;
+  .home-content {
+    padding: 1.5rem 1.125rem 1.75rem;
   }
 
-  .hero-content h1 {
-    font-size: clamp(2rem, 8vw, 3.5rem);
+  .home-content__main h1 {
+    font-size: clamp(1.5rem, 6vw, 2.125rem);
   }
 
-  .hero-notes {
+  .home-notes {
     grid-template-columns: 1fr;
+    row-gap: 0.75rem;
+  }
+
+  .home-notes__item {
+    border-left: none;
+    padding-left: 0;
+    padding-right: 0;
   }
 }

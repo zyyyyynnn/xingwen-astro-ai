@@ -57,6 +57,21 @@
       "path": "json/FieldDictionaryArtifactRead.schema.json"
     },
     {
+      "module": "app.schemas.literature_artifact_api",
+      "name": "LiteratureClaimRead",
+      "path": "json/LiteratureClaimRead.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_artifact_api",
+      "name": "LiteratureReasoningTraceRead",
+      "path": "json/LiteratureReasoningTraceRead.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_artifact_api",
+      "name": "LiteratureRelationRead",
+      "path": "json/LiteratureRelationRead.schema.json"
+    },
+    {
       "module": "app.schemas.paper_collection_api",
       "name": "PaperCollectionCandidateRead",
       "path": "json/PaperCollectionCandidateRead.schema.json"

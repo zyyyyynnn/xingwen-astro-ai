@@ -20,7 +20,6 @@ COPY packages/design-tokens/package.json ./packages/design-tokens/package.json
 COPY packages/domain/package.json ./packages/domain/package.json
 COPY packages/testing/package.json ./packages/testing/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
-COPY packages/visual-engine/package.json ./packages/visual-engine/package.json
 COPY packages/workspace-core/package.json ./packages/workspace-core/package.json
 
 RUN pnpm install --frozen-lockfile
@@ -34,7 +33,6 @@ COPY packages/design-tokens ./packages/design-tokens
 COPY packages/domain ./packages/domain
 COPY packages/testing ./packages/testing
 COPY packages/ui ./packages/ui
-COPY packages/visual-engine ./packages/visual-engine
 COPY packages/workspace-core ./packages/workspace-core
 
 CMD ["pnpm", "--filter", "@xingwen/site", "dev"]

@@ -6,9 +6,15 @@ import "../styles/global.css";
 interface Props {
   title: string;
   description: string;
+  /**
+   * "default" renders the standalone site header; "hidden" omits it so a
+   * page can host its own brand mark inside an editorial frame (homepage).
+   * Other pages keep the default behavior.
+   */
+  masthead?: "default" | "hidden";
 }
 
-const { title, description } = Astro.props;
+const { title, description, masthead = "default" } = Astro.props;
 ---
 
 <!doctype html>
@@ -22,9 +28,13 @@ const { title, description } = Astro.props;
   </head>
   <body>
     <div class="site-shell">
-      <header class="site-header">
-        <BrandMark showSubtitle={true} />
-      </header>
+      {
+        masthead === "default" && (
+          <header class="site-header">
+            <BrandMark showSubtitle={true} />
+          </header>
+        )
+      }
       <main class="site-main">
         <slot />
       </main>
