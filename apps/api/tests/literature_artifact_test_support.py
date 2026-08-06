@@ -14,6 +14,10 @@ from app.schemas.core import (
     SourceSnapshotDetail,
 )
 from app.schemas.literature_claim import LiteratureClaimsCandidate
+from app.schemas.paper_summary_api import (
+    PaperSummaryPaperMetadata,
+    PaperSummaryRead,
+)
 from app.schemas.literature_relation import (
     LiteratureRelationsCandidate,
     LiteratureRelationStatus,
@@ -52,6 +56,7 @@ class FixtureArtifactReads:
         self.versions = versions
         self.artifacts = artifacts
         self.full_content_requests: list[bool] = []
+        self.paper_summary_reader = FixturePaperSummaryReads(self)
 
     def get_version(
         self,
@@ -71,6 +76,72 @@ class FixtureArtifactReads:
         if session_id != "owner" or artifact_id not in self.artifacts:
             raise _not_found("ARTIFACT_NOT_FOUND")
         return self.artifacts[artifact_id]
+
+
+
+class FixturePaperSummaryReads:
+    """Test-only Summary envelope validator for frozen D-01 benchmark inputs."""
+
+    def __init__(self, artifacts: FixtureArtifactReads) -> None:
+        self._artifacts = artifacts
+
+    def get_summary(self, *, version_id: str, session_id: str) -> PaperSummaryRead:
+        version = self._artifacts.get_version(
+            version_id=version_id,
+            session_id=session_id,
+            full_content=True,
+        )
+        artifact = self._artifacts.get_artifact(
+            artifact_id=version.artifact_id, session_id=session_id
+        )
+        summary = PaperSummaryArtifactContent.model_validate(version.content)
+        producer = summary.producer
+        runtime = version.producer_execution
+        if (
+            artifact.kind.value != "paper_summary"
+            or artifact.project_id != version.project_id
+            or version.schema_version != summary.schema_version
+            or version.content_hash
+            != compute_canonical_payload_hash(version.content)
+            or version.input_hash != summary.input_hash
+            or runtime.run_id != version.created_by_run_id
+            or runtime.step_key != producer.step_key
+            or runtime.producer.type != producer.producer_type
+            or runtime.producer.name != producer.producer_name
+            or runtime.producer.version != producer.producer_version
+            or runtime.producer.model_name != producer.model_name
+            or runtime.producer.prompt_name != producer.prompt_name
+            or runtime.producer.prompt_version != producer.prompt_version
+            or runtime.producer.prompt_hash != producer.prompt_hash
+            or runtime.parameters_hash != producer.parameters_hash
+            or runtime.producer.parameters_hash != producer.parameters_hash
+            or runtime.input_hash != summary.input_hash
+            or runtime.output_hash != version.content_hash
+            or runtime.status != "completed"
+            or version.producer != runtime.producer
+        ):
+            raise _not_found("PAPER_SUMMARY_INVALID")
+        if producer.run_id is not None and producer.run_id != version.created_by_run_id:
+            raise _not_found("PAPER_SUMMARY_INVALID")
+        return PaperSummaryRead(
+            artifact_version_id=version.id,
+            artifact_id=version.artifact_id,
+            project_id=version.project_id,
+            version_number=version.version_number,
+            supersedes_version_id=version.supersedes_version_id,
+            source_mode=version.source_mode,
+            content_hash=version.content_hash,
+            input_hash=version.input_hash,
+            created_at=version.created_at,
+            paper=PaperSummaryPaperMetadata(
+                paper_id=summary.paper_id,
+                title=summary.paper_id,
+            ),
+            summary=summary,
+            producer_execution=runtime,
+            source_snapshots=version.source_snapshots,
+            evidence=version.evidence,
+        )
 
 
 def build_literature_fixture() -> LiteratureFixture:

@@ -48,7 +48,8 @@ uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/ge
 uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/literature_claim --include LiteratureClaimExtractionOutput --include LiteratureClaimCandidate --include LiteratureClaimAdmissionResult --include LiteratureClaimsCandidate --include LiteratureClaimBenchmarkEvaluationCase --include LiteratureClaimBenchmarkReport --check
 ```
 
-LiteratureRelation/ReasoningTrace 领域 Pipeline 同样使用独立的已提交漂移基线；它不是 HTTP DTO：
+LiteratureRelation/ReasoningTrace 领域 Pipeline 同样使用独立的已提交漂移基线；它
+不是 HTTP DTO：
 
 ```powershell
 Set-Location apps/api
@@ -79,10 +80,6 @@ CI 使用临时目录执行导出和 stale diff。只有作为契约漂移基线
 - `Benchmark*` Schema 不改变 `/api` DTO 或路由；Schema 导出不等于运行 Pipeline 接线。
 - Pydantic Contract 的统一编写源为 `apps/api/src/app/schemas`，Pipeline 和文档不得复制同名生产 Schema 形成第二事实源。
 
-### B-08 HTTP Transport
-
-`LiteratureClaimRead`、`LiteratureRelationRead` 与 `LiteratureReasoningTraceRead` 是 Core OpenAPI 的 transport projections；D-07/D-08 Pipeline candidate 仍是唯一领域 Schema 编写源。Transport 组合候选与版本固定 provenance，不复制 Claim、Relation 或 Trace 领域类型。
-
 ## 4. 编写源与生成边界
 
 - 核心资源及 Workspace/Share Contract 的 Pydantic / OpenAPI 由编写源生成。
@@ -104,3 +101,7 @@ Schema 变更至少验证：
 - Fixture / HTTP Adapter 的 Domain 一致性；
 - `/api` 适用回归；
 - API Contract、Data Model、Workflow 或 Version 文档按职责同步。
+
+### B-08 HTTP Transport
+
+`LiteratureClaimRead`、`LiteratureRelationRead` 与 `LiteratureReasoningTraceRead` 是 Core OpenAPI 的 transport projections；D-07/D-08 Pipeline candidate 仍是唯一领域 Schema 编写源。Transport 组合候选与版本固定 provenance，不复制 Claim、Relation 或 Trace 领域类型。

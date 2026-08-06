@@ -1,95 +1,59 @@
 # Coding Standard
 
-| 元数据    | 值                                       |
-| --------- | ---------------------------------------- |
-| Status    | Accepted                                 |
-| Authority | 代码组织、命名、类型、安全输入和实现边界 |
+| 元数据 | 值 |
+| --- | --- |
+| Status | Accepted |
+| Authority | 代码组织、命名、类型、安全输入与实现边界 |
 
-模块责任见 [Module Boundaries](../architecture/MODULES.md)，测试要求见 [Test Strategy](TEST_STRATEGY.md)，前端详细依赖规则见 [Frontend Architecture](../architecture/FRONTEND_ARCHITECTURE.md)。
+本文定义系统的编码规范与技术实现边界。模块职责见 [Module Boundaries](../architecture/MODULES.md)，前端架构见 [Frontend Architecture](../architecture/FRONTEND_ARCHITECTURE.md)。
 
 ## 1. 通用原则
 
-- 代码只实现当前 Issue 的明确范围。
-- 依赖方向遵守模块边界，不通过深层导入、全局单例或临时脚本绕过架构。
-- 外部输入、模型输出、缓存和导入文件均视为不可信输入。
-- 核心业务对象使用稳定 ID、明确枚举和带时区 UTC 时间。
-- 公开 API、Domain、Persistence 和 UI 类型保持分层。
-- 未实现能力使用明确 Pending / unsupported，不返回伪造成功结果。
-- 关键规则必须可测试、可版本化、可定位 producer 和 input/output hash。
+- 代码仅实现当前明确授权的业务范围，无无关重构或清理。
+- 遵循单向依赖与架构分层，不通过深层导入、全局单例或脚本绕过边界。
+- 外部 API 输入、模型响应、缓存文件与导入文件均视为不可信输入。
+- 核心领域对象统一使用稳定 ID (UUIDv7/ULID)、明确枚举与带时区 UTC ISO 8601 时间。
+- 未实现能力返回明确错误，不伪造成功结果或返回空占位。
 
-## 2. Python / FastAPI
+## 2. Python / Backend
 
-- 使用 Python 3.13 和 uv；公开函数、协议和领域边界具备类型注解。
-- Pydantic v2 是 Transport Schema 编写源；生成模型不得反向成为手工源。
-- Router 只负责请求解析、授权入口、Application Service 调用和响应映射。
-- Application Service 管理用例、权限、幂等和事务边界。
-- Workflow 管理 Run、Step、Attempt 和 Event；Pipeline 实现科研算法。
-- Repository / Adapter 集中数据访问，不在 Router 或 Pipeline 散落 SQL。
-- 异步函数只用于真实异步 I/O，不为形式全部 `async`。
-- 捕获异常时保留 cause；公开错误按 Error Handling 和 API Contract 映射。
-- 新状态、错误、资源或版本语义必须同步契约和测试。
+- 公开函数、协议与领域模型必须具备完整的静态类型注解。
+- Pydantic v2 是 Transport Schema 与领域契约的唯一编写源。
+- FastAPI Router 仅负责请求解析、授权、应用服务调用与响应映射。
+- Application Service 管理用例、权限、幂等与数据库事务边界。
+- Workflow 管理 Run 状态机与 Event；Pipeline 纯粹实现算法，不推进 Workflow 状态。
+- Repository / Adapter 集中数据访问，严禁在 Router 或 Pipeline 散落 raw SQL。
+- 异常捕获保留 `from exc` 原因；公开错误统一映射为 Problem Details。
 
 ## 3. TypeScript / Frontend
 
-- 当前运行时为 Astro 7 Brand Site、React 19.2 + Vite 8 Workspace 和根 pnpm Monorepo。
-- 使用 Node.js 24.18.0、pnpm 11.13.1、TypeScript 6.0.3 strict 与单一根 lockfile。
-- TypeScript strict；禁止用无依据 `any`、类型断言或非空断言掩盖 Contract 问题。
-- Transport Type 由 Contract 生成，DTO 经 validation / mapper 转为 Domain Model。
-- Domain 不依赖 React、Astro、HTTP 或浏览器 API。
-- UI 和 Visual Engine 不直接调用 Repository / fetch。
-- Feature 只通过公共入口跨包引用，不深层导入内部文件。
-- Site 只依赖 design tokens、UI 及允许但当前未使用的 Visual Engine；Workspace 通过 workspace-core 与 data-access 消费领域边界。
-- Server state、local state 和 URL state 按 Frontend Architecture 分工。
-- 组件覆盖 loading、empty、partial、success、failed 和来源/修订状态。
-- 用户文本与外部内容默认按文本渲染，不绕过框架转义。
-- 任何 Pending 能力不得通过空对象、伪数据或占位成功状态包装为 Current。
+- TypeScript 必须开启 Strict 模式；严禁使用 `any` 或未经校验的类型断言掩盖契约问题。
+- Transport Type 由 Pydantic / OpenAPI 导出自动生成，DTO 经 Mapper 转换为 Domain Model。
+- `@xingwen/domain` 不依赖 React、DOM、HTTP 或浏览器 API。
+- 前端组件与页面严禁直接调用原生 `fetch` 或解析原始 Transport DTO。
+- 依赖只能通过 Package 的公开 `exports` 导入，不得以深层私有路径或 `@ts-expect-error` 绕过。
+- 用户输入与外部文本默认按转义文本渲染，防范 XSS 漏洞。
 
-## 4. Pipeline
+## 4. Pipeline 与数据流
 
-- 输入输出均通过版本化 Schema。
-- 每个外部请求记录来源、参数、时间、超时、错误分类和 SourceSnapshot。
-- Mapping、crossmatch、quality、Prompt、reasoning 和 graph producer 具备版本标识。
-- Pipeline 不推进 Run 状态、不选择缓存、不返回页面 DTO。
-- 关键值、Summary、Relation 和 GraphEdge 满足 Evidence 准入。
-- Live、Fixture、recorded、Benchmark 和 Cached 数据分开存放、分开标识。
-- 无效结构、低置信匹配和 Evidence 不足不得静默丢弃或填充。
+- 输入与输出均通过版本化 Schema 校验。
+- 外部请求必须记录来源、参数、时间、超时、错误分类与 `SourceSnapshot`。
+- Pipeline 不推进 Run 状态、不选择缓存、不生成页面 DTO。
+- 数据、Summary、Relation 和 GraphEdge 必须满足 Evidence 准入。
+- Live、Fixture、Recorded 和 Cached 数据明确标识，分开存储。
 
 ## 5. 数据与版本
 
-- ArtifactVersion 创建后内容不可修改。
-- Evidence、Share 和 Export 引用明确 Version id，不引用动态 latest。
-- 修订创建派生 Run 和新 Version，保留 supersedes、Feedback 和 producer。
-- Hash 前使用稳定序列化、UTF-8 和明确日期/数字规则。
-- 数据库事务同时维护 Version、Evidence、latest 指针和 Event 一致性。
-- Migration 具备升级、失败和回滚边界；禁止应用启动时隐式执行破坏性迁移。
+- `ArtifactVersion` 创建并计算哈希后，内容绝对不可修改。
+- Evidence、Share 与 Export 固定引用 `version_id`，不引用动态 `latest`。
+- 修订创建派生 Run 与新 `ArtifactVersion`，保留 `supersedes` 关系与历史版本。
+- 数据库事务同时维护 Version、Evidence、latest 指针与 Event 一致性。
+- Migration 必须具备升级、失败退出与回滚预案。
 
-## 6. 文件与命名
+## 6. 命名与代码风格
 
-- 文档与代码使用 UTF-8；仓库文本使用一致换行策略。
 - Python 模块/函数使用 `snake_case`，类使用 `PascalCase`。
 - TypeScript 组件/类型使用 `PascalCase`，函数/变量使用 `camelCase`。
-- API JSON 字段使用 `snake_case`；前端 Domain 是否转换命名由 mapper 统一决定。
-- Prompt 文件使用 `<name>/vN.md`，不得使用 `latest.md`。
-- Fixture / Benchmark 文件名包含 case、scenario、schema version 和数据等级。
-- Issue 编号出现在 PR、测试说明或必要注释，不大量写入业务代码。
-
-## 7. 注释与文档
-
-- 注释解释“为什么”或不变量，不复述代码表面行为。
-- 公共 API、复杂领域规则和安全边界使用简短 docstring / TSDoc。
-- TODO 包含原因和可定位 Issue；禁止永久无主 TODO。
-- 示例明确标记，不得成为第二套生产 Contract。
-- 修改领域事实时同步唯一权威文档，不在代码注释复制完整规范。
-
-## 8. Review 门槛
-
-代码 Review 至少检查：
-
-- 是否越过模块或状态所有权边界；
-- 是否新增第二套 Schema、枚举或 Prompt；
-- 是否存在未经验证的外部/模型内容；
-- 是否遗漏 Evidence、SourceSnapshot、版本或权限；
-- 是否原地覆盖历史产物；
-- 是否可能记录敏感内容；
-- 是否有可复现测试和失败场景；
-- 是否同步受影响的 Contract、ADR、风险或部署文档。
+- API JSON 字段统一使用 `snake_case`。
+- Prompt 文件统一使用 `<name>/vN.md` 命名。
+- 示例代码、文档注释不写入具体临时任务编号或个人本地路径。

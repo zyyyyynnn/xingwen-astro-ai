@@ -6,7 +6,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import pytest
 from app.schemas._hashing import compute_canonical_payload_hash
@@ -839,7 +839,9 @@ def test_publisher_ready_candidate_passes_structured_admission_port() -> None:
     snapshot_bindings = tuple(
         ArtifactSourceSnapshotBinding(
             pipeline_source_snapshot_id=item,
-            persisted_source_snapshot_id=f"persisted.{item}",
+            persisted_source_snapshot_id=str(
+                uuid5(NAMESPACE_URL, f"claim-snapshot:{item}")
+            ),
         )
         for item in result.publisher_candidate.source_snapshot_ids
     )
@@ -853,7 +855,12 @@ def test_publisher_ready_candidate_passes_structured_admission_port() -> None:
             target_id=item.claim_id,
             pipeline_evidence_id=item.evidence_id,
             pipeline_source_snapshot_id=item.source_snapshot_id,
-            persisted_evidence_id=(f"persisted.{item.claim_id}.{item.evidence_id}"),
+            persisted_evidence_id=str(
+                uuid5(
+                    NAMESPACE_URL,
+                    f"claim-evidence:{item.claim_id}:{item.evidence_id}",
+                )
+            ),
             persisted_source_snapshot_id=persisted_snapshots[item.source_snapshot_id],
         )
         for item in result.publisher_candidate.evidence_references

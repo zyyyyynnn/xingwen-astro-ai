@@ -12,7 +12,10 @@ from app.schemas.literature_artifact_api import (
     LiteratureReasoningTraceRead,
     LiteratureRelationRead,
 )
-from app.schemas.literature_claim import LiteratureClaimStatus
+from app.schemas.literature_claim import (
+    LiteratureClaimsCandidate,
+    LiteratureClaimStatus,
+)
 from app.schemas.literature_relation import (
     LiteratureRelationsCandidate,
     LiteratureRelationStatus,
@@ -22,6 +25,7 @@ from app.services.literature_artifacts import (
     LiteratureArtifactReadService,
     _encode_cursor,
     _relation_snapshot_references,
+    _validate_relation_endpoint_versions,
 )
 from fastapi.testclient import TestClient
 from literature_artifact_test_support import (
@@ -243,3 +247,71 @@ def test_unknown_literature_objects_return_non_disclosing_404(
         404,
         "REASONING_TRACE_NOT_FOUND",
     )
+
+def test_claim_read_rejects_upstream_summary_runtime_drift(
+    fixture: LiteratureFixture,
+) -> None:
+    claim_version = fixture.artifacts.versions[fixture.claim_version_ids[0]]
+    candidate = LiteratureClaimsCandidate.model_validate(claim_version.content)
+    summary_version_id = candidate.input_versions.paper_summary_artifact_version_id
+    original = fixture.artifacts.versions[summary_version_id]
+    fixture.artifacts.versions[summary_version_id] = original.model_copy(
+        update={"input_hash": "sha256:" + "f" * 64}
+    )
+    try:
+        response = _client(fixture).get(
+            f"/api/artifact-versions/{fixture.claim_version_ids[0]}"
+            "/literature-claims"
+        )
+        assert response.status_code == 403
+        assert response.json()["code"] == "PROVENANCE_SCOPE_VIOLATION"
+    finally:
+        fixture.artifacts.versions[summary_version_id] = original
+
+
+def test_relation_endpoint_versions_are_bound_to_the_claim_registry(
+    fixture: LiteratureFixture,
+) -> None:
+    version = fixture.artifacts.versions[fixture.relation_version_id]
+    candidate = LiteratureRelationsCandidate.model_validate(version.content)
+    relation = next(
+        item
+        for item in candidate.relations
+        if item.status is not LiteratureRelationStatus.rejected
+    )
+    swapped = relation.model_copy(
+        update={
+            "source_claim_artifact_version_id": (
+                relation.target_claim_artifact_version_id
+            ),
+            "target_claim_artifact_version_id": (
+                relation.source_claim_artifact_version_id
+            ),
+        }
+    )
+    tampered = candidate.model_copy(
+        update={
+            "relations": tuple(
+                swapped if item.relation_id == relation.relation_id else item
+                for item in candidate.relations
+            )
+        }
+    )
+    claim_version_by_id = {
+        claim_id: reference.artifact_version_id
+        for reference in candidate.input_versions.claim_artifact_versions
+        for claim_id in reference.claim_ids
+    }
+    summary_version_by_claim_id = {
+        item.claim_id: item.source_paper_summary_artifact_version_id
+        for item in candidate.claims
+    }
+
+    with pytest.raises(SecurityProblem) as exc_info:
+        _validate_relation_endpoint_versions(
+            tampered,
+            claim_version_by_id=claim_version_by_id,
+            summary_version_by_claim_id=summary_version_by_claim_id,
+        )
+
+    assert exc_info.value.code == "PROVENANCE_SCOPE_VIOLATION"

@@ -46,8 +46,6 @@ const SKIP_PATH_PREFIXES = ["apps/api/migrations"];
 const ALLOWLIST = new Set([
   "scripts/check-frontend-architecture.mjs",
   "scripts/check-versionless-api.mjs",
-  // Historical records that intentionally cite the retired versioned surface:
-  "docs/architecture/DECISIONS.md", // ADR-030 documents the migration itself
   "CONTRIBUTING.md", // past GitHub issue titles quoted verbatim
 ]);
 

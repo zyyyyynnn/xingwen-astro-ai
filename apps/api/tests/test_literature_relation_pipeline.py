@@ -7,6 +7,7 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import ClassVar, Literal
+from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 from app.schemas import _literature_relation_seal as relation_seal
@@ -423,7 +424,9 @@ def _publication_bindings(candidate):
     snapshot_bindings = tuple(
         ArtifactSourceSnapshotBinding(
             pipeline_source_snapshot_id=item,
-            persisted_source_snapshot_id=f"persisted.{item}",
+            persisted_source_snapshot_id=str(
+                uuid5(NAMESPACE_URL, f"relation-snapshot:{item}")
+            ),
         )
         for item in candidate.source_snapshot_ids
     )
@@ -437,7 +440,12 @@ def _publication_bindings(candidate):
             target_id=item.relation_id,
             pipeline_evidence_id=item.evidence_id,
             pipeline_source_snapshot_id=item.source_snapshot_id,
-            persisted_evidence_id=(f"persisted.{item.relation_id}.{item.evidence_id}"),
+            persisted_evidence_id=str(
+                uuid5(
+                    NAMESPACE_URL,
+                    f"relation-evidence:{item.relation_id}:{item.evidence_id}",
+                )
+            ),
             persisted_source_snapshot_id=persisted_snapshots[item.source_snapshot_id],
         )
         for item in getattr(candidate, "evidence_references", ())
