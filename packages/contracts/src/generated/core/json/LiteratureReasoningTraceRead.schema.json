@@ -363,7 +363,7 @@
           "type": "array"
         },
         "source_paper_summary_artifact_version_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
           "title": "Source Paper Summary Artifact Version Id",
           "type": "string"
         },
@@ -920,7 +920,7 @@
         "source_claim_artifact_version_id": {
           "anyOf": [
             {
-              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
               "type": "string"
             },
             {
@@ -938,7 +938,7 @@
         "source_paper_summary_artifact_version_id": {
           "anyOf": [
             {
-              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
               "type": "string"
             },
             {
@@ -962,7 +962,7 @@
         "target_claim_artifact_version_id": {
           "anyOf": [
             {
-              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
               "type": "string"
             },
             {
@@ -980,7 +980,7 @@
         "target_paper_summary_artifact_version_id": {
           "anyOf": [
             {
-              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
               "type": "string"
             },
             {
@@ -1195,7 +1195,7 @@
           "$ref": "#/$defs/LiteratureRelationType"
         },
         "source_claim_artifact_version_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
           "title": "Source Claim Artifact Version Id",
           "type": "string"
         },
@@ -1205,7 +1205,7 @@
           "type": "string"
         },
         "target_claim_artifact_version_id": {
-          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
           "title": "Target Claim Artifact Version Id",
           "type": "string"
         },
