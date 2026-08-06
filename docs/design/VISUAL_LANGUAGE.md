@@ -22,26 +22,39 @@
 - 小面积状态色；
 - 精密而非赛博朋克。
 
-## 2. Brand Site 基线
+## 2. Brand Site
 
-- **Current Baseline**：`main` 代码当前仍维护旧 `HeroVisual` 组件与双短 CTA (`/tour`)；
-- **Accepted Target**：品牌极简首屏目标确定为：
-  - 紧凑品牌栏
-  - `apps/site/public/visual/homepage-ascii.mp4`
-  - 单一“进入工作台”CTA（目标 `/workspace`）
-  - 两行衬线标题（“让每一颗系外行星候选体 / 都可溯源”）
-  - 四列能力说明
-- 视频使用原生 `<video>`，无音频；Reduced Motion 和页面隐藏时暂停。视频失败不影响标题、说明与 CTA。
+Homepage 使用以下结构：
+
+```text
+紧凑品牌栏
+→ homepage-ascii.mp4
+→ 单一“进入工作台”CTA
+→ 两行衬线标题
+→ 四列能力说明
+```
+
+固定资产：`apps/site/public/visual/homepage-ascii.mp4`。
+
+固定标题：
+
+```text
+让每一颗系外行星候选体
+都可溯源
+```
+
+唯一 CTA 为“进入工作台”，目标为 `/workspace`。
+
+视频使用原生 `<video>`，无音频；Reduced Motion 和页面隐藏时暂停。视频失败不影响标题、说明与 CTA。
 
 ## 3. 色彩系统与 Token 权威
 
-- **精确 Token 名称与数值**：唯一定义于代码源 [`packages/design-tokens/src/base.css`](file:///E:/xingwen-astro-ai/packages/design-tokens/src/base.css)。
-- **品牌色锚点**：主题色锚点为 `#6E7981` (`--raw-bluegray-500`)。
-- **视觉角色分工**：
-  - Cold Paper：用于背景、画布 (`--color-canvas`) 与表面 (`--color-surface`)；
-  - Bluegray：用于品牌、文字 (`--color-ink-primary`)、边框 (`--color-border`)；
-  - 语义状态色：用于成功 (`--color-success`)、警告 (`--color-warning`)、错误 (`--color-error`) 和信息 (`--color-info`)。
-- **使用约束**：业务组件只消费语义 Token，不得硬编码 Raw 色值。
+- 精确 Token 名称与数值唯一定义于 [`packages/design-tokens/src/base.css`](../../packages/design-tokens/src/base.css)。
+- 主题色锚点为 `#6E7981`（`--raw-bluegray-500`）。
+- Cold Paper 用于背景、画布与表面。
+- Bluegray 用于品牌、文字、边框与交互强调。
+- 语义状态色用于成功、警告、错误与信息。
+- 业务组件不得硬编码 Raw 色值。
 
 ## 4. 色彩比例
 
@@ -52,7 +65,7 @@ Brand 强调               3–7%
 状态色                   <2%
 ```
 
-默认 Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或必须保留的局部执行视图。
+Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部执行视图。
 
 ## 5. 字体
 
@@ -87,9 +100,9 @@ Brand 强调               3–7%
 - 分隔线、背景层级与留白优先于卡片；
 - 阴影只用于 Overlay、Popover、Menu 与浮层。
 
-## 8. 上游换肤
+## 8. Workspace 换肤
 
-选定上游后，保留其：
+保留上游产品的：
 
 - 布局；
 - Panel 行为；
@@ -98,7 +111,7 @@ Brand 强调               3–7%
 - 响应式；
 - 运行反馈。
 
-替换其：
+替换上游产品的：
 
 - Brand；
 - Token；
@@ -108,7 +121,7 @@ Brand 强调               3–7%
 - 状态外观；
 - 领域内容。
 
-不得用换肤为理由重新实现 Shell 或交互骨架。
+不得以换肤为由重新实现 Shell 或交互骨架。
 
 ## 9. 状态表达
 
