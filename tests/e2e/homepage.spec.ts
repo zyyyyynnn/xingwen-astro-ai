@@ -81,3 +81,54 @@ test("homepage title renders as two lines without client-side scripting", async 
 
   await context.close();
 });
+
+test("homepage pauses the hero video under reduced motion via lifecycle", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  await page.goto("http://127.0.0.1:4321/");
+
+  const video = page.locator("video.hero-video");
+  await expect(video).toBeHidden();
+
+  const state = await video.evaluate((el: HTMLVideoElement) => ({
+    paused: el.paused,
+    dataAttribute: el.hasAttribute("data-home-hero-video"),
+  }));
+  expect(state.paused).toBe(true);
+  expect(state.dataAttribute).toBe(true);
+});
+
+test("homepage pauses the hero video while the tab is hidden and resumes on return", async ({
+  page,
+}) => {
+  await page.goto("http://127.0.0.1:4321/");
+
+  const video = page.locator("video.hero-video");
+  await expect(video).toBeVisible();
+
+  await expect
+    .poll(() => video.evaluate((el: HTMLVideoElement) => el.paused))
+    .toBe(false);
+
+  const setVisibility = (state: string) =>
+    video.evaluate((el, visibilityState) => {
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => visibilityState,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+      void el;
+    }, state);
+
+  await setVisibility("hidden");
+  await expect
+    .poll(() => video.evaluate((el: HTMLVideoElement) => el.paused))
+    .toBe(true);
+
+  await setVisibility("visible");
+  await expect
+    .poll(() => video.evaluate((el: HTMLVideoElement) => el.paused))
+    .toBe(false);
+});
