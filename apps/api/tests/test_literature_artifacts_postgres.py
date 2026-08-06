@@ -697,7 +697,7 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
                     f"atomic:{run_id}:{item.claim_id}:{item.evidence_id}",
                 )
             ),
-            persisted_source_snapshot_id=snapshot_ids[item.source_snapshot_id],
+            persisted_source_snapshot_id=atomic_snapshot_ids[item.source_snapshot_id],
         )
         for item in candidate.evidence_references
     )
