@@ -82,3 +82,20 @@ Project -> ShareSnapshot -> ArtifactVersion
 - **ArtifactVersion**：不可变的科研产物快照，绑定 Evidence 与 SourceSnapshot。
 - **WorkspaceSnapshot**：工作台私有恢复布局状态。
 - **ShareSnapshot**：冻结的公开只读投影。
+
+## 6. 文献 Claim、Relation 与 Trace 读取
+
+B-08 在不可变 ArtifactVersion 边界提供以下无版本端点：
+
+- `GET /api/artifact-versions/{version_id}/literature-claims`
+- `GET /api/artifact-versions/{version_id}/literature-claims/{claim_id}`
+- `GET /api/artifact-versions/{version_id}/literature-relations`
+- `GET /api/artifact-versions/{version_id}/literature-relations/{relation_id}`
+- `GET /api/artifact-versions/{version_id}/reasoning-traces`
+- `GET /api/artifact-versions/{version_id}/reasoning-traces/{trace_id}`
+
+集合端点支持 `status`、不透明 HMAC cursor 与 `limit`（默认 20、最大 100）。cursor 绑定 ArtifactVersion、集合、过滤条件与 `stable_id.asc.v1` 排序；跨 scope、悬空 ID 或签名篡改返回 `400 INVALID_CURSOR`。响应使用 `Cache-Control: no-store`。
+
+Claim 读取必须先通过 B-07 PaperSummary 权威验证，再闭合 PaperSummary、ProducerExecution、Evidence 与 SourceSnapshot。Relation 读取必须把每个 Claim 精确绑定到声明的 Claim ArtifactVersion 和 PaperSummary ArtifactVersion。仅当 Relation 为 `accepted`，双方 Claim 为 `accepted`，且 Trace、Evidence、SourceSnapshot 全部闭合时，`graph_eligible` 才为 `true`。
+
+Pipeline ID 与 PostgreSQL UUID 属于不同命名空间。文学 Artifact 发布必须在同一 fenced transaction 内创建 ArtifactVersion 与其 Evidence，并验证所引用 SourceSnapshot 的 Project、source identity、version 与 content hash；禁止发布后补写 provenance。ReasoningTrace 只作为 LiteratureRelations 内容的一部分读取，不允许独立发布。API 不返回私有 chain-of-thought、原始模型响应、凭据或受限全文。
