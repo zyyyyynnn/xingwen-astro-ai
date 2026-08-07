@@ -16,13 +16,13 @@
   fix/contract-drift
   docs/authority-consolidation
   ```
-- **Commit 前缀**：
-  ```text
-  feat: add artifact version endpoint
-  fix: preserve evidence on revision conflict
-  docs: align workflow and issue boundaries
-  chore: update generated contracts
-  ```
+- **Commit & PR Title Grammar**：
+  必须符合 `<type>(<scope>)[!]: <summary>` 格式。
+  - **Type 允许值**：`feat`, `fix`, `refactor`, `docs`, `test`, `ci`, `build`, `chore`, `perf`, `style`, `revert`
+  - **Task Scope 格式**：`^[a-dx]-[0-9]{2,3}$`（例如 `a-21`, `b-19`, `c-05`, `d-10`, `x-01`）
+  - **System Scope 允许值**：`repo`, `frontend`, `backend`, `contracts`, `data`, `security`, `docs`, `ci`, `deps`, `release`, `sync`
+  - **PR Title** 不附带任何后置编号如 `(#123)`。
+  - **PR Integration Commit** 最多附带一个唯一的尾部 PR 回链编号 `(#123)`。
 - **提交原则**：一个 Commit 表达一个独立主要目的，不混入无关格式化或无关改动。
 
 ## 2. Issue 与 PR 规则
