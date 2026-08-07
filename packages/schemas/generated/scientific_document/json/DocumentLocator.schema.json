@@ -2,7 +2,7 @@
   "$defs": {
     "DocumentBBox": {
       "additionalProperties": false,
-      "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range: ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
+      "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range (enforced at the aggregate level, where page geometry is\n  known): ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
       "properties": {
         "x1": {
           "minimum": 0.0,
@@ -58,7 +58,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Canonical locator back to a parsed element, for Evidence provenance.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by B-20 without re-parsing the source.",
+  "description": "Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by B-20 without re-parsing the source.\n\nThis is the ONLY locator representation in the contract. ``page_index``,\n``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere\nelse; the ``ScientificDataExtractionCandidate`` references a parse solely\nthrough this locator, so contradictory parallel locator fields are\nimpossible by construction.",
   "properties": {
     "bbox": {
       "anyOf": [

@@ -2,7 +2,7 @@
   "$defs": {
     "DocumentBBox": {
       "additionalProperties": false,
-      "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range: ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
+      "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range (enforced at the aggregate level, where page geometry is\n  known): ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
       "properties": {
         "x1": {
           "minimum": 0.0,
@@ -36,7 +36,7 @@
     },
     "DocumentLocator": {
       "additionalProperties": false,
-      "description": "Canonical locator back to a parsed element, for Evidence provenance.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by B-20 without re-parsing the source.",
+      "description": "Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by B-20 without re-parsing the source.\n\nThis is the ONLY locator representation in the contract. ``page_index``,\n``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere\nelse; the ``ScientificDataExtractionCandidate`` references a parse solely\nthrough this locator, so contradictory parallel locator fields are\nimpossible by construction.",
       "properties": {
         "bbox": {
           "anyOf": [
@@ -161,65 +161,13 @@
     }
   },
   "additionalProperties": false,
-  "description": "Stub describing one extracted scientific value observation.\n\nHARD BOUNDARY (D-10 / #20): this candidate describes only the *observed*\nraw value and where it came from. It MUST NOT carry canonical mapping,\nunit normalization, accepted scientific value or dataset publication\nstatus — those belong to the existing C Pipeline (Field Manifest → mapping\n→ unit normalization → quality/admission → Dataset candidate → Publisher).\n\nCorrect chain:\n``ScientificDataExtractionCandidate`` → existing Field Manifest → existing\nmapping → unit normalization → quality/admission → Dataset candidate.\nNever ``OCR → final Dataset``.",
+  "description": "Stub describing one extracted scientific value observation.\n\nHARD BOUNDARY (D-10 / #20): this candidate describes only the *observed*\nraw value and where it came from. It MUST NOT carry canonical mapping,\nunit normalization, accepted scientific value or dataset publication\nstatus — those belong to the existing C Pipeline (Field Manifest → mapping\n→ unit normalization → quality/admission → Dataset candidate → Publisher).\n\nCorrect chain:\n``ScientificDataExtractionCandidate`` → existing Field Manifest → existing\nmapping → unit normalization → quality/admission → Dataset candidate.\nNever ``OCR → final Dataset``.\n\nLocation is expressed ONLY through ``locator`` (the single-source-of-truth\n``DocumentLocator``). No parallel page_index/block_id/bbox/cell_id fields\nexist, so a contradictory locator is impossible.",
   "properties": {
-    "bbox": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/DocumentBBox"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
-    },
-    "block_id": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Block Id"
-    },
     "candidate_id": {
       "maxLength": 128,
       "minLength": 1,
       "title": "Candidate Id",
       "type": "string"
-    },
-    "cell_id": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Cell Id"
-    },
-    "column_index": {
-      "anyOf": [
-        {
-          "minimum": 0,
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Column Index"
     },
     "created_at": {
       "format": "date-time",
@@ -271,19 +219,6 @@
       "default": null,
       "title": "Object Hint"
     },
-    "page_index": {
-      "anyOf": [
-        {
-          "minimum": 0,
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Page Index"
-    },
     "parse_quality": {
       "$ref": "#/$defs/DocumentParseQuality"
     },
@@ -332,19 +267,6 @@
       "title": "Research Input Id",
       "type": "string"
     },
-    "row_index": {
-      "anyOf": [
-        {
-          "minimum": 0,
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Row Index"
-    },
     "source_snapshot_id": {
       "anyOf": [
         {
@@ -358,20 +280,6 @@
       ],
       "default": null,
       "title": "Source Snapshot Id"
-    },
-    "table_id": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Table Id"
     }
   },
   "required": [

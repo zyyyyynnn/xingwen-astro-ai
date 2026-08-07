@@ -6,18 +6,21 @@ evolve independently. It machine-detects the prohibited patterns from D-10 #34:
 
 - production code importing ``docs/references`` (reference-after-rewrite source)
 - unapproved parser/vendor packages imported in the production parser area
-- floating model versions (``latest`` / ``main`` / ``master`` / revision aliases)
+- floating / range model versions for APPROVED packages (``latest`` / ``main`` /
+  ``master`` / ``nightly`` / ``dev`` / ``HEAD`` / ``>=`` / ``<`` / ``~`` / ``^``)
 - model weight files tracked in git
-- Canonical schema modules importing vendor types
+- canonical schema modules importing/depending on vendor types
 - unmanifested vendored third-party source files
 
-Machine detection cannot judge "did a developer read upstream source and
-hand-rewrite a similar algorithm"; the human Review checklist (REVIEW_CHECKLIST
-update) covers that. This scanner only enforces what is mechanically checkable.
+Scanning uses the ``ast`` module for import detection (robust against comments,
+docstrings and string literals) and applies the manifest-driven approved-package
+allowlist. The adoption manifest is also validated with its Pydantic contract so
+the gate's OWN data cannot drift.
 """
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import subprocess
@@ -40,7 +43,10 @@ CANONICAL_SCHEMA_MODULES = ("apps/api/src/app/schemas/scientific_document.py",)
 REFERENCE_DIR = "docs/references"
 
 # Floating model/revision tokens that must never appear as a pinned version.
-FLOATING_VERSION_TOKENS = {"latest", "main", "master", "nightly", "dev", "HEAD"}
+FLOATING_VERSION_TOKENS = {"latest", "main", "master", "nightly", "dev", "head", "*"}
+
+# Characters that denote a version RANGE (not an exact pin).
+RANGE_CHARS = (">", "<", "~", "^", "!", "|")
 
 # Model weight extensions that must never be committed.
 MODEL_WEIGHT_SUFFIXES = (
@@ -56,23 +62,9 @@ MODEL_WEIGHT_SUFFIXES = (
     ".tflite",
 )
 
-ADOPTION_MANIFEST = (
-    ROOT / "services" / "scientific_document" / "upstream_adoption.json"
-)
+VENDORED_MARKERS = ("__vendored__", "vendored_source")
 
-
-def load_approved_packages() -> set[str]:
-    """Return the lower-cased approved vendor package names from the manifest."""
-    if not ADOPTION_MANIFEST.is_file():
-        return set()
-    data = json.loads(ADOPTION_MANIFEST.read_text(encoding="utf-8"))
-    approved: set[str] = set()
-    for entry in data.get("entries", []):
-        for key in ("package", "model_id"):
-            value = entry.get(key)
-            if value:
-                approved.add(value.lower())
-    return approved
+ADOPTION_MANIFEST = ROOT / "services" / "scientific_document" / "upstream_adoption.json"
 
 
 def tracked_files() -> list[str]:
@@ -97,39 +89,99 @@ def _is_production_py(relative: str) -> bool:
     return True
 
 
+def _is_governance_config(relative: str) -> bool:
+    normalized = relative.replace("\\", "/").lower()
+    return normalized.endswith((".json", ".toml", ".yaml", ".yml"))
+
+
+def _imported_roots(tree: ast.AST) -> list[str]:
+    """Return the dotted root module names imported by a parsed module (AST)."""
+    roots: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                roots.append(alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                roots.append(node.module.split(".")[0])
+    return roots
+
+
+def load_adoption_manifest():
+    """Load + validate the adoption manifest via its Pydantic contract."""
+    from services.scientific_document.adoption_contract import (
+        UpstreamAdoptionManifest,
+        load_adoption_manifest as _load,
+    )
+
+    return _load(ADOPTION_MANIFEST)
+
+
+def approved_package_roots() -> set[str]:
+    """Lower-cased approved import roots from the manifest (approved only).
+
+    Both the PyPI/hyphenated name (``docling-parse``) and the import root
+    (``docling_parse``) are accepted, since Python import roots use underscores
+    while the manifest records the package's distribution name.
+    """
+    try:
+        manifest = load_adoption_manifest()
+    except Exception:
+        return set()
+    roots: set[str] = set()
+    for entry in manifest.entries:
+        if entry.adoption_status.value != "approved":
+            continue
+        for value in (entry.package, entry.model_id, entry.model_resolved_id):
+            if value:
+                roots.add(value.lower())
+                roots.add(value.lower().replace("-", "_"))
+    return roots
+
+
 def check_reference_imports(tracked: list[str]) -> list[str]:
     errors: list[str] = []
     for relative in tracked:
         normalized = relative.replace("\\", "/")
         if not _is_production_py(normalized):
             continue
-        if "/docs/references/" in f"/{normalized}" or normalized.startswith(
-            "docs/references/"
-        ):
+        if "/docs/references/" in f"/{normalized}" or normalized.startswith("docs/references/"):
             continue  # reference files themselves are allowed; only imports are
         path = ROOT / normalized
         try:
-            text = path.read_text(encoding="utf-8", errors="strict")
-        except (OSError, UnicodeDecodeError):
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="strict"))
+        except (OSError, SyntaxError, UnicodeDecodeError):
             continue
-        if re.search(r"(^|\n)\s*import\s+.*\bdocs\.references\b", text) or re.search(
-            r"from\s+docs\.references\s+import", text
-        ):
-            errors.append(f"production code imports docs.references: {normalized}")
+        for root in _imported_roots(tree):
+            if root == "docs" and _imports_docs_references(tree):
+                errors.append(f"production code imports docs.references: {normalized}")
     return errors
 
 
+def _imports_docs_references(tree: ast.AST) -> bool:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            if node.module == "docs.references" or node.module.startswith("docs.references."):
+                return True
+    return False
+
+
 def check_unapproved_parser_imports(tracked: list[str]) -> list[str]:
-    approved = load_approved_packages()
-    errors: list[str] = []
-    # Known vendor import roots that are NOT approved for production parser area.
-    vendor_import_roots = (
+    approved = approved_package_roots()
+    # Only these vendor-parser families are policed. Standard library, project
+    # modules (``app``/``services``), and non-parser tooling (``fpdf``/``PIL``)
+    # are out of scope. A policed family is allowed iff it is an APPROVED entry
+    # in services/scientific_document/upstream_adoption.json (manifest-driven,
+    # exact-version authorization — F2/F3).
+    vendor_families = (
+        "docling_parse",
         "paddleocr",
-        "docling",
         "paddle",
         "mineru",
         "grobid",
+        "pp_structure",
     )
+    errors: list[str] = []
     for relative in tracked:
         normalized = relative.replace("\\", "/")
         if not _is_production_py(normalized):
@@ -138,34 +190,36 @@ def check_unapproved_parser_imports(tracked: list[str]) -> list[str]:
             continue
         path = ROOT / normalized
         try:
-            text = path.read_text(encoding="utf-8", errors="strict")
-        except (OSError, UnicodeDecodeError):
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="strict"))
+        except (OSError, SyntaxError, UnicodeDecodeError):
             continue
-        for root in vendor_import_roots:
-            if re.search(rf"(^|\n)\s*(import|from)\s+{re.escape(root)}", text):
-                # Allow only if the exact approved package is pinned in the
-                # manifest AND this is the benchmark-only native_baseline module.
-                if normalized.endswith("native_baseline.py") and root == "docling":
-                    continue
-                errors.append(
-                    f"unapproved vendor import '{root}' in production parser area: "
-                    f"{normalized}"
-                )
+        for root in _imported_roots(tree):
+            if root not in vendor_families:
+                continue
+            if root.lower() in approved:
+                continue
+            errors.append(
+                f"unapproved vendor import '{root}' in production parser area: "
+                f"{normalized} (must be an approved entry in upstream_adoption.json)"
+            )
     return errors
 
 
 def check_floating_versions(tracked: list[str]) -> list[str]:
     errors: list[str] = []
+    # The key is quoted in JSON (``"model_revision": "latest"``), so an optional
+    # closing quote is allowed between the key and the separator.
     pattern = re.compile(
-        r"(model_revision|pipeline_version|revision|version)\s*[:=]\s*"
-        r"[\"']?\s*(latest|main|master|nightly|dev|HEAD)\b",
+        r"(model_revision|pipeline_version|revision|version|package_version|release_tag)"
+        r"\"?\s*[:=]\s*[\"']?\s*(latest|main|master|nightly|dev|head)\b",
         re.IGNORECASE,
     )
     for relative in tracked:
         normalized = relative.replace("\\", "/")
-        if not _is_production_py(normalized):
+        if not _is_governance_config(normalized):
             continue
-        if not normalized.endswith((".py", ".json", ".toml", ".yaml", ".yml")):
+        # Only scan adoption/config files for floating versions.
+        if "scientific_document" not in normalized and "adoption" not in normalized:
             continue
         path = ROOT / normalized
         try:
@@ -179,6 +233,37 @@ def check_floating_versions(tracked: list[str]) -> list[str]:
     return errors
 
 
+def check_exact_pinned_versions(tracked: list[str]) -> list[str]:
+    """Approved packages must be pinned EXACTLY (no range) in config/manifest."""
+    errors: list[str] = []
+    # Key may be quoted in JSON; value is a quoted string.
+    pattern = re.compile(
+        r"(package_version|model_revision|pipeline_version|release_tag)"
+        r"\"?\s*[:=]\s*[\"']([^\"']+)[\"']"
+    )
+    for relative in tracked:
+        normalized = relative.replace("\\", "/")
+        if not _is_governance_config(normalized):
+            continue
+        if "scientific_document" not in normalized and "adoption" not in normalized:
+            continue
+        path = ROOT / normalized
+        try:
+            text = path.read_text(encoding="utf-8", errors="strict")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for match in pattern.finditer(text):
+            value = match.group(2).strip().lower()
+            if any(tok in value for tok in FLOATING_VERSION_TOKENS):
+                continue  # handled by check_floating_versions
+            if any(ch in match.group(2) for ch in RANGE_CHARS):
+                errors.append(
+                    f"version range not allowed for approved package in {normalized}: "
+                    f"{match.group(1)}={match.group(2)!r} (pin exact version)"
+                )
+    return errors
+
+
 def check_model_weights(tracked: list[str]) -> list[str]:
     errors: list[str] = []
     for relative in tracked:
@@ -189,7 +274,7 @@ def check_model_weights(tracked: list[str]) -> list[str]:
     return errors
 
 
-def check_canonical_vendor_types(tracked: list[str]) -> list[str]:
+def check_canonical_vendor_leakage(tracked: list[str]) -> list[str]:
     errors: list[str] = []
     vendor_identifiers = (
         r"\bpaddle\b",
@@ -204,20 +289,30 @@ def check_canonical_vendor_types(tracked: list[str]) -> list[str]:
         path = ROOT / normalized
         if not path.is_file():
             continue
-        text = path.read_text(encoding="utf-8", errors="strict")
-        # Allow the word only inside docstrings/comments that cite approved
-        # upstream names for governance; block actual code identifiers/types.
-        for line in text.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("'''"):
-                continue
-            if combined.search(line) and re.search(r"[A-Za-z_]\w*", line):
-                # Heuristic: a vendor name used as a type/identifier in code.
-                if re.search(r"\b(from|import)\s+\w*paddle\w*", line):
-                    continue
-                errors.append(
-                    f"canonical schema may leak vendor type: {normalized}: {line}"
-                )
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="strict"))
+        except (OSError, SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                for alias in node.names:
+                    imported = (alias.name or "")
+                    if combined.search(imported):
+                        errors.append(
+                            f"canonical schema imports vendor module: {normalized}: {imported}"
+                        )
+    return errors
+
+
+def check_unmanifested_vendored_source(tracked: list[str]) -> list[str]:
+    """Fail if any tracked file carries a vendored-source marker without being
+    listed in the adoption manifest. D-10 currently permits NO vendored source,
+    so any such marker is rejected (F5)."""
+    errors: list[str] = []
+    for relative in tracked:
+        normalized = relative.replace("\\", "/").lower()
+        if any(marker in normalized for marker in VENDORED_MARKERS):
+            errors.append(f"vendored-source marker without manifest entry: {relative}")
     return errors
 
 
@@ -227,8 +322,10 @@ def main() -> int:
     errors += check_reference_imports(tracked)
     errors += check_unapproved_parser_imports(tracked)
     errors += check_floating_versions(tracked)
+    errors += check_exact_pinned_versions(tracked)
     errors += check_model_weights(tracked)
-    errors += check_canonical_vendor_types(tracked)
+    errors += check_canonical_vendor_leakage(tracked)
+    errors += check_unmanifested_vendored_source(tracked)
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1

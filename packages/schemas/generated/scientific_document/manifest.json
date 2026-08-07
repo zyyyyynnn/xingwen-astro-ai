@@ -73,6 +73,11 @@
     },
     {
       "module": "app.schemas.scientific_document_benchmark",
+      "name": "GoldenExpectedAnnotation",
+      "path": "json/GoldenExpectedAnnotation.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document_benchmark",
       "name": "GoldenSetEntry",
       "path": "json/GoldenSetEntry.schema.json"
     },

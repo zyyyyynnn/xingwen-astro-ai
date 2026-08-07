@@ -2,7 +2,7 @@
   "$defs": {
     "BenchmarkCaseResult": {
       "additionalProperties": false,
-      "description": "One document's parse evaluation against its expected annotation.",
+      "description": "One document's parse evaluation against its expected annotation.\n\nCounts (``accepted_count``/``partial_count``/``unsupported_count``) describe\nTHIS case only — they are derived from the case's own blocks/regions, never\nfrom a running global accumulator (D-10 E4).",
       "properties": {
         "accepted_count": {
           "default": 0,
@@ -205,14 +205,33 @@
       "title": "BenchmarkCaseResult",
       "type": "object"
     },
+    "BenchmarkMetricStatus": {
+      "description": "How a metric value should be interpreted (D-10 E5/E6).",
+      "enum": [
+        "measured",
+        "not_applicable",
+        "unsupported",
+        "not_run"
+      ],
+      "title": "BenchmarkMetricStatus",
+      "type": "string"
+    },
     "BenchmarkMetricValue": {
       "additionalProperties": false,
-      "description": "One metric with explicit denominator and empty-sample behavior.",
+      "description": "One metric with explicit denominator and empty-sample behavior.\n\n``status`` disambiguates a true zero (``measured`` with rate 0.0) from\n\"we never measured this capability\" (``not_applicable`` / ``unsupported`` /\n``not_run``). A ``measured`` metric MUST carry a non-``None`` denominator.\n\n``rate`` is a derived (computed) field: it is always ``numerator /\ndenominator`` when a positive denominator is present, regardless of how the\nobject was constructed or loaded. This keeps the serialized payload and the\nbenchmark ``output_hash`` deterministic across construction and reload (D-10\nE7/E8).",
       "properties": {
         "denominator": {
-          "minimum": 0.0,
-          "title": "Denominator",
-          "type": "number"
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Denominator"
         },
         "empty_behavior": {
           "default": "report_zero_rate",
@@ -225,6 +244,7 @@
           "type": "string"
         },
         "numerator": {
+          "default": 0.0,
           "minimum": 0.0,
           "title": "Numerator",
           "type": "number"
@@ -241,6 +261,10 @@
           "default": null,
           "title": "Rate"
         },
+        "status": {
+          "$ref": "#/$defs/BenchmarkMetricStatus",
+          "default": "measured"
+        },
         "version": {
           "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
           "title": "Version",
@@ -249,8 +273,6 @@
       },
       "required": [
         "name",
-        "numerator",
-        "denominator",
         "version"
       ],
       "title": "BenchmarkMetricValue",
@@ -284,6 +306,16 @@
     "created_at": {
       "format": "date-time",
       "title": "Created At",
+      "type": "string"
+    },
+    "expected_annotation_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Expected Annotation Hash",
+      "type": "string"
+    },
+    "golden_set_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Golden Set Content Hash",
       "type": "string"
     },
     "golden_set_manifest_id": {
@@ -391,6 +423,8 @@
     "parser_mode",
     "golden_set_manifest_id",
     "golden_set_version",
+    "golden_set_content_hash",
+    "expected_annotation_hash",
     "native_engine",
     "native_engine_version",
     "config_hash",

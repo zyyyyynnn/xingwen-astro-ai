@@ -67,7 +67,7 @@ adoption-only. This is non-negotiable regardless of test pass.
 ## 5. Evidence / provenance chain
 
 - [ ] Every `DocumentLocator` has an explicit coordinate system
-      (top-left origin, points, inclusive, page-relative, normalized 0..1,
+      (top-left origin, absolute PDF points, page-relative, NOT normalized 0..1,
       empty/`None` semantics defined).
 - [ ] A future `DocumentParse` can be traced back to
       `ResearchInput` content hash via `SourceSnapshot`.

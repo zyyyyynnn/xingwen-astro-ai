@@ -10,6 +10,103 @@
       ],
       "title": "BenchmarkDataType",
       "type": "string"
+    },
+    "GoldenExpectedAnnotation": {
+      "additionalProperties": false,
+      "description": "Machine-readable expected structure for one Golden Set entry (D-10 D3).\n\nLets the benchmark answer \"how much of the key structure was recovered?\"\ninstead of merely \"did a block get accepted?\". Committed fixtures carry a\nfull annotation; local-only/restricted entries may carry only a page_count\nand license/provenance. ``None`` means \"not annotated in this checkout\".",
+      "properties": {
+        "critical_headings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Critical Headings",
+          "type": "array"
+        },
+        "expected_page_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Page Count"
+        },
+        "selected_cells": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Selected Cells",
+          "type": "array"
+        },
+        "selected_figure_caption_links": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Selected Figure Caption Links",
+          "type": "array"
+        },
+        "selected_formulas": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Selected Formulas",
+          "type": "array"
+        },
+        "selected_paragraph_block_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Selected Paragraph Block Ids",
+          "type": "array"
+        },
+        "selected_reading_order": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Selected Reading Order",
+          "type": "array"
+        },
+        "selected_scientific_values": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Selected Scientific Values",
+          "type": "array"
+        },
+        "selected_tables": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Selected Tables",
+          "type": "array"
+        }
+      },
+      "title": "GoldenExpectedAnnotation",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -66,6 +163,17 @@
       "minLength": 1,
       "title": "Entry Id",
       "type": "string"
+    },
+    "expected": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GoldenExpectedAnnotation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "license_note": {
       "minLength": 1,

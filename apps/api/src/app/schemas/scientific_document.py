@@ -15,6 +15,14 @@ Scope (D-10, not D-11/D-12):
   carry canonical mapping / unit normalization / scientific admission — those
   belong to the existing C Pipeline.
 
+Coordinate system (authoritative, single source of truth):
+- origin: top-left corner of the page, ``(0, 0)``.
+- x axis: increases left → right.
+- y axis: increases top → bottom.
+- units: PDF points (1 point = 1/72 inch), absolute, page-relative.
+- NOT normalized (no 0..1 ratios). A locator is meaningful only with its
+  owning page's ``page_index`` and geometry.
+
 This schema is exported by ``scripts/export_schemas.py`` and locked by CI
 (``--check``). The canonical schema hash below is deterministic over the JSON
 Schema of every model in this module, so a semantic schema change is
@@ -40,7 +48,7 @@ from .core import (
 
 
 #: Schema version for the D-10 Scientific Document Parsing contract.
-SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.0.0"
+SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.1.0"
 
 #: Every canonical model that participates in the D-10 contract. The schema
 #: hash is computed over the JSON Schema of exactly these models, in this
@@ -122,7 +130,8 @@ class DocumentBBox(BaseModel):
     - page-relative: coordinates are expressed in the page's own width/height
       space; a locator is only meaningful together with its ``page_index``.
     - normalized: **false** — these are absolute points, not 0..1 ratios.
-    - valid range: ``0 <= x1 <= x2 <= page_width`` and
+    - valid range (enforced at the aggregate level, where page geometry is
+      known): ``0 <= x1 <= x2 <= page_width`` and
       ``0 <= y1 <= y2 <= page_height``.
     - empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``
       is ``None``). A zero-rect MUST NOT be used to mean "unknown".
@@ -161,11 +170,17 @@ class TextSpan(BaseModel):
 
 
 class DocumentLocator(BaseModel):
-    """Canonical locator back to a parsed element, for Evidence provenance.
+    """Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.
 
     A locator is only complete together with the owning ``DocumentParseCandidate``
     (which carries ``research_input_id`` / input ``content_hash``). It must be
     persistable and verifiable by B-20 without re-parsing the source.
+
+    This is the ONLY locator representation in the contract. ``page_index``,
+    ``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere
+    else; the ``ScientificDataExtractionCandidate`` references a parse solely
+    through this locator, so contradictory parallel locator fields are
+    impossible by construction.
     """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentLocator")
@@ -207,27 +222,34 @@ class DocumentBlock(BaseModel):
 
 
 class DocumentTableCell(BaseModel):
-    """One table cell with span and (when available) text/quality."""
+    """One table cell with stable identity, span and (when available) text/quality.
+
+    ``cell_id`` is the canonical, stable identity of the cell within a table; it
+    is referenced by ``DocumentLocator.cell_id``. ``is_header`` carries the
+    explicit header/body role (D-10 C4). ``row_span``/``column_span`` express
+    merged cells; out-of-range spans are rejected at the aggregate level.
+    """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentTableCell")
 
+    cell_id: Identifier
     row_index: Annotated[int, Field(ge=0)]
     column_index: Annotated[int, Field(ge=0)]
     row_span: Annotated[int, Field(ge=1)] = 1
     column_span: Annotated[int, Field(ge=1)] = 1
+    is_header: bool = False
     bbox: DocumentBBox | None = None
     text: NonEmptyString | None = None
     quality: DocumentParseQuality
 
-    @model_validator(mode="after")
-    def reject_fabricated_cell(self) -> Self:
-        # Never guess-fill a missing cell: absence is explicit (None text) and
-        # must not be silently completed.
-        return self
-
 
 class DocumentTable(BaseModel):
-    """One canonical table; cells are addressed by [row][column]."""
+    """One canonical table; cells are addressed by [row][column].
+
+    ``row_count``/``column_count`` are the table's logical grid dimensions;
+    ``row_span``/``column_span`` on a cell MUST NOT exceed them. Every cell
+    carries a unique ``cell_id`` within the table.
+    """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentTable")
 
@@ -235,6 +257,8 @@ class DocumentTable(BaseModel):
     page_index: Annotated[int, Field(ge=0)]
     block_id: Identifier | None = None
     caption: NonEmptyString | None = None
+    row_count: Annotated[int, Field(ge=1)]
+    column_count: Annotated[int, Field(ge=1)]
     rows: tuple[tuple[DocumentTableCell, ...], ...] = Field(default=())
     quality: DocumentParseQuality
 
@@ -244,6 +268,33 @@ class DocumentTable(BaseModel):
             width = len(self.rows[0])
             if any(len(row) != width for row in self.rows):
                 raise ValueError("table rows must be rectangular (uniform column count)")
+        return self
+
+    @model_validator(mode="after")
+    def require_span_bounds_and_unique_cells(self) -> Self:
+        if not self.rows:
+            return self
+        seen_cell_ids: set[str] = set()
+        for r, row in enumerate(self.rows):
+            for c, cell in enumerate(row):
+                if cell.cell_id in seen_cell_ids:
+                    raise ValueError(f"duplicate cell_id within table: {cell.cell_id}")
+                seen_cell_ids.add(cell.cell_id)
+                if cell.row_index != r or cell.column_index != c:
+                    raise ValueError(
+                        f"cell at grid [{r}][{c}] has inconsistent "
+                        f"row_index={cell.row_index}/column_index={cell.column_index}"
+                    )
+                if cell.row_index + cell.row_span > self.row_count:
+                    raise ValueError(
+                        f"cell {cell.cell_id} row_span {cell.row_span} exceeds "
+                        f"table row_count {self.row_count}"
+                    )
+                if cell.column_index + cell.column_span > self.column_count:
+                    raise ValueError(
+                        f"cell {cell.cell_id} column_span {cell.column_span} exceeds "
+                        f"table column_count {self.column_count}"
+                    )
         return self
 
 
@@ -309,12 +360,13 @@ class DocumentParseProfile(BaseModel):
 
 
 class DocumentParseInput(BaseModel):
-    """Input handed to a parser port.
+    """SINGLE input boundary handed to a parser port.
 
     ``input_bytes`` is carried only by benchmark/probe harnesses against legal
     fixtures; production ingestion receives the immutable content via
     ``research_input_id`` + ``content_hash`` and resolves bytes from the
-    content-addressed store.
+    content-addressed store. ``source_type`` and ``mime_type`` MUST be supplied
+    explicitly by the caller (no guessing / defaulting).
     """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentParseInput")
@@ -325,6 +377,127 @@ class DocumentParseInput(BaseModel):
     mime_type: NonEmptyString
     filename: NonEmptyString | None = None
     input_bytes: bytes | None = None
+
+
+class _ReferentialIntegrityError(ValueError):
+    """Sentinel error type for aggregate referential validation."""
+
+
+def _check_referential_integrity(candidate: DocumentParseCandidate) -> None:
+    """Validate cross-object references and geometry for a parse candidate.
+
+    Fail-closed on any dangling reference, cross-page reference, duplicate id,
+    or bbox that escapes its page geometry.
+    """
+    pages = {p.page_index: p for p in candidate.pages}
+    block_ids: set[str] = set()
+    for block in candidate.blocks:
+        if block.block_id in block_ids:
+            raise _ReferentialIntegrityError(f"duplicate block_id: {block.block_id}")
+        block_ids.add(block.block_id)
+        page = pages.get(block.page_index)
+        if page is None:
+            raise _ReferentialIntegrityError(
+                f"block {block.block_id} references missing page_index={block.page_index}"
+            )
+        if block.bbox is not None:
+            _check_bbox_in_page(block.bbox, page, f"block {block.block_id}")
+
+    for page in candidate.pages:
+        seen: set[str] = set()
+        for bid in page.block_ids:
+            if bid in seen:
+                raise _ReferentialIntegrityError(
+                    f"page {page.page_index} lists block_id {bid} more than once"
+                )
+            seen.add(bid)
+            if bid not in block_ids:
+                raise _ReferentialIntegrityError(
+                    f"page {page.page_index} references unknown block_id {bid}"
+                )
+            block = next(b for b in candidate.blocks if b.block_id == bid)
+            if block.page_index != page.page_index:
+                raise _ReferentialIntegrityError(
+                    f"block {bid} page_index {block.page_index} != "
+                    f"owning page {page.page_index}"
+                )
+
+    tables = {t.table_id: t for t in candidate.tables}
+    for table in candidate.tables:
+        page = pages.get(table.page_index)
+        if page is None:
+            raise _ReferentialIntegrityError(
+                f"table {table.table_id} references missing page_index={table.page_index}"
+            )
+        if table.block_id is not None:
+            block = next((b for b in candidate.blocks if b.block_id == table.block_id), None)
+            if block is None:
+                raise _ReferentialIntegrityError(
+                    f"table {table.table_id} references unknown block_id {table.block_id}"
+                )
+            if block.kind != DocumentBlockKind.table:
+                raise _ReferentialIntegrityError(
+                    f"table {table.table_id} block_id {table.block_id} kind={block.kind.value}, "
+                    f"expected 'table'"
+                )
+            if block.page_index != table.page_index:
+                raise _ReferentialIntegrityError(
+                    f"table {table.table_id} page_index != its block page_index"
+                )
+
+    for formula in candidate.formulas:
+        _check_block_backed(formula.block_id, formula.page_index, candidate, "formula")
+
+    for figure in candidate.figures:
+        _check_block_backed(figure.block_id, figure.page_index, candidate, "figure")
+
+
+def _check_block_backed(
+    block_id: str,
+    page_index: int,
+    candidate: DocumentParseCandidate,
+    kind: str,
+) -> None:
+    block = next((b for b in candidate.blocks if b.block_id == block_id), None)
+    if block is None:
+        raise _ReferentialIntegrityError(
+            f"{kind} references unknown block_id {block_id}"
+        )
+    if block.page_index != page_index:
+        raise _ReferentialIntegrityError(
+            f"{kind} page_index {page_index} != block {block_id} page_index {block.page_index}"
+        )
+
+
+def _check_bbox_in_page(
+    bbox: DocumentBBox, page: DocumentPage, where: str
+) -> None:
+    if bbox.x2 > page.width_points or bbox.y2 > page.height_points:
+        raise _ReferentialIntegrityError(
+            f"{where} bbox escapes page geometry: "
+            f"bbox=({bbox.x1},{bbox.y1},{bbox.x2},{bbox.y2}) "
+            f"page={page.width_points}x{page.height_points}"
+        )
+
+
+def _check_quality_invariants(candidate: DocumentParseCandidate) -> None:
+    """Quality semantics must not be self-contradictory (D-10 C7)."""
+    if candidate.overall_quality == DocumentParseQuality.unsupported:
+        accepted = [
+            b
+            for b in candidate.blocks
+            if b.quality == DocumentParseQuality.accepted
+        ]
+        if accepted:
+            raise _ReferentialIntegrityError(
+                "whole-document unsupported but contains accepted blocks"
+            )
+    # Unsupported regions must not carry a fabricated full normalized result.
+    for table in candidate.tables:
+        if table.quality == DocumentParseQuality.unsupported and table.rows:
+            raise _ReferentialIntegrityError(
+                f"table {table.table_id} unsupported but carries rows (fabricated)"
+            )
 
 
 class DocumentParseCandidate(BaseModel):
@@ -358,6 +531,12 @@ class DocumentParseCandidate(BaseModel):
     overall_quality: DocumentParseQuality
     created_at: UtcDateTime
 
+    @model_validator(mode="after")
+    def validate_referential_integrity(self) -> Self:
+        _check_referential_integrity(self)
+        _check_quality_invariants(self)
+        return self
+
 
 class ScientificDataExtractionCandidate(BaseModel):
     """Stub describing one extracted scientific value observation.
@@ -372,6 +551,10 @@ class ScientificDataExtractionCandidate(BaseModel):
     ``ScientificDataExtractionCandidate`` → existing Field Manifest → existing
     mapping → unit normalization → quality/admission → Dataset candidate.
     Never ``OCR → final Dataset``.
+
+    Location is expressed ONLY through ``locator`` (the single-source-of-truth
+    ``DocumentLocator``). No parallel page_index/block_id/bbox/cell_id fields
+    exist, so a contradictory locator is impossible.
     """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="ScientificDataExtractionCandidate")
@@ -385,13 +568,6 @@ class ScientificDataExtractionCandidate(BaseModel):
     research_input_id: Identifier
     source_snapshot_id: Identifier | None = None
     document_parse_id: Identifier | None = None
-    page_index: Annotated[int, Field(ge=0)] | None = None
-    block_id: Identifier | None = None
-    bbox: DocumentBBox | None = None
-    table_id: Identifier | None = None
-    row_index: Annotated[int, Field(ge=0)] | None = None
-    column_index: Annotated[int, Field(ge=0)] | None = None
-    cell_id: Identifier | None = None
     parse_quality: DocumentParseQuality
     locator: DocumentLocator
     created_at: UtcDateTime

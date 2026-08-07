@@ -10,6 +10,10 @@ out of core startup (per D-10 #31).
 
 Coordinate note: docling-parse reports word rects in PDF bottom-left origin;
 the Canonical ``DocumentBBox`` uses top-left origin, so this harness converts.
+
+The single input boundary is ``DocumentParseInput`` (from the Parser Port);
+this module maps the approved upstream result onto the Canonical contract. It
+MUST NOT leak vendor types into the returned candidate.
 """
 
 from __future__ import annotations
@@ -25,12 +29,13 @@ from app.schemas.scientific_document import (
     DocumentBlockKind,
     DocumentPage,
     DocumentParseCandidate,
+    DocumentParseInput,
     DocumentParseProfile,
     DocumentParseQuality,
     Identifier,
     ParserBackend,
 )
-from app.services.scientific_document.ports import ParseRequest
+from app.services.scientific_document.ports import DocumentParserPort
 
 _NATIVE_PACKAGE = "docling-parse"
 _NATIVE_VERSION = "7.11.0"
@@ -38,29 +43,37 @@ _NATIVE_ENGINE = f"{_NATIVE_PACKAGE}=={_NATIVE_VERSION}"
 
 
 def _to_top_left_rect(rect: object, page_height: float) -> DocumentBBox:
-    """Convert a docling-parse bottom-left rect to Canonical top-left bbox."""
-    x0 = float(getattr(rect, "r_x0"))
-    y0 = float(getattr(rect, "r_y0"))
-    x1 = float(getattr(rect, "r_x1"))
-    y1 = float(getattr(rect, "r_y1"))
-    top = page_height - max(y0, y1)
-    bottom = page_height - min(y0, y1)
-    left = min(x0, x1)
-    right = max(x0, x1)
-    return DocumentBBox(x1=left, y1=top, x2=right, y2=bottom)
+    """Convert a docling-parse bottom-left rect to Canonical top-left bbox.
+
+    docling-parse reports word/line rects in PDF bottom-left origin with a
+    quadrilateral of four corners (``r_x0/r_y0`` ... ``r_x3/r_y3``). We take the
+    extreme x/y over all four corners (robust to corner ordering), then flip the
+    y axis so the Canonical contract uses top-left origin.
+    """
+    xs = [float(getattr(rect, a)) for a in ("r_x0", "r_x1", "r_x2", "r_x3")]
+    ys = [float(getattr(rect, a)) for a in ("r_y0", "r_y1", "r_y2", "r_y3")]
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)  # bottom-left origin: min=near bottom, max=near top
+    top = page_height - max_y
+    bottom = page_height - min_y
+    return DocumentBBox(x1=min_x, y1=top, x2=max_x, y2=bottom)
 
 
 def parse_native_baseline(
-    request: ParseRequest,
+    input: DocumentParseInput,
     *,
     parser_profile_id: str = "d10-native-baseline",
     config_hash: str,
 ) -> DocumentParseCandidate:
     """Run the approved native upstream and map onto a Canonical candidate.
 
-    Raises ``ImportError`` if the optional native dependency is not installed
-    (CI must not require it unless the benchmark opts in).
+    ``input`` is the single D-10 parser input boundary. ``input.input_bytes``
+    MUST be present (benchmark/probe harness supplies legal fixture bytes).
+    Raises ``ImportError`` if the optional native dependency is not installed.
     """
+    if input.input_bytes is None:
+        raise ValueError("native baseline requires input.input_bytes (legal fixture)")
+
     try:
         from docling_parse.pdf_parser import (  # type: ignore[import-not-found]
             ContentConfig,
@@ -70,13 +83,13 @@ def parse_native_baseline(
         )
     except ImportError as exc:  # pragma: no cover - exercised only without dep
         raise ImportError(
-            "native baseline requires the optional dependency "
+            f"native baseline requires the optional dependency "
             f"{_NATIVE_ENGINE}; install it to run the native benchmark"
         ) from exc
 
     parser = DoclingPdfParser(loglevel="fatal")
     pdf_doc = parser.load(
-        path_or_stream=io.BytesIO(request.input_bytes),
+        path_or_stream=io.BytesIO(input.input_bytes),
         decode_config=DecodeConfig(do_sanitization=True, keep_glyphs=False),
         content_config=ContentConfig(
             char_cells_content_level=ContentLevel.SKIP,
@@ -135,15 +148,15 @@ def parse_native_baseline(
         else DocumentParseQuality.unsupported
     )
     candidate = DocumentParseCandidate(
-        parse_id=f"parse_{request.research_input_id}",
-        research_input_id=request.research_input_id,
-        content_hash=request.content_hash,
+        parse_id=f"parse_{input.research_input_id}",
+        research_input_id=input.research_input_id,
+        content_hash=input.content_hash,
         profile=profile,
         native_engine=_NATIVE_ENGINE,
         native_engine_version=_NATIVE_VERSION,
         config_hash=config_hash,
         canonical_output_hash=_content_hash_of(
-            pages, blocks, overall, config_hash, request.content_hash
+            pages, blocks, overall, config_hash, input.content_hash
         ),
         pages=tuple(pages),
         blocks=tuple(blocks),
@@ -151,6 +164,25 @@ def parse_native_baseline(
         created_at=datetime.now(timezone.utc).replace(microsecond=0),
     )
     return candidate
+
+
+class NativeBaselineParser:
+    """``DocumentParserPort``-conforming wrapper around ``parse_native_baseline``.
+
+    Benchmark-only. A real D-11 production adapter will implement the same Port
+    against an approved upstream, never this harness.
+    """
+
+    def __init__(self, parser_profile_id: str = "d10-native-baseline", config_hash: str = "") -> None:
+        self._parser_profile_id = parser_profile_id
+        self._config_hash = config_hash
+
+    def parse_document(self, input: DocumentParseInput) -> DocumentParseCandidate:
+        return parse_native_baseline(
+            input,
+            parser_profile_id=self._parser_profile_id,
+            config_hash=self._config_hash,
+        )
 
 
 def _content_hash_of(
@@ -182,6 +214,7 @@ def native_engine_identity() -> tuple[str, str]:
 
 __all__ = [
     "parse_native_baseline",
+    "NativeBaselineParser",
     "native_engine_identity",
     "NATIVE_PACKAGE",
     "NATIVE_VERSION",

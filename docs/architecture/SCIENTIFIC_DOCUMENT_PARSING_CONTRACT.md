@@ -74,11 +74,12 @@ reference, footnote`. Every block has stable identity (`block_id`),
 
 ## 6. Locator contract
 
-`DocumentLocator`: `page_index`, `block_id`, `bbox` (top-left origin, points,
-inclusive, page-relative), `reading_order`, optional `text_span`, `table_id`,
-`row_index`, `column_index`, `cell_id`. `bbox` is `None` when unknown (never a
-zero-rect pretending to be unknown). Normalized coordinates are 0..1 of page
-width/height. Empty / unknown semantics are explicit.
+`DocumentLocator`: `page_index`, `block_id`, `bbox` (top-left origin, absolute
+PDF points, inclusive, page-relative, NOT normalized), `reading_order`, optional
+`text_span`, `table_id`, `cell_id`. `bbox` is `None` when unknown (never a
+zero-rect pretending to be unknown). Coordinates are absolute points in the page's
+own width/height space — there is no normalized 0..1 representation anywhere in
+the contract. Empty / unknown semantics are explicit.
 
 ## 7. Table / Formula / Figure
 
@@ -144,10 +145,12 @@ never enters API startup.
 ## 11. Visual upstream (approved)
 
 - **Repository**: `PaddlePaddle/PaddleOCR` (Apache 2.0).
-- **Package**: `paddleocr` with extra `pip install "paddleocr[doc-parser]>=3.6.0"`
-  (exact floor `>=3.6.0`; pin in D-11 lock).
+- **Package**: `paddleocr` **3.6.0** (PyPI, Apache 2.0) — installed with extras
+  `pip install "paddleocr[doc-parser]==3.6.0"`. The D-10 manifest pins the exact
+  version (`package_version = "3.6.0"`); no range/ floating version is permitted.
 - **Model**: `PaddleOCR-VL-1.6` (id `PaddleOCR-VL-1.6-0.9B`, `pipeline_version="v1.6"`),
-  HF `PaddlePaddle/PaddleOCR-VL-1.6` (Apache 2.0 model weights).
+  HF `PaddlePaddle/PaddleOCR-VL-1.6` (Apache 2.0 model weights), immutable revision
+  `cdc88f5feff0e4079e75863205053a68358e52f7`.
 - **Official interface**: `from paddleocr import PaddleOCRVL;
   PaddleOCRVL(pipeline_version="v1.6").predict(image)` → `save_to_json` /
   `save_to_markdown`. Element-level also loadable via `transformers>=5.0.0`.

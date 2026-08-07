@@ -2,7 +2,7 @@
   "$defs": {
     "DocumentBBox": {
       "additionalProperties": false,
-      "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range: ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
+      "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range (enforced at the aggregate level, where page geometry is\n  known): ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
       "properties": {
         "x1": {
           "minimum": 0.0,
@@ -46,7 +46,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "One table cell with span and (when available) text/quality.",
+  "description": "One table cell with stable identity, span and (when available) text/quality.\n\n``cell_id`` is the canonical, stable identity of the cell within a table; it\nis referenced by ``DocumentLocator.cell_id``. ``is_header`` carries the\nexplicit header/body role (D-10 C4). ``row_span``/``column_span`` express\nmerged cells; out-of-range spans are rejected at the aggregate level.",
   "properties": {
     "bbox": {
       "anyOf": [
@@ -59,6 +59,12 @@
       ],
       "default": null
     },
+    "cell_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Cell Id",
+      "type": "string"
+    },
     "column_index": {
       "minimum": 0,
       "title": "Column Index",
@@ -69,6 +75,11 @@
       "minimum": 1,
       "title": "Column Span",
       "type": "integer"
+    },
+    "is_header": {
+      "default": false,
+      "title": "Is Header",
+      "type": "boolean"
     },
     "quality": {
       "$ref": "#/$defs/DocumentParseQuality"
@@ -99,6 +110,7 @@
     }
   },
   "required": [
+    "cell_id",
     "row_index",
     "column_index",
     "quality"

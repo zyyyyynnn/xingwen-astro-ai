@@ -1,6 +1,6 @@
 {
   "additionalProperties": false,
-  "description": "Input handed to a parser port.\n\n``input_bytes`` is carried only by benchmark/probe harnesses against legal\nfixtures; production ingestion receives the immutable content via\n``research_input_id`` + ``content_hash`` and resolves bytes from the\ncontent-addressed store.",
+  "description": "SINGLE input boundary handed to a parser port.\n\n``input_bytes`` is carried only by benchmark/probe harnesses against legal\nfixtures; production ingestion receives the immutable content via\n``research_input_id`` + ``content_hash`` and resolves bytes from the\ncontent-addressed store. ``source_type`` and ``mime_type`` MUST be supplied\nexplicitly by the caller (no guessing / defaulting).",
   "properties": {
     "content_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",

@@ -8,7 +8,12 @@ golden annotations without network access or restricted content.
 Coverage dimensions (D-10 #24):
 - born-digital, two-column, reading order, plain paragraph
 - simple table, complex table (spans), cross-page table (split => partial)
-- formula, figure+caption, mixed text+image, scanned-like page, low-quality page
+- formula, figure+caption, mixed text+image, scanned page, low-quality page
+
+The ``scanned`` fixture is generated as a real raster image (PIL) embedded into
+the PDF with NO text layer, so the native born-digital parser legitimately finds
+no extractable text. This is the honest way to test "native-only must not fake
+accepted on scanned input".
 """
 
 from __future__ import annotations
@@ -16,6 +21,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from fpdf import FPDF
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:  # pragma: no cover - fixture tooling dependency
+    Image = ImageDraw = ImageFont = None
 
 
 def _new_page(pdf: FPDF, title: str) -> None:
@@ -53,7 +63,6 @@ def build_born_digital(path: Path) -> None:
 def build_two_column(path: Path) -> None:
     pdf = FPDF()
     _new_page(pdf, "Two-Column Hot-Jupiter Survey")
-    # Simulate two columns via side-by-side cells.
     pdf.set_font("Helvetica", "", 10)
     left = (
         "Column A: We measured 42 exoplanet host stars. Most have effective "
@@ -93,7 +102,6 @@ def build_complex_table(path: Path) -> None:
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 7, "Table 2. Merged-header parameter table", ln=1)
     pdf.set_font("Helvetica", "", 10)
-    # Header with a multi-column span (simulated via wide cell).
     pdf.cell(84, 7, "Host Star", border=1, align="C")
     pdf.cell(42, 7, "Planet", border=1, align="C")
     pdf.ln(7)
@@ -147,7 +155,6 @@ def build_formula(path: Path) -> None:
 def build_figure_caption(path: Path) -> None:
     pdf = FPDF()
     _new_page(pdf, "Radius-Period Distribution")
-    # Draw a simple rectangle as a stand-in figure.
     pdf.rect(20, 40, 120, 70)
     pdf.set_xy(20, 115)
     pdf.set_x(pdf.l_margin)
@@ -178,17 +185,40 @@ def build_mixed(path: Path) -> None:
 
 
 def build_scanned_like(path: Path) -> None:
-    # Simulated scanned page: low-quality, image-like text rendered as a block.
+    """Genuine scanned fixture: a raster image embedded with NO text layer.
+
+    The page text is drawn into a PIL image and embedded; the PDF therefore has
+    no extractable text layer, so native born-digital parsing legitimately yields
+    no blocks. This tests that native-only does not fabricate acceptance.
+    """
+    if Image is None:  # pragma: no cover - fixture tooling dependency
+        raise RuntimeError("pillow is required to build the scanned fixture")
+    width, height = 595, 842  # A4 @ ~72 dpi
+    img = Image.new("RGB", (width, height), "white")
+    draw = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype("DejaVuSans.ttf", 18)
+    except Exception:  # pragma: no cover - font fallback
+        font = ImageFont.load_default()
+    lines = [
+        "Archived Observation Note",
+        "",
+        "Legacy observation log: host star brightness varied by 0.02 mag",
+        "over the monitored window; period estimated near 3.5 days.",
+        "Photometric scatter consistent with instrumental noise.",
+        "No calibrated photometry in this scan.",
+    ]
+    y = 60
+    for line in lines:
+        draw.text((40, y), line, fill="black", font=font)
+        y += 28
+    tmp = path.with_suffix(".png")
+    img.save(tmp)
     pdf = FPDF()
-    _new_page(pdf, "Archived Observation Note")
-    pdf.set_font("Helvetica", "", 9)
-    for _ in range(6):
-        _paragraph(
-            pdf,
-            "Legacy observation log: host star brightness varied by 0.02 mag "
-            "over the monitored window; period estimated near 3.5 days.",
-        )
+    pdf.add_page()
+    pdf.image(str(tmp), x=0, y=0, w=210)  # A4 width in mm
     _save(pdf, path)
+    tmp.unlink(missing_ok=True)
 
 
 def build_low_quality(path: Path) -> None:
