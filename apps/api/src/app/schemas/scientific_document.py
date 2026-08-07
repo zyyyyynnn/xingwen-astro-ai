@@ -2,20 +2,31 @@
 
 Single authoritative Pydantic authoring source for the Scientific Document
 Parsing boundary frozen by #190 D-10. This module defines Xingwen's own
-Canonical Domain for parsed scientific documents; it intentionally contains no
-vendor type, vendor config type, or third-party parser import.
+Canonical Domain for parsed scientific documents; it intentionally contains
+**no vendor type, no vendor config type, and no third-party import**. The
+Parser Port (``services.scientific_document.ports``) is the only place a
+production adapter may later map an approved upstream result onto these
+models.
 
 Scope (D-10, not D-11/D-12):
 - Canonical contract, quality semantics, locator, table/formula/figure.
 - Logical identity requirements for later persistence (B-20).
-- ``ScientificDataExtractionCandidate`` as a raw extraction candidate only;
-  canonical mapping/unit normalization/scientific admission remain in C.
+- The ``ScientificDataExtractionCandidate`` extraction stub, which must NOT
+  carry canonical mapping / unit normalization / scientific admission — those
+  belong to the existing C Pipeline.
 
 Coordinate system (authoritative, single source of truth):
-- origin: top-left corner of the page, ``(0, 0)``;
-- x increases left to right; y increases top to bottom;
-- units: absolute PDF points (1 point = 1/72 inch), page-relative;
-- NOT normalized. Unknown geometry is ``None``, never a zero rectangle.
+- origin: top-left corner of the page, ``(0, 0)``.
+- x axis: increases left → right.
+- y axis: increases top → bottom.
+- units: PDF points (1 point = 1/72 inch), absolute, page-relative.
+- NOT normalized (no 0..1 ratios). A locator is meaningful only with its
+  owning page's ``page_index`` and geometry.
+
+This schema is exported by ``scripts/export_schemas.py`` and locked by CI
+(``--check``). The canonical schema hash below is deterministic over the JSON
+Schema of every model in this module, so a semantic schema change is
+detectable through a hash/version change without a parallel mechanism.
 """
 
 from __future__ import annotations
@@ -37,8 +48,13 @@ from .core import (
     UtcDateTime,
 )
 
+
+#: Schema version for the D-10 Scientific Document Parsing contract.
 SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.1.0"
 
+#: Every canonical model that participates in the D-10 contract. The schema
+#: hash is computed over the JSON Schema of exactly these models, in this
+#: order, so additions/changes are reflected deterministically.
 CONTRACT_MODEL_NAMES: tuple[str, ...] = (
     "DocumentParseQuality",
     "DocumentBlockKind",
@@ -60,7 +76,20 @@ CONTRACT_MODEL_NAMES: tuple[str, ...] = (
 
 
 class DocumentParseQuality(StrEnum):
-    """Parser admission quality, never scientific truth."""
+    """Lifecycle quality of a parsed region / whole document.
+
+    ``accepted`` does NOT mean a scientific fact is verified. It means the
+    current parser/profile reached admission conditions for the usable region
+    and it may become downstream Evidence / input.
+
+    ``partial`` means only part of the content was reliably parsed. Downstream
+    may use the clearly valid part, but MUST keep ``unparsed != absent``: a
+    missing recognition must never be read as "does not exist in the paper".
+
+    ``unsupported`` means the current parser/profile cannot reliably process
+    the region. No fabricated full text may be emitted and no downstream model
+    may auto-complete the gap.
+    """
 
     accepted = "accepted"
     partial = "partial"
@@ -68,6 +97,8 @@ class DocumentParseQuality(StrEnum):
 
 
 class DocumentBlockKind(StrEnum):
+    """Stable kind taxonomy for canonical document blocks."""
+
     heading = "heading"
     paragraph = "paragraph"
     list = "list"
@@ -80,14 +111,33 @@ class DocumentBlockKind(StrEnum):
 
 
 class ParserBackend(StrEnum):
-    """Vendor-neutral origin of a canonical parsed element."""
+    """Vendor-neutral provenance of a parsed element.
+
+    Records whether a block/cell/formula came from the born-digital native
+    engine or the visual (OCR/VLM) engine. It never names a vendor package.
+    """
 
     native = "native"
     visual = "visual"
 
 
 class DocumentBBox(BaseModel):
-    """Axis-aligned bounding box in absolute, page-relative PDF points."""
+    """Axis-aligned bounding box in absolute PDF points.
+
+    Coordinate system (authoritative):
+    - origin: top-left corner of the page, ``(0, 0)``.
+    - x axis: increases left → right.
+    - y axis: increases top → bottom.
+    - units: PDF points (1 point = 1/72 inch).
+    - page-relative: coordinates are expressed in the page's own width/height
+      space; a locator is only meaningful together with its ``page_index``.
+    - normalized: **false** — these are absolute points, not 0..1 ratios.
+    - valid range (enforced at the aggregate level, where page geometry is
+      known): ``0 <= x1 <= x2 <= page_width`` and
+      ``0 <= y1 <= y2 <= page_height``.
+    - empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``
+      is ``None``). A zero-rect MUST NOT be used to mean "unknown".
+    """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentBBox")
 
@@ -107,7 +157,7 @@ class DocumentBBox(BaseModel):
 
 
 class TextSpan(BaseModel):
-    """Half-open character span ``[start, end)`` within canonical block text."""
+    """Character-offset span within a block's raw text (0-based, inclusive start)."""
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="TextSpan")
 
@@ -124,7 +174,18 @@ class TextSpan(BaseModel):
 
 
 class DocumentLocator(BaseModel):
-    """Single-source-of-truth locator for Evidence provenance."""
+    """Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.
+
+    A locator is only complete together with the owning ``DocumentParseCandidate``
+    (which carries ``research_input_id`` / input ``content_hash``). It must be
+    persistable and verifiable by B-20 without re-parsing the source.
+
+    This is the ONLY locator representation in the contract. ``page_index``,
+    ``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere
+    else; the ``ScientificDataExtractionCandidate`` references a parse solely
+    through this locator, so contradictory parallel locator fields are
+    impossible by construction.
+    """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentLocator")
 
@@ -157,7 +218,7 @@ class DocumentPage(BaseModel):
 
 
 class DocumentBlock(BaseModel):
-    """One canonical document block with stable identity and location."""
+    """One canonical document block with stable identity and locating power."""
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentBlock")
 
@@ -173,7 +234,13 @@ class DocumentBlock(BaseModel):
 
 
 class DocumentTableCell(BaseModel):
-    """One anchored table cell; spans occupy a rectangular logical grid."""
+    """One table cell with stable identity, span and (when available) text/quality.
+
+    ``cell_id`` is the canonical, stable identity of the cell within a table; it
+    is referenced by ``DocumentLocator.cell_id``. ``is_header`` carries the
+    explicit header/body role (D-10 C4). ``row_span``/``column_span`` express
+    merged cells; out-of-range spans are rejected at the aggregate level.
+    """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentTableCell")
 
@@ -189,12 +256,11 @@ class DocumentTableCell(BaseModel):
 
 
 class DocumentTable(BaseModel):
-    """Canonical table grid represented by anchor cells grouped by start row.
+    """One canonical table; cells are addressed by [row][column].
 
-    ``rows`` contains one tuple per logical row. Each inner tuple contains cells
-    whose ``row_index`` equals that row; ``column_index`` is the cell's anchor
-    column and may skip positions occupied by earlier spans. This supports merged
-    cells without inventing placeholder cells.
+    ``row_count``/``column_count`` are the table's logical grid dimensions;
+    ``row_span``/``column_span`` on a cell MUST NOT exceed them. Every cell
+    carries a unique ``cell_id`` within the table.
     """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentTable")
@@ -225,7 +291,6 @@ class DocumentTable(BaseModel):
                 if cell.cell_id in seen_ids:
                     raise ValueError(f"duplicate cell_id within table: {cell.cell_id}")
                 seen_ids.add(cell.cell_id)
-
                 if cell.row_index != row_index:
                     raise ValueError(
                         f"cell {cell.cell_id} row_index={cell.row_index} does not "
@@ -236,7 +301,6 @@ class DocumentTable(BaseModel):
                         f"cells in row {row_index} must be ordered by unique column_index"
                     )
                 previous_column = cell.column_index
-
                 if cell.column_index >= self.column_count:
                     raise ValueError(
                         f"cell {cell.cell_id} column_index {cell.column_index} outside "
@@ -252,12 +316,13 @@ class DocumentTable(BaseModel):
                         f"cell {cell.cell_id} column_span {cell.column_span} exceeds "
                         f"column_count {self.column_count}"
                     )
-
-                for r in range(cell.row_index, cell.row_index + cell.row_span):
-                    for c in range(
+                for occupied_row in range(
+                    cell.row_index, cell.row_index + cell.row_span
+                ):
+                    for occupied_column in range(
                         cell.column_index, cell.column_index + cell.column_span
                     ):
-                        coordinate = (r, c)
+                        coordinate = (occupied_row, occupied_column)
                         if coordinate in occupied:
                             raise ValueError(
                                 f"cell {cell.cell_id} overlaps another cell at {coordinate}"
@@ -267,7 +332,11 @@ class DocumentTable(BaseModel):
 
 
 class DocumentFormula(BaseModel):
-    """Canonical formula; recognition failure is never auto-completed."""
+    """One canonical formula block.
+
+    Both a raw visible representation and a normalized/LaTeX representation may
+    coexist. Recognition failure MUST NOT be auto-generated by an LLM.
+    """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentFormula")
 
@@ -290,7 +359,12 @@ class DocumentFormula(BaseModel):
 
 
 class DocumentFigure(BaseModel):
-    """Phase-1 figure text/caption only; no scientific pixel measurement."""
+    """One canonical figure block (caption/text only — no pixel measurement).
+
+    Phase-1 explicitly forbids plot digitization, curve recovery, scatter-point
+    recovery and scientific pixel measurement. Only visible/ocr labels and
+    surrounding text are captured.
+    """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentFigure")
 
@@ -322,7 +396,12 @@ class DocumentFigure(BaseModel):
 
 
 class DocumentParseProfile(BaseModel):
-    """Versioned parser/profile/config identity used by deterministic parsing."""
+    """Versioned parser profile / configuration identity (D-10 logical).
+
+    ``configuration_hash`` MUST be stable and reproducible: it must not depend
+    on wall-clock time, random ordering, unsorted dicts, floating model aliases
+    or machine-specific absolute paths.
+    """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentParseProfile")
 
@@ -336,7 +415,14 @@ class DocumentParseProfile(BaseModel):
 
 
 class DocumentParseInput(BaseModel):
-    """Single parser input boundary; source and MIME are explicit, never guessed."""
+    """SINGLE input boundary handed to a parser port.
+
+    ``input_bytes`` is carried only by benchmark/probe harnesses against legal
+    fixtures; production ingestion receives the immutable content via
+    ``research_input_id`` + ``content_hash`` and resolves bytes from the
+    content-addressed store. ``source_type`` and ``mime_type`` MUST be supplied
+    explicitly by the caller (no guessing / defaulting).
+    """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentParseInput")
 
@@ -349,7 +435,7 @@ class DocumentParseInput(BaseModel):
 
 
 class _ReferentialIntegrityError(ValueError):
-    pass
+    """Sentinel error type for aggregate referential validation."""
 
 
 def _check_bbox_in_page(
@@ -396,7 +482,6 @@ def _check_identity_consistency(candidate: DocumentParseCandidate) -> None:
         raise _ReferentialIntegrityError(
             "candidate native_engine must equal profile.native_backend"
         )
-
     profile_visual = candidate.profile.visual_backend
     if (candidate.visual_engine is None) != (profile_visual is None):
         raise _ReferentialIntegrityError(
@@ -548,25 +633,34 @@ def _check_referential_integrity(candidate: DocumentParseCandidate) -> None:
 
 
 def _check_quality_invariants(candidate: DocumentParseCandidate) -> None:
+    """Quality semantics must not be self-contradictory (D-10 C7)."""
     if candidate.overall_quality == DocumentParseQuality.accepted and not candidate.blocks:
         raise _ReferentialIntegrityError("accepted document parse must contain usable blocks")
     if candidate.overall_quality == DocumentParseQuality.unsupported:
-        if any(
-            block.quality == DocumentParseQuality.accepted
+        accepted = [
+            block
             for block in candidate.blocks
-        ):
+            if block.quality == DocumentParseQuality.accepted
+        ]
+        if accepted:
             raise _ReferentialIntegrityError(
                 "whole-document unsupported but contains accepted blocks"
             )
     for table in candidate.tables:
         if table.quality == DocumentParseQuality.unsupported and table.rows:
             raise _ReferentialIntegrityError(
-                f"table {table.table_id} unsupported but carries structured rows"
+                f"table {table.table_id} unsupported but carries rows (fabricated)"
             )
 
 
 class DocumentParseCandidate(BaseModel):
-    """Top-level canonical output and deterministic parse identity."""
+    """Top-level canonical output of one document parse.
+
+    Logical identity (consumed by B-20): the same input + same parser/model/
+    config MUST yield a deterministic, reusable identity; a different config or
+    revision MUST yield a different identity. ``canonical_output_hash`` is the
+    content-addressed hash over the frozen canonical payload.
+    """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="DocumentParseCandidate")
 
@@ -591,7 +685,7 @@ class DocumentParseCandidate(BaseModel):
     created_at: UtcDateTime
 
     @model_validator(mode="after")
-    def validate_aggregate(self) -> Self:
+    def validate_referential_integrity(self) -> Self:
         _check_identity_consistency(self)
         _check_referential_integrity(self)
         _check_quality_invariants(self)
@@ -599,7 +693,23 @@ class DocumentParseCandidate(BaseModel):
 
 
 class ScientificDataExtractionCandidate(BaseModel):
-    """Raw observed scientific-value candidate; never a scientific admission."""
+    """Stub describing one extracted scientific value observation.
+
+    HARD BOUNDARY (D-10 / #20): this candidate describes only the *observed*
+    raw value and where it came from. It MUST NOT carry canonical mapping,
+    unit normalization, accepted scientific value or dataset publication
+    status — those belong to the existing C Pipeline (Field Manifest → mapping
+    → unit normalization → quality/admission → Dataset candidate → Publisher).
+
+    Correct chain:
+    ``ScientificDataExtractionCandidate`` → existing Field Manifest → existing
+    mapping → unit normalization → quality/admission → Dataset candidate.
+    Never ``OCR → final Dataset``.
+
+    Location is expressed ONLY through ``locator`` (the single-source-of-truth
+    ``DocumentLocator``). No parallel page_index/block_id/bbox/cell_id fields
+    exist, so a contradictory locator is impossible.
+    """
 
     model_config = ConfigDict(
         **CORE_MODEL_CONFIG,
@@ -632,14 +742,19 @@ class ScientificDataExtractionCandidate(BaseModel):
         present = forbidden & set(type(self).model_fields)
         if present:
             raise ValueError(
-                "ScientificDataExtractionCandidate must not carry scientific "
+                f"ScientificDataExtractionCandidate must not carry scientific "
                 f"admission fields: {sorted(present)}"
             )
         return self
 
 
 def compute_scientific_document_schema_hash() -> str:
-    """Deterministic fingerprint of the exported D-10 Pydantic schemas."""
+    """Deterministic hash over the JSON Schema of every D-10 contract model.
+
+    Stable for identical schema definitions; changes when any contract model's
+    JSON Schema changes. This is the machine-checkable contract fingerprint
+    that pairs with ``SCIENTIFIC_DOCUMENT_SCHEMA_VERSION``.
+    """
     module = sys.modules[__name__]
     schemas: list[object] = []
     for name in CONTRACT_MODEL_NAMES:
@@ -651,12 +766,11 @@ def compute_scientific_document_schema_hash() -> str:
         schema_json = pydantic.TypeAdapter(model).json_schema(mode="serialization")
         schemas.append(json.loads(json.dumps(schema_json, sort_keys=True)))
     schemas.sort(key=lambda schema: json.dumps(schema, sort_keys=True))
-    return compute_canonical_payload_hash(
-        {
-            "schema_version": SCIENTIFIC_DOCUMENT_SCHEMA_VERSION,
-            "models": schemas,
-        }
-    )
+    payload = {
+        "schema_version": SCIENTIFIC_DOCUMENT_SCHEMA_VERSION,
+        "models": schemas,
+    }
+    return compute_canonical_payload_hash(payload)
 
 
 __all__ = [
