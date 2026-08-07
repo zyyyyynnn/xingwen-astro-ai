@@ -130,4 +130,3 @@ services:
 volumes:
   postgres_data:
   research_input_data:
-
