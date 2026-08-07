@@ -107,32 +107,26 @@ def _imported_roots(tree: ast.AST) -> list[str]:
     return roots
 
 
-def load_adoption_manifest():
-    """Load + validate the adoption manifest via its Pydantic contract."""
-    from services.scientific_document.adoption_contract import (
-        UpstreamAdoptionManifest,
-        load_adoption_manifest as _load,
-    )
-
-    return _load(ADOPTION_MANIFEST)
-
-
 def approved_package_roots() -> set[str]:
     """Lower-cased approved import roots from the manifest (approved only).
 
+    Parsed with the standard-library ``json`` module so the gate is
+    self-contained and does NOT require the ``app`` package / pydantic on the
+    import path (the Foundation CI job runs this script with only stdlib).
     Both the PyPI/hyphenated name (``docling-parse``) and the import root
-    (``docling_parse``) are accepted, since Python import roots use underscores
-    while the manifest records the package's distribution name.
+    (``docling_parse``) are accepted, since Python import roots use
+    underscores while the manifest records the distribution name.
     """
+    manifest_path = ROOT / "services" / "scientific_document" / "upstream_adoption.json"
     try:
-        manifest = load_adoption_manifest()
-    except Exception:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
         return set()
     roots: set[str] = set()
-    for entry in manifest.entries:
-        if entry.adoption_status.value != "approved":
+    for entry in data.get("entries", []):
+        if entry.get("adoption_status") != "approved":
             continue
-        for value in (entry.package, entry.model_id, entry.model_resolved_id):
+        for value in (entry.get("package"), entry.get("model_id"), entry.get("model_resolved_id")):
             if value:
                 roots.add(value.lower())
                 roots.add(value.lower().replace("-", "_"))
