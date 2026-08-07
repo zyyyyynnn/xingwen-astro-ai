@@ -23,6 +23,7 @@ def test_adoption_manifest_exact_versions_no_latest() -> None:
         "release_tag",
         "paddlepaddle_version",
     )
+    range_chars = (">", "<", "~", "^", "!", "|")
     for entry in data["entries"]:
         assert entry["adoption_status"] == "approved"
         for field in version_fields:
@@ -33,7 +34,7 @@ def test_adoption_manifest_exact_versions_no_latest() -> None:
                 )
         for field in version_fields:
             value = str(entry.get(field, ""))
-            assert not any(char in value for char in "> < ~ ^ ! |"), (
+            assert not any(char in value for char in range_chars), (
                 f"range version in {entry.get('capability')}.{field}: {value}"
             )
         assert entry["license"]
