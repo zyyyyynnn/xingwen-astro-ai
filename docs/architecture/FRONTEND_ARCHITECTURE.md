@@ -43,6 +43,24 @@ Existing Core
 - **Source Scope & Mapping**：明确采用与排除的目录，建立完整 Upstream -> Local 源码映射表。
 - **Governance Rules**：严禁跟随浮动 main 分支；严禁混用非兼容协议代码；仓库内有且仅有一套 Workspace Shell。
 
+### 3.1 唯一上游 Agent 产品（A-21 冻结，Issue #173）
+
+| 项 | 值 |
+| --- | --- |
+| Product | OpenHands |
+| Repository | `https://github.com/OpenHands/OpenHands.git` |
+| Tag | `v1.10.0` |
+| Commit | `56638693908b8ac83a2fa3bde6eb6c33aae37f4b` (40 位 SHA) |
+| License | MIT |
+| 采用方式 | source-level vendor（源码级采用，非设计级模仿） |
+| 产品机制策略 | preserve-upstream（保留 OpenHands 产品机制） |
+| 领域适配策略 | adapter-and-renderer（经 Adapter / Renderer 替换科研领域） |
+| 唯一性 | 仓库内唯一 Agent Product Source；禁止混壳 / 第二套 Shell |
+
+冻结元数据位于 `apps/workspace/vendor/openhands/`（`upstream-lock.json`、`source-scope.json`、`vendor-blueprint.json`、`provenance-schema.json`、`LICENSE.upstream`、`NOTICE.md`），由 `scripts/check-agent-upstream-adoption.mjs` 机器门禁强制（G1–G8）。
+
+上游源码升级需经过：锁定 SHA → 许可证审查 → 更新映射 → 上游 Diff 审查 → 运行契约与 UI 回归 → 独立合并。A-22 实际 Vendor 必须重新从官方仓库 checkout `v1.10.0` 并校验 `566386…37f4b`，否则 `BLOCKED`。
+
 ## 4. 依赖方向
 
 ```text
