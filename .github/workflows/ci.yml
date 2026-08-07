@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -31,6 +33,24 @@ jobs:
 
       - name: Check versionless API naming
         run: node scripts/check-versionless-api.mjs
+
+      - name: Check PR and commit title grammar
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node scripts/check-title-governance.test.mjs
+          node scripts/check-title-governance.mjs
+
+      - name: Check integration commit title grammar
+        if: github.event_name == 'push'
+        env:
+          INTEGRATION_SHA: ${{ github.sha }}
+        run: |
+          node scripts/check-title-governance.test.mjs
+          node scripts/check-title-governance.mjs
 
       - name: Validate Docker Compose contract
         run: |
