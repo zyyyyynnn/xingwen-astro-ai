@@ -37,6 +37,11 @@
     "EXCLUDE_RUNTIME",
     "EXCLUDE_LICENSE"
   ],
+  "vendored_file_adoption_classes": [
+    "KEEP_AS_IS",
+    "KEEP_WITH_MINIMAL_PATCH",
+    "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT"
+  ],
   "adoption_class_forbidden": [
     "REWRITE",
     "RECREATE",

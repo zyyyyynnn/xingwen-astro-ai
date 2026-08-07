@@ -5,7 +5,7 @@
   "tag": "v1.10.0",
   "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
   "license": "MIT",
-  "algorithm": "core-product-entry directory globs (spec §9) -> #/ import graph -> transitive closure -> remove EXCLUDED -> classify PARTIAL/DEFERRED",
+  "algorithm": "core product entry globs -> import graph -> transitive closure -> explicit product/privacy review -> coding/private-reasoning exclusions -> final classification",
   "classification_legend": {
     "REQUIRED_VENDOR": "Core Agent Product mechanic — vendored as part of source adoption.",
     "REQUIRED_TRANSITIVE": "Real import dependency of REQUIRED_VENDOR — vendored with parent.",
@@ -14,10 +14,10 @@
     "DEFERRED_NOT_VENDORED": "Upstream exists, no current consumer — vendored only when a consuming integration requires it."
   },
   "summary": {
-    "REQUIRED_VENDOR": 705,
+    "REQUIRED_VENDOR": 702,
     "REQUIRED_TRANSITIVE": 60,
-    "PARTIAL_SURGICAL": 3,
-    "EXCLUDED": 42,
+    "PARTIAL_SURGICAL": 4,
+    "EXCLUDED": 44,
     "DEFERRED_NOT_VENDORED": 296
   },
   "total_src_files": 1106,
@@ -114,9 +114,14 @@
     },
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
-      "classification": "REQUIRED_VENDOR",
+      "classification": "PARTIAL_SURGICAL",
       "source_sha256": "99765052db20fa6112051bb7ff9f4e6f0b753d2e741536bcaa5caec92f62e326",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
+      "reason": "Preserve disclosure interaction mechanics only. Private model reasoning semantics must be removed; future content may only come from an explicit public/auditable reasoning ViewModel.",
+      "constraints": [
+        "preserve-disclosure-mechanics",
+        "forbid-private-reasoning-input",
+        "public-auditable-reasoning-only"
+      ]
     },
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/critic-result-display.tsx",
@@ -180,9 +185,9 @@
     },
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/thought-event-message.tsx",
-      "classification": "REQUIRED_VENDOR",
+      "classification": "EXCLUDED",
       "source_sha256": "c31f5b83249920ec282072634a4c28f3065c97e093ac689f49023f7cf71fed6f",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
+      "reason": "Private model thought renderer; Xingwen exposes only intentionally produced public rationale and auditable ReasoningTrace."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/user-assistant-event-message.tsx",
@@ -192,9 +197,9 @@
     },
     {
       "upstream_path": "src/components/conversation-events/chat/event-thought-helpers.ts",
-      "classification": "REQUIRED_VENDOR",
+      "classification": "EXCLUDED",
       "source_sha256": "f3bc8c7f34242082cb2770a5c455246090077e974b8103a57b6bf4e5173f59f4",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
+      "reason": "Private model reasoning extractor; raw model reasoning must not cross the Xingwen product boundary."
     },
     {
       "upstream_path": "src/components/conversation-events/chat/group-events.ts",
@@ -6662,5 +6667,14 @@
       "source_sha256": "5f78844f2e77564c72d12c17d7fcf6f647c57e4ad0d82c7da98b50cbad216b8d",
       "reason": "Upstream exists but no current core consumer — vendored only when a consuming integration requires it."
     }
-  ]
+  ],
+  "policy_sets": {
+    "private_reasoning_excluded": [
+      "src/components/conversation-events/chat/event-thought-helpers.ts",
+      "src/components/conversation-events/chat/event-message-components/thought-event-message.tsx"
+    ],
+    "public_reasoning_disclosure": [
+      "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx"
+    ]
+  }
 }

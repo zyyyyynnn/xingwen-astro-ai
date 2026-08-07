@@ -1,9 +1,7 @@
 # NOTICE — OpenHands Vendored Source
 
-This directory (`apps/workspace/upstream/openhands/`) contains **metadata only**
-at the current stage. Actual production TypeScript/TSX source is vendored
-later strictly from the frozen upstream ref below, into
-`apps/workspace/upstream/openhands/src/`.
+This directory is the authoritative OpenHands upstream root. Adoption metadata
+is stored at the root; vendored source, when present, is stored under `src/`.
 
 ## Upstream source of truth
 

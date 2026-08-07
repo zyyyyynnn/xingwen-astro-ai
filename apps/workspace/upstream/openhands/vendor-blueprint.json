@@ -2,7 +2,7 @@
   "schema": "xingwen.agent-upstream.blueprint/v1",
   "product": "OpenHands",
   "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-  "purpose": "Source-level adoption blueprint. This directory holds metadata ONLY — no production TS/TSX vendored here.",
+  "purpose": "This blueprint defines the source-level adoption contract and does not itself contain vendored production source.",
   "source_scope": {
     "directory_breadth": {
       "adopt": "Core mechanic dirs (REQUIRED_VENDOR + REQUIRED_TRANSITIVE): root, routes/{conversation,conversation-panel,settings,home,root-layout}, components/{conversation,conversation-events,sidebar,settings,shared,ui}, components/features/{chat,conversation-panel,sidebar,markdown,command-menu,context-menu,controls,home,tips,alerts,images}, hooks/contexts/stores/services/utils/types/lib/themes/styles/constants/i18n/icons/manifests/wrapper/assets.",
@@ -23,7 +23,9 @@
         "hooks/query/use-unified-vscode-url",
         "api/git-service",
         "api/cloud",
-        "electron"
+        "electron",
+        "components/conversation-events/chat/event-thought-helpers (private model reasoning extractor)",
+        "components/conversation-events/chat/event-message-components/thought-event-message (private model thought renderer)"
       ],
       "deferred_not_vendored": [
         "components/features/settings (sub-pages)",
@@ -65,7 +67,8 @@
       "Git diff/status UI",
       "VSCode link",
       "agent-server git-service",
-      "cloud proprietary"
+      "cloud proprietary",
+      "private model reasoning (thought / reasoning_content / thinking_blocks / inline <think>)"
     ]
   },
   "runtime_boundary": {
@@ -88,6 +91,31 @@
     "research_adapter_layer": "Research Adapter + Domain/ViewModel/Command + Xingwen Runtime replacement.",
     "workspace_integration_layer": "Product wiring (conversation-tabs defs -> Research tabs; canvas-ui tool -> Research drive-panel; Artifact Workspace)."
   },
+  "reasoning_boundary": {
+    "private_model_reasoning": {
+      "policy": "forbidden",
+      "examples": [
+        "thought",
+        "reasoning_content",
+        "thinking_blocks",
+        "inline <think> content"
+      ]
+    },
+    "public_reasoning": {
+      "policy": "explicit-and-auditable-only",
+      "allowed_sources": [
+        "public rationale",
+        "Evidence-linked ReasoningTrace",
+        "Agent plan",
+        "Agent action",
+        "tool/progress events"
+      ]
+    },
+    "ui_mechanics": {
+      "policy": "preserve-upstream-disclosure-mechanics"
+    },
+    "reasoning_trace_vs_private": "ReasoningTrace is a public derivation record (Evidence-linked, versionable, auditable, explicit, user-safe). It is NOT model chain-of-thought."
+  },
   "excluded_product_surfaces": [
     "Terminal (xterm)",
     "DiffViewer (Monaco)",
@@ -96,7 +124,8 @@
     "VSCode link",
     "api/git-service",
     "api/cloud",
-    "Electron desktop shell"
+    "Electron desktop shell",
+    "Private model reasoning surfaces (thought extractor, thought renderer)"
   ],
   "hard_rules": [
     "Upstream OpenHands file EXISTS -> MUST vendor, never local-rewrite.",
@@ -105,7 +134,26 @@
     "Research content replacement via Adapter/ViewModel, NOT second shell.",
     "Visual adjustment = token/font/icon/density/coding-removal, NOT DOM/interaction rebuild.",
     "Component unsuitable -> modify upstream vendored component, NOT parallel local component.",
-    "Cannot surgically adapt -> STOP / request architecture ruling. NEVER 'build a second one'."
+    "Cannot surgically adapt -> STOP / request architecture ruling. NEVER 'build a second one'.",
+    "Private model reasoning (thought / reasoning_content / thinking_blocks / inline <think>) must never cross the product boundary; preserve only disclosure mechanics for explicit public/auditable reasoning."
   ],
-  "provenance_contract": "provenance.json (every vendored UI file needs a manifest entry; 1:1 with files on disk)."
+  "source_vendor_completion_contract": {
+    "requirement": "At actual source-vendor time, every initial REQUIRED_VENDOR / REQUIRED_TRANSITIVE / PARTIAL_SURGICAL scope entry must receive an explicit disposition.",
+    "dispositions": [
+      "VENDORED",
+      "SURGICALLY_ADAPTED",
+      "REMOVED_AFTER_SURGICAL_ANALYSIS"
+    ],
+    "removed_after_surgical_analysis_requires": [
+      "reason",
+      "import-unreachable proof"
+    ],
+    "forbidden_final_dispositions": [
+      "PENDING",
+      "future task",
+      "Phase",
+      "task code"
+    ]
+  },
+  "provenance_contract": "provenance.json: disk <-> provenance exact 1:1 equality, plus provenance -> approved source-scope membership, with strict per-entry repository/tag/commit/path/class/hash validation (scripts/check-agent-upstream-adoption.mjs G5). G5 does not assert full source-scope adoption closure."
 }

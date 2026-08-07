@@ -2,19 +2,20 @@
 /**
  * check-agent-upstream-adoption.mjs
  *
- * Machine gate enforcing OpenHands as the UNIQUE upstream Agent Product source
- * and forbidding design-level reimplementation / second shell / alternate
- * upstream root. Runs as part of `pnpm check:architecture`.
+ * Machine gate enforcing OpenHands as the UNIQUE upstream Agent Product source,
+ * a fail-closed provenance contract, and a private-reasoning boundary. Runs as
+ * part of `pnpm check:architecture`.
  *
  * Gates:
- *   G1 Unique product      — only OpenHands is an upstream Agent product.
- *   G2 Exact ref            — only OpenHands/OpenHands @ v1.10.0 @ 566386...
- *   G3 No other source     — repository allowlist + unique upstream root.
- *   G4 No second shell     — no competing Agent Product skeleton root.
- *   G5 Provenance          — if src/ present, provenance.json 1:1 + hashes.
- *   G6 No rewrite class    — adoption_class forbids REWRITE/RECREATE/REIMPLEMENT/INSPIRED_BY.
- *   G7 Coding surface      — excluded coding surfaces must not enter production graph.
- *   G8 Only OpenHands src  — no file sourced from a non-OpenHands repository.
+ *   G1  Unique product          — only OpenHands is an upstream Agent product.
+ *   G2  Exact ref               — OpenHands/OpenHands @ v1.10.0 @ 566386...
+ *   G3  No other source        — repository allowlist + unique upstream root.
+ *   G4  No second shell        — no competing Agent Product skeleton root.
+ *   G5  Provenance             — if src/ present, provenance.json 1:1 + fail-closed.
+ *   G6  No rewrite class       — adoption_class forbids REWRITE/RECREATE/REIMPLEMENT/INSPIRED_BY.
+ *   G7  Coding surface         — excluded coding surfaces must not enter production graph.
+ *   G8  Only OpenHands src     — no file sourced from a non-OpenHands repository.
+ *   G9  Private reasoning boundary — policy_sets honored (excluded/disclosure).
  *
  * The check is injectable: `checkAgentUpstreamAdoption(root)` where root is any
  * repo root. The CLI entrypoint passes process.cwd().
@@ -38,19 +39,30 @@ const REQUIRED_META = [
   "LICENSE.upstream",
   "NOTICE.md",
 ];
+const VALID_CLASSIFICATIONS = new Set([
+  "REQUIRED_VENDOR",
+  "REQUIRED_TRANSITIVE",
+  "PARTIAL_SURGICAL",
+  "EXCLUDED",
+  "DEFERRED_NOT_VENDORED",
+]);
+const HASH_RE = /^[0-9a-f]{64}$/;
+const DISCLOSURE_CONSTRAINTS = [
+  "preserve-disclosure-mechanics",
+  "forbid-private-reasoning-input",
+  "public-auditable-reasoning-only",
+];
 
 function readJSON(root, rel) {
   const p = resolve(root, rel);
   if (!existsSync(p)) return null;
   return JSON.parse(readFileSync(p, "utf8"));
 }
-
 function sha256OfFile(absPath) {
   const h = createHash("sha256");
   h.update(readFileSync(absPath));
   return h.digest("hex");
 }
-
 function walkFiles(dir) {
   const out = [];
   for (const e of readdirSync(dir)) {
@@ -60,7 +72,6 @@ function walkFiles(dir) {
   }
   return out;
 }
-
 function toPosix(p) {
   return p.split(sep).join("/");
 }
@@ -147,15 +158,65 @@ export function checkAgentUpstreamAdoption(root) {
 
   // ---- G6 / G7 : validate blueprint + scope ----
   const blueprint = readJSON(root, `${UPSTREAM_ROOT}/vendor-blueprint.json`);
-  if (!blueprint) {
+  if (!blueprint)
     failures.push(`Missing ${UPSTREAM_ROOT}/vendor-blueprint.json`);
-  }
   const scope = readJSON(root, `${UPSTREAM_ROOT}/source-scope.json`);
   if (!scope) {
     failures.push(`Missing ${UPSTREAM_ROOT}/source-scope.json`);
     return { failures, notes };
   }
-  // G6: no forbidden class referenced outside allowlist context
+
+  // ---- Scope metadata integrity (G-scoped, §14) ----
+  const scopeChecks = [
+    ["product", lock.product],
+    ["repository", lock.repository],
+    ["tag", lock.tag],
+    ["commit", lock.commit],
+    ["license", lock.license],
+  ];
+  for (const [k, v] of scopeChecks) {
+    if (scope[k] !== v) {
+      failures.push(
+        `Scope metadata mismatch: scope.${k} ("${scope[k]}") != lock.${k} ("${v}").`,
+      );
+    }
+  }
+  // unique upstream_path (no silent map overwrite)
+  const seenPaths = new Map();
+  for (const f of scope.files ?? []) {
+    if (seenPaths.has(f.upstream_path)) {
+      failures.push(`Scope duplicate upstream_path: ${f.upstream_path}.`);
+    }
+    seenPaths.set(f.upstream_path, true);
+    if (!VALID_CLASSIFICATIONS.has(f.classification)) {
+      failures.push(
+        `Scope invalid classification "${f.classification}" for ${f.upstream_path}.`,
+      );
+    }
+    if (f.source_sha256 && !HASH_RE.test(f.source_sha256)) {
+      failures.push(`Scope invalid source_sha256 for ${f.upstream_path}.`);
+    }
+  }
+  // summary / total recomputation
+  const recomputed = {
+    REQUIRED_VENDOR: 0,
+    REQUIRED_TRANSITIVE: 0,
+    PARTIAL_SURGICAL: 0,
+    EXCLUDED: 0,
+    DEFERRED_NOT_VENDORED: 0,
+  };
+  for (const f of scope.files ?? []) recomputed[f.classification]++;
+  if (JSON.stringify(recomputed) !== JSON.stringify(scope.summary)) {
+    failures.push(
+      `Scope summary mismatch: ${JSON.stringify(scope.summary)} != ${JSON.stringify(recomputed)}.`,
+    );
+  }
+  if (scope.total_src_files !== scope.files.length) {
+    failures.push(
+      `Scope total_src_files (${scope.total_src_files}) != files.length (${scope.files.length}).`,
+    );
+  }
+
   if (blueprint) {
     for (const f of FORBIDDEN_CLASSES) {
       if (
@@ -206,7 +267,41 @@ export function checkAgentUpstreamAdoption(root) {
     );
   }
 
-  // ---- G5 : provenance (disk <-> manifest <-> scope, hash integrity) ----
+  // ---- G9 : private reasoning boundary (policy_sets) ----
+  const policySets = scope.policy_sets ?? {};
+  if (policySets.private_reasoning_excluded) {
+    for (const p of policySets.private_reasoning_excluded) {
+      const sf = seenPaths.has(p)
+        ? files.find((f) => f.upstream_path === p)
+        : null;
+      if (!sf || sf.classification !== "EXCLUDED") {
+        failures.push(
+          `G9: private_reasoning_excluded path not classified EXCLUDED: ${p}.`,
+        );
+      }
+    }
+  }
+  if (policySets.public_reasoning_disclosure) {
+    for (const p of policySets.public_reasoning_disclosure) {
+      const sf = files.find((f) => f.upstream_path === p);
+      if (!sf || sf.classification !== "PARTIAL_SURGICAL") {
+        failures.push(
+          `G9: public_reasoning_disclosure path not classified PARTIAL_SURGICAL: ${p}.`,
+        );
+        continue;
+      }
+      const cs = sf.constraints ?? [];
+      for (const req of DISCLOSURE_CONSTRAINTS) {
+        if (!cs.includes(req)) {
+          failures.push(
+            `G9: disclosure path missing constraint "${req}": ${p}.`,
+          );
+        }
+      }
+    }
+  }
+
+  // ---- G5 : provenance (disk <-> provenance exact 1:1, fail-closed) ----
   const srcDir = resolve(root, SRC_DIR);
   if (!existsSync(srcDir)) {
     notes.push(
@@ -223,7 +318,12 @@ export function checkAgentUpstreamAdoption(root) {
       const entries = Array.isArray(manifest)
         ? manifest
         : (manifest.entries ?? []);
+      const schema =
+        readJSON(root, `${UPSTREAM_ROOT}/provenance-schema.json`) ?? {};
+      const requiredFields = schema.required_fields ?? [];
+      const vendoredClasses = lock.vendored_file_adoption_classes ?? [];
       const scopeByPath = new Map(files.map((f) => [f.upstream_path, f]));
+      const classCompat = schema.class_compatibility ?? {};
 
       // Disk -> Provenance : every on-disk file has exactly one manifest entry
       const diskFiles = walkFiles(srcDir);
@@ -252,16 +352,84 @@ export function checkAgentUpstreamAdoption(root) {
           );
         }
       }
-      // Provenance -> Source Scope : upstream_path exists exactly once, allowed class
+      // Per-entry fail-closed validation
       for (const e of entries) {
+        const where = e.local_path ?? "<unknown local_path>";
+        // required fields present
+        for (const rf of requiredFields) {
+          if (!(rf in e))
+            failures.push(
+              `G5: provenance entry missing required field "${rf}" (${where}).`,
+            );
+        }
+        if (!("modified" in e)) {
+          failures.push(`G5: provenance entry missing "modified" (${where}).`);
+        } else if (typeof e.modified !== "boolean") {
+          failures.push(
+            `G5: provenance "modified" must be boolean (${where}).`,
+          );
+        }
+        if (e.modified === true && !e.modification_reason) {
+          failures.push(
+            `G5: modified=true requires non-empty modification_reason (${where}).`,
+          );
+        }
+        // exact upstream identity
+        if (e.upstream_repository !== lock.repository) {
+          failures.push(
+            `G5: provenance upstream_repository mismatch (${where}).`,
+          );
+        }
+        if (e.upstream_tag !== lock.tag) {
+          failures.push(`G5: provenance upstream_tag mismatch (${where}).`);
+        }
+        if (e.upstream_commit !== lock.commit) {
+          failures.push(`G5: provenance upstream_commit mismatch (${where}).`);
+        }
+        if (e.license !== lock.license) {
+          failures.push(`G5: provenance license mismatch (${where}).`);
+        }
+        // path safety (skip if already flagged missing by required-field check)
+        if (
+          typeof e.upstream_path !== "string" ||
+          !e.upstream_path.startsWith("src/") ||
+          e.upstream_path.includes("..") ||
+          e.upstream_path.includes("\\")
+        ) {
+          failures.push(`G5: unsafe upstream_path (${where}).`);
+        }
+        if (
+          typeof e.local_path !== "string" ||
+          !e.local_path.startsWith(`${SRC_DIR}/`) ||
+          e.local_path.includes("..")
+        ) {
+          failures.push(`G5: local_path escapes upstream src root (${where}).`);
+        }
+        // hash format
+        if (
+          e.upstream_source_sha256 &&
+          !HASH_RE.test(e.upstream_source_sha256)
+        ) {
+          failures.push(
+            `G5: upstream_source_sha256 invalid format (${where}).`,
+          );
+        }
+        if (e.vendored_sha256 && !HASH_RE.test(e.vendored_sha256)) {
+          failures.push(`G5: vendored_sha256 invalid format (${where}).`);
+        }
+        // adoption class validity for actual files
+        if (e.adoption_class && !vendoredClasses.includes(e.adoption_class)) {
+          failures.push(
+            `G5: adoption_class not allowed for vendored file: ${e.adoption_class} (${where}).`,
+          );
+        }
+        // Provenance -> Scope membership
         const sc = scopeByPath.get(e.upstream_path);
         if (!sc) {
           failures.push(
-            `G5: provenance upstream_path not in source-scope: ${e.upstream_path}.`,
+            `G5: provenance upstream_path not in source-scope: ${e.upstream_path} (${where}).`,
           );
-          continue;
-        }
-        if (
+        } else if (
           ![
             "REQUIRED_VENDOR",
             "REQUIRED_TRANSITIVE",
@@ -269,55 +437,54 @@ export function checkAgentUpstreamAdoption(root) {
           ].includes(sc.classification)
         ) {
           failures.push(
-            `G5: provenance upstream_path classified ${sc.classification} (must be REQUIRED_VENDOR/TRANSITIVE/PARTIAL_SURGICAL): ${e.upstream_path}.`,
+            `G5: provenance upstream_path classified ${sc.classification} (must be REQUIRED_VENDOR/TRANSITIVE/PARTIAL_SURGICAL): ${e.upstream_path} (${where}).`,
+          );
+        } else if (
+          e.adoption_class &&
+          !(classCompat[sc.classification] ?? []).includes(e.adoption_class)
+        ) {
+          failures.push(
+            `G5: adoption_class ${e.adoption_class} incompatible with scope classification ${sc.classification} (${where}).`,
           );
         }
-        // G8 : repository must match lock
+        // G8 repository must match lock
         if (
           e.upstream_repository &&
           e.upstream_repository !== lock.repository
         ) {
           failures.push(
-            `G8: provenance sourced from non-OpenHands repo: ${e.upstream_repository}.`,
+            `G8: provenance sourced from non-OpenHands repo: ${e.upstream_repository} (${where}).`,
           );
         }
-        // Hash integrity
-        const diskFile = resolve(root, e.local_path);
-        if (existsSync(diskFile)) {
+        // Hash integrity (only if file present and hashes well-formed)
+        const diskFile = resolve(root, e.local_path ?? "");
+        if (
+          e.local_path &&
+          existsSync(diskFile) &&
+          HASH_RE.test(e.vendored_sha256 ?? "")
+        ) {
           const fileHash = sha256OfFile(diskFile);
-          if (e.vendored_sha256 && e.vendored_sha256 !== fileHash) {
-            failures.push(`G5: vendored_sha256 mismatch for ${e.local_path}.`);
+          if (e.vendored_sha256 !== fileHash) {
+            failures.push(`G5: vendored_sha256 mismatch for ${where}.`);
           }
           if (
-            sc.source_sha256 &&
-            e.upstream_source_sha256 &&
-            e.upstream_source_sha256 !== sc.source_sha256
+            sc &&
+            HASH_RE.test(sc.source_sha256 ?? "") &&
+            HASH_RE.test(e.upstream_source_sha256 ?? "")
+          ) {
+            if (e.upstream_source_sha256 !== sc.source_sha256) {
+              failures.push(
+                `G5: upstream_source_sha256 mismatch vs source-scope for ${e.upstream_path} (${where}).`,
+              );
+            }
+          }
+          if (
+            e.modified === false &&
+            e.vendored_sha256 !== e.upstream_source_sha256
           ) {
             failures.push(
-              `G5: upstream_source_sha256 mismatch vs source-scope for ${e.upstream_path}.`,
+              `G5: modified=false but vendored_sha256 != upstream_source_sha256 for ${where}.`,
             );
-          }
-          if (e.modified === false) {
-            if (
-              e.vendored_sha256 &&
-              e.upstream_source_sha256 &&
-              e.vendored_sha256 !== e.upstream_source_sha256
-            ) {
-              failures.push(
-                `G5: modified=false but vendored_sha256 != upstream_source_sha256 for ${e.local_path}.`,
-              );
-            }
-          } else if (e.modified === true) {
-            if (!e.modification_reason) {
-              failures.push(
-                `G5: modified=true requires non-empty modification_reason for ${e.local_path}.`,
-              );
-            }
-            if (e.vendored_sha256 && e.vendored_sha256 !== fileHash) {
-              failures.push(
-                `G5: modified=true but vendored_sha256 != actual file hash for ${e.local_path}.`,
-              );
-            }
           }
         }
       }
