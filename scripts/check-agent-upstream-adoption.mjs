@@ -25,7 +25,7 @@ const root = process.cwd();
 const failures = [];
 const notes = [];
 
-const VENDOR_ROOT = "apps/workspace/vendor/openhands";
+const VENDOR_ROOT = "apps/workspace/upstream/openhands";
 const requiredMeta = [
   "upstream-lock.json",
   "source-scope.json",
@@ -110,9 +110,9 @@ if (!lock) {
 
 // ---- G1 / G3 / G8 : no other vendor/third_party/upstream roots ----
 const forbiddenRoots = [
-  "apps/workspace/vendor",
-  "apps/workspace/third_party",
   "apps/workspace/upstream",
+  "apps/workspace/third_party",
+  "apps/workspace/vendor",
   "packages/third_party",
 ];
 for (const r of forbiddenRoots) {

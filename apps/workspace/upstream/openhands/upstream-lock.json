@@ -31,7 +31,7 @@
     "REIMPLEMENT",
     "INSPIRED_BY"
   ],
-  "vendor_root": "apps/workspace/vendor/openhands",
+  "vendor_root": "apps/workspace/upstream/openhands",
   "manifest_files": [
     "upstream-lock.json",
     "source-scope.json",

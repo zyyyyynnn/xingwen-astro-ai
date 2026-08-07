@@ -1,6 +1,6 @@
 # NOTICE — OpenHands Vendored Source
 
-This directory (`apps/workspace/vendor/openhands/`) contains **metadata only**
+This directory (`apps/workspace/upstream/openhands/`) contains **metadata only**
 at the A-21 Phase 2 stage. Actual production TypeScript/TSX source is vendored
 in a later task (#174 / A-22) strictly from the frozen upstream ref below.
 
@@ -23,7 +23,7 @@ The MIT License (MIT)
 Copyright © 2025 OpenHands contributors
 ```
 
-When A-22 vendors OpenHands source files into `apps/workspace/vendor/openhands/src/`,
+When A-22 vendors OpenHands source files into `apps/workspace/upstream/openhands/src/`,
 each file MUST retain its MIT attribution and be recorded in the provenance
 manifest (`provenance-schema.json`) with its upstream path, 40-char SHA, and
 adoption class.

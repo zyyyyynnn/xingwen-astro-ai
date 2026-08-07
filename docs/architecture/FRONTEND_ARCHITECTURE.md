@@ -57,7 +57,7 @@ Existing Core
 | 领域适配策略 | adapter-and-renderer（经 Adapter / Renderer 替换科研领域） |
 | 唯一性 | 仓库内唯一 Agent Product Source；禁止混壳 / 第二套 Shell |
 
-冻结元数据位于 `apps/workspace/vendor/openhands/`（`upstream-lock.json`、`source-scope.json`、`vendor-blueprint.json`、`provenance-schema.json`、`LICENSE.upstream`、`NOTICE.md`），由 `scripts/check-agent-upstream-adoption.mjs` 机器门禁强制（G1–G8）。
+冻结元数据位于 `apps/workspace/upstream/openhands/`（`upstream-lock.json`、`source-scope.json`、`vendor-blueprint.json`、`provenance-schema.json`、`LICENSE.upstream`、`NOTICE.md`），由 `scripts/check-agent-upstream-adoption.mjs` 机器门禁强制（G1–G8）。
 
 上游源码升级需经过：锁定 SHA → 许可证审查 → 更新映射 → 上游 Diff 审查 → 运行契约与 UI 回归 → 独立合并。A-22 实际 Vendor 必须重新从官方仓库 checkout `v1.10.0` 并校验 `566386…37f4b`，否则 `BLOCKED`。
 

@@ -28,7 +28,7 @@ function runChecker(cwd) {
 }
 
 // Fixture dir with a VALID lock + scope (mirrors the committed metadata).
-const VALID = resolve(process.cwd(), "apps/workspace/vendor/openhands");
+const VALID = resolve(process.cwd(), "apps/workspace/upstream/openhands");
 
 test("G1-G8 pass on the committed OpenHands metadata", () => {
   const r = runChecker(process.cwd());
@@ -38,7 +38,7 @@ test("G1-G8 pass on the committed OpenHands metadata", () => {
 test("G2 fails on wrong commit", () => {
   const tmp = resolve(
     process.cwd(),
-    "apps/workspace/vendor/openhands-upstream-test",
+    "apps/workspace/upstream-openhands-upstream-test",
   );
   // construct a minimal failing lock inline via env-driven re-run not needed;
   // instead assert the validator logic by checking the committed lock has the exact SHA.
