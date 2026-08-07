@@ -138,10 +138,9 @@ def create_app() -> FastAPI:
     )
     from app.services.content_storage import LocalContentStorage
     from app.services.research_input_ingestion import ResearchInputIngestionService
+    from app.services.research_input_memory_runtime import InMemoryResearchInputRuntime
     from app.services.research_input_policy import ResearchInputPolicy
     from app.services.research_input_store import (
-        InMemoryIdempotencyRepository,
-        InMemoryResearchInputStore,
         PersistentIdempotencyRepository,
         PersistentResearchInputStore,
     )
@@ -156,13 +155,11 @@ def create_app() -> FastAPI:
             factory, lease_ttl=lease_ttl
         )
     else:
-        app.state.research_input_store = InMemoryResearchInputStore()
-        app.state.research_input_idempotency = InMemoryIdempotencyRepository(
-            lease_ttl=lease_ttl
-        )
-        app.state.research_input_store.bind_idempotency(
-            app.state.research_input_idempotency
-        )
+        # One explicit coordinator implements both ports so lease resolution and
+        # the in-memory content/input commit share a transaction boundary.
+        in_memory_runtime = InMemoryResearchInputRuntime(lease_ttl=lease_ttl)
+        app.state.research_input_store = in_memory_runtime
+        app.state.research_input_idempotency = in_memory_runtime
 
     # The ingestion policy is resolved from settings once, here, so the domain
     # layer never reaches back into global configuration.
