@@ -1,0 +1,34 @@
+{
+  "additionalProperties": false,
+  "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range: ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
+  "properties": {
+    "x1": {
+      "minimum": 0.0,
+      "title": "X1",
+      "type": "number"
+    },
+    "x2": {
+      "minimum": 0.0,
+      "title": "X2",
+      "type": "number"
+    },
+    "y1": {
+      "minimum": 0.0,
+      "title": "Y1",
+      "type": "number"
+    },
+    "y2": {
+      "minimum": 0.0,
+      "title": "Y2",
+      "type": "number"
+    }
+  },
+  "required": [
+    "x1",
+    "y1",
+    "x2",
+    "y2"
+  ],
+  "title": "DocumentBBox",
+  "type": "object"
+}

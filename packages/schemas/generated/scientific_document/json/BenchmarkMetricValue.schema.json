@@ -1,0 +1,51 @@
+{
+  "additionalProperties": false,
+  "description": "One metric with explicit denominator and empty-sample behavior.",
+  "properties": {
+    "denominator": {
+      "minimum": 0.0,
+      "title": "Denominator",
+      "type": "number"
+    },
+    "empty_behavior": {
+      "default": "report_zero_rate",
+      "title": "Empty Behavior",
+      "type": "string"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "numerator": {
+      "minimum": 0.0,
+      "title": "Numerator",
+      "type": "number"
+    },
+    "rate": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rate"
+    },
+    "version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "numerator",
+    "denominator",
+    "version"
+  ],
+  "title": "BenchmarkMetricValue",
+  "type": "object"
+}

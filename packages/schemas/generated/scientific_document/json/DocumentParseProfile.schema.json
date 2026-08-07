@@ -1,0 +1,60 @@
+{
+  "additionalProperties": false,
+  "description": "Versioned parser profile / configuration identity (D-10 logical).\n\n``configuration_hash`` MUST be stable and reproducible: it must not depend\non wall-clock time, random ordering, unsorted dicts, floating model aliases\nor machine-specific absolute paths.",
+  "properties": {
+    "configuration_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Configuration Hash",
+      "type": "string"
+    },
+    "native_backend": {
+      "minLength": 1,
+      "title": "Native Backend",
+      "type": "string"
+    },
+    "parser_profile_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Parser Profile Id",
+      "type": "string"
+    },
+    "parser_profile_version": {
+      "minLength": 1,
+      "title": "Parser Profile Version",
+      "type": "string"
+    },
+    "resource_policy_version": {
+      "minLength": 1,
+      "title": "Resource Policy Version",
+      "type": "string"
+    },
+    "routing_policy_version": {
+      "minLength": 1,
+      "title": "Routing Policy Version",
+      "type": "string"
+    },
+    "visual_backend": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Backend"
+    }
+  },
+  "required": [
+    "parser_profile_id",
+    "parser_profile_version",
+    "native_backend",
+    "routing_policy_version",
+    "resource_policy_version",
+    "configuration_hash"
+  ],
+  "title": "DocumentParseProfile",
+  "type": "object"
+}

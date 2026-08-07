@@ -1,0 +1,215 @@
+{
+  "$defs": {
+    "BenchmarkParserMode": {
+      "enum": [
+        "native_only",
+        "hybrid"
+      ],
+      "title": "BenchmarkParserMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One document's parse evaluation against its expected annotation.",
+  "properties": {
+    "accepted_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Accepted Count",
+      "type": "integer"
+    },
+    "block_recovery": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Block Recovery"
+    },
+    "cpu_result": {
+      "default": true,
+      "title": "Cpu Result",
+      "type": "boolean"
+    },
+    "document_parse_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Document Parse Id",
+      "type": "string"
+    },
+    "entry_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Entry Id",
+      "type": "string"
+    },
+    "evidence_locator_validity": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Evidence Locator Validity"
+    },
+    "failure_category": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Category"
+    },
+    "figure_caption_linkage": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Figure Caption Linkage"
+    },
+    "formula_recovery": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Formula Recovery"
+    },
+    "gpu_result": {
+      "default": false,
+      "title": "Gpu Result",
+      "type": "boolean"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "latency_seconds": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Latency Seconds"
+    },
+    "native_routing_coverage": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Native Routing Coverage"
+    },
+    "output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "overall_quality": {
+      "title": "Overall Quality",
+      "type": "string"
+    },
+    "parser_mode": {
+      "$ref": "#/$defs/BenchmarkParserMode"
+    },
+    "partial_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Partial Count",
+      "type": "integer"
+    },
+    "peak_memory_bytes": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Peak Memory Bytes"
+    },
+    "reading_order_error": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reading Order Error"
+    },
+    "table_structure_recovery": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Table Structure Recovery"
+    },
+    "unsupported_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Unsupported Count",
+      "type": "integer"
+    },
+    "visual_routing_coverage": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Routing Coverage"
+    }
+  },
+  "required": [
+    "entry_id",
+    "parser_mode",
+    "document_parse_id",
+    "overall_quality",
+    "input_hash",
+    "output_hash"
+  ],
+  "title": "BenchmarkCaseResult",
+  "type": "object"
+}

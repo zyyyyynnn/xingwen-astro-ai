@@ -37,6 +37,9 @@ jobs:
           cp .env.example .env
           docker compose config --quiet
 
+      - name: Check D-10 scientific document parsing governance gate
+        run: python scripts/check_d10_governance.py
+
   backend:
     name: Backend tests and schema export
     runs-on: ubuntu-latest
@@ -206,6 +209,30 @@ jobs:
           uv run python ../../scripts/export_openapi.py \
             --output ../../packages/schemas/generated/core/openapi.json \
             --check
+
+      - name: Check D-10 scientific document parsing benchmark contracts
+        run: >-
+          uv run python ../../scripts/export_schemas.py
+          --output ../../packages/schemas/generated/scientific_document
+          --include DocumentBBox
+          --include TextSpan
+          --include DocumentLocator
+          --include DocumentPage
+          --include DocumentBlock
+          --include DocumentTableCell
+          --include DocumentTable
+          --include DocumentFormula
+          --include DocumentFigure
+          --include DocumentParseProfile
+          --include DocumentParseInput
+          --include DocumentParseCandidate
+          --include ScientificDataExtractionCandidate
+          --include GoldenSetEntry
+          --include GoldenSetManifest
+          --include BenchmarkMetricValue
+          --include BenchmarkCaseResult
+          --include BenchmarkReport
+          --check
 
       - name: Check session security contracts
         run: >

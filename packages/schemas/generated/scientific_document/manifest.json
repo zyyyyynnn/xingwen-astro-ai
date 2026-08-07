@@ -1,0 +1,96 @@
+{
+  "authoring_source": "apps/api/src/app/schemas",
+  "models": [
+    {
+      "module": "app.schemas.scientific_document_benchmark",
+      "name": "BenchmarkCaseResult",
+      "path": "json/BenchmarkCaseResult.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document_benchmark",
+      "name": "BenchmarkMetricValue",
+      "path": "json/BenchmarkMetricValue.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document_benchmark",
+      "name": "BenchmarkReport",
+      "path": "json/BenchmarkReport.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentBBox",
+      "path": "json/DocumentBBox.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentBlock",
+      "path": "json/DocumentBlock.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentFigure",
+      "path": "json/DocumentFigure.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentFormula",
+      "path": "json/DocumentFormula.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentLocator",
+      "path": "json/DocumentLocator.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentPage",
+      "path": "json/DocumentPage.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentParseCandidate",
+      "path": "json/DocumentParseCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentParseInput",
+      "path": "json/DocumentParseInput.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentParseProfile",
+      "path": "json/DocumentParseProfile.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentTable",
+      "path": "json/DocumentTable.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "DocumentTableCell",
+      "path": "json/DocumentTableCell.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document_benchmark",
+      "name": "GoldenSetEntry",
+      "path": "json/GoldenSetEntry.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document_benchmark",
+      "name": "GoldenSetManifest",
+      "path": "json/GoldenSetManifest.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "ScientificDataExtractionCandidate",
+      "path": "json/ScientificDataExtractionCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_document",
+      "name": "TextSpan",
+      "path": "json/TextSpan.schema.json"
+    }
+  ],
+  "schema_version": 1
+}

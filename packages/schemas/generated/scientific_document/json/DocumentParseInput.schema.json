@@ -1,0 +1,61 @@
+{
+  "additionalProperties": false,
+  "description": "Input handed to a parser port.\n\n``input_bytes`` is carried only by benchmark/probe harnesses against legal\nfixtures; production ingestion receives the immutable content via\n``research_input_id`` + ``content_hash`` and resolves bytes from the\ncontent-addressed store.",
+  "properties": {
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "filename": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Filename"
+    },
+    "input_bytes": {
+      "anyOf": [
+        {
+          "format": "binary",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Input Bytes"
+    },
+    "mime_type": {
+      "minLength": 1,
+      "title": "Mime Type",
+      "type": "string"
+    },
+    "research_input_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Research Input Id",
+      "type": "string"
+    },
+    "source_type": {
+      "minLength": 1,
+      "title": "Source Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "research_input_id",
+    "content_hash",
+    "source_type",
+    "mime_type"
+  ],
+  "title": "DocumentParseInput",
+  "type": "object"
+}
