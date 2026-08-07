@@ -1,9 +1,8 @@
 """D-10 Scientific Document Parsing governance gate.
 
-The gate is intentionally stdlib-only so Foundation CI can run it before the
-API environment is installed. It enforces the mechanically checkable part of
-D-10 governance; the human review checklist remains authoritative for intent
-such as reference-after-rewrite.
+The gate is stdlib-only so Foundation CI can run before the API environment is
+installed. It enforces mechanically checkable D-10 rules; human review remains
+required for intent-level checks such as reference-after-rewrite.
 """
 
 from __future__ import annotations
@@ -114,7 +113,7 @@ def _load_adoption_json() -> dict:
 
 
 def approved_package_roots() -> set[str]:
-    """Return import roots for approved package distributions only."""
+    """Return explicit approved top-level Python import roots from the manifest."""
     try:
         data = _load_adoption_json()
     except RuntimeError:
@@ -123,9 +122,9 @@ def approved_package_roots() -> set[str]:
     for entry in data["entries"]:
         if entry.get("adoption_status") != "approved":
             continue
-        package = entry.get("package")
-        if isinstance(package, str) and package.strip():
-            roots.add(package.strip().lower().replace("-", "_"))
+        for root in entry.get("import_roots", []):
+            if isinstance(root, str) and root.strip():
+                roots.add(root.strip().lower())
     return roots
 
 
@@ -166,13 +165,12 @@ def check_unapproved_parser_imports(tracked: list[str]) -> list[str]:
             if root not in approved:
                 errors.append(
                     f"unapproved vendor import '{root}' in production parser area: "
-                    f"{normalized} (must map to adoption_status=approved)"
+                    f"{normalized} (must be declared in import_roots of an approved adoption entry)"
                 )
     return errors
 
 
 def check_floating_versions(tracked: list[str]) -> list[str]:
-    """Detect obvious floating version tokens in D-10 config files."""
     errors: list[str] = []
     pattern = re.compile(
         r"(model_revision|pipeline_version|revision|version|package_version|release_tag)"
@@ -197,7 +195,6 @@ def check_floating_versions(tracked: list[str]) -> list[str]:
 
 
 def check_exact_pinned_versions(tracked: list[str]) -> list[str]:
-    """Approved D-10 package/model version-bearing config must be exact."""
     errors: list[str] = []
     pattern = re.compile(
         r"(package_version|model_revision|pipeline_version|release_tag|paddlepaddle_version)"
@@ -227,14 +224,18 @@ def check_exact_pinned_versions(tracked: list[str]) -> list[str]:
 
 
 def check_adoption_manifest_integrity() -> list[str]:
-    """Validate critical manifest invariants without third-party dependencies."""
+    """Validate critical adoption invariants without third-party dependencies."""
     errors: list[str] = []
     try:
         data = _load_adoption_json()
     except RuntimeError as exc:
         return [str(exc)]
 
+    if data.get("consumable_statuses") != ["approved"]:
+        errors.append("upstream adoption manifest must allow only approved as consumable")
+
     capabilities: set[str] = set()
+    approved_roots: set[str] = set()
     for index, entry in enumerate(data["entries"]):
         if not isinstance(entry, dict):
             errors.append(f"adoption entry #{index} must be an object")
@@ -249,13 +250,29 @@ def check_adoption_manifest_integrity() -> list[str]:
 
         if entry.get("adoption_status") != "approved":
             continue
+
         package = entry.get("package")
-        if package and not entry.get("package_version"):
-            errors.append(f"approved capability {capability} missing package_version")
+        roots = entry.get("import_roots")
+        if package:
+            if not entry.get("package_version"):
+                errors.append(f"approved capability {capability} missing package_version")
+            if not isinstance(roots, list) or not roots:
+                errors.append(f"approved capability {capability} missing import_roots")
+            else:
+                for root in roots:
+                    if not isinstance(root, str) or not root.strip():
+                        errors.append(f"approved capability {capability} has invalid import_root")
+                        continue
+                    normalized_root = root.strip().lower()
+                    if normalized_root in approved_roots:
+                        errors.append(f"approved import_root appears in multiple capabilities: {root}")
+                    approved_roots.add(normalized_root)
+
         if entry.get("model_repository"):
             for field in ("model_id", "model_resolved_id", "model_revision", "model_weight_license"):
                 if not entry.get(field):
                     errors.append(f"approved model capability {capability} missing {field}")
+
         for field in (
             "license",
             "official_interface_used",
