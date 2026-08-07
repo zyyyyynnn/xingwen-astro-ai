@@ -46,7 +46,8 @@ const DATE_REGEX = /\b\d{4}-\d{2}-\d{2}\b/u;
 const LEGACY_TASK_SUFFIX_REGEX = /\([A-DX]-\d{2,3}\)/iu;
 const STACKED_PR_MARKER_REGEX = /\bPR-\d+\/\d+\b/iu;
 const AGENT_MARKER_REGEX = /\[agent-fixed-[^\]]+\]/iu;
-const PROCESS_STATUS_REGEX = /\b(?:WIP|Draft|Ready|Merged|PASS|BLOCKED)\b/iu;
+const PROCESS_STATUS_REGEX =
+  /\b(?:WIP|Draft|Ready|Merged|PASS|BLOCKED)\b/iu;
 const REVIEW_ID_REGEX = /\breview(?:\s+id)?\s*#?\d+\b/iu;
 const CI_STATUS_REGEX =
   /\bCI\s*[:=-]?\s*(?:PASS|FAIL(?:ED)?|GREEN|RED|SUCCESS)\b/iu;
@@ -77,7 +78,9 @@ function addSummaryPolicyErrors(summary, errors) {
     errors.push("Summary must not contain an execution date");
   }
   if (LEGACY_TASK_SUFFIX_REGEX.test(summary)) {
-    errors.push("Summary must not contain a legacy task suffix such as (A-21)");
+    errors.push(
+      "Summary must not contain a legacy task suffix such as (A-21)",
+    );
   }
   if (STACKED_PR_MARKER_REGEX.test(summary)) {
     errors.push("Summary must not contain a stacked PR marker such as PR-1/5");
@@ -192,7 +195,9 @@ export function validateCommitSubject(
 
 function requireFullSha(name, value) {
   if (!value || !FULL_SHA_REGEX.test(value)) {
-    throw new Error(`${name} must be a 40-character lowercase hexadecimal SHA`);
+    throw new Error(
+      `${name} must be a 40-character lowercase hexadecimal SHA`,
+    );
   }
   return value;
 }
@@ -253,7 +258,9 @@ function runIntegrationMode(integrationSha) {
     console.log(`Checking integration commit subject: "${subject}"`);
     const result = validateCommitSubject(subject, { allowPrBacklink: true });
     if (!result.valid) {
-      console.error(`Integration commit subject error: ${result.errors.join("; ")}`);
+      console.error(
+        `Integration commit subject error: ${result.errors.join("; ")}`,
+      );
       return 1;
     }
     console.log("Integration commit subject PASS");
@@ -280,7 +287,9 @@ function runPrMode(prTitle, baseSha, headSha) {
     const commits = readCommitSubjects(baseSha, headSha);
     console.log(`Checking ${commits.length} PR branch commit subject(s)`);
     for (const { sha, subject } of commits) {
-      const result = validateCommitSubject(subject, { allowPrBacklink: false });
+      const result = validateCommitSubject(subject, {
+        allowPrBacklink: false,
+      });
       if (!result.valid) {
         console.error(
           `Commit ${sha.slice(0, 8)} subject error: "${subject}" -> ${result.errors.join("; ")}`,
