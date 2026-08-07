@@ -47,8 +47,7 @@ const DATE_REGEX = /\b\d{4}-\d{2}-\d{2}\b/u;
 const LEGACY_TASK_SUFFIX_REGEX = /\([A-DX]-\d{2,3}\)/iu;
 const STACKED_PR_MARKER_REGEX = /\bPR-\d+\/\d+\b/iu;
 const AGENT_MARKER_REGEX = /\[agent-fixed-[^\]]+\]/iu;
-const PROCESS_STATUS_REGEX =
-  /\b(?:WIP|Draft|Ready|Merged|PASS|BLOCKED)\b/iu;
+const PROCESS_STATUS_REGEX = /\b(?:WIP|Draft|Ready|Merged|PASS|BLOCKED)\b/iu;
 const REVIEW_ID_REGEX = /\breview(?:\s+id)?\s*#?\d+\b/iu;
 const CI_STATUS_REGEX =
   /\bCI\s*[:=-]?\s*(?:PASS|FAIL(?:ED)?|GREEN|RED|SUCCESS)\b/iu;
@@ -82,9 +81,7 @@ function addSummaryPolicyErrors(summary, errors) {
     errors.push("Summary must not contain an Issue or PR identifier");
   }
   if (LEGACY_TASK_SUFFIX_REGEX.test(summary)) {
-    errors.push(
-      "Summary must not contain a legacy task suffix such as (A-21)",
-    );
+    errors.push("Summary must not contain a legacy task suffix such as (A-21)");
   }
   if (STACKED_PR_MARKER_REGEX.test(summary)) {
     errors.push("Summary must not contain a stacked PR marker such as PR-1/5");
@@ -199,9 +196,7 @@ export function validateCommitSubject(
 
 function requireFullSha(name, value) {
   if (!value || !FULL_SHA_REGEX.test(value)) {
-    throw new Error(
-      `${name} must be a 40-character lowercase hexadecimal SHA`,
-    );
+    throw new Error(`${name} must be a 40-character lowercase hexadecimal SHA`);
   }
   return value;
 }
