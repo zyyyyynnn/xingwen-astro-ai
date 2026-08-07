@@ -25,6 +25,8 @@ test("validatePrTitle rejects legacy or ungoverned metadata", () => {
     "fix(C-01): align manifest metadata contract",
     "feat(a-21): freeze OpenHands upstream agent source baseline (#197)",
     "feat(a-21): freeze OpenHands upstream agent source baseline #197",
+    "feat(a-21): resolve PR 197 title governance",
+    "feat(a-21): resolve Issue 190 title governance",
     "feat(a-21): freeze OpenHands upstream agent source baseline (A-21)",
     "feat(repo): finish governance PR-1/5",
     "feat(repo): WIP title governance",
@@ -76,6 +78,8 @@ test("validateCommitSubject rejects malformed backlinks and process noise", () =
   for (const title of [
     "feat(a-21): freeze OpenHands (#187) upstream agent source",
     "feat(a-21): freeze OpenHands source (#187) (#198)",
+    "fix(repo): resolve PR 198 title gate",
+    "fix(repo): resolve Issue 190 title gate",
     "fix(b-08): close publication review [agent-fixed-pr166]",
     "fix(repo): CI PASS after title repair",
     "fix(repo): resolve Review 4882344932 blocker",
