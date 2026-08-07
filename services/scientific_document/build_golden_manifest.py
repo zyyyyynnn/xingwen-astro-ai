@@ -1,27 +1,22 @@
 """Build the D-10 Golden Set manifest (reproducible, license-governed).
 
-Produces ``golden_set.json`` describing 15-20 exoplanet_host_star entries. The
-10 synthetic fixtures are committed to ``fixtures/`` and carry their content hash.
-Restricted REAL papers are listed as ``local_only`` manifest entries (source /
-REAL DOI / license / provenance / expected annotation) but their PDFs are NEVER
-committed (per D-10 #26). The report must always state Fixture != Golden and
-Recorded != Live.
+Produces ``golden_set.json`` describing 15-20 ``exoplanet_host_star`` entries.
+Ten legal synthetic fixtures are committed and content-hashed. Six real papers
+are represented as local-only records with genuine arXiv identifiers; their PDFs
+are not committed or fetched by CI.
 
-Real papers use genuine arXiv identifiers verified against arxiv.org; no
-placeholder/illustrative DOIs are permitted (D-10 D1). Where a PDF cannot be
-legally fetched and locally hashed in this checkout, ``content_hash`` is ``None``
-and ``availability`` is ``local-only`` with ``not-locally-verified`` provenance
-(D-10 D2/D17).
+A local-only entry with ``content_hash=None`` is explicitly *not exact-byte
+verified in this checkout*. Such an entry may keep metadata/abstract-level
+anchors, but MUST NOT claim PDF page count or page/block/cell locator ground
+truth until the exact local PDF is acquired and hashed.
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.scientific_document_benchmark import (
     BenchmarkDataType,
     GoldenExpectedAnnotation,
@@ -32,7 +27,6 @@ from app.schemas.scientific_document_benchmark import (
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 MANIFEST_PATH = Path(__file__).resolve().parent / "golden_set.json"
 
-# (key, title, coverage_tags, expected_annotation)
 _FIXTURE_SPECS: list[tuple[str, str, tuple[str, ...], GoldenExpectedAnnotation]] = [
     (
         "born_digital",
@@ -40,10 +34,14 @@ _FIXTURE_SPECS: list[tuple[str, str, tuple[str, ...], GoldenExpectedAnnotation]]
         ("born-digital", "paragraph", "reading-order"),
         GoldenExpectedAnnotation(
             expected_page_count=1,
-            critical_headings=["Exoplanet Host-Star Integration Study"],
+            critical_headings=("Exoplanet Host-Star Integration Study",),
             selected_paragraph_block_ids=("p1-w0001", "p1-w0002"),
             selected_reading_order=("p1-w0001", "p1-w0002"),
-            selected_scientific_values=("period=2.1 d", "radius=1.3 R_earth", "Teff=5200 K"),
+            selected_scientific_values=(
+                "period=2.1 d",
+                "radius=1.3 R_earth",
+                "Teff=5200 K",
+            ),
         ),
     ),
     (
@@ -52,8 +50,11 @@ _FIXTURE_SPECS: list[tuple[str, str, tuple[str, ...], GoldenExpectedAnnotation]]
         ("two-column", "reading-order"),
         GoldenExpectedAnnotation(
             expected_page_count=1,
-            critical_headings=["Two-Column Hot-Jupiter Survey"],
-            selected_scientific_values=("Teff=5000-6200 K", "metallicity=-0.2..0.3 dex"),
+            critical_headings=("Two-Column Hot-Jupiter Survey",),
+            selected_scientific_values=(
+                "Teff=5000-6200 K",
+                "metallicity=-0.2..0.3 dex",
+            ),
         ),
     ),
     (
@@ -62,7 +63,10 @@ _FIXTURE_SPECS: list[tuple[str, str, tuple[str, ...], GoldenExpectedAnnotation]]
         ("table", "simple-table"),
         GoldenExpectedAnnotation(
             expected_page_count=1,
-            critical_headings=["Sample Planet Parameters", "Table 1. Sample planet parameters"],
+            critical_headings=(
+                "Sample Planet Parameters",
+                "Table 1. Sample planet parameters",
+            ),
             selected_tables=("tbl-simple",),
             selected_cells=("simple-r0c0", "simple-r1c1", "simple-r2c2"),
         ),
@@ -73,7 +77,10 @@ _FIXTURE_SPECS: list[tuple[str, str, tuple[str, ...], GoldenExpectedAnnotation]]
         ("table", "complex-table", "spans"),
         GoldenExpectedAnnotation(
             expected_page_count=1,
-            critical_headings=["Stellar Parameters With Merged Header", "Table 2. Merged-header parameter table"],
+            critical_headings=(
+                "Stellar Parameters With Merged Header",
+                "Table 2. Merged-header parameter table",
+            ),
             selected_tables=("tbl-complex",),
         ),
     ),
@@ -83,7 +90,10 @@ _FIXTURE_SPECS: list[tuple[str, str, tuple[str, ...], GoldenExpectedAnnotation]]
         ("table", "cross-page", "partial"),
         GoldenExpectedAnnotation(
             expected_page_count=2,
-            critical_headings=["Cross-Page Table (Part 1)", "Cross-Page Table (page 2 of 2)"],
+            critical_headings=(
+                "Cross-Page Table (Part 1)",
+                "Cross-Page Table (page 2 of 2)",
+            ),
             selected_tables=("tbl-cross",),
         ),
     ),
@@ -93,7 +103,7 @@ _FIXTURE_SPECS: list[tuple[str, str, tuple[str, ...], GoldenExpectedAnnotation]]
         ("formula",),
         GoldenExpectedAnnotation(
             expected_page_count=1,
-            critical_headings=["Orbital Mechanics Relations"],
+            critical_headings=("Orbital Mechanics Relations",),
             selected_formulas=("fml-kepler",),
             selected_scientific_values=("P^2 = (4 pi^2 a^3)/(G M)",),
         ),
@@ -104,7 +114,7 @@ _FIXTURE_SPECS: list[tuple[str, str, tuple[str, ...], GoldenExpectedAnnotation]]
         ("figure", "caption"),
         GoldenExpectedAnnotation(
             expected_page_count=1,
-            critical_headings=["Radius-Period Distribution"],
+            critical_headings=("Radius-Period Distribution",),
             selected_figure_caption_links=("fig-1",),
         ),
     ),
@@ -114,7 +124,7 @@ _FIXTURE_SPECS: list[tuple[str, str, tuple[str, ...], GoldenExpectedAnnotation]]
         ("mixed", "figure", "caption"),
         GoldenExpectedAnnotation(
             expected_page_count=1,
-            critical_headings=["Mixed Text and Figure Layout"],
+            critical_headings=("Mixed Text and Figure Layout",),
             selected_figure_caption_links=("fig-2",),
         ),
     ),
@@ -130,26 +140,36 @@ _FIXTURE_SPECS: list[tuple[str, str, tuple[str, ...], GoldenExpectedAnnotation]]
         ("low-quality", "partial"),
         GoldenExpectedAnnotation(
             expected_page_count=1,
-            critical_headings=["Preliminary Reduction"],
+            critical_headings=("Preliminary Reduction",),
             selected_scientific_values=("Teff~5500 K",),
         ),
     ),
 ]
 
-# Restricted REAL papers (local-only; PDF not committed). All DOIs are genuine
-# arXiv identifiers verified against arxiv.org. content_hash is None because the
-# PDF is not redistributed / not fetched in this checkout (D-10 D2/D17).
-_RESTRICTED_SPECS: list[tuple[str, str, tuple[str, ...], str, str, GoldenExpectedAnnotation | None]] = [
+# Real local-only publications. Titles/selected values are metadata/abstract-level
+# anchors from the cited arXiv records. No page count/locator annotation is
+# claimed until exact local PDF bytes are acquired and content-hashed.
+_RESTRICTED_SPECS: list[
+    tuple[str, str, tuple[str, ...], str, str, GoldenExpectedAnnotation]
+] = [
     (
         "real_trappist1",
         "Seven temperate terrestrial planets around the nearby ultracool dwarf star TRAPPIST-1",
         ("born-digital", "table", "formula", "multi-planet"),
         "arXiv:1703.01424",
-        "arXiv non-exclusive license (arXiv:1703.01424), Nature 542, 456-460 (2017); PDF not redistributed, local-only",
+        "arXiv record 1703.01424; Nature 542, 456-460 (2017); PDF not redistributed, local-only/not-exact-byte-verified",
         GoldenExpectedAnnotation(
-            expected_page_count=27,
-            critical_headings=["Seven temperate terrestrial planets around TRAPPIST-1"],
-            selected_scientific_values=("P=1.51 d", "P=2.42 d", "P=4.04 d", "P=6.06 d", "P=9.21 d", "P=12.35 d"),
+            critical_headings=(
+                "Seven temperate terrestrial planets around the nearby ultracool dwarf star TRAPPIST-1",
+            ),
+            selected_scientific_values=(
+                "P=1.51 d",
+                "P=2.42 d",
+                "P=4.04 d",
+                "P=6.06 d",
+                "P=9.21 d",
+                "P=12.35 d",
+            ),
         ),
     ),
     (
@@ -157,11 +177,17 @@ _RESTRICTED_SPECS: list[tuple[str, str, tuple[str, ...], str, str, GoldenExpecte
         "Characterization of the Kepler-101 planetary system with HARPS-N",
         ("born-digital", "table", "radial-velocity"),
         "arXiv:1409.4592",
-        "arXiv non-exclusive license (arXiv:1409.4592), A&A 572, A2 (2014); PDF not redistributed, local-only",
+        "arXiv record 1409.4592; A&A 572, A2 (2014); PDF not redistributed, local-only/not-exact-byte-verified",
         GoldenExpectedAnnotation(
-            expected_page_count=7,
-            critical_headings=["Characterization of the Kepler-101 planetary system with HARPS-N"],
-            selected_scientific_values=("P_b=3.49 d", "R_b=5.77 R_earth", "P_c=6.03 d", "R_c=1.25 R_earth"),
+            critical_headings=(
+                "Characterization of the Kepler-101 planetary system with HARPS-N",
+            ),
+            selected_scientific_values=(
+                "P_b=3.49 d",
+                "R_b=5.77 R_earth",
+                "P_c=6.03 d",
+                "R_c=1.25 R_earth",
+            ),
         ),
     ),
     (
@@ -169,10 +195,11 @@ _RESTRICTED_SPECS: list[tuple[str, str, tuple[str, ...], str, str, GoldenExpecte
         "KOI-142, the King of Transit Variations, is a Pair of Planets near the 2:1 Resonance",
         ("born-digital", "timing", "near-resonance"),
         "arXiv:1304.4283",
-        "arXiv non-exclusive license (arXiv:1304.4283), ApJ 777, 3 (2013); PDF not redistributed, local-only",
+        "arXiv record 1304.4283; ApJ 777, 3 (2013); PDF not redistributed, local-only/not-exact-byte-verified",
         GoldenExpectedAnnotation(
-            expected_page_count=1,
-            critical_headings=["KOI-142, the King of Transit Variations"],
+            critical_headings=(
+                "KOI-142, the King of Transit Variations, is a Pair of Planets near the 2:1 Resonance",
+            ),
             selected_scientific_values=("P_c/P_b=2.03", "M_c=0.7 M_Jup"),
         ),
     ),
@@ -181,10 +208,11 @@ _RESTRICTED_SPECS: list[tuple[str, str, tuple[str, ...], str, str, GoldenExpecte
         "Kepler-10c, a 2.2-Earth radius transiting planet in a multiple system",
         ("born-digital", "validation"),
         "arXiv:1105.4647",
-        "arXiv non-exclusive license (arXiv:1105.4647), ApJS 197, 5 (2011); PDF not redistributed, local-only",
+        "arXiv record 1105.4647; ApJS 197, 5 (2011); PDF not redistributed, local-only/not-exact-byte-verified",
         GoldenExpectedAnnotation(
-            expected_page_count=1,
-            critical_headings=["Kepler-10c, a 2.2-Earth radius transiting planet in a multiple system"],
+            critical_headings=(
+                "Kepler-10c, a 2.2-Earth radius transiting planet in a multiple system",
+            ),
             selected_scientific_values=("R_p=2.227 R_earth",),
         ),
     ),
@@ -193,11 +221,16 @@ _RESTRICTED_SPECS: list[tuple[str, str, tuple[str, ...], str, str, GoldenExpecte
         "A short-period planet orbiting a pre-main-sequence star in Upper Scorpius",
         ("born-digital", "young-star"),
         "arXiv:1604.06165",
-        "arXiv non-exclusive license (arXiv:1604.06165), AJ 152, 61 (2016); PDF not redistributed, local-only",
+        "arXiv record 1604.06165; AJ 152, 61 (2016); PDF not redistributed, local-only/not-exact-byte-verified",
         GoldenExpectedAnnotation(
-            expected_page_count=17,
-            critical_headings=["A short-period planet orbiting a pre-main-sequence star"],
-            selected_scientific_values=("P_orb=5.425 d", "R_p=5.04 R_earth", "age~11 Myr"),
+            critical_headings=(
+                "A short-period planet orbiting a pre-main-sequence star in Upper Scorpius",
+            ),
+            selected_scientific_values=(
+                "P_orb=5.425 d",
+                "R_p=5.04 R_earth",
+                "age~11 Myr",
+            ),
         ),
     ),
     (
@@ -205,10 +238,11 @@ _RESTRICTED_SPECS: list[tuple[str, str, tuple[str, ...], str, str, GoldenExpecte
         "Kepler phase curves and secondary eclipses -- temperatures and albedos of confirmed Kepler giant planets",
         ("born-digital", "phase-curve", "albedo"),
         "arXiv:1404.4348",
-        "arXiv non-exclusive license (arXiv:1404.4348), PASP (2015); PDF not redistributed, local-only",
+        "arXiv record 1404.4348; PASP (2015); PDF not redistributed, local-only/not-exact-byte-verified",
         GoldenExpectedAnnotation(
-            expected_page_count=50,
-            critical_headings=["A comprehensive study of Kepler phase curves and secondary eclipses"],
+            critical_headings=(
+                "A comprehensive study of Kepler phase curves and secondary eclipses -- temperatures and albedos of confirmed Kepler giant planets",
+            ),
             selected_scientific_values=("albedo<0.1 (most)", "R_p>4 R_earth"),
         ),
     ),
@@ -216,15 +250,13 @@ _RESTRICTED_SPECS: list[tuple[str, str, tuple[str, ...], str, str, GoldenExpecte
 
 
 def _content_hash_of_pdf(path: Path) -> str:
-    data = path.read_bytes()
-    return "sha256:" + hashlib.sha256(data).hexdigest()
+    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def build_manifest() -> GoldenSetManifest:
     entries: list[GoldenSetEntry] = []
     for key, title, tags, expected in _FIXTURE_SPECS:
         pdf = FIXTURES_DIR / f"golden_{key}.pdf"
-        chash = _content_hash_of_pdf(pdf) if pdf.is_file() else None
         entries.append(
             GoldenSetEntry(
                 entry_id=f"gs-{key}",
@@ -233,14 +265,15 @@ def build_manifest() -> GoldenSetManifest:
                 data_type=BenchmarkDataType.fixture,
                 source="synthetic-fixture",
                 license_note="CC0 synthetic; generated by repo tooling, no third-party copyright",
-                content_hash=chash,
+                content_hash=_content_hash_of_pdf(pdf) if pdf.is_file() else None,
                 availability="committed-fixture",
                 local_only=False,
                 coverage_tags=tags,
                 expected=expected,
             )
         )
-    for key, title, tags, doi, lic, expected in _RESTRICTED_SPECS:
+
+    for key, title, tags, identifier, license_note, expected in _RESTRICTED_SPECS:
         entries.append(
             GoldenSetEntry(
                 entry_id=f"gs-{key}",
@@ -248,8 +281,8 @@ def build_manifest() -> GoldenSetManifest:
                 title=title,
                 data_type=BenchmarkDataType.golden,
                 source="restricted-publication",
-                doi_or_identifier=doi,
-                license_note=lic,
+                doi_or_identifier=identifier,
+                license_note=license_note,
                 content_hash=None,
                 availability="local-only",
                 local_only=True,
@@ -257,6 +290,7 @@ def build_manifest() -> GoldenSetManifest:
                 expected=expected,
             )
         )
+
     manifest = GoldenSetManifest(
         manifest_id="d10-golden-set",
         version="1.1.0",
@@ -265,8 +299,7 @@ def build_manifest() -> GoldenSetManifest:
         sample_count=len(entries),
         entries=tuple(entries),
     )
-    # Validate eagerly so drift fails closed at build time.
-    manifest.model_validate(manifest.model_dump(mode="json"))
+    GoldenSetManifest.model_validate(manifest.model_dump(mode="json"))
     return manifest
 
 
