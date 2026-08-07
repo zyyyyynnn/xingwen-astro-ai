@@ -7,6 +7,9 @@ error mapping, ownership isolation and the metadata-only public DTOs.
 
 from __future__ import annotations
 
+import asyncio
+import json
+import secrets
 from pathlib import Path
 
 import pytest
@@ -66,6 +69,17 @@ def _seed_project(
     store.register_project(
         project_id=project_id, owner_session_id=owner or session_id
     )
+
+
+def _install_fetcher(app: FastAPI, fetcher: object) -> None:
+    """Replace the URL fetch port on the ingestion service.
+
+    The fetcher is a constructor-injected dependency of the application
+    service, so tests substitute it there rather than monkeypatching a module
+    global inside the router.
+    """
+
+    app.state.research_input_ingestion._url_fetcher = fetcher
 
 
 def _create_text(
@@ -293,7 +307,7 @@ def test_rate_limit_applies_per_session(
 
 
 def _stub_fetch(
-    monkeypatch: pytest.MonkeyPatch,
+    app: FastAPI,
     *,
     content: bytes = b"a,b\n1,2\n",
     mime: str = "text/csv",
@@ -322,22 +336,15 @@ def _stub_fetch(
             source_snapshot=snapshot,
         )
 
-    monkeypatch.setattr(url_fetcher_module, "fetch_url", fake_fetch)
-    monkeypatch.setattr(
-        "app.routers.research_inputs.fetch_url", fake_fetch
-    )
-    monkeypatch.setattr(
-        "app.routers.research_inputs.validate_url_policy", lambda url, config: None
-    )
+    _install_fetcher(app, fake_fetch)
 
 
 def test_url_ingestion_records_provenance_without_content(
     app_and_client: tuple[FastAPI, TestClient, str, str],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     app, client, session_id, csrf_token = app_and_client
     _seed_project(app, session_id)
-    _stub_fetch(monkeypatch)
+    _stub_fetch(app)
 
     response = client.post(
         "/api/research-inputs",
@@ -362,18 +369,17 @@ def test_url_ingestion_records_provenance_without_content(
 
 def test_url_policy_denial_maps_to_422(
     app_and_client: tuple[FastAPI, TestClient, str, str],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     app, client, session_id, csrf_token = app_and_client
     _seed_project(app, session_id)
 
-    def blocked(url: str, config: UrlFetchConfig) -> UrlFetchResult:  # noqa: ANN001
+    async def blocked(url: str, config: UrlFetchConfig) -> UrlFetchResult:  # noqa: ANN001
         del url, config
         raise UrlFetchError(
             code="URL_FETCH_BLOCKED", detail="URL host is not in the allowed hosts"
         )
 
-    monkeypatch.setattr("app.routers.research_inputs.fetch_url", blocked)
+    _install_fetcher(app, blocked)
 
     response = client.post(
         "/api/research-inputs",
@@ -390,21 +396,17 @@ def test_url_policy_denial_maps_to_422(
 
 def test_url_fetch_failure_maps_to_502(
     app_and_client: tuple[FastAPI, TestClient, str, str],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     app, client, session_id, csrf_token = app_and_client
     _seed_project(app, session_id)
 
-    def failing(url: str, config: UrlFetchConfig) -> UrlFetchResult:  # noqa: ANN001
+    async def failing(url: str, config: UrlFetchConfig) -> UrlFetchResult:  # noqa: ANN001
         del url, config
         raise UrlFetchError(
             code="URL_FETCH_TOO_LARGE", detail="URL response exceeds the maximum size"
         )
 
-    monkeypatch.setattr("app.routers.research_inputs.fetch_url", failing)
-    monkeypatch.setattr(
-        "app.routers.research_inputs.validate_url_policy", lambda url, config: None
-    )
+    _install_fetcher(app, failing)
 
     response = client.post(
         "/api/research-inputs",
@@ -630,3 +632,505 @@ def test_bind_target_xor_validation(
     )
     assert neither.status_code == 422
 
+
+# ---- request idempotency matrix --------------------------------------------
+#
+# Content dedup and request idempotency are different identities. These tests
+# pin both directions: one key must never straddle two different requests, and
+# two different keys are free to resolve to the same immutable input.
+
+
+def _snapshot(content_hash: str, snapshot_id: str) -> SourceSnapshotRecord:
+    return SourceSnapshotRecord(
+        snapshot_id=snapshot_id,
+        source_id="url_example.com",
+        source_type="url_fetch",
+        retrieved_at="2026-08-06T08:00:00Z",
+        query="https://example.com/data.csv",
+        query_hash="sha256:" + "0" * 64,
+        content_hash=content_hash,
+        license_note="fetched",
+        request_metadata={"status_code": 200},
+    )
+
+
+def _counting_fetcher(snapshot_id: str) -> tuple[object, dict[str, int]]:
+    content = b"a,b\n1,2\n"
+    content_hash = sha256_content_hash(content)
+    snapshot = _snapshot(content_hash, snapshot_id)
+    calls = {"count": 0}
+
+    async def fetch(url: str, config: UrlFetchConfig) -> UrlFetchResult:  # noqa: ANN001
+        del config
+        calls["count"] += 1
+        return UrlFetchResult(
+            content_hash=content_hash,
+            content_bytes=content,
+            mime_type="text/csv",
+            status_code=200,
+            final_url=url,
+            source_snapshot=snapshot,
+        )
+
+    return fetch, calls
+
+
+def test_same_key_same_upload_bytes_replays_same_input(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    headers = _headers(csrf_token, idempotency_key="upload-key-1")
+
+    def upload():  # noqa: ANN202
+        return client.post(
+            "/api/research-inputs",
+            data={"project_id": "proj_01", "type": "pdf"},
+            files={
+                "file": ("report.pdf", FIXTURES_BYTES["sample.pdf"], "application/pdf")
+            },
+            headers=headers,
+        )
+
+    first = upload()
+    assert first.status_code == 201
+    second = upload()
+    assert second.status_code == 201
+    assert second.json()["data"]["id"] == first.json()["data"]["id"]
+
+
+def test_same_key_same_filename_different_bytes_conflicts(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    """The fingerprint binds real byte identity, not just the filename."""
+
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    headers = _headers(csrf_token, idempotency_key="upload-key-2")
+
+    first = client.post(
+        "/api/research-inputs",
+        data={"project_id": "proj_01", "type": "pdf"},
+        files={"file": ("same.pdf", FIXTURES_BYTES["sample.pdf"], "application/pdf")},
+        headers=headers,
+    )
+    assert first.status_code == 201
+
+    other_bytes = FIXTURES_BYTES["sample.pdf"] + b"\n% appended\n"
+    second = client.post(
+        "/api/research-inputs",
+        data={"project_id": "proj_01", "type": "pdf"},
+        files={"file": ("same.pdf", other_bytes, "application/pdf")},
+        headers=headers,
+    )
+    assert second.status_code == 409
+    assert second.json()["code"] == "IDEMPOTENCY_CONFLICT"
+
+
+def test_different_keys_same_content_both_succeed_and_dedup(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    """Two independent requests carrying identical bytes are both valid."""
+
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    body = {"project_id": "proj_01", "type": "text", "text_content": "shared body"}
+
+    first = client.post(
+        "/api/research-inputs",
+        json=body,
+        headers=_headers(csrf_token, idempotency_key="key-A"),
+    )
+    second = client.post(
+        "/api/research-inputs",
+        json=body,
+        headers=_headers(csrf_token, idempotency_key="key-B"),
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    # Content dedup collapses them onto the same immutable resource.
+    assert first.json()["data"]["id"] == second.json()["data"]["id"]
+
+    # Each key still replays independently to that same resource.
+    for key in ("key-A", "key-B"):
+        replay = client.post(
+            "/api/research-inputs",
+            json=body,
+            headers=_headers(csrf_token, idempotency_key=key),
+        )
+        assert replay.status_code == 201
+        assert replay.json()["data"]["id"] == first.json()["data"]["id"]
+
+
+def test_url_replay_does_not_refetch_the_network(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    """Replay is decided before the fetch, so the network is touched once."""
+
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    fetcher, calls = _counting_fetcher("snap_counted")
+    _install_fetcher(app, fetcher)
+
+    body = {
+        "project_id": "proj_01",
+        "type": "url",
+        "url": "https://example.com/data.csv",
+    }
+    headers = _headers(csrf_token, idempotency_key="url-key-1")
+
+    first = client.post("/api/research-inputs", json=body, headers=headers)
+    assert first.status_code == 201
+    assert calls["count"] == 1
+
+    replay = client.post("/api/research-inputs", json=body, headers=headers)
+    assert replay.status_code == 201
+    assert replay.json()["data"]["id"] == first.json()["data"]["id"]
+    assert calls["count"] == 1
+
+
+def test_same_key_different_url_conflicts_without_fetching(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    fetcher, calls = _counting_fetcher("snap_conflict")
+    _install_fetcher(app, fetcher)
+    headers = _headers(csrf_token, idempotency_key="url-key-2")
+
+    first = client.post(
+        "/api/research-inputs",
+        json={
+            "project_id": "proj_01",
+            "type": "url",
+            "url": "https://example.com/data.csv",
+        },
+        headers=headers,
+    )
+    assert first.status_code == 201
+    assert calls["count"] == 1
+
+    conflict = client.post(
+        "/api/research-inputs",
+        json={
+            "project_id": "proj_01",
+            "type": "url",
+            "url": "https://example.com/other.csv",
+        },
+        headers=headers,
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
+    # The conflicting request is rejected before any network call is made.
+    assert calls["count"] == 1
+
+
+def test_failed_url_fetch_leaves_the_key_retryable(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    """A failed fetch must not leave a permanent completed mapping behind."""
+
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+
+    content = b"a,b\n1,2\n"
+    content_hash = sha256_content_hash(content)
+    snapshot = _snapshot(content_hash, "snap_retry")
+    state = {"fail": True}
+
+    async def flaky(url: str, config: UrlFetchConfig) -> UrlFetchResult:  # noqa: ANN001
+        del config
+        if state["fail"]:
+            raise UrlFetchError(code="URL_FETCH_FAILED", detail="upstream exploded")
+        return UrlFetchResult(
+            content_hash=content_hash,
+            content_bytes=content,
+            mime_type="text/csv",
+            status_code=200,
+            final_url=url,
+            source_snapshot=snapshot,
+        )
+
+    _install_fetcher(app, flaky)
+    body = {
+        "project_id": "proj_01",
+        "type": "url",
+        "url": "https://example.com/data.csv",
+    }
+    headers = _headers(csrf_token, idempotency_key="url-key-3")
+
+    failed = client.post("/api/research-inputs", json=body, headers=headers)
+    assert failed.status_code == 502
+
+    state["fail"] = False
+    retried = client.post("/api/research-inputs", json=body, headers=headers)
+    assert retried.status_code == 201
+
+
+# ---- request body ceilings -------------------------------------------------
+#
+# Content-Length is client supplied and may be absent entirely, so every test
+# below streams its body with no declared length. The ceiling must still hold,
+# which is only possible if it is enforced on the ASGI receive channel rather
+# than after the parser has already buffered the body.
+
+
+async def _stream_request(
+    app: FastAPI,
+    *,
+    path: str,
+    headers: dict[str, str],
+    chunks: list[bytes],
+    cookies: dict[str, str],
+) -> tuple[int, dict]:
+    """Drive one POST through the ASGI app with a chunked, unsized body."""
+
+    cookie_header = "; ".join(f"{k}={v}" for k, v in cookies.items())
+    raw_headers = [
+        (key.lower().encode("latin-1"), value.encode("latin-1"))
+        for key, value in headers.items()
+    ]
+    if cookie_header:
+        raw_headers.append((b"cookie", cookie_header.encode("latin-1")))
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "root_path": "",
+        "headers": raw_headers,
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+    }
+
+    pending = list(chunks)
+
+    async def receive() -> dict:
+        if pending:
+            chunk = pending.pop(0)
+            return {
+                "type": "http.request",
+                "body": chunk,
+                "more_body": bool(pending),
+            }
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    captured: dict = {"status": None, "body": b""}
+
+    async def send(message: dict) -> None:
+        if message["type"] == "http.response.start":
+            captured["status"] = message["status"]
+        elif message["type"] == "http.response.body":
+            captured["body"] += message.get("body", b"")
+
+    await app(scope, receive, send)
+    try:
+        payload = json.loads(captured["body"] or b"{}")
+    except ValueError:
+        payload = {}
+    return captured["status"], payload
+
+
+def _asgi_headers(csrf_token: str, content_type: str) -> dict[str, str]:
+    return {
+        "content-type": content_type,
+        "x-csrf-token": csrf_token,
+        "idempotency-key": "asgi-" + secrets.token_hex(6),
+        "host": "testserver",
+    }
+
+
+def test_unsized_json_body_over_limit_is_rejected_413(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_MAX_SIZE_BYTES", 2048)
+
+    oversized = json.dumps(
+        {"project_id": "proj_01", "type": "text", "text_content": "x" * 8192}
+    ).encode()
+    chunks = [oversized[i : i + 1024] for i in range(0, len(oversized), 1024)]
+
+    status, payload = asyncio.run(
+        _stream_request(
+            app,
+            path="/api/research-inputs",
+            headers=_asgi_headers(csrf_token, "application/json"),
+            chunks=chunks,
+            cookies=dict(client.cookies),
+        )
+    )
+    assert status == 413
+    assert payload.get("code") == "RESEARCH_INPUT_TOO_LARGE"
+
+
+def _multipart_body(file_bytes: bytes, boundary: str) -> bytes:
+    def part(name: str, value: str) -> bytes:
+        return (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="{name}"\r\n\r\n'
+            f"{value}\r\n"
+        ).encode()
+
+    head = (
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="file"; filename="big.pdf"\r\n'
+        "Content-Type: application/pdf\r\n\r\n"
+    ).encode()
+    return (
+        part("project_id", "proj_01")
+        + part("type", "pdf")
+        + head
+        + file_bytes
+        + f"\r\n--{boundary}--\r\n".encode()
+    )
+
+
+def test_unsized_multipart_body_over_limit_is_rejected_413(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_MAX_SIZE_BYTES", 4096)
+
+    boundary = "----b19boundary"
+    body = _multipart_body(b"%PDF-1.4\n" + b"y" * 200000, boundary)
+    chunks = [body[i : i + 8192] for i in range(0, len(body), 8192)]
+
+    status, payload = asyncio.run(
+        _stream_request(
+            app,
+            path="/api/research-inputs",
+            headers=_asgi_headers(
+                csrf_token, f"multipart/form-data; boundary={boundary}"
+            ),
+            chunks=chunks,
+            cookies=dict(client.cookies),
+        )
+    )
+    assert status == 413
+    assert payload.get("code") == "RESEARCH_INPUT_TOO_LARGE"
+
+
+def test_file_of_exactly_the_limit_is_accepted_despite_multipart_overhead(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Framing bytes must not push a legal maximum-size file over the ceiling."""
+
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+
+    pdf = FIXTURES_BYTES["sample.pdf"]
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_MAX_SIZE_BYTES", len(pdf))
+
+    response = client.post(
+        "/api/research-inputs",
+        data={"project_id": "proj_01", "type": "pdf"},
+        files={"file": ("exact.pdf", pdf, "application/pdf")},
+        headers=_headers(csrf_token),
+    )
+    assert response.status_code == 201
+    assert response.json()["data"]["size_bytes"] == len(pdf)
+
+
+def test_multipart_with_too_many_fields_is_rejected(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+
+    data = {"project_id": "proj_01", "type": "pdf"}
+    for index in range(40):
+        data[f"filler_{index}"] = "x"
+
+    response = client.post(
+        "/api/research-inputs",
+        data=data,
+        files={"file": ("a.pdf", FIXTURES_BYTES["sample.pdf"], "application/pdf")},
+        headers=_headers(csrf_token),
+    )
+    assert response.status_code in {400, 413, 422}
+    assert response.status_code != 201
+
+
+def test_multipart_with_more_than_one_file_is_rejected(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+
+    response = client.post(
+        "/api/research-inputs",
+        data={"project_id": "proj_01", "type": "pdf"},
+        files=[
+            ("file", ("a.pdf", FIXTURES_BYTES["sample.pdf"], "application/pdf")),
+            ("extra", ("b.pdf", FIXTURES_BYTES["sample.pdf"], "application/pdf")),
+        ],
+        headers=_headers(csrf_token),
+    )
+    assert response.status_code in {400, 413, 422}
+    assert response.status_code != 201
+
+
+def test_understated_content_length_cannot_bypass_the_ceiling(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A lying Content-Length must not buy more body than the real ceiling."""
+
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_MAX_SIZE_BYTES", 2048)
+
+    oversized = json.dumps(
+        {"project_id": "proj_01", "type": "text", "text_content": "x" * 8192}
+    ).encode()
+    headers = _asgi_headers(csrf_token, "application/json")
+    headers["content-length"] = "10"  # deliberately understated
+
+    status, payload = asyncio.run(
+        _stream_request(
+            app,
+            path="/api/research-inputs",
+            headers=headers,
+            chunks=[oversized[i : i + 1024] for i in range(0, len(oversized), 1024)],
+            cookies=dict(client.cookies),
+        )
+    )
+    assert status != 201
+    assert status in {400, 413, 422}
+
+
+def test_malformed_content_length_does_not_bypass_the_ceiling(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_MAX_SIZE_BYTES", 2048)
+
+    oversized = json.dumps(
+        {"project_id": "proj_01", "type": "text", "text_content": "x" * 8192}
+    ).encode()
+    headers = _asgi_headers(csrf_token, "application/json")
+    headers["content-length"] = "not-a-number"
+
+    status, _ = asyncio.run(
+        _stream_request(
+            app,
+            path="/api/research-inputs",
+            headers=headers,
+            chunks=[oversized[i : i + 1024] for i in range(0, len(oversized), 1024)],
+            cookies=dict(client.cookies),
+        )
+    )
+    assert status != 201

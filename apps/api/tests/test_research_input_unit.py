@@ -11,7 +11,7 @@ import asyncio
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from app.schemas.research_input import (
     BindResearchInputRequest,
@@ -21,14 +21,20 @@ from app.schemas.research_input import (
     ResearchInputType,
 )
 from app.security import SecurityProblem
-from app.services.content_storage import LocalContentStorage, sha256_content_hash
-from app.services.research_input_store import (
-    InMemoryResearchInputStore,
-    PreparedInput,
+from app.services.content_storage import (
+    ContentStorageError,
+    LocalContentStorage,
+    sha256_content_hash,
+)
+from app.services.research_input_policy import (
     filename_extension_matches,
     sanitize_filename,
     sniff_mime_type,
     validate_declared_mime,
+)
+from app.services.research_input_store import (
+    InMemoryResearchInputStore,
+    PreparedInput,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -100,11 +106,26 @@ def test_unknown_fields_are_rejected() -> None:
         )
 
 
-def test_bind_request_requires_exactly_one_target() -> None:
-    with pytest.raises(ValidationError, match="contract_draft_id or run_id"):
-        BindResearchInputRequest(project_id="proj_01")
-    BindResearchInputRequest(project_id="proj_01", contract_draft_id="draft_01")
-    BindResearchInputRequest(project_id="proj_01", run_id="run_01")
+def test_bind_request_expresses_xor_without_a_runtime_validator() -> None:
+    adapter = TypeAdapter(BindResearchInputRequest)
+    with pytest.raises(ValidationError):
+        adapter.validate_python({"project_id": "proj_01"})
+    with pytest.raises(ValidationError):
+        adapter.validate_python(
+            {
+                "project_id": "proj_01",
+                "contract_draft_id": "draft_01",
+                "run_id": "run_01",
+            }
+        )
+    contract = adapter.validate_python(
+        {"project_id": "proj_01", "contract_draft_id": "draft_01"}
+    )
+    assert contract.contract_draft_id == "draft_01"
+    assert contract.run_id is None
+    run = adapter.validate_python({"project_id": "proj_01", "run_id": "run_01"})
+    assert run.run_id == "run_01"
+    assert run.contract_draft_id is None
 
 
 # ---- MIME sniffing ---------------------------------------------------------
@@ -129,13 +150,20 @@ def test_sniff_mime_rejects_binary_and_unknown() -> None:
 def test_validate_declared_mime_requires_type_and_client_agreement() -> None:
     csv = (FIXTURES / "sample.csv").read_bytes()
     sniffed = sniff_mime_type(csv)
+    allowed = frozenset({"text/csv", "text/plain", "application/pdf"})
     assert sniffed == "text/csv"
     assert validate_declared_mime(
-        declared_type=ResearchInputType.csv, sniffed_mime=sniffed, client_mime=None
+        declared_type=ResearchInputType.csv,
+        sniffed_mime=sniffed,
+        client_mime=None,
+        allowed_mimes=allowed,
     ) == "text/csv"
     assert (
         validate_declared_mime(
-            declared_type=ResearchInputType.pdf, sniffed_mime=sniffed, client_mime=None
+            declared_type=ResearchInputType.pdf,
+            sniffed_mime=sniffed,
+            client_mime=None,
+            allowed_mimes=allowed,
         )
         is None
     )
@@ -144,6 +172,7 @@ def test_validate_declared_mime_requires_type_and_client_agreement() -> None:
             declared_type=ResearchInputType.csv,
             sniffed_mime=sniffed,
             client_mime="text/plain",
+            allowed_mimes=allowed,
         )
         is None
     )
@@ -360,3 +389,124 @@ def test_sha256_content_hash_has_canonical_shape() -> None:
     value = sha256_content_hash(b"x")
     assert value.startswith("sha256:")
     assert len(value) == 71
+
+
+# ---- content storage invariants --------------------------------------------
+
+
+def test_storage_publish_never_replaces_an_existing_blob(tmp_path: Path) -> None:
+    """A published blob is immutable: republishing must not rewrite the file."""
+
+    storage = LocalContentStorage(tmp_path)
+    content = b"publish once"
+    content_hash = sha256_content_hash(content)
+    ref = asyncio.run(storage.store(content, content_hash))
+
+    blob = tmp_path / ref
+    inode_before = blob.stat().st_ino
+    mtime_before = blob.stat().st_mtime_ns
+
+    assert asyncio.run(storage.store(content, content_hash)) == ref
+    assert blob.stat().st_ino == inode_before
+    assert blob.stat().st_mtime_ns == mtime_before
+    assert blob.read_bytes() == content
+
+
+def test_storage_concurrent_writers_produce_one_valid_blob(tmp_path: Path) -> None:
+    storage = LocalContentStorage(tmp_path)
+    content = b"concurrent payload" * 64
+    content_hash = sha256_content_hash(content)
+
+    async def run_all() -> list[str]:
+        return list(
+            await asyncio.gather(
+                *(storage.store(content, content_hash) for _ in range(12))
+            )
+        )
+
+    refs = asyncio.run(run_all())
+    assert len(set(refs)) == 1
+
+    blob = tmp_path / refs[0]
+    assert blob.read_bytes() == content
+    assert sha256_content_hash(blob.read_bytes()) == content_hash
+    # Exactly one published blob, and no temp files left behind.
+    assert sorted(p.name for p in blob.parent.iterdir()) == [blob.name]
+
+
+def test_storage_repairs_a_corrupt_final_blob(tmp_path: Path) -> None:
+    storage = LocalContentStorage(tmp_path)
+    content = b"the real bytes"
+    content_hash = sha256_content_hash(content)
+    ref = asyncio.run(storage.store(content, content_hash))
+    blob = tmp_path / ref
+
+    blob.write_bytes(b"corrupted junk")
+    assert sha256_content_hash(blob.read_bytes()) != content_hash
+
+    assert asyncio.run(storage.store(content, content_hash)) == ref
+    assert blob.read_bytes() == content
+    assert sha256_content_hash(blob.read_bytes()) == content_hash
+
+
+def test_storage_read_failure_never_deletes_the_blob(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A permission fault is an environment error, not proof of corruption."""
+
+    storage = LocalContentStorage(tmp_path)
+    content = b"protected bytes"
+    content_hash = sha256_content_hash(content)
+    ref = asyncio.run(storage.store(content, content_hash))
+    blob = tmp_path / ref
+
+    def deny(self: Path) -> bytes:
+        raise PermissionError("read denied")
+
+    monkeypatch.setattr(Path, "read_bytes", deny)
+    with pytest.raises(ContentStorageError, match="unable to read existing blob"):
+        asyncio.run(storage.store(content, content_hash))
+
+    monkeypatch.undo()
+    assert blob.is_file()
+    assert blob.read_bytes() == content
+
+
+def test_storage_leaves_no_temp_files_when_publication_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    storage = LocalContentStorage(tmp_path)
+    content = b"never lands"
+    content_hash = sha256_content_hash(content)
+
+    def boom(temp: Path, final: Path) -> bool:
+        raise OSError("publish failed")
+
+    monkeypatch.setattr(
+        "app.services.content_storage._publish_no_replace", boom
+    )
+    with pytest.raises(OSError, match="publish failed"):
+        asyncio.run(storage.store(content, content_hash))
+
+    monkeypatch.undo()
+    leftovers = [p.name for p in tmp_path.rglob(".tmp_*")]
+    assert leftovers == []
+
+
+@pytest.mark.parametrize(
+    "bad_hash",
+    [
+        "sha256:" + "A" * 64,
+        "sha256:" + "a" * 63,
+        "sha256:" + "z" * 64,
+        "sha256:../../etc/passwd",
+        "a" * 64,
+        "",
+    ],
+)
+def test_storage_rejects_malformed_content_hashes(
+    tmp_path: Path, bad_hash: str
+) -> None:
+    storage = LocalContentStorage(tmp_path)
+    with pytest.raises((ValueError, ContentStorageError)):
+        asyncio.run(storage.store(b"payload", bad_hash))

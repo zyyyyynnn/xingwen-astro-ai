@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 import os
+import threading
 from pathlib import Path
 from uuid import UUID
 
@@ -16,9 +17,11 @@ from alembic import command
 from alembic.config import Config
 import pytest
 from sqlalchemy import Engine
+from sqlalchemy.exc import IntegrityError
 
 from app.db.models import (
     ResearchContractDraftModel,
+    ResearchInputBindingModel,
     ResearchContractModel,
     ResearchInputModel,
     ResearchProjectModel,
@@ -31,6 +34,8 @@ from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.research_input import ResearchInputCreate
 from app.security import SecurityProblem
 from app.services.research_input_store import (
+    IdempotencyReservation,
+    PersistentIdempotencyRepository,
     PersistentResearchInputStore,
     PreparedInput,
 )
@@ -347,3 +352,301 @@ def test_persistent_store_binding_target_xor_constraint(
         with pytest.raises(IntegrityError):
             session.flush()
 
+
+# ---- referential invariants ------------------------------------------------
+#
+# These assert that the *database* refuses inconsistent rows, so the guarantees
+# do not depend on application code remembering to check.
+
+
+def test_dangling_contract_draft_id_is_rejected(
+    store_context: dict[str, object],
+) -> None:
+    ctx = store_context
+    factory = ctx["factory"]
+    store = _store(ctx)
+    created = _create(store, ctx, content=b"fk draft probe")
+
+    with factory() as session, session.begin():
+        binding = ResearchInputBindingModel(
+            input_id=UUID(created.id),
+            project_id=ctx["ids"]["project"],
+            contract_draft_id=UUID(int=987654),  # no such draft
+            run_id=None,
+        )
+        session.add(binding)
+        with pytest.raises(IntegrityError):
+            session.flush()
+
+
+def test_binding_run_must_belong_to_the_same_project(
+    store_context: dict[str, object],
+) -> None:
+    ctx = store_context
+    factory = ctx["factory"]
+    store = _store(ctx)
+    created = _create(store, ctx, content=b"fk run probe")
+
+    with factory() as session, session.begin():
+        binding = ResearchInputBindingModel(
+            input_id=UUID(created.id),
+            project_id=ctx["ids"]["other_project"],
+            contract_draft_id=None,
+            run_id=ctx["ids"]["run"],
+        )
+        session.add(binding)
+        with pytest.raises(IntegrityError):
+            session.flush()
+
+
+def test_binding_input_must_belong_to_the_same_project(
+    store_context: dict[str, object],
+) -> None:
+    ctx = store_context
+    factory = ctx["factory"]
+    store = _store(ctx)
+    created = _create(store, ctx, content=b"fk input probe")
+
+    with factory() as session, session.begin():
+        binding = ResearchInputBindingModel(
+            input_id=UUID(created.id),
+            project_id=ctx["ids"]["other_project"],
+            contract_draft_id=None,
+            run_id=None,
+        )
+        session.add(binding)
+        with pytest.raises(IntegrityError):
+            session.flush()
+
+
+def test_snapshot_project_pair_is_enforced(
+    store_context: dict[str, object],
+) -> None:
+    """A research input cannot point at a snapshot from another project."""
+
+    ctx = store_context
+    factory = ctx["factory"]
+    with factory() as session, session.begin():
+        foreign_snapshot = SourceSnapshotModel(
+            project_id=ctx["ids"]["other_project"],
+            source_id="url_foreign",
+            source_type="url_fetch",
+            retrieved_at=NOW,
+            query="https://example.com/foreign.csv",
+            query_hash="sha256:" + "7" * 64,
+            content_hash="sha256:" + "8" * 64,
+            license_note="fetched",
+            request_metadata={"status_code": 200},
+        )
+        session.add(foreign_snapshot)
+        session.flush()
+        foreign_snapshot_id = foreign_snapshot.id
+
+    with factory() as session, session.begin():
+        row = ResearchInputModel(
+            session_id=ctx["owner"].id,
+            project_id=ctx["ids"]["project"],
+            type="url",
+            source_type="url_fetch",
+            content_hash="sha256:" + "9" * 64,
+            storage_ref="99/" + "9" * 64,
+            filename=None,
+            mime_type="text/csv",
+            size_bytes=8,
+            status="accepted",
+            source_snapshot_id=foreign_snapshot_id,
+            created_at=NOW,
+            expires_at=None,
+        )
+        session.add(row)
+        with pytest.raises(IntegrityError):
+            session.flush()
+
+
+# ---- request idempotency persistence ---------------------------------------
+
+
+def test_idempotency_mapping_is_separate_from_content_dedup(
+    store_context: dict[str, object],
+) -> None:
+    """Two keys may resolve to one input; one key may not span two requests."""
+
+    ctx = store_context
+    repo = PersistentIdempotencyRepository(ctx["factory"])
+    store = _store(ctx)
+    project_id = str(ctx["ids"]["project"])
+    session_id = ctx["owner"].id
+    created = _create(store, ctx, content=b"idem shared payload")
+
+    first = repo.resolve(
+        session_id=session_id,
+        project_id=project_id,
+        idempotency_key="pg-key-A",
+        request_hash="sha256:" + "a" * 64,
+    )
+    assert first.reserved is True
+    assert first.replayed_input_id is None
+    repo.complete(
+        session_id=session_id,
+        project_id=project_id,
+        idempotency_key="pg-key-A",
+        input_id=created.id,
+    )
+
+    replay = repo.resolve(
+        session_id=session_id,
+        project_id=project_id,
+        idempotency_key="pg-key-A",
+        request_hash="sha256:" + "a" * 64,
+    )
+    assert replay.replayed_input_id == created.id
+
+    # A different key for the same content is independently valid.
+    second = repo.resolve(
+        session_id=session_id,
+        project_id=project_id,
+        idempotency_key="pg-key-B",
+        request_hash="sha256:" + "b" * 64,
+    )
+    assert second.reserved is True
+    repo.complete(
+        session_id=session_id,
+        project_id=project_id,
+        idempotency_key="pg-key-B",
+        input_id=created.id,
+    )
+    assert (
+        repo.resolve(
+            session_id=session_id,
+            project_id=project_id,
+            idempotency_key="pg-key-B",
+            request_hash="sha256:" + "b" * 64,
+        ).replayed_input_id
+        == created.id
+    )
+
+    # Reusing key A with a different request is a deterministic conflict.
+    with pytest.raises(SecurityProblem) as exc:
+        repo.resolve(
+            session_id=session_id,
+            project_id=project_id,
+            idempotency_key="pg-key-A",
+            request_hash="sha256:" + "c" * 64,
+        )
+    assert exc.value.status == 409
+    assert exc.value.code == "IDEMPOTENCY_CONFLICT"
+
+
+def test_released_reservation_is_retryable(
+    store_context: dict[str, object],
+) -> None:
+    ctx = store_context
+    repo = PersistentIdempotencyRepository(ctx["factory"])
+    project_id = str(ctx["ids"]["project"])
+    session_id = ctx["owner"].id
+
+    reserved = repo.resolve(
+        session_id=session_id,
+        project_id=project_id,
+        idempotency_key="pg-key-release",
+        request_hash="sha256:" + "d" * 64,
+    )
+    assert reserved.reserved is True
+    repo.release(
+        session_id=session_id,
+        project_id=project_id,
+        idempotency_key="pg-key-release",
+    )
+
+    again = repo.resolve(
+        session_id=session_id,
+        project_id=project_id,
+        idempotency_key="pg-key-release",
+        request_hash="sha256:" + "d" * 64,
+    )
+    assert again.reserved is True
+
+
+def test_concurrent_same_key_same_request_yields_one_reservation(
+    store_context: dict[str, object],
+) -> None:
+    """Exactly one caller may reserve; no raw IntegrityError escapes as a 500."""
+
+    ctx = store_context
+    repo = PersistentIdempotencyRepository(ctx["factory"])
+    project_id = str(ctx["ids"]["project"])
+    session_id = ctx["owner"].id
+    request_hash = "sha256:" + "e" * 64
+    barrier = threading.Barrier(6)
+    outcomes: list[object] = []
+    lock = threading.Lock()
+
+    def attempt() -> None:
+        barrier.wait()
+        try:
+            result = repo.resolve(
+                session_id=session_id,
+                project_id=project_id,
+                idempotency_key="pg-key-race",
+                request_hash=request_hash,
+            )
+        except SecurityProblem as problem:
+            result = problem
+        with lock:
+            outcomes.append(result)
+
+    threads = [threading.Thread(target=attempt) for _ in range(6)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    reservations = [
+        item for item in outcomes if isinstance(item, IdempotencyReservation)
+    ]
+    problems = [item for item in outcomes if isinstance(item, SecurityProblem)]
+    assert len(reservations) == 1
+    assert reservations[0].reserved is True
+    # Every loser is a deterministic 409, never a raw database error.
+    assert len(problems) == 5
+    assert all(problem.status == 409 for problem in problems)
+
+
+def test_concurrent_same_key_different_request_is_deterministic(
+    store_context: dict[str, object],
+) -> None:
+    ctx = store_context
+    repo = PersistentIdempotencyRepository(ctx["factory"])
+    project_id = str(ctx["ids"]["project"])
+    session_id = ctx["owner"].id
+    barrier = threading.Barrier(4)
+    outcomes: list[object] = []
+    lock = threading.Lock()
+
+    def attempt(index: int) -> None:
+        barrier.wait()
+        try:
+            result = repo.resolve(
+                session_id=session_id,
+                project_id=project_id,
+                idempotency_key="pg-key-divergent",
+                request_hash=f"sha256:{index:064d}",
+            )
+        except SecurityProblem as problem:
+            result = problem
+        with lock:
+            outcomes.append(result)
+
+    threads = [threading.Thread(target=attempt, args=(i,)) for i in range(4)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    reservations = [
+        item for item in outcomes if isinstance(item, IdempotencyReservation)
+    ]
+    problems = [item for item in outcomes if isinstance(item, SecurityProblem)]
+    assert len(reservations) == 1
+    assert len(problems) == 3
+    assert all(problem.status == 409 for problem in problems)
