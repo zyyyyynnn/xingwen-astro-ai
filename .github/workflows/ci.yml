@@ -239,6 +239,7 @@ jobs:
         working-directory: .
         env:
           UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/apps/api/.venv
+          PYTHONPATH: ${{ github.workspace }}/apps/api/src
         run: >-
           uv sync --frozen --project apps/api --group benchmark
           && uv run --project apps/api pytest apps/api/tests/test_d10_*.py -m d10_native -q
