@@ -33,6 +33,12 @@ export type ArtifactKind =
 export type App_Schemas_Core__SourceMode = "fixture" | "live" | "cached";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "BindResearchInputRequest".
+ */
+export type BindResearchInputRequest =
+  BindResearchInputToContractRequest | BindResearchInputToRunRequest;
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CachePolicy".
  */
 export type CachePolicy = "disabled" | "fallback_on_recoverable_failure";
@@ -176,6 +182,20 @@ export type LiteratureTraceOperation =
   | "classify_relation"
   | "record_limitation";
 /**
+ * Lifecycle of a controlled research input after ingestion.
+ *
+ * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+ * content is frozen behind an immutable content hash. ``unsupported_processing``
+ * and ``failed_ingestion`` are reserved states the API exposes so consumers
+ * never mistake "uploaded" for "understood".
+ */
+export type ResearchInputStatus = "accepted" | "unsupported_processing" | "failed_ingestion";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchInputType".
+ */
+export type ResearchInputType = "url" | "pdf" | "csv" | "json" | "image" | "text";
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ShareRedactionPolicy".
  */
@@ -252,6 +272,15 @@ export type PaperSourceExecutionStatus = "completed" | "failed";
 export type PaperSummarySupportStatus = "supported" | "unsupported" | "unverifiable";
 export type ContractDraftStatus1 = "draft" | "confirmed" | "expired";
 /**
+ * Lifecycle of a controlled research input after ingestion.
+ *
+ * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+ * content is frozen behind an immutable content hash. ``unsupported_processing``
+ * and ``failed_ingestion`` are reserved states the API exposes so consumers
+ * never mistake "uploaded" for "understood".
+ */
+export type ResearchInputStatus1 = "accepted" | "unsupported_processing" | "failed_ingestion";
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "RunStatus".
  */
@@ -274,6 +303,18 @@ export type RunStatus =
  */
 export type SessionStatus = "active" | "expired" | "revoked";
 /**
+ * Lifecycle of a controlled research input after ingestion.
+ *
+ * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+ * content is frozen behind an immutable content hash. ``unsupported_processing``
+ * and ``failed_ingestion`` are reserved states the API exposes so consumers
+ * never mistake "uploaded" for "understood".
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchInputStatus".
+ */
+export type ResearchInputStatus2 = "accepted" | "unsupported_processing" | "failed_ingestion";
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "UnitPolicy".
  */
@@ -283,6 +324,11 @@ export type UnitPolicy1 = "canonical";
  * via the `definition` "SourceMode".
  */
 export type SourceMode = "fixture" | "live" | "cached";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CreateResearchInputRequest".
+ */
+export type CreateResearchInputRequest = UrlResearchInputRequest | TextResearchInputRequest;
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "AlignmentStatus".
@@ -536,6 +582,31 @@ export interface WorkspaceObjectRef {
   artifact_version_id?: string | null;
   object_id: string;
   object_type: string;
+}
+/**
+ * Attach an ingested input reference to a ContractDraft.
+ *
+ * ``run_id`` is pinned to ``None`` so the generated schema itself rules out
+ * the "both targets" case rather than deferring to a runtime validator.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "BindResearchInputToContractRequest".
+ */
+export interface BindResearchInputToContractRequest {
+  contract_draft_id: string;
+  project_id: string;
+  run_id?: null;
+}
+/**
+ * Attach an ingested input reference to a Run inside the same project.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "BindResearchInputToRunRequest".
+ */
+export interface BindResearchInputToRunRequest {
+  contract_draft_id?: null;
+  project_id: string;
+  run_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -972,6 +1043,34 @@ export interface ResearchArtifact {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_ResearchInputRef_".
+ */
+export interface CollectionEnvelope_ResearchInputRef_ {
+  data: ResearchInputRef[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * Immutable reference to one ingested input; never carries binary content.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchInputRef".
+ */
+export interface ResearchInputRef {
+  content_hash: string;
+  created_at: string;
+  filename?: string | null;
+  id: string;
+  mime_type?: string | null;
+  size_bytes: number;
+  source_snapshot_id?: string | null;
+  source_type: string;
+  status?: ResearchInputStatus;
+  type: ResearchInputType;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CollectionEnvelope_ResearchProject_".
  */
 export interface CollectionEnvelope_ResearchProject_ {
@@ -1139,6 +1238,22 @@ export interface SourceScope {
    * @minItems 1
    */
   allowed_sources: [string, ...string[]];
+}
+/**
+ * ``multipart/form-data`` create for the file input types.
+ *
+ * ``file`` is declared as a binary string so the generated OpenAPI carries
+ * ``type: string, format: binary`` as a real schema, not prose.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CreateResearchInputMultipartRequest".
+ */
+export interface CreateResearchInputMultipartRequest {
+  file: string;
+  filename?: string | null;
+  mime_type?: string | null;
+  project_id: string;
+  type: "pdf" | "csv" | "json" | "image";
 }
 /**
  * Minimal M1 project creation payload; `case_key` stays frozen to the main case.
@@ -1845,6 +1960,44 @@ export interface ResearchContract {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_ResearchInputDetail_".
+ */
+export interface Envelope_ResearchInputDetail_ {
+  data: ResearchInputDetail;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * Metadata-only detail read; adds the owning project and the redacted URL.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchInputDetail".
+ */
+export interface ResearchInputDetail {
+  content_hash: string;
+  created_at: string;
+  filename?: string | null;
+  id: string;
+  mime_type?: string | null;
+  project_id: string;
+  size_bytes: number;
+  source_snapshot_id?: string | null;
+  source_type: string;
+  status?: ResearchInputStatus1;
+  type: ResearchInputType;
+  url?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_ResearchInputRef_".
+ */
+export interface Envelope_ResearchInputRef_ {
+  data: ResearchInputRef;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_ResearchProject_".
  */
 export interface Envelope_ResearchProject_ {
@@ -2053,12 +2206,42 @@ export interface ProblemFieldError {
   message: string;
 }
 /**
+ * JSON create for ``type=text``: the body carries the text itself.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "TextResearchInputRequest".
+ */
+export interface TextResearchInputRequest {
+  filename?: string | null;
+  mime_type?: string | null;
+  project_id: string;
+  text_content: string;
+  type: "text";
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "UpdateResearchContractDraftRequest".
  */
 export interface UpdateResearchContractDraftRequest {
   contract?: ResearchContractInput | null;
   intent?: string | null;
+}
+/**
+ * JSON create for ``type=url``: a URL is fetched server-side.
+ *
+ * Modelled as its own type (not a nullable mega-model) so the generated JSON
+ * Schema *machine-level* forbids ``text_content`` and file semantics here
+ * instead of relying on a runtime-only validator.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UrlResearchInputRequest".
+ */
+export interface UrlResearchInputRequest {
+  filename?: string | null;
+  mime_type?: string | null;
+  project_id: string;
+  type: "url";
+  url: string;
 }
 /**
  * Editable private workspace state accepted by the PUT endpoint.

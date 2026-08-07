@@ -56,6 +56,9 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       # 容器内通过服务名访问 postgres；生产环境必须覆盖默认凭据。
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-xingwen_astro_ai}
+      RESEARCH_INPUT_UPLOAD_DIR: /var/lib/xingwen/research-inputs
+    volumes:
+      - research_input_data:/var/lib/xingwen/research-inputs
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -126,3 +129,4 @@ services:
 
 volumes:
   postgres_data:
+  research_input_data:

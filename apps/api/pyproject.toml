@@ -7,10 +7,13 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "aiofiles>=24.1.0",
     "alembic>=1.16.1,<2",
     "fastapi>=0.139.0",
+    "httpx>=0.28.0",
     "psycopg[binary]>=3.2.9,<4",
     "pydantic-settings>=2.14.2",
+    "python-multipart>=0.0.20",
     "sqlalchemy>=2.0.41,<3",
     "uvicorn[standard]>=0.51.0",
 ]

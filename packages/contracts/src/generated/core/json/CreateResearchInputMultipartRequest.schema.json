@@ -1,0 +1,61 @@
+{
+  "additionalProperties": false,
+  "description": "``multipart/form-data`` create for the file input types.\n\n``file`` is declared as a binary string so the generated OpenAPI carries\n``type: string, format: binary`` as a real schema, not prose.",
+  "properties": {
+    "file": {
+      "format": "binary",
+      "title": "File",
+      "type": "string"
+    },
+    "filename": {
+      "anyOf": [
+        {
+          "maxLength": 255,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Filename"
+    },
+    "mime_type": {
+      "anyOf": [
+        {
+          "maxLength": 127,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mime Type"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "pdf",
+        "csv",
+        "json",
+        "image"
+      ],
+      "title": "Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "type",
+    "file"
+  ],
+  "title": "CreateResearchInputMultipartRequest",
+  "type": "object"
+}
