@@ -102,7 +102,9 @@ export function validateTitleGrammar(
     errors.push("Title must not have leading or trailing whitespace");
   }
   if (CONTROL_CHARACTER_REGEX.test(title)) {
-    errors.push("Title must be a single line and contain no control characters");
+    errors.push(
+      "Title must be a single line and contain no control characters",
+    );
   }
 
   const candidate = title.trim();
@@ -137,7 +139,9 @@ export function validateTitleGrammar(
     }
   } else if (references.length > 0) {
     if (!allowPrBacklink) {
-      errors.push("PR branch commit subject must not contain an Issue or PR number");
+      errors.push(
+        "PR branch commit subject must not contain an Issue or PR number",
+      );
     } else if (references.length !== 1 || trailingBacklink === undefined) {
       errors.push(
         "Commit subject may contain only one trailing PR backlink formatted as (#123)",
