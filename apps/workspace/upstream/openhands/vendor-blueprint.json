@@ -2,15 +2,10 @@
   "schema": "xingwen.agent-upstream.blueprint/v1",
   "product": "OpenHands",
   "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-  "purpose": "Source-level adoption blueprint. A-21 Phase 2 writes metadata ONLY — no production TS/TSX vendored here.",
-  "corrections_from_round1": {
-    "ui_primitive_stack": "Round-1 claimed 'In-house + Radix-style'. Correct fact: @heroui/react 2.8.10 (9 files), lucide-react 1.25.0 (96 files), react-icons 5.6.0 (14 files), framer-motion 12.38.0. HeroUI is secondary, not shell-wide; A-23 controllable.",
-    "source_scope_breadth": "Round-1 blueprint over-adopted (settings/onboarding/launch/suggestions/agent-settings/mcp-page/contexts/hooks/stores/services/utils all ADOPT). Corrected: only core product mechanics adopted; no-consumer features DEFERRED_NOT_VENDORED (see source-scope.json).",
-    "a22_responsibility": "Round-1 implied A-22 replaces agent-server-adapter / backends / LLM setup. Corrected: A-22 = Vendor Skeleton + Coding-surface removal + compile-safe adaptation seam ONLY. Research Adapter / Domain / ViewModel / Command belong to A-24."
-  },
-  "layers": {
-    "L1_directory_scope": {
-      "adopt": "Core mechanic dirs from source-scope.json (REQUIRED_VENDOR + REQUIRED_TRANSITIVE): root, routes/{conversation,conversation-panel,settings,home,root-layout}, components/{conversation,conversation-events,sidebar,settings,shared,ui}, components/features/{chat,conversation-panel,sidebar,markdown,command-menu,context-menu,controls,home,tips,alerts,images}, hooks/contexts/stores/services/utils/types/lib/themes/styles/constants/i18n/icons/manifests/wrapper/assets.",
+  "purpose": "Source-level adoption blueprint. This directory holds metadata ONLY — no production TS/TSX vendored here.",
+  "source_scope": {
+    "directory_breadth": {
+      "adopt": "Core mechanic dirs (REQUIRED_VENDOR + REQUIRED_TRANSITIVE): root, routes/{conversation,conversation-panel,settings,home,root-layout}, components/{conversation,conversation-events,sidebar,settings,shared,ui}, components/features/{chat,conversation-panel,sidebar,markdown,command-menu,context-menu,controls,home,tips,alerts,images}, hooks/contexts/stores/services/utils/types/lib/themes/styles/constants/i18n/icons/manifests/wrapper/assets.",
       "partial_surgical": [
         "components/features/conversation/conversation-tabs/conversation-tabs",
         "components/files",
@@ -45,55 +40,64 @@
         "components/features/manifest",
         "components/features/images (non-core)"
       ]
-    },
-    "L2_component_mapping": {
-      "preserve_mechanics": [
-        "Shell/root",
-        "Navigation/sidebar",
-        "Conversation Activity (conversation-events/chat)",
-        "Composer (features/chat)",
-        "Workspace Panel + Tab container (conversation-tabs)",
-        "Overlay/Dialog/Popover (ui/shared/context-menu/controls)",
-        "Keyboard/Focus/Scroll/Loading/Empty/Running/Error/Cancel/Retry/Recovery"
-      ],
-      "swap_domain_only": [
-        "Conversation ViewModel -> Project/Run ViewModel (A-24)",
-        "Coding Event -> Xingwen RunEvent (A-24 Adapter)",
-        "Tab defs files/planner/terminal/browser/vscode -> Artifact/ResearchPlan/ResearchActivity (A-25)",
-        "canvas-ui-client-tool tab enum -> Research drive-panel (A-25)"
-      ],
-      "remove_coding": [
-        "Terminal xterm",
-        "DiffViewer Monaco",
-        "Browser panel",
-        "Git diff/status UI",
-        "VSCode link",
-        "agent-server git-service",
-        "cloud proprietary"
-      ]
-    },
-    "L3_runtime_dependency": {
-      "a22_seam_only": [
-        "agent-server-adapter SSE -> compile-safe no-op/stub seam (real replacement in A-24)",
-        "backends registry -> single-runtime stub seam (A-24)",
-        "LLM setup gate -> disabled/replaced by Research Adapter config (A-24)"
-      ],
-      "a22_forbidden": [
-        "XingwenAgentRuntimeAdapter",
-        "ResearchAdapter",
-        "RunEvent mapper",
-        "Project/Run ViewModel",
-        "ResearchCommand",
-        "ResearchComposer implementation"
-      ]
-    },
-    "L4_exit_map": {
-      "a22": "Vendor skeleton (Empty/Loading/Error/Running, no fake domain data) + coding removal + adaptation seam",
-      "a23": "Primitive/Icon governance (HeroUI -> Xingwen primitives; react-icons -> lucide)",
-      "a24": "Research Adapter + Domain/ViewModel/Command + Xingwen Runtime replacement",
-      "a25": "Product wiring (conversation-tabs defs -> Research tabs; canvas-ui tool -> Research drive-panel; Artifact Workspace)"
     }
   },
+  "component_mapping": {
+    "preserve_mechanics": [
+      "Shell/root",
+      "Navigation/sidebar",
+      "Conversation Activity (conversation-events/chat)",
+      "Composer (features/chat)",
+      "Workspace Panel + Tab container (conversation-tabs)",
+      "Overlay/Dialog/Popover (ui/shared/context-menu/controls)",
+      "Keyboard/Focus/Scroll/Loading/Empty/Running/Error/Cancel/Retry/Recovery"
+    ],
+    "swap_domain_only": [
+      "Conversation ViewModel -> Project/Run ViewModel",
+      "Coding Event -> Xingwen RunEvent",
+      "Tab defs files/planner/terminal/browser/vscode -> Artifact/ResearchPlan/ResearchActivity",
+      "canvas-ui-client-tool tab enum -> Research drive-panel"
+    ],
+    "remove_coding": [
+      "Terminal xterm",
+      "DiffViewer Monaco",
+      "Browser panel",
+      "Git diff/status UI",
+      "VSCode link",
+      "agent-server git-service",
+      "cloud proprietary"
+    ]
+  },
+  "runtime_boundary": {
+    "source_vendor_seam": [
+      "agent-server-adapter SSE -> compile-safe no-op/stub seam (real replacement in a later integration layer)",
+      "backends registry -> single-runtime stub seam",
+      "LLM setup gate -> disabled/replaced by Research Adapter config"
+    ],
+    "source_vendor_forbidden": [
+      "XingwenAgentRuntimeAdapter",
+      "ResearchAdapter",
+      "RunEvent mapper",
+      "Project/Run ViewModel",
+      "ResearchCommand",
+      "ResearchComposer implementation"
+    ]
+  },
+  "domain_integration_boundary": {
+    "primitive_governance": "HeroUI -> Xingwen primitives; react-icons -> lucide.",
+    "research_adapter_layer": "Research Adapter + Domain/ViewModel/Command + Xingwen Runtime replacement.",
+    "workspace_integration_layer": "Product wiring (conversation-tabs defs -> Research tabs; canvas-ui tool -> Research drive-panel; Artifact Workspace)."
+  },
+  "excluded_product_surfaces": [
+    "Terminal (xterm)",
+    "DiffViewer (Monaco)",
+    "Browser panel",
+    "Git diff/status UI",
+    "VSCode link",
+    "api/git-service",
+    "api/cloud",
+    "Electron desktop shell"
+  ],
   "hard_rules": [
     "Upstream OpenHands file EXISTS -> MUST vendor, never local-rewrite.",
     "Change Domain != rewrite Product Mechanics.",
@@ -103,5 +107,5 @@
     "Component unsuitable -> modify upstream vendored component, NOT parallel local component.",
     "Cannot surgically adapt -> STOP / request architecture ruling. NEVER 'build a second one'."
   ],
-  "provenance_contract": "provenance-schema.json (every A-22 vendored UI file needs a manifest entry; 1:1 with files on disk)."
+  "provenance_contract": "provenance.json (every vendored UI file needs a manifest entry; 1:1 with files on disk)."
 }
