@@ -50,12 +50,20 @@ _MAX_FILENAME_LENGTH = 255
 
 #: MIME prefixes accepted per declared ResearchInputType.
 _TYPE_MIME_FAMILIES: dict[ResearchInputType, tuple[str, ...]] = {
+    ResearchInputType.url: (
+        "application/pdf",
+        "text/csv",
+        "application/json",
+        "image/",
+        "text/plain",
+    ),
     ResearchInputType.pdf: ("application/pdf",),
     ResearchInputType.csv: ("text/csv",),
     ResearchInputType.json: ("application/json",),
     ResearchInputType.image: ("image/",),
     ResearchInputType.text: ("text/plain",),
 }
+
 
 _FILENAME_EXTENSION_MIME: dict[str, tuple[str, ...]] = {
     "pdf": ("application/pdf",),
@@ -137,8 +145,10 @@ class ResearchInputStore(Protocol):
         project_id: str,
         payload: ResearchInputCreate,
         prepared: PreparedInput,
+        idempotency_key: str | None = None,
+        request_hash: str | None = None,
     ) -> ResearchInputRecord:
-        """Ingest one input; replay by ``(session_id, content_hash)`` is reused."""
+        """Ingest one input; replay by ``(session_id, project_id, content_hash)`` is reused."""
 
     def get(self, *, session_id: str, input_id: str) -> ResearchInputRecord | None:
         """Return the record only when owned by ``session_id`` and not expired."""
@@ -181,6 +191,7 @@ class InMemoryResearchInputStore:
         self._drafts: dict[str, str] = {}
         self._runs: dict[str, str] = {}
         self._bindings: dict[str, tuple[str, str | None, str | None]] = {}
+        self._idempotency: dict[tuple[str, str, str], tuple[ResearchInputRecord, str]] = {}
 
     def register_project(self, *, project_id: str, owner_session_id: str) -> None:
         self._projects[project_id] = owner_session_id
@@ -198,14 +209,26 @@ class InMemoryResearchInputStore:
         project_id: str,
         payload: ResearchInputCreate,
         prepared: PreparedInput,
+        idempotency_key: str | None = None,
+        request_hash: str | None = None,
     ) -> ResearchInputRecord:
         if self._projects.get(project_id) != session_id:
             raise _not_found("PROJECT_NOT_FOUND")
+
+        if idempotency_key is not None and request_hash is not None:
+            idem_key = (session_id, project_id, idempotency_key)
+            if idem_key in self._idempotency:
+                saved_record, saved_hash = self._idempotency[idem_key]
+                if saved_hash != request_hash:
+                    raise _idempotency_conflict()
+                return saved_record
+
         existing = next(
             (
                 record
                 for record in self._records.values()
                 if record.session_id == session_id
+                and record.project_id == project_id
                 and record.content_hash == prepared.content_hash
             ),
             None,
@@ -215,15 +238,35 @@ class InMemoryResearchInputStore:
             if existing.expires_at is not None and existing.expires_at <= now:
                 resurrected = dataclasses.replace(
                     existing,
+                    type=payload.type,
+                    source_type=_source_type_for(payload),
+                    storage_ref=prepared.storage_ref,
                     filename=prepared.filename,
                     mime_type=prepared.mime_type,
                     size_bytes=prepared.size_bytes,
                     status=ResearchInputStatus.accepted,
+                    source_snapshot_id=(
+                        prepared.source_snapshot.snapshot_id
+                        if prepared.source_snapshot is not None
+                        else None
+                    ),
+                    url=_snapshot_url(prepared.source_snapshot),
                     expires_at=None,
                 )
                 self._records[existing.id] = resurrected
+                if idempotency_key is not None and request_hash is not None:
+                    self._idempotency[(session_id, project_id, idempotency_key)] = (
+                        resurrected,
+                        request_hash,
+                    )
                 return resurrected
+            if idempotency_key is not None and request_hash is not None:
+                self._idempotency[(session_id, project_id, idempotency_key)] = (
+                    existing,
+                    request_hash,
+                )
             return existing
+
         source_type = _source_type_for(payload)
         record = ResearchInputRecord(
             id=f"input_{secrets.token_urlsafe(18)}",
@@ -247,6 +290,11 @@ class InMemoryResearchInputStore:
             expires_at=None,
         )
         self._records[record.id] = record
+        if idempotency_key is not None and request_hash is not None:
+            self._idempotency[(session_id, project_id, idempotency_key)] = (
+                record,
+                request_hash,
+            )
         return record
 
     def get(self, *, session_id: str, input_id: str) -> ResearchInputRecord | None:
@@ -340,24 +388,46 @@ class PersistentResearchInputStore:
         project_id: str,
         payload: ResearchInputCreate,
         prepared: PreparedInput,
+        idempotency_key: str | None = None,
+        request_hash: str | None = None,
     ) -> ResearchInputRecord:
         pid = _uuid_or_none(project_id)
         with self._factory() as session, session.begin():
             project = session.get(ResearchProjectModel, pid)
             if project is None or project.session_id != session_id:
                 raise _not_found("PROJECT_NOT_FOUND")
+
+            if idempotency_key is not None and request_hash is not None:
+                replay = session.scalar(
+                    select(ResearchInputModel).where(
+                        ResearchInputModel.session_id == session_id,
+                        ResearchInputModel.project_id == project.id,
+                        ResearchInputModel.idempotency_key == idempotency_key,
+                    )
+                )
+                if replay is not None:
+                    if replay.request_hash != request_hash:
+                        raise _idempotency_conflict()
+                    return _record(replay, url=_snapshot_query_url(session, replay))
+
             existing = session.scalar(
                 select(ResearchInputModel).where(
                     ResearchInputModel.session_id == session_id,
+                    ResearchInputModel.project_id == project.id,
                     ResearchInputModel.content_hash == prepared.content_hash,
                 )
             )
             now = datetime.now(UTC)
             if existing is not None:
                 if existing.expires_at is not None and existing.expires_at <= now:
-                    _resurrect(existing, payload, prepared)
+                    _resurrect(session, existing, payload, prepared)
+                    session.flush()
+                if idempotency_key is not None and request_hash is not None:
+                    existing.idempotency_key = idempotency_key
+                    existing.request_hash = request_hash
                     session.flush()
                 return _record(existing, url=_snapshot_query_url(session, existing))
+
             source_snapshot_id = _persist_snapshot(
                 session, project_id=str(project.id), source=prepared.source_snapshot
             )
@@ -375,6 +445,8 @@ class PersistentResearchInputStore:
                 source_snapshot_id=source_snapshot_id,
                 created_at=now,
                 expires_at=None,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
             )
             session.add(row)
             try:
@@ -385,6 +457,7 @@ class PersistentResearchInputStore:
                     replay = replay_session.scalar(
                         select(ResearchInputModel).where(
                             ResearchInputModel.session_id == session_id,
+                            ResearchInputModel.project_id == project.id,
                             ResearchInputModel.content_hash == prepared.content_hash,
                         )
                     )
@@ -394,6 +467,7 @@ class PersistentResearchInputStore:
                     replay, url=_snapshot_query_url(replay_session, replay)
                 )
             return _record(row, url=_snapshot_url(prepared.source_snapshot))
+
 
     def get(self, *, session_id: str, input_id: str) -> ResearchInputRecord | None:
         iid = _uuid_or_none(input_id)
@@ -670,7 +744,10 @@ def _record(row: ResearchInputModel, *, url: str | None = None) -> ResearchInput
 
 
 def _resurrect(
-    row: ResearchInputModel, payload: ResearchInputCreate, prepared: PreparedInput
+    session: Session,
+    row: ResearchInputModel,
+    payload: ResearchInputCreate,
+    prepared: PreparedInput,
 ) -> None:
     row.type = payload.type.value
     row.source_type = _source_type_for(payload)
@@ -679,7 +756,11 @@ def _resurrect(
     row.mime_type = prepared.mime_type
     row.size_bytes = prepared.size_bytes
     row.status = ResearchInputStatus.accepted.value
+    row.source_snapshot_id = _persist_snapshot(
+        session, project_id=str(row.project_id), source=prepared.source_snapshot
+    )
     row.expires_at = None
+
 
 
 def _upsert_binding(
@@ -759,7 +840,17 @@ def _is_expired(row: ResearchInputModel) -> bool:
     return row.expires_at is not None and row.expires_at <= datetime.now(UTC)
 
 
+def _idempotency_conflict() -> SecurityProblem:
+    return SecurityProblem(
+        status=409,
+        code="IDEMPOTENCY_CONFLICT",
+        title="Idempotency key reuse conflict",
+        detail="The Idempotency-Key header was reused with a different request body",
+    )
+
+
 def _not_found(code: str) -> SecurityProblem:
+
     return SecurityProblem(
         status=404, code=code, title="Resource not found", detail="Resource not found"
     )

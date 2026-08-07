@@ -326,3 +326,24 @@ def test_persistent_store_keeps_snapshot_provenance_for_url_inputs(
     detail = store.get(session_id=ctx["owner"].id, input_id=created.id)
     assert detail is not None
     assert detail.url == "https://example.com/data.csv"
+
+
+def test_persistent_store_binding_target_xor_constraint(
+    store_context: dict[str, object],
+) -> None:
+    ctx = store_context
+    factory = ctx["factory"]
+    with factory() as session, session.begin():
+        from app.db.models import ResearchInputBindingModel
+        from sqlalchemy.exc import IntegrityError
+
+        bad_binding = ResearchInputBindingModel(
+            input_id=UUID(int=999),
+            project_id=ctx["ids"]["project"],
+            contract_draft_id=ctx["ids"]["contract"],
+            run_id=ctx["ids"]["run"],
+        )
+        session.add(bad_binding)
+        with pytest.raises(IntegrityError):
+            session.flush()
+

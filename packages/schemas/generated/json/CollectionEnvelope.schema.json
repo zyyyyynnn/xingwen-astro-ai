@@ -1,0 +1,105 @@
+{
+  "$defs": {
+    "CursorPage": {
+      "additionalProperties": false,
+      "properties": {
+        "has_more": {
+          "title": "Has More",
+          "type": "boolean"
+        },
+        "limit": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Cursor"
+        }
+      },
+      "required": [
+        "has_more"
+      ],
+      "title": "CursorPage",
+      "type": "object"
+    },
+    "ResponseLinks": {
+      "additionalProperties": false,
+      "properties": {
+        "self": {
+          "minLength": 1,
+          "title": "Self",
+          "type": "string"
+        }
+      },
+      "required": [
+        "self"
+      ],
+      "title": "ResponseLinks",
+      "type": "object"
+    },
+    "ResponseMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "generated_at": {
+          "format": "date-time",
+          "title": "Generated At",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Request Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "generated_at"
+      ],
+      "title": "ResponseMeta",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "data": {
+      "items": {},
+      "title": "Data",
+      "type": "array"
+    },
+    "links": {
+      "$ref": "#/$defs/ResponseLinks"
+    },
+    "meta": {
+      "$ref": "#/$defs/ResponseMeta"
+    },
+    "page": {
+      "$ref": "#/$defs/CursorPage"
+    }
+  },
+  "required": [
+    "data",
+    "meta",
+    "links",
+    "page"
+  ],
+  "title": "CollectionEnvelope",
+  "type": "object"
+}

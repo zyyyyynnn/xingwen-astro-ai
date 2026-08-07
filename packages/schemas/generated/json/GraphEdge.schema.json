@@ -1,0 +1,84 @@
+{
+  "$defs": {
+    "GraphEdgeType": {
+      "enum": [
+        "uses_dataset",
+        "provides_field",
+        "supports_finding",
+        "cites",
+        "derived_from",
+        "supports",
+        "extends",
+        "limits",
+        "contradicts",
+        "corrected_by_feedback"
+      ],
+      "title": "GraphEdgeType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "evidence_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "reasoning_trace_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reasoning Trace Id"
+    },
+    "relation_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Relation Id"
+    },
+    "source": {
+      "title": "Source",
+      "type": "string"
+    },
+    "target": {
+      "title": "Target",
+      "type": "string"
+    },
+    "type": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphEdgeType"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Type"
+    }
+  },
+  "required": [
+    "id",
+    "source",
+    "target",
+    "type"
+  ],
+  "title": "GraphEdge",
+  "type": "object"
+}

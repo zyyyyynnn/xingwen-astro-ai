@@ -1,0 +1,30 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "max_pages": {
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Max Pages",
+      "type": "integer"
+    },
+    "page_size": {
+      "exclusiveMinimum": 0,
+      "maximum": 1000,
+      "title": "Page Size",
+      "type": "integer"
+    },
+    "record_limit": {
+      "exclusiveMinimum": 0,
+      "maximum": 100000,
+      "title": "Record Limit",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "page_size",
+    "max_pages",
+    "record_limit"
+  ],
+  "title": "DataQueryPagination",
+  "type": "object"
+}

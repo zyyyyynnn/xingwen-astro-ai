@@ -1,0 +1,178 @@
+{
+  "$defs": {
+    "ClaimType": {
+      "enum": [
+        "goal",
+        "method",
+        "dataset",
+        "finding",
+        "limitation",
+        "future_work"
+      ],
+      "title": "ClaimType",
+      "type": "string"
+    },
+    "LiteratureClaimPolarity": {
+      "enum": [
+        "positive",
+        "negative",
+        "neutral",
+        "mixed"
+      ],
+      "title": "LiteratureClaimPolarity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One strict model-produced Claim before provenance admission.",
+  "properties": {
+    "claim_type": {
+      "$ref": "#/$defs/ClaimType"
+    },
+    "comparison_basis": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Comparison Basis"
+    },
+    "conditions": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Conditions",
+      "type": "array"
+    },
+    "evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "metric": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Metric"
+    },
+    "normalized_text": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Normalized Text",
+      "type": "string"
+    },
+    "objects": {
+      "items": {
+        "maxLength": 512,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Objects",
+      "type": "array"
+    },
+    "polarity": {
+      "$ref": "#/$defs/LiteratureClaimPolarity"
+    },
+    "qualifiers": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Qualifiers",
+      "type": "array"
+    },
+    "scope": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Scope",
+      "type": "array"
+    },
+    "source_statement_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Statement Id",
+      "type": "string"
+    },
+    "text": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "uncertainty": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Uncertainty"
+    },
+    "unit": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Unit"
+    }
+  },
+  "required": [
+    "source_statement_id",
+    "text",
+    "normalized_text",
+    "claim_type",
+    "polarity",
+    "objects",
+    "metric",
+    "unit",
+    "conditions",
+    "scope",
+    "limitations",
+    "qualifiers",
+    "uncertainty",
+    "comparison_basis",
+    "evidence_ids"
+  ],
+  "title": "LiteratureClaimModelCandidate",
+  "type": "object"
+}

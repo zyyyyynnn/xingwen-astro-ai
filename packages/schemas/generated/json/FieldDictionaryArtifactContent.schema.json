@@ -1,0 +1,26 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "field_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Field Ids",
+      "type": "array"
+    },
+    "kind": {
+      "const": "field_dictionary",
+      "title": "Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "field_ids"
+  ],
+  "title": "FieldDictionaryArtifactContent",
+  "type": "object"
+}

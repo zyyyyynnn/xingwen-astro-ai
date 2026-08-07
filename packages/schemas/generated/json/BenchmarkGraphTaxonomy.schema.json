@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "GraphEdgeType": {
+      "enum": [
+        "uses_dataset",
+        "provides_field",
+        "supports_finding",
+        "cites",
+        "derived_from",
+        "supports",
+        "extends",
+        "limits",
+        "contradicts",
+        "corrected_by_feedback"
+      ],
+      "title": "GraphEdgeType",
+      "type": "string"
+    },
+    "GraphNodeType": {
+      "enum": [
+        "research_goal",
+        "dataset",
+        "field",
+        "source",
+        "paper",
+        "finding",
+        "claim",
+        "relation",
+        "reasoning_trace",
+        "evidence"
+      ],
+      "title": "GraphNodeType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "allowed_edge_types": {
+      "items": {
+        "$ref": "#/$defs/GraphEdgeType"
+      },
+      "minItems": 1,
+      "title": "Allowed Edge Types",
+      "type": "array"
+    },
+    "allowed_node_types": {
+      "items": {
+        "$ref": "#/$defs/GraphNodeType"
+      },
+      "minItems": 1,
+      "title": "Allowed Node Types",
+      "type": "array"
+    },
+    "integrity_rules": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Integrity Rules",
+      "type": "array"
+    }
+  },
+  "required": [
+    "allowed_node_types",
+    "allowed_edge_types",
+    "integrity_rules"
+  ],
+  "title": "BenchmarkGraphTaxonomy",
+  "type": "object"
+}

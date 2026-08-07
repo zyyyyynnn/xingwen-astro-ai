@@ -1,0 +1,88 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "enum": [
+        "paper_text",
+        "paper_metadata"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "metadata_field": {
+      "anyOf": [
+        {
+          "enum": [
+            "source_record_id",
+            "title",
+            "authors",
+            "year",
+            "doi",
+            "arxiv_id",
+            "url"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Metadata Field"
+    },
+    "paragraph": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Paragraph"
+    },
+    "section": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Section"
+    },
+    "source_url": {
+      "format": "uri",
+      "maxLength": 2083,
+      "minLength": 1,
+      "title": "Source Url",
+      "type": "string"
+    },
+    "text_range": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Text Range"
+    }
+  },
+  "required": [
+    "kind",
+    "source_url"
+  ],
+  "title": "PaperSummaryEvidenceLocator",
+  "type": "object"
+}

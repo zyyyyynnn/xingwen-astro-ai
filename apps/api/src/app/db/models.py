@@ -605,10 +605,28 @@ class ResearchInputModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
+    idempotency_key: Mapped[str | None] = mapped_column(String(200))
+    request_hash: Mapped[str | None] = mapped_column(String(71))
 
     __table_args__ = (
         UniqueConstraint(
-            "session_id", "content_hash", name="uq_research_input_session_content"
+            "session_id",
+            "project_id",
+            "content_hash",
+            name="uq_research_input_session_project_content",
+        ),
+        UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
+        UniqueConstraint(
+            "session_id",
+            "project_id",
+            "idempotency_key",
+            name="uq_research_input_idempotency",
+        ),
+        ForeignKeyConstraint(
+            ["source_snapshot_id", "project_id"],
+            ["source_snapshots.id", "source_snapshots.project_id"],
+            name="fk_research_input_snapshot_project",
+            ondelete="RESTRICT",
         ),
         Index("ix_research_inputs_session_project", "session_id", "project_id"),
         Index("ix_research_inputs_session_content", "session_id", "content_hash"),
@@ -637,7 +655,6 @@ class ResearchInputBindingModel(Base):
 
     input_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("research_inputs.id", ondelete="CASCADE"),
         primary_key=True,
     )
     project_id: Mapped[UUID] = mapped_column(
@@ -650,8 +667,21 @@ class ResearchInputBindingModel(Base):
     )
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["input_id", "project_id"],
+            ["research_inputs.id", "research_inputs.project_id"],
+            name="fk_research_input_binding_input_project",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_research_input_binding_run_project",
+            ondelete="CASCADE",
+        ),
         CheckConstraint(
-            "contract_draft_id IS NOT NULL OR run_id IS NOT NULL",
-            name="binding_target_present",
+            "(contract_draft_id IS NULL) <> (run_id IS NULL)",
+            name="binding_target_xor",
         ),
     )
+

@@ -1,0 +1,45 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "max_conflict_candidates": {
+      "exclusiveMinimum": 0,
+      "title": "Max Conflict Candidates",
+      "type": "integer"
+    },
+    "max_requested_fields": {
+      "exclusiveMinimum": 0,
+      "title": "Max Requested Fields",
+      "type": "integer"
+    },
+    "max_rows": {
+      "exclusiveMinimum": 0,
+      "title": "Max Rows",
+      "type": "integer"
+    },
+    "max_source_values_per_field": {
+      "exclusiveMinimum": 0,
+      "title": "Max Source Values Per Field",
+      "type": "integer"
+    },
+    "max_total_cell_outcomes": {
+      "exclusiveMinimum": 0,
+      "title": "Max Total Cell Outcomes",
+      "type": "integer"
+    },
+    "max_transformation_evidence": {
+      "exclusiveMinimum": 0,
+      "title": "Max Transformation Evidence",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "max_rows",
+    "max_requested_fields",
+    "max_source_values_per_field",
+    "max_transformation_evidence",
+    "max_conflict_candidates",
+    "max_total_cell_outcomes"
+  ],
+  "title": "DataArtifactCapacity",
+  "type": "object"
+}

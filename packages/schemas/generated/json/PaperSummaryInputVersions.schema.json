@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "PaperSummarySourceSnapshotReference": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "source_version": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Source Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_snapshot_id",
+        "source_id",
+        "source_version",
+        "content_hash"
+      ],
+      "title": "PaperSummarySourceSnapshotReference",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "paper_collection_output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Paper Collection Output Hash",
+      "type": "string"
+    },
+    "paper_collection_schema_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Paper Collection Schema Version",
+      "type": "string"
+    },
+    "paper_collection_version_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Paper Collection Version Id",
+      "type": "string"
+    },
+    "source_snapshots": {
+      "items": {
+        "$ref": "#/$defs/PaperSummarySourceSnapshotReference"
+      },
+      "title": "Source Snapshots",
+      "type": "array"
+    }
+  },
+  "required": [
+    "paper_collection_version_id",
+    "paper_collection_schema_version",
+    "paper_collection_output_hash",
+    "source_snapshots"
+  ],
+  "title": "PaperSummaryInputVersions",
+  "type": "object"
+}

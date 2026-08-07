@@ -1,0 +1,54 @@
+{
+  "additionalProperties": false,
+  "description": "Bounded panel placement without persisting arbitrary window or GPU state.",
+  "properties": {
+    "artifact_version_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Artifact Version Id"
+    },
+    "evidence_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Evidence Id"
+    },
+    "panel_type": {
+      "enum": [
+        "atlas",
+        "observatory"
+      ],
+      "title": "Panel Type",
+      "type": "string"
+    },
+    "slot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Slot Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "slot_id",
+    "panel_type"
+  ],
+  "title": "WorkspacePanelSlot",
+  "type": "object"
+}

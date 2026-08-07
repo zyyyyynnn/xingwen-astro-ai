@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "GraphEdgeType": {
+      "enum": [
+        "uses_dataset",
+        "provides_field",
+        "supports_finding",
+        "cites",
+        "derived_from",
+        "supports",
+        "extends",
+        "limits",
+        "contradicts",
+        "corrected_by_feedback"
+      ],
+      "title": "GraphEdgeType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "cross_document": {
+      "title": "Cross Document",
+      "type": "boolean"
+    },
+    "edge_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Edge Id",
+      "type": "string"
+    },
+    "edge_type": {
+      "$ref": "#/$defs/GraphEdgeType"
+    },
+    "evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "reasoning_trace_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reasoning Trace Id"
+    },
+    "relation_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Relation Id"
+    },
+    "source": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source",
+      "type": "string"
+    },
+    "target": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Target",
+      "type": "string"
+    }
+  },
+  "required": [
+    "edge_id",
+    "source",
+    "target",
+    "edge_type",
+    "evidence_ids",
+    "cross_document"
+  ],
+  "title": "BenchmarkGraphEdge",
+  "type": "object"
+}

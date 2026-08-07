@@ -1,0 +1,121 @@
+{
+  "$defs": {
+    "BenchmarkReviewStatus": {
+      "enum": [
+        "pending_scientific_review",
+        "approved",
+        "changes_requested"
+      ],
+      "title": "BenchmarkReviewStatus",
+      "type": "string"
+    },
+    "BenchmarkSupportedStatement": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "statement_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Statement Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement_id",
+        "text",
+        "evidence_ids"
+      ],
+      "title": "BenchmarkSupportedStatement",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "dataset": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BenchmarkSupportedStatement"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkSupportedStatement"
+      },
+      "minItems": 1,
+      "title": "Findings",
+      "type": "array"
+    },
+    "future_work": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/BenchmarkSupportedStatement"
+      },
+      "title": "Future Work",
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkSupportedStatement"
+      },
+      "minItems": 1,
+      "title": "Limitations",
+      "type": "array"
+    },
+    "method": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BenchmarkSupportedStatement"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "paper_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Paper Id",
+      "type": "string"
+    },
+    "research_goal": {
+      "minLength": 1,
+      "title": "Research Goal",
+      "type": "string"
+    },
+    "review_status": {
+      "$ref": "#/$defs/BenchmarkReviewStatus"
+    },
+    "summary_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Summary Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "summary_id",
+    "paper_id",
+    "research_goal",
+    "findings",
+    "limitations",
+    "review_status"
+  ],
+  "title": "BenchmarkPaperSummary",
+  "type": "object"
+}

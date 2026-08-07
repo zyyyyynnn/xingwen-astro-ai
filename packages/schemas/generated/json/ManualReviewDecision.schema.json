@@ -1,0 +1,138 @@
+{
+  "$defs": {
+    "AdjudicationDecision": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "keep_unresolved"
+      ],
+      "title": "AdjudicationDecision",
+      "type": "string"
+    },
+    "ReviewerKind": {
+      "enum": [
+        "human",
+        "benchmark_fixture"
+      ],
+      "title": "ReviewerKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "adjudicated_at": {
+      "format": "date-time",
+      "title": "Adjudicated At",
+      "type": "string"
+    },
+    "adjudicated_by": {
+      "minLength": 1,
+      "title": "Adjudicated By",
+      "type": "string"
+    },
+    "adjudication": {
+      "$ref": "#/$defs/AdjudicationDecision"
+    },
+    "adjudication_rule_or_actor": {
+      "minLength": 1,
+      "title": "Adjudication Rule Or Actor",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "decision_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Decision Id",
+      "type": "string"
+    },
+    "evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "left_candidate_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Left Candidate Ids",
+      "type": "array"
+    },
+    "logical_match_key": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Logical Match Key",
+      "type": "string"
+    },
+    "rationale": {
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "reviewer_kind": {
+      "$ref": "#/$defs/ReviewerKind"
+    },
+    "right_candidate_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Right Candidate Ids",
+      "type": "array"
+    },
+    "rule_set_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Rule Set Content Hash",
+      "type": "string"
+    },
+    "rule_set_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Rule Set Id",
+      "type": "string"
+    },
+    "rule_set_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Rule Set Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Source Input Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "decision_id",
+    "logical_match_key",
+    "adjudication",
+    "adjudicated_by",
+    "reviewer_kind",
+    "adjudication_rule_or_actor",
+    "adjudicated_at",
+    "rationale",
+    "source_input_hash",
+    "rule_set_id",
+    "rule_set_version",
+    "rule_set_content_hash",
+    "left_candidate_ids",
+    "right_candidate_ids",
+    "evidence_ids",
+    "content_hash"
+  ],
+  "title": "ManualReviewDecision",
+  "type": "object"
+}

@@ -1,0 +1,57 @@
+{
+  "description": "Phase 0 paper query domain model with the legacy Pipeline wire alias.",
+  "properties": {
+    "case_key": {
+      "title": "Case Key",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "filters": {
+      "additionalProperties": true,
+      "title": "Filters",
+      "type": "object"
+    },
+    "keywords": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Keywords",
+      "type": "array"
+    },
+    "query_id": {
+      "title": "Query Id",
+      "type": "string"
+    },
+    "query_string": {
+      "title": "Query String",
+      "type": "string"
+    },
+    "source_types": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Types",
+      "type": "array"
+    },
+    "task_id": {
+      "title": "Task Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "query_id",
+    "task_id",
+    "case_key",
+    "keywords",
+    "source_types",
+    "query_string",
+    "filters",
+    "created_at"
+  ],
+  "title": "PaperSearchQuery",
+  "type": "object"
+}

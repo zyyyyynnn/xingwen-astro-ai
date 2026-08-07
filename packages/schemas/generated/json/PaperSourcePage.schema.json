@@ -1,0 +1,95 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "attempt_count": {
+      "exclusiveMinimum": 0,
+      "title": "Attempt Count",
+      "type": "integer"
+    },
+    "offset": {
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "page_number": {
+      "exclusiveMinimum": 0,
+      "title": "Page Number",
+      "type": "integer"
+    },
+    "rate_limit_metadata": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Rate Limit Metadata",
+      "type": "object"
+    },
+    "request_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Request Hash",
+      "type": "string"
+    },
+    "requested_rows": {
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Requested Rows",
+      "type": "integer"
+    },
+    "response_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Response Hash",
+      "type": "string"
+    },
+    "retrieved_at": {
+      "format": "date-time",
+      "title": "Retrieved At",
+      "type": "string"
+    },
+    "returned_rows": {
+      "minimum": 0,
+      "title": "Returned Rows",
+      "type": "integer"
+    },
+    "status_code": {
+      "maximum": 599,
+      "minimum": 100,
+      "title": "Status Code",
+      "type": "integer"
+    },
+    "total_results": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Total Results"
+    }
+  },
+  "required": [
+    "page_number",
+    "offset",
+    "requested_rows",
+    "returned_rows",
+    "attempt_count",
+    "status_code",
+    "retrieved_at",
+    "request_hash",
+    "response_hash"
+  ],
+  "title": "PaperSourcePage",
+  "type": "object"
+}

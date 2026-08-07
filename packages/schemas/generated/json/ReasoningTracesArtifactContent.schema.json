@@ -1,0 +1,25 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "const": "reasoning_traces",
+      "title": "Kind",
+      "type": "string"
+    },
+    "reasoning_trace_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Reasoning Trace Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kind",
+    "reasoning_trace_ids"
+  ],
+  "title": "ReasoningTracesArtifactContent",
+  "type": "object"
+}

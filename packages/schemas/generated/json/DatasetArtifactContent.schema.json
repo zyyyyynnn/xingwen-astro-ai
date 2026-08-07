@@ -1,0 +1,57 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "field_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Field Ids",
+      "type": "array"
+    },
+    "kind": {
+      "const": "dataset",
+      "title": "Kind",
+      "type": "string"
+    },
+    "rows": {
+      "items": {
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "propertyNames": {
+          "maxLength": 128,
+          "minLength": 1
+        },
+        "type": "object"
+      },
+      "title": "Rows",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kind",
+    "field_ids",
+    "rows"
+  ],
+  "title": "DatasetArtifactContent",
+  "type": "object"
+}

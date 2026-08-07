@@ -61,28 +61,41 @@ class FakeResponse:
         self.url = SimpleNamespace(join=lambda href: urljoin(url, href))
         self._chunks = chunks if chunks is not None else ([body] if body else [])
 
-    def iter_bytes(self, *, chunk_size: int) -> Any:
+    async def aiter_bytes(self, *, chunk_size: int = 65536) -> Any:
         del chunk_size
-        yield from self._chunks
+        for chunk in self._chunks:
+            yield chunk
 
 
-class FakeClient:
+class FakeAsyncStreamContext:
+    def __init__(self, response: FakeResponse) -> None:
+        self.response = response
+
+    async def __aenter__(self) -> FakeResponse:
+        return self.response
+
+    async def __aexit__(self, *exc: object) -> None:
+        return None
+
+
+class FakeAsyncClient:
     def __init__(self, responses: list[FakeResponse]) -> None:
         self.responses = responses
         self.get_calls: list[str] = []
 
-    def __enter__(self) -> FakeClient:
+    async def __aenter__(self) -> FakeAsyncClient:
         return self
 
-    def __exit__(self, *exc: object) -> None:
+    async def __aexit__(self, *exc: object) -> None:
         return None
 
-    def get(self, url: str) -> FakeResponse:
+    def stream(self, method: str, url: str, **kwargs: object) -> FakeAsyncStreamContext:
+        del method, kwargs
         self.get_calls.append(url)
         if not self.responses:
             raise url_fetcher_module.httpx.ConnectError("no response scripted")
         response = self.responses.pop(0)
-        return response
+        return FakeAsyncStreamContext(response)
 
 
 class FakeHttpx:
@@ -102,8 +115,8 @@ class FakeHttpx:
     def __init__(self, responses: list[FakeResponse]) -> None:
         self._responses = responses
 
-    def Client(self, **kwargs: object) -> FakeClient:  # noqa: N802
-        return FakeClient(self._responses)
+    def AsyncClient(self, **kwargs: object) -> FakeAsyncClient:  # noqa: N802
+        return FakeAsyncClient(self._responses)
 
 
 CONFIG = UrlFetchConfig(
@@ -165,7 +178,8 @@ def test_validate_url_policy_allows_private_only_with_test_escape_hatch(
 # -- fetch -------------------------------------------------------------------
 
 
-def test_fetch_url_builds_immutable_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.anyio
+async def test_fetch_url_builds_immutable_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_http = FakeHttpx(
         [
             FakeResponse(
@@ -182,7 +196,7 @@ def test_fetch_url_builds_immutable_provenance(monkeypatch: pytest.MonkeyPatch) 
     )
     monkeypatch.setattr(url_fetcher_module, "httpx", fake_http)
 
-    result = fetch_url("https://example.com/data.csv?token=topsecret&page=2", CONFIG)
+    result = await fetch_url("https://example.com/data.csv?token=topsecret&page=2", CONFIG)
 
     assert result.content_bytes == b"a,b\n1,2\n"
     assert result.mime_type == "text/csv"
@@ -199,7 +213,8 @@ def test_fetch_url_builds_immutable_provenance(monkeypatch: pytest.MonkeyPatch) 
     assert snapshot.request_metadata["response_headers"]["etag"] == '"abc"'
 
 
-def test_fetch_url_rejects_redirect_outside_policy(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.anyio
+async def test_fetch_url_rejects_redirect_outside_policy(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_http = FakeHttpx(
         [
             FakeResponse(
@@ -211,11 +226,12 @@ def test_fetch_url_rejects_redirect_outside_policy(monkeypatch: pytest.MonkeyPat
     )
     monkeypatch.setattr(url_fetcher_module, "httpx", fake_http)
     with pytest.raises(UrlFetchError, match="allowed hosts") as exc:
-        fetch_url("https://example.com/data.csv", CONFIG)
+        await fetch_url("https://example.com/data.csv", CONFIG)
     assert exc.value.code == "URL_FETCH_BLOCKED"
 
 
-def test_fetch_url_follows_bounded_redirects(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.anyio
+async def test_fetch_url_follows_bounded_redirects(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_http = FakeHttpx(
         [
             FakeResponse(
@@ -227,12 +243,13 @@ def test_fetch_url_follows_bounded_redirects(monkeypatch: pytest.MonkeyPatch) ->
         ]
     )
     monkeypatch.setattr(url_fetcher_module, "httpx", fake_http)
-    result = fetch_url("https://example.com/data.csv", CONFIG)
+    result = await fetch_url("https://example.com/data.csv", CONFIG)
     assert result.content_bytes == b"final"
     assert result.final_url == "https://example.com/next.csv"
 
 
-def test_fetch_url_exhausts_redirect_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.anyio
+async def test_fetch_url_exhausts_redirect_budget(monkeypatch: pytest.MonkeyPatch) -> None:
     responses = [
         FakeResponse(
             status_code=302, headers={"location": f"/hop-{index}"}, url="https://example.com/x"
@@ -242,21 +259,23 @@ def test_fetch_url_exhausts_redirect_budget(monkeypatch: pytest.MonkeyPatch) -> 
     fake_http = FakeHttpx(responses)
     monkeypatch.setattr(url_fetcher_module, "httpx", fake_http)
     with pytest.raises(UrlFetchError, match="redirect count") as exc:
-        fetch_url("https://example.com/x", CONFIG)
+        await fetch_url("https://example.com/x", CONFIG)
     assert exc.value.code == "URL_FETCH_FAILED"
 
 
-def test_fetch_url_rejects_upstream_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.anyio
+async def test_fetch_url_rejects_upstream_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_http = FakeHttpx(
         [FakeResponse(status_code=503, url="https://example.com/data.csv")]
     )
     monkeypatch.setattr(url_fetcher_module, "httpx", fake_http)
     with pytest.raises(UrlFetchError, match="HTTP 503") as exc:
-        fetch_url("https://example.com/data.csv", CONFIG)
+        await fetch_url("https://example.com/data.csv", CONFIG)
     assert exc.value.code == "URL_FETCH_FAILED"
 
 
-def test_fetch_url_streams_and_caps_size(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.anyio
+async def test_fetch_url_streams_and_caps_size(monkeypatch: pytest.MonkeyPatch) -> None:
     big = FakeResponse(
         status_code=200,
         chunks=[b"x" * 512, b"y" * 512, b"z" * 512],
@@ -265,16 +284,18 @@ def test_fetch_url_streams_and_caps_size(monkeypatch: pytest.MonkeyPatch) -> Non
     fake_http = FakeHttpx([big])
     monkeypatch.setattr(url_fetcher_module, "httpx", fake_http)
     with pytest.raises(UrlFetchError, match="maximum size") as exc:
-        fetch_url("https://example.com/data.csv", CONFIG)
+        await fetch_url("https://example.com/data.csv", CONFIG)
     assert exc.value.code == "URL_FETCH_TOO_LARGE"
 
 
-def test_fetch_url_maps_transport_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.anyio
+async def test_fetch_url_maps_transport_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_http = FakeHttpx([])
     monkeypatch.setattr(url_fetcher_module, "httpx", fake_http)
     with pytest.raises(UrlFetchError, match="ConnectError") as exc:
-        fetch_url("https://example.com/data.csv", CONFIG)
+        await fetch_url("https://example.com/data.csv", CONFIG)
     assert exc.value.code == "URL_FETCH_FAILED"
+
 
 
 # -- display sanitization ----------------------------------------------------

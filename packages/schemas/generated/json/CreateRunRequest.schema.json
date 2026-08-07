@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "CachePolicy": {
+      "enum": [
+        "disabled",
+        "fallback_on_recoverable_failure"
+      ],
+      "title": "CachePolicy",
+      "type": "string"
+    },
+    "DerivationKind": {
+      "enum": [
+        "original",
+        "retry",
+        "revision",
+        "fork"
+      ],
+      "title": "DerivationKind",
+      "type": "string"
+    },
+    "ExecutionMode": {
+      "enum": [
+        "demo_replay",
+        "live"
+      ],
+      "title": "ExecutionMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "cache_policy": {
+      "$ref": "#/$defs/CachePolicy",
+      "default": "fallback_on_recoverable_failure"
+    },
+    "contract_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Contract Id",
+      "type": "string"
+    },
+    "derivation_kind": {
+      "$ref": "#/$defs/DerivationKind",
+      "default": "original"
+    },
+    "execution_mode": {
+      "$ref": "#/$defs/ExecutionMode"
+    },
+    "feedback_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Feedback Ids",
+      "type": "array"
+    },
+    "parent_run_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Run Id"
+    },
+    "retry_from_step": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Retry From Step"
+    }
+  },
+  "required": [
+    "contract_id",
+    "execution_mode"
+  ],
+  "title": "CreateRunRequest",
+  "type": "object"
+}

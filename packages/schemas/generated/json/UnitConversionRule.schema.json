@@ -1,0 +1,54 @@
+{
+  "additionalProperties": false,
+  "description": "A versioned conversion declaration without conversion code.",
+  "properties": {
+    "declaration_mode": {
+      "const": "declaration_only",
+      "default": "declaration_only",
+      "title": "Declaration Mode",
+      "type": "string"
+    },
+    "rule_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Rule Id",
+      "type": "string"
+    },
+    "rule_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Rule Version",
+      "type": "string"
+    },
+    "source_unit": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Unit"
+    },
+    "target_unit": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Unit"
+    }
+  },
+  "required": [
+    "rule_id",
+    "rule_version"
+  ],
+  "title": "UnitConversionRule",
+  "type": "object"
+}

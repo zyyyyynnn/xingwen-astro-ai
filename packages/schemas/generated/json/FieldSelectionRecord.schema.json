@@ -1,0 +1,67 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "candidate_source_value_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Candidate Source Value Ids",
+      "type": "array"
+    },
+    "canonical_field_id": {
+      "pattern": "^(?:planet|star|system)\\.[a-z][a-z0-9_]*$",
+      "title": "Canonical Field Id",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "dataset_row_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Dataset Row Id",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "selected_source_value_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Selected Source Value Id"
+    },
+    "selection_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Selection Id",
+      "type": "string"
+    },
+    "strategy": {
+      "const": "prefer_source_priority_preserve_all",
+      "title": "Strategy",
+      "type": "string"
+    }
+  },
+  "required": [
+    "selection_id",
+    "dataset_row_id",
+    "canonical_field_id",
+    "selected_source_value_id",
+    "candidate_source_value_ids",
+    "strategy",
+    "reason",
+    "content_hash"
+  ],
+  "title": "FieldSelectionRecord",
+  "type": "object"
+}

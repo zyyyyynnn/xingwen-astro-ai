@@ -1,0 +1,45 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "case_manifest_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Case Manifest Content Hash",
+      "type": "string"
+    },
+    "case_manifest_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Case Manifest Id",
+      "type": "string"
+    },
+    "case_manifest_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Case Manifest Version",
+      "type": "string"
+    },
+    "field_manifest_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Field Manifest Content Hash",
+      "type": "string"
+    },
+    "field_manifest_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Field Manifest Id",
+      "type": "string"
+    },
+    "field_manifest_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Field Manifest Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_manifest_id",
+    "case_manifest_version",
+    "case_manifest_content_hash",
+    "field_manifest_id",
+    "field_manifest_version",
+    "field_manifest_content_hash"
+  ],
+  "title": "ManifestPins",
+  "type": "object"
+}

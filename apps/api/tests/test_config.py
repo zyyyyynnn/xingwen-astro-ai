@@ -3,10 +3,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
 from app.config import Settings
+
 
 
 def test_development_allows_local_defaults() -> None:
@@ -103,3 +106,30 @@ def test_production_requires_non_default_cursor_signing_key() -> None:
 def test_cursor_signing_key_rejects_empty_or_short_values(value: str) -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, CURSOR_SIGNING_KEY=value)
+
+
+def test_config_loads_from_env_example(monkeypatch: pytest.MonkeyPatch) -> None:
+    env_example = Path(__file__).parents[3] / ".env.example"
+    assert env_example.is_file()
+
+    monkeypatch.delenv("RESEARCH_INPUT_ALLOWED_MIME_TYPES", raising=False)
+    monkeypatch.delenv("URL_FETCH_ALLOWED_PROTOCOLS", raising=False)
+    monkeypatch.delenv("URL_FETCH_ALLOWED_HOSTS", raising=False)
+    s = Settings(_env_file=env_example)
+    assert "application/pdf" in s.RESEARCH_INPUT_ALLOWED_MIME_TYPES
+    assert "text/csv" in s.RESEARCH_INPUT_ALLOWED_MIME_TYPES
+    assert s.URL_FETCH_ALLOWED_PROTOCOLS == ("https",)
+    assert s.URL_FETCH_ALLOWED_HOSTS is None
+
+
+def test_config_parses_csv_list_and_empty_hosts() -> None:
+    s = Settings(
+        _env_file=None,
+        RESEARCH_INPUT_ALLOWED_MIME_TYPES="application/pdf, text/csv , APPLICATION/PDF",
+        URL_FETCH_ALLOWED_PROTOCOLS="https, HTTPs",
+        URL_FETCH_ALLOWED_HOSTS="",
+    )
+    assert s.RESEARCH_INPUT_ALLOWED_MIME_TYPES == ["application/pdf", "text/csv"]
+    assert s.URL_FETCH_ALLOWED_PROTOCOLS == ("https",)
+    assert s.URL_FETCH_ALLOWED_HOSTS is None
+

@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "CrossmatchSide": {
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "CrossmatchSide",
+      "type": "string"
+    },
+    "ObjectType": {
+      "description": "Objects represented by the exoplanet/host-star case.",
+      "enum": [
+        "planet",
+        "star",
+        "system"
+      ],
+      "title": "ObjectType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "object_type": {
+      "$ref": "#/$defs/ObjectType"
+    },
+    "query_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Query Hash",
+      "type": "string"
+    },
+    "record_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Record Content Hash",
+      "type": "string"
+    },
+    "row_key": {
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "minLength": 1,
+            "type": "string"
+          }
+        ],
+        "type": "array"
+      },
+      "minItems": 1,
+      "title": "Row Key",
+      "type": "array"
+    },
+    "side": {
+      "$ref": "#/$defs/CrossmatchSide"
+    },
+    "source_entity_key": {
+      "minLength": 1,
+      "title": "Source Entity Key",
+      "type": "string"
+    },
+    "source_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_snapshot_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Source Snapshot Content Hash",
+      "type": "string"
+    },
+    "source_snapshot_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Snapshot Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "side",
+    "source_snapshot_id",
+    "source_snapshot_content_hash",
+    "source_id",
+    "query_hash",
+    "row_key",
+    "record_content_hash",
+    "object_type",
+    "source_entity_key"
+  ],
+  "title": "SourceRecordReference",
+  "type": "object"
+}

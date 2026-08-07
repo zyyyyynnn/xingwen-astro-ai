@@ -1,0 +1,133 @@
+{
+  "$defs": {
+    "ConditionOperator": {
+      "enum": [
+        "exact",
+        "curated_alias",
+        "angular_separation_lte",
+        "angular_separation_gt",
+        "contradicts",
+        "source_scope"
+      ],
+      "title": "ConditionOperator",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "condition_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Condition Id",
+      "type": "string"
+    },
+    "field_id": {
+      "anyOf": [
+        {
+          "pattern": "^(planet|star|system)\\.[a-z][a-z0-9_]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Field Id"
+    },
+    "left_value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Left Value"
+    },
+    "manual_review_threshold_arcsec": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Manual Review Threshold Arcsec"
+    },
+    "operator": {
+      "$ref": "#/$defs/ConditionOperator"
+    },
+    "right_value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Right Value"
+    },
+    "rule_reference": {
+      "minLength": 1,
+      "title": "Rule Reference",
+      "type": "string"
+    },
+    "separation_arcsec": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Separation Arcsec"
+    },
+    "strict_threshold_arcsec": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Strict Threshold Arcsec"
+    }
+  },
+  "required": [
+    "condition_id",
+    "operator",
+    "rule_reference"
+  ],
+  "title": "CrossmatchCondition",
+  "type": "object"
+}

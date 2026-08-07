@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "ResearchInputType": {
+      "enum": [
+        "url",
+        "pdf",
+        "csv",
+        "json",
+        "image",
+        "text"
+      ],
+      "title": "ResearchInputType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Client payload describing one input to ingest.\n\n``type=url`` requires ``url``; ``type=text`` requires ``text_content``;\nthe file types (pdf/csv/json/image) always arrive through the multipart\ntransport and never carry ``url`` or ``text_content``.",
+  "properties": {
+    "filename": {
+      "anyOf": [
+        {
+          "maxLength": 255,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Filename"
+    },
+    "mime_type": {
+      "anyOf": [
+        {
+          "maxLength": 127,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mime Type"
+    },
+    "text_content": {
+      "anyOf": [
+        {
+          "maxLength": 100000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Text Content"
+    },
+    "type": {
+      "$ref": "#/$defs/ResearchInputType"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Url"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "ResearchInputCreate",
+  "type": "object"
+}

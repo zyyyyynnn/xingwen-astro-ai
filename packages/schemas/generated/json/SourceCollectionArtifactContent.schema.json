@@ -1,0 +1,26 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "const": "source_collection",
+      "title": "Kind",
+      "type": "string"
+    },
+    "source_snapshot_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Source Snapshot Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kind",
+    "source_snapshot_ids"
+  ],
+  "title": "SourceCollectionArtifactContent",
+  "type": "object"
+}

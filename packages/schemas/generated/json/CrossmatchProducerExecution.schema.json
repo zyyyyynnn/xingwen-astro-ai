@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "producer_name": {
+      "minLength": 1,
+      "title": "Producer Name",
+      "type": "string"
+    },
+    "producer_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Producer Version",
+      "type": "string"
+    },
+    "rule_set_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Rule Set Content Hash",
+      "type": "string"
+    },
+    "rule_set_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Rule Set Id",
+      "type": "string"
+    },
+    "rule_set_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Rule Set Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "producer_name",
+    "producer_version",
+    "rule_set_id",
+    "rule_set_version",
+    "rule_set_content_hash"
+  ],
+  "title": "CrossmatchProducerExecution",
+  "type": "object"
+}

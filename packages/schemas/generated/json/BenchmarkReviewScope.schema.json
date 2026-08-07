@@ -1,0 +1,49 @@
+{
+  "$defs": {
+    "BenchmarkReviewTargetType": {
+      "enum": [
+        "pull_request",
+        "benchmark_package",
+        "source_policy",
+        "seed_paper",
+        "paper_summary",
+        "evidence",
+        "claim",
+        "relation",
+        "reasoning_trace",
+        "graph_edge"
+      ],
+      "title": "BenchmarkReviewTargetType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "target_ids": {
+      "items": {
+        "anyOf": [
+          {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "type": "string"
+          },
+          {
+            "pattern": "^zyyyyynnn/xingwen-astro-ai#[1-9][0-9]*$",
+            "type": "string"
+          }
+        ]
+      },
+      "minItems": 1,
+      "title": "Target Ids",
+      "type": "array"
+    },
+    "target_type": {
+      "$ref": "#/$defs/BenchmarkReviewTargetType"
+    }
+  },
+  "required": [
+    "target_type",
+    "target_ids"
+  ],
+  "title": "BenchmarkReviewScope",
+  "type": "object"
+}

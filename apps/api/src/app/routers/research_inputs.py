@@ -103,6 +103,25 @@ def _url_fetch_config() -> UrlFetchConfig:
     )
 
 
+import json
+import hashlib
+
+def _compute_request_hash(
+    payload: CreateResearchInputRequest, file: UploadFile | None
+) -> str:
+    raw = {
+        "project_id": payload.project_id,
+        "type": payload.type.value,
+        "url": payload.url,
+        "filename": payload.filename,
+        "mime_type": payload.mime_type,
+        "text_content": payload.text_content,
+        "file_name": file.filename if file is not None else None,
+    }
+    dumped = json.dumps(raw, sort_keys=True, separators=(",", ":"))
+    return "sha256:" + hashlib.sha256(dumped.encode("utf-8")).hexdigest()
+
+
 @router.post(
     "/research-inputs",
     operation_id="createResearchInput",
@@ -115,12 +134,13 @@ async def create_research_input(
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
     csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
 ) -> Envelope[ResearchInputRef]:
-    _ = (idempotency_key, csrf_token)
+    _ = csrf_token
     limiter = request.app.state.research_input_rate_limiter
     remaining, reset_seconds = limiter.consume(_session_id(request))
     payload, file = await _parse_create_request(request)
+    request_hash = _compute_request_hash(payload, file)
     try:
-        record = await _ingest(request, payload, file)
+        record = await _ingest(request, payload, file, idempotency_key, request_hash)
     except SecurityProblem:
         raise
     _no_store(response)
@@ -299,32 +319,39 @@ async def _ingest(
     request: Request,
     payload: CreateResearchInputRequest,
     file: UploadFile | None,
+    idempotency_key: str | None = None,
+    request_hash: str | None = None,
 ) -> ResearchInputRecord:
     if payload.type is ResearchInputType.url:
-        return await _ingest_url(request, payload)
+        return await _ingest_url(request, payload, idempotency_key, request_hash)
     if payload.type is ResearchInputType.text:
-        return await _ingest_text(request, payload)
-    return await _ingest_upload(request, payload, file)
+        return await _ingest_text(request, payload, idempotency_key, request_hash)
+    return await _ingest_upload(request, payload, file, idempotency_key, request_hash)
 
 
 async def _ingest_url(
-    request: Request, payload: CreateResearchInputRequest
+    request: Request,
+    payload: CreateResearchInputRequest,
+    idempotency_key: str | None = None,
+    request_hash: str | None = None,
 ) -> ResearchInputRecord:
     assert payload.url is not None
     config = _url_fetch_config()
     try:
         validate_url_policy(payload.url, config)
-        result = fetch_url(payload.url, config)
+        result = await fetch_url(payload.url, config)
     except UrlFetchError as exc:
         raise _url_fetch_problem(exc) from exc
-    filename = _clean_filename_hint(payload.filename, result.mime_type)
+    sniffed_mime = sniff_mime_type(result.content_bytes)
+    mime_type = _resolve_mime(payload, sniffed_mime)
+    filename = _clean_filename_hint(payload.filename, mime_type)
     prepared = PreparedInput(
         content_hash=result.content_hash,
         storage_ref=await _content_storage(request).store(
             result.content_bytes, result.content_hash
         ),
         size_bytes=len(result.content_bytes),
-        mime_type=result.mime_type,
+        mime_type=mime_type,
         filename=filename,
         source_snapshot=result.source_snapshot,
     )
@@ -333,29 +360,41 @@ async def _ingest_url(
         project_id=payload.project_id,
         payload=payload,
         prepared=prepared,
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
     )
 
 
+
 async def _ingest_text(
-    request: Request, payload: CreateResearchInputRequest
+    request: Request,
+    payload: CreateResearchInputRequest,
+    idempotency_key: str | None = None,
+    request_hash: str | None = None,
 ) -> ResearchInputRecord:
     assert payload.text_content is not None
     content = payload.text_content.encode("utf-8")
     mime_type = _resolve_mime(payload, sniff_mime_type(content))
-    return await _ingest_bytes(request, payload, content, mime_type, payload.filename)
+    return await _ingest_bytes(
+        request, payload, content, mime_type, payload.filename, idempotency_key, request_hash
+    )
 
 
 async def _ingest_upload(
     request: Request,
     payload: CreateResearchInputRequest,
     file: UploadFile | None,
+    idempotency_key: str | None = None,
+    request_hash: str | None = None,
 ) -> ResearchInputRecord:
     assert file is not None
     content = await _read_upload(file)
     mime_type = _resolve_mime(payload, sniff_mime_type(content))
     raw_filename = payload.filename or (file.filename or "")
     filename = _clean_filename_hint(raw_filename, mime_type)
-    return await _ingest_bytes(request, payload, content, mime_type, filename)
+    return await _ingest_bytes(
+        request, payload, content, mime_type, filename, idempotency_key, request_hash
+    )
 
 
 async def _ingest_bytes(
@@ -364,6 +403,8 @@ async def _ingest_bytes(
     content: bytes,
     mime_type: str | None,
     filename: str | None,
+    idempotency_key: str | None = None,
+    request_hash: str | None = None,
 ) -> ResearchInputRecord:
     content_hash = sha256_content_hash(content)
     prepared = PreparedInput(
@@ -379,7 +420,10 @@ async def _ingest_bytes(
         project_id=payload.project_id,
         payload=payload,
         prepared=prepared,
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
     )
+
 
 
 def _resolve_mime(

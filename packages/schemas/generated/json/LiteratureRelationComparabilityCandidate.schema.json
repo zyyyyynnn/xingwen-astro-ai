@@ -1,0 +1,53 @@
+{
+  "$defs": {
+    "LiteratureComparabilityStatus": {
+      "enum": [
+        "comparable",
+        "not_applicable",
+        "incomparable"
+      ],
+      "title": "LiteratureComparabilityStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "metric_basis": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Metric Basis",
+      "type": "string"
+    },
+    "metric_status": {
+      "$ref": "#/$defs/LiteratureComparabilityStatus"
+    },
+    "object_basis": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Object Basis",
+      "type": "string"
+    },
+    "object_status": {
+      "$ref": "#/$defs/LiteratureComparabilityStatus"
+    },
+    "unit_basis": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Unit Basis",
+      "type": "string"
+    },
+    "unit_status": {
+      "$ref": "#/$defs/LiteratureComparabilityStatus"
+    }
+  },
+  "required": [
+    "object_status",
+    "object_basis",
+    "metric_status",
+    "metric_basis",
+    "unit_status",
+    "unit_basis"
+  ],
+  "title": "LiteratureRelationComparabilityCandidate",
+  "type": "object"
+}

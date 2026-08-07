@@ -47,12 +47,30 @@ def upgrade() -> None:
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
+        sa.Column("idempotency_key", sa.String(length=200), nullable=True),
+        sa.Column("request_hash", sa.String(length=71), nullable=True),
         sa.ForeignKeyConstraint(
             ["project_id"], ["research_projects.id"], ondelete="CASCADE"
         ),
+        sa.ForeignKeyConstraint(
+            ["source_snapshot_id", "project_id"],
+            ["source_snapshots.id", "source_snapshots.project_id"],
+            name="fk_research_input_snapshot_project",
+            ondelete="RESTRICT",
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
-            "session_id", "content_hash", name="uq_research_input_session_content"
+            "session_id",
+            "project_id",
+            "content_hash",
+            name="uq_research_input_session_project_content",
+        ),
+        sa.UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
+        sa.UniqueConstraint(
+            "session_id",
+            "project_id",
+            "idempotency_key",
+            name="uq_research_input_idempotency",
         ),
         sa.CheckConstraint(
             "type IN ('url','pdf','csv','json','image','text')", name="ck_research_inputs_input_type"
@@ -91,15 +109,24 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.ForeignKeyConstraint(
-            ["input_id"], ["research_inputs.id"], ondelete="CASCADE"
+            ["input_id", "project_id"],
+            ["research_inputs.id", "research_inputs.project_id"],
+            name="fk_research_input_binding_input_project",
+            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             ["project_id"], ["research_projects.id"], ondelete="CASCADE"
         ),
+        sa.ForeignKeyConstraint(
+            ["run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_research_input_binding_run_project",
+            ondelete="CASCADE",
+        ),
         sa.PrimaryKeyConstraint("input_id"),
         sa.CheckConstraint(
-            "contract_draft_id IS NOT NULL OR run_id IS NOT NULL",
-            name="ck_research_input_bindings_binding_target_present",
+            "(contract_draft_id IS NULL) <> (run_id IS NULL)",
+            name="ck_research_input_bindings_binding_target_xor",
         ),
     )
 
@@ -109,3 +136,4 @@ def downgrade() -> None:
     op.drop_index("ix_research_inputs_session_content", table_name="research_inputs")
     op.drop_index("ix_research_inputs_session_project", table_name="research_inputs")
     op.drop_table("research_inputs")
+

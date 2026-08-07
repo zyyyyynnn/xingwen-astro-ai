@@ -1,0 +1,157 @@
+{
+  "$defs": {
+    "DataQualityProjectionReference": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Version"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "content_hash"
+      ],
+      "title": "DataQualityProjectionReference",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Persisted C-05 attestation bound to one published data candidate.",
+  "properties": {
+    "bundle_commitment": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Bundle Commitment",
+      "type": "string"
+    },
+    "candidate_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Candidate Content Hash",
+      "type": "string"
+    },
+    "candidate_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "candidate_input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Candidate Input Hash",
+      "type": "string"
+    },
+    "candidate_kind": {
+      "enum": [
+        "dataset",
+        "field_dictionary",
+        "source_collection"
+      ],
+      "title": "Candidate Kind",
+      "type": "string"
+    },
+    "candidate_output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Candidate Output Hash",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "evaluation_commitment": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Evaluation Commitment",
+      "type": "string"
+    },
+    "evaluation_plan_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Evaluation Plan Content Hash",
+      "type": "string"
+    },
+    "overall_status": {
+      "const": "pass",
+      "title": "Overall Status",
+      "type": "string"
+    },
+    "quality_input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Quality Input Hash",
+      "type": "string"
+    },
+    "quality_result_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Quality Result Content Hash",
+      "type": "string"
+    },
+    "quality_result_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Quality Result Id",
+      "type": "string"
+    },
+    "quality_result_input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Quality Result Input Hash",
+      "type": "string"
+    },
+    "quality_result_output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Quality Result Output Hash",
+      "type": "string"
+    },
+    "research_contract": {
+      "$ref": "#/$defs/DataQualityProjectionReference"
+    },
+    "rule_set": {
+      "$ref": "#/$defs/DataQualityProjectionReference"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate_kind",
+    "candidate_id",
+    "candidate_input_hash",
+    "candidate_output_hash",
+    "candidate_content_hash",
+    "quality_input_hash",
+    "quality_result_id",
+    "quality_result_input_hash",
+    "quality_result_output_hash",
+    "quality_result_content_hash",
+    "evaluation_plan_content_hash",
+    "evaluation_commitment",
+    "bundle_commitment",
+    "rule_set",
+    "research_contract",
+    "overall_status",
+    "content_hash"
+  ],
+  "title": "DataQualityProjection",
+  "type": "object"
+}

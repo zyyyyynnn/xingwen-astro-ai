@@ -1,0 +1,28 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "basis": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Basis",
+      "type": "string"
+    },
+    "source_claim_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Claim Id",
+      "type": "string"
+    },
+    "target_claim_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Target Claim Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_claim_id",
+    "target_claim_id",
+    "basis"
+  ],
+  "title": "LiteratureRelationDirectionCandidate",
+  "type": "object"
+}

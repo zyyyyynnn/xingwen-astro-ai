@@ -1,0 +1,576 @@
+{
+  "$defs": {
+    "LiteratureComparabilityStatus": {
+      "enum": [
+        "comparable",
+        "not_applicable",
+        "incomparable"
+      ],
+      "title": "LiteratureComparabilityStatus",
+      "type": "string"
+    },
+    "LiteratureRelationComparabilityCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "metric_basis": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Metric Basis",
+          "type": "string"
+        },
+        "metric_status": {
+          "$ref": "#/$defs/LiteratureComparabilityStatus"
+        },
+        "object_basis": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Object Basis",
+          "type": "string"
+        },
+        "object_status": {
+          "$ref": "#/$defs/LiteratureComparabilityStatus"
+        },
+        "unit_basis": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Unit Basis",
+          "type": "string"
+        },
+        "unit_status": {
+          "$ref": "#/$defs/LiteratureComparabilityStatus"
+        }
+      },
+      "required": [
+        "object_status",
+        "object_basis",
+        "metric_status",
+        "metric_basis",
+        "unit_status",
+        "unit_basis"
+      ],
+      "title": "LiteratureRelationComparabilityCandidate",
+      "type": "object"
+    },
+    "LiteratureRelationConfidenceAssessment": {
+      "additionalProperties": false,
+      "description": "Trusted, versioned calibration input referenced by model output by id.",
+      "properties": {
+        "acceptance_threshold": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Acceptance Threshold",
+          "type": "number"
+        },
+        "applicability_scope": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Applicability Scope",
+          "type": "string"
+        },
+        "assessment_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Assessment Id",
+          "type": "string"
+        },
+        "basis": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Basis",
+          "type": "array"
+        },
+        "calibration_content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Calibration Content Hash",
+          "type": "string"
+        },
+        "calibration_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Calibration Id",
+          "type": "string"
+        },
+        "calibration_method": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Calibration Method",
+          "type": "string"
+        },
+        "calibration_sample_size": {
+          "minimum": 1,
+          "title": "Calibration Sample Size",
+          "type": "integer"
+        },
+        "calibration_scientific_payload_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Calibration Scientific Payload Hash",
+          "type": "string"
+        },
+        "calibration_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Calibration Version",
+          "type": "string"
+        },
+        "decision": {
+          "$ref": "#/$defs/LiteratureRelationStatus"
+        },
+        "definition_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Definition Id",
+          "type": "string"
+        },
+        "definition_version": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Definition Version",
+          "type": "string"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "score_interpretation": {
+          "const": "confidence_in_relation_type_and_admission_decision",
+          "default": "confidence_in_relation_type_and_admission_decision",
+          "title": "Score Interpretation",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/LiteratureRelationConfidenceStatus"
+        },
+        "subject": {
+          "$ref": "#/$defs/LiteratureRelationConfidenceSubject"
+        }
+      },
+      "required": [
+        "assessment_id",
+        "subject",
+        "decision",
+        "status",
+        "definition_id",
+        "definition_version",
+        "calibration_id",
+        "calibration_version",
+        "calibration_scientific_payload_hash",
+        "calibration_content_hash",
+        "calibration_sample_size",
+        "calibration_method",
+        "applicability_scope",
+        "acceptance_threshold",
+        "basis"
+      ],
+      "title": "LiteratureRelationConfidenceAssessment",
+      "type": "object"
+    },
+    "LiteratureRelationConfidenceStatus": {
+      "enum": [
+        "assessed",
+        "not_evaluable"
+      ],
+      "title": "LiteratureRelationConfidenceStatus",
+      "type": "string"
+    },
+    "LiteratureRelationConfidenceSubject": {
+      "additionalProperties": false,
+      "properties": {
+        "fingerprint": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "relation_type": {
+          "$ref": "#/$defs/LiteratureRelationType"
+        },
+        "source_claim_artifact_version_id": {
+          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "title": "Source Claim Artifact Version Id",
+          "type": "string"
+        },
+        "source_claim_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Claim Id",
+          "type": "string"
+        },
+        "target_claim_artifact_version_id": {
+          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "title": "Target Claim Artifact Version Id",
+          "type": "string"
+        },
+        "target_claim_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Target Claim Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_claim_artifact_version_id",
+        "source_claim_id",
+        "target_claim_artifact_version_id",
+        "target_claim_id",
+        "relation_type",
+        "fingerprint"
+      ],
+      "title": "LiteratureRelationConfidenceSubject",
+      "type": "object"
+    },
+    "LiteratureRelationDirectionCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Basis",
+          "type": "string"
+        },
+        "source_claim_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Claim Id",
+          "type": "string"
+        },
+        "target_claim_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Target Claim Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_claim_id",
+        "target_claim_id",
+        "basis"
+      ],
+      "title": "LiteratureRelationDirectionCandidate",
+      "type": "object"
+    },
+    "LiteratureRelationFailureStage": {
+      "enum": [
+        "json",
+        "schema",
+        "input",
+        "claim",
+        "evidence",
+        "ownership",
+        "pairing",
+        "direction",
+        "duplicate",
+        "conditions",
+        "comparability",
+        "trace",
+        "confidence"
+      ],
+      "title": "LiteratureRelationFailureStage",
+      "type": "string"
+    },
+    "LiteratureRelationRejectionReason": {
+      "enum": [
+        "literature_relation.json_invalid",
+        "literature_relation.schema_invalid",
+        "literature_relation.input_artifact_version_unknown",
+        "literature_relation.input_schema_version_unsupported",
+        "literature_relation.input_content_hash_mismatch",
+        "literature_relation.claim_not_found",
+        "literature_relation.paper_summary_artifact_version_unknown",
+        "literature_relation.claim_status_invalid",
+        "literature_relation.evidence_missing",
+        "literature_relation.evidence_not_found",
+        "literature_relation.source_snapshot_not_found",
+        "literature_relation.evidence_inconsistent",
+        "literature_relation.ownership_mismatch",
+        "literature_relation.self_pair",
+        "literature_relation.direction_mismatch",
+        "literature_relation.duplicate",
+        "literature_relation.conditions_missing",
+        "literature_relation.conditions_conflict",
+        "literature_relation.object_incomparable",
+        "literature_relation.metric_incomparable",
+        "literature_relation.unit_incomparable",
+        "literature_relation.trace_missing",
+        "literature_relation.trace_incomplete",
+        "literature_relation.trace_unsafe",
+        "literature_relation.trace_direction_mismatch",
+        "literature_relation.trace_evidence_incomplete",
+        "literature_relation.confidence_undefined",
+        "literature_relation.confidence_definition_unsupported",
+        "literature_relation.confidence_subject_mismatch",
+        "literature_relation.confidence_decision_mismatch",
+        "literature_relation.confidence_calibration_missing"
+      ],
+      "title": "LiteratureRelationRejectionReason",
+      "type": "string"
+    },
+    "LiteratureRelationReviewReason": {
+      "enum": [
+        "literature_relation.review.claim_not_accepted",
+        "literature_relation.review.conditions_unresolved",
+        "literature_relation.review.confidence_not_evaluable",
+        "literature_relation.review.confidence_below_threshold"
+      ],
+      "title": "LiteratureRelationReviewReason",
+      "type": "string"
+    },
+    "LiteratureRelationStatus": {
+      "enum": [
+        "candidate",
+        "accepted",
+        "rejected"
+      ],
+      "title": "LiteratureRelationStatus",
+      "type": "string"
+    },
+    "LiteratureRelationType": {
+      "enum": [
+        "supports",
+        "extends",
+        "derived_from",
+        "limits",
+        "contradicts",
+        "uses_same_dataset",
+        "compares_method"
+      ],
+      "title": "LiteratureRelationType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "comparability": {
+      "$ref": "#/$defs/LiteratureRelationComparabilityCandidate"
+    },
+    "condition_conflicts": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Condition Conflicts",
+      "type": "array"
+    },
+    "condition_uncertainties": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Condition Uncertainties",
+      "type": "array"
+    },
+    "conditions": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Conditions",
+      "type": "array"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiteratureRelationConfidenceAssessment"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "direction": {
+      "$ref": "#/$defs/LiteratureRelationDirectionCandidate"
+    },
+    "evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "failure_stage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiteratureRelationFailureStage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "fingerprint": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "model_response_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Model Response Hash",
+      "type": "string"
+    },
+    "pair_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Pair Id",
+      "type": "string"
+    },
+    "producer_execution_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Producer Execution Id",
+      "type": "string"
+    },
+    "reasoning_trace_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reasoning Trace Id"
+    },
+    "rejection_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiteratureRelationRejectionReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "relation_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Relation Id",
+      "type": "string"
+    },
+    "relation_type": {
+      "$ref": "#/$defs/LiteratureRelationType"
+    },
+    "review_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiteratureRelationReviewReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "scientific_review_status": {
+      "const": "pending_scientific_review",
+      "default": "pending_scientific_review",
+      "title": "Scientific Review Status",
+      "type": "string"
+    },
+    "source_claim_artifact_version_id": {
+      "anyOf": [
+        {
+          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Claim Artifact Version Id"
+    },
+    "source_claim_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Claim Id",
+      "type": "string"
+    },
+    "source_paper_summary_artifact_version_id": {
+      "anyOf": [
+        {
+          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Paper Summary Artifact Version Id"
+    },
+    "source_snapshot_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Source Snapshot Ids",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/LiteratureRelationStatus"
+    },
+    "target_claim_artifact_version_id": {
+      "anyOf": [
+        {
+          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Claim Artifact Version Id"
+    },
+    "target_claim_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Target Claim Id",
+      "type": "string"
+    },
+    "target_paper_summary_artifact_version_id": {
+      "anyOf": [
+        {
+          "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Paper Summary Artifact Version Id"
+    }
+  },
+  "required": [
+    "relation_id",
+    "pair_id",
+    "source_claim_id",
+    "target_claim_id",
+    "relation_type",
+    "direction",
+    "conditions",
+    "condition_conflicts",
+    "condition_uncertainties",
+    "comparability",
+    "evidence_ids",
+    "source_snapshot_ids",
+    "fingerprint",
+    "status",
+    "producer_execution_id",
+    "input_hash",
+    "model_response_hash"
+  ],
+  "title": "LiteratureRelationCandidate",
+  "type": "object"
+}

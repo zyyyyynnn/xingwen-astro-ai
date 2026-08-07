@@ -37,20 +37,6 @@ export type App_Schemas_Core__SourceMode = "fixture" | "live" | "cached";
  */
 export type CachePolicy = "disabled" | "fallback_on_recoverable_failure";
 /**
- * Lifecycle of a controlled research input after ingestion.
- *
- * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
- * content is frozen behind an immutable content hash. ``unsupported_processing``
- * and ``failed_ingestion`` are reserved states the API exposes so consumers
- * never mistake "uploaded" for "understood".
- */
-export type ResearchInputStatus = "accepted" | "unsupported_processing" | "failed_ingestion";
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "ResearchInputType".
- */
-export type ResearchInputType = "url" | "pdf" | "csv" | "json" | "image" | "text";
-/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ClaimType".
  */
@@ -189,6 +175,20 @@ export type LiteratureTraceOperation =
   | "check_evidence"
   | "classify_relation"
   | "record_limitation";
+/**
+ * Lifecycle of a controlled research input after ingestion.
+ *
+ * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+ * content is frozen behind an immutable content hash. ``unsupported_processing``
+ * and ``failed_ingestion`` are reserved states the API exposes so consumers
+ * never mistake "uploaded" for "understood".
+ */
+export type ResearchInputStatus = "accepted" | "unsupported_processing" | "failed_ingestion";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchInputType".
+ */
+export type ResearchInputType = "url" | "pdf" | "csv" | "json" | "image" | "text";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ShareRedactionPolicy".

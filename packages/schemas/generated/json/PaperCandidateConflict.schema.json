@@ -1,0 +1,42 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "classification": {
+      "enum": [
+        "conflict",
+        "uncertain_match"
+      ],
+      "title": "Classification",
+      "type": "string"
+    },
+    "detail": {
+      "minLength": 1,
+      "title": "Detail",
+      "type": "string"
+    },
+    "field": {
+      "enum": [
+        "doi",
+        "arxiv_id",
+        "title",
+        "year",
+        "authors"
+      ],
+      "title": "Field",
+      "type": "string"
+    },
+    "related_candidate_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Related Candidate Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "field",
+    "related_candidate_id",
+    "classification",
+    "detail"
+  ],
+  "title": "PaperCandidateConflict",
+  "type": "object"
+}

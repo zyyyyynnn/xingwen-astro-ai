@@ -1,0 +1,30 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "candidate_limit": {
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Candidate Limit",
+      "type": "integer"
+    },
+    "max_pages": {
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Max Pages",
+      "type": "integer"
+    },
+    "page_size": {
+      "exclusiveMinimum": 0,
+      "maximum": 100,
+      "title": "Page Size",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "page_size",
+    "max_pages",
+    "candidate_limit"
+  ],
+  "title": "PaperQueryPagination",
+  "type": "object"
+}

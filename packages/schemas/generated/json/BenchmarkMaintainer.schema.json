@@ -1,0 +1,21 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "module": {
+      "const": "D",
+      "title": "Module",
+      "type": "string"
+    },
+    "role": {
+      "const": "paper_and_graph_pipeline",
+      "title": "Role",
+      "type": "string"
+    }
+  },
+  "required": [
+    "module",
+    "role"
+  ],
+  "title": "BenchmarkMaintainer",
+  "type": "object"
+}

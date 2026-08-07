@@ -1,0 +1,75 @@
+{
+  "$defs": {
+    "UpstreamFailureClass": {
+      "enum": [
+        "timeout",
+        "rate_limited",
+        "transport",
+        "upstream_server",
+        "upstream_client",
+        "invalid_response",
+        "policy_violation"
+      ],
+      "title": "UpstreamFailureClass",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Why a cached source was used and the immutable origin it came from.",
+  "properties": {
+    "cache_applicability": {
+      "minLength": 1,
+      "title": "Cache Applicability",
+      "type": "string"
+    },
+    "cache_version": {
+      "minLength": 1,
+      "title": "Cache Version",
+      "type": "string"
+    },
+    "live_failure_class": {
+      "$ref": "#/$defs/UpstreamFailureClass"
+    },
+    "live_failure_code": {
+      "minLength": 1,
+      "title": "Live Failure Code",
+      "type": "string"
+    },
+    "origin_artifact_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Origin Artifact Version Id",
+      "type": "string"
+    },
+    "origin_run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Origin Run Id",
+      "type": "string"
+    },
+    "source_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_snapshot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Source Snapshot Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_id",
+    "source_snapshot_id",
+    "cache_version",
+    "cache_applicability",
+    "live_failure_class",
+    "live_failure_code",
+    "origin_run_id",
+    "origin_artifact_version_id"
+  ],
+  "title": "PaperSummaryCacheAudit",
+  "type": "object"
+}

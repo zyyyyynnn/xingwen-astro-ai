@@ -1,0 +1,312 @@
+{
+  "$defs": {
+    "ClaimType": {
+      "enum": [
+        "goal",
+        "method",
+        "dataset",
+        "finding",
+        "limitation",
+        "future_work"
+      ],
+      "title": "ClaimType",
+      "type": "string"
+    },
+    "LiteratureClaimFailureStage": {
+      "enum": [
+        "json",
+        "schema",
+        "input",
+        "evidence",
+        "ownership",
+        "normalization",
+        "duplicate"
+      ],
+      "title": "LiteratureClaimFailureStage",
+      "type": "string"
+    },
+    "LiteratureClaimPolarity": {
+      "enum": [
+        "positive",
+        "negative",
+        "neutral",
+        "mixed"
+      ],
+      "title": "LiteratureClaimPolarity",
+      "type": "string"
+    },
+    "LiteratureClaimRejectionReason": {
+      "enum": [
+        "literature_claim.json_invalid",
+        "literature_claim.schema_invalid",
+        "literature_claim.input_artifact_version_unknown",
+        "literature_claim.input_schema_version_unsupported",
+        "literature_claim.evidence_missing",
+        "literature_claim.evidence_not_found",
+        "literature_claim.source_snapshot_not_found",
+        "literature_claim.ownership_mismatch",
+        "literature_claim.normalization_unsafe",
+        "literature_claim.duplicate"
+      ],
+      "title": "LiteratureClaimRejectionReason",
+      "type": "string"
+    },
+    "LiteratureClaimStatus": {
+      "enum": [
+        "candidate",
+        "accepted",
+        "rejected"
+      ],
+      "title": "LiteratureClaimStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Schema-valid Claim with the outcome of deterministic D-07 admission.",
+  "properties": {
+    "claim_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Claim Id",
+      "type": "string"
+    },
+    "claim_type": {
+      "$ref": "#/$defs/ClaimType"
+    },
+    "comparison_basis": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Comparison Basis"
+    },
+    "conditions": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Conditions",
+      "type": "array"
+    },
+    "evidence_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "failure_stage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiteratureClaimFailureStage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "fingerprint": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "metric": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Metric"
+    },
+    "model_response_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Model Response Hash",
+      "type": "string"
+    },
+    "normalization_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Normalization Version",
+      "type": "string"
+    },
+    "normalized_text": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Normalized Text",
+      "type": "string"
+    },
+    "objects": {
+      "items": {
+        "maxLength": 512,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Objects",
+      "type": "array"
+    },
+    "paper_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Paper Id",
+      "type": "string"
+    },
+    "polarity": {
+      "$ref": "#/$defs/LiteratureClaimPolarity"
+    },
+    "producer_execution_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Producer Execution Id",
+      "type": "string"
+    },
+    "qualifiers": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Qualifiers",
+      "type": "array"
+    },
+    "rejection_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LiteratureClaimRejectionReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "scope": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Scope",
+      "type": "array"
+    },
+    "source_paper_summary_artifact_version_id": {
+      "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+      "title": "Source Paper Summary Artifact Version Id",
+      "type": "string"
+    },
+    "source_snapshot_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "type": "string"
+      },
+      "title": "Source Snapshot Ids",
+      "type": "array"
+    },
+    "source_statement_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Source Statement Id",
+      "type": "string"
+    },
+    "source_summary_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Summary Id"
+    },
+    "status": {
+      "$ref": "#/$defs/LiteratureClaimStatus"
+    },
+    "text": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "uncertainty": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Uncertainty"
+    },
+    "unit": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Unit"
+    }
+  },
+  "required": [
+    "claim_id",
+    "source_statement_id",
+    "paper_id",
+    "source_paper_summary_artifact_version_id",
+    "text",
+    "normalized_text",
+    "claim_type",
+    "polarity",
+    "objects",
+    "conditions",
+    "scope",
+    "limitations",
+    "qualifiers",
+    "evidence_ids",
+    "source_snapshot_ids",
+    "normalization_version",
+    "fingerprint",
+    "status",
+    "producer_execution_id",
+    "input_hash",
+    "model_response_hash"
+  ],
+  "title": "LiteratureClaimCandidate",
+  "type": "object"
+}

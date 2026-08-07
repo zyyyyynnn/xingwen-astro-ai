@@ -10,10 +10,15 @@ no S3/MinIO configuration is introduced without a load basis.
 from __future__ import annotations
 
 import hashlib
+import os
+import re
+import secrets
 from pathlib import Path
 from typing import Protocol
 
 import aiofiles
+
+_HASH_REGEX = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 class ContentStorage(Protocol):
@@ -58,25 +63,52 @@ class LocalContentStorage:
             raise ValueError(f"content does not match content_hash {content_hash}")
         blob = self._blob_path(content_hash)
         if blob.is_file():
-            return _storage_ref(content_hash)
+            try:
+                async with aiofiles.open(blob, "rb") as handle:
+                    existing_bytes = await handle.read()
+                if sha256_content_hash(existing_bytes) == content_hash:
+                    return _storage_ref(content_hash)
+                blob.unlink(missing_ok=True)
+            except Exception:
+                blob.unlink(missing_ok=True)
+
         blob.parent.mkdir(parents=True, exist_ok=True)
-        async with aiofiles.open(blob, "wb") as handle:
-            await handle.write(content)
+        temp_blob = blob.parent / f".tmp_{secrets.token_hex(8)}"
+        try:
+            async with aiofiles.open(temp_blob, "wb") as handle:
+                await handle.write(content)
+                await handle.flush()
+                os.fsync(handle.fileno())
+            temp_blob.replace(blob)
+        except Exception:
+            if temp_blob.exists():
+                temp_blob.unlink(missing_ok=True)
+            raise
         return _storage_ref(content_hash)
 
     async def retrieve(self, content_hash: str) -> bytes | None:
         blob = self._blob_path(content_hash)
         if not blob.is_file():
             return None
-        async with aiofiles.open(blob, "rb") as handle:
-            return await handle.read()
+        try:
+            async with aiofiles.open(blob, "rb") as handle:
+                content = await handle.read()
+            if sha256_content_hash(content) != content_hash:
+                blob.unlink(missing_ok=True)
+                return None
+            return content
+        except Exception:
+            return None
 
     def exists(self, content_hash: str) -> bool:
-        return self._blob_path(content_hash).is_file()
+        blob = self._blob_path(content_hash)
+        if not blob.is_file():
+            return False
+        return True
 
 
 def _hash_hex(content_hash: str) -> str:
-    if not content_hash.startswith("sha256:") or len(content_hash) != 71:
+    if not isinstance(content_hash, str) or not _HASH_REGEX.match(content_hash):
         raise ValueError(f"invalid content hash {content_hash!r}")
     return content_hash.removeprefix("sha256:")
 
@@ -87,3 +119,4 @@ def _storage_ref(content_hash: str) -> str:
 
 
 __all__ = ["ContentStorage", "LocalContentStorage", "sha256_content_hash"]
+

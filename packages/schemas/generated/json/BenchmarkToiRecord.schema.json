@@ -1,0 +1,72 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "declination": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Declination"
+    },
+    "record_type": {
+      "const": "toi",
+      "default": "toi",
+      "title": "Record Type",
+      "type": "string"
+    },
+    "right_ascension": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Right Ascension"
+    },
+    "tic_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tic Id"
+    },
+    "toi": {
+      "minLength": 1,
+      "title": "Toi",
+      "type": "string"
+    }
+  },
+  "required": [
+    "toi"
+  ],
+  "title": "BenchmarkToiRecord",
+  "type": "object"
+}

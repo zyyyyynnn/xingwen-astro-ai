@@ -1,0 +1,1686 @@
+{
+  "authoring_source": "apps/api/src/app/schemas",
+  "models": [
+    {
+      "module": "app.schemas.common",
+      "name": "ApiResponse",
+      "path": "json/ApiResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "ArtifactExportDownload",
+      "path": "json/ArtifactExportDownload.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "ArtifactExportRead",
+      "path": "json/ArtifactExportRead.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ArtifactVersion",
+      "path": "json/ArtifactVersion.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ArtifactVersionDetail",
+      "path": "json/ArtifactVersionDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ArtifactVersionSummary",
+      "path": "json/ArtifactVersionSummary.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "AtlasWorkspaceState",
+      "path": "json/AtlasWorkspaceState.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkChangeRecord",
+      "path": "json/BenchmarkChangeRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkClaim",
+      "path": "json/BenchmarkClaim.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkCrossrefDocumentedPolicy",
+      "path": "json/BenchmarkCrossrefDocumentedPolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkCrossrefObservedRuntimeLimit",
+      "path": "json/BenchmarkCrossrefObservedRuntimeLimit.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkCrossrefRateLimit",
+      "path": "json/BenchmarkCrossrefRateLimit.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkCrossrefRateLimits",
+      "path": "json/BenchmarkCrossrefRateLimits.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkEvaluationInput",
+      "path": "json/BenchmarkEvaluationInput.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkEvidence",
+      "path": "json/BenchmarkEvidence.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkGraph",
+      "path": "json/BenchmarkGraph.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkGraphEdge",
+      "path": "json/BenchmarkGraphEdge.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkGraphNode",
+      "path": "json/BenchmarkGraphNode.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkGraphTaxonomy",
+      "path": "json/BenchmarkGraphTaxonomy.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkMaintainer",
+      "path": "json/BenchmarkMaintainer.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkMetricResult",
+      "path": "json/BenchmarkMetricResult.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkMetricsExpectation",
+      "path": "json/BenchmarkMetricsExpectation.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkPackage",
+      "path": "json/BenchmarkPackage.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkPackagePayload",
+      "path": "json/BenchmarkPackagePayload.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkPaperSummary",
+      "path": "json/BenchmarkPaperSummary.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkPaperTextLocator",
+      "path": "json/BenchmarkPaperTextLocator.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkPrReviewGate",
+      "path": "json/BenchmarkPrReviewGate.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "BenchmarkPsRecord",
+      "path": "json/BenchmarkPsRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkQueryFixture",
+      "path": "json/BenchmarkQueryFixture.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkReasoningTrace",
+      "path": "json/BenchmarkReasoningTrace.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkRelation",
+      "path": "json/BenchmarkRelation.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkReviewRecord",
+      "path": "json/BenchmarkReviewRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkReviewScope",
+      "path": "json/BenchmarkReviewScope.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkSearchScenario",
+      "path": "json/BenchmarkSearchScenario.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkSeedPaper",
+      "path": "json/BenchmarkSeedPaper.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkSourcePolicy",
+      "path": "json/BenchmarkSourcePolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkSupportedStatement",
+      "path": "json/BenchmarkSupportedStatement.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "BenchmarkToiRecord",
+      "path": "json/BenchmarkToiRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkTraceStep",
+      "path": "json/BenchmarkTraceStep.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_benchmark",
+      "name": "BenchmarkVerificationSource",
+      "path": "json/BenchmarkVerificationSource.schema.json"
+    },
+    {
+      "module": "app.schemas.research_input",
+      "name": "BindResearchInputRequest",
+      "path": "json/BindResearchInputRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CandidateEdge",
+      "path": "json/CandidateEdge.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "CanonicalEntityIdentity",
+      "path": "json/CanonicalEntityIdentity.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "CanonicalEntityIdentityValue",
+      "path": "json/CanonicalEntityIdentityValue.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CanonicalIdentityValue",
+      "path": "json/CanonicalIdentityValue.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "CanonicalRowIdentity",
+      "path": "json/CanonicalRowIdentity.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "CaseManifest",
+      "path": "json/CaseManifest.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "CaseManifestPayload",
+      "path": "json/CaseManifestPayload.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "CollectionEnvelope",
+      "path": "json/CollectionEnvelope.schema.json"
+    },
+    {
+      "module": "app.schemas.dataset",
+      "name": "ColumnInfo",
+      "path": "json/ColumnInfo.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "ConfidenceDistribution",
+      "path": "json/ConfidenceDistribution.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "ConfidencePolicy",
+      "path": "json/ConfidencePolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ConfirmResearchContractRequest",
+      "path": "json/ConfirmResearchContractRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "ConflictGroup",
+      "path": "json/ConflictGroup.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "ConversionConstantsProvenance",
+      "path": "json/ConversionConstantsProvenance.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CoordinatePolicy",
+      "path": "json/CoordinatePolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "CreateArtifactExportRequest",
+      "path": "json/CreateArtifactExportRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "CreateResearchContractDraftRequest",
+      "path": "json/CreateResearchContractDraftRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.research_input",
+      "name": "CreateResearchInputRequest",
+      "path": "json/CreateResearchInputRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "CreateResearchProjectRequest",
+      "path": "json/CreateResearchProjectRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "CreateRunRequest",
+      "path": "json/CreateRunRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "CreateShareSnapshotRequest",
+      "path": "json/CreateShareSnapshotRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchAdmissionContext",
+      "path": "json/CrossmatchAdmissionContext.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchAdmissionSourceContext",
+      "path": "json/CrossmatchAdmissionSourceContext.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchBenchmarkExpectation",
+      "path": "json/CrossmatchBenchmarkExpectation.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchBenchmarkManifest",
+      "path": "json/CrossmatchBenchmarkManifest.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchBenchmarkReport",
+      "path": "json/CrossmatchBenchmarkReport.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchBenchmarkScenario",
+      "path": "json/CrossmatchBenchmarkScenario.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchBenchmarkScenarioResult",
+      "path": "json/CrossmatchBenchmarkScenarioResult.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchCapacityPolicy",
+      "path": "json/CrossmatchCapacityPolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchCondition",
+      "path": "json/CrossmatchCondition.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchEvidence",
+      "path": "json/CrossmatchEvidence.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchInput",
+      "path": "json/CrossmatchInput.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchMetrics",
+      "path": "json/CrossmatchMetrics.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchProducerExecution",
+      "path": "json/CrossmatchProducerExecution.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchResult",
+      "path": "json/CrossmatchResult.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchRuleSet",
+      "path": "json/CrossmatchRuleSet.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchSourceInput",
+      "path": "json/CrossmatchSourceInput.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchSourceOriginPolicy",
+      "path": "json/CrossmatchSourceOriginPolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchSourcePolicy",
+      "path": "json/CrossmatchSourcePolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "CursorPage",
+      "path": "json/CursorPage.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DataArtifactBuildInput",
+      "path": "json/DataArtifactBuildInput.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DataArtifactBuildResult",
+      "path": "json/DataArtifactBuildResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DataArtifactCapacity",
+      "path": "json/DataArtifactCapacity.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DataArtifactProducer",
+      "path": "json/DataArtifactProducer.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "DataArtifactReadBase",
+      "path": "json/DataArtifactReadBase.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "DataArtifactRowRead",
+      "path": "json/DataArtifactRowRead.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityEvaluationInput",
+      "path": "json/DataQualityEvaluationInput.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityEvaluationRejected",
+      "path": "json/DataQualityEvaluationRejected.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityEvaluationResult",
+      "path": "json/DataQualityEvaluationResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityProjection",
+      "path": "json/DataQualityProjection.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityProjectionReference",
+      "path": "json/DataQualityProjectionReference.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityRuleSet",
+      "path": "json/DataQualityRuleSet.schema.json"
+    },
+    {
+      "module": "app.schemas.source_acquisition",
+      "name": "DataQueryCursor",
+      "path": "json/DataQueryCursor.schema.json"
+    },
+    {
+      "module": "app.schemas.source_acquisition",
+      "name": "DataQueryPagination",
+      "path": "json/DataQueryPagination.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "DataRequirements",
+      "path": "json/DataRequirements.schema.json"
+    },
+    {
+      "module": "app.schemas.source_acquisition",
+      "name": "DataSourceCompletion",
+      "path": "json/DataSourceCompletion.schema.json"
+    },
+    {
+      "module": "app.schemas.source_acquisition",
+      "name": "DataSourcePage",
+      "path": "json/DataSourcePage.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DatasetArtifactCandidate",
+      "path": "json/DatasetArtifactCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "DatasetArtifactContent",
+      "path": "json/DatasetArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "DatasetArtifactRead",
+      "path": "json/DatasetArtifactRead.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DatasetColumn",
+      "path": "json/DatasetColumn.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DatasetQualityResult",
+      "path": "json/DatasetQualityResult.schema.json"
+    },
+    {
+      "module": "app.schemas.dataset",
+      "name": "DatasetResponse",
+      "path": "json/DatasetResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DatasetRow",
+      "path": "json/DatasetRow.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DecimalCapacity",
+      "path": "json/DecimalCapacity.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DeclaredNullValue",
+      "path": "json/DeclaredNullValue.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "EntityAliasCatalog",
+      "path": "json/EntityAliasCatalog.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "EntityAliasEntry",
+      "path": "json/EntityAliasEntry.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "EntityCandidate",
+      "path": "json/EntityCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "EntityProjectionPolicy",
+      "path": "json/EntityProjectionPolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "EntityProjectionRule",
+      "path": "json/EntityProjectionRule.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "Envelope",
+      "path": "json/Envelope.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "Envelope[tuple[TypeVar, ...]]",
+      "path": "json/Envelope[tuple[TypeVar, ...]].schema.json"
+    },
+    {
+      "module": "app.schemas.common",
+      "name": "ErrorInfo",
+      "path": "json/ErrorInfo.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "EvidenceDetail",
+      "path": "json/EvidenceDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "EvidenceLocator",
+      "path": "json/EvidenceLocator.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "EvidenceLocatorRule",
+      "path": "json/EvidenceLocatorRule.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "EvidenceRead",
+      "path": "json/EvidenceRead.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "EvidenceRequirements",
+      "path": "json/EvidenceRequirements.schema.json"
+    },
+    {
+      "module": "app.schemas.evidence",
+      "name": "EvidenceResponse",
+      "path": "json/EvidenceResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ExportArtifactContent",
+      "path": "json/ExportArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "FieldConflictRecord",
+      "path": "json/FieldConflictRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "FieldDefinition",
+      "path": "json/FieldDefinition.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "FieldDictionaryArtifactCandidate",
+      "path": "json/FieldDictionaryArtifactCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "FieldDictionaryArtifactContent",
+      "path": "json/FieldDictionaryArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "FieldDictionaryArtifactRead",
+      "path": "json/FieldDictionaryArtifactRead.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "FieldManifest",
+      "path": "json/FieldManifest.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "FieldManifestPayload",
+      "path": "json/FieldManifestPayload.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "FieldQualityResult",
+      "path": "json/FieldQualityResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "FieldSelectionRecord",
+      "path": "json/FieldSelectionRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "GraphArtifactContent",
+      "path": "json/GraphArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.graph",
+      "name": "GraphEdge",
+      "path": "json/GraphEdge.schema.json"
+    },
+    {
+      "module": "app.schemas.graph",
+      "name": "GraphNode",
+      "path": "json/GraphNode.schema.json"
+    },
+    {
+      "module": "app.schemas.graph",
+      "name": "GraphResponse",
+      "path": "json/GraphResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "LimitFlagMapping",
+      "path": "json/LimitFlagMapping.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "LimitPolicy",
+      "path": "json/LimitPolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "LimitValue",
+      "path": "json/LimitValue.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_artifact_api",
+      "name": "LiteratureArtifactVersionContext",
+      "path": "json/LiteratureArtifactVersionContext.schema.json"
+    },
+    {
+      "module": "app.schemas.reasoning",
+      "name": "LiteratureClaim",
+      "path": "json/LiteratureClaim.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimAdmissionResult",
+      "path": "json/LiteratureClaimAdmissionResult.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureClaimArtifactVersionReference",
+      "path": "json/LiteratureClaimArtifactVersionReference.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimBenchmarkCaseResult",
+      "path": "json/LiteratureClaimBenchmarkCaseResult.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimBenchmarkEvaluationCase",
+      "path": "json/LiteratureClaimBenchmarkEvaluationCase.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimBenchmarkReport",
+      "path": "json/LiteratureClaimBenchmarkReport.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimCandidate",
+      "path": "json/LiteratureClaimCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimEvidenceReference",
+      "path": "json/LiteratureClaimEvidenceReference.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimExtractionOutput",
+      "path": "json/LiteratureClaimExtractionOutput.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimInputVersions",
+      "path": "json/LiteratureClaimInputVersions.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimModelCandidate",
+      "path": "json/LiteratureClaimModelCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimProducerExecution",
+      "path": "json/LiteratureClaimProducerExecution.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_artifact_api",
+      "name": "LiteratureClaimRead",
+      "path": "json/LiteratureClaimRead.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimRejectionCount",
+      "path": "json/LiteratureClaimRejectionCount.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimStatusCounts",
+      "path": "json/LiteratureClaimStatusCounts.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimTypeCount",
+      "path": "json/LiteratureClaimTypeCount.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "LiteratureClaimsArtifactContent",
+      "path": "json/LiteratureClaimsArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_claim",
+      "name": "LiteratureClaimsCandidate",
+      "path": "json/LiteratureClaimsCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_artifact_api",
+      "name": "LiteraturePaperSummaryReference",
+      "path": "json/LiteraturePaperSummaryReference.schema.json"
+    },
+    {
+      "module": "app.schemas.reasoning",
+      "name": "LiteratureReasoningResponse",
+      "path": "json/LiteratureReasoningResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureReasoningTraceCandidate",
+      "path": "json/LiteratureReasoningTraceCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureReasoningTraceModelCandidate",
+      "path": "json/LiteratureReasoningTraceModelCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_artifact_api",
+      "name": "LiteratureReasoningTraceRead",
+      "path": "json/LiteratureReasoningTraceRead.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureReasoningTraceStepCandidate",
+      "path": "json/LiteratureReasoningTraceStepCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.reasoning",
+      "name": "LiteratureRelation",
+      "path": "json/LiteratureRelation.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationAdmissionResult",
+      "path": "json/LiteratureRelationAdmissionResult.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationBenchmarkCaseResult",
+      "path": "json/LiteratureRelationBenchmarkCaseResult.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationBenchmarkEvaluationCase",
+      "path": "json/LiteratureRelationBenchmarkEvaluationCase.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationBenchmarkReport",
+      "path": "json/LiteratureRelationBenchmarkReport.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationCandidate",
+      "path": "json/LiteratureRelationCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationComparabilityCandidate",
+      "path": "json/LiteratureRelationComparabilityCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationConfidenceAssessment",
+      "path": "json/LiteratureRelationConfidenceAssessment.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationConfidenceBin",
+      "path": "json/LiteratureRelationConfidenceBin.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationConfidenceSubject",
+      "path": "json/LiteratureRelationConfidenceSubject.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationDirectionCandidate",
+      "path": "json/LiteratureRelationDirectionCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationEvidenceReference",
+      "path": "json/LiteratureRelationEvidenceReference.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationExtractionOutput",
+      "path": "json/LiteratureRelationExtractionOutput.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationInputVersions",
+      "path": "json/LiteratureRelationInputVersions.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationModelCandidate",
+      "path": "json/LiteratureRelationModelCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationProducerExecution",
+      "path": "json/LiteratureRelationProducerExecution.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_artifact_api",
+      "name": "LiteratureRelationRead",
+      "path": "json/LiteratureRelationRead.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationRejectionCount",
+      "path": "json/LiteratureRelationRejectionCount.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationStatusCounts",
+      "path": "json/LiteratureRelationStatusCounts.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationTypeCount",
+      "path": "json/LiteratureRelationTypeCount.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "LiteratureRelationsArtifactContent",
+      "path": "json/LiteratureRelationsArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.literature_relation",
+      "name": "LiteratureRelationsCandidate",
+      "path": "json/LiteratureRelationsCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.evidence",
+      "name": "Locator",
+      "path": "json/Locator.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "MaintainerDefinition",
+      "path": "json/MaintainerDefinition.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "ManifestBundle",
+      "path": "json/ManifestBundle.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "ManifestPins",
+      "path": "json/ManifestPins.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "ManifestReference",
+      "path": "json/ManifestReference.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "ManualReviewDecision",
+      "path": "json/ManualReviewDecision.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "MappedCanonicalValue",
+      "path": "json/MappedCanonicalValue.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "MappingRuleSet",
+      "path": "json/MappingRuleSet.schema.json"
+    },
+    {
+      "module": "app.schemas.common",
+      "name": "Meta",
+      "path": "json/Meta.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "MethodConfidencePolicy",
+      "path": "json/MethodConfidencePolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "MethodDistribution",
+      "path": "json/MethodDistribution.schema.json"
+    },
+    {
+      "module": "app.schemas.source_acquisition",
+      "name": "NormalizedDataSourceQuery",
+      "path": "json/NormalizedDataSourceQuery.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "NormalizedPaperQuery",
+      "path": "json/NormalizedPaperQuery.schema.json"
+    },
+    {
+      "module": "app.schemas.source_acquisition",
+      "name": "NormalizedSupplementalSourceQuery",
+      "path": "json/NormalizedSupplementalSourceQuery.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "NullPolicy",
+      "path": "json/NullPolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "NumericComparisonPolicy",
+      "path": "json/NumericComparisonPolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ObservatoryWorkspaceState",
+      "path": "json/ObservatoryWorkspaceState.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "PairedMatch",
+      "path": "json/PairedMatch.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PaperAcquisitionResponse",
+      "path": "json/PaperAcquisitionResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PaperAcquisitionRun",
+      "path": "json/PaperAcquisitionRun.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperBenchmarkReference",
+      "path": "json/PaperBenchmarkReference.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PaperCandidate",
+      "path": "json/PaperCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperCandidateConflict",
+      "path": "json/PaperCandidateConflict.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperCollection",
+      "path": "json/PaperCollection.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperCollectionAcquisitionRun",
+      "path": "json/PaperCollectionAcquisitionRun.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "PaperCollectionArtifactContent",
+      "path": "json/PaperCollectionArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperCollectionCandidate",
+      "path": "json/PaperCollectionCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection_api",
+      "name": "PaperCollectionCandidateRead",
+      "path": "json/PaperCollectionCandidateRead.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperCollectionMetrics",
+      "path": "json/PaperCollectionMetrics.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperCollectionPayload",
+      "path": "json/PaperCollectionPayload.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection_api",
+      "name": "PaperCollectionRead",
+      "path": "json/PaperCollectionRead.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperCollectionRules",
+      "path": "json/PaperCollectionRules.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperDuplicateGroup",
+      "path": "json/PaperDuplicateGroup.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PaperItem",
+      "path": "json/PaperItem.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperPotentialDuplicate",
+      "path": "json/PaperPotentialDuplicate.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperQueryPagination",
+      "path": "json/PaperQueryPagination.schema.json"
+    },
+    {
+      "module": "app.schemas.task",
+      "name": "PaperSearchOptions",
+      "path": "json/PaperSearchOptions.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PaperSearchQuery",
+      "path": "json/PaperSearchQuery.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "PaperSearchScope",
+      "path": "json/PaperSearchScope.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperSourceExecution",
+      "path": "json/PaperSourceExecution.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "PaperSourcePage",
+      "path": "json/PaperSourcePage.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PaperSummary",
+      "path": "json/PaperSummary.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryAdmissionResult",
+      "path": "json/PaperSummaryAdmissionResult.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryArtifactContent",
+      "path": "json/PaperSummaryArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryBenchmarkCaseResult",
+      "path": "json/PaperSummaryBenchmarkCaseResult.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryBenchmarkEvaluationCase",
+      "path": "json/PaperSummaryBenchmarkEvaluationCase.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryBenchmarkReport",
+      "path": "json/PaperSummaryBenchmarkReport.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary_api",
+      "name": "PaperSummaryCacheAudit",
+      "path": "json/PaperSummaryCacheAudit.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryEvidence",
+      "path": "json/PaperSummaryEvidence.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryEvidenceCandidate",
+      "path": "json/PaperSummaryEvidenceCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryEvidenceLocator",
+      "path": "json/PaperSummaryEvidenceLocator.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryInputVersions",
+      "path": "json/PaperSummaryInputVersions.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryModelOutput",
+      "path": "json/PaperSummaryModelOutput.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary_api",
+      "name": "PaperSummaryPaperMetadata",
+      "path": "json/PaperSummaryPaperMetadata.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryProducerExecution",
+      "path": "json/PaperSummaryProducerExecution.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary_api",
+      "name": "PaperSummaryRead",
+      "path": "json/PaperSummaryRead.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummarySourceConflict",
+      "path": "json/PaperSummarySourceConflict.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummarySourceSnapshotReference",
+      "path": "json/PaperSummarySourceSnapshotReference.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryStatement",
+      "path": "json/PaperSummaryStatement.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_summary",
+      "name": "PaperSummaryStatementCandidate",
+      "path": "json/PaperSummaryStatementCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.paper",
+      "name": "PapersResponse",
+      "path": "json/PapersResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ProblemDetails",
+      "path": "json/ProblemDetails.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ProblemFieldError",
+      "path": "json/ProblemFieldError.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "ProducerExecution",
+      "path": "json/ProducerExecution.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ProducerExecutionDetail",
+      "path": "json/ProducerExecutionDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ProducerReference",
+      "path": "json/ProducerReference.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "PublicArtifactVersion",
+      "path": "json/PublicArtifactVersion.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "PublicEvidence",
+      "path": "json/PublicEvidence.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "PublicShareSnapshot",
+      "path": "json/PublicShareSnapshot.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityAggregateScorePolicy",
+      "path": "json/QualityAggregateScorePolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityArtifactReference",
+      "path": "json/QualityArtifactReference.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityCapacityPolicy",
+      "path": "json/QualityCapacityPolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityConstraintResult",
+      "path": "json/QualityConstraintResult.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "QualityConstraints",
+      "path": "json/QualityConstraints.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityCount",
+      "path": "json/QualityCount.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityEvaluationPlan",
+      "path": "json/QualityEvaluationPlan.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityFormulaDefinition",
+      "path": "json/QualityFormulaDefinition.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityGateBinding",
+      "path": "json/QualityGateBinding.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityInputReferences",
+      "path": "json/QualityInputReferences.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityManifestFieldReference",
+      "path": "json/QualityManifestFieldReference.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityMetricPlan",
+      "path": "json/QualityMetricPlan.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityMetricResult",
+      "path": "json/QualityMetricResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityProducerReference",
+      "path": "json/QualityProducerReference.schema.json"
+    },
+    {
+      "module": "app.schemas.dataset",
+      "name": "QualityScore",
+      "path": "json/QualityScore.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "RatioMetric",
+      "path": "json/RatioMetric.schema.json"
+    },
+    {
+      "module": "app.schemas.source_acquisition",
+      "name": "RawDataSourceRecord",
+      "path": "json/RawDataSourceRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection",
+      "name": "RawPaperCandidate",
+      "path": "json/RawPaperCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "RawSourceRecordReference",
+      "path": "json/RawSourceRecordReference.schema.json"
+    },
+    {
+      "module": "app.schemas.reasoning",
+      "name": "ReasoningTrace",
+      "path": "json/ReasoningTrace.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ReasoningTracesArtifactContent",
+      "path": "json/ReasoningTracesArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchArtifact",
+      "path": "json/ResearchArtifact.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchArtifactDetail",
+      "path": "json/ResearchArtifactDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchContract",
+      "path": "json/ResearchContract.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchContractDraft",
+      "path": "json/ResearchContractDraft.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchContractInput",
+      "path": "json/ResearchContractInput.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "ResearchContractQualityGate",
+      "path": "json/ResearchContractQualityGate.schema.json"
+    },
+    {
+      "module": "app.schemas.research_input",
+      "name": "ResearchInputCreate",
+      "path": "json/ResearchInputCreate.schema.json"
+    },
+    {
+      "module": "app.schemas.research_input",
+      "name": "ResearchInputDetail",
+      "path": "json/ResearchInputDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.research_input",
+      "name": "ResearchInputRef",
+      "path": "json/ResearchInputRef.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchProject",
+      "path": "json/ResearchProject.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchRun",
+      "path": "json/ResearchRun.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchSession",
+      "path": "json/ResearchSession.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResponseLinks",
+      "path": "json/ResponseLinks.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResponseMeta",
+      "path": "json/ResponseMeta.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "RowQualityResult",
+      "path": "json/RowQualityResult.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "RunEvent",
+      "path": "json/RunEvent.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "SessionCreated",
+      "path": "json/SessionCreated.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "SessionQuota",
+      "path": "json/SessionQuota.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ShareSnapshot",
+      "path": "json/ShareSnapshot.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ShareSnapshotCreated",
+      "path": "json/ShareSnapshotCreated.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "SkyCoordinate",
+      "path": "json/SkyCoordinate.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "SourceAlias",
+      "path": "json/SourceAlias.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "SourceCellLocator",
+      "path": "json/SourceCellLocator.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "SourceCollectionArtifactCandidate",
+      "path": "json/SourceCollectionArtifactCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "SourceCollectionArtifactContent",
+      "path": "json/SourceCollectionArtifactContent.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifact_api",
+      "name": "SourceCollectionArtifactRead",
+      "path": "json/SourceCollectionArtifactRead.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "SourceCollectionMember",
+      "path": "json/SourceCollectionMember.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "SourceColumnContractReference",
+      "path": "json/SourceColumnContractReference.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "SourceDefinition",
+      "path": "json/SourceDefinition.schema.json"
+    },
+    {
+      "module": "app.schemas.source",
+      "name": "SourceRecordItem",
+      "path": "json/SourceRecordItem.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "SourceRecordReference",
+      "path": "json/SourceRecordReference.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "SourceScope",
+      "path": "json/SourceScope.schema.json"
+    },
+    {
+      "module": "app.schemas.evidence",
+      "name": "SourceSnapshot",
+      "path": "json/SourceSnapshot.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "SourceSnapshotDetail",
+      "path": "json/SourceSnapshotDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.evidence",
+      "name": "SourceSnapshotRecord",
+      "path": "json/SourceSnapshotRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "SourceValueCandidate",
+      "path": "json/SourceValueCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.source",
+      "name": "SourcesResponse",
+      "path": "json/SourcesResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.task",
+      "name": "StepInfo",
+      "path": "json/StepInfo.schema.json"
+    },
+    {
+      "module": "app.schemas.source_acquisition",
+      "name": "SupplementalDataQueryCursor",
+      "path": "json/SupplementalDataQueryCursor.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "TargetObjectDefinition",
+      "path": "json/TargetObjectDefinition.schema.json"
+    },
+    {
+      "module": "app.schemas.task",
+      "name": "TaskCreateRequest",
+      "path": "json/TaskCreateRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.task",
+      "name": "TaskCreateResponse",
+      "path": "json/TaskCreateResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.task",
+      "name": "TaskOptions",
+      "path": "json/TaskOptions.schema.json"
+    },
+    {
+      "module": "app.schemas.task",
+      "name": "TaskStatusResponse",
+      "path": "json/TaskStatusResponse.schema.json"
+    },
+    {
+      "module": "app.schemas.reasoning",
+      "name": "TraceStep",
+      "path": "json/TraceStep.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "TransformationEvidence",
+      "path": "json/TransformationEvidence.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "UncertaintyPolicy",
+      "path": "json/UncertaintyPolicy.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "UncertaintyValue",
+      "path": "json/UncertaintyValue.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "UnitConversionCatalog",
+      "path": "json/UnitConversionCatalog.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "UnitConversionImplementation",
+      "path": "json/UnitConversionImplementation.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "UnitConversionRule",
+      "path": "json/UnitConversionRule.schema.json"
+    },
+    {
+      "module": "app.schemas.manifest",
+      "name": "UnitDefinition",
+      "path": "json/UnitDefinition.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "UnpairedRecord",
+      "path": "json/UnpairedRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "UnresolvedCanonicalValue",
+      "path": "json/UnresolvedCanonicalValue.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "UpdateResearchContractDraftRequest",
+      "path": "json/UpdateResearchContractDraftRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "WorkspaceObjectRef",
+      "path": "json/WorkspaceObjectRef.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "WorkspacePanelSlot",
+      "path": "json/WorkspacePanelSlot.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "WorkspaceSnapshot",
+      "path": "json/WorkspaceSnapshot.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "WorkspaceSnapshotInput",
+      "path": "json/WorkspaceSnapshotInput.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "_AdjudicableRecord",
+      "path": "json/_AdjudicableRecord.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "_PublisherReadyCandidate",
+      "path": "json/_PublisherReadyCandidate.schema.json"
+    }
+  ],
+  "schema_version": 1
+}

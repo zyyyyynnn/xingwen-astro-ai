@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "authority": {
+      "minLength": 1,
+      "title": "Authority",
+      "type": "string"
+    },
+    "note": {
+      "minLength": 1,
+      "title": "Note",
+      "type": "string"
+    },
+    "resolution_date": {
+      "format": "date",
+      "title": "Resolution Date",
+      "type": "string"
+    },
+    "source_url": {
+      "minLength": 1,
+      "title": "Source Url",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "authority",
+    "source_url",
+    "resolution_date",
+    "note"
+  ],
+  "title": "ConversionConstantsProvenance",
+  "type": "object"
+}

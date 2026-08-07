@@ -44,10 +44,12 @@ def app_and_client(
     return app, client, session_id, csrf_token
 
 
-def _headers(csrf_token: str, **extra: str) -> dict[str, str]:
+import secrets
+
+def _headers(csrf_token: str, idempotency_key: str | None = None, **extra: str) -> dict[str, str]:
     headers: dict[str, str] = {
         "X-CSRF-Token": csrf_token,
-        "Idempotency-Key": "idem-1",
+        "Idempotency-Key": idempotency_key or f"idem-{secrets.token_hex(4)}",
     }
     headers.update(extra)
     return headers
@@ -72,14 +74,16 @@ def _create_text(
     *,
     project_id: str = "proj_01",
     text: str = "hello research composer",
+    idempotency_key: str | None = None,
 ) -> dict[str, object]:
     response = client.post(
         "/api/research-inputs",
         json={"project_id": project_id, "type": "text", "text_content": text},
-        headers=_headers(csrf_token),
+        headers=_headers(csrf_token, idempotency_key=idempotency_key),
     )
     assert response.status_code == 201
     return response.json()["data"]
+
 
 
 # ---- transport envelope ----------------------------------------------------
@@ -307,7 +311,7 @@ def _stub_fetch(
         request_metadata={"status_code": 200},
     )
 
-    def fake_fetch(url: str, config: UrlFetchConfig) -> UrlFetchResult:  # noqa: ANN001
+    async def fake_fetch(url: str, config: UrlFetchConfig) -> UrlFetchResult:  # noqa: ANN001
         del config
         return UrlFetchResult(
             content_hash=content_hash,
@@ -534,5 +538,95 @@ def test_content_is_never_exposed_in_any_response(
         headers=_headers(csrf_token),
     )
     assert response.status_code == 201
-    body = response.text
-    assert "secret prose" not in body
+    dump = str(response.json())
+    assert "secret prose" not in dump
+
+
+
+def test_project_isolation_dedup(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id, project_id="proj_01")
+    _seed_project(app, session_id, project_id="proj_02")
+
+    res1 = client.post(
+        "/api/research-inputs",
+        json={"project_id": "proj_01", "type": "text", "text_content": "same content"},
+        headers=_headers(csrf_token, idempotency_key="key-p1"),
+    )
+    assert res1.status_code == 201
+    id1 = res1.json()["data"]["id"]
+
+    res2 = client.post(
+        "/api/research-inputs",
+        json={"project_id": "proj_02", "type": "text", "text_content": "same content"},
+        headers=_headers(csrf_token, idempotency_key="key-p2"),
+    )
+    assert res2.status_code == 201
+    id2 = res2.json()["data"]["id"]
+
+    assert id1 != id2
+
+
+def test_idempotency_key_replay_and_conflict(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id, project_id="proj_01")
+
+    headers = _headers(csrf_token, idempotency_key="fixed-idem-key")
+    res1 = client.post(
+        "/api/research-inputs",
+        json={"project_id": "proj_01", "type": "text", "text_content": "text content"},
+        headers=headers,
+    )
+    assert res1.status_code == 201
+    id1 = res1.json()["data"]["id"]
+
+    # Replay with identical payload
+    res2 = client.post(
+        "/api/research-inputs",
+        json={"project_id": "proj_01", "type": "text", "text_content": "text content"},
+        headers=headers,
+    )
+    assert res2.status_code == 201
+    assert res2.json()["data"]["id"] == id1
+
+    # Conflict with different payload under same idempotency key
+    res3 = client.post(
+        "/api/research-inputs",
+        json={"project_id": "proj_01", "type": "text", "text_content": "different content"},
+        headers=headers,
+    )
+    assert res3.status_code == 409
+    assert res3.json()["code"] == "IDEMPOTENCY_CONFLICT"
+
+
+def test_bind_target_xor_validation(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    created = _create_text(client, csrf_token)
+
+    # Reject both non-null
+    both = client.post(
+        f"/api/research-inputs/{created['id']}/bind",
+        json={
+            "project_id": "proj_01",
+            "contract_draft_id": "draft_01",
+            "run_id": "run_01",
+        },
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert both.status_code == 422
+
+    # Reject both null
+    neither = client.post(
+        f"/api/research-inputs/{created['id']}/bind",
+        json={"project_id": "proj_01"},
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert neither.status_code == 422
+

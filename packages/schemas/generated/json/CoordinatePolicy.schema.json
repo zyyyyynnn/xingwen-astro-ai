@@ -1,0 +1,35 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "frame": {
+      "const": "ICRS",
+      "default": "ICRS",
+      "title": "Frame",
+      "type": "string"
+    },
+    "manual_review_separation_arcsec": {
+      "exclusiveMinimum": 0,
+      "maximum": 3600,
+      "title": "Manual Review Separation Arcsec",
+      "type": "number"
+    },
+    "strict_separation_arcsec": {
+      "exclusiveMinimum": 0,
+      "maximum": 3600,
+      "title": "Strict Separation Arcsec",
+      "type": "number"
+    },
+    "unit": {
+      "const": "degree",
+      "default": "degree",
+      "title": "Unit",
+      "type": "string"
+    }
+  },
+  "required": [
+    "strict_separation_arcsec",
+    "manual_review_separation_arcsec"
+  ],
+  "title": "CoordinatePolicy",
+  "type": "object"
+}

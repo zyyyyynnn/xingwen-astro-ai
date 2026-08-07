@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "WorkspaceObjectRef": {
+      "additionalProperties": false,
+      "description": "Stable reference to an object shown in the private workspace.",
+      "properties": {
+        "artifact_version_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Version Id"
+        },
+        "object_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Object Id",
+          "type": "string"
+        },
+        "object_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Object Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_type",
+        "object_id"
+      ],
+      "title": "WorkspaceObjectRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "focus_mode": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Focus Mode"
+    },
+    "selected_object_ref": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WorkspaceObjectRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "title": "AtlasWorkspaceState",
+  "type": "object"
+}

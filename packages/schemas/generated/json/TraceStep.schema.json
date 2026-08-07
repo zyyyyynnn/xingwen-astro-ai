@@ -1,0 +1,23 @@
+{
+  "properties": {
+    "claim_id": {
+      "title": "Claim Id",
+      "type": "string"
+    },
+    "order": {
+      "title": "Order",
+      "type": "integer"
+    },
+    "rationale": {
+      "title": "Rationale",
+      "type": "string"
+    }
+  },
+  "required": [
+    "order",
+    "claim_id",
+    "rationale"
+  ],
+  "title": "TraceStep",
+  "type": "object"
+}

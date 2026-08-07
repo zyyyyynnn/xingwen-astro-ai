@@ -1,0 +1,44 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "const": "paper_text",
+      "title": "Kind",
+      "type": "string"
+    },
+    "paragraph": {
+      "minimum": 1,
+      "title": "Paragraph",
+      "type": "integer"
+    },
+    "section": {
+      "enum": [
+        "abstract",
+        "full_text"
+      ],
+      "title": "Section",
+      "type": "string"
+    },
+    "source_url": {
+      "format": "uri",
+      "maxLength": 2083,
+      "minLength": 1,
+      "title": "Source Url",
+      "type": "string"
+    },
+    "text_range": {
+      "minLength": 1,
+      "title": "Text Range",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "source_url",
+    "section",
+    "paragraph",
+    "text_range"
+  ],
+  "title": "BenchmarkPaperTextLocator",
+  "type": "object"
+}

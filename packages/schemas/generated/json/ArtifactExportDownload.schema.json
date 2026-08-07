@@ -1,0 +1,110 @@
+{
+  "$defs": {
+    "ArtifactExportRead": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "download_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Download Url"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "format": {
+          "enum": [
+            "csv",
+            "json",
+            "provenance_report"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "generated_at": {
+          "format": "date-time",
+          "title": "Generated At",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "expired"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "artifact_version_id",
+        "project_id",
+        "format",
+        "status",
+        "content_hash",
+        "generated_at",
+        "expires_at"
+      ],
+      "title": "ArtifactExportRead",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "content": {
+      "format": "binary",
+      "title": "Content",
+      "type": "string"
+    },
+    "export": {
+      "$ref": "#/$defs/ArtifactExportRead"
+    },
+    "filename": {
+      "title": "Filename",
+      "type": "string"
+    },
+    "media_type": {
+      "title": "Media Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "export",
+    "content",
+    "media_type",
+    "filename"
+  ],
+  "title": "ArtifactExportDownload",
+  "type": "object"
+}

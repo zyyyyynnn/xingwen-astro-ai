@@ -1,0 +1,23 @@
+{
+  "additionalProperties": false,
+  "description": "Source flag meanings for a bounded value.",
+  "properties": {
+    "lower_limit": {
+      "default": 1,
+      "title": "Lower Limit",
+      "type": "integer"
+    },
+    "measured": {
+      "default": 0,
+      "title": "Measured",
+      "type": "integer"
+    },
+    "upper_limit": {
+      "default": -1,
+      "title": "Upper Limit",
+      "type": "integer"
+    }
+  },
+  "title": "LimitFlagMapping",
+  "type": "object"
+}

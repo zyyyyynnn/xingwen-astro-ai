@@ -1,11 +1,25 @@
-"""Application configuration with production safety guards."""
-
 from __future__ import annotations
 
+import re
 from pathlib import Path
+from typing import Any
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+_MIME_PATTERN = re.compile(r"^[a-zA-Z0-9!#$&^_\-\.\+]+/[a-zA-Z0-9!#$&^_\-\.\+]+$")
+
+
+def _parse_csv_list(value: Any) -> list[str]:  # noqa: ANN401
+    if value is None:
+        return []
+    if isinstance(value, str):
+        items = [item.strip() for item in value.split(",") if item.strip()]
+        return items
+    if isinstance(value, (list, tuple, set)):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return []
 
 
 class Settings(BaseSettings):
@@ -38,8 +52,8 @@ class Settings(BaseSettings):
     # Research Input ingestion (B-19). The content-addressed local store is the
     # reference boundary; uploads are capped, MIME-sniffed and never executed.
     RESEARCH_INPUT_MAX_SIZE_BYTES: int = Field(default=26214400, gt=0)
-    RESEARCH_INPUT_ALLOWED_MIME_TYPES: list[str] = Field(
-        default_factory=lambda: [
+    RESEARCH_INPUT_ALLOWED_MIME_TYPES: list[str] | str = Field(
+        default=[
             "application/pdf",
             "text/csv",
             "application/json",
@@ -48,7 +62,8 @@ class Settings(BaseSettings):
             "image/gif",
             "image/webp",
             "text/plain",
-        ]
+        ],
+        description="Allowed MIME types for research input ingestion.",
     )
     RESEARCH_INPUT_UPLOAD_DIR: Path = Path(".data/research-inputs")
     RESEARCH_INPUT_RATE_LIMIT: int = Field(default=30, gt=0)
@@ -56,8 +71,14 @@ class Settings(BaseSettings):
     # URL fetch (B-19). Defaults are fail-closed: only HTTPS is allowed and an
     # empty host allowlist rejects every external fetch until a domain is
     # configured. Development may append http and allowlisted test hosts.
-    URL_FETCH_ALLOWED_PROTOCOLS: tuple[str, ...] = ("https",)
-    URL_FETCH_ALLOWED_HOSTS: list[str] | None = None
+    URL_FETCH_ALLOWED_PROTOCOLS: tuple[str, ...] | str = Field(
+        default=("https",),
+        description="Allowed protocols for url_fetch ingestion.",
+    )
+    URL_FETCH_ALLOWED_HOSTS: tuple[str, ...] | str | None = Field(
+        default=None,
+        description="Allowed host domains/IPs for url_fetch ingestion.",
+    )
     URL_FETCH_TIMEOUT_SECONDS: float = Field(default=15.0, gt=0)
     URL_FETCH_MAX_REDIRECTS: int = Field(default=3, ge=0)
     URL_FETCH_MAX_RESPONSE_BYTES: int = Field(default=26214400, gt=0)
@@ -67,8 +88,61 @@ class Settings(BaseSettings):
     DASHSCOPE_API_KEY: SecretStr | None = None
     PAPER_SOURCE_API_KEY: SecretStr | None = None
 
+    @field_validator("RESEARCH_INPUT_ALLOWED_MIME_TYPES", mode="before")
+    @classmethod
+    def _validate_mime_types(cls, value: Any) -> list[str]:  # noqa: ANN401
+        parsed = _parse_csv_list(value)
+        if not parsed:
+            raise ValueError("RESEARCH_INPUT_ALLOWED_MIME_TYPES must not be empty")
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in parsed:
+            lowered = item.lower()
+            if not _MIME_PATTERN.match(lowered):
+                raise ValueError(f"Invalid MIME type format: {item!r}")
+            if lowered not in seen:
+                seen.add(lowered)
+                normalized.append(lowered)
+        return normalized
+
+    @field_validator("URL_FETCH_ALLOWED_PROTOCOLS", mode="before")
+    @classmethod
+    def _validate_protocols(cls, value: Any) -> tuple[str, ...]:  # noqa: ANN401
+        parsed = _parse_csv_list(value)
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in parsed:
+            lowered = item.lower()
+            if lowered not in seen:
+                seen.add(lowered)
+                normalized.append(lowered)
+        return tuple(normalized)
+
+    @field_validator("URL_FETCH_ALLOWED_HOSTS", mode="before")
+    @classmethod
+    def _validate_allowed_hosts(cls, value: Any) -> list[str] | None:  # noqa: ANN401
+        if value is None:
+            return None
+        if isinstance(value, str) and value.strip().lower() in {"", "none", "null"}:
+            return None
+        parsed = _parse_csv_list(value)
+        if not parsed:
+            return None
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in parsed:
+            lowered = item.lower()
+            if lowered not in seen:
+                seen.add(lowered)
+                normalized.append(lowered)
+        return normalized
+
     @model_validator(mode="after")
     def validate_production_safety(self) -> Settings:
+        if self.URL_FETCH_MAX_RESPONSE_BYTES > self.RESEARCH_INPUT_MAX_SIZE_BYTES:
+            raise ValueError(
+                "URL_FETCH_MAX_RESPONSE_BYTES must not exceed RESEARCH_INPUT_MAX_SIZE_BYTES"
+            )
         if self.SESSION_COOKIE_SAMESITE.lower() not in {"lax", "strict", "none"}:
             raise ValueError("SESSION_COOKIE_SAMESITE must be lax, strict, or none")
         if self.APP_ENV.lower() != "production":
@@ -120,3 +194,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+

@@ -1,0 +1,203 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "SourceSnapshotDetail": {
+      "additionalProperties": false,
+      "description": "Reproducible source metadata after the application redaction boundary.",
+      "properties": {
+        "cache_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Version"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "license_note": {
+          "minLength": 1,
+          "title": "License Note",
+          "type": "string"
+        },
+        "query": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "query_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Query Hash",
+          "type": "string"
+        },
+        "request_metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Request Metadata",
+          "type": "object"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_version_or_etag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Version Or Etag"
+        }
+      },
+      "required": [
+        "id",
+        "source_id",
+        "source_type",
+        "retrieved_at",
+        "query",
+        "query_hash",
+        "content_hash",
+        "license_note",
+        "request_metadata"
+      ],
+      "title": "SourceSnapshotDetail",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Evidence detail with its immutable, already-redacted source projection.",
+  "properties": {
+    "artifact_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Artifact Version Id",
+      "type": "string"
+    },
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "evidence_type": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Evidence Type",
+      "type": "string"
+    },
+    "extraction_method": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Extraction Method",
+      "type": "string"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "locator": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Locator",
+      "type": "object"
+    },
+    "paper_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Paper Id"
+    },
+    "quote_or_value": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/JsonValue"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "source_snapshot": {
+      "$ref": "#/$defs/SourceSnapshotDetail"
+    },
+    "source_snapshot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Source Snapshot Id",
+      "type": "string"
+    },
+    "target_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_type": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Target Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "artifact_version_id",
+    "target_type",
+    "target_id",
+    "evidence_type",
+    "source_snapshot_id",
+    "locator",
+    "extraction_method",
+    "confidence",
+    "created_at",
+    "source_snapshot"
+  ],
+  "title": "EvidenceRead",
+  "type": "object"
+}

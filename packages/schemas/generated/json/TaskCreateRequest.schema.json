@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "CaseKey": {
+      "enum": [
+        "exoplanet_host_star"
+      ],
+      "title": "CaseKey",
+      "type": "string"
+    },
+    "PaperSearchOptions": {
+      "properties": {
+        "max_candidates": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Max Candidates",
+          "type": "integer"
+        },
+        "max_selected": {
+          "default": 8,
+          "maximum": 20,
+          "minimum": 1,
+          "title": "Max Selected",
+          "type": "integer"
+        }
+      },
+      "title": "PaperSearchOptions",
+      "type": "object"
+    },
+    "TaskOptions": {
+      "properties": {
+        "max_rows": {
+          "default": 200,
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Max Rows",
+          "type": "integer"
+        },
+        "paper_search": {
+          "$ref": "#/$defs/PaperSearchOptions"
+        },
+        "use_cache_if_failed": {
+          "default": true,
+          "title": "Use Cache If Failed",
+          "type": "boolean"
+        }
+      },
+      "title": "TaskOptions",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "case_key": {
+      "$ref": "#/$defs/CaseKey",
+      "default": "exoplanet_host_star"
+    },
+    "goal": {
+      "maxLength": 500,
+      "minLength": 4,
+      "title": "Goal",
+      "type": "string"
+    },
+    "options": {
+      "$ref": "#/$defs/TaskOptions"
+    }
+  },
+  "required": [
+    "goal"
+  ],
+  "title": "TaskCreateRequest",
+  "type": "object"
+}

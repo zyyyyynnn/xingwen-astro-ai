@@ -1,0 +1,126 @@
+{
+  "$defs": {
+    "AdjudicationDecision": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "keep_unresolved"
+      ],
+      "title": "AdjudicationDecision",
+      "type": "string"
+    },
+    "ReviewerKind": {
+      "enum": [
+        "human",
+        "benchmark_fixture"
+      ],
+      "title": "ReviewerKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "adjudicated_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Adjudicated At"
+    },
+    "adjudicated_by": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Adjudicated By"
+    },
+    "adjudication": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AdjudicationDecision"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "adjudication_rationale": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Adjudication Rationale"
+    },
+    "adjudication_rule_or_actor": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Adjudication Rule Or Actor"
+    },
+    "manual_decision_content_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Manual Decision Content Hash"
+    },
+    "manual_decision_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Manual Decision Id"
+    },
+    "reviewer_kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReviewerKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "title": "_AdjudicableRecord",
+  "type": "object"
+}

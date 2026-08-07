@@ -1,0 +1,105 @@
+{
+  "$defs": {
+    "PaperSummarySourceSnapshotReference": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "source_version": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Source Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_snapshot_id",
+        "source_id",
+        "source_version",
+        "content_hash"
+      ],
+      "title": "PaperSummarySourceSnapshotReference",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Trace retained even when the requested Summary version cannot be resolved.",
+  "properties": {
+    "paper_id": {
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+      "title": "Paper Id",
+      "type": "string"
+    },
+    "paper_summary_artifact_version_id": {
+      "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+      "title": "Paper Summary Artifact Version Id",
+      "type": "string"
+    },
+    "paper_summary_output_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Paper Summary Output Hash"
+    },
+    "paper_summary_schema_version": {
+      "anyOf": [
+        {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Paper Summary Schema Version"
+    },
+    "source_snapshots": {
+      "items": {
+        "$ref": "#/$defs/PaperSummarySourceSnapshotReference"
+      },
+      "title": "Source Snapshots",
+      "type": "array"
+    },
+    "summary_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Summary Id"
+    }
+  },
+  "required": [
+    "paper_summary_artifact_version_id",
+    "paper_id",
+    "source_snapshots"
+  ],
+  "title": "LiteratureClaimInputVersions",
+  "type": "object"
+}

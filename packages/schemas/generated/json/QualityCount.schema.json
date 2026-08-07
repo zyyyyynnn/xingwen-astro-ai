@@ -1,0 +1,21 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "count": {
+      "minimum": 0,
+      "title": "Count",
+      "type": "integer"
+    },
+    "key": {
+      "minLength": 1,
+      "title": "Key",
+      "type": "string"
+    }
+  },
+  "required": [
+    "key",
+    "count"
+  ],
+  "title": "QualityCount",
+  "type": "object"
+}

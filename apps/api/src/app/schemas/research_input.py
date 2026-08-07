@@ -171,6 +171,11 @@ class BindResearchInputRequest(BaseModel):
 
     @model_validator(mode="after")
     def require_one_target(self) -> BindResearchInputRequest:
-        if self.contract_draft_id is None and self.run_id is None:
-            raise ValueError("contract_draft_id or run_id must be provided")
+        has_contract = self.contract_draft_id is not None
+        has_run = self.run_id is not None
+        if has_contract == has_run:
+            raise ValueError(
+                "Exactly one of contract_draft_id or run_id must be provided"
+            )
         return self
+
