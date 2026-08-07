@@ -1,0 +1,23 @@
+{
+  "schema": "xingwen.agent-upstream.provenance/v1",
+  "description": "Per-file provenance contract for every A-22+ vendored OpenHands UI file. Enforced by scripts/check-agent-upstream-adoption.mjs (G5).",
+  "rule": "1:1 — every file under apps/workspace/vendor/openhands/src must have a provenance entry; every provenance entry must map to a real file.",
+  "entry_shape": {
+    "upstream_repository": "https://github.com/OpenHands/OpenHands.git",
+    "upstream_tag": "v1.10.0",
+    "upstream_commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
+    "upstream_path": "src/... (path within OpenHands repo at the frozen ref)",
+    "local_path": "apps/workspace/vendor/openhands/src/... (path in Xingwen)",
+    "upstream_source_sha256": "sha256 of the exact upstream file content at the frozen ref",
+    "vendored_sha256": "sha256 of the vendored file after minimal adaptation",
+    "adoption_class": "KEEP_AS_IS | KEEP_WITH_MINIMAL_PATCH | KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT | REMOVE_CODING_SURFACE | EXCLUDE_RUNTIME | EXCLUDE_LICENSE",
+    "modified": false,
+    "modification_reason": null,
+    "license": "MIT",
+    "future_exit_task": null
+  },
+  "forbidden_adoption_classes": ["REWRITE", "RECREATE", "REIMPLEMENT", "INSPIRED_BY"],
+  "required_when_modified": ["modification_reason", "future_exit_task"],
+  "generation": "Produced programmatically during A-22 from the frozen ref + import-closure; not hand-written.",
+  "source_of_truth": "GitHub official repository + Tag v1.10.0 + 40-char SHA + this lock. Not the A-21 eval ZIP, not any local clone."
+}

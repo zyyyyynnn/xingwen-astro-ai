@@ -1,0 +1,52 @@
+{
+  "schema": "xingwen.agent-upstream.lock/v1",
+  "product": "OpenHands",
+  "repository": "https://github.com/OpenHands/OpenHands.git",
+  "tag": "v1.10.0",
+  "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
+  "commit_length": 40,
+  "license": "MIT",
+  "license_file": "LICENSE.upstream",
+  "notice_file": "NOTICE.md",
+  "selection_status": "confirmed",
+  "selected_by": "user-final-decision (Issue #173)",
+  "selected_at": "2026-08-08",
+  "source_mode": "source-level-vendor",
+  "product_mechanics_policy": "preserve-upstream",
+  "domain_adaptation_policy": "adapter-and-renderer",
+  "forbid_design_level_reimplementation": true,
+  "unique_agent_product_source": true,
+  "rejected_candidates": ["AnythingLLM", "LibreChat", "Dify"],
+  "adoption_class_allowlist": [
+    "KEEP_AS_IS",
+    "KEEP_WITH_MINIMAL_PATCH",
+    "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+    "REMOVE_CODING_SURFACE",
+    "EXCLUDE_RUNTIME",
+    "EXCLUDE_LICENSE"
+  ],
+  "adoption_class_forbidden": ["REWRITE", "RECREATE", "REIMPLEMENT", "INSPIRED_BY"],
+  "vendor_root": "apps/workspace/vendor/openhands",
+  "manifest_files": [
+    "upstream-lock.json",
+    "source-scope.json",
+    "vendor-blueprint.json",
+    "provenance-schema.json",
+    "LICENSE.upstream",
+    "NOTICE.md"
+  ],
+  "future_vendor_gate": {
+    "must_reclone": "https://github.com/OpenHands/OpenHands.git",
+    "must_checkout": "v1.10.0",
+    "must_verify_commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
+    "on_mismatch": "BLOCKED — do not vendor"
+  },
+  "phase_status": {
+    "a21_phase1_closure": "PASS",
+    "a21_phase2_lock": "this_pr",
+    "a22_vendor": "pending_merge_of_this_pr",
+    "a23_primitive_governance": "future",
+    "a24_research_adapter": "future",
+    "a25_product_wiring": "future"
+  }
+}
