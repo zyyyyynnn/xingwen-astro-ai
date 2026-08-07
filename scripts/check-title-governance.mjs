@@ -36,12 +36,12 @@ const TITLE_REGEX = /^([a-z]+)\(([^()\s]+)\)(!)?: (.+)$/u;
 const FULL_SHA_REGEX = /^[0-9a-f]{40}$/u;
 const REFERENCE_REGEX = /#\d+/gu;
 const TRAILING_PR_BACKLINK_REGEX = /\s\(#\d+\)$/u;
+const COMMIT_SHA_TOKEN_REGEX = /\b[0-9a-f]{7,40}\b/giu;
 const CJK_REGEX =
   /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 const CONTROL_CHARACTER_REGEX = /[\u0000-\u001f\u007f]/u;
 const LOCAL_PATH_REGEX =
-  /(?:\b[A-Za-z]:[\\/]|(?:^|\s)\/(?:home|Users|mnt)\/)/u;
-const COMMIT_SHA_IN_SUMMARY_REGEX = /\b[0-9a-f]{7,40}\b/iu;
+  /(?:\b[A-Za-z]:[\\/]|(?:^|\s)\/(?:home|Users|mnt|tmp)\/)/u;
 const DATE_REGEX = /\b\d{4}-\d{2}-\d{2}\b/u;
 const LEGACY_TASK_SUFFIX_REGEX = /\([A-DX]-\d{2,3}\)/iu;
 const STACKED_PR_MARKER_REGEX = /\bPR-\d+\/\d+\b/iu;
@@ -51,6 +51,18 @@ const REVIEW_ID_REGEX = /\breview(?:\s+id)?\s*#?\d+\b/iu;
 const CI_STATUS_REGEX =
   /\bCI\s*[:=-]?\s*(?:PASS|FAIL(?:ED)?|GREEN|RED|SUCCESS)\b/iu;
 
+function containsCommitSha(summary) {
+  for (const match of summary.matchAll(COMMIT_SHA_TOKEN_REGEX)) {
+    const token = match[0];
+    const hasDigit = /\d/u.test(token);
+    const hasHexLetter = /[a-f]/iu.test(token);
+    if (token.length === 40 || (hasDigit && hasHexLetter)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function addSummaryPolicyErrors(summary, errors) {
   if (CJK_REGEX.test(summary)) {
     errors.push("Summary must use English and must not contain CJK text");
@@ -58,7 +70,7 @@ function addSummaryPolicyErrors(summary, errors) {
   if (LOCAL_PATH_REGEX.test(summary)) {
     errors.push("Summary must not contain a local absolute path");
   }
-  if (COMMIT_SHA_IN_SUMMARY_REGEX.test(summary)) {
+  if (containsCommitSha(summary)) {
     errors.push("Summary must not contain a commit SHA");
   }
   if (DATE_REGEX.test(summary)) {
@@ -197,6 +209,14 @@ function assertCommitAvailable(sha) {
   }
 }
 
+function readCommitSubject(sha, envName) {
+  const commit = requireFullSha(envName, sha);
+  assertCommitAvailable(commit);
+  return execFileSync("git", ["show", "-s", "--format=%s", commit], {
+    encoding: "utf8",
+  }).trimEnd();
+}
+
 export function readCommitSubjects(baseSha, headSha) {
   const base = requireFullSha("BASE_SHA", baseSha);
   const head = requireFullSha("HEAD_SHA", headSha);
@@ -227,18 +247,25 @@ export function readCommitSubjects(baseSha, headSha) {
     });
 }
 
-function runCli() {
-  const prTitle = process.env.PR_TITLE;
-  const baseSha = process.env.BASE_SHA;
-  const headSha = process.env.HEAD_SHA;
-  let failed = false;
-
-  if (!prTitle || !baseSha || !headSha) {
-    console.error(
-      "Title governance check requires PR_TITLE, BASE_SHA, and HEAD_SHA",
-    );
+function runIntegrationMode(integrationSha) {
+  try {
+    const subject = readCommitSubject(integrationSha, "INTEGRATION_SHA");
+    console.log(`Checking integration commit subject: "${subject}"`);
+    const result = validateCommitSubject(subject, { allowPrBacklink: true });
+    if (!result.valid) {
+      console.error(`Integration commit subject error: ${result.errors.join("; ")}`);
+      return 1;
+    }
+    console.log("Integration commit subject PASS");
+    return 0;
+  } catch (error) {
+    console.error(`Integration commit subject check failed: ${error.message}`);
     return 1;
   }
+}
+
+function runPrMode(prTitle, baseSha, headSha) {
+  let failed = false;
 
   console.log(`Checking PR title: "${prTitle}"`);
   const prResult = validatePrTitle(prTitle);
@@ -270,6 +297,34 @@ function runCli() {
   }
 
   return failed ? 1 : 0;
+}
+
+function runCli() {
+  const prTitle = process.env.PR_TITLE;
+  const baseSha = process.env.BASE_SHA;
+  const headSha = process.env.HEAD_SHA;
+  const integrationSha = process.env.INTEGRATION_SHA;
+  const hasPrContext = Boolean(prTitle || baseSha || headSha);
+
+  if (integrationSha && hasPrContext) {
+    console.error(
+      "Title governance check accepts either PR context or INTEGRATION_SHA, not both",
+    );
+    return 1;
+  }
+
+  if (integrationSha) {
+    return runIntegrationMode(integrationSha);
+  }
+
+  if (!prTitle || !baseSha || !headSha) {
+    console.error(
+      "PR title governance check requires PR_TITLE, BASE_SHA, and HEAD_SHA",
+    );
+    return 1;
+  }
+
+  return runPrMode(prTitle, baseSha, headSha);
 }
 
 const isMainModule =
