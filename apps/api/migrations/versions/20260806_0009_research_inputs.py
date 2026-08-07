@@ -7,10 +7,18 @@ Create Date: 2026-08-06
 `research_inputs` stores immutable content *references* (content hash, storage
 ref, metadata) ownership-scoped by the anonymous session; the bytes themselves
 live in the content-addressed local store and are never owned by a table.
-`expires_at` doubles as the soft-delete marker. `research_input_bindings`
-records one active binding from an input reference to a ContractDraft or Run
-so composer-bound inputs keep provenance without copying binary content into
-public DTOs.
+`expires_at` doubles as the soft-delete marker.
+
+`research_input_idempotency` keeps HTTP request identity separate from content
+identity: content dedup is `(session_id, project_id, content_hash)` on
+`research_inputs`, while replay of a specific HTTP request is
+`(session_id, project_id, idempotency_key)` here. Several keys may therefore
+resolve to the same immutable input, and a `pending` reservation lets a URL
+replay be decided before any network fetch is issued.
+
+`research_input_bindings` records one active binding from an input reference to
+a ContractDraft or Run so composer-bound inputs keep provenance without copying
+binary content into public DTOs.
 """
 
 from __future__ import annotations
@@ -47,8 +55,6 @@ def upgrade() -> None:
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
-        sa.Column("idempotency_key", sa.String(length=200), nullable=True),
-        sa.Column("request_hash", sa.String(length=71), nullable=True),
         sa.ForeignKeyConstraint(
             ["project_id"], ["research_projects.id"], ondelete="CASCADE"
         ),
@@ -66,12 +72,6 @@ def upgrade() -> None:
             name="uq_research_input_session_project_content",
         ),
         sa.UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
-        sa.UniqueConstraint(
-            "session_id",
-            "project_id",
-            "idempotency_key",
-            name="uq_research_input_idempotency",
-        ),
         sa.CheckConstraint(
             "type IN ('url','pdf','csv','json','image','text')", name="ck_research_inputs_input_type"
         ),
@@ -97,6 +97,51 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "research_input_idempotency",
+        sa.Column("session_id", sa.String(length=128), nullable=False),
+        sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("idempotency_key", sa.String(length=200), nullable=False),
+        sa.Column("request_hash", sa.String(length=71), nullable=False),
+        sa.Column("input_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("status", sa.String(length=16), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["input_id", "project_id"],
+            ["research_inputs.id", "research_inputs.project_id"],
+            name="fk_research_input_idempotency_input_project",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint(
+            "session_id",
+            "project_id",
+            "idempotency_key",
+            name="pk_research_input_idempotency",
+        ),
+        sa.CheckConstraint(
+            "status IN ('pending','completed')",
+            name="ck_research_input_idempotency_status",
+        ),
+        sa.CheckConstraint(
+            "(status = 'pending' AND input_id IS NULL)"
+            " OR (status = 'completed' AND input_id IS NOT NULL)",
+            name="ck_research_input_idempotency_status_input",
+        ),
+    )
+    op.create_index(
+        "ix_research_input_idempotency_input",
+        "research_input_idempotency",
+        ["input_id"],
+    )
+
+    op.create_table(
         "research_input_bindings",
         sa.Column("input_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
@@ -118,6 +163,12 @@ def upgrade() -> None:
             ["project_id"], ["research_projects.id"], ondelete="CASCADE"
         ),
         sa.ForeignKeyConstraint(
+            ["contract_draft_id"],
+            ["research_contract_drafts.id"],
+            name="fk_research_input_binding_contract_draft",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
             ["run_id", "project_id"],
             ["research_runs.id", "research_runs.project_id"],
             name="fk_research_input_binding_run_project",
@@ -133,6 +184,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("research_input_bindings")
+    op.drop_index(
+        "ix_research_input_idempotency_input",
+        table_name="research_input_idempotency",
+    )
+    op.drop_table("research_input_idempotency")
     op.drop_index("ix_research_inputs_session_content", table_name="research_inputs")
     op.drop_index("ix_research_inputs_session_project", table_name="research_inputs")
     op.drop_table("research_inputs")

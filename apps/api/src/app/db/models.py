@@ -605,8 +605,6 @@ class ResearchInputModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
-    idempotency_key: Mapped[str | None] = mapped_column(String(200))
-    request_hash: Mapped[str | None] = mapped_column(String(71))
 
     __table_args__ = (
         UniqueConstraint(
@@ -616,12 +614,6 @@ class ResearchInputModel(Base):
             name="uq_research_input_session_project_content",
         ),
         UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
-        UniqueConstraint(
-            "session_id",
-            "project_id",
-            "idempotency_key",
-            name="uq_research_input_idempotency",
-        ),
         ForeignKeyConstraint(
             ["source_snapshot_id", "project_id"],
             ["source_snapshots.id", "source_snapshots.project_id"],
@@ -660,7 +652,10 @@ class ResearchInputBindingModel(Base):
     project_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
     )
-    contract_draft_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    contract_draft_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_contract_drafts.id", ondelete="CASCADE"),
+    )
     run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     bound_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
@@ -682,6 +677,68 @@ class ResearchInputBindingModel(Base):
         CheckConstraint(
             "(contract_draft_id IS NULL) <> (run_id IS NULL)",
             name="binding_target_xor",
+        ),
+    )
+
+
+class ResearchInputIdempotencyModel(Base):
+    """HTTP request identity for Research Input creation (B-19).
+
+    This table is deliberately *not* part of :class:`ResearchInputModel`.
+    Two identities exist and they are not the same thing:
+
+    * content dedup -- ``(session_id, project_id, content_hash)`` on
+      ``research_inputs``; the same bytes resolve to one immutable resource.
+    * request idempotency -- ``(session_id, project_id, idempotency_key)``
+      here; it answers "have I already executed *this HTTP request*?".
+
+    Because the mapping lives in its own row, several distinct
+    ``Idempotency-Key`` values may legitimately point at the *same*
+    ``ResearchInput`` (same content submitted twice under different keys),
+    which a single ``idempotency_key`` column on the content row could never
+    represent.
+
+    ``status`` supports two-phase use: a row is reserved as ``pending`` before
+    a URL is fetched so a replay cannot trigger a second network request, then
+    completed with the resolved ``input_id``. A reservation that never
+    completes is removed, so a failed fetch stays retryable.
+    """
+
+    __tablename__ = "research_input_idempotency"
+
+    session_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    input_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["input_id", "project_id"],
+            ["research_inputs.id", "research_inputs.project_id"],
+            name="fk_research_input_idempotency_input_project",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "status IN ('pending','completed')",
+            name="idempotency_status",
+        ),
+        CheckConstraint(
+            "(status = 'pending' AND input_id IS NULL)"
+            " OR (status = 'completed' AND input_id IS NOT NULL)",
+            name="idempotency_status_input",
+        ),
+        Index(
+            "ix_research_input_idempotency_input",
+            "input_id",
         ),
     )
 
