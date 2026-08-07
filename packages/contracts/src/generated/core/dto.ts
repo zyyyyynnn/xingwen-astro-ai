@@ -33,6 +33,12 @@ export type ArtifactKind =
 export type App_Schemas_Core__SourceMode = "fixture" | "live" | "cached";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "BindResearchInputRequest".
+ */
+export type BindResearchInputRequest =
+  BindResearchInputToContractRequest | BindResearchInputToRunRequest;
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CachePolicy".
  */
 export type CachePolicy = "disabled" | "fallback_on_recoverable_failure";
@@ -573,18 +579,29 @@ export interface WorkspaceObjectRef {
   object_type: string;
 }
 /**
- * Attach an ingested input reference to a ContractDraft or a Run.
+ * Attach an ingested input reference to a ContractDraft.
  *
- * Only the reference is bound; binary content and full text never enter the
- * public DTO.
+ * ``run_id`` is pinned to ``None`` so the generated schema itself rules out
+ * the "both targets" case rather than deferring to a runtime validator.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "BindResearchInputRequest".
+ * via the `definition` "BindResearchInputToContractRequest".
  */
-export interface BindResearchInputRequest {
-  contract_draft_id?: string | null;
+export interface BindResearchInputToContractRequest {
+  contract_draft_id: string;
   project_id: string;
-  run_id?: string | null;
+  run_id?: null;
+}
+/**
+ * Attach an ingested input reference to a Run inside the same project.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "BindResearchInputToRunRequest".
+ */
+export interface BindResearchInputToRunRequest {
+  contract_draft_id?: null;
+  project_id: string;
+  run_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1218,18 +1235,20 @@ export interface SourceScope {
   allowed_sources: [string, ...string[]];
 }
 /**
- * JSON transport for URL and text ingestion (files use multipart).
+ * ``multipart/form-data`` create for the file input types.
+ *
+ * ``file`` is declared as a binary string so the generated OpenAPI carries
+ * ``type: string, format: binary`` as a real schema, not prose.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "CreateResearchInputRequest".
+ * via the `definition` "CreateResearchInputMultipartRequest".
  */
-export interface CreateResearchInputRequest {
+export interface CreateResearchInputMultipartRequest {
+  file: string;
   filename?: string | null;
   mime_type?: string | null;
   project_id: string;
-  text_content?: string | null;
-  type: ResearchInputType;
-  url?: string | null;
+  type: "pdf" | "csv" | "json" | "image";
 }
 /**
  * Minimal M1 project creation payload; `case_key` stays frozen to the main case.
@@ -2182,12 +2201,42 @@ export interface ProblemFieldError {
   message: string;
 }
 /**
+ * JSON create for ``type=text``: the body carries the text itself.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "TextResearchInputRequest".
+ */
+export interface TextResearchInputRequest {
+  filename?: string | null;
+  mime_type?: string | null;
+  project_id: string;
+  text_content: string;
+  type: "text";
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "UpdateResearchContractDraftRequest".
  */
 export interface UpdateResearchContractDraftRequest {
   contract?: ResearchContractInput | null;
   intent?: string | null;
+}
+/**
+ * JSON create for ``type=url``: a URL is fetched server-side.
+ *
+ * Modelled as its own type (not a nullable mega-model) so the generated JSON
+ * Schema *machine-level* forbids ``text_content`` and file semantics here
+ * instead of relying on a runtime-only validator.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UrlResearchInputRequest".
+ */
+export interface UrlResearchInputRequest {
+  filename?: string | null;
+  mime_type?: string | null;
+  project_id: string;
+  type: "url";
+  url: string;
 }
 /**
  * Editable private workspace state accepted by the PUT endpoint.
@@ -2355,6 +2404,20 @@ export interface ExportArtifactContent {
  */
 export interface CreateArtifactExportRequest {
   format: "csv" | "json" | "provenance_report";
+}
+/**
+ * JSON transport for URL and text ingestion (files use multipart).
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CreateResearchInputRequest".
+ */
+export interface CreateResearchInputRequest {
+  filename?: string | null;
+  mime_type?: string | null;
+  project_id: string;
+  text_content?: string | null;
+  type: ResearchInputType;
+  url?: string | null;
 }
 /**
  * A typed candidate pinned to one immutable ArtifactVersion.

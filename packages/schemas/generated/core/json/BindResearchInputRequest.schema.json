@@ -1,45 +1,70 @@
 {
-  "additionalProperties": false,
-  "description": "Attach an ingested input reference to a ContractDraft or a Run.\n\nOnly the reference is bound; binary content and full text never enter the\npublic DTO.",
-  "properties": {
-    "contract_draft_id": {
-      "anyOf": [
-        {
+  "$defs": {
+    "BindResearchInputToContractRequest": {
+      "additionalProperties": false,
+      "description": "Attach an ingested input reference to a ContractDraft.\n\n``run_id`` is pinned to ``None`` so the generated schema itself rules out\nthe \"both targets\" case rather than deferring to a runtime validator.",
+      "properties": {
+        "contract_draft_id": {
           "maxLength": 128,
           "minLength": 1,
+          "title": "Contract Draft Id",
           "type": "string"
         },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Contract Draft Id"
-    },
-    "project_id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Project Id",
-      "type": "string"
-    },
-    "run_id": {
-      "anyOf": [
-        {
+        "project_id": {
           "maxLength": 128,
           "minLength": 1,
+          "title": "Project Id",
           "type": "string"
         },
-        {
+        "run_id": {
+          "default": null,
+          "title": "Run Id",
           "type": "null"
         }
+      },
+      "required": [
+        "project_id",
+        "contract_draft_id"
       ],
-      "default": null,
-      "title": "Run Id"
+      "title": "BindResearchInputToContractRequest",
+      "type": "object"
+    },
+    "BindResearchInputToRunRequest": {
+      "additionalProperties": false,
+      "description": "Attach an ingested input reference to a Run inside the same project.",
+      "properties": {
+        "contract_draft_id": {
+          "default": null,
+          "title": "Contract Draft Id",
+          "type": "null"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "run_id"
+      ],
+      "title": "BindResearchInputToRunRequest",
+      "type": "object"
     }
   },
-  "required": [
-    "project_id"
-  ],
-  "title": "BindResearchInputRequest",
-  "type": "object"
+  "anyOf": [
+    {
+      "$ref": "#/$defs/BindResearchInputToContractRequest"
+    },
+    {
+      "$ref": "#/$defs/BindResearchInputToRunRequest"
+    }
+  ]
 }

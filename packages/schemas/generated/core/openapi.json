@@ -278,21 +278,24 @@
         "type": "object"
       },
       "BindResearchInputRequest": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/BindResearchInputToContractRequest"
+          },
+          {
+            "$ref": "#/components/schemas/BindResearchInputToRunRequest"
+          }
+        ]
+      },
+      "BindResearchInputToContractRequest": {
         "additionalProperties": false,
-        "description": "Attach an ingested input reference to a ContractDraft or a Run.\n\nOnly the reference is bound; binary content and full text never enter the\npublic DTO.",
+        "description": "Attach an ingested input reference to a ContractDraft.\n\n``run_id`` is pinned to ``None`` so the generated schema itself rules out\nthe \"both targets\" case rather than deferring to a runtime validator.",
         "properties": {
           "contract_draft_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contract Draft Id"
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Contract Draft Id",
+            "type": "string"
           },
           "project_id": {
             "maxLength": 128,
@@ -301,23 +304,43 @@
             "type": "string"
           },
           "run_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Run Id"
+            "title": "Run Id",
+            "type": "null"
           }
         },
         "required": [
-          "project_id"
+          "project_id",
+          "contract_draft_id"
         ],
-        "title": "BindResearchInputRequest",
+        "title": "BindResearchInputToContractRequest",
+        "type": "object"
+      },
+      "BindResearchInputToRunRequest": {
+        "additionalProperties": false,
+        "description": "Attach an ingested input reference to a Run inside the same project.",
+        "properties": {
+          "contract_draft_id": {
+            "title": "Contract Draft Id",
+            "type": "null"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "run_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "run_id"
+        ],
+        "title": "BindResearchInputToRunRequest",
         "type": "object"
       },
       "CachePolicy": {
@@ -652,10 +675,15 @@
         "title": "CreateResearchContractDraftRequest",
         "type": "object"
       },
-      "CreateResearchInputRequest": {
+      "CreateResearchInputMultipartRequest": {
         "additionalProperties": false,
-        "description": "JSON transport for URL and text ingestion (files use multipart).",
+        "description": "``multipart/form-data`` create for the file input types.\n\n``file`` is declared as a binary string so the generated OpenAPI carries\n``type: string, format: binary`` as a real schema, not prose.",
         "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          },
           "filename": {
             "anyOf": [
               {
@@ -667,6 +695,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "title": "Filename"
           },
           "mime_type": {
@@ -679,6 +708,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "title": "Mime Type"
           },
           "project_id": {
@@ -687,39 +717,23 @@
             "title": "Project Id",
             "type": "string"
           },
-          "text_content": {
-            "anyOf": [
-              {
-                "maxLength": 100000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Text Content"
-          },
           "type": {
-            "$ref": "#/components/schemas/ResearchInputType"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "maxLength": 2048,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "enum": [
+              "pdf",
+              "csv",
+              "json",
+              "image"
             ],
-            "title": "Url"
+            "title": "Type",
+            "type": "string"
           }
         },
         "required": [
+          "project_id",
           "type",
-          "project_id"
+          "file"
         ],
-        "title": "CreateResearchInputRequest",
+        "title": "CreateResearchInputMultipartRequest",
         "type": "object"
       },
       "CreateResearchProjectRequest": {
@@ -7363,6 +7377,61 @@
         "title": "SourceSnapshotRecord",
         "type": "object"
       },
+      "TextResearchInputRequest": {
+        "additionalProperties": false,
+        "description": "JSON create for ``type=text``: the body carries the text itself.",
+        "properties": {
+          "filename": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "maxLength": 127,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "text_content": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Text Content",
+            "type": "string"
+          },
+          "type": {
+            "const": "text",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "project_id",
+          "text_content"
+        ],
+        "title": "TextResearchInputRequest",
+        "type": "object"
+      },
       "UnitPolicy": {
         "enum": [
           "canonical"
@@ -7411,6 +7480,61 @@
         ],
         "title": "UpstreamFailureClass",
         "type": "string"
+      },
+      "UrlResearchInputRequest": {
+        "additionalProperties": false,
+        "description": "JSON create for ``type=url``: a URL is fetched server-side.\n\nModelled as its own type (not a nullable mega-model) so the generated JSON\nSchema *machine-level* forbids ``text_content`` and file semantics here\ninstead of relying on a runtime-only validator.",
+        "properties": {
+          "filename": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "maxLength": 127,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "type": {
+            "const": "url",
+            "title": "Type",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "project_id",
+          "url"
+        ],
+        "title": "UrlResearchInputRequest",
+        "type": "object"
       },
       "WorkspaceObjectRef": {
         "additionalProperties": false,
@@ -11487,7 +11611,27 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateResearchInputRequest"
+                "discriminator": {
+                  "mapping": {
+                    "text": "#/components/schemas/TextResearchInputRequest",
+                    "url": "#/components/schemas/UrlResearchInputRequest"
+                  },
+                  "propertyName": "type"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/UrlResearchInputRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TextResearchInputRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResearchInputMultipartRequest"
               }
             }
           },
