@@ -16,14 +16,14 @@
   fix/contract-drift
   docs/authority-consolidation
   ```
-- **Commit & PR Title Grammar**：
-  必须符合 `<type>(<scope>)[!]: <summary>` 格式。
-  - **Type 允许值**：`feat`, `fix`, `refactor`, `docs`, `test`, `ci`, `build`, `chore`, `perf`, `style`, `revert`
-  - **Task Scope 格式**：`^[a-dx]-[0-9]{2,3}$`（例如 `a-21`, `b-19`, `c-05`, `d-10`, `x-01`）
-  - **System Scope 允许值**：`repo`, `frontend`, `backend`, `contracts`, `data`, `security`, `docs`, `ci`, `deps`, `release`, `sync`
-  - **PR Title** 不附带任何后置编号如 `(#123)`。
-  - **PR Integration Commit** 最多附带一个唯一的尾部 PR 回链编号 `(#123)`。
-- **提交原则**：一个 Commit 表达一个独立主要目的，不混入无关格式化或无关改动。
+- **Commit & PR Title Grammar**：本节是标题格式的唯一权威规范。PR title 与 commit subject 必须符合 `<type>(<scope>)[!]: <summary>`。
+  - **Type 允许值**：`feat`, `fix`, `refactor`, `docs`, `test`, `ci`, `build`, `chore`, `perf`, `style`, `revert`。
+  - **Task Scope 格式**：`^[a-dx]-[0-9]{2,3}$`，例如 `a-21`, `b-19`, `c-05`, `d-10`, `x-01`；必须小写并保留字母与编号之间的 `-`。
+  - **System Scope 允许值**：`repo`, `frontend`, `backend`, `contracts`, `data`, `security`, `docs`, `ci`, `deps`, `release`, `sync`；不得使用 `wip`, `temp`, `final`, `review-fix`, `agent-fixed-*` 等临时 scope。
+  - **Summary**：使用英文动作描述；单行；无首尾空白；冒号后严格一个空格；不以句号结尾；不得包含本地绝对路径、Commit SHA、执行日期、Review ID、CI 执行状态或 `WIP` / `Draft` / `Ready` / `Merged` / `PASS` / `BLOCKED` 等过程状态。
+  - **PR Title**：不得包含 Issue / PR 编号，不得附带 `(A-21)`, `PR-1/5`, `[A]`, `[B]`, `[C]`, `[D]`, `[X]`, `[agent-fixed-*]` 等历史或过程标记。
+  - **PR 分支 Commit**：不得包含 Issue / PR 编号；每个 Commit 只表达一个独立主要目的。
+  - **PR Integration Commit**：Squash merge 产生的最终合入 Commit 可以在 subject 末尾附带且仅附带一个 `(#123)` PR 回链；除此之外不得出现 Issue / PR 编号。
 
 ## 2. Issue 与 PR 规则
 
