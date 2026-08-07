@@ -8,9 +8,9 @@ deterministic hashing — never a single vague "accuracy".
 
 from __future__ import annotations
 
-from datetime import datetime
+import math
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -18,10 +18,6 @@ from ._hashing import compute_canonical_payload_hash
 from .core import CORE_MODEL_CONFIG, ContentHash, Identifier, UtcDateTime
 
 
-#: Explicit "pending" sentinel for ``BenchmarkReport.output_hash``. Builders
-#: construct with this placeholder, then set the real self-verifying hash via
-#: ``model_copy(update={"output_hash": ...})``. It is accepted only at
-#: construction (see ``require_self_verifying_output_hash``).
 _PENDING_OUTPUT_HASH = "sha256:" + "0" * 64
 
 
@@ -89,15 +85,13 @@ class GoldenSetEntry(BaseModel):
     expected: GoldenExpectedAnnotation | None = None
 
     @model_validator(mode="after")
-    def require_exoplanet_case_key(self) -> GoldenSetEntry:
+    def require_exoplanet_case_key(self) -> Self:
         if self.case_key != "exoplanet_host_star":
             raise ValueError("D-10 Golden Set is scoped to exoplanet_host_star")
         return self
 
     @model_validator(mode="after")
-    def prohibit_fake_provenance(self) -> GoldenSetEntry:
-        # A committed fixture carries a real content hash; a restricted/local-only
-        # entry carries provenance but never a committed content hash (no PDF).
+    def prohibit_fake_provenance(self) -> Self:
         if self.data_type == BenchmarkDataType.fixture:
             if self.content_hash is None:
                 raise ValueError("committed fixture must carry its content_hash")
@@ -108,6 +102,10 @@ class GoldenSetEntry(BaseModel):
                 raise ValueError("local-only entry must not carry a committed content_hash")
             if not self.doi_or_identifier:
                 raise ValueError("local-only real publication must carry a real DOI/identifier")
+            if self.expected is not None and self.expected.expected_page_count is not None:
+                raise ValueError(
+                    "local-only entry without exact content hash must not claim expected_page_count"
+                )
         return self
 
 
@@ -124,7 +122,7 @@ class GoldenSetManifest(BaseModel):
     entries: tuple[GoldenSetEntry, ...] = Field(default=())
 
     @model_validator(mode="after")
-    def require_sample_count_matches(self) -> GoldenSetManifest:
+    def require_sample_count_matches(self) -> Self:
         if self.sample_count != len(self.entries):
             raise ValueError(
                 f"sample_count={self.sample_count} != len(entries)={len(self.entries)}"
@@ -132,8 +130,8 @@ class GoldenSetManifest(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def require_unique_entry_ids(self) -> GoldenSetManifest:
-        ids = [e.entry_id for e in self.entries]
+    def require_unique_entry_ids(self) -> Self:
+        ids = [entry.entry_id for entry in self.entries]
         if len(ids) != len(set(ids)):
             raise ValueError("Golden Set entry_id values must be unique")
         return self
@@ -164,10 +162,40 @@ class BenchmarkMetricValue(BaseModel):
     version: Annotated[str, Field(pattern=r"^[1-9]\d*\.\d+\.\d+$")]
 
     @model_validator(mode="after")
-    def measured_requires_denominator(self) -> Self:
-        # A measured metric MUST carry a non-None denominator (fail-closed).
-        if self.status == BenchmarkMetricStatus.measured and self.denominator is None:
-            raise ValueError(f"metric '{self.name}' status=measured requires a denominator")
+    def require_consistent_metric(self) -> Self:
+        if self.status == BenchmarkMetricStatus.measured:
+            if self.denominator is None:
+                raise ValueError(f"metric '{self.name}' status=measured requires a denominator")
+            expected_rate = (
+                self.numerator / self.denominator
+                if self.denominator > 0
+                else (0.0 if self.empty_behavior == "report_zero_rate" else None)
+            )
+            if expected_rate is None:
+                if self.rate is not None:
+                    raise ValueError(
+                        f"metric '{self.name}' with empty denominator must have rate=None"
+                    )
+            elif self.rate is None or not math.isclose(
+                self.rate, expected_rate, rel_tol=1e-12, abs_tol=1e-12
+            ):
+                raise ValueError(
+                    f"metric '{self.name}' rate={self.rate!r} does not match "
+                    f"numerator/denominator={expected_rate!r}"
+                )
+        else:
+            if self.numerator != 0.0:
+                raise ValueError(
+                    f"metric '{self.name}' status={self.status.value} must not carry numerator"
+                )
+            if self.denominator not in (None, 0.0):
+                raise ValueError(
+                    f"metric '{self.name}' status={self.status.value} must not carry denominator"
+                )
+            if self.rate is not None:
+                raise ValueError(
+                    f"metric '{self.name}' status={self.status.value} must have rate=None"
+                )
         return self
 
 
@@ -204,6 +232,27 @@ class BenchmarkCaseResult(BaseModel):
     input_hash: ContentHash
     output_hash: ContentHash
 
+    @model_validator(mode="after")
+    def require_case_metric_ranges(self) -> Self:
+        bounded = {
+            "native_routing_coverage": self.native_routing_coverage,
+            "visual_routing_coverage": self.visual_routing_coverage,
+            "block_recovery": self.block_recovery,
+            "reading_order_error": self.reading_order_error,
+            "table_structure_recovery": self.table_structure_recovery,
+            "formula_recovery": self.formula_recovery,
+            "figure_caption_linkage": self.figure_caption_linkage,
+            "evidence_locator_validity": self.evidence_locator_validity,
+        }
+        for name, value in bounded.items():
+            if value is not None and not 0.0 <= value <= 1.0:
+                raise ValueError(f"case metric {name} must be within 0..1, got {value}")
+        if self.latency_seconds is not None and self.latency_seconds < 0:
+            raise ValueError("latency_seconds must be non-negative")
+        if self.peak_memory_bytes is not None and self.peak_memory_bytes < 0:
+            raise ValueError("peak_memory_bytes must be non-negative")
+        return self
+
 
 class BenchmarkReport(BaseModel):
     """Aggregate reproducible benchmark report (versioned + hashed)."""
@@ -233,35 +282,24 @@ class BenchmarkReport(BaseModel):
     @model_validator(mode="after")
     def require_self_verifying_output_hash(self) -> Self:
         expected = compute_benchmark_report_hash(self)
-        # The all-zero placeholder is the explicit "pending" sentinel used by
-        # builders that construct first and then set the real hash via
-        # ``model_copy(update={"output_hash": ...})``. It is accepted at
-        # construction time only.
         if self.output_hash == _PENDING_OUTPUT_HASH:
             return self
         if self.output_hash != expected:
             raise ValueError(
-                f"benchmark output_hash does not self-verify "
+                "benchmark output_hash does not self-verify "
                 f"(got {self.output_hash}, expected {expected})"
             )
         return self
 
 
 def benchmark_payload_for_hash(report: BenchmarkReport) -> dict:
-    """Deterministic payload used for the report's reproducible hash.
-
-    Excludes ``output_hash`` (which is the value being computed) and
-    ``created_at`` (wall-clock, not part of the scientific result) so identical
-    scientific inputs always yield the same ``output_hash`` regardless of when
-    the run happened (D-10 E7/E8).
-    """
+    """Deterministic report payload excluding self hash and wall-clock time."""
     return report.model_dump(mode="json", exclude={"output_hash", "created_at"})
 
 
 def compute_benchmark_report_hash(report: BenchmarkReport) -> str:
     """Deterministic hash of a benchmark report's canonical payload."""
-    payload = benchmark_payload_for_hash(report)
-    return compute_canonical_payload_hash(payload)
+    return compute_canonical_payload_hash(benchmark_payload_for_hash(report))
 
 
 __all__ = [
