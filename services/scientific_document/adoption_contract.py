@@ -1,10 +1,9 @@
 """Machine-validatable contract for the D-10 upstream adoption manifest.
 
 ``upstream_adoption.json`` is the single source of truth for which first-party
-packages/models are approved for Scientific Document Parsing. Production D-11
-adapters may consume only ``approved`` entries. Unknown keys are rejected so a
-typo in a version/license/runtime field cannot silently weaken the adoption
-contract.
+packages/models and Python import roots are approved for Scientific Document
+Parsing. Production D-11 adapters may consume only ``approved`` entries.
+Unknown keys are rejected so a typo cannot silently weaken the contract.
 """
 
 from __future__ import annotations
@@ -56,6 +55,7 @@ class AdoptionEntry(BaseModel):
     package: NonEmptyString | None = None
     package_extra: NonEmptyString | None = None
     package_version: NonEmptyString | None = None
+    import_roots: tuple[NonEmptyString, ...] = ()
     release_tag: NonEmptyString | None = None
     release_date: NonEmptyString | None = None
 
@@ -93,11 +93,24 @@ class AdoptionEntry(BaseModel):
                     f"{field_name}: {value!r} (pin exact version)"
                 )
 
-        if self.adoption_status == AdoptionStatus.approved:
-            if self.package is not None and self.package_version is None:
+        if len(self.import_roots) != len(set(self.import_roots)):
+            raise ValueError(f"duplicate import_roots in capability '{self.capability}'")
+        for root in self.import_roots:
+            if not root.replace("_", "").isalnum() or "." in root:
                 raise ValueError(
-                    f"approved package capability '{self.capability}' must pin package_version"
+                    f"import_root must be a top-level Python module name: {root!r}"
                 )
+
+        if self.adoption_status == AdoptionStatus.approved:
+            if self.package is not None:
+                if self.package_version is None:
+                    raise ValueError(
+                        f"approved package capability '{self.capability}' must pin package_version"
+                    )
+                if not self.import_roots:
+                    raise ValueError(
+                        f"approved package capability '{self.capability}' must declare import_roots"
+                    )
             if self.model_repository is not None:
                 if not self.model_id or not self.model_resolved_id:
                     raise ValueError(
@@ -141,7 +154,6 @@ class UpstreamAdoptionManifest(BaseModel):
         capabilities = [entry.capability for entry in self.entries]
         if len(capabilities) != len(set(capabilities)):
             raise ValueError("adoption entries must have unique capabilities")
-
         if set(self.allowed_statuses) != set(AdoptionStatus):
             raise ValueError("allowed_statuses must enumerate every AdoptionStatus exactly")
         if self.consumable_statuses != (AdoptionStatus.approved,):
@@ -150,7 +162,7 @@ class UpstreamAdoptionManifest(BaseModel):
 
 
 def load_adoption_manifest(path: object) -> UpstreamAdoptionManifest:
-    """Load and validate the adoption manifest from a ``Path``-like object."""
+    """Load and validate the adoption manifest from a Path-like object."""
     import json
     from pathlib import Path
 
@@ -159,15 +171,11 @@ def load_adoption_manifest(path: object) -> UpstreamAdoptionManifest:
 
 
 def collect_approved_packages(manifest: UpstreamAdoptionManifest) -> set[str]:
-    """Return normalized approved distribution/model identifiers."""
+    """Return exact approved top-level Python import roots."""
     approved: set[str] = set()
     for entry in manifest.entries:
-        if entry.adoption_status != AdoptionStatus.approved:
-            continue
-        for value in (entry.package, entry.model_id, entry.model_resolved_id):
-            if value:
-                approved.add(value.lower())
-                approved.add(value.lower().replace("-", "_"))
+        if entry.adoption_status == AdoptionStatus.approved:
+            approved.update(root.lower() for root in entry.import_roots)
     return approved
 
 
