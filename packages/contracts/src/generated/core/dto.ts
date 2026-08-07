@@ -326,6 +326,11 @@ export type UnitPolicy1 = "canonical";
 export type SourceMode = "fixture" | "live" | "cached";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CreateResearchInputRequest".
+ */
+export type CreateResearchInputRequest = UrlResearchInputRequest | TextResearchInputRequest;
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "AlignmentStatus".
  */
 export type AlignmentStatus =
@@ -2405,15 +2410,6 @@ export interface ExportArtifactContent {
 export interface CreateArtifactExportRequest {
   format: "csv" | "json" | "provenance_report";
 }
-/**
- * JSON transport for URL and text ingestion (files use multipart).
- *
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "CreateResearchInputRequest".
- */
-export type CreateResearchInputRequest =
-  | UrlResearchInputRequest
-  | TextResearchInputRequest;
 /**
  * A typed candidate pinned to one immutable ArtifactVersion.
  *
