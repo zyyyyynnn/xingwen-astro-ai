@@ -1,5 +1,10 @@
 # Scientific Document Parsing — Review Checklist (D-10 / #190)
 
+| 元数据 | 值 |
+| --- | --- |
+| Status | Accepted |
+| Authority | Scientific Document Parsing 人工审查清单：reference-after-rewrite、vendor 边界与采用完整性 |
+
 This checklist is the **human** counterpart to the machine-enforced gate
 `scripts/check_d10_governance.py`. The machine gate can detect *strings*; it
 cannot detect *intent*. A reviewer must verify the items below on every PR that

@@ -1,5 +1,10 @@
 # Scientific Document Parsing Contract (D-10 / #190)
 
+| 元数据 | 值 |
+| --- | --- |
+| Status | Accepted |
+| Authority | Scientific Document Parsing 冻结契约、Parser Port、Golden Set、Benchmark 与上游采用边界 |
+
 Frozen Canonical Contract, Parser Port, Golden Set, Benchmark and Upstream
 Adoption for the Scientific Document Parsing boundary. This document is the
 authoritative design record for **#190 D-10** and the handoff source for
