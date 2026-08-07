@@ -22,7 +22,7 @@ describe("Link", () => {
   });
 
   it("omits external attributes for internal links", () => {
-    render(<Link href="/tour">Internal</Link>);
+    render(<Link href="/workspace">Internal</Link>);
     const link = screen.getByRole("link");
     expect(link).not.toHaveAttribute("target");
   });

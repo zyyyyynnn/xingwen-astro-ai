@@ -8,7 +8,13 @@ import {
   findRetiredManifestDependencies,
   findRetiredResolvedDependencies,
   findRetiredTextTerms,
+  findRetiredWorkspaceCssTerms,
+  findRetiredWorkspaceManifestDependencies,
+  findRetiredWorkspaceIdentifiers,
+  findFakeWorkspaceCapabilityPhrases,
+  findTourRouteRefs,
   isRetiredPath,
+  tourRouteAllowlist,
 } from "./check-frontend-legacy-rules.mjs";
 
 const root = process.cwd();
@@ -44,6 +50,13 @@ for (const file of files) {
     for (const dependency of findRetiredManifestDependencies(manifest)) {
       failures.push(`${file}: retired dependency ${dependency}.`);
     }
+    if (file === "apps/workspace/package.json") {
+      for (const dependency of findRetiredWorkspaceManifestDependencies(
+        manifest,
+      )) {
+        failures.push(`${file}: retired workspace dependency ${dependency}.`);
+      }
+    }
     continue;
   }
   if (file === "pnpm-lock.yaml") {
@@ -58,10 +71,37 @@ for (const file of files) {
     continue;
   }
 
-  for (const term of findRetiredTextTerms(readFileSync(path, "utf8"))) {
+  const content = readFileSync(path, "utf8");
+  for (const term of findRetiredTextTerms(content)) {
     failures.push(
       `${file}: contains retired runtime term ${JSON.stringify(term)}.`,
     );
+  }
+  if (file.startsWith("apps/workspace/src/")) {
+    for (const identifier of findRetiredWorkspaceIdentifiers(content)) {
+      failures.push(
+        `${file}: contains retired Workspace identifier ${JSON.stringify(identifier)}.`,
+      );
+    }
+    for (const phrase of findFakeWorkspaceCapabilityPhrases(content)) {
+      failures.push(
+        `${file}: contains fake Workspace capability phrase ${JSON.stringify(phrase)}.`,
+      );
+    }
+    if (file.endsWith(".css")) {
+      for (const term of findRetiredWorkspaceCssTerms(content)) {
+        failures.push(
+          `${file}: contains retired Workspace stylesheet rule ${JSON.stringify(term)}.`,
+        );
+      }
+    }
+  }
+  if (!tourRouteAllowlist.has(file)) {
+    for (const term of findTourRouteRefs(content)) {
+      failures.push(
+        `${file}: contains retired route term ${JSON.stringify(term)} outside the compatibility allowlist.`,
+      );
+    }
   }
 }
 

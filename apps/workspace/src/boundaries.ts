@@ -3,30 +3,16 @@ import type {
   RepositorySet,
   SessionManager,
 } from "@xingwen/data-access";
-import type {
-  GuidedTourController,
-  WorkspaceController,
-} from "@xingwen/workspace-core";
-
-type RepositoryEntityId = Parameters<RepositorySet["projects"]["getById"]>[0];
-
-export interface FixtureBootstrapContext {
-  readonly projectId: RepositoryEntityId;
-  readonly draftId: RepositoryEntityId;
-  readonly contractId: RepositoryEntityId;
-  readonly runId: RepositoryEntityId;
-}
+import type { WorkspaceController } from "@xingwen/workspace-core";
 
 interface WorkspaceRuntimeBase {
   readonly repositories: RepositorySet;
-  readonly tour: GuidedTourController;
   readonly workspaceController: WorkspaceController;
 }
 
 export interface FixtureWorkspaceRuntimeBoundaries extends WorkspaceRuntimeBase {
   readonly adapterKind: "fixture";
   readonly repositories: FixtureRepositorySet;
-  readonly bootstrap: FixtureBootstrapContext;
 }
 
 export interface HttpWorkspaceRuntimeBoundaries extends WorkspaceRuntimeBase {
@@ -35,9 +21,10 @@ export interface HttpWorkspaceRuntimeBoundaries extends WorkspaceRuntimeBase {
 }
 
 /**
- * The single runtime boundary consumed by Workspace pages. Adapter selection is
- * performed once at bootstrap; pages only receive Repository Ports and domain
- * controllers.
+ * The single runtime boundary consumed by Workspace routes. Adapter selection
+ * is performed once at bootstrap; pages only receive Repository Ports and
+ * domain controllers. No private session is created for the public share
+ * route.
  */
 export type WorkspaceRuntimeBoundaries =
   FixtureWorkspaceRuntimeBoundaries | HttpWorkspaceRuntimeBoundaries;

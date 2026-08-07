@@ -6,8 +6,21 @@ import {
   findRetiredManifestDependencies,
   findRetiredResolvedDependencies,
   findRetiredTextTerms,
+  findRetiredWorkspaceCssTerms,
+  findRetiredWorkspaceManifestDependencies,
+  findRetiredWorkspaceIdentifiers,
+  findFakeWorkspaceCapabilityPhrases,
+  findTourRouteRefs,
   frameworkName,
+  isRetiredPackageName,
   isRetiredPath,
+  retiredWorkspacePackageNames,
+  retiredWorkspacePaths,
+  retiredWorkspaceIdentifierNames,
+  fakeWorkspaceCapabilityPhrases,
+  retiredWorkspaceCssTermsExport,
+  tourRouteAllowlist,
+  tourRouteTermsExport,
 } from "./check-frontend-legacy-rules.mjs";
 
 test("rejects the bare retired runtime in a manifest", () => {
@@ -58,5 +71,127 @@ test("rejects namespace packages in the resolved dependency tree", () => {
   assert.deepEqual(
     findRetiredResolvedDependencies([{ dependencies: { [name]: { name } } }]),
     [name],
+  );
+});
+
+test("rejects retired Workspace application paths", () => {
+  for (const path of retiredWorkspacePaths) {
+    assert.equal(isRetiredPath(path), true, path);
+  }
+});
+
+test("allows legitimate new Workspace paths not retired by A-20", () => {
+  assert.equal(
+    isRetiredPath("apps/workspace/src/pages/new-workspace-page.tsx"),
+    false,
+  );
+  assert.equal(
+    isRetiredPath("apps/workspace/src/components/new-navigation.tsx"),
+    false,
+  );
+  assert.equal(
+    isRetiredPath("apps/workspace/src/features/research-adapter/index.ts"),
+    false,
+  );
+  assert.equal(
+    isRetiredPath("apps/workspace/src/hooks/use-agent-runtime.ts"),
+    false,
+  );
+});
+
+test("does not permanently ban Tailwind from the Workspace", () => {
+  assert.equal(isRetiredPackageName("tailwindcss"), false);
+  assert.equal(isRetiredPackageName("@tailwindcss/vite"), false);
+});
+
+test("accepts an empty retired Workspace dependency list", () => {
+  assert.deepEqual(retiredWorkspacePackageNames, []);
+  const manifest = { dependencies: { tailwindcss: "4" } };
+  assert.deepEqual(findRetiredWorkspaceManifestDependencies(manifest), []);
+});
+
+test("rejects exact retired Workspace identifiers", () => {
+  assert.deepEqual(findRetiredWorkspaceIdentifiers("WorkspacePage"), [
+    "WorkspacePage",
+  ]);
+  assert.deepEqual(
+    findRetiredWorkspaceIdentifiers("const page = WorkspacePage;"),
+    ["WorkspacePage"],
+  );
+  assert.deepEqual(
+    findRetiredWorkspaceIdentifiers("function ResearchShell() {}"),
+    ["ResearchShell"],
+  );
+  assert.deepEqual(
+    findRetiredWorkspaceIdentifiers("createGuidedTourController()"),
+    ["createGuidedTourController"],
+  );
+});
+
+test("allows legitimate compound Workspace identifiers", () => {
+  const compoundIdentifiers = [
+    "NewWorkspacePage",
+    "AgentWorkspacePage",
+    "WorkspacePageModel",
+    "ResearchShellAdapter",
+    "ArtifactCanvasState",
+    "ArtifactPreview",
+    "PreviewPane",
+    "previewState",
+    "workspacePage",
+  ];
+  for (const name of compoundIdentifiers) {
+    assert.deepEqual(
+      findRetiredWorkspaceIdentifiers(`export function ${name}() {}`),
+      [],
+      `Expected ${name} to be allowed as an identifier`,
+    );
+  }
+});
+
+test("rejects explicit placeholder and fake capability phrases", () => {
+  assert.ok(
+    findFakeWorkspaceCapabilityPhrases("科研工作台将在此提供研究画布。")
+      .length > 0,
+  );
+  assert.ok(
+    findFakeWorkspaceCapabilityPhrases("功能开发中").includes("功能开发中"),
+  );
+  assert.ok(
+    findFakeWorkspaceCapabilityPhrases("Coming soon").includes("Coming soon"),
+  );
+  assert.ok(
+    findFakeWorkspaceCapabilityPhrases("coming soon").includes("Coming soon"),
+  );
+});
+
+test("allows stable Workspace content and legitimate preview text", () => {
+  const allowedTexts = [
+    "研究工作台",
+    "请使用桌面设备",
+    "研究工作台需要更宽的浏览器窗口。",
+    "Artifact preview is available from the completed renderer.",
+  ];
+  for (const text of allowedTexts) {
+    assert.deepEqual(
+      findFakeWorkspaceCapabilityPhrases(text),
+      [],
+      `Expected "${text}" to contain no fake capability phrases`,
+    );
+  }
+});
+
+test("rejects retired Workspace stylesheet rules", () => {
+  const rule = retiredWorkspaceCssTermsExport[1];
+  assert.deepEqual(findRetiredWorkspaceCssTerms(rule), [rule]);
+});
+
+test("rejects the retired route term outside the compatibility allowlist", () => {
+  const term = tourRouteTermsExport[0];
+  assert.deepEqual(findTourRouteRefs(`link to ${term} here`), [term]);
+  assert.equal(tourRouteAllowlist.has("apps/workspace/src/router.tsx"), true);
+  assert.equal(
+    tourRouteAllowlist.has("apps/site/src/pages/index.astro"),
+    false,
   );
 });
