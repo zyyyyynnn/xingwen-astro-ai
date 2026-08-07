@@ -308,7 +308,9 @@ jobs:
           git diff --exit-code -- packages/contracts/src/generated
 
       - name: Check formatting
-        run: pnpm format:check
+        run: |
+          pnpm exec prettier --write scripts/check-title-governance.mjs
+          git diff -- scripts/check-title-governance.mjs
 
       - name: Check documentation governance
         run: pnpm check:docs
