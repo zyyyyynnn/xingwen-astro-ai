@@ -4,6 +4,7 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  redirect,
 } from "@tanstack/react-router";
 import type {
   ErrorComponentProps,
@@ -11,17 +12,8 @@ import type {
 } from "@tanstack/react-router";
 
 import type { WorkspaceRuntimeBoundaries } from "./boundaries";
-import { EntryPage } from "./pages/entry-page";
-import { SharePage } from "./pages/share-page";
-import { TourPage } from "./pages/tour-page";
-import { WorkspacePage } from "./pages/workspace-page";
-
-interface TourSearch {
-  readonly projectId?: string;
-  readonly draftId?: string;
-  readonly contractId?: string;
-  readonly runId?: string;
-}
+import { SharePage } from "./share-page";
+import { WorkspaceHost } from "./workspace-host";
 
 interface WorkspaceSearch {
   readonly projectId?: string;
@@ -30,25 +22,35 @@ interface WorkspaceSearch {
   readonly runId?: string;
 }
 
+const IDENTIFIER_KEYS = [
+  "projectId",
+  "draftId",
+  "contractId",
+  "runId",
+] as const;
+
+function isValidIdentifier(value: unknown): value is string {
+  return (
+    typeof value === "string" && value.trim().length > 0 && value.length <= 128
+  );
+}
+
 function optionalIdentifier(
   search: Record<string, unknown>,
   key: string,
 ): string | undefined {
   const value = search[key];
   if (value === undefined) return undefined;
-  if (typeof value !== "string" || !value.trim() || value.length > 128) {
+  if (!isValidIdentifier(value)) {
     throw new Error(`Invalid ${key} search parameter.`);
   }
   return value;
 }
 
-function validateTourSearch(search: Record<string, unknown>): TourSearch {
-  return {
-    projectId: optionalIdentifier(search, "projectId"),
-    draftId: optionalIdentifier(search, "draftId"),
-    contractId: optionalIdentifier(search, "contractId"),
-    runId: optionalIdentifier(search, "runId"),
-  };
+function hasValidIdentifiers(search: Record<string, unknown>): boolean {
+  return IDENTIFIER_KEYS.every(
+    (key) => search[key] === undefined || isValidIdentifier(search[key]),
+  );
 }
 
 function validateWorkspaceSearch(
@@ -64,26 +66,6 @@ function validateWorkspaceSearch(
 
 function RootLayout() {
   return <Outlet />;
-}
-
-function TourRoute() {
-  const search = tourRoute.useSearch();
-  return (
-    <TourPage
-      key={`${search.projectId ?? ""}:${search.draftId ?? ""}:${search.contractId ?? ""}:${search.runId ?? ""}`}
-      {...search}
-    />
-  );
-}
-
-function WorkspaceRoute() {
-  const search = workspaceRoute.useSearch();
-  return (
-    <WorkspacePage
-      key={`${search.projectId ?? ""}:${search.draftId ?? ""}:${search.contractId ?? ""}:${search.runId ?? ""}`}
-      {...search}
-    />
-  );
 }
 
 function ShareRoute() {
@@ -132,21 +114,39 @@ const rootRoute = createRootRouteWithContext<WorkspaceRuntimeBoundaries>()({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: EntryPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/workspace", replace: true });
+  },
 });
 
 const tourRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/tour",
-  validateSearch: validateTourSearch,
-  component: TourRoute,
+  beforeLoad: ({ search }) => {
+    const record = search as Record<string, unknown>;
+
+    const forwardedSearch = hasValidIdentifiers(record)
+      ? {
+          projectId: optionalIdentifier(record, "projectId"),
+          draftId: optionalIdentifier(record, "draftId"),
+          contractId: optionalIdentifier(record, "contractId"),
+          runId: optionalIdentifier(record, "runId"),
+        }
+      : {};
+
+    throw redirect({
+      to: "/workspace",
+      replace: true,
+      search: forwardedSearch,
+    });
+  },
 });
 
 const workspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/workspace",
   validateSearch: validateWorkspaceSearch,
-  component: WorkspaceRoute,
+  component: WorkspaceHost,
 });
 
 const shareRoute = createRoute({

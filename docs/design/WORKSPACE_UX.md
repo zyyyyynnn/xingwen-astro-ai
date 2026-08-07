@@ -7,6 +7,8 @@
 
 本文定义 Research Workspace 的产品合同，不规定具体上游产品、源码目录或实现技术。
 
+**当前状态（A-20）：** Research Workspace 产品层已退役，`/workspace` 仅提供固定宿主，`/share/$shareToken` 仅提供固定安全边界，旧引导路由重定向至 `/workspace`。本文档为产品层重建后的目标合同；退役期间的自动与门禁测试见 [Test Strategy](../engineering/TEST_STRATEGY.md)。
+
 ## 1. 目标
 
 Workspace 支持用户在同一研究上下文中完成：

@@ -17,6 +17,8 @@
 
 精确依赖版本以根 `package.json` 与 `pnpm-lock.yaml` 为准。
 
+**A-20 退役状态：** Research Workspace 产品层（Upstream Agent UI / Research Adapter 及其页面）已退役。`apps/workspace` 仅保留 `/workspace` 固定宿主与 `/share/$shareToken` 安全边界；旧引导路由与旧入口重定向至 `/workspace`。重建前，退役内容由 `scripts/check-frontend-legacy.mjs` 门禁强制不得回归；本文各节为产品层重建后的目标形态。
+
 ## 2. 模块分层
 
 ```text
