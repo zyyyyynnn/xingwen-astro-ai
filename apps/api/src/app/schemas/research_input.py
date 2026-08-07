@@ -11,7 +11,7 @@ distinguishes ``accepted`` inputs from ``unsupported_processing`` and
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -25,12 +25,18 @@ from .core import (
 
 __all__ = [
     "BindResearchInputRequest",
+    "BindResearchInputToContractRequest",
+    "BindResearchInputToRunRequest",
+    "CreateResearchInputJsonRequest",
+    "CreateResearchInputMultipartRequest",
     "CreateResearchInputRequest",
     "ResearchInputCreate",
     "ResearchInputDetail",
     "ResearchInputRef",
     "ResearchInputStatus",
     "ResearchInputType",
+    "TextResearchInputRequest",
+    "UrlResearchInputRequest",
     "RESEARCH_INPUT_FILENAME_INVALID",
     "RESEARCH_INPUT_INVALID",
     "RESEARCH_INPUT_MIME_REJECTED",
@@ -131,6 +137,68 @@ class CreateResearchInputRequest(ResearchInputCreate):
     project_id: Identifier
 
 
+class UrlResearchInputRequest(BaseModel):
+    """JSON create for ``type=url``: a URL is fetched server-side.
+
+    Modelled as its own type (not a nullable mega-model) so the generated JSON
+    Schema *machine-level* forbids ``text_content`` and file semantics here
+    instead of relying on a runtime-only validator.
+    """
+
+    model_config = CORE_MODEL_CONFIG
+
+    type: Literal[ResearchInputType.url]
+    project_id: Identifier
+    url: Annotated[str, Field(min_length=1, max_length=2048)]
+    filename: Annotated[str | None, Field(default=None, min_length=1, max_length=255)]
+    mime_type: Annotated[str | None, Field(default=None, max_length=127)]
+
+
+class TextResearchInputRequest(BaseModel):
+    """JSON create for ``type=text``: the body carries the text itself."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    type: Literal[ResearchInputType.text]
+    project_id: Identifier
+    text_content: Annotated[str, Field(min_length=1, max_length=100000)]
+    filename: Annotated[str | None, Field(default=None, min_length=1, max_length=255)]
+    mime_type: Annotated[str | None, Field(default=None, max_length=127)]
+
+
+#: The JSON create contract. Only ``url`` and ``text`` are reachable over
+#: ``application/json``; pdf/csv/json/image are multipart-only and are no
+#: longer legal members of the JSON request enum.
+CreateResearchInputJsonRequest = Annotated[
+    UrlResearchInputRequest | TextResearchInputRequest,
+    Field(discriminator="type"),
+]
+
+
+class CreateResearchInputMultipartRequest(BaseModel):
+    """``multipart/form-data`` create for the file input types.
+
+    ``file`` is declared as a binary string so the generated OpenAPI carries
+    ``type: string, format: binary`` as a real schema, not prose.
+    """
+
+    model_config = CORE_MODEL_CONFIG
+
+    project_id: Identifier
+    type: Literal[
+        ResearchInputType.pdf,
+        ResearchInputType.csv,
+        ResearchInputType.json,
+        ResearchInputType.image,
+    ]
+    filename: Annotated[str | None, Field(default=None, min_length=1, max_length=255)]
+    mime_type: Annotated[str | None, Field(default=None, max_length=127)]
+    file: Annotated[
+        bytes,
+        Field(json_schema_extra={"type": "string", "format": "binary"}),
+    ]
+
+
 class ResearchInputRef(BaseModel):
     """Immutable reference to one ingested input; never carries binary content."""
 
@@ -156,26 +224,35 @@ class ResearchInputDetail(ResearchInputRef):
     url: str | None = None
 
 
-class BindResearchInputRequest(BaseModel):
-    """Attach an ingested input reference to a ContractDraft or a Run.
+class BindResearchInputToContractRequest(BaseModel):
+    """Attach an ingested input reference to a ContractDraft.
 
-    Only the reference is bound; binary content and full text never enter the
-    public DTO.
+    ``run_id`` is pinned to ``None`` so the generated schema itself rules out
+    the "both targets" case rather than deferring to a runtime validator.
     """
 
     model_config = CORE_MODEL_CONFIG
 
     project_id: Identifier
-    contract_draft_id: Identifier | None = None
-    run_id: Identifier | None = None
+    contract_draft_id: Identifier
+    run_id: None = None
 
-    @model_validator(mode="after")
-    def require_one_target(self) -> BindResearchInputRequest:
-        has_contract = self.contract_draft_id is not None
-        has_run = self.run_id is not None
-        if has_contract == has_run:
-            raise ValueError(
-                "Exactly one of contract_draft_id or run_id must be provided"
-            )
-        return self
+
+class BindResearchInputToRunRequest(BaseModel):
+    """Attach an ingested input reference to a Run inside the same project."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    project_id: Identifier
+    run_id: Identifier
+    contract_draft_id: None = None
+
+
+#: Exactly one binding target, expressed as a union so the JSON Schema forbids
+#: both "neither" and "both" at the machine level. Only the reference is bound;
+#: binary content and full text never enter the public DTO.
+BindResearchInputRequest = Annotated[
+    BindResearchInputToContractRequest | BindResearchInputToRunRequest,
+    Field(union_mode="left_to_right"),
+]
 

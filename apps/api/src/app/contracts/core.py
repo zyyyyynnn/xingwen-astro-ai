@@ -11,6 +11,7 @@ from collections.abc import Callable
 from typing import Annotated, Any, NoReturn, cast
 
 from fastapi import FastAPI, Header, Path, Query, Response
+from pydantic import TypeAdapter
 
 from app.schemas.core import (
     ArtifactKind,
@@ -55,7 +56,8 @@ from app.schemas.paper_collection_api import (
 from app.schemas.paper_summary_api import PaperSummaryRead
 from app.schemas.research_input import (
     BindResearchInputRequest,
-    CreateResearchInputRequest,
+    CreateResearchInputJsonRequest,
+    CreateResearchInputMultipartRequest,
     ResearchInputDetail,
     ResearchInputRef,
 )
@@ -561,7 +563,7 @@ def create_contract_app() -> FastAPI:
         ),
     )
     def create_research_input(
-        request: CreateResearchInputRequest,
+        request: CreateResearchInputJsonRequest,
         idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
         csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
     ) -> NoReturn:
@@ -648,7 +650,77 @@ def create_contract_app() -> FastAPI:
                     json_schema = content.pop("application/json", None)
                     if json_schema is not None:
                         content["application/problem+json"] = json_schema
+        _apply_research_input_request_body_schema(document)
         return document
 
     app.openapi = cast(Callable[[], dict[str, Any]], problem_details_openapi)
     return app
+
+
+def _apply_research_input_request_body_schema(document: dict[str, Any]) -> None:
+    """Declare both create media types from the Pydantic schema authority.
+
+    FastAPI derives a single ``application/json`` body from the operation
+    signature, but ``POST /api/research-inputs`` genuinely accepts two media
+    types. Rather than hand-writing a second field list (which would become a
+    rival source of truth), the multipart body is compiled from
+    :class:`CreateResearchInputMultipartRequest` itself and merged in, with its
+    ``$defs`` hoisted into ``components.schemas``.
+    """
+
+    operation = document.get("paths", {}).get("/api/research-inputs", {}).get("post")
+    if not isinstance(operation, dict):
+        return
+
+    schema = CreateResearchInputMultipartRequest.model_json_schema(
+        ref_template="#/components/schemas/{model}"
+    )
+    defs = schema.pop("$defs", {})
+    if defs:
+        components = document.setdefault("components", {}).setdefault("schemas", {})
+        for name, definition in defs.items():
+            components.setdefault(name, definition)
+
+    components = document.setdefault("components", {}).setdefault("schemas", {})
+    components["CreateResearchInputMultipartRequest"] = schema
+
+    request_body = operation.setdefault("requestBody", {})
+    content = request_body.setdefault("content", {})
+    content["multipart/form-data"] = {
+        "schema": {"$ref": "#/components/schemas/CreateResearchInputMultipartRequest"}
+    }
+    request_body["required"] = True
+
+    _apply_bind_request_body_schema(document)
+
+
+def _apply_bind_request_body_schema(document: dict[str, Any]) -> None:
+    """Publish the bind XOR union as a named, referenceable component.
+
+    FastAPI inlines the union at the operation, which is still machine-checkable
+    but leaves no stable name for consumers. Registering it keeps
+    ``components.schemas.BindResearchInputRequest`` as the contract handle while
+    the schema body remains generated from the Pydantic union.
+    """
+
+    operation = (
+        document.get("paths", {})
+        .get("/api/research-inputs/{input_id}/bind", {})
+        .get("post")
+    )
+    if not isinstance(operation, dict):
+        return
+
+    schema = TypeAdapter(BindResearchInputRequest).json_schema(
+        ref_template="#/components/schemas/{model}"
+    )
+    defs = schema.pop("$defs", {})
+    components = document.setdefault("components", {}).setdefault("schemas", {})
+    for name, definition in defs.items():
+        components.setdefault(name, definition)
+    components["BindResearchInputRequest"] = schema
+
+    content = operation.setdefault("requestBody", {}).setdefault("content", {})
+    content["application/json"] = {
+        "schema": {"$ref": "#/components/schemas/BindResearchInputRequest"}
+    }
