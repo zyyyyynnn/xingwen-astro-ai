@@ -1,10 +1,13 @@
-"""Runtime transport for the Research Input ingestion contract (B-19).
+"""HTTP transport for the Research Input ingestion contract (B-19).
 
-Controlled ingestion of URL, PDF, CSV, JSON, image and text inputs into an
-immutable, content-addressed boundary. The router only maps HTTP to the
-ingestion boundary; ownership, MIME sniffing, filename sanitization, URL fetch
-policy and persistence live behind the store/content-storage/url-fetcher
-ports. No binary content or full text ever leaves in a public DTO.
+This router is deliberately thin. It parses HTTP (including the hard request
+body ceiling that must trip *before* any parser buffers a body), reads the
+required headers, delegates to
+:class:`~app.services.research_input_ingestion.ResearchInputIngestionService`,
+and maps the result or the raised problem onto a response.
+
+It performs no hashing, no URL fetching, no MIME sniffing, no storage writes
+and no repository calls of its own.
 """
 
 from __future__ import annotations
@@ -13,51 +16,45 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Path, Query, Request, Response, status
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 from starlette.datastructures import UploadFile
 
 from app.config import settings
+from app.http.body_limits import (
+    RequestBodyTooLarge,
+    bounded_body_request,
+    declared_content_length,
+    multipart_request_limit,
+)
 from app.schemas.core import CollectionEnvelope, CursorPage, Envelope, ResponseLinks, ResponseMeta
 from app.schemas.research_input import (
-    RESEARCH_INPUT_FILENAME_INVALID,
     RESEARCH_INPUT_INVALID,
-    RESEARCH_INPUT_MIME_REJECTED,
     RESEARCH_INPUT_NOT_FOUND,
     RESEARCH_INPUT_TOO_LARGE,
-    URL_FETCH_BLOCKED,
-    URL_FETCH_FAILED,
-    URL_FETCH_TOO_LARGE,
     BindResearchInputRequest,
+    CreateResearchInputJsonRequest,
     CreateResearchInputRequest,
     FILE_INPUT_TYPES,
-    ResearchInputCreate,
     ResearchInputDetail,
     ResearchInputRef,
     ResearchInputType,
 )
 from app.security import SecurityProblem
-from app.services.content_storage import ContentStorage, sha256_content_hash
-from app.services.research_input_store import (
-    InMemoryResearchInputStore,
-    PreparedInput,
-    ResearchInputRecord,
-    ResearchInputStore,
-    filename_extension_matches,
-    sanitize_filename,
-    sniff_mime_type,
-    validate_declared_mime,
+from app.services.research_input_ingestion import (
+    ResearchInputIngestionCommand,
+    ResearchInputIngestionService,
 )
-from app.services.url_fetcher import (
-    UrlFetchConfig,
-    UrlFetchError,
-    fetch_url,
-    validate_url_policy,
-)
-
+from app.services.research_input_store import ResearchInputRecord, ResearchInputStore
 
 router = APIRouter(prefix="/api", tags=["research-inputs"])
 
 _READ_CHUNK_BYTES = 65536
+#: A create request carries one file and a handful of small metadata fields.
+_MAX_UPLOAD_FILES = 1
+_MAX_FORM_FIELDS = 12
+
+_JSON_REQUEST_ADAPTER = TypeAdapter(CreateResearchInputJsonRequest)
+_BIND_REQUEST_ADAPTER = TypeAdapter(BindResearchInputRequest)
 
 
 def _store(request: Request) -> ResearchInputStore:
@@ -72,8 +69,16 @@ def _store(request: Request) -> ResearchInputStore:
     return store
 
 
-def _content_storage(request: Request) -> ContentStorage:
-    return request.app.state.content_storage
+def _ingestion_service(request: Request) -> ResearchInputIngestionService:
+    service = getattr(request.app.state, "research_input_ingestion", None)
+    if service is None:
+        raise SecurityProblem(
+            status=503,
+            code="RESEARCH_INPUT_RUNTIME_UNAVAILABLE",
+            title="Research input runtime unavailable",
+            detail="The research input runtime is not configured",
+        )
+    return service
 
 
 def _session_id(request: Request) -> str:
@@ -88,38 +93,6 @@ def _meta(request: Request) -> ResponseMeta:
 
 def _no_store(response: Response) -> None:
     response.headers["Cache-Control"] = "no-store"
-
-
-def _url_fetch_config() -> UrlFetchConfig:
-    hosts = tuple(host for host in (settings.URL_FETCH_ALLOWED_HOSTS or []))
-    return UrlFetchConfig(
-        allowed_protocols=tuple(
-            protocol.lower() for protocol in settings.URL_FETCH_ALLOWED_PROTOCOLS
-        ),
-        allowed_hosts=hosts,
-        timeout_seconds=settings.URL_FETCH_TIMEOUT_SECONDS,
-        max_redirects=settings.URL_FETCH_MAX_REDIRECTS,
-        max_response_bytes=settings.URL_FETCH_MAX_RESPONSE_BYTES,
-    )
-
-
-import json
-import hashlib
-
-def _compute_request_hash(
-    payload: CreateResearchInputRequest, file: UploadFile | None
-) -> str:
-    raw = {
-        "project_id": payload.project_id,
-        "type": payload.type.value,
-        "url": payload.url,
-        "filename": payload.filename,
-        "mime_type": payload.mime_type,
-        "text_content": payload.text_content,
-        "file_name": file.filename if file is not None else None,
-    }
-    dumped = json.dumps(raw, sort_keys=True, separators=(",", ":"))
-    return "sha256:" + hashlib.sha256(dumped.encode("utf-8")).hexdigest()
 
 
 @router.post(
@@ -137,12 +110,19 @@ async def create_research_input(
     _ = csrf_token
     limiter = request.app.state.research_input_rate_limiter
     remaining, reset_seconds = limiter.consume(_session_id(request))
-    payload, file = await _parse_create_request(request)
-    request_hash = _compute_request_hash(payload, file)
-    try:
-        record = await _ingest(request, payload, file, idempotency_key, request_hash)
-    except SecurityProblem:
-        raise
+
+    payload, file_content, file_filename = await _parse_create_request(request)
+    record = await _ingestion_service(request).create(
+        ResearchInputIngestionCommand(
+            session_id=_session_id(request),
+            project_id=payload.project_id,
+            payload=_as_domain_payload(payload),
+            idempotency_key=idempotency_key,
+            file_content=file_content,
+            file_filename=file_filename,
+        )
+    )
+
     _no_store(response)
     response.headers["Location"] = f"/api/research-inputs/{record.id}"
     response.headers["RateLimit-Limit"] = str(limiter.limit)
@@ -225,29 +205,30 @@ def delete_research_input(
     operation_id="bindResearchInput",
     response_model=Envelope[ResearchInputRef],
 )
-def bind_research_input(
+async def bind_research_input(
     input_id: Annotated[str, Path(min_length=1)],
-    payload: BindResearchInputRequest,
     request: Request,
     response: Response,
     csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
 ) -> Envelope[ResearchInputRef]:
     _ = csrf_token
+    payload = _parse_bind_request(await _read_json_body(request))
+    store = _store(request)
     if payload.contract_draft_id is not None:
-        _store(request).bind_to_contract(
+        store.bind_to_contract(
             session_id=_session_id(request),
             input_id=input_id,
             project_id=payload.project_id,
             contract_draft_id=payload.contract_draft_id,
         )
     else:
-        _store(request).bind_to_run(
+        store.bind_to_run(
             session_id=_session_id(request),
             input_id=input_id,
             project_id=payload.project_id,
             run_id=payload.run_id or "",
         )
-    record = _store(request).get(session_id=_session_id(request), input_id=input_id)
+    record = store.get(session_id=_session_id(request), input_id=input_id)
     if record is None:
         raise _not_found()
     _no_store(response)
@@ -258,214 +239,155 @@ def bind_research_input(
     )
 
 
-# ---- ingestion -------------------------------------------------------------
+# ---- transport parsing -----------------------------------------------------
 
 
 async def _parse_create_request(
     request: Request,
-) -> tuple[CreateResearchInputRequest, UploadFile | None]:
-    """Parse either a JSON body or a multipart form into one validated request."""
+) -> tuple[Any, bytes | None, str | None]:
+    """Parse a JSON body or a multipart form under a hard, pre-parser ceiling."""
 
     content_type = request.headers.get("content-type", "").lower()
     if content_type.startswith("multipart/form-data"):
         return await _parse_multipart(request)
     if content_type.startswith("application/json"):
-        _check_json_body_size(request)
-        try:
-            return CreateResearchInputRequest.model_validate(await request.json()), None
-        except ValidationError as exc:
-            raise _schema_validation_failed(exc) from exc
+        payload = _parse_json_create(await _read_json_body(request))
+        return payload, None, None
     raise SecurityProblem(
         status=400,
-        code="RESEARCH_INPUT_INVALID",
+        code=RESEARCH_INPUT_INVALID,
         title="Invalid research input request",
         detail="Expected multipart/form-data or application/json",
     )
 
 
-async def _parse_multipart(
-    request: Request,
-) -> tuple[CreateResearchInputRequest, UploadFile | None]:
-    _check_upload_size(request)
-    form = await request.form()
-    values: dict[str, Any] = {
-        key: _form_str(form, key)
-        for key in ("project_id", "type", "url", "filename", "mime_type", "text_content")
-    }
+async def _read_json_body(request: Request) -> Any:
+    """Read a JSON body, enforcing the size cap on the receive channel.
+
+    ``Content-Length`` is only a cheap early reject; the authoritative bound is
+    the streaming counter, so a chunked body without a declared length cannot
+    slip past.
+    """
+
+    limit = settings.RESEARCH_INPUT_MAX_SIZE_BYTES
+    declared = declared_content_length(request)
+    if declared is not None and declared > limit:
+        raise _too_large()
+    bounded = bounded_body_request(request, limit)
     try:
-        payload = CreateResearchInputRequest.model_validate(values)
+        return await bounded.json()
+    except RequestBodyTooLarge as exc:
+        raise _too_large() from exc
+    except ValueError as exc:
+        raise SecurityProblem(
+            status=400,
+            code=RESEARCH_INPUT_INVALID,
+            title="Invalid research input request",
+            detail="The request body is not valid JSON",
+        ) from exc
+
+
+def _parse_json_create(raw: Any) -> Any:  # noqa: ANN401
+    try:
+        return _JSON_REQUEST_ADAPTER.validate_python(raw)
     except ValidationError as exc:
         raise _schema_validation_failed(exc) from exc
-    file = form.get("file")
-    file = file if isinstance(file, UploadFile) else None
-    if payload.type in FILE_INPUT_TYPES and file is None:
+
+
+def _parse_bind_request(raw: Any) -> Any:  # noqa: ANN401
+    try:
+        return _BIND_REQUEST_ADAPTER.validate_python(raw)
+    except ValidationError as exc:
+        raise _schema_validation_failed(exc) from exc
+
+
+async def _parse_multipart(
+    request: Request,
+) -> tuple[Any, bytes | None, str | None]:
+    """Parse the multipart create form with bounded parts and a bounded body.
+
+    The total ceiling is the file ceiling plus a bounded, conservative
+    allowance for multipart framing, so a legal file of exactly the maximum
+    size is still accepted while an oversized body is refused before the
+    parser assembles it.
+    """
+
+    max_file_bytes = settings.RESEARCH_INPUT_MAX_SIZE_BYTES
+    request_limit = multipart_request_limit(max_file_bytes)
+    declared = declared_content_length(request)
+    if declared is not None and declared > request_limit:
+        raise _too_large()
+
+    bounded = bounded_body_request(request, request_limit)
+    try:
+        async with bounded.form(
+            max_files=_MAX_UPLOAD_FILES,
+            max_fields=_MAX_FORM_FIELDS,
+            max_part_size=max_file_bytes,
+        ) as form:
+            values: dict[str, Any] = {
+                key: _form_str(form, key)
+                for key in ("project_id", "type", "url", "filename", "mime_type", "text_content")
+            }
+            file = form.get("file")
+            file = file if isinstance(file, UploadFile) else None
+            content = await _read_upload(file, max_file_bytes) if file else None
+            file_name = file.filename if file is not None else None
+    except RequestBodyTooLarge as exc:
+        raise _too_large() from exc
+    except SecurityProblem:
+        raise
+    except Exception as exc:  # multipart framing errors from Starlette
+        if type(exc).__name__ == "MultiPartException":
+            raise SecurityProblem(
+                status=400,
+                code=RESEARCH_INPUT_INVALID,
+                title="Invalid research input request",
+                detail="The multipart request body could not be parsed",
+            ) from exc
+        raise
+
+    payload = _validate_multipart_values(values)
+    if payload.type in FILE_INPUT_TYPES and content is None:
         raise SecurityProblem(
             status=400,
             code=RESEARCH_INPUT_INVALID,
             title="Invalid research input request",
             detail=f"type {payload.type.value} requires a multipart file upload",
         )
-    if payload.type not in FILE_INPUT_TYPES and file is not None:
+    if payload.type not in FILE_INPUT_TYPES and content is not None:
         raise SecurityProblem(
             status=400,
             code=RESEARCH_INPUT_INVALID,
             title="Invalid research input request",
             detail=f"type {payload.type.value} does not accept a file upload",
         )
-    return payload, file
+    return payload, content, file_name
 
 
-async def _ingest(
-    request: Request,
-    payload: CreateResearchInputRequest,
-    file: UploadFile | None,
-    idempotency_key: str | None = None,
-    request_hash: str | None = None,
-) -> ResearchInputRecord:
-    if payload.type is ResearchInputType.url:
-        return await _ingest_url(request, payload, idempotency_key, request_hash)
-    if payload.type is ResearchInputType.text:
-        return await _ingest_text(request, payload, idempotency_key, request_hash)
-    return await _ingest_upload(request, payload, file, idempotency_key, request_hash)
-
-
-async def _ingest_url(
-    request: Request,
-    payload: CreateResearchInputRequest,
-    idempotency_key: str | None = None,
-    request_hash: str | None = None,
-) -> ResearchInputRecord:
-    assert payload.url is not None
-    config = _url_fetch_config()
+def _validate_multipart_values(values: dict[str, Any]) -> CreateResearchInputRequest:
     try:
-        validate_url_policy(payload.url, config)
-        result = await fetch_url(payload.url, config)
-    except UrlFetchError as exc:
-        raise _url_fetch_problem(exc) from exc
-    sniffed_mime = sniff_mime_type(result.content_bytes)
-    mime_type = _resolve_mime(payload, sniffed_mime)
-    filename = _clean_filename_hint(payload.filename, mime_type)
-    prepared = PreparedInput(
-        content_hash=result.content_hash,
-        storage_ref=await _content_storage(request).store(
-            result.content_bytes, result.content_hash
-        ),
-        size_bytes=len(result.content_bytes),
-        mime_type=mime_type,
-        filename=filename,
-        source_snapshot=result.source_snapshot,
-    )
-    return _store(request).create(
-        session_id=_session_id(request),
+        return CreateResearchInputRequest.model_validate(values)
+    except ValidationError as exc:
+        raise _schema_validation_failed(exc) from exc
+
+
+def _as_domain_payload(payload: Any) -> CreateResearchInputRequest:  # noqa: ANN401
+    """Normalize either transport model onto the shared domain payload."""
+
+    if isinstance(payload, CreateResearchInputRequest):
+        return payload
+    return CreateResearchInputRequest(
         project_id=payload.project_id,
-        payload=payload,
-        prepared=prepared,
-        idempotency_key=idempotency_key,
-        request_hash=request_hash,
+        type=ResearchInputType(payload.type),
+        url=getattr(payload, "url", None),
+        text_content=getattr(payload, "text_content", None),
+        filename=payload.filename,
+        mime_type=payload.mime_type,
     )
 
 
-
-async def _ingest_text(
-    request: Request,
-    payload: CreateResearchInputRequest,
-    idempotency_key: str | None = None,
-    request_hash: str | None = None,
-) -> ResearchInputRecord:
-    assert payload.text_content is not None
-    content = payload.text_content.encode("utf-8")
-    mime_type = _resolve_mime(payload, sniff_mime_type(content))
-    return await _ingest_bytes(
-        request, payload, content, mime_type, payload.filename, idempotency_key, request_hash
-    )
-
-
-async def _ingest_upload(
-    request: Request,
-    payload: CreateResearchInputRequest,
-    file: UploadFile | None,
-    idempotency_key: str | None = None,
-    request_hash: str | None = None,
-) -> ResearchInputRecord:
-    assert file is not None
-    content = await _read_upload(file)
-    mime_type = _resolve_mime(payload, sniff_mime_type(content))
-    raw_filename = payload.filename or (file.filename or "")
-    filename = _clean_filename_hint(raw_filename, mime_type)
-    return await _ingest_bytes(
-        request, payload, content, mime_type, filename, idempotency_key, request_hash
-    )
-
-
-async def _ingest_bytes(
-    request: Request,
-    payload: CreateResearchInputRequest,
-    content: bytes,
-    mime_type: str | None,
-    filename: str | None,
-    idempotency_key: str | None = None,
-    request_hash: str | None = None,
-) -> ResearchInputRecord:
-    content_hash = sha256_content_hash(content)
-    prepared = PreparedInput(
-        content_hash=content_hash,
-        storage_ref=await _content_storage(request).store(content, content_hash),
-        size_bytes=len(content),
-        mime_type=mime_type,
-        filename=filename,
-        source_snapshot=None,
-    )
-    return _store(request).create(
-        session_id=_session_id(request),
-        project_id=payload.project_id,
-        payload=payload,
-        prepared=prepared,
-        idempotency_key=idempotency_key,
-        request_hash=request_hash,
-    )
-
-
-
-def _resolve_mime(
-    payload: ResearchInputCreate, sniffed_mime: str | None
-) -> str | None:
-    resolved = validate_declared_mime(
-        declared_type=payload.type,
-        sniffed_mime=sniffed_mime,
-        client_mime=payload.mime_type,
-    )
-    if resolved is None:
-        raise SecurityProblem(
-            status=415,
-            code=RESEARCH_INPUT_MIME_REJECTED,
-            title="Unsupported content type",
-            detail="The content type is not supported for the declared input type",
-        )
-    return resolved
-
-
-def _clean_filename_hint(raw: str | None, mime_type: str | None) -> str | None:
-    if raw is None or raw == "":
-        return None
-    clean = sanitize_filename(raw)
-    if clean is None:
-        raise SecurityProblem(
-            status=400,
-            code=RESEARCH_INPUT_FILENAME_INVALID,
-            title="Invalid filename",
-            detail="The filename is not usable as a display name",
-        )
-    if mime_type is not None and not filename_extension_matches(clean, mime_type):
-        raise SecurityProblem(
-            status=415,
-            code=RESEARCH_INPUT_MIME_REJECTED,
-            title="Filename and content mismatch",
-            detail="The filename extension does not match the content type",
-        )
-    return clean
-
-
-async def _read_upload(file: UploadFile) -> bytes:
+async def _read_upload(file: UploadFile, max_file_bytes: int) -> bytes:
     chunks: list[bytes] = []
     total = 0
     while True:
@@ -473,34 +395,15 @@ async def _read_upload(file: UploadFile) -> bytes:
         if not chunk:
             break
         total += len(chunk)
-        if total > settings.RESEARCH_INPUT_MAX_SIZE_BYTES:
+        if total > max_file_bytes:
             raise _too_large()
         chunks.append(chunk)
     return b"".join(chunks)
 
 
-def _check_upload_size(request: Request) -> None:
-    length = _content_length(request)
-    if length is not None and length > settings.RESEARCH_INPUT_MAX_SIZE_BYTES:
-        raise _too_large()
-
-
-def _check_json_body_size(request: Request) -> None:
-    length = _content_length(request)
-    if length is not None and length > settings.RESEARCH_INPUT_MAX_SIZE_BYTES:
-        raise _too_large()
-
-
-def _content_length(request: Request) -> int | None:
-    try:
-        return int(request.headers.get("content-length", ""))
-    except ValueError:
-        return None
-
-
 def _form_str(form: Any, key: str) -> str | None:  # noqa: ANN401
     value = form.get(key)
-    if value is None:
+    if value is None or isinstance(value, UploadFile):
         return None
     text = str(value)
     return text if text != "" else None
@@ -516,19 +419,6 @@ def _schema_validation_failed(exc: ValidationError) -> SecurityProblem:
         code="SCHEMA_VALIDATION_FAILED",
         title="Request validation failed",
         detail=field_errors or "The request does not match the required schema",
-    )
-
-
-def _url_fetch_problem(exc: UrlFetchError) -> SecurityProblem:
-    if exc.code == URL_FETCH_BLOCKED:
-        status_code = 422
-    else:
-        status_code = 502
-    return SecurityProblem(
-        status=status_code,
-        code=exc.code,
-        title="URL fetch rejected" if status_code == 422 else "URL fetch failed",
-        detail=exc.detail,
     )
 
 
@@ -548,3 +438,6 @@ def _not_found() -> SecurityProblem:
         title="Resource not found",
         detail="Resource not found",
     )
+
+
+__all__ = ["router"]

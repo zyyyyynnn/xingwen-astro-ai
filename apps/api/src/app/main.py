@@ -130,23 +130,52 @@ def create_app() -> FastAPI:
         app.state.snapshot_service = SnapshotService(snapshot_store)
     app.state.research_input_store = None
     app.state.content_storage = None
+    app.state.research_input_idempotency = None
+    app.state.research_input_ingestion = None
     app.state.research_input_rate_limiter = InMemoryRateLimiter(
         limit=settings.RESEARCH_INPUT_RATE_LIMIT
     )
+    from app.services.content_storage import LocalContentStorage
+    from app.services.research_input_ingestion import ResearchInputIngestionService
+    from app.services.research_input_policy import ResearchInputPolicy
+    from app.services.research_input_store import (
+        InMemoryIdempotencyRepository,
+        InMemoryResearchInputStore,
+        PersistentIdempotencyRepository,
+        PersistentResearchInputStore,
+    )
+    from app.services.url_fetcher import UrlFetchConfig
+
+    app.state.content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
     if database_engine is not None:
-        from app.services.content_storage import LocalContentStorage
-        from app.services.research_input_store import PersistentResearchInputStore
-
-        app.state.content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
-        app.state.research_input_store = PersistentResearchInputStore(
-            session_factory(database_engine)
-        )
+        factory = session_factory(database_engine)
+        app.state.research_input_store = PersistentResearchInputStore(factory)
+        app.state.research_input_idempotency = PersistentIdempotencyRepository(factory)
     else:
-        from app.services.content_storage import LocalContentStorage
-        from app.services.research_input_store import InMemoryResearchInputStore
-
-        app.state.content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
         app.state.research_input_store = InMemoryResearchInputStore()
+        app.state.research_input_idempotency = InMemoryIdempotencyRepository()
+
+    # The ingestion policy is resolved from settings once, here, so the domain
+    # layer never reaches back into global configuration.
+    app.state.research_input_policy = ResearchInputPolicy.from_values(
+        allowed_mime_types=settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES,
+        max_size_bytes=settings.RESEARCH_INPUT_MAX_SIZE_BYTES,
+    )
+    app.state.research_input_ingestion = ResearchInputIngestionService(
+        repository=app.state.research_input_store,
+        idempotency_repository=app.state.research_input_idempotency,
+        content_storage=app.state.content_storage,
+        policy=app.state.research_input_policy,
+        url_fetch_config=UrlFetchConfig(
+            allowed_protocols=tuple(
+                protocol.lower() for protocol in settings.URL_FETCH_ALLOWED_PROTOCOLS
+            ),
+            allowed_hosts=tuple(settings.URL_FETCH_ALLOWED_HOSTS or ()),
+            timeout_seconds=settings.URL_FETCH_TIMEOUT_SECONDS,
+            max_redirects=settings.URL_FETCH_MAX_REDIRECTS,
+            max_response_bytes=settings.URL_FETCH_MAX_RESPONSE_BYTES,
+        ),
+    )
     app.add_middleware(
         SecurityMiddleware,
         sessions=session_service,
