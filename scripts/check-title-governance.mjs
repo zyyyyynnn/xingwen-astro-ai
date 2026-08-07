@@ -35,6 +35,7 @@ const TASK_SCOPE_REGEX = /^[a-dx]-[0-9]{2,3}$/u;
 const TITLE_REGEX = /^([a-z]+)\(([^()\s]+)\)(!)?: (.+)$/u;
 const FULL_SHA_REGEX = /^[0-9a-f]{40}$/u;
 const REFERENCE_REGEX = /#\d+/gu;
+const ISSUE_PR_ID_REGEX = /\b(?:Issue|PR)\s*#?\d+\b/iu;
 const TRAILING_PR_BACKLINK_REGEX = /\s\(#\d+\)$/u;
 const COMMIT_SHA_TOKEN_REGEX = /\b[0-9a-f]{7,40}\b/giu;
 const CJK_REGEX =
@@ -76,6 +77,9 @@ function addSummaryPolicyErrors(summary, errors) {
   }
   if (DATE_REGEX.test(summary)) {
     errors.push("Summary must not contain an execution date");
+  }
+  if (ISSUE_PR_ID_REGEX.test(summary)) {
+    errors.push("Summary must not contain an Issue or PR identifier");
   }
   if (LEGACY_TASK_SUFFIX_REGEX.test(summary)) {
     errors.push(
