@@ -12,6 +12,7 @@
 - [ ] PR 对应单一 Task / Bug 或明确的用户授权，无非相关变更。
 - [ ] 当前 PR 是唯一有效 Open PR，无冲突或重复拉取。
 - [ ] 变动仅包含达成单一目标必需的修改，未夹带无关重构或格式化。
+- [ ] PR title 与分支 Commit subject 符合 [Contributing §1](../../CONTRIBUTING.md#1-分支与提交) 的唯一 Title Grammar。
 
 ## 2. 正确性
 
