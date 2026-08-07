@@ -73,10 +73,7 @@ def upgrade() -> None:
         sa.Column("type", sa.String(length=16), nullable=False),
         sa.Column("source_type", sa.String(length=16), nullable=False),
         sa.Column("content_hash", sa.String(length=71), nullable=False),
-        sa.Column("storage_ref", sa.String(length=160), nullable=False),
         sa.Column("filename", sa.String(length=255), nullable=True),
-        sa.Column("mime_type", sa.String(length=127), nullable=True),
-        sa.Column("size_bytes", sa.BigInteger(), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("source_snapshot_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
@@ -114,7 +111,6 @@ def upgrade() -> None:
             "status IN ('accepted','unsupported_processing','failed_ingestion')",
             name="ck_research_inputs_input_status",
         ),
-        sa.CheckConstraint("size_bytes >= 0", name="ck_research_inputs_size_nonnegative"),
     )
     op.create_index(
         "ix_research_inputs_session_project",

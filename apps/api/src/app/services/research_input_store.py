@@ -27,6 +27,7 @@ from typing import Protocol
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -268,6 +269,12 @@ class InMemoryResearchInputStore:
     ) -> ResearchInputRecord:
         with self._lock:
             self.require_owned_project(session_id=session_id, project_id=project_id)
+            # Validate lease BEFORE any mutation so a stale-reclaimed token
+            # never leaves ghost content or record entries.
+            if self._idempotency is not None:
+                self._idempotency.validate_lease(
+                    session_id, project_id, idempotency_key, lease_token
+                )
             _ensure_content_memory(
                 self._contents,
                 project_id=project_id,
@@ -489,6 +496,27 @@ class InMemoryIdempotencyRepository:
                 raise _idempotency_reservation_lost()
             del self._entries[key]
 
+    def validate_lease(
+        self,
+        session_id: str,
+        project_id: str,
+        idempotency_key: str,
+        lease_token: str,
+    ) -> None:
+        """Fail fast if ``lease_token`` is no longer the active pending owner.
+
+        Called by the store *before* any content or record mutation so a
+        stale-reclaimed token produces zero side effects.
+        """
+        key = (session_id, project_id, idempotency_key)
+        with self._lock:
+            entry = self._entries.get(key)
+            if entry is None:
+                return  # no reservation to validate against
+            _hash, status, _input_id, token, _expires = entry
+            if status != IDEMPOTENCY_PENDING or token != lease_token:
+                raise _idempotency_reservation_lost()
+
     def complete_reservation(
         self,
         session_id: str,
@@ -567,10 +595,7 @@ class PersistentResearchInputStore:
                 type=payload.type.value,
                 source_type=_source_type_for(payload),
                 content_hash=prepared.content_hash,
-                storage_ref=prepared.storage_ref,
                 filename=prepared.filename,
-                mime_type=prepared.mime_type,
-                size_bytes=prepared.size_bytes,
                 status=ResearchInputStatus.accepted.value,
                 source_snapshot_id=source_snapshot_id,
                 created_at=datetime.now(UTC),
@@ -759,10 +784,14 @@ class PersistentIdempotencyRepository:
         now = self._clock()
         with self._factory() as session, session.begin():
             existing = session.get(
-                ResearchInputIdempotencyModel, (session_id, pid, idempotency_key)
+                ResearchInputIdempotencyModel,
+                (session_id, pid, idempotency_key),
+                with_for_update=True,
             )
             if existing is not None:
-                return _reservation_from_row(existing, request_hash, now=now)
+                return _reservation_from_row(
+                    existing, request_hash, now=now, lease_ttl=self._lease_ttl
+                )
 
             token = self._new_token()
             row = ResearchInputIdempotencyModel(
@@ -793,11 +822,15 @@ class PersistentIdempotencyRepository:
         # Lost the insert race: the winner's row is authoritative.
         with self._factory() as session, session.begin():
             winner = session.get(
-                ResearchInputIdempotencyModel, (session_id, pid, idempotency_key)
+                ResearchInputIdempotencyModel,
+                (session_id, pid, idempotency_key),
+                with_for_update=True,
             )
             if winner is None:
                 raise _conflict_unresolved()
-            return _reservation_from_row(winner, request_hash, now=now)
+            return _reservation_from_row(
+                winner, request_hash, now=now, lease_ttl=self._lease_ttl
+            )
 
     def release(
         self,
@@ -824,7 +857,11 @@ class PersistentIdempotencyRepository:
 
 
 def _reservation_from_row(
-    row: ResearchInputIdempotencyModel, request_hash: str, *, now: datetime
+    row: ResearchInputIdempotencyModel,
+    request_hash: str,
+    *,
+    now: datetime,
+    lease_ttl: timedelta = DEFAULT_LEASE_TTL,
 ) -> IdempotencyReservation:
     if row.request_hash != request_hash:
         raise _idempotency_conflict()
@@ -835,9 +872,12 @@ def _reservation_from_row(
     # pending: decide in-progress vs reclaimable by lease expiry.
     if row.lease_expires_at is not None and row.lease_expires_at > now:
         raise _idempotency_in_progress()
-    # Stale lease: reclaim with a fresh token.
+    # Stale lease: reclaim with a fresh token.  The caller must hold
+    # ``FOR UPDATE`` on this row so two concurrent reclaimers cannot both
+    # succeed.  ``lease_ttl`` is the instance's configured value, not the
+    # module-level default, so configuration always takes effect.
     new_token = secrets.token_urlsafe(24)
-    new_expiry = now + DEFAULT_LEASE_TTL
+    new_expiry = now + lease_ttl
     row.lease_token = new_token
     row.lease_expires_at = new_expiry
     row.updated_at = now
@@ -875,6 +915,12 @@ def _ensure_content_row(
     mime_type: str,
     size_bytes: int,
 ) -> None:
+    """Race-safe content upsert using ``INSERT ... ON CONFLICT DO NOTHING``.
+
+    This never calls ``session.rollback()`` so it is safe inside an outer
+    ``session.begin()`` block (e.g. ``commit_ingestion``).  After the
+    conflict-safe insert, the row is re-read to verify consistency.
+    """
     existing = session.get(
         ResearchInputContentModel, (project_id, content_hash)
     )
@@ -886,31 +932,30 @@ def _ensure_content_row(
             size_bytes,
         )
         return
-    row = ResearchInputContentModel(
+    stmt = pg_insert(ResearchInputContentModel.__table__).values(
         project_id=project_id,
         content_hash=content_hash,
         storage_ref=storage_ref,
         mime_type=mime_type,
         size_bytes=size_bytes,
         created_at=datetime.now(UTC),
+    ).on_conflict_do_nothing(
+        index_elements=["project_id", "content_hash"],
     )
-    session.add(row)
-    try:
-        session.flush()
-    except IntegrityError:
-        # Another worker won the upsert race; re-read the winner.
-        session.rollback()
-        winner = session.get(
-            ResearchInputContentModel, (project_id, content_hash)
-        )
-        if winner is None:
-            raise _conflict_unresolved() from None
-        _assert_content_consistent(
-            (winner.storage_ref, winner.mime_type, winner.size_bytes),
-            storage_ref,
-            mime_type,
-            size_bytes,
-        )
+    session.execute(stmt)
+    session.flush()
+    # Re-read the winner (may be this insert or a concurrent one).
+    winner = session.get(
+        ResearchInputContentModel, (project_id, content_hash)
+    )
+    if winner is None:
+        raise _conflict_unresolved()
+    _assert_content_consistent(
+        (winner.storage_ref, winner.mime_type, winner.size_bytes),
+        storage_ref,
+        mime_type,
+        size_bytes,
+    )
 
 
 def _assert_content_consistent(
@@ -977,26 +1022,28 @@ def _record(
     content: tuple[str, str | None, int] | None = None,
     url: str | None = None,
 ) -> ResearchInputRecord:
+    """Build a store record from an ORM row plus content facts.
+
+    Content facts must come from either the explicit ``content`` tuple (used
+    during ``commit_ingestion`` where the values are still in hand) or from the
+    ``research_input_contents`` row looked up via ``session``.  The
+    ``research_inputs`` table no longer carries ``storage_ref``, ``mime_type``
+    or ``size_bytes``.
+    """
     if content is not None:
         storage_ref, mime_type, size_bytes = content
     elif session is not None:
         content_row = session.get(
             ResearchInputContentModel, (row.project_id, row.content_hash)
         )
-        storage_ref = content_row.storage_ref if content_row is not None else row.storage_ref
-        mime_type = (
-            content_row.mime_type
-            if content_row is not None and content_row.mime_type
-            else row.mime_type
-        )
-        size_bytes = (
-            content_row.size_bytes if content_row is not None else row.size_bytes
-        )
+        if content_row is None:
+            raise _conflict_unresolved()
+        storage_ref = content_row.storage_ref
+        mime_type = content_row.mime_type
+        size_bytes = content_row.size_bytes
     else:
-        storage_ref, mime_type, size_bytes = (
-            row.storage_ref,
-            row.mime_type,
-            row.size_bytes,
+        raise ValueError(
+            "_record() requires either an explicit content tuple or a session"
         )
     if url is None:
         url = (

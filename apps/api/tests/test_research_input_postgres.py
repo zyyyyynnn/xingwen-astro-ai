@@ -477,6 +477,21 @@ def test_snapshot_project_pair_is_enforced(
         session.flush()
         foreign_snapshot_id = foreign_snapshot.id
 
+    # Create the required content row for the FK before testing the snapshot FK.
+    from app.db.models import ResearchInputContentModel
+
+    with factory() as session, session.begin():
+        session.add(
+            ResearchInputContentModel(
+                project_id=ctx["ids"]["project"],
+                content_hash="sha256:" + "9" * 64,
+                storage_ref="99/" + "9" * 64,
+                mime_type="text/csv",
+                size_bytes=8,
+                created_at=NOW,
+            )
+        )
+
     with factory() as session, session.begin():
         row = ResearchInputModel(
             session_id=ctx["owner"].id,
@@ -484,10 +499,7 @@ def test_snapshot_project_pair_is_enforced(
             type="url",
             source_type="url_fetch",
             content_hash="sha256:" + "9" * 64,
-            storage_ref="99/" + "9" * 64,
             filename=None,
-            mime_type="text/csv",
-            size_bytes=8,
             status="accepted",
             source_snapshot_id=foreign_snapshot_id,
             created_at=NOW,

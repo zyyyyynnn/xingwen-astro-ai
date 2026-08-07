@@ -578,11 +578,15 @@ class EvidenceModel(TimestampMixin, Base):
 
 
 class ResearchInputModel(Base):
-    """Immutable content reference for one ingested Research Input (B-19).
+    """Immutable provenance reference for one ingested Research Input (B-19).
 
-    The row points at content-addressed bytes (never owned by this table) and
-    is ownership-scoped by the anonymous session. ``expires_at`` doubles as the
-    soft-delete marker: deletion only expires the reference, never the blob.
+    Content facts (``storage_ref``, ``mime_type``, ``size_bytes``) live solely
+    in :class:`ResearchInputContentModel`, referenced through the composite FK
+    ``(project_id, content_hash)``.  This table only records *who* ingested
+    *what hash* from *which source* and *when*.
+
+    ``expires_at`` doubles as the soft-delete marker: deletion only expires the
+    reference, never the blob.
     """
 
     __tablename__ = "research_inputs"
@@ -595,18 +599,13 @@ class ResearchInputModel(Base):
     type: Mapped[str] = mapped_column(String(16), nullable=False)
     source_type: Mapped[str] = mapped_column(String(16), nullable=False)
     content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
-    storage_ref: Mapped[str] = mapped_column(String(160), nullable=False)
     filename: Mapped[str | None] = mapped_column(String(255))
-    mime_type: Mapped[str | None] = mapped_column(String(127))
-    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     source_snapshot_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
-
-    content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
 
     __table_args__ = (
         # NOTE: no (session_id, project_id, content_hash) unique constraint.
@@ -638,7 +637,6 @@ class ResearchInputModel(Base):
             "status IN ('accepted','unsupported_processing','failed_ingestion')",
             name="input_status",
         ),
-        CheckConstraint("size_bytes >= 0", name="size_nonnegative"),
     )
 
 
