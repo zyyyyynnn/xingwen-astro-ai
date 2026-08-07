@@ -3,16 +3,16 @@
 The production PostgreSQL path gets transaction atomicity from the database.
 The no-database/test runtime has two independent adapters instead:
 ``InMemoryResearchInputStore`` for ingestion/content state and
-``InMemoryIdempotencyRepository`` for request identity.  Their individual
-locks are intentionally implementation details and cannot by themselves make
+``InMemoryIdempotencyRepository`` for request identity. Their individual locks
+are intentionally implementation details and cannot by themselves make
 ``validate lease -> mutate input/content -> complete reservation`` atomic.
 
-This coordinator is the supported in-memory runtime boundary.  It implements
+This coordinator is the supported in-memory runtime boundary. It implements
 both ports and serializes the cross-adapter state transitions with one explicit
 transaction lock while leaving each adapter responsible for its own data.
 Long-running URL fetches are *not* performed under this lock: the application
-service reserves first, releases the call, performs I/O, then enters the atomic
-commit section here.
+service reserves first, returns from that call, performs I/O, then enters the
+atomic commit section here.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import threading
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
-from app.schemas.research_input import ResearchInputCreate
+from app.schemas.research_input import ResearchInputCreate, ResearchInputRef
 from app.services.research_input_store import (
     DEFAULT_LEASE_TTL,
     IdempotencyReservation,
@@ -36,8 +36,8 @@ class InMemoryResearchInputRuntime:
     """Coordinated in-memory implementation of both B-19 persistence ports.
 
     ``resolve`` / ``release`` and ``commit_ingestion`` use the same coordinator
-    lock.  Therefore a stale-lease reclaimer cannot slip between the store's
-    token validation and its state mutation.  A losing worker observes
+    lock. Therefore a stale-lease reclaimer cannot slip between the store's
+    token validation and its state mutation. A losing worker observes
     ``IDEMPOTENCY_RESERVATION_LOST`` before any ghost content/input is created.
     """
 
@@ -120,9 +120,7 @@ class InMemoryResearchInputRuntime:
         project_id: str,
         cursor: str | None,
         limit: int,
-    ) -> tuple[tuple[object, ...], str | None, bool]:
-        # The concrete tuple elements are ResearchInputRef; keeping delegation
-        # here avoids duplicating the DTO import solely for an adapter wrapper.
+    ) -> tuple[tuple[ResearchInputRef, ...], str | None, bool]:
         return self._store.list(
             session_id=session_id,
             project_id=project_id,
