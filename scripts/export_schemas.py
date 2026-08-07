@@ -15,13 +15,34 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 import app.schemas as schema_package
 
 
-def discover_models() -> dict[str, type[BaseModel]]:
-    models: dict[str, type[BaseModel]] = {}
+def _is_exportable_alias(value: Any) -> bool:  # noqa: ANN401
+    """Return whether a module attribute is a Pydantic-renderable type alias.
+
+    Contract types are not always classes: a discriminated union such as
+    ``CreateResearchInputJsonRequest`` is an ``Annotated[A | B, Field(...)]``
+    alias whose JSON Schema is the authority for that request body. Those must
+    be exportable, otherwise the machine contract silently degrades to a
+    hand-maintained copy.
+    """
+
+    if isinstance(value, type):
+        return False
+    try:
+        TypeAdapter(value).json_schema()
+    except Exception:  # noqa: BLE001 - anything unrenderable is simply not a contract
+        return False
+    return True
+
+
+def discover_models() -> dict[str, tuple[Any, str]]:
+    """Return ``{name: (contract_type, defining_module)}`` sorted by name."""
+
+    models: dict[str, tuple[Any, str]] = {}
 
     for module_info in pkgutil.iter_modules(schema_package.__path__):
         if module_info.name.startswith("_"):
@@ -34,17 +55,24 @@ def discover_models() -> dict[str, type[BaseModel]]:
             if candidate.__module__ != module.__name__:
                 continue
             if name in models:
-                previous = models[name]
                 raise RuntimeError(
                     f"duplicate schema class name {name}: "
-                    f"{previous.__module__} and {candidate.__module__}"
+                    f"{models[name][1]} and {candidate.__module__}"
                 )
-            models[name] = candidate
+            models[name] = (candidate, candidate.__module__)
+
+        for name in getattr(module, "__all__", ()):
+            if name in models or name.startswith("_"):
+                continue
+            candidate = getattr(module, name, None)
+            if candidate is None or not _is_exportable_alias(candidate):
+                continue
+            models[name] = (candidate, module.__name__)
 
     return dict(sorted(models.items()))
 
 
-def render_contracts(models: dict[str, type[BaseModel]]) -> dict[str, str]:
+def render_contracts(models: dict[str, tuple[Any, str]]) -> dict[str, str]:
     rendered: dict[str, str] = {}
     manifest: dict[str, Any] = {
         "schema_version": 1,
@@ -52,9 +80,12 @@ def render_contracts(models: dict[str, type[BaseModel]]) -> dict[str, str]:
         "models": [],
     }
 
-    for name, model in models.items():
+    for name, (model, module) in models.items():
         relative_path = f"json/{name}.schema.json"
-        schema = model.model_json_schema()
+        if isinstance(model, type) and issubclass(model, BaseModel):
+            schema = model.model_json_schema()
+        else:
+            schema = TypeAdapter(model).json_schema()
         rendered[relative_path] = json.dumps(
             schema,
             ensure_ascii=False,
@@ -64,7 +95,7 @@ def render_contracts(models: dict[str, type[BaseModel]]) -> dict[str, str]:
         manifest["models"].append(
             {
                 "name": name,
-                "module": model.__module__,
+                "module": module,
                 "path": relative_path,
             }
         )

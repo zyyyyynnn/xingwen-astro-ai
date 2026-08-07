@@ -1,0 +1,70 @@
+{
+  "$defs": {
+    "BindResearchInputToContractRequest": {
+      "additionalProperties": false,
+      "description": "Attach an ingested input reference to a ContractDraft.\n\n``run_id`` is pinned to ``None`` so the generated schema itself rules out\nthe \"both targets\" case rather than deferring to a runtime validator.",
+      "properties": {
+        "contract_draft_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Contract Draft Id",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "run_id": {
+          "default": null,
+          "title": "Run Id",
+          "type": "null"
+        }
+      },
+      "required": [
+        "project_id",
+        "contract_draft_id"
+      ],
+      "title": "BindResearchInputToContractRequest",
+      "type": "object"
+    },
+    "BindResearchInputToRunRequest": {
+      "additionalProperties": false,
+      "description": "Attach an ingested input reference to a Run inside the same project.",
+      "properties": {
+        "contract_draft_id": {
+          "default": null,
+          "title": "Contract Draft Id",
+          "type": "null"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "run_id"
+      ],
+      "title": "BindResearchInputToRunRequest",
+      "type": "object"
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/BindResearchInputToContractRequest"
+    },
+    {
+      "$ref": "#/$defs/BindResearchInputToRunRequest"
+    }
+  ]
+}

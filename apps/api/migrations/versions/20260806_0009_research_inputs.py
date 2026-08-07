@@ -1,0 +1,232 @@
+"""Research Input ingestion tables (#176, B-19).
+
+Revision ID: 20260806_0009
+Revises: 20260804_0008
+Create Date: 2026-08-06
+
+Four tables, created in dependency order (projects -> contents -> inputs ->
+idempotency / bindings):
+
+`research_input_contents` is the *content* identity. One immutable blob per
+``(project_id, content_hash)`` with one storage ref, MIME and size. It carries
+nothing about the source (no filename, no source_type, no URL, no
+idempotency_key): those describe an *ingestion*, not the bytes.
+
+`research_inputs` is an *immutable ingestion / provenance reference*. There is
+NO ``(session_id, project_id, content_hash)`` unique constraint: the same bytes
+ingested via upload, URL fetch and text are three distinct provenance events
+and must not be folded into one row. The content is referenced through a
+composite FK ``(project_id, content_hash) -> research_input_contents``.
+
+`research_input_idempotency` is the *request* identity. It is intentionally a
+separate table from content: several keys may point at the same input, but a
+key reused with different bytes conflicts deterministically. A pending
+reservation carries a ``lease_token`` / ``lease_expires_at`` so a crashed
+worker's reservation becomes reclaimable, and the reclaimer gets a new token
+that invalidates the old worker's release/commit.
+
+`research_input_bindings` records one active binding from an input reference to
+a ContractDraft or Run so composer-bound inputs keep provenance without copying
+binary content into public DTOs.
+"""
+
+from __future__ import annotations
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+revision = "20260806_0009"
+down_revision = "20260804_0008"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        "research_input_contents",
+        sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("content_hash", sa.String(length=71), nullable=False),
+        sa.Column("storage_ref", sa.String(length=160), nullable=False),
+        sa.Column("mime_type", sa.String(length=127), nullable=False),
+        sa.Column("size_bytes", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("project_id", "content_hash"),
+        sa.CheckConstraint(
+            "size_bytes >= 0", name="ck_research_input_content_size_nonneg"
+        ),
+    )
+
+    op.create_table(
+        "research_inputs",
+        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("session_id", sa.String(length=128), nullable=False),
+        sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("type", sa.String(length=16), nullable=False),
+        sa.Column("source_type", sa.String(length=16), nullable=False),
+        sa.Column("content_hash", sa.String(length=71), nullable=False),
+        sa.Column("filename", sa.String(length=255), nullable=True),
+        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("source_snapshot_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id", "content_hash"],
+            ["research_input_contents.project_id", "research_input_contents.content_hash"],
+            name="fk_research_input_content",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["source_snapshot_id", "project_id"],
+            ["source_snapshots.id", "source_snapshots.project_id"],
+            name="fk_research_input_snapshot_project",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
+        sa.CheckConstraint(
+            "type IN ('url','pdf','csv','json','image','text')", name="ck_research_inputs_input_type"
+        ),
+        sa.CheckConstraint(
+            "source_type IN ('upload','url_fetch','text')",
+            name="ck_research_inputs_source_type",
+        ),
+        sa.CheckConstraint(
+            "status IN ('accepted','unsupported_processing','failed_ingestion')",
+            name="ck_research_inputs_input_status",
+        ),
+    )
+    op.create_index(
+        "ix_research_inputs_session_project",
+        "research_inputs",
+        ["session_id", "project_id"],
+    )
+    op.create_index(
+        "ix_research_inputs_session_content",
+        "research_inputs",
+        ["session_id", "content_hash"],
+    )
+
+    op.create_table(
+        "research_input_idempotency",
+        sa.Column("session_id", sa.String(length=128), nullable=False),
+        sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("idempotency_key", sa.String(length=200), nullable=False),
+        sa.Column("request_hash", sa.String(length=71), nullable=False),
+        sa.Column("input_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("status", sa.String(length=16), nullable=False),
+        sa.Column("lease_token", sa.String(length=64), nullable=True),
+        sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["input_id", "project_id"],
+            ["research_inputs.id", "research_inputs.project_id"],
+            name="fk_research_input_idempotency_input_project",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint(
+            "session_id",
+            "project_id",
+            "idempotency_key",
+            name="pk_research_input_idempotency",
+        ),
+        sa.CheckConstraint(
+            "status IN ('pending','completed')",
+            name="ck_research_input_idempotency_status",
+        ),
+        sa.CheckConstraint(
+            "(status = 'pending' AND input_id IS NULL"
+            " AND lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)"
+            " OR (status = 'completed' AND input_id IS NOT NULL"
+            " AND lease_token IS NULL AND lease_expires_at IS NULL)",
+            name="ck_research_input_idempotency_status_lease",
+        ),
+    )
+    op.create_index(
+        "ix_research_input_idempotency_input",
+        "research_input_idempotency",
+        ["input_id"],
+    )
+
+    op.create_table(
+        "research_input_bindings",
+        sa.Column("input_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("contract_draft_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("run_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column(
+            "bound_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["input_id", "project_id"],
+            ["research_inputs.id", "research_inputs.project_id"],
+            name="fk_research_input_binding_input_project",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["contract_draft_id"],
+            ["research_contract_drafts.id"],
+            name="fk_research_input_binding_contract_draft",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_research_input_binding_run_project",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("input_id"),
+        sa.CheckConstraint(
+            "(contract_draft_id IS NULL) <> (run_id IS NULL)",
+            name="ck_research_input_bindings_binding_target_xor",
+        ),
+    )
+
+
+def downgrade() -> None:
+    op.drop_table("research_input_bindings")
+    op.drop_index(
+        "ix_research_input_idempotency_input",
+        table_name="research_input_idempotency",
+    )
+    op.drop_table("research_input_idempotency")
+    op.drop_index("ix_research_inputs_session_content", table_name="research_inputs")
+    op.drop_index("ix_research_inputs_session_project", table_name="research_inputs")
+    op.drop_table("research_inputs")
+    op.drop_table("research_input_contents")

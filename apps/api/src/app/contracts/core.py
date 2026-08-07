@@ -10,7 +10,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Annotated, Any, NoReturn, cast
 
-from fastapi import FastAPI, Header, Path, Query, Response
+from fastapi import Body, FastAPI, Header, Path, Query, Response
+from pydantic import TypeAdapter
 
 from app.schemas.core import (
     ArtifactKind,
@@ -53,6 +54,13 @@ from app.schemas.paper_collection_api import (
     PaperCollectionRead,
 )
 from app.schemas.paper_summary_api import PaperSummaryRead
+from app.schemas.research_input import (
+    BindResearchInputRequest,
+    CreateResearchInputMultipartRequest,
+    CreateResearchInputRequest,
+    ResearchInputDetail,
+    ResearchInputRef,
+)
 
 PROBLEM_RESPONSES = {
     400: {"model": ProblemDetails},
@@ -64,6 +72,13 @@ PROBLEM_RESPONSES = {
     403: {"model": ProblemDetails},
     429: {"model": ProblemDetails},
     502: {"model": ProblemDetails},
+}
+
+#: Research input ingestion adds body/type rejections on top of the common set.
+RESEARCH_INPUT_PROBLEM_RESPONSES = {
+    **PROBLEM_RESPONSES,
+    413: {"model": ProblemDetails},
+    415: {"model": ProblemDetails},
 }
 
 
@@ -533,6 +548,93 @@ def create_contract_app() -> FastAPI:
         _ = share_token
         return _contract_only()
 
+    @app.post(
+        "/api/research-inputs",
+        operation_id="createResearchInput",
+        response_model=Envelope[ResearchInputRef],
+        status_code=201,
+        responses=RESEARCH_INPUT_PROBLEM_RESPONSES,
+        description=(
+            "Ingests one controlled research input (URL, PDF, CSV, JSON, image or "
+            "text) into an immutable, content-addressed boundary. Files arrive as "
+            "multipart/form-data (field ``file``); URLs and text arrive as a JSON "
+            "body. The response is a reference only — binary content and full text "
+            "never leave this boundary."
+        ),
+    )
+    def create_research_input(
+        request: Annotated[CreateResearchInputRequest, Body()],
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> NoReturn:
+        _ = (request, idempotency_key, csrf_token)
+        return _contract_only()
+
+    @app.get(
+        "/api/research-inputs",
+        operation_id="listResearchInputs",
+        response_model=CollectionEnvelope[ResearchInputRef],
+        responses=PROBLEM_RESPONSES,
+        description="Lists only the research inputs owned by the current anonymous session.",
+    )
+    def list_research_inputs(
+        project_id: Annotated[str, Query(min_length=1)],
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (project_id, cursor, limit)
+        return _contract_only()
+
+    @app.get(
+        "/api/research-inputs/{input_id}",
+        operation_id="getResearchInput",
+        response_model=Envelope[ResearchInputDetail],
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Metadata-only detail read of one ingested input. Missing inputs are "
+            "indistinguishable from foreign inputs (404)."
+        ),
+    )
+    def get_research_input(input_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = input_id
+        return _contract_only()
+
+    @app.delete(
+        "/api/research-inputs/{input_id}",
+        operation_id="deleteResearchInput",
+        status_code=204,
+        response_model=None,
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Soft-deletes a research input reference; already-bound references are "
+            "still deleted because binding never becomes ownership."
+        ),
+    )
+    def delete_research_input(
+        input_id: Annotated[str, Path(min_length=1)],
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> Response:
+        _ = (input_id, csrf_token)
+        return _contract_only()
+
+    @app.post(
+        "/api/research-inputs/{input_id}/bind",
+        operation_id="bindResearchInput",
+        response_model=Envelope[ResearchInputRef],
+        responses=PROBLEM_RESPONSES,
+        description=(
+            "Attaches one ingested input reference to a ContractDraft or a Run "
+            "owned by the current session. Only the reference is bound."
+        ),
+    )
+    def bind_research_input(
+        input_id: Annotated[str, Path(min_length=1)],
+        request: BindResearchInputRequest,
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> NoReturn:
+        _ = (input_id, request, csrf_token)
+        return _contract_only()
+
     generated_openapi = app.openapi
 
     def problem_details_openapi() -> dict[str, Any]:
@@ -548,7 +650,77 @@ def create_contract_app() -> FastAPI:
                     json_schema = content.pop("application/json", None)
                     if json_schema is not None:
                         content["application/problem+json"] = json_schema
+        _apply_research_input_request_body_schema(document)
         return document
 
     app.openapi = cast(Callable[[], dict[str, Any]], problem_details_openapi)
     return app
+
+
+def _apply_research_input_request_body_schema(document: dict[str, Any]) -> None:
+    """Declare both create media types from the Pydantic schema authority.
+
+    FastAPI derives a single ``application/json`` body from the operation
+    signature, but ``POST /api/research-inputs`` genuinely accepts two media
+    types. Rather than hand-writing a second field list (which would become a
+    rival source of truth), the multipart body is compiled from
+    :class:`CreateResearchInputMultipartRequest` itself and merged in, with its
+    ``$defs`` hoisted into ``components.schemas``.
+    """
+
+    operation = document.get("paths", {}).get("/api/research-inputs", {}).get("post")
+    if not isinstance(operation, dict):
+        return
+
+    schema = CreateResearchInputMultipartRequest.model_json_schema(
+        ref_template="#/components/schemas/{model}"
+    )
+    defs = schema.pop("$defs", {})
+    if defs:
+        components = document.setdefault("components", {}).setdefault("schemas", {})
+        for name, definition in defs.items():
+            components.setdefault(name, definition)
+
+    components = document.setdefault("components", {}).setdefault("schemas", {})
+    components["CreateResearchInputMultipartRequest"] = schema
+
+    request_body = operation.setdefault("requestBody", {})
+    content = request_body.setdefault("content", {})
+    content["multipart/form-data"] = {
+        "schema": {"$ref": "#/components/schemas/CreateResearchInputMultipartRequest"}
+    }
+    request_body["required"] = True
+
+    _apply_bind_request_body_schema(document)
+
+
+def _apply_bind_request_body_schema(document: dict[str, Any]) -> None:
+    """Publish the bind XOR union as a named, referenceable component.
+
+    FastAPI inlines the union at the operation, which is still machine-checkable
+    but leaves no stable name for consumers. Registering it keeps
+    ``components.schemas.BindResearchInputRequest`` as the contract handle while
+    the schema body remains generated from the Pydantic union.
+    """
+
+    operation = (
+        document.get("paths", {})
+        .get("/api/research-inputs/{input_id}/bind", {})
+        .get("post")
+    )
+    if not isinstance(operation, dict):
+        return
+
+    schema = TypeAdapter(BindResearchInputRequest).json_schema(
+        ref_template="#/components/schemas/{model}"
+    )
+    defs = schema.pop("$defs", {})
+    components = document.setdefault("components", {}).setdefault("schemas", {})
+    for name, definition in defs.items():
+        components.setdefault(name, definition)
+    components["BindResearchInputRequest"] = schema
+
+    content = operation.setdefault("requestBody", {}).setdefault("content", {})
+    content["application/json"] = {
+        "schema": {"$ref": "#/components/schemas/BindResearchInputRequest"}
+    }

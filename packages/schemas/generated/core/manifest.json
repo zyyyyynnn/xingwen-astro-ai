@@ -17,9 +17,24 @@
       "path": "json/ArtifactVersionDetail.schema.json"
     },
     {
+      "module": "app.schemas.research_input",
+      "name": "BindResearchInputRequest",
+      "path": "json/BindResearchInputRequest.schema.json"
+    },
+    {
       "module": "app.schemas.data_artifact_api",
       "name": "CreateArtifactExportRequest",
       "path": "json/CreateArtifactExportRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.research_input",
+      "name": "CreateResearchInputMultipartRequest",
+      "path": "json/CreateResearchInputMultipartRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.research_input",
+      "name": "CreateResearchInputRequest",
+      "path": "json/CreateResearchInputRequest.schema.json"
     },
     {
       "module": "app.schemas.data_artifact_api",
@@ -105,6 +120,16 @@
       "module": "app.schemas.core",
       "name": "ResearchContractDraft",
       "path": "json/ResearchContractDraft.schema.json"
+    },
+    {
+      "module": "app.schemas.research_input",
+      "name": "ResearchInputDetail",
+      "path": "json/ResearchInputDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.research_input",
+      "name": "ResearchInputRef",
+      "path": "json/ResearchInputRef.schema.json"
     },
     {
       "module": "app.schemas.core",

@@ -277,6 +277,72 @@
         "title": "AtlasWorkspaceState",
         "type": "object"
       },
+      "BindResearchInputRequest": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/BindResearchInputToContractRequest"
+          },
+          {
+            "$ref": "#/components/schemas/BindResearchInputToRunRequest"
+          }
+        ]
+      },
+      "BindResearchInputToContractRequest": {
+        "additionalProperties": false,
+        "description": "Attach an ingested input reference to a ContractDraft.\n\n``run_id`` is pinned to ``None`` so the generated schema itself rules out\nthe \"both targets\" case rather than deferring to a runtime validator.",
+        "properties": {
+          "contract_draft_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Contract Draft Id",
+            "type": "string"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "null"
+          }
+        },
+        "required": [
+          "project_id",
+          "contract_draft_id"
+        ],
+        "title": "BindResearchInputToContractRequest",
+        "type": "object"
+      },
+      "BindResearchInputToRunRequest": {
+        "additionalProperties": false,
+        "description": "Attach an ingested input reference to a Run inside the same project.",
+        "properties": {
+          "contract_draft_id": {
+            "title": "Contract Draft Id",
+            "type": "null"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "run_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "run_id"
+        ],
+        "title": "BindResearchInputToRunRequest",
+        "type": "object"
+      },
       "CachePolicy": {
         "enum": [
           "disabled",
@@ -442,6 +508,35 @@
         "title": "CollectionEnvelope[ResearchArtifact]",
         "type": "object"
       },
+      "CollectionEnvelope_ResearchInputRef_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchInputRef"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "page": {
+            "$ref": "#/components/schemas/CursorPage"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links",
+          "page"
+        ],
+        "title": "CollectionEnvelope[ResearchInputRef]",
+        "type": "object"
+      },
       "CollectionEnvelope_ResearchProject_": {
         "additionalProperties": false,
         "properties": {
@@ -578,6 +673,67 @@
           "contract"
         ],
         "title": "CreateResearchContractDraftRequest",
+        "type": "object"
+      },
+      "CreateResearchInputMultipartRequest": {
+        "additionalProperties": false,
+        "description": "``multipart/form-data`` create for the file input types.\n\n``file`` is declared as a binary string so the generated OpenAPI carries\n``type: string, format: binary`` as a real schema, not prose.",
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Filename"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "maxLength": 127,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mime Type"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "pdf",
+              "csv",
+              "json",
+              "image"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "type",
+          "file"
+        ],
+        "title": "CreateResearchInputMultipartRequest",
         "type": "object"
       },
       "CreateResearchProjectRequest": {
@@ -1006,6 +1162,48 @@
           "links"
         ],
         "title": "Envelope[ResearchContract]",
+        "type": "object"
+      },
+      "Envelope_ResearchInputDetail_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ResearchInputDetail"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[ResearchInputDetail]",
+        "type": "object"
+      },
+      "Envelope_ResearchInputRef_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ResearchInputRef"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[ResearchInputRef]",
         "type": "object"
       },
       "Envelope_ResearchProject_": {
@@ -6089,6 +6287,214 @@
         "title": "ResearchContractInput",
         "type": "object"
       },
+      "ResearchInputDetail": {
+        "additionalProperties": false,
+        "description": "Metadata-only detail read; adds the owning project and the redacted URL.",
+        "properties": {
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "size_bytes": {
+            "minimum": 0.0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "source_snapshot_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Snapshot Id"
+          },
+          "source_type": {
+            "minLength": 1,
+            "title": "Source Type",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ResearchInputStatus",
+            "default": "accepted"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ResearchInputType"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "source_type",
+          "content_hash",
+          "size_bytes",
+          "created_at",
+          "project_id"
+        ],
+        "title": "ResearchInputDetail",
+        "type": "object"
+      },
+      "ResearchInputRef": {
+        "additionalProperties": false,
+        "description": "Immutable reference to one ingested input; never carries binary content.",
+        "properties": {
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "size_bytes": {
+            "minimum": 0.0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "source_snapshot_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Snapshot Id"
+          },
+          "source_type": {
+            "minLength": 1,
+            "title": "Source Type",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ResearchInputStatus",
+            "default": "accepted"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ResearchInputType"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "source_type",
+          "content_hash",
+          "size_bytes",
+          "created_at"
+        ],
+        "title": "ResearchInputRef",
+        "type": "object"
+      },
+      "ResearchInputStatus": {
+        "description": "Lifecycle of a controlled research input after ingestion.\n\n``accepted`` is the only state B-19 produces: ingestion succeeded and the\ncontent is frozen behind an immutable content hash. ``unsupported_processing``\nand ``failed_ingestion`` are reserved states the API exposes so consumers\nnever mistake \"uploaded\" for \"understood\".",
+        "enum": [
+          "accepted",
+          "unsupported_processing",
+          "failed_ingestion"
+        ],
+        "title": "ResearchInputStatus",
+        "type": "string"
+      },
+      "ResearchInputType": {
+        "enum": [
+          "url",
+          "pdf",
+          "csv",
+          "json",
+          "image",
+          "text"
+        ],
+        "title": "ResearchInputType",
+        "type": "string"
+      },
       "ResearchProject": {
         "additionalProperties": false,
         "examples": [
@@ -6971,6 +7377,61 @@
         "title": "SourceSnapshotRecord",
         "type": "object"
       },
+      "TextResearchInputRequest": {
+        "additionalProperties": false,
+        "description": "JSON create for ``type=text``: the body carries the text itself.",
+        "properties": {
+          "filename": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "maxLength": 127,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "text_content": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Text Content",
+            "type": "string"
+          },
+          "type": {
+            "const": "text",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "project_id",
+          "text_content"
+        ],
+        "title": "TextResearchInputRequest",
+        "type": "object"
+      },
       "UnitPolicy": {
         "enum": [
           "canonical"
@@ -7019,6 +7480,61 @@
         ],
         "title": "UpstreamFailureClass",
         "type": "string"
+      },
+      "UrlResearchInputRequest": {
+        "additionalProperties": false,
+        "description": "JSON create for ``type=url``: a URL is fetched server-side.\n\nModelled as its own type (not a nullable mega-model) so the generated JSON\nSchema *machine-level* forbids ``text_content`` and file semantics here\ninstead of relying on a runtime-only validator.",
+        "properties": {
+          "filename": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "maxLength": 127,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "type": {
+            "const": "url",
+            "title": "Type",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "project_id",
+          "url"
+        ],
+        "title": "UrlResearchInputRequest",
+        "type": "object"
       },
       "WorkspaceObjectRef": {
         "additionalProperties": false,
@@ -10916,6 +11432,701 @@
           }
         },
         "summary": "Get Public Share Snapshot"
+      }
+    },
+    "/api/research-inputs": {
+      "get": {
+        "description": "Lists only the research inputs owned by the current anonymous session.",
+        "operationId": "listResearchInputs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionEnvelope_ResearchInputRef_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List Research Inputs"
+      },
+      "post": {
+        "description": "Ingests one controlled research input (URL, PDF, CSV, JSON, image or text) into an immutable, content-addressed boundary. Files arrive as multipart/form-data (field ``file``); URLs and text arrive as a JSON body. The response is a reference only — binary content and full text never leave this boundary.",
+        "operationId": "createResearchInput",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UrlResearchInputRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TextResearchInputRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResearchInputMultipartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ResearchInputRef_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Create Research Input"
+      }
+    },
+    "/api/research-inputs/{input_id}": {
+      "delete": {
+        "description": "Soft-deletes a research input reference; already-bound references are still deleted because binding never becomes ownership.",
+        "operationId": "deleteResearchInput",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "input_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Input Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Delete Research Input"
+      },
+      "get": {
+        "description": "Metadata-only detail read of one ingested input. Missing inputs are indistinguishable from foreign inputs (404).",
+        "operationId": "getResearchInput",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "input_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Input Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ResearchInputDetail_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get Research Input"
+      }
+    },
+    "/api/research-inputs/{input_id}/bind": {
+      "post": {
+        "description": "Attaches one ingested input reference to a ContractDraft or a Run owned by the current session. Only the reference is bound.",
+        "operationId": "bindResearchInput",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "input_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Input Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindResearchInputRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ResearchInputRef_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Bind Research Input"
       }
     },
     "/api/runs/{run_id}": {
