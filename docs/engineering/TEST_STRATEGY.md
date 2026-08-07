@@ -61,6 +61,8 @@
 
 覆盖从进入 Workspace -> 创建/选择 Project -> 确认 Contract -> 启动 Run -> 审查 Agent Activity 与 Artifact -> 定位 Evidence -> 提议修订 -> 查看新 ArtifactVersion -> Compare -> Export / Share 的完整用户路径。
 
+**A-20 退役状态：** 产品层退役期间，E2E 覆盖旧入口与旧引导路由的迁移重定向（保留合法标识符、丢弃未知参数、拒绝非法标识符）、`/workspace` 固定宿主（键盘、焦点、64rem 断点、200% 缩放）与 `/share/$shareToken` 安全边界（不创建私有会话、不泄露 Token、撤销后保持固定）；退役层回归由 `scripts/check-frontend-legacy.mjs` 与 `scripts/check-frontend-legacy.test.mjs` 门禁阻止。
+
 ### Visual & Accessibility
 
 - 固定视口 (1440×900, 1280×800, 390×844) 视觉校验；

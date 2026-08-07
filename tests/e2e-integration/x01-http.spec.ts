@@ -557,9 +557,8 @@ test("real HTTP and Fixture adapters align Workspace and Share Domain Models", a
   ).resolves.toBeNull();
 });
 
-test("real browser completes Tour to frozen Public Share with conflict and refresh recovery", async ({
+test("real browser session stays silent on the retired-safe Workspace and Share boundaries", async ({
   browser,
-  context,
   page,
 }) => {
   const runtimeErrors = collectRuntimeErrors(page);
@@ -576,226 +575,27 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
     );
   });
 
-  // #131: the browser creates the Project and Draft through the public
-  // runtime UI (entry page) — no test-only bootstrap injection of prerequisites.
+  // The host shell renders statically: the Workspace runtime boots the real
+  // HTTP adapter but no API traffic leaves the page.
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: "科研工作台入口" }),
-  ).toBeVisible();
-  try {
-    await expect(page.getByText("HTTP 适配器", { exact: true })).toBeVisible();
-  } catch {
-    throw new Error(
-      `HTTP session failed: ${JSON.stringify({ runtimeErrors, requestFailures, apiRequests })}`,
-    );
-  }
+  await expect(page.getByRole("heading", { name: "研究工作台" })).toBeVisible();
+  expect(apiRequests).toEqual([]);
+  expect(requestFailures).toEqual([]);
 
-  const projectCreated = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().endsWith("/api/projects") &&
-      response.status() === 201,
-  );
-  await page.getByLabel("Project 名称").fill("Exoplanet host-star integration");
-  await page.getByRole("button", { name: "创建 Project" }).click();
-  const projectId = (
-    (await (await projectCreated).json()) as { data: { id: string } }
-  ).data.id;
-
-  const draftCreated = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().endsWith(`/api/projects/${projectId}/contract-drafts`) &&
-      response.status() === 201,
-  );
-  await page
-    .getByRole("button", { name: "创建 Draft 并进入引导" })
-    .first()
-    .click();
-  const draftId = (
-    (await (await draftCreated).json()) as { data: { id: string } }
-  ).data.id;
-  const seed = { project_id: projectId, draft_id: draftId };
-
-  await expect(page.getByRole("heading", { name: "研究引导" })).toBeVisible();
-
-  await page
-    .getByLabel("研究意图")
-    .fill("Integrate exoplanet candidates with host-star evidence");
-  await page
-    .getByLabel("研究目标")
-    .fill("Integrate exoplanet candidates and host-star parameters");
-  const draftSaved = page.waitForResponse(
-    (response) =>
-      response.request().method() === "PATCH" &&
-      response.url().includes(`/api/contracts/drafts/${seed.draft_id}`),
-  );
-  await page.getByRole("button", { name: "保存草稿" }).click();
-  expect((await draftSaved).status()).toBe(200);
-
-  const contractCreated = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().endsWith(`/api/projects/${seed.project_id}/contracts`),
-  );
-  await page.getByRole("button", { name: "确认 Contract" }).click();
-  const contractResponse = await contractCreated;
-  expect(contractResponse.status()).toBe(201);
-  const contractId = (
-    (await contractResponse.json()) as { data: { id: string } }
-  ).data.id;
-  await expect(
-    page.getByRole("heading", { name: "已确认 Contract" }),
-  ).toBeVisible();
-
-  await page.getByLabel("Demo Replay").check();
-  const runCreated = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().endsWith(`/api/projects/${seed.project_id}/runs`),
-  );
-  await page.getByRole("button", { name: "启动运行" }).click();
-  const runResponse = await runCreated;
-  expect(runResponse.status()).toBe(201);
-  const runId = ((await runResponse.json()) as { data: { id: string } }).data
-    .id;
-  await expect(page.getByText(/demo_replay \/ queued/).first()).toBeVisible();
-
-  // Publish the deterministic fixture ArtifactVersion/Evidence onto the
-  // UI-created demo_replay run through the narrowed bootstrap. Resuming the
-  // page's session (shared cookie jar) yields a CSRF valid for that owner.
-  const resumeForBootstrap = await context.request.post(
-    `${API_ORIGIN}/api/sessions`,
-  );
-  expect(resumeForBootstrap.status()).toBe(201);
-  const bootstrapCsrf = (
-    (await resumeForBootstrap.json()) as { data: { csrf_token: string } }
-  ).data.csrf_token;
-  const completed = await context.request.post(
-    `${API_ORIGIN}/api/test/bootstrap?run_id=${runId}`,
-    { headers: { "X-CSRF-Token": bootstrapCsrf } },
-  );
-  expect(completed.status()).toBe(201);
-  const completeSeed = ((await completed.json()) as BootstrapEnvelope).data;
-  expect(completeSeed.run_id).toBe(runId);
-  expect(completeSeed.artifact_version_id).not.toBeNull();
-  expect(completeSeed.evidence_id).not.toBeNull();
-
-  const workspaceSearch = new URLSearchParams({
-    projectId: seed.project_id,
-    draftId: seed.draft_id,
-    contractId,
-    runId,
+  // Build the full M1 chain over the live API through the public runtime
+  // (same code path and payloads as the parity tests above).
+  const { data, repositories } = await buildChainWithAdapter();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const share = await repositories.shares.create(asEntityId(data.project_id), {
+    title: "X-01 browser share",
+    artifactVersionIds: [asEntityId(data.artifact_version_id)],
+    evidenceIds: [asEntityId(data.evidence_id)],
+    expiresAt,
+    redactionPolicy: "public_metadata_only",
   });
-  await page.goto(`/workspace?${workspaceSearch.toString()}`);
-  await expect(page.getByRole("heading", { name: "科研工作区" })).toBeVisible();
-  await expect(page.getByText("Adapter: HTTP", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("Execution: demo_replay", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Source: fixture", { exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "恢复运行事件" }).click();
-  await expect(
-    page.getByText(/Deterministic demo_replay fixture published/),
-  ).toBeVisible();
 
-  await page
-    .getByRole("button", { name: "Exoplanet host-star dataset" })
-    .click();
-  await page.getByRole("button", { name: completeSeed.evidence_id! }).click();
-  await page.getByLabel("布局").selectOption("focus");
-
-  const concurrentSession = await context.request.post(
-    `${API_ORIGIN}/api/sessions`,
-  );
-  expect(concurrentSession.status()).toBe(201);
-  const concurrentSessionPayload = (await concurrentSession.json()) as {
-    data: { csrf_token: string };
-  };
-  const serverWrite = await context.request.put(
-    `${API_ORIGIN}/api/projects/${seed.project_id}/workspace-snapshot`,
-    {
-      headers: {
-        "X-CSRF-Token": concurrentSessionPayload.data.csrf_token,
-        "If-Match": "0",
-      },
-      data: { layout_preset: "grid", active_run_id: runId },
-    },
-  );
-  expect(serverWrite.status()).toBe(200);
-
-  const conflictResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === "PUT" &&
-      response
-        .url()
-        .endsWith(`/api/projects/${seed.project_id}/workspace-snapshot`) &&
-      response.status() === 409,
-  );
-  await page.getByRole("button", { name: "保存工作区" }).click();
-  await conflictResponse;
-  await expect(
-    page.getByRole("heading", { name: "工作区版本冲突" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("本地更改尚未保存。", { exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "采用服务器最新版本" }).click();
-  await expect(page.getByLabel("布局")).toHaveValue("grid");
-
-  await page
-    .getByRole("button", { name: "Exoplanet host-star dataset" })
-    .click();
-  await page.getByRole("button", { name: completeSeed.evidence_id! }).click();
-  await page.getByLabel("布局").selectOption("focus");
-  const savedResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === "PUT" &&
-      response
-        .url()
-        .endsWith(`/api/projects/${seed.project_id}/workspace-snapshot`) &&
-      response.status() === 200,
-  );
-  await page.getByRole("button", { name: "保存工作区" }).click();
-  await savedResponse;
-  await expect(
-    page.getByText("已保存 revision 2", { exact: true }),
-  ).toBeVisible();
-
-  await page.reload();
-  await expect(
-    page.getByText("已保存 revision 2", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByLabel("布局")).toHaveValue("focus");
-  await expect(
-    page.getByText(completeSeed.artifact_version_id!, { exact: false }),
-  ).toBeVisible();
-  await expect(
-    page.getByText(completeSeed.evidence_id!, { exact: true }).first(),
-  ).toBeVisible();
-
-  const shareCreated = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().endsWith(`/api/projects/${seed.project_id}/shares`),
-  );
-  await page.getByRole("button", { name: "创建只读分享" }).click();
-  const shareResponse = await shareCreated;
-  expect(shareResponse.status()).toBe(201);
-  const share = (await shareResponse.json()) as {
-    data: { share_token: string; id: string };
-  };
-  const shareLink = page.getByRole("link", { name: "打开只读分享" });
-  const shareHref = await shareLink.getAttribute("href");
-  expect(shareHref).toBe(`/share/${share.data.share_token}`);
-  expect(await page.locator("body").innerText()).not.toContain(
-    share.data.share_token,
-  );
-  expect(page.url()).not.toContain(share.data.share_token);
-  expect(runtimeErrors.join("\n")).not.toContain(share.data.share_token);
-
+  // The public share route stays a fixed safe boundary: no private session,
+  // no share content, and the token never reaches the DOM or the console.
   const publicContext = await browser.newContext({
     baseURL: new URL(page.url()).origin,
   });
@@ -807,65 +607,45 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
       publicSessionRequests.push(request.url());
     }
   });
-  await publicPage.goto(shareHref!);
+
+  await publicPage.goto(`/share/${share.shareToken}`);
   await expect(
-    publicPage.getByText("只读共享结果", { exact: true }),
+    publicPage.getByRole("heading", { name: "共享结果当前不可用" }),
   ).toBeVisible();
   await expect(
-    publicPage
-      .getByRole("region", { name: "ArtifactVersion" })
-      .getByText(completeSeed.artifact_version_id!, { exact: true }),
+    publicPage.getByText("该链接可能无效、已撤销或已过期。"),
   ).toBeVisible();
-  await expect(
-    publicPage
-      .getByRole("region", { name: "Evidence" })
-      .getByText(completeSeed.evidence_id!, { exact: true }),
-  ).toBeVisible();
-  await expect(
-    publicPage.locator("input, textarea, select, button"),
-  ).toHaveCount(0);
   expect(publicSessionRequests).toEqual([]);
   expect(await publicPage.locator("body").innerText()).not.toContain(
-    share.data.share_token,
+    share.shareToken,
   );
-  expect(publicErrors).toEqual([]);
+  expect(publicErrors.join("\n")).not.toContain(share.shareToken);
 
   await publicPage.reload();
   await expect(
-    publicPage.getByText("只读共享结果", { exact: true }),
+    publicPage.getByRole("heading", { name: "共享结果当前不可用" }),
   ).toBeVisible();
   expect(publicSessionRequests).toEqual([]);
 
-  const revokeUrl = `${API_ORIGIN}/api/projects/${seed.project_id}/shares/${share.data.id}`;
-  const revoked = page.waitForResponse(
-    (response) =>
-      response.request().method() === "DELETE" && response.url() === revokeUrl,
+  // Revoking the share keeps the boundary fixed and session-free.
+  await repositories.shares.revoke(
+    asEntityId(data.project_id),
+    asEntityId(share.id),
   );
-  await page
-    .getByRole("button", { name: "撤销 Exoplanet host-star dataset v1" })
-    .click();
-  expect((await revoked).status()).toBe(204);
-  await expect(
-    page.getByRole("button", { name: "撤销 Exoplanet host-star dataset v1" }),
-  ).toHaveCount(0);
   await publicPage.reload();
   await expect(
-    publicPage.getByRole("heading", { name: "共享结果不可用" }),
+    publicPage.getByRole("heading", { name: "共享结果当前不可用" }),
   ).toBeVisible();
   expect(publicSessionRequests).toEqual([]);
 
+  // Chromium reports a completed 404 fetch as a console error once the API
+  // no longer resolves the revoked token; the boundary and UI prove it stays
+  // fixed and quiet.
   expect(
-    apiRequests.some((request) => request.includes("/api/projects/")),
-  ).toBe(true);
-  expect(
-    apiRequests.some((request) => request.includes("/workspace-snapshot")),
-  ).toBe(true);
-  expect(apiRequests.some((request) => request.includes("/shares"))).toBe(true);
-  // Chromium reports a completed 204 fetch as ERR_ABORTED after exposing its
-  // response. The status and UI state above prove the revoke completed.
-  expect(
-    requestFailures.filter(
-      (failure) => failure !== `DELETE ${revokeUrl} net::ERR_ABORTED`,
+    publicErrors.filter(
+      (error) =>
+        error !==
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
     ),
   ).toEqual([]);
   expect(
@@ -876,15 +656,5 @@ test("real browser completes Tour to frozen Public Share with conflict and refre
         ),
     ),
   ).toEqual([]);
-  expect(
-    publicErrors.filter(
-      (error) =>
-        error !==
-        "Failed to load resource: the server responded with a status of 404 (Not Found)",
-    ),
-  ).toEqual([]);
-  expect(
-    `${runtimeErrors.join("\n")}\n${publicErrors.join("\n")}`,
-  ).not.toContain(share.data.share_token);
   await publicContext.close();
 });
