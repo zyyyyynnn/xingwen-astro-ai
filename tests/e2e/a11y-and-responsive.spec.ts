@@ -52,8 +52,6 @@ test("workspace skip link appears on focus and targets main content", async ({
   await expect(mainContent).toBeFocused();
 });
 
-
-
 test.describe("mobile viewport @ 375px", () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
@@ -87,7 +85,6 @@ test.describe("mobile viewport @ 375px", () => {
     await expect(
       page.getByText("研究工作台需要更宽的浏览器窗口。"),
     ).toBeVisible();
-
 
     // No horizontal scroll
     const scrollWidth = await page.evaluate(

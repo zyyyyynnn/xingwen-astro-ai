@@ -56,9 +56,7 @@ test("legacy tour route never forwards invalid identifiers", async ({
 
   await page.goto(`http://127.0.0.1:5173/tour?projectId=${"a".repeat(129)}`);
 
-  await expect(
-    page.getByRole("heading", { name: "研究工作台" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "研究工作台" })).toBeVisible();
   const url = new URL(page.url());
   expect(url.pathname).toBe("/workspace");
   expect(url.search).toBe("");
