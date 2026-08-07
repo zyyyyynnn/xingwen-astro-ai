@@ -8,6 +8,7 @@ not need HTTP or PostgreSQL.
 from __future__ import annotations
 
 import asyncio
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,7 @@ from app.services.research_input_policy import (
     validate_declared_mime,
 )
 from app.services.research_input_store import (
+    InMemoryIdempotencyRepository,
     InMemoryResearchInputStore,
     PreparedInput,
 )
@@ -52,46 +54,55 @@ def _text_payload(**overrides: object) -> dict[str, object]:
 # ---- schema composition ----------------------------------------------------
 
 
+_CREATE_ADAPTER = TypeAdapter(CreateResearchInputRequest)
+
+
 def test_create_text_input_is_valid_without_extras() -> None:
-    request = CreateResearchInputRequest(
-        project_id="proj_01", type="text", text_content="hello"
+    request = _CREATE_ADAPTER.validate_python(
+        {"project_id": "proj_01", "type": "text", "text_content": "hello"}
     )
     assert request.type is ResearchInputType.text
 
 
 def test_url_input_requires_url_and_forbids_text_content() -> None:
-    with pytest.raises(ValidationError, match="url is required"):
-        CreateResearchInputRequest(
-            project_id="proj_01", type="url", text_content="nope"
+    with pytest.raises(ValidationError, match=r"url\.url"):
+        _CREATE_ADAPTER.validate_python(
+            {"project_id": "proj_01", "type": "url", "text_content": "nope"}
         )
-    with pytest.raises(ValidationError, match="text_content must not be set"):
-        CreateResearchInputRequest(
-            project_id="proj_01",
-            type="url",
-            url="https://example.com/data.csv",
-            text_content="nope",
+    with pytest.raises(ValidationError, match="text_content"):
+        _CREATE_ADAPTER.validate_python(
+            {
+                "project_id": "proj_01",
+                "type": "url",
+                "url": "https://example.com/data.csv",
+                "text_content": "nope",
+            }
         )
 
 
 def test_text_input_forbids_url() -> None:
-    with pytest.raises(ValidationError, match="text_content is required"):
-        CreateResearchInputRequest(project_id="proj_01", type="text")
-    with pytest.raises(ValidationError, match="url must not be set"):
-        CreateResearchInputRequest(
-            project_id="proj_01",
-            type="text",
-            text_content="hello",
-            url="https://example.com",
+    with pytest.raises(ValidationError, match=r"text\.text_content"):
+        _CREATE_ADAPTER.validate_python({"project_id": "proj_01", "type": "text"})
+    with pytest.raises(ValidationError, match=r"text\.url"):
+        _CREATE_ADAPTER.validate_python(
+            {
+                "project_id": "proj_01",
+                "type": "text",
+                "text_content": "hello",
+                "url": "https://example.com",
+            }
         )
 
 
 def test_file_types_forbid_url_and_text_content() -> None:
     for value in ("pdf", "csv", "json", "image"):
-        with pytest.raises(ValidationError, match="requires a multipart file upload"):
-            CreateResearchInputRequest(
-                project_id="proj_01",
-                type=value,
-                url="https://example.com/file.pdf",
+        with pytest.raises(ValidationError, match="union_tag_invalid"):
+            _CREATE_ADAPTER.validate_python(
+                {
+                    "project_id": "proj_01",
+                    "type": value,
+                    "url": "https://example.com/file.pdf",
+                }
             )
     assert all(
         ResearchInputType(value) in FILE_INPUT_TYPES
@@ -101,8 +112,13 @@ def test_file_types_forbid_url_and_text_content() -> None:
 
 def test_unknown_fields_are_rejected() -> None:
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-        CreateResearchInputRequest(
-            project_id="proj_01", type="text", text_content="x", session_token="s"
+        _CREATE_ADAPTER.validate_python(
+            {
+                "project_id": "proj_01",
+                "type": "text",
+                "text_content": "x",
+                "session_token": "s",
+            }
         )
 
 
@@ -236,11 +252,14 @@ def test_in_memory_store_scopes_records_to_session_and_project() -> None:
     store.register_project(project_id="proj_02", owner_session_id="session_a")
     store.register_project(project_id="proj_03", owner_session_id="session_b")
 
-    created = store.create(
+    created = store.commit_ingestion(
         session_id="session_a",
         project_id="proj_01",
         payload=ResearchInputCreate(type="text", text_content="hello"),
         prepared=_prepared(),
+        idempotency_key="k1",
+        lease_token="tok1",
+        request_hash="h1",
     )
     assert created.source_type == "text"
 
@@ -259,42 +278,52 @@ def test_in_memory_store_scopes_records_to_session_and_project() -> None:
     assert refs_other_session == ()
 
     with pytest.raises(SecurityProblem) as exc:
-        store.create(
-            session_id="session_a",
-            project_id="proj_03",
-            payload=ResearchInputCreate(type="text", text_content="hello"),
-            prepared=_prepared(),
-        )
+        store.require_owned_project(session_id="session_a", project_id="proj_03")
     assert exc.value.code == "PROJECT_NOT_FOUND"
 
 
-def test_in_memory_store_reuses_same_content_hash_within_session() -> None:
+def test_in_memory_store_same_content_makes_distinct_ingestions() -> None:
+    # Content identity (content_hash) is deduped, but ingestion identity is not:
+    # the same bytes ingested twice are two immutable ResearchInput rows that
+    # share one content blob.
     store = InMemoryResearchInputStore()
     store.register_project(project_id="proj_01", owner_session_id="session_a")
     prepared = _prepared(content=b"same bytes")
-    first = store.create(
+    first = store.commit_ingestion(
         session_id="session_a",
         project_id="proj_01",
         payload=ResearchInputCreate(type="text", text_content="same bytes"),
         prepared=prepared,
+        idempotency_key="k1",
+        lease_token="tok1",
+        request_hash="h1",
     )
-    second = store.create(
+    second = store.commit_ingestion(
         session_id="session_a",
         project_id="proj_01",
         payload=ResearchInputCreate(type="text", text_content="same bytes"),
         prepared=prepared,
+        idempotency_key="k2",
+        lease_token="tok2",
+        request_hash="h2",
     )
-    assert second.id == first.id
+    assert second.id != first.id
+    assert second.content_hash == first.content_hash
+    refs, _, _ = store.list(session_id="session_a", project_id="proj_01", cursor=None, limit=20)
+    assert {ref.id for ref in refs} == {first.id, second.id}
 
 
-def test_in_memory_store_soft_delete_and_resurrection() -> None:
+def test_in_memory_store_soft_delete_creates_new_ingestion_on_replay() -> None:
     store = InMemoryResearchInputStore()
     store.register_project(project_id="proj_01", owner_session_id="session_a")
-    created = store.create(
+    created = store.commit_ingestion(
         session_id="session_a",
         project_id="proj_01",
         payload=ResearchInputCreate(type="text", text_content="hello"),
         prepared=_prepared(),
+        idempotency_key="k1",
+        lease_token="tok1",
+        request_hash="h1",
     )
     store.delete(session_id="session_a", input_id=created.id)
     assert store.get(session_id="session_a", input_id=created.id) is None
@@ -304,14 +333,20 @@ def test_in_memory_store_soft_delete_and_resurrection() -> None:
         store.delete(session_id="session_a", input_id=created.id)
     assert exc.value.code == "RESEARCH_INPUT_NOT_FOUND"
 
-    resurrected = store.create(
+    # A new ingestion under a new key creates a NEW input; it never resurrects
+    # or mutates the expired one.
+    fresh = store.commit_ingestion(
         session_id="session_a",
         project_id="proj_01",
         payload=ResearchInputCreate(type="text", text_content="hello"),
         prepared=_prepared(),
+        idempotency_key="k2",
+        lease_token="tok2",
+        request_hash="h2",
     )
-    assert resurrected.id == created.id
-    assert store.get(session_id="session_a", input_id=created.id) is not None
+    assert fresh.id != created.id
+    assert fresh.content_hash == created.content_hash
+    assert store.get(session_id="session_a", input_id=fresh.id) is not None
 
 
 def test_in_memory_store_bind_requires_owned_targets() -> None:
@@ -322,11 +357,14 @@ def test_in_memory_store_bind_requires_owned_targets() -> None:
     store.register_run(run_id="run_01", project_id="proj_01")
     store.register_run(run_id="run_02", project_id="proj_02")
 
-    created = store.create(
+    created = store.commit_ingestion(
         session_id="session_a",
         project_id="proj_01",
         payload=ResearchInputCreate(type="text", text_content="hello"),
         prepared=_prepared(),
+        idempotency_key="k1",
+        lease_token="tok1",
+        request_hash="h1",
     )
     store.bind_to_contract(
         session_id="session_a",
@@ -358,7 +396,137 @@ def test_in_memory_store_bind_requires_owned_targets() -> None:
     assert exc.value.code == "RESOURCE_NOT_FOUND"
 
 
-# ---- content storage -------------------------------------------------------
+# ---- idempotency lease state machine --------------------------------------
+
+
+def _owned_store_and_idempotency() -> tuple[InMemoryResearchInputStore, InMemoryIdempotencyRepository]:
+    store = InMemoryResearchInputStore()
+    idem = InMemoryIdempotencyRepository(lease_ttl=timedelta(seconds=300))
+    store.bind_idempotency(idem)
+    store.register_project(project_id="proj_01", owner_session_id="session_a")
+    return store, idem
+
+
+def test_pending_reservation_blocks_distinct_request_under_same_key() -> None:
+    store, idem = _owned_store_and_idempotency()
+    first = idem.resolve(
+        session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+    )
+    assert first.reserved is True and first.lease_token is not None
+
+    # An identical request arriving while the lease is still valid must not
+    # duplicate the side effect -- it is told to wait (409), not handed a lease.
+    with pytest.raises(SecurityProblem) as exc:
+        idem.resolve(
+            session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+        )
+    assert exc.value.code == "IDEMPOTENCY_IN_PROGRESS"
+
+
+def test_stale_pending_reservation_is_reclaimed_by_another_request() -> None:
+    from datetime import datetime, timedelta
+
+    store, idem = _owned_store_and_idempotency()
+    old = idem.resolve(
+        session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+    )
+    assert old.reserved is True and old.lease_token is not None
+
+    # Simulate the lease lapsing, then the *same* request reuses the key.
+    class FrozenClock:
+        def __init__(self, when: datetime) -> None:
+            self._when = when
+
+        def __call__(self) -> datetime:
+            return self._when
+
+    idem._clock = FrozenClock(old.lease_expires_at + timedelta(seconds=1))  # type: ignore[attr-defined]
+    reclaimed = idem.resolve(
+        session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+    )
+    assert reclaimed.reserved is True
+    assert reclaimed.lease_token is not None
+    assert reclaimed.lease_token != old.lease_token
+
+
+def test_lease_commit_is_token_bound() -> None:
+    store, idem = _owned_store_and_idempotency()
+    res = idem.resolve(
+        session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+    )
+    # A stale/foreign token cannot complete or release the reservation.
+    with pytest.raises(SecurityProblem):
+        idem.complete_reservation(
+            session_id="session_a",
+            project_id="proj_01",
+            idempotency_key="k1",
+            lease_token="wrong-token",
+            input_id="input_x",
+        )
+    with pytest.raises(SecurityProblem):
+        idem.release(
+            session_id="session_a",
+            project_id="proj_01",
+            idempotency_key="k1",
+            lease_token="wrong-token",
+        )
+    # The rightful owner completes it; afterwards the key is replayable.
+    idem.complete_reservation(
+        session_id="session_a",
+        project_id="proj_01",
+        idempotency_key="k1",
+        lease_token=res.lease_token,
+        input_id="input_x",
+    )
+    replay = idem.resolve(
+        session_id="session_a", project_id="proj_01", idempotency_key="k1", request_hash="h1"
+    )
+    assert replay.replayed_input_id == "input_x"
+
+
+def test_ownership_gate_runs_before_any_idempotency_side_effect() -> None:
+    # require_owned_project must fail with 404 before a reservation is created,
+    # so a probing request leaves no pending row behind.
+    store, idem = _owned_store_and_idempotency()
+    with pytest.raises(SecurityProblem) as exc:
+        store.require_owned_project(session_id="session_a", project_id="foreign")
+    assert exc.value.code == "PROJECT_NOT_FOUND"
+    assert idem.resolve(
+        session_id="session_a", project_id="foreign", idempotency_key="probe", request_hash="h"
+    ).reserved is True
+
+
+def test_cross_source_ingestion_separation_text_and_upload_share_content() -> None:
+    # The same bytes arriving via `text` and via `pdf` upload are two ingestions
+    # but one content identity -- provenance (source_type) differs, while the
+    # content facts (hash/ref/mime/size) are identical because they derive from
+    # the bytes.
+    store, _idem = _owned_store_and_idempotency()
+    payload = b"identical research bytes"
+    content_facts = dict(content=payload, mime_type="application/pdf", filename="note.pdf")
+    text_ing = store.commit_ingestion(
+        session_id="session_a",
+        project_id="proj_01",
+        payload=ResearchInputCreate(type="text", text_content=payload.decode()),
+        prepared=_prepared(**content_facts),
+        idempotency_key="kt",
+        lease_token="t1",
+        request_hash="ht",
+    )
+    upload_ing = store.commit_ingestion(
+        session_id="session_a",
+        project_id="proj_01",
+        payload=ResearchInputCreate(type="pdf"),
+        prepared=_prepared(**content_facts),
+        idempotency_key="ku",
+        lease_token="t2",
+        request_hash="hu",
+    )
+    assert text_ing.id != upload_ing.id
+    assert text_ing.content_hash == upload_ing.content_hash
+    assert text_ing.source_type == "text"
+    assert upload_ing.source_type == "upload"
+
 
 
 def test_local_content_storage_is_content_addressed_and_immutable(

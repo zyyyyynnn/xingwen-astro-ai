@@ -606,14 +606,20 @@ class ResearchInputModel(Base):
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
 
+    content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+
     __table_args__ = (
-        UniqueConstraint(
-            "session_id",
-            "project_id",
-            "content_hash",
-            name="uq_research_input_session_project_content",
-        ),
+        # NOTE: no (session_id, project_id, content_hash) unique constraint.
+        # The same bytes ingested from different *sources* (upload vs URL vs
+        # text) are distinct provenance events and must NOT be collapsed into a
+        # single ResearchInput row. Content dedup lives in research_input_contents.
         UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
+        ForeignKeyConstraint(
+            ["project_id", "content_hash"],
+            ["research_input_contents.project_id", "research_input_contents.content_hash"],
+            name="fk_research_input_content",
+            ondelete="RESTRICT",
+        ),
         ForeignKeyConstraint(
             ["source_snapshot_id", "project_id"],
             ["source_snapshots.id", "source_snapshots.project_id"],
@@ -633,6 +639,42 @@ class ResearchInputModel(Base):
             name="input_status",
         ),
         CheckConstraint("size_bytes >= 0", name="size_nonnegative"),
+    )
+
+
+class ResearchInputContentModel(Base):
+    """Immutable content identity for ingested Research Input bytes (B-19).
+
+    This row is the *content* identity: a given ``(project_id, content_hash)``
+    is exactly one blob with one storage ref, MIME and size. It is fully
+    decoupled from how the bytes were ingested. The same bytes uploaded and the
+    same bytes fetched from a URL therefore share one ``ResearchInputContent``
+    row (one physical blob) while remaining two distinct ``ResearchInput``
+    provenance rows.
+
+    Nothing about a source belongs here: no filename, no source_type, no URL,
+    no source_snapshot_id, no idempotency_key -- those describe an *ingestion*,
+    not the bytes.
+    """
+
+    __tablename__ = "research_input_contents"
+
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
+    )
+    content_hash: Mapped[str] = mapped_column(String(71), nullable=False, primary_key=True)
+    storage_ref: Mapped[str] = mapped_column(String(160), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(127), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+
+    __table_args__ = (
+        CheckConstraint("size_bytes >= 0", name="ck_research_input_content_size_nonneg"),
     )
 
 
@@ -716,8 +758,19 @@ class ResearchInputIdempotencyModel(Base):
     request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     input_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    # Lease ownership: a pending reservation is owned by the worker that holds
+    # ``lease_token`` until ``lease_expires_at``. A crashed worker's stale
+    # reservation becomes reclaimable, and the reclaimer receives a NEW token so
+    # the old worker can no longer release or complete it.
+    lease_token: Mapped[str | None] = mapped_column(String(64))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     __table_args__ = (
@@ -732,9 +785,11 @@ class ResearchInputIdempotencyModel(Base):
             name="idempotency_status",
         ),
         CheckConstraint(
-            "(status = 'pending' AND input_id IS NULL)"
-            " OR (status = 'completed' AND input_id IS NOT NULL)",
-            name="idempotency_status_input",
+            "(status = 'pending' AND input_id IS NULL"
+            " AND lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)"
+            " OR (status = 'completed' AND input_id IS NOT NULL"
+            " AND lease_token IS NULL AND lease_expires_at IS NULL)",
+            name="idempotency_status_lease",
         ),
         Index(
             "ix_research_input_idempotency_input",

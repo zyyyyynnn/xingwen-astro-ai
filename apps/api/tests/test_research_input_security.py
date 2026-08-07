@@ -730,7 +730,13 @@ def test_same_key_same_filename_different_bytes_conflicts(
 def test_different_keys_same_content_both_succeed_and_dedup(
     app_and_client: tuple[FastAPI, TestClient, str, str],
 ) -> None:
-    """Two independent requests carrying identical bytes are both valid."""
+    """Two independent requests carrying identical bytes are both valid.
+
+    Distinct idempotency keys denote distinct *ingestions* -- they must produce
+    two separate Research Input rows. Content identity is decoupled: the bytes
+    are deduplicated onto a single immutable ``research_input_contents`` row,
+    so both inputs share the same ``content_hash`` while keeping different ids.
+    """
 
     app, client, session_id, csrf_token = app_and_client
     _seed_project(app, session_id)
@@ -748,18 +754,28 @@ def test_different_keys_same_content_both_succeed_and_dedup(
     )
     assert first.status_code == 201
     assert second.status_code == 201
-    # Content dedup collapses them onto the same immutable resource.
-    assert first.json()["data"]["id"] == second.json()["data"]["id"]
+    # Different ingestions (different keys) -> different row ids.
+    first_id = first.json()["data"]["id"]
+    second_id = second.json()["data"]["id"]
+    assert first_id != second_id
+    # Cross-source content dedup: same content hash, one shared blob.
+    assert first.json()["data"]["content_hash"] == second.json()["data"]["content_hash"]
 
-    # Each key still replays independently to that same resource.
-    for key in ("key-A", "key-B"):
-        replay = client.post(
-            "/api/research-inputs",
-            json=body,
-            headers=_headers(csrf_token, idempotency_key=key),
-        )
-        assert replay.status_code == 201
-        assert replay.json()["data"]["id"] == first.json()["data"]["id"]
+    # Each key still replays independently to *its own* ingestion row.
+    replay_a = client.post(
+        "/api/research-inputs",
+        json=body,
+        headers=_headers(csrf_token, idempotency_key="key-A"),
+    )
+    assert replay_a.status_code == 201
+    assert replay_a.json()["data"]["id"] == first_id
+    replay_b = client.post(
+        "/api/research-inputs",
+        json=body,
+        headers=_headers(csrf_token, idempotency_key="key-B"),
+    )
+    assert replay_b.status_code == 201
+    assert replay_b.json()["data"]["id"] == second_id
 
 
 def test_url_replay_does_not_refetch_the_network(

@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 import os
 import threading
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from alembic import command
 from alembic.config import Config
@@ -201,12 +201,31 @@ def _create(
     project_key: str = "project",
     content: bytes = b"persisted payload",
     source: SourceSnapshotRecord | None = None,
+    idempotency_key: str | None = None,
 ) -> object:
-    return store.create(
-        session_id=ctx["owner"].id,
-        project_id=str(ctx["ids"][project_key]),
+    idem = PersistentIdempotencyRepository(ctx["factory"])
+    session_id = ctx["owner"].id
+    project_id = str(ctx["ids"][project_key])
+    request_hash = sha256_content_hash(content)
+    key = idempotency_key or f"pg-create-{uuid4().hex}"
+    reservation = idem.resolve(
+        session_id=session_id,
+        project_id=project_id,
+        idempotency_key=key,
+        request_hash=request_hash,
+    )
+    if reservation.replayed_input_id is not None:
+        replayed = store.get(session_id=session_id, input_id=reservation.replayed_input_id)
+        if replayed is not None:
+            return replayed
+    return store.commit_ingestion(
+        session_id=session_id,
+        project_id=project_id,
         payload=ResearchInputCreate(type="text", text_content="persisted payload"),
         prepared=_prepared(content=content, source=source),
+        idempotency_key=key,
+        lease_token=reservation.lease_token,
+        request_hash=request_hash,
     )
 
 
@@ -246,8 +265,9 @@ def test_persistent_store_replays_identical_content_within_session(
 ) -> None:
     ctx = store_context
     store = _store(ctx)
-    first = _create(store, ctx, content=b"replay me")
-    second = _create(store, ctx, content=b"replay me")
+    key = "pg-replay-shared"
+    first = _create(store, ctx, content=b"replay me", idempotency_key=key)
+    second = _create(store, ctx, content=b"replay me", idempotency_key=key)
     assert second.id == first.id
 
 
@@ -255,13 +275,25 @@ def test_persistent_store_hides_foreign_project(
     store_context: dict[str, object],
 ) -> None:
     ctx = store_context
-    store = _store(ctx)
+    idem = PersistentIdempotencyRepository(ctx["factory"])
+    session_id = ctx["owner"].id
+    project_id = str(ctx["ids"]["other_project"])
+    content = b"sneak"
+    res = idem.resolve(
+        session_id=session_id,
+        project_id=project_id,
+        idempotency_key="pg-foreign",
+        request_hash=sha256_content_hash(content),
+    )
     with pytest.raises(SecurityProblem) as exc:
-        store.create(
-            session_id=ctx["owner"].id,
-            project_id=str(ctx["ids"]["other_project"]),
+        _store(ctx).commit_ingestion(
+            session_id=session_id,
+            project_id=project_id,
             payload=ResearchInputCreate(type="text", text_content="sneak"),
-            prepared=_prepared(content=b"sneak"),
+            prepared=_prepared(content=content),
+            idempotency_key="pg-foreign",
+            lease_token=res.lease_token,
+            request_hash=sha256_content_hash(content),
         )
     assert exc.value.code == "PROJECT_NOT_FOUND"
 
@@ -271,13 +303,16 @@ def test_persistent_store_soft_delete_and_resurrection(
 ) -> None:
     ctx = store_context
     store = _store(ctx)
-    created = _create(store, ctx, content=b"delete me")
+    created = _create(store, ctx, content=b"delete me", idempotency_key="pg-del-1")
     store.delete(session_id=ctx["owner"].id, input_id=created.id)
     assert store.get(session_id=ctx["owner"].id, input_id=created.id) is None
 
-    resurrected = _create(store, ctx, content=b"delete me")
-    assert resurrected.id == created.id
-    assert store.get(session_id=ctx["owner"].id, input_id=created.id) is not None
+    # A new ingestion under a new key creates a NEW input; the expired one is
+    # never resurrected or mutated (no resurrection in the new model).
+    fresh = _create(store, ctx, content=b"delete me", idempotency_key="pg-del-2")
+    assert fresh.id != created.id
+    assert fresh.content_hash == created.content_hash
+    assert store.get(session_id=ctx["owner"].id, input_id=fresh.id) is not None
 
 
 def test_persistent_store_binds_only_owned_targets(
@@ -469,60 +504,47 @@ def test_snapshot_project_pair_is_enforced(
 def test_idempotency_mapping_is_separate_from_content_dedup(
     store_context: dict[str, object],
 ) -> None:
-    """Two keys may resolve to one input; one key may not span two requests."""
+    """Each key completes to its own ingestion; one key may not span two requests.
+
+    Distinct keys create distinct Research Input rows (ingestion identity) that
+    share the same content blob (content identity), and a key replayed with the
+    identical request returns the same input -- while reusing it with a
+    different request body is a deterministic 409.
+    """
 
     ctx = store_context
     repo = PersistentIdempotencyRepository(ctx["factory"])
     store = _store(ctx)
     project_id = str(ctx["ids"]["project"])
     session_id = ctx["owner"].id
-    created = _create(store, ctx, content=b"idem shared payload")
 
-    first = repo.resolve(
-        session_id=session_id,
-        project_id=project_id,
-        idempotency_key="pg-key-A",
-        request_hash="sha256:" + "a" * 64,
-    )
-    assert first.reserved is True
-    assert first.replayed_input_id is None
-    repo.complete(
-        session_id=session_id,
-        project_id=project_id,
-        idempotency_key="pg-key-A",
-        input_id=created.id,
+    created = _create(
+        store, ctx, content=b"idem shared payload", idempotency_key="pg-key-A"
     )
 
     replay = repo.resolve(
         session_id=session_id,
         project_id=project_id,
         idempotency_key="pg-key-A",
-        request_hash="sha256:" + "a" * 64,
+        request_hash=sha256_content_hash(b"idem shared payload"),
     )
     assert replay.replayed_input_id == created.id
 
-    # A different key for the same content is independently valid.
-    second = repo.resolve(
-        session_id=session_id,
-        project_id=project_id,
-        idempotency_key="pg-key-B",
-        request_hash="sha256:" + "b" * 64,
+    # A different key for the same content is independently valid: it creates a
+    # second ingestion but deduplicates onto the same content blob.
+    second = _create(
+        store, ctx, content=b"idem shared payload", idempotency_key="pg-key-B"
     )
-    assert second.reserved is True
-    repo.complete(
-        session_id=session_id,
-        project_id=project_id,
-        idempotency_key="pg-key-B",
-        input_id=created.id,
-    )
+    assert second.id != created.id
+    assert second.content_hash == created.content_hash
     assert (
         repo.resolve(
             session_id=session_id,
             project_id=project_id,
             idempotency_key="pg-key-B",
-            request_hash="sha256:" + "b" * 64,
+            request_hash=sha256_content_hash(b"idem shared payload"),
         ).replayed_input_id
-        == created.id
+        == second.id
     )
 
     # Reusing key A with a different request is a deterministic conflict.
@@ -556,6 +578,7 @@ def test_released_reservation_is_retryable(
         session_id=session_id,
         project_id=project_id,
         idempotency_key="pg-key-release",
+        lease_token=reserved.lease_token,
     )
 
     again = repo.resolve(

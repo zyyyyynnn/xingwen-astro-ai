@@ -1,22 +1,17 @@
 """Research Input persistence adapters (B-19).
 
-Two *different* identities live behind two *different* ports, and conflating
-them was the defect this module now avoids:
+Three identities, three ports, never conflated:
 
-* :class:`ResearchInputStore` -- content identity. A ``ResearchInput`` row is
-  an immutable ingested resource deduplicated by
-  ``(session_id, project_id, content_hash)``.
-* :class:`ResearchInputIdempotencyRepository` -- HTTP request identity. A
-  mapping keyed by ``(session_id, project_id, Idempotency-Key)`` recording the
-  ``request_hash`` that key was first used with, and the input it resolved to.
+* content identity -- ``ResearchInputContentModel`` / ``research_input_contents``,
+  keyed by ``(project_id, content_hash)``. One immutable blob, no source facts.
+* ingestion identity -- ``ResearchInputModel`` / ``research_inputs``, an
+  immutable provenance reference. No ``(session, project, content_hash)`` unique
+  constraint, so the same bytes ingested by upload / URL / text stay distinct.
+* request identity -- ``ResearchInputIdempotencyModel`` / ``research_input_idempotency``,
+  keyed by ``(session_id, project_id, Idempotency-Key)``.
 
-Because they are separate, several distinct keys may point at the same
-immutable input (same bytes, different requests), while one key reused with a
-different request deterministically yields ``409 IDEMPOTENCY_CONFLICT``.
-
-MIME/filename policy no longer lives here: it belongs to
-``app.services.research_input_policy`` and is injected by the application
-service. This module only persists.
+MIME/filename policy lives in ``app.services.research_input_policy`` and is
+injected by the application service; this module only persists.
 """
 
 from __future__ import annotations
@@ -27,7 +22,7 @@ import secrets
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 from uuid import UUID
 
@@ -38,6 +33,7 @@ from sqlalchemy.orm import Session
 from app.db.models import (
     ResearchContractDraftModel,
     ResearchInputBindingModel,
+    ResearchInputContentModel,
     ResearchInputIdempotencyModel,
     ResearchInputModel,
     ResearchProjectModel,
@@ -62,6 +58,9 @@ from app.security import SecurityProblem
 #: Reservation states for the request-identity mapping.
 IDEMPOTENCY_PENDING = "pending"
 IDEMPOTENCY_COMPLETED = "completed"
+
+#: Default lease window when none is injected (tests override via clock).
+DEFAULT_LEASE_TTL = timedelta(seconds=300)
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,28 +122,41 @@ class IdempotencyReservation:
     """Outcome of resolving one ``Idempotency-Key`` against stored requests.
 
     ``replayed_input_id`` is set when a completed mapping already exists for
-    this exact request, in which case the caller must return the existing
-    resource without repeating any side effect (notably: without re-fetching a
-    URL). ``reserved`` is ``True`` when this caller now owns a ``pending``
-    reservation it must either complete or release.
+    this exact request, in which case the caller returns the existing resource
+    without repeating any side effect (notably: without re-fetching a URL).
+
+    ``reserved`` is ``True`` when this caller now owns a ``pending``
+    reservation it must either commit (with its ``lease_token``) or release.
     """
 
     replayed_input_id: str | None
     reserved: bool
+    lease_token: str | None = None
+    lease_expires_at: datetime | None = None
 
 
-class ResearchInputStore(Protocol):
+class ResearchInputRepository(Protocol):
     """Ownership-scoped persistence boundary for ingested inputs."""
 
-    def create(
+    def require_owned_project(self, *, session_id: str, project_id: str) -> str:
+        """Return the canonical project id, or raise a hidden 404.
+
+        All failure shapes (malformed id, missing project, foreign project)
+        are identical so the existence of a project is never leaked.
+        """
+
+    def commit_ingestion(
         self,
         *,
         session_id: str,
         project_id: str,
         payload: ResearchInputCreate,
         prepared: PreparedInput,
+        idempotency_key: str,
+        lease_token: str,
+        request_hash: str,
     ) -> ResearchInputRecord:
-        """Ingest one input; content dedup is ``(session, project, content_hash)``."""
+        """Atomically ensure content, insert the input, complete the lease."""
 
     def get(self, *, session_id: str, input_id: str) -> ResearchInputRecord | None:
         """Return the record only when owned by ``session_id`` and not expired."""
@@ -191,35 +203,43 @@ class ResearchInputIdempotencyRepository(Protocol):
     ) -> IdempotencyReservation:
         """Replay, conflict (409) or reserve this key for the current request."""
 
-    def complete(
+    def release(
         self,
         *,
         session_id: str,
         project_id: str,
         idempotency_key: str,
-        input_id: str,
+        lease_token: str,
     ) -> None:
-        """Attach the resolved input to a reservation this caller owns."""
-
-    def release(
-        self, *, session_id: str, project_id: str, idempotency_key: str
-    ) -> None:
-        """Drop an uncompleted reservation so a failed attempt stays retryable."""
+        """Drop a pending reservation only if the lease token still matches."""
 
 
 # ---- in-memory adapters ----------------------------------------------------
 
 
 class InMemoryResearchInputStore:
-    """Process-local adapter for unit/security tests and the no-DB runtime."""
+    """Process-local adapter for unit/security tests and the no-DB runtime.
 
-    def __init__(self) -> None:
+    Mirrors the Postgres adapter's contract exactly, including content/ingestion
+    separation and lease-bound idempotency.
+    """
+
+    def __init__(self, *, clock: Callable[[], datetime] | None = None) -> None:
+        self._contents: dict[tuple[str, str], tuple[str, str, int]] = {}
         self._records: dict[str, ResearchInputRecord] = {}
         self._projects: dict[str, str] = {}
         self._drafts: dict[str, str] = {}
         self._runs: dict[str, str] = {}
         self._bindings: dict[str, tuple[str | None, str | None]] = {}
+        self._idempotency: InMemoryIdempotencyRepository | None = None
         self._lock = threading.RLock()
+
+    def bind_idempotency(self, repo: InMemoryIdempotencyRepository) -> None:
+        """Pair with the in-memory idempotency repository so a committed
+        ingestion atomically completes its reservation (no real transaction
+        exists in-process, but the two adapters share a single lock order)."""
+
+        self._idempotency = repo
 
     def register_project(self, *, project_id: str, owner_session_id: str) -> None:
         self._projects[project_id] = owner_session_id
@@ -230,52 +250,33 @@ class InMemoryResearchInputStore:
     def register_run(self, *, run_id: str, project_id: str) -> None:
         self._runs[run_id] = project_id
 
-    def create(
+    def require_owned_project(self, *, session_id: str, project_id: str) -> str:
+        if self._projects.get(project_id) != session_id:
+            raise _not_found("PROJECT_NOT_FOUND")
+        return project_id
+
+    def commit_ingestion(
         self,
         *,
         session_id: str,
         project_id: str,
         payload: ResearchInputCreate,
         prepared: PreparedInput,
+        idempotency_key: str,
+        lease_token: str,
+        request_hash: str,
     ) -> ResearchInputRecord:
         with self._lock:
-            if self._projects.get(project_id) != session_id:
-                raise _not_found("PROJECT_NOT_FOUND")
-
-            existing = next(
-                (
-                    record
-                    for record in self._records.values()
-                    if record.session_id == session_id
-                    and record.project_id == project_id
-                    and record.content_hash == prepared.content_hash
-                ),
-                None,
+            self.require_owned_project(session_id=session_id, project_id=project_id)
+            _ensure_content_memory(
+                self._contents,
+                project_id=project_id,
+                content_hash=prepared.content_hash,
+                storage_ref=prepared.storage_ref,
+                mime_type=prepared.mime_type or "",
+                size_bytes=prepared.size_bytes,
             )
             now = datetime.now(UTC)
-            if existing is not None:
-                if existing.expires_at is not None and existing.expires_at <= now:
-                    resurrected = dataclasses.replace(
-                        existing,
-                        type=payload.type,
-                        source_type=_source_type_for(payload),
-                        storage_ref=prepared.storage_ref,
-                        filename=prepared.filename,
-                        mime_type=prepared.mime_type,
-                        size_bytes=prepared.size_bytes,
-                        status=ResearchInputStatus.accepted,
-                        source_snapshot_id=(
-                            prepared.source_snapshot.snapshot_id
-                            if prepared.source_snapshot is not None
-                            else None
-                        ),
-                        url=_snapshot_url(prepared.source_snapshot),
-                        expires_at=None,
-                    )
-                    self._records[existing.id] = resurrected
-                    return resurrected
-                return existing
-
             record = ResearchInputRecord(
                 id=f"input_{secrets.token_urlsafe(18)}",
                 session_id=session_id,
@@ -298,6 +299,10 @@ class InMemoryResearchInputStore:
                 expires_at=None,
             )
             self._records[record.id] = record
+            if self._idempotency is not None:
+                self._idempotency.complete_reservation(
+                    session_id, project_id, idempotency_key, lease_token, record.id
+                )
             return record
 
     def get(self, *, session_id: str, input_id: str) -> ResearchInputRecord | None:
@@ -382,15 +387,30 @@ class InMemoryResearchInputStore:
 
 
 class InMemoryIdempotencyRepository:
-    """Process-local request-identity mapping with the same semantics as SQL.
+    """Process-local request-identity mapping with lease ownership.
 
-    The lock is required, not decorative: two concurrent requests carrying the
-    same key must not both be allowed to reserve and fetch.
+    The lock is required: two concurrent requests carrying the same key must
+    not both reserve and fetch. A stale pending reservation (lease expired) may
+    be reclaimed by a later caller, who receives a NEW token so the original
+    worker can no longer release or complete it.
     """
 
-    def __init__(self) -> None:
-        self._entries: dict[tuple[str, str, str], tuple[str, str, str | None]] = {}
+    def __init__(
+        self,
+        *,
+        clock: Callable[[], datetime] | None = None,
+        lease_ttl: timedelta = DEFAULT_LEASE_TTL,
+    ) -> None:
+        # entry: (request_hash, status, input_id, lease_token, lease_expires_at)
+        self._entries: dict[
+            tuple[str, str, str], tuple[str, str, str | None, str | None, datetime | None]
+        ] = {}
+        self._clock = clock or (lambda: datetime.now(UTC))
+        self._lease_ttl = lease_ttl
         self._lock = threading.RLock()
+
+    def _new_token(self) -> str:
+        return secrets.token_urlsafe(24)
 
     def resolve(
         self,
@@ -401,45 +421,94 @@ class InMemoryIdempotencyRepository:
         request_hash: str,
     ) -> IdempotencyReservation:
         key = (session_id, project_id, idempotency_key)
+        now = self._clock()
         with self._lock:
             entry = self._entries.get(key)
             if entry is None:
-                self._entries[key] = (request_hash, IDEMPOTENCY_PENDING, None)
-                return IdempotencyReservation(replayed_input_id=None, reserved=True)
-            stored_hash, status, input_id = entry
+                token = self._new_token()
+                self._entries[key] = (
+                    request_hash,
+                    IDEMPOTENCY_PENDING,
+                    None,
+                    token,
+                    now + self._lease_ttl,
+                )
+                return IdempotencyReservation(
+                    replayed_input_id=None,
+                    reserved=True,
+                    lease_token=token,
+                    lease_expires_at=now + self._lease_ttl,
+                )
+            stored_hash, status, input_id, token, expires_at = entry
             if stored_hash != request_hash:
                 raise _idempotency_conflict()
-            if status == IDEMPOTENCY_COMPLETED and input_id is not None:
+            if status == IDEMPOTENCY_COMPLETED:
                 return IdempotencyReservation(
-                    replayed_input_id=input_id, reserved=False
+                    replayed_input_id=input_id,
+                    reserved=False,
                 )
-            # A pending reservation for the identical request is still in
-            # flight; the second caller must not duplicate the side effect.
-            raise _idempotency_in_progress()
+            # pending path
+            if expires_at is not None and expires_at > now:
+                # A valid in-flight reservation for the identical request: the
+                # second caller must not duplicate the side effect.
+                raise _idempotency_in_progress()
+            # Stale lease -> reclaim with a fresh token.
+            new_token = self._new_token()
+            new_expiry = now + self._lease_ttl
+            self._entries[key] = (
+                stored_hash,
+                IDEMPOTENCY_PENDING,
+                None,
+                new_token,
+                new_expiry,
+            )
+            return IdempotencyReservation(
+                replayed_input_id=None,
+                reserved=True,
+                lease_token=new_token,
+                lease_expires_at=new_expiry,
+            )
 
-    def complete(
+    def release(
         self,
         *,
         session_id: str,
         project_id: str,
         idempotency_key: str,
-        input_id: str,
+        lease_token: str,
     ) -> None:
         key = (session_id, project_id, idempotency_key)
         with self._lock:
             entry = self._entries.get(key)
             if entry is None:
                 return
-            self._entries[key] = (entry[0], IDEMPOTENCY_COMPLETED, input_id)
+            _hash, status, _input_id, token, _expires = entry
+            if status != IDEMPOTENCY_PENDING:
+                return
+            if token != lease_token:
+                raise _idempotency_reservation_lost()
+            del self._entries[key]
 
-    def release(
-        self, *, session_id: str, project_id: str, idempotency_key: str
+    def complete_reservation(
+        self,
+        session_id: str,
+        project_id: str,
+        idempotency_key: str,
+        lease_token: str,
+        input_id: str,
     ) -> None:
+        """Atomically complete the reservation this worker's lease owns."""
         key = (session_id, project_id, idempotency_key)
         with self._lock:
             entry = self._entries.get(key)
-            if entry is not None and entry[1] == IDEMPOTENCY_PENDING:
-                del self._entries[key]
+            if entry is None:
+                # No outstanding reservation (e.g. committed directly, or the
+                # key was already released): nothing to reconcile.
+                return
+            _hash, status, _old_input, token, _expires = entry
+            if status != IDEMPOTENCY_PENDING or token != lease_token:
+                raise _idempotency_reservation_lost()
+            self._entries[key] = (_hash, IDEMPOTENCY_COMPLETED, input_id, None, None)
 
 
 # ---- PostgreSQL adapters ---------------------------------------------------
@@ -451,13 +520,26 @@ class PersistentResearchInputStore:
     def __init__(self, factory: Callable[[], Session]) -> None:
         self._factory = factory
 
-    def create(
+    def require_owned_project(self, *, session_id: str, project_id: str) -> str:
+        pid = _uuid_or_none(project_id)
+        if pid is None:
+            raise _not_found("PROJECT_NOT_FOUND")
+        with self._factory() as session:
+            project = session.get(ResearchProjectModel, pid)
+            if project is None or project.session_id != session_id:
+                raise _not_found("PROJECT_NOT_FOUND")
+            return str(project.id)
+
+    def commit_ingestion(
         self,
         *,
         session_id: str,
         project_id: str,
         payload: ResearchInputCreate,
         prepared: PreparedInput,
+        idempotency_key: str,
+        lease_token: str,
+        request_hash: str,
     ) -> ResearchInputRecord:
         pid = _uuid_or_none(project_id)
         with self._factory() as session, session.begin():
@@ -465,20 +547,17 @@ class PersistentResearchInputStore:
             if project is None or project.session_id != session_id:
                 raise _not_found("PROJECT_NOT_FOUND")
 
-            existing = session.scalar(
-                select(ResearchInputModel).where(
-                    ResearchInputModel.session_id == session_id,
-                    ResearchInputModel.project_id == project.id,
-                    ResearchInputModel.content_hash == prepared.content_hash,
-                )
+            # 1. ensure content identity (race-safe upsert keyed by hash).
+            _ensure_content_row(
+                session,
+                project_id=project.id,
+                content_hash=prepared.content_hash,
+                storage_ref=prepared.storage_ref,
+                mime_type=prepared.mime_type or "",
+                size_bytes=prepared.size_bytes,
             )
-            now = datetime.now(UTC)
-            if existing is not None:
-                if existing.expires_at is not None and existing.expires_at <= now:
-                    _resurrect(session, existing, payload, prepared)
-                    session.flush()
-                return _record(existing, url=_snapshot_query_url(session, existing))
 
+            # 2. insert the immutable ingestion reference.
             source_snapshot_id = _persist_snapshot(
                 session, project_id=str(project.id), source=prepared.source_snapshot
             )
@@ -494,39 +573,41 @@ class PersistentResearchInputStore:
                 size_bytes=prepared.size_bytes,
                 status=ResearchInputStatus.accepted.value,
                 source_snapshot_id=source_snapshot_id,
-                created_at=now,
+                created_at=datetime.now(UTC),
                 expires_at=None,
             )
             session.add(row)
-            try:
-                session.flush()
-            except IntegrityError:
-                # The only unique constraint reachable here is content dedup
-                # (session, project, content_hash): idempotency lives in its
-                # own table and is resolved before this call. Re-read the
-                # winner of the race instead of guessing.
-                session.rollback()
-                return self._reread_content_race(
-                    session_id=session_id,
-                    project_uuid=project.id,
-                    content_hash=prepared.content_hash,
-                )
-            return _record(row, url=_snapshot_url(prepared.source_snapshot))
+            session.flush()
 
-    def _reread_content_race(
-        self, *, session_id: str, project_uuid: UUID, content_hash: str
-    ) -> ResearchInputRecord:
-        with self._factory() as session:
-            winner = session.scalar(
-                select(ResearchInputModel).where(
-                    ResearchInputModel.session_id == session_id,
-                    ResearchInputModel.project_id == project_uuid,
-                    ResearchInputModel.content_hash == content_hash,
-                )
+            # 3. atomically complete the lease: token + request must match.
+            idem = session.get(
+                ResearchInputIdempotencyModel,
+                (session_id, project.id, idempotency_key),
+                with_for_update=True,
             )
-            if winner is None:
+            if idem is None:
                 raise _conflict_unresolved()
-            return _record(winner, url=_snapshot_query_url(session, winner))
+            if idem.status != IDEMPOTENCY_PENDING:
+                raise _idempotency_conflict()
+            if idem.request_hash != request_hash:
+                raise _idempotency_conflict()
+            if idem.lease_token != lease_token:
+                raise _idempotency_reservation_lost()
+            idem.input_id = row.id
+            idem.status = IDEMPOTENCY_COMPLETED
+            idem.lease_token = None
+            idem.lease_expires_at = None
+            idem.updated_at = datetime.now(UTC)
+
+            return _record(
+                row,
+                content=(
+                    prepared.storage_ref,
+                    prepared.mime_type,
+                    prepared.size_bytes,
+                ),
+                url=_snapshot_url(prepared.source_snapshot),
+            )
 
     def get(self, *, session_id: str, input_id: str) -> ResearchInputRecord | None:
         iid = _uuid_or_none(input_id)
@@ -538,7 +619,7 @@ class PersistentResearchInputStore:
                 return None
             if _is_expired(row):
                 return None
-            return _record(row, url=_snapshot_query_url(session, row))
+            return _record(row, session=session)
 
     def list(
         self, *, session_id: str, project_id: str, cursor: str | None, limit: int
@@ -576,7 +657,7 @@ class PersistentResearchInputStore:
                 _encode_cursor(str(selected[-1].id)) if selected and has_more else None
             )
             return (
-                tuple(_record(row).to_ref() for row in selected),
+                tuple(_record(row, session=session).to_ref() for row in selected),
                 next_cursor,
                 has_more,
             )
@@ -643,18 +724,28 @@ class PersistentResearchInputStore:
 
 
 class PersistentIdempotencyRepository:
-    """PostgreSQL request-identity mapping.
+    """PostgreSQL request-identity mapping with lease ownership.
 
     Reservation is an ``INSERT`` against the ``(session_id, project_id,
-    idempotency_key)`` primary key. Concurrency is decided by the database:
-    the loser of the insert race reads the existing row and either replays it,
-    conflicts on a different request hash, or reports that the identical
-    request is still in flight. No ambiguous "catch every IntegrityError and
-    guess" path remains.
+    idempotency_key)`` primary key. Concurrency is decided by the database: the
+    loser of the insert race reads the existing row and either replays it,
+    conflicts on a different request hash, or reclaims a stale lease. A pending
+    reservation is never left dangling as a persistent unrecoverable state.
     """
 
-    def __init__(self, factory: Callable[[], Session]) -> None:
+    def __init__(
+        self,
+        factory: Callable[[], Session],
+        *,
+        clock: Callable[[], datetime] | None = None,
+        lease_ttl: timedelta = DEFAULT_LEASE_TTL,
+    ) -> None:
         self._factory = factory
+        self._clock = clock or (lambda: datetime.now(UTC))
+        self._lease_ttl = lease_ttl
+
+    def _new_token(self) -> str:
+        return secrets.token_urlsafe(24)
 
     def resolve(
         self,
@@ -665,33 +756,39 @@ class PersistentIdempotencyRepository:
         request_hash: str,
     ) -> IdempotencyReservation:
         pid = _uuid_or_none(project_id)
-        with self._factory() as session:
-            with session.begin():
-                existing = session.get(
-                    ResearchInputIdempotencyModel,
-                    (session_id, pid, idempotency_key),
-                )
-                if existing is not None:
-                    return _reservation_from_row(existing, request_hash)
+        now = self._clock()
+        with self._factory() as session, session.begin():
+            existing = session.get(
+                ResearchInputIdempotencyModel, (session_id, pid, idempotency_key)
+            )
+            if existing is not None:
+                return _reservation_from_row(existing, request_hash, now=now)
 
-                row = ResearchInputIdempotencyModel(
-                    session_id=session_id,
-                    project_id=pid,
-                    idempotency_key=idempotency_key,
-                    request_hash=request_hash,
-                    input_id=None,
-                    status=IDEMPOTENCY_PENDING,
-                    created_at=datetime.now(UTC),
+            token = self._new_token()
+            row = ResearchInputIdempotencyModel(
+                session_id=session_id,
+                project_id=pid,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                input_id=None,
+                status=IDEMPOTENCY_PENDING,
+                lease_token=token,
+                lease_expires_at=now + self._lease_ttl,
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(row)
+            try:
+                session.flush()
+            except IntegrityError:
+                session.rollback()
+            else:
+                return IdempotencyReservation(
+                    replayed_input_id=None,
+                    reserved=True,
+                    lease_token=token,
+                    lease_expires_at=now + self._lease_ttl,
                 )
-                session.add(row)
-                try:
-                    session.flush()
-                except IntegrityError:
-                    session.rollback()
-                else:
-                    return IdempotencyReservation(
-                        replayed_input_id=None, reserved=True
-                    )
 
         # Lost the insert race: the winner's row is authoritative.
         with self._factory() as session, session.begin():
@@ -700,40 +797,34 @@ class PersistentIdempotencyRepository:
             )
             if winner is None:
                 raise _conflict_unresolved()
-            return _reservation_from_row(winner, request_hash)
+            return _reservation_from_row(winner, request_hash, now=now)
 
-    def complete(
+    def release(
         self,
         *,
         session_id: str,
         project_id: str,
         idempotency_key: str,
-        input_id: str,
+        lease_token: str,
     ) -> None:
         pid = _uuid_or_none(project_id)
         with self._factory() as session, session.begin():
             row = session.get(
-                ResearchInputIdempotencyModel, (session_id, pid, idempotency_key)
+                ResearchInputIdempotencyModel,
+                (session_id, pid, idempotency_key),
+                with_for_update=True,
             )
             if row is None:
                 return
-            row.input_id = _uuid_or_none(input_id)
-            row.status = IDEMPOTENCY_COMPLETED
-
-    def release(
-        self, *, session_id: str, project_id: str, idempotency_key: str
-    ) -> None:
-        pid = _uuid_or_none(project_id)
-        with self._factory() as session, session.begin():
-            row = session.get(
-                ResearchInputIdempotencyModel, (session_id, pid, idempotency_key)
-            )
-            if row is not None and row.status == IDEMPOTENCY_PENDING:
+            if row.status == IDEMPOTENCY_PENDING and row.lease_token == lease_token:
                 session.delete(row)
 
 
+# ---- state-machine helpers -------------------------------------------------
+
+
 def _reservation_from_row(
-    row: ResearchInputIdempotencyModel, request_hash: str
+    row: ResearchInputIdempotencyModel, request_hash: str, *, now: datetime
 ) -> IdempotencyReservation:
     if row.request_hash != request_hash:
         raise _idempotency_conflict()
@@ -741,10 +832,104 @@ def _reservation_from_row(
         return IdempotencyReservation(
             replayed_input_id=str(row.input_id), reserved=False
         )
-    raise _idempotency_in_progress()
+    # pending: decide in-progress vs reclaimable by lease expiry.
+    if row.lease_expires_at is not None and row.lease_expires_at > now:
+        raise _idempotency_in_progress()
+    # Stale lease: reclaim with a fresh token.
+    new_token = secrets.token_urlsafe(24)
+    new_expiry = now + DEFAULT_LEASE_TTL
+    row.lease_token = new_token
+    row.lease_expires_at = new_expiry
+    row.updated_at = now
+    return IdempotencyReservation(
+        replayed_input_id=None,
+        reserved=True,
+        lease_token=new_token,
+        lease_expires_at=new_expiry,
+    )
 
 
-# ---- helpers ---------------------------------------------------------------
+def _ensure_content_memory(
+    contents: dict[tuple[str, str], tuple[str, str, int]],
+    *,
+    project_id: str,
+    content_hash: str,
+    storage_ref: str,
+    mime_type: str,
+    size_bytes: int,
+) -> None:
+    key = (project_id, content_hash)
+    existing = contents.get(key)
+    if existing is not None:
+        _assert_content_consistent(existing, storage_ref, mime_type, size_bytes)
+        return
+    contents[key] = (storage_ref, mime_type, size_bytes)
+
+
+def _ensure_content_row(
+    session: Session,
+    *,
+    project_id: UUID,
+    content_hash: str,
+    storage_ref: str,
+    mime_type: str,
+    size_bytes: int,
+) -> None:
+    existing = session.get(
+        ResearchInputContentModel, (project_id, content_hash)
+    )
+    if existing is not None:
+        _assert_content_consistent(
+            (existing.storage_ref, existing.mime_type, existing.size_bytes),
+            storage_ref,
+            mime_type,
+            size_bytes,
+        )
+        return
+    row = ResearchInputContentModel(
+        project_id=project_id,
+        content_hash=content_hash,
+        storage_ref=storage_ref,
+        mime_type=mime_type,
+        size_bytes=size_bytes,
+        created_at=datetime.now(UTC),
+    )
+    session.add(row)
+    try:
+        session.flush()
+    except IntegrityError:
+        # Another worker won the upsert race; re-read the winner.
+        session.rollback()
+        winner = session.get(
+            ResearchInputContentModel, (project_id, content_hash)
+        )
+        if winner is None:
+            raise _conflict_unresolved() from None
+        _assert_content_consistent(
+            (winner.storage_ref, winner.mime_type, winner.size_bytes),
+            storage_ref,
+            mime_type,
+            size_bytes,
+        )
+
+
+def _assert_content_consistent(
+    existing: tuple[str, str, int],
+    storage_ref: str,
+    mime_type: str,
+    size_bytes: int,
+) -> None:
+    ex_ref, ex_mime, ex_size = existing
+    if ex_ref != storage_ref or ex_size != size_bytes or ex_mime != mime_type:
+        raise SecurityProblem(
+            status=500,
+            code="CONTENT_INTEGRITY_CONFLICT",
+            title="Content integrity conflict",
+            detail="An existing content row with the same hash has different bytes",
+        )
+
+
+# ---- value helpers ---------------------------------------------------------
 
 
 def _source_type_for(payload: ResearchInputCreate) -> str:
@@ -760,15 +945,6 @@ def _snapshot_url(source: SourceSnapshotRecord | None) -> str | None:
         return None
     query = source.query
     return query if isinstance(query, str) else str(query)
-
-
-def _snapshot_query_url(session: Session, row: ResearchInputModel) -> str | None:
-    if row.source_snapshot_id is None:
-        return None
-    snapshot = session.get(SourceSnapshotModel, row.source_snapshot_id)
-    if snapshot is None or not isinstance(snapshot.query, str):
-        return None
-    return snapshot.query
 
 
 def _persist_snapshot(
@@ -794,7 +970,40 @@ def _persist_snapshot(
     return snapshot.id
 
 
-def _record(row: ResearchInputModel, *, url: str | None = None) -> ResearchInputRecord:
+def _record(
+    row: ResearchInputModel,
+    *,
+    session: Session | None = None,
+    content: tuple[str, str | None, int] | None = None,
+    url: str | None = None,
+) -> ResearchInputRecord:
+    if content is not None:
+        storage_ref, mime_type, size_bytes = content
+    elif session is not None:
+        content_row = session.get(
+            ResearchInputContentModel, (row.project_id, row.content_hash)
+        )
+        storage_ref = content_row.storage_ref if content_row is not None else row.storage_ref
+        mime_type = (
+            content_row.mime_type
+            if content_row is not None and content_row.mime_type
+            else row.mime_type
+        )
+        size_bytes = (
+            content_row.size_bytes if content_row is not None else row.size_bytes
+        )
+    else:
+        storage_ref, mime_type, size_bytes = (
+            row.storage_ref,
+            row.mime_type,
+            row.size_bytes,
+        )
+    if url is None:
+        url = (
+            _snapshot_query_url(session, row)
+            if session is not None
+            else None
+        )
     return ResearchInputRecord(
         id=str(row.id),
         session_id=row.session_id,
@@ -802,10 +1011,10 @@ def _record(row: ResearchInputModel, *, url: str | None = None) -> ResearchInput
         type=ResearchInputType(row.type),
         source_type=row.source_type,
         content_hash=row.content_hash,
-        storage_ref=row.storage_ref,
+        storage_ref=storage_ref,
         filename=row.filename,
-        mime_type=row.mime_type,
-        size_bytes=row.size_bytes,
+        mime_type=mime_type,
+        size_bytes=size_bytes,
         status=ResearchInputStatus(row.status),
         source_snapshot_id=(
             str(row.source_snapshot_id) if row.source_snapshot_id is not None else None
@@ -816,23 +1025,13 @@ def _record(row: ResearchInputModel, *, url: str | None = None) -> ResearchInput
     )
 
 
-def _resurrect(
-    session: Session,
-    row: ResearchInputModel,
-    payload: ResearchInputCreate,
-    prepared: PreparedInput,
-) -> None:
-    row.type = payload.type.value
-    row.source_type = _source_type_for(payload)
-    row.storage_ref = prepared.storage_ref
-    row.filename = prepared.filename
-    row.mime_type = prepared.mime_type
-    row.size_bytes = prepared.size_bytes
-    row.status = ResearchInputStatus.accepted.value
-    row.source_snapshot_id = _persist_snapshot(
-        session, project_id=str(row.project_id), source=prepared.source_snapshot
-    )
-    row.expires_at = None
+def _snapshot_query_url(session: Session, row: ResearchInputModel) -> str | None:
+    if row.source_snapshot_id is None:
+        return None
+    snapshot = session.get(SourceSnapshotModel, row.source_snapshot_id)
+    if snapshot is None or not isinstance(snapshot.query, str):
+        return None
+    return snapshot.query
 
 
 def _upsert_binding(
@@ -848,9 +1047,7 @@ def _upsert_binding(
             input_id=input_id,
             project_id=_uuid_or_none(project_id),
             contract_draft_id=(
-                _uuid_or_none(contract_draft_id)
-                if contract_draft_id is not None
-                else None
+                _uuid_or_none(contract_draft_id) if contract_draft_id is not None else None
             ),
             run_id=_uuid_or_none(run_id) if run_id is not None else None,
             bound_at=datetime.now(UTC),
@@ -883,6 +1080,15 @@ def _idempotency_in_progress() -> SecurityProblem:
         code="IDEMPOTENCY_IN_PROGRESS",
         title="Idempotent request in progress",
         detail="An identical request with this Idempotency-Key is still being processed",
+    )
+
+
+def _idempotency_reservation_lost() -> SecurityProblem:
+    return SecurityProblem(
+        status=409,
+        code="IDEMPOTENCY_RESERVATION_LOST",
+        title="Idempotency reservation lost",
+        detail="The reservation lease was reclaimed by another request",
     )
 
 
@@ -948,6 +1154,7 @@ def _utc(value: datetime) -> datetime:
 
 
 __all__ = [
+    "DEFAULT_LEASE_TTL",
     "FILE_INPUT_TYPES",
     "IDEMPOTENCY_COMPLETED",
     "IDEMPOTENCY_PENDING",
@@ -959,5 +1166,5 @@ __all__ = [
     "PreparedInput",
     "ResearchInputIdempotencyRepository",
     "ResearchInputRecord",
-    "ResearchInputStore",
+    "ResearchInputRepository",
 ]

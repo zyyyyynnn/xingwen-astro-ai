@@ -3,13 +3,17 @@
 This is the use-case boundary for creating a Research Input. It owns the
 orchestration the HTTP router used to perform inline:
 
-* ownership is enforced by the repository it delegates to,
-* HTTP request identity (``Idempotency-Key``) is resolved *before* any side
-  effect, so a URL replay never issues a second network request,
-* content identity is computed from real bytes,
-* MIME/filename rules come from the injected domain policy,
+* **project ownership is the first domain gate** -- ``require_owned_project``
+  runs before idempotency, before any URL fetch, before any storage write and
+  before any snapshot persistence, so a foreign/missing/malformed project never
+  produces a side effect;
+* **HTTP request identity** (``Idempotency-Key``) is resolved next, so a URL
+  replay never issues a second network request;
+* **content identity** is computed from real bytes;
+* **MIME/filename** rules come from the injected domain policy;
 * content is published to immutable storage, provenance is persisted, and the
-  idempotency mapping is completed only once the resource exists.
+  input + idempotency completion are committed **atomically** under the
+  reservation's lease token.
 
 Nothing here imports FastAPI: the input is a plain
 :class:`ResearchInputIngestionCommand` and the output is a store record, so the
@@ -18,6 +22,7 @@ use case is testable without a transport.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 
 from app.schemas.research_input import (
@@ -38,10 +43,11 @@ from app.services.research_input_policy import (
     validate_declared_mime,
 )
 from app.services.research_input_store import (
+    IdempotencyReservation,
     PreparedInput,
     ResearchInputIdempotencyRepository,
     ResearchInputRecord,
-    ResearchInputStore,
+    ResearchInputRepository,
 )
 from app.services.url_fetcher import (
     UrlFetchConfig,
@@ -74,7 +80,7 @@ class ResearchInputIngestionService:
     def __init__(
         self,
         *,
-        repository: ResearchInputStore,
+        repository: ResearchInputRepository,
         idempotency_repository: ResearchInputIdempotencyRepository,
         content_storage: ContentStorage,
         policy: ResearchInputPolicy,
@@ -93,14 +99,24 @@ class ResearchInputIngestionService:
     ) -> ResearchInputRecord:
         """Ingest one input, honouring request idempotency before side effects."""
 
+        # 1. Ownership gate FIRST. No side effect may precede this.
+        canonical_project_id = self._repository.require_owned_project(
+            session_id=command.session_id,
+            project_id=command.project_id,
+        )
+
         if command.payload.type is ResearchInputType.url:
-            return await self._create_url(command)
-        return await self._create_bytes(command)
+            return await self._create_url(
+                command, canonical_project_id=canonical_project_id
+            )
+        return await self._create_bytes(
+            command, canonical_project_id=canonical_project_id
+        )
 
     # ---- URL ---------------------------------------------------------------
 
     async def _create_url(
-        self, command: ResearchInputIngestionCommand
+        self, command: ResearchInputIngestionCommand, *, canonical_project_id: str
     ) -> ResearchInputRecord:
         payload = command.payload
         assert payload.url is not None
@@ -109,7 +125,7 @@ class ResearchInputIngestionService:
         # fetched content: replay has to be decidable before the network is
         # touched at all.
         request_hash = canonical_research_input_request_hash(
-            project_id=command.project_id,
+            project_id=canonical_project_id,
             input_type=payload.type,
             url=payload.url,
             filename=payload.filename,
@@ -117,7 +133,7 @@ class ResearchInputIngestionService:
         )
         reservation = self._idempotency.resolve(
             session_id=command.session_id,
-            project_id=command.project_id,
+            project_id=canonical_project_id,
             idempotency_key=command.idempotency_key,
             request_hash=request_hash,
         )
@@ -134,35 +150,38 @@ class ResearchInputIngestionService:
                 raise _url_fetch_problem(exc) from exc
 
             self._assert_snapshot_consistency(result)
-            record = await self._persist(
-                command=command,
-                content=result.content_bytes,
-                content_hash=result.content_hash,
+            content = result.content_bytes
+            content_hash = result.content_hash
+            prepared = self._prepare(
+                command.payload,
+                content=content,
+                storage_ref="",
+                mime_hint=result.mime_type,
                 filename_hint=payload.filename,
                 source_snapshot=result.source_snapshot,
             )
         except Exception:
-            # A failed fetch must leave no completed mapping behind, so the
-            # same key stays retryable.
-            self._idempotency.release(
-                session_id=command.session_id,
-                project_id=command.project_id,
-                idempotency_key=command.idempotency_key,
-            )
+            # A failed fetch must not leave a completed mapping; release only
+            # the lease we actually hold.
+            self._release_on_failure(command, canonical_project_id, reservation)
             raise
 
-        self._idempotency.complete(
-            session_id=command.session_id,
-            project_id=command.project_id,
-            idempotency_key=command.idempotency_key,
-            input_id=record.id,
+        # Publish immutable bytes BEFORE the atomic commit (orphan blobs are
+        # safe: content-addressed, immutable, not publicly referenced).
+        storage_ref = await self._storage.store(content, content_hash)
+        prepared = dataclasses.replace(prepared, storage_ref=storage_ref)
+        return await self._commit(
+            command,
+            canonical_project_id=canonical_project_id,
+            prepared=prepared,
+            reservation=reservation,
+            request_hash=request_hash,
         )
-        return record
 
     # ---- text and upload ---------------------------------------------------
 
     async def _create_bytes(
-        self, command: ResearchInputIngestionCommand
+        self, command: ResearchInputIngestionCommand, *, canonical_project_id: str
     ) -> ResearchInputRecord:
         payload = command.payload
         if payload.type is ResearchInputType.text:
@@ -178,7 +197,7 @@ class ResearchInputIngestionService:
         # same filename but different bytes must conflict, not replay.
         content_hash = sha256_content_hash(content)
         request_hash = canonical_research_input_request_hash(
-            project_id=command.project_id,
+            project_id=canonical_project_id,
             input_type=payload.type,
             content_hash=content_hash,
             filename=filename_hint,
@@ -186,7 +205,7 @@ class ResearchInputIngestionService:
         )
         reservation = self._idempotency.resolve(
             session_id=command.session_id,
-            project_id=command.project_id,
+            project_id=canonical_project_id,
             idempotency_key=command.idempotency_key,
             request_hash=request_hash,
         )
@@ -194,44 +213,46 @@ class ResearchInputIngestionService:
             return self._replay(command, reservation.replayed_input_id)
 
         try:
-            record = await self._persist(
-                command=command,
+            storage_ref = await self._storage.store(content, content_hash)
+            prepared = self._prepare(
+                command.payload,
                 content=content,
-                content_hash=content_hash,
+                storage_ref=storage_ref,
+                mime_hint=None,
                 filename_hint=filename_hint,
                 source_snapshot=None,
             )
         except Exception:
-            self._idempotency.release(
-                session_id=command.session_id,
-                project_id=command.project_id,
-                idempotency_key=command.idempotency_key,
-            )
+            self._release_on_failure(command, canonical_project_id, reservation)
             raise
 
-        self._idempotency.complete(
-            session_id=command.session_id,
-            project_id=command.project_id,
-            idempotency_key=command.idempotency_key,
-            input_id=record.id,
+        return await self._commit(
+            command,
+            canonical_project_id=canonical_project_id,
+            prepared=prepared,
+            reservation=reservation,
+            request_hash=request_hash,
         )
-        return record
 
     # ---- shared ------------------------------------------------------------
 
-    async def _persist(
+    def _prepare(
         self,
+        payload: ResearchInputCreate,
         *,
-        command: ResearchInputIngestionCommand,
         content: bytes,
-        content_hash: str,
+        storage_ref: str,
+        mime_hint: str | None,
         filename_hint: str | None,
-        source_snapshot=None,  # noqa: ANN001 - SourceSnapshotRecord | None
-    ) -> ResearchInputRecord:
-        mime_type = self._resolve_mime(command.payload, sniff_mime_type(content))
+        source_snapshot,
+    ) -> PreparedInput:
+        """Resolve MIME (from real bytes) and a safe filename, then build facts."""
+
+        content_hash = sha256_content_hash(content)
+        sniffed = sniff_mime_type(content)
+        mime_type = self._resolve_mime(payload, sniffed, mime_hint)
         filename = self._clean_filename(filename_hint, mime_type)
-        storage_ref = await self._storage.store(content, content_hash)
-        prepared = PreparedInput(
+        return PreparedInput(
             content_hash=content_hash,
             storage_ref=storage_ref,
             size_bytes=len(content),
@@ -239,12 +260,48 @@ class ResearchInputIngestionService:
             filename=filename,
             source_snapshot=source_snapshot,
         )
-        return self._repository.create(
-            session_id=command.session_id,
-            project_id=command.project_id,
-            payload=command.payload,
-            prepared=prepared,
-        )
+
+    async def _commit(
+        self,
+        command: ResearchInputIngestionCommand,
+        *,
+        canonical_project_id: str,
+        prepared: PreparedInput,
+        reservation: IdempotencyReservation,
+        request_hash: str,
+    ) -> ResearchInputRecord:
+        try:
+            record = self._repository.commit_ingestion(
+                session_id=command.session_id,
+                project_id=canonical_project_id,
+                payload=command.payload,
+                prepared=prepared,
+                idempotency_key=command.idempotency_key,
+                lease_token=reservation.lease_token or "",
+                request_hash=request_hash,
+            )
+        except Exception:
+            # The atomic commit failed (e.g. a stale lease was reclaimed): the
+            # input was never created and the reservation is left pending (or
+            # already reclaimed), so the request stays retryable. Release only
+            # when we still hold the token we reserved.
+            self._release_on_failure(command, canonical_project_id, reservation)
+            raise
+        return record
+
+    def _release_on_failure(
+        self,
+        command: ResearchInputIngestionCommand,
+        canonical_project_id: str,
+        reservation: IdempotencyReservation,
+    ) -> None:
+        if reservation.lease_token is not None:
+            self._idempotency.release(
+                session_id=command.session_id,
+                project_id=canonical_project_id,
+                idempotency_key=command.idempotency_key,
+                lease_token=reservation.lease_token,
+            )
 
     def _replay(
         self, command: ResearchInputIngestionCommand, input_id: str
@@ -262,12 +319,15 @@ class ResearchInputIngestionService:
         return record
 
     def _resolve_mime(
-        self, payload: ResearchInputCreate, sniffed_mime: str | None
+        self,
+        payload: ResearchInputCreate,
+        sniffed_mime: str | None,
+        client_mime: str | None,
     ) -> str | None:
         resolved = validate_declared_mime(
             declared_type=payload.type,
             sniffed_mime=sniffed_mime,
-            client_mime=payload.mime_type,
+            client_mime=client_mime,
             allowed_mimes=self._policy.allowed_mimes,
         )
         if resolved is None:

@@ -28,6 +28,11 @@
     },
     {
       "module": "app.schemas.research_input",
+      "name": "CreateResearchInputMultipartRequest",
+      "path": "json/CreateResearchInputMultipartRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.research_input",
       "name": "CreateResearchInputRequest",
       "path": "json/CreateResearchInputRequest.schema.json"
     },

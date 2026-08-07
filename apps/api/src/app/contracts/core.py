@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Annotated, Any, NoReturn, cast
 
-from fastapi import FastAPI, Header, Path, Query, Response
+from fastapi import Body, FastAPI, Header, Path, Query, Response
 from pydantic import TypeAdapter
 
 from app.schemas.core import (
@@ -56,8 +56,8 @@ from app.schemas.paper_collection_api import (
 from app.schemas.paper_summary_api import PaperSummaryRead
 from app.schemas.research_input import (
     BindResearchInputRequest,
-    CreateResearchInputJsonRequest,
     CreateResearchInputMultipartRequest,
+    CreateResearchInputRequest,
     ResearchInputDetail,
     ResearchInputRef,
 )
@@ -563,7 +563,7 @@ def create_contract_app() -> FastAPI:
         ),
     )
     def create_research_input(
-        request: CreateResearchInputJsonRequest,
+        request: Annotated[CreateResearchInputRequest, Body()],
         idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
         csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
     ) -> NoReturn:

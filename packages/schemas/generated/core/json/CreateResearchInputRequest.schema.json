@@ -1,88 +1,133 @@
 {
   "$defs": {
-    "ResearchInputType": {
-      "enum": [
-        "url",
-        "pdf",
-        "csv",
-        "json",
-        "image",
-        "text"
-      ],
-      "title": "ResearchInputType",
-      "type": "string"
-    }
-  },
-  "additionalProperties": false,
-  "description": "JSON transport for URL and text ingestion (files use multipart).",
-  "properties": {
-    "filename": {
-      "anyOf": [
-        {
-          "maxLength": 255,
+    "TextResearchInputRequest": {
+      "additionalProperties": false,
+      "description": "JSON create for ``type=text``: the body carries the text itself.",
+      "properties": {
+        "filename": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Filename"
+        },
+        "mime_type": {
+          "anyOf": [
+            {
+              "maxLength": 127,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mime Type"
+        },
+        "project_id": {
+          "maxLength": 128,
           "minLength": 1,
+          "title": "Project Id",
           "type": "string"
         },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Filename"
-    },
-    "mime_type": {
-      "anyOf": [
-        {
-          "maxLength": 127,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Mime Type"
-    },
-    "project_id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Project Id",
-      "type": "string"
-    },
-    "text_content": {
-      "anyOf": [
-        {
+        "text_content": {
           "maxLength": 100000,
+          "minLength": 1,
+          "title": "Text Content",
           "type": "string"
         },
-        {
-          "type": "null"
+        "type": {
+          "const": "text",
+          "title": "Type",
+          "type": "string"
         }
+      },
+      "required": [
+        "type",
+        "project_id",
+        "text_content"
       ],
-      "default": null,
-      "title": "Text Content"
+      "title": "TextResearchInputRequest",
+      "type": "object"
     },
-    "type": {
-      "$ref": "#/$defs/ResearchInputType"
-    },
-    "url": {
-      "anyOf": [
-        {
+    "UrlResearchInputRequest": {
+      "additionalProperties": false,
+      "description": "JSON create for ``type=url``: a URL is fetched server-side.\n\nModelled as its own type (not a nullable mega-model) so the generated JSON\nSchema *machine-level* forbids ``text_content`` and file semantics here\ninstead of relying on a runtime-only validator.",
+      "properties": {
+        "filename": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Filename"
+        },
+        "mime_type": {
+          "anyOf": [
+            {
+              "maxLength": 127,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mime Type"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "url",
+          "title": "Type",
+          "type": "string"
+        },
+        "url": {
           "maxLength": 2048,
+          "minLength": 1,
+          "title": "Url",
           "type": "string"
-        },
-        {
-          "type": "null"
         }
+      },
+      "required": [
+        "type",
+        "project_id",
+        "url"
       ],
-      "default": null,
-      "title": "Url"
+      "title": "UrlResearchInputRequest",
+      "type": "object"
     }
   },
-  "required": [
-    "type",
-    "project_id"
-  ],
-  "title": "CreateResearchInputRequest",
-  "type": "object"
+  "discriminator": {
+    "mapping": {
+      "text": "#/$defs/TextResearchInputRequest",
+      "url": "#/$defs/UrlResearchInputRequest"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/UrlResearchInputRequest"
+    },
+    {
+      "$ref": "#/$defs/TextResearchInputRequest"
+    }
+  ]
 }

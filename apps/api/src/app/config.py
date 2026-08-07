@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     )
     RESEARCH_INPUT_UPLOAD_DIR: Path = Path(".data/research-inputs")
     RESEARCH_INPUT_RATE_LIMIT: int = Field(default=30, gt=0)
+    # Lease window for a pending idempotency reservation. Must comfortably
+    # exceed the worst-case URL fetch (timeout * (max_redirects + 1)) plus a
+    # margin, so a reservation is never reclaimed while a legitimate fetch is
+    # still in flight.
+    RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS: int = Field(default=300, gt=0)
 
     # URL fetch (B-19). Defaults are fail-closed: only HTTPS is allowed and an
     # empty host allowlist rejects every external fetch until a domain is
@@ -142,6 +147,13 @@ class Settings(BaseSettings):
         if self.URL_FETCH_MAX_RESPONSE_BYTES > self.RESEARCH_INPUT_MAX_SIZE_BYTES:
             raise ValueError(
                 "URL_FETCH_MAX_RESPONSE_BYTES must not exceed RESEARCH_INPUT_MAX_SIZE_BYTES"
+            )
+        lease = self.RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS
+        url_budget = self.URL_FETCH_TIMEOUT_SECONDS * (self.URL_FETCH_MAX_REDIRECTS + 1)
+        if lease <= url_budget:
+            raise ValueError(
+                "RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS must exceed "
+                "URL_FETCH_TIMEOUT_SECONDS * (URL_FETCH_MAX_REDIRECTS + 1)"
             )
         if self.SESSION_COOKIE_SAMESITE.lower() not in {"lax", "strict", "none"}:
             raise ValueError("SESSION_COOKIE_SAMESITE must be lax, strict, or none")

@@ -14,11 +14,13 @@ from urllib.parse import urljoin
 
 import pytest
 
+from app.security import canonical_request_hash
 from app.services.url_fetcher import (
     UrlFetchConfig,
     UrlFetchError,
     fetch_url,
     sanitize_url_for_display,
+    sanitize_url_for_persistence,
     validate_url_policy,
 )
 from app.services import url_fetcher as url_fetcher_module
@@ -178,6 +180,25 @@ def test_validate_url_policy_allows_private_only_with_test_escape_hatch(
 # -- fetch -------------------------------------------------------------------
 
 
+def snapshot_query_hash_changes_with_query(result: Any) -> bool:
+    """Provenance keeps exact request identity only through the query_hash.
+
+    Same path + different query value must yield the same sanitized URL but a
+    *different* query_hash, so reproducibility survives while raw values never
+    persist.
+    """
+    full = "https://example.com/data.csv?token=secret&page=2"
+    other = "https://example.com/data.csv?token=other&page=3"
+    hash_full = canonical_request_hash({"url": full})
+    hash_other = canonical_request_hash({"url": other})
+    # query_hash retains the EXACT requested URL (one-way), so it must differ
+    # for different queries even though the sanitized URL is identical.
+    return (
+        hash_full != hash_other
+        and result.final_url == "https://example.com/data.csv"
+    )
+
+
 @pytest.mark.anyio
 async def test_fetch_url_builds_immutable_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_http = FakeHttpx(
@@ -201,8 +222,12 @@ async def test_fetch_url_builds_immutable_provenance(monkeypatch: pytest.MonkeyP
     assert result.content_bytes == b"a,b\n1,2\n"
     assert result.mime_type == "text/csv"
     assert result.status_code == 200
+    # Raw query values never persist or surface; final_url keeps scheme/host/path only.
     assert "token" not in result.final_url
-    assert "page=2" in result.final_url
+    assert "page=2" not in result.final_url
+    assert result.final_url == "https://example.com/data.csv"
+    # Exact request identity survives only as a one-way hash of the full URL.
+    assert snapshot_query_hash_changes_with_query(result)
     snapshot = result.source_snapshot
     assert snapshot.source_type == "url_fetch"
     assert snapshot.content_hash == result.content_hash
@@ -298,22 +323,36 @@ async def test_fetch_url_maps_transport_errors(monkeypatch: pytest.MonkeyPatch) 
 
 
 
-# -- display sanitization ----------------------------------------------------
+# -- display / persistence sanitization ------------------------------------
 
 
-def test_sanitize_url_for_display_redacts_credentials_and_sensitive_query() -> None:
-    redacted = sanitize_url_for_display(
+def test_sanitize_url_for_persistence_drops_whole_query_and_fragment() -> None:
+    # Deny-by-default: the entire query (and fragment) is dropped regardless of
+    # parameter name; only scheme/host/path survive. The exact request
+    # identity is retained separately as a one-way query_hash.
+    redacted = sanitize_url_for_persistence(
         "https://user:pass@example.com/a.csv?access_token=abc&page=2"
     )
     assert redacted == "[REDACTED]"
 
-    sanitized = sanitize_url_for_display(
+    sanitized = sanitize_url_for_persistence(
         "https://example.com/a.csv?apikey=abc&sig=xyz&q=planets&page=2"
     )
     assert "apikey" not in sanitized
     assert "sig" not in sanitized
-    assert "q=planets" in sanitized
-    assert "page=2" in sanitized
+    assert "q=planets" not in sanitized
+    assert "page=2" not in sanitized
+    assert "?" not in sanitized
+    assert sanitized == "https://example.com/a.csv"
 
-    plain = sanitize_url_for_display("https://example.com/a.csv?page=2")
-    assert plain == "https://example.com/a.csv?page=2"
+    plain = sanitize_url_for_persistence("https://example.com/a.csv?page=2")
+    assert plain == "https://example.com/a.csv"
+
+    frag = sanitize_url_for_persistence("https://example.com/a.csv#section")
+    assert frag == "https://example.com/a.csv"
+
+
+def test_sanitize_url_for_display_matches_persistence() -> None:
+    url = "https://example.com/a.csv?apikey=abc&q=planets&page=2"
+    assert sanitize_url_for_display(url) == sanitize_url_for_persistence(url)
+    assert sanitize_url_for_display(url) == "https://example.com/a.csv"

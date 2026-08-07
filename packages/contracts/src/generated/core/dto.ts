@@ -2411,14 +2411,9 @@ export interface CreateArtifactExportRequest {
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CreateResearchInputRequest".
  */
-export interface CreateResearchInputRequest {
-  filename?: string | null;
-  mime_type?: string | null;
-  project_id: string;
-  text_content?: string | null;
-  type: ResearchInputType;
-  url?: string | null;
-}
+export type CreateResearchInputRequest =
+  | UrlResearchInputRequest
+  | TextResearchInputRequest;
 /**
  * A typed candidate pinned to one immutable ArtifactVersion.
  *

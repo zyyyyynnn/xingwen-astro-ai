@@ -11611,14 +11611,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "discriminator": {
-                  "mapping": {
-                    "text": "#/components/schemas/TextResearchInputRequest",
-                    "url": "#/components/schemas/UrlResearchInputRequest"
-                  },
-                  "propertyName": "type"
-                },
-                "oneOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/UrlResearchInputRequest"
                   },

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -147,13 +148,21 @@ def create_app() -> FastAPI:
     from app.services.url_fetcher import UrlFetchConfig
 
     app.state.content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
+    lease_ttl = timedelta(seconds=settings.RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS)
     if database_engine is not None:
         factory = session_factory(database_engine)
         app.state.research_input_store = PersistentResearchInputStore(factory)
-        app.state.research_input_idempotency = PersistentIdempotencyRepository(factory)
+        app.state.research_input_idempotency = PersistentIdempotencyRepository(
+            factory, lease_ttl=lease_ttl
+        )
     else:
         app.state.research_input_store = InMemoryResearchInputStore()
-        app.state.research_input_idempotency = InMemoryIdempotencyRepository()
+        app.state.research_input_idempotency = InMemoryIdempotencyRepository(
+            lease_ttl=lease_ttl
+        )
+        app.state.research_input_store.bind_idempotency(
+            app.state.research_input_idempotency
+        )
 
     # The ingestion policy is resolved from settings once, here, so the domain
     # layer never reaches back into global configuration.

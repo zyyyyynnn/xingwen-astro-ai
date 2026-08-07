@@ -16,8 +16,7 @@ import secrets
 import socket
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -30,25 +29,9 @@ from app.schemas.research_input import (
 
 _READ_CHUNK_BYTES = 65536
 
-_SENSITIVE_QUERY_KEY_FRAGMENTS = frozenset(
-    {
-        "access_token",
-        "apikey",
-        "auth",
-        "authorization",
-        "credential",
-        "password",
-        "privatekey",
-        "refresh_token",
-        "secret",
-        "session",
-        "sig",
-        "signature",
-        "token",
-    }
-)
-
 #: Response headers that may enter ``request_metadata`` (normalized keys).
+#: This is an allowlist of *response* metadata, independent of URL query
+#: redaction -- it never carries request secrets.
 _SAFE_RESPONSE_HEADER_KEYS = frozenset(
     {
         "content_encoding",
@@ -168,7 +151,24 @@ def validate_url_policy(url: str, config: UrlFetchConfig) -> None:
 
 
 def sanitize_url_for_display(url: str) -> str:
-    """Redact credentials and sensitive query parameters for public DTOs."""
+    """Return ``url`` with the whole query and fragment stripped.
+
+    Query values are never persisted or displayed regardless of parameter name:
+    the secret boundary is deny-by-default, not a name blocklist. Only
+    scheme/host/path survive. The exact request identity is retained separately
+    as a one-way ``query_hash`` (see :func:`sanitize_url_for_persistence`).
+    """
+
+    return sanitize_url_for_persistence(url)
+
+
+def sanitize_url_for_persistence(url: str) -> str:
+    """Persist only scheme/host/path; drop query values and fragment entirely.
+
+    The complete URL string is used solely as input to ``query_hash`` so exact
+    request identity survives for reproducibility; the raw query never lands in
+    the database, logs, errors or public DTOs.
+    """
 
     try:
         parsed = urlsplit(url)
@@ -178,14 +178,7 @@ def sanitize_url_for_display(url: str) -> str:
         return url
     if parsed.username is not None or parsed.password is not None:
         return "[REDACTED]"
-    safe_query = [
-        (key, value)
-        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
-        if not _key_is_sensitive(key)
-    ]
-    return urlunsplit(
-        (parsed.scheme, parsed.netloc, parsed.path, urlencode(safe_query), "")
-    )
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
 
 
 def _validate_url(url: str, config: UrlFetchConfig) -> str:
@@ -303,12 +296,6 @@ def _safe_response_headers(response: httpx.Response) -> dict[str, str]:
 
 def _normalize_header_key(key: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
-
-
-def _key_is_sensitive(key: str) -> bool:
-    normalized = re.sub(r"[^a-z0-9]+", "_", key.casefold()).strip("_")
-    segments = frozenset(normalized.split("_"))
-    return bool(segments & _SENSITIVE_QUERY_KEY_FRAGMENTS)
 
 
 __all__ = [

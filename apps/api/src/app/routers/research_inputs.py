@@ -32,9 +32,10 @@ from app.schemas.research_input import (
     RESEARCH_INPUT_NOT_FOUND,
     RESEARCH_INPUT_TOO_LARGE,
     BindResearchInputRequest,
-    CreateResearchInputJsonRequest,
+    CreateResearchInputMultipartRequest,
     CreateResearchInputRequest,
     FILE_INPUT_TYPES,
+    ResearchInputCreate,
     ResearchInputDetail,
     ResearchInputRef,
     ResearchInputType,
@@ -44,7 +45,7 @@ from app.services.research_input_ingestion import (
     ResearchInputIngestionCommand,
     ResearchInputIngestionService,
 )
-from app.services.research_input_store import ResearchInputRecord, ResearchInputStore
+from app.services.research_input_store import ResearchInputRepository
 
 router = APIRouter(prefix="/api", tags=["research-inputs"])
 
@@ -53,11 +54,11 @@ _READ_CHUNK_BYTES = 65536
 _MAX_UPLOAD_FILES = 1
 _MAX_FORM_FIELDS = 12
 
-_JSON_REQUEST_ADAPTER = TypeAdapter(CreateResearchInputJsonRequest)
+_JSON_REQUEST_ADAPTER = TypeAdapter(CreateResearchInputRequest)
 _BIND_REQUEST_ADAPTER = TypeAdapter(BindResearchInputRequest)
 
 
-def _store(request: Request) -> ResearchInputStore:
+def _store(request: Request) -> ResearchInputRepository:
     store = request.app.state.research_input_store
     if store is None:
         raise SecurityProblem(
@@ -327,12 +328,14 @@ async def _parse_multipart(
         ) as form:
             values: dict[str, Any] = {
                 key: _form_str(form, key)
-                for key in ("project_id", "type", "url", "filename", "mime_type", "text_content")
+                for key in ("project_id", "type", "filename", "mime_type")
             }
             file = form.get("file")
             file = file if isinstance(file, UploadFile) else None
             content = await _read_upload(file, max_file_bytes) if file else None
             file_name = file.filename if file is not None else None
+            if content is not None:
+                values["file"] = content
     except RequestBodyTooLarge as exc:
         raise _too_large() from exc
     except SecurityProblem:
@@ -365,20 +368,17 @@ async def _parse_multipart(
     return payload, content, file_name
 
 
-def _validate_multipart_values(values: dict[str, Any]) -> CreateResearchInputRequest:
+def _validate_multipart_values(values: dict[str, Any]) -> CreateResearchInputMultipartRequest:
     try:
-        return CreateResearchInputRequest.model_validate(values)
+        return CreateResearchInputMultipartRequest.model_validate(values)
     except ValidationError as exc:
         raise _schema_validation_failed(exc) from exc
 
 
-def _as_domain_payload(payload: Any) -> CreateResearchInputRequest:  # noqa: ANN401
+def _as_domain_payload(payload: Any) -> ResearchInputCreate:  # noqa: ANN401
     """Normalize either transport model onto the shared domain payload."""
 
-    if isinstance(payload, CreateResearchInputRequest):
-        return payload
-    return CreateResearchInputRequest(
-        project_id=payload.project_id,
+    return ResearchInputCreate(
         type=ResearchInputType(payload.type),
         url=getattr(payload, "url", None),
         text_content=getattr(payload, "text_content", None),

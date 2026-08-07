@@ -27,7 +27,6 @@ __all__ = [
     "BindResearchInputRequest",
     "BindResearchInputToContractRequest",
     "BindResearchInputToRunRequest",
-    "CreateResearchInputJsonRequest",
     "CreateResearchInputMultipartRequest",
     "CreateResearchInputRequest",
     "ResearchInputCreate",
@@ -131,12 +130,6 @@ class ResearchInputCreate(BaseModel):
         return self
 
 
-class CreateResearchInputRequest(ResearchInputCreate):
-    """JSON transport for URL and text ingestion (files use multipart)."""
-
-    project_id: Identifier
-
-
 class UrlResearchInputRequest(BaseModel):
     """JSON create for ``type=url``: a URL is fetched server-side.
 
@@ -167,9 +160,10 @@ class TextResearchInputRequest(BaseModel):
 
 
 #: The JSON create contract. Only ``url`` and ``text`` are reachable over
-#: ``application/json``; pdf/csv/json/image are multipart-only and are no
-#: longer legal members of the JSON request enum.
-CreateResearchInputJsonRequest = Annotated[
+#: ``application/json``; pdf/csv/json/image are multipart-only. The public name
+#: *is* the union -- there is exactly one authority for the JSON body, with no
+#: second mega-model or second JSON alias to drift from.
+CreateResearchInputRequest = Annotated[
     UrlResearchInputRequest | TextResearchInputRequest,
     Field(discriminator="type"),
 ]
