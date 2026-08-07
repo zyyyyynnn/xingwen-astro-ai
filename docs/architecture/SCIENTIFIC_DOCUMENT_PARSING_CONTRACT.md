@@ -5,223 +5,259 @@
 | Status | Accepted |
 | Authority | Scientific Document Parsing 冻结契约、Parser Port、Golden Set、Benchmark 与上游采用边界 |
 
-Frozen Canonical Contract, Parser Port, Golden Set, Benchmark and Upstream
-Adoption for the Scientific Document Parsing boundary. This document is the
-authoritative design record for **#190 D-10** and the handoff source for
-**#191 D-11** (Hybrid Parser) and **#192 B-20** (DocumentParse persistence).
-
-Scope is **exoplanet_host_star** only. Everything below is MVP-fixed; do not
-generalize to universal Document AI, web parsing, FITS analysis, plot
-digitization, or a second Evidence/Workflow/Version system.
+This document is the authoritative design record for **#190 D-10** and the
+handoff source for **#191 D-11** (Hybrid Parser) and **#192 B-20**
+(DocumentParse persistence). Scope is the fixed `exoplanet_host_star` MVP only;
+it is not a universal Document AI, Web parser, FITS pipeline, plot digitizer, or
+second Evidence/Workflow/Version system.
 
 ## 1. Ownership boundary
 
 | Xingwen owns | Upstream owns |
-|---|---|
-| Contract (this schema) | PDF parsing |
+| --- | --- |
+| Canonical Contract | PDF parsing |
 | Evidence / locator semantics | OCR |
-| Quality semantics | layout |
-| Version / hash | table recognition |
-| Benchmark | formula recognition |
+| Parse quality semantics | layout |
+| Version / hashes | table recognition |
+| Golden Set / Benchmark | formula recognition |
 | Workflow boundary | visual document understanding |
 
-We **adopt, adapt, normalize, validate, benchmark, govern** — never
-**read-then-rewrite** a third-party engine.
+The implementation rule is **adopt → adapt → normalize → validate → benchmark →
+govern**. `docs/references/**` is never production implementation Authority;
+reading third-party source and hand-rewriting an equivalent parser is forbidden.
 
-## 2. Canonical Contract (single source)
+## 2. Canonical Contract
 
-`apps/api/src/app/schemas/scientific_document.py` is the ONLY authoritative
-schema source. `compute_scientific_document_schema_hash()` yields a stable
-`sha256:` hash of the JSON schemas (Pydantic `json_schema(mode="serialization")`,
-sorted, so declaration order cannot change the hash). Version
-`SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.0.0"`.
+Single authoring source:
+`apps/api/src/app/schemas/scientific_document.py`.
 
-Exposed models: `DocumentParseInput`, `DocumentParseCandidate`, `DocumentPage`,
+- `SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.1.0"`.
+- `compute_scientific_document_schema_hash()` fingerprints the exported Pydantic
+  JSON Schemas deterministically.
+- Canonical models contain no vendor types/imports. Vendor identity is plain
+  provenance data (`native_engine`, `visual_model_id`, profile fields).
+- `DocumentParseCandidate` validates aggregate referential integrity before it
+  can cross the Port boundary.
+
+Core models: `DocumentParseInput`, `DocumentParseCandidate`, `DocumentPage`,
 `DocumentBlock`, `DocumentTable`, `DocumentTableCell`, `DocumentFormula`,
-`DocumentFigure`, `DocumentLocator`, `DocumentParseQuality`, `DocumentBBox`,
-`TextSpan`, `ScientificDataExtractionCandidate`, `DocumentParseProfile`.
+`DocumentFigure`, `DocumentLocator`, `DocumentBBox`, `TextSpan`,
+`DocumentParseProfile`, `ScientificDataExtractionCandidate`.
 
-Benchmark models live in `scientific_document_benchmark.py`: `GoldenSetManifest`,
-`GoldenSetEntry`, `BenchmarkReport`, `BenchmarkCaseResult`, `BenchmarkMetricValue`.
+## 3. Parser Port
 
-**No vendor type enters the Canonical schema.** Vendor identity is carried only
-as `str` provenance (`native_engine`, `visual_model_id`, `parser_profile_id`).
+`apps/api/src/app/services/scientific_document/ports.py` exposes exactly one
+vendor-neutral capability:
 
-## 3. Parser Port (vendor-neutral)
+```text
+DocumentParserPort.parse_document(
+    input: DocumentParseInput
+) -> DocumentParseCandidate
+```
 
-`apps/api/src/app/services/scientific_document/ports.py` defines
-`DocumentParserPort` (Protocol) with `parse_document(input: DocumentParseInput)
--> DocumentParseCandidate`. It expresses Xingwen's needed capability, never a
-vendor object. D-11 implements this port; D-10 ships only the interface.
+There is no parallel `ParseRequest`/`ParseResult` DTO and no output→input
+reconstruction. `source_type` and `mime_type` are caller-supplied facts; they are
+never guessed. D-11 adapters map approved upstream output into this Contract.
 
-## 4. Quality semantics (anti-hallucination)
+## 4. Quality semantics
 
-- **accepted** — current parser/profile reached admission conditions for the
-  usable region; may become downstream Evidence / input. NOT "scientific fact
-  verified".
-- **partial** — only part parsed. Downstream may use the clearly valid part, but
-  MUST keep `unparsed != absent`. A missing recognition is NEVER "does not exist
-  in the paper".
-- **unsupported** — current parser/profile cannot reliably process. No fabricated
-  full text; no downstream model may auto-complete the gap.
+- `accepted`: current parser/profile produced a usable admitted region. It does
+  **not** mean a scientific fact is verified.
+- `partial`: valid regions may be used, but `unparsed != absent` must propagate.
+- `unsupported`: the parser/profile cannot reliably process the region; no
+  fabricated text/structure may be emitted or auto-completed downstream.
 
-## 5. Block model
+Whole-document `unsupported` cannot contain accepted blocks. Unsupported tables
+cannot carry structured rows; unsupported formula/figure objects cannot carry
+recognized textual payload.
 
-`DocumentBlockKind`: `heading, paragraph, list, table, formula, figure, caption,
-reference, footnote`. Every block has stable identity (`block_id`),
-`page_index`, `reading_order`, `bbox`, kind, `quality`, and `parser_backend` /
-`parser_profile_id` provenance. Third-party raw schema is never the Domain.
+## 5. Locator and geometry
 
-## 6. Locator contract
+`DocumentLocator` is the single locator representation:
+`page_index`, optional `block_id`, `bbox`, `reading_order`, `text_span`,
+`table_id`, `cell_id`.
 
-`DocumentLocator`: `page_index`, `block_id`, `bbox` (top-left origin, absolute
-PDF points, inclusive, page-relative, NOT normalized), `reading_order`, optional
-`text_span`, `table_id`, `cell_id`. `bbox` is `None` when unknown (never a
-zero-rect pretending to be unknown). Coordinates are absolute points in the page's
-own width/height space — there is no normalized 0..1 representation anywhere in
-the contract. Empty / unknown semantics are explicit.
+Coordinate system is fixed:
+
+- origin: page top-left;
+- x rightward, y downward;
+- absolute PDF points, page-relative;
+- **not normalized** (no 0..1 representation);
+- unknown geometry is `None`, never a zero rectangle.
+
+`cell_id` requires `table_id`; `text_span` requires `block_id`. B-20 is
+responsible for validating persisted locators against the immutable parse.
+
+## 6. Aggregate integrity
+
+`DocumentParseCandidate` fails closed on:
+
+- duplicate page/block/table identities;
+- block missing from its page or appearing more than once in page membership;
+- cross-page/dangling references;
+- duplicate per-page reading order;
+- block/table-cell/formula/figure bbox escaping page geometry;
+- table/formula/figure references to the wrong block kind;
+- parser-profile/config/native/visual provenance inconsistencies.
+
+Every canonical block must appear exactly once in its owning
+`DocumentPage.block_ids`.
 
 ## 7. Table / Formula / Figure
 
-- **Table**: `table_id`, page/block identity, `rows` (rectangular
-  `tuple[tuple[DocumentTableCell, ...], ...]`), header semantics, `row_span` /
-  `column_span`, per-cell `bbox` / indices / `raw text` / `quality`. Cross-page
-  tables cannot be reliably merged → `partial`. No cell guessing.
-- **Formula**: `block_id`, `page_index`, `bbox`, `raw_text` where available,
-  `latex` where upstream provides it. raw AND normalized may coexist. Recognition
-  failure must NOT be LLM-completed.
-- **Figure** (Phase 1): block identity, `bbox`, `caption`, `title`, axis/legend/
-  visible OCR labels, `quality`/`provenance`. **Explicitly forbidden**: plot
-  digitization, curve recovery, scatter-point recovery, scientific pixel
-  measurement.
+### Table
 
-## 8. ScientificDataExtractionCandidate boundary
+`DocumentTable` has `row_count`, `column_count` and rows of **anchor cells**.
+Each cell has stable `cell_id`, `row_index`, `column_index`, spans,
+`is_header`, bbox/text/quality. A spanning cell occupies its logical grid
+rectangle; placeholder cells are not invented for covered positions. Validators
+reject duplicate cell ids, unordered/invalid anchors, out-of-bounds spans and
+overlapping occupied coordinates. A table must reference a canonical block of
+kind `table` when included in a parse candidate. Unreliable cross-page merging is
+`partial`, not guessed completion.
 
-Describes ONLY a candidate: `candidate_id`, `raw_value`, `raw_unit`,
-`raw_text`/`context`, `field_hint`, `object_hint`, `research_input_id`,
-`source_snapshot_id?`, `document_parse_id?`, locator fields, `parse_quality`,
-`evidence`/`provenance locator`. It MUST NOT carry `canonical_field`,
-`canonical_unit`, `normalized_value`, `accepted_scientific_value`,
-`quality_score_as_scientific_truth`, or `dataset_publication_status` — those
-belong to the existing C Pipeline. Correct chain:
+### Formula
 
-```
+Stores raw visible text and/or upstream-provided LaTeX plus block/page/bbox,
+backend/profile and quality. `unsupported` carries no recognized formula text.
+
+### Figure
+
+Phase 1 stores bbox, caption/title, axis/legend text and visible labels only.
+Plot digitization, curve/scatter recovery and scientific pixel measurement are
+out of scope. `unsupported` carries no recognized textual payload.
+
+## 8. ScientificDataExtractionCandidate
+
+This is a raw observation candidate only:
+
+- raw value/unit/text;
+- field/object hints;
+- ResearchInput/SourceSnapshot/DocumentParse references;
+- parse quality;
+- one `DocumentLocator`.
+
+It does **not** carry canonical field mapping, normalized units/values,
+scientific acceptance or publication state. Correct chain:
+
+```text
 ScientificDataExtractionCandidate
-  → existing Field Manifest → mapping → unit normalization
-  → quality/admission → Dataset candidate → Publisher
+→ existing Field Manifest
+→ existing mapping
+→ unit normalization
+→ quality/admission
+→ Dataset candidate
+→ Publisher
 ```
 
-**OCR → final Dataset is forbidden.**
+`OCR → final Dataset` is forbidden.
 
-## 9. DocumentParse logical identity (for B-20)
+## 9. DocumentParse logical identity
 
-A parse is deterministically identified by:
-`research_input/content hash` + `parser_profile_id` + `parser_profile_version`
-+ `native_engine` + `native_engine_version` + `visual_model_id` + `visual_model_revision`
-+ `config_hash` → `canonical_output_hash`. Same input + same parser/model/config
-reuses the parse; different config/revision yields a different identity. B-20
-owns the DB schema.
+The logical identity supplied to B-20 binds the ResearchInput/content hash,
+parser profile/version, native/visual engine and model revisions, configuration
+hash and canonical output hash. Candidate `config_hash` must equal the profile
+configuration hash; engine presence/identity must agree with the profile and
+visual model id/revision are paired. Different parser/model/config revisions
+produce different immutable parse identities. B-20 owns the database schema.
 
-## 10. Native upstream (approved)
+## 10. Native upstream — approved
 
-- **Package**: `docling-parse` **7.11.0** (PyPI, MIT).
-- **Official API**: `DoclingPdfParser` → `load(path_or_stream=BytesIO(bytes))`
-  with `ContentConfig(word/line=COMPUTE_AND_MATERIALIZE)`, iterate
-  `pdf_doc.iterate_pages()` → `page.dimension.{width,height}` (points, A4 =
-  595.28×841.89), `page.iterate_cells(unit_type="word")` → `word.rect`
-  (`BoundingRectangle`, **bottom-left** origin in PDF space).
-- **License**: MIT (code). No model weights. CPU-capable. No network, no model
-  download, no extra binary at runtime.
-- **Capability**: born-digital text layer + per-word geometry. Sufficient for
-  the D-11 **native born-digital PDF path**.
-- **Cannot provide**: scanned/OCR pages, layout/table/formula recognition,
-  visual understanding → those need the visual backend.
+Manifest authority:
+`services/scientific_document/upstream_adoption.json`.
 
-The D-10 `native_baseline.py` is a **benchmark-only** harness (not a production
-adapter): it maps docling-parse output into the Canonical contract and records
-input/config/output hashes. It is gated behind an optional dependency so it
-never enters API startup.
+- distribution: `docling-parse==7.11.0`;
+- approved Python import root: `docling_parse`;
+- license: MIT; no model weights;
+- official interface used by the benchmark probe:
+  `DoclingPdfParser.load(...)`, `iterate_pages()`,
+  `page.iterate_cells(unit_type="word")`;
+- CPU-capable, no parse-time network/model download;
+- intended scope: born-digital text layer + word geometry;
+- excluded: scanned OCR, semantic layout/table/formula/figure recognition.
 
-## 11. Visual upstream (approved)
+`native_baseline.py` is benchmark-only and does not enter API startup.
 
-- **Repository**: `PaddlePaddle/PaddleOCR` (Apache 2.0).
-- **Package**: `paddleocr` **3.6.0** (PyPI, Apache 2.0) — installed with extras
-  `pip install "paddleocr[doc-parser]==3.6.0"`. The D-10 manifest pins the exact
-  version (`package_version = "3.6.0"`); no range/ floating version is permitted.
-- **Model**: `PaddleOCR-VL-1.6` (id `PaddleOCR-VL-1.6-0.9B`, `pipeline_version="v1.6"`),
-  HF `PaddlePaddle/PaddleOCR-VL-1.6` (Apache 2.0 model weights), immutable revision
-  `cdc88f5feff0e4079e75863205053a68358e52f7`.
-- **Official interface**: `from paddleocr import PaddleOCRVL;
-  PaddleOCRVL(pipeline_version="v1.6").predict(image)` → `save_to_json` /
-  `save_to_markdown`. Element-level also loadable via `transformers>=5.0.0`.
-- **License**: code Apache 2.0; model weights Apache 2.0 (redistribution
-  permitted; keep attribution / NOTICE).
-- **Device**: `paddlepaddle-gpu==3.2.1` + CUDA, with CPU fallback
-  (`DEVICE = cuda if available else cpu`). GPU is NOT a core-path requirement.
-- **Download/cache/network**: first run downloads weights from BCE Bos /
-  HuggingFace and caches; offline requires pre-seeded cache. Paddle must NOT be
-  a core startup dependency (no `import app → import Paddle → download model`).
-- **Scope (Phase 1)**: text / table / formula / figure-caption; chart
-  recognition stays OFF (no plot digitization).
+## 11. Visual upstream — approved for D-11 adoption
 
-## 12. Hybrid rationale
+- distribution: `paddleocr[doc-parser]==3.6.0`;
+- approved import roots: `paddleocr`, `paddle`;
+- model repository: `PaddlePaddle/PaddleOCR-VL-1.6`;
+- resolved model: `PaddleOCR-VL-1.6-0.9B`;
+- immutable model revision:
+  `cdc88f5feff0e4079e75863205053a68358e52f7`;
+- `pipeline_version="v1.6"`;
+- code/model license: Apache-2.0;
+- official interface: `PaddleOCRVL(...).predict(...)` with JSON/Markdown result
+  export;
+- model download/cache/network behavior and CPU/GPU policy are recorded in the
+  manifest; Paddle is not a core startup dependency.
 
-Native-only covers born-digital text + geometry. Scanned pages, complex
-layout, tables, formulas and figure text need the visual backend. D-11 wires a
-hybrid router behind `DocumentParserPort`, mapping PaddleOCR-VL output INTO the
-Canonical contract without polluting the Domain. D-10 freezes the Port and the
-hybrid result structure (`BenchmarkParserMode.hybrid` reserved); the real hybrid
-run belongs to D-11.
+D-10 freezes adoption only. Real hybrid execution belongs to D-11.
 
-## 13. Evidence chain
+## 12. Golden Set
 
-```
-PaperSummary statement
-  → Evidence
-  → DocumentParse locator (page/block/bbox/table-cell)
-  → SourceSnapshot
-  → ResearchInput
-  → immutable content hash
-```
+`services/scientific_document/golden_set.json`, version `1.1.0`, contains 16
+main-case documents:
 
-D-10 freezes the logical contract only. The DB materialization of
-ResearchInput-backed SourceSnapshot is **B-20**.
+- 10 legal committed synthetic fixtures for deterministic CI;
+- 6 real, local-only publication records identified by genuine arXiv ids.
 
-## 14. Golden Set
+Restricted PDFs are never committed or fetched by CI. Their local content hash
+remains absent when the exact bytes were not locally verified. Expected
+annotations record selected headings/values/structures rather than pretending
+full-document character-level ground truth.
 
-16 entries (10 committed synthetic fixtures + 6 local-only restricted
-real-paper manifests) around `exoplanet_host_star`. Fixtures cover born-digital,
-two-column, reading order, simple/complex/cross-page tables, formula,
-figure+caption, mixed, scanned-like, low-quality. Manifest:
-`services/scientific_document/golden_set.json`. Restricted PDFs are NOT committed
-(repo keeps source/DOI/license/provenance/hash/expected annotations + local
-acquisition notes). CI never downloads restricted papers.
+The scanned fixture is raster-only with no text layer; native-only parsing must
+return no accepted blocks for it.
 
-## 15. Benchmark
+The derived `golden_set_content_hash` used by Benchmark covers the complete
+manifest except volatile `generated_at`, including every entry's provenance,
+license, content hash, coverage and expected annotation.
 
-`services/scientific_document/benchmark_runner.py` runs the native-only baseline
-over committed fixtures and emits a versioned, hashed `BenchmarkReport`. Metrics
-(versioned, deterministic, clear denominators, empty-sample safe):
-`native_routing_coverage`, `visual_routing_coverage` (reserved), `block_recovery`,
-`reading_order_error`, `table_structure_recovery`, `formula_recovery`,
-`figure_caption_linkage`, `evidence_locator_validity`, `accepted_rate`,
-`partial_rate`, `unsupported_rate`, `latency`, `peak_memory`, `cpu_result`,
-`gpu_result_if_available`, `failure_category`. Native-only is real (docling-parse
-run, not mock); hybrid result structure is reserved for D-11.
+## 13. Benchmark
 
-## 16. Governance gate
+`services/scientific_document/benchmark_runner.py`:
 
-`scripts/check_d10_governance.py` (machine) blocks: production `docs.references`
-imports, unapproved vendor imports in the parser area (docling allowed only in
-`native_baseline.py`), floating model/revision tokens, model weight files in
-git, canonical schema vendor-type leakage. `docs/quality/
-SCIENTIFIC_DOCUMENT_PARSING_REVIEW.md` is the human counterpart (reference-after-
-rewrite, vendor boundary, adoption integrity). Machine detection is necessary
-but NOT sufficient; the human review is mandatory.
+- strongly validates the Golden manifest;
+- fails on missing committed fixture or content-hash mismatch;
+- executes the real pinned native parser over committed fixtures;
+- records case-local quality counts;
+- computes textual `block_recovery` only where manually selected critical text
+  anchors exist;
+- computes native routing coverage and geometry locator validity;
+- explicitly reports unsupported/not-run/not-applicable metrics rather than
+  representing unmeasured capabilities as zero;
+- includes Golden/config/schema/upstream identity in deterministic `input_hash`;
+- produces a self-verifying `output_hash` that excludes the hash field itself
+  and volatile `created_at`.
 
-## 17. Non-goals (this PR only)
+For native-only, structural table/formula/figure recovery is `unsupported`,
+reading-order error and resource measurements are `not_run`, and visual routing
+is `not_applicable`. D-11 supplies the real hybrid comparison.
 
-No production Paddle adapter, no hybrid router, no model loader, no PostgreSQL
-`DocumentParse` tables/migrations, no `SourceSnapshot` persistence, no
-`PaperSummary` projection, no Claim/Relation change, no C mapping/unit/quality
-algorithm, no HTTP endpoint, no frontend, no HTML parser, no plot digitizer.
+`check_d10_benchmark_report.py` reloads the produced artifact through the
+Pydantic report contract and therefore verifies its hash and non-empty execution.
+
+## 14. Governance gate
+
+`scripts/check_d10_governance.py` is stdlib-only and runs in Foundation CI. It:
+
+- AST-detects both `import docs.references...` and
+  `from docs.references...` in production code;
+- authorizes parser imports only through explicit `import_roots` on an
+  `adoption_status=approved` manifest entry;
+- rejects floating/range adoption versions;
+- validates critical manifest fields before runtime adapters can rely on them;
+- rejects model weight files and unapproved vendored parser source;
+- rejects vendor imports from the Canonical schema.
+
+Machine detection is necessary but not sufficient. The human checklist in
+`docs/quality/SCIENTIFIC_DOCUMENT_PARSING_REVIEW.md` remains mandatory.
+
+## 15. Non-goals
+
+This D-10 PR contains no production Paddle adapter, hybrid/page router, model
+loader, DocumentParse PostgreSQL persistence, SourceSnapshot materialization,
+PaperSummary/C-pipeline integration, HTTP endpoint, frontend, HTML parser or plot
+digitizer.
