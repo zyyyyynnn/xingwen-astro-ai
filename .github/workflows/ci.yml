@@ -44,6 +44,14 @@ jobs:
           node scripts/check-title-governance.test.mjs
           node scripts/check-title-governance.mjs
 
+      - name: Check integration commit title grammar
+        if: github.event_name == 'push'
+        env:
+          INTEGRATION_SHA: ${{ github.sha }}
+        run: |
+          node scripts/check-title-governance.test.mjs
+          node scripts/check-title-governance.mjs
+
       - name: Validate Docker Compose contract
         run: |
           cp .env.example .env
