@@ -16,7 +16,12 @@
     "license": "MIT",
     "future_exit_task": null
   },
-  "forbidden_adoption_classes": ["REWRITE", "RECREATE", "REIMPLEMENT", "INSPIRED_BY"],
+  "forbidden_adoption_classes": [
+    "REWRITE",
+    "RECREATE",
+    "REIMPLEMENT",
+    "INSPIRED_BY"
+  ],
   "required_when_modified": ["modification_reason", "future_exit_task"],
   "generation": "Produced programmatically during A-22 from the frozen ref + import-closure; not hand-written.",
   "source_of_truth": "GitHub official repository + Tag v1.10.0 + 40-char SHA + this lock. Not the A-21 eval ZIP, not any local clone."

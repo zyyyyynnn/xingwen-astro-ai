@@ -25,7 +25,12 @@
     "EXCLUDE_RUNTIME",
     "EXCLUDE_LICENSE"
   ],
-  "adoption_class_forbidden": ["REWRITE", "RECREATE", "REIMPLEMENT", "INSPIRED_BY"],
+  "adoption_class_forbidden": [
+    "REWRITE",
+    "RECREATE",
+    "REIMPLEMENT",
+    "INSPIRED_BY"
+  ],
   "vendor_root": "apps/workspace/vendor/openhands",
   "manifest_files": [
     "upstream-lock.json",

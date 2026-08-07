@@ -11,18 +11,81 @@
   "layers": {
     "L1_directory_scope": {
       "adopt": "Core mechanic dirs from source-scope.json (REQUIRED_VENDOR + REQUIRED_TRANSITIVE): root, routes/{conversation,conversation-panel,settings,home,root-layout}, components/{conversation,conversation-events,sidebar,settings,shared,ui}, components/features/{chat,conversation-panel,sidebar,markdown,command-menu,context-menu,controls,home,tips,alerts,images}, hooks/contexts/stores/services/utils/types/lib/themes/styles/constants/i18n/icons/manifests/wrapper/assets.",
-      "partial_surgical": ["components/features/conversation/conversation-tabs/conversation-tabs", "components/files", "api/canvas-ui-client-tool"],
-      "excluded": ["components/features/terminal", "components/terminal", "components/features/diff-viewer", "components/features/browser", "components/browser", "conversation-tabs/drawer-vscode-link", "hooks/use-terminal", "utils/vscode-url-helper", "hooks/query/use-unified-vscode-url", "api/git-service", "api/cloud", "electron"],
-      "deferred_not_vendored": ["components/features/settings (sub-pages)", "components/features/automations", "components/features/skills", "components/features/mcp-page", "components/features/backends", "components/features/plugins", "components/features/onboarding", "components/features/files-tab", "components/features/launch", "components/features/suggestions", "components/features/analytics", "components/features/manifest", "components/features/images (non-core)"]
+      "partial_surgical": [
+        "components/features/conversation/conversation-tabs/conversation-tabs",
+        "components/files",
+        "api/canvas-ui-client-tool"
+      ],
+      "excluded": [
+        "components/features/terminal",
+        "components/terminal",
+        "components/features/diff-viewer",
+        "components/features/browser",
+        "components/browser",
+        "conversation-tabs/drawer-vscode-link",
+        "hooks/use-terminal",
+        "utils/vscode-url-helper",
+        "hooks/query/use-unified-vscode-url",
+        "api/git-service",
+        "api/cloud",
+        "electron"
+      ],
+      "deferred_not_vendored": [
+        "components/features/settings (sub-pages)",
+        "components/features/automations",
+        "components/features/skills",
+        "components/features/mcp-page",
+        "components/features/backends",
+        "components/features/plugins",
+        "components/features/onboarding",
+        "components/features/files-tab",
+        "components/features/launch",
+        "components/features/suggestions",
+        "components/features/analytics",
+        "components/features/manifest",
+        "components/features/images (non-core)"
+      ]
     },
     "L2_component_mapping": {
-      "preserve_mechanics": ["Shell/root", "Navigation/sidebar", "Conversation Activity (conversation-events/chat)", "Composer (features/chat)", "Workspace Panel + Tab container (conversation-tabs)", "Overlay/Dialog/Popover (ui/shared/context-menu/controls)", "Keyboard/Focus/Scroll/Loading/Empty/Running/Error/Cancel/Retry/Recovery"],
-      "swap_domain_only": ["Conversation ViewModel -> Project/Run ViewModel (A-24)", "Coding Event -> Xingwen RunEvent (A-24 Adapter)", "Tab defs files/planner/terminal/browser/vscode -> Artifact/ResearchPlan/ResearchActivity (A-25)", "canvas-ui-client-tool tab enum -> Research drive-panel (A-25)"],
-      "remove_coding": ["Terminal xterm", "DiffViewer Monaco", "Browser panel", "Git diff/status UI", "VSCode link", "agent-server git-service", "cloud proprietary"]
+      "preserve_mechanics": [
+        "Shell/root",
+        "Navigation/sidebar",
+        "Conversation Activity (conversation-events/chat)",
+        "Composer (features/chat)",
+        "Workspace Panel + Tab container (conversation-tabs)",
+        "Overlay/Dialog/Popover (ui/shared/context-menu/controls)",
+        "Keyboard/Focus/Scroll/Loading/Empty/Running/Error/Cancel/Retry/Recovery"
+      ],
+      "swap_domain_only": [
+        "Conversation ViewModel -> Project/Run ViewModel (A-24)",
+        "Coding Event -> Xingwen RunEvent (A-24 Adapter)",
+        "Tab defs files/planner/terminal/browser/vscode -> Artifact/ResearchPlan/ResearchActivity (A-25)",
+        "canvas-ui-client-tool tab enum -> Research drive-panel (A-25)"
+      ],
+      "remove_coding": [
+        "Terminal xterm",
+        "DiffViewer Monaco",
+        "Browser panel",
+        "Git diff/status UI",
+        "VSCode link",
+        "agent-server git-service",
+        "cloud proprietary"
+      ]
     },
     "L3_runtime_dependency": {
-      "a22_seam_only": ["agent-server-adapter SSE -> compile-safe no-op/stub seam (real replacement in A-24)", "backends registry -> single-runtime stub seam (A-24)", "LLM setup gate -> disabled/replaced by Research Adapter config (A-24)"],
-      "a22_forbidden": ["XingwenAgentRuntimeAdapter", "ResearchAdapter", "RunEvent mapper", "Project/Run ViewModel", "ResearchCommand", "ResearchComposer implementation"]
+      "a22_seam_only": [
+        "agent-server-adapter SSE -> compile-safe no-op/stub seam (real replacement in A-24)",
+        "backends registry -> single-runtime stub seam (A-24)",
+        "LLM setup gate -> disabled/replaced by Research Adapter config (A-24)"
+      ],
+      "a22_forbidden": [
+        "XingwenAgentRuntimeAdapter",
+        "ResearchAdapter",
+        "RunEvent mapper",
+        "Project/Run ViewModel",
+        "ResearchCommand",
+        "ResearchComposer implementation"
+      ]
     },
     "L4_exit_map": {
       "a22": "Vendor skeleton (Empty/Loading/Error/Running, no fake domain data) + coding removal + adaptation seam",
