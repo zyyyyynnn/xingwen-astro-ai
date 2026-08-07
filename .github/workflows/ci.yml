@@ -37,6 +37,9 @@ jobs:
           cp .env.example .env
           docker compose config --quiet
 
+      - name: Check D-10 scientific document parsing governance gate
+        run: python scripts/check_d10_governance.py
+
   backend:
     name: Backend tests and schema export
     runs-on: ubuntu-latest
@@ -81,7 +84,7 @@ jobs:
         run: uv run alembic upgrade head
 
       - name: Run backend tests
-        run: uv run pytest
+        run: uv run pytest -m "not d10_native"
 
       - name: Run reproducible D07 claim benchmark
         working-directory: .
@@ -206,6 +209,43 @@ jobs:
           uv run python ../../scripts/export_openapi.py \
             --output ../../packages/schemas/generated/core/openapi.json \
             --check
+
+      - name: Check D-10 scientific document parsing benchmark contracts
+        run: >-
+          uv run python ../../scripts/export_schemas.py
+          --output ../../packages/schemas/generated/scientific_document
+          --include DocumentBBox
+          --include TextSpan
+          --include DocumentLocator
+          --include DocumentPage
+          --include DocumentBlock
+          --include DocumentTableCell
+          --include DocumentTable
+          --include DocumentFormula
+          --include DocumentFigure
+          --include DocumentParseProfile
+          --include DocumentParseInput
+          --include DocumentParseCandidate
+          --include ScientificDataExtractionCandidate
+          --include GoldenSetEntry
+          --include GoldenExpectedAnnotation
+          --include GoldenSetManifest
+          --include BenchmarkMetricValue
+          --include BenchmarkCaseResult
+          --include BenchmarkReport
+          --check
+
+      - name: Run D-10 native baseline benchmark (benchmark dependency group)
+        working-directory: .
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/apps/api/.venv
+          PYTHONPATH: ${{ github.workspace }}/apps/api/src
+        run: >-
+          uv sync --frozen --project apps/api --group benchmark
+          && uv run --project apps/api pytest apps/api/tests/test_d10_*.py -m d10_native -q
+          && uv run --project apps/api python -m services.scientific_document.benchmark_runner
+          --output .artifacts/d10-native-benchmark-report.json
+          && uv run --project apps/api python scripts/check_d10_benchmark_report.py .artifacts/d10-native-benchmark-report.json
 
       - name: Check session security contracts
         run: >

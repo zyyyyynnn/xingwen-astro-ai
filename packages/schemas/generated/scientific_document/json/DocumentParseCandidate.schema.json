@@ -1,0 +1,744 @@
+{
+  "$defs": {
+    "DocumentBBox": {
+      "additionalProperties": false,
+      "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range (enforced at the aggregate level, where page geometry is\n  known): ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
+      "properties": {
+        "x1": {
+          "minimum": 0.0,
+          "title": "X1",
+          "type": "number"
+        },
+        "x2": {
+          "minimum": 0.0,
+          "title": "X2",
+          "type": "number"
+        },
+        "y1": {
+          "minimum": 0.0,
+          "title": "Y1",
+          "type": "number"
+        },
+        "y2": {
+          "minimum": 0.0,
+          "title": "Y2",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x1",
+        "y1",
+        "x2",
+        "y2"
+      ],
+      "title": "DocumentBBox",
+      "type": "object"
+    },
+    "DocumentBlock": {
+      "additionalProperties": false,
+      "description": "One canonical document block with stable identity and locating power.",
+      "properties": {
+        "bbox": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DocumentBBox"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "block_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Block Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/DocumentBlockKind"
+        },
+        "page_index": {
+          "minimum": 0,
+          "title": "Page Index",
+          "type": "integer"
+        },
+        "parser_backend": {
+          "$ref": "#/$defs/ParserBackend"
+        },
+        "parser_profile_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Parser Profile Id",
+          "type": "string"
+        },
+        "quality": {
+          "$ref": "#/$defs/DocumentParseQuality"
+        },
+        "reading_order": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reading Order"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        }
+      },
+      "required": [
+        "block_id",
+        "page_index",
+        "kind",
+        "quality",
+        "parser_backend",
+        "parser_profile_id"
+      ],
+      "title": "DocumentBlock",
+      "type": "object"
+    },
+    "DocumentBlockKind": {
+      "description": "Stable kind taxonomy for canonical document blocks.",
+      "enum": [
+        "heading",
+        "paragraph",
+        "list",
+        "table",
+        "formula",
+        "figure",
+        "caption",
+        "reference",
+        "footnote"
+      ],
+      "title": "DocumentBlockKind",
+      "type": "string"
+    },
+    "DocumentFigure": {
+      "additionalProperties": false,
+      "description": "One canonical figure block (caption/text only — no pixel measurement).\n\nPhase-1 explicitly forbids plot digitization, curve recovery, scatter-point\nrecovery and scientific pixel measurement. Only visible/ocr labels and\nsurrounding text are captured.",
+      "properties": {
+        "axis_text": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Axis Text"
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DocumentBBox"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "block_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Block Id",
+          "type": "string"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Caption"
+        },
+        "legend_text": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Legend Text"
+        },
+        "page_index": {
+          "minimum": 0,
+          "title": "Page Index",
+          "type": "integer"
+        },
+        "parser_backend": {
+          "$ref": "#/$defs/ParserBackend"
+        },
+        "parser_profile_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Parser Profile Id",
+          "type": "string"
+        },
+        "quality": {
+          "$ref": "#/$defs/DocumentParseQuality"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "visible_ocr_labels": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Visible Ocr Labels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "block_id",
+        "page_index",
+        "quality",
+        "parser_backend",
+        "parser_profile_id"
+      ],
+      "title": "DocumentFigure",
+      "type": "object"
+    },
+    "DocumentFormula": {
+      "additionalProperties": false,
+      "description": "One canonical formula block.\n\nBoth a raw visible representation and a normalized/LaTeX representation may\ncoexist. Recognition failure MUST NOT be auto-generated by an LLM.",
+      "properties": {
+        "bbox": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DocumentBBox"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "block_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Block Id",
+          "type": "string"
+        },
+        "latex": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latex"
+        },
+        "page_index": {
+          "minimum": 0,
+          "title": "Page Index",
+          "type": "integer"
+        },
+        "parser_backend": {
+          "$ref": "#/$defs/ParserBackend"
+        },
+        "parser_profile_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Parser Profile Id",
+          "type": "string"
+        },
+        "quality": {
+          "$ref": "#/$defs/DocumentParseQuality"
+        },
+        "raw_text": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Raw Text"
+        }
+      },
+      "required": [
+        "block_id",
+        "page_index",
+        "quality",
+        "parser_backend",
+        "parser_profile_id"
+      ],
+      "title": "DocumentFormula",
+      "type": "object"
+    },
+    "DocumentPage": {
+      "additionalProperties": false,
+      "description": "One parsed page identity and geometry.",
+      "properties": {
+        "block_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Block Ids",
+          "type": "array"
+        },
+        "height_points": {
+          "exclusiveMinimum": 0.0,
+          "title": "Height Points",
+          "type": "number"
+        },
+        "page_index": {
+          "minimum": 0,
+          "title": "Page Index",
+          "type": "integer"
+        },
+        "width_points": {
+          "exclusiveMinimum": 0.0,
+          "title": "Width Points",
+          "type": "number"
+        }
+      },
+      "required": [
+        "page_index",
+        "width_points",
+        "height_points"
+      ],
+      "title": "DocumentPage",
+      "type": "object"
+    },
+    "DocumentParseProfile": {
+      "additionalProperties": false,
+      "description": "Versioned parser profile / configuration identity (D-10 logical).\n\n``configuration_hash`` MUST be stable and reproducible: it must not depend\non wall-clock time, random ordering, unsorted dicts, floating model aliases\nor machine-specific absolute paths.",
+      "properties": {
+        "configuration_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Configuration Hash",
+          "type": "string"
+        },
+        "native_backend": {
+          "minLength": 1,
+          "title": "Native Backend",
+          "type": "string"
+        },
+        "parser_profile_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Parser Profile Id",
+          "type": "string"
+        },
+        "parser_profile_version": {
+          "minLength": 1,
+          "title": "Parser Profile Version",
+          "type": "string"
+        },
+        "resource_policy_version": {
+          "minLength": 1,
+          "title": "Resource Policy Version",
+          "type": "string"
+        },
+        "routing_policy_version": {
+          "minLength": 1,
+          "title": "Routing Policy Version",
+          "type": "string"
+        },
+        "visual_backend": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visual Backend"
+        }
+      },
+      "required": [
+        "parser_profile_id",
+        "parser_profile_version",
+        "native_backend",
+        "routing_policy_version",
+        "resource_policy_version",
+        "configuration_hash"
+      ],
+      "title": "DocumentParseProfile",
+      "type": "object"
+    },
+    "DocumentParseQuality": {
+      "description": "Lifecycle quality of a parsed region / whole document.\n\n``accepted`` does NOT mean a scientific fact is verified. It means the\ncurrent parser/profile reached admission conditions for the usable region\nand it may become downstream Evidence / input.\n\n``partial`` means only part of the content was reliably parsed. Downstream\nmay use the clearly valid part, but MUST keep ``unparsed != absent``: a\nmissing recognition must never be read as \"does not exist in the paper\".\n\n``unsupported`` means the current parser/profile cannot reliably process\nthe region. No fabricated full text may be emitted and no downstream model\nmay auto-complete the gap.",
+      "enum": [
+        "accepted",
+        "partial",
+        "unsupported"
+      ],
+      "title": "DocumentParseQuality",
+      "type": "string"
+    },
+    "DocumentTable": {
+      "additionalProperties": false,
+      "description": "One canonical table; cells are addressed by [row][column].\n\n``row_count``/``column_count`` are the table's logical grid dimensions;\n``row_span``/``column_span`` on a cell MUST NOT exceed them. Every cell\ncarries a unique ``cell_id`` within the table.",
+      "properties": {
+        "block_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Block Id"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Caption"
+        },
+        "column_count": {
+          "minimum": 1,
+          "title": "Column Count",
+          "type": "integer"
+        },
+        "page_index": {
+          "minimum": 0,
+          "title": "Page Index",
+          "type": "integer"
+        },
+        "quality": {
+          "$ref": "#/$defs/DocumentParseQuality"
+        },
+        "row_count": {
+          "minimum": 1,
+          "title": "Row Count",
+          "type": "integer"
+        },
+        "rows": {
+          "default": [],
+          "items": {
+            "items": {
+              "$ref": "#/$defs/DocumentTableCell"
+            },
+            "type": "array"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "table_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Table Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "table_id",
+        "page_index",
+        "row_count",
+        "column_count",
+        "quality"
+      ],
+      "title": "DocumentTable",
+      "type": "object"
+    },
+    "DocumentTableCell": {
+      "additionalProperties": false,
+      "description": "One table cell with stable identity, span and (when available) text/quality.\n\n``cell_id`` is the canonical, stable identity of the cell within a table; it\nis referenced by ``DocumentLocator.cell_id``. ``is_header`` carries the\nexplicit header/body role (D-10 C4). ``row_span``/``column_span`` express\nmerged cells; out-of-range spans are rejected at the aggregate level.",
+      "properties": {
+        "bbox": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DocumentBBox"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cell_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Cell Id",
+          "type": "string"
+        },
+        "column_index": {
+          "minimum": 0,
+          "title": "Column Index",
+          "type": "integer"
+        },
+        "column_span": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Column Span",
+          "type": "integer"
+        },
+        "is_header": {
+          "default": false,
+          "title": "Is Header",
+          "type": "boolean"
+        },
+        "quality": {
+          "$ref": "#/$defs/DocumentParseQuality"
+        },
+        "row_index": {
+          "minimum": 0,
+          "title": "Row Index",
+          "type": "integer"
+        },
+        "row_span": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Row Span",
+          "type": "integer"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        }
+      },
+      "required": [
+        "cell_id",
+        "row_index",
+        "column_index",
+        "quality"
+      ],
+      "title": "DocumentTableCell",
+      "type": "object"
+    },
+    "ParserBackend": {
+      "description": "Vendor-neutral provenance of a parsed element.\n\nRecords whether a block/cell/formula came from the born-digital native\nengine or the visual (OCR/VLM) engine. It never names a vendor package.",
+      "enum": [
+        "native",
+        "visual"
+      ],
+      "title": "ParserBackend",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Top-level canonical output of one document parse.\n\nLogical identity (consumed by B-20): the same input + same parser/model/\nconfig MUST yield a deterministic, reusable identity; a different config or\nrevision MUST yield a different identity. ``canonical_output_hash`` is the\ncontent-addressed hash over the frozen canonical payload.",
+  "properties": {
+    "blocks": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DocumentBlock"
+      },
+      "title": "Blocks",
+      "type": "array"
+    },
+    "canonical_output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Canonical Output Hash",
+      "type": "string"
+    },
+    "config_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Config Hash",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "figures": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DocumentFigure"
+      },
+      "title": "Figures",
+      "type": "array"
+    },
+    "formulas": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DocumentFormula"
+      },
+      "title": "Formulas",
+      "type": "array"
+    },
+    "native_engine": {
+      "minLength": 1,
+      "title": "Native Engine",
+      "type": "string"
+    },
+    "native_engine_version": {
+      "minLength": 1,
+      "title": "Native Engine Version",
+      "type": "string"
+    },
+    "overall_quality": {
+      "$ref": "#/$defs/DocumentParseQuality"
+    },
+    "pages": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DocumentPage"
+      },
+      "title": "Pages",
+      "type": "array"
+    },
+    "parse_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Parse Id",
+      "type": "string"
+    },
+    "profile": {
+      "$ref": "#/$defs/DocumentParseProfile"
+    },
+    "research_input_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Research Input Id",
+      "type": "string"
+    },
+    "tables": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DocumentTable"
+      },
+      "title": "Tables",
+      "type": "array"
+    },
+    "visual_engine": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Engine"
+    },
+    "visual_engine_version": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Engine Version"
+    },
+    "visual_model_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Model Id"
+    },
+    "visual_model_revision": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Visual Model Revision"
+    }
+  },
+  "required": [
+    "parse_id",
+    "research_input_id",
+    "content_hash",
+    "profile",
+    "native_engine",
+    "native_engine_version",
+    "config_hash",
+    "canonical_output_hash",
+    "overall_quality",
+    "created_at"
+  ],
+  "title": "DocumentParseCandidate",
+  "type": "object"
+}

@@ -1,0 +1,150 @@
+{
+  "$defs": {
+    "DocumentBBox": {
+      "additionalProperties": false,
+      "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range (enforced at the aggregate level, where page geometry is\n  known): ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
+      "properties": {
+        "x1": {
+          "minimum": 0.0,
+          "title": "X1",
+          "type": "number"
+        },
+        "x2": {
+          "minimum": 0.0,
+          "title": "X2",
+          "type": "number"
+        },
+        "y1": {
+          "minimum": 0.0,
+          "title": "Y1",
+          "type": "number"
+        },
+        "y2": {
+          "minimum": 0.0,
+          "title": "Y2",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x1",
+        "y1",
+        "x2",
+        "y2"
+      ],
+      "title": "DocumentBBox",
+      "type": "object"
+    },
+    "DocumentBlockKind": {
+      "description": "Stable kind taxonomy for canonical document blocks.",
+      "enum": [
+        "heading",
+        "paragraph",
+        "list",
+        "table",
+        "formula",
+        "figure",
+        "caption",
+        "reference",
+        "footnote"
+      ],
+      "title": "DocumentBlockKind",
+      "type": "string"
+    },
+    "DocumentParseQuality": {
+      "description": "Lifecycle quality of a parsed region / whole document.\n\n``accepted`` does NOT mean a scientific fact is verified. It means the\ncurrent parser/profile reached admission conditions for the usable region\nand it may become downstream Evidence / input.\n\n``partial`` means only part of the content was reliably parsed. Downstream\nmay use the clearly valid part, but MUST keep ``unparsed != absent``: a\nmissing recognition must never be read as \"does not exist in the paper\".\n\n``unsupported`` means the current parser/profile cannot reliably process\nthe region. No fabricated full text may be emitted and no downstream model\nmay auto-complete the gap.",
+      "enum": [
+        "accepted",
+        "partial",
+        "unsupported"
+      ],
+      "title": "DocumentParseQuality",
+      "type": "string"
+    },
+    "ParserBackend": {
+      "description": "Vendor-neutral provenance of a parsed element.\n\nRecords whether a block/cell/formula came from the born-digital native\nengine or the visual (OCR/VLM) engine. It never names a vendor package.",
+      "enum": [
+        "native",
+        "visual"
+      ],
+      "title": "ParserBackend",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One canonical document block with stable identity and locating power.",
+  "properties": {
+    "bbox": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DocumentBBox"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "block_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Block Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/DocumentBlockKind"
+    },
+    "page_index": {
+      "minimum": 0,
+      "title": "Page Index",
+      "type": "integer"
+    },
+    "parser_backend": {
+      "$ref": "#/$defs/ParserBackend"
+    },
+    "parser_profile_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Parser Profile Id",
+      "type": "string"
+    },
+    "quality": {
+      "$ref": "#/$defs/DocumentParseQuality"
+    },
+    "reading_order": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reading Order"
+    },
+    "text": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Text"
+    }
+  },
+  "required": [
+    "block_id",
+    "page_index",
+    "kind",
+    "quality",
+    "parser_backend",
+    "parser_profile_id"
+  ],
+  "title": "DocumentBlock",
+  "type": "object"
+}

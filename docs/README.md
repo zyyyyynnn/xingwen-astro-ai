@@ -18,6 +18,7 @@
 | 前端架构与源码治理 | [Frontend Architecture](architecture/FRONTEND_ARCHITECTURE.md) | Accepted | 前端运行时、上游源码治理、模块分层与状态所有权 |
 | 模块边界与依赖方向 | [Module Boundaries](architecture/MODULES.md) | Accepted | 模块职责、输入输出、依赖方向与跨模块交接 |
 | HTTP 资源与传输契约 | [API Contract](architecture/API_CONTRACT.md) | Accepted | URL 资源、认证授权、Envelope、Problem Details 与演进 |
+| 科学文档解析契约 | [Scientific Document Parsing Contract](architecture/SCIENTIFIC_DOCUMENT_PARSING_CONTRACT.md) | Accepted | Scientific Document Parsing 冻结契约、Parser Port、Golden Set、Benchmark 与上游采用边界 |
 | 领域实体与不变量 | [Data Model](architecture/DATA_MODEL.md) | Accepted | 核心实体、实体关系、所有权与领域语义 |
 | 运行状态与并发控制 | [Workflow Design](architecture/WORKFLOW_DESIGN.md) | Accepted | Run 状态机、Step、重试、取消与并发控制 |
 | 版本、缓存与修订 | [Data Versioning](architecture/DATA_VERSIONING.md) | Accepted | ArtifactVersion、SourceSnapshot、CacheRecord 与 Revision |
@@ -38,6 +39,7 @@
 | 文献检索 Pipeline | [PaperCollection Pipeline](engineering/PAPER_COLLECTION_PIPELINE.md) | Accepted | 论文检索、去重、排序与 Summary 准入 |
 | 退出验收标准 | [Acceptance](product/ACCEPTANCE.md) | Accepted | 阶段与产品退出标准、一票否决项 |
 | PR 审查清单 | [Review Checklist](quality/REVIEW_CHECKLIST.md) | Accepted | 单个 PR 的审查清单与合并条件 |
+| 科学文档解析审查清单 | [Scientific Document Parsing Review](quality/SCIENTIFIC_DOCUMENT_PARSING_REVIEW.md) | Accepted | Scientific Document Parsing 人工审查：reference-after-rewrite、vendor 边界与采用完整性 |
 | 安全要求 | [Security](../SECURITY.md) | Accepted | 密钥、信任边界、输入、会话、分享与日志要求 |
 | 部署与运维 | [Deployment](../DEPLOYMENT.md) | Accepted | 环境拓扑、配置边界、迁移与健康检查 |
 | 本地启动 | [Setup](setup.md) | Accepted | 本地与 Docker 启动方式、环境变量与调试命令 |
