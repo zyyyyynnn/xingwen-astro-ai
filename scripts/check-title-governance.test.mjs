@@ -12,6 +12,7 @@ test("validatePrTitle accepts the governed grammar", () => {
     "docs(repo): consolidate active project specifications",
     "ci(repo): enforce pull request and commit title grammar",
     "refactor(a-20)!: retire legacy workspace product layer",
+    "fix(repo): remove defaced fixture",
   ]) {
     assert.equal(validatePrTitle(title).valid, true, title);
   }
@@ -29,6 +30,7 @@ test("validatePrTitle rejects legacy or ungoverned metadata", () => {
     "feat(repo): WIP title governance",
     "feat(repo): 修复标题治理",
     "feat(repo): remove E:\\xingwen-astro-ai\\scratch.txt",
+    "feat(repo): remove /tmp/title-governance.log",
     "feat(repo): align title governance at a9b8f7f",
     "feat(repo): align title governance on 2026-08-08",
     " feat(repo): leading whitespace",
