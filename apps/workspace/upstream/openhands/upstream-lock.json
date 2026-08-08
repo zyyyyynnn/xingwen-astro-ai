@@ -8,6 +8,7 @@
   "license": "MIT",
   "license_file": "LICENSE.upstream",
   "notice_file": "NOTICE.md",
+  "source_policy_file": "source-policy.json",
   "selection_status": "confirmed",
   "source_mode": "source-level-vendor",
   "product_mechanics_policy": "preserve-upstream",
@@ -18,6 +19,7 @@
   "manifest_files": [
     "upstream-lock.json",
     "source-scope.json",
+    "source-policy.json",
     "vendor-blueprint.json",
     "provenance-schema.json",
     "LICENSE.upstream",
