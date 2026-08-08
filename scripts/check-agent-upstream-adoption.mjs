@@ -208,9 +208,9 @@ export function checkAgentUpstreamAdoption(root) {
       `Scope summary mismatch: ${JSON.stringify(scope.summary)} != ${JSON.stringify(recomputed)}.`,
     );
   }
-  if (scope.total_src_files !== scope.files.length) {
+  if (scope.total_scoped_files !== scope.files.length) {
     failures.push(
-      `Scope total_src_files (${scope.total_src_files}) != files.length (${scope.files.length}).`,
+      `Scope total_scoped_files (${scope.total_scoped_files}) != files.length (${scope.files.length}).`,
     );
   }
   const files = scope.files ?? [];
@@ -367,13 +367,15 @@ export function checkAgentUpstreamAdoption(root) {
   }
 
   // ---- G9 : private reasoning boundary (policy_sets) ----
+  // source-policy is the complete inventory; compact source-scope files only
+  // need to reject a private path when it is explicitly represented there.
   const policySets = scope.policy_sets ?? {};
   if (policySets.private_reasoning_excluded) {
     for (const p of policySets.private_reasoning_excluded) {
       const sf = seenPaths.has(p)
         ? files.find((f) => f.upstream_path === p)
         : null;
-      if (!sf || sf.classification !== "EXCLUDED") {
+      if (sf && sf.classification !== "EXCLUDED") {
         failures.push(
           `G9: private_reasoning_excluded path not classified EXCLUDED: ${p}.`,
         );

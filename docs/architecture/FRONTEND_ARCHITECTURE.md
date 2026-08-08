@@ -63,6 +63,8 @@ Existing Core
 
 `KEEP_AS_IS` 源码使用一个锁定在 `upstream-lock.json` 的聚合树摘要校验，不保存或逐文件复算 SHA；适配文件通过原始路径、采用类别、修改原因、代码审查与运行测试治理。批准的 Mechanics Scope、显式列出的 transitive mechanics 与实际 Import Closure 分开维护：前两者是人工架构边界，后者只验证所有落盘文件从 `src/root.tsx` 可达、本地导入可解析且没有孤立文件；禁止保留未参与构建的旧 facade 或残缺依赖树。Frontend API、Agent Runtime、认证、WebSocket、Git/Coding、移动端、Telemetry、兼容模块、Cloud、Enterprise 与 Sandbox 源码统一归入 `EXCLUDED`，不得出现在 vendored 目录。
 
+`source-scope.json.files` 是精简的采用边界清单，只包含 approved/transitive mechanics 与代表性排除项；它不声称枚举冻结上游的全部源文件。完整的私有推理与禁用领域库存由 `source-policy.json` 维护，`scope_contract` 与 `total_scoped_files` 明确这一职责边界，避免恢复大体积的机器清单。
+
 上游源码升级需经过：锁定 SHA → 许可证审查 → 更新映射与 Source Policy → 上游 Diff 审查 → 运行契约与 UI 回归 → 独立合并。实际 Vendor 必须重新从官方仓库 checkout `v1.10.0` 并校验 `566386…37f4b`，否则拒绝采用。
 
 ### 3.2 推理披露边界

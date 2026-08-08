@@ -12,6 +12,57 @@ function collectRuntimeErrors(page: Page) {
   return errors;
 }
 
+async function assertDesktopWorkspacePath(page: Page) {
+  const header = page
+    .getByRole("heading", { name: "研究工作台" })
+    .locator("xpath=ancestor::header");
+  const rightHeader = page
+    .getByRole("tablist", { name: "工作区面板" })
+    .locator("..");
+  const [headerBox, rightHeaderBox] = await Promise.all([
+    header.boundingBox(),
+    rightHeader.boundingBox(),
+  ]);
+  expect(headerBox).not.toBeNull();
+  expect(rightHeaderBox).not.toBeNull();
+  expect(headerBox!.height).toBe(48);
+  expect(rightHeaderBox!.height).toBe(48);
+
+  const activityTab = page.getByRole("tab", { name: "活动" });
+  await activityTab.focus();
+  await page.keyboard.press("ArrowRight");
+  const contextTab = page.getByRole("tab", { name: "上下文" });
+  await expect(contextTab).toHaveAttribute("aria-selected", "true");
+  await expect(contextTab).toBeFocused();
+
+  const panelSeparator = page.getByRole("separator", {
+    name: "调整任务与活动面板宽度",
+  });
+  await panelSeparator.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(panelSeparator).toHaveAttribute("aria-valuenow", "60");
+
+  const commandTrigger = page.getByRole("button", {
+    name: "打开命令菜单",
+  });
+  await commandTrigger.focus();
+  await page.keyboard.press("Control+k");
+  await expect(page.getByRole("combobox", { name: "搜索命令" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(commandTrigger).toBeFocused();
+
+  const composer = page.getByRole("textbox", {
+    name: "向 Agent 发送指令",
+  });
+  const composerBox = await composer.boundingBox();
+  const viewport = page.viewportSize();
+  expect(composerBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(composerBox!.y + composerBox!.height).toBeGreaterThan(
+    viewport!.height - 180,
+  );
+}
+
 test("root entry redirects to the Workspace host", async ({ page }) => {
   const errors = collectRuntimeErrors(page);
 
@@ -104,36 +155,20 @@ test("Workspace top bars share one height, divider, and type scale", async ({
 test.describe("Workspace desktop shell at 1440×900", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("keeps the header alignment and Composer at the bottom edge", async ({
+  test("keeps the desktop mechanics aligned", async ({ page }) => {
+    await page.goto("http://127.0.0.1:5173/workspace");
+    await assertDesktopWorkspacePath(page);
+  });
+});
+
+test.describe("Workspace desktop shell at 1280×800", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("keeps the desktop mechanics aligned at normal scale", async ({
     page,
   }) => {
     await page.goto("http://127.0.0.1:5173/workspace");
-
-    const header = page
-      .getByRole("heading", { name: "研究工作台" })
-      .locator("xpath=ancestor::header");
-    const rightHeader = page
-      .getByRole("tablist", { name: "工作区面板" })
-      .locator("..");
-    const [headerBox, rightHeaderBox] = await Promise.all([
-      header.boundingBox(),
-      rightHeader.boundingBox(),
-    ]);
-    expect(headerBox).not.toBeNull();
-    expect(rightHeaderBox).not.toBeNull();
-    expect(headerBox!.height).toBe(48);
-    expect(rightHeaderBox!.height).toBe(48);
-
-    const composer = page.getByRole("textbox", {
-      name: "向 Agent 发送指令",
-    });
-    const composerBox = await composer.boundingBox();
-    const viewport = page.viewportSize();
-    expect(composerBox).not.toBeNull();
-    expect(viewport).not.toBeNull();
-    expect(composerBox!.y + composerBox!.height).toBeGreaterThan(
-      viewport!.height - 180,
-    );
+    await assertDesktopWorkspacePath(page);
   });
 });
 
@@ -395,6 +430,37 @@ test("Workspace tabs and split panel support keyboard control", async ({
   await expect(composerSeparator).toHaveAttribute("aria-valuenow", "72");
   await page.keyboard.press("Home");
   await expect(composerSeparator).toHaveAttribute("aria-valuenow", "56");
+});
+
+test.describe("Workspace overflow menu at 1024×800", () => {
+  test.use({ viewport: { width: 1024, height: 800 } });
+
+  test("closes on Escape and restores focus after a tab selection at 200%", async ({
+    page,
+  }) => {
+    await page.goto("http://127.0.0.1:5173/workspace");
+    await page.addStyleTag({
+      content: "html { font-size: 200% !important; }",
+    });
+
+    const more = page.getByRole("button", { name: "更多面板" });
+    await expect(more).toBeVisible();
+    await more.click();
+    const menu = page.getByRole("menu", { name: "更多面板选项" });
+    await expect(menu).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+    await expect(more).toBeFocused();
+
+    await more.click();
+    const contextItem = page.getByRole("menuitemradio", { name: "上下文" });
+    await contextItem.focus();
+    await page.keyboard.press("Enter");
+    await expect(menu).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "上下文" })).toBeFocused();
+    await expect(page.getByRole("tabpanel")).toContainText("暂无上下文");
+  });
 });
 
 test("Split-panel drag uses one shield without width easing", async ({

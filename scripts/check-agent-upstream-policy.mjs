@@ -244,9 +244,11 @@ function validatePolicy(policy, scope, scopeByPath, failures) {
     }
   }
 
+  // source-policy owns the complete private inventory; source-scope may omit
+  // those paths from its compact boundary list.
   for (const path of privateReasoning.excluded ?? []) {
     const entry = scopeByPath.get(path);
-    if (!entry || entry.classification !== "EXCLUDED") {
+    if (entry && entry.classification !== "EXCLUDED") {
       failures.push(
         `private reasoning excluded path must be EXCLUDED in source-scope: ${path}.`,
       );

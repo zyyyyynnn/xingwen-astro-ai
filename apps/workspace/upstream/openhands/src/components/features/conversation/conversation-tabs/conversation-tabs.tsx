@@ -34,10 +34,17 @@ export function ConversationTabs({
   const refs = React.useRef(new Map<WorkspacePanelTab, HTMLButtonElement>());
   const rowRef = React.useRef<HTMLDivElement>(null);
   const measureRowRef = React.useRef<HTMLDivElement>(null);
+  const moreButtonRef = React.useRef<HTMLButtonElement>(null);
+  const moreMenuRef = React.useRef<HTMLDivElement>(null);
   const [inlineTabCount, setInlineTabCount] = React.useState(TABS.length);
   const [isMoreOpen, setIsMoreOpen] = React.useState(false);
   const [pendingFocusTab, setPendingFocusTab] =
     React.useState<WorkspacePanelTab | null>(null);
+
+  const closeMoreMenu = React.useCallback((restoreFocus: boolean) => {
+    setIsMoreOpen(false);
+    if (restoreFocus) moreButtonRef.current?.focus();
+  }, []);
 
   React.useEffect(() => {
     const stored = readStoredTab();
@@ -60,6 +67,35 @@ export function ConversationTabs({
     tab.focus();
     setPendingFocusTab(null);
   }, [activeTab, pendingFocusTab]);
+
+  React.useEffect(() => {
+    if (!isMoreOpen) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      closeMoreMenu(true);
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (
+        moreButtonRef.current?.contains(target) ||
+        moreMenuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      closeMoreMenu(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown, true);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [closeMoreMenu, isMoreOpen]);
 
   React.useLayoutEffect(() => {
     const row = rowRef.current;
@@ -112,7 +148,7 @@ export function ConversationTabs({
     if (!tab) return;
     setPendingFocusTab(tab.id);
     onSelect(tab.id);
-    setIsMoreOpen(false);
+    closeMoreMenu(false);
   };
 
   const handleKeyDown = (
@@ -187,14 +223,19 @@ export function ConversationTabs({
             className="oh-icon-button h-full"
             aria-label="更多面板"
             aria-expanded={isMoreOpen}
-            onClick={() => setIsMoreOpen((open) => !open)}
+            ref={moreButtonRef}
+            onClick={() =>
+              isMoreOpen ? closeMoreMenu(true) : setIsMoreOpen(true)
+            }
           >
             <MoreHorizontal className="size-4" aria-hidden="true" />
           </button>
           {isMoreOpen ? (
             <div
-              className="absolute right-0 top-full z-20 min-w-32 border border-[var(--oh-border-strong)] bg-[var(--oh-surface)] p-1 shadow-[var(--oh-shadow-float)]"
+              ref={moreMenuRef}
+              className="absolute left-0 top-full z-20 min-w-[128px] border border-[var(--oh-border-strong)] bg-[var(--oh-surface)] p-1 shadow-[var(--oh-shadow-float)]"
               role="menu"
+              aria-label="更多面板选项"
             >
               {overflowTabs.map((tab) => {
                 const Icon = tab.icon;
@@ -205,7 +246,7 @@ export function ConversationTabs({
                     role="menuitemradio"
                     aria-checked={tab.id === activeTab}
                     className="flex w-full items-center gap-2 rounded-[var(--oh-radius-sm)] px-2 py-1.5 text-left text-sm text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)]"
-                    onClick={() => onSelect(tab.id)}
+                    onClick={() => selectAt(TABS.indexOf(tab))}
                   >
                     <Icon className="size-4" aria-hidden="true" />
                     {tab.label}
