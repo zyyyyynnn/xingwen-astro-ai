@@ -5,9 +5,10 @@
   "purpose": "Defines the single reachable OpenHands Workspace source-adoption contract.",
   "source_scope": {
     "entrypoint": "src/root.tsx",
-    "rule": "Only files in the resolved local import closure of the single Workspace entrypoint may be vendored.",
+    "rule": "Approved OpenHands product-mechanics scope is defined independently; the actual local import closure is verified against that scope and must be complete, resolvable, and free of orphan files.",
     "adopted_surfaces": [
       "Workspace shell and desktop layout",
+      "ConversationMain split-panel composition and panel visibility",
       "Sidebar navigation and command menu",
       "Composer states, resize, send, cancel, retry, loading, and error feedback",
       "Activity/context tabs and split-panel mechanics",
@@ -62,6 +63,7 @@
   },
   "hard_rules": [
     "One Workspace shell and one entrypoint.",
+    "Approved mechanics are recorded independently from the actual import closure.",
     "Every vendored source file is reachable from src/root.tsx.",
     "Every local import in the vendored closure resolves on disk.",
     "No compatibility layer or dormant upstream facade.",

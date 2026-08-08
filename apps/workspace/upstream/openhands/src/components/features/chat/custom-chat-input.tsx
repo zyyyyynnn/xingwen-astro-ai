@@ -36,7 +36,7 @@ export function CustomChatInput({
     handleGripMouseDown,
     handleGripKeyDown,
     resetHeight,
-  } = useGripResize(chatInputRef);
+  } = useGripResize();
 
   const syncCanSubmit = React.useCallback(() => {
     setCanSubmit(Boolean(chatInputRef.current?.textContent?.trim()));
@@ -66,8 +66,25 @@ export function CustomChatInput({
     const text = event.clipboardData.getData("text/plain");
     if (!text) return;
     event.preventDefault();
-    document.execCommand("insertText", false, text);
-    queueMicrotask(syncCanSubmit);
+    const input = chatInputRef.current;
+    if (!input) return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      input.append(document.createTextNode(text));
+    } else {
+      const range = selection.getRangeAt(0);
+      if (!input.contains(range.commonAncestorContainer)) {
+        input.append(document.createTextNode(text));
+      } else {
+        range.deleteContents();
+        range.insertNode(document.createTextNode(text));
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+    requestAnimationFrame(syncCanSubmit);
   };
 
   return (

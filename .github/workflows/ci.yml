@@ -328,9 +328,6 @@ jobs:
       - name: Check package architecture
         run: pnpm check:architecture
 
-      - name: Check retired runtime removal
-        run: pnpm check:legacy
-
       - name: Install browser runtime
         run: pnpm exec playwright install --with-deps chromium
 

@@ -42,7 +42,7 @@ export function ChatInputGrip({
     >
       <span
         className={cn(
-          "pointer-events-none absolute left-1/2 top-1/2 h-1 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--oh-border-strong)] transition-opacity group-focus-visible/grip:opacity-100 group-hover/grip:opacity-100 motion-reduce:transition-none",
+          "pointer-events-none absolute left-1/2 top-1/2 h-1 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--oh-border-strong)] transition-opacity group-focus-visible/grip:opacity-100 motion-reduce:transition-none",
           isGripVisible || isGripDragging ? "opacity-100" : "opacity-0",
         )}
         aria-hidden="true"

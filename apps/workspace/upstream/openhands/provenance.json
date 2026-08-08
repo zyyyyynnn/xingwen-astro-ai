@@ -122,6 +122,13 @@
       "modification_reason": "Removed upstream routes and localization coupling while retaining searchable overlay, shortcut, keyboard selection, and focus mechanics."
     },
     {
+      "upstream_path": "src/components/features/conversation/conversation-main/conversation-main.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-main/conversation-main.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed mobile and coding panel content while retaining ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics."
+    },
+    {
       "upstream_path": "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx",
       "local_path": "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-tabs/conversation-tabs.tsx",
       "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",

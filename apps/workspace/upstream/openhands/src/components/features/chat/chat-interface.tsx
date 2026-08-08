@@ -14,17 +14,12 @@ interface ChatInterfaceProps {
 type ExecutionPhase = "idle" | "running" | "error";
 
 export function ChatInterface({ runtime }: ChatInterfaceProps) {
-  const [commands, setCommands] = React.useState<string[]>([]);
   const [phase, setPhase] = React.useState<ExecutionPhase>("idle");
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [lastCommand, setLastCommand] = React.useState<string | null>(null);
   const abortRef = React.useRef<AbortController | null>(null);
   const scrollAnchorRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    scrollAnchorRef.current?.scrollIntoView?.({ block: "nearest" });
-  }, [commands, phase]);
 
   React.useEffect(
     () => () => {
@@ -34,14 +29,13 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
   );
 
   const execute = React.useCallback(
-    async (command: string, recordCommand: boolean) => {
+    async (command: string) => {
       if (runtime.availability !== "ready") return;
 
       const controller = new AbortController();
       abortRef.current?.abort();
       abortRef.current = controller;
       setLastCommand(command);
-      if (recordCommand) setCommands((current) => [...current, command]);
       setError(null);
       setNotice(null);
       setPhase("running");
@@ -77,7 +71,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
         aria-live="polite"
         aria-busy={phase === "running"}
       >
-        {commands.length === 0 && phase !== "running" ? (
+        {phase === "idle" && !notice ? (
           <div className="flex min-h-full items-center justify-center px-8 py-10 text-center">
             <div className="max-w-sm">
               <MessageSquareText
@@ -92,30 +86,14 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
               </p>
             </div>
           </div>
-        ) : (
-          <ol className="space-y-4 px-5 py-5" aria-label="已提交指令">
-            {commands.map((command, index) => (
-              <li
-                key={`${index}-${command}`}
-                className="ml-auto max-w-[86%] border-r-2 border-[var(--oh-accent)] pr-3 text-right"
-              >
-                <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--oh-text)]">
-                  {command}
-                </p>
-                <span className="text-xs text-[var(--oh-text-dim)]">
-                  用户指令
-                </span>
-              </li>
-            ))}
-          </ol>
-        )}
+        ) : null}
 
         {phase === "running" ? <ChatMessagesSkeleton /> : null}
         {error ? (
           <ErrorMessageBanner
             message={error}
             onRetry={() => {
-              if (lastCommand) void execute(lastCommand, false);
+              if (lastCommand) void execute(lastCommand);
             }}
             onDismiss={() => {
               setError(null);
@@ -135,7 +113,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
       <InteractiveChatBox
         disabled={runtime.availability !== "ready"}
         running={phase === "running"}
-        onSubmit={(command) => void execute(command, true)}
+        onSubmit={(command) => void execute(command)}
         onCancel={cancel}
       />
     </div>

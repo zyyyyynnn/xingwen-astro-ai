@@ -40,6 +40,7 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
   const [query, setQuery] = React.useState("");
   const [activeIndex, setActiveIndex] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const optionRefs = React.useRef(new Map<string, HTMLElement>());
   const previousFocusRef = React.useRef<HTMLElement | null>(null);
   const wasOpenRef = React.useRef(false);
 
@@ -70,6 +71,7 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
       previousFocusRef.current = null;
       wasOpenRef.current = false;
     }
+    optionRefs.current.clear();
     return undefined;
   }, [isOpen]);
 
@@ -90,6 +92,14 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
     filteredItems.length === 0
       ? -1
       : Math.min(Math.max(activeIndex, 0), filteredItems.length - 1);
+
+  React.useEffect(() => {
+    const activeItem = filteredItems[boundedActiveIndex];
+    const activeNode = activeItem
+      ? optionRefs.current.get(activeItem.id)
+      : undefined;
+    activeNode?.scrollIntoView?.({ block: "nearest" });
+  }, [boundedActiveIndex, filteredItems]);
 
   const dismiss = React.useCallback(() => {
     setQuery("");
@@ -151,7 +161,7 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
         onClick={dismiss}
       />
       <div className="relative flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-[var(--oh-radius-lg)] border border-[var(--oh-border-strong)] bg-[var(--oh-surface)] shadow-[var(--oh-shadow-modal)]">
-        <div className="group flex items-center gap-3 border-b-2 border-[var(--oh-border)] px-4 py-2.5 transition-colors focus-within:border-[var(--oh-accent)] motion-reduce:transition-none">
+        <div className="group flex items-center gap-3 border-b border-[var(--oh-border)] px-4 py-2.5 transition-colors focus-within:border-[var(--oh-border-strong)] motion-reduce:transition-none">
           <Search
             className="size-5 shrink-0 text-[var(--oh-text-dim)] transition-colors group-focus-within:text-[var(--oh-accent)] motion-reduce:transition-none"
             aria-hidden="true"
@@ -217,6 +227,10 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
                     return (
                       <button
                         key={item.id}
+                        ref={(node) => {
+                          if (node) optionRefs.current.set(item.id, node);
+                          else optionRefs.current.delete(item.id);
+                        }}
                         id={optionId(item)}
                         type="button"
                         role="option"

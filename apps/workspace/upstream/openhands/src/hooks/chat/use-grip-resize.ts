@@ -1,8 +1,8 @@
 import React from "react";
 
-const MIN_HEIGHT = 112;
-const MAX_HEIGHT = 260;
-const DEFAULT_HEIGHT = 128;
+const MIN_HEIGHT = 56;
+const MAX_HEIGHT = 240;
+const DEFAULT_HEIGHT = 56;
 const KEYBOARD_STEP = 16;
 
 function clampHeight(height: number) {
@@ -10,17 +10,21 @@ function clampHeight(height: number) {
 }
 
 /** Composer resize mechanics retained from the upstream grip interaction. */
-export function useGripResize(
-  chatInputRef: React.RefObject<HTMLDivElement | null>,
-) {
+export function useGripResize() {
   const [height, setHeight] = React.useState(DEFAULT_HEIGHT);
   const [isGripVisible, setIsGripVisible] = React.useState(false);
   const [isGripDragging, setIsGripDragging] = React.useState(false);
   const gripRef = React.useRef<HTMLDivElement>(null);
   const dragStartRef = React.useRef({ pointerY: 0, height: DEFAULT_HEIGHT });
+  const suppressNextTopEdgeClickRef = React.useRef(false);
 
   const handleTopEdgeClick = (event: React.MouseEvent) => {
     event.stopPropagation();
+    if (suppressNextTopEdgeClickRef.current) {
+      suppressNextTopEdgeClickRef.current = false;
+      event.preventDefault();
+      return;
+    }
     if (!isGripDragging) setIsGripVisible((current) => !current);
   };
 
@@ -38,7 +42,10 @@ export function useGripResize(
       const delta = dragStartRef.current.pointerY - event.clientY;
       setHeight(clampHeight(dragStartRef.current.height + delta));
     };
-    const handleMouseUp = () => setIsGripDragging(false);
+    const handleMouseUp = () => {
+      setIsGripDragging(false);
+      suppressNextTopEdgeClickRef.current = true;
+    };
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
@@ -64,7 +71,6 @@ export function useGripResize(
     event.preventDefault();
     setHeight(clampHeight(nextHeight));
     setIsGripVisible(true);
-    chatInputRef.current?.focus();
   };
 
   return {

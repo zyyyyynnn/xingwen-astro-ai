@@ -5,7 +5,90 @@
   "tag": "v1.10.0",
   "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
   "license": "MIT",
-  "algorithm": "single adapted Workspace entrypoint -> resolved local import closure -> explicit product/privacy review -> prohibited surface exclusion -> final classification",
+  "algorithm": "approved OpenHands product-mechanics scope -> surgical domain/runtime removal -> actual local import closure verification",
+  "approved_mechanics": [
+    {
+      "surface": "workspace-shell",
+      "upstream_paths": [
+        "src/root.tsx",
+        "src/routes/root-layout.tsx",
+        "src/routes/conversation.tsx",
+        "src/components/features/conversation/conversation-main/conversation-main.tsx"
+      ],
+      "requirements": [
+        "single-entry composition",
+        "desktop rails",
+        "split panel",
+        "panel visibility"
+      ]
+    },
+    {
+      "surface": "navigation-rail",
+      "upstream_paths": [
+        "src/components/features/sidebar/sidebar.tsx",
+        "src/components/features/sidebar/sidebar-rail-body.tsx",
+        "src/components/features/sidebar/sidebar-layout.ts"
+      ],
+      "requirements": [
+        "collapse",
+        "stable inner geometry",
+        "keyboard activation"
+      ]
+    },
+    {
+      "surface": "conversation-tabs",
+      "upstream_paths": [
+        "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx"
+      ],
+      "requirements": [
+        "selection",
+        "keyboard navigation",
+        "persistent selection",
+        "overflow"
+      ]
+    },
+    {
+      "surface": "composer",
+      "upstream_paths": [
+        "src/components/features/chat/interactive-chat-box.tsx",
+        "src/components/features/chat/custom-chat-input.tsx",
+        "src/components/features/chat/components/chat-input-container.tsx",
+        "src/components/features/chat/components/chat-input-field.tsx",
+        "src/components/features/chat/components/chat-input-grip.tsx",
+        "src/components/features/chat/components/chat-input-row.tsx",
+        "src/components/features/chat/components/chat-input-actions.tsx",
+        "src/components/features/chat/chat-send-button.tsx",
+        "src/components/features/chat/chat-stop-button.tsx",
+        "src/hooks/chat/use-grip-resize.ts"
+      ],
+      "requirements": [
+        "contentEditable input",
+        "composition",
+        "paste",
+        "submit",
+        "cancel",
+        "resize",
+        "focus"
+      ]
+    },
+    {
+      "surface": "command-menu",
+      "upstream_paths": [
+        "src/components/features/command-menu/command-menu.tsx",
+        "src/components/features/command-menu/command-menu-items.tsx",
+        "src/components/features/command-menu/command-menu-trigger.tsx",
+        "src/stores/command-menu-store.ts"
+      ],
+      "requirements": [
+        "portal",
+        "focus return",
+        "listbox",
+        "filter",
+        "keyboard selection",
+        "scroll active option"
+      ]
+    }
+  ],
   "classification_legend": {
     "REQUIRED_VENDOR": "Core Agent Product mechanic — vendored as part of source adoption.",
     "REQUIRED_TRANSITIVE": "Real import dependency of REQUIRED_VENDOR — vendored with parent.",
@@ -14,11 +97,11 @@
     "DEFERRED_NOT_VENDORED": "Upstream exists, no current consumer — vendored only when a consuming integration requires it."
   },
   "summary": {
-    "REQUIRED_VENDOR": 27,
+    "REQUIRED_VENDOR": 28,
     "REQUIRED_TRANSITIVE": 0,
     "PARTIAL_SURGICAL": 2,
     "EXCLUDED": 784,
-    "DEFERRED_NOT_VENDORED": 293
+    "DEFERRED_NOT_VENDORED": 292
   },
   "total_src_files": 1106,
   "files": [
@@ -4418,8 +4501,10 @@
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-main/conversation-main.tsx",
-      "classification": "DEFERRED_NOT_VENDORED",
-      "reason": "Upstream exists but no current core consumer — vendored only when a consuming integration requires it."
+      "classification": "REQUIRED_VENDOR",
+      "reason": "Retain the OpenHands ConversationMain split-panel composition while removing mobile and coding surfaces.",
+      "preserved_mechanics": "ConversationMain: panel widths, resize handle, panel visibility, header composition, panel content frame",
+      "removed_domain": "Mobile panel routing and coding-specific panel content"
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-main/conversation-mobile-panel-page.tsx",

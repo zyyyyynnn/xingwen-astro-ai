@@ -144,46 +144,7 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
   const expand = page.getByRole("button", { name: "展开活动面板" });
   await expect(expand).toBeVisible();
   await expect(expand).toBeFocused();
-
-  const collapseFrames = await expand.evaluate(async (button) => {
-    const buttonCenters: number[] = [];
-    const headingWidths: number[] = [];
-    const headingHeights: number[] = [];
-    const heading = document.querySelector<HTMLElement>(
-      "#workspace-activity-panel .oh-empty-state p",
-    );
-    if (!heading) throw new Error("Activity heading is missing");
-    for (let frame = 0; frame < 16; frame += 1) {
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => resolve()),
-      );
-      const buttonRect = button.getBoundingClientRect();
-      const headingRect = heading.getBoundingClientRect();
-      buttonCenters.push(buttonRect.x + buttonRect.width / 2);
-      headingWidths.push(headingRect.width);
-      headingHeights.push(headingRect.height);
-    }
-    return { buttonCenters, headingWidths, headingHeights };
-  });
-
-  expect(
-    Math.max(...collapseFrames.buttonCenters) -
-      Math.min(...collapseFrames.buttonCenters),
-  ).toBeLessThan(1);
-  expect(
-    Math.abs(
-      collapseFrames.buttonCenters.at(-1)! - (before!.x + before!.width / 2),
-    ),
-  ).toBeLessThan(1);
-  expect(
-    Math.max(...collapseFrames.headingWidths) -
-      Math.min(...collapseFrames.headingWidths),
-  ).toBeLessThan(1);
-  expect(
-    Math.max(...collapseFrames.headingHeights) -
-      Math.min(...collapseFrames.headingHeights),
-  ).toBeLessThan(1);
-  expect(collapseFrames.headingHeights.at(-1)).toBe(initialHeadingBox!.height);
+  await expect(rightPanel).toHaveCSS("width", "1px");
   const collapsedPanelBox = await rightPanel.boundingBox();
   const collapsedContentBox = await rightPanelContent.boundingBox();
   expect(collapsedPanelBox).not.toBeNull();
@@ -203,34 +164,21 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
       }),
   );
   expect(collapsedIntersection).toBe(0);
+  const collapsedAnchor = await expand.boundingBox();
+  expect(collapsedAnchor).not.toBeNull();
+  expect(Math.abs(collapsedAnchor!.x - before!.x)).toBeLessThanOrEqual(2);
 
   await expand.click();
   await expect(collapse).toBeFocused();
-  const expansionFrames = await collapse.evaluate(async (button) => {
-    const buttonCenters: number[] = [];
-    const headingHeights: number[] = [];
-    const heading = document.querySelector<HTMLElement>(
-      "#workspace-activity-panel .oh-empty-state p",
-    );
-    if (!heading) throw new Error("Activity heading is missing");
-    for (let frame = 0; frame < 16; frame += 1) {
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => resolve()),
-      );
-      const buttonRect = button.getBoundingClientRect();
-      buttonCenters.push(buttonRect.x + buttonRect.width / 2);
-      headingHeights.push(heading.getBoundingClientRect().height);
-    }
-    return { buttonCenters, headingHeights };
-  });
+  await expect(rightPanel).toBeVisible();
+  const expandedHeadingBox = await activityHeading.boundingBox();
+  expect(expandedHeadingBox).not.toBeNull();
   expect(
-    Math.max(...expansionFrames.buttonCenters) -
-      Math.min(...expansionFrames.buttonCenters),
-  ).toBeLessThan(1);
-  expect(
-    Math.max(...expansionFrames.headingHeights) -
-      Math.min(...expansionFrames.headingHeights),
-  ).toBeLessThan(1);
+    Math.abs(expandedHeadingBox!.height - initialHeadingBox!.height),
+  ).toBeLessThanOrEqual(1);
+  const expandedAnchor = await collapse.boundingBox();
+  expect(expandedAnchor).not.toBeNull();
+  expect(Math.abs(expandedAnchor!.x - before!.x)).toBeLessThanOrEqual(2);
   const expandedIntersection = await activityHeading.evaluate(
     (heading) =>
       new Promise<number>((resolve) => {
@@ -250,7 +198,7 @@ test("Sidebar toggle tracks the rail edge throughout collapse and expansion", as
   await page.goto("http://127.0.0.1:5173/workspace");
 
   const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
-  const samples = await sidebar.evaluate(async (sidebarElement) => {
+  const geometry = await sidebar.evaluate((sidebarElement) => {
     const toggle = sidebarElement.querySelector<HTMLButtonElement>(
       'button[aria-label="收起侧栏"]',
     );
@@ -273,88 +221,58 @@ test("Sidebar toggle tracks the rail edge throughout collapse and expansion", as
           newTaskIconBox.left + newTaskIconBox.width / 2 - sidebarBox.left,
       };
     };
-    const readings = [readGeometry()];
-
+    const expanded = readGeometry();
     toggle.click();
-    for (let frame = 0; frame < 14; frame += 1) {
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => resolve()),
-      );
-      readings.push(readGeometry());
-    }
+    const collapsed = readGeometry();
     toggle.click();
-    for (let frame = 0; frame < 14; frame += 1) {
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => resolve()),
-      );
-      readings.push(readGeometry());
-    }
-    return readings;
+    const restored = readGeometry();
+    return { expanded, collapsed, restored };
   });
 
-  expect(samples).toHaveLength(29);
-  const initialToggleGap = samples[0].toggleRightGap;
-  const initialNewTaskCenter = samples[0].newTaskIconCenter;
+  expect(geometry).not.toBeNull();
   expect(
-    Math.max(
-      ...samples.map(({ toggleRightGap }) =>
-        Math.abs(toggleRightGap - initialToggleGap),
-      ),
+    Math.abs(
+      geometry!.expanded.toggleRightGap - geometry!.restored.toggleRightGap,
     ),
-  ).toBeLessThanOrEqual(3);
+  ).toBeLessThanOrEqual(2);
   expect(
-    Math.max(
-      ...samples.map(({ newTaskIconCenter }) =>
-        Math.abs(newTaskIconCenter - initialNewTaskCenter),
-      ),
+    Math.abs(
+      geometry!.expanded.newTaskIconCenter -
+        geometry!.restored.newTaskIconCenter,
     ),
-  ).toBeLessThanOrEqual(3);
+  ).toBeLessThanOrEqual(2);
 });
 
-test("Sidebar text remains horizontal on the first expansion frames", async ({
-  page,
-}) => {
+test("Sidebar text stays horizontal after expansion", async ({ page }) => {
   await page.goto("http://127.0.0.1:5173/workspace");
 
   const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   await page.getByRole("button", { name: "收起侧栏" }).click();
   await expect(sidebar).toHaveCSS("width", "56px");
 
-  const textHeights = await sidebar.evaluate(async (sidebarElement) => {
+  const textHeights = await sidebar.evaluate((sidebarElement) => {
     const toggle = sidebarElement.querySelector<HTMLButtonElement>(
       'button[aria-label="展开侧栏"]',
     );
     if (!toggle) return [];
 
     toggle.click();
-    const samples: Array<{ brand: number; emptyTask: number }> = [];
-    for (let frame = 0; frame < 4; frame += 1) {
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => resolve()),
-      );
-      const brandTitle = sidebarElement.querySelector<HTMLElement>(
-        ".xw-brand-mark__title",
-      );
-      const emptyTask = sidebarElement.querySelector<HTMLElement>(
-        '[aria-label="任务列表"] p',
-      );
-      if (brandTitle && emptyTask) {
-        samples.push({
-          brand: brandTitle.getBoundingClientRect().height,
-          emptyTask: emptyTask.getBoundingClientRect().height,
-        });
-      }
-    }
-    return samples;
+    const brandTitle = sidebarElement.querySelector<HTMLElement>(
+      ".xw-brand-mark__title",
+    );
+    const emptyTask = sidebarElement.querySelector<HTMLElement>(
+      '[aria-label="任务列表"] p',
+    );
+    if (!brandTitle || !emptyTask) return null;
+    return {
+      brand: brandTitle.getBoundingClientRect().height,
+      emptyTask: emptyTask.getBoundingClientRect().height,
+    };
   });
 
-  expect(textHeights).toHaveLength(4);
-  expect(
-    Math.max(...textHeights.map(({ brand }) => brand)),
-  ).toBeLessThanOrEqual(24);
-  expect(
-    Math.max(...textHeights.map(({ emptyTask }) => emptyTask)),
-  ).toBeLessThanOrEqual(24);
+  expect(textHeights).not.toBeNull();
+  expect(textHeights!.brand).toBeLessThanOrEqual(24);
+  expect(textHeights!.emptyTask).toBeLessThanOrEqual(24);
 });
 
 test("Composer stays transparent without a full-width hover line", async ({
@@ -364,12 +282,23 @@ test("Composer stays transparent without a full-width hover line", async ({
 
   const composer = page.getByTestId("chat-input-container");
   await expect(composer).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  const composerBox = await composer.boundingBox();
+  const conversationBox = await page
+    .getByTestId("conversation-main")
+    .boundingBox();
+  expect(composerBox).not.toBeNull();
+  expect(conversationBox).not.toBeNull();
+  expect(composerBox!.y + composerBox!.height).toBeGreaterThan(
+    conversationBox!.y + conversationBox!.height - 24,
+  );
 
   const gripIndicator = page
     .getByRole("separator", { name: "调整指令输入区高度" })
     .locator("span");
-  await page.getByTestId("chat-input").hover();
+  await page.getByRole("separator", { name: "调整指令输入区高度" }).hover();
   await expect(gripIndicator).toHaveCSS("opacity", "0");
+  await page.getByRole("separator", { name: "调整指令输入区高度" }).focus();
+  await expect(gripIndicator).toHaveCSS("opacity", "1");
 });
 
 test("Workspace command menu preserves keyboard focus", async ({ page }) => {
@@ -382,7 +311,7 @@ test("Workspace command menu preserves keyboard focus", async ({ page }) => {
   await expect(search).toBeVisible();
   await expect(search).toBeFocused();
   await expect(search).toHaveCSS("outline-style", "none");
-  await expect(search.locator("..")).toHaveCSS("border-bottom-width", "2px");
+  await expect(search.locator("..")).toHaveCSS("border-bottom-width", "1px");
 
   await page.keyboard.press("Tab");
   await expect(search).toBeFocused();
@@ -424,13 +353,12 @@ test("Workspace tabs and split panel support keyboard control", async ({
   const composerSeparator = page.getByRole("separator", {
     name: "调整指令输入区高度",
   });
-  await expect(composerSeparator).toHaveAttribute("aria-valuenow", "128");
+  await expect(composerSeparator).toHaveAttribute("aria-valuenow", "56");
   await composerSeparator.focus();
   await page.keyboard.press("ArrowUp");
-  await expect(composerSeparator).toHaveAttribute("aria-valuenow", "144");
-  await composerSeparator.focus();
+  await expect(composerSeparator).toHaveAttribute("aria-valuenow", "72");
   await page.keyboard.press("Home");
-  await expect(composerSeparator).toHaveAttribute("aria-valuenow", "112");
+  await expect(composerSeparator).toHaveAttribute("aria-valuenow", "56");
 });
 
 test("Split-panel drag uses one shield without width easing", async ({

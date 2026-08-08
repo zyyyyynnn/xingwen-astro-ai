@@ -6,9 +6,9 @@
   "entrypoint": "src/root.tsx",
   "summary": {
     "VENDORED": 1,
-    "SURGICALLY_ADAPTED": 28
+    "SURGICALLY_ADAPTED": 29
   },
-  "total": 29,
+  "total": 30,
   "entries": [
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
@@ -104,6 +104,12 @@
       "upstream_path": "src/components/features/command-menu/command-menu.tsx",
       "status": "SURGICALLY_ADAPTED",
       "reason": "Removed upstream routes and localization coupling while retaining searchable overlay, shortcut, keyboard selection, and focus mechanics.",
+      "proof": "reachable-from-single-src/root.tsx-import-closure"
+    },
+    {
+      "upstream_path": "src/components/features/conversation/conversation-main/conversation-main.tsx",
+      "status": "SURGICALLY_ADAPTED",
+      "reason": "Removed mobile and coding panel content while retaining ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {

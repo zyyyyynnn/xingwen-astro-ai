@@ -116,7 +116,7 @@ describe("source-adopted Agent workspace mechanics", () => {
 
     expect(await screen.findByText("任务已结束")).toBeInTheDocument();
     expect(execute).toHaveBeenCalledTimes(2);
-    expect(screen.getAllByText("生成任务提纲")).toHaveLength(1);
+    expect(screen.queryByText("生成任务提纲")).not.toBeInTheDocument();
   });
 
   it("keeps public rationale collapsed until explicitly disclosed", () => {

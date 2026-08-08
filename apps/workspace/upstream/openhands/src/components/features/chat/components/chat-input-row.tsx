@@ -22,7 +22,7 @@ export function ChatInputRow({
   onBlur,
 }: ChatInputRowProps) {
   return (
-    <div className="flex w-full min-w-0 items-end pb-3">
+    <div className="flex w-full min-w-0 items-end">
       <ChatInputField
         chatInputRef={chatInputRef}
         disabled={disabled}

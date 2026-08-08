@@ -48,6 +48,7 @@ const STRUCTURE_REPLACEMENT = new Set([
   "src/components/features/command-menu/command-menu-trigger.tsx",
   "src/components/features/command-menu/command-menu.tsx",
   "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx",
+  "src/components/features/conversation/conversation-main/conversation-main.tsx",
   "src/components/features/sidebar/sidebar-rail-body.tsx",
   "src/components/features/sidebar/sidebar.tsx",
   "src/root.tsx",
@@ -85,6 +86,9 @@ function modificationReason(upstreamPath) {
     upstreamPath.includes("resizable-panels")
   ) {
     return "Removed coding panel content while retaining tabs, split-panel sizing, and keyboard mechanics.";
+  }
+  if (upstreamPath.includes("conversation-main")) {
+    return "Removed mobile and coding panel content while retaining ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics.";
   }
   if (upstreamPath === "src/utils/utils.ts") {
     return "Reduced the utility surface to class composition used by the adopted import graph.";
