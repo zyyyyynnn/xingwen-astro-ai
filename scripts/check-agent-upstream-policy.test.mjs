@@ -168,11 +168,7 @@ test("private reasoning inventory shrink fails", () => {
     const policy = load(root, "source-policy.json");
     policy.private_reasoning.mandatory_surgery.pop();
     save(root, "source-policy.json", policy);
-    assertFail(
-      root,
-      /mandatory_surgery/,
-      "private reasoning inventory shrink",
-    );
+    assertFail(root, /mandatory_surgery/, "private reasoning inventory shrink");
   } finally {
     cleanup(root);
   }
