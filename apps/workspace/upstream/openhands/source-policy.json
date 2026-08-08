@@ -1,0 +1,78 @@
+{
+  "schema": "xingwen.agent-upstream.source-policy/v1",
+  "product": "OpenHands",
+  "repository": "https://github.com/OpenHands/OpenHands.git",
+  "tag": "v1.10.0",
+  "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
+  "license": "MIT",
+  "purpose": "Semantic source-adoption policy layered over source-scope reachability. Product mechanics may be preserved, while coding-only and model-private reasoning semantics are excluded or surgically removed.",
+  "precedence": "source-policy constraints override any KEEP_AS_IS interpretation from source reachability.",
+  "private_reasoning": {
+    "policy": "never-cross-product-boundary",
+    "excluded": [
+      "src/components/conversation-events/chat/event-thought-helpers.ts",
+      "src/components/conversation-events/chat/event-message-components/thought-event-message.tsx"
+    ],
+    "mandatory_surgery": [
+      "src/components/conversation-events/chat/event-content-helpers/get-action-content.ts",
+      "src/components/conversation-events/chat/event-content-helpers/get-action-event-title.ts",
+      "src/components/conversation-events/chat/event-content-helpers/get-event-content.tsx",
+      "src/components/conversation-events/chat/event-content-helpers/get-observation-content.ts",
+      "src/components/conversation-events/chat/event-content-helpers/should-render-event.ts",
+      "src/components/conversation-events/chat/event-message-components/index.ts",
+      "src/components/conversation-events/chat/event-message-components/observation-pair-event-message.tsx",
+      "src/components/conversation-events/chat/event-message-components/user-assistant-event-message.tsx",
+      "src/components/conversation-events/chat/event-message.tsx",
+      "src/components/conversation-events/chat/group-events.ts",
+      "src/components/conversation-events/chat/messages.tsx",
+      "src/components/features/chat/typing-indicator.tsx",
+      "src/hooks/chat/record-model-switch-message.ts",
+      "src/types/agent-server/core/base/action.ts",
+      "src/types/agent-server/core/base/event.ts",
+      "src/types/agent-server/core/base/observation.ts",
+      "src/types/agent-server/core/events/action-event.ts",
+      "src/types/agent-server/core/events/streaming-delta-event.ts",
+      "src/utils/handle-event-for-ui.ts",
+      "src/utils/transcript-export/index.ts"
+    ],
+    "disclosure_mechanics": [
+      "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx"
+    ],
+    "vendored_surgery_adoption_classes": [
+      "KEEP_WITH_MINIMAL_PATCH",
+      "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT"
+    ],
+    "disclosure_constraints": [
+      "preserve-disclosure-mechanics",
+      "forbid-private-reasoning-input",
+      "public-auditable-reasoning-only"
+    ],
+    "forbidden_source_tokens": [
+      "reasoning_content",
+      "thinking_blocks",
+      "ThinkAction",
+      "ThinkObservation",
+      "<think>",
+      "event.thought",
+      "action.thought"
+    ],
+    "forbidden_import_fragments": [
+      "event-thought-helpers",
+      "thought-event-message"
+    ]
+  },
+  "public_reasoning": {
+    "policy": "explicit-auditable-evidence-linked",
+    "allowed_semantics": [
+      "Agent plan",
+      "Agent action",
+      "tool/progress event",
+      "public rationale",
+      "Evidence-linked ReasoningTrace",
+      "limitation",
+      "uncertainty",
+      "error/recovery"
+    ],
+    "reasoning_trace": "ReasoningTrace is a public derivation record and must never contain or reproduce model-private chain-of-thought."
+  }
+}
