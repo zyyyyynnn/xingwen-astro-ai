@@ -9,7 +9,8 @@
       "partial_surgical": [
         "components/features/conversation/conversation-tabs/conversation-tabs",
         "components/files",
-        "api/canvas-ui-client-tool"
+        "api/canvas-ui-client-tool",
+        "components/conversation-events/chat/event-message-components/collapsible-thinking"
       ],
       "excluded": [
         "components/features/terminal",
@@ -24,8 +25,8 @@
         "api/git-service",
         "api/cloud",
         "electron",
-        "components/conversation-events/chat/event-thought-helpers (private model reasoning extractor)",
-        "components/conversation-events/chat/event-message-components/thought-event-message (private model thought renderer)"
+        "components/conversation-events/chat/event-thought-helpers",
+        "components/conversation-events/chat/event-message-components/thought-event-message"
       ],
       "deferred_not_vendored": [
         "components/features/settings (sub-pages)",
@@ -44,6 +45,12 @@
       ]
     }
   },
+  "source_policy": {
+    "file": "source-policy.json",
+    "role": "Semantic/privacy policy layered over source-scope reachability. It can require mandatory surgery even when a file remains REQUIRED_VENDOR or REQUIRED_TRANSITIVE.",
+    "precedence": "EXCLUDED, DEFERRED_NOT_VENDORED, and source-policy constraints take precedence over KEEP_AS_IS.",
+    "private_reasoning": "Raw model-private reasoning must never cross the product boundary. Pure private-reasoning extractor/renderer files are excluded; mechanics-bearing dependencies listed by source-policy require surgery before they can be vendored."
+  },
   "component_mapping": {
     "preserve_mechanics": [
       "Shell/root",
@@ -52,7 +59,8 @@
       "Composer (features/chat)",
       "Workspace Panel + Tab container (conversation-tabs)",
       "Overlay/Dialog/Popover (ui/shared/context-menu/controls)",
-      "Keyboard/Focus/Scroll/Loading/Empty/Running/Error/Cancel/Retry/Recovery"
+      "Keyboard/Focus/Scroll/Loading/Empty/Running/Error/Cancel/Retry/Recovery",
+      "Disclosure interaction mechanics without model-private reasoning semantics"
     ],
     "swap_domain_only": [
       "Conversation ViewModel -> Project/Run ViewModel",
@@ -67,15 +75,14 @@
       "Git diff/status UI",
       "VSCode link",
       "agent-server git-service",
-      "cloud proprietary",
-      "private model reasoning (thought / reasoning_content / thinking_blocks / inline <think>)"
+      "cloud proprietary"
     ]
   },
   "runtime_boundary": {
     "source_vendor_seam": [
-      "agent-server-adapter SSE -> compile-safe no-op/stub seam (real replacement in a later integration layer)",
-      "backends registry -> single-runtime stub seam",
-      "LLM setup gate -> disabled/replaced by Research Adapter config"
+      "agent-server-adapter SSE -> compile-safe integration seam",
+      "backends registry -> single-runtime integration seam",
+      "LLM setup gate -> disabled or replaced outside the vendored product-mechanics layer"
     ],
     "source_vendor_forbidden": [
       "XingwenAgentRuntimeAdapter",
@@ -125,20 +132,20 @@
     "api/git-service",
     "api/cloud",
     "Electron desktop shell",
-    "Private model reasoning surfaces (thought extractor, thought renderer)"
+    "Private model reasoning extractor/renderer surfaces"
   ],
   "hard_rules": [
-    "Upstream OpenHands file EXISTS -> MUST vendor, never local-rewrite.",
+    "When an approved OpenHands source-scope mechanic exists, preserve/vendor that upstream implementation rather than locally reimplementing it; EXCLUDED, DEFERRED_NOT_VENDORED, and source-policy constraints take precedence.",
     "Change Domain != rewrite Product Mechanics.",
     "Coding content removal != Shell removal.",
     "Research content replacement via Adapter/ViewModel, NOT second shell.",
     "Visual adjustment = token/font/icon/density/coding-removal, NOT DOM/interaction rebuild.",
-    "Component unsuitable -> modify upstream vendored component, NOT parallel local component.",
-    "Cannot surgically adapt -> STOP / request architecture ruling. NEVER 'build a second one'.",
-    "Private model reasoning (thought / reasoning_content / thinking_blocks / inline <think>) must never cross the product boundary; preserve only disclosure mechanics for explicit public/auditable reasoning."
+    "Component unsuitable -> modify the approved upstream-derived component or resolve it through source-policy/surgical analysis, NOT a parallel local component.",
+    "Cannot surgically adapt an approved product mechanic -> STOP / request architecture ruling. NEVER build a second product skeleton.",
+    "Private model reasoning must never cross the product boundary; preserve only disclosure mechanics for explicit public/auditable reasoning."
   ],
   "source_vendor_completion_contract": {
-    "requirement": "At actual source-vendor time, every initial REQUIRED_VENDOR / REQUIRED_TRANSITIVE / PARTIAL_SURGICAL scope entry must receive an explicit disposition.",
+    "requirement": "At source-vendor completion, every initial REQUIRED_VENDOR / REQUIRED_TRANSITIVE / PARTIAL_SURGICAL scope entry must receive an explicit disposition.",
     "dispositions": [
       "VENDORED",
       "SURGICALLY_ADAPTED",
@@ -147,13 +154,7 @@
     "removed_after_surgical_analysis_requires": [
       "reason",
       "import-unreachable proof"
-    ],
-    "forbidden_final_dispositions": [
-      "PENDING",
-      "future task",
-      "Phase",
-      "task code"
     ]
   },
-  "provenance_contract": "provenance.json: disk <-> provenance exact 1:1 equality, plus provenance -> approved source-scope membership, with strict per-entry repository/tag/commit/path/class/hash validation (scripts/check-agent-upstream-adoption.mjs G5). G5 does not assert full source-scope adoption closure."
+  "provenance_contract": "provenance.json: disk <-> provenance exact 1:1 equality, plus provenance -> approved source-scope membership and source-policy compliance, with strict per-entry repository/tag/commit/path/class/hash validation. Structural provenance does not assert full source-scope adoption closure."
 }
