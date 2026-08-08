@@ -10,7 +10,6 @@ import {
   findRetiredWorkspaceManifestDependencies,
   findRetiredWorkspaceIdentifiers,
   findFakeWorkspaceCapabilityPhrases,
-  findTourRouteRefs,
   frameworkName,
   isRetiredPackageName,
   isRetiredPath,
@@ -19,8 +18,6 @@ import {
   retiredWorkspaceIdentifierNames,
   fakeWorkspaceCapabilityPhrases,
   retiredWorkspaceCssTermsExport,
-  tourRouteAllowlist,
-  tourRouteTermsExport,
 } from "./check-frontend-legacy-rules.mjs";
 
 test("rejects the bare retired runtime in a manifest", () => {
@@ -42,7 +39,7 @@ test("rejects retired terms in ordinary JSON configuration", () => {
   assert.deepEqual(findRetiredTextTerms(config), [frameworkName]);
 });
 
-test("rejects the retired compatibility package", () => {
+test("rejects the retired bridge package", () => {
   const name = `${frameworkName}-demi`;
   assert.deepEqual(
     findRetiredManifestDependencies({ optionalDependencies: { [name]: "1" } }),
@@ -80,7 +77,7 @@ test("rejects retired Workspace application paths", () => {
   }
 });
 
-test("allows legitimate new Workspace paths not retired by A-20", () => {
+test("allows legitimate current Workspace paths", () => {
   assert.equal(
     isRetiredPath("apps/workspace/src/pages/new-workspace-page.tsx"),
     false,
@@ -121,10 +118,6 @@ test("rejects exact retired Workspace identifiers", () => {
   assert.deepEqual(
     findRetiredWorkspaceIdentifiers("function ResearchShell() {}"),
     ["ResearchShell"],
-  );
-  assert.deepEqual(
-    findRetiredWorkspaceIdentifiers("createGuidedTourController()"),
-    ["createGuidedTourController"],
   );
 });
 
@@ -184,14 +177,4 @@ test("allows stable Workspace content and legitimate preview text", () => {
 test("rejects retired Workspace stylesheet rules", () => {
   const rule = retiredWorkspaceCssTermsExport[1];
   assert.deepEqual(findRetiredWorkspaceCssTerms(rule), [rule]);
-});
-
-test("rejects the retired route term outside the compatibility allowlist", () => {
-  const term = tourRouteTermsExport[0];
-  assert.deepEqual(findTourRouteRefs(`link to ${term} here`), [term]);
-  assert.equal(tourRouteAllowlist.has("apps/workspace/src/router.tsx"), true);
-  assert.equal(
-    tourRouteAllowlist.has("apps/site/src/pages/index.astro"),
-    false,
-  );
 });

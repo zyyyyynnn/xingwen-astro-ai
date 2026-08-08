@@ -21,6 +21,8 @@
 
 覆盖选定上游 Agent 骨架的 Navigation、Agent Activity、Workspace、Composer、Command、Loading / Empty / Error、Cancel / Retry 与 Responsive 行为。
 
+来源门禁同时验证 vendored 源码与 `src/root.tsx` 的依赖闭包完全相等、本地导入全部可解析、Scope / Resolution / Provenance 一一对应；闭包外旧 facade 或孤立源码视为失败。
+
 ### Unit
 
 **领域与 Pipeline 规则：**
@@ -61,7 +63,7 @@
 
 覆盖从进入 Workspace -> 创建/选择 Project -> 确认 Contract -> 启动 Run -> 审查 Agent Activity 与 Artifact -> 定位 Evidence -> 提议修订 -> 查看新 ArtifactVersion -> Compare -> Export / Share 的完整用户路径。
 
-**A-20 退役状态：** 产品层退役期间，E2E 覆盖旧入口与旧引导路由的迁移重定向（保留合法标识符、丢弃未知参数、拒绝非法标识符）、`/workspace` 固定宿主（键盘、焦点、64rem 断点、200% 缩放）与 `/share/$shareToken` 安全边界（不创建私有会话、不泄露 Token、撤销后保持固定）；退役层回归由 `scripts/check-frontend-legacy.mjs` 与 `scripts/check-frontend-legacy.test.mjs` 门禁阻止。
+当前 E2E 覆盖根路径进入唯一私有工作台、未知路由拒绝、`/workspace` 源码采用壳层（命令菜单、焦点回归、标签、面板、键盘缩放、1024px 桌面边界、200% 字体）与 `/share/$shareToken` 安全边界（不创建私有会话、不泄露 Token、撤销后保持固定）。组件测试通过注入薄执行接口覆盖 Running、Cancel、Error 与 Retry；生产宿主不注入伪运行时。
 
 ### Visual & Accessibility
 

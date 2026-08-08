@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import ts from "typescript";
@@ -115,7 +115,8 @@ const listedFiles = execFileSync(
 )
   .split(/\r?\n/u)
   .filter(Boolean)
-  .map((file) => file.replaceAll("\\", "/"));
+  .map((file) => file.replaceAll("\\", "/"))
+  .filter((file) => existsSync(resolve(root, file)));
 
 const lockfiles = listedFiles.filter((file) => file.endsWith("pnpm-lock.yaml"));
 if (lockfiles.length !== 1 || lockfiles[0] !== "pnpm-lock.yaml") {

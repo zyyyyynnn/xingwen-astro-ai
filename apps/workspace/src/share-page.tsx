@@ -6,7 +6,7 @@ export interface SharePageProps {
 }
 
 /**
- * Public share route after the legacy share product layer retired (A-20).
+ * Public share route with a fixed, non-disclosing failure boundary.
  *
  * Always renders the same safe boundary copy regardless of the repository
  * outcome: the token is used only as a read parameter, never rendered, and no

@@ -1,12 +1,5 @@
 import { RouterProvider, createMemoryHistory } from "@tanstack/react-router";
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionManager } from "@xingwen/data-access";
 
@@ -77,54 +70,7 @@ describe("Workspace routes", () => {
     expect(history.location.pathname).not.toBe("/");
   });
 
-  it("redirects /tour to /workspace preserving only the validated identifiers", async () => {
-    const search = new URLSearchParams({
-      projectId: "proj_01JEXAMPLE",
-      draftId: "rcd_01JEXAMPLE",
-      contractId: "rc_01JEXAMPLE",
-      runId: "run_01JEXAMPLE",
-    });
-    const { history } = renderRoute(
-      `/tour?${search.toString()}`,
-      fixtureRuntime(),
-    );
-
-    await screen.findByRole("heading", { name: "研究工作台" });
-    expect(history.location.pathname).toBe("/workspace");
-
-    const redirected = new URLSearchParams(history.location.search);
-    expect(redirected.get("projectId")).toBe("proj_01JEXAMPLE");
-    expect(redirected.get("draftId")).toBe("rcd_01JEXAMPLE");
-    expect(redirected.get("contractId")).toBe("rc_01JEXAMPLE");
-    expect(redirected.get("runId")).toBe("run_01JEXAMPLE");
-  });
-
-  it("drops unknown query parameters while redirecting /tour", async () => {
-    const { history } = renderRoute(
-      "/tour?projectId=proj_01JEXAMPLE&utm_source=external",
-      fixtureRuntime(),
-    );
-
-    await screen.findByRole("heading", { name: "研究工作台" });
-    expect(history.location.pathname).toBe("/workspace");
-
-    const redirected = new URLSearchParams(history.location.search);
-    expect(redirected.get("projectId")).toBe("proj_01JEXAMPLE");
-    expect(redirected.get("utm_source")).toBeNull();
-  });
-
-  it("redirects /tour to /workspace dropping invalid identifiers", async () => {
-    const { history } = renderRoute(
-      `/tour?projectId=${"a".repeat(129)}`,
-      fixtureRuntime(),
-    );
-
-    await screen.findByRole("heading", { name: "研究工作台" });
-    expect(history.location.pathname).toBe("/workspace");
-    expect(history.location.search).toBe("");
-  });
-
-  it("renders the minimal Workspace host with brand, skip link and title", async () => {
+  it("renders the OpenHands workspace shell inside the Xingwen host", async () => {
     renderRoute("/workspace", fixtureRuntime());
 
     await screen.findByRole("heading", { name: "研究工作台" });
@@ -135,19 +81,26 @@ describe("Workspace routes", () => {
     expect(
       screen.getByRole("heading", { name: "研究工作台" }),
     ).toBeInTheDocument();
-  });
-
-  it("accepts valid identifiers on /workspace without error", async () => {
-    const { history } = renderRoute(
-      "/workspace?projectId=proj_01JEXAMPLE&runId=run_01JEXAMPLE",
-      fixtureRuntime(),
-    );
-
-    await screen.findByRole("heading", { name: "研究工作台" });
-    expect(history.location.pathname).toBe("/workspace");
-    const search = new URLSearchParams(history.location.search);
-    expect(search.get("projectId")).toBe("proj_01JEXAMPLE");
-    expect(search.get("runId")).toBe("run_01JEXAMPLE");
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "从一条明确指令开始",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "工作台导航" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "打开命令菜单" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("tablist", { name: "工作区面板" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "向 Agent 发送指令" }),
+    ).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "新建任务" })).toBeDisabled();
+    expect(screen.getByText("运行服务未连接")).toBeInTheDocument();
   });
 
   it("renders the fixed share boundary without creating a private session", async () => {
@@ -215,19 +168,5 @@ describe("Workspace routes", () => {
     expect(
       screen.getByRole("link", { name: "返回工作台入口" }),
     ).toHaveAttribute("href", "/");
-  });
-
-  it("renders the route error boundary for invalid /workspace identifiers", async () => {
-    const { history } = renderRoute(
-      `/workspace?draftId=${"b".repeat(129)}`,
-      fixtureRuntime(),
-    );
-
-    await screen.findByRole("heading", { name: "页面载入失败" });
-    expect(history.location.pathname).toBe("/workspace");
-    const retry = screen.getByRole("button", { name: "重试" });
-
-    fireEvent.click(retry);
-    await screen.findByRole("heading", { name: "页面载入失败" });
   });
 });

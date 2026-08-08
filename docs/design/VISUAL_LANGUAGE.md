@@ -1,8 +1,8 @@
 # Visual Language
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
+| 元数据    | 值                                      |
+| --------- | --------------------------------------- |
+| Status    | Accepted                                |
 | Authority | 品牌、Token、字体、排版、密度与组件外观 |
 
 本文定义 Brand Site 与 Research Workspace 的统一视觉语言。业务组件只消费语义 Token。
@@ -69,31 +69,31 @@ Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部�
 
 ## 5. 字体
 
-| 角色 | 用途 | 推荐 |
-| --- | --- | --- |
-| Brand Serif | 中文字标、Homepage 主标题、Artifact 长文标题 | Noto Serif SC / 思源宋体 |
-| Interface Sans | Shell、Thread、控件、表格、Evidence、正文 | Noto Sans SC / 思源黑体 + Inter |
-| Scientific Mono | ID、Hash、参数、Query、Raw 输出 | IBM Plex Mono / JetBrains Mono |
+| 角色            | 用途                                         | 推荐                            |
+| --------------- | -------------------------------------------- | ------------------------------- |
+| Brand Serif     | 中文字标、Homepage 主标题、Artifact 长文标题 | Noto Serif SC / 思源宋体        |
+| Interface Sans  | Shell、Thread、控件、表格、Evidence、正文    | Noto Sans SC / 思源黑体 + Inter |
+| Scientific Mono | ID、Hash、参数、Query、Raw 输出              | IBM Plex Mono / JetBrains Mono  |
 
 字体资产进入仓库前记录版本、来源与许可证。
 
 ## 6. 排版
 
-| 区域 | 层级 |
-| --- | --- |
-| Shell | 12–14px，紧凑、稳定 |
-| Agent Activity | 13–15px，事件层级清晰 |
-| Artifact Title | 22–30px Serif |
-| Artifact Body | 14–16px，行高 1.55–1.7 |
-| Metadata / Status | 11–12px |
-| Raw Output | 12px Mono |
+| 区域              | 层级                   |
+| ----------------- | ---------------------- |
+| Shell             | 12–14px，紧凑、稳定    |
+| Agent Activity    | 13–15px，事件层级清晰  |
+| Artifact Title    | 22–30px Serif          |
+| Artifact Body     | 14–16px，行高 1.55–1.7 |
+| Metadata / Status | 11–12px                |
+| Raw Output        | 12px Mono              |
 
 长文有效行宽为 680–780px。内部 ID 与 Hash 不使用标题层级。
 
 ## 7. 密度与结构
 
 - 间距使用 4 / 8 / 12 / 16 / 24 / 32；
-- Header 高度 44–56px；
+- Workspace 三栏顶部栏统一为 48px，并共享同一底部分隔线；品牌、主标题与面板标签使用 14px，状态文字使用 12px；品牌可保留 Serif，但不得改变垂直基线；
 - 导航项高度 36–44px；
 - Composer 收起高度 52–64px；
 - 圆角 4–8px；
@@ -108,7 +108,7 @@ Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部�
 - Panel 行为；
 - 焦点管理；
 - 键盘交互；
-- 响应式；
+- 桌面工作区范围内的响应式布局；
 - 运行反馈。
 
 替换上游产品的：
@@ -140,6 +140,7 @@ Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部�
 - 使用上游单一图标体系或经批准的单一图标库；
 - 不混用多个视觉风格；
 - 动效只服务状态变化、流式响应、Panel 过渡和焦点引导；
+- 左右侧栏折叠统一使用 200ms ease-out 宽度过渡；内容保持稳定几何并由外层裁切，不得在过渡中重排，不得叠加位移、透明度或缩放，也不得替换切换控件节点而造成焦点与锚点漂移；
 - 遵守 Reduced Motion；
 - 页面隐藏时暂停非必要动画。
 
@@ -166,6 +167,6 @@ Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部�
 200% font scale
 ```
 
-至少覆盖 Empty、Running、Needs Review、Completed、Artifact Review、Evidence Inspector、Compare、Error 与移动端状态。
+至少覆盖 Empty、Running、Needs Review、Completed、Artifact Review、Evidence Inspector、Compare、Error 与窄屏桌面边界提示。
 
 视觉通过由用户确认。

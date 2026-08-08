@@ -1,13 +1,13 @@
 # Research Workspace UX
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
+| 元数据    | 值                                     |
+| --------- | -------------------------------------- |
+| Status    | Accepted                               |
 | Authority | Workspace 信息架构、页面状态与核心交互 |
 
 本文定义 Research Workspace 的产品合同，不规定具体上游产品、源码目录或实现技术。
 
-**当前状态（A-20）：** Research Workspace 产品层已退役，`/workspace` 仅提供固定宿主，`/share/$shareToken` 仅提供固定安全边界，旧引导路由重定向至 `/workspace`。本文档为产品层重建后的目标合同；退役期间的自动与门禁测试见 [Test Strategy](../engineering/TEST_STRATEGY.md)。
+**当前实现：** `/workspace` 是唯一私有工作台入口，在薄宿主内挂载 OpenHands 源码采用后的桌面 Shell、Navigation、Activity、Panel 与 Composer；Agent 运行服务尚未接入时，执行入口保持禁用并明确显示连接状态。`/share/$shareToken` 继续提供固定只读安全边界。自动化覆盖与门禁见 [Test Strategy](../engineering/TEST_STRATEGY.md)。
 
 ## 1. 目标
 
@@ -27,13 +27,13 @@ Workspace 支持用户在同一研究上下文中完成：
 
 选定上游产品必须提供以下工作面；具体排列、折叠和响应式行为继承其成熟实现。
 
-| 工作面 | 职责 |
-| --- | --- |
-| Research Navigation | 新建、选择、固定、分组和恢复 Project / Run |
-| Agent Activity | 展示用户指令、Agent 计划、执行事件、审批、错误和交付物 |
-| Artifact Workspace | 阅读、比较和审查科研产物 |
-| Context Inspector | 核验当前对象的 Evidence、Source、Version 与执行详情 |
-| Research Composer | 提交研究指令、修订请求、范围变化和人类决策 |
+| 工作面              | 职责                                                   |
+| ------------------- | ------------------------------------------------------ |
+| Research Navigation | 新建、选择、固定、分组和恢复 Project / Run             |
+| Agent Activity      | 展示用户指令、Agent 计划、执行事件、审批、错误和交付物 |
+| Artifact Workspace  | 阅读、比较和审查科研产物                               |
+| Context Inspector   | 核验当前对象的 Evidence、Source、Version 与执行详情    |
+| Research Composer   | 提交研究指令、修订请求、范围变化和人类决策             |
 
 任一正式 Workspace 状态不得退化为只含静态内容的页面。
 
@@ -54,8 +54,7 @@ Workspace 支持用户在同一研究上下文中完成：
 - Pin / Unpin；
 - Group / Filter / Sort；
 - Collapse；
-- 键盘导航；
-- 小屏 Drawer。
+- 键盘导航。
 
 导航不显示原始内部 ID，不使用大面积卡片替代列表结构。
 
@@ -116,12 +115,12 @@ Artifact Workspace 承载：
 
 工作模式：
 
-| 模式 | 用途 |
-| --- | --- |
-| Docked | 与 Agent Activity 并列查看 |
-| Focus | 长文、数据或复杂产物审查 |
-| Compare | 两个明确对象的科研比较 |
-| Source Review | 完整来源阅读与定位 |
+| 模式          | 用途                       |
+| ------------- | -------------------------- |
+| Docked        | 与 Agent Activity 并列查看 |
+| Focus         | 长文、数据或复杂产物审查   |
+| Compare       | 两个明确对象的科研比较     |
+| Source Review | 完整来源阅读与定位         |
 
 每个 Artifact Kind 使用专属 Renderer。未知类型显示明确不支持状态，不以 Hash 或内部 Metadata 充当内容。
 
@@ -129,14 +128,14 @@ Artifact Workspace 承载：
 
 Inspector 由当前选中对象驱动。
 
-| 选中对象 | Inspector 内容 |
-| --- | --- |
-| Statement / Cell / Claim | Evidence 状态与关联证据 |
-| Evidence | SourceSnapshot、locator、quote / value、版本 |
-| Artifact | Metadata、Evidence Coverage、Review |
-| ArtifactVersion | 版本关系与 Scientific Diff |
-| Human Checkpoint | 决策上下文 |
-| Tool Execution | 执行详情 |
+| 选中对象                 | Inspector 内容                               |
+| ------------------------ | -------------------------------------------- |
+| Statement / Cell / Claim | Evidence 状态与关联证据                      |
+| Evidence                 | SourceSnapshot、locator、quote / value、版本 |
+| Artifact                 | Metadata、Evidence Coverage、Review          |
+| ArtifactVersion          | 版本关系与 Scientific Diff                   |
+| Human Checkpoint         | 决策上下文                                   |
+| Tool Execution           | 执行详情                                     |
 
 Inspector 支持返回、固定和关闭，并保持最小访问历史。
 
@@ -221,11 +220,11 @@ Source Version Conflict
 
 Workspace 固定支持三类决策：
 
-| Checkpoint | 核心内容 |
-| --- | --- |
-| Protocol | 研究问题、范围、纳入排除、目标产物、停止条件 |
-| Evidence Set | 接受来源、排除理由、冲突、版本问题、数据缺口 |
-| Conclusion / Revision | 接受、修订、扩大来源、改变条件、派生 Run |
+| Checkpoint            | 核心内容                                     |
+| --------------------- | -------------------------------------------- |
+| Protocol              | 研究问题、范围、纳入排除、目标产物、停止条件 |
+| Evidence Set          | 接受来源、排除理由、冲突、版本问题、数据缺口 |
+| Conclusion / Revision | 接受、修订、扩大来源、改变条件、派生 Run     |
 
 Checkpoint 的状态与可用动作由后端 Workflow 提供，前端不维护第二套状态机。
 
@@ -255,7 +254,7 @@ Scientific Version Diff 至少展示：
 - Overlay 关闭后恢复焦点；
 - Resize 提供键盘替代。
 
-具体断点、Panel 行为与移动端模式在上游产品冻结后由实现规范记录，不在本文预设。
+Workspace 当前仅支持宽度不低于 1024px 的桌面窗口；更窄窗口只显示明确的桌面边界提示，不挂载移动导航、抽屉、触控分支或移动断点。桌面实现需在 1440×900、1280×800 与 200% 字体下保持核心机械结构可操作。
 
 ## 13. 产品语言
 
@@ -263,7 +262,7 @@ Scientific Version Diff 至少展示：
 
 默认视图禁止出现：
 
-- Preview、A-17 或内部项目代号；
+- Preview、阶段编号或内部项目代号；
 - Adapter、Fixture、Hash、Execution Mode；
 - 失效功能提示占据主操作区；
 - 假 Project、假 Run、假 Evidence；

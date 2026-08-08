@@ -53,17 +53,11 @@ const fakeCapabilityPhrases = [
 const retiredWorkspaceCssTerms = ruleSource.retiredWorkspaceCssParts.map(
   (parts) => parts.join(""),
 );
-const tourRouteTerms = ruleSource.tourRouteTextParts.map((parts) =>
-  parts.join(""),
-);
-export const tourRouteAllowlist = new Set(ruleSource.tourRouteAllowlist);
-
 export const retiredWorkspacePaths = [...retiredPaths];
 export const retiredWorkspacePackageNames = [...retiredWorkspacePackages];
 export const retiredWorkspaceIdentifierNames = [...retiredWorkspaceIdentifiers];
 export const fakeWorkspaceCapabilityPhrases = [...fakeCapabilityPhrases];
 export const retiredWorkspaceCssTermsExport = [...retiredWorkspaceCssTerms];
-export const tourRouteTermsExport = [...tourRouteTerms];
 
 export function isRetiredPackageName(name) {
   const normalized = name.toLowerCase();
@@ -131,11 +125,6 @@ export function findFakeWorkspaceCapabilityPhrases(content) {
 
 export function findRetiredWorkspaceCssTerms(content) {
   return retiredWorkspaceCssTerms.filter((term) => content.includes(term));
-}
-
-export function findTourRouteRefs(content) {
-  const normalized = content.toLowerCase();
-  return tourRouteTerms.filter((term) => normalized.includes(term));
 }
 
 export function isRetiredPath(file) {

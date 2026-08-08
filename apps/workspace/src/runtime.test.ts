@@ -17,14 +17,6 @@ describe("createWorkspaceRuntime", () => {
     });
   });
 
-  it("exposes no tour controller or test-only bootstrap on the Fixture runtime", () => {
-    const runtime = createWorkspaceRuntime({ apiBaseUrl: undefined });
-
-    expect("tour" in runtime).toBe(false);
-    expect("bootstrap" in runtime).toBe(false);
-    expect("session" in runtime).toBe(false);
-  });
-
   it("uses the HTTP adapter only for a valid API origin", () => {
     const runtime = createWorkspaceRuntime({
       apiBaseUrl: "https://api.example.test",
@@ -34,15 +26,6 @@ describe("createWorkspaceRuntime", () => {
     if (runtime.adapterKind === "http") {
       expect(runtime.session.getCurrent()).toBeNull();
     }
-  });
-
-  it("exposes no tour controller or test-only bootstrap on the HTTP runtime", () => {
-    const runtime = createWorkspaceRuntime({
-      apiBaseUrl: "https://api.example.test",
-    });
-
-    expect("tour" in runtime).toBe(false);
-    expect("bootstrap" in runtime).toBe(false);
   });
 
   it("rejects a versioned API path instead of silently falling back to Fixture", () => {

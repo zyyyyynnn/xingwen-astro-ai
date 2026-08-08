@@ -47,10 +47,9 @@ test("brand site has no runtime console errors", async ({ page }) => {
 });
 
 for (const entry of [
-  ["/", "研究工作台", null],
-  ["/tour", "研究工作台", null],
-  ["/workspace", "研究工作台", null],
-  ["/share/demo-token", "共享结果当前不可用", null],
+  ["/", "研究工作台", true],
+  ["/workspace", "研究工作台", true],
+  ["/share/demo-token", "共享结果当前不可用", false],
 ] as const) {
   test(`workspace route ${entry[0]} is directly addressable`, async ({
     page,
@@ -60,7 +59,7 @@ for (const entry of [
     await page.goto(`http://127.0.0.1:5173${entry[0]}`);
 
     await expect(page.getByRole("heading", { name: entry[1] })).toBeVisible();
-    const navigation = page.getByRole("navigation", { name: "主要导航" });
+    const navigation = page.getByRole("navigation", { name: "工作台导航" });
     if (entry[2]) {
       await expect(navigation).toBeVisible();
     } else {

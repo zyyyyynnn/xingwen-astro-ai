@@ -1,1091 +1,577 @@
 #!/usr/bin/env node
-/**
- * check-agent-upstream-adoption.test.mjs
- * Unit tests for the upstream adoption gate. Run: node --test scripts/check-agent-upstream-adoption.test.mjs
- */
-import { test } from "node:test";
+
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import {
+  cpSync,
   mkdtempSync,
   mkdirSync,
-  writeFileSync,
-  rmSync,
-  cpSync,
   readFileSync,
+  rmSync,
+  writeFileSync,
 } from "node:fs";
-import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { computeSelectedTreeSha256 } from "./agent-upstream-provenance.mjs";
 import { checkAgentUpstreamAdoption } from "./check-agent-upstream-adoption.mjs";
+import { generateAgentUpstreamProvenance } from "./generate-agent-upstream-provenance.mjs";
 
 const REPO_ROOT = resolve(fileURLToPath(import.meta.url), "../..");
-const UPSTREAM = join(REPO_ROOT, "apps/workspace/upstream/openhands");
+const UPSTREAM_ROOT = "apps/workspace/upstream/openhands";
+const UPSTREAM_SOURCE = join(REPO_ROOT, UPSTREAM_ROOT);
+const METADATA_FILES = [
+  "upstream-lock.json",
+  "source-scope.json",
+  "source-policy.json",
+  "vendor-blueprint.json",
+  "provenance-schema.json",
+  "LICENSE.upstream",
+  "NOTICE.md",
+];
+const SOURCE = {
+  repository: "https://github.com/OpenHands/OpenHands.git",
+  tag: "v1.10.0",
+  commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
+  license: "MIT",
+};
+const ADOPTED_CLASSIFICATIONS = new Set([
+  "REQUIRED_VENDOR",
+  "REQUIRED_TRANSITIVE",
+  "PARTIAL_SURGICAL",
+]);
 
 function freshRepo() {
-  const dir = mkdtempSync(join(tmpdir(), "agent-upstream-gate-"));
-  const up = join(dir, "apps/workspace/upstream/openhands");
-  mkdirSync(up, { recursive: true });
-  cpSync(UPSTREAM, up, { recursive: true });
-  return dir;
-}
-function loadScope(dir) {
-  return JSON.parse(
-    readFileSync(
-      join(dir, "apps/workspace/upstream/openhands/source-scope.json"),
-      "utf8",
-    ),
-  );
-}
-function saveScope(dir, scope) {
-  writeFileSync(
-    join(dir, "apps/workspace/upstream/openhands/source-scope.json"),
-    JSON.stringify(scope, null, 2),
-  );
-}
-function loadLock(dir) {
-  return JSON.parse(
-    readFileSync(
-      join(dir, "apps/workspace/upstream/openhands/upstream-lock.json"),
-      "utf8",
-    ),
-  );
-}
-function saveLock(dir, lock) {
-  writeFileSync(
-    join(dir, "apps/workspace/upstream/openhands/upstream-lock.json"),
-    JSON.stringify(lock, null, 2),
-  );
-}
-function sha256(s) {
-  return createHash("sha256").update(s).digest("hex");
-}
-function cleanup(dir) {
-  rmSync(dir, { recursive: true, force: true });
-}
-function run(root) {
-  return checkAgentUpstreamAdoption(root);
-}
-function assertPass(root, msg) {
-  const { failures } = run(root);
-  assert.equal(failures.length, 0, `${msg}\n${failures.join("\n")}`);
-}
-function assertFail(root, msg) {
-  const { failures } = run(root);
-  assert.ok(failures.length > 0, `${msg} (expected failure, got pass)`);
+  const root = mkdtempSync(join(tmpdir(), "agent-upstream-gate-"));
+  const target = join(root, UPSTREAM_ROOT);
+  mkdirSync(target, { recursive: true });
+  for (const file of METADATA_FILES) {
+    cpSync(join(UPSTREAM_SOURCE, file), join(target, file));
+  }
+  return root;
 }
 
-// pick first REQUIRED_VENDOR scope entry for positive fixtures
-function firstRequired(dir) {
-  return loadScope(dir).files.find(
-    (f) =>
-      f.classification === "REQUIRED_VENDOR" ||
-      f.classification === "REQUIRED_VENDOR",
+function cleanup(root) {
+  rmSync(root, { recursive: true, force: true });
+}
+
+function load(root, file) {
+  return JSON.parse(readFileSync(join(root, UPSTREAM_ROOT, file), "utf8"));
+}
+
+function save(root, file, value) {
+  writeFileSync(
+    join(root, UPSTREAM_ROOT, file),
+    `${JSON.stringify(value, null, 2)}\n`,
+    "utf8",
   );
 }
 
-// ============ Positive ============
+function writeSource(root, upstreamPath, content) {
+  const localPath = `${UPSTREAM_ROOT}/${upstreamPath}`;
+  const absolute = join(root, localPath);
+  mkdirSync(dirname(absolute), { recursive: true });
+  writeFileSync(absolute, content, "utf8");
+  return localPath;
+}
+
+function provenanceEntry({
+  upstreamPath,
+  localPath = `${UPSTREAM_ROOT}/${upstreamPath}`,
+  modified = false,
+  adoptionClass = modified ? "KEEP_WITH_MINIMAL_PATCH" : "KEEP_AS_IS",
+  modificationReason = modified
+    ? "Retained the approved shell mechanic."
+    : null,
+}) {
+  return {
+    upstream_path: upstreamPath,
+    local_path: localPath,
+    adoption_class: adoptionClass,
+    modified,
+    modification_reason: modificationReason,
+  };
+}
+
+function saveProvenance(root, entries, overrides = {}) {
+  const sourceDirectory = join(root, UPSTREAM_ROOT, "src");
+  const keepAsIsPaths = entries
+    .filter((entry) => entry.adoption_class === "KEEP_AS_IS")
+    .map((entry) => entry.upstream_path.slice("src/".length));
+  const keepAsIsDigest = computeSelectedTreeSha256(
+    sourceDirectory,
+    keepAsIsPaths,
+  );
+  const lock = load(root, "upstream-lock.json");
+  lock.keep_as_is_tree_sha256 = keepAsIsDigest;
+  save(root, "upstream-lock.json", lock);
+  save(root, "provenance.json", {
+    schema: "xingwen.agent-upstream.provenance/v2",
+    generated_by: "test",
+    source: SOURCE,
+    keep_as_is_tree_sha256: keepAsIsDigest,
+    entries,
+    ...overrides,
+  });
+}
+
+function saveResolution(root, provenanceEntries) {
+  const scope = load(root, "source-scope.json");
+  const adoptedPaths = new Set(
+    provenanceEntries.map((entry) => entry.upstream_path),
+  );
+  for (const entry of scope.files) {
+    if (
+      ADOPTED_CLASSIFICATIONS.has(entry.classification) &&
+      !adoptedPaths.has(entry.upstream_path)
+    ) {
+      entry.classification = "EXCLUDED";
+      entry.reason = "Excluded from this isolated test dependency closure.";
+      delete entry.constraints;
+      delete entry.preserved_mechanics;
+      delete entry.removed_domain;
+    }
+  }
+  scope.summary = {
+    REQUIRED_VENDOR: 0,
+    REQUIRED_TRANSITIVE: 0,
+    PARTIAL_SURGICAL: 0,
+    EXCLUDED: 0,
+    DEFERRED_NOT_VENDORED: 0,
+  };
+  for (const entry of scope.files) scope.summary[entry.classification] += 1;
+  scope.policy_sets.public_reasoning_disclosure =
+    scope.policy_sets.public_reasoning_disclosure.filter((path) =>
+      adoptedPaths.has(path),
+    );
+  save(root, "source-scope.json", scope);
+
+  const entries = provenanceEntries.map((entry) => ({
+    upstream_path: entry.upstream_path,
+    status: entry.modified ? "SURGICALLY_ADAPTED" : "VENDORED",
+    reason: "test fixture disposition",
+    proof: "reachable-from-single-src/root.tsx-import-closure",
+  }));
+  const summary = {
+    VENDORED: entries.filter((entry) => entry.status === "VENDORED").length,
+    SURGICALLY_ADAPTED: entries.filter(
+      (entry) => entry.status === "SURGICALLY_ADAPTED",
+    ).length,
+  };
+  save(root, "source-resolution.json", {
+    schema: "xingwen.agent-upstream.source-resolution/v1",
+    ...SOURCE,
+    entrypoint: "src/root.tsx",
+    summary,
+    total: entries.length,
+    entries,
+  });
+}
+
+function createSingleFileFixture(root, options = {}) {
+  const upstreamPath = options.upstreamPath ?? "src/root.tsx";
+  const content = options.content ?? "export const root = true;\n";
+  const localPath = writeSource(root, upstreamPath, content);
+  const entry = provenanceEntry({
+    upstreamPath,
+    localPath,
+    modified: options.modified,
+    adoptionClass: options.adoptionClass,
+    modificationReason: options.modificationReason,
+  });
+  saveProvenance(root, [entry]);
+  saveResolution(root, [entry]);
+  return { entry, localPath };
+}
+
+function assertPass(root, message) {
+  const { failures } = checkAgentUpstreamAdoption(root);
+  assert.deepEqual(failures, [], `${message}\n${failures.join("\n")}`);
+}
+
+function assertFail(root, pattern, message) {
+  const { failures } = checkAgentUpstreamAdoption(root);
+  assert.ok(failures.length > 0, `${message}: expected a failure`);
+  assert.ok(
+    failures.some((failure) => pattern.test(failure)),
+    `${message}: expected ${pattern}, got\n${failures.join("\n")}`,
+  );
+}
 
 test("metadata-only root passes", () => {
-  const dir = freshRepo();
+  const root = freshRepo();
   try {
-    assertPass(dir, "metadata-only should pass");
+    assertPass(root, "metadata-only root");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
 
-test("one exact unmodified allowed file passes", () => {
-  const dir = freshRepo();
+test("current vendored workspace passes", () => {
+  assertPass(REPO_ROOT, "current repository");
+});
+
+test("one mapped source file passes with the aggregate manifest", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const entry = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    );
-    const up = entry.upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    const content = "export const k = 1;\n";
-    writeFileSync(abs, content);
-    const h = sha256(content);
-    entry.source_sha256 = h;
-    saveScope(dir, scope);
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertPass(dir, "one exact unmodified allowed file should pass");
+    createSingleFileFixture(root);
+    assertPass(root, "single source fixture");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
 
-test("one properly modified allowed file passes", () => {
-  const dir = freshRepo();
+test("a mapped adapted source file passes with an explicit reason", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const entry = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    );
-    const up = entry.upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    const content = "export const k = 2; // adapted\n";
-    writeFileSync(abs, content);
-    const h = sha256(content);
-    const upstreamHash = "a".repeat(64);
-    entry.source_sha256 = upstreamHash;
-    saveScope(dir, scope);
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: upstreamHash,
-          vendored_sha256: h,
-          adoption_class: "KEEP_WITH_MINIMAL_PATCH",
-          modified: true,
-          modification_reason: "adapt constant for Xingwen domain",
-          license: "MIT",
-        },
-      ]),
-    );
-    assertPass(dir, "one properly modified allowed file should pass");
+    createSingleFileFixture(root, { modified: true });
+    assertPass(root, "adapted source fixture");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
 
-// ============ Lock identity negatives ============
-
-test("G2 wrong lock commit fails", () => {
-  const dir = freshRepo();
-  try {
-    const lock = loadLock(dir);
-    lock.commit = "0".repeat(40);
-    saveLock(dir, lock);
-    assertFail(dir, "wrong lock commit should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("G2 wrong lock tag fails", () => {
-  const dir = freshRepo();
-  try {
-    const lock = loadLock(dir);
-    lock.tag = "v9.99.9";
-    saveLock(dir, lock);
-    assertFail(dir, "wrong lock tag should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("G2 wrong lock repository fails", () => {
-  const dir = freshRepo();
-  try {
-    const lock = loadLock(dir);
-    lock.repository = "https://github.com/Other/Other.git";
-    saveLock(dir, lock);
-    assertFail(dir, "wrong lock repository should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-
-// ============ Scope integrity negatives ============
-
-test("alternate upstream root fails", () => {
-  const dir = freshRepo();
-  try {
-    mkdirSync(join(dir, "apps/workspace/upstream/alternate-agent"), {
-      recursive: true,
-    });
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/alternate-agent/upstream-lock.json"),
-      "{}",
-    );
-    assertFail(dir, "alternate upstream root should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("duplicate scope upstream_path fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    scope.files.push({ ...scope.files[0] });
-    saveScope(dir, scope);
-    assertFail(dir, "duplicate upstream_path should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("scope summary mismatch fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    scope.summary.REQUIRED_VENDOR += 1;
-    saveScope(dir, scope);
-    assertFail(dir, "summary mismatch should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("scope total_src_files mismatch fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    scope.total_src_files += 1;
-    saveScope(dir, scope);
-    assertFail(dir, "total_src_files mismatch should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("scope source_sha256 invalid fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    scope.files[0].source_sha256 = "zzz";
-    saveScope(dir, scope);
-    assertFail(dir, "invalid source_sha256 should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("forbidden scope classification fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    scope.files[0].classification = "REWRITE";
-    saveScope(dir, scope);
-    assertFail(dir, "forbidden classification should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("coding surface adopted fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    scope.files[0].classification = "REQUIRED_VENDOR";
-    scope.files[0].upstream_path = "components/terminal/xterm.tsx";
-    saveScope(dir, scope);
-    assertFail(dir, "coding surface adopted should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-
-// ============ G9 private reasoning boundary negatives ============
-
-test("private reasoning excluded path not EXCLUDED fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    const p = scope.policy_sets.private_reasoning_excluded[0];
-    const f = scope.files.find((x) => x.upstream_path === p);
-    f.classification = "REQUIRED_VENDOR";
-    saveScope(dir, scope);
-    assertFail(dir, "private-reasoning-excluded not EXCLUDED should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("public disclosure path missing PARTIAL_SURGICAL fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    const p = scope.policy_sets.public_reasoning_disclosure[0];
-    const f = scope.files.find((x) => x.upstream_path === p);
-    f.classification = "REQUIRED_VENDOR";
-    delete f.constraints;
-    saveScope(dir, scope);
-    assertFail(dir, "disclosure path not PARTIAL_SURGICAL should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("public disclosure path missing constraints fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    const p = scope.policy_sets.public_reasoning_disclosure[0];
-    const f = scope.files.find((x) => x.upstream_path === p);
-    delete f.constraints;
-    saveScope(dir, scope);
-    assertFail(dir, "disclosure path missing constraints should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-
-// ============ G5 provenance negatives ============
-
-test("src without provenance json fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const abs = join(dir, `apps/workspace/upstream/openhands/${up}`);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const y = 1;\n");
-    assertFail(dir, "src/ without provenance.json should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("disk file missing provenance entry fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const abs = join(dir, `apps/workspace/upstream/openhands/${up}`);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const y = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([]),
-    );
-    assertFail(dir, "missing provenance entry should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("dangling provenance entry fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const abs = join(dir, `apps/workspace/upstream/openhands/${up}`);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const y = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: "apps/workspace/upstream/openhands/src/missing.ts",
-          upstream_source_sha256: "a".repeat(64),
-          vendored_sha256: "a".repeat(64),
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "dangling provenance should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("duplicate local_path fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) =>
-        f.classification === "REQUIRED" ||
-        f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    const content = "export const z = 1;\n";
-    writeFileSync(abs, content);
-    const h = sha256(content);
-    const entry = {
-      upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-      upstream_tag: "v1.10.0",
-      upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-      upstream_path: up,
-      local_path: localRel,
-      upstream_source_sha256: h,
-      vendored_sha256: h,
-      adoption_class: "KEEP_AS_IS",
-      modified: false,
-      modification_reason: null,
-      license: "MIT",
-    };
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([entry, { ...entry }]),
-    );
-    assertFail(dir, "duplicate local_path should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("unknown upstream_path fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const abs = join(dir, `apps/workspace/upstream/openhands/${up}`);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: "src/does-not-exist.ts",
-          local_path: `apps/workspace/upstream/openhands/${up}`,
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "unknown upstream_path should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("EXCLUDED upstream_path in provenance fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    const ex = scope.files.find((f) => f.classification === "EXCLUDED");
-    const abs = join(dir, "apps/workspace/upstream/openhands/src/excluded.ts");
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: ex.upstream_path,
-          local_path: "apps/workspace/upstream/openhands/src/excluded.ts",
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "EXCLUDED upstream_path in provenance should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-test("DEFERRED upstream_path in provenance fails", () => {
-  const dir = freshRepo();
-  try {
-    const scope = loadScope(dir);
-    const df = scope.files.find(
-      (f) => f.classification === "DEFERRED_NOT_VENDORED",
-    );
-    const abs = join(dir, "apps/workspace/upstream/openhands/src/deferred.ts");
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: df.upstream_path,
-          local_path: "apps/workspace/upstream/openhands/src/deferred.ts",
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "DEFERRED upstream_path in provenance should fail");
-  } finally {
-    cleanup(dir);
-  }
-});
-
-// ============ Parameterized: missing required provenance field ============
-
-const REQUIRED_FIELDS = [
-  "upstream_repository",
-  "upstream_tag",
-  "upstream_commit",
-  "upstream_path",
-  "local_path",
-  "upstream_source_sha256",
-  "vendored_sha256",
-  "adoption_class",
-  "modified",
-  "license",
-];
-for (const field of REQUIRED_FIELDS) {
-  test(`missing provenance field "${field}" fails`, () => {
-    const dir = freshRepo();
+for (const [field, value] of [
+  ["repository", "https://github.com/Other/Other.git"],
+  ["tag", "latest"],
+  ["commit", "0".repeat(40)],
+]) {
+  test(`lock ${field} drift fails`, () => {
+    const root = freshRepo();
     try {
-      const scope = loadScope(dir);
-      const up = scope.files.find(
-        (f) => f.classification === "REQUIRED_VENDOR",
-      ).upstream_path;
-      const localRel = `apps/workspace/upstream/openhands/${up}`;
-      const abs = join(dir, localRel);
-      mkdirSync(resolve(abs, ".."), { recursive: true });
-      writeFileSync(abs, "export const z = 1;\n");
-      const h = sha256("export const z = 1;\n");
-      const entry = {
-        upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-        upstream_tag: "v1.10.0",
-        upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-        upstream_path: up,
-        local_path: localRel,
-        upstream_source_sha256: h,
-        vendored_sha256: h,
-        adoption_class: "KEEP_AS_IS",
-        modified: false,
-        modification_reason: null,
-        license: "MIT",
-      };
-      delete entry[field];
-      writeFileSync(
-        join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-        JSON.stringify([entry]),
-      );
-      assertFail(dir, `missing ${field} should fail`);
+      const lock = load(root, "upstream-lock.json");
+      lock[field] = value;
+      save(root, "upstream-lock.json", lock);
+      assertFail(root, /G2|G3|mismatch/u, `lock ${field}`);
     } finally {
-      cleanup(dir);
+      cleanup(root);
     }
   });
 }
 
-// ============ Exact identity / class / hash negatives ============
+test("a competing upstream root fails", () => {
+  const root = freshRepo();
+  try {
+    mkdirSync(join(root, "apps/workspace/upstream/other/src"), {
+      recursive: true,
+    });
+    assertFail(root, /competing vendor root/u, "competing source");
+  } finally {
+    cleanup(root);
+  }
+});
 
-test("wrong provenance repository fails", () => {
-  const dir = freshRepo();
+test("scope summary drift fails", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/Other/Other.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "wrong provenance repository should fail");
+    const scope = load(root, "source-scope.json");
+    scope.summary.REQUIRED_VENDOR += 1;
+    save(root, "source-scope.json", scope);
+    assertFail(root, /Scope summary mismatch/u, "scope summary");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("wrong provenance tag fails", () => {
-  const dir = freshRepo();
+
+for (const [surface, pathFragment] of [
+  ["terminal", "terminal"],
+  ["Git", "git-control"],
+  ["mobile", "sidebar-mobile"],
+  ["Telemetry", "services/telemetry"],
+  ["compatibility", "workspaces-compatibility"],
+  ["authentication", "api/main-app-auth"],
+  ["Agent Runtime", "api/runtime-service"],
+]) {
+  test(`an adopted ${surface} surface fails`, () => {
+    const root = freshRepo();
+    try {
+      const scope = load(root, "source-scope.json");
+      const entry = scope.files.find(
+        (item) =>
+          item.classification === "EXCLUDED" &&
+          item.upstream_path.toLowerCase().includes(pathFragment.toLowerCase()),
+      );
+      assert.ok(entry, `expected a frozen ${surface} scope entry`);
+      entry.classification = "REQUIRED_VENDOR";
+      scope.summary.EXCLUDED -= 1;
+      scope.summary.REQUIRED_VENDOR += 1;
+      save(root, "source-scope.json", scope);
+      assertFail(root, /G7: coding surface adopted/u, `${surface} surface`);
+    } finally {
+      cleanup(root);
+    }
+  });
+}
+
+test("vendored source without provenance fails", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v0.0.1",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "wrong provenance tag should fail");
+    writeSource(root, "src/root.tsx", "export const root = true;\n");
+    assertFail(root, /provenance\.json missing/u, "missing provenance");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("wrong provenance commit fails", () => {
-  const dir = freshRepo();
+
+test("the retired array provenance shape fails", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "0".repeat(40),
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "wrong provenance commit should fail");
+    const { entry } = createSingleFileFixture(root);
+    save(root, "provenance.json", [entry]);
+    assertFail(root, /v2 manifest object contract/u, "retired manifest shape");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("wrong provenance license fails", () => {
-  const dir = freshRepo();
+
+test("the frozen KEEP_AS_IS aggregate detects source drift", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
+    const { localPath } = createSingleFileFixture(root);
     writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "Apache-2.0",
-        },
-      ]),
+      join(root, localPath),
+      "export const root = false;\n",
+      "utf8",
     );
-    assertFail(dir, "wrong provenance license should fail");
+    assertFail(root, /frozen upstream aggregate digest/u, "tree drift");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("invalid hash format fails", () => {
-  const dir = freshRepo();
+
+test("provenance generation cannot rewrite frozen source dispositions", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: "xyz",
-          vendored_sha256: "xyz",
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "invalid hash format should fail");
+    createSingleFileFixture(root, {
+      modified: true,
+      adoptionClass: "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+    });
+    const resolutionPath = join(root, UPSTREAM_ROOT, "source-resolution.json");
+    const before = readFileSync(resolutionPath, "utf8");
+    generateAgentUpstreamProvenance(root);
+    assert.equal(readFileSync(resolutionPath, "utf8"), before);
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("invalid adoption_class fails", () => {
-  const dir = freshRepo();
+
+test("provenance generation rejects source outside the entrypoint closure", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "REMOVE_CODING_SURFACE",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
+    const rootEntry = provenanceEntry({
+      upstreamPath: "src/root.tsx",
+      localPath: writeSource(
+        root,
+        "src/root.tsx",
+        "export const root = true;\n",
+      ),
+      modified: true,
+      adoptionClass: "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+    });
+    const storePath = "src/stores/command-menu-store.ts";
+    const storeEntry = provenanceEntry({
+      upstreamPath: storePath,
+      localPath: writeSource(root, storePath, "export const store = true;\n"),
+    });
+    saveProvenance(root, [rootEntry, storeEntry]);
+    saveResolution(root, [rootEntry, storeEntry]);
+
+    assert.throws(
+      () => generateAgentUpstreamProvenance(root),
+      /outside the src\/root\.tsx dependency closure/u,
     );
-    assertFail(dir, "REMOVE_CODING_SURFACE for actual file should fail");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("PARTIAL_SURGICAL + KEEP_AS_IS mismatch fails", () => {
-  const dir = freshRepo();
+
+test("provenance generation cannot legitimize KEEP_AS_IS drift", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.policy_sets.public_reasoning_disclosure[0];
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
+    const rootEntry = provenanceEntry({
+      upstreamPath: "src/root.tsx",
+      localPath: writeSource(
+        root,
+        "src/root.tsx",
+        'import "#/stores/command-menu-store";\nexport const root = true;\n',
+      ),
+      modified: true,
+      adoptionClass: "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+    });
+    const storePath = "src/stores/command-menu-store.ts";
+    const storeEntry = provenanceEntry({
+      upstreamPath: storePath,
+      localPath: writeSource(root, storePath, "export const store = true;\n"),
+    });
+    saveProvenance(root, [rootEntry, storeEntry]);
+    saveResolution(root, [rootEntry, storeEntry]);
     writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
+      join(root, storeEntry.local_path),
+      "export const changed = true;\n",
     );
-    assertFail(dir, "PARTIAL_SURGICAL + KEEP_AS_IS should fail");
+    assert.throws(
+      () => generateAgentUpstreamProvenance(root),
+      /differs from the aggregate digest frozen/u,
+    );
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("modified missing/non-boolean fails", () => {
-  const dir = freshRepo();
+
+test("manifest source identity drift fails once at the manifest boundary", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: "yes",
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "non-boolean modified should fail");
+    createSingleFileFixture(root);
+    const provenance = load(root, "provenance.json");
+    provenance.source.commit = "0".repeat(40);
+    save(root, "provenance.json", provenance);
+    assertFail(root, /provenance source commit mismatch/u, "source identity");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("modified=true without reason fails", () => {
-  const dir = freshRepo();
+
+test("disk and provenance paths must have exact one-to-one coverage", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: "a".repeat(64),
-          vendored_sha256: h,
-          adoption_class: "KEEP_WITH_MINIMAL_PATCH",
-          modified: true,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
+    createSingleFileFixture(root);
+    const provenance = load(root, "provenance.json");
+    provenance.entries = [];
+    save(root, "provenance.json", provenance);
+    assertFail(
+      root,
+      /on-disk file has no provenance entry/u,
+      "missing mapping",
     );
-    assertFail(dir, "modified=true without reason should fail");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("vendored file hash mismatch fails", () => {
-  const dir = freshRepo();
+
+test("local paths must preserve the upstream relative path", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: "a".repeat(64),
-          vendored_sha256: "b".repeat(64),
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "vendored hash mismatch should fail");
+    createSingleFileFixture(root);
+    const provenance = load(root, "provenance.json");
+    provenance.entries[0].upstream_path = "src/renamed.tsx";
+    save(root, "provenance.json", provenance);
+    assertFail(root, /preserve the upstream relative path/u, "path mapping");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("upstream source hash mismatch vs scope fails", () => {
-  const dir = freshRepo();
+
+for (const field of [
+  "upstream_path",
+  "local_path",
+  "adoption_class",
+  "modified",
+]) {
+  test(`missing provenance entry field ${field} fails`, () => {
+    const root = freshRepo();
+    try {
+      createSingleFileFixture(root);
+      const provenance = load(root, "provenance.json");
+      delete provenance.entries[0][field];
+      save(root, "provenance.json", provenance);
+      assertFail(
+        root,
+        new RegExp(`missing required field "${field}"`, "u"),
+        field,
+      );
+    } finally {
+      cleanup(root);
+    }
+  });
+}
+
+test("adapted source requires a reason and a patched class", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: "a".repeat(64),
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
+    createSingleFileFixture(root, {
+      modified: true,
+      adoptionClass: "KEEP_AS_IS",
+      modificationReason: null,
+    });
+    assertFail(
+      root,
+      /requires non-empty modification_reason|patched adoption class/u,
+      "adaptation metadata",
     );
-    assertFail(dir, "upstream source hash mismatch should fail");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("modified=false content drift fails", () => {
-  const dir = freshRepo();
+
+test("unmodified source requires KEEP_AS_IS", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      `[]`,
-    );
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: localRel,
-          upstream_source_sha256: "a".repeat(64),
-          vendored_sha256: "b".repeat(64),
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "unmodified drift should fail");
+    createSingleFileFixture(root, {
+      modified: false,
+      adoptionClass: "KEEP_WITH_MINIMAL_PATCH",
+    });
+    assertFail(root, /modified=false requires KEEP_AS_IS/u, "unmodified class");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("local_path escaping upstream root fails", () => {
-  const dir = freshRepo();
+
+test("every adopted scope path requires one final resolution", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
-    ).upstream_path;
-    const abs = join(dir, `apps/workspace/upstream/openhands/${up}`);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: up,
-          local_path: "apps/workspace/upstream/openhands/src/../../escape.ts",
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
-    );
-    assertFail(dir, "local_path traversal should fail");
+    createSingleFileFixture(root);
+    const resolution = load(root, "source-resolution.json");
+    resolution.entries.pop();
+    save(root, "source-resolution.json", resolution);
+    assertFail(root, /has no final resolution/u, "resolution coverage");
   } finally {
-    cleanup(dir);
+    cleanup(root);
   }
 });
-test("upstream_path traversal fails", () => {
-  const dir = freshRepo();
+
+test("every vendored file must be reachable from the workspace root", () => {
+  const root = freshRepo();
   try {
-    const scope = loadScope(dir);
-    const up = scope.files.find(
-      (f) => f.classification === "REQUIRED_VENDOR",
+    const scope = load(root, "source-scope.json");
+    const orphanPath = scope.files.find(
+      (entry) =>
+        entry.classification === "REQUIRED_VENDOR" &&
+        entry.upstream_path !== "src/root.tsx",
     ).upstream_path;
-    const localRel = `apps/workspace/upstream/openhands/${up}`;
-    const abs = join(dir, localRel);
-    mkdirSync(resolve(abs, ".."), { recursive: true });
-    writeFileSync(abs, "export const z = 1;\n");
-    const h = sha256("export const z = 1;\n");
-    writeFileSync(
-      join(dir, "apps/workspace/upstream/openhands/provenance.json"),
-      JSON.stringify([
-        {
-          upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-          upstream_tag: "v1.10.0",
-          upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
-          upstream_path: "../secrets.ts",
-          local_path: localRel,
-          upstream_source_sha256: h,
-          vendored_sha256: h,
-          adoption_class: "KEEP_AS_IS",
-          modified: false,
-          modification_reason: null,
-          license: "MIT",
-        },
-      ]),
+    const rootEntry = provenanceEntry({
+      upstreamPath: "src/root.tsx",
+      localPath: writeSource(
+        root,
+        "src/root.tsx",
+        "export const root = true;\n",
+      ),
+    });
+    const orphanEntry = provenanceEntry({
+      upstreamPath: orphanPath,
+      localPath: writeSource(root, orphanPath, "export const orphan = true;\n"),
+    });
+    const entries = [rootEntry, orphanEntry];
+    saveProvenance(root, entries);
+    saveResolution(root, entries);
+    assertFail(
+      root,
+      /outside the src\/root\.tsx dependency closure/u,
+      "import closure",
     );
-    assertFail(dir, "upstream_path traversal should fail");
   } finally {
-    cleanup(dir);
+    cleanup(root);
+  }
+});
+
+test("reachable source cannot retain an unresolved local import", () => {
+  const root = freshRepo();
+  try {
+    createSingleFileFixture(root, {
+      content: 'import "#/stores/missing";\nexport const root = true;\n',
+    });
+    assertFail(root, /unresolved local imports/u, "unresolved local import");
+  } finally {
+    cleanup(root);
   }
 });

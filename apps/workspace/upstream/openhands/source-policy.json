@@ -5,15 +5,23 @@
   "tag": "v1.10.0",
   "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
   "license": "MIT",
-  "purpose": "Semantic source-adoption policy layered over source-scope reachability. Product mechanics may be preserved, while coding-only and model-private reasoning semantics are excluded or surgically removed.",
+  "purpose": "Semantic and privacy policy for the single reachable OpenHands Workspace source closure.",
   "precedence": "source-policy constraints override any KEEP_AS_IS interpretation from source reachability.",
+  "excluded_product_surfaces": {
+    "policy": "never-vendored",
+    "categories": [
+      "frontend API and Agent Runtime integration",
+      "authentication and WebSocket integration",
+      "Git, repository, terminal, editor, and coding tools",
+      "mobile-only navigation and interaction",
+      "telemetry",
+      "compatibility modules",
+      "Cloud, Enterprise, Sandbox, and desktop-shell integration"
+    ]
+  },
   "private_reasoning": {
     "policy": "never-cross-product-boundary",
     "excluded": [
-      "src/components/conversation-events/chat/event-thought-helpers.ts",
-      "src/components/conversation-events/chat/event-message-components/thought-event-message.tsx"
-    ],
-    "mandatory_surgery": [
       "src/components/conversation-events/chat/event-content-helpers/get-action-content.ts",
       "src/components/conversation-events/chat/event-content-helpers/get-action-event-title.ts",
       "src/components/conversation-events/chat/event-content-helpers/get-event-content.tsx",
@@ -21,8 +29,10 @@
       "src/components/conversation-events/chat/event-content-helpers/should-render-event.ts",
       "src/components/conversation-events/chat/event-message-components/index.ts",
       "src/components/conversation-events/chat/event-message-components/observation-pair-event-message.tsx",
+      "src/components/conversation-events/chat/event-message-components/thought-event-message.tsx",
       "src/components/conversation-events/chat/event-message-components/user-assistant-event-message.tsx",
       "src/components/conversation-events/chat/event-message.tsx",
+      "src/components/conversation-events/chat/event-thought-helpers.ts",
       "src/components/conversation-events/chat/group-events.ts",
       "src/components/conversation-events/chat/messages.tsx",
       "src/components/features/chat/typing-indicator.tsx",
@@ -37,10 +47,6 @@
     ],
     "disclosure_mechanics": [
       "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx"
-    ],
-    "vendored_surgery_adoption_classes": [
-      "KEEP_WITH_MINIMAL_PATCH",
-      "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT"
     ],
     "disclosure_constraints": [
       "preserve-disclosure-mechanics",
@@ -59,6 +65,10 @@
     "forbidden_import_fragments": [
       "event-thought-helpers",
       "thought-event-message"
+    ],
+    "disclosure_adoption_classes": [
+      "KEEP_WITH_MINIMAL_PATCH",
+      "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT"
     ]
   },
   "public_reasoning": {

@@ -1,10 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-/**
- * A-02 Epic 退出条件验证：键盘、200% 字体缩放、移动端与降级。
- * 覆盖 frontend-entrypoints.spec.ts 未涉及的 a11y 与响应式证据。
- * A-20 后工作台为退役宿主：键盘/缩放/窄屏断言指向新的固定边界。
- */
+/** 覆盖入口测试未涉及的键盘、焦点、200% 字体与窄屏边界证据。 */
 
 test("brand site keyboard navigation reaches the single CTA", async ({
   page,
@@ -40,11 +36,18 @@ test("workspace skip link appears on focus and targets main content", async ({
   await page.goto("http://127.0.0.1:5173/workspace");
 
   const skipLink = page.getByRole("link", { name: "跳到主要内容" });
-  // Initially transformed off-screen
-  await expect(skipLink).not.toBeInViewport();
+  await expect(skipLink).toHaveCSS("opacity", "0");
 
-  await page.keyboard.press("Tab");
+  for (let tabCount = 0; tabCount < 8; tabCount += 1) {
+    if (
+      await skipLink.evaluate((element) => element === document.activeElement)
+    ) {
+      break;
+    }
+    await page.keyboard.press("Tab");
+  }
   await expect(skipLink).toBeFocused();
+  await expect(skipLink).toHaveCSS("opacity", "1");
 
   // Activate skip link
   await page.keyboard.press("Enter");
@@ -52,7 +55,7 @@ test("workspace skip link appears on focus and targets main content", async ({
   await expect(mainContent).toBeFocused();
 });
 
-test.describe("mobile viewport @ 375px", () => {
+test.describe("narrow viewport @ 375px", () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
   test("brand site hero and content fit without horizontal overflow", async ({
@@ -79,11 +82,10 @@ test.describe("mobile viewport @ 375px", () => {
     await page.goto("http://127.0.0.1:5173/workspace");
 
     await expect(
-      page.getByRole("heading", { name: "研究工作台" }),
+      page.getByRole("heading", { name: "请使用桌面设备" }),
     ).toBeVisible();
-    await expect(page.getByText("请使用桌面设备")).toBeVisible();
     await expect(
-      page.getByText("研究工作台需要更宽的浏览器窗口。"),
+      page.getByText("研究工作台需要至少 1024 像素宽的浏览器窗口。"),
     ).toBeVisible();
 
     // No horizontal scroll
@@ -131,6 +133,12 @@ test.describe("200% font scale", () => {
     await expect(
       page.getByRole("heading", { name: "研究工作台" }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "工作台导航" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("textbox", { name: "向 Agent 发送指令" }),
+    ).toBeVisible();
 
     // No horizontal overflow
     const scrollWidth = await page.evaluate(
@@ -138,4 +146,22 @@ test.describe("200% font scale", () => {
     );
     expect(scrollWidth).toBeLessThanOrEqual(1280);
   });
+});
+
+test("workspace honors reduced motion for shell transitions", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("http://127.0.0.1:5173/workspace");
+
+  await expect(
+    page.getByRole("complementary", { name: "工作台侧栏" }),
+  ).toHaveCSS("transition-property", "none");
+  await expect(
+    page.locator('[aria-labelledby="agent-task-heading"]'),
+  ).toHaveCSS("transition-property", "none");
+  await expect(page.locator("#workspace-activity-panel")).toHaveCSS(
+    "transition-property",
+    "none",
+  );
 });

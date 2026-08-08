@@ -1,0 +1,216 @@
+{
+  "schema": "xingwen.agent-upstream.provenance/v2",
+  "generated_by": "scripts/generate-agent-upstream-provenance.mjs",
+  "source": {
+    "repository": "https://github.com/OpenHands/OpenHands.git",
+    "tag": "v1.10.0",
+    "commit": "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
+    "license": "MIT"
+  },
+  "keep_as_is_tree_sha256": "b795bc60424132268381ba064f32210922d57e5219898c2798f17182b0d5e329",
+  "entries": [
+    {
+      "upstream_path": "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/chat-interface.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-interface.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/chat-messages-skeleton.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-messages-skeleton.tsx",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/chat-send-button.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-send-button.tsx",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/chat-stop-button.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-stop-button.tsx",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/components/chat-input-actions.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/components/chat-input-actions.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/components/chat-input-container.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/components/chat-input-container.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/components/chat-input-field.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/components/chat-input-field.tsx",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/components/chat-input-grip.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/components/chat-input-grip.tsx",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/components/chat-input-row.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/components/chat-input-row.tsx",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/custom-chat-input.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/custom-chat-input.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/error-message-banner.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/error-message-banner.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/chat/interactive-chat-box.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/interactive-chat-box.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/command-menu/command-menu-items.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/command-menu/command-menu-items.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed upstream routes and localization coupling while retaining searchable overlay, shortcut, keyboard selection, and focus mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/command-menu/command-menu-trigger.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/command-menu/command-menu-trigger.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed upstream routes and localization coupling while retaining searchable overlay, shortcut, keyboard selection, and focus mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/command-menu/command-menu.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/command-menu/command-menu.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed upstream routes and localization coupling while retaining searchable overlay, shortcut, keyboard selection, and focus mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-tabs/conversation-tabs.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed coding panel content while retaining tabs, split-panel sizing, and keyboard mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/sidebar/sidebar-layout.ts",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/sidebar/sidebar-layout.ts",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding, cloud, and mobile navigation while retaining the desktop rail and collapse mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/sidebar/sidebar-rail-body.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/sidebar/sidebar-rail-body.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed coding, cloud, and mobile navigation while retaining the desktop rail and collapse mechanics."
+    },
+    {
+      "upstream_path": "src/components/features/sidebar/sidebar.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/features/sidebar/sidebar.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed coding, cloud, and mobile navigation while retaining the desktop rail and collapse mechanics."
+    },
+    {
+      "upstream_path": "src/components/ui/resize-handle.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/components/ui/resize-handle.tsx",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding panel content while retaining tabs, split-panel sizing, and keyboard mechanics."
+    },
+    {
+      "upstream_path": "src/hooks/chat/use-grip-resize.ts",
+      "local_path": "apps/workspace/upstream/openhands/src/hooks/chat/use-grip-resize.ts",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics."
+    },
+    {
+      "upstream_path": "src/hooks/use-resizable-panels.ts",
+      "local_path": "apps/workspace/upstream/openhands/src/hooks/use-resizable-panels.ts",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding panel content while retaining tabs, split-panel sizing, and keyboard mechanics."
+    },
+    {
+      "upstream_path": "src/root.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/root.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed upstream routing, backend, coding, cloud, and mobile dependencies while retaining the Agent workspace product structure."
+    },
+    {
+      "upstream_path": "src/routes/conversation.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/routes/conversation.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed upstream routing, backend, coding, cloud, and mobile dependencies while retaining the Agent workspace product structure."
+    },
+    {
+      "upstream_path": "src/routes/root-layout.tsx",
+      "local_path": "apps/workspace/upstream/openhands/src/routes/root-layout.tsx",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Removed upstream routing, backend, coding, cloud, and mobile dependencies while retaining the Agent workspace product structure."
+    },
+    {
+      "upstream_path": "src/stores/command-menu-store.ts",
+      "local_path": "apps/workspace/upstream/openhands/src/stores/command-menu-store.ts",
+      "adoption_class": "KEEP_AS_IS",
+      "modified": false,
+      "modification_reason": null
+    },
+    {
+      "upstream_path": "src/stores/sidebar-store.ts",
+      "local_path": "apps/workspace/upstream/openhands/src/stores/sidebar-store.ts",
+      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
+      "modified": true,
+      "modification_reason": "Removed coding, cloud, and mobile navigation while retaining the desktop rail and collapse mechanics."
+    },
+    {
+      "upstream_path": "src/utils/utils.ts",
+      "local_path": "apps/workspace/upstream/openhands/src/utils/utils.ts",
+      "adoption_class": "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+      "modified": true,
+      "modification_reason": "Reduced the utility surface to class composition used by the adopted import graph."
+    }
+  ]
+}

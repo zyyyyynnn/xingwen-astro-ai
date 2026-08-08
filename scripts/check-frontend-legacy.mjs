@@ -12,12 +12,21 @@ import {
   findRetiredWorkspaceManifestDependencies,
   findRetiredWorkspaceIdentifiers,
   findFakeWorkspaceCapabilityPhrases,
-  findTourRouteRefs,
   isRetiredPath,
-  tourRouteAllowlist,
 } from "./check-frontend-legacy-rules.mjs";
 
 const root = process.cwd();
+const agentUpstreamProvenance = JSON.parse(
+  readFileSync(
+    resolve(root, "apps/workspace/upstream/openhands/provenance.json"),
+    "utf8",
+  ),
+);
+const unmodifiedAgentUpstreamFiles = new Set(
+  agentUpstreamProvenance.entries
+    .filter((entry) => entry.modified === false)
+    .map((entry) => entry.local_path),
+);
 const forbiddenLockNames = new Set([
   "package-lock.json",
   "yarn.lock",
@@ -70,6 +79,9 @@ for (const file of files) {
   if (!textFilePattern.test(file)) {
     continue;
   }
+  if (unmodifiedAgentUpstreamFiles.has(file)) {
+    continue;
+  }
 
   const content = readFileSync(path, "utf8");
   for (const term of findRetiredTextTerms(content)) {
@@ -94,13 +106,6 @@ for (const file of files) {
           `${file}: contains retired Workspace stylesheet rule ${JSON.stringify(term)}.`,
         );
       }
-    }
-  }
-  if (!tourRouteAllowlist.has(file)) {
-    for (const term of findTourRouteRefs(content)) {
-      failures.push(
-        `${file}: contains retired route term ${JSON.stringify(term)} outside the compatibility allowlist.`,
-      );
     }
   }
 }
