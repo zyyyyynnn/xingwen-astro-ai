@@ -11,12 +11,7 @@
  * Xingwen product boundary while preserving approved OpenHands mechanics.
  */
 
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-} from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,12 +33,7 @@ const PATCHED_CLASSES = [
   "KEEP_WITH_MINIMAL_PATCH",
   "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
 ];
-const FORBIDDEN_CLASSES = [
-  "REWRITE",
-  "RECREATE",
-  "REIMPLEMENT",
-  "INSPIRED_BY",
-];
+const FORBIDDEN_CLASSES = ["REWRITE", "RECREATE", "REIMPLEMENT", "INSPIRED_BY"];
 const REQUIRED_PROVENANCE_FIELDS = [
   "upstream_repository",
   "upstream_tag",
@@ -181,7 +171,9 @@ function validateSourceScope(scope, failures) {
       continue;
     }
     if (byPath.has(entry.upstream_path)) {
-      failures.push(`source-scope duplicate upstream_path: ${entry.upstream_path}.`);
+      failures.push(
+        `source-scope duplicate upstream_path: ${entry.upstream_path}.`,
+      );
     }
     byPath.set(entry.upstream_path, entry);
     if (!HASH_RE.test(entry.source_sha256 ?? "")) {
@@ -210,20 +202,14 @@ function validatePolicy(policy, scope, scopeByPath, failures) {
     );
   }
   if (
-    !sameStringSet(
-      privateReasoning.mandatory_surgery,
-      EXPECTED_PRIVATE_SURGERY,
-    )
+    !sameStringSet(privateReasoning.mandatory_surgery, EXPECTED_PRIVATE_SURGERY)
   ) {
     failures.push(
       "source-policy private_reasoning.mandatory_surgery does not match the frozen private-reasoning inventory.",
     );
   }
   if (
-    !sameStringSet(
-      privateReasoning.disclosure_mechanics,
-      EXPECTED_DISCLOSURE,
-    )
+    !sameStringSet(privateReasoning.disclosure_mechanics, EXPECTED_DISCLOSURE)
   ) {
     failures.push(
       "source-policy private_reasoning.disclosure_mechanics does not match the approved disclosure inventory.",
@@ -386,10 +372,7 @@ function validateLockAndSchema(lock, provenanceSchema, failures) {
   }
 
   if (
-    !sameStringSet(
-      lock?.vendored_file_adoption_classes,
-      SAFE_VENDORED_CLASSES,
-    )
+    !sameStringSet(lock?.vendored_file_adoption_classes, SAFE_VENDORED_CLASSES)
   ) {
     failures.push(
       "upstream-lock vendored_file_adoption_classes must match the safe vendored classes exactly.",
@@ -420,9 +403,7 @@ function validateLockAndSchema(lock, provenanceSchema, failures) {
       SAFE_VENDORED_CLASSES,
     )
   ) {
-    failures.push(
-      "provenance-schema vendored_file_adoption_classes drifted.",
-    );
+    failures.push("provenance-schema vendored_file_adoption_classes drifted.");
   }
   if (
     !sameStringSet(
@@ -434,7 +415,14 @@ function validateLockAndSchema(lock, provenanceSchema, failures) {
   }
 }
 
-function validateVendoredSource(root, lock, policy, scopeByPath, failures, notes) {
+function validateVendoredSource(
+  root,
+  lock,
+  policy,
+  scopeByPath,
+  failures,
+  notes,
+) {
   const srcDir = resolve(root, SRC_DIR);
   if (!existsSync(srcDir)) {
     notes.push("semantic source policy armed; no vendored source present");
