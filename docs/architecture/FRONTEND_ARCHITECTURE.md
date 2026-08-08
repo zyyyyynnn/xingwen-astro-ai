@@ -42,6 +42,7 @@ Existing Core
 - **Repository & Commit**：固定官方仓库、固定 Tag 与 40 位 SHA 提交号。
 - **License & Notice**：确认兼容开源许可证，完整保留版权与 NOTICE 声明。
 - **Source Scope & Mapping**：明确采用与排除的目录，建立完整 Upstream -> Local 源码映射表。
+- **Source Policy**：在机械依赖可达性之外固定语义、安全与隐私边界；Policy 约束优先于 `KEEP_AS_IS`。
 - **Governance Rules**：严禁跟随浮动 main 分支；严禁混用非兼容协议代码；仓库内有且仅有一套 Workspace Shell。
 
 ### 3.1 唯一上游 Agent 产品
@@ -58,11 +59,15 @@ Existing Core
 | 领域适配策略 | adapter-and-renderer（经 Adapter / Renderer 替换科研领域） |
 | 唯一性       | 仓库内唯一 Agent Product Source；禁止混壳 / 第二套 Shell   |
 
-冻结元数据位于 `apps/workspace/upstream/openhands/`（`upstream-lock.json`、`source-scope.json`、`vendor-blueprint.json`、`provenance-schema.json`、`LICENSE.upstream`、`NOTICE.md`），由 `scripts/check-agent-upstream-adoption.mjs` 机器门禁强制（G1–G9）。
+冻结元数据位于 `apps/workspace/upstream/openhands/`（`upstream-lock.json`、`source-scope.json`、`source-policy.json`、`vendor-blueprint.json`、`provenance-schema.json`、`LICENSE.upstream`、`NOTICE.md`），由 upstream adoption 机器门禁强制。
 
-上游源码升级需经过：锁定 SHA → 许可证审查 → 更新映射 → 上游 Diff 审查 → 运行契约与 UI 回归 → 独立合并。实际 Vendor 必须重新从官方仓库 checkout `v1.10.0` 并校验 `566386…37f4b`，否则 `BLOCKED`。
+上游源码升级需经过：锁定 SHA → 许可证审查 → 更新映射与 Source Policy → 上游 Diff 审查 → 运行契约与 UI 回归 → 独立合并。实际 Vendor 必须重新从官方仓库 checkout `v1.10.0` 并校验 `566386…37f4b`，否则拒绝采用。
 
-上游 Agent UI 可保留披露与活动机制，但模型私有的 raw reasoning 不得进入产品 ViewModel 或 UI。用户可见推理必须显式、可核验且与 Evidence 关联（详见 `docs/ai/REASONING_PROTOCOL.md`）。
+### 3.2 推理披露边界
+
+上游 Agent UI 可保留 Activity 与 disclosure 等成熟交互机制，但模型私有 raw reasoning 不得进入产品 ViewModel、持久化边界或 UI。`source-policy.json` 对固定 OpenHands 源码中的纯私有推理 surface 做排除，并对仍需保留产品 mechanics 的依赖文件强制语义 surgery；这些约束优先于机械 Source Scope 的 `REQUIRED_VENDOR` / `REQUIRED_TRANSITIVE` 分类。
+
+用户可见推理必须显式、可核验且与 Evidence 关联。`ReasoningTrace` 是公开可审计的推导记录，不等于模型私有 chain-of-thought；具体领域语义见 `docs/ai/REASONING_PROTOCOL.md`。
 
 ## 4. 依赖方向
 
@@ -118,5 +123,5 @@ Transport DTO -> Contract Validation -> Domain Mapping -> Repository Port -> Res
 
 ## 7. 构建与上游同步
 
-- 上游源码升级需经过：锁定 SHA -> 许可证审查 -> 更新映射 -> 上游 Diff 审查 -> 运行契约与 UI 回归 -> 独立合并。
+- 上游源码升级需经过：锁定 SHA -> 许可证审查 -> 更新映射与 Source Policy -> 上游 Diff 审查 -> 运行契约与 UI 回归 -> 独立合并。
 - 生产构建使用单根 `pnpm-lock.yaml`；大型组件使用代码分割（Code-Splitting）。
