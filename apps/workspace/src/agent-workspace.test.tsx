@@ -101,6 +101,21 @@ describe("source-adopted Agent workspace mechanics", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("grows the composer when a command spans multiple lines", () => {
+    render(<OpenHandsWorkspaceRoot runtime={readyRuntime(vi.fn())} />);
+
+    const input = enterCommand("第一行\n第二行\n第三行");
+    Object.defineProperty(input, "scrollHeight", {
+      configurable: true,
+      value: 72,
+    });
+    fireEvent.input(input);
+
+    expect(
+      screen.getByRole("separator", { name: "调整指令输入区高度" }),
+    ).toHaveAttribute("aria-valuenow", "104");
+  });
+
   it("surfaces an execution error and retries without duplicating the command", async () => {
     const execute = vi
       .fn<AgentWorkspaceRuntime["execute"]>()

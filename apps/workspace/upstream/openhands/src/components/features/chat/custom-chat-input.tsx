@@ -35,8 +35,9 @@ export function CustomChatInput({
     handleTopEdgeClick,
     handleGripMouseDown,
     handleGripKeyDown,
+    resizeToContent,
     resetHeight,
-  } = useGripResize();
+  } = useGripResize(chatInputRef);
 
   const syncCanSubmit = React.useCallback(() => {
     setCanSubmit(Boolean(chatInputRef.current?.textContent?.trim()));
@@ -84,8 +85,16 @@ export function CustomChatInput({
         selection.addRange(range);
       }
     }
-    requestAnimationFrame(syncCanSubmit);
+    requestAnimationFrame(() => {
+      syncCanSubmit();
+      resizeToContent();
+    });
   };
+
+  const handleInput = React.useCallback(() => {
+    syncCanSubmit();
+    resizeToContent();
+  }, [resizeToContent, syncCanSubmit]);
 
   return (
     <div className="group relative w-full" style={{ height }}>
@@ -108,7 +117,7 @@ export function CustomChatInput({
         chatInputRef={chatInputRef}
         handleSubmit={handleSubmit}
         handleCancel={onCancel}
-        onInput={syncCanSubmit}
+        onInput={handleInput}
         onPaste={handlePaste}
         onKeyDown={handleKeyDown}
         onFocus={onFocus}
