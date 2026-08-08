@@ -13,6 +13,7 @@
         "src/root.tsx",
         "src/routes/root-layout.tsx",
         "src/routes/conversation.tsx",
+        "src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
         "src/components/features/conversation/conversation-main/conversation-main.tsx"
       ],
       "requirements": [
@@ -38,7 +39,10 @@
     {
       "surface": "conversation-tabs",
       "upstream_paths": [
-        "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx"
+        "src/components/features/conversation/conversation-name-with-status.tsx",
+        "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx",
+        "src/components/features/conversation/conversation-tabs/conversation-tab-nav.tsx",
+        "src/components/features/conversation/conversation-tabs/conversation-tab-content/tab-content-area.tsx"
       ],
       "requirements": [
         "selection",
@@ -89,6 +93,27 @@
       ]
     }
   ],
+  "transitive_mechanics": [
+    {
+      "surface": "workspace-closure-mechanics",
+      "upstream_paths": [
+        "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
+        "src/components/features/chat/chat-interface.tsx",
+        "src/components/features/chat/chat-messages-skeleton.tsx",
+        "src/components/features/chat/error-message-banner.tsx",
+        "src/components/ui/resize-handle.tsx",
+        "src/hooks/use-resizable-panels.ts",
+        "src/stores/sidebar-store.ts",
+        "src/utils/utils.ts"
+      ],
+      "requirements": [
+        "loading and error feedback",
+        "public disclosure",
+        "split-panel resize",
+        "shared state and class composition"
+      ]
+    }
+  ],
   "classification_legend": {
     "REQUIRED_VENDOR": "Core Agent Product mechanic — vendored as part of source adoption.",
     "REQUIRED_TRANSITIVE": "Real import dependency of REQUIRED_VENDOR — vendored with parent.",
@@ -97,11 +122,11 @@
     "DEFERRED_NOT_VENDORED": "Upstream exists, no current consumer — vendored only when a consuming integration requires it."
   },
   "summary": {
-    "REQUIRED_VENDOR": 28,
-    "REQUIRED_TRANSITIVE": 0,
+    "REQUIRED_VENDOR": 25,
+    "REQUIRED_TRANSITIVE": 7,
     "PARTIAL_SURGICAL": 2,
     "EXCLUDED": 784,
-    "DEFERRED_NOT_VENDORED": 292
+    "DEFERRED_NOT_VENDORED": 288
   },
   "total_src_files": 1106,
   "files": [
@@ -332,8 +357,8 @@
     },
     {
       "upstream_path": "src/components/features/chat/chat-interface.tsx",
-      "classification": "REQUIRED_VENDOR",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
+      "classification": "REQUIRED_TRANSITIVE",
+      "reason": "Transitive OpenHands ChatInterface mechanic required by the adopted conversation wrapper; retained for Composer and execution-state ownership."
     },
     {
       "upstream_path": "src/components/features/chat/chat-message.tsx",
@@ -342,8 +367,8 @@
     },
     {
       "upstream_path": "src/components/features/chat/chat-messages-skeleton.tsx",
-      "classification": "REQUIRED_VENDOR",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
+      "classification": "REQUIRED_TRANSITIVE",
+      "reason": "Transitive loading-state mechanic required by the adopted ChatInterface closure."
     },
     {
       "upstream_path": "src/components/features/chat/chat-play-button.tsx",
@@ -447,8 +472,8 @@
     },
     {
       "upstream_path": "src/components/features/chat/error-message-banner.tsx",
-      "classification": "REQUIRED_VENDOR",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
+      "classification": "REQUIRED_TRANSITIVE",
+      "reason": "Transitive error-state mechanic required by the adopted ChatInterface closure."
     },
     {
       "upstream_path": "src/components/features/chat/generic-event-message.tsx",
@@ -1687,8 +1712,8 @@
     },
     {
       "upstream_path": "src/components/ui/resize-handle.tsx",
-      "classification": "REQUIRED_VENDOR",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
+      "classification": "REQUIRED_TRANSITIVE",
+      "reason": "Transitive resize-handle mechanic required by the adopted split-panel and Composer boundaries."
     },
     {
       "upstream_path": "src/constants/acp-brand-marks.ts",
@@ -2572,8 +2597,8 @@
     },
     {
       "upstream_path": "src/hooks/use-resizable-panels.ts",
-      "classification": "REQUIRED_VENDOR",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
+      "classification": "REQUIRED_TRANSITIVE",
+      "reason": "Transitive split-panel sizing state required by the adopted ConversationMain boundary."
     },
     {
       "upstream_path": "src/hooks/use-runtime-is-ready.ts",
@@ -2942,8 +2967,8 @@
     },
     {
       "upstream_path": "src/stores/sidebar-store.ts",
-      "classification": "REQUIRED_VENDOR",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
+      "classification": "REQUIRED_TRANSITIVE",
+      "reason": "Transitive sidebar persistence state required by the adopted desktop navigation rail."
     },
     {
       "upstream_path": "src/stores/skill-install-banner-store.ts",
@@ -3607,8 +3632,8 @@
     },
     {
       "upstream_path": "src/utils/utils.ts",
-      "classification": "REQUIRED_VENDOR",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
+      "classification": "REQUIRED_TRANSITIVE",
+      "reason": "Transitive class-composition utility required by the adopted source closure."
     },
     {
       "upstream_path": "src/utils/websocket-auth.ts",
@@ -4496,8 +4521,10 @@
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
-      "classification": "DEFERRED_NOT_VENDORED",
-      "reason": "Upstream exists but no current core consumer — vendored only when a consuming integration requires it."
+      "classification": "REQUIRED_VENDOR",
+      "reason": "Retain the OpenHands ChatInterfaceWrapper boundary while injecting the current runtime seam.",
+      "preserved_mechanics": "ChatInterfaceWrapper: centered conversation content frame and full-height Composer ownership",
+      "removed_domain": "Backend-specific ChatInterface props and runtime coupling"
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-main/conversation-main.tsx",
@@ -4528,8 +4555,10 @@
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-name-with-status.tsx",
-      "classification": "DEFERRED_NOT_VENDORED",
-      "reason": "Upstream exists but no current core consumer — vendored only when a consuming integration requires it."
+      "classification": "REQUIRED_VENDOR",
+      "reason": "Retain the OpenHands conversation title/status boundary with the Xingwen workspace label.",
+      "preserved_mechanics": "ConversationNameWithStatus: title and runtime-status alignment in the conversation header",
+      "removed_domain": "Conversation-name editing and backend conversation identity"
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-tab-empty-state.tsx",
@@ -4558,8 +4587,10 @@
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-tabs/conversation-tab-content/tab-content-area.tsx",
-      "classification": "DEFERRED_NOT_VENDORED",
-      "reason": "Upstream exists but no current core consumer — vendored only when a consuming integration requires it."
+      "classification": "REQUIRED_VENDOR",
+      "reason": "Retain the OpenHands tab-content boundary while replacing coding surfaces with public activity and context states.",
+      "preserved_mechanics": "TabContentArea: active panel semantics, panel focus target, and public disclosure content frame",
+      "removed_domain": "Files, terminal, browser, planner, and coding-specific panel renderers"
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-tabs/conversation-tab-content/tab-ready-notifier.tsx",
@@ -4573,8 +4604,10 @@
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-tabs/conversation-tab-nav.tsx",
-      "classification": "DEFERRED_NOT_VENDORED",
-      "reason": "Upstream exists but no current core consumer — vendored only when a consuming integration requires it."
+      "classification": "REQUIRED_VENDOR",
+      "reason": "Retain the OpenHands tab-nav boundary for active state, measurement clones, focus, and keyboard navigation.",
+      "preserved_mechanics": "ConversationTabNav: tab semantics, active indicator, neutral icon/label composition, and measurement mode",
+      "removed_domain": "Coding tab definitions and upstream localization/tool integrations"
     },
     {
       "upstream_path": "src/components/features/conversation/conversation-tabs/conversation-tabs-context-menu.tsx",

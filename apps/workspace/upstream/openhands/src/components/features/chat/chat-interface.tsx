@@ -19,7 +19,6 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
   const [notice, setNotice] = React.useState<string | null>(null);
   const [lastCommand, setLastCommand] = React.useState<string | null>(null);
   const abortRef = React.useRef<AbortController | null>(null);
-  const scrollAnchorRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(
     () => () => {
@@ -107,7 +106,6 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
             {notice}
           </p>
         ) : null}
-        <div ref={scrollAnchorRef} aria-hidden="true" />
       </div>
 
       <InteractiveChatBox

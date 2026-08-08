@@ -47,8 +47,12 @@ const STRUCTURE_REPLACEMENT = new Set([
   "src/components/features/command-menu/command-menu-items.tsx",
   "src/components/features/command-menu/command-menu-trigger.tsx",
   "src/components/features/command-menu/command-menu.tsx",
+  "src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
   "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx",
   "src/components/features/conversation/conversation-main/conversation-main.tsx",
+  "src/components/features/conversation/conversation-name-with-status.tsx",
+  "src/components/features/conversation/conversation-tabs/conversation-tab-content/tab-content-area.tsx",
+  "src/components/features/conversation/conversation-tabs/conversation-tab-nav.tsx",
   "src/components/features/sidebar/sidebar-rail-body.tsx",
   "src/components/features/sidebar/sidebar.tsx",
   "src/root.tsx",
@@ -78,7 +82,7 @@ function modificationReason(upstreamPath) {
     upstreamPath.includes("/chat/") ||
     upstreamPath.includes("chat-interface")
   ) {
-    return "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.";
+    return "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.";
   }
   if (
     upstreamPath.includes("conversation-tabs") ||
@@ -89,6 +93,9 @@ function modificationReason(upstreamPath) {
   }
   if (upstreamPath.includes("conversation-main")) {
     return "Removed mobile and coding panel content while retaining ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics.";
+  }
+  if (upstreamPath.includes("conversation-name-with-status")) {
+    return "Removed conversation identity and backend coupling while retaining the title/status header alignment mechanic.";
   }
   if (upstreamPath === "src/utils/utils.ts") {
     return "Reduced the utility surface to class composition used by the adopted import graph.";
@@ -119,7 +126,37 @@ export function generateAgentUpstreamProvenance(root = process.cwd()) {
   const scopeByPath = new Map(
     scope.files.map((entry) => [entry.upstream_path, entry]),
   );
+  const approvedMechanicsPaths = new Set(
+    (scope.approved_mechanics ?? []).flatMap(
+      (surface) => surface.upstream_paths ?? [],
+    ),
+  );
+  const transitiveMechanicsPaths = new Set(
+    (scope.transitive_mechanics ?? []).flatMap(
+      (surface) => surface.upstream_paths ?? [],
+    ),
+  );
+  const adoptedMechanicsPaths = new Set([
+    ...approvedMechanicsPaths,
+    ...transitiveMechanicsPaths,
+  ]);
+  if (approvedMechanicsPaths.size === 0) {
+    throw new Error("Approved mechanics scope is empty.");
+  }
   const diskFiles = listVendoredFiles(sourceDirectory);
+  const diskUpstreamPaths = new Set(
+    diskFiles.map(
+      (absolutePath) =>
+        `src/${toPosix(relative(sourceDirectory, absolutePath))}`,
+    ),
+  );
+  for (const upstreamPath of adoptedMechanicsPaths) {
+    if (!diskUpstreamPaths.has(upstreamPath)) {
+      throw new Error(
+        `Approved mechanics path is not vendored: ${upstreamPath}`,
+      );
+    }
+  }
 
   const entries = diskFiles.map((absolutePath) => {
     const localPath = toPosix(relative(root, absolutePath));
@@ -130,12 +167,17 @@ export function generateAgentUpstreamProvenance(root = process.cwd()) {
       );
     }
     const scopeEntry = scopeByPath.get(upstreamPath);
+    if (!adoptedMechanicsPaths.has(upstreamPath)) {
+      throw new Error(
+        `Vendored path is outside the approved or transitive mechanics scope: ${upstreamPath}`,
+      );
+    }
     if (
       !scopeEntry ||
       !ADOPTED_CLASSIFICATIONS.has(scopeEntry.classification)
     ) {
       throw new Error(
-        `Vendored path is outside the adopted scope: ${upstreamPath}`,
+        `Adopted mechanics path is not classified as adopted: ${upstreamPath}`,
       );
     }
 

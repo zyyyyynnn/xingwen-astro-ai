@@ -140,6 +140,53 @@ test.describe("200% font scale", () => {
       page.getByRole("textbox", { name: "向 Agent 发送指令" }),
     ).toBeVisible();
 
+    const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
+    const expandedSidebarWidth = (await sidebar.boundingBox())?.width;
+    expect(expandedSidebarWidth).not.toBeUndefined();
+    await page.getByRole("button", { name: "收起侧栏" }).click();
+    await expect(page.getByRole("button", { name: "展开侧栏" })).toBeVisible();
+    await expect
+      .poll(async () => (await sidebar.boundingBox())?.width ?? Infinity)
+      .toBeLessThan(expandedSidebarWidth!);
+    const collapsedSidebarWidth = (await sidebar.boundingBox())?.width;
+    expect(collapsedSidebarWidth).not.toBeUndefined();
+    await page.getByRole("button", { name: "展开侧栏" }).click();
+
+    const activityTab = page.getByRole("tab", { name: "活动" });
+    await activityTab.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByRole("tab", { name: "上下文" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    const panelSeparator = page.getByRole("separator", {
+      name: "调整任务与活动面板宽度",
+    });
+    await panelSeparator.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(panelSeparator).toHaveAttribute("aria-valuenow", "60");
+
+    const commandTrigger = page.getByRole("button", {
+      name: "打开命令菜单",
+    });
+    await commandTrigger.focus();
+    await page.keyboard.press("Control+k");
+    await expect(
+      page.getByRole("combobox", { name: "搜索命令" }),
+    ).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(commandTrigger).toBeFocused();
+
+    const composerSeparator = page.getByRole("separator", {
+      name: "调整指令输入区高度",
+    });
+    await composerSeparator.focus();
+    await page.keyboard.press("ArrowUp");
+    await expect(composerSeparator).toHaveAttribute("aria-valuenow", "72");
+    await page.keyboard.press("Home");
+    await expect(composerSeparator).toHaveAttribute("aria-valuenow", "56");
+
     // No horizontal overflow
     const scrollWidth = await page.evaluate(
       () => document.documentElement.scrollWidth,

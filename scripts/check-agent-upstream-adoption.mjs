@@ -213,6 +213,118 @@ export function checkAgentUpstreamAdoption(root) {
       `Scope total_src_files (${scope.total_src_files}) != files.length (${scope.files.length}).`,
     );
   }
+  const files = scope.files ?? [];
+
+  // The approved mechanics list is the human architecture boundary. The
+  // inventory below may describe every frozen upstream path, but it cannot
+  // silently expand or shrink the adopted product surface.
+  const approvedMechanicsPaths = new Set();
+  const transitiveMechanicsPaths = new Set();
+  if (
+    !Array.isArray(scope.approved_mechanics) ||
+    scope.approved_mechanics.length === 0
+  ) {
+    failures.push(
+      "Approved mechanics scope must contain at least one surface.",
+    );
+  } else {
+    for (const surface of scope.approved_mechanics) {
+      if (
+        !surface ||
+        typeof surface !== "object" ||
+        !Array.isArray(surface.upstream_paths)
+      ) {
+        failures.push("Approved mechanics scope contains an invalid surface.");
+        continue;
+      }
+      for (const upstreamPath of surface.upstream_paths) {
+        if (approvedMechanicsPaths.has(upstreamPath)) {
+          failures.push(`Approved mechanics scope duplicates ${upstreamPath}.`);
+          continue;
+        }
+        approvedMechanicsPaths.add(upstreamPath);
+        const entry = seenPaths.has(upstreamPath)
+          ? files.find((candidate) => candidate.upstream_path === upstreamPath)
+          : null;
+        if (!entry) {
+          failures.push(
+            `Approved mechanics path is missing from source-scope: ${upstreamPath}.`,
+          );
+        } else if (
+          ![
+            "REQUIRED_VENDOR",
+            "REQUIRED_TRANSITIVE",
+            "PARTIAL_SURGICAL",
+          ].includes(entry.classification)
+        ) {
+          failures.push(
+            `Approved mechanics path ${upstreamPath} must be adopted, found ${entry.classification}.`,
+          );
+        }
+      }
+    }
+  }
+  if (
+    scope.transitive_mechanics !== undefined &&
+    !Array.isArray(scope.transitive_mechanics)
+  ) {
+    failures.push("Transitive mechanics scope must be an array when present.");
+  } else {
+    for (const surface of scope.transitive_mechanics ?? []) {
+      if (
+        !surface ||
+        typeof surface !== "object" ||
+        !Array.isArray(surface.upstream_paths)
+      ) {
+        failures.push(
+          "Transitive mechanics scope contains an invalid surface.",
+        );
+        continue;
+      }
+      for (const upstreamPath of surface.upstream_paths) {
+        if (
+          approvedMechanicsPaths.has(upstreamPath) ||
+          transitiveMechanicsPaths.has(upstreamPath)
+        ) {
+          failures.push(`Mechanics scope duplicates ${upstreamPath}.`);
+          continue;
+        }
+        transitiveMechanicsPaths.add(upstreamPath);
+        const entry = seenPaths.has(upstreamPath)
+          ? files.find((candidate) => candidate.upstream_path === upstreamPath)
+          : null;
+        if (!entry) {
+          failures.push(
+            `Transitive mechanics path is missing from source-scope: ${upstreamPath}.`,
+          );
+        } else if (
+          !["REQUIRED_TRANSITIVE", "PARTIAL_SURGICAL"].includes(
+            entry.classification,
+          )
+        ) {
+          failures.push(
+            `Transitive mechanics path ${upstreamPath} must be REQUIRED_TRANSITIVE or PARTIAL_SURGICAL, found ${entry.classification}.`,
+          );
+        }
+      }
+    }
+  }
+  const adoptedMechanicsPaths = new Set([
+    ...approvedMechanicsPaths,
+    ...transitiveMechanicsPaths,
+  ]);
+  for (const entry of files) {
+    if (
+      ["REQUIRED_VENDOR", "REQUIRED_TRANSITIVE", "PARTIAL_SURGICAL"].includes(
+        entry.classification,
+      ) &&
+      !adoptedMechanicsPaths.has(entry.upstream_path)
+    ) {
+      failures.push(
+        `Adopted source-scope path is not in the approved or transitive mechanics scope: ${entry.upstream_path}.`,
+      );
+    }
+  }
 
   if (blueprint) {
     for (const f of FORBIDDEN_CLASSES) {
@@ -227,7 +339,6 @@ export function checkAgentUpstreamAdoption(root) {
     }
   }
   // G7: excluded coding surfaces classified EXCLUDED
-  const files = scope.files ?? [];
   const excluded = files.filter((f) => f.classification === "EXCLUDED");
   if (excluded.length === 0) {
     failures.push(
@@ -523,12 +634,14 @@ export function checkAgentUpstreamAdoption(root) {
         "REQUIRED_TRANSITIVE",
         "PARTIAL_SURGICAL",
       ]);
-      const requiredScopeEntries = files.filter((entry) =>
-        requiredClassifications.has(entry.classification),
-      );
-      const requiredPaths = new Set(
-        requiredScopeEntries.map((entry) => entry.upstream_path),
-      );
+      const requiredPaths = new Set(adoptedMechanicsPaths);
+      const requiredScopeEntries = [...requiredPaths]
+        .map((upstreamPath) =>
+          files.find((entry) => entry.upstream_path === upstreamPath),
+        )
+        .filter(
+          (entry) => entry && requiredClassifications.has(entry.classification),
+        );
       const statuses = new Set(schema.resolution_statuses ?? []);
       const requiredFields = schema.resolution_required_fields ?? [];
       const resolutionEntries = resolution.entries ?? [];

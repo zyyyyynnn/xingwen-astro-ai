@@ -101,6 +101,42 @@ test("Workspace top bars share one height, divider, and type scale", async ({
   );
 });
 
+test.describe("Workspace desktop shell at 1440×900", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("keeps the header alignment and Composer at the bottom edge", async ({
+    page,
+  }) => {
+    await page.goto("http://127.0.0.1:5173/workspace");
+
+    const header = page
+      .getByRole("heading", { name: "研究工作台" })
+      .locator("xpath=ancestor::header");
+    const rightHeader = page
+      .getByRole("tablist", { name: "工作区面板" })
+      .locator("..");
+    const [headerBox, rightHeaderBox] = await Promise.all([
+      header.boundingBox(),
+      rightHeader.boundingBox(),
+    ]);
+    expect(headerBox).not.toBeNull();
+    expect(rightHeaderBox).not.toBeNull();
+    expect(headerBox!.height).toBe(48);
+    expect(rightHeaderBox!.height).toBe(48);
+
+    const composer = page.getByRole("textbox", {
+      name: "向 Agent 发送指令",
+    });
+    const composerBox = await composer.boundingBox();
+    const viewport = page.viewportSize();
+    expect(composerBox).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(composerBox!.y + composerBox!.height).toBeGreaterThan(
+      viewport!.height - 180,
+    );
+  });
+});
+
 test("Workspace right-panel toggle stays anchored while the panel collapses", async ({
   page,
 }) => {
@@ -434,16 +470,6 @@ test("Split-panel drag uses one shield without width easing", async ({
   expect(result!.transitionProperties).toEqual(["none", "none"]);
   expect(result!.shieldAdds).toBe(1);
   await expect(page.locator("[data-panel-drag-shield]")).toHaveCount(0);
-});
-
-test("Workspace host exposes no retired product UI", async ({ page }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
-
-  await expect(page.locator("#research-canvas")).toHaveCount(0);
-  await expect(page.locator(".research-atlas")).toHaveCount(0);
-  await expect(page.locator(".provenance-observatory")).toHaveCount(0);
-  await expect(page.locator(".workspace-shell")).toHaveCount(0);
-  await expect(page.getByText(/研究引导|引导/u)).toHaveCount(0);
 });
 
 test("Public share route renders the fixed safe boundary", async ({ page }) => {

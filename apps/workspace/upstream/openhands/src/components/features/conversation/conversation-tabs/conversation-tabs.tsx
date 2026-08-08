@@ -1,7 +1,7 @@
 import React from "react";
 import { Activity, Layers3, MoreHorizontal } from "lucide-react";
 
-import { cn } from "../../../../utils/utils";
+import { ConversationTabNav } from "./conversation-tab-nav";
 
 export type WorkspacePanelTab = "activity" | "context";
 
@@ -36,6 +36,8 @@ export function ConversationTabs({
   const measureRowRef = React.useRef<HTMLDivElement>(null);
   const [inlineTabCount, setInlineTabCount] = React.useState(TABS.length);
   const [isMoreOpen, setIsMoreOpen] = React.useState(false);
+  const [pendingFocusTab, setPendingFocusTab] =
+    React.useState<WorkspacePanelTab | null>(null);
 
   React.useEffect(() => {
     const stored = readStoredTab();
@@ -50,6 +52,14 @@ export function ConversationTabs({
       window.localStorage.setItem(TAB_STORAGE_KEY, activeTab);
     }
   }, [activeTab]);
+
+  React.useLayoutEffect(() => {
+    if (pendingFocusTab !== activeTab) return;
+    const tab = refs.current.get(activeTab);
+    if (!tab) return;
+    tab.focus();
+    setPendingFocusTab(null);
+  }, [activeTab, pendingFocusTab]);
 
   React.useLayoutEffect(() => {
     const row = rowRef.current;
@@ -88,15 +98,21 @@ export function ConversationTabs({
     return () => observer.disconnect();
   }, []);
 
-  const inlineTabs = TABS.slice(0, inlineTabCount);
-  const overflowTabs = TABS.slice(inlineTabCount);
+  const measuredInlineTabs = TABS.slice(0, inlineTabCount);
+  const activeTabDefinition = TABS.find((tab) => tab.id === activeTab);
+  const inlineTabs = measuredInlineTabs.some((tab) => tab.id === activeTab)
+    ? measuredInlineTabs
+    : activeTabDefinition
+      ? [activeTabDefinition, ...measuredInlineTabs.slice(0, -1)]
+      : measuredInlineTabs;
+  const overflowTabs = TABS.filter((tab) => !inlineTabs.includes(tab));
 
   const selectAt = (index: number) => {
     const tab = TABS[index];
     if (!tab) return;
+    setPendingFocusTab(tab.id);
     onSelect(tab.id);
     setIsMoreOpen(false);
-    refs.current.get(tab.id)?.focus();
   };
 
   const handleKeyDown = (
@@ -130,48 +146,37 @@ export function ConversationTabs({
         aria-hidden="true"
         className="pointer-events-none absolute left-[-10000px] top-0 flex items-center gap-1"
       >
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
+        {TABS.map(({ id, label, icon }) => (
+          <ConversationTabNav
             key={id}
-            type="button"
-            data-tab-measure="true"
-            className="flex gap-2 px-3 text-sm font-medium"
-          >
-            <Icon className="size-4" aria-hidden="true" />
-            {label}
-          </button>
+            id={id}
+            label={label}
+            icon={icon}
+            isActive={false}
+            measureOnly
+            buttonRef={() => undefined}
+            onClick={() => undefined}
+            onKeyDown={() => undefined}
+          />
         ))}
       </div>
 
       {inlineTabs.map((tab) => {
         const index = TABS.indexOf(tab);
-        const selected = tab.id === activeTab;
-        const Icon = tab.icon;
         return (
-          <button
+          <ConversationTabNav
             key={tab.id}
-            ref={(node) => {
+            id={tab.id}
+            label={tab.label}
+            icon={tab.icon}
+            isActive={tab.id === activeTab}
+            buttonRef={(node) => {
               if (node) refs.current.set(tab.id, node);
               else refs.current.delete(tab.id);
             }}
-            id={`workspace-tab-${tab.id}`}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-controls={`workspace-panel-${tab.id}`}
-            tabIndex={selected ? 0 : -1}
-            className={cn(
-              "relative flex min-w-0 items-center gap-2 border-0 border-b-2 px-3 text-sm font-medium",
-              selected
-                ? "border-[var(--oh-accent)] text-[var(--oh-text)]"
-                : "border-transparent text-[var(--oh-muted)] hover:text-[var(--oh-text)]",
-            )}
             onClick={() => onSelect(tab.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
-          >
-            <Icon className="size-4 shrink-0" aria-hidden="true" />
-            <span className="truncate">{tab.label}</span>
-          </button>
+          />
         );
       })}
 

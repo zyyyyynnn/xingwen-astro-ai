@@ -6,86 +6,86 @@
   "entrypoint": "src/root.tsx",
   "summary": {
     "VENDORED": 1,
-    "SURGICALLY_ADAPTED": 29
+    "SURGICALLY_ADAPTED": 33
   },
-  "total": 30,
+  "total": 34,
   "entries": [
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/chat-interface.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/chat-messages-skeleton.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/chat-send-button.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/chat-stop-button.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-actions.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-container.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-field.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-grip.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-row.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/custom-chat-input.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/error-message-banner.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
       "upstream_path": "src/components/features/chat/interactive-chat-box.tsx",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
@@ -107,9 +107,33 @@
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
+      "upstream_path": "src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
+      "status": "SURGICALLY_ADAPTED",
+      "reason": "Removed coding and backend-domain coupling while retaining the ChatInterface wrapper, centered content frame, and Composer ownership mechanics.",
+      "proof": "reachable-from-single-src/root.tsx-import-closure"
+    },
+    {
       "upstream_path": "src/components/features/conversation/conversation-main/conversation-main.tsx",
       "status": "SURGICALLY_ADAPTED",
       "reason": "Removed mobile and coding panel content while retaining ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics.",
+      "proof": "reachable-from-single-src/root.tsx-import-closure"
+    },
+    {
+      "upstream_path": "src/components/features/conversation/conversation-name-with-status.tsx",
+      "status": "SURGICALLY_ADAPTED",
+      "reason": "Removed conversation identity and backend coupling while retaining the title/status header alignment mechanic.",
+      "proof": "reachable-from-single-src/root.tsx-import-closure"
+    },
+    {
+      "upstream_path": "src/components/features/conversation/conversation-tabs/conversation-tab-content/tab-content-area.tsx",
+      "status": "SURGICALLY_ADAPTED",
+      "reason": "Removed coding panel content while retaining active-panel semantics, focus targeting, and public disclosure content framing.",
+      "proof": "reachable-from-single-src/root.tsx-import-closure"
+    },
+    {
+      "upstream_path": "src/components/features/conversation/conversation-tabs/conversation-tab-nav.tsx",
+      "status": "SURGICALLY_ADAPTED",
+      "reason": "Removed coding tab definitions and localization coupling while retaining tab semantics, active indication, measurement, focus, and keyboard mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {
@@ -145,7 +169,7 @@
     {
       "upstream_path": "src/hooks/chat/use-grip-resize.ts",
       "status": "SURGICALLY_ADAPTED",
-      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, scroll, and resize mechanics.",
+      "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {

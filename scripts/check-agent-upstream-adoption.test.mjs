@@ -133,6 +133,22 @@ function saveResolution(root, provenanceEntries) {
       delete entry.removed_domain;
     }
   }
+  scope.approved_mechanics = scope.approved_mechanics
+    .map((surface) => ({
+      ...surface,
+      upstream_paths: surface.upstream_paths.filter((path) =>
+        adoptedPaths.has(path),
+      ),
+    }))
+    .filter((surface) => surface.upstream_paths.length > 0);
+  scope.transitive_mechanics = (scope.transitive_mechanics ?? [])
+    .map((surface) => ({
+      ...surface,
+      upstream_paths: surface.upstream_paths.filter((path) =>
+        adoptedPaths.has(path),
+      ),
+    }))
+    .filter((surface) => surface.upstream_paths.length > 0);
   scope.summary = {
     REQUIRED_VENDOR: 0,
     REQUIRED_TRANSITIVE: 0,
