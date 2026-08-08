@@ -34,7 +34,6 @@ export function useGripResize(
 
   const handleGripMouseDown = (event: React.MouseEvent) => {
     event.preventDefault();
-    isManuallySizedRef.current = true;
     dragStartRef.current = { pointerY: event.clientY, height };
     setIsGripVisible(true);
     setIsGripDragging(true);
@@ -45,6 +44,7 @@ export function useGripResize(
 
     const handleMouseMove = (event: MouseEvent) => {
       const delta = dragStartRef.current.pointerY - event.clientY;
+      if (delta !== 0) isManuallySizedRef.current = true;
       setHeight(clampHeight(dragStartRef.current.height + delta));
     };
     const handleMouseUp = () => {
