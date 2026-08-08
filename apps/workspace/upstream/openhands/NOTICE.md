@@ -25,15 +25,21 @@ Copyright © 2025 OpenHands contributors
 When OpenHands source files are vendored into
 `apps/workspace/upstream/openhands/src/`, each file MUST retain its MIT
 attribution and be recorded in the provenance manifest (`provenance.json`)
-with its upstream path, 40-char SHA, and adoption class.
+with its upstream path, 40-char SHA, and adoption class. Semantic/privacy
+constraints in `source-policy.json` are mandatory for every vendored file.
 
-## Excluded scope (never vendored)
+## Excluded scope
 
 Coding / IDE / Cloud / Enterprise surfaces are excluded from adoption:
 Terminal (xterm), DiffViewer (Monaco), Browser panel, Git diff/status UI,
-VSCode link, `api/git-service`, `api/cloud`, Electron desktop shell. These are
-out of scope for the Xingwen Research Workspace and must not enter production
-import graphs.
+VSCode link, `api/git-service`, `api/cloud`, Electron desktop shell.
+
+Model-private reasoning is also outside the Xingwen product boundary. Raw
+`thought`, `reasoning_content`, `thinking_blocks`, inline `<think>` content,
+and equivalent private-reasoning paths must not be rendered, persisted, or
+transported as product content. OpenHands disclosure mechanics may be retained
+only after the semantic surgery required by `source-policy.json`, and may only
+receive explicit public/auditable reasoning.
 
 ## Single upstream rule
 
