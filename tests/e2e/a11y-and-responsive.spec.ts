@@ -212,7 +212,10 @@ test.describe("200% font scale", () => {
     await input.evaluate((element) => {
       element.contentEditable = "true";
       element.removeAttribute("aria-disabled");
-      element.textContent = ["第一行", "第二行", "第三行"].join("\n");
+      element.textContent = Array.from(
+        { length: 20 },
+        (_, index) => `第${index + 1}行`,
+      ).join("\n");
       element.dispatchEvent(
         new InputEvent("input", { bubbles: true, inputType: "insertText" }),
       );

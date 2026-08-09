@@ -8,6 +8,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CollapsibleRationale } from "../upstream/openhands/src/components/conversation-events/chat/event-message-components/collapsible-thinking";
+import { EventGroup } from "../upstream/openhands/src/components/conversation-events/chat/event-message-components/event-group";
 import { ActivitySurface } from "../upstream/openhands/src/components/conversation-events/chat/messages";
 import {
   groupEvents,
@@ -218,5 +219,31 @@ describe("source-adopted Agent workspace mechanics", () => {
 
     expect(screen.getByText("尚无 Agent 活动")).toBeInTheDocument();
     expect(screen.queryByTestId("event-message")).not.toBeInTheDocument();
+  });
+
+  it("summarizes errors instead of presenting them as completed", () => {
+    const events: readonly PublicActivityEvent[] = [
+      {
+        id: "tool-success",
+        kind: "tool",
+        title: "完成公开检索",
+        status: "success",
+      },
+      {
+        id: "tool-error",
+        kind: "tool",
+        title: "公开检索失败",
+        status: "error",
+      },
+    ];
+
+    render(
+      <EventGroup events={events}>
+        <div>错误详情</div>
+      </EventGroup>,
+    );
+
+    expect(screen.getByText("错误 1/2")).toBeInTheDocument();
+    expect(screen.queryByText("2 项已完成")).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,11 @@
 import React from "react";
-import { Check, ChevronDown, ChevronUp, LoaderCircle } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  LoaderCircle,
+} from "lucide-react";
 
 import type { PublicActivityEvent } from "../group-events";
 
@@ -27,11 +33,16 @@ export function EventGroup({
   const completedCount = events.filter(
     (event) => event.status === "success",
   ).length;
+  const errorCount = events.filter(
+    (event) => event.status === "error" || event.kind === "error",
+  ).length;
   const isRunning = pendingCount > 0;
   const latestEvent = events.at(-1);
   const countSummary = isRunning
     ? `进行中 ${completedCount}/${events.length}`
-    : `${completedCount || events.length} 项已完成`;
+    : errorCount > 0
+      ? `错误 ${errorCount}/${events.length}`
+      : `${completedCount || events.length} 项已完成`;
   const Chevron = expanded ? ChevronUp : ChevronDown;
 
   return (
@@ -67,6 +78,8 @@ export function EventGroup({
                   className="ml-2 size-4 animate-spin"
                   aria-hidden="true"
                 />
+              ) : errorCount > 0 ? (
+                <AlertCircle className="ml-2 size-4" aria-hidden="true" />
               ) : (
                 <Check className="ml-2 size-4" aria-hidden="true" />
               )}
