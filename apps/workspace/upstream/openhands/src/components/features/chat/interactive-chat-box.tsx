@@ -14,7 +14,7 @@ export function InteractiveChatBox({
   onCancel,
 }: InteractiveChatBoxProps) {
   return (
-    <div className="shrink-0 border-t border-[var(--oh-border)] px-5 pb-5 pt-4">
+    <div className="shrink-0 px-5 pb-5 pt-4">
       <CustomChatInput
         disabled={disabled}
         running={running}

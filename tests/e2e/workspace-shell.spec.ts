@@ -209,6 +209,24 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
   await expect(expand).toBeFocused();
   await expect(rightPanel).toHaveAttribute("aria-hidden", "true");
   expect(await rightPanel.evaluate((element) => element.inert)).toBe(true);
+  const collapsedSurface = page.getByTestId("workspace-main-surface");
+  const collapsedSurfaceMetrics = await collapsedSurface.evaluate((surface) => {
+    const taskPanel = surface.closest<HTMLElement>(
+      '[aria-labelledby="agent-task-heading"]',
+    );
+    if (!taskPanel) return null;
+    return {
+      taskPanelWidth: taskPanel.getBoundingClientRect().width,
+      surfaceWidth: surface.getBoundingClientRect().width,
+    };
+  });
+  expect(collapsedSurfaceMetrics).not.toBeNull();
+  expect(
+    Math.abs(
+      collapsedSurfaceMetrics!.surfaceWidth -
+        collapsedSurfaceMetrics!.taskPanelWidth,
+    ),
+  ).toBeLessThanOrEqual(1);
   const collapsedAnchor = await expand.boundingBox();
   expect(collapsedAnchor).not.toBeNull();
   expect(Math.abs(collapsedAnchor!.x - before!.x)).toBeLessThanOrEqual(2);
@@ -319,6 +337,7 @@ test("Composer stays transparent without a full-width hover line", async ({
 
   const composer = page.getByTestId("chat-input-container");
   await expect(composer).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(composer.locator("..")).toHaveCSS("border-top-width", "0px");
   const composerBox = await composer.boundingBox();
   const conversationBox = await page
     .getByTestId("conversation-main")

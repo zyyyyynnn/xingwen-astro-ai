@@ -36,6 +36,10 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
+Windows + Docker Desktop 可直接运行仓库根目录的 `start-dev.bat`。脚本会校验
+Docker/Compose、准备本地 `.env`、启动并等待 API、Workspace 与 Brand Site，随后自动打开
+`http://127.0.0.1:5173/workspace`。
+
 环境变量、后端命令与故障排查见 [docs/setup.md](docs/setup.md)。真实密钥只写入本地 `.env` 或部署平台 Secrets。
 
 ## 核心文档

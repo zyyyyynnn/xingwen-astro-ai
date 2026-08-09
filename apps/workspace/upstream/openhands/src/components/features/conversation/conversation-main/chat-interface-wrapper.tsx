@@ -8,7 +8,10 @@ interface ChatInterfaceWrapperProps {
 /** OpenHands' conversation seam with the product-specific execution boundary injected. */
 export function ChatInterfaceWrapper({ runtime }: ChatInterfaceWrapperProps) {
   return (
-    <div className="flex h-full min-h-0 w-full justify-center">
+    <div
+      data-testid="workspace-main-surface"
+      className="flex h-full min-h-0 w-full justify-center bg-[var(--oh-canvas)]"
+    >
       <div className="flex h-full min-h-0 w-full min-w-0 max-w-[800px] flex-col">
         <ChatInterface runtime={runtime} />
       </div>
