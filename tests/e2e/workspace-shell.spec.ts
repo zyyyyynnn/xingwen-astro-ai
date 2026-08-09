@@ -344,6 +344,8 @@ test("Composer stays transparent without a full-width hover line", async ({
     .boundingBox();
   expect(composerBox).not.toBeNull();
   expect(conversationBox).not.toBeNull();
+  expect(composerBox!.height).toBeGreaterThanOrEqual(60);
+  expect(composerBox!.height).toBeLessThanOrEqual(64);
   expect(composerBox!.y + composerBox!.height).toBeGreaterThan(
     conversationBox!.y + conversationBox!.height - 24,
   );
