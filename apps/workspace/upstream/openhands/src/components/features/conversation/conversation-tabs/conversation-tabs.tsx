@@ -21,6 +21,17 @@ const TABS: ReadonlyArray<{
 
 const TAB_STORAGE_KEY = "xingwen-workspace-panel-tab";
 
+function readCssLengthInPixels(name: string): number {
+  const root = document.documentElement;
+  const styles = window.getComputedStyle(root);
+  const value = styles.getPropertyValue(name).trim();
+  const amount = Number.parseFloat(value);
+  if (!Number.isFinite(amount)) return 0;
+  if (!value.endsWith("rem")) return amount;
+  const rootFontSize = Number.parseFloat(styles.fontSize);
+  return Number.isFinite(rootFontSize) ? amount * rootFontSize : 0;
+}
+
 function readStoredTab(): WorkspacePanelTab {
   if (typeof window === "undefined") return "activity";
   const stored = window.localStorage.getItem(TAB_STORAGE_KEY);
@@ -112,8 +123,8 @@ export function ConversationTabs({
         ),
       );
       if (width === 0 || buttons.length === 0) return;
-      const moreWidth = 36;
-      const gap = 4;
+      const moreWidth = readCssLengthInPixels("--oh-control-size-sm");
+      const gap = readCssLengthInPixels("--oh-space-1");
       let count = buttons.length;
       let used = moreWidth;
       for (let index = 0; index < buttons.length; index += 1) {
@@ -238,7 +249,7 @@ export function ConversationTabs({
           {isMoreOpen ? (
             <div
               ref={moreMenuRef}
-              className="absolute left-0 top-full z-[var(--oh-layer-composer-grip)] min-w-[var(--oh-tab-overflow-min-inline-size)] border border-[var(--oh-border-strong)] bg-[var(--oh-surface)] p-[var(--oh-space-1)] shadow-[var(--oh-shadow-float)]"
+              className="absolute left-0 top-full z-[var(--oh-layer-tab-overflow)] min-w-[var(--oh-tab-overflow-min-inline-size)] border border-[var(--oh-border-strong)] bg-[var(--oh-surface)] p-[var(--oh-space-1)] shadow-[var(--oh-shadow-float)]"
               role="menu"
               aria-label="更多面板选项"
             >

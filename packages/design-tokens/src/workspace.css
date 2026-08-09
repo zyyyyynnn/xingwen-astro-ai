@@ -24,9 +24,14 @@
   --workspace-composer-padding-inline: var(--space-3);
   --workspace-composer-padding-block: var(--space-2);
   --workspace-composer-row-gap: var(--space-4);
+  --workspace-composer-actions-reserved-block-size: max(
+    var(--control-size-xs),
+    calc(var(--font-size-ui-label) * var(--line-height-ui-label) * 2)
+  );
   --workspace-composer-input-reserved-block-size: calc(
     var(--workspace-composer-padding-block) * 2 +
-      var(--workspace-composer-row-gap) + var(--control-size-xs) +
+      var(--workspace-composer-row-gap) +
+      var(--workspace-composer-actions-reserved-block-size) +
       calc(var(--border-width-default) * 2)
   );
   --workspace-composer-input-max-block-size: calc(
@@ -56,6 +61,7 @@
   --workspace-layer-sidebar: 20;
   --workspace-layer-composer-grip: 20;
   --workspace-layer-header-toggle: 30;
+  --workspace-layer-tab-overflow: 40;
   --workspace-layer-command-menu: 70;
   --workspace-layer-panel-drag-shield: 200;
 }

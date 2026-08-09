@@ -114,6 +114,7 @@
   --oh-layer-sidebar: var(--workspace-layer-sidebar);
   --oh-layer-composer-grip: var(--workspace-layer-composer-grip);
   --oh-layer-header-toggle: var(--workspace-layer-header-toggle);
+  --oh-layer-tab-overflow: var(--workspace-layer-tab-overflow);
   --oh-layer-command-menu: var(--workspace-layer-command-menu);
   --oh-layer-panel-drag-shield: var(--workspace-layer-panel-drag-shield);
 }

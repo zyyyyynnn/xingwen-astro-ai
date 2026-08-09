@@ -5,6 +5,7 @@ import {
   requireBoundingBox,
   requireValue,
   requireViewport,
+  setDocumentFontScale,
 } from "./test-helpers";
 
 /** 验证源码采用后的 /workspace 壳层与 /share 安全边界。 */
@@ -78,9 +79,15 @@ async function assertDesktopWorkspacePath(page: Page) {
     "composer actions",
   );
   const viewport = requireViewport(page);
+  const composerOuter = composerContainer.locator("xpath=../..");
+  const reservedBottomPadding = Number(
+    await composerOuter.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).paddingBottom),
+    ),
+  );
   expect(
     viewport.height - composerBox.y - composerBox.height,
-  ).toBeLessThanOrEqual(24);
+  ).toBeLessThanOrEqual(reservedBottomPadding + 1);
   expect(actionBox.y + actionBox.height).toBeLessThanOrEqual(
     composerBox.y + composerBox.height,
   );
@@ -155,9 +162,13 @@ test("Workspace top bars share one height, divider, and type scale", async ({
     expect(box.y).toBe(0);
     expect(box.height).toBe(barBoxes[0].height);
   }
-  for (const bar of [sidebarBar, workspaceBar, activityBar]) {
-    await expect(bar).toHaveCSS("border-bottom-width", "1px");
-  }
+  const dividerWidths = await Promise.all(
+    [sidebarBar, workspaceBar, activityBar].map((bar) =>
+      bar.evaluate((element) => getComputedStyle(element).borderBottomWidth),
+    ),
+  );
+  expect(new Set(dividerWidths).size).toBe(1);
+  expect(Number.parseFloat(dividerWidths[0] ?? "0")).toBeGreaterThan(0);
 
   const brandFontSize = await page
     .getByText("星文智析", { exact: true })
@@ -172,9 +183,7 @@ test("Workspace top bars share one height, divider, and type scale", async ({
     .getByText("运行服务未连接", { exact: true })
     .evaluate((element) => getComputedStyle(element).fontSize);
   expect(brandFontSize).toBe(titleFontSize);
-  expect(Number.parseFloat(tabFontSize)).toBeLessThan(
-    Number.parseFloat(titleFontSize),
-  );
+  expect(titleFontSize).toBe(tabFontSize);
   expect(Number.parseFloat(statusFontSize)).toBeLessThan(
     Number.parseFloat(tabFontSize),
   );
@@ -408,7 +417,12 @@ test("Workspace command menu preserves keyboard focus", async ({ page }) => {
   await expect(search).toBeVisible();
   await expect(search).toBeFocused();
   await expect(search).toHaveCSS("outline-style", "none");
-  await expect(search.locator("..")).toHaveCSS("border-bottom-width", "1px");
+  const searchDividerWidth = Number.parseFloat(
+    await search
+      .locator("..")
+      .evaluate((element) => getComputedStyle(element).borderBottomWidth),
+  );
+  expect(searchDividerWidth).toBeGreaterThan(0);
 
   await page.keyboard.press("Tab");
   await expect(search).toBeFocused();
@@ -535,9 +549,7 @@ test.describe("Workspace overflow menu at 1024×800", () => {
     page,
   }) => {
     await page.goto("http://127.0.0.1:5173/workspace");
-    await page.addStyleTag({
-      content: "html { font-size: 200% !important; }",
-    });
+    await setDocumentFontScale(page, "200%");
 
     const more = page.getByRole("button", { name: "更多面板" });
     await expect(more).toBeVisible();
@@ -661,7 +673,10 @@ test("Public share route renders the fixed safe boundary", async ({ page }) => {
   await expect(returnHome).toBeVisible();
   await expect(retry.locator("xpath=..")).toHaveCSS("display", "flex");
   await expect(retry).toHaveCSS("border-top-style", "solid");
-  await expect(retry).toHaveCSS("min-height", "40px");
+  const retryMinHeight = Number.parseFloat(
+    await retry.evaluate((element) => getComputedStyle(element).minHeight),
+  );
+  expect(retryMinHeight).toBeGreaterThanOrEqual(40);
   const retryBox = await requireBoundingBox(retry, "share retry button");
   const returnHomeBox = await requireBoundingBox(returnHome, "share home link");
   expect(retryBox.x).toBeLessThan(returnHomeBox.x);

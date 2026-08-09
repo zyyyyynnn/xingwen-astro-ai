@@ -258,6 +258,7 @@ describe("workspace semantic geometry tokens", () => {
       "--workspace-composer-padding-inline",
       "--workspace-composer-padding-block",
       "--workspace-composer-row-gap",
+      "--workspace-composer-actions-reserved-block-size",
       "--workspace-composer-grip-inline-size",
       "--workspace-composer-grip-indicator-inline-size",
       "--workspace-composer-grip-indicator-block-size",
@@ -273,6 +274,7 @@ describe("workspace semantic geometry tokens", () => {
       "--workspace-header-control-reserve-inline",
       "--workspace-layer-sidebar",
       "--workspace-tab-overflow-min-inline-size",
+      "--workspace-layer-tab-overflow",
       "--workspace-layer-command-menu",
       "--workspace-layer-panel-drag-shield",
     ]) {
@@ -288,7 +290,7 @@ describe("workspace semantic geometry tokens", () => {
       "--workspace-header-control-reserve-inline: calc(var(--workspace-header-control-inset-inline) + var(--control-size-sm))",
     );
     expect(normalizedWorkspaceCss).toContain(
-      "var(--workspace-composer-row-gap) + var(--control-size-xs)",
+      "var(--workspace-composer-row-gap) + var(--workspace-composer-actions-reserved-block-size)",
     );
   });
 });

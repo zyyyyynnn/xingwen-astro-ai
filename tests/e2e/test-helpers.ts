@@ -21,3 +21,9 @@ export function requireValue<T>(value: T | null | undefined, label: string): T {
 export function requireViewport(page: Page) {
   return requireValue(page.viewportSize(), "viewport");
 }
+
+export async function setDocumentFontScale(page: Page, value: string) {
+  await page.evaluate((fontSize) => {
+    document.documentElement.style.setProperty("font-size", fontSize);
+  }, value);
+}

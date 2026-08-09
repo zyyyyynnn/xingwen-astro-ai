@@ -12,7 +12,7 @@ export function ConversationNameWithStatus({
     <div className="flex min-w-0 items-center gap-[var(--oh-space-2)]">
       <h1
         id="agent-task-heading"
-        className="shrink-0 text-[length:var(--oh-font-size-heading)] leading-[var(--oh-line-height-heading)] font-semibold"
+        className="shrink-0 text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] font-semibold"
       >
         研究工作台
       </h1>

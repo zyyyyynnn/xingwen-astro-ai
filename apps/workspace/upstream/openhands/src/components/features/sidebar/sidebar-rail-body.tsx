@@ -32,7 +32,7 @@ export function SidebarRailBody({
             collapsed && "invisible",
           )}
         >
-          <BrandMark className="text-[length:var(--oh-font-size-heading)] leading-[var(--oh-line-height-heading)]" />
+          <BrandMark className="text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]" />
         </span>
       </header>
 

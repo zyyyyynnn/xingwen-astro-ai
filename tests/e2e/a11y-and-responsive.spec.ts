@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { requireBoundingBox } from "./test-helpers";
+import { requireBoundingBox, setDocumentFontScale } from "./test-helpers";
 
 /** 覆盖入口测试未涉及的键盘、焦点、200% 字体与窄屏边界证据。 */
 
@@ -105,9 +105,7 @@ test.describe("200% font scale", () => {
     page,
   }) => {
     await page.goto("http://127.0.0.1:4321/");
-    await page.addStyleTag({
-      content: "html { font-size: 200% !important; }",
-    });
+    await setDocumentFontScale(page, "200%");
 
     await expect(
       page.getByRole("heading", {
@@ -128,9 +126,7 @@ test.describe("200% font scale", () => {
     page,
   }) => {
     await page.goto("http://127.0.0.1:5173/workspace");
-    await page.addStyleTag({
-      content: "html { font-size: 200% !important; }",
-    });
+    await setDocumentFontScale(page, "200%");
 
     await expect(
       page.getByRole("heading", { name: "研究工作台" }),
@@ -219,9 +215,7 @@ test.describe("200% font scale", () => {
       .toBeLessThanOrEqual(initialComposerHeight);
 
     await page.reload();
-    await page.addStyleTag({
-      content: "html { font-size: 200% !important; }",
-    });
+    await setDocumentFontScale(page, "200%");
 
     await input.evaluate((element) => {
       element.contentEditable = "true";
