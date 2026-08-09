@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import ts from "typescript";
@@ -115,7 +115,8 @@ const listedFiles = execFileSync(
 )
   .split(/\r?\n/u)
   .filter(Boolean)
-  .map((file) => file.replaceAll("\\", "/"));
+  .map((file) => file.replaceAll("\\", "/"))
+  .filter((file) => existsSync(resolve(root, file)));
 
 const lockfiles = listedFiles.filter((file) => file.endsWith("pnpm-lock.yaml"));
 if (lockfiles.length !== 1 || lockfiles[0] !== "pnpm-lock.yaml") {
@@ -416,6 +417,44 @@ if (
   failures.push(
     "Architecture boundary self-test: runtime.ts must be excluded from Workspace presentation checks.",
   );
+}
+
+const workspaceShellRoots = listedFiles.filter(
+  (entry) => entry === "apps/workspace/upstream/openhands/src/root.tsx",
+);
+if (workspaceShellRoots.length !== 1) {
+  failures.push(
+    "Workspace must have exactly one source-adopted OpenHands product root.",
+  );
+}
+
+const workspaceHostPath = "apps/workspace/src/workspace-host.tsx";
+if (!listedFiles.includes(workspaceHostPath)) {
+  failures.push("Workspace host composition file is missing.");
+} else {
+  const workspaceHost = readFileSync(resolve(root, workspaceHostPath), "utf8");
+  if (!workspaceHost.includes("OpenHandsWorkspaceRoot")) {
+    failures.push(
+      "Workspace host must mount the single source-adopted OpenHands root.",
+    );
+  }
+}
+
+const compatibilityMarkers = [
+  '"/tour"',
+  "localStorage migration",
+  "compat wrapper",
+  "old Workspace route",
+];
+for (const file of workspaceProductionFiles) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  for (const marker of compatibilityMarkers) {
+    if (content.includes(marker)) {
+      failures.push(
+        `${file} contains a retired compatibility path: ${marker}.`,
+      );
+    }
+  }
 }
 
 if (failures.length > 0) {

@@ -26,7 +26,7 @@ REQUIRED_FILES = (
     "scripts/check-docs.mjs",
     "scripts/check-docs-rules.mjs",
     "scripts/check-docs.test.mjs",
-    "scripts/frontend-retirement-rules.json",
+    "scripts/check-frontend-architecture.mjs",
     "scripts/test_check_foundation.py",
     "apps/site/package.json",
     "apps/workspace/package.json",
@@ -70,31 +70,14 @@ REQUIRED_ENV_KEYS = {
     "POSTGRES_PASSWORD",
 }
 
-RETIREMENT_RULE_SOURCE = ROOT / "scripts" / "frontend-retirement-rules.json"
-
-
-def load_retirement_rules() -> dict[str, object]:
-    return json.loads(RETIREMENT_RULE_SOURCE.read_text(encoding="utf-8"))
-
-
-RETIREMENT_RULES = load_retirement_rules()
-FRAMEWORK_NAME = "".join(
-    chr(code) for code in RETIREMENT_RULES["frameworkCodePoints"]
+DEPENDENCY_FIELDS = (
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+    "optionalDependencies",
 )
-
-
-def expand_rule_parts(parts: list[str]) -> str:
-    return "".join(part.replace("{framework}", FRAMEWORK_NAME) for part in parts)
-
-
-RETIRED_APP = "/".join(RETIREMENT_RULES["retiredAppParts"])
-RETIRED_PACKAGES = {
-    expand_rule_parts(parts) for parts in RETIREMENT_RULES["exactPackageParts"]
-}
-RETIRED_PACKAGE_PREFIXES = tuple(
-    expand_rule_parts(parts) for parts in RETIREMENT_RULES["packagePrefixParts"]
-)
-DEPENDENCY_FIELDS = tuple(RETIREMENT_RULES["dependencyFields"])
+FORBIDDEN_FRONTEND_PACKAGES = {"vue", "vue-demi"}
+FORBIDDEN_FRONTEND_PACKAGE_PREFIXES = ("@vue/",)
 
 
 def tracked_files() -> list[str]:
@@ -118,10 +101,10 @@ def parse_env_keys(path: Path) -> set[str]:
     return keys
 
 
-def is_retired_package(name: str) -> bool:
+def is_forbidden_frontend_package(name: str) -> bool:
     normalized = name.lower()
-    return normalized in RETIRED_PACKAGES or normalized.startswith(
-        RETIRED_PACKAGE_PREFIXES
+    return normalized in FORBIDDEN_FRONTEND_PACKAGES or normalized.startswith(
+        FORBIDDEN_FRONTEND_PACKAGE_PREFIXES
     )
 
 
@@ -164,19 +147,14 @@ def main() -> int:
             errors.append(f"tracked secret environment file: {normalized}")
         if path.name == "pnpm-lock.yaml":
             lockfiles.append(normalized)
-        if normalized == RETIRED_APP or normalized.startswith(RETIRED_APP + "/"):
-            errors.append(f"retired frontend path: {normalized}")
-        if path.suffix.lower() == "." + FRAMEWORK_NAME:
-            errors.append(f"retired component file: {normalized}")
-
         if path.name == "package.json":
             manifest = json.loads((ROOT / normalized).read_text(encoding="utf-8"))
             for field in DEPENDENCY_FIELDS:
                 dependencies = manifest.get(field, {})
                 for package_name in dependencies:
-                    if is_retired_package(package_name):
+                    if is_forbidden_frontend_package(package_name):
                         errors.append(
-                            f"retired frontend dependency in {normalized} "
+                            f"forbidden frontend dependency in {normalized} "
                             f"({field}): {package_name}"
                         )
 
@@ -184,9 +162,9 @@ def main() -> int:
             for package_name in lockfile_package_names(
                 (ROOT / normalized).read_text(encoding="utf-8")
             ):
-                if is_retired_package(package_name):
+                if is_forbidden_frontend_package(package_name):
                     errors.append(
-                        f"retired frontend dependency in {normalized}: {package_name}"
+                        f"forbidden frontend dependency in {normalized}: {package_name}"
                     )
 
     if lockfiles != ["pnpm-lock.yaml"]:

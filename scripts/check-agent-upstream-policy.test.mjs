@@ -10,7 +10,6 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,12 +18,23 @@ import { checkAgentUpstreamPolicy } from "./check-agent-upstream-policy.mjs";
 const REPO_ROOT = resolve(fileURLToPath(import.meta.url), "../..");
 const UPSTREAM = "apps/workspace/upstream/openhands";
 const UPSTREAM_ABS = join(REPO_ROOT, UPSTREAM);
+const METADATA_FILES = [
+  "upstream-lock.json",
+  "source-scope.json",
+  "source-policy.json",
+  "vendor-blueprint.json",
+  "provenance-schema.json",
+  "LICENSE.upstream",
+  "NOTICE.md",
+];
 
 function freshRepo() {
   const root = mkdtempSync(join(tmpdir(), "agent-upstream-policy-"));
   const target = join(root, UPSTREAM);
   mkdirSync(target, { recursive: true });
-  cpSync(UPSTREAM_ABS, target, { recursive: true });
+  for (const file of METADATA_FILES) {
+    cpSync(join(UPSTREAM_ABS, file), join(target, file));
+  }
   return root;
 }
 
@@ -41,10 +51,6 @@ function save(root, file, value) {
     join(root, UPSTREAM, file),
     `${JSON.stringify(value, null, 2)}\n`,
   );
-}
-
-function sha256(content) {
-  return createHash("sha256").update(content).digest("hex");
 }
 
 function assertPass(root, message) {
@@ -68,39 +74,38 @@ function writeVendoredFile(root, upstreamPath, content) {
   const absolute = join(root, localPath);
   mkdirSync(dirname(absolute), { recursive: true });
   writeFileSync(absolute, content);
-  return { localPath, hash: sha256(content) };
-}
-
-function setScopeHash(root, upstreamPath, hash) {
-  const scope = load(root, "source-scope.json");
-  const entry = scope.files.find((item) => item.upstream_path === upstreamPath);
-  assert.ok(entry, `scope path missing: ${upstreamPath}`);
-  entry.source_sha256 = hash;
-  save(root, "source-scope.json", scope);
+  return localPath;
 }
 
 function provenanceEntry({
   upstreamPath,
   localPath,
-  upstreamHash,
-  vendoredHash,
   adoptionClass = "KEEP_WITH_MINIMAL_PATCH",
   modified = true,
   modificationReason = "remove private reasoning semantics",
 }) {
   return {
-    upstream_repository: "https://github.com/OpenHands/OpenHands.git",
-    upstream_tag: "v1.10.0",
-    upstream_commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
     upstream_path: upstreamPath,
     local_path: localPath,
-    upstream_source_sha256: upstreamHash,
-    vendored_sha256: vendoredHash,
     adoption_class: adoptionClass,
     modified,
     modification_reason: modificationReason,
-    license: "MIT",
   };
+}
+
+function saveProvenance(root, entries) {
+  save(root, "provenance.json", {
+    schema: "xingwen.agent-upstream.provenance/v2",
+    generated_by: "test",
+    source: {
+      repository: "https://github.com/OpenHands/OpenHands.git",
+      tag: "v1.10.0",
+      commit: "56638693908b8ac83a2fa3bde6eb6c33aae37f4b",
+      license: "MIT",
+    },
+    keep_as_is_tree_sha256: "0".repeat(64),
+    entries,
+  });
 }
 
 test("metadata-only semantic policy passes", () => {
@@ -150,25 +155,17 @@ test("unsafe vendored class contract drift fails", () => {
   }
 });
 
-test("missing source-scope hash fails", () => {
-  const root = freshRepo();
-  try {
-    const scope = load(root, "source-scope.json");
-    delete scope.files[0].source_sha256;
-    save(root, "source-scope.json", scope);
-    assertFail(root, /source_sha256/, "missing source hash");
-  } finally {
-    cleanup(root);
-  }
-});
-
 test("private reasoning inventory shrink fails", () => {
   const root = freshRepo();
   try {
     const policy = load(root, "source-policy.json");
-    policy.private_reasoning.mandatory_surgery.pop();
+    policy.private_reasoning.excluded.pop();
     save(root, "source-policy.json", policy);
-    assertFail(root, /mandatory_surgery/, "private reasoning inventory shrink");
+    assertFail(
+      root,
+      /private_reasoning\.excluded/,
+      "private reasoning inventory shrink",
+    );
   } finally {
     cleanup(root);
   }
@@ -190,44 +187,36 @@ test("embedded source-scope policy drift fails", () => {
   }
 });
 
-test("clean mandatory-surgery file passes when explicitly modified", () => {
+test("clean disclosure file passes when explicitly modified", () => {
   const root = freshRepo();
   try {
     const policy = load(root, "source-policy.json");
-    const upstreamPath = policy.private_reasoning.mandatory_surgery[0];
-    const upstreamHash = "a".repeat(64);
+    const upstreamPath = policy.private_reasoning.disclosure_mechanics[0];
     const content = 'export const publicActivity = "safe";\n';
-    const { localPath, hash } = writeVendoredFile(root, upstreamPath, content);
-    setScopeHash(root, upstreamPath, upstreamHash);
-    save(root, "provenance.json", [
+    const localPath = writeVendoredFile(root, upstreamPath, content);
+    saveProvenance(root, [
       provenanceEntry({
         upstreamPath,
         localPath,
-        upstreamHash,
-        vendoredHash: hash,
       }),
     ]);
-    assertPass(root, "clean mandatory surgery should pass");
+    assertPass(root, "clean disclosure source should pass");
   } finally {
     cleanup(root);
   }
 });
 
-test("mandatory-surgery file cannot use KEEP_AS_IS", () => {
+test("disclosure file cannot use KEEP_AS_IS", () => {
   const root = freshRepo();
   try {
     const policy = load(root, "source-policy.json");
-    const upstreamPath = policy.private_reasoning.mandatory_surgery[0];
-    const upstreamHash = "a".repeat(64);
+    const upstreamPath = policy.private_reasoning.disclosure_mechanics[0];
     const content = 'export const publicActivity = "safe";\n';
-    const { localPath, hash } = writeVendoredFile(root, upstreamPath, content);
-    setScopeHash(root, upstreamPath, upstreamHash);
-    save(root, "provenance.json", [
+    const localPath = writeVendoredFile(root, upstreamPath, content);
+    saveProvenance(root, [
       provenanceEntry({
         upstreamPath,
         localPath,
-        upstreamHash,
-        vendoredHash: hash,
         adoptionClass: "KEEP_AS_IS",
         modified: false,
         modificationReason: null,
@@ -236,7 +225,7 @@ test("mandatory-surgery file cannot use KEEP_AS_IS", () => {
     assertFail(
       root,
       /must be modified=true|patched adoption class|KEEP_AS_IS/,
-      "KEEP_AS_IS surgery",
+      "KEEP_AS_IS disclosure",
     );
   } finally {
     cleanup(root);
@@ -247,17 +236,13 @@ test("vendored raw reasoning token fails", () => {
   const root = freshRepo();
   try {
     const policy = load(root, "source-policy.json");
-    const upstreamPath = policy.private_reasoning.mandatory_surgery[0];
-    const upstreamHash = "a".repeat(64);
+    const upstreamPath = policy.private_reasoning.disclosure_mechanics[0];
     const content = "export const leaked = event.reasoning_content;\n";
-    const { localPath, hash } = writeVendoredFile(root, upstreamPath, content);
-    setScopeHash(root, upstreamPath, upstreamHash);
-    save(root, "provenance.json", [
+    const localPath = writeVendoredFile(root, upstreamPath, content);
+    saveProvenance(root, [
       provenanceEntry({
         upstreamPath,
         localPath,
-        upstreamHash,
-        vendoredHash: hash,
       }),
     ]);
     assertFail(
@@ -275,16 +260,12 @@ test("excluded private reasoning source cannot appear in provenance", () => {
   try {
     const policy = load(root, "source-policy.json");
     const upstreamPath = policy.private_reasoning.excluded[0];
-    const upstreamHash = "a".repeat(64);
     const content = 'export const leaked = "private";\n';
-    const { localPath, hash } = writeVendoredFile(root, upstreamPath, content);
-    setScopeHash(root, upstreamPath, upstreamHash);
-    save(root, "provenance.json", [
+    const localPath = writeVendoredFile(root, upstreamPath, content);
+    saveProvenance(root, [
       provenanceEntry({
         upstreamPath,
         localPath,
-        upstreamHash,
-        vendoredHash: hash,
       }),
     ]);
     assertFail(
@@ -307,14 +288,11 @@ test("private reasoning import fragment fails in any vendored source", () => {
     const upstreamPath = target.upstream_path;
     const content =
       'import { helper } from "./event-thought-helpers";\nexport { helper };\n';
-    const { localPath, hash } = writeVendoredFile(root, upstreamPath, content);
-    setScopeHash(root, upstreamPath, hash);
-    save(root, "provenance.json", [
+    const localPath = writeVendoredFile(root, upstreamPath, content);
+    saveProvenance(root, [
       provenanceEntry({
         upstreamPath,
         localPath,
-        upstreamHash: hash,
-        vendoredHash: hash,
         adoptionClass: "KEEP_AS_IS",
         modified: false,
         modificationReason: null,

@@ -15,14 +15,14 @@
     "test": "turbo test",
     "test:e2e": "playwright test",
     "test:e2e:integration": "playwright test --config playwright.integration.config.ts",
-    "format": "prettier --write \"apps/{site,workspace}/**/*.{astro,css,html,json,ts,tsx}\" \"packages/{design-tokens,ui,domain,contracts,data-access,workspace-core,testing}/**/*.{css,json,ts,tsx}\" \"tests/{e2e,e2e-integration}/**/*.ts\" \"scripts/*.mjs\" \"*.{json,mjs,yaml,yml}\" \".github/**/*.yml\"",
-    "format:check": "prettier --check \"apps/{site,workspace}/**/*.{astro,css,html,json,ts,tsx}\" \"packages/{design-tokens,ui,domain,contracts,data-access,workspace-core,testing}/**/*.{css,json,ts,tsx}\" \"tests/{e2e,e2e-integration}/**/*.ts\" \"scripts/*.mjs\" \"*.{json,mjs,yaml,yml}\" \".github/**/*.yml\"",
+    "format": "prettier --write \"apps/{site,workspace}/**/*.{astro,css,html,json,ts,tsx}\" \"packages/{design-tokens,ui,domain,contracts,data-access,workspace-core,testing}/**/*.{css,json,ts,tsx}\" \"tests/{e2e,e2e-integration}/**/*.ts\" \"scripts/*.mjs\" \"*.{json,mjs,yaml,yml}\" \".github/**/*.yml\" && node scripts/format-agent-upstream-modifications.mjs --write",
+    "format:check": "prettier --check \"apps/{site,workspace}/**/*.{astro,css,html,json,ts,tsx}\" \"packages/{design-tokens,ui,domain,contracts,data-access,workspace-core,testing}/**/*.{css,json,ts,tsx}\" \"tests/{e2e,e2e-integration}/**/*.ts\" \"scripts/*.mjs\" \"*.{json,mjs,yaml,yml}\" \".github/**/*.yml\" && node scripts/format-agent-upstream-modifications.mjs",
     "check:docs": "node --test scripts/check-docs.test.mjs && node scripts/check-docs.mjs",
     "check:architecture": "node scripts/check-frontend-architecture.mjs && node --test scripts/check-agent-upstream-adoption.test.mjs scripts/check-agent-upstream-policy.test.mjs && node scripts/check-agent-upstream-adoption.mjs && node scripts/check-agent-upstream-policy.mjs",
     "check:agent-upstream": "node --test scripts/check-agent-upstream-adoption.test.mjs scripts/check-agent-upstream-policy.test.mjs && node scripts/check-agent-upstream-adoption.mjs && node scripts/check-agent-upstream-policy.mjs",
-    "check:legacy": "node --test scripts/check-frontend-legacy.test.mjs && node scripts/check-frontend-legacy.mjs",
+    "generate:agent-upstream-provenance": "node scripts/generate-agent-upstream-provenance.mjs",
     "check:versionless": "node scripts/check-versionless-api.mjs",
-    "check": "pnpm format:check && pnpm check:docs && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:architecture && pnpm check:legacy && pnpm check:versionless"
+    "check": "pnpm format:check && pnpm check:docs && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:architecture && pnpm check:versionless"
   },
   "devDependencies": {
     "@xingwen/data-access": "workspace:*",

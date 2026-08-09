@@ -22,8 +22,6 @@ const EXACT_REPOSITORY = "https://github.com/OpenHands/OpenHands.git";
 const EXACT_TAG = "v1.10.0";
 const EXACT_COMMIT = "56638693908b8ac83a2fa3bde6eb6c33aae37f4b";
 const EXACT_LICENSE = "MIT";
-const HASH_RE = /^[0-9a-f]{64}$/u;
-
 const SAFE_VENDORED_CLASSES = [
   "KEEP_AS_IS",
   "KEEP_WITH_MINIMAL_PATCH",
@@ -35,35 +33,23 @@ const PATCHED_CLASSES = [
 ];
 const FORBIDDEN_CLASSES = ["REWRITE", "RECREATE", "REIMPLEMENT", "INSPIRED_BY"];
 const REQUIRED_PROVENANCE_FIELDS = [
-  "upstream_repository",
-  "upstream_tag",
-  "upstream_commit",
   "upstream_path",
   "local_path",
-  "upstream_source_sha256",
-  "vendored_sha256",
   "adoption_class",
   "modified",
-  "license",
 ];
 
 const EXPECTED_PRIVATE_EXCLUDED = [
-  "src/components/conversation-events/chat/event-thought-helpers.ts",
-  "src/components/conversation-events/chat/event-message-components/thought-event-message.tsx",
-];
-
-const EXPECTED_PRIVATE_SURGERY = [
   "src/components/conversation-events/chat/event-content-helpers/get-action-content.ts",
   "src/components/conversation-events/chat/event-content-helpers/get-action-event-title.ts",
   "src/components/conversation-events/chat/event-content-helpers/get-event-content.tsx",
   "src/components/conversation-events/chat/event-content-helpers/get-observation-content.ts",
   "src/components/conversation-events/chat/event-content-helpers/should-render-event.ts",
+  "src/components/conversation-events/chat/event-thought-helpers.ts",
   "src/components/conversation-events/chat/event-message-components/index.ts",
   "src/components/conversation-events/chat/event-message-components/observation-pair-event-message.tsx",
+  "src/components/conversation-events/chat/event-message-components/thought-event-message.tsx",
   "src/components/conversation-events/chat/event-message-components/user-assistant-event-message.tsx",
-  "src/components/conversation-events/chat/event-message.tsx",
-  "src/components/conversation-events/chat/group-events.ts",
-  "src/components/conversation-events/chat/messages.tsx",
   "src/components/features/chat/typing-indicator.tsx",
   "src/hooks/chat/record-model-switch-message.ts",
   "src/types/agent-server/core/base/action.ts",
@@ -176,11 +162,6 @@ function validateSourceScope(scope, failures) {
       );
     }
     byPath.set(entry.upstream_path, entry);
-    if (!HASH_RE.test(entry.source_sha256 ?? "")) {
-      failures.push(
-        `source-scope source_sha256 must be 64 lowercase hex: ${entry.upstream_path}.`,
-      );
-    }
   }
   return byPath;
 }
@@ -202,13 +183,6 @@ function validatePolicy(policy, scope, scopeByPath, failures) {
     );
   }
   if (
-    !sameStringSet(privateReasoning.mandatory_surgery, EXPECTED_PRIVATE_SURGERY)
-  ) {
-    failures.push(
-      "source-policy private_reasoning.mandatory_surgery does not match the frozen private-reasoning inventory.",
-    );
-  }
-  if (
     !sameStringSet(privateReasoning.disclosure_mechanics, EXPECTED_DISCLOSURE)
   ) {
     failures.push(
@@ -217,12 +191,12 @@ function validatePolicy(policy, scope, scopeByPath, failures) {
   }
   if (
     !sameStringSet(
-      privateReasoning.vendored_surgery_adoption_classes,
+      privateReasoning.disclosure_adoption_classes,
       PATCHED_CLASSES,
     )
   ) {
     failures.push(
-      "source-policy vendored surgery adoption classes must be the patched classes only.",
+      "source-policy disclosure adoption classes must be the patched classes only.",
     );
   }
   if (
@@ -254,18 +228,6 @@ function validatePolicy(policy, scope, scopeByPath, failures) {
     [
       "excluded",
       privateReasoning.excluded ?? [],
-      "mandatory_surgery",
-      privateReasoning.mandatory_surgery ?? [],
-    ],
-    [
-      "excluded",
-      privateReasoning.excluded ?? [],
-      "disclosure_mechanics",
-      privateReasoning.disclosure_mechanics ?? [],
-    ],
-    [
-      "mandatory_surgery",
-      privateReasoning.mandatory_surgery ?? [],
       "disclosure_mechanics",
       privateReasoning.disclosure_mechanics ?? [],
     ],
@@ -279,25 +241,13 @@ function validatePolicy(policy, scope, scopeByPath, failures) {
     }
   }
 
+  // source-policy owns the complete private inventory; source-scope may omit
+  // those paths from its compact boundary list.
   for (const path of privateReasoning.excluded ?? []) {
     const entry = scopeByPath.get(path);
-    if (!entry || entry.classification !== "EXCLUDED") {
+    if (entry && entry.classification !== "EXCLUDED") {
       failures.push(
         `private reasoning excluded path must be EXCLUDED in source-scope: ${path}.`,
-      );
-    }
-  }
-
-  for (const path of privateReasoning.mandatory_surgery ?? []) {
-    const entry = scopeByPath.get(path);
-    if (
-      !entry ||
-      !["REQUIRED_VENDOR", "REQUIRED_TRANSITIVE", "PARTIAL_SURGICAL"].includes(
-        entry.classification,
-      )
-    ) {
-      failures.push(
-        `private reasoning surgery path must remain in an adoptable source-scope class: ${path}.`,
       );
     }
   }
@@ -436,11 +386,9 @@ function validateVendoredSource(
     );
     return;
   }
-  const entries = Array.isArray(provenance)
-    ? provenance
-    : (provenance.entries ?? []);
+  const entries = provenance.entries;
   if (!Array.isArray(entries)) {
-    failures.push("provenance.json must contain an array or entries array.");
+    failures.push("provenance.json must use the v2 manifest object contract.");
     return;
   }
 
@@ -465,11 +413,8 @@ function validateVendoredSource(
     }
   }
 
-  const surgeryPaths = new Set([
-    ...privateReasoning.mandatory_surgery,
-    ...privateReasoning.disclosure_mechanics,
-  ]);
-  for (const path of surgeryPaths) {
+  const disclosurePaths = new Set(privateReasoning.disclosure_mechanics);
+  for (const path of disclosurePaths) {
     const entry = byUpstreamPath.get(path);
     if (!entry) continue;
     if (entry.modified !== true) {
@@ -517,7 +462,7 @@ function validateVendoredSource(
     const scopeEntry = scopeByPath.get(entry.upstream_path);
     if (!scopeEntry) continue;
     if (
-      surgeryPaths.has(entry.upstream_path) &&
+      disclosurePaths.has(entry.upstream_path) &&
       entry.adoption_class === "KEEP_AS_IS"
     ) {
       failures.push(

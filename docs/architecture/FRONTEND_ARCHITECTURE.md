@@ -17,7 +17,7 @@
 
 精确依赖版本以根 `package.json` 与 `pnpm-lock.yaml` 为准。
 
-**当前 Workspace 基线：** Research Workspace 产品层（Upstream Agent UI / Research Adapter 及其页面）已退役。`apps/workspace` 仅保留 `/workspace` 固定宿主与 `/share/$shareToken` 安全边界；旧引导路由与旧入口重定向至 `/workspace`。重建前，退役内容由 `scripts/check-frontend-legacy.mjs` 门禁强制不得回归；本文各节为产品层重建后的目标形态。
+**当前 Workspace 基线：** `apps/workspace` 已在 `/workspace` 薄宿主内挂载源码采用后的 OpenHands 桌面产品壳，保留导航、活动区、面板、标签、Composer、Overlay、焦点、滚动与尺寸调整机械结构。当前只定义编译安全的薄执行接口，不包含 Research Adapter、领域 ViewModel 或科研 Renderer；未连接 Agent 运行服务时，执行控件保持禁用。私有工作台仅使用 `/workspace`，`/share/$shareToken` 继续维持只读安全边界。
 
 ## 2. 模块分层
 
@@ -41,7 +41,7 @@ Existing Core
 
 - **Repository & Commit**：固定官方仓库、固定 Tag 与 40 位 SHA 提交号。
 - **License & Notice**：确认兼容开源许可证，完整保留版权与 NOTICE 声明。
-- **Source Scope & Mapping**：明确采用与排除的目录，建立完整 Upstream -> Local 源码映射表。
+- **Source Scope & Mapping**：先独立冻结需要的 OpenHands Product Mechanics（Shell、ConversationMain、Navigation、Tabs、Composer、Command Menu、Activity grouping、public event presentation、Resize、Focus 与状态展示），再建立 Upstream -> Local 源码映射表；本地 import closure 只负责验证实现完整、可解析且无孤立文件，不能反向定义采用范围。
 - **Source Policy**：在机械依赖可达性之外固定语义、安全与隐私边界；Policy 约束优先于 `KEEP_AS_IS`。
 - **Governance Rules**：严禁跟随浮动 main 分支；严禁混用非兼容协议代码；仓库内有且仅有一套 Workspace Shell。
 
@@ -59,15 +59,21 @@ Existing Core
 | 领域适配策略 | adapter-and-renderer（经 Adapter / Renderer 替换科研领域） |
 | 唯一性       | 仓库内唯一 Agent Product Source；禁止混壳 / 第二套 Shell   |
 
-冻结元数据位于 `apps/workspace/upstream/openhands/`（`upstream-lock.json`、`source-scope.json`、`source-policy.json`、`vendor-blueprint.json`、`provenance-schema.json`、`LICENSE.upstream`、`NOTICE.md`），由 upstream adoption 机器门禁强制。
+冻结元数据位于 `apps/workspace/upstream/openhands/`（`upstream-lock.json`、`source-scope.json`、`source-policy.json`、`vendor-blueprint.json`、`provenance-schema.json`、`provenance.json`、`LICENSE.upstream`、`NOTICE.md`），由 upstream adoption 机器门禁强制。
+
+`KEEP_AS_IS` 源码使用一个锁定在 `upstream-lock.json` 的聚合树摘要校验，不保存或逐文件复算 SHA；适配文件通过原始路径、采用类别、修改原因、代码审查与运行测试治理。批准的 Mechanics Scope、显式列出的 transitive mechanics 与实际 Import Closure 分开维护：前两者是人工架构边界，后者只验证所有落盘文件从 `src/root.tsx` 可达、本地导入可解析且没有孤立文件；禁止保留未参与构建的旧 facade 或残缺依赖树。Frontend API、Agent Runtime、认证、WebSocket、Git/Coding、移动端、Telemetry、兼容模块、Cloud、Enterprise 与 Sandbox 源码统一归入 `EXCLUDED`，不得出现在 vendored 目录。
+
+`source-scope.json.files` 是精简的采用边界清单，只包含 approved/transitive mechanics 与代表性排除项；它不声称枚举冻结上游的全部源文件。完整的私有推理与禁用领域库存由 `source-policy.json` 维护，`scope_contract` 与 `total_scoped_files` 明确这一职责边界，避免恢复大体积的机器清单。
 
 上游源码升级需经过：锁定 SHA → 许可证审查 → 更新映射与 Source Policy → 上游 Diff 审查 → 运行契约与 UI 回归 → 独立合并。实际 Vendor 必须重新从官方仓库 checkout `v1.10.0` 并校验 `566386…37f4b`，否则拒绝采用。
 
 ### 3.2 推理披露边界
 
-上游 Agent UI 可保留 Activity 与 disclosure 等成熟交互机制，但模型私有 raw reasoning 不得进入产品 ViewModel、持久化边界或 UI。`source-policy.json` 对固定 OpenHands 源码中的纯私有推理 surface 做排除，并对仍需保留产品 mechanics 的依赖文件强制语义 surgery；这些约束优先于机械 Source Scope 的 `REQUIRED_VENDOR` / `REQUIRED_TRANSITIVE` 分类。
+上游 Agent UI 可保留 Activity 与 disclosure 等成熟交互机制，但模型私有 raw reasoning 不得进入产品 ViewModel、持久化边界或 UI。`source-policy.json` 将私有推理 extractor/renderer 全部排除；唯一保留的 disclosure 交互组件必须显式适配为只接收公开、可审计内容。这些约束优先于机械 Source Scope 分类。
 
 用户可见推理必须显式、可核验且与 Evidence 关联。`ReasoningTrace` 是公开可审计的推导记录，不等于模型私有 chain-of-thought；具体领域语义见 `docs/ai/REASONING_PROTOCOL.md`。
+
+Activity 采用 OpenHands 的事件列表、连续事件分组、可展开事件组、渐进状态展示与滚动锚定机制；OpenHands Activity 仅消费 domain-neutral presentation event，Research Adapter 负责将 Project、Run、Artifact、Evidence 等领域语义映射到该 presentation contract；运行时只注入公开 Activity Event，空状态不生成测试或演示事件。
 
 ## 4. 依赖方向
 
