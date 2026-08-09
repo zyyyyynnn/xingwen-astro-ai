@@ -8,11 +8,10 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CollapsibleRationale } from "../upstream/openhands/src/components/conversation-events/chat/event-message-components/collapsible-thinking";
-import { EventGroup } from "../upstream/openhands/src/components/conversation-events/chat/event-message-components/event-group";
 import { ActivitySurface } from "../upstream/openhands/src/components/conversation-events/chat/messages";
 import {
   groupEvents,
-  type PublicActivityEvent,
+  type ActivityPresentationEvent,
 } from "../upstream/openhands/src/components/conversation-events/chat/group-events";
 import {
   OpenHandsWorkspaceRoot,
@@ -30,7 +29,7 @@ afterEach(() => {
 
 function readyRuntime(
   execute: AgentWorkspaceRuntime["execute"],
-  activityEvents?: readonly PublicActivityEvent[],
+  activityEvents?: readonly ActivityPresentationEvent[],
 ): AgentWorkspaceRuntime {
   return { availability: "ready", execute, activityEvents };
 }
@@ -161,11 +160,11 @@ describe("source-adopted Agent workspace mechanics", () => {
   });
 
   it("retains public activity grouping, progressive status, and disclosure", () => {
-    const events: readonly PublicActivityEvent[] = [
+    const events: readonly ActivityPresentationEvent[] = [
       {
         id: "instruction-1",
-        kind: "instruction",
-        title: "已接收研究指令",
+        kind: "message",
+        title: "已接收新指令",
         status: "success",
       },
       {
@@ -174,15 +173,15 @@ describe("source-adopted Agent workspace mechanics", () => {
         title: "检索公开资料",
         detail: "公开来源查询已开始。",
         status: "success",
-        groupId: "research-1",
+        groupId: "activity-1",
       },
       {
         id: "tool-2",
         kind: "tool",
-        title: "整理来源摘要",
+        title: "整理公开结果",
         detail: "来源摘要等待下一步审查。",
         status: "running",
-        groupId: "research-1",
+        groupId: "activity-1",
       },
       {
         id: "completion-1",
@@ -222,7 +221,7 @@ describe("source-adopted Agent workspace mechanics", () => {
   });
 
   it("summarizes errors instead of presenting them as completed", () => {
-    const events: readonly PublicActivityEvent[] = [
+    const events: readonly ActivityPresentationEvent[] = [
       {
         id: "tool-success",
         kind: "tool",
@@ -236,14 +235,20 @@ describe("source-adopted Agent workspace mechanics", () => {
         status: "error",
       },
     ];
+    const errorEvent: ActivityPresentationEvent = {
+      id: "error-item",
+      kind: "error",
+      title: "活动执行失败",
+      status: "error",
+    };
 
-    render(
-      <EventGroup events={events}>
-        <div>错误详情</div>
-      </EventGroup>,
-    );
+    render(<ActivitySurface events={[...events, errorEvent]} />);
 
     expect(screen.getByText("错误 1/2")).toBeInTheDocument();
     expect(screen.queryByText("2 项已完成")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveAttribute(
+      "data-event-status",
+      "error",
+    );
   });
 });

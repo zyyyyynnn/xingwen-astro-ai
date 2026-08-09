@@ -94,5 +94,5 @@
     "requirement": "Every adopted source-scope entry has a real vendored file in the single entrypoint closure.",
     "dispositions": ["VENDORED", "SURGICALLY_ADAPTED"]
   },
-  "provenance_contract": "provenance.json provides exact disk mapping and one frozen aggregate digest for KEEP_AS_IS files; source-resolution.json mirrors the adopted dependency closure."
+  "provenance_contract": "provenance.json provides exact disk mapping and one frozen aggregate digest for KEEP_AS_IS files; import-closure checks derive reachability from src/root.tsx."
 }

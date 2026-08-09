@@ -8,19 +8,19 @@ import {
   LoaderCircle,
 } from "lucide-react";
 
-import type { PublicActivityEvent } from "./group-events";
+import type { ActivityPresentationEvent } from "./group-events";
 
 interface EventMessageProps {
-  readonly event: PublicActivityEvent;
+  readonly event: ActivityPresentationEvent;
 }
 
 /** OpenHands event-item composition adapted to public Xingwen activity events. */
 export function EventMessage({ event }: EventMessageProps) {
   const [expanded, setExpanded] = React.useState(false);
   const detailsId = React.useId();
-  const isError = event.status === "error" || event.kind === "error";
+  const isError = event.status === "error";
   const isRunning = event.status === "pending" || event.status === "running";
-  const isSuccess = event.status === "success" || event.kind === "completion";
+  const isSuccess = event.status === "success";
   const hasDetails = Boolean(event.detail?.trim());
   const Chevron = expanded ? ChevronUp : ChevronDown;
   const StatusIcon = isError
@@ -34,7 +34,7 @@ export function EventMessage({ event }: EventMessageProps) {
   const content = (
     <>
       <StatusIcon
-        className={`size-4 shrink-0 ${isRunning ? "animate-spin" : ""}`}
+        className={`size-4 shrink-0 ${isRunning ? "animate-spin motion-reduce:animate-none" : ""}`}
         aria-hidden="true"
       />
       <span className="min-w-0 flex-1 truncate">{event.title}</span>
@@ -49,7 +49,7 @@ export function EventMessage({ event }: EventMessageProps) {
       className="my-1 w-full text-sm"
       data-testid="event-message"
       data-event-kind={event.kind}
-      data-event-status={event.status ?? "pending"}
+      data-event-status={event.status}
       role={isError ? "alert" : undefined}
     >
       {hasDetails ? (

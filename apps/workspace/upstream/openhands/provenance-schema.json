@@ -2,9 +2,8 @@
   "schema": "xingwen.agent-upstream.provenance/v2",
   "description": "Manifest-level OpenHands source identity, exact file mapping, and one frozen aggregate digest for every KEEP_AS_IS source file.",
   "manifest_file": "provenance.json",
-  "resolution_file": "source-resolution.json",
   "policy_file": "source-policy.json",
-  "rule": "Disk <-> provenance exact 1:1 path equality; every vendored file and local import belongs to the resolved src/root.tsx dependency closure; one keep_as_is_tree_sha256 is frozen in upstream-lock.json for all unmodified source paths; every adopted source-scope entry has a vendored resolution.",
+  "rule": "Disk <-> provenance exact 1:1 path equality; every vendored file and local import belongs to the src/root.tsx dependency closure; one keep_as_is_tree_sha256 is frozen in upstream-lock.json for all unmodified source paths; every adopted source-scope entry has a vendored provenance entry.",
   "manifest_required_fields": [
     "schema",
     "generated_by",
@@ -13,8 +12,6 @@
     "entries"
   ],
   "source_required_fields": ["repository", "tag", "commit", "license"],
-  "resolution_statuses": ["VENDORED", "SURGICALLY_ADAPTED"],
-  "resolution_required_fields": ["upstream_path", "status", "reason", "proof"],
   "required_fields": [
     "upstream_path",
     "local_path",

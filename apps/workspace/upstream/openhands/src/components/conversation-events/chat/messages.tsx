@@ -3,10 +3,10 @@ import React from "react";
 import { CollapsibleRationale } from "./event-message-components/collapsible-thinking";
 import { EventGroup } from "./event-message-components/event-group";
 import { EventMessage } from "./event-message";
-import { groupEvents, type PublicActivityEvent } from "./group-events";
+import { groupEvents, type ActivityPresentationEvent } from "./group-events";
 
 interface MessagesProps {
-  readonly events: readonly PublicActivityEvent[];
+  readonly events: readonly ActivityPresentationEvent[];
 }
 
 /** OpenHands Messages grouping/presentation mechanics for public activity events. */
@@ -55,7 +55,7 @@ export const Messages = React.memo(
 Messages.displayName = "Messages";
 
 interface ActivitySurfaceProps {
-  readonly events?: readonly PublicActivityEvent[];
+  readonly events?: readonly ActivityPresentationEvent[];
 }
 
 /**

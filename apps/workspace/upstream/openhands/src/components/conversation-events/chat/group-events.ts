@@ -1,31 +1,25 @@
 /**
- * Public activity events consumed by the OpenHands-derived activity surface.
- * The runtime adapter owns these values; the source-adopted presentation never
- * receives model-private content.
+ * Domain-neutral presentation events consumed by the OpenHands-derived
+ * activity surface. Runtime adapters map domain events into this contract;
+ * the presentation never receives private content.
  */
-export type PublicActivityEventKind =
-  | "instruction"
-  | "plan"
-  | "research"
+export type ActivityEventKind =
+  | "message"
+  | "action"
   | "tool"
   | "progress"
-  | "checkpoint"
-  | "artifact"
-  | "evidence"
-  | "conflict"
-  | "revision"
+  | "result"
   | "error"
   | "completion";
 
-export type PublicActivityEventStatus =
-  "pending" | "running" | "success" | "error";
+export type ActivityEventStatus = "pending" | "running" | "success" | "error";
 
-export interface PublicActivityEvent {
+export interface ActivityPresentationEvent {
   readonly id: string;
-  readonly kind: PublicActivityEventKind;
+  readonly kind: ActivityEventKind;
   readonly title: string;
   readonly detail?: string;
-  readonly status?: PublicActivityEventStatus;
+  readonly status: ActivityEventStatus;
   readonly groupId?: string;
   readonly timestamp?: string;
 }
@@ -33,18 +27,18 @@ export interface PublicActivityEvent {
 export const EVENT_GROUP_MIN_SIZE = 2;
 
 /** Public tool/progress events retain the upstream consecutive-run grouping. */
-export const isGroupableEvent = (event: PublicActivityEvent): boolean =>
+export const isGroupableEvent = (event: ActivityPresentationEvent): boolean =>
   event.kind === "tool" || event.kind === "progress";
 
 export type RenderedItem =
   | {
       readonly kind: "single";
-      readonly event: PublicActivityEvent;
+      readonly event: ActivityPresentationEvent;
       readonly index: number;
     }
   | {
       readonly kind: "group";
-      readonly events: PublicActivityEvent[];
+      readonly events: ActivityPresentationEvent[];
       readonly startIndex: number;
     };
 
@@ -53,7 +47,7 @@ export type RenderedItem =
  * collapsible groups. Non-tool events stay as individual activity items.
  */
 export const groupEvents = (
-  events: readonly PublicActivityEvent[],
+  events: readonly ActivityPresentationEvent[],
   minSize: number = EVENT_GROUP_MIN_SIZE,
 ): RenderedItem[] => {
   if (minSize < 1) {
@@ -61,7 +55,10 @@ export const groupEvents = (
   }
 
   const items: RenderedItem[] = [];
-  let run: { events: PublicActivityEvent[]; startIndex: number } | null = null;
+  let run: {
+    events: ActivityPresentationEvent[];
+    startIndex: number;
+  } | null = null;
 
   const flushRun = () => {
     if (!run) return;

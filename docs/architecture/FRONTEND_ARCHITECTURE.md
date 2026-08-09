@@ -59,7 +59,7 @@ Existing Core
 | 领域适配策略 | adapter-and-renderer（经 Adapter / Renderer 替换科研领域） |
 | 唯一性       | 仓库内唯一 Agent Product Source；禁止混壳 / 第二套 Shell   |
 
-冻结元数据位于 `apps/workspace/upstream/openhands/`（`upstream-lock.json`、`source-scope.json`、`source-policy.json`、`vendor-blueprint.json`、`provenance-schema.json`、`provenance.json`、`source-resolution.json`、`LICENSE.upstream`、`NOTICE.md`），由 upstream adoption 机器门禁强制。
+冻结元数据位于 `apps/workspace/upstream/openhands/`（`upstream-lock.json`、`source-scope.json`、`source-policy.json`、`vendor-blueprint.json`、`provenance-schema.json`、`provenance.json`、`LICENSE.upstream`、`NOTICE.md`），由 upstream adoption 机器门禁强制。
 
 `KEEP_AS_IS` 源码使用一个锁定在 `upstream-lock.json` 的聚合树摘要校验，不保存或逐文件复算 SHA；适配文件通过原始路径、采用类别、修改原因、代码审查与运行测试治理。批准的 Mechanics Scope、显式列出的 transitive mechanics 与实际 Import Closure 分开维护：前两者是人工架构边界，后者只验证所有落盘文件从 `src/root.tsx` 可达、本地导入可解析且没有孤立文件；禁止保留未参与构建的旧 facade 或残缺依赖树。Frontend API、Agent Runtime、认证、WebSocket、Git/Coding、移动端、Telemetry、兼容模块、Cloud、Enterprise 与 Sandbox 源码统一归入 `EXCLUDED`，不得出现在 vendored 目录。
 
@@ -73,7 +73,7 @@ Existing Core
 
 用户可见推理必须显式、可核验且与 Evidence 关联。`ReasoningTrace` 是公开可审计的推导记录，不等于模型私有 chain-of-thought；具体领域语义见 `docs/ai/REASONING_PROTOCOL.md`。
 
-Activity 采用 OpenHands 的事件列表、连续事件分组、可展开事件组、渐进状态展示与滚动锚定机制；运行时只注入公开 Activity Event，空状态不生成测试或演示事件。
+Activity 采用 OpenHands 的事件列表、连续事件分组、可展开事件组、渐进状态展示与滚动锚定机制；OpenHands Activity 仅消费 domain-neutral presentation event，Research Adapter 负责将 Project、Run、Artifact、Evidence 等领域语义映射到该 presentation contract；运行时只注入公开 Activity Event，空状态不生成测试或演示事件。
 
 ## 4. 依赖方向
 

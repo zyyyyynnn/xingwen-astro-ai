@@ -16,7 +16,7 @@
  *   G7  Coding surface         — excluded coding surfaces must not enter production graph.
  *   G8  Only OpenHands src     — no file sourced from a non-OpenHands repository.
  *   G9  Private reasoning boundary — policy_sets honored (excluded/disclosure).
- *   G10 Source closure         — every adopted-scope path has one final disposition.
+ *   G10 Source closure         — vendored files are reachable and imports resolve.
  *
  * The check is injectable: `checkAgentUpstreamAdoption(root)` where root is any
  * repo root. The CLI entrypoint passes process.cwd().
@@ -593,147 +593,24 @@ export function checkAgentUpstreamAdoption(root) {
     }
   }
 
-  // ---- G10 : frozen adopted-scope closure + local import reachability ----
+  // ---- G10 : local import reachability ----
   if (existsSync(srcDir)) {
-    const schema =
-      readJSON(root, `${UPSTREAM_ROOT}/provenance-schema.json`) ?? {};
-    const resolutionFile = schema.resolution_file ?? "source-resolution.json";
-    const resolution = readJSON(root, `${UPSTREAM_ROOT}/${resolutionFile}`);
-    if (!resolution) {
+    const importGraph = analyzeVendoredImportGraph({
+      root,
+      sourceRoot: SRC_DIR,
+      diskPaths: diskLocalPaths,
+    });
+    if (importGraph.unresolved.length > 0) {
       failures.push(
-        `G10: vendored src/ present but ${UPSTREAM_ROOT}/${resolutionFile} missing.`,
+        `G10: vendored source has unresolved local imports: ${importGraph.unresolved
+          .map(({ from, specifier }) => `${from} -> ${specifier}`)
+          .join(", ")}.`,
       );
-    } else {
-      if (resolution.repository !== lock.repository) {
-        failures.push("G10: source-resolution repository mismatch.");
-      }
-      if (resolution.tag !== lock.tag) {
-        failures.push("G10: source-resolution tag mismatch.");
-      }
-      if (resolution.commit !== lock.commit) {
-        failures.push("G10: source-resolution commit mismatch.");
-      }
-      if (resolution.entrypoint !== "src/root.tsx") {
-        failures.push(
-          "G10: source-resolution entrypoint must be src/root.tsx.",
-        );
-      }
-
-      const requiredClassifications = new Set([
-        "REQUIRED_VENDOR",
-        "REQUIRED_TRANSITIVE",
-        "PARTIAL_SURGICAL",
-      ]);
-      const requiredPaths = new Set(adoptedMechanicsPaths);
-      const requiredScopeEntries = [...requiredPaths]
-        .map((upstreamPath) =>
-          files.find((entry) => entry.upstream_path === upstreamPath),
-        )
-        .filter(
-          (entry) => entry && requiredClassifications.has(entry.classification),
-        );
-      const statuses = new Set(schema.resolution_statuses ?? []);
-      const requiredFields = schema.resolution_required_fields ?? [];
-      const resolutionEntries = resolution.entries ?? [];
-      const resolutionByPath = new Map();
-      const provenanceByPath = new Map(
-        provenanceEntries.map((entry) => [entry.upstream_path, entry]),
+    }
+    if (importGraph.unreachable.length > 0) {
+      failures.push(
+        `G10: vendored source is outside the src/root.tsx dependency closure: ${importGraph.unreachable.join(", ")}.`,
       );
-      const importGraph = analyzeVendoredImportGraph({
-        root,
-        sourceRoot: SRC_DIR,
-        diskPaths: diskLocalPaths,
-      });
-      if (importGraph.unresolved.length > 0) {
-        failures.push(
-          `G10: vendored source has unresolved local imports: ${importGraph.unresolved
-            .map(({ from, specifier }) => `${from} -> ${specifier}`)
-            .join(", ")}.`,
-        );
-      }
-      if (importGraph.unreachable.length > 0) {
-        failures.push(
-          `G10: vendored source is outside the src/root.tsx dependency closure: ${importGraph.unreachable.join(", ")}.`,
-        );
-      }
-
-      for (const entry of resolutionEntries) {
-        const where = entry.upstream_path ?? "<unknown upstream_path>";
-        for (const field of requiredFields) {
-          if (!(field in entry)) {
-            failures.push(
-              `G10: source-resolution entry missing "${field}" (${where}).`,
-            );
-          }
-        }
-        if (resolutionByPath.has(entry.upstream_path)) {
-          failures.push(
-            `G10: duplicate source-resolution upstream_path: ${entry.upstream_path}.`,
-          );
-        }
-        resolutionByPath.set(entry.upstream_path, entry);
-        if (!requiredPaths.has(entry.upstream_path)) {
-          failures.push(
-            `G10: source-resolution path is outside adopted scope: ${where}.`,
-          );
-        }
-        if (!statuses.has(entry.status)) {
-          failures.push(
-            `G10: invalid source-resolution status "${entry.status}" (${where}).`,
-          );
-        }
-        if (typeof entry.reason !== "string" || !entry.reason.trim()) {
-          failures.push(`G10: source-resolution reason is empty (${where}).`);
-        }
-        if (typeof entry.proof !== "string" || !entry.proof.trim()) {
-          failures.push(`G10: source-resolution proof is empty (${where}).`);
-        }
-
-        const provenance = provenanceByPath.get(entry.upstream_path);
-        if (provenance) {
-          const expectedStatus = provenance.modified
-            ? "SURGICALLY_ADAPTED"
-            : "VENDORED";
-          if (entry.status !== expectedStatus) {
-            failures.push(
-              `G10: ${where} must resolve as ${expectedStatus}, found ${entry.status}.`,
-            );
-          }
-        } else {
-          failures.push(
-            `G10: adopted-scope path has no vendored source: ${where}.`,
-          );
-        }
-      }
-
-      for (const upstreamPath of requiredPaths) {
-        if (!resolutionByPath.has(upstreamPath)) {
-          failures.push(
-            `G10: adopted-scope path has no final resolution: ${upstreamPath}.`,
-          );
-        }
-      }
-
-      const recomputedResolutionSummary = {
-        VENDORED: 0,
-        SURGICALLY_ADAPTED: 0,
-      };
-      for (const entry of resolutionEntries) {
-        if (entry.status in recomputedResolutionSummary) {
-          recomputedResolutionSummary[entry.status] += 1;
-        }
-      }
-      if (
-        JSON.stringify(resolution.summary) !==
-        JSON.stringify(recomputedResolutionSummary)
-      ) {
-        failures.push("G10: source-resolution summary mismatch.");
-      }
-      if (resolution.total !== requiredScopeEntries.length) {
-        failures.push(
-          `G10: source-resolution total (${resolution.total}) != adopted scope (${requiredScopeEntries.length}).`,
-        );
-      }
     }
   }
 

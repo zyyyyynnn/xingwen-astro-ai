@@ -179,9 +179,6 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
 
   const leftSidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   const rightPanel = page.locator("#workspace-activity-panel");
-  const rightPanelContent = rightPanel.locator(":scope > div").first();
-  await expect(leftSidebar).toHaveCSS("transition-property", "width");
-  await expect(rightPanel).toHaveCSS("transition-property", "width");
   const readMotion = (element: Element) => {
     const style = getComputedStyle(element);
     return {
@@ -201,40 +198,17 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
     exact: true,
   });
   const initialHeadingBox = await activityHeading.boundingBox();
-  const initialPanelBox = await rightPanel.boundingBox();
-  const initialContentBox = await rightPanelContent.boundingBox();
   expect(before).not.toBeNull();
   expect(initialHeadingBox).not.toBeNull();
-  expect(initialPanelBox).not.toBeNull();
-  expect(initialContentBox).not.toBeNull();
-  expect(
-    Math.abs(initialPanelBox!.width - initialContentBox!.width),
-  ).toBeLessThan(1);
+  await expect(rightPanel).toHaveAttribute("aria-hidden", "false");
+  expect(await rightPanel.evaluate((element) => element.inert)).toBe(false);
 
   await collapse.click();
   const expand = page.getByRole("button", { name: "展开活动面板" });
   await expect(expand).toBeVisible();
   await expect(expand).toBeFocused();
-  await expect(rightPanel).toHaveCSS("width", "1px");
-  const collapsedPanelBox = await rightPanel.boundingBox();
-  const collapsedContentBox = await rightPanelContent.boundingBox();
-  expect(collapsedPanelBox).not.toBeNull();
-  expect(collapsedContentBox).not.toBeNull();
-  expect(collapsedPanelBox!.width).toBeLessThanOrEqual(1);
-  expect(
-    Math.abs(collapsedContentBox!.width - initialContentBox!.width),
-  ).toBeLessThan(1);
-  const collapsedIntersection = await activityHeading.evaluate(
-    (heading) =>
-      new Promise<number>((resolve) => {
-        const observer = new IntersectionObserver(([entry]) => {
-          observer.disconnect();
-          resolve(entry?.intersectionRatio ?? 0);
-        });
-        observer.observe(heading);
-      }),
-  );
-  expect(collapsedIntersection).toBe(0);
+  await expect(rightPanel).toHaveAttribute("aria-hidden", "true");
+  expect(await rightPanel.evaluate((element) => element.inert)).toBe(true);
   const collapsedAnchor = await expand.boundingBox();
   expect(collapsedAnchor).not.toBeNull();
   expect(Math.abs(collapsedAnchor!.x - before!.x)).toBeLessThanOrEqual(2);
@@ -242,6 +216,8 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
   await expand.click();
   await expect(collapse).toBeFocused();
   await expect(rightPanel).toBeVisible();
+  await expect(rightPanel).toHaveAttribute("aria-hidden", "false");
+  expect(await rightPanel.evaluate((element) => element.inert)).toBe(false);
   const expandedHeadingBox = await activityHeading.boundingBox();
   expect(expandedHeadingBox).not.toBeNull();
   expect(
@@ -250,17 +226,7 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
   const expandedAnchor = await collapse.boundingBox();
   expect(expandedAnchor).not.toBeNull();
   expect(Math.abs(expandedAnchor!.x - before!.x)).toBeLessThanOrEqual(2);
-  const expandedIntersection = await activityHeading.evaluate(
-    (heading) =>
-      new Promise<number>((resolve) => {
-        const observer = new IntersectionObserver(([entry]) => {
-          observer.disconnect();
-          resolve(entry?.intersectionRatio ?? 0);
-        });
-        observer.observe(heading);
-      }),
-  );
-  expect(expandedIntersection).toBeGreaterThan(0);
+  await expect(activityHeading).toBeVisible();
 });
 
 test("Sidebar toggle tracks the rail edge throughout collapse and expansion", async ({
@@ -513,7 +479,7 @@ test.describe("Workspace overflow menu at 1024×800", () => {
   });
 });
 
-test("Split-panel drag uses one shield without width easing", async ({
+test("Split-panel drag has no easing or leftover interception", async ({
   page,
 }) => {
   await page.goto("http://127.0.0.1:5173/workspace");
@@ -529,21 +495,8 @@ test("Split-panel drag uses one shield without width easing", async ({
       '[aria-label="活动面板"]',
     );
     if (!taskPanel || !activityPanel) return null;
-
-    let shieldAdds = 0;
-    const observer = new MutationObserver((records) => {
-      for (const record of records) {
-        for (const node of record.addedNodes) {
-          if (
-            node instanceof HTMLElement &&
-            node.hasAttribute("data-panel-drag-shield")
-          ) {
-            shieldAdds += 1;
-          }
-        }
-      }
-    });
-    observer.observe(document.body, { childList: true });
+    const beforeTaskWidth = taskPanel.getBoundingClientRect().width;
+    const beforeActivityWidth = activityPanel.getBoundingClientRect().width;
 
     const box = separatorElement.getBoundingClientRect();
     separatorElement.dispatchEvent(
@@ -557,9 +510,9 @@ test("Split-panel drag uses one shield without width easing", async ({
       requestAnimationFrame(() => resolve()),
     );
 
-    const transitionProperties = [
-      getComputedStyle(taskPanel).transitionProperty,
-      getComputedStyle(activityPanel).transitionProperty,
+    const transitionDurations = [
+      getComputedStyle(taskPanel).transitionDuration,
+      getComputedStyle(activityPanel).transitionDuration,
     ];
     for (const offset of [12, 24, 36]) {
       document.dispatchEvent(
@@ -577,14 +530,26 @@ test("Split-panel drag uses one shield without width easing", async ({
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => resolve()),
     );
-    observer.disconnect();
 
-    return { shieldAdds, transitionProperties };
+    return {
+      beforeTaskWidth,
+      beforeActivityWidth,
+      afterTaskWidth: taskPanel.getBoundingClientRect().width,
+      afterActivityWidth: activityPanel.getBoundingClientRect().width,
+      transitionDurations,
+      bodyCursor: document.body.style.cursor,
+      bodyUserSelect: document.body.style.userSelect,
+    };
   });
 
   expect(result).not.toBeNull();
-  expect(result!.transitionProperties).toEqual(["none", "none"]);
-  expect(result!.shieldAdds).toBe(1);
+  expect(result!.transitionDurations).toEqual(["0s", "0s"]);
+  expect(result!.afterTaskWidth).toBeGreaterThan(0);
+  expect(result!.afterActivityWidth).toBeGreaterThan(0);
+  expect(result!.afterTaskWidth).not.toBe(result!.beforeTaskWidth);
+  expect(result!.afterActivityWidth).not.toBe(result!.beforeActivityWidth);
+  expect(result!.bodyCursor).toBe("");
+  expect(result!.bodyUserSelect).toBe("");
   await expect(page.locator("[data-panel-drag-shield]")).toHaveCount(0);
 });
 

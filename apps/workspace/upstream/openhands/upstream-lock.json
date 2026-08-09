@@ -24,7 +24,6 @@
     "vendor-blueprint.json",
     "provenance-schema.json",
     "provenance.json",
-    "source-resolution.json",
     "LICENSE.upstream",
     "NOTICE.md"
   ],

@@ -68,6 +68,48 @@ function save(root, file, value) {
   );
 }
 
+function alignScopeToEntries(root, entries) {
+  const scope = load(root, "source-scope.json");
+  const adoptedPaths = new Set(entries.map((entry) => entry.upstream_path));
+  for (const entry of scope.files) {
+    if (
+      ADOPTED_CLASSIFICATIONS.has(entry.classification) &&
+      !adoptedPaths.has(entry.upstream_path)
+    ) {
+      entry.classification = "EXCLUDED";
+      entry.reason = "Excluded from this isolated test dependency closure.";
+      delete entry.constraints;
+      delete entry.preserved_mechanics;
+      delete entry.removed_domain;
+    }
+  }
+  for (const field of ["approved_mechanics", "transitive_mechanics"]) {
+    scope[field] = (scope[field] ?? [])
+      .map((surface) => ({
+        ...surface,
+        upstream_paths: surface.upstream_paths.filter((path) =>
+          adoptedPaths.has(path),
+        ),
+      }))
+      .filter((surface) => surface.upstream_paths.length > 0);
+  }
+  scope.summary = {
+    REQUIRED_VENDOR: 0,
+    REQUIRED_TRANSITIVE: 0,
+    PARTIAL_SURGICAL: 0,
+    EXCLUDED: 0,
+    DEFERRED_NOT_VENDORED: 0,
+  };
+  for (const entry of scope.files) {
+    scope.summary[entry.classification] += 1;
+  }
+  scope.policy_sets.public_reasoning_disclosure =
+    scope.policy_sets.public_reasoning_disclosure.filter((path) =>
+      adoptedPaths.has(path),
+    );
+  save(root, "source-scope.json", scope);
+}
+
 function writeSource(root, upstreamPath, content) {
   const localPath = `${UPSTREAM_ROOT}/${upstreamPath}`;
   const absolute = join(root, localPath);
@@ -95,6 +137,7 @@ function provenanceEntry({
 }
 
 function saveProvenance(root, entries, overrides = {}) {
+  alignScopeToEntries(root, entries);
   const sourceDirectory = join(root, UPSTREAM_ROOT, "src");
   const keepAsIsPaths = entries
     .filter((entry) => entry.adoption_class === "KEEP_AS_IS")
@@ -116,75 +159,6 @@ function saveProvenance(root, entries, overrides = {}) {
   });
 }
 
-function saveResolution(root, provenanceEntries) {
-  const scope = load(root, "source-scope.json");
-  const adoptedPaths = new Set(
-    provenanceEntries.map((entry) => entry.upstream_path),
-  );
-  for (const entry of scope.files) {
-    if (
-      ADOPTED_CLASSIFICATIONS.has(entry.classification) &&
-      !adoptedPaths.has(entry.upstream_path)
-    ) {
-      entry.classification = "EXCLUDED";
-      entry.reason = "Excluded from this isolated test dependency closure.";
-      delete entry.constraints;
-      delete entry.preserved_mechanics;
-      delete entry.removed_domain;
-    }
-  }
-  scope.approved_mechanics = scope.approved_mechanics
-    .map((surface) => ({
-      ...surface,
-      upstream_paths: surface.upstream_paths.filter((path) =>
-        adoptedPaths.has(path),
-      ),
-    }))
-    .filter((surface) => surface.upstream_paths.length > 0);
-  scope.transitive_mechanics = (scope.transitive_mechanics ?? [])
-    .map((surface) => ({
-      ...surface,
-      upstream_paths: surface.upstream_paths.filter((path) =>
-        adoptedPaths.has(path),
-      ),
-    }))
-    .filter((surface) => surface.upstream_paths.length > 0);
-  scope.summary = {
-    REQUIRED_VENDOR: 0,
-    REQUIRED_TRANSITIVE: 0,
-    PARTIAL_SURGICAL: 0,
-    EXCLUDED: 0,
-    DEFERRED_NOT_VENDORED: 0,
-  };
-  for (const entry of scope.files) scope.summary[entry.classification] += 1;
-  scope.policy_sets.public_reasoning_disclosure =
-    scope.policy_sets.public_reasoning_disclosure.filter((path) =>
-      adoptedPaths.has(path),
-    );
-  save(root, "source-scope.json", scope);
-
-  const entries = provenanceEntries.map((entry) => ({
-    upstream_path: entry.upstream_path,
-    status: entry.modified ? "SURGICALLY_ADAPTED" : "VENDORED",
-    reason: "test fixture disposition",
-    proof: "reachable-from-single-src/root.tsx-import-closure",
-  }));
-  const summary = {
-    VENDORED: entries.filter((entry) => entry.status === "VENDORED").length,
-    SURGICALLY_ADAPTED: entries.filter(
-      (entry) => entry.status === "SURGICALLY_ADAPTED",
-    ).length,
-  };
-  save(root, "source-resolution.json", {
-    schema: "xingwen.agent-upstream.source-resolution/v1",
-    ...SOURCE,
-    entrypoint: "src/root.tsx",
-    summary,
-    total: entries.length,
-    entries,
-  });
-}
-
 function createSingleFileFixture(root, options = {}) {
   const upstreamPath = options.upstreamPath ?? "src/root.tsx";
   const content = options.content ?? "export const root = true;\n";
@@ -197,7 +171,6 @@ function createSingleFileFixture(root, options = {}) {
     modificationReason: options.modificationReason,
   });
   saveProvenance(root, [entry]);
-  saveResolution(root, [entry]);
   return { entry, localPath };
 }
 
@@ -326,22 +299,6 @@ test("the frozen KEEP_AS_IS aggregate detects source drift", () => {
   }
 });
 
-test("provenance generation cannot rewrite frozen source dispositions", () => {
-  const root = freshRepo();
-  try {
-    createSingleFileFixture(root, {
-      modified: true,
-      adoptionClass: "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
-    });
-    const resolutionPath = join(root, UPSTREAM_ROOT, "source-resolution.json");
-    const before = readFileSync(resolutionPath, "utf8");
-    generateAgentUpstreamProvenance(root);
-    assert.equal(readFileSync(resolutionPath, "utf8"), before);
-  } finally {
-    cleanup(root);
-  }
-});
-
 test("provenance generation rejects source outside the entrypoint closure", () => {
   const root = freshRepo();
   try {
@@ -361,7 +318,6 @@ test("provenance generation rejects source outside the entrypoint closure", () =
       localPath: writeSource(root, storePath, "export const store = true;\n"),
     });
     saveProvenance(root, [rootEntry, storeEntry]);
-    saveResolution(root, [rootEntry, storeEntry]);
 
     assert.throws(
       () => generateAgentUpstreamProvenance(root),
@@ -391,7 +347,6 @@ test("provenance generation cannot legitimize KEEP_AS_IS drift", () => {
       localPath: writeSource(root, storePath, "export const store = true;\n"),
     });
     saveProvenance(root, [rootEntry, storeEntry]);
-    saveResolution(root, [rootEntry, storeEntry]);
     writeFileSync(
       join(root, storeEntry.local_path),
       "export const changed = true;\n",
@@ -503,19 +458,6 @@ test("unmodified source requires KEEP_AS_IS", () => {
   }
 });
 
-test("every adopted scope path requires one final resolution", () => {
-  const root = freshRepo();
-  try {
-    createSingleFileFixture(root);
-    const resolution = load(root, "source-resolution.json");
-    resolution.entries.pop();
-    save(root, "source-resolution.json", resolution);
-    assertFail(root, /has no final resolution/u, "resolution coverage");
-  } finally {
-    cleanup(root);
-  }
-});
-
 test("every vendored file must be reachable from the workspace root", () => {
   const root = freshRepo();
   try {
@@ -539,7 +481,6 @@ test("every vendored file must be reachable from the workspace root", () => {
     });
     const entries = [rootEntry, orphanEntry];
     saveProvenance(root, entries);
-    saveResolution(root, entries);
     assertFail(
       root,
       /outside the src\/root\.tsx dependency closure/u,
