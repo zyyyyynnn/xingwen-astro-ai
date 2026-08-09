@@ -5,7 +5,7 @@
   "purpose": "Defines the single reachable OpenHands Workspace source-adoption contract.",
   "source_scope": {
     "entrypoint": "src/root.tsx",
-    "rule": "Approved OpenHands product-mechanics scope is defined independently; explicit transitive mechanics complete that scope, while the actual local import closure is verified for completeness, resolvability, and orphan-free reachability.",
+    "rule": "Approved OpenHands product-mechanics scope is defined in source-scope.json; this blueprint records only high-level surfaces, while the actual local import closure is verified for completeness, resolvability, and orphan-free reachability.",
     "adopted_surfaces": [
       "Workspace shell and desktop layout",
       "ConversationMain split-panel composition and panel visibility",
@@ -14,28 +14,6 @@
       "Activity/context tabs and split-panel mechanics",
       "Agent Activity grouping, progressive public event presentation, disclosure, and scroll anchoring",
       "Public reasoning disclosure interaction"
-    ],
-    "transitive_mechanics": [
-      "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
-      "src/components/conversation-events/chat/event-message-components/event-group.tsx",
-      "src/components/conversation-events/chat/event-message.tsx",
-      "src/components/conversation-events/chat/group-events.ts",
-      "src/components/conversation-events/chat/messages.tsx",
-      "src/components/features/chat/chat-interface.tsx",
-      "src/components/features/chat/chat-messages-skeleton.tsx",
-      "src/components/features/chat/error-message-banner.tsx",
-      "src/components/ui/resize-handle.tsx",
-      "src/hooks/use-resizable-panels.ts",
-      "src/stores/sidebar-store.ts",
-      "src/utils/utils.ts"
-    ],
-    "partial_surgical": [
-      "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
-      "src/components/conversation-events/chat/event-message-components/event-group.tsx",
-      "src/components/conversation-events/chat/event-message.tsx",
-      "src/components/conversation-events/chat/group-events.ts",
-      "src/components/conversation-events/chat/messages.tsx",
-      "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx"
     ],
     "excluded_surfaces": [
       "Frontend API, Agent Runtime, authentication, and WebSocket integration",
