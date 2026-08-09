@@ -1,8 +1,8 @@
 # Documentation Index
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
+| 元数据    | 值                                              |
+| --------- | ----------------------------------------------- |
+| Status    | Accepted                                        |
 | Authority | 权威规范地图、文档治理规则与 Agent 默认读取规范 |
 
 本文件是星文智析仓库权威规范的唯一地图与治理规则。Authority 定义稳定规则；
@@ -62,11 +62,12 @@ GitHub Issues/PRs 定义实时工作状态；代码、测试和真实运行定�
 1. **单一事实源**：一项事实只能有一个完整规范正文，其他文档仅提供相对链接或单行摘要。
 2. **仅保留有效规范**：活跃文档只描述当前已批准且有效的规范，不记录历史方案、废弃过程或 ADR 比较。
 3. ** Git 保存历史**：历史演进、废弃决策和迁移原因由 Git Commit 记录，不在活跃树保留 Superseded / Archive 文档。
-4. **GitHub 保存状态**：任务实时状态、WIP 进度、Milestone 与依赖由 GitHub Issues / PRs 保存，不在 Markdown 维护 Backlog / Roadmap。
+4. **GitHub 保存状态**：任务实时状态、WIP 进度与依赖由 GitHub Issues / PRs 保存，不在 Markdown 维护 Backlog / Roadmap。
 5. **不混淆实现与目标**：规范正文可以超前定义已批准但尚未代码实现的要求，
    但不得把 Draft/Open PR、Issue、Fixture、Benchmark、Recorded 或 Cached 写成 Current。
-6. **禁止过程代号**：Accepted Authority 正文和元数据不保存 Issue/PR 编号、临时阶段
-   代号、动态状态或个人本地路径；稳定版本、协议版本与外部标准编号可以保留。
+6. **禁止过程代号**：Accepted Authority 正文和元数据不保存 Issue/PR 编号、带序号的
+   工作阶段代号、GitHub 批次字段、动态状态或个人本地路径；稳定版本、协议版本、竞赛
+   赛道/方向与领域 failure stage 可以保留。
 7. **Authority 不保存进度**：不要写实现进度、已交付或待完成等状态断言；实时状态
    只在 GitHub，审计时使用不提交的 Truth Matrix。
 8. **元数据一致性**：规范性 Authority 文档顶部必须包含 `Status: Accepted` 与 `Authority`；

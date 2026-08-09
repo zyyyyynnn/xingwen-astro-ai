@@ -68,6 +68,6 @@ Issue、Draft/Open PR、目标架构、Fixture、Benchmark、Recorded 和未来 
 
 ## 治理要求
 
-必须添加 `type:task`、适用的 `area:*`、一个 `priority:p0/p1/p2`，并归入对应
-Milestone。一个 PR 只能有一个主要 Task、Bug 或 Gate；同一 Issue 的真实阻塞使用
-原生依赖，不在正文维护第二套动态状态。
+必须添加 `type:task`、适用的 `area:*` 与一个 `priority:p0/p1/p2`。一个 PR 只能有一个
+主要 Task、Bug 或 Gate；同一 Issue 的真实阻塞使用原生依赖，不在正文维护第二套
+动态状态。

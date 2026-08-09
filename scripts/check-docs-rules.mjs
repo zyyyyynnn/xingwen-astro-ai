@@ -1,3 +1,8 @@
+import {
+  containsPhaseIdentifier,
+  containsTaskCode,
+} from "./governance-identifiers.mjs";
+
 const allowedStatuses = new Set([
   "Proposed",
   "Accepted",
@@ -21,8 +26,8 @@ const allowedMetadataFields = new Set([
 ]);
 
 // Metadata keys that describe volatile progress. They are rejected with a
-// dedicated message; real-time status lives in GitHub Issues, PRs, Milestones and
-// verified run evidence.
+// dedicated message; real-time status lives in GitHub Issues, PRs and verified
+// run evidence.
 const forbiddenMetadataFields = new Set([
   "Implementation",
   "Current runtime",
@@ -210,6 +215,19 @@ export function inspectMarkdown(
   if (expectedStatus && metadata.Status !== expectedStatus) {
     errors.push(`metadata Status must be ${expectedStatus} for this location`);
   }
+  for (const [index, line] of lines.entries()) {
+    const lineNumber = index + 1;
+    if (containsTaskCode(line)) {
+      errors.push(
+        `line ${lineNumber}: task code is not allowed in governed Markdown`,
+      );
+    }
+    if (containsPhaseIdentifier(line)) {
+      errors.push(
+        `line ${lineNumber}: phase identifier is not allowed in governed Markdown`,
+      );
+    }
+  }
   if (metadata.Status === "Accepted") {
     for (const [index, line] of lines.entries()) {
       const lineNumber = index + 1;
@@ -221,11 +239,6 @@ export function inspectMarkdown(
       if (/\b(?:PR|Issue)\s*#\d+\b/iu.test(line)) {
         errors.push(
           `line ${lineNumber}: PR/Issue progress reference is not allowed in Accepted Authority`,
-        );
-      }
-      if (/\b[A-DX]-\d{2,3}\b/u.test(line)) {
-        errors.push(
-          `line ${lineNumber}: task code is not allowed in Accepted Authority`,
         );
       }
       if (

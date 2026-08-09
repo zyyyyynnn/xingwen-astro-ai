@@ -64,5 +64,5 @@ labels: ["type:feature"]
 
 ## 治理要求
 
-本模板只用于 Epic。必须添加一个 `priority:p0/p1/p2`、一个或多个 `area:*`，并归入
-对应 Milestone；原子实现统一使用 Task/Bug 模板。
+本模板只用于 Epic。必须添加一个 `priority:p0/p1/p2` 与一个或多个 `area:*`；原子实现
+统一使用 Task/Bug 模板。

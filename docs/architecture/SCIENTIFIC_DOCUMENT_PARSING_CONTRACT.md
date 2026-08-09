@@ -1,8 +1,8 @@
 # Scientific Document Parsing Contract
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
+| 元数据    | 值                                                                                      |
+| --------- | --------------------------------------------------------------------------------------- |
+| Status    | Accepted                                                                                |
 | Authority | Scientific Document Parsing 冻结契约、Parser Port、Golden Set、Benchmark 与上游采用边界 |
 
 This document is the authoritative design record for the Canonical Contract and
@@ -13,14 +13,14 @@ second Evidence/Workflow/Version system.
 
 ## 1. Ownership boundary
 
-| Xingwen owns | Upstream owns |
-| --- | --- |
-| Canonical Contract | PDF parsing |
-| Evidence / locator semantics | OCR |
-| Parse quality semantics | layout |
-| Version / hashes | table recognition |
-| Golden Set / Benchmark | formula recognition |
-| Workflow boundary | visual document understanding |
+| Xingwen owns                 | Upstream owns                 |
+| ---------------------------- | ----------------------------- |
+| Canonical Contract           | PDF parsing                   |
+| Evidence / locator semantics | OCR                           |
+| Parse quality semantics      | layout                        |
+| Version / hashes             | table recognition             |
+| Golden Set / Benchmark       | formula recognition           |
+| Workflow boundary            | visual document understanding |
 
 The implementation rule is **adopt → adapt → normalize → validate → benchmark →
 govern**. `docs/references/**` is never production implementation Authority;
@@ -123,7 +123,7 @@ backend/profile and quality. `unsupported` carries no recognized formula text.
 
 ### Figure
 
-Phase 1 stores bbox, caption/title, axis/legend text and visible labels only.
+Figure blocks store bbox, caption/title, axis/legend text and visible labels only.
 Plot digitization, curve/scatter recovery and scientific pixel measurement are
 out of scope. `unsupported` carries no recognized textual payload.
 

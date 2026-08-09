@@ -215,20 +215,13 @@ uv run --project apps/api pytest apps/api/tests/test_crossmatch_contract.py `
   apps/api/tests/test_crossmatch_policy.py `
   apps/api/tests/test_crossmatch_pipeline.py `
   apps/api/tests/test_crossmatch_benchmark.py
-uv run --project apps/api python scripts/export_schemas.py `
-  --output packages/schemas/generated/phase0 `
-  --include DatasetResponse --include ColumnInfo --include QualityScore `
-  --include SourceRecordItem --include PaperSearchQuery `
-  --include PaperAcquisitionRun --include PaperCandidate --include PaperSummary `
-  --include LiteratureClaim --include LiteratureRelation `
-  --include ReasoningTrace --include EvidenceResponse --include SourceSnapshot `
-  --include DataSourceCompletion --include CrossmatchInput `
-  --include CrossmatchResult --include CrossmatchBenchmarkManifest `
-  --include CrossmatchBenchmarkReport --check
 python scripts/check_foundation.py
 node scripts/check-docs.mjs
 git diff --check
 ```
+
+Schema export integrity uses the package-maintained commands in
+[Schema Package](../../packages/schemas/README.md), avoiding a second output-path contract here.
 
 The JSON Schema export includes the public alignment input, output, completion,
 benchmark-manifest, and benchmark-report contracts. No HTTP route or duplicate

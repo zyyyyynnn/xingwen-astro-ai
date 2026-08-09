@@ -150,7 +150,7 @@ test("allows stable context metadata fields", () => {
     "| Issue | #32 |",
     "| Superseded by | Data Model |",
     "| Authoring source | apps/api/src/app/schemas |",
-    "| Time range | Phase 0 baseline |",
+    "| Time range | contract baseline |",
     "| Applies to | all Markdown |",
   ]);
   assert.deepEqual(inspectMarkdown(source).errors, []);
@@ -168,16 +168,30 @@ test("rejects Issue metadata for Accepted Authority", () => {
   );
 });
 
-test("rejects task and progress references in Accepted Authority", () => {
+test("rejects task codes in every governed Markdown document", () => {
+  for (const identifier of [
+    ["C", "04"].join("-"),
+    ["D", "xx"].join("-"),
+    ["A", "NN"].join("-"),
+    ["A", "1"].join("-"),
+    ["A", "1000"].join("-"),
+  ]) {
+    assert.match(
+      inspectMarkdown(`# Title\n\n${identifier}`).errors.join("\n"),
+      /task code is not allowed in governed Markdown/u,
+      identifier,
+    );
+  }
+});
+
+test("rejects progress references in Accepted Authority", () => {
   const source = metadataDoc([
     "| Status | Accepted |",
     "| Authority | X |",
     "",
-    "D-10 is not a stable Authority reference.",
     "当前实现不得写入规范。",
   ]).replace("| Authority | X |\n\n", "| Authority | X |\n\n## Rules\n\n");
   const errors = inspectMarkdown(source).errors.join("\n");
-  assert.match(errors, /task code is not allowed/u);
   assert.match(errors, /implementation-progress wording is not allowed/u);
 });
 
@@ -200,6 +214,38 @@ test("rejects each forbidden progress phrase in Accepted Authority", () => {
       phrase,
     );
   }
+});
+
+test("rejects phase identifiers in every governed Markdown document", () => {
+  for (const identifier of [
+    ["Phase", "0"].join(" "),
+    ["Phase", "II"].join(" "),
+    ["Stage", "1"].join(" "),
+    ["Stage", "A"].join(" "),
+    ["M", "2"].join(""),
+    ["PR", "1/5"].join("-"),
+    ["第", "一", "阶段"].join(""),
+    ["阶段", "一"].join(""),
+    ["第", "一", "期"].join(""),
+    ["期", "一"].join(" "),
+    ["Mile", "stone"].join(""),
+  ]) {
+    const source = `# Title\n\n${identifier}`;
+    assert.match(
+      inspectMarkdown(source).errors.join("\n"),
+      /phase identifier is not allowed in governed Markdown/u,
+      identifier,
+    );
+  }
+});
+
+test("allows stable astronomy identifiers that are not work stages", () => {
+  assert.deepEqual(
+    inspectMarkdown(
+      "# Title\n\nMessier M1、Messier M31、Cygnus X-1 和 carbon isotope C-14 均在范围内。会话过期 401。",
+    ).errors,
+    [],
+  );
 });
 
 test("rejects merge-conflict markers in Accepted Authority", () => {

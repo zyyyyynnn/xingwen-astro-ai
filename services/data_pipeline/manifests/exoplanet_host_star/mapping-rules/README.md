@@ -1,4 +1,4 @@
-# C-04 Mapping Execution Rules
+# Mapping Execution Rules
 
 This directory stores the versioned execution policy for Field Manifest mapping and the
 unit-conversion implementation catalog. It does not copy canonical fields, aliases,
