@@ -7,12 +7,13 @@ import {
 
 test("validatePrTitle accepts the governed grammar", () => {
   for (const title of [
-    "feat(a-21): freeze OpenHands upstream agent source baseline",
+    "feat(frontend): freeze OpenHands upstream agent source baseline",
     "fix(backend): resolve Research Input URL ingestion race condition",
     "docs(repo): consolidate active project specifications",
     "ci(repo): enforce pull request and commit title grammar",
-    "refactor(a-20)!: retire legacy workspace product layer",
+    "refactor(frontend)!: retire legacy workspace product layer",
     "fix(repo): remove defaced fixture",
+    "docs(repo): document Messier M1 Cygnus X-1 and carbon isotope C-14",
   ]) {
     assert.equal(validatePrTitle(title).valid, true, title);
   }
@@ -29,6 +30,9 @@ test("validatePrTitle rejects legacy or ungoverned metadata", () => {
     "feat(a-21): resolve Issue 190 title governance",
     "feat(a-21): freeze OpenHands upstream agent source baseline (A-21)",
     "feat(repo): finish governance PR-1/5",
+    "docs(repo): update A-1 authority",
+    "docs(repo): publish Phase II authority",
+    "docs(repo): assign governance Milestone",
     "feat(repo): WIP title governance",
     "feat(repo): 修复标题治理",
     "feat(repo): remove E:\\xingwen-astro-ai\\scratch.txt",
@@ -46,14 +50,13 @@ test("validatePrTitle rejects legacy or ungoverned metadata", () => {
 test("validateCommitSubject allows a single integration backlink when requested", () => {
   assert.equal(
     validateCommitSubject(
-      "feat(b-19): implement research input attachment and URL ingestion contract (#187)",
+      "feat(backend): implement research input attachment and URL ingestion contract (#187)",
     ).valid,
     true,
   );
   assert.equal(
-    validateCommitSubject(
-      "chore(sync): merge main into d-01 paper pipeline branch",
-    ).valid,
+    validateCommitSubject("chore(sync): merge main into paper pipeline branch")
+      .valid,
     true,
   );
 });
@@ -61,7 +64,7 @@ test("validateCommitSubject allows a single integration backlink when requested"
 test("validateCommitSubject rejects references in PR branch commits", () => {
   assert.equal(
     validateCommitSubject(
-      "feat(b-19): implement research input attachment contract (#187)",
+      "feat(backend): implement research input attachment contract (#187)",
       { allowPrBacklink: false },
     ).valid,
     false,

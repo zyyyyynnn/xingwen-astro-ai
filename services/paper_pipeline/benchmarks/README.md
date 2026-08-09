@@ -1,10 +1,10 @@
-# D-01 Paper and Reasoning Benchmark
+# Paper and Reasoning Benchmark
 
 ## 1. 目的与范围
 
-本目录保存固定主案例 `exoplanet_host_star` 的版本化、机器可读论文与推理 Benchmark Package。它为 D-02～D-06、B-04、X-00 和端到端评测提供论文检索、结构化样例、Relation 准入、Graph 完整性与评测输入。
+本目录保存固定主案例 `exoplanet_host_star` 的版本化、机器可读论文与推理 Benchmark Package。它为论文检索、结构化摘要、Claim/Relation 准入、Graph 完整性、API 集成与端到端评测提供固定输入。
 
-D-01 只提供静态基准、Pydantic 校验、稳定 hash 和纯指标计算，不实现论文检索 Adapter、外部请求、模型调用、自动摘要、自动 Claim/Relation、Graph 生成、API、数据库或 Run/ArtifactVersion 发布。
+本 Package 只提供静态基准、Pydantic 校验、稳定 hash 和纯指标计算，不实现论文检索 Adapter、外部请求、模型调用、自动摘要、自动 Claim/Relation、Graph 生成、API、数据库或 Run/ArtifactVersion 发布。
 
 ## 2. 目录与唯一事实源
 
@@ -16,7 +16,7 @@ services/paper_pipeline/benchmarks/
    └─ paper-reasoning-benchmark.v1.json
 ```
 
-- JSON 是 D-01 基准内容的唯一事实源，Graph taxonomy 与完整性规则也保存在同一 Package 中。
+- JSON 是基准内容的唯一事实源，Graph taxonomy 与完整性规则也保存在同一 Package 中。
 - `apps/api/src/app/schemas/paper_benchmark.py` 是 Benchmark Pydantic v2 Schema、引用完整性和指标定义的编写源。
 - `apps/api/tests/test_paper_benchmark.py` 验证正常加载、恶意篡改、hash、Evidence、Relation、Trace、Graph 和指标。
 - Benchmark 模型全部使用 `Benchmark` 前缀，不替代或修改 Pipeline（`/api/tasks`）DTO，也不声明 `/api` 已实现。
@@ -29,7 +29,7 @@ Seed papers 和结构化样例属于 `Benchmark / seed` 数据等级，只允许
 - 网页端 GPT 科研审查和 Relation 准入评测；
 - 明确标记 scenario、schema version 和 provenance note 的 Fixture 派生。
 
-它们不是自动获取结果、Live Run 或真实历史缓存。D-02 检索失败时不得直接返回 seed list 并将其描述为自动获取；Benchmark 和 Fixture 也不得进入 CacheSelector。
+它们不是自动获取结果、Live Run 或真实历史缓存。论文检索失败时不得直接返回 seed list 并将其描述为自动获取；Benchmark 和 Fixture 也不得进入 CacheSelector。
 
 当前 `1.3.0` Package 的 `review_status` 为 `approved`。PR #96 的网页端 GPT 技术与科研 PASS 已绑定最终 reviewed HEAD、`benchmark_version=1.3.0` 与当前 `scientific_payload_hash`，并以完整对象 scope 写入 `review_records`；所有带审核状态的 Summary、Evidence、Claim、Relation 和 Trace 均已批准。
 
@@ -45,7 +45,7 @@ Seed papers 和结构化样例属于 `Benchmark / seed` 数据等级，只允许
 
 ## 5. 稳定 Hash
 
-Benchmark 与 C-01 Manifest 共同调用 `app.schemas._hashing.compute_canonical_model_hash`，规则完全一致：
+Benchmark 与 Case/Field Manifest 共同调用 `app.schemas._hashing.compute_canonical_model_hash`，规则完全一致：
 
 1. 先通过对应 Pydantic payload 模型校验并应用显式默认值；
 2. 从顶层排除 `content_hash` 自身；
@@ -73,9 +73,9 @@ Package 还逐篇记录：
 - 许可/使用边界；
 - 限流和公网运行风险。
 
-本基准只保存元数据和短 abstract evidence。无法访问或未核验的全文不得生成全文 locator、页码或正文 Quote。来源 API 的实时配额和许可仍需 D-02 在实现时重新核验，D-01 声明不能替代运行时 SourceSnapshot。
+本基准只保存元数据和短 abstract evidence。无法访问或未核验的全文不得生成全文 locator、页码或正文 Quote。来源 API 的实时配额和许可仍需论文检索 Adapter 在运行时重新核验，静态声明不能替代运行时 SourceSnapshot。
 
-Crossref 的 `documented_policy` 同时保存 2025-11 计划公告、2025-12 实施更新和 access documentation 的声明与冲突；`observed_runtime_limits` 保存 2026-07-21 public 单记录/列表请求实际返回的 `x-api-pool=public`、`5/1s`、并发 `1` 和 HTTP 200。未配置真实联系身份，因此 polite 响应头记为未观测且不伪造。静态值只是版本化快照，运行时 Adapter 必须优先服从当前响应头、处理 `429`/backoff，并在缺失头时使用保守策略；D-01 不实现 Adapter。
+Crossref 的 `documented_policy` 同时保存 2025-11 计划公告、2025-12 实施更新和 access documentation 的声明与冲突；`observed_runtime_limits` 保存 2026-07-21 public 单记录/列表请求实际返回的 `x-api-pool=public`、`5/1s`、并发 `1` 和 HTTP 200。未配置真实联系身份，因此 polite 响应头记为未观测且不伪造。静态值只是版本化快照，运行时 Adapter 必须优先服从当前响应头、处理 `429`/backoff，并在缺失头时使用保守策略；本 Package 不实现 Adapter。
 
 ## 7. Evidence 等级
 
@@ -112,24 +112,24 @@ Relation 方向语义以 [Reasoning Protocol](../../../docs/ai/REASONING_PROTOCO
 
 `evaluate_benchmark` 只执行纯计数，不访问外部来源。Package 中冻结以下分子、分母：
 
-| 指标 | 分子 | 分母 | 空集合 |
-| --- | --- | --- | --- |
-| Candidate recall | 返回的 distinct expected paper id | 所有场景 distinct expected paper id | `not_available` |
-| Schema pass rate | 通过对应 Schema 的输出项 | 提交 Schema 校验的全部输出项 | `not_available` |
-| Evidence coverage | 已满足的 finding/limitation/Claim/accepted Relation/Trace/GraphEdge Evidence 义务 | 本次输出全部 Evidence 义务 | `not_available` |
-| Relation scientific accuracy | 类型和准入状态均匹配批准标签的 Relation | 具有批准科研标签的 Relation；pending 不计入 | `not_available` |
-| Evidence-less relation block rate | 被拦截进入 accepted 的无证据 Relation | 故意缺少必要 Evidence 的全部 Relation | `not_available` |
+| 指标                              | 分子                                                                              | 分母                                        | 空集合          |
+| --------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------- | --------------- |
+| Candidate recall                  | 返回的 distinct expected paper id                                                 | 所有场景 distinct expected paper id         | `not_available` |
+| Schema pass rate                  | 通过对应 Schema 的输出项                                                          | 提交 Schema 校验的全部输出项                | `not_available` |
+| Evidence coverage                 | 已满足的 finding/limitation/Claim/accepted Relation/Trace/GraphEdge Evidence 义务 | 本次输出全部 Evidence 义务                  | `not_available` |
+| Relation scientific accuracy      | 类型和准入状态均匹配批准标签的 Relation                                           | 具有批准科研标签的 Relation；pending 不计入 | `not_available` |
+| Evidence-less relation block rate | 被拦截进入 accepted 的无证据 Relation                                             | 故意缺少必要 Evidence 的全部 Relation       | `not_available` |
 
 分子不得大于分母。科研批准 Relation 为空时必须报告 `not_available`，不能用 0% 或 100% 掩盖没有 approved scientific benchmark label 的事实。
 
 ## 10. 下游消费
 
-- D-02：已固定消费 search scenarios、source policy、expected candidates 与 seed identifiers，并另建真实 SourceSnapshot；实现规则见 [PaperCollection Pipeline](../../../docs/engineering/PAPER_COLLECTION_PIPELINE.md)。
-- D-03：使用 Summary/Evidence 草案做 Prompt、Schema 和 Evidence 回归，不能直接发布为模型产物。
-- D-04：使用 Claim、Relation、Trace 和负例验证准入与科研评测。
-- D-05：使用同包 Graph taxonomy、accepted Relation 和完整性规则验证 Graph 发布门。
-- D-06：只将已发布版本作为修订基线，不原地改写本 Package。
-- B-04/X-00：通过版本/hash 固定引用；不得复制枚举或维护第二套基准正文。
+- 论文检索消费 search scenarios、source policy、expected candidates 与 seed identifiers，并另建真实 SourceSnapshot；实现规则见 [PaperCollection Pipeline](../../../docs/engineering/PAPER_COLLECTION_PIPELINE.md)。
+- 摘要生成使用 Summary/Evidence 草案做 Prompt、Schema 和 Evidence 回归，不能直接发布为模型产物。
+- 文献推理使用 Claim、Relation、Trace 和负例验证准入与科研评测。
+- Graph 发布门使用同包 Graph taxonomy、accepted Relation 和完整性规则。
+- 修订流程只将已发布版本作为基线，不原地改写本 Package。
+- API 与端到端评测通过版本/hash 固定引用；不得复制枚举或维护第二套基准正文。
 
 ## 11. 验证入口
 

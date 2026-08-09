@@ -1,11 +1,11 @@
 # Review Checklist
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
+| 元数据    | 值                                             |
+| --------- | ---------------------------------------------- |
+| Status    | Accepted                                       |
 | Authority | 单个 Pull Request 的正式技术 Review 与合并清单 |
 
-本清单由正式技术 Review 使用，回答“这个 PR 是否可以合并”。里程碑与阶段退出由 [Acceptance](../product/ACCEPTANCE.md) 校验。
+本清单由正式技术 Review 使用，回答“这个 PR 是否可以合并”。产品验收与退出证据由 [Acceptance](../product/ACCEPTANCE.md) 校验。
 
 ## 1. 范围
 

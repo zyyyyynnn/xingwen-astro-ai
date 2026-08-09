@@ -67,5 +67,5 @@ Bug/Task，不在本 Bug 中扩张范围。
 
 ## 治理要求
 
-必须添加 `bug`、一个或多个 `area:*`、一个 `priority:p0/p1/p2`，并归入对应
-Milestone。一个 PR 只能有一个主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。
+必须添加 `bug`、一个或多个 `area:*` 与一个 `priority:p0/p1/p2`。一个 PR 只能有一个
+主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。

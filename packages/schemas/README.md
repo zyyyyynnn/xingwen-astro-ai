@@ -76,7 +76,7 @@ CI 使用临时目录执行导出和 stale diff。只有作为契约漂移基线
 - Benchmark Contract 不是 HTTP Transport API；只有被 FastAPI Router 引用的模型才会自动进入运行 OpenAPI。
 - `generated/literature_claim` 固定唯一领域编写源的 extraction、admission、publisher candidate 与 Benchmark report；旧版 `reasoning.LiteratureClaim`/`LiteratureReasoningResponse` 和 core `LiteratureClaimsArtifactContent` 只保留冻结传输/投影兼容，不能进入 Publisher。
 - `generated/literature_relation` 固定唯一领域编写源的 extraction、Relation/ReasoningTrace admission、publisher candidate 与 Benchmark report；旧版 `reasoning.LiteratureRelation`/`ReasoningTrace` 和 core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 只保留冻结传输/投影兼容，不能进入 Publisher。
-- `generated/phase0` 同步导出 build input、三类 typed candidate、MappingRuleSet 与 UnitConversionCatalog；`DataArtifactBuildResult`、领域投影和 publication seal 仅是进程内对象，不是公共 JSON Contract。六个公共模型均可 JSON/Pydantic round-trip，但 round-trip candidate 不恢复 publication seal。这些 Schema 是 Pipeline Contract，不会因此成为 HTTP DTO 或数据库记录。
+- 数据产物生成 Schema 同步导出 build input、三类 typed candidate、MappingRuleSet 与 UnitConversionCatalog；`DataArtifactBuildResult`、领域投影和 publication seal 仅是进程内对象，不是公共 JSON Contract。六个公共模型均可 JSON/Pydantic round-trip，但 round-trip candidate 不恢复 publication seal。这些 Schema 是 Pipeline Contract，不会因此成为 HTTP DTO 或数据库记录。
 - `Benchmark*` Schema 不改变 `/api` DTO 或路由；Schema 导出不等于运行 Pipeline 接线。
 - Pydantic Contract 的统一编写源为 `apps/api/src/app/schemas`，Pipeline 和文档不得复制同名生产 Schema 形成第二事实源。
 

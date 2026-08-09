@@ -1,8 +1,8 @@
-# C-01 Case / Field Manifest
+# Case / Field Manifest
 
 ## 1. 范围
 
-本目录保存主案例 `exoplanet_host_star` 的版本化、机器可读数据事实源。C-01 只冻结字段、单位、来源别名、冲突、缺失、误差、上下限、对象标识、crossmatch 与 Evidence locator 规则，不执行数据获取、实体匹配、单位换算或质量评分。
+本目录保存主案例 `exoplanet_host_star` 的版本化、机器可读数据事实源。Manifest 只冻结字段、单位、来源别名、冲突、缺失、误差、上下限、对象标识、crossmatch 与 Evidence locator 规则，不执行数据获取、实体匹配、单位换算或质量评分。
 
 主案例面向 TESS 系外行星候选体及其宿主恒星。当前字段语义以项目架构文档和 NASA Exoplanet Archive 的官方表定义为依据：
 
@@ -14,8 +14,8 @@
 
 - `services/data_pipeline/manifests/exoplanet_host_star/` 保存 Case Manifest 和 Field Manifest 数据。
 - `services/data_pipeline/manifests/exoplanet_host_star/source-evidence/` 保存官方定义、TAP_SCHEMA 观测和裁决记录；证据解释来源列裁决，但不替代 Manifest 的生产契约。
-- `services/data_pipeline/manifests/exoplanet_host_star/mapping-rules/` 保存 C-04 唯一执行策略与单位换算实现 catalog；它固定 Dataset row-grain/entity projection、集合 tolerance、容量、Decimal serialization limits 和常数 provenance，但不复制 Field Manifest 字段事实。生产入口必须从这些 JSON 加载并拒绝 caller-owned 替代策略。
-- `services/data_pipeline/manifests/exoplanet_host_star/quality-rules/` 保存 C-05 唯一质量 RuleSet、公式注册表、Decimal ratio/status policy、Contract bindings、Publisher pass-only policy 和容量边界；它引用 C-02/C-04/C-08 pins，不复制 Field Manifest 的字段—指标关系。生产入口必须与该冻结实例完整等值。
+- `services/data_pipeline/manifests/exoplanet_host_star/mapping-rules/` 保存唯一字段映射执行策略与单位换算实现 catalog；它固定 Dataset row-grain/entity projection、集合 tolerance、容量、Decimal serialization limits 和常数 provenance，但不复制 Field Manifest 字段事实。生产入口必须从这些 JSON 加载并拒绝 caller-owned 替代策略。
+- `services/data_pipeline/manifests/exoplanet_host_star/quality-rules/` 保存唯一质量 RuleSet、公式注册表、Decimal ratio/status policy、Contract bindings、Publisher pass-only policy 和容量边界；它固定引用来源获取、字段映射与跨源匹配结果，不复制 Field Manifest 的字段—指标关系。生产入口必须与该冻结实例完整等值。
 - `apps/api/src/app/schemas/manifest.py` 是 Pydantic v2 Schema authoring source，只定义结构、稳定 hash 和静态校验，不新增 API 端点。
 - `packages/schemas/generated/` 只保存现有导出脚本生成的 JSON Schema，不手写第二套生产 Schema。
 - `packages/domain`、`packages/contracts`、前端和 Pipeline 运行时代码只能按版本引用 Manifest，不复制字段清单。
@@ -60,7 +60,7 @@ Manifest 只声明来源元数据和选择规则，不访问来源：
 
 API/Case Manifest 使用 provider source id `nasa_exoplanet_archive`；Field Manifest 复用同一组 `SourceDefinition`，以 `provider_source_id + source_table` 派生 table source id：`nasa_exoplanet_archive.ps`、`nasa_exoplanet_archive.toi` 和 `nasa_exoplanet_archive.pscomppars`。不得为 API 粒度另建第二套来源注册表。
 
-table source 的选择顺序和字段适用范围直接读取 Field Manifest 的 `source_priority` 与 `source_aliases`，README 不复制这些字段事实。优先级不能静默删除低优先级原值；C-04 按 Manifest 策略选择展示 canonical value，同时保留全部来源值、冲突和 Transformation Evidence。完整运行规则见 [Versioned Data Artifacts](../../../docs/engineering/VERSIONED_DATA_ARTIFACTS.md)。
+table source 的选择顺序和字段适用范围直接读取 Field Manifest 的 `source_priority` 与 `source_aliases`，README 不复制这些字段事实。优先级不能静默删除低优先级原值；字段映射按 Manifest 策略选择展示 canonical value，同时保留全部来源值、冲突和 Transformation Evidence。完整运行规则见 [Versioned Data Artifacts](../../../docs/engineering/VERSIONED_DATA_ARTIFACTS.md)。
 
 ## 6. 规则声明
 
@@ -72,10 +72,10 @@ table source 的选择顺序和字段适用范围直接读取 Field Manifest 的
 - 正负误差分别声明，不把缺失误差解释为零误差。
 - upper/lower limit 使用来源 limit flag 规则声明，不把极限值解释为常规测量。
 - display name 只能参与 alias matching；唯一身份必须由 TOI/TIC/Gaia 标识或经审查的组合键确定。
-- coordinate matching 只声明所需字段和规则版本，阈值与算法由 C-03 实现。
+- coordinate matching 只声明所需字段和规则版本，阈值与算法由跨源实体对齐实现。
 - Evidence locator 至少要求 `source_snapshot_id`、`query_hash`、`row_key`、`raw_field` 和来源 reference locator（若来源提供）。
-- transformation rule 只保存不可变规则 id/version；C-01 不包含执行代码。
-- quality metric inputs 只声明字段参与 `completeness`、`missingness`、`conflict`、`unit_consistency`、`evidence_coverage` 或 `crossmatch_coverage`，不计算分数；C-05 读取该声明计算 raw metrics，不把 quality score 写回 Manifest。
+- transformation rule 只保存不可变规则 id/version；Manifest 不包含执行代码。
+- quality metric inputs 只声明字段参与 `completeness`、`missingness`、`conflict`、`unit_consistency`、`evidence_coverage` 或 `crossmatch_coverage`，不计算分数；质量评估读取该声明计算 raw metrics，不把 quality score 写回 Manifest。
 
 ## 7. 稳定 hash
 
