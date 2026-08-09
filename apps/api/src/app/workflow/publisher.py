@@ -1128,16 +1128,20 @@ class ArtifactPublisher:
                     ProducerExecutionModel.id == output.producer_execution_id
                 )
             )
-            _validate_publishable_producer(
-                producer,
+            if producer is None:
+                raise PublicationAdmissionError(
+                    "Publication requires a completed matching ProducerExecution"
+                )
+            _require_same_publication(
+                version,
+                producer=producer,
                 run_id=run.id,
                 step_id=step.id,
                 attempt_id=attempt_id,
                 output=output,
             )
-            _require_same_publication(
-                version,
-                producer=producer,
+            _validate_publishable_producer(
+                producer,
                 run_id=run.id,
                 step_id=step.id,
                 attempt_id=attempt_id,
