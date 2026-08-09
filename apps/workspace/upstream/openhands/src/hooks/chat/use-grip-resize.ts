@@ -1,8 +1,7 @@
 import React from "react";
 
-const MAX_HEIGHT_REM = 15;
-const KEYBOARD_STEP_REM = 1;
 const FALLBACK_ROOT_FONT_SIZE = 16;
+const FALLBACK_UNBOUNDED_HEIGHT = Number.MAX_SAFE_INTEGER;
 
 function getRootFontSize() {
   if (typeof document === "undefined") return FALLBACK_ROOT_FONT_SIZE;
@@ -11,6 +10,19 @@ function getRootFontSize() {
       window.getComputedStyle(document.documentElement).fontSize,
     ) || FALLBACK_ROOT_FONT_SIZE
   );
+}
+
+function getCssLengthInPixels(name: string, fallback: number) {
+  if (typeof document === "undefined") return fallback;
+  const value = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  const amount = Number.parseFloat(value);
+  if (!Number.isFinite(amount)) return fallback;
+  if (value.endsWith("rem")) return amount * getRootFontSize();
+  if (value.endsWith("px")) return amount;
+  return amount;
 }
 
 function clampHeight(height: number, minHeight: number, maxHeight: number) {
@@ -66,8 +78,14 @@ export function useGripResize(
   const suppressNextTopEdgeClickRef = React.useRef(false);
   const isManuallySizedRef = React.useRef(false);
 
-  const maxHeight = getRootFontSize() * MAX_HEIGHT_REM;
-  const keyboardStep = getRootFontSize() * KEYBOARD_STEP_REM;
+  const maxHeight = getCssLengthInPixels(
+    "--oh-composer-max-block-size",
+    FALLBACK_UNBOUNDED_HEIGHT,
+  );
+  const keyboardStep = getCssLengthInPixels(
+    "--oh-composer-keyboard-step",
+    getRootFontSize(),
+  );
 
   const measureNaturalHeight = React.useCallback(() => {
     const container = containerRef.current;

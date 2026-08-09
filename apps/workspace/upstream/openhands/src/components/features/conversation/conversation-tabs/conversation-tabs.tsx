@@ -36,6 +36,7 @@ export function ConversationTabs({
   const measureRowRef = React.useRef<HTMLDivElement>(null);
   const moreButtonRef = React.useRef<HTMLButtonElement>(null);
   const moreMenuRef = React.useRef<HTMLDivElement>(null);
+  const hasRestoredTabRef = React.useRef(false);
   const [inlineTabCount, setInlineTabCount] = React.useState(TABS.length);
   const [isMoreOpen, setIsMoreOpen] = React.useState(false);
   const [pendingFocusTab, setPendingFocusTab] =
@@ -47,12 +48,13 @@ export function ConversationTabs({
   }, []);
 
   React.useEffect(() => {
+    if (hasRestoredTabRef.current) return;
+    hasRestoredTabRef.current = true;
     const stored = readStoredTab();
     if (stored !== activeTab) onSelect(stored);
     // The parent owns the active tab; restoring it once is the only side effect
     // this adopted tab strip needs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeTab, onSelect]);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -175,12 +177,12 @@ export function ConversationTabs({
       ref={rowRef}
       role="tablist"
       aria-label="工作区面板"
-      className="relative flex h-full min-w-0 flex-1 items-stretch px-2"
+      className="relative flex h-full min-w-0 flex-1 items-stretch px-[var(--oh-space-2)]"
     >
       <div
         ref={measureRowRef}
         aria-hidden="true"
-        className="pointer-events-none absolute left-[-10000px] top-0 flex items-center gap-1"
+        className="pointer-events-none absolute left-[-10000px] top-0 flex items-center gap-[var(--oh-space-1)]"
       >
         {TABS.map(({ id, label, icon }) => (
           <ConversationTabNav
@@ -228,12 +230,15 @@ export function ConversationTabs({
               isMoreOpen ? closeMoreMenu(true) : setIsMoreOpen(true)
             }
           >
-            <MoreHorizontal className="size-4" aria-hidden="true" />
+            <MoreHorizontal
+              className="size-[var(--oh-icon-size-md)]"
+              aria-hidden="true"
+            />
           </button>
           {isMoreOpen ? (
             <div
               ref={moreMenuRef}
-              className="absolute left-0 top-full z-20 min-w-[128px] border border-[var(--oh-border-strong)] bg-[var(--oh-surface)] p-1 shadow-[var(--oh-shadow-float)]"
+              className="absolute left-0 top-full z-[var(--oh-layer-composer-grip)] min-w-[var(--oh-tab-overflow-min-inline-size)] border border-[var(--oh-border-strong)] bg-[var(--oh-surface)] p-[var(--oh-space-1)] shadow-[var(--oh-shadow-float)]"
               role="menu"
               aria-label="更多面板选项"
             >
@@ -245,10 +250,13 @@ export function ConversationTabs({
                     type="button"
                     role="menuitemradio"
                     aria-checked={tab.id === activeTab}
-                    className="flex w-full items-center gap-2 rounded-[var(--oh-radius-sm)] px-2 py-1.5 text-left text-sm text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)]"
+                    className="flex w-full items-center gap-[var(--oh-space-2)] rounded-[var(--oh-radius-sm)] px-[var(--oh-space-2)] py-[var(--oh-space-2)] text-left text-[length:var(--oh-font-size-body)] text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)]"
                     onClick={() => selectAt(TABS.indexOf(tab))}
                   >
-                    <Icon className="size-4" aria-hidden="true" />
+                    <Icon
+                      className="size-[var(--oh-icon-size-md)]"
+                      aria-hidden="true"
+                    />
                     {tab.label}
                   </button>
                 );

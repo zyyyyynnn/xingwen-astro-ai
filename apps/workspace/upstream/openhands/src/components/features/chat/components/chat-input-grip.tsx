@@ -28,7 +28,7 @@ export function ChatInputGrip({
   return (
     <div
       ref={gripRef}
-      className="group/grip absolute left-1/2 top-0 z-20 h-3 w-12 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize outline-none"
+      className="group/grip absolute left-1/2 top-0 z-[var(--oh-layer-composer-grip)] h-[var(--oh-space-3)] w-12 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize outline-none"
       role="separator"
       aria-label="调整指令输入区高度"
       aria-orientation="horizontal"

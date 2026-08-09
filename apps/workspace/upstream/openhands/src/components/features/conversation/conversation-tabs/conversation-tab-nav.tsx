@@ -36,7 +36,7 @@ export function ConversationTabNav({
       data-tab-measure={measureOnly ? "true" : undefined}
       id={measureOnly ? undefined : `workspace-tab-${id}`}
       className={cn(
-        "relative flex min-w-0 items-center gap-2 border-0 border-b-2 px-3 text-sm font-medium",
+        "relative flex min-w-0 items-center gap-[var(--oh-space-2)] border-0 border-b-2 px-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] font-medium",
         isActive
           ? "border-[var(--oh-accent)] text-[var(--oh-text)]"
           : "border-transparent text-[var(--oh-muted)] hover:text-[var(--oh-text)]",
@@ -44,7 +44,10 @@ export function ConversationTabNav({
       onClick={onClick}
       onKeyDown={onKeyDown}
     >
-      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      <Icon
+        className="size-[var(--oh-icon-size-md)] shrink-0"
+        aria-hidden="true"
+      />
       <span className="truncate">{label}</span>
     </button>
   );

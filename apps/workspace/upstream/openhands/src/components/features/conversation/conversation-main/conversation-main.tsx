@@ -13,9 +13,22 @@ import { cn } from "../../../../utils/utils";
 
 type WorkspacePanel = "activity" | "context";
 
-const DEFAULT_LEFT_PANEL_WIDTH = 58;
-const MIN_LEFT_PANEL_WIDTH = 38;
-const MAX_LEFT_PANEL_WIDTH = 72;
+function readCssNumberToken(name: string): number | undefined {
+  if (typeof document === "undefined") return undefined;
+  const value = Number.parseFloat(
+    window.getComputedStyle(document.documentElement).getPropertyValue(name),
+  );
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function readWorkspacePanelLayout() {
+  return {
+    defaultLeftWidth: readCssNumberToken("--oh-panel-default-ratio"),
+    minLeftWidth: readCssNumberToken("--oh-panel-min-ratio"),
+    maxLeftWidth: readCssNumberToken("--oh-panel-max-ratio"),
+    keyboardStep: readCssNumberToken("--oh-panel-keyboard-step"),
+  };
+}
 
 interface ConversationMainProps {
   readonly runtime: AgentWorkspaceRuntime;
@@ -31,17 +44,18 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
   const [isRightPanelShown, setIsRightPanelShown] = React.useState(true);
   const [activePanel, setActivePanel] =
     React.useState<WorkspacePanel>("activity");
+  const panelLayout = readWorkspacePanelLayout();
   const {
     leftWidth,
     rightWidth,
+    minLeftWidth,
+    maxLeftWidth,
     isDragging,
     containerRef,
     handleMouseDown,
     handleKeyboardResize,
   } = useResizablePanels({
-    defaultLeftWidth: DEFAULT_LEFT_PANEL_WIDTH,
-    minLeftWidth: MIN_LEFT_PANEL_WIDTH,
-    maxLeftWidth: MAX_LEFT_PANEL_WIDTH,
+    ...panelLayout,
     storageKey: "xingwen-agent-panel-width",
   });
 
@@ -52,9 +66,11 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
     ? PanelRightClose
     : PanelRightOpen;
   const contextSurface = (
-    <div className="h-full overflow-y-auto p-5">
+    <div className="h-full overflow-y-auto p-[var(--oh-space-6)]">
       <div className="oh-empty-state">
-        <p className="text-sm font-semibold">暂无上下文</p>
+        <p className="text-[length:var(--oh-font-size-body)] font-semibold">
+          暂无上下文
+        </p>
         <p>当前任务没有可展示的工作区上下文。</p>
       </div>
     </div>
@@ -68,7 +84,7 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
     >
       <button
         type="button"
-        className="oh-icon-button absolute right-2 top-2 z-30"
+        className="oh-icon-button absolute right-[var(--oh-header-control-inset-inline)] top-[var(--oh-header-control-inset-block)] z-[var(--oh-layer-header-toggle)]"
         aria-label={isRightPanelShown ? "收起活动面板" : "展开活动面板"}
         aria-controls="workspace-activity-panel"
         aria-expanded={isRightPanelShown}
@@ -86,12 +102,12 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
             "flex min-w-0 flex-col overflow-hidden bg-[var(--oh-surface)]",
             isDragging
               ? "transition-none"
-              : "transition-[width] duration-200 ease-out motion-reduce:transition-none",
+              : "transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
           )}
           aria-labelledby="agent-task-heading"
           style={{ width: isRightPanelShown ? `${leftWidth}%` : "100%" }}
         >
-          <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--oh-border)] py-0 pl-4 pr-12">
+          <header className="flex h-[var(--oh-header-block-size)] shrink-0 items-center gap-[var(--oh-space-3)] border-b border-[var(--oh-border)] py-0 pl-[var(--oh-header-inline-padding)] pr-[var(--oh-header-control-reserve-inline)]">
             <div className="flex min-w-0 flex-1 items-center">
               <ConversationNameWithStatus runtime={runtime} />
             </div>
@@ -104,8 +120,8 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
         {isRightPanelShown ? (
           <ResizeHandle
             value={leftWidth}
-            min={MIN_LEFT_PANEL_WIDTH}
-            max={MAX_LEFT_PANEL_WIDTH}
+            min={minLeftWidth}
+            max={maxLeftWidth}
             onMouseDown={handleMouseDown}
             onKeyboardResize={handleKeyboardResize}
             isDragging={isDragging}
@@ -118,7 +134,7 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
             "relative min-w-0 shrink-0 overflow-hidden border-l border-[var(--oh-border)] bg-[var(--oh-surface-muted)]",
             isDragging
               ? "transition-none"
-              : "transition-[width] duration-200 ease-out motion-reduce:transition-none",
+              : "transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
             !isRightPanelShown && "pointer-events-none",
           )}
           aria-label="活动面板"
@@ -130,7 +146,7 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
             className="absolute inset-y-0 right-0 flex min-w-0 flex-col"
             style={{ width: `${rightWidth}cqw` }}
           >
-            <div className="flex h-12 shrink-0 items-center border-b border-[var(--oh-border)] pr-12">
+            <div className="flex h-[var(--oh-header-block-size)] shrink-0 items-center border-b border-[var(--oh-border)] pr-[var(--oh-header-control-reserve-inline)]">
               <ConversationTabs
                 activeTab={activePanel}
                 onSelect={setActivePanel}

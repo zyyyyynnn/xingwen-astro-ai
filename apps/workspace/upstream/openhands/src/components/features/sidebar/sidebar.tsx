@@ -16,11 +16,15 @@ export function Sidebar({ onNewTask, canStartTask }: SidebarProps) {
 
   return (
     <aside
-      className="relative z-20 h-full shrink-0 overflow-hidden border-r border-[var(--oh-border)] bg-[var(--oh-surface-muted)] transition-[width] duration-200 ease-out motion-reduce:transition-none"
-      style={{ width: collapsed ? "3.5rem" : "15rem" }}
+      className="relative z-[var(--oh-layer-header-toggle)] h-full shrink-0 overflow-hidden border-r border-[var(--oh-border)] bg-[var(--oh-surface-muted)] transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none"
+      style={{
+        width: collapsed
+          ? "var(--oh-sidebar-collapsed-inline-size)"
+          : "var(--oh-sidebar-expanded-inline-size)",
+      }}
       aria-label="工作台侧栏"
     >
-      <div className="h-full w-60">
+      <div className="h-full w-[var(--oh-sidebar-inner-inline-size)]">
         <SidebarRailBody
           collapsed={collapsed}
           onNewTask={onNewTask}
@@ -29,7 +33,7 @@ export function Sidebar({ onNewTask, canStartTask }: SidebarProps) {
       </div>
       <button
         type="button"
-        className={`${SIDEBAR_ICON_BUTTON_CLASS} absolute right-3 top-2 z-10`}
+        className={`${SIDEBAR_ICON_BUTTON_CLASS} absolute right-[var(--oh-header-control-inset-inline)] top-[var(--oh-header-control-inset-block)] z-[var(--oh-layer-header-toggle)]`}
         aria-label={collapsed ? "展开侧栏" : "收起侧栏"}
         aria-expanded={!collapsed}
         onClick={toggleCollapsed}

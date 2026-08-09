@@ -44,7 +44,10 @@ export function EventGroup({
   const Chevron = expanded ? ChevronUp : ChevronDown;
 
   return (
-    <div className="my-1 w-full py-1 text-sm" data-testid="event-group">
+    <div
+      className="my-[var(--oh-space-1)] w-full py-[var(--oh-space-1)] text-[length:var(--oh-font-size-body)]"
+      data-testid="event-group"
+    >
       <button
         id={buttonId}
         type="button"
@@ -53,17 +56,23 @@ export function EventGroup({
         aria-expanded={expanded}
         aria-label={expanded ? "收起活动组" : "展开活动组"}
         data-testid="event-group-toggle"
-        className="flex w-full cursor-pointer items-center justify-between gap-2 text-left"
+        className="flex w-full cursor-pointer items-center justify-between gap-[var(--oh-space-2)] text-left"
       >
         {isFinalized ? (
-          <span className="flex min-w-0 items-center gap-2 font-normal text-[var(--oh-muted)]">
-            <Chevron className="size-4 shrink-0" aria-hidden="true" />
+          <span className="flex min-w-0 items-center gap-[var(--oh-space-2)] font-normal text-[var(--oh-muted)]">
+            <Chevron
+              className="size-[var(--oh-icon-size-md)] shrink-0"
+              aria-hidden="true"
+            />
             <span className="truncate">{countSummary}</span>
           </span>
         ) : (
           <>
-            <span className="flex min-w-0 items-center gap-2 font-normal text-[var(--oh-muted)]">
-              <Chevron className="size-4 shrink-0" aria-hidden="true" />
+            <span className="flex min-w-0 items-center gap-[var(--oh-space-2)] font-normal text-[var(--oh-muted)]">
+              <Chevron
+                className="size-[var(--oh-icon-size-md)] shrink-0"
+                aria-hidden="true"
+              />
               <span className="truncate">
                 {latestEvent?.title ?? countSummary}
               </span>
@@ -73,13 +82,19 @@ export function EventGroup({
               {isRunning ? (
                 <LoaderCircle
                   data-testid="spinner-icon"
-                  className="ml-2 size-4 animate-spin motion-reduce:animate-none"
+                  className="ml-[var(--oh-space-2)] size-[var(--oh-icon-size-md)] animate-spin motion-reduce:animate-none"
                   aria-hidden="true"
                 />
               ) : errorCount > 0 ? (
-                <AlertCircle className="ml-2 size-4" aria-hidden="true" />
+                <AlertCircle
+                  className="ml-[var(--oh-space-2)] size-[var(--oh-icon-size-md)]"
+                  aria-hidden="true"
+                />
               ) : (
-                <Check className="ml-2 size-4" aria-hidden="true" />
+                <Check
+                  className="ml-[var(--oh-space-2)] size-[var(--oh-icon-size-md)]"
+                  aria-hidden="true"
+                />
               )}
             </span>
           </>
@@ -90,7 +105,7 @@ export function EventGroup({
           id={contentId}
           role="region"
           aria-labelledby={buttonId}
-          className="mt-1.5 flex flex-col"
+          className="mt-[var(--oh-space-2)] flex flex-col"
           data-testid="event-group-content"
         >
           {children}

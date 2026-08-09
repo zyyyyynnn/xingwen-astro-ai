@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { requireBoundingBox } from "./test-helpers";
+
 /** 覆盖入口测试未涉及的键盘、焦点、200% 字体与窄屏边界证据。 */
 
 test("brand site keyboard navigation reaches the single CTA", async ({
@@ -141,15 +143,18 @@ test.describe("200% font scale", () => {
     ).toBeVisible();
 
     const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
-    const expandedSidebarWidth = (await sidebar.boundingBox())?.width;
-    expect(expandedSidebarWidth).not.toBeUndefined();
+    const expandedSidebarWidth = (
+      await requireBoundingBox(sidebar, "expanded sidebar")
+    ).width;
     await page.getByRole("button", { name: "收起侧栏" }).click();
     await expect(page.getByRole("button", { name: "展开侧栏" })).toBeVisible();
     await expect
       .poll(async () => (await sidebar.boundingBox())?.width ?? Infinity)
-      .toBeLessThan(expandedSidebarWidth!);
-    const collapsedSidebarWidth = (await sidebar.boundingBox())?.width;
-    expect(collapsedSidebarWidth).not.toBeUndefined();
+      .toBeLessThan(expandedSidebarWidth);
+    const collapsedSidebarWidth = (
+      await requireBoundingBox(sidebar, "collapsed sidebar")
+    ).width;
+    expect(collapsedSidebarWidth).toBeLessThan(expandedSidebarWidth);
     await page.getByRole("button", { name: "展开侧栏" }).click();
 
     const activityTab = page.getByRole("tab", { name: "活动" });
@@ -164,8 +169,15 @@ test.describe("200% font scale", () => {
       name: "调整任务与活动面板宽度",
     });
     await panelSeparator.focus();
+    const initialPanelRatio = Number(
+      await panelSeparator.getAttribute("aria-valuenow"),
+    );
     await page.keyboard.press("ArrowRight");
-    await expect(panelSeparator).toHaveAttribute("aria-valuenow", "60");
+    await expect
+      .poll(async () =>
+        Number(await panelSeparator.getAttribute("aria-valuenow")),
+      )
+      .toBeGreaterThan(initialPanelRatio);
 
     const commandTrigger = page.getByRole("button", {
       name: "打开命令菜单",
@@ -184,8 +196,10 @@ test.describe("200% font scale", () => {
     const composer = page.getByTestId("chat-input-container");
     const actions = page.getByTestId("chat-input-actions");
     const input = page.getByRole("textbox", { name: "向 Agent 发送指令" });
-    const initialComposerBox = await composer.boundingBox();
-    expect(initialComposerBox).not.toBeNull();
+    const initialComposerBox = await requireBoundingBox(
+      composer,
+      "initial composer",
+    );
     const initialComposerHeight = Number(
       await composerSeparator.getAttribute("aria-valuenow"),
     );
@@ -222,16 +236,17 @@ test.describe("200% font scale", () => {
     });
     await expect
       .poll(async () => (await composer.boundingBox())?.height ?? 0)
-      .toBeGreaterThan(initialComposerBox!.height);
-    const expandedComposerBox = await composer.boundingBox();
-    const actionsBox = await actions.boundingBox();
-    expect(expandedComposerBox).not.toBeNull();
-    expect(actionsBox).not.toBeNull();
-    expect(expandedComposerBox!.height).toBeGreaterThan(
-      initialComposerBox!.height,
+      .toBeGreaterThan(initialComposerBox.height);
+    const expandedComposerBox = await requireBoundingBox(
+      composer,
+      "expanded composer",
     );
-    expect(actionsBox!.y + actionsBox!.height).toBeLessThanOrEqual(
-      expandedComposerBox!.y + expandedComposerBox!.height + 1,
+    const actionsBox = await requireBoundingBox(actions, "composer actions");
+    expect(expandedComposerBox.height).toBeGreaterThan(
+      initialComposerBox.height,
+    );
+    expect(actionsBox.y + actionsBox.height).toBeLessThanOrEqual(
+      expandedComposerBox.y + expandedComposerBox.height + 1,
     );
     await input.evaluate((element) => {
       element.textContent = "";

@@ -185,6 +185,71 @@ describe("typography and motion tokens", () => {
   });
 });
 
+describe("workspace semantic geometry tokens", () => {
+  it("exposes the shared spacing and control scale", () => {
+    for (const token of [
+      "--space-1",
+      "--space-2",
+      "--space-3",
+      "--space-4",
+      "--space-6",
+      "--space-8",
+      "--control-size-sm",
+      "--control-size-md",
+      "--control-size-lg",
+      "--icon-size-xs",
+      "--icon-size-sm",
+      "--icon-size-md",
+      "--icon-size-lg",
+    ]) {
+      expect(css).toContain(token);
+    }
+  });
+
+  it("keeps Workspace text roles aligned with the OpenHands scale", () => {
+    expect(css).toContain("--font-size-label: var(--font-size-0);");
+    expect(css).toContain("--font-size-body: 0.875rem;");
+    expect(css).toContain("--font-size-title: var(--font-size-3);");
+    expect(css).toContain("--font-size-heading: 1.25rem;");
+  });
+
+  it("exposes the Workspace layout, panel, overlay and motion authority", () => {
+    for (const token of [
+      "--workspace-header-block-size",
+      "--workspace-sidebar-expanded-inline-size",
+      "--workspace-sidebar-collapsed-inline-size",
+      "--workspace-sidebar-inner-inline-size",
+      "--workspace-sidebar-icon-slot-inline-size",
+      "--workspace-sidebar-row-block-size",
+      "--workspace-content-max-inline-size",
+      "--workspace-min-inline-size",
+      "--workspace-composer-max-block-size",
+      "--workspace-composer-input-min-block-size",
+      "--workspace-composer-input-max-block-size",
+      "--workspace-composer-keyboard-step",
+      "--workspace-composer-padding-inline",
+      "--workspace-composer-padding-block",
+      "--workspace-composer-row-gap",
+      "--workspace-panel-default-ratio",
+      "--workspace-panel-min-ratio",
+      "--workspace-panel-max-ratio",
+      "--workspace-panel-keyboard-step",
+      "--workspace-command-menu-max-inline-size",
+      "--workspace-command-menu-max-block-size",
+      "--workspace-command-menu-viewport-offset",
+      "--workspace-motion-panel",
+      "--workspace-ease-panel",
+      "--workspace-header-control-reserve-inline",
+      "--workspace-layer-sidebar",
+      "--workspace-tab-overflow-min-inline-size",
+      "--workspace-layer-command-menu",
+      "--workspace-layer-panel-drag-shield",
+    ]) {
+      expect(css).toContain(token);
+    }
+  });
+});
+
 describe("retired palette hygiene", () => {
   it("does not contain retired haze, lunar or raw-gray tokens", () => {
     expect(css).not.toMatch(/haze|lunar|--raw-gray-/iu);

@@ -16,7 +16,7 @@ export default function MainApp({ runtime }: MainAppProps) {
   return (
     <div
       data-testid="root-layout"
-      className="flex h-dvh min-w-[1024px] overflow-hidden bg-[var(--oh-canvas)] text-[var(--oh-text)]"
+      className="flex h-dvh min-w-[var(--oh-min-inline-size)] overflow-hidden bg-[var(--oh-canvas)] text-[var(--oh-text)]"
     >
       <Sidebar
         onNewTask={focusComposer}

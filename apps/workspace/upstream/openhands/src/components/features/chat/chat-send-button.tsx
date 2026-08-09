@@ -12,13 +12,13 @@ export function ChatSendButton({
   return (
     <button
       type="button"
-      className="flex size-6 items-center justify-center rounded-[var(--oh-radius-pill)] border border-[var(--oh-accent)] bg-[var(--oh-accent)] text-[var(--oh-accent-on)] hover:bg-[var(--oh-accent-hover)] disabled:border-[var(--oh-border)] disabled:bg-[var(--oh-surface-muted)] disabled:text-[var(--oh-text-dim)]"
+      className="flex size-[var(--oh-control-size-sm)] items-center justify-center rounded-[var(--oh-radius-pill)] border border-[var(--oh-accent)] bg-[var(--oh-accent)] text-[var(--oh-accent-on)] hover:bg-[var(--oh-accent-hover)] disabled:border-[var(--oh-border)] disabled:bg-[var(--oh-surface-muted)] disabled:text-[var(--oh-text-dim)]"
       data-testid="submit-button"
       aria-label="发送指令"
       onClick={handleSubmit}
       disabled={disabled}
     >
-      <ArrowUp className="size-3.5" aria-hidden="true" />
+      <ArrowUp className="size-[var(--oh-icon-size-sm)]" aria-hidden="true" />
     </button>
   );
 }

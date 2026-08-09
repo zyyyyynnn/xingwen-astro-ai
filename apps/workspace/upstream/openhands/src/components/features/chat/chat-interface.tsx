@@ -71,16 +71,16 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
         aria-busy={phase === "running"}
       >
         {phase === "idle" && !notice ? (
-          <div className="flex min-h-full items-center justify-center px-8 py-10 text-center">
+          <div className="flex min-h-full items-center justify-center px-[var(--oh-space-8)] py-[var(--oh-space-8)] text-center">
             <div className="max-w-sm">
               <MessageSquareText
                 className="mx-auto size-7 text-[var(--oh-text-dim)]"
                 aria-hidden="true"
               />
-              <h2 className="mt-4 font-serif text-xl font-medium text-[var(--oh-text)]">
+              <h2 className="mt-4 font-serif text-[length:var(--oh-font-size-heading)] font-medium text-[var(--oh-text)]">
                 从一条明确指令开始
               </h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--oh-muted)]">
+              <p className="mt-2 text-[length:var(--oh-font-size-body)] leading-6 text-[var(--oh-muted)]">
                 连接 Agent 运行服务后，可在下方描述任务。
               </p>
             </div>
@@ -102,7 +102,10 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
           />
         ) : null}
         {notice ? (
-          <p className="px-5 py-3 text-sm text-[var(--oh-muted)]" role="status">
+          <p
+            className="px-[var(--oh-space-4)] py-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] text-[var(--oh-muted)]"
+            role="status"
+          >
             {notice}
           </p>
         ) : null}

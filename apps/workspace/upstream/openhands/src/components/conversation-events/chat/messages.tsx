@@ -82,16 +82,18 @@ export function ActivitySurface({ events = [] }: ActivitySurfaceProps) {
   return (
     <div
       ref={scrollRef}
-      className="h-full overflow-y-auto p-5"
+      className="h-full overflow-y-auto p-[var(--oh-space-6)]"
       role="log"
       aria-label="Agent 活动"
       aria-live="polite"
       onScroll={handleScroll}
     >
       {events.length === 0 ? (
-        <div className="space-y-5">
+        <div className="space-y-[var(--oh-space-6)]">
           <div className="oh-empty-state">
-            <p className="text-sm font-semibold">尚无 Agent 活动</p>
+            <p className="text-[length:var(--oh-font-size-body)] font-semibold">
+              尚无 Agent 活动
+            </p>
             <p>提交任务后，公开可审计的操作与进度会显示在这里。</p>
           </div>
           <CollapsibleRationale summary="查看活动公开范围">

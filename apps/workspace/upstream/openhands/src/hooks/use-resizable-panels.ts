@@ -1,12 +1,10 @@
 import React from "react";
 
-const PANEL_DRAG_SHIELD_Z_INDEX = 200;
-const KEYBOARD_STEP = 2;
-
 interface UseResizablePanelsOptions {
   readonly defaultLeftWidth?: number;
   readonly minLeftWidth?: number;
   readonly maxLeftWidth?: number;
+  readonly keyboardStep?: number;
   readonly storageKey?: string;
 }
 
@@ -14,6 +12,7 @@ export function useResizablePanels({
   defaultLeftWidth = 50,
   minLeftWidth = 30,
   maxLeftWidth = 80,
+  keyboardStep = 2,
   storageKey = "desktop-layout-panel-width",
 }: UseResizablePanelsOptions = {}) {
   const clampWidth = React.useCallback(
@@ -69,7 +68,7 @@ export function useResizablePanels({
     Object.assign(shield.style, {
       position: "fixed",
       inset: "0",
-      zIndex: String(PANEL_DRAG_SHIELD_Z_INDEX),
+      zIndex: "var(--oh-layer-panel-drag-shield)",
       cursor: "ew-resize",
     });
     document.body.appendChild(shield);
@@ -90,18 +89,20 @@ export function useResizablePanels({
   const handleKeyboardResize = React.useCallback(
     (direction: -1 | 1) => {
       setLeftWidth((current) => {
-        const next = clampWidth(current + direction * KEYBOARD_STEP);
+        const next = clampWidth(current + direction * keyboardStep);
         leftWidthRef.current = next;
         persistWidth(next);
         return next;
       });
     },
-    [clampWidth, persistWidth],
+    [clampWidth, keyboardStep, persistWidth],
   );
 
   return {
     leftWidth,
     rightWidth: 100 - leftWidth,
+    minLeftWidth,
+    maxLeftWidth,
     isDragging,
     containerRef,
     handleMouseDown,

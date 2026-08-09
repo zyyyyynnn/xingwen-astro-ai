@@ -36,7 +36,7 @@ export function ChatInputContainer({
     <div
       ref={chatContainerRef}
       data-testid="chat-input-container"
-      className="flex h-full min-h-0 w-full flex-col justify-between gap-y-2 rounded-[var(--oh-radius-lg)] border border-[var(--oh-border-strong)] bg-transparent p-3"
+      className="flex h-full min-h-0 w-full flex-col justify-between gap-y-[var(--oh-composer-row-gap)] rounded-[var(--oh-radius-lg)] border border-[var(--oh-border-strong)] bg-transparent px-[var(--oh-composer-padding-inline)] py-[var(--oh-composer-padding-block)]"
     >
       <ChatInputRow
         chatInputRef={chatInputRef}

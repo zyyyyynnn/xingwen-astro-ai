@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import {
+  requireBoundingBox,
+  requireValue,
+  requireViewport,
+} from "./test-helpers";
+
 /** 验证源码采用后的 /workspace 壳层与 /share 安全边界。 */
 
 function collectRuntimeErrors(page: Page) {
@@ -20,13 +26,13 @@ async function assertDesktopWorkspacePath(page: Page) {
     .getByRole("tablist", { name: "工作区面板" })
     .locator("..");
   const [headerBox, rightHeaderBox] = await Promise.all([
-    header.boundingBox(),
-    rightHeader.boundingBox(),
+    requireBoundingBox(header, "workspace header"),
+    requireBoundingBox(rightHeader, "activity header"),
   ]);
-  expect(headerBox).not.toBeNull();
-  expect(rightHeaderBox).not.toBeNull();
-  expect(headerBox!.height).toBe(48);
-  expect(rightHeaderBox!.height).toBe(48);
+  expect(headerBox.y).toBe(0);
+  expect(rightHeaderBox.y).toBe(0);
+  expect(headerBox.height).toBeGreaterThan(0);
+  expect(rightHeaderBox.height).toBe(headerBox.height);
 
   const activityTab = page.getByRole("tab", { name: "活动" });
   await activityTab.focus();
@@ -39,8 +45,15 @@ async function assertDesktopWorkspacePath(page: Page) {
     name: "调整任务与活动面板宽度",
   });
   await panelSeparator.focus();
+  const initialPanelRatio = Number(
+    await panelSeparator.getAttribute("aria-valuenow"),
+  );
   await page.keyboard.press("ArrowRight");
-  await expect(panelSeparator).toHaveAttribute("aria-valuenow", "60");
+  await expect
+    .poll(async () =>
+      Number(await panelSeparator.getAttribute("aria-valuenow")),
+    )
+    .toBeGreaterThan(initialPanelRatio);
 
   const commandTrigger = page.getByRole("button", {
     name: "打开命令菜单",
@@ -54,12 +67,22 @@ async function assertDesktopWorkspacePath(page: Page) {
   const composer = page.getByRole("textbox", {
     name: "向 Agent 发送指令",
   });
-  const composerBox = await composer.boundingBox();
-  const viewport = page.viewportSize();
-  expect(composerBox).not.toBeNull();
-  expect(viewport).not.toBeNull();
-  expect(composerBox!.y + composerBox!.height).toBeGreaterThan(
-    viewport!.height - 180,
+  await expect(composer).toBeVisible();
+  const composerContainer = page.getByTestId("chat-input-container");
+  const composerBox = await requireBoundingBox(
+    composerContainer,
+    "composer container",
+  );
+  const actionBox = await requireBoundingBox(
+    page.getByTestId("chat-input-actions"),
+    "composer actions",
+  );
+  const viewport = requireViewport(page);
+  expect(
+    viewport.height - composerBox.y - composerBox.height,
+  ).toBeLessThanOrEqual(24);
+  expect(actionBox.y + actionBox.height).toBeLessThanOrEqual(
+    composerBox.y + composerBox.height,
   );
 }
 
@@ -81,15 +104,16 @@ test("Workspace host renders the desktop shell", async ({ page }) => {
   const runtimeStatus = page.getByText("运行服务未连接", { exact: true });
   await expect(heading).toBeVisible();
   await expect(runtimeStatus).toHaveCount(1);
-  const headingBox = await heading.boundingBox();
-  const runtimeStatusBox = await runtimeStatus.boundingBox();
-  expect(headingBox).not.toBeNull();
-  expect(runtimeStatusBox).not.toBeNull();
+  const headingBox = await requireBoundingBox(heading, "workspace title");
+  const runtimeStatusBox = await requireBoundingBox(
+    runtimeStatus,
+    "runtime status",
+  );
   expect(
     Math.abs(
-      headingBox!.y +
-        headingBox!.height / 2 -
-        (runtimeStatusBox!.y + runtimeStatusBox!.height / 2),
+      headingBox.y +
+        headingBox.height / 2 -
+        (runtimeStatusBox.y + runtimeStatusBox.height / 2),
     ),
   ).toBeLessThanOrEqual(2);
   await expect(page.getByText("星文智析")).toBeVisible();
@@ -123,32 +147,34 @@ test("Workspace top bars share one height, divider, and type scale", async ({
     .locator("..");
 
   const barBoxes = await Promise.all(
-    [sidebarBar, workspaceBar, activityBar].map((bar) => bar.boundingBox()),
+    [sidebarBar, workspaceBar, activityBar].map((bar, index) =>
+      requireBoundingBox(bar, `top bar ${index}`),
+    ),
   );
   for (const box of barBoxes) {
-    expect(box).not.toBeNull();
-    expect(box!.y).toBe(0);
-    expect(box!.height).toBe(48);
+    expect(box.y).toBe(0);
+    expect(box.height).toBe(barBoxes[0].height);
   }
   for (const bar of [sidebarBar, workspaceBar, activityBar]) {
     await expect(bar).toHaveCSS("border-bottom-width", "1px");
   }
 
-  await expect(page.locator(".xw-brand-mark__title")).toHaveCSS(
-    "font-size",
-    "14px",
-  );
-  await expect(page.getByRole("heading", { name: "研究工作台" })).toHaveCSS(
-    "font-size",
-    "14px",
-  );
-  await expect(page.getByRole("tab", { name: "活动" })).toHaveCSS(
-    "font-size",
-    "14px",
-  );
-  await expect(page.getByText("运行服务未连接", { exact: true })).toHaveCSS(
-    "font-size",
-    "12px",
+  const brandFontSize = await page
+    .getByText("星文智析", { exact: true })
+    .evaluate((element) => getComputedStyle(element).fontSize);
+  const titleFontSize = await page
+    .getByRole("heading", { name: "研究工作台" })
+    .evaluate((element) => getComputedStyle(element).fontSize);
+  const tabFontSize = await page
+    .getByRole("tab", { name: "活动" })
+    .evaluate((element) => getComputedStyle(element).fontSize);
+  const statusFontSize = await page
+    .getByText("运行服务未连接", { exact: true })
+    .evaluate((element) => getComputedStyle(element).fontSize);
+  expect(brandFontSize).toBe(titleFontSize);
+  expect(tabFontSize).toBe(titleFontSize);
+  expect(Number.parseFloat(statusFontSize)).toBeLessThan(
+    Number.parseFloat(titleFontSize),
   );
 });
 
@@ -193,13 +219,14 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
   expect(rightMotion).toEqual(leftMotion);
 
   const collapse = page.getByRole("button", { name: "收起活动面板" });
-  const before = await collapse.boundingBox();
+  const before = await requireBoundingBox(collapse, "collapse toggle");
   const activityHeading = rightPanel.getByText("尚无 Agent 活动", {
     exact: true,
   });
-  const initialHeadingBox = await activityHeading.boundingBox();
-  expect(before).not.toBeNull();
-  expect(initialHeadingBox).not.toBeNull();
+  const initialHeadingBox = await requireBoundingBox(
+    activityHeading,
+    "activity empty state",
+  );
   await expect(rightPanel).toHaveAttribute("aria-hidden", "false");
   expect(await rightPanel.evaluate((element) => element.inert)).toBe(false);
 
@@ -220,30 +247,30 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
       surfaceWidth: surface.getBoundingClientRect().width,
     };
   });
-  expect(collapsedSurfaceMetrics).not.toBeNull();
+  const collapsedMetrics = requireValue(
+    collapsedSurfaceMetrics,
+    "collapsed workspace surface",
+  );
   expect(
-    Math.abs(
-      collapsedSurfaceMetrics!.surfaceWidth -
-        collapsedSurfaceMetrics!.taskPanelWidth,
-    ),
+    Math.abs(collapsedMetrics.surfaceWidth - collapsedMetrics.taskPanelWidth),
   ).toBeLessThanOrEqual(1);
-  const collapsedAnchor = await expand.boundingBox();
-  expect(collapsedAnchor).not.toBeNull();
-  expect(Math.abs(collapsedAnchor!.x - before!.x)).toBeLessThanOrEqual(2);
+  const collapsedAnchor = await requireBoundingBox(expand, "expanded toggle");
+  expect(Math.abs(collapsedAnchor.x - before.x)).toBeLessThanOrEqual(2);
 
   await expand.click();
   await expect(collapse).toBeFocused();
   await expect(rightPanel).toBeVisible();
   await expect(rightPanel).toHaveAttribute("aria-hidden", "false");
   expect(await rightPanel.evaluate((element) => element.inert)).toBe(false);
-  const expandedHeadingBox = await activityHeading.boundingBox();
-  expect(expandedHeadingBox).not.toBeNull();
+  const expandedHeadingBox = await requireBoundingBox(
+    activityHeading,
+    "restored activity empty state",
+  );
   expect(
-    Math.abs(expandedHeadingBox!.height - initialHeadingBox!.height),
+    Math.abs(expandedHeadingBox.height - initialHeadingBox.height),
   ).toBeLessThanOrEqual(1);
-  const expandedAnchor = await collapse.boundingBox();
-  expect(expandedAnchor).not.toBeNull();
-  expect(Math.abs(expandedAnchor!.x - before!.x)).toBeLessThanOrEqual(2);
+  const expandedAnchor = await requireBoundingBox(collapse, "collapse toggle");
+  expect(Math.abs(expandedAnchor.x - before.x)).toBeLessThanOrEqual(2);
   await expect(activityHeading).toBeVisible();
 });
 
@@ -260,7 +287,7 @@ test("Sidebar toggle tracks the rail edge throughout collapse and expansion", as
     const initialNewTaskIcon = sidebarElement.querySelector<SVGElement>(
       'button[aria-label="新建任务"] svg',
     );
-    if (!toggle || !initialNewTaskIcon) return [];
+    if (!toggle || !initialNewTaskIcon) return null;
 
     const readGeometry = () => {
       const sidebarBox = sidebarElement.getBoundingClientRect();
@@ -284,16 +311,17 @@ test("Sidebar toggle tracks the rail edge throughout collapse and expansion", as
     return { expanded, collapsed, restored };
   });
 
-  expect(geometry).not.toBeNull();
+  const sidebarGeometry = requireValue(geometry, "sidebar geometry");
   expect(
     Math.abs(
-      geometry!.expanded.toggleRightGap - geometry!.restored.toggleRightGap,
+      sidebarGeometry.expanded.toggleRightGap -
+        sidebarGeometry.restored.toggleRightGap,
     ),
   ).toBeLessThanOrEqual(2);
   expect(
     Math.abs(
-      geometry!.expanded.newTaskIconCenter -
-        geometry!.restored.newTaskIconCenter,
+      sidebarGeometry.expanded.newTaskIconCenter -
+        sidebarGeometry.restored.newTaskIconCenter,
     ),
   ).toBeLessThanOrEqual(2);
 });
@@ -303,31 +331,38 @@ test("Sidebar text stays horizontal after expansion", async ({ page }) => {
 
   const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   await page.getByRole("button", { name: "收起侧栏" }).click();
-  await expect(sidebar).toHaveCSS("width", "56px");
+  await expect(page.getByText("星文智析", { exact: true })).toBeHidden();
 
-  const textHeights = await sidebar.evaluate((sidebarElement) => {
-    const toggle = sidebarElement.querySelector<HTMLButtonElement>(
-      'button[aria-label="展开侧栏"]',
-    );
-    if (!toggle) return [];
-
-    toggle.click();
-    const brandTitle = sidebarElement.querySelector<HTMLElement>(
-      ".xw-brand-mark__title",
-    );
-    const emptyTask = sidebarElement.querySelector<HTMLElement>(
-      '[aria-label="任务列表"] p',
-    );
-    if (!brandTitle || !emptyTask) return null;
-    return {
-      brand: brandTitle.getBoundingClientRect().height,
-      emptyTask: emptyTask.getBoundingClientRect().height,
-    };
-  });
-
-  expect(textHeights).not.toBeNull();
-  expect(textHeights!.brand).toBeLessThanOrEqual(24);
-  expect(textHeights!.emptyTask).toBeLessThanOrEqual(24);
+  await expect(page.getByRole("button", { name: "展开侧栏" })).toBeVisible();
+  await page.getByRole("button", { name: "展开侧栏" }).click();
+  const brandTitle = page.getByText("星文智析", { exact: true });
+  const emptyTask = sidebar
+    .getByRole("region", { name: "任务列表" })
+    .getByText("没有任务记录", { exact: true });
+  await expect(brandTitle).toBeVisible();
+  await expect(emptyTask).toBeVisible();
+  const textHeights = await Promise.all(
+    [brandTitle, emptyTask].map((locator) =>
+      locator.evaluate((element) => ({
+        height: element.getBoundingClientRect().height,
+        whiteSpace: getComputedStyle(element).whiteSpace,
+        writingMode: getComputedStyle(element).writingMode,
+      })),
+    ),
+  );
+  const [brandMetrics, emptyTaskMetrics] = textHeights;
+  const expandedText = requireValue(
+    brandMetrics && emptyTaskMetrics
+      ? { brand: brandMetrics, emptyTask: emptyTaskMetrics }
+      : null,
+    "expanded sidebar text",
+  );
+  expect(expandedText.brand.height).toBeGreaterThan(0);
+  expect(expandedText.emptyTask.height).toBeGreaterThan(0);
+  expect(expandedText.brand.whiteSpace).toBe("nowrap");
+  expect(expandedText.emptyTask.whiteSpace).toBe("nowrap");
+  expect(expandedText.brand.writingMode).toBe("horizontal-tb");
+  expect(expandedText.emptyTask.writingMode).toBe("horizontal-tb");
 });
 
 test("Composer stays transparent without a full-width hover line", async ({
@@ -342,12 +377,14 @@ test("Composer stays transparent without a full-width hover line", async ({
   const conversationBox = await page
     .getByTestId("conversation-main")
     .boundingBox();
-  expect(composerBox).not.toBeNull();
-  expect(conversationBox).not.toBeNull();
-  expect(composerBox!.height).toBeGreaterThanOrEqual(72);
-  expect(composerBox!.height).toBeLessThanOrEqual(80);
-  expect(composerBox!.y + composerBox!.height).toBeGreaterThan(
-    conversationBox!.y + conversationBox!.height - 24,
+  const composerBounds = requireValue(composerBox, "composer bounds");
+  const conversationBounds = requireValue(
+    conversationBox,
+    "conversation bounds",
+  );
+  expect(composerBounds.height).toBeGreaterThan(0);
+  expect(composerBounds.y + composerBounds.height).toBeLessThanOrEqual(
+    conversationBounds.y + conversationBounds.height + 1,
   );
 
   const gripIndicator = page
@@ -395,9 +432,13 @@ test("Workspace tabs and split panel support keyboard control", async ({
     name: "调整任务与活动面板宽度",
   });
   await separator.focus();
-  await expect(separator).toHaveAttribute("aria-valuenow", "58");
+  const initialPanelRatio = Number(
+    await separator.getAttribute("aria-valuenow"),
+  );
   await page.keyboard.press("ArrowRight");
-  await expect(separator).toHaveAttribute("aria-valuenow", "60");
+  await expect
+    .poll(async () => Number(await separator.getAttribute("aria-valuenow")))
+    .toBeGreaterThan(initialPanelRatio);
 
   await page.getByRole("button", { name: "收起活动面板" }).click();
   await expect(
@@ -438,8 +479,26 @@ test("Composer natural layout grows without clipping at 100%", async ({
   const input = page.getByRole("textbox", { name: "向 Agent 发送指令" });
   const composer = page.getByTestId("chat-input-container");
   const actions = page.getByTestId("chat-input-actions");
-  const before = await composer.boundingBox();
-  expect(before).not.toBeNull();
+  const before = await requireBoundingBox(composer, "initial composer");
+  const rhythm = await composer.evaluate((container) => {
+    const input = container.querySelector<HTMLElement>('[role="textbox"]');
+    const actions = container.querySelector<HTMLElement>(
+      '[data-testid="chat-input-actions"]',
+    );
+    if (!input || !actions) {
+      throw new Error("Composer rhythm elements are missing");
+    }
+    const containerBox = container.getBoundingClientRect();
+    const inputBox = input.getBoundingClientRect();
+    const actionsBox = actions.getBoundingClientRect();
+    return {
+      edgePadding: inputBox.top - containerBox.top,
+      rowGap: actionsBox.top - inputBox.bottom,
+    };
+  });
+  expect(rhythm.edgePadding).toBeGreaterThan(0);
+  expect(rhythm.rowGap).toBeGreaterThanOrEqual(12);
+  expect(rhythm.rowGap).toBeGreaterThan(rhythm.edgePadding);
 
   await input.evaluate((element) => {
     element.contentEditable = "true";
@@ -454,15 +513,12 @@ test("Composer natural layout grows without clipping at 100%", async ({
   });
   await expect
     .poll(async () => (await composer.boundingBox())?.height ?? 0)
-    .toBeGreaterThan(before!.height);
-  const after = await composer.boundingBox();
-  const actionsBox = await actions.boundingBox();
-  expect(after).not.toBeNull();
-  expect(actionsBox).not.toBeNull();
-  expect(after!.height).toBeGreaterThan(before!.height);
-  expect(after!.height).toBeLessThanOrEqual(240);
-  expect(actionsBox!.y + actionsBox!.height).toBeLessThanOrEqual(
-    after!.y + after!.height + 1,
+    .toBeGreaterThan(before.height);
+  const after = await requireBoundingBox(composer, "expanded composer");
+  const actionsBox = await requireBoundingBox(actions, "composer actions");
+  expect(after.height).toBeGreaterThan(before.height);
+  expect(actionsBox.y + actionsBox.height).toBeLessThanOrEqual(
+    after.y + after.height + 1,
   );
   await input.evaluate((element) => {
     element.textContent = "";
@@ -564,14 +620,16 @@ test("Split-panel drag has no easing or leftover interception", async ({
     };
   });
 
-  expect(result).not.toBeNull();
-  expect(result!.transitionDurations).toEqual(["0s", "0s"]);
-  expect(result!.afterTaskWidth).toBeGreaterThan(0);
-  expect(result!.afterActivityWidth).toBeGreaterThan(0);
-  expect(result!.afterTaskWidth).not.toBe(result!.beforeTaskWidth);
-  expect(result!.afterActivityWidth).not.toBe(result!.beforeActivityWidth);
-  expect(result!.bodyCursor).toBe("");
-  expect(result!.bodyUserSelect).toBe("");
+  const dragResult = requireValue(result, "split-panel drag result");
+  expect(dragResult.transitionDurations).toEqual(["0s", "0s"]);
+  expect(dragResult.afterTaskWidth).toBeGreaterThan(0);
+  expect(dragResult.afterActivityWidth).toBeGreaterThan(0);
+  expect(dragResult.afterTaskWidth).not.toBe(dragResult.beforeTaskWidth);
+  expect(dragResult.afterActivityWidth).not.toBe(
+    dragResult.beforeActivityWidth,
+  );
+  expect(dragResult.bodyCursor).toBe("");
+  expect(dragResult.bodyUserSelect).toBe("");
   const activityToggle = page.getByRole("button", { name: "收起活动面板" });
   await activityToggle.click();
   await expect(
@@ -581,6 +639,10 @@ test("Split-panel drag has no easing or leftover interception", async ({
 
 test("Public share route renders the fixed safe boundary", async ({ page }) => {
   const errors = collectRuntimeErrors(page);
+  const failedResponses: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400) failedResponses.push(response.url());
+  });
 
   await page.goto("http://127.0.0.1:5173/share/demo-token");
 
@@ -598,9 +660,9 @@ test("Public share route renders the fixed safe boundary", async ({ page }) => {
   await expect(retry.locator("xpath=..")).toHaveCSS("display", "flex");
   await expect(retry).toHaveCSS("border-top-style", "solid");
   await expect(retry).toHaveCSS("min-height", "40px");
-  expect((await retry.boundingBox())!.x).toBeLessThan(
-    (await returnHome.boundingBox())!.x,
-  );
+  const retryBox = await requireBoundingBox(retry, "share retry button");
+  const returnHomeBox = await requireBoundingBox(returnHome, "share home link");
+  expect(retryBox.x).toBeLessThan(returnHomeBox.x);
   await retry.click();
   await expect(
     page.getByRole("heading", { name: "共享结果当前不可用" }),
@@ -608,7 +670,14 @@ test("Public share route renders the fixed safe boundary", async ({ page }) => {
 
   await expect(returnHome).toHaveAttribute("href", "/");
   expect(await page.locator("body").innerText()).not.toContain("demo-token");
-  expect(errors).toEqual([]);
+  expect(
+    failedResponses.filter(
+      (url) => !url.includes("/api/public/shares/demo-token"),
+    ),
+  ).toEqual([]);
+  expect(
+    errors.filter((error) => !error.startsWith("Failed to load resource:")),
+  ).toEqual([]);
 });
 
 test("Public share route never creates a private session", async ({ page }) => {

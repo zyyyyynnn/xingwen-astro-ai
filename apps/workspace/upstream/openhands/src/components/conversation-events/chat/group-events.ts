@@ -61,19 +61,20 @@ export const groupEvents = (
   } | null = null;
 
   const flushRun = () => {
-    if (!run) return;
-    if (run.events.length >= minSize) {
+    const currentRun = run;
+    if (!currentRun) return;
+    if (currentRun.events.length >= minSize) {
       items.push({
         kind: "group",
-        events: run.events,
-        startIndex: run.startIndex,
+        events: currentRun.events,
+        startIndex: currentRun.startIndex,
       });
     } else {
-      run.events.forEach((event, offset) => {
+      currentRun.events.forEach((event, offset) => {
         items.push({
           kind: "single",
           event,
-          index: run!.startIndex + offset,
+          index: currentRun.startIndex + offset,
         });
       });
     }

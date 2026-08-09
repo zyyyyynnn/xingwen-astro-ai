@@ -47,4 +47,10 @@ export default tseslint.config(
     },
     rules: reactHooks.configs.flat.recommended.rules,
   },
+  {
+    files: ["apps/workspace/**/*.{ts,tsx}", "tests/e2e/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "error",
+    },
+  },
 );

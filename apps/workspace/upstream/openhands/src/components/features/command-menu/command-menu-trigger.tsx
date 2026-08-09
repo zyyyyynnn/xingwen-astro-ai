@@ -24,12 +24,12 @@ export function CommandMenuTrigger({ collapsed }: CommandMenuTriggerProps) {
       className={sidebarNavRowClassName()}
     >
       <span className={SIDEBAR_ICON_SLOT_CLASS} aria-hidden="true">
-        <Search className="size-[18px]" />
+        <Search className="size-[var(--oh-icon-size-md)]" />
       </span>
       <span className={sidebarNavLabelClassName(collapsed)}>命令菜单</span>
       <kbd
         className={cn(
-          "ml-auto rounded-[var(--oh-radius-xs)] border border-[var(--oh-border)] px-1.5 py-0.5 text-[10px] text-[var(--oh-text-dim)]",
+          "ml-auto rounded-[var(--oh-radius-xs)] border border-[var(--oh-border)] px-[var(--oh-space-2)] py-[var(--oh-space-1)] text-[length:var(--oh-font-size-label)] text-[var(--oh-text-dim)]",
           collapsed && "invisible",
         )}
       >

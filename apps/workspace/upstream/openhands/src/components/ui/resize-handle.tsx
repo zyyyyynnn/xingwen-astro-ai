@@ -27,7 +27,7 @@ export function ResizeHandle({
   return (
     <div
       className={cn(
-        "group relative z-10 w-0 shrink-0 self-stretch outline-none",
+        "group relative z-[var(--oh-layer-resize-handle)] w-0 shrink-0 self-stretch outline-none",
         className,
       )}
       role="separator"
@@ -50,10 +50,10 @@ export function ResizeHandle({
         }
       }}
     >
-      <span className="absolute inset-y-0 left-1/2 w-3 -translate-x-1/2 cursor-ew-resize" />
+      <span className="absolute inset-y-0 left-1/2 w-[var(--oh-space-3)] -translate-x-1/2 cursor-ew-resize" />
       <span
         className={cn(
-          "pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors motion-reduce:transition-none",
+          "pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors duration-[var(--oh-motion-navigation)] motion-reduce:transition-none",
           active ? "bg-[var(--oh-accent)]" : "bg-[var(--oh-border)]",
         )}
         aria-hidden="true"

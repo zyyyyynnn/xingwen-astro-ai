@@ -54,11 +54,82 @@
   --color-success: var(--raw-success-500);
   --color-warning: var(--raw-warning-500);
   --color-error: var(--raw-error-500);
+  --color-error-muted: color-mix(in srgb, var(--color-error) 9%, transparent);
   --color-info: var(--raw-info-500);
   --color-live: var(--raw-success-500);
   --color-cached: var(--raw-warning-500);
   --color-revised: var(--raw-info-500);
   --color-demo: var(--raw-bluegray-600);
+
+  /* Spacing and shared control geometry */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --control-size-sm: 1.5rem;
+  --control-size-md: 2rem;
+  --control-size-lg: 2.25rem;
+  --icon-size-xs: 0.75rem;
+  --icon-size-sm: 0.875rem;
+  --icon-size-md: 1rem;
+  --icon-size-lg: 1.25rem;
+
+  /* Workspace layout and interaction geometry */
+  --workspace-header-block-size: 3rem;
+  --workspace-header-inline-padding: var(--space-4);
+  --workspace-header-control-inset-inline: var(--space-3);
+  --workspace-header-control-inset-block: var(--space-2);
+  --workspace-header-control-reserve-inline: calc(
+    var(--workspace-header-control-inset-inline) + var(--control-size-md)
+  );
+  --workspace-sidebar-expanded-inline-size: 15rem;
+  --workspace-sidebar-collapsed-inline-size: 3.5rem;
+  --workspace-sidebar-inner-inline-size: var(
+    --workspace-sidebar-expanded-inline-size
+  );
+  --workspace-sidebar-icon-slot-inline-size: 1.125rem;
+  --workspace-sidebar-row-block-size: 2.25rem;
+  --workspace-content-max-inline-size: 50rem;
+  --workspace-min-inline-size: 1024px;
+  --workspace-composer-max-block-size: 15rem;
+  --workspace-composer-input-min-block-size: 1.25rem;
+  --workspace-composer-input-reserved-block-size: 3.5rem;
+  --workspace-composer-input-max-block-size: calc(
+    var(--workspace-composer-max-block-size) -
+      var(--workspace-composer-input-reserved-block-size)
+  );
+  --workspace-composer-keyboard-step: 1rem;
+  --workspace-composer-padding-inline: var(--space-3);
+  --workspace-composer-padding-block: var(--space-2);
+  --workspace-composer-row-gap: var(--space-4);
+
+  /* Workspace panel ratios are unitless percentages for JS resize mechanics. */
+  --workspace-panel-default-ratio: 58;
+  --workspace-panel-min-ratio: 38;
+  --workspace-panel-max-ratio: 72;
+  --workspace-panel-keyboard-step: 2;
+
+  /* Workspace overlays and motion */
+  --workspace-command-menu-max-inline-size: 36rem;
+  --workspace-command-menu-max-block-size: 70vh;
+  --workspace-command-menu-viewport-offset: 12vh;
+  --workspace-tab-overflow-min-inline-size: 8rem;
+  --workspace-motion-panel: 200ms;
+  --workspace-ease-panel: cubic-bezier(0, 0, 0.58, 1);
+  --workspace-motion-navigation: var(--motion-fast);
+  --workspace-layer-resize-handle: 10;
+  --workspace-layer-sidebar: 20;
+  --workspace-layer-composer-grip: 20;
+  --workspace-layer-header-toggle: 30;
+  --workspace-layer-command-menu: 70;
+  --workspace-layer-panel-drag-shield: 200;
+  --color-overlay: color-mix(
+    in srgb,
+    var(--color-ink-primary) 38%,
+    transparent
+  );
 
   /* Visual */
   --color-visual-celestial-ink: var(--raw-bluegray-700);
@@ -97,6 +168,10 @@
   --font-size-6: 1.75rem;
   --font-size-7: clamp(2.25rem, 4vw, 4.5rem);
   --font-size-8: clamp(4rem, 10vw, 9rem);
+  --font-size-label: var(--font-size-0);
+  --font-size-body: 0.875rem;
+  --font-size-title: var(--font-size-3);
+  --font-size-heading: 1.25rem;
 
   /* Radius */
   --radius-xs: 2px;

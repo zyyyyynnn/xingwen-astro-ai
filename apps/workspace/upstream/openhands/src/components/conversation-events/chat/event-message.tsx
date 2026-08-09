@@ -34,19 +34,22 @@ export function EventMessage({ event }: EventMessageProps) {
   const content = (
     <>
       <StatusIcon
-        className={`size-4 shrink-0 ${isRunning ? "animate-spin motion-reduce:animate-none" : ""}`}
+        className={`size-[var(--oh-icon-size-md)] shrink-0 ${isRunning ? "animate-spin motion-reduce:animate-none" : ""}`}
         aria-hidden="true"
       />
       <span className="min-w-0 flex-1 truncate">{event.title}</span>
       {hasDetails ? (
-        <Chevron className="size-4 shrink-0" aria-hidden="true" />
+        <Chevron
+          className="size-[var(--oh-icon-size-md)] shrink-0"
+          aria-hidden="true"
+        />
       ) : null}
     </>
   );
 
   return (
     <div
-      className="my-1 w-full text-sm"
+      className="my-[var(--oh-space-1)] w-full text-[length:var(--oh-font-size-body)]"
       data-testid="event-message"
       data-event-kind={event.kind}
       data-event-status={event.status}
@@ -55,7 +58,7 @@ export function EventMessage({ event }: EventMessageProps) {
       {hasDetails ? (
         <button
           type="button"
-          className="flex w-full items-center gap-2 rounded-[var(--oh-radius-sm)] py-1 text-left text-[var(--oh-muted)] hover:text-[var(--oh-text)]"
+          className="flex w-full items-center gap-[var(--oh-space-2)] rounded-[var(--oh-radius-sm)] py-[var(--oh-space-1)] text-left text-[var(--oh-muted)] hover:text-[var(--oh-text)]"
           aria-controls={detailsId}
           aria-expanded={expanded}
           onClick={() => setExpanded((current) => !current)}
@@ -63,7 +66,7 @@ export function EventMessage({ event }: EventMessageProps) {
           {content}
         </button>
       ) : (
-        <div className="flex w-full items-center gap-2 py-1 text-[var(--oh-muted)]">
+        <div className="flex w-full items-center gap-[var(--oh-space-2)] py-[var(--oh-space-1)] text-[var(--oh-muted)]">
           {content}
         </div>
       )}
@@ -71,7 +74,7 @@ export function EventMessage({ event }: EventMessageProps) {
         <div
           id={detailsId}
           role="region"
-          className="ml-6 mt-1 border-l border-[var(--oh-border)] pl-3 text-[var(--oh-muted)]"
+          className="ml-[var(--oh-space-6)] mt-[var(--oh-space-1)] border-l border-[var(--oh-border)] pl-[var(--oh-space-3)] text-[var(--oh-muted)]"
         >
           {event.detail}
         </div>

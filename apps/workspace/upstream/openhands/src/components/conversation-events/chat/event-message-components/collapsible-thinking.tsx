@@ -14,7 +14,7 @@ export function CollapsibleRationale({
   const [expanded, setExpanded] = React.useState(false);
 
   return (
-    <section className="border-l-2 border-[var(--oh-border-strong)] pl-3 text-sm">
+    <section className="border-l border-[var(--oh-border-strong)] pl-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)]">
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
