@@ -344,8 +344,8 @@ test("Composer stays transparent without a full-width hover line", async ({
     .boundingBox();
   expect(composerBox).not.toBeNull();
   expect(conversationBox).not.toBeNull();
-  expect(composerBox!.height).toBeGreaterThanOrEqual(60);
-  expect(composerBox!.height).toBeLessThanOrEqual(64);
+  expect(composerBox!.height).toBeGreaterThanOrEqual(64);
+  expect(composerBox!.height).toBeLessThanOrEqual(68);
   expect(composerBox!.y + composerBox!.height).toBeGreaterThan(
     conversationBox!.y + conversationBox!.height - 24,
   );
@@ -460,6 +460,7 @@ test("Composer natural layout grows without clipping at 100%", async ({
   expect(after).not.toBeNull();
   expect(actionsBox).not.toBeNull();
   expect(after!.height).toBeGreaterThan(before!.height);
+  expect(after!.height).toBeLessThanOrEqual(240);
   expect(actionsBox!.y + actionsBox!.height).toBeLessThanOrEqual(
     after!.y + after!.height + 1,
   );
