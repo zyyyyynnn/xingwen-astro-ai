@@ -2,7 +2,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.5rem;
+  min-height: var(--control-size-lg);
   padding-inline: 1rem;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -18,8 +18,8 @@
 }
 
 .xw-button:focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .xw-button:disabled {
@@ -70,8 +70,8 @@
 }
 
 .xw-link:focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .xw-spinner {

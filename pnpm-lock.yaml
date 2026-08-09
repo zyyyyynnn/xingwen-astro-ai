@@ -125,13 +125,28 @@ importers:
       "@xingwen/workspace-core":
         specifier: workspace:*
         version: link:../../packages/workspace-core
+      clsx:
+        specifier: 2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: 1.25.0
+        version: 1.25.0(react@19.2.7)
       react:
         specifier: 19.2.7
         version: 19.2.7
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
+      tailwind-merge:
+        specifier: 3.6.0
+        version: 3.6.0
+      zustand:
+        specifier: 5.0.12
+        version: 5.0.12(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
     devDependencies:
+      "@tailwindcss/vite":
+        specifier: 4.3.2
+        version: 4.3.2(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
       "@testing-library/jest-dom":
         specifier: 6.9.1
         version: 6.9.1
@@ -150,6 +165,9 @@ importers:
       jsdom:
         specifier: 29.1.1
         version: 29.1.1
+      tailwindcss:
+        specifier: 4.3.2
+        version: 4.3.2
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -4376,6 +4394,14 @@ packages:
         integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==,
       }
 
+  lucide-react@1.25.0:
+    resolution:
+      {
+        integrity: sha512-/mdJTRbiwcLOQ1NZZK1amZF9rIZyvO18D6r9TngE6TG1NmqHgFuT4eE7Xrkm9UsXMbBJD1NlfwHVltCDWHrOTw==,
+      }
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   lz-string@1.5.0:
     resolution:
       {
@@ -5214,6 +5240,12 @@ packages:
         integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==,
       }
 
+  tailwind-merge@3.6.0:
+    resolution:
+      {
+        integrity: sha512-uxL7qAVQriqRQPAyK3pj66VqskWqoZ37PW94jwOTwNfq/z9oyu1V+eqrZqtR2+fCiXdYOZe/Modt8GtvqNzu+w==,
+      }
+
   tailwindcss@4.3.2:
     resolution:
       {
@@ -6042,6 +6074,27 @@ packages:
       {
         integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==,
       }
+
+  zustand@5.0.12:
+    resolution:
+      {
+        integrity: sha512-i77ae3aZq4dhMlRhJVCYgMLKuSiZAaUPAct2AksxQ+gOtimhGMdXljRT21P5BNpeT4kXlLIckvkPM029OljD7g==,
+      }
+    engines: { node: ">=12.20.0" }
+    peerDependencies:
+      "@types/react": ">=18.0.0"
+      immer: ">=9.0.6"
+      react: ">=18.0.0"
+      use-sync-external-store: ">=1.2.0"
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+      use-sync-external-store:
+        optional: true
 
   zwitch@2.0.4:
     resolution:
@@ -8592,6 +8645,10 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
+  lucide-react@1.25.0(react@19.2.7):
+    dependencies:
+      react: 19.2.7
+
   lz-string@1.5.0: {}
 
   magic-string@0.30.21:
@@ -9092,6 +9149,8 @@ snapshots:
 
   symbol-tree@3.2.4: {}
 
+  tailwind-merge@3.6.0: {}
+
   tailwindcss@4.3.2: {}
 
   tapable@2.3.3: {}
@@ -9528,5 +9587,11 @@ snapshots:
       zod: 4.4.3
 
   zod@4.4.3: {}
+
+  zustand@5.0.12(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7)):
+    optionalDependencies:
+      "@types/react": 19.2.17
+      react: 19.2.7
+      use-sync-external-store: 1.6.0(react@19.2.7)
 
   zwitch@2.0.4: {}

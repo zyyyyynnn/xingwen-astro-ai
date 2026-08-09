@@ -11,7 +11,8 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./base.css": "./src/base.css"
+    "./base.css": "./src/base.css",
+    "./workspace.css": "./src/workspace.css"
   },
   "scripts": {
     "build": "tsc",

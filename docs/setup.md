@@ -41,6 +41,19 @@ Copy-Item .env.example .env
 docker compose up --build --wait
 ```
 
+### Windows 一键启动
+
+在 Windows 11 + Docker Desktop 环境中，可从仓库根目录运行：
+
+```powershell
+.\start-dev.bat
+```
+
+脚本会校验 Docker/Compose、在缺失时从 `.env.example` 创建本地 `.env`，启动 Compose
+服务并等待 API、Workspace 与 Brand Site 可访问，最后自动打开 Workspace。启动失败时保留
+容器现场并打印诊断命令，不会自动删除数据卷。需要关闭本地服务时执行
+`docker compose -p xingwen-astro-ai-dev down`；该命令不会删除数据卷。
+
 | 服务 | 职责 | 默认地址 |
 | --- | --- | --- |
 | `site` | Astro Brand Site | `http://localhost:4321` |

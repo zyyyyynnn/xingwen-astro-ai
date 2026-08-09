@@ -1,8 +1,8 @@
 # Visual Language
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
+| 元数据    | 值                                      |
+| --------- | --------------------------------------- |
+| Status    | Accepted                                |
 | Authority | 品牌、Token、字体、排版、密度与组件外观 |
 
 本文定义 Brand Site 与 Research Workspace 的统一视觉语言。业务组件只消费语义 Token。
@@ -49,7 +49,8 @@ Homepage 使用以下结构：
 
 ## 3. 色彩系统与 Token 权威
 
-- 精确 Token 名称与数值唯一定义于 [`packages/design-tokens/src/base.css`](../../packages/design-tokens/src/base.css)。
+- 跨产品的 Raw palette、语义色彩、字号、间距、控件、图标、焦点、圆角、阴影与动效唯一定义于 [`packages/design-tokens/src/base.css`](../../packages/design-tokens/src/base.css)。
+- Workspace 的栏宽、面板、Composer、命令菜单、层级与 Workspace 动效唯一定义于 [`packages/design-tokens/src/workspace.css`](../../packages/design-tokens/src/workspace.css)；OpenHands 源码只通过 Workspace 的 `--oh-*` bridge 消费这些值。
 - 主题色锚点为 `#6E7981`（`--raw-bluegray-500`）。
 - Cold Paper 用于背景、画布与表面。
 - Bluegray 用于品牌、文字、边框与交互强调。
@@ -69,33 +70,35 @@ Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部�
 
 ## 5. 字体
 
-| 角色 | 用途 | 推荐 |
-| --- | --- | --- |
-| Brand Serif | 中文字标、Homepage 主标题、Artifact 长文标题 | Noto Serif SC / 思源宋体 |
-| Interface Sans | Shell、Thread、控件、表格、Evidence、正文 | Noto Sans SC / 思源黑体 + Inter |
-| Scientific Mono | ID、Hash、参数、Query、Raw 输出 | IBM Plex Mono / JetBrains Mono |
+| 角色            | 用途                                         | 推荐                            |
+| --------------- | -------------------------------------------- | ------------------------------- |
+| Brand Serif     | 中文字标、Homepage 主标题、Artifact 长文标题 | Noto Serif SC / 思源宋体        |
+| Interface Sans  | Shell、Thread、控件、表格、Evidence、正文    | Noto Sans SC / 思源黑体 + Inter |
+| Scientific Mono | ID、Hash、参数、Query、Raw 输出              | IBM Plex Mono / JetBrains Mono  |
 
 字体资产进入仓库前记录版本、来源与许可证。
 
 ## 6. 排版
 
-| 区域 | 层级 |
-| --- | --- |
-| Shell | 12–14px，紧凑、稳定 |
-| Agent Activity | 13–15px，事件层级清晰 |
-| Artifact Title | 22–30px Serif |
-| Artifact Body | 14–16px，行高 1.55–1.7 |
-| Metadata / Status | 11–12px |
-| Raw Output | 12px Mono |
+| 区域              | 层级                   |
+| ----------------- | ---------------------- |
+| Shell             | 12–14px，紧凑、稳定    |
+| Agent Activity    | 13–15px，事件层级清晰  |
+| Artifact Title    | 22–30px Serif          |
+| Artifact Body     | 14–16px，行高 1.55–1.7 |
+| Metadata / Status | 11–12px                |
+| Raw Output        | 12px Mono              |
 
 长文有效行宽为 680–780px。内部 ID 与 Hash 不使用标题层级。
 
+Workspace 壳层统一消费 `--font-size-ui-*` 与 `--line-height-ui-*` 成对定义的 `label`、`body`、`heading` 角色。组件不得直接拼接基础字号刻度；在 Tailwind 任意值中引用字号变量时必须使用长度类型提示（`text-[length:var(...)]`），避免变量被误判为颜色而回退到浏览器默认字号。
+
 ## 7. 密度与结构
 
-- 间距使用 4 / 8 / 12 / 16 / 24 / 32；
-- Header 高度 44–56px；
+- 间距使用 4 / 8 / 12 / 16 / 20 / 24 / 32；
+- Workspace 三栏顶部栏统一为 48px，并共享同一底部分隔线；品牌与主标题使用紧凑的 `body`，面板标签使用 `body`，状态文字使用 `label`；品牌可保留 Serif，但不得改变垂直基线；内容级空状态与页面标题才使用 `heading`；
 - 导航项高度 36–44px；
-- Composer 收起高度 52–64px；
+- Composer 采用输入区与操作区分层的桌面结构，默认保留足够的组合空间；尺寸由 Workspace 语义 Token 定义，不得为追求紧凑而压缩到控件重叠、内容溢出或后续能力接入需要重做外壳；
 - 圆角 4–8px；
 - 分隔线、背景层级与留白优先于卡片；
 - 阴影只用于 Overlay、Popover、Menu 与浮层。
@@ -108,7 +111,7 @@ Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部�
 - Panel 行为；
 - 焦点管理；
 - 键盘交互；
-- 响应式；
+- 桌面工作区范围内的响应式布局；
 - 运行反馈。
 
 替换上游产品的：
@@ -140,6 +143,7 @@ Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部�
 - 使用上游单一图标体系或经批准的单一图标库；
 - 不混用多个视觉风格；
 - 动效只服务状态变化、流式响应、Panel 过渡和焦点引导；
+- 左右侧栏折叠统一使用 200ms ease-out 宽度过渡；内容保持稳定几何并由外层裁切，不得在过渡中重排，不得叠加位移、透明度或缩放，也不得替换切换控件节点而造成焦点与锚点漂移；
 - 遵守 Reduced Motion；
 - 页面隐藏时暂停非必要动画。
 
@@ -157,15 +161,14 @@ Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部�
 
 ## 12. 视觉回归
 
-固定视口：
+固定桌面验收视口：
 
 ```text
 1440×900
 1280×800
-390×844
 200% font scale
 ```
 
-至少覆盖 Empty、Running、Needs Review、Completed、Artifact Review、Evidence Inspector、Compare、Error 与移动端状态。
+至少覆盖 Empty、Running、Needs Review、Completed、Artifact Review、Evidence Inspector、Compare、Error 与窄屏桌面边界提示。
 
 视觉通过由用户确认。

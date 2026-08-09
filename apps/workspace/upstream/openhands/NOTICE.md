@@ -25,14 +25,22 @@ Copyright © 2025 OpenHands contributors
 When OpenHands source files are vendored into
 `apps/workspace/upstream/openhands/src/`, each file MUST retain its MIT
 attribution and be recorded in the provenance manifest (`provenance.json`)
-with its upstream path, 40-char SHA, and adoption class. Semantic/privacy
-constraints in `source-policy.json` are mandatory for every vendored file.
+with its upstream path, local path, adoption class, and modification intent.
+The manifest binds all unmodified source files once to the frozen repository,
+tag, 40-character commit, and one aggregate digest. Adapted files remain
+reviewable through their recorded upstream path, adoption class, and reason.
+Semantic/privacy constraints in `source-policy.json` are mandatory for every
+vendored file. The vendored tree is the exact resolved local-import closure of
+`src/root.tsx`; dormant facades and files with unresolved local imports are not
+retained.
 
 ## Excluded scope
 
-Coding / IDE / Cloud / Enterprise surfaces are excluded from adoption:
-Terminal (xterm), DiffViewer (Monaco), Browser panel, Git diff/status UI,
-VSCode link, `api/git-service`, `api/cloud`, Electron desktop shell.
+Frontend API and Agent Runtime integration, authentication, WebSocket,
+Telemetry, compatibility modules, mobile-only navigation, and Coding / IDE /
+Cloud / Enterprise surfaces are excluded from adoption. This includes
+Terminal, DiffViewer, Browser and repository panels, Git controls, VSCode,
+Sandbox, deployment preview, and Electron desktop-shell integration.
 
 Model-private reasoning is also outside the Xingwen product boundary. Raw
 `thought`, `reasoning_content`, `thinking_blocks`, inline `<think>` content,
@@ -46,5 +54,5 @@ receive explicit public/auditable reasoning.
 OpenHands is the **unique** Agent Product source. No source from any other
 Agent product, nor any hand-written reimplementation of Shell / Navigation /
 Activity / Composer / Panel mechanics, may supplement it. Product mechanics are
-preserved from OpenHands; only the research domain (Renderers / Adapter /
-ViewModel) is added by Xingwen.
+preserved from OpenHands. Research-domain Renderers, Adapter, and ViewModel
+work is not included in this source adoption.

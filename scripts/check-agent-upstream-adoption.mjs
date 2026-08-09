@@ -16,6 +16,7 @@
  *   G7  Coding surface         — excluded coding surfaces must not enter production graph.
  *   G8  Only OpenHands src     — no file sourced from a non-OpenHands repository.
  *   G9  Private reasoning boundary — policy_sets honored (excluded/disclosure).
+ *   G10 Source closure         — vendored files are reachable and imports resolve.
  *
  * The check is injectable: `checkAgentUpstreamAdoption(root)` where root is any
  * repo root. The CLI entrypoint passes process.cwd().
@@ -23,7 +24,9 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { resolve, relative, sep } from "node:path";
-import { createHash } from "node:crypto";
+
+import { analyzeVendoredImportGraph } from "./agent-upstream-graph.mjs";
+import { computeSelectedTreeSha256 } from "./agent-upstream-provenance.mjs";
 
 const UPSTREAM_ROOT = "apps/workspace/upstream/openhands";
 const SRC_DIR = `${UPSTREAM_ROOT}/src`;
@@ -34,6 +37,7 @@ const FORBIDDEN_CLASSES = ["REWRITE", "RECREATE", "REIMPLEMENT", "INSPIRED_BY"];
 const REQUIRED_META = [
   "upstream-lock.json",
   "source-scope.json",
+  "source-policy.json",
   "vendor-blueprint.json",
   "provenance-schema.json",
   "LICENSE.upstream",
@@ -46,7 +50,7 @@ const VALID_CLASSIFICATIONS = new Set([
   "EXCLUDED",
   "DEFERRED_NOT_VENDORED",
 ]);
-const HASH_RE = /^[0-9a-f]{64}$/;
+const HASH_RE = /^[0-9a-f]{64}$/u;
 const DISCLOSURE_CONSTRAINTS = [
   "preserve-disclosure-mechanics",
   "forbid-private-reasoning-input",
@@ -57,11 +61,6 @@ function readJSON(root, rel) {
   const p = resolve(root, rel);
   if (!existsSync(p)) return null;
   return JSON.parse(readFileSync(p, "utf8"));
-}
-function sha256OfFile(absPath) {
-  const h = createHash("sha256");
-  h.update(readFileSync(absPath));
-  return h.digest("hex");
 }
 function walkFiles(dir) {
   const out = [];
@@ -193,9 +192,6 @@ export function checkAgentUpstreamAdoption(root) {
         `Scope invalid classification "${f.classification}" for ${f.upstream_path}.`,
       );
     }
-    if (f.source_sha256 && !HASH_RE.test(f.source_sha256)) {
-      failures.push(`Scope invalid source_sha256 for ${f.upstream_path}.`);
-    }
   }
   // summary / total recomputation
   const recomputed = {
@@ -211,10 +207,122 @@ export function checkAgentUpstreamAdoption(root) {
       `Scope summary mismatch: ${JSON.stringify(scope.summary)} != ${JSON.stringify(recomputed)}.`,
     );
   }
-  if (scope.total_src_files !== scope.files.length) {
+  if (scope.total_scoped_files !== scope.files.length) {
     failures.push(
-      `Scope total_src_files (${scope.total_src_files}) != files.length (${scope.files.length}).`,
+      `Scope total_scoped_files (${scope.total_scoped_files}) != files.length (${scope.files.length}).`,
     );
+  }
+  const files = scope.files ?? [];
+
+  // The approved mechanics list is the human architecture boundary. The
+  // inventory below may describe every frozen upstream path, but it cannot
+  // silently expand or shrink the adopted product surface.
+  const approvedMechanicsPaths = new Set();
+  const transitiveMechanicsPaths = new Set();
+  if (
+    !Array.isArray(scope.approved_mechanics) ||
+    scope.approved_mechanics.length === 0
+  ) {
+    failures.push(
+      "Approved mechanics scope must contain at least one surface.",
+    );
+  } else {
+    for (const surface of scope.approved_mechanics) {
+      if (
+        !surface ||
+        typeof surface !== "object" ||
+        !Array.isArray(surface.upstream_paths)
+      ) {
+        failures.push("Approved mechanics scope contains an invalid surface.");
+        continue;
+      }
+      for (const upstreamPath of surface.upstream_paths) {
+        if (approvedMechanicsPaths.has(upstreamPath)) {
+          failures.push(`Approved mechanics scope duplicates ${upstreamPath}.`);
+          continue;
+        }
+        approvedMechanicsPaths.add(upstreamPath);
+        const entry = seenPaths.has(upstreamPath)
+          ? files.find((candidate) => candidate.upstream_path === upstreamPath)
+          : null;
+        if (!entry) {
+          failures.push(
+            `Approved mechanics path is missing from source-scope: ${upstreamPath}.`,
+          );
+        } else if (
+          ![
+            "REQUIRED_VENDOR",
+            "REQUIRED_TRANSITIVE",
+            "PARTIAL_SURGICAL",
+          ].includes(entry.classification)
+        ) {
+          failures.push(
+            `Approved mechanics path ${upstreamPath} must be adopted, found ${entry.classification}.`,
+          );
+        }
+      }
+    }
+  }
+  if (
+    scope.transitive_mechanics !== undefined &&
+    !Array.isArray(scope.transitive_mechanics)
+  ) {
+    failures.push("Transitive mechanics scope must be an array when present.");
+  } else {
+    for (const surface of scope.transitive_mechanics ?? []) {
+      if (
+        !surface ||
+        typeof surface !== "object" ||
+        !Array.isArray(surface.upstream_paths)
+      ) {
+        failures.push(
+          "Transitive mechanics scope contains an invalid surface.",
+        );
+        continue;
+      }
+      for (const upstreamPath of surface.upstream_paths) {
+        if (
+          approvedMechanicsPaths.has(upstreamPath) ||
+          transitiveMechanicsPaths.has(upstreamPath)
+        ) {
+          failures.push(`Mechanics scope duplicates ${upstreamPath}.`);
+          continue;
+        }
+        transitiveMechanicsPaths.add(upstreamPath);
+        const entry = seenPaths.has(upstreamPath)
+          ? files.find((candidate) => candidate.upstream_path === upstreamPath)
+          : null;
+        if (!entry) {
+          failures.push(
+            `Transitive mechanics path is missing from source-scope: ${upstreamPath}.`,
+          );
+        } else if (
+          !["REQUIRED_TRANSITIVE", "PARTIAL_SURGICAL"].includes(
+            entry.classification,
+          )
+        ) {
+          failures.push(
+            `Transitive mechanics path ${upstreamPath} must be REQUIRED_TRANSITIVE or PARTIAL_SURGICAL, found ${entry.classification}.`,
+          );
+        }
+      }
+    }
+  }
+  const adoptedMechanicsPaths = new Set([
+    ...approvedMechanicsPaths,
+    ...transitiveMechanicsPaths,
+  ]);
+  for (const entry of files) {
+    if (
+      ["REQUIRED_VENDOR", "REQUIRED_TRANSITIVE", "PARTIAL_SURGICAL"].includes(
+        entry.classification,
+      ) &&
+      !adoptedMechanicsPaths.has(entry.upstream_path)
+    ) {
+      failures.push(
+        `Adopted source-scope path is not in the approved or transitive mechanics scope: ${entry.upstream_path}.`,
+      );
+    }
   }
 
   if (blueprint) {
@@ -230,31 +338,10 @@ export function checkAgentUpstreamAdoption(root) {
     }
   }
   // G7: excluded coding surfaces classified EXCLUDED
-  const files = scope.files ?? [];
   const excluded = files.filter((f) => f.classification === "EXCLUDED");
   if (excluded.length === 0) {
     failures.push(
       "G7: source-scope has no EXCLUDED entries (coding surfaces must be excluded).",
-    );
-  }
-  const codingTerms = [
-    "terminal",
-    "diff-viewer",
-    "browser/",
-    "git-service",
-    "vscode",
-    "electron",
-    "cloud",
-  ];
-  const badAdopted = files.filter(
-    (f) =>
-      (f.classification === "REQUIRED_VENDOR" ||
-        f.classification === "REQUIRED_TRANSITIVE") &&
-      codingTerms.some((t) => f.upstream_path.toLowerCase().includes(t)),
-  );
-  if (badAdopted.length) {
-    failures.push(
-      `G7: coding surface adopted as vendor: ${badAdopted.map((f) => f.upstream_path).join(", ")}.`,
     );
   }
   // G6: no forbidden adoption class in scope
@@ -268,13 +355,15 @@ export function checkAgentUpstreamAdoption(root) {
   }
 
   // ---- G9 : private reasoning boundary (policy_sets) ----
+  // source-policy is the complete inventory; compact source-scope files only
+  // need to reject a private path when it is explicitly represented there.
   const policySets = scope.policy_sets ?? {};
   if (policySets.private_reasoning_excluded) {
     for (const p of policySets.private_reasoning_excluded) {
       const sf = seenPaths.has(p)
         ? files.find((f) => f.upstream_path === p)
         : null;
-      if (!sf || sf.classification !== "EXCLUDED") {
+      if (sf && sf.classification !== "EXCLUDED") {
         failures.push(
           `G9: private_reasoning_excluded path not classified EXCLUDED: ${p}.`,
         );
@@ -303,6 +392,8 @@ export function checkAgentUpstreamAdoption(root) {
 
   // ---- G5 : provenance (disk <-> provenance exact 1:1, fail-closed) ----
   const srcDir = resolve(root, SRC_DIR);
+  let provenanceEntries = [];
+  let diskLocalPaths = new Set();
   if (!existsSync(srcDir)) {
     notes.push(
       "source provenance enforcement armed; no vendored source present",
@@ -315,9 +406,18 @@ export function checkAgentUpstreamAdoption(root) {
       );
     } else {
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-      const entries = Array.isArray(manifest)
-        ? manifest
-        : (manifest.entries ?? []);
+      const entries = manifest?.entries;
+      const entryList = Array.isArray(entries) ? entries : [];
+      if (
+        Array.isArray(manifest) ||
+        manifest?.schema !== "xingwen.agent-upstream.provenance/v2" ||
+        !Array.isArray(entries)
+      ) {
+        failures.push(
+          "G5: provenance.json must use the v2 manifest object contract.",
+        );
+      }
+      provenanceEntries = entryList;
       const schema =
         readJSON(root, `${UPSTREAM_ROOT}/provenance-schema.json`) ?? {};
       const requiredFields = schema.required_fields ?? [];
@@ -325,13 +425,35 @@ export function checkAgentUpstreamAdoption(root) {
       const scopeByPath = new Map(files.map((f) => [f.upstream_path, f]));
       const classCompat = schema.class_compatibility ?? {};
 
+      const sourceChecks = [
+        ["repository", lock.repository],
+        ["tag", lock.tag],
+        ["commit", lock.commit],
+        ["license", lock.license],
+      ];
+      for (const [field, expected] of sourceChecks) {
+        if (manifest?.source?.[field] !== expected) {
+          failures.push(`G5: provenance source ${field} mismatch.`);
+        }
+      }
+      if (!HASH_RE.test(lock.keep_as_is_tree_sha256 ?? "")) {
+        failures.push(
+          "G5: upstream-lock keep_as_is_tree_sha256 must be 64 lowercase hex.",
+        );
+      }
+      if (manifest?.keep_as_is_tree_sha256 !== lock.keep_as_is_tree_sha256) {
+        failures.push(
+          "G5: provenance KEEP_AS_IS aggregate digest differs from upstream-lock.",
+        );
+      }
+
       // Disk -> Provenance : every on-disk file has exactly one manifest entry
       const diskFiles = walkFiles(srcDir);
-      const diskLocalPaths = new Set(
+      diskLocalPaths = new Set(
         diskFiles.map((f) => toPosix(relative(root, f))),
       );
       const provByLocal = new Map();
-      for (const e of entries) {
+      for (const e of entryList) {
         if (provByLocal.has(e.local_path)) {
           failures.push(
             `G5: duplicate local_path in provenance: ${e.local_path}.`,
@@ -339,21 +461,31 @@ export function checkAgentUpstreamAdoption(root) {
         }
         provByLocal.set(e.local_path, e);
       }
+      const provenancePaths = new Set(
+        entryList.map((entry) => entry.upstream_path),
+      );
+      for (const upstreamPath of adoptedMechanicsPaths) {
+        if (!provenancePaths.has(upstreamPath)) {
+          failures.push(
+            `G5: adopted source-scope path has no provenance entry: ${upstreamPath}.`,
+          );
+        }
+      }
       for (const lp of diskLocalPaths) {
         if (!provByLocal.has(lp)) {
           failures.push(`G5: on-disk file has no provenance entry: ${lp}.`);
         }
       }
       // Provenance -> Disk : every manifest entry maps to a real file
-      for (const e of entries) {
+      for (const e of entryList) {
         if (!diskLocalPaths.has(e.local_path)) {
           failures.push(
             `G5: dangling provenance entry (file missing): ${e.local_path}.`,
           );
         }
       }
-      // Per-entry fail-closed validation
-      for (const e of entries) {
+      // Per-entry mapping and adoption validation
+      for (const e of entryList) {
         const where = e.local_path ?? "<unknown local_path>";
         // required fields present
         for (const rf of requiredFields) {
@@ -374,21 +506,6 @@ export function checkAgentUpstreamAdoption(root) {
             `G5: modified=true requires non-empty modification_reason (${where}).`,
           );
         }
-        // exact upstream identity
-        if (e.upstream_repository !== lock.repository) {
-          failures.push(
-            `G5: provenance upstream_repository mismatch (${where}).`,
-          );
-        }
-        if (e.upstream_tag !== lock.tag) {
-          failures.push(`G5: provenance upstream_tag mismatch (${where}).`);
-        }
-        if (e.upstream_commit !== lock.commit) {
-          failures.push(`G5: provenance upstream_commit mismatch (${where}).`);
-        }
-        if (e.license !== lock.license) {
-          failures.push(`G5: provenance license mismatch (${where}).`);
-        }
         // path safety (skip if already flagged missing by required-field check)
         if (
           typeof e.upstream_path !== "string" ||
@@ -404,18 +521,13 @@ export function checkAgentUpstreamAdoption(root) {
           e.local_path.includes("..")
         ) {
           failures.push(`G5: local_path escapes upstream src root (${where}).`);
-        }
-        // hash format
-        if (
-          e.upstream_source_sha256 &&
-          !HASH_RE.test(e.upstream_source_sha256)
+        } else if (
+          typeof e.upstream_path === "string" &&
+          e.local_path !== `${UPSTREAM_ROOT}/${e.upstream_path}`
         ) {
           failures.push(
-            `G5: upstream_source_sha256 invalid format (${where}).`,
+            `G5: local_path must preserve the upstream relative path (${where}).`,
           );
-        }
-        if (e.vendored_sha256 && !HASH_RE.test(e.vendored_sha256)) {
-          failures.push(`G5: vendored_sha256 invalid format (${where}).`);
         }
         // adoption class validity for actual files
         if (e.adoption_class && !vendoredClasses.includes(e.adoption_class)) {
@@ -447,47 +559,68 @@ export function checkAgentUpstreamAdoption(root) {
             `G5: adoption_class ${e.adoption_class} incompatible with scope classification ${sc.classification} (${where}).`,
           );
         }
-        // G8 repository must match lock
+        if (e.modified === false && e.adoption_class !== "KEEP_AS_IS") {
+          failures.push(`G5: modified=false requires KEEP_AS_IS (${where}).`);
+        }
         if (
-          e.upstream_repository &&
-          e.upstream_repository !== lock.repository
+          e.modified === true &&
+          ![
+            "KEEP_WITH_MINIMAL_PATCH",
+            "KEEP_STRUCTURE_REPLACE_DOMAIN_CONTENT",
+          ].includes(e.adoption_class)
         ) {
           failures.push(
-            `G8: provenance sourced from non-OpenHands repo: ${e.upstream_repository} (${where}).`,
+            `G5: modified=true requires a patched adoption class (${where}).`,
           );
         }
-        // Hash integrity (only if file present and hashes well-formed)
-        const diskFile = resolve(root, e.local_path ?? "");
+      }
+
+      const keepAsIsEntries = entryList.filter(
+        (entry) => entry.adoption_class === "KEEP_AS_IS",
+      );
+      if (
+        HASH_RE.test(lock.keep_as_is_tree_sha256 ?? "") &&
+        keepAsIsEntries.every(
+          (entry) =>
+            typeof entry.upstream_path === "string" &&
+            entry.upstream_path.startsWith("src/") &&
+            entry.local_path === `${UPSTREAM_ROOT}/${entry.upstream_path}` &&
+            diskLocalPaths.has(entry.local_path),
+        )
+      ) {
+        const keepAsIsPaths = keepAsIsEntries.map((entry) =>
+          entry.upstream_path.slice("src/".length),
+        );
         if (
-          e.local_path &&
-          existsSync(diskFile) &&
-          HASH_RE.test(e.vendored_sha256 ?? "")
+          computeSelectedTreeSha256(srcDir, keepAsIsPaths) !==
+          lock.keep_as_is_tree_sha256
         ) {
-          const fileHash = sha256OfFile(diskFile);
-          if (e.vendored_sha256 !== fileHash) {
-            failures.push(`G5: vendored_sha256 mismatch for ${where}.`);
-          }
-          if (
-            sc &&
-            HASH_RE.test(sc.source_sha256 ?? "") &&
-            HASH_RE.test(e.upstream_source_sha256 ?? "")
-          ) {
-            if (e.upstream_source_sha256 !== sc.source_sha256) {
-              failures.push(
-                `G5: upstream_source_sha256 mismatch vs source-scope for ${e.upstream_path} (${where}).`,
-              );
-            }
-          }
-          if (
-            e.modified === false &&
-            e.vendored_sha256 !== e.upstream_source_sha256
-          ) {
-            failures.push(
-              `G5: modified=false but vendored_sha256 != upstream_source_sha256 for ${where}.`,
-            );
-          }
+          failures.push(
+            "G5: KEEP_AS_IS source differs from the frozen upstream aggregate digest.",
+          );
         }
       }
+    }
+  }
+
+  // ---- G10 : local import reachability ----
+  if (existsSync(srcDir)) {
+    const importGraph = analyzeVendoredImportGraph({
+      root,
+      sourceRoot: SRC_DIR,
+      diskPaths: diskLocalPaths,
+    });
+    if (importGraph.unresolved.length > 0) {
+      failures.push(
+        `G10: vendored source has unresolved local imports: ${importGraph.unresolved
+          .map(({ from, specifier }) => `${from} -> ${specifier}`)
+          .join(", ")}.`,
+      );
+    }
+    if (importGraph.unreachable.length > 0) {
+      failures.push(
+        `G10: vendored source is outside the src/root.tsx dependency closure: ${importGraph.unreachable.join(", ")}.`,
+      );
     }
   }
 

@@ -15,55 +15,6 @@ import type { WorkspaceRuntimeBoundaries } from "./boundaries";
 import { SharePage } from "./share-page";
 import { WorkspaceHost } from "./workspace-host";
 
-interface WorkspaceSearch {
-  readonly projectId?: string;
-  readonly draftId?: string;
-  readonly contractId?: string;
-  readonly runId?: string;
-}
-
-const IDENTIFIER_KEYS = [
-  "projectId",
-  "draftId",
-  "contractId",
-  "runId",
-] as const;
-
-function isValidIdentifier(value: unknown): value is string {
-  return (
-    typeof value === "string" && value.trim().length > 0 && value.length <= 128
-  );
-}
-
-function optionalIdentifier(
-  search: Record<string, unknown>,
-  key: string,
-): string | undefined {
-  const value = search[key];
-  if (value === undefined) return undefined;
-  if (!isValidIdentifier(value)) {
-    throw new Error(`Invalid ${key} search parameter.`);
-  }
-  return value;
-}
-
-function hasValidIdentifiers(search: Record<string, unknown>): boolean {
-  return IDENTIFIER_KEYS.every(
-    (key) => search[key] === undefined || isValidIdentifier(search[key]),
-  );
-}
-
-function validateWorkspaceSearch(
-  search: Record<string, unknown>,
-): WorkspaceSearch {
-  return {
-    projectId: optionalIdentifier(search, "projectId"),
-    draftId: optionalIdentifier(search, "draftId"),
-    contractId: optionalIdentifier(search, "contractId"),
-    runId: optionalIdentifier(search, "runId"),
-  };
-}
-
 function RootLayout() {
   return <Outlet />;
 }
@@ -119,33 +70,9 @@ const indexRoute = createRoute({
   },
 });
 
-const tourRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/tour",
-  beforeLoad: ({ search }) => {
-    const record = search as Record<string, unknown>;
-
-    const forwardedSearch = hasValidIdentifiers(record)
-      ? {
-          projectId: optionalIdentifier(record, "projectId"),
-          draftId: optionalIdentifier(record, "draftId"),
-          contractId: optionalIdentifier(record, "contractId"),
-          runId: optionalIdentifier(record, "runId"),
-        }
-      : {};
-
-    throw redirect({
-      to: "/workspace",
-      replace: true,
-      search: forwardedSearch,
-    });
-  },
-});
-
 const workspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/workspace",
-  validateSearch: validateWorkspaceSearch,
   component: WorkspaceHost,
 });
 
@@ -157,7 +84,6 @@ const shareRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  tourRoute,
   workspaceRoute,
   shareRoute,
 ]);
