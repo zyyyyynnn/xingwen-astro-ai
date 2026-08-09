@@ -88,6 +88,18 @@ def test_real_publisher_port_accepts_each_exact_c04_candidate_with_c05_gate() ->
         candidate=candidate,
         source_mode="fixture",
     )
+    producer = SimpleNamespace(
+        input_hash="sha256:" + "a" * 64,
+        producer_type="algorithm",
+        producer_name="data-quality-test-producer",
+        producer_version="1.0.0",
+        parameters_hash="sha256:" + "b" * 64,
+        model_provider=None,
+        model_name=None,
+        prompt_name=None,
+        prompt_version=None,
+        prompt_hash=None,
+    )
     stored = SimpleNamespace(
         artifact_id=artifact_id,
         created_by_run_id=run_id,
@@ -103,11 +115,19 @@ def test_real_publisher_port_accepts_each_exact_c04_candidate_with_c05_gate() ->
         evidence_ids=list(candidate.evidence_ids),
         quality_projection={"forged": True},
         quality_projection_hash=candidate.quality_projection_hash,
+        input_hash=producer.input_hash,
+        producer={
+            "type": producer.producer_type,
+            "name": producer.producer_name,
+            "version": producer.producer_version,
+            "parameters_hash": producer.parameters_hash,
+        },
         supersedes_version_id=None,
     )
     with pytest.raises(PublicationConflictError):
         _require_same_publication(
             stored,
+            producer=producer,
             run_id=run_id,
             step_id=step_id,
             attempt_id=attempt_id,

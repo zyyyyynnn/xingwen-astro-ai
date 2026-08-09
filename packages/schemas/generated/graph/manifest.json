@@ -1,0 +1,60 @@
+{
+  "authoring_source": "apps/api/src/app/schemas",
+  "models": [
+    {
+      "content_hash": "sha256:924b9c54a621fd8c24eb9b83215ba7f6584873f49d9b8e69df42b5ed7c0e1caf",
+      "module": "app.schemas.graph_artifact",
+      "name": "GraphAdmissionResult",
+      "path": "json/GraphAdmissionResult.schema.json"
+    },
+    {
+      "content_hash": "sha256:f948cf7b51f340855233aac93affd2cbaa27e5768f368d2ecf9d241b722299d1",
+      "module": "app.schemas.graph_artifact",
+      "name": "GraphArtifactCandidate",
+      "path": "json/GraphArtifactCandidate.schema.json"
+    },
+    {
+      "content_hash": "sha256:d2fc8fe8ba0057cd677627a860440d6e5544369df1ba91a54c858425c2f942c2",
+      "module": "app.schemas.graph_artifact",
+      "name": "GraphArtifactEdge",
+      "path": "json/GraphArtifactEdge.schema.json"
+    },
+    {
+      "content_hash": "sha256:8894e715af13f20a0f5f8c9555b7840b49727725fc02564afdd0fa861a814f38",
+      "module": "app.schemas.graph_artifact",
+      "name": "GraphArtifactNode",
+      "path": "json/GraphArtifactNode.schema.json"
+    },
+    {
+      "content_hash": "sha256:72255c52bb052379caf3453929879c89c87c759043e9923361abcfea3aa19fc9",
+      "module": "app.schemas.graph_artifact",
+      "name": "GraphBenchmarkEvaluationCase",
+      "path": "json/GraphBenchmarkEvaluationCase.schema.json"
+    },
+    {
+      "content_hash": "sha256:f7ebbe4a821649d0037c76b4ce530a4e2b787e95135595bbe1329fd8d786f283",
+      "module": "app.schemas.graph_artifact",
+      "name": "GraphBenchmarkReport",
+      "path": "json/GraphBenchmarkReport.schema.json"
+    },
+    {
+      "content_hash": "sha256:c702b318bd5a99a2c8389dd8f8d4599a7153a098ef566fa71300f544bfb1982c",
+      "module": "app.schemas.graph_artifact",
+      "name": "GraphBuildRequest",
+      "path": "json/GraphBuildRequest.schema.json"
+    },
+    {
+      "content_hash": "sha256:1d732fac980d2c2daadaf369a65425c25c930663e580afb507f6e9b20538c88c",
+      "module": "app.schemas.graph_artifact",
+      "name": "GraphEvidenceUse",
+      "path": "json/GraphEvidenceUse.schema.json"
+    },
+    {
+      "content_hash": "sha256:8e680040217356a650a53492ec84657d3064910b0a6224f2508517ee8de8225e",
+      "module": "app.schemas.graph_artifact",
+      "name": "GraphIntegrityReport",
+      "path": "json/GraphIntegrityReport.schema.json"
+    }
+  ],
+  "schema_version": 1
+}

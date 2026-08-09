@@ -36,6 +36,7 @@
 | 版本化数据产物 | [Versioned Data Artifacts](engineering/VERSIONED_DATA_ARTIFACTS.md) | Accepted | 数据产物构建、字段映射与转换证据 |
 | 文献抽取 Pipeline | [LiteratureClaim Pipeline](engineering/LITERATURE_CLAIM_PIPELINE.md) | Accepted | LiteratureClaim 抽取、规范化与准入 |
 | 文献推理 Pipeline | [LiteratureRelation Pipeline](engineering/LITERATURE_RELATION_PIPELINE.md) | Accepted | LiteratureRelation、ReasoningTrace 准入 |
+| Versioned Evidence Graph Pipeline | [Graph Pipeline](engineering/GRAPH_PIPELINE.md) | Accepted | Graph 生成、Evidence-use、发布准入与渐进读取 |
 | 文献检索 Pipeline | [PaperCollection Pipeline](engineering/PAPER_COLLECTION_PIPELINE.md) | Accepted | 论文检索、去重、排序与 Summary 准入 |
 | 退出验收标准 | [Acceptance](product/ACCEPTANCE.md) | Accepted | 阶段与产品退出标准、一票否决项 |
 | PR 审查清单 | [Review Checklist](quality/REVIEW_CHECKLIST.md) | Accepted | 单个 PR 的审查清单与合并条件 |

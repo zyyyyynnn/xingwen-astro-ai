@@ -1,0 +1,446 @@
+{
+  "$defs": {
+    "GraphBuildScope": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted_relation_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Accepted Relation Ids",
+          "type": "array"
+        },
+        "excluded_item_count": {
+          "default": 0,
+          "maximum": 50000,
+          "minimum": 0,
+          "title": "Excluded Item Count",
+          "type": "integer"
+        },
+        "exclusion_reasons": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "title": "Exclusion Reasons",
+          "type": "array"
+        },
+        "filtered_item_count": {
+          "default": 0,
+          "maximum": 50000,
+          "minimum": 0,
+          "title": "Filtered Item Count",
+          "type": "integer"
+        },
+        "include_data": {
+          "default": false,
+          "title": "Include Data",
+          "type": "boolean"
+        },
+        "literature_claim_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Literature Claim Ids",
+          "type": "array"
+        },
+        "literature_paper_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Literature Paper Ids",
+          "type": "array"
+        },
+        "research_goal_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Research Goal Id"
+        },
+        "structural_edges": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/GraphStructuralEdgeRequest"
+          },
+          "title": "Structural Edges",
+          "type": "array"
+        }
+      },
+      "title": "GraphBuildScope",
+      "type": "object"
+    },
+    "GraphCapacityPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "max_edges": {
+          "default": 20000,
+          "maximum": 20000,
+          "minimum": 1,
+          "title": "Max Edges",
+          "type": "integer"
+        },
+        "max_evidence_uses": {
+          "default": 50000,
+          "maximum": 50000,
+          "minimum": 1,
+          "title": "Max Evidence Uses",
+          "type": "integer"
+        },
+        "max_evidence_uses_per_edge": {
+          "default": 5000,
+          "maximum": 5000,
+          "minimum": 1,
+          "title": "Max Evidence Uses Per Edge",
+          "type": "integer"
+        },
+        "max_input_versions": {
+          "default": 3,
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Max Input Versions",
+          "type": "integer"
+        },
+        "max_items_per_chunk": {
+          "default": 10000,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Max Items Per Chunk",
+          "type": "integer"
+        },
+        "max_label_length": {
+          "default": 256,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Max Label Length",
+          "type": "integer"
+        },
+        "max_metadata_length": {
+          "default": 2048,
+          "maximum": 2048,
+          "minimum": 1,
+          "title": "Max Metadata Length",
+          "type": "integer"
+        },
+        "max_nodes": {
+          "default": 10000,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Max Nodes",
+          "type": "integer"
+        },
+        "max_progressive_chunks": {
+          "default": 256,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Max Progressive Chunks",
+          "type": "integer"
+        },
+        "max_serialized_bytes": {
+          "default": 4194304,
+          "maximum": 4194304,
+          "minimum": 1,
+          "title": "Max Serialized Bytes",
+          "type": "integer"
+        },
+        "version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "title": "GraphCapacityPolicy",
+      "type": "object"
+    },
+    "GraphLayoutHint": {
+      "additionalProperties": false,
+      "properties": {
+        "group_order": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/GraphNodeType"
+          },
+          "title": "Group Order",
+          "type": "array"
+        },
+        "strategy": {
+          "default": "none",
+          "enum": [
+            "none",
+            "group_by_node_type",
+            "group_by_domain"
+          ],
+          "title": "Strategy",
+          "type": "string"
+        }
+      },
+      "title": "GraphLayoutHint",
+      "type": "object"
+    },
+    "GraphNodeType": {
+      "enum": [
+        "research_goal",
+        "dataset",
+        "field",
+        "source",
+        "paper",
+        "finding",
+        "claim",
+        "relation",
+        "reasoning_trace",
+        "evidence"
+      ],
+      "title": "GraphNodeType",
+      "type": "string"
+    },
+    "GraphPolicySet": {
+      "additionalProperties": false,
+      "properties": {
+        "aggregation_policy": {
+          "const": "full_upstream_evidence_union",
+          "default": "full_upstream_evidence_union",
+          "title": "Aggregation Policy",
+          "type": "string"
+        },
+        "aggregation_policy_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Aggregation Policy Version",
+          "type": "string"
+        },
+        "capacity_policy": {
+          "$ref": "#/$defs/GraphCapacityPolicy"
+        },
+        "filter_policy": {
+          "const": "complete_scope_no_hidden_evidence",
+          "default": "complete_scope_no_hidden_evidence",
+          "title": "Filter Policy",
+          "type": "string"
+        },
+        "filter_policy_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Filter Policy Version",
+          "type": "string"
+        },
+        "identity_policy_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Identity Policy Version",
+          "type": "string"
+        },
+        "integrity_policy_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Integrity Policy Version",
+          "type": "string"
+        },
+        "progressive_policy": {
+          "const": "complete_set_order_independent",
+          "default": "complete_set_order_independent",
+          "title": "Progressive Policy",
+          "type": "string"
+        },
+        "progressive_policy_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Progressive Policy Version",
+          "type": "string"
+        },
+        "taxonomy_policy_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Taxonomy Policy Version",
+          "type": "string"
+        }
+      },
+      "title": "GraphPolicySet",
+      "type": "object"
+    },
+    "GraphProgressiveChunk": {
+      "additionalProperties": false,
+      "properties": {
+        "chunk_index": {
+          "minimum": 0,
+          "title": "Chunk Index",
+          "type": "integer"
+        },
+        "item_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Item Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "chunk_index",
+        "item_ids"
+      ],
+      "title": "GraphProgressiveChunk",
+      "type": "object"
+    },
+    "GraphProgressiveInput": {
+      "additionalProperties": false,
+      "properties": {
+        "chunk_count": {
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Chunk Count",
+          "type": "integer"
+        },
+        "chunks": {
+          "items": {
+            "$ref": "#/$defs/GraphProgressiveChunk"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "title": "Chunks",
+          "type": "array"
+        },
+        "complete": {
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "progressive_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Progressive Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "progressive_id",
+        "chunk_count",
+        "chunks",
+        "complete"
+      ],
+      "title": "GraphProgressiveInput",
+      "type": "object"
+    },
+    "GraphStructuralEdgeRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_type": {
+          "const": "supports_finding",
+          "title": "Edge Type",
+          "type": "string"
+        },
+        "source_paper_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Source Paper Id",
+          "type": "string"
+        },
+        "target_claim_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Target Claim Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_type",
+        "source_paper_id",
+        "target_claim_id"
+      ],
+      "title": "GraphStructuralEdgeRequest",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "dataset_artifact_version_id": {
+      "anyOf": [
+        {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dataset Artifact Version Id"
+    },
+    "field_dictionary_artifact_version_id": {
+      "anyOf": [
+        {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Field Dictionary Artifact Version Id"
+    },
+    "layout_hint": {
+      "$ref": "#/$defs/GraphLayoutHint"
+    },
+    "literature_relations_artifact_version_id": {
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "title": "Literature Relations Artifact Version Id",
+      "type": "string"
+    },
+    "policies": {
+      "$ref": "#/$defs/GraphPolicySet"
+    },
+    "progressive": {
+      "$ref": "#/$defs/GraphProgressiveInput"
+    },
+    "project_id": {
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/GraphBuildScope"
+    }
+  },
+  "required": [
+    "project_id",
+    "literature_relations_artifact_version_id",
+    "scope",
+    "progressive"
+  ],
+  "title": "GraphBuildRequest",
+  "type": "object"
+}

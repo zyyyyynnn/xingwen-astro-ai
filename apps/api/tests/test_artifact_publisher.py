@@ -7,6 +7,8 @@ from typing import Literal
 from uuid import uuid4
 
 import pytest
+from app.schemas.graph import GraphEdge, GraphNode, GraphResponse
+from app.schemas.enums import GraphEdgeType, GraphNodeType
 from app.workflow.publisher import (
     ArtifactAdmissionContext,
     ArtifactPublication,
@@ -122,6 +124,45 @@ def test_admission_rejects_free_text_and_untyped_mappings(candidate: object) -> 
             schema_version="2.0.0",
             source_snapshot_ids=(),
             evidence_ids=(),
+            evidence_validator=_accept,
+            domain_validator=_accept,
+            quality_validator=_accept,
+        )
+
+
+def test_phase0_graph_response_cannot_bypass_d05_admission() -> None:
+    candidate = GraphResponse(
+        nodes=[
+            GraphNode(
+                id="node.paper",
+                type=GraphNodeType.paper,
+                label="Paper",
+                ref_id="paper.1",
+            ),
+            GraphNode(
+                id="node.claim",
+                type=GraphNodeType.claim,
+                label="Claim",
+                ref_id="claim.1",
+            ),
+        ],
+        edges=[
+            GraphEdge(
+                id="edge.supports",
+                source="node.paper",
+                target="node.claim",
+                type=GraphEdgeType.supports_finding,
+                evidence_ids=["evidence.1"],
+            )
+        ],
+    )
+
+    with pytest.raises(PublicationAdmissionError, match="Phase 0 GraphResponse"):
+        admit_artifact_candidate(
+            candidate,
+            schema_version="1.0.0",
+            source_snapshot_ids=("snapshot.1",),
+            evidence_ids=("evidence.1",),
             evidence_validator=_accept,
             domain_validator=_accept,
             quality_validator=_accept,

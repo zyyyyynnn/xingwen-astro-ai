@@ -139,4 +139,6 @@ class GraphEdgeType(StrEnum):
     extends = "extends"
     limits = "limits"
     contradicts = "contradicts"
+    uses_same_dataset = "uses_same_dataset"
+    compares_method = "compares_method"
     corrected_by_feedback = "corrected_by_feedback"
