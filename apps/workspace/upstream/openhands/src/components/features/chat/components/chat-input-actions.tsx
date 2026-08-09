@@ -17,7 +17,10 @@ export function ChatInputActions({
   handleCancel,
 }: ChatInputActionsProps) {
   return (
-    <div className="flex h-6 w-full items-center justify-between gap-3">
+    <div
+      data-testid="chat-input-actions"
+      className="flex h-5 w-full items-center justify-between gap-3"
+    >
       <p className="text-xs text-[var(--oh-text-dim)]">
         Enter 发送 · Shift+Enter 换行
       </p>

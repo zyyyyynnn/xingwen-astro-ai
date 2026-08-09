@@ -181,11 +181,59 @@ test.describe("200% font scale", () => {
     const composerSeparator = page.getByRole("separator", {
       name: "调整指令输入区高度",
     });
+    const composer = page.getByTestId("chat-input-container");
+    const actions = page.getByTestId("chat-input-actions");
+    const input = page.getByRole("textbox", { name: "向 Agent 发送指令" });
+    const initialComposerBox = await composer.boundingBox();
+    expect(initialComposerBox).not.toBeNull();
+    const initialComposerHeight = Number(
+      await composerSeparator.getAttribute("aria-valuenow"),
+    );
+    expect(initialComposerHeight).toBeGreaterThan(0);
     await composerSeparator.focus();
     await page.keyboard.press("ArrowUp");
-    await expect(composerSeparator).toHaveAttribute("aria-valuenow", "72");
+    await expect
+      .poll(async () =>
+        Number(await composerSeparator.getAttribute("aria-valuenow")),
+      )
+      .toBeGreaterThan(initialComposerHeight);
     await page.keyboard.press("Home");
-    await expect(composerSeparator).toHaveAttribute("aria-valuenow", "56");
+    await expect
+      .poll(async () =>
+        Number(await composerSeparator.getAttribute("aria-valuenow")),
+      )
+      .toBeLessThanOrEqual(initialComposerHeight);
+
+    await page.reload();
+    await page.addStyleTag({
+      content: "html { font-size: 200% !important; }",
+    });
+
+    await input.evaluate((element) => {
+      element.contentEditable = "true";
+      element.removeAttribute("aria-disabled");
+      element.textContent = ["第一行", "第二行", "第三行"].join("\n");
+      element.dispatchEvent(
+        new InputEvent("input", { bubbles: true, inputType: "insertText" }),
+      );
+    });
+    await expect
+      .poll(async () => (await composer.boundingBox())?.height ?? 0)
+      .toBeGreaterThan(initialComposerBox!.height);
+    const expandedComposerBox = await composer.boundingBox();
+    const actionsBox = await actions.boundingBox();
+    expect(expandedComposerBox).not.toBeNull();
+    expect(actionsBox).not.toBeNull();
+    expect(expandedComposerBox!.height).toBeGreaterThan(
+      initialComposerBox!.height,
+    );
+    expect(actionsBox!.y + actionsBox!.height).toBeLessThanOrEqual(
+      expandedComposerBox!.y + expandedComposerBox!.height + 1,
+    );
+    await input.evaluate((element) => {
+      element.textContent = "";
+      element.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    });
 
     // No horizontal overflow
     const scrollWidth = await page.evaluate(

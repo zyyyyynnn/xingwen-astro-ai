@@ -1,8 +1,10 @@
 import MainApp from "./routes/root-layout";
+import type { PublicActivityEvent } from "./components/conversation-events/chat/group-events";
 
 export interface AgentWorkspaceRuntime {
   readonly availability: "ready" | "unavailable";
   readonly execute: (command: string, signal: AbortSignal) => Promise<void>;
+  readonly activityEvents?: readonly PublicActivityEvent[];
 }
 
 export const unavailableAgentWorkspaceRuntime: AgentWorkspaceRuntime = {

@@ -27,6 +27,7 @@ export function CustomChatInput({
   const chatContainerRef = React.useRef<HTMLDivElement>(null);
   const {
     height,
+    currentHeight,
     minHeight,
     maxHeight,
     gripRef,
@@ -37,7 +38,7 @@ export function CustomChatInput({
     handleGripKeyDown,
     resizeToContent,
     resetHeight,
-  } = useGripResize(chatInputRef);
+  } = useGripResize(chatInputRef, chatContainerRef);
 
   const syncCanSubmit = React.useCallback(() => {
     setCanSubmit(Boolean(chatInputRef.current?.textContent?.trim()));
@@ -97,12 +98,15 @@ export function CustomChatInput({
   }, [resizeToContent, syncCanSubmit]);
 
   return (
-    <div className="group relative w-full" style={{ height }}>
+    <div
+      className="group relative w-full"
+      style={{ height: height ?? undefined, maxHeight }}
+    >
       <ChatInputGrip
         gripRef={gripRef}
         isGripVisible={isGripVisible}
         isGripDragging={isGripDragging}
-        value={height}
+        value={currentHeight}
         min={minHeight}
         max={maxHeight}
         handleTopEdgeClick={handleTopEdgeClick}

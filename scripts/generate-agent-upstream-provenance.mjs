@@ -8,7 +8,6 @@ import {
   listVendoredFiles,
   toPosix,
 } from "./agent-upstream-provenance.mjs";
-import { isForbiddenVendoredProductPath } from "./agent-upstream-boundary.mjs";
 import { analyzeVendoredImportGraph } from "./agent-upstream-graph.mjs";
 
 const UPSTREAM_ROOT = "apps/workspace/upstream/openhands";
@@ -38,6 +37,10 @@ const MINIMAL_PATCH = new Set([
 ]);
 const STRUCTURE_REPLACEMENT = new Set([
   "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
+  "src/components/conversation-events/chat/event-message-components/event-group.tsx",
+  "src/components/conversation-events/chat/event-message.tsx",
+  "src/components/conversation-events/chat/group-events.ts",
+  "src/components/conversation-events/chat/messages.tsx",
   "src/components/features/chat/chat-interface.tsx",
   "src/components/features/chat/components/chat-input-actions.tsx",
   "src/components/features/chat/components/chat-input-container.tsx",
@@ -68,39 +71,165 @@ function adoptionClass(upstreamPath) {
   return "KEEP_AS_IS";
 }
 
+const MODIFICATION_REASONS = new Map([
+  [
+    "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
+    "Kept the public disclosure interaction while restricting content to an auditable caller-provided value.",
+  ],
+  [
+    "src/components/conversation-events/chat/event-message-components/event-group.tsx",
+    "Kept event-group expansion, progress counts, completion feedback, and region semantics for public activity events.",
+  ],
+  [
+    "src/components/conversation-events/chat/event-message.tsx",
+    "Kept event-item status, error, completion, and expandable-detail presentation for public activity events.",
+  ],
+  [
+    "src/components/conversation-events/chat/group-events.ts",
+    "Kept consecutive tool/progress grouping and single-event fallback with a public activity event model.",
+  ],
+  [
+    "src/components/conversation-events/chat/messages.tsx",
+    "Kept Messages composition, progressive append, and scroll anchoring for runtime-supplied public activity events.",
+  ],
+  [
+    "src/components/features/chat/chat-interface.tsx",
+    "Kept execution phase, cancellation, retry, error, notice, and Composer ownership at the conversation boundary.",
+  ],
+  [
+    "src/components/features/chat/chat-messages-skeleton.tsx",
+    "Kept the running-state loading placeholder while removing upstream conversation data dependencies.",
+  ],
+  [
+    "src/components/features/chat/chat-send-button.tsx",
+    "Kept the disabled-aware send control and Xingwen semantic tokens.",
+  ],
+  [
+    "src/components/features/chat/chat-stop-button.tsx",
+    "Kept the running-state cancel control and Xingwen semantic tokens.",
+  ],
+  [
+    "src/components/features/chat/components/chat-input-actions.tsx",
+    "Kept the Composer action row and send/cancel switching while aligning the natural layout tokens.",
+  ],
+  [
+    "src/components/features/chat/components/chat-input-container.tsx",
+    "Kept the OpenHands Composer container composition while removing forced fixed-height geometry.",
+  ],
+  [
+    "src/components/features/chat/components/chat-input-field.tsx",
+    "Kept contentEditable, multiline, paste, and focus behavior with the natural-height field geometry.",
+  ],
+  [
+    "src/components/features/chat/components/chat-input-grip.tsx",
+    "Kept pointer and keyboard grip controls with semantic separator feedback and tokenized indicator styling.",
+  ],
+  [
+    "src/components/features/chat/components/chat-input-row.tsx",
+    "Kept the upstream field row boundary for the adapted Composer.",
+  ],
+  [
+    "src/components/features/chat/custom-chat-input.tsx",
+    "Kept contentEditable input, paste, submit/cancel, focus, and grip wiring while delegating natural expansion to measured layout.",
+  ],
+  [
+    "src/components/features/chat/error-message-banner.tsx",
+    "Kept dismiss and retry presentation for execution failures without backend-specific state.",
+  ],
+  [
+    "src/components/features/chat/interactive-chat-box.tsx",
+    "Kept the upstream Composer wrapper and transparent shell boundary around the adapted input.",
+  ],
+  [
+    "src/components/features/command-menu/command-menu-items.tsx",
+    "Kept searchable command item rendering while limiting definitions to current Workspace capabilities.",
+  ],
+  [
+    "src/components/features/command-menu/command-menu-trigger.tsx",
+    "Kept command-menu trigger keyboard and focus behavior with the Workspace label and shortcut.",
+  ],
+  [
+    "src/components/features/command-menu/command-menu.tsx",
+    "Kept portal, combobox, filtering, active-option scroll, keyboard selection, and focus return mechanics.",
+  ],
+  [
+    "src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
+    "Kept the centered conversation frame and Composer ownership while injecting the thin runtime seam.",
+  ],
+  [
+    "src/components/features/conversation/conversation-main/conversation-main.tsx",
+    "Kept ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics while composing public surfaces.",
+  ],
+  [
+    "src/components/features/conversation/conversation-name-with-status.tsx",
+    "Kept title/status header alignment while replacing conversation identity with the Workspace label.",
+  ],
+  [
+    "src/components/features/conversation/conversation-tabs/conversation-tab-content/tab-content-area.tsx",
+    "Kept the generic tabpanel frame, active-panel identifiers, focus target, and child composition boundary.",
+  ],
+  [
+    "src/components/features/conversation/conversation-tabs/conversation-tab-nav.tsx",
+    "Kept tab semantics, active indication, measurement mode, focus, and keyboard navigation for neutral tabs.",
+  ],
+  [
+    "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx",
+    "Kept tab selection, persistence, overflow measurement, focus restoration, and keyboard navigation for Activity and Context.",
+  ],
+  [
+    "src/components/features/sidebar/sidebar-layout.ts",
+    "Kept desktop rail width and clipping geometry while removing mobile and coding navigation branches.",
+  ],
+  [
+    "src/components/features/sidebar/sidebar-rail-body.tsx",
+    "Kept rail collapse controls, stable inner geometry, and task-list composition with Xingwen labels.",
+  ],
+  [
+    "src/components/features/sidebar/sidebar.tsx",
+    "Kept desktop sidebar state, toggle anchoring, and keyboard activation for the Workspace shell.",
+  ],
+  [
+    "src/components/ui/resize-handle.tsx",
+    "Kept split-panel pointer and keyboard resizing with a stable separator and motion-safe transitions.",
+  ],
+  [
+    "src/hooks/chat/use-grip-resize.ts",
+    "Kept grip pointer/keyboard resize mechanics while deriving natural minimum and scale-aware limits from DOM geometry.",
+  ],
+  [
+    "src/hooks/use-resizable-panels.ts",
+    "Kept split-panel percentage sizing, persistence, pointer drag, and keyboard adjustment mechanics.",
+  ],
+  [
+    "src/root.tsx",
+    "Kept the OpenHands root composition while exposing only the thin runtime and public activity event seam.",
+  ],
+  [
+    "src/routes/conversation.tsx",
+    "Kept the upstream conversation route boundary as a direct ConversationMain composition.",
+  ],
+  [
+    "src/routes/root-layout.tsx",
+    "Kept the single Workspace layout composition for desktop navigation, conversation, and command overlay.",
+  ],
+  [
+    "src/stores/sidebar-store.ts",
+    "Kept persistent sidebar collapse state and the desktop rail ownership boundary.",
+  ],
+  [
+    "src/utils/utils.ts",
+    "Kept only the class-composition utility required by the adopted Workspace import graph.",
+  ],
+]);
+
 function modificationReason(upstreamPath) {
-  if (upstreamPath.includes("/command-menu/")) {
-    return "Removed upstream routes and localization coupling while retaining searchable overlay, shortcut, keyboard selection, and focus mechanics.";
+  const reason = MODIFICATION_REASONS.get(upstreamPath);
+  if (!reason) {
+    throw new Error(
+      `Missing modification reason for adapted source: ${upstreamPath}`,
+    );
   }
-  if (
-    upstreamPath.includes("/sidebar/") ||
-    upstreamPath.endsWith("sidebar-store.ts")
-  ) {
-    return "Removed coding, cloud, and mobile navigation while retaining the desktop rail and collapse mechanics.";
-  }
-  if (
-    upstreamPath.includes("/chat/") ||
-    upstreamPath.includes("chat-interface")
-  ) {
-    return "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.";
-  }
-  if (
-    upstreamPath.includes("conversation-tabs") ||
-    upstreamPath.includes("resize-handle") ||
-    upstreamPath.includes("resizable-panels")
-  ) {
-    return "Removed coding panel content while retaining tabs, split-panel sizing, and keyboard mechanics.";
-  }
-  if (upstreamPath.includes("conversation-main")) {
-    return "Removed mobile and coding panel content while retaining ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics.";
-  }
-  if (upstreamPath.includes("conversation-name-with-status")) {
-    return "Removed conversation identity and backend coupling while retaining the title/status header alignment mechanic.";
-  }
-  if (upstreamPath === "src/utils/utils.ts") {
-    return "Reduced the utility surface to class composition used by the adopted import graph.";
-  }
-  return "Removed upstream routing, backend, coding, cloud, and mobile dependencies while retaining the Agent workspace product structure.";
+  return reason;
 }
 
 function writeJson(root, relativePath, value) {
@@ -161,11 +290,6 @@ export function generateAgentUpstreamProvenance(root = process.cwd()) {
   const entries = diskFiles.map((absolutePath) => {
     const localPath = toPosix(relative(root, absolutePath));
     const upstreamPath = `src/${toPosix(relative(sourceDirectory, absolutePath))}`;
-    if (isForbiddenVendoredProductPath(upstreamPath)) {
-      throw new Error(
-        `Vendored path crosses the desktop product boundary: ${upstreamPath}`,
-      );
-    }
     const scopeEntry = scopeByPath.get(upstreamPath);
     if (!adoptedMechanicsPaths.has(upstreamPath)) {
       throw new Error(

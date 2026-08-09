@@ -1,26 +1,107 @@
 import React from "react";
 
-const MIN_HEIGHT = 56;
-const MAX_HEIGHT = 240;
-const DEFAULT_HEIGHT = 56;
-const KEYBOARD_STEP = 16;
-const DEFAULT_LINE_HEIGHT = 24;
+const MAX_HEIGHT_REM = 15;
+const KEYBOARD_STEP_REM = 1;
+const FALLBACK_ROOT_FONT_SIZE = 16;
 
-function clampHeight(height: number) {
-  return Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, height));
+function getRootFontSize() {
+  if (typeof document === "undefined") return FALLBACK_ROOT_FONT_SIZE;
+  return (
+    Number.parseFloat(
+      window.getComputedStyle(document.documentElement).fontSize,
+    ) || FALLBACK_ROOT_FONT_SIZE
+  );
+}
+
+function clampHeight(height: number, minHeight: number, maxHeight: number) {
+  return Math.min(maxHeight, Math.max(minHeight, height));
+}
+
+function getMeasuredHeight(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  contentRef: React.RefObject<HTMLDivElement | null>,
+) {
+  const containerHeight =
+    containerRef.current?.getBoundingClientRect().height ?? 0;
+  if (containerHeight > 0) return containerHeight;
+  const contentHeight = contentRef.current?.getBoundingClientRect().height ?? 0;
+  return contentHeight > 0 ? contentHeight : 0;
+}
+
+function getVerticalChromeHeight(
+  container: HTMLDivElement,
+  content: HTMLDivElement,
+) {
+  const styles = window.getComputedStyle(container);
+  const padding =
+    (Number.parseFloat(styles.paddingTop) || 0) +
+    (Number.parseFloat(styles.paddingBottom) || 0);
+  const border =
+    (Number.parseFloat(styles.borderTopWidth) || 0) +
+    (Number.parseFloat(styles.borderBottomWidth) || 0);
+  const actions = container.querySelector<HTMLElement>(
+    '[data-testid="chat-input-actions"]',
+  );
+  const actionHeight = actions?.getBoundingClientRect().height ?? 0;
+  const contentHeight = content.getBoundingClientRect().height;
+  const currentHeight = container.getBoundingClientRect().height;
+  const observedChrome = currentHeight - contentHeight;
+
+  return Math.max(padding + border + actionHeight, observedChrome, 0);
 }
 
 /** Composer resize mechanics retained from the upstream grip interaction. */
 export function useGripResize(
   contentRef: React.RefObject<HTMLDivElement | null>,
+  containerRef: React.RefObject<HTMLDivElement | null>,
 ) {
-  const [height, setHeight] = React.useState(DEFAULT_HEIGHT);
+  const [explicitHeight, setExplicitHeight] = React.useState<number | null>(
+    null,
+  );
+  const [naturalHeight, setNaturalHeight] = React.useState<number | null>(null);
   const [isGripVisible, setIsGripVisible] = React.useState(false);
   const [isGripDragging, setIsGripDragging] = React.useState(false);
   const gripRef = React.useRef<HTMLDivElement>(null);
-  const dragStartRef = React.useRef({ pointerY: 0, height: DEFAULT_HEIGHT });
+  const dragStartRef = React.useRef({ pointerY: 0, height: 0 });
   const suppressNextTopEdgeClickRef = React.useRef(false);
   const isManuallySizedRef = React.useRef(false);
+
+  const maxHeight = getRootFontSize() * MAX_HEIGHT_REM;
+  const keyboardStep = getRootFontSize() * KEYBOARD_STEP_REM;
+
+  const measureNaturalHeight = React.useCallback(() => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    const measured = getMeasuredHeight(containerRef, contentRef);
+    if (measured > 0) {
+      setNaturalHeight((current) =>
+        current === measured ? current : measured,
+      );
+      return;
+    }
+
+    const contentHeight = content.scrollHeight;
+    if (contentHeight <= 0) return;
+    const fallbackHeight =
+      contentHeight + getVerticalChromeHeight(container, content);
+    setNaturalHeight((current) =>
+      current === fallbackHeight ? current : fallbackHeight,
+    );
+  }, [containerRef, contentRef]);
+
+  React.useLayoutEffect(() => {
+    measureNaturalHeight();
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return undefined;
+
+    const observer = new ResizeObserver(() => {
+      if (!isManuallySizedRef.current) measureNaturalHeight();
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [containerRef, measureNaturalHeight]);
 
   const handleTopEdgeClick = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -34,7 +115,14 @@ export function useGripResize(
 
   const handleGripMouseDown = (event: React.MouseEvent) => {
     event.preventDefault();
-    dragStartRef.current = { pointerY: event.clientY, height };
+    dragStartRef.current = {
+      pointerY: event.clientY,
+      height:
+        getMeasuredHeight(containerRef, contentRef) ||
+        naturalHeight ||
+        contentRef.current?.scrollHeight ||
+        1,
+    };
     setIsGripVisible(true);
     setIsGripDragging(true);
   };
@@ -45,7 +133,11 @@ export function useGripResize(
     const handleMouseMove = (event: MouseEvent) => {
       const delta = dragStartRef.current.pointerY - event.clientY;
       if (delta !== 0) isManuallySizedRef.current = true;
-      setHeight(clampHeight(dragStartRef.current.height + delta));
+      if (delta === 0) return;
+      const minHeight = naturalHeight ?? 0;
+      setExplicitHeight(
+        clampHeight(dragStartRef.current.height + delta, minHeight, maxHeight),
+      );
     };
     const handleMouseUp = () => {
       setIsGripDragging(false);
@@ -63,49 +155,50 @@ export function useGripResize(
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isGripDragging]);
+  }, [isGripDragging, maxHeight, naturalHeight]);
 
   const handleGripKeyDown = (event: React.KeyboardEvent) => {
+    const measuredHeight = getMeasuredHeight(containerRef, contentRef);
+    const currentHeight =
+      explicitHeight ??
+      (measuredHeight ||
+        naturalHeight ||
+        contentRef.current?.scrollHeight ||
+        1);
+    const minHeight = naturalHeight ?? currentHeight;
     let nextHeight: number | undefined;
-    if (event.key === "ArrowUp") nextHeight = height + KEYBOARD_STEP;
-    if (event.key === "ArrowDown") nextHeight = height - KEYBOARD_STEP;
-    if (event.key === "Home") nextHeight = MIN_HEIGHT;
-    if (event.key === "End") nextHeight = MAX_HEIGHT;
+    if (event.key === "ArrowUp") nextHeight = currentHeight + keyboardStep;
+    if (event.key === "ArrowDown") nextHeight = currentHeight - keyboardStep;
+    if (event.key === "Home") nextHeight = minHeight;
+    if (event.key === "End") nextHeight = maxHeight;
     if (nextHeight === undefined) return;
 
     event.preventDefault();
     isManuallySizedRef.current = true;
-    setHeight(clampHeight(nextHeight));
+    setExplicitHeight(clampHeight(nextHeight, minHeight, maxHeight));
     setIsGripVisible(true);
   };
 
   const resizeToContent = React.useCallback(() => {
-    const content = contentRef.current;
-    if (!content || isManuallySizedRef.current) return;
-
-    const contentHeight = content.scrollHeight;
-    if (contentHeight <= 0) return;
-
-    const lineHeight =
-      typeof window === "undefined"
-        ? DEFAULT_LINE_HEIGHT
-        : Number.parseFloat(window.getComputedStyle(content).lineHeight) ||
-          DEFAULT_LINE_HEIGHT;
-    const nextHeight = clampHeight(
-      DEFAULT_HEIGHT + Math.max(0, contentHeight - lineHeight),
-    );
-    setHeight((current) => (current === nextHeight ? current : nextHeight));
-  }, [contentRef]);
+    if (isManuallySizedRef.current) return;
+    setExplicitHeight(null);
+    measureNaturalHeight();
+  }, [measureNaturalHeight]);
 
   const resetHeight = React.useCallback(() => {
     isManuallySizedRef.current = false;
-    setHeight(DEFAULT_HEIGHT);
-  }, []);
+    setExplicitHeight(null);
+    setNaturalHeight(null);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(measureNaturalHeight);
+    }
+  }, [measureNaturalHeight]);
 
   return {
-    height,
-    minHeight: MIN_HEIGHT,
-    maxHeight: MAX_HEIGHT,
+    height: explicitHeight,
+    currentHeight: explicitHeight ?? naturalHeight ?? 0,
+    minHeight: naturalHeight ?? 0,
+    maxHeight,
     gripRef,
     isGripVisible,
     isGripDragging,

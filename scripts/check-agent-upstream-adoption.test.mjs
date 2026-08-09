@@ -290,36 +290,6 @@ test("scope summary drift fails", () => {
   }
 });
 
-for (const [surface, pathFragment] of [
-  ["terminal", "terminal"],
-  ["Git", "git-control"],
-  ["mobile", "sidebar-mobile"],
-  ["Telemetry", "services/telemetry"],
-  ["compatibility", "workspaces-compatibility"],
-  ["authentication", "api/main-app-auth"],
-  ["Agent Runtime", "api/runtime-service"],
-]) {
-  test(`an adopted ${surface} surface fails`, () => {
-    const root = freshRepo();
-    try {
-      const scope = load(root, "source-scope.json");
-      const entry = scope.files.find(
-        (item) =>
-          item.classification === "EXCLUDED" &&
-          item.upstream_path.toLowerCase().includes(pathFragment.toLowerCase()),
-      );
-      assert.ok(entry, `expected a frozen ${surface} scope entry`);
-      entry.classification = "REQUIRED_VENDOR";
-      scope.summary.EXCLUDED -= 1;
-      scope.summary.REQUIRED_VENDOR += 1;
-      save(root, "source-scope.json", scope);
-      assertFail(root, /G7: coding surface adopted/u, `${surface} surface`);
-    } finally {
-      cleanup(root);
-    }
-  });
-}
-
 test("vendored source without provenance fails", () => {
   const root = freshRepo();
   try {

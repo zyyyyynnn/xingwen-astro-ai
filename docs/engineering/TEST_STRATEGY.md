@@ -43,6 +43,7 @@
 
 - Navigation 选择、Pin、Collapse；
 - Agent Activity 流式事件、Tool、Deliverable、Error 与 Checkpoint；
+- Agent Activity 连续事件分组、公开详情披露、进行中/完成状态与滚动跟随；
 - Artifact Workspace 视图、Focus、Compare；
 - Context Inspector 恢复；
 - Keyboard、Screen Reader、Reduced Motion 与 200% 字体缩放。

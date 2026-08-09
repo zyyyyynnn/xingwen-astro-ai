@@ -8,6 +8,11 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CollapsibleRationale } from "../upstream/openhands/src/components/conversation-events/chat/event-message-components/collapsible-thinking";
+import { ActivitySurface } from "../upstream/openhands/src/components/conversation-events/chat/messages";
+import {
+  groupEvents,
+  type PublicActivityEvent,
+} from "../upstream/openhands/src/components/conversation-events/chat/group-events";
 import {
   OpenHandsWorkspaceRoot,
   type AgentWorkspaceRuntime,
@@ -24,8 +29,9 @@ afterEach(() => {
 
 function readyRuntime(
   execute: AgentWorkspaceRuntime["execute"],
+  activityEvents?: readonly PublicActivityEvent[],
 ): AgentWorkspaceRuntime {
-  return { availability: "ready", execute };
+  return { availability: "ready", execute, activityEvents };
 }
 
 function enterCommand(command: string) {
@@ -111,9 +117,12 @@ describe("source-adopted Agent workspace mechanics", () => {
     });
     fireEvent.input(input);
 
-    expect(
-      screen.getByRole("separator", { name: "调整指令输入区高度" }),
-    ).toHaveAttribute("aria-valuenow", "104");
+    const value = Number(
+      screen
+        .getByRole("separator", { name: "调整指令输入区高度" })
+        .getAttribute("aria-valuenow"),
+    );
+    expect(value).toBeGreaterThanOrEqual(72);
   });
 
   it("surfaces an execution error and retries without duplicating the command", async () => {
@@ -148,5 +157,66 @@ describe("source-adopted Agent workspace mechanics", () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("依据来自可审计来源。")).toBeInTheDocument();
+  });
+
+  it("retains public activity grouping, progressive status, and disclosure", () => {
+    const events: readonly PublicActivityEvent[] = [
+      {
+        id: "instruction-1",
+        kind: "instruction",
+        title: "已接收研究指令",
+        status: "success",
+      },
+      {
+        id: "tool-1",
+        kind: "tool",
+        title: "检索公开资料",
+        detail: "公开来源查询已开始。",
+        status: "success",
+        groupId: "research-1",
+      },
+      {
+        id: "tool-2",
+        kind: "tool",
+        title: "整理来源摘要",
+        detail: "来源摘要等待下一步审查。",
+        status: "running",
+        groupId: "research-1",
+      },
+      {
+        id: "completion-1",
+        kind: "completion",
+        title: "等待公开结果",
+        status: "pending",
+      },
+    ];
+
+    const items = groupEvents(events);
+    expect(items.map((item) => item.kind)).toEqual([
+      "single",
+      "group",
+      "single",
+    ]);
+
+    render(<OpenHandsWorkspaceRoot runtime={readyRuntime(vi.fn(), events)} />);
+
+    expect(screen.getByRole("log", { name: "Agent 活动" })).toBeInTheDocument();
+    const groupToggle = screen.getByRole("button", { name: "展开活动组" });
+    expect(groupToggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(groupToggle);
+    fireEvent.click(screen.getByRole("button", { name: /检索公开资料/ }));
+    expect(screen.getByText("公开来源查询已开始。")).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByTestId("event-message")
+        .some((node) => node.getAttribute("data-event-status") === "running"),
+    ).toBe(true);
+  });
+
+  it("keeps an empty activity surface free of fixture events", () => {
+    render(<ActivitySurface />);
+
+    expect(screen.getByText("尚无 Agent 活动")).toBeInTheDocument();
+    expect(screen.queryByTestId("event-message")).not.toBeInTheDocument();
   });
 });

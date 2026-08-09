@@ -1,6 +1,7 @@
 import React from "react";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 
+import { ActivitySurface } from "../../../conversation-events/chat/messages";
 import { ChatInterfaceWrapper } from "./chat-interface-wrapper";
 import { ConversationNameWithStatus } from "../conversation-name-with-status";
 import { ConversationTabs } from "../conversation-tabs/conversation-tabs";
@@ -50,6 +51,14 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
   const RightPanelToggleIcon = isRightPanelShown
     ? PanelRightClose
     : PanelRightOpen;
+  const contextSurface = (
+    <div className="h-full overflow-y-auto p-5">
+      <div className="oh-empty-state">
+        <p className="text-sm font-semibold">暂无上下文</p>
+        <p>当前任务没有可展示的工作区上下文。</p>
+      </div>
+    </div>
+  );
 
   return (
     <section
@@ -127,7 +136,13 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
                 onSelect={setActivePanel}
               />
             </div>
-            <TabContentArea activeTab={activePanel} />
+            <TabContentArea activeTab={activePanel}>
+              {activePanel === "activity" ? (
+                <ActivitySurface events={runtime.activityEvents} />
+              ) : (
+                contextSurface
+              )}
+            </TabContentArea>
           </div>
         </aside>
       </div>

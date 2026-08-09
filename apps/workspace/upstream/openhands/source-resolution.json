@@ -6,14 +6,38 @@
   "entrypoint": "src/root.tsx",
   "summary": {
     "VENDORED": 1,
-    "SURGICALLY_ADAPTED": 33
+    "SURGICALLY_ADAPTED": 37
   },
-  "total": 34,
+  "total": 38,
   "entries": [
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
       "status": "SURGICALLY_ADAPTED",
       "reason": "Removed coding and backend-domain coupling while retaining composer, execution state, cancel, retry, error, disclosure, and resize mechanics.",
+      "proof": "reachable-from-single-src/root.tsx-import-closure"
+    },
+    {
+      "upstream_path": "src/components/conversation-events/chat/event-message-components/event-group.tsx",
+      "status": "SURGICALLY_ADAPTED",
+      "reason": "Retained OpenHands Activity grouping and disclosure mechanics for public event status and completion data.",
+      "proof": "reachable-from-single-src/root.tsx-import-closure"
+    },
+    {
+      "upstream_path": "src/components/conversation-events/chat/event-message.tsx",
+      "status": "SURGICALLY_ADAPTED",
+      "reason": "Retained OpenHands event-item composition for public activity status, details, errors, and completion.",
+      "proof": "reachable-from-single-src/root.tsx-import-closure"
+    },
+    {
+      "upstream_path": "src/components/conversation-events/chat/group-events.ts",
+      "status": "SURGICALLY_ADAPTED",
+      "reason": "Retained consecutive tool and progress event grouping with a public activity event model.",
+      "proof": "reachable-from-single-src/root.tsx-import-closure"
+    },
+    {
+      "upstream_path": "src/components/conversation-events/chat/messages.tsx",
+      "status": "SURGICALLY_ADAPTED",
+      "reason": "Retained OpenHands Messages composition and scroll anchoring for runtime-supplied public activity events.",
       "proof": "reachable-from-single-src/root.tsx-import-closure"
     },
     {

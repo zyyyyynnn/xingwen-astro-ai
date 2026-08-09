@@ -41,7 +41,7 @@ Existing Core
 
 - **Repository & Commit**：固定官方仓库、固定 Tag 与 40 位 SHA 提交号。
 - **License & Notice**：确认兼容开源许可证，完整保留版权与 NOTICE 声明。
-- **Source Scope & Mapping**：先独立冻结需要的 OpenHands Product Mechanics（Shell、ConversationMain、Navigation、Tabs、Composer、Command Menu、Resize、Focus 与状态展示），再建立 Upstream -> Local 源码映射表；本地 import closure 只负责验证实现完整、可解析且无孤立文件，不能反向定义采用范围。
+- **Source Scope & Mapping**：先独立冻结需要的 OpenHands Product Mechanics（Shell、ConversationMain、Navigation、Tabs、Composer、Command Menu、Activity grouping、public event presentation、Resize、Focus 与状态展示），再建立 Upstream -> Local 源码映射表；本地 import closure 只负责验证实现完整、可解析且无孤立文件，不能反向定义采用范围。
 - **Source Policy**：在机械依赖可达性之外固定语义、安全与隐私边界；Policy 约束优先于 `KEEP_AS_IS`。
 - **Governance Rules**：严禁跟随浮动 main 分支；严禁混用非兼容协议代码；仓库内有且仅有一套 Workspace Shell。
 
@@ -72,6 +72,8 @@ Existing Core
 上游 Agent UI 可保留 Activity 与 disclosure 等成熟交互机制，但模型私有 raw reasoning 不得进入产品 ViewModel、持久化边界或 UI。`source-policy.json` 将私有推理 extractor/renderer 全部排除；唯一保留的 disclosure 交互组件必须显式适配为只接收公开、可审计内容。这些约束优先于机械 Source Scope 分类。
 
 用户可见推理必须显式、可核验且与 Evidence 关联。`ReasoningTrace` 是公开可审计的推导记录，不等于模型私有 chain-of-thought；具体领域语义见 `docs/ai/REASONING_PROTOCOL.md`。
+
+Activity 采用 OpenHands 的事件列表、连续事件分组、可展开事件组、渐进状态展示与滚动锚定机制；运行时只注入公开 Activity Event，空状态不生成测试或演示事件。
 
 ## 4. 依赖方向
 

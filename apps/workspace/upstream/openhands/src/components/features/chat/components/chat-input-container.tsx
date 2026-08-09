@@ -36,7 +36,7 @@ export function ChatInputContainer({
     <div
       ref={chatContainerRef}
       data-testid="chat-input-container"
-      className="flex h-full min-h-14 w-full flex-col justify-between rounded-[var(--oh-radius-lg)] border border-[var(--oh-border-strong)] bg-transparent p-2.5"
+      className="flex h-full min-h-0 w-full flex-col justify-between rounded-[var(--oh-radius-lg)] border border-[var(--oh-border-strong)] bg-transparent p-2"
     >
       <ChatInputRow
         chatInputRef={chatInputRef}

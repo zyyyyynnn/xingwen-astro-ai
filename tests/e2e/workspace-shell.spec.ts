@@ -424,12 +424,59 @@ test("Workspace tabs and split panel support keyboard control", async ({
   const composerSeparator = page.getByRole("separator", {
     name: "调整指令输入区高度",
   });
-  await expect(composerSeparator).toHaveAttribute("aria-valuenow", "56");
+  const initialComposerHeight = Number(
+    await composerSeparator.getAttribute("aria-valuenow"),
+  );
+  expect(initialComposerHeight).toBeGreaterThan(0);
   await composerSeparator.focus();
   await page.keyboard.press("ArrowUp");
-  await expect(composerSeparator).toHaveAttribute("aria-valuenow", "72");
+  await expect
+    .poll(async () =>
+      Number(await composerSeparator.getAttribute("aria-valuenow")),
+    )
+    .toBeGreaterThan(initialComposerHeight);
   await page.keyboard.press("Home");
-  await expect(composerSeparator).toHaveAttribute("aria-valuenow", "56");
+  await expect
+    .poll(async () =>
+      Number(await composerSeparator.getAttribute("aria-valuenow")),
+    )
+    .toBeLessThanOrEqual(initialComposerHeight);
+});
+
+test("Composer natural layout grows without clipping at 100%", async ({
+  page,
+}) => {
+  await page.goto("http://127.0.0.1:5173/workspace");
+
+  const input = page.getByRole("textbox", { name: "向 Agent 发送指令" });
+  const composer = page.getByTestId("chat-input-container");
+  const actions = page.getByTestId("chat-input-actions");
+  const before = await composer.boundingBox();
+  expect(before).not.toBeNull();
+
+  await input.evaluate((element) => {
+    element.contentEditable = "true";
+    element.removeAttribute("aria-disabled");
+    element.textContent = ["第一行", "第二行", "第三行"].join("\n");
+    element.dispatchEvent(
+      new InputEvent("input", { bubbles: true, inputType: "insertText" }),
+    );
+  });
+  await expect
+    .poll(async () => (await composer.boundingBox())?.height ?? 0)
+    .toBeGreaterThan(before!.height);
+  const after = await composer.boundingBox();
+  const actionsBox = await actions.boundingBox();
+  expect(after).not.toBeNull();
+  expect(actionsBox).not.toBeNull();
+  expect(after!.height).toBeGreaterThan(before!.height);
+  expect(actionsBox!.y + actionsBox!.height).toBeLessThanOrEqual(
+    after!.y + after!.height + 1,
+  );
+  await input.evaluate((element) => {
+    element.textContent = "";
+    element.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  });
 });
 
 test.describe("Workspace overflow menu at 1024×800", () => {

@@ -1,0 +1,90 @@
+import React from "react";
+import { Check, ChevronDown, ChevronUp, LoaderCircle } from "lucide-react";
+
+import type { PublicActivityEvent } from "../group-events";
+
+interface EventGroupProps {
+  readonly events: readonly PublicActivityEvent[];
+  readonly isFinalized?: boolean;
+  readonly children: React.ReactNode;
+}
+
+/** OpenHands event-group disclosure mechanics adapted to public activity data. */
+export function EventGroup({
+  events,
+  isFinalized = false,
+  children,
+}: EventGroupProps) {
+  const [expanded, setExpanded] = React.useState(false);
+  const contentId = React.useId();
+  const buttonId = `${contentId}-toggle`;
+
+  if (events.length === 0) return null;
+
+  const pendingCount = events.filter(
+    (event) => event.status === "pending" || event.status === "running",
+  ).length;
+  const completedCount = events.filter(
+    (event) => event.status === "success",
+  ).length;
+  const isRunning = pendingCount > 0;
+  const latestEvent = events.at(-1);
+  const countSummary = isRunning
+    ? `进行中 ${completedCount}/${events.length}`
+    : `${completedCount || events.length} 项已完成`;
+  const Chevron = expanded ? ChevronUp : ChevronDown;
+
+  return (
+    <div className="my-1 w-full py-1 text-sm" data-testid="event-group">
+      <button
+        id={buttonId}
+        type="button"
+        onClick={() => setExpanded((current) => !current)}
+        aria-controls={contentId}
+        aria-expanded={expanded}
+        aria-label={expanded ? "收起活动组" : "展开活动组"}
+        data-testid="event-group-toggle"
+        className="flex w-full cursor-pointer items-center justify-between gap-2 text-left"
+      >
+        {isFinalized ? (
+          <span className="flex min-w-0 items-center gap-2 font-normal text-[var(--oh-muted)]">
+            <Chevron className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">{countSummary}</span>
+          </span>
+        ) : (
+          <>
+            <span className="flex min-w-0 items-center gap-2 font-normal text-[var(--oh-muted)]">
+              <Chevron className="size-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                {latestEvent?.title ?? countSummary}
+              </span>
+            </span>
+            <span className="flex shrink-0 items-center font-normal text-[var(--oh-muted)]">
+              <span className="truncate">{countSummary}</span>
+              {isRunning ? (
+                <LoaderCircle
+                  data-testid="spinner-icon"
+                  className="ml-2 size-4 animate-spin"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Check className="ml-2 size-4" aria-hidden="true" />
+              )}
+            </span>
+          </>
+        )}
+      </button>
+      {expanded ? (
+        <div
+          id={contentId}
+          role="region"
+          aria-labelledby={buttonId}
+          className="mt-1.5 flex flex-col"
+          data-testid="event-group-content"
+        >
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}

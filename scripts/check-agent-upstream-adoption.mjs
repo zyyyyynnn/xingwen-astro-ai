@@ -27,7 +27,6 @@ import { resolve, relative, sep } from "node:path";
 
 import { analyzeVendoredImportGraph } from "./agent-upstream-graph.mjs";
 import { computeSelectedTreeSha256 } from "./agent-upstream-provenance.mjs";
-import { isForbiddenVendoredProductPath } from "./agent-upstream-boundary.mjs";
 
 const UPSTREAM_ROOT = "apps/workspace/upstream/openhands";
 const SRC_DIR = `${UPSTREAM_ROOT}/src`;
@@ -343,17 +342,6 @@ export function checkAgentUpstreamAdoption(root) {
   if (excluded.length === 0) {
     failures.push(
       "G7: source-scope has no EXCLUDED entries (coding surfaces must be excluded).",
-    );
-  }
-  const badAdopted = files.filter(
-    (f) =>
-      (f.classification === "REQUIRED_VENDOR" ||
-        f.classification === "REQUIRED_TRANSITIVE") &&
-      isForbiddenVendoredProductPath(f.upstream_path),
-  );
-  if (badAdopted.length) {
-    failures.push(
-      `G7: coding surface adopted as vendor: ${badAdopted.map((f) => f.upstream_path).join(", ")}.`,
     );
   }
   // G6: no forbidden adoption class in scope

@@ -52,6 +52,22 @@
       ]
     },
     {
+      "surface": "agent-activity",
+      "upstream_paths": [
+        "src/components/conversation-events/chat/group-events.ts",
+        "src/components/conversation-events/chat/messages.tsx",
+        "src/components/conversation-events/chat/event-message.tsx",
+        "src/components/conversation-events/chat/event-message-components/event-group.tsx"
+      ],
+      "requirements": [
+        "event grouping",
+        "progressive public event presentation",
+        "tool/progress disclosure",
+        "loading/error/completion states",
+        "activity scroll"
+      ]
+    },
+    {
       "surface": "composer",
       "upstream_paths": [
         "src/components/features/chat/interactive-chat-box.tsx",
@@ -124,12 +140,12 @@
   "summary": {
     "REQUIRED_VENDOR": 25,
     "REQUIRED_TRANSITIVE": 7,
-    "PARTIAL_SURGICAL": 2,
+    "PARTIAL_SURGICAL": 6,
     "EXCLUDED": 7,
     "DEFERRED_NOT_VENDORED": 0
   },
   "scope_contract": "files contains the adopted mechanics plus representative excluded boundaries; source-policy remains authoritative for the complete excluded-domain inventory.",
-  "total_scoped_files": 41,
+  "total_scoped_files": 45,
   "files": [
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
@@ -140,6 +156,34 @@
         "forbid-private-reasoning-input",
         "public-auditable-reasoning-only"
       ]
+    },
+    {
+      "upstream_path": "src/components/conversation-events/chat/event-message-components/event-group.tsx",
+      "classification": "PARTIAL_SURGICAL",
+      "reason": "Retain the OpenHands event-group disclosure and progressive status summary while adapting it to public activity events.",
+      "preserved_mechanics": "EventGroup: collapsed summary, progress count, completion state, expansion, and region focus semantics",
+      "removed_domain": "Private reasoning and backend event-type dependencies"
+    },
+    {
+      "upstream_path": "src/components/conversation-events/chat/event-message.tsx",
+      "classification": "PARTIAL_SURGICAL",
+      "reason": "Retain OpenHands event-item composition while rendering only public activity status, detail, error, and completion data.",
+      "preserved_mechanics": "EventMessage: progressive item presentation, status iconography, and expandable details",
+      "removed_domain": "Private reasoning, backend event unions, and coding-specific renderers"
+    },
+    {
+      "upstream_path": "src/components/conversation-events/chat/group-events.ts",
+      "classification": "PARTIAL_SURGICAL",
+      "reason": "Retain consecutive tool/progress event grouping while replacing backend and private reasoning event semantics with a public activity model.",
+      "preserved_mechanics": "groupEvents: run detection, minimum group size, stable ordering, and single-item fallback",
+      "removed_domain": "Private thought extraction and Agent Server type guards"
+    },
+    {
+      "upstream_path": "src/components/conversation-events/chat/messages.tsx",
+      "classification": "PARTIAL_SURGICAL",
+      "reason": "Retain OpenHands Messages composition and scroll-to-tail behavior for a runtime-supplied public activity event stream.",
+      "preserved_mechanics": "Messages: memoized rendering, group composition, progressive append, and activity scroll anchoring",
+      "removed_domain": "Backend stores, private reasoning renderers, and fake product events"
     },
     {
       "upstream_path": "src/components/features/chat/chat-interface.tsx",
@@ -365,10 +409,7 @@
       "src/components/conversation-events/chat/event-message-components/observation-pair-event-message.tsx",
       "src/components/conversation-events/chat/event-message-components/thought-event-message.tsx",
       "src/components/conversation-events/chat/event-message-components/user-assistant-event-message.tsx",
-      "src/components/conversation-events/chat/event-message.tsx",
       "src/components/conversation-events/chat/event-thought-helpers.ts",
-      "src/components/conversation-events/chat/group-events.ts",
-      "src/components/conversation-events/chat/messages.tsx",
       "src/components/features/chat/typing-indicator.tsx",
       "src/hooks/chat/record-model-switch-message.ts",
       "src/types/agent-server/core/base/action.ts",

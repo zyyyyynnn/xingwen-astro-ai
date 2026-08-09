@@ -12,10 +12,15 @@
       "Sidebar navigation and command menu",
       "Composer states, resize, send, cancel, retry, loading, and error feedback",
       "Activity/context tabs and split-panel mechanics",
+      "Agent Activity grouping, progressive public event presentation, disclosure, and scroll anchoring",
       "Public reasoning disclosure interaction"
     ],
     "transitive_mechanics": [
       "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
+      "src/components/conversation-events/chat/event-message-components/event-group.tsx",
+      "src/components/conversation-events/chat/event-message.tsx",
+      "src/components/conversation-events/chat/group-events.ts",
+      "src/components/conversation-events/chat/messages.tsx",
       "src/components/features/chat/chat-interface.tsx",
       "src/components/features/chat/chat-messages-skeleton.tsx",
       "src/components/features/chat/error-message-banner.tsx",
@@ -26,6 +31,10 @@
     ],
     "partial_surgical": [
       "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
+      "src/components/conversation-events/chat/event-message-components/event-group.tsx",
+      "src/components/conversation-events/chat/event-message.tsx",
+      "src/components/conversation-events/chat/group-events.ts",
+      "src/components/conversation-events/chat/messages.tsx",
       "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx"
     ],
     "excluded_surfaces": [
@@ -49,6 +58,7 @@
       "Composer execution feedback and resize behavior",
       "Command overlay focus and keyboard behavior",
       "Tabs, split-panel sizing, keyboard control, and persistence",
+      "Agent Activity event grouping, status progression, disclosure, and scroll anchoring",
       "Loading, empty, running, error, cancel, retry, and recovery states",
       "Disclosure interaction without model-private reasoning semantics"
     ],
