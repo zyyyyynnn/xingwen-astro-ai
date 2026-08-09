@@ -5,13 +5,15 @@
 | Status | Accepted |
 | Authority | 权威规范地图、文档治理规则与 Agent 默认读取规范 |
 
-本文件是星文智析仓库权威规范的唯一地图与治理规则。
+本文件是星文智析仓库权威规范的唯一地图与治理规则。Authority 定义稳定规则；
+GitHub Issues/PRs 定义实时工作状态；代码、测试和真实运行定义实现事实。
 
 ## 1. 核心 Authority 索引
 
 | 权威范围 | 唯一事实来源 | Status | Authority |
 | --- | --- | --- | --- |
 | 阶段目标与产品需求 | [PRD](../PRD.md) | Accepted | 用户、问题、产品范围、主流程、成功指标与非目标 |
+| 竞赛方向、模型资格与提交证据 | [Competition Compliance](product/COMPETITION_COMPLIANCE.md) | Accepted | 固定赛道、Qwen 资格路径、调用证明与材料证据 |
 | 体验域与设计原则 | [Product Design](../DESIGN.md) | Accepted | 产品设计原则、体验域关系与设计不变量 |
 | 页面状态与交互规则 | [Workspace UX](design/WORKSPACE_UX.md) | Accepted | Workspace 信息架构、页面状态与核心交互 |
 | 视觉风格与 Token | [Visual Language](design/VISUAL_LANGUAGE.md) | Accepted | 品牌、Token、字体、排版、密度与组件外观 |
@@ -60,7 +62,14 @@
 2. **仅保留有效规范**：活跃文档只描述当前已批准且有效的规范，不记录历史方案、废弃过程或 ADR 比较。
 3. ** Git 保存历史**：历史演进、废弃决策和迁移原因由 Git Commit 记录，不在活跃树保留 Superseded / Archive 文档。
 4. **GitHub 保存状态**：任务实时状态、WIP 进度、Milestone 与依赖由 GitHub Issues / PRs 保存，不在 Markdown 维护 Backlog / Roadmap。
-5. **禁写过程代号**：规范正文中不使用特定任务编号、临时阶段代号或个人本地路径。
-6. **约束优先**：规范正文可以超前定义已批准但尚未代码实现的要求，但不描述代码完成进度。
-7. **元数据一致性**：规范性 Authority 文档顶部必须包含 `Status: Accepted` 与 `Authority` 元数据。
-8. **同步更新**：删除或移动 Markdown 文件时，必须同步更新本索引与相关相对链接。
+5. **不混淆实现与目标**：规范正文可以超前定义已批准但尚未代码实现的要求，
+   但不得把 Draft/Open PR、Issue、Fixture、Benchmark、Recorded 或 Cached 写成 Current。
+6. **禁止过程代号**：Accepted Authority 正文和元数据不保存 Issue/PR 编号、临时阶段
+   代号、动态状态或个人本地路径；稳定版本、协议版本与外部标准编号可以保留。
+7. **Authority 不保存进度**：不要写实现进度、已交付或待完成等状态断言；实时状态
+   只在 GitHub，审计时使用不提交的 Truth Matrix。
+8. **元数据一致性**：规范性 Authority 文档顶部必须包含 `Status: Accepted` 与 `Authority`；
+   `docs/references/**` 必须保持 `Status: Reference` 且 `Authority` 不得成为生产事实源。
+9. **边界与唯一性**：每个事实只有一个完整 Authority，其他文档只链接或作单行摘要；
+   Domain、Repository、Workflow、Pipeline、Publisher 与 Versioning 边界不得在页面层重建。
+10. **同步更新**：删除或移动 Markdown 文件时，必须同步更新本索引与相关相对链接。

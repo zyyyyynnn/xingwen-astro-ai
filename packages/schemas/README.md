@@ -102,6 +102,6 @@ Schema 变更至少验证：
 - `/api` 适用回归；
 - API Contract、Data Model、Workflow 或 Version 文档按职责同步。
 
-### B-08 HTTP Transport
+### HTTP Transport projections
 
-`LiteratureClaimRead`、`LiteratureRelationRead` 与 `LiteratureReasoningTraceRead` 是 Core OpenAPI 的 transport projections；D-07/D-08 Pipeline candidate 仍是唯一领域 Schema 编写源。Transport 组合候选与版本固定 provenance，不复制 Claim、Relation 或 Trace 领域类型。
+`LiteratureClaimRead`、`LiteratureRelationRead` 与 `LiteratureReasoningTraceRead` 是 Core OpenAPI 的 transport projections；Literature Claim/Relation Pipeline candidate 仍是唯一领域 Schema 编写源。Transport 组合候选与版本固定 provenance，不复制 Claim、Relation 或 Trace 领域类型。

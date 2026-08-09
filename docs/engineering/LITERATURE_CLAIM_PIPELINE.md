@@ -16,7 +16,7 @@
 运行入口是 `services.paper_pipeline.claim.LiteratureClaimPipeline`。它接收：
 
 - `PaperSummaryArtifactVersionInput` repository-port 值；其中 content 必须已经通过
-  D-03 `PaperSummaryArtifactContent` Pydantic 校验；
+  已验证的 `PaperSummaryArtifactContent` Pydantic 校验；
 - 请求的 PaperSummary ArtifactVersion id 和 paper id；
 - `literature_claim@v1` Prompt 对应的模型 JSON 响应；
 - model、parameters version、安全 parameters；
@@ -63,7 +63,7 @@ JSON/Schema 失败产生无 Claim record 的统一 rejected result；后续阶�
 ## 3. 状态语义
 
 - `accepted`：输入版本、ownership 和 normalization 全部通过，且每条绑定 Evidence
-  均由 D-03 标记为 `supported`；
+  均由 Summary Evidence admission 标记为 `supported`；
 - `candidate`：结构与 provenance 完整，但至少一条绑定 Evidence 为
   `unsupported` 或 `unverifiable`；
 - `rejected`：命中上表任一稳定拒绝原因。
@@ -97,7 +97,7 @@ Publisher；只有 Pipeline 封印的完整
 Extraction、Claim candidate、admission、publisher candidate 与 Benchmark report
 schema/report version 均固定为 `1.0.0`；producer、parameters 和 normalization
 version 也均为 `1.0.0`。ProducerExecution 固定记录
-Prompt/schema/model/parameters/producer/normalization 版本。parameters 复用 D-03
+Prompt/schema/model/parameters/producer/normalization 版本。parameters 复用 Summary
 安全标量和敏感键拒绝策略。
 
 ## 5. Normalization 与 duplicate
