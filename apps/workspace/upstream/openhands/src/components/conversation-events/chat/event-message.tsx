@@ -49,7 +49,7 @@ export function EventMessage({ event }: EventMessageProps) {
 
   return (
     <div
-      className="my-[var(--oh-space-1)] w-full text-[length:var(--oh-font-size-body)]"
+      className="my-[var(--oh-space-1)] w-full text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]"
       data-testid="event-message"
       data-event-kind={event.kind}
       data-event-status={event.status}

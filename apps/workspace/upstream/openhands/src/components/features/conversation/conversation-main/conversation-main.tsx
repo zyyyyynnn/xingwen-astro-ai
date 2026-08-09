@@ -13,21 +13,47 @@ import { cn } from "../../../../utils/utils";
 
 type WorkspacePanel = "activity" | "context";
 
-function readCssNumberToken(name: string): number | undefined {
-  if (typeof document === "undefined") return undefined;
-  const value = Number.parseFloat(
-    window.getComputedStyle(document.documentElement).getPropertyValue(name),
-  );
-  return Number.isFinite(value) ? value : undefined;
+interface WorkspacePanelLayout {
+  readonly defaultLeftWidth: number;
+  readonly minLeftWidth: number;
+  readonly maxLeftWidth: number;
+  readonly keyboardStep: number;
 }
 
-function readWorkspacePanelLayout() {
-  return {
-    defaultLeftWidth: readCssNumberToken("--oh-panel-default-ratio"),
-    minLeftWidth: readCssNumberToken("--oh-panel-min-ratio"),
-    maxLeftWidth: readCssNumberToken("--oh-panel-max-ratio"),
-    keyboardStep: readCssNumberToken("--oh-panel-keyboard-step"),
+function readWorkspacePanelLayout(): WorkspacePanelLayout {
+  if (typeof document === "undefined") {
+    throw new Error(
+      "Workspace panel geometry requires a browser CSS token boundary.",
+    );
+  }
+
+  const styles = window.getComputedStyle(document.documentElement);
+  const readToken = (name: string) => {
+    const value = Number.parseFloat(styles.getPropertyValue(name));
+    if (!Number.isFinite(value)) {
+      throw new Error(`Workspace panel token ${name} is missing or invalid.`);
+    }
+    return value;
   };
+
+  const layout = {
+    defaultLeftWidth: readToken("--oh-panel-default-ratio"),
+    minLeftWidth: readToken("--oh-panel-min-ratio"),
+    maxLeftWidth: readToken("--oh-panel-max-ratio"),
+    keyboardStep: readToken("--oh-panel-keyboard-step"),
+  };
+  if (
+    !(
+      layout.minLeftWidth < layout.defaultLeftWidth &&
+      layout.defaultLeftWidth < layout.maxLeftWidth
+    ) ||
+    layout.keyboardStep <= 0
+  ) {
+    throw new Error(
+      "Workspace panel tokens must satisfy min < default < max and keyboard step > 0.",
+    );
+  }
+  return layout;
 }
 
 interface ConversationMainProps {
@@ -68,7 +94,7 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
   const contextSurface = (
     <div className="h-full overflow-y-auto p-[var(--oh-space-6)]">
       <div className="oh-empty-state">
-        <p className="text-[length:var(--oh-font-size-body)] font-semibold">
+        <p className="text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] font-semibold">
           暂无上下文
         </p>
         <p>当前任务没有可展示的工作区上下文。</p>
@@ -90,7 +116,10 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
         aria-expanded={isRightPanelShown}
         onClick={toggleRightPanel}
       >
-        <RightPanelToggleIcon className="size-4" aria-hidden="true" />
+        <RightPanelToggleIcon
+          className="size-[var(--oh-icon-size-md)]"
+          aria-hidden="true"
+        />
       </button>
 
       <div

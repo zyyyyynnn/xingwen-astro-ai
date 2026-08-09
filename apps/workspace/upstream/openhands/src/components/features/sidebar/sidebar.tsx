@@ -16,7 +16,7 @@ export function Sidebar({ onNewTask, canStartTask }: SidebarProps) {
 
   return (
     <aside
-      className="relative z-[var(--oh-layer-header-toggle)] h-full shrink-0 overflow-hidden border-r border-[var(--oh-border)] bg-[var(--oh-surface-muted)] transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none"
+      className="relative z-[var(--oh-layer-sidebar)] h-full shrink-0 overflow-hidden border-r border-[var(--oh-border)] bg-[var(--oh-surface-muted)] transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none"
       style={{
         width: collapsed
           ? "var(--oh-sidebar-collapsed-inline-size)"
@@ -38,7 +38,10 @@ export function Sidebar({ onNewTask, canStartTask }: SidebarProps) {
         aria-expanded={!collapsed}
         onClick={toggleCollapsed}
       >
-        <CollapseIcon className="size-4" aria-hidden="true" />
+        <CollapseIcon
+          className="size-[var(--oh-icon-size-md)]"
+          aria-hidden="true"
+        />
       </button>
     </aside>
   );

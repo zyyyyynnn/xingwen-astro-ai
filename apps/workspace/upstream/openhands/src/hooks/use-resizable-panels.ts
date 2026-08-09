@@ -1,20 +1,20 @@
 import React from "react";
 
 interface UseResizablePanelsOptions {
-  readonly defaultLeftWidth?: number;
-  readonly minLeftWidth?: number;
-  readonly maxLeftWidth?: number;
-  readonly keyboardStep?: number;
+  readonly defaultLeftWidth: number;
+  readonly minLeftWidth: number;
+  readonly maxLeftWidth: number;
+  readonly keyboardStep: number;
   readonly storageKey?: string;
 }
 
 export function useResizablePanels({
-  defaultLeftWidth = 50,
-  minLeftWidth = 30,
-  maxLeftWidth = 80,
-  keyboardStep = 2,
+  defaultLeftWidth,
+  minLeftWidth,
+  maxLeftWidth,
+  keyboardStep,
   storageKey = "desktop-layout-panel-width",
-}: UseResizablePanelsOptions = {}) {
+}: UseResizablePanelsOptions) {
   const clampWidth = React.useCallback(
     (width: number) => Math.max(minLeftWidth, Math.min(maxLeftWidth, width)),
     [maxLeftWidth, minLeftWidth],

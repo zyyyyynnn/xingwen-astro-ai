@@ -49,7 +49,8 @@ Homepage 使用以下结构：
 
 ## 3. 色彩系统与 Token 权威
 
-- 精确 Token 名称与数值唯一定义于 [`packages/design-tokens/src/base.css`](../../packages/design-tokens/src/base.css)。
+- 跨产品的 Raw palette、语义色彩、字号、间距、控件、图标、焦点、圆角、阴影与动效唯一定义于 [`packages/design-tokens/src/base.css`](../../packages/design-tokens/src/base.css)。
+- Workspace 的栏宽、面板、Composer、命令菜单、层级与 Workspace 动效唯一定义于 [`packages/design-tokens/src/workspace.css`](../../packages/design-tokens/src/workspace.css)；OpenHands 源码只通过 Workspace 的 `--oh-*` bridge 消费这些值。
 - 主题色锚点为 `#6E7981`（`--raw-bluegray-500`）。
 - Cold Paper 用于背景、画布与表面。
 - Bluegray 用于品牌、文字、边框与交互强调。
@@ -90,12 +91,12 @@ Workspace 不使用全屏深色。深色只用于 Raw 输出、代码或局部�
 
 长文有效行宽为 680–780px。内部 ID 与 Hash 不使用标题层级。
 
-Workspace 壳层统一消费语义字号 Token：`label` 为 12px、`body` 为 14px、`title` 为 16px、`heading` 为 20px。组件不得直接拼接基础字号刻度；在 Tailwind 任意值中引用字号变量时必须使用长度类型提示（`text-[length:var(...)]`），避免变量被误判为颜色而回退到浏览器默认字号。
+Workspace 壳层统一消费 `--font-size-ui-*` 与 `--line-height-ui-*` 成对定义的 `label`、`body`、`heading` 角色。组件不得直接拼接基础字号刻度；在 Tailwind 任意值中引用字号变量时必须使用长度类型提示（`text-[length:var(...)]`），避免变量被误判为颜色而回退到浏览器默认字号。
 
 ## 7. 密度与结构
 
-- 间距使用 4 / 8 / 12 / 16 / 24 / 32；
-- Workspace 三栏顶部栏统一为 48px，并共享同一底部分隔线；品牌、主标题与面板标签使用 14px，状态文字使用 12px；品牌可保留 Serif，但不得改变垂直基线；
+- 间距使用 4 / 8 / 12 / 16 / 20 / 24 / 32；
+- Workspace 三栏顶部栏统一为 48px，并共享同一底部分隔线；品牌与主标题使用 `heading`，面板标签使用 `body`，状态文字使用 `label`；品牌可保留 Serif，但不得改变垂直基线；
 - 导航项高度 36–44px；
 - Composer 采用输入区与操作区分层的桌面结构，默认保留足够的组合空间；尺寸由 Workspace 语义 Token 定义，不得为追求紧凑而压缩到控件重叠、内容溢出或后续能力接入需要重做外壳；
 - 圆角 4–8px；

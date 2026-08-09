@@ -77,10 +77,10 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
                 className="mx-auto size-7 text-[var(--oh-text-dim)]"
                 aria-hidden="true"
               />
-              <h2 className="mt-4 font-serif text-[length:var(--oh-font-size-heading)] font-medium text-[var(--oh-text)]">
+              <h2 className="oh-font-serif mt-[var(--oh-space-4)] text-[length:var(--oh-font-size-heading)] leading-[var(--oh-line-height-heading)] font-medium text-[var(--oh-text)]">
                 从一条明确指令开始
               </h2>
-              <p className="mt-2 text-[length:var(--oh-font-size-body)] leading-6 text-[var(--oh-muted)]">
+              <p className="mt-[var(--oh-space-2)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]">
                 连接 Agent 运行服务后，可在下方描述任务。
               </p>
             </div>
@@ -103,7 +103,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
         ) : null}
         {notice ? (
           <p
-            className="px-[var(--oh-space-4)] py-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] text-[var(--oh-muted)]"
+            className="px-[var(--oh-space-4)] py-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]"
             role="status"
           >
             {notice}

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@xingwen/design-tokens/base.css";
+@import "@xingwen/design-tokens/workspace.css";
 @import "@xingwen/ui/styles.css";
 @source "../upstream/openhands/src";
 
@@ -33,8 +34,10 @@
   --oh-space-2: var(--space-2);
   --oh-space-3: var(--space-3);
   --oh-space-4: var(--space-4);
+  --oh-space-5: var(--space-5);
   --oh-space-6: var(--space-6);
   --oh-space-8: var(--space-8);
+  --oh-control-size-xs: var(--control-size-xs);
   --oh-control-size-sm: var(--control-size-sm);
   --oh-control-size-md: var(--control-size-md);
   --oh-control-size-lg: var(--control-size-lg);
@@ -42,10 +45,12 @@
   --oh-icon-size-sm: var(--icon-size-sm);
   --oh-icon-size-md: var(--icon-size-md);
   --oh-icon-size-lg: var(--icon-size-lg);
-  --oh-font-size-label: var(--font-size-label);
-  --oh-font-size-body: var(--font-size-body);
-  --oh-font-size-title: var(--font-size-title);
-  --oh-font-size-heading: var(--font-size-heading);
+  --oh-font-size-label: var(--font-size-ui-label);
+  --oh-font-size-body: var(--font-size-ui-body);
+  --oh-font-size-heading: var(--font-size-ui-heading);
+  --oh-line-height-label: var(--line-height-ui-label);
+  --oh-line-height-body: var(--line-height-ui-body);
+  --oh-line-height-heading: var(--line-height-ui-heading);
   --oh-header-block-size: var(--workspace-header-block-size);
   --oh-header-inline-padding: var(--workspace-header-inline-padding);
   --oh-header-control-inset-inline: var(
@@ -79,6 +84,13 @@
   --oh-composer-padding-inline: var(--workspace-composer-padding-inline);
   --oh-composer-padding-block: var(--workspace-composer-padding-block);
   --oh-composer-row-gap: var(--workspace-composer-row-gap);
+  --oh-composer-grip-inline-size: var(--workspace-composer-grip-inline-size);
+  --oh-composer-grip-indicator-inline-size: var(
+    --workspace-composer-grip-indicator-inline-size
+  );
+  --oh-composer-grip-indicator-block-size: var(
+    --workspace-composer-grip-indicator-block-size
+  );
   --oh-panel-default-ratio: var(--workspace-panel-default-ratio);
   --oh-panel-min-ratio: var(--workspace-panel-min-ratio);
   --oh-panel-max-ratio: var(--workspace-panel-max-ratio);
@@ -130,8 +142,8 @@ button:focus-visible,
 [role="separator"]:focus-visible,
 [role="tabpanel"]:focus-visible,
 [role="textbox"]:focus-visible {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
 }
 
 @layer base {
@@ -151,7 +163,7 @@ button:disabled {
 
 .skip-link {
   position: fixed;
-  z-index: 100;
+  z-index: var(--layer-skip-link);
   top: 0.75rem;
   left: 0.75rem;
   padding: 0.6rem 0.8rem;
@@ -179,8 +191,8 @@ button:disabled {
 
 .oh-icon-button {
   display: inline-flex;
-  width: 2rem;
-  height: 2rem;
+  width: var(--oh-control-size-sm);
+  height: var(--oh-control-size-sm);
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
@@ -196,13 +208,17 @@ button:disabled {
   color: var(--oh-text);
 }
 
+.oh-font-serif {
+  font-family: var(--xw-font-serif);
+}
+
 .oh-empty-state {
   max-width: 26rem;
   border-left: 1px solid var(--oh-border-strong);
   padding-left: var(--oh-space-4);
   color: var(--oh-muted);
   font-size: var(--oh-font-size-body);
-  line-height: 1.6;
+  line-height: var(--oh-line-height-body);
 }
 
 .oh-empty-state p {

@@ -45,7 +45,7 @@ export function EventGroup({
 
   return (
     <div
-      className="my-[var(--oh-space-1)] w-full py-[var(--oh-space-1)] text-[length:var(--oh-font-size-body)]"
+      className="my-[var(--oh-space-1)] w-full py-[var(--oh-space-1)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]"
       data-testid="event-group"
     >
       <button

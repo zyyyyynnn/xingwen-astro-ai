@@ -172,9 +172,11 @@ test("Workspace top bars share one height, divider, and type scale", async ({
     .getByText("运行服务未连接", { exact: true })
     .evaluate((element) => getComputedStyle(element).fontSize);
   expect(brandFontSize).toBe(titleFontSize);
-  expect(tabFontSize).toBe(titleFontSize);
-  expect(Number.parseFloat(statusFontSize)).toBeLessThan(
+  expect(Number.parseFloat(tabFontSize)).toBeLessThan(
     Number.parseFloat(titleFontSize),
+  );
+  expect(Number.parseFloat(statusFontSize)).toBeLessThan(
+    Number.parseFloat(tabFontSize),
   );
 });
 

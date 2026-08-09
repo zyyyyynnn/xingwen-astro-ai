@@ -171,7 +171,7 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
           <input
             ref={inputRef}
             id={SEARCH_INPUT_ID}
-            className="h-[var(--oh-control-size-lg)] min-w-0 flex-1 bg-transparent text-[length:var(--oh-font-size-body)] text-[var(--oh-text)] caret-[var(--oh-accent)] outline-none placeholder:text-[var(--oh-text-dim)]"
+            className="h-[var(--oh-control-size-lg)] min-w-0 flex-1 bg-transparent text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-text)] caret-[var(--oh-accent)] outline-none placeholder:text-[var(--oh-text-dim)]"
             placeholder="搜索命令"
             aria-label="搜索命令"
             role="combobox"
@@ -209,7 +209,7 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
           className="min-h-0 flex-1 overflow-y-auto p-[var(--oh-space-2)]"
         >
           {filteredItems.length === 0 ? (
-            <p className="px-[var(--oh-space-4)] py-[var(--oh-space-8)] text-center text-[length:var(--oh-font-size-body)] text-[var(--oh-muted)]">
+            <p className="px-[var(--oh-space-4)] py-[var(--oh-space-8)] text-center text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]">
               没有匹配的命令
             </p>
           ) : (
@@ -220,7 +220,7 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
               if (groupItems.length === 0) return null;
               return (
                 <section key={group} className="py-[var(--oh-space-1)]">
-                  <h2 className="px-[var(--oh-space-3)] py-[var(--oh-space-2)] text-[length:var(--oh-font-size-label)] font-semibold text-[var(--oh-text-dim)]">
+                  <h2 className="px-[var(--oh-space-3)] py-[var(--oh-space-2)] text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] font-semibold text-[var(--oh-text-dim)]">
                     {COMMAND_MENU_GROUP_LABELS[group]}
                   </h2>
                   {groupItems.map((item) => {
@@ -239,7 +239,7 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
                         aria-selected={active}
                         tabIndex={-1}
                         className={cn(
-                          "flex w-full items-center gap-[var(--oh-space-3)] rounded-[var(--oh-radius-md)] px-[var(--oh-space-3)] py-[var(--oh-space-3)] text-left text-[length:var(--oh-font-size-body)]",
+                          "flex w-full items-center gap-[var(--oh-space-3)] rounded-[var(--oh-radius-md)] px-[var(--oh-space-3)] py-[var(--oh-space-3)] text-left text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]",
                           active
                             ? "bg-[var(--oh-accent-muted)] text-[var(--oh-text)]"
                             : "text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)]",
@@ -257,7 +257,7 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
                           <span className="block font-medium">
                             {item.title}
                           </span>
-                          <span className="block truncate text-[length:var(--oh-font-size-label)] text-[var(--oh-text-dim)]">
+                          <span className="block truncate text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-text-dim)]">
                             {item.description}
                           </span>
                         </span>
@@ -269,7 +269,7 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
             })
           )}
         </div>
-        <p className="border-t border-[var(--oh-border)] px-[var(--oh-space-4)] py-[var(--oh-space-2)] text-[length:var(--oh-font-size-label)] text-[var(--oh-text-dim)]">
+        <p className="border-t border-[var(--oh-border)] px-[var(--oh-space-4)] py-[var(--oh-space-2)] text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-text-dim)]">
           使用方向键选择，Enter 执行，Esc 关闭
         </p>
       </div>

@@ -15,7 +15,7 @@ export function sidebarNavListClassName(): string {
 
 export function sidebarNavRowClassName(): string {
   return cn(
-    "group flex h-[var(--oh-sidebar-row-block-size)] min-h-[var(--oh-sidebar-row-block-size)] min-w-0 items-center gap-[var(--oh-space-2)] rounded-[var(--oh-radius-sm)] px-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)]",
+    "group flex h-[var(--oh-sidebar-row-block-size)] min-h-[var(--oh-sidebar-row-block-size)] min-w-0 items-center gap-[var(--oh-space-2)] rounded-[var(--oh-radius-sm)] px-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]",
     navInteractiveTransitionClassName,
     "text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)]",
     "disabled:text-[var(--oh-text-dim)] disabled:hover:bg-transparent disabled:hover:text-[var(--oh-text-dim)]",

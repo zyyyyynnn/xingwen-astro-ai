@@ -15,7 +15,7 @@ export function ErrorMessageBanner({
 }: ErrorMessageBannerProps) {
   return (
     <section
-      className="mx-[var(--oh-space-6)] my-[var(--oh-space-3)] border border-[var(--oh-error)] bg-[var(--oh-error-muted)] p-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)]"
+      className="mx-[var(--oh-space-6)] my-[var(--oh-space-3)] border border-[var(--oh-error)] bg-[var(--oh-error-muted)] p-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]"
       role="alert"
     >
       <div className="flex items-start gap-[var(--oh-space-3)]">

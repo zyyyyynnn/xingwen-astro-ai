@@ -36,7 +36,7 @@ export function ConversationTabNav({
       data-tab-measure={measureOnly ? "true" : undefined}
       id={measureOnly ? undefined : `workspace-tab-${id}`}
       className={cn(
-        "relative flex min-w-0 items-center gap-[var(--oh-space-2)] border-0 border-b-2 px-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] font-medium",
+        "relative flex min-w-0 items-center gap-[var(--oh-space-2)] border-0 border-b-2 px-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] font-medium",
         isActive
           ? "border-[var(--oh-accent)] text-[var(--oh-text)]"
           : "border-transparent text-[var(--oh-muted)] hover:text-[var(--oh-text)]",

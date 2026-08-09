@@ -23,7 +23,7 @@ export function ChatInputField({
     <div className="min-w-0 flex-1">
       <div
         ref={chatInputRef}
-        className="chat-input min-h-[var(--oh-composer-input-min-block-size)] max-h-[var(--oh-composer-input-max-block-size)] overflow-y-auto whitespace-pre-wrap bg-transparent text-[length:var(--oh-font-size-body)] leading-5 text-[var(--oh-text)] outline-none"
+        className="chat-input min-h-[var(--oh-composer-input-min-block-size)] max-h-[var(--oh-composer-input-max-block-size)] overflow-y-auto whitespace-pre-wrap bg-transparent text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-text)] outline-none"
         contentEditable={!disabled}
         suppressContentEditableWarning
         role="textbox"

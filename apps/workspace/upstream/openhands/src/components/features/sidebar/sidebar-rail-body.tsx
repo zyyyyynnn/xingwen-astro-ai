@@ -32,7 +32,7 @@ export function SidebarRailBody({
             collapsed && "invisible",
           )}
         >
-          <BrandMark className="text-[length:var(--oh-font-size-body)]" />
+          <BrandMark className="text-[length:var(--oh-font-size-heading)] leading-[var(--oh-line-height-heading)]" />
         </span>
       </header>
 
@@ -65,7 +65,7 @@ export function SidebarRailBody({
         <h2 className="truncate text-[length:var(--oh-font-size-label)] font-semibold tracking-wide text-[var(--oh-muted)]">
           任务
         </h2>
-        <p className="mt-[var(--oh-space-3)] truncate text-[length:var(--oh-font-size-label)] leading-5 text-[var(--oh-text-dim)]">
+        <p className="mt-[var(--oh-space-3)] truncate text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-text-dim)]">
           没有任务记录
         </p>
       </section>

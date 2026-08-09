@@ -250,7 +250,7 @@ export function ConversationTabs({
                     type="button"
                     role="menuitemradio"
                     aria-checked={tab.id === activeTab}
-                    className="flex w-full items-center gap-[var(--oh-space-2)] rounded-[var(--oh-radius-sm)] px-[var(--oh-space-2)] py-[var(--oh-space-2)] text-left text-[length:var(--oh-font-size-body)] text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)]"
+                    className="flex w-full items-center gap-[var(--oh-space-2)] rounded-[var(--oh-radius-sm)] px-[var(--oh-space-2)] py-[var(--oh-space-2)] text-left text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)] hover:bg-[var(--oh-surface-raised)] hover:text-[var(--oh-text)]"
                     onClick={() => selectAt(TABS.indexOf(tab))}
                   >
                     <Icon
