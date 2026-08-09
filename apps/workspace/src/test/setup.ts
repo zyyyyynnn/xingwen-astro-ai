@@ -1,10 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { createRequire } from "node:module";
 import { vi } from "vitest";
 
+const nodeRequire = createRequire(import.meta.url);
 const workspaceCss = readFileSync(
-  resolve(process.cwd(), "../../packages/design-tokens/src/workspace.css"),
+  nodeRequire.resolve("@xingwen/design-tokens/workspace.css"),
   "utf8",
 );
 

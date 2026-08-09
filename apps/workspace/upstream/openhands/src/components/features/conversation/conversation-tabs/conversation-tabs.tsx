@@ -21,15 +21,40 @@ const TABS: ReadonlyArray<{
 
 const TAB_STORAGE_KEY = "xingwen-workspace-panel-tab";
 
-function readCssLengthInPixels(name: string): number {
+export function readCssLengthInPixels(name: string): number {
   const root = document.documentElement;
   const styles = window.getComputedStyle(root);
-  const value = styles.getPropertyValue(name).trim();
-  const amount = Number.parseFloat(value);
-  if (!Number.isFinite(amount)) return 0;
-  if (!value.endsWith("rem")) return amount;
+  const rawValue = styles.getPropertyValue(name).trim();
+  if (!rawValue) {
+    throw new Error(`Workspace layout token ${name} is missing.`);
+  }
+
+  const match = /^(-?\d+(?:\.\d+)?)(px|rem)$/u.exec(rawValue);
+  if (!match) {
+    throw new Error(
+      `Workspace layout token ${name} must resolve to px or rem.`,
+    );
+  }
+
+  const amountToken = match[1];
+  const unit = match[2];
+  if (!amountToken || !unit) {
+    throw new Error(`Workspace layout token ${name} is invalid.`);
+  }
+
+  const amount = Number.parseFloat(amountToken);
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error(`Workspace layout token ${name} is invalid.`);
+  }
+
+  if (unit === "px") return amount;
+
   const rootFontSize = Number.parseFloat(styles.fontSize);
-  return Number.isFinite(rootFontSize) ? amount * rootFontSize : 0;
+  if (!Number.isFinite(rootFontSize) || rootFontSize <= 0) {
+    throw new Error("Workspace root font size is missing or invalid.");
+  }
+
+  return amount * rootFontSize;
 }
 
 function readStoredTab(): WorkspacePanelTab {
