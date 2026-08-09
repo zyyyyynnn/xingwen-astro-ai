@@ -1,0 +1,217 @@
+{
+  "$defs": {
+    "GraphIntegrityCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_count": {
+          "maximum": 20000,
+          "minimum": 0,
+          "title": "Edge Count",
+          "type": "integer"
+        },
+        "evidence_use_count": {
+          "maximum": 50000,
+          "minimum": 0,
+          "title": "Evidence Use Count",
+          "type": "integer"
+        },
+        "input_version_count": {
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Input Version Count",
+          "type": "integer"
+        },
+        "node_count": {
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Node Count",
+          "type": "integer"
+        },
+        "relation_edge_count": {
+          "minimum": 0,
+          "title": "Relation Edge Count",
+          "type": "integer"
+        },
+        "source_snapshot_count": {
+          "minimum": 0,
+          "title": "Source Snapshot Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "input_version_count",
+        "node_count",
+        "edge_count",
+        "evidence_use_count",
+        "source_snapshot_count",
+        "relation_edge_count"
+      ],
+      "title": "GraphIntegrityCounts",
+      "type": "object"
+    },
+    "GraphIntegrityFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "priority": {
+          "maximum": 1100,
+          "minimum": 100,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "reason": {
+          "$ref": "#/$defs/GraphRejectionReason"
+        },
+        "stage": {
+          "$ref": "#/$defs/GraphIntegrityStage"
+        }
+      },
+      "required": [
+        "stage",
+        "reason",
+        "priority",
+        "path",
+        "message"
+      ],
+      "title": "GraphIntegrityFinding",
+      "type": "object"
+    },
+    "GraphIntegrityStage": {
+      "enum": [
+        "input_schema",
+        "artifact_version",
+        "ownership",
+        "taxonomy",
+        "identity",
+        "endpoint",
+        "evidence_snapshot",
+        "relation_trace",
+        "direction_type",
+        "capacity_progressive",
+        "hash_commitment"
+      ],
+      "title": "GraphIntegrityStage",
+      "type": "string"
+    },
+    "GraphIntegrityStatus": {
+      "enum": [
+        "passed",
+        "failed"
+      ],
+      "title": "GraphIntegrityStatus",
+      "type": "string"
+    },
+    "GraphRejectionReason": {
+      "enum": [
+        "invalid_json",
+        "schema_invalid",
+        "input_version_unknown",
+        "input_version_unpublished",
+        "wrong_artifact_kind",
+        "unsupported_schema_version",
+        "content_hash_mismatch",
+        "input_hash_mismatch",
+        "producer_execution_mismatch",
+        "cross_project_ownership",
+        "cross_version_reference",
+        "taxonomy_violation",
+        "duplicate_node_identity",
+        "duplicate_edge_identity",
+        "identity_collision",
+        "dangling_endpoint",
+        "evidence_missing",
+        "evidence_unknown",
+        "evidence_inconsistent",
+        "source_snapshot_missing",
+        "source_snapshot_unknown",
+        "source_snapshot_inconsistent",
+        "relation_not_accepted",
+        "reasoning_trace_missing",
+        "reasoning_trace_mismatch",
+        "reasoning_trace_incomplete",
+        "wrong_direction",
+        "relation_type_mismatch",
+        "provenance_version_mismatch",
+        "evidence_hidden_by_filter",
+        "aggregation_incomplete",
+        "size_limit_exceeded",
+        "silent_truncation",
+        "progressive_input_incomplete",
+        "candidate_hash_mismatch",
+        "report_hash_mismatch",
+        "admission_commitment_mismatch"
+      ],
+      "title": "GraphRejectionReason",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "content_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "counts": {
+      "$ref": "#/$defs/GraphIntegrityCounts"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/GraphIntegrityFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "first_failure_stage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphIntegrityStage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "first_rejection_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphRejectionReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "policy_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/GraphIntegrityStatus"
+    }
+  },
+  "required": [
+    "status",
+    "findings",
+    "counts",
+    "content_hash"
+  ],
+  "title": "GraphIntegrityReport",
+  "type": "object"
+}

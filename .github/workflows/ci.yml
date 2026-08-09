@@ -119,6 +119,13 @@ jobs:
           --cases-output .artifacts/d08-relation-benchmark-cases.json
           --output .artifacts/d08-relation-benchmark-report.json
 
+      - name: Run reproducible D05 Graph benchmark
+        working-directory: .
+        run: >
+          uv run --project apps/api python -m services.graph_pipeline.benchmark
+          --cases-output .artifacts/d05-graph-benchmark-cases.json
+          --output .artifacts/d05-graph-benchmark-report.json
+
       - name: Check phase0 pipeline schema contracts
         run: >
           uv run python ../../scripts/export_schemas.py
@@ -184,6 +191,22 @@ jobs:
           --include LiteratureReasoningTraceCandidate
           --include LiteratureRelationBenchmarkEvaluationCase
           --include LiteratureRelationBenchmarkReport
+          --check
+
+      - name: Check D05 Graph pipeline contracts
+        run: >
+          uv run python ../../scripts/export_schemas.py
+          --output ../../packages/schemas/generated/graph
+          --include GraphBuildRequest
+          --include GraphArtifactNode
+          --include GraphArtifactEdge
+          --include GraphEvidenceUse
+          --include GraphIntegrityReport
+          --include GraphArtifactCandidate
+          --include GraphAdmissionResult
+          --include GraphBenchmarkEvaluationCase
+          --include GraphBenchmarkReport
+          --manifest-content-hashes
           --check
 
       - name: Check core contracts

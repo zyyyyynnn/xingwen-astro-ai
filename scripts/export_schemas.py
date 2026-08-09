@@ -7,6 +7,7 @@ are build artifacts consumed by frontend/type generation tooling later.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib
 import inspect
 import json
@@ -72,7 +73,11 @@ def discover_models() -> dict[str, tuple[Any, str]]:
     return dict(sorted(models.items()))
 
 
-def render_contracts(models: dict[str, tuple[Any, str]]) -> dict[str, str]:
+def render_contracts(
+    models: dict[str, tuple[Any, str]],
+    *,
+    manifest_content_hashes: bool = False,
+) -> dict[str, str]:
     rendered: dict[str, str] = {}
     manifest: dict[str, Any] = {
         "schema_version": 1,
@@ -86,19 +91,24 @@ def render_contracts(models: dict[str, tuple[Any, str]]) -> dict[str, str]:
             schema = model.model_json_schema()
         else:
             schema = TypeAdapter(model).json_schema()
-        rendered[relative_path] = json.dumps(
+        rendered_schema = json.dumps(
             schema,
             ensure_ascii=False,
             indent=2,
             sort_keys=True,
         ) + "\n"
-        manifest["models"].append(
-            {
-                "name": name,
-                "module": module,
-                "path": relative_path,
-            }
-        )
+        rendered[relative_path] = rendered_schema
+        model_entry = {
+            "name": name,
+            "module": module,
+            "path": relative_path,
+        }
+        if manifest_content_hashes:
+            model_entry["content_hash"] = (
+                "sha256:"
+                + hashlib.sha256(rendered_schema.encode("utf-8")).hexdigest()
+            )
+        manifest["models"].append(model_entry)
 
     rendered["manifest.json"] = json.dumps(
         manifest,
@@ -113,7 +123,7 @@ def write_contracts(output_dir: Path, rendered: dict[str, str]) -> None:
     for relative_path, content in rendered.items():
         target = output_dir / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+        target.write_text(content, encoding="utf-8", newline="\n")
 
 
 def check_contracts(output_dir: Path, rendered: dict[str, str]) -> int:
@@ -160,6 +170,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="fail when generated files are missing or stale",
     )
+    parser.add_argument(
+        "--manifest-content-hashes",
+        action="store_true",
+        help="record each generated schema file SHA-256 in the manifest",
+    )
     return parser.parse_args()
 
 
@@ -172,7 +187,10 @@ def main() -> int:
             print(f"unknown schema model(s): {', '.join(unknown)}", file=sys.stderr)
             return 2
         models = {name: models[name] for name in sorted(set(args.include))}
-    rendered = render_contracts(models)
+    rendered = render_contracts(
+        models,
+        manifest_content_hashes=args.manifest_content_hashes,
+    )
     if args.check:
         return check_contracts(args.output, rendered)
 

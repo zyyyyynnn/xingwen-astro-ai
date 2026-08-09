@@ -85,3 +85,37 @@ Draft 是编辑态资源，一旦确认即产生不可变 Contract。
 - ReasoningTrace 不是独立 ArtifactVersion；它只公开 premise、结构化比较步骤、条件、限制、冲突、结论与 Evidence 引用。
 - `graph_eligible` 是读取闭包结果，不是新的科学判定。只有 accepted Relation、accepted endpoints 与完整 Trace/Evidence/SourceSnapshot 同时成立时为真。
 - ArtifactVersion 与 Evidence 在同一 Publisher 事务内原子创建。Pipeline Evidence/SourceSnapshot ID 保留在 locator 与 typed content 中，数据库 registry 保存对应 PostgreSQL UUID；两侧必须一一闭合且同属一个 Project。
+
+## 6. Versioned Evidence Graph
+
+- `graph` ArtifactVersion 保存同一 Project 内由明确上游 ArtifactVersion 派生的不可变节点、
+  有向边与 Graph-owned Evidence-use 闭包。它不引用动态 `latest`，也不把过滤或渐进读取结果
+  当作新的科学产物。
+- Dataset node 的领域身份严格等于 `ResearchArtifact.artifact_id`；用于构建的 Dataset
+  ArtifactVersion 另作版本 provenance。Field node 的领域身份严格由
+  `field_manifest_id + canonical_field_id` 二元组组成。Graph 不生成 row node；`source`
+  node type 保留但当前不生成。
+- `uses_dataset` 只允许 `research_goal -> dataset`，`provides_field` 只允许
+  `dataset -> field`。数据字段边必须保存 selected、unselected、null、unresolved 与 conflict
+  对应 Evidence-use 的完整并集，不能只保留展示 winner。该并集覆盖所有以
+  `projected_field_ids` 声明 field 适用的行；不同 entity 且未投影该 field 的行不得被虚构为
+  null，但已投影行缺 outcome 必须失败关闭。Graph v1 的固定输入不含
+  ResearchContract/ResearchGoal，因此当前不生成 research_goal node 或 `uses_dataset` edge；
+  该缺失是合法状态，不能从 Project 或 Dataset metadata 推测目标。
+- Field node 集合由固定 FieldDictionary 的 canonical field 全集决定，不由某行是否存在值决定。
+  同一 Dataset/Field logical identity 在一个 Graph 中至多存在一条 `provides_field` edge；合法
+  发布候选必须为每个应映射 Field 精确形成一条。全 null 或 unresolved 仍不能省略 Field/edge；
+  任一应映射 edge 无法绑定至少一个有效 Evidence-use 时，整个 Graph 失败关闭。
+- Graph-owned Evidence-use 的稳定身份由
+  `(graph_edge_identity, upstream_artifact_version_id, upstream_evidence_id)` 组成。Publisher
+  为每个 use 新建属于 Graph ArtifactVersion、target type 为 `graph_edge` 的 Evidence，并
+  复用上游 Evidence 已固定的 SourceSnapshot；不得改绑或改写上游 Evidence。
+- 跨文献边严格遵循 Accepted LiteratureRelation 的 `source -> target` 方向和 relation type，
+  并重新闭合双方 accepted Claim、ReasoningTrace、Evidence 与 SourceSnapshot。candidate 或
+  rejected Relation 即使已经科研审核也不能进入 Graph。
+- Graph ArtifactVersion 与全部新 graph-edge Evidence 在同一 Publisher 事务内原子创建，
+  使用现有 ResearchArtifact、ArtifactVersion、Evidence 与 SourceSnapshot 持久化模型，
+  不要求数据库迁移。
+
+Graph 的生产准入、hash 分层、容量、过滤、聚合、渐进读取、Benchmark 与防绕过规则见
+[Graph Pipeline](../engineering/GRAPH_PIPELINE.md)。
