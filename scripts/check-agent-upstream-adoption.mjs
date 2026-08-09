@@ -461,6 +461,16 @@ export function checkAgentUpstreamAdoption(root) {
         }
         provByLocal.set(e.local_path, e);
       }
+      const provenancePaths = new Set(
+        entryList.map((entry) => entry.upstream_path),
+      );
+      for (const upstreamPath of adoptedMechanicsPaths) {
+        if (!provenancePaths.has(upstreamPath)) {
+          failures.push(
+            `G5: adopted source-scope path has no provenance entry: ${upstreamPath}.`,
+          );
+        }
+      }
       for (const lp of diskLocalPaths) {
         if (!provByLocal.has(lp)) {
           failures.push(`G5: on-disk file has no provenance entry: ${lp}.`);

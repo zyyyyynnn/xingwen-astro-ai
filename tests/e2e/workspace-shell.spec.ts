@@ -550,7 +550,11 @@ test("Split-panel drag has no easing or leftover interception", async ({
   expect(result!.afterActivityWidth).not.toBe(result!.beforeActivityWidth);
   expect(result!.bodyCursor).toBe("");
   expect(result!.bodyUserSelect).toBe("");
-  await expect(page.locator("[data-panel-drag-shield]")).toHaveCount(0);
+  const activityToggle = page.getByRole("button", { name: "收起活动面板" });
+  await activityToggle.click();
+  await expect(
+    page.getByRole("button", { name: "展开活动面板" }),
+  ).toBeFocused();
 });
 
 test("Public share route renders the fixed safe boundary", async ({ page }) => {

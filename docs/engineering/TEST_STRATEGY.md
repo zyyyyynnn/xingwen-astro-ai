@@ -21,7 +21,7 @@
 
 覆盖选定上游 Agent 骨架的 Navigation、Agent Activity、Workspace、Composer、Command、Loading / Empty / Error、Cancel / Retry 与 Responsive 行为。
 
-来源门禁同时验证批准的 Product Mechanics Scope 与落盘映射一致、`src/root.tsx` 的实际依赖闭包完整、本地导入全部可解析、Scope / Resolution / Provenance 一一对应；闭包外旧 facade 或孤立源码视为失败。
+来源门禁同时验证批准的 Product Mechanics Scope 与 Provenance 落盘映射一一对应、`src/root.tsx` 的实际依赖闭包完整、本地导入全部可解析，以及 source-policy 的排除边界；闭包外旧 facade 或孤立源码视为失败。
 
 ### Unit
 

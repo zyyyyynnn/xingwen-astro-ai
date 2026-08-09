@@ -299,6 +299,32 @@ test("the frozen KEEP_AS_IS aggregate detects source drift", () => {
   }
 });
 
+test("every adopted scope path requires provenance", () => {
+  const root = freshRepo();
+  try {
+    createSingleFileFixture(root);
+    const scope = load(root, "source-scope.json");
+    const missingPath = "src/routes/root-layout.tsx";
+    const missingEntry = scope.files.find(
+      (entry) => entry.upstream_path === missingPath,
+    );
+    assert.ok(missingEntry);
+    missingEntry.classification = "REQUIRED_VENDOR";
+    scope.approved_mechanics[0].upstream_paths.push(missingPath);
+    scope.summary.REQUIRED_VENDOR += 1;
+    scope.summary.EXCLUDED -= 1;
+    save(root, "source-scope.json", scope);
+
+    assertFail(
+      root,
+      /adopted source-scope path has no provenance entry/u,
+      "provenance coverage",
+    );
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("provenance generation rejects source outside the entrypoint closure", () => {
   const root = freshRepo();
   try {
