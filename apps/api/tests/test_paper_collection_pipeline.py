@@ -37,7 +37,6 @@ from services.paper_pipeline.constants import (
     FROZEN_BENCHMARK_SCHEMA_VERSION,
     FROZEN_BENCHMARK_VERSION,
     FROZEN_SCIENTIFIC_PAYLOAD_HASH,
-    FROZEN_X00_MAIN_SHA,
 )
 from services.paper_pipeline.dedupe import group_duplicates
 from services.paper_pipeline.pipeline import PaperCollectionPipeline
@@ -602,7 +601,6 @@ def test_pipeline_schema_provenance_metrics_and_hashes_are_stable() -> None:
         for candidate in first.candidates
     )
     assert first.rules.canonicalization_version == "1.0.0"
-    assert first.benchmark.x00_main_sha == FROZEN_X00_MAIN_SHA
     assert first.acquisition_run.status == "completed"
 
 
@@ -714,7 +712,7 @@ def test_source_mode_and_data_level_cannot_be_misrepresented() -> None:
 
     for snapshot in cached_payload["source_snapshots"]:
         if snapshot["snapshot_id"] == snapshot_id:
-            snapshot["cache_version"] = "cache_v1"
+            snapshot["cache_version"] = "cache_fixture"
 
     def seal(payload: dict[str, object]) -> dict[str, object]:
         candidate = json.loads(json.dumps(payload))

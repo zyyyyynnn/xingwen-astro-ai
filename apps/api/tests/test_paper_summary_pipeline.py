@@ -200,25 +200,22 @@ def _admit(
     )
 
 
-def test_prompt_registry_resolves_hash_pinned_versions() -> None:
+def test_prompt_registry_resolves_one_hash_pinned_current_definition() -> None:
     registry = PromptRegistry()
 
     current = registry.get("paper_summary")
-    versions = registry.versions("paper_summary")
 
-    assert current.version == "v2"
+    assert current.version == "2.0.0"
     assert current.output_models == ("PaperSummaryModelOutput",)
     assert current.content_hash == (
-        "sha256:594a3e59ea2cbad953e1245efbe4f409a302ed39a73c743feb62d268422f973a"
+        "sha256:b7b1024ef42bdeadb2fa2f48b401f882321f7c1ca25b92b07446258e8bb4f4d4"
     )
-    assert tuple(item.version for item in versions) == ("v1", "v2")
-    assert versions[0].status == "deprecated"
 
 
 def test_prompt_registry_rejects_in_place_version_mutation(tmp_path: Path) -> None:
     prompt_root = tmp_path / "prompts"
     shutil.copytree(ROOT / "packages" / "prompts", prompt_root)
-    prompt_path = prompt_root / "paper_summary" / "v2.md"
+    prompt_path = prompt_root / "paper_summary" / "prompt.md"
     prompt_path.write_text(
         prompt_path.read_text(encoding="utf-8") + "\nmutated in place\n",
         encoding="utf-8",
@@ -228,8 +225,48 @@ def test_prompt_registry_rejects_in_place_version_mutation(tmp_path: Path) -> No
         PromptRegistry(prompt_root)
 
 
+@pytest.mark.parametrize(
+    ("field", "replacement", "error"),
+    [
+        ("input_schema_version: 1.0.0\n", "", "front matter fields"),
+        (
+            "evidence_required: true\n",
+            "evidence_required: required\n",
+            "prompt contract metadata",
+        ),
+    ],
+)
+def test_prompt_registry_rejects_incomplete_contract_metadata(
+    tmp_path: Path,
+    field: str,
+    replacement: str,
+    error: str,
+) -> None:
+    prompt_root = tmp_path / "prompts"
+    shutil.copytree(ROOT / "packages" / "prompts", prompt_root)
+    prompt_path = prompt_root / "paper_summary" / "prompt.md"
+    prompt_content = prompt_path.read_text(encoding="utf-8").replace(
+        field,
+        replacement,
+        1,
+    )
+    prompt_path.write_text(prompt_content, encoding="utf-8")
+    registry_path = prompt_root / "registry.json"
+    registry_payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    registry_payload["prompts"]["paper_summary"]["content_hash"] = (
+        compute_prompt_content_hash(prompt_content)
+    )
+    registry_path.write_text(
+        json.dumps(registry_payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PromptRegistryError, match=error):
+        PromptRegistry(prompt_root)
+
+
 def test_prompt_registry_hash_matches_utf8_lf_file_bytes() -> None:
-    record = PromptRegistry().get("paper_summary", "v2")
+    record = PromptRegistry().get("paper_summary")
     prompt_bytes = (ROOT / "packages" / "prompts" / record.path).read_bytes()
 
     assert not prompt_bytes.startswith(b"\xef\xbb\xbf")
@@ -463,7 +500,7 @@ def test_evidence_cannot_cross_candidate_or_snapshot_provenance() -> None:
     assert result.summary.evidence == ()
 
 
-def test_evidence_locator_source_url_must_match_the_d02_candidate() -> None:
+def test_evidence_locator_source_url_must_match_the_paper_acquisition_candidate() -> None:
     collection = _collection()
     payload = _evidence(collection).model_dump(mode="json")
     payload["locator"]["source_url"] = "https://example.invalid/unrelated-paper"
@@ -493,7 +530,7 @@ def test_evidence_locator_source_url_must_match_the_d02_candidate() -> None:
         ),
     ),
 )
-def test_metadata_evidence_value_is_checked_against_the_d02_record(
+def test_metadata_evidence_value_is_checked_against_the_paper_acquisition_record(
     quote_or_value: str,
     expected_status: PaperSummarySupportStatus,
     expected_code: str,
@@ -567,7 +604,7 @@ def test_published_summary_excludes_accessible_excerpt_and_raw_response() -> Non
     assert "chain-of-thought" not in serialized
 
 
-def test_v2_artifact_discriminator_uses_the_d03_summary_schema() -> None:
+def test_artifact_discriminator_uses_the_paper_summary_schema() -> None:
     schema = ArtifactVersion.model_json_schema()
     summary_schema = schema["$defs"]["PaperSummaryArtifactContent"]
 
@@ -589,7 +626,7 @@ def test_v2_artifact_discriminator_uses_the_d03_summary_schema() -> None:
     )
 
 
-def test_d01_benchmark_report_is_reproducible_and_reports_required_metrics() -> None:
+def test_paper_benchmark_report_is_reproducible_and_reports_required_metrics() -> None:
     collection = _collection()
     evidence = _evidence(collection)
     admission = _admit(collection, _model_output(), (evidence,))
@@ -608,7 +645,7 @@ def test_d01_benchmark_report_is_reproducible_and_reports_required_metrics() -> 
         human_review_sample_ids=(benchmark_summary_id,),
     )
 
-    assert report.benchmark_version == "1.3.0"
+    assert report.benchmark_version == "2.0.0"
     assert report.schema_items_valid == 1
     assert report.schema_items_total == 1
     assert report.schema_pass_rate == 1.0
@@ -624,7 +661,7 @@ def test_d01_benchmark_report_is_reproducible_and_reports_required_metrics() -> 
     assert report.cases[0].input_hash == admission.producer.input_hash
 
 
-def test_d01_benchmark_reports_not_available_for_empty_evidence_denominator() -> None:
+def test_paper_benchmark_reports_not_available_for_empty_evidence_denominator() -> None:
     collection = _collection()
     payload = json.loads(_model_output())
     payload["research_goal"] = None

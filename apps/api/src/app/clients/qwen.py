@@ -1,6 +1,5 @@
-"""Qwen client placeholder.
+"""Namespace boundary for approved Qwen provider clients.
 
-Model calls are intentionally not implemented in B-01. This module reserves the
-client boundary for later task orchestration work.
+Model execution is owned by ModelExecutionPort adapters and their admission
+policy; this module exposes no independent execution runtime.
 """
-

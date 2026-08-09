@@ -1,4 +1,4 @@
-"""Research Input ingestion tables (#176, B-19).
+"""Research Input ingestion tables.
 
 Revision ID: 20260806_0009
 Revises: 20260804_0008

@@ -1,8 +1,8 @@
-"""Machine-validatable contract for the D-10 upstream adoption manifest.
+"""Validation rules for the scientific-document upstream adoption manifest.
 
 ``upstream_adoption.json`` is the single source of truth for which first-party
 packages/models and Python import roots are approved for Scientific Document
-Parsing. Production D-11 adapters may consume only ``approved`` entries.
+Parsing. Production Hybrid Scientific Document Parser adapters may consume only ``approved`` entries.
 Unknown keys are rejected so a typo cannot silently weaken the contract.
 """
 

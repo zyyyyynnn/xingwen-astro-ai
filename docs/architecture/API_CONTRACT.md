@@ -17,11 +17,11 @@
 - 前端组件不直接依赖 Transport DTO，必须经由 Repository Adapter 校验与映射。
 - API 严禁返回模型私有思维过程；ReasoningTrace 仅包含可审查依据与引用。
 
-## 2. API 演进规则 (Additive-Only)
+## 2. API 演进规则
 
-- 仅允许新增端点、新增可选字段或新增 Query 参数。
-- 严禁删除、重命名既有字段或改变现有字段语义。
-- 字段废弃通过 Pydantic / OpenAPI `deprecated=True` 标记。
+- 维护单一当前 Contract；端点、字段和语义在同一变更中同步编写源、生成 Contract、前端 Adapter 与测试。
+- API 只维护当前契约面，不引入并行接口或字段分支。
+- 破坏性变更必须在 PR 中明确调用方影响，并以当前 Contract 的端到端验证收口。
 - 严禁通过在 URL 中增加版本号段进行断代演进。
 
 ## 3. 会话、安全与授权
@@ -106,7 +106,7 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - `GET /api/artifact-versions/{version_id}/reasoning-traces`
 - `GET /api/artifact-versions/{version_id}/reasoning-traces/{trace_id}`
 
-集合端点支持 `status`、不透明 HMAC cursor 与 `limit`（默认 20、最大 100）。cursor 绑定 ArtifactVersion、集合、过滤条件与 `stable_id.asc.v1` 排序；跨 scope、悬空 ID 或签名篡改返回 `400 INVALID_CURSOR`。响应使用 `Cache-Control: no-store`。
+集合端点支持 `status`、不透明 HMAC cursor 与 `limit`（默认 20、最大 100）。cursor 绑定 ArtifactVersion、集合、过滤条件与 `stable_id.asc` 排序；跨 scope、悬空 ID 或签名篡改返回 `400 INVALID_CURSOR`。响应使用 `Cache-Control: no-store`。
 
 Claim 读取必须先通过已验证的 PaperSummary 权威边界，再闭合 PaperSummary、ProducerExecution、Evidence 与 SourceSnapshot。Relation 读取必须把每个 Claim 精确绑定到声明的 Claim ArtifactVersion 和 PaperSummary ArtifactVersion。仅当 Relation 为 `accepted`，双方 Claim 为 `accepted`，且 Trace、Evidence、SourceSnapshot 全部闭合时，`graph_eligible` 才为 `true`。
 

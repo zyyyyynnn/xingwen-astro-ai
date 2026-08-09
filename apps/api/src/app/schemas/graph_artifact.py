@@ -1,8 +1,8 @@
-"""Strict D-05 versioned evidence Graph contracts.
+"""Strict contracts for evidence-graph publication.
 
 This module is the only Pydantic authoring source for publisher-ready Graph
-artifacts.  The older :mod:`app.schemas.graph` models remain Phase 0 read DTOs
-and intentionally cannot satisfy this contract.
+artifacts. The :mod:`app.schemas.graph` models are task-read DTOs and
+intentionally cannot satisfy this publication contract.
 """
 
 from __future__ import annotations
@@ -30,20 +30,20 @@ from ._hashing import compute_canonical_payload_hash
 from .enums import EvidenceType, GraphEdgeType, GraphNodeType
 
 
-GRAPH_SCHEMA_VERSION = "1.0.0"
-GRAPH_TAXONOMY_VERSION = "1.0.0"
-GRAPH_IDENTITY_POLICY_VERSION = "1.0.0"
-GRAPH_INTEGRITY_POLICY_VERSION = "1.0.0"
-GRAPH_CAPACITY_POLICY_VERSION = "1.0.0"
-GRAPH_FILTER_POLICY_VERSION = "1.0.0"
-GRAPH_AGGREGATION_POLICY_VERSION = "1.0.0"
-GRAPH_PROGRESSIVE_POLICY_VERSION = "1.0.0"
-GRAPH_PRODUCER_VERSION = "1.0.0"
-GRAPH_BENCHMARK_D01_IDENTITY = (
-    "1.3.0",
-    "1.3.0",
-    "sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd",
-    "sha256:07fa19820cdbd5b908d4f30705bb863fb9a28050caf7bf54f6c01130467b1e2d",
+GRAPH_SCHEMA_VERSION = "2.0.0"
+GRAPH_TAXONOMY_VERSION = "2.0.0"
+GRAPH_IDENTITY_POLICY_VERSION = "2.0.0"
+GRAPH_INTEGRITY_POLICY_VERSION = "2.0.0"
+GRAPH_CAPACITY_POLICY_VERSION = "2.0.0"
+GRAPH_FILTER_POLICY_VERSION = "2.0.0"
+GRAPH_AGGREGATION_POLICY_VERSION = "2.0.0"
+GRAPH_PROGRESSIVE_POLICY_VERSION = "2.0.0"
+GRAPH_PRODUCER_VERSION = "2.0.0"
+GRAPH_BENCHMARK_PAPER_BENCHMARK_IDENTITY = (
+    "2.0.0",
+    "2.0.0",
+    "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9",
+    "sha256:0e3fc3705987a8a9562630e72bcc1f84f0164e8cdf0f58fd73a6b821f6a23e55",
 )
 GRAPH_BENCHMARK_DISCLAIMER = (
     "This Benchmark only demonstrates frozen human labels, Graph integrity "
@@ -254,7 +254,7 @@ class GraphInputVersionClosure(BaseModel):
         return self
 
 
-GRAPH_TAXONOMY_V1_NODE_TYPES = tuple(
+GRAPH_TAXONOMY_NODE_TYPES = tuple(
     sorted(
         (
             GraphNodeType.research_goal,
@@ -266,14 +266,14 @@ GRAPH_TAXONOMY_V1_NODE_TYPES = tuple(
         key=lambda item: item.value,
     )
 )
-GRAPH_TAXONOMY_V1_STRUCTURAL_EDGE_TYPES = frozenset(
+GRAPH_TAXONOMY_STRUCTURAL_EDGE_TYPES = frozenset(
     {
         GraphEdgeType.uses_dataset,
         GraphEdgeType.provides_field,
         GraphEdgeType.supports_finding,
     }
 )
-GRAPH_TAXONOMY_V1_LITERATURE_EDGE_TYPES = frozenset(
+GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES = frozenset(
     {
         GraphEdgeType.supports,
         GraphEdgeType.extends,
@@ -284,26 +284,26 @@ GRAPH_TAXONOMY_V1_LITERATURE_EDGE_TYPES = frozenset(
         GraphEdgeType.compares_method,
     }
 )
-GRAPH_TAXONOMY_V1_EDGE_TYPES = tuple(
+GRAPH_TAXONOMY_EDGE_TYPES = tuple(
     sorted(
-        GRAPH_TAXONOMY_V1_STRUCTURAL_EDGE_TYPES
-        | GRAPH_TAXONOMY_V1_LITERATURE_EDGE_TYPES,
+        GRAPH_TAXONOMY_STRUCTURAL_EDGE_TYPES
+        | GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES,
         key=lambda item: item.value,
     )
 )
 
-# Keep the exported JSON Schema as strict as the runtime D-05 contract.  A
+# Keep the exported JSON Schema as strict as the runtime Versioned Evidence Graph contract.  A
 # broad ``GraphNodeType``/``GraphEdgeType`` annotation followed by an
 # ``after`` validator is not sufficient here because JSON Schema consumers do
 # not execute Pydantic validators.
-GraphV1NodeType = Literal[
+GraphNodeContractType = Literal[
     GraphNodeType.research_goal,
     GraphNodeType.dataset,
     GraphNodeType.field,
     GraphNodeType.paper,
     GraphNodeType.claim,
 ]
-GraphV1LiteratureEdgeType = Literal[
+GraphLiteratureEdgeContractType = Literal[
     GraphEdgeType.supports,
     GraphEdgeType.extends,
     GraphEdgeType.derived_from,
@@ -312,7 +312,7 @@ GraphV1LiteratureEdgeType = Literal[
     GraphEdgeType.uses_same_dataset,
     GraphEdgeType.compares_method,
 ]
-GraphV1EdgeType = Literal[
+GraphEdgeContractType = Literal[
     GraphEdgeType.uses_dataset,
     GraphEdgeType.provides_field,
     GraphEdgeType.supports_finding,
@@ -324,14 +324,14 @@ GraphV1EdgeType = Literal[
     GraphEdgeType.uses_same_dataset,
     GraphEdgeType.compares_method,
 ]
-GraphTaxonomyV1NodeTypes = tuple[
+GraphTaxonomyNodeTypes = tuple[
     Literal[GraphNodeType.claim],
     Literal[GraphNodeType.dataset],
     Literal[GraphNodeType.field],
     Literal[GraphNodeType.paper],
     Literal[GraphNodeType.research_goal],
 ]
-GraphTaxonomyV1EdgeTypes = tuple[
+GraphTaxonomyEdgeTypes = tuple[
     Literal[GraphEdgeType.compares_method],
     Literal[GraphEdgeType.contradicts],
     Literal[GraphEdgeType.derived_from],
@@ -348,22 +348,22 @@ GraphTaxonomyV1EdgeTypes = tuple[
 class GraphTaxonomy(BaseModel):
     model_config = MODEL_CONFIG
 
-    taxonomy_id: Literal["taxonomy.graph.d05.v1"] = "taxonomy.graph.d05.v1"
-    schema_version: Literal["1.0.0"] = "1.0.0"
-    version: Literal["1.0.0"] = "1.0.0"
-    node_types: GraphTaxonomyV1NodeTypes
-    edge_types: GraphTaxonomyV1EdgeTypes
+    taxonomy_id: Literal["taxonomy.graph.evidence_graph"] = "taxonomy.graph.evidence_graph"
+    schema_version: Literal["2.0.0"] = "2.0.0"
+    version: Literal["2.0.0"] = "2.0.0"
+    node_types: GraphTaxonomyNodeTypes
+    edge_types: GraphTaxonomyEdgeTypes
     content_hash: ContentHash
 
     @model_validator(mode="after")
     def validate_taxonomy(self) -> Self:
-        if self.node_types != GRAPH_TAXONOMY_V1_NODE_TYPES:
+        if self.node_types != GRAPH_TAXONOMY_NODE_TYPES:
             raise ValueError(
-                "D-05 GraphTaxonomy v1 node_types must equal its exact authority"
+                "Versioned Evidence Graph node_types must equal its exact authority"
             )
-        if self.edge_types != GRAPH_TAXONOMY_V1_EDGE_TYPES:
+        if self.edge_types != GRAPH_TAXONOMY_EDGE_TYPES:
             raise ValueError(
-                "D-05 GraphTaxonomy v1 edge_types must equal its exact authority"
+                "Versioned Evidence Graph edge_types must equal its exact authority"
             )
         expected = compute_canonical_payload_hash(
             self.model_dump(mode="json", exclude={"content_hash"})
@@ -376,7 +376,7 @@ class GraphTaxonomy(BaseModel):
 class GraphCapacityPolicy(BaseModel):
     model_config = MODEL_CONFIG
 
-    version: Literal["1.0.0"] = "1.0.0"
+    version: Literal["2.0.0"] = "2.0.0"
     max_input_versions: int = Field(default=3, ge=1, le=3)
     max_nodes: int = Field(default=10_000, ge=1, le=10_000)
     max_edges: int = Field(default=20_000, ge=1, le=20_000)
@@ -392,19 +392,19 @@ class GraphCapacityPolicy(BaseModel):
 class GraphPolicySet(BaseModel):
     model_config = MODEL_CONFIG
 
-    identity_policy_version: Literal["1.0.0"] = "1.0.0"
-    taxonomy_policy_version: Literal["1.0.0"] = "1.0.0"
-    integrity_policy_version: Literal["1.0.0"] = "1.0.0"
+    identity_policy_version: Literal["2.0.0"] = "2.0.0"
+    taxonomy_policy_version: Literal["2.0.0"] = "2.0.0"
+    integrity_policy_version: Literal["2.0.0"] = "2.0.0"
     capacity_policy: GraphCapacityPolicy = Field(default_factory=GraphCapacityPolicy)
-    filter_policy_version: Literal["1.0.0"] = "1.0.0"
+    filter_policy_version: Literal["2.0.0"] = "2.0.0"
     filter_policy: Literal["complete_scope_no_hidden_evidence"] = (
         "complete_scope_no_hidden_evidence"
     )
-    aggregation_policy_version: Literal["1.0.0"] = "1.0.0"
+    aggregation_policy_version: Literal["2.0.0"] = "2.0.0"
     aggregation_policy: Literal["full_upstream_evidence_union"] = (
         "full_upstream_evidence_union"
     )
-    progressive_policy_version: Literal["1.0.0"] = "1.0.0"
+    progressive_policy_version: Literal["2.0.0"] = "2.0.0"
     progressive_policy: Literal["complete_set_order_independent"] = (
         "complete_set_order_independent"
     )
@@ -448,7 +448,7 @@ class GraphBuildScope(BaseModel):
         _require_sorted_unique(self.exclusion_reasons, "scope exclusion reason")
         if self.research_goal_id is not None:
             raise ValueError(
-                "D-05 v1 has no pinned ResearchGoal input and cannot infer uses_dataset"
+                "Versioned Evidence Graph has no pinned ResearchGoal input and cannot infer uses_dataset"
             )
         return self
 
@@ -546,7 +546,7 @@ class GraphArtifactNode(BaseModel):
     model_config = MODEL_CONFIG
 
     node_id: Identifier
-    node_type: GraphV1NodeType
+    node_type: GraphNodeContractType
     label: Annotated[str, StringConstraints(min_length=1, max_length=256)]
     logical_reference: tuple[GraphLogicalReferencePart, ...] = Field(min_length=1)
     version_bindings: tuple[GraphNodeVersionBinding, ...] = Field(min_length=1)
@@ -560,7 +560,7 @@ class GraphArtifactNode(BaseModel):
             GraphNodeType.reasoning_trace,
             GraphNodeType.evidence,
         }:
-            raise ValueError("D-05 v1 does not generate this Graph node type")
+            raise ValueError("Versioned Evidence Graph does not generate this Graph node type")
         reference_keys = tuple((item.name, item.value) for item in self.logical_reference)
         if reference_keys != tuple(sorted(reference_keys)) or len(reference_keys) != len(
             set(reference_keys)
@@ -583,7 +583,7 @@ class GraphRelationTraceBinding(BaseModel):
     relation_id: Identifier
     relation_artifact_version_id: PersistedUuid
     relation_status: Literal["accepted"] = "accepted"
-    relation_type: GraphV1LiteratureEdgeType
+    relation_type: GraphLiteratureEdgeContractType
     source_claim_id: Identifier
     target_claim_id: Identifier
     reasoning_trace_id: Identifier
@@ -592,9 +592,9 @@ class GraphRelationTraceBinding(BaseModel):
 
     @model_validator(mode="after")
     def validate_trace(self) -> Self:
-        if self.relation_type not in GRAPH_TAXONOMY_V1_LITERATURE_EDGE_TYPES:
+        if self.relation_type not in GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES:
             raise ValueError(
-                "RelationTrace relation_type is outside the D-05 v1 Literature taxonomy"
+                "RelationTrace relation_type is outside the Versioned Evidence Graph Literature taxonomy"
             )
         if self.premise_claim_ids != (
             self.source_claim_id,
@@ -643,7 +643,7 @@ class GraphArtifactEdge(BaseModel):
     model_config = MODEL_CONFIG
 
     edge_id: Identifier
-    edge_type: GraphV1EdgeType
+    edge_type: GraphEdgeContractType
     source_node_id: Identifier
     target_node_id: Identifier
     evidence_use_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=5_000)
@@ -655,19 +655,19 @@ class GraphArtifactEdge(BaseModel):
         if self.source_node_id == self.target_node_id:
             raise ValueError("Graph edges cannot be self-referential")
         _require_sorted_unique(self.evidence_use_ids, "edge Evidence-use")
-        if self.edge_type in GRAPH_TAXONOMY_V1_STRUCTURAL_EDGE_TYPES:
+        if self.edge_type in GRAPH_TAXONOMY_STRUCTURAL_EDGE_TYPES:
             if self.relation_trace is not None:
                 raise ValueError(
                     "structural edges have no Relation/Trace; Literature edges require one"
                 )
-        elif self.edge_type in GRAPH_TAXONOMY_V1_LITERATURE_EDGE_TYPES:
+        elif self.edge_type in GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES:
             if self.relation_trace is None:
                 raise ValueError(
                     "structural edges have no Relation/Trace; Literature edges require one"
                 )
         else:
             raise ValueError(
-                "Graph edge_type is outside the exact D-05 v1 taxonomy"
+                "Graph edge_type is outside the exact Versioned Evidence Graph taxonomy"
             )
         if (self.edge_type is GraphEdgeType.provides_field) != (
             self.data_aggregation is not None
@@ -734,7 +734,7 @@ class GraphIntegrityCounts(BaseModel):
 class GraphIntegrityReport(BaseModel):
     model_config = MODEL_CONFIG
 
-    policy_version: Literal["1.0.0"] = "1.0.0"
+    policy_version: Literal["2.0.0"] = "2.0.0"
     status: GraphIntegrityStatus
     findings: tuple[GraphIntegrityFinding, ...]
     first_failure_stage: GraphIntegrityStage | None = None
@@ -775,19 +775,19 @@ class GraphAlgorithmProducer(BaseModel):
     producer_name: Literal["versioned-evidence-graph-pipeline"] = (
         "versioned-evidence-graph-pipeline"
     )
-    producer_version: Literal["1.0.0"] = "1.0.0"
-    identity_policy_version: Literal["1.0.0"] = "1.0.0"
-    taxonomy_policy_version: Literal["1.0.0"] = "1.0.0"
-    integrity_policy_version: Literal["1.0.0"] = "1.0.0"
-    capacity_policy_version: Literal["1.0.0"] = "1.0.0"
-    filter_policy_version: Literal["1.0.0"] = "1.0.0"
-    aggregation_policy_version: Literal["1.0.0"] = "1.0.0"
-    progressive_policy_version: Literal["1.0.0"] = "1.0.0"
+    producer_version: Literal["2.0.0"] = "2.0.0"
+    identity_policy_version: Literal["2.0.0"] = "2.0.0"
+    taxonomy_policy_version: Literal["2.0.0"] = "2.0.0"
+    integrity_policy_version: Literal["2.0.0"] = "2.0.0"
+    capacity_policy_version: Literal["2.0.0"] = "2.0.0"
+    filter_policy_version: Literal["2.0.0"] = "2.0.0"
+    aggregation_policy_version: Literal["2.0.0"] = "2.0.0"
+    progressive_policy_version: Literal["2.0.0"] = "2.0.0"
     parameters_hash: ContentHash
 
 
 class GraphArtifactCandidate(BaseModel):
-    """The only D-05 candidate accepted by the generic Publisher port."""
+    """The only Versioned Evidence Graph candidate accepted by the generic Publisher port."""
 
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
@@ -797,7 +797,7 @@ class GraphArtifactCandidate(BaseModel):
     )
 
     kind: Literal["graph"] = "graph"
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    schema_version: Literal["2.0.0"] = "2.0.0"
     graph_id: Identifier
     project_id: PersistedUuid
     input_versions: GraphInputVersionClosure
@@ -875,7 +875,7 @@ class GraphArtifactCandidate(BaseModel):
             target = nodes.get(edge.target_node_id)
             if source is None or target is None:
                 raise ValueError("Graph edge contains a dangling endpoint")
-            if edge.edge_type in GRAPH_TAXONOMY_V1_LITERATURE_EDGE_TYPES:
+            if edge.edge_type in GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES:
                 expected_endpoints = (GraphNodeType.claim, GraphNodeType.claim)
             else:
                 expected_endpoints = {
@@ -893,7 +893,7 @@ class GraphArtifactCandidate(BaseModel):
                     ),
                 }.get(edge.edge_type)
                 if expected_endpoints is None:
-                    raise ValueError("Graph edge lies outside the exact D-05 v1 taxonomy")
+                    raise ValueError("Graph edge lies outside the exact Versioned Evidence Graph taxonomy")
             if (source.node_type, target.node_type) != expected_endpoints:
                 raise ValueError("Graph edge violates its authoritative endpoint direction")
             edge_uses = tuple(
@@ -1026,13 +1026,13 @@ class GraphBenchmarkCaseKind(StrEnum):
 
 
 class GraphBenchmarkDenominatorScope(StrEnum):
-    d01_scientific_graph_cases = "d01_scientific_graph_cases"
-    d01_expected_nodes = "d01_expected_nodes"
-    d01_expected_edges = "d01_expected_edges"
-    d01_edge_evidence_uses = "d01_edge_evidence_uses"
-    d01_accepted_relations = "d01_accepted_relations"
-    d01_reasoning_traces = "d01_reasoning_traces"
-    d01_nonaccepted_relations = "d01_nonaccepted_relations"
+    paper_benchmark_scientific_graph_cases = "paper_benchmark_scientific_graph_cases"
+    paper_benchmark_expected_nodes = "paper_benchmark_expected_nodes"
+    paper_benchmark_expected_edges = "paper_benchmark_expected_edges"
+    paper_benchmark_edge_evidence_uses = "paper_benchmark_edge_evidence_uses"
+    paper_benchmark_accepted_relations = "paper_benchmark_accepted_relations"
+    paper_benchmark_reasoning_traces = "paper_benchmark_reasoning_traces"
+    paper_benchmark_nonaccepted_relations = "paper_benchmark_nonaccepted_relations"
     schema_valid_expected_pass_cases = "schema_valid_expected_pass_cases"
     data_mapping_fixture_cases = "data_mapping_fixture_cases"
     rejection_fixture_cases = "rejection_fixture_cases"
@@ -1043,15 +1043,15 @@ class GraphBenchmarkDenominatorScope(StrEnum):
 class GraphBenchmarkVersionSet(BaseModel):
     model_config = MODEL_CONFIG
 
-    graph_schema_version: Literal["1.0.0"] = "1.0.0"
-    taxonomy_policy_version: Literal["1.0.0"] = "1.0.0"
-    identity_policy_version: Literal["1.0.0"] = "1.0.0"
-    integrity_policy_version: Literal["1.0.0"] = "1.0.0"
-    capacity_policy_version: Literal["1.0.0"] = "1.0.0"
-    filter_policy_version: Literal["1.0.0"] = "1.0.0"
-    aggregation_policy_version: Literal["1.0.0"] = "1.0.0"
-    progressive_policy_version: Literal["1.0.0"] = "1.0.0"
-    producer_version: Literal["1.0.0"] = "1.0.0"
+    graph_schema_version: Literal["2.0.0"] = "2.0.0"
+    taxonomy_policy_version: Literal["2.0.0"] = "2.0.0"
+    identity_policy_version: Literal["2.0.0"] = "2.0.0"
+    integrity_policy_version: Literal["2.0.0"] = "2.0.0"
+    capacity_policy_version: Literal["2.0.0"] = "2.0.0"
+    filter_policy_version: Literal["2.0.0"] = "2.0.0"
+    aggregation_policy_version: Literal["2.0.0"] = "2.0.0"
+    progressive_policy_version: Literal["2.0.0"] = "2.0.0"
+    producer_version: Literal["2.0.0"] = "2.0.0"
 
 
 class GraphBenchmarkEvaluationCase(BaseModel):
@@ -1236,12 +1236,12 @@ class GraphBenchmarkMetric(BaseModel):
 class GraphBenchmarkReport(BaseModel):
     model_config = MODEL_CONFIG
 
-    report_schema_version: Literal["1.0.0"] = "1.0.0"
+    report_schema_version: Literal["2.0.0"] = "2.0.0"
     disclaimer: Literal[GRAPH_BENCHMARK_DISCLAIMER] = GRAPH_BENCHMARK_DISCLAIMER
-    d01_schema_version: SemanticVersion
-    d01_benchmark_version: SemanticVersion
-    d01_scientific_payload_hash: ContentHash
-    d01_content_hash: ContentHash
+    paper_benchmark_schema_version: SemanticVersion
+    paper_benchmark_version: SemanticVersion
+    paper_benchmark_scientific_payload_hash: ContentHash
+    paper_benchmark_content_hash: ContentHash
     graph_versions: GraphBenchmarkVersionSet
     taxonomy_node_types: tuple[GraphNodeType, ...]
     taxonomy_edge_types: tuple[GraphEdgeType, ...]
@@ -1270,12 +1270,12 @@ class GraphBenchmarkReport(BaseModel):
     @model_validator(mode="after")
     def validate_report(self) -> Self:
         if (
-            self.d01_schema_version,
-            self.d01_benchmark_version,
-            self.d01_scientific_payload_hash,
-            self.d01_content_hash,
-        ) != GRAPH_BENCHMARK_D01_IDENTITY:
-            raise ValueError("Graph benchmark frozen D-01 identity mismatch")
+            self.paper_benchmark_schema_version,
+            self.paper_benchmark_version,
+            self.paper_benchmark_scientific_payload_hash,
+            self.paper_benchmark_content_hash,
+        ) != GRAPH_BENCHMARK_PAPER_BENCHMARK_IDENTITY:
+            raise ValueError("Graph benchmark frozen Paper Acquisition Benchmark identity mismatch")
         case_ids = tuple(item.case_id for item in self.cases)
         _require_sorted_unique(case_ids, "Graph benchmark case")
         if self.taxonomy_node_types != tuple(
@@ -1340,37 +1340,37 @@ class GraphBenchmarkReport(BaseModel):
                     for item in scientific
                 ),
                 len(scientific),
-                GraphBenchmarkDenominatorScope.d01_scientific_graph_cases,
+                GraphBenchmarkDenominatorScope.paper_benchmark_scientific_graph_cases,
             ),
             "node_exact_match_rate": metric(
                 sum(item.matched_node_count for item in scientific),
                 sum(item.expected_node_count for item in scientific),
-                GraphBenchmarkDenominatorScope.d01_expected_nodes,
+                GraphBenchmarkDenominatorScope.paper_benchmark_expected_nodes,
             ),
             "edge_exact_match_rate": metric(
                 sum(item.matched_edge_count for item in scientific),
                 sum(item.expected_edge_count for item in scientific),
-                GraphBenchmarkDenominatorScope.d01_expected_edges,
+                GraphBenchmarkDenominatorScope.paper_benchmark_expected_edges,
             ),
             "evidence_coverage_rate": metric(
                 sum(item.matched_evidence_use_count for item in scientific),
                 sum(item.expected_evidence_use_count for item in scientific),
-                GraphBenchmarkDenominatorScope.d01_edge_evidence_uses,
+                GraphBenchmarkDenominatorScope.paper_benchmark_edge_evidence_uses,
             ),
             "accepted_relation_coverage_rate": metric(
                 sum(item.matched_accepted_relation_count for item in scientific),
                 sum(item.expected_accepted_relation_count for item in scientific),
-                GraphBenchmarkDenominatorScope.d01_accepted_relations,
+                GraphBenchmarkDenominatorScope.paper_benchmark_accepted_relations,
             ),
             "reasoning_trace_coverage_rate": metric(
                 sum(item.matched_reasoning_trace_count for item in scientific),
                 sum(item.expected_reasoning_trace_count for item in scientific),
-                GraphBenchmarkDenominatorScope.d01_reasoning_traces,
+                GraphBenchmarkDenominatorScope.paper_benchmark_reasoning_traces,
             ),
             "nonaccepted_relation_exclusion_rate": metric(
                 sum(item.excluded_nonaccepted_relation_count for item in scientific),
                 sum(item.expected_nonaccepted_relation_count for item in scientific),
-                GraphBenchmarkDenominatorScope.d01_nonaccepted_relations,
+                GraphBenchmarkDenominatorScope.paper_benchmark_nonaccepted_relations,
             ),
             "stable_identity_order_rate": metric(
                 sum(item.stable_order_pass for item in stable_applicable),
@@ -1426,10 +1426,10 @@ class GraphBenchmarkReport(BaseModel):
                 raise ValueError(f"Graph benchmark {field} does not match case facts")
         expected_input_hash = compute_canonical_payload_hash(
             {
-                "d01_schema_version": self.d01_schema_version,
-                "d01_benchmark_version": self.d01_benchmark_version,
-                "d01_scientific_payload_hash": self.d01_scientific_payload_hash,
-                "d01_content_hash": self.d01_content_hash,
+                "paper_benchmark_schema_version": self.paper_benchmark_schema_version,
+                "paper_benchmark_version": self.paper_benchmark_version,
+                "paper_benchmark_scientific_payload_hash": self.paper_benchmark_scientific_payload_hash,
+                "paper_benchmark_content_hash": self.paper_benchmark_content_hash,
                 "graph_versions": self.graph_versions.model_dump(mode="json"),
                 "taxonomy_node_types": [
                     item.value for item in self.taxonomy_node_types

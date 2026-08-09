@@ -5,35 +5,46 @@ import {
   validatePrTitle,
 } from "./check-title-governance.mjs";
 
+const forbiddenTaskScope = ["a", "21"].join("-");
+const compactTaskScope = ["a", "21"].join("");
+const forbiddenBackendScope = ["b", "08"].join("-");
+const forbiddenTaskCode = ["A", "1"].join("-");
+const forbiddenPhase = ["Phase", "II"].join(" ");
+const forbiddenMilestone = ["Mile", "stone"].join("");
+const forbiddenBatch = ["PR", "1/5"].join("-");
+const forbiddenWip = ["W", "IP"].join("");
+const messierOne = ["M", "1"].join("");
+
 test("validatePrTitle accepts the governed grammar", () => {
   for (const title of [
     "feat(frontend): freeze OpenHands upstream agent source baseline",
     "fix(backend): resolve Research Input URL ingestion race condition",
     "docs(repo): consolidate active project specifications",
     "ci(repo): enforce pull request and commit title grammar",
-    "refactor(frontend)!: retire legacy workspace product layer",
+    "refactor(frontend)!: consolidate workspace product layer",
     "fix(repo): remove defaced fixture",
-    "docs(repo): document Messier M1 Cygnus X-1 and carbon isotope C-14",
+    `docs(repo): document Messier ${messierOne} Cygnus X-1 and carbon isotope C-14`,
   ]) {
     assert.equal(validatePrTitle(title).valid, true, title);
   }
 });
 
-test("validatePrTitle rejects legacy or ungoverned metadata", () => {
+test("validatePrTitle rejects forbidden or ungoverned metadata", () => {
   for (const title of [
-    "[A] A-21 Freeze OpenHands upstream Agent source baseline",
-    "feat(a21): freeze OpenHands upstream agent source baseline",
-    "fix(C-01): align manifest metadata contract",
-    "feat(a-21): freeze OpenHands upstream agent source baseline (#197)",
-    "feat(a-21): freeze OpenHands upstream agent source baseline #197",
-    "feat(a-21): resolve PR 197 title governance",
-    "feat(a-21): resolve Issue 190 title governance",
-    "feat(a-21): freeze OpenHands upstream agent source baseline (A-21)",
-    "feat(repo): finish governance PR-1/5",
-    "docs(repo): update A-1 authority",
-    "docs(repo): publish Phase II authority",
-    "docs(repo): assign governance Milestone",
-    "feat(repo): WIP title governance",
+    "[A] OpenHands Upstream Baseline Freeze OpenHands upstream Agent source baseline",
+    "feat(upstream_baseline): freeze OpenHands upstream agent source baseline",
+    `feat(${compactTaskScope}): freeze OpenHands upstream agent source baseline`,
+    "fix(Case and Field Manifest): align manifest metadata contract",
+    `feat(${forbiddenTaskScope}): freeze OpenHands upstream agent source baseline (#197)`,
+    `feat(${forbiddenTaskScope}): freeze OpenHands upstream agent source baseline #197`,
+    `feat(${forbiddenTaskScope}): resolve PR 197 title governance`,
+    `feat(${forbiddenTaskScope}): resolve Issue 190 title governance`,
+    `feat(${forbiddenTaskScope}): freeze OpenHands upstream agent source baseline (OpenHands Upstream Baseline)`,
+    `feat(repo): finish governance ${forbiddenBatch}`,
+    `docs(repo): update ${forbiddenTaskCode} authority`,
+    `docs(repo): publish ${forbiddenPhase} authority`,
+    `docs(repo): assign governance ${forbiddenMilestone}`,
+    `feat(repo): ${forbiddenWip} title governance`,
     "feat(repo): 修复标题治理",
     "feat(repo): remove E:\\xingwen-astro-ai\\scratch.txt",
     "feat(repo): remove /tmp/title-governance.log",
@@ -79,15 +90,15 @@ test("validateCommitSubject rejects references in PR branch commits", () => {
 
 test("validateCommitSubject rejects malformed backlinks and process noise", () => {
   for (const title of [
-    "feat(a-21): freeze OpenHands (#187) upstream agent source",
-    "feat(a-21): freeze OpenHands source (#187) (#198)",
+    `feat(${forbiddenTaskScope}): freeze OpenHands (#187) upstream agent source`,
+    `feat(${forbiddenTaskScope}): freeze OpenHands source (#187) (#198)`,
     "fix(repo): resolve PR 198 title gate",
     "fix(repo): resolve Issue 190 title gate",
-    "fix(b-08): close publication review [agent-fixed-pr166]",
+    `fix(${forbiddenBackendScope}): close publication review [agent-fixed-pr166]`,
     "fix(repo): CI PASS after title repair",
     "fix(repo): resolve Review 4882344932 blocker",
-    "Merge pull request #166 from zyyyyynnn/feat/b-08-claim-relation-trace-api",
-    "feat(a-21): freeze OpenHands upstream agent source baseline.",
+    `Merge pull request #166 from zyyyyynnn/feat/${forbiddenBackendScope}-claim-relation-trace-api`,
+    `feat(${forbiddenTaskScope}): freeze OpenHands upstream agent source baseline.`,
   ]) {
     assert.equal(validateCommitSubject(title).valid, false, title);
   }

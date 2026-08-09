@@ -1,7 +1,7 @@
-"""Canonical identity projections for C-04 Dataset candidates.
+"""Canonical identity projections for Versioned Data Artifact Dataset candidates.
 
 This module operates on serialized contract payloads and does not import the
-C-04 Pydantic models. Scientific identity therefore stays independent from
+Versioned Data Artifact Pydantic models. Scientific identity therefore stays independent from
 Schema construction and process-local publication admission.
 """
 
@@ -125,7 +125,7 @@ def _canonical_assertion_key(
 
 
 def _canonical_entity_identity(value: Any) -> dict[str, Any]:
-    """Project one admitted or already-canonical C-08 entity identity."""
+    """Project one admitted or already-canonical Cross-source Entity Alignment entity identity."""
 
     payload = _payload(value)
     identity_values = sorted(
@@ -161,7 +161,7 @@ def derive_canonical_row_identity(
     *,
     alignment_status: Any,
 ) -> dict[str, Any]:
-    """Derive the sole canonical row/entity identity from admitted C-08 semantics."""
+    """Derive the sole canonical row/entity identity from admitted Cross-source Entity Alignment semantics."""
 
     record_payload = _payload(record)
     member_identities = {
@@ -208,7 +208,7 @@ def _canonical_row_identity(value: Any) -> dict[str, Any]:
 
 
 def dataset_scientific_projection(value: Any) -> dict[str, Any]:
-    """Return the complete C-04 scientific projection used for Dataset identity."""
+    """Return the complete Versioned Data Artifact scientific projection used for Dataset identity."""
 
     payload = _payload(value)
     source_values = {

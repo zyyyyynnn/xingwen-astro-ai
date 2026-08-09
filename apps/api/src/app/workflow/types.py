@@ -1,4 +1,4 @@
-"""Workflow contracts shared by the executor and future step adapters."""
+"""Workflow contracts shared by the executor and step adapters."""
 
 from __future__ import annotations
 
@@ -37,8 +37,7 @@ class WorkflowStep:
 class WorkflowHooks(Protocol):
     """Persistence/observability boundary used by ``WorkflowExecutor``.
 
-    A database-backed implementation is introduced with the real task
-    orchestration issue. Phase 0 keeps the executor independent from SQLAlchemy.
+    The executor depends on this boundary and remains independent from SQLAlchemy.
     """
 
     async def get_task_status(self, task_id: str) -> TaskStatus: ...

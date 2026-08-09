@@ -1,4 +1,4 @@
-"""Deterministically derive the formal D-08 suite from frozen D-01 labels."""
+"""Deterministically derive the formal LiteratureRelation Pipeline suite from frozen Paper Acquisition Benchmark labels."""
 
 from __future__ import annotations
 
@@ -48,15 +48,15 @@ from .relation import (
 )
 
 
-_PROJECT_ID = "project.d08_benchmark"
-_REPLAY_MODEL_NAME = "d01-approved-label-replay"
+_PROJECT_ID = "project.literature_relation_benchmark"
+_REPLAY_MODEL_NAME = "paper_benchmark-approved-label-replay"
 _REPLAY_PARAMETERS: dict[str, str | int] = {
     "temperature": 0,
     "max_output_tokens": 4096,
     "response_format": "json_schema",
 }
-_MISSING_CLAIM_VERSION_ID = "artifact_version.d07.missing"
-_MISSING_CLAIM_ID = "claim.d07.missing"
+_MISSING_CLAIM_VERSION_ID = "artifact_version.literature_claim.missing"
+_MISSING_CLAIM_ID = "claim.literature_claim.missing"
 _MISSING_SUMMARY_VERSION_ID = "artifact_version.paper_summary.missing"
 _INVALID_CALIBRATION_HASH = "sha256:" + "1" * 64
 
@@ -212,7 +212,7 @@ class _RelationFixture:
 def build_frozen_relation_benchmark_cases(
     benchmark: BenchmarkPackage,
 ) -> tuple[LiteratureRelationBenchmarkEvaluationCase, ...]:
-    """Build all four approved labels and the fixed D-08 admission negatives."""
+    """Build all four approved labels and the fixed LiteratureRelation Pipeline admission negatives."""
 
     validate_frozen_benchmark(benchmark)
     claims = _claim_inputs(benchmark)
@@ -229,7 +229,7 @@ def build_frozen_relation_benchmark_cases(
     )
     if len(relations) != RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE:
         raise ValueError(
-            "frozen D-01 Relation count does not match confidence calibration"
+            "frozen Paper Acquisition Benchmark Relation count does not match confidence calibration"
         )
 
     scientific: list[LiteratureRelationBenchmarkEvaluationCase] = []
@@ -243,7 +243,7 @@ def build_frozen_relation_benchmark_cases(
             or trace.review_status is not BenchmarkReviewStatus.approved
         ):
             raise ValueError(
-                f"approved D-01 Relation lacks its approved Trace: {relation.relation_id}"
+                f"approved Paper Acquisition Benchmark Relation lacks its approved Trace: {relation.relation_id}"
             )
         fixture = _relation_fixture(
             benchmark=benchmark,
@@ -255,12 +255,12 @@ def build_frozen_relation_benchmark_cases(
         admission = _admit(fixture=fixture)
         if len(admission.records) != 1:
             raise ValueError(
-                f"approved D-01 Relation did not produce one record: {relation.relation_id}"
+                f"approved Paper Acquisition Benchmark Relation did not produce one record: {relation.relation_id}"
             )
         record = admission.records[0]
         if record.status.value != relation.status.value:
             raise ValueError(
-                "D-01 Relation replay status mismatch: "
+                "Paper Acquisition Benchmark Relation replay status mismatch: "
                 f"{relation.relation_id} expected={relation.status.value} "
                 f"actual={record.status.value}"
             )
@@ -282,7 +282,7 @@ def build_frozen_relation_benchmark_cases(
     )
     fixture = fixtures[accepted_relation.relation_id]
     if accepted_fingerprint is None:
-        raise ValueError("frozen D-01 package lacks an accepted Relation seed")
+        raise ValueError("frozen Paper Acquisition Benchmark package lacks an accepted Relation seed")
     negatives = _negative_cases(
         fixture=fixture,
         accepted_fingerprint=accepted_fingerprint,
@@ -298,7 +298,7 @@ def build_frozen_relation_benchmark_cases(
         )
     )
     if actual_expectations != FORMAL_REJECTION_EXPECTATIONS:
-        raise ValueError("formal D-08 rejection suite signature drifted")
+        raise ValueError("formal LiteratureRelation Pipeline rejection suite signature drifted")
     return tuple(sorted((*scientific, *negatives), key=lambda item: item.case_id))
 
 
@@ -316,9 +316,9 @@ def _claim_inputs(benchmark: BenchmarkPackage) -> dict[str, _ClaimInput]:
             item for item in content.claims if item.claim_id == case.record_claim_id
         )
         if len(records) != 1:
-            raise ValueError("D-07 benchmark Claim identity is not exact")
+            raise ValueError("LiteratureClaim Pipeline benchmark Claim identity is not exact")
         artifact_version_id = (
-            "artifact_version.d07_relation_input."
+            "artifact_version.literature_claim_relation_input."
             f"{case.benchmark_claim_id.removeprefix('claim.')}"
         )
         version = LiteratureClaimsArtifactVersionInput(
@@ -338,7 +338,7 @@ def _claim_inputs(benchmark: BenchmarkPackage) -> dict[str, _ClaimInput]:
         )
     expected = {item.claim_id for item in benchmark.claims}
     if not expected.issubset(result):
-        raise ValueError("D-08 benchmark could not derive every D-01 Claim from D-07")
+        raise ValueError("LiteratureRelation Pipeline benchmark could not derive every Paper Acquisition Benchmark Claim from LiteratureClaim Pipeline")
     return result
 
 
@@ -366,7 +366,7 @@ def _relation_fixture(
         else LiteratureComparabilityStatus.comparable
     )
     assessment_id = (
-        "confidence_assessment.d01."
+        "confidence_assessment.paper_benchmark."
         f"{relation.relation_id.removeprefix('relation.')}"
     )
     confidence = LiteratureRelationConfidenceAssessment(
@@ -410,11 +410,11 @@ def _relation_fixture(
     protocol_steps = (
         (
             LiteratureTraceOperation.check_conditions,
-            "Check the frozen D-01 conditions for this relation.",
+            "Check the frozen Paper Acquisition Benchmark conditions for this relation.",
         ),
         (
             LiteratureTraceOperation.check_evidence,
-            "Check the frozen D-01 Evidence references for both premises.",
+            "Check the frozen Paper Acquisition Benchmark Evidence references for both premises.",
         ),
         (
             LiteratureTraceOperation.classify_relation,
@@ -493,7 +493,7 @@ def _negative_cases(
     evidence_inconsistent = deepcopy(base)
     evidence_inconsistent["evidence_ids"] = evidence_inconsistent["evidence_ids"][:1]
     conflict = deepcopy(base)
-    condition_conflicts = ["The declared D-01 conditions conflict."]
+    condition_conflicts = ["The declared Paper Acquisition Benchmark conditions conflict."]
     conflict["condition_conflicts"] = condition_conflicts
     conflict["trace"]["conflicts"] = condition_conflicts
     object_incomparable = deepcopy(base)
@@ -558,7 +558,7 @@ def _negative_cases(
             artifact_version_id=value.artifact_version_id,
             schema_version=value.schema_version,
             content_hash=value.content_hash,
-            project_id="project.d08_other",
+            project_id="project.literature_relation_other",
             content=value.content,
         )
         for key, value in fixture.versions.items()

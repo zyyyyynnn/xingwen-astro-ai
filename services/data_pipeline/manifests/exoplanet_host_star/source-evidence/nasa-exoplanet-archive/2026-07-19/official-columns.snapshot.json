@@ -1049,6 +1049,6 @@
       }
     ]
   },
-  "extraction_note": "Definitions are a versioned extraction of only the columns referenced by C-01 plus the five review-critical columns. Raw upstream response hashes pin the official documents used."
+  "extraction_note": "Definitions are a versioned extraction of only the columns referenced by case and field manifest plus the five review-critical columns. Raw upstream response hashes pin the official documents used."
 }
 

@@ -58,7 +58,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by B-20 without re-parsing the source.\n\nThis is the ONLY locator representation in the contract. ``page_index``,\n``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere\nelse; the ``ScientificDataExtractionCandidate`` references a parse solely\nthrough this locator, so contradictory parallel locator fields are\nimpossible by construction.",
+  "description": "Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by DocumentParse Persistence without re-parsing the source.\n\nThis is the ONLY locator representation in the contract. ``page_index``,\n``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere\nelse; the ``ScientificDataExtractionCandidate`` references a parse solely\nthrough this locator, so contradictory parallel locator fields are\nimpossible by construction.",
   "properties": {
     "bbox": {
       "anyOf": [

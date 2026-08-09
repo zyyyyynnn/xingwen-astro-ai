@@ -130,7 +130,7 @@
       "type": "object"
     },
     "ConflictResolutionStrategy": {
-      "description": "The only C-01 selection declaration approved for this case.",
+      "description": "The only Case and Field Manifest selection declaration approved for this case.",
       "enum": [
         "prefer_source_priority_preserve_all"
       ],
@@ -210,7 +210,7 @@
     },
     "DataQualityProjection": {
       "additionalProperties": false,
-      "description": "Persisted C-05 attestation bound to one published data candidate.",
+      "description": "Persisted Data Quality Evaluation attestation bound to one published data candidate.",
       "properties": {
         "bundle_commitment": {
           "pattern": "^sha256:[0-9a-f]{64}$",
@@ -1032,7 +1032,7 @@
     },
     "FieldDefinition": {
       "additionalProperties": false,
-      "description": "The complete C-01 contract for one canonical field.",
+      "description": "The complete Case and Field Manifest contract for one canonical field.",
       "properties": {
         "canonical_unit": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
@@ -1751,7 +1751,7 @@
       "type": "object"
     },
     "QualityMetricInput": {
-      "description": "Future quality dimensions to which a field contributes.",
+      "description": "Quality dimensions to which a field contributes.",
       "enum": [
         "completeness",
         "missingness",

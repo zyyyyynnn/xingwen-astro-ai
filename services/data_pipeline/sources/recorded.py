@@ -1,4 +1,4 @@
-"""Validated replay transport for the versioned C-02 NASA TOI fixture."""
+"""Validated replay transport for the versioned Primary Source Acquisition NASA TOI fixture."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ DEFAULT_RECORDED_TOI_FIXTURE_PATH = (
     Path(__file__).resolve().parents[1]
     / "fixtures"
     / "exoplanet_host_star"
-    / "nasa-toi-first-page.recorded.v1.json"
+    / "nasa-toi-first-page.recorded.json"
 )
 _MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
 _NonEmptyString = Annotated[str, Field(min_length=1)]
@@ -81,7 +81,7 @@ class RecordedNasaToiFixture(BaseModel):
             self.field_manifest_content_hash,
         )
         if actual_pins != expected_pins:
-            raise ValueError("recorded fixture does not match the frozen C-02 manifests")
+            raise ValueError("recorded fixture does not match the frozen Primary Source Acquisition manifests")
         unsafe_headers = sorted(
             key
             for key in self.safe_response_headers

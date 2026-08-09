@@ -93,7 +93,7 @@ def upgrade() -> None:
                 WHERE step_attempt_id IS NULL
             ) THEN
                 RAISE EXCEPTION
-                    'B-14 cannot infer an unambiguous StepAttempt for every legacy ProducerExecution';
+                    'Atomic Publisher cannot infer an unambiguous StepAttempt for every existing ProducerExecution';
             END IF;
         END
         $$

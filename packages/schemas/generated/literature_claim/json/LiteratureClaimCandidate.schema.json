@@ -62,7 +62,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Schema-valid Claim with the outcome of deterministic D-07 admission.",
+  "description": "Schema-valid Claim with the outcome of deterministic LiteratureClaim Pipeline admission.",
   "properties": {
     "claim_id": {
       "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",

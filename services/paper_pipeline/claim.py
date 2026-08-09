@@ -1,4 +1,4 @@
-"""D-07 LiteratureClaim extraction and deterministic admission."""
+"""Literature-claim extraction and deterministic admission."""
 
 from __future__ import annotations
 
@@ -102,7 +102,6 @@ class LiteratureClaimPipeline:
         model_response: str,
         model_name: str,
         parameters: Mapping[str, ParameterValue],
-        prompt_version: str | None = None,
         parameters_version: str = CLAIM_PARAMETERS_VERSION,
         execution_id: str | None = None,
         run_id: str | None = None,
@@ -110,9 +109,7 @@ class LiteratureClaimPipeline:
         available_source_snapshot_ids: frozenset[str] | None = None,
         existing_claim_fingerprints: frozenset[str] = frozenset(),
     ) -> LiteratureClaimAdmissionResult:
-        prompt = self.prompt_registry.get("literature_claim", prompt_version)
-        if prompt.status == "disabled":
-            raise ValueError("disabled Prompt version cannot be executed")
+        prompt = self.prompt_registry.get("literature_claim")
         safe_parameters = _validate_parameters(parameters)
         parameters_hash = compute_canonical_payload_hash(
             {

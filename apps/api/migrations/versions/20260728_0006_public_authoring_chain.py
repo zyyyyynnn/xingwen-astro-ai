@@ -1,4 +1,4 @@
-"""Public authoring chain idempotent-replay identity (#131).
+"""Public authoring chain idempotent-replay identity.
 
 Revision ID: 20260728_0006
 Revises: 20260722_0005

@@ -1,6 +1,6 @@
 {
   "additionalProperties": false,
-  "description": "Machine-readable expected structure for one Golden Set entry (D-10 D3).\n\nLets the benchmark answer \"how much of the key structure was recovered?\"\ninstead of merely \"did a block get accepted?\". Committed fixtures carry a\nfull annotation; local-only/restricted entries may carry only a page_count\nand license/provenance. ``None`` means \"not annotated in this checkout\".",
+  "description": "Machine-readable expected structure for one Golden Set entry.\n\nLets the benchmark answer \"how much of the key structure was recovered?\"\ninstead of merely \"did a block get accepted?\". Committed fixtures carry a\nfull annotation; local-only/restricted entries may carry only a page_count\nand license/provenance. ``None`` means \"not annotated in this checkout\".",
   "properties": {
     "critical_headings": {
       "default": [],

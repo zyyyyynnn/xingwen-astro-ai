@@ -11,7 +11,7 @@ from .enums import ClaimType, LiteratureRelationType
 
 class LiteratureClaim(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
-    # Frozen Phase 0 transport model; never a D-07 publication candidate.
+    # Task-read projections require LiteratureClaim admission before publication.
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     id: str = Field(alias="claim_id")
@@ -32,7 +32,7 @@ class TraceStep(BaseModel):
 
 class ReasoningTrace(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
-    # Frozen Phase 0 transport model; never a D-08 publication candidate.
+    # Task-read projections require LiteratureRelation admission before publication.
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     id: str = Field(alias="trace_id")
@@ -46,7 +46,7 @@ class ReasoningTrace(BaseModel):
 
 class LiteratureRelation(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
-    # Frozen Phase 0 transport model; never a D-08 publication candidate.
+    # Task-read projections require LiteratureRelation admission before publication.
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     id: str = Field(alias="relation_id")
@@ -60,7 +60,7 @@ class LiteratureRelation(BaseModel):
 
 
 class LiteratureReasoningResponse(BaseModel):
-    # Phase 0 envelope contains unadmitted Claim records and is not publishable.
+    # This read envelope is not a publisher candidate.
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     claims: list[LiteratureClaim]

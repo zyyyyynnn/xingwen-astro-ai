@@ -1,4 +1,4 @@
-"""PostgreSQL integration coverage for B-08 literature artifact reads."""
+"""PostgreSQL integration coverage for literature-artifact reads."""
 
 from __future__ import annotations
 
@@ -236,7 +236,7 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
         project = ResearchProjectModel(
             id=project_id,
             session_id=owner.id,
-            name="B-08 PostgreSQL reads",
+            name="Literature Artifact API PostgreSQL reads",
             case_key="exoplanet_host_star",
             revision=1,
             created_at=NOW,
@@ -260,7 +260,7 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
             cache_policy="disabled",
             latest_event_sequence=0,
             revision=1,
-            idempotency_key="b08-postgres-run",
+            idempotency_key="literature_api-postgres-run",
             request_hash=HASH_B,
             created_at=NOW,
             updated_at=NOW,
@@ -282,7 +282,7 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
             id=attempt_id,
             run_step_id=step_id,
             attempt_number=1,
-            idempotency_key="b08-attempt",
+            idempotency_key="literature_api-attempt",
             status="completed",
             started_at=NOW,
             finished_at=NOW + timedelta(seconds=1),
@@ -324,7 +324,7 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
                 id=artifact_id,
                 project_id=project_id,
                 kind=kind,
-                title=f"B-08 {kind}",
+                title=f"Literature Artifact API {kind}",
                 logical_key=f"{kind}.{index}",
                 created_at=NOW,
             )
@@ -599,10 +599,10 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
                 cache_policy="disabled",
                 latest_event_sequence=0,
                 revision=1,
-                idempotency_key=f"b08-publisher-{run_id}",
+                idempotency_key=f"literature_api-publisher-{run_id}",
                 request_hash=HASH_B,
                 lease_token=lease_token,
-                lease_owner="b08-test",
+                lease_owner="literature_api-test",
                 lease_generation=1,
                 lease_expires_at=now + timedelta(minutes=5),
                 created_at=now,
@@ -631,7 +631,7 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
                 id=attempt_id,
                 run_step_id=step_id,
                 attempt_number=1,
-                idempotency_key=f"b08-publisher-attempt-{run_id}",
+                idempotency_key=f"literature_api-publisher-attempt-{run_id}",
                 status="running",
                 started_at=now,
                 created_at=now,
@@ -657,7 +657,7 @@ def test_postgres_publisher_materializes_literature_evidence_atomically(
                 run_step_id=step_id,
                 step_attempt_id=attempt_id,
                 step_key=producer.step_key,
-                idempotency_key=f"b08-publisher-producer-{run_id}",
+                idempotency_key=f"literature_api-publisher-producer-{run_id}",
                 lease_generation=1,
                 producer_type=producer.producer_type,
                 producer_name=producer.producer_name,

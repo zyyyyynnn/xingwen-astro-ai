@@ -1,10 +1,10 @@
-"""Cross-language gate for the committed A-05 paper-acquisition fixture.
+"""Cross-language gate for the committed paper-acquisition fixture.
 
 The frontend consumes ``packages/data-access/src/fixture/paper-acquisition.fixture.json``.
 AJV can only check the generated JSON Schema shape, so this suite is the
 authoritative semantic gate: the committed document must round-trip through
 the real Pydantic contract models, must equal a deterministic rebuild by the
-real D-02 pipeline, and intentionally broken payloads must fail validation.
+real paper acquisition pipeline, and intentionally broken payloads must fail validation.
 """
 
 from __future__ import annotations
@@ -182,7 +182,7 @@ def test_synthetic_records_carry_explicit_per_candidate_notes(
 def test_artifact_version_identity_is_consistent_with_the_collection(
     committed_document: dict[str, Any],
 ) -> None:
-    """Mirror the B-06 `_validated_collection` cross-checks: the generic
+    """Mirror the PaperCollection API `_validated_collection` cross-checks: the generic
     ArtifactVersion identity must be derived from the same canonical dump."""
 
     version = ArtifactVersionDetail.model_validate(

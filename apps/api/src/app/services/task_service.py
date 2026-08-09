@@ -1,4 +1,4 @@
-"""P0 task orchestration for mock API integration."""
+"""In-memory task orchestration for mock API integration."""
 
 from __future__ import annotations
 

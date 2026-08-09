@@ -30,8 +30,8 @@ build_data_artifact_candidates(
 
 规则文件位于 `services/data_pipeline/manifests/exoplanet_host_star/mapping-rules/`：
 
-- `mapping-rules.v1.json`：执行顺序、row-grain 投影矩阵、冲突/缺失策略、集合数值比较和容量边界；不复制字段 alias、priority、unit 或 companion columns。
-- `unit-conversions.v1.json`：Manifest declaration-only conversion 的唯一执行因子与 Decimal 容量目录。
+- `mapping-rules.json`：执行顺序、row-grain 投影矩阵、冲突/缺失策略、集合数值比较和容量边界；不复制字段 alias、priority、unit 或 companion columns。
+- `unit-conversions.json`：Manifest declaration-only conversion 的唯一执行因子与 Decimal 容量目录。
 
 Field alias、source priority、alias priority、null、uncertainty、limit、unit 和质量输入只读取 Field Manifest。`pscomppars` 虽在 Manifest 中声明，但没有 acquisition/实体对齐 member 时不会产生伪造来源值。
 
@@ -92,10 +92,10 @@ BuildResult 是进程内编排结果，不是 generated JSON Contract；它进�
 Dataset identity 只在 `data_artifact_identity.py` 定义：
 
 - `canonical_content_hash` 覆盖 Manifest/policy/requested canonical schema、canonical row identity、row grain/entity projection/alignment、canonical 主值与单位、canonical uncertainty、limit status、null/unresolved、完整 canonical candidate 集合及其 source/alias priority、selection winner/order/reason 和 conflict scope/differences；排除 raw value/unit/table、locator、Snapshot/query/record/Evidence、source-value/conflict/selection 等派生 ID。所有 canonical Decimal 零在该投影中归一为 `0`。
-- `canonical_row_identity` 仅在 `data_artifact_identity.py` 派生：它由已准入的 record type/entity level/alignment、去重排序后的 normalized entity identity values 与 normalization rule version 构成；crossmatch conflict 还包含 conflict code。`planet_assertion` 的 logical assertion key 从已验证 row key 重新生成：要求 source namespace 非空，规范化字段和值的空白，保留全部 canonical row-key components，并要求至少一个不属于 identity locator 的 assertion discriminator。该计算完全忽略 `source_entity_key`，也不引入 Snapshot/query/raw-record/Evidence/source-value 等 lineage 与派生 ID。v1 的 assertion source 由冻结 Manifest 唯一确定，因此 source namespace 只参与输入合法性校验，不改变公开 key 形式。空字段、unmatched/inconclusive/review-required/rejected/conflict row 也因此具有稳定科学身份。Dataset 科学投影按该身份排序 rows，输入记录枚举顺序不参与 identity。
+- `canonical_row_identity` 仅在 `data_artifact_identity.py` 派生：它由已准入的 record type/entity level/alignment、去重排序后的 normalized entity identity values 与 normalization rule version 构成；crossmatch conflict 还包含 conflict code。`planet_assertion` 的 logical assertion key 从已验证 row key 重新生成：要求 source namespace 非空，规范化字段和值的空白，保留全部 canonical row-key components，并要求至少一个不属于 identity locator 的 assertion discriminator。该计算完全忽略 `source_entity_key`，也不引入 Snapshot/query/raw-record/Evidence/source-value 等 lineage 与派生 ID。assertion source 由冻结 Manifest 唯一确定，因此 source namespace 只参与输入合法性校验，不改变公开 key 形式。空字段、unmatched/inconclusive/review-required/rejected/conflict row 也因此具有稳定科学身份。Dataset 科学投影按该身份排序 rows，输入记录枚举顺序不参与 identity。
 - `lineage_hash` 覆盖除 candidate/hash identity 字段以外的完整 Dataset public representation，因而包含 raw representation、Snapshot/query/record、locator、Evidence、input/alignment lineage，并由 Schema 与 admission 严格复算。
 - `output_hash` 覆盖除 candidate ID 与 output hash 自身外的完整公开候选内容，因此同时承诺 canonical 与 lineage hash。
-- Dataset `candidate_id` 只能由 kind、schema version 与 `canonical_content_hash` 派生；不存在 legacy output-hash fallback。FieldDictionary/SourceCollection 继续以完整 output hash 作为自身 candidate identity 输入。
+- Dataset `candidate_id` 只能由 kind、schema version 与 `canonical_content_hash` 派生，不接受 output-hash fallback。FieldDictionary/SourceCollection 继续以完整 output hash 作为自身 candidate identity 输入。
 
 Dataset candidate ID 不是 ArtifactVersion identity 或 publication idempotency key。稳定 hash 排除 wall-clock、日志、分支、数据库 ID、ArtifactVersion number 与 Publisher content hash。raw provenance hash 可以区分 `0.0` 与 `-0.0`，但等价负零保持相同 canonical Dataset identity；Publisher content hash/output hash 仍可因 lineage 不同而不同。
 

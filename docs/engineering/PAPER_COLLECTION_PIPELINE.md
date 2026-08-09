@@ -18,15 +18,15 @@ candidate/selection limits、排序策略与 Evidence/full-text scope。Query no
 只有一个权威实现，Benchmark/Fixture 也必须先适配到同一 `PaperSearchInput`，不得在
 Pipeline 之外维护第二套 normalizer。
 
-Benchmark 文件 `services/paper_pipeline/benchmarks/exoplanet_host_star/paper-reasoning-benchmark.v1.json`
+Benchmark 文件 `services/paper_pipeline/benchmarks/exoplanet_host_star/paper-reasoning-benchmark.json`
 是 fixture/benchmark adapter 的输入，不是生产检索的事实源；加载时同时校验：
 
 | 输入                    | 固定值                                                                    |
 | ----------------------- | ------------------------------------------------------------------------- |
 | Benchmark schema        | `1.3.0`                                                                   |
 | Benchmark version       | `1.3.0`                                                                   |
-| Scientific payload hash | `sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd` |
-| Content hash            | `sha256:07fa19820cdbd5b908d4f30705bb863fb9a28050caf7bf54f6c01130467b1e2d` |
+| Scientific payload hash | `sha256:35ccf88f92e2ed86603702dd1251ee43998ea2babb4184f2c9d46d00fc85afc4` |
+| Content hash            | `sha256:54046b775299d0b97fc61f12466255e7818eab50471d506ea07137cb61956337` |
 
 不读取动态 `latest`。任何版本或 hash 不一致都会在外部请求前失败。
 
@@ -149,7 +149,7 @@ Publisher 可以把已校验且符合质量策略的 content 原样放入 `kind=
 
 ## 9. PaperSummary Prompt Registry
 
-生产 Prompt 只能通过 `packages/prompts/registry.json` 和 `packages/prompts/registry.py` 加载。Registry 对每个版本记录 path、content hash、output models 与 `active | deprecated | disabled`；默认 `paper_summary@v2` 输出 `PaperSummaryModelOutput`。加载器按 UTF-8/LF 计算 SHA-256 并核对 front matter，任何已登记版本的原地修改都会拒绝加载；历史 `paper_summary@v1` 保留为 deprecated，不删除或改写。
+生产 Prompt 只能通过 `packages/prompts/registry.json` 和 `packages/prompts/registry.py` 加载。Registry 只登记当前 `paper_summary` 定义及其 path、语义版本、content hash 与 output models。加载器按 UTF-8/LF 计算 SHA-256 并核对 front matter；调用方不能选择历史 Prompt，执行证据由 `ProducerExecution` 中固定的名称、版本和 hash 保存。
 
 一次调用固定 Prompt name/version/hash、model name、parameters version/hash、PaperCollection ArtifactVersion id/schema/output hash、SourceSnapshot 版本和 Evidence 输入 hash。Prompt 不在 Router、组件或临时脚本维护。
 

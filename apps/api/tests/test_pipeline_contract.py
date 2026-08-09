@@ -362,7 +362,7 @@ def test_exact_json_schema_required_sets(
     assert set(model.model_json_schema().get("required", [])) == expected
 
 
-def test_v1_id_aliases_are_used_for_input_output_and_json_schema() -> None:
+def test_task_read_id_aliases_are_used_for_input_output_and_json_schema() -> None:
     model = PaperSearchQuery(
         query_id="query_1",
         task_id="task_1",
@@ -392,7 +392,7 @@ def test_v1_id_aliases_are_used_for_input_output_and_json_schema() -> None:
 
 
 @pytest.mark.parametrize("model, alias", EXPECTED_ID_ALIASES.items())
-def test_all_v1_id_aliases_are_frozen(model: type[BaseModel], alias: str) -> None:
+def test_all_id_aliases_are_frozen(model: type[BaseModel], alias: str) -> None:
     assert model.model_fields["id"].alias == alias
     schema = model.model_json_schema()
     assert alias in schema["properties"]
@@ -466,11 +466,11 @@ def test_evidence_bound_models_reject_empty_evidence() -> None:
             future_work=[],
             evidence_ids=[],
             model_name="fixture",
-            prompt_version="v1",
+            prompt_version="1.0.0",
         )
 
 
-def test_v1_http_wire_keeps_legacy_ids_and_required_provenance() -> None:
+def test_task_read_wire_keeps_public_ids_and_required_provenance() -> None:
     dataset = client.get("/api/tasks/task_001/dataset")
     assert dataset.status_code == 200
     dataset_data = dataset.json()["data"]
@@ -512,13 +512,13 @@ def test_v1_http_wire_keeps_legacy_ids_and_required_provenance() -> None:
     assert evidence_data["source_snapshot"]["retrieved_at"]
 
 
-def test_generated_manifest_covers_phase0_and_crossmatch_models() -> None:
+def test_generated_manifest_covers_pipeline_and_crossmatch_models() -> None:
     manifest_path = (
         Path(__file__).parents[3]
         / "packages"
         / "schemas"
         / "generated"
-        / "phase0"
+        / "pipeline"
         / "manifest.json"
     )
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

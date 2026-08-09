@@ -1,4 +1,4 @@
-"""Transport projections for the B-06 PaperCollection read boundary."""
+"""Transport projections for the PaperCollection read boundary."""
 
 from __future__ import annotations
 

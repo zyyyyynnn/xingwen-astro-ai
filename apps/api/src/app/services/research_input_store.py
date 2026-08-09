@@ -1,4 +1,4 @@
-"""Research Input persistence adapters (B-19).
+"""Persistence adapters for research-input ingestion.
 
 Three identities, three ports, never conflated:
 

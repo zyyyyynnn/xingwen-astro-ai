@@ -1,4 +1,4 @@
-"""Persist the immutable C-05 quality projection with each ArtifactVersion."""
+"""Persist the immutable data quality projection with each ArtifactVersion."""
 
 from __future__ import annotations
 

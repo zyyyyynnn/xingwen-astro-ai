@@ -1,4 +1,4 @@
-"""P0 mock data for frontend/API contract integration."""
+"""Deterministic mock data for frontend/API contract integration."""
 
 from __future__ import annotations
 
@@ -214,7 +214,7 @@ def mock_papers() -> PapersResponse:
                     future_work=["扩展到冷行星样本"],
                     evidence_ids=["evidence_001", "evidence_002"],
                     model_name="fixture",
-                    prompt_version="paper-summary-v1",
+                    prompt_version="2.0.0",
                 ),
                 evidence_ids=["evidence_001", "evidence_002"],
             )
@@ -269,7 +269,7 @@ def mock_literature_reasoning() -> LiteratureReasoningResponse:
                 ],
                 evidence_ids=["evidence_001", "evidence_002"],
                 model_name="fixture",
-                prompt_version="literature-reasoning-v1",
+                prompt_version="2.0.0",
             )
         ],
     )

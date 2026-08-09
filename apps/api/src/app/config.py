@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     )
     PERSISTENT_WORKFLOW_ENABLED: bool = False
 
-    # Research Input ingestion (B-19). The content-addressed local store is the
+    # Research Input ingestion (Research Input Ingestion). The content-addressed local store is the
     # reference boundary; uploads are capped, MIME-sniffed and never executed.
     RESEARCH_INPUT_MAX_SIZE_BYTES: int = Field(default=26214400, gt=0)
     RESEARCH_INPUT_ALLOWED_MIME_TYPES: list[str] | str = Field(
@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     # still in flight.
     RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS: int = Field(default=300, gt=0)
 
-    # URL fetch (B-19). Defaults are fail-closed: only HTTPS is allowed and an
+    # URL fetch (Research Input Ingestion). Defaults are fail-closed: only HTTPS is allowed and an
     # empty host allowlist rejects every external fetch until a domain is
     # configured. Development may append http and allowlisted test hosts.
     URL_FETCH_ALLOWED_PROTOCOLS: tuple[str, ...] | str = Field(

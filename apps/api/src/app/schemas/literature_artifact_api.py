@@ -1,4 +1,4 @@
-"""Transport projections for version-pinned B-08 literature artifact reads."""
+"""Transport projections for version-pinned literature-artifact reads."""
 
 from __future__ import annotations
 

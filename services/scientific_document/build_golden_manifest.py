@@ -1,4 +1,4 @@
-"""Build the D-10 Golden Set manifest (reproducible, license-governed).
+"""Build the Scientific Document Parsing Contract Golden Set manifest (reproducible, license-governed).
 
 Produces ``golden_set.json`` describing 15-20 ``exoplanet_host_star`` entries.
 Ten legal synthetic fixtures are committed and content-hashed. Six real papers
@@ -292,7 +292,7 @@ def build_manifest() -> GoldenSetManifest:
         )
 
     manifest = GoldenSetManifest(
-        manifest_id="d10-golden-set",
+        manifest_id="scientific_document-golden-set",
         version="1.1.0",
         case_key="exoplanet_host_star",
         generated_at=datetime.now(timezone.utc).replace(microsecond=0),

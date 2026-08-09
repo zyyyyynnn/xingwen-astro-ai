@@ -440,19 +440,17 @@ if (!listedFiles.includes(workspaceHostPath)) {
   }
 }
 
-const compatibilityMarkers = [
+const forbiddenPathMarkers = [
   '"/tour"',
-  "localStorage migration",
-  "compat wrapper",
-  "old Workspace route",
+  "localStorage route shadow",
+  "Workspace route shim",
+  "parallel Workspace route",
 ];
 for (const file of workspaceProductionFiles) {
   const content = readFileSync(resolve(root, file), "utf8");
-  for (const marker of compatibilityMarkers) {
+  for (const marker of forbiddenPathMarkers) {
     if (content.includes(marker)) {
-      failures.push(
-        `${file} contains a retired compatibility path: ${marker}.`,
-      );
+      failures.push(`${file} contains a forbidden parallel path: ${marker}.`);
     }
   }
 }

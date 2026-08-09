@@ -1,4 +1,4 @@
-"""C-04 versioned mapping and publisher-ready data Artifact contracts."""
+"""Contracts for data-artifact mapping and publication."""
 
 from __future__ import annotations
 
@@ -255,7 +255,7 @@ class UnitConversionImplementation(BaseModel):
 
     @model_validator(mode="after")
     def validate_factor(self) -> Self:
-        if self.rule_id == "unit.identity.v1":
+        if self.rule_id == "unit.identity":
             if self.source_unit is not None or self.target_unit is not None:
                 raise ValueError("identity implementation must not freeze a unit pair")
             if self.factor != Decimal(1):
@@ -1364,7 +1364,7 @@ class DataArtifactBuildInput(BaseModel):
             self.mapping_rule_set.field_manifest_content_hash,
         )
         if result_pins != expected_pins or rule_pins != expected_pins:
-            raise ValueError("Manifest pins disagree across C-04 inputs")
+            raise ValueError("Manifest pins disagree across Versioned Data Artifact inputs")
         if (
             self.conversion_catalog.field_manifest_id != pins.field_manifest_id
             or self.conversion_catalog.field_manifest_version

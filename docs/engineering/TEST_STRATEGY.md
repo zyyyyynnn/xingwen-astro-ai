@@ -37,7 +37,7 @@
 
 - Domain -> UI ViewModel、Run Event -> Research Event 转换；
 - Composer Input -> Research Intent 映射；
-- Artifact Kind -> Renderer 路由映射与失败退役。
+- Artifact Kind -> Renderer 路由映射与失效处理。
 
 ### Component
 

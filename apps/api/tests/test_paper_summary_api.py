@@ -73,7 +73,7 @@ def _collection(
             )
     for snapshot in payload["source_snapshots"]:
         if source_mode == "cached":
-            snapshot["cache_version"] = "cache-v1"
+            snapshot["cache_version"] = "cache-fixture"
             snapshot["request_metadata"] = {
                 **snapshot["request_metadata"],
                 "origin_run_id": "origin-run",
@@ -129,7 +129,7 @@ def _summary(
         producer_version="1.0.0",
         model_name="fixture-model",
         prompt_name="paper_summary",
-        prompt_version="v2",
+        prompt_version="2.0.0",
         prompt_hash=HASH_A,
         parameters_version="1.0.0",
         parameters_hash=HASH_B,
@@ -257,7 +257,7 @@ def _version(
         ),
         model_name="fixture-model" if kind == "paper_summary" else None,
         prompt_name="paper_summary" if kind == "paper_summary" else None,
-        prompt_version="v2" if kind == "paper_summary" else None,
+        prompt_version="2.0.0" if kind == "paper_summary" else None,
         prompt_hash=HASH_A if kind == "paper_summary" else None,
         parameters_hash=(
             HASH_B if kind == "paper_summary" else collection.producer.parameters_hash
@@ -349,7 +349,9 @@ def _version(
         project_id=PROJECT_ID,
         created_by_run_id="run-1",
         version_number=1,
-        schema_version="1.0.0",
+        schema_version=(
+            collection.schema_version if kind == "paper_collection" else "1.0.0"
+        ),
         content=content,
         content_hash=content_hash,
         input_hash=summary.input_hash
@@ -575,7 +577,7 @@ def test_paper_summary_exposes_complete_cached_source_audit() -> None:
         {
             "source_id": "crossref",
             "source_snapshot_id": "snapshot-db",
-            "cache_version": "cache-v1",
+            "cache_version": "cache-fixture",
             "cache_applicability": "same normalized query",
             "live_failure_class": "timeout",
             "live_failure_code": "CROSSREF_TIMEOUT",

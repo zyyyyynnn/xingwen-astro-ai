@@ -1,4 +1,4 @@
-"""Publisher-port bypass and provenance contracts for D-05 Graph artifacts."""
+"""Publisher-port bypass and provenance contracts for Versioned Evidence Graph artifacts."""
 
 from __future__ import annotations
 
@@ -353,7 +353,7 @@ def test_raw_graph_mapping_is_rejected() -> None:
         )
 
 
-def test_phase0_core_graph_response_is_rejected() -> None:
+def test_graph_read_projection_is_rejected() -> None:
     candidate = GraphResponse(
         nodes=[
             GraphNode(
@@ -380,7 +380,7 @@ def test_phase0_core_graph_response_is_rejected() -> None:
         ],
     )
 
-    with pytest.raises(PublicationAdmissionError, match="Phase 0 GraphResponse"):
+    with pytest.raises(PublicationAdmissionError, match="Graph read projection"):
         admit_artifact_candidate(
             candidate,
             schema_version="1.0.0",
@@ -392,14 +392,14 @@ def test_phase0_core_graph_response_is_rejected() -> None:
         )
 
 
-def test_core_graph_artifact_projection_cannot_bypass_d05_admission() -> None:
+def test_core_graph_artifact_projection_cannot_bypass_evidence_graph_admission() -> None:
     candidate = GraphArtifactContent(
         kind=ArtifactKind.graph,
         node_ids=("node.paper", "node.claim"),
         edge_ids=("edge.supports",),
     )
 
-    with pytest.raises(PublicationAdmissionError, match="authoritative D-05"):
+    with pytest.raises(PublicationAdmissionError, match="authoritative Versioned Evidence Graph"):
         admit_artifact_candidate(
             candidate,
             schema_version="1.0.0",
@@ -417,7 +417,7 @@ def test_forged_graph_model_and_admission_method_are_rejected() -> None:
         evidence_ids=("evidence.1",),
     )
 
-    with pytest.raises(PublicationAdmissionError, match="authoritative D-05"):
+    with pytest.raises(PublicationAdmissionError, match="authoritative Versioned Evidence Graph"):
         admit_artifact_candidate(
             candidate,
             schema_version=candidate.schema_version,

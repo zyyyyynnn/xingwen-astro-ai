@@ -55,7 +55,7 @@ from app.workflow.store import (
 )
 
 
-# The frozen canonical pipeline plan a run commits at creation. M1 has no live
+# The frozen canonical pipeline plan a run commits at creation. This path has no live
 # executor, so a created run stays ``queued`` with the seeded ``run.queued``
 # event; the deterministic demo seed publishes a completed run separately.
 CANONICAL_RUN_STEPS: tuple[RunStepDefinition, ...] = (

@@ -6,13 +6,13 @@
 | Authority | Scientific Document Parsing 人工审查清单：reference-after-rewrite、vendor 边界与采用完整性 |
 
 This checklist is the human counterpart to
-`scripts/check_d10_governance.py`. Machine gates can validate imports, versions,
+`scripts/check_scientific_document_governance.py`. Machine gates can validate imports, versions,
 manifests and tracked files; they cannot determine whether a developer read an
 upstream implementation and rewrote the same engine by hand.
 
 ## 1. Reference-after-rewrite — highest priority
 
-The contract-freeze red line: third-party parser capability is adopted through an official
+Adoption red line: third-party parser capability is adopted through an official
 stable package/documented API (or a separately approved minimal vendored source),
 not reconstructed inside Xingwen.
 
@@ -82,7 +82,7 @@ Any violation is `verdict: BLOCKED` regardless of CI status.
 
 - [ ] Coordinates are top-left origin, absolute PDF points, page-relative and
       **not normalized**; unknown bbox is `None`.
-- [ ] A future persisted locator can trace through DocumentParse →
+- [ ] Persisted locators can trace through DocumentParse →
       SourceSnapshot → ResearchInput/content hash.
 - [ ] Restricted/full-text content is not copied into public/logging surfaces.
 
@@ -105,10 +105,11 @@ Any violation is `verdict: BLOCKED` regardless of CI status.
 
 ## 8. Scope discipline
 
-- [ ] No production Paddle/hybrid/page router/model loader in the contract-freeze change.
-- [ ] No DocumentParse PostgreSQL tables/migrations or SourceSnapshot DB
-      materialization in the parser contract change.
-- [ ] No PaperSummary/Claim/Relation/C mapping changes; downstream integration owns those.
+- [ ] The Canonical Contract owns no production Paddle adapter, hybrid/page
+      router, or model loader.
+- [ ] The parser contract owns no DocumentParse PostgreSQL tables/migrations or
+      SourceSnapshot database materialization.
+- [ ] Paper summary, claim, relation, and data mapping remain downstream responsibilities.
 - [ ] No HTTP endpoint, frontend, HTML parser or plot digitizer.
 - [ ] No model weights committed to Git.
 
@@ -116,7 +117,7 @@ Any violation is `verdict: BLOCKED` regardless of CI status.
 
 Before merge, reviewer must bind the verdict to the exact PR HEAD and verify:
 
-- [ ] `origin/main` has not drifted from the task's locked base unexpectedly.
+- [ ] The reviewed commit has the intended target branch as its verified merge base.
 - [ ] Foundation, Backend, Frontend and integration jobs are green.
 - [ ] The native benchmark step installed the locked benchmark dependency group,
       ran real native tests, produced a report and validated it inside the same

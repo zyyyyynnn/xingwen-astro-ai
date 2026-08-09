@@ -19,7 +19,7 @@ from services.data_pipeline.manifest import load_frozen_manifest_bundle
 from data_artifact_test_support import build_input
 
 
-def test_mapping_uses_c08_normalized_identity_and_preserves_all_sources() -> None:
+def test_mapping_uses_entity_alignment_normalized_identity_and_preserves_all_sources() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
     paired = next(row for row in result.dataset.rows if row.crossmatch_record_type == "paired")
     outcome = paired.fields[0]

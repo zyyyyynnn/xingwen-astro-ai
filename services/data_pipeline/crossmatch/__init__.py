@@ -1,4 +1,4 @@
-"""Public C-08 cross-source entity-alignment boundary."""
+"""Public boundary for cross-source entity alignment."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Explicit live-smoke entrypoint for the frozen D-01 Benchmark Query."""
+"""Explicit live-smoke entrypoint for the frozen paper benchmark query."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from .pipeline import PaperCollectionPipeline
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the D-02 Crossref metadata search against a frozen benchmark scenario."
+            "Run the Paper Acquisition Pipeline Crossref metadata search against a frozen benchmark scenario."
         )
     )
     parser.add_argument(

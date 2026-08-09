@@ -1,4 +1,4 @@
-"""D-07 LiteratureClaim extraction, admission, and benchmark contracts."""
+"""Contracts for literature-claim extraction, admission, and evaluation."""
 
 from __future__ import annotations
 
@@ -153,7 +153,7 @@ class LiteratureClaimModelCandidate(BaseModel):
 
 
 class LiteratureClaimExtractionOutput(BaseModel):
-    """The complete JSON shape accepted before D-07 admission."""
+    """The complete JSON shape accepted before LiteratureClaim Pipeline admission."""
 
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
@@ -177,7 +177,7 @@ class LiteratureClaimEvidenceReference(BaseModel):
 
 
 class LiteratureClaimCandidate(BaseModel):
-    """Schema-valid Claim with the outcome of deterministic D-07 admission."""
+    """Schema-valid Claim with the outcome of deterministic LiteratureClaim Pipeline admission."""
 
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
@@ -294,7 +294,7 @@ class LiteratureClaimStatusCounts(BaseModel):
 
 
 class LiteratureClaimsCandidate(BaseModel):
-    """Publisher-ready typed candidate produced only by the D-07 pipeline."""
+    """Publisher-ready typed candidate produced only by the LiteratureClaim pipeline."""
 
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
@@ -502,7 +502,7 @@ class LiteratureClaimBenchmarkEvaluationCase(BaseModel):
     def validate_expectation(self) -> Self:
         if self.case_kind is LiteratureClaimBenchmarkCaseKind.scientific_label:
             if self.benchmark_claim_id is None:
-                raise ValueError("scientific benchmark case requires a D-01 Claim id")
+                raise ValueError("scientific benchmark case requires a Paper Acquisition Benchmark Claim id")
             if (
                 self.expected_failure_stage is not None
                 or self.expected_rejection_reason is not None
@@ -562,7 +562,7 @@ class LiteratureClaimBenchmarkCaseResult(BaseModel):
         if self.case_kind is LiteratureClaimBenchmarkCaseKind.scientific_label:
             if self.benchmark_claim_id is None or self.claim_type is None:
                 raise ValueError(
-                    "scientific result requires a D-01 Claim id and Claim type"
+                    "scientific result requires a Paper Acquisition Benchmark Claim id and Claim type"
                 )
             if (
                 self.expected_failure_stage is not None

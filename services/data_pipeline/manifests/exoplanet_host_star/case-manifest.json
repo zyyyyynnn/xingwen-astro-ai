@@ -1,0 +1,69 @@
+{
+  "case_id": "exoplanet_host_star",
+  "name": "系外行星候选体与宿主恒星参数整合",
+  "description": "Fixed research case for integrating TESS exoplanet candidate and host-star parameters with reproducible field and provenance declarations.",
+  "schema_version": "2.0.0",
+  "manifest_version": "2.0.0",
+  "created_at": "2026-07-18",
+  "maintained_by": {
+    "module": "data_pipeline",
+    "role": "data_pipeline"
+  },
+  "target_objects": [
+    {
+      "object_type": "planet",
+      "role": "exoplanet_candidate",
+      "identity_fields": ["planet.toi_id"],
+      "crossmatch_fields": [
+        "planet.toi_id",
+        "planet.name",
+        "system.right_ascension",
+        "system.declination"
+      ],
+      "evidence_locator_rule_id": "evidence.database_cell"
+    },
+    {
+      "object_type": "star",
+      "role": "host_star",
+      "identity_fields": ["star.tic_id", "star.gaia_dr3_id"],
+      "crossmatch_fields": [
+        "star.tic_id",
+        "star.gaia_dr3_id",
+        "star.name",
+        "system.right_ascension",
+        "system.declination"
+      ],
+      "evidence_locator_rule_id": "evidence.database_cell"
+    }
+  ],
+  "default_requested_fields": [
+    "planet.toi_id",
+    "planet.name",
+    "planet.disposition",
+    "star.tic_id",
+    "star.gaia_dr3_id",
+    "star.name",
+    "system.right_ascension",
+    "system.declination",
+    "planet.orbital_period",
+    "planet.radius",
+    "planet.mass",
+    "star.effective_temperature",
+    "star.metallicity",
+    "star.radius",
+    "star.mass"
+  ],
+  "allowed_source_ids": ["nasa_exoplanet_archive"],
+  "field_manifest": {
+    "manifest_id": "exoplanet_host_star.fields",
+    "manifest_version": "2.0.0",
+    "content_hash": "sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f"
+  },
+  "minimum_evidence_locator_components": [
+    "source_snapshot_id",
+    "query_hash",
+    "row_key",
+    "raw_field"
+  ],
+  "content_hash": "sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c"
+}

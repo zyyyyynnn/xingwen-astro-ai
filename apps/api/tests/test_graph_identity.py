@@ -18,10 +18,10 @@ from app.schemas.enums import (
     LiteratureRelationType,
 )
 from app.schemas.graph_artifact import (
-    GRAPH_TAXONOMY_V1_EDGE_TYPES,
-    GRAPH_TAXONOMY_V1_LITERATURE_EDGE_TYPES,
-    GRAPH_TAXONOMY_V1_NODE_TYPES,
-    GRAPH_TAXONOMY_V1_STRUCTURAL_EDGE_TYPES,
+    GRAPH_TAXONOMY_EDGE_TYPES,
+    GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES,
+    GRAPH_TAXONOMY_NODE_TYPES,
+    GRAPH_TAXONOMY_STRUCTURAL_EDGE_TYPES,
     GraphArtifactEdge,
     GraphRelationTraceBinding,
     GraphTaxonomy,
@@ -100,7 +100,7 @@ def _producer_execution(*, output_hash: str) -> ProducerExecutionDetail:
             version="1.0.0",
             parameters_hash=_PARAMETERS_HASH,
         ),
-        parameters={"manifest": "manifest.star.v1"},
+        parameters={"manifest": "manifest.star"},
         parameters_hash=_PARAMETERS_HASH,
         input_hash=_INPUT_HASH,
         output_hash=output_hash,
@@ -113,7 +113,7 @@ def _producer_execution(*, output_hash: str) -> ProducerExecutionDetail:
 def test_published_pins_keep_domain_output_and_publisher_content_hash_separate() -> None:
     pins = PublishedArtifactVersionPins(
         artifact_id="artifact.dataset",
-        artifact_version_id="artifact-version.dataset.v1",
+        artifact_version_id="artifact-version.dataset",
         project_id="project.graph",
         version_number=1,
         schema_version="1.0.0",
@@ -129,7 +129,7 @@ def test_published_pins_keep_domain_output_and_publisher_content_hash_separate()
     with pytest.raises(GraphInputIntegrityError, match="ProducerExecution"):
         PublishedArtifactVersionPins(
             artifact_id="artifact.dataset",
-            artifact_version_id="artifact-version.dataset.v1",
+            artifact_version_id="artifact-version.dataset",
             project_id="project.graph",
             version_number=1,
             schema_version="1.0.0",
@@ -146,15 +146,15 @@ def test_published_pins_keep_domain_output_and_publisher_content_hash_separate()
 def test_version_selection_supports_literature_only_or_an_exact_data_pair() -> None:
     literature_only = GraphInputVersionSelection(
         project_id="project.graph",
-        literature_relations_artifact_version_id="artifact-version.relations.v1",
+        literature_relations_artifact_version_id="artifact-version.relations",
     )
     data = GraphDataVersionSelection(
-        dataset_artifact_version_id="artifact-version.dataset.v1",
-        field_dictionary_artifact_version_id="artifact-version.fields.v1",
+        dataset_artifact_version_id="artifact-version.dataset",
+        field_dictionary_artifact_version_id="artifact-version.fields",
     )
     full = GraphInputVersionSelection(
         project_id="project.graph",
-        literature_relations_artifact_version_id="artifact-version.relations.v1",
+        literature_relations_artifact_version_id="artifact-version.relations",
         data=data,
     )
 
@@ -164,12 +164,12 @@ def test_version_selection_supports_literature_only_or_an_exact_data_pair() -> N
         GraphInputVersionSelection(
             project_id="project.graph",
             literature_relations_artifact_version_id=(
-                "artifact-version.relations.v1"
+                "artifact-version.relations"
             ),
             data={  # type: ignore[arg-type]
-                "dataset_artifact_version_id": "artifact-version.dataset.v1",
+                "dataset_artifact_version_id": "artifact-version.dataset",
                 "field_dictionary_artifact_version_id": (
-                    "artifact-version.fields.v1"
+                    "artifact-version.fields"
                 ),
             },
         )
@@ -347,8 +347,8 @@ def test_trusted_adapter_fails_data_path_without_governed_evidence_mapping() -> 
         project_id=version.project_id,
         literature_relations_artifact_version_id=version.id,
         data=GraphDataVersionSelection(
-            dataset_artifact_version_id="artifact-version.dataset.v1",
-            field_dictionary_artifact_version_id="artifact-version.fields.v1",
+            dataset_artifact_version_id="artifact-version.dataset",
+            field_dictionary_artifact_version_id="artifact-version.fields",
         ),
     )
 
@@ -359,7 +359,7 @@ def test_trusted_adapter_fails_data_path_without_governed_evidence_mapping() -> 
 def test_persisted_evidence_hash_binds_restriction_and_all_upstream_facts() -> None:
     evidence = EvidenceDetail(
         id="evidence.persisted.1",
-        artifact_version_id="artifact-version.relations.v1",
+        artifact_version_id="artifact-version.relations",
         target_type="relation",
         target_id="relation.1",
         evidence_type="reasoning_trace",
@@ -430,21 +430,21 @@ def test_persisted_evidence_hash_binds_restriction_and_all_upstream_facts() -> N
 def test_node_identity_uses_only_type_and_authoritative_logical_reference() -> None:
     dataset = dataset_node_identity("artifact.dataset")
     same_dataset = dataset_node_identity("artifact.dataset")
-    field = field_node_identity("manifest.star.v1", "star.tic_id")
+    field = field_node_identity("manifest.star", "star.tic_id")
 
     assert dataset.node_id == same_dataset.node_id
     assert GraphNodeVersionBinding(
         node_id=dataset.node_id,
-        upstream_artifact_version_id="artifact-version.dataset.v1",
+        upstream_artifact_version_id="artifact-version.dataset",
     ).node_id == GraphNodeVersionBinding(
         node_id=dataset.node_id,
-        upstream_artifact_version_id="artifact-version.dataset.v2",
+        upstream_artifact_version_id="artifact-version.dataset.revised",
     ).node_id
     assert field.node_id != field_node_identity(
-        "manifest.star.v2", "star.tic_id"
+        "manifest.star.revised", "star.tic_id"
     ).node_id
     assert field.node_id != field_node_identity(
-        "manifest.star.v1", "star.gaia_source_id"
+        "manifest.star", "star.gaia_source_id"
     ).node_id
     with pytest.raises(GraphIdentityError, match="does not generate"):
         GraphNodeIdentity(
@@ -456,7 +456,7 @@ def test_node_identity_uses_only_type_and_authoritative_logical_reference() -> N
 def test_structural_edges_enforce_the_authoritative_directions() -> None:
     goal = research_goal_node_identity("contract.1.goal.1")
     dataset = dataset_node_identity("artifact.dataset")
-    field = field_node_identity("manifest.star.v1", "star.tic_id")
+    field = field_node_identity("manifest.star", "star.tic_id")
     paper = paper_node_identity("paper.1")
     claim = claim_node_identity("claim.1")
 
@@ -529,28 +529,28 @@ def test_relation_edge_is_source_to_target_direction_sensitive(
         )
 
 
-def test_graph_taxonomy_v1_is_the_exact_authorized_set() -> None:
+def test_graph_taxonomy_is_the_exact_authorized_set() -> None:
     expected_literature = frozenset(
         GraphEdgeType(item.value) for item in LiteratureRelationType
     )
-    assert GRAPH_TAXONOMY_V1_LITERATURE_EDGE_TYPES == expected_literature
-    assert set(GRAPH_TAXONOMY_V1_EDGE_TYPES) == (
-        GRAPH_TAXONOMY_V1_STRUCTURAL_EDGE_TYPES | expected_literature
+    assert GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES == expected_literature
+    assert set(GRAPH_TAXONOMY_EDGE_TYPES) == (
+        GRAPH_TAXONOMY_STRUCTURAL_EDGE_TYPES | expected_literature
     )
 
     payload = {
-        "taxonomy_id": "taxonomy.graph.d05.v1",
-        "schema_version": "1.0.0",
-        "version": "1.0.0",
-        "node_types": GRAPH_TAXONOMY_V1_NODE_TYPES,
-        "edge_types": GRAPH_TAXONOMY_V1_EDGE_TYPES,
+        "taxonomy_id": "taxonomy.graph.evidence_graph",
+        "schema_version": "2.0.0",
+        "version": "2.0.0",
+        "node_types": GRAPH_TAXONOMY_NODE_TYPES,
+        "edge_types": GRAPH_TAXONOMY_EDGE_TYPES,
     }
     taxonomy = GraphTaxonomy(
         **payload,
         content_hash=compute_canonical_payload_hash(payload),
     )
-    assert taxonomy.node_types == GRAPH_TAXONOMY_V1_NODE_TYPES
-    assert taxonomy.edge_types == GRAPH_TAXONOMY_V1_EDGE_TYPES
+    assert taxonomy.node_types == GRAPH_TAXONOMY_NODE_TYPES
+    assert taxonomy.edge_types == GRAPH_TAXONOMY_EDGE_TYPES
 
     for extra_edge_type in (
         GraphEdgeType.cites,
@@ -558,7 +558,7 @@ def test_graph_taxonomy_v1_is_the_exact_authorized_set() -> None:
     ):
         edge_types = tuple(
             sorted(
-                (*GRAPH_TAXONOMY_V1_EDGE_TYPES, extra_edge_type),
+                (*GRAPH_TAXONOMY_EDGE_TYPES, extra_edge_type),
                 key=lambda item: item.value,
             )
         )
@@ -585,7 +585,7 @@ def test_graph_taxonomy_v1_is_the_exact_authorized_set() -> None:
         )
 
     node_types = tuple(
-        sorted((*GRAPH_TAXONOMY_V1_NODE_TYPES, GraphNodeType.finding), key=lambda item: item.value)
+        sorted((*GRAPH_TAXONOMY_NODE_TYPES, GraphNodeType.finding), key=lambda item: item.value)
     )
     extra_payload = {**payload, "node_types": node_types}
     with pytest.raises(ValidationError) as node_error:
@@ -602,33 +602,33 @@ def test_graph_taxonomy_v1_is_the_exact_authorized_set() -> None:
 def test_evidence_use_identity_and_all_registry_orders_are_canonical() -> None:
     goal = research_goal_node_identity("contract.1.goal.1")
     dataset = dataset_node_identity("artifact.dataset")
-    field = field_node_identity("manifest.star.v1", "star.tic_id")
+    field = field_node_identity("manifest.star", "star.tic_id")
     uses = uses_dataset_edge_identity(goal, dataset)
     provides = provides_field_edge_identity(dataset, field)
-    evidence_v1 = graph_evidence_use_id(
+    evidence_primary = graph_evidence_use_id(
         graph_edge_id=provides.edge_id,
-        upstream_artifact_version_id="artifact-version.dataset.v1",
+        upstream_artifact_version_id="artifact-version.dataset",
         upstream_evidence_id="evidence.persisted.1",
     )
-    evidence_v2 = graph_evidence_use_id(
+    evidence_revised = graph_evidence_use_id(
         graph_edge_id=provides.edge_id,
-        upstream_artifact_version_id="artifact-version.dataset.v2",
+        upstream_artifact_version_id="artifact-version.dataset.revised",
         upstream_evidence_id="evidence.persisted.1",
     )
 
-    assert evidence_v1 != evidence_v2
+    assert evidence_primary != evidence_revised
     assert canonical_node_order(node for node in (field, goal, dataset)) == tuple(
         sorted((field, goal, dataset), key=lambda node: node.node_id)
     )
     assert canonical_edge_order(edge for edge in (provides, uses)) == tuple(
         sorted((provides, uses), key=lambda edge: edge.edge_id)
     )
-    assert canonical_evidence_use_order((evidence_v2, evidence_v1)) == tuple(
-        sorted((evidence_v1, evidence_v2))
+    assert canonical_evidence_use_order((evidence_revised, evidence_primary)) == tuple(
+        sorted((evidence_primary, evidence_revised))
     )
     with pytest.raises(GraphIdentityError, match="must be unique"):
         canonical_node_order((dataset, dataset))
     with pytest.raises(GraphIdentityError, match="must be unique"):
         canonical_edge_order((uses, uses))
     with pytest.raises(GraphIdentityError, match="must be unique"):
-        canonical_evidence_use_order((evidence_v1, evidence_v1))
+        canonical_evidence_use_order((evidence_primary, evidence_primary))

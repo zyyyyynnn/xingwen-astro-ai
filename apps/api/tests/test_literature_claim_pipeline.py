@@ -40,10 +40,10 @@ from app.schemas.paper_summary import (
     compute_paper_summary_output_hash,
 )
 from app.schemas.reasoning import (
-    LiteratureClaim as Phase0LiteratureClaim,
+    LiteratureClaim as LiteratureClaimReadProjection,
 )
 from app.schemas.reasoning import (
-    LiteratureReasoningResponse as Phase0LiteratureReasoningResponse,
+    LiteratureReasoningResponse as LiteratureReasoningReadProjection,
 )
 from app.workflow.publisher import (
     ArtifactAdmissionContext,
@@ -84,7 +84,6 @@ from services.paper_pipeline.constants import (
     FROZEN_BENCHMARK_SCHEMA_VERSION,
     FROZEN_BENCHMARK_VERSION,
     FROZEN_SCIENTIFIC_PAYLOAD_HASH,
-    FROZEN_X00_MAIN_SHA,
 )
 
 FIXED_TIME = datetime(2026, 7, 30, 9, 0, tzinfo=timezone.utc)
@@ -133,7 +132,7 @@ def _summary(
     )
     input_versions = PaperSummaryInputVersions(
         paper_collection_version_id="artifact_version.paper_collection.fixture",
-        paper_collection_schema_version="1.0.0",
+        paper_collection_schema_version="2.0.0",
         paper_collection_output_hash=compute_canonical_payload_hash(
             {"paper_collection": "fixture"}
         ),
@@ -182,8 +181,8 @@ def _summary(
         producer_version="1.0.0",
         model_name="qwen.fixture.1",
         prompt_name="paper_summary",
-        prompt_version="v2",
-        prompt_hash=PromptRegistry().get("paper_summary", "v2").content_hash,
+        prompt_version="2.0.0",
+        prompt_hash=PromptRegistry().get("paper_summary").content_hash,
         parameters_version="1.0.0",
         parameters_hash=compute_canonical_payload_hash(SAFE_PARAMETERS),
         input_versions=input_versions,
@@ -207,7 +206,6 @@ def _summary(
             scientific_payload_hash=FROZEN_SCIENTIFIC_PAYLOAD_HASH,
             content_hash=FROZEN_BENCHMARK_CONTENT_HASH,
             scenario_id="search.tess_mission_and_catalogs",
-            x00_main_sha=FROZEN_X00_MAIN_SHA,
         ).model_dump(mode="json"),
         "input_versions": input_versions.model_dump(mode="json"),
         "research_goal": None,
@@ -330,10 +328,10 @@ def test_claim_prompt_is_hash_pinned_and_schema_aligned() -> None:
     record = PromptRegistry().get("literature_claim")
     prompt_bytes = (ROOT / "packages" / "prompts" / record.path).read_bytes()
 
-    assert record.version == "v1"
+    assert record.version == "1.0.0"
     assert record.output_models == ("LiteratureClaimExtractionOutput",)
     assert record.content_hash == (
-        "sha256:054ab7dea308222716f4cf327c7b01f2781d05e8718bf47b331a62a28775ebe1"
+        "sha256:246c9b390d553122b5cf1d5286a64e40f16b56fb56b24417cec1c336b95a48db"
     )
     assert b"\r" not in prompt_bytes
     assert f"sha256:{sha256(prompt_bytes).hexdigest()}" == record.content_hash
@@ -377,7 +375,7 @@ def test_claim_input_hash_pins_schema_version() -> None:
     assert result.producer.input_hash != compute_canonical_payload_hash(payload)
 
 
-def test_tracked_d07_schema_contracts_match_authoring_models() -> None:
+def test_tracked_literature_claim_schema_contracts_match_authoring_models() -> None:
     models = {
         model.__name__: model
         for model in (
@@ -438,7 +436,7 @@ def test_valid_claim_is_fully_traceable_and_publisher_ready() -> None:
     assert claim.model_response_hash == result.producer.model_response_hash
     assert candidate.input_versions.paper_summary_output_hash == _summary().output_hash
     assert candidate.producer.prompt_name == "literature_claim"
-    assert candidate.producer.prompt_version == "v1"
+    assert candidate.producer.prompt_version == "1.0.0"
     assert candidate.producer.model_name == "qwen.fixture.1"
     assert candidate.producer.parameters_version == CLAIM_PARAMETERS_VERSION
     assert candidate.producer.output_hash == candidate.output_hash
@@ -785,26 +783,22 @@ def test_parameter_and_input_version_changes_change_hashes() -> None:
     assert first.output_hash != changed_version.output_hash
 
 
-def test_prompt_version_change_changes_input_and_output_hashes(tmp_path: Path) -> None:
+def test_prompt_definition_change_changes_input_and_output_hashes(tmp_path: Path) -> None:
     prompt_root = tmp_path / "prompts"
     shutil.copytree(ROOT / "packages" / "prompts", prompt_root)
-    v1 = prompt_root / "literature_claim" / "v1.md"
-    v2 = prompt_root / "literature_claim" / "v2.md"
-    v2_content = v1.read_text(encoding="utf-8").replace(
-        "version: v1",
-        "version: v2",
+    prompt_path = prompt_root / "literature_claim" / "prompt.md"
+    changed_content = prompt_path.read_text(encoding="utf-8").replace(
+        "version: 1.0.0",
+        "version: 2.0.0",
         1,
     )
-    v2.write_text(v2_content, encoding="utf-8", newline="\n")
+    prompt_path.write_text(changed_content, encoding="utf-8", newline="\n")
     registry_path = prompt_root / "registry.json"
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
-    registry["prompts"]["literature_claim"]["current"] = "v2"
-    registry["prompts"]["literature_claim"]["versions"]["v2"] = {
-        "path": "literature_claim/v2.md",
-        "content_hash": compute_prompt_content_hash(v2_content),
-        "output_models": ["LiteratureClaimExtractionOutput"],
-        "status": "active",
-    }
+    registry["prompts"]["literature_claim"]["version"] = "2.0.0"
+    registry["prompts"]["literature_claim"]["content_hash"] = (
+        compute_prompt_content_hash(changed_content)
+    )
     registry_path.write_text(
         json.dumps(registry, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -817,8 +811,8 @@ def test_prompt_version_change_changes_input_and_output_hashes(tmp_path: Path) -
         prompt_registry=PromptRegistry(prompt_root),
     )
 
-    assert first.producer.prompt_version == "v1"
-    assert second.producer.prompt_version == "v2"
+    assert first.producer.prompt_version == "1.0.0"
+    assert second.producer.prompt_version == "2.0.0"
     assert first.producer.input_hash != second.producer.input_hash
     assert first.output_hash != second.output_hash
 
@@ -893,7 +887,7 @@ def test_publisher_ready_candidate_passes_structured_admission_port() -> None:
     )
     publication = ArtifactPublication(
         artifact_id=uuid4(),
-        publication_key="d07-benchmark-fixture",
+        publication_key="literature_claim-benchmark-fixture",
         producer_execution_id=uuid4(),
         candidate=admitted,
         source_mode="fixture",
@@ -956,24 +950,24 @@ def test_intermediate_model_output_cannot_bypass_publisher() -> None:
             )
 
 
-def test_legacy_projection_and_single_claim_models_cannot_bypass_publisher() -> None:
+def test_read_projections_and_single_claim_models_cannot_bypass_publisher() -> None:
     result = _admit(_response())
-    legacy = Phase0LiteratureClaim(
-        claim_id="claim.phase0",
-        task_id="task.phase0",
+    read_claim = LiteratureClaimReadProjection(
+        claim_id="claim.read_projection",
+        task_id="task.read_projection",
         paper_id=PAPER_ID,
         claim_type=ClaimType.method,
-        text="Legacy transport claim.",
-        normalized_text="Legacy transport claim.",
+        text="Task read projection claim.",
+        normalized_text="Task read projection claim.",
         evidence_ids=[EVIDENCE_ID],
         confidence=1.0,
     )
     projection = LiteratureClaimsArtifactContent(
         kind=ArtifactKind.literature_claims,
-        claim_ids=("claim.phase0",),
+        claim_ids=("claim.read_projection",),
     )
-    legacy_response = Phase0LiteratureReasoningResponse(
-        claims=[legacy],
+    read_response = LiteratureReasoningReadProjection(
+        claims=[read_claim],
         relations=[],
         traces=[],
     )
@@ -981,8 +975,8 @@ def test_legacy_projection_and_single_claim_models_cannot_bypass_publisher() -> 
     for candidate in (
         result.records[0],
         result,
-        legacy,
-        legacy_response,
+        read_claim,
+        read_response,
         projection,
     ):
         with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
@@ -997,7 +991,7 @@ def test_legacy_projection_and_single_claim_models_cannot_bypass_publisher() -> 
             )
 
 
-def test_fixed_d01_claim_benchmark_is_reproducible_and_uses_approved_labels() -> None:
+def test_fixed_paper_benchmark_claim_benchmark_is_reproducible_and_uses_approved_labels() -> None:
     benchmark = load_frozen_benchmark()
     cases = build_frozen_claim_benchmark_cases(benchmark)
     approved_ids = {
@@ -1095,7 +1089,7 @@ def test_claim_benchmark_metric_denominators_and_empty_subsets() -> None:
         ("content_hash", "sha256:" + "2" * 64),
     ),
 )
-def test_claim_benchmark_rejects_d01_identity_mismatch(
+def test_claim_benchmark_rejects_paper_benchmark_identity_mismatch(
     field: str,
     value: str,
 ) -> None:
@@ -1103,7 +1097,7 @@ def test_claim_benchmark_rejects_d01_identity_mismatch(
     cases = build_frozen_claim_benchmark_cases(benchmark)
     changed = benchmark.model_copy(update={field: value})
 
-    with pytest.raises(ValueError, match="frozen D-01 benchmark identity mismatch"):
+    with pytest.raises(ValueError, match="frozen paper acquisition benchmark identity mismatch"):
         evaluate_literature_claims(benchmark=changed, cases=cases)
 
 
@@ -1116,7 +1110,7 @@ def test_formal_claim_benchmark_rejects_incomplete_scientific_coverage() -> None
         if case.case_id != "scientific.claim.ricker_expected_yield"
     )
 
-    with pytest.raises(ValueError, match="every approved D-01 Claim exactly once"):
+    with pytest.raises(ValueError, match="every approved Paper Acquisition Benchmark Claim exactly once"):
         validate_scientific_label_coverage(benchmark, incomplete)
 
 

@@ -162,7 +162,7 @@ def test_crossmatch_condition_rejects_undefined_operator_shapes(
         CrossmatchCondition.model_validate(
             {
                 "condition_id": "condition.invalid_shape",
-                "rule_reference": "crossmatch-rules.v1",
+                "rule_reference": "crossmatch-rules",
                 **payload,
             }
         )

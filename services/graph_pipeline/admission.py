@@ -1,4 +1,4 @@
-"""Stable integrity findings and priority handling for D-05."""
+"""Stable integrity findings and priority handling for Versioned Evidence Graph."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ _PRIORITY = {
 
 @dataclass(frozen=True, slots=True)
 class GraphAdmissionFailure(ValueError):
-    """One stable D-05 integrity failure before candidate sealing."""
+    """One stable Versioned Evidence Graph integrity failure before candidate sealing."""
 
     stage: GraphIntegrityStage
     reason: GraphRejectionReason
@@ -74,7 +74,7 @@ def build_integrity_report(
         GraphIntegrityStatus.failed if ordered else GraphIntegrityStatus.passed
     )
     payload = {
-        "policy_version": "1.0.0",
+        "policy_version": "2.0.0",
         "status": status,
         "findings": ordered,
         "first_failure_stage": ordered[0].stage if ordered else None,

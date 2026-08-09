@@ -12,7 +12,7 @@ from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.services.artifacts import ArtifactReadService
 
 
-def test_v1_runtime_keeps_persistent_workflow_disabled_by_default() -> None:
+def test_persistent_workflow_is_disabled_by_default() -> None:
     application = create_app()
 
     assert application.state.workflow_store is None

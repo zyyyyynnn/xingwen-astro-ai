@@ -1,4 +1,4 @@
-"""Stable C-08 domain errors."""
+"""Stable Cross-source Entity Alignment domain errors."""
 
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
-"""Typed D-02 PaperCollection pipeline content contract.
+"""Typed content contract for collected-paper artifacts.
 
 This is a pipeline contract, not an HTTP resource or ArtifactVersion publisher.
-The future B-06 publisher can place a validated ``PaperCollection`` in an
+The API publisher places a validated ``PaperCollection`` in an
 ArtifactVersion envelope without translating it into a second domain model.
 """
 
@@ -58,7 +58,6 @@ class PaperBenchmarkReference(BaseModel):
     scientific_payload_hash: ContentHash
     content_hash: ContentHash
     scenario_id: Identifier
-    x00_main_sha: Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
 
 
 class PaperQueryPagination(BaseModel):
@@ -152,7 +151,7 @@ class PaperSourceExecution(BaseModel):
     retry_count: int = Field(ge=0)
     failure_class: UpstreamFailureClass | None = None
     failure_code: str | None = None
-    # Cached-run audit context (B-06 read boundary): why this cached snapshot
+    # Cached-run audit context (PaperCollection API read boundary): why this cached snapshot
     # applies to the current query, and how the live attempt failed. All three
     # fields are required for cached executions so a cached result is always
     # fully auditable, and forbidden otherwise.
@@ -362,7 +361,7 @@ class ProducerExecution(BaseModel):
 class PaperCollectionPayload(BaseModel):
     model_config = MODEL_CONFIG
 
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    schema_version: Literal["2.0.0"] = "2.0.0"
     benchmark: PaperBenchmarkReference
     query: NormalizedPaperQuery
     acquisition_run: PaperCollectionAcquisitionRun

@@ -25,9 +25,9 @@ Fixture、seed 或 TOI 结果副本当作补充来源。
 
 选择 `ps` 的依据是冻结契约：
 
-- Case Manifest `1.0.1` 授权 provider source id
+- Case Manifest `2.0.0` 授权 provider source id
   `nasa_exoplanet_archive`；
-- Field Manifest `1.0.1` 声明 `ps` 的 table source id、列、row key、引用列和
+- Field Manifest `2.0.0` 声明 `ps` 的 table source id、列、row key、引用列和
   provenance 列；
 - `star.tic_id` 是 Case Manifest 的宿主恒星 identity field，并由 Field
   Manifest 映射到 `ps.tic_id`；
@@ -44,8 +44,8 @@ SHA-256。
 
 | 冻结输入                         | 值                                                                                  |
 | -------------------------------- | ----------------------------------------------------------------------------------- |
-| Case Manifest version/hash       | `1.0.1` / `sha256:bb870d3c8b6b6c972cd8d7139b9cfcb672bb9ce75401109271aaf05a147819d3` |
-| Field Manifest version/hash      | `1.0.1` / `sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53` |
+| Case Manifest version/hash       | `2.0.0` / `sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c` |
+| Field Manifest version/hash      | `2.0.0` / `sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f` |
 | Column adjudication version/hash | `1.0.0` / `sha256:b27b6fc8aab5d2ddeda2f21420650291567e09c26e969bb4eb89c54853d0766b` |
 | Runtime schema contract          | `nasa_exoplanet_archive.ps.runtime_schema.2026-07-30` / `1.0.0`                     |
 | Query normalization / Adapter    | `1.1.0` / `1.1.0`                                                                   |
@@ -76,7 +76,7 @@ Manifest 声明，而是将其记录为 `live_unavailable_columns`，只查询�
 实际查询列还绑定版本化运行时类型契约：
 
 `services/data_pipeline/manifests/exoplanet_host_star/source-evidence/`
-`nasa-exoplanet-archive/2026-07-30/ps-runtime-schema-contract.v1.json`
+`nasa-exoplanet-archive/2026-07-30/ps-runtime-schema-contract.json`
 
 该契约为每个 queried column 固定 `string | integer | number` 类别。数据页请求前执行
 `TAP_SCHEMA.columns` 预检，并逐列校验：
@@ -157,7 +157,7 @@ SourceSnapshot，并由 CacheSelector 所属边界负责。
 ## 7. Recorded Fixture
 
 受控响应位于
-`services/data_pipeline/fixtures/exoplanet_host_star/nasa-ps-by-tic-first-page.recorded.v1.json`。
+`services/data_pipeline/fixtures/exoplanet_host_star/nasa-ps-by-tic-first-page.recorded.json`。
 它在 `2026-07-30T05:56:13Z` 从官方 endpoint 录制，固定输入为
 `TIC 219698776`，仅包含一页两条 metadata 记录。
 

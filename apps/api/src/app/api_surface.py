@@ -7,7 +7,7 @@ classification of request paths:
 * which paths are anonymous public *share reads* (and therefore carry the
   hardened public-share response headers), and
 * which paths return the RFC-9457 ``application/problem+json`` error shape
-  versus the legacy :class:`ApiResponse` envelope (the data-pipeline surface).
+  versus the task-read :class:`ApiResponse` envelope.
 
 Centralizing these rules keeps the security boundary explicit and testable
 instead of being scattered across the middleware and error handlers as ad hoc
@@ -43,15 +43,9 @@ PUBLIC_UNAUTH_PREFIXES = (
     "/api/openapi.json",
 )
 
-# Paths that use the legacy :class:`ApiResponse` envelope on error (the
-# data-pipeline task surface). Every other ``/api`` path uses problem+json.
-LEGACY_ENVELOPE_PREFIXES = ("/api/health", "/api/tasks")
-
-# Evolution seam (see ADR "versionless single-surface API"): maps a route
-# ``path_format`` to a human-readable sunset note. While this map is empty no
-# deprecation-header middleware is mounted, so the request hot path pays
-# nothing; the first real deprecation populates it and enables the header hook.
-DEPRECATED_OPERATIONS: dict[str, str] = {}
+# Health and task-read routes use the compact :class:`ApiResponse` envelope;
+# every other ``/api`` path uses problem+json.
+TASK_RESPONSE_PREFIXES = ("/api/health", "/api/tasks")
 
 _PUBLIC_SHARE_READ_METHODS = frozenset({"GET", "HEAD"})
 
@@ -108,13 +102,13 @@ def is_public_share_read(method: str, path: str) -> bool:
 def uses_problem_details(path: str) -> bool:
     """Return ``True`` when errors on this path use ``application/problem+json``.
 
-    The data-pipeline task surface (and any non-``/api`` path) keeps the legacy
+    The task-read surface (and any non-``/api`` path) uses the compact
     :class:`ApiResponse` envelope; every other ``/api`` path uses problem+json.
     """
 
     if not _is_api_path(path):
         return False
-    return not _matches_prefix(path, LEGACY_ENVELOPE_PREFIXES)
+    return not _matches_prefix(path, TASK_RESPONSE_PREFIXES)
 
 
 def public_share_instance() -> str:

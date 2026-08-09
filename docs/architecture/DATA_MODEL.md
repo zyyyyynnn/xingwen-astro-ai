@@ -99,7 +99,7 @@ Draft 是编辑态资源，一旦确认即产生不可变 Contract。
   `dataset -> field`。数据字段边必须保存 selected、unselected、null、unresolved 与 conflict
   对应 Evidence-use 的完整并集，不能只保留展示 winner。该并集覆盖所有以
   `projected_field_ids` 声明 field 适用的行；不同 entity 且未投影该 field 的行不得被虚构为
-  null，但已投影行缺 outcome 必须失败关闭。Graph v1 的固定输入不含
+  null，但已投影行缺 outcome 必须失败关闭。Graph 的固定输入不含
   ResearchContract/ResearchGoal，因此当前不生成 research_goal node 或 `uses_dataset` edge；
   该缺失是合法状态，不能从 Project 或 Dataset metadata 推测目标。
 - Field node 集合由固定 FieldDictionary 的 canonical field 全集决定，不由某行是否存在值决定。

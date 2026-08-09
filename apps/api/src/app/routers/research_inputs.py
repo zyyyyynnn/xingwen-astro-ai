@@ -1,4 +1,4 @@
-"""HTTP transport for the Research Input ingestion contract (B-19).
+"""HTTP transport for research-input attachment and URL ingestion.
 
 This router is deliberately thin. It parses HTTP (including the hard request
 body ceiling that must trip *before* any parser buffers a body), reads the

@@ -1,4 +1,4 @@
-"""Deterministic, evidence-bearing C-08 cross-source alignment engine."""
+"""Deterministic cross-source alignment with evidence-bearing decisions."""
 
 from __future__ import annotations
 
@@ -399,7 +399,7 @@ def _validate_source_contract(
     if actual_sources != expected_sources:
         raise CrossmatchError(
             "CROSSMATCH_SOURCE_CONTRACT_MISMATCH",
-            "C-08 requires TOI as left and PS as right input",
+            "Cross-source Entity Alignment requires TOI as left and PS as right input",
         )
     manifest_source_ids = {source.source_id for source in bundle.field_manifest.sources}
     if not set(actual_sources).issubset(manifest_source_ids):

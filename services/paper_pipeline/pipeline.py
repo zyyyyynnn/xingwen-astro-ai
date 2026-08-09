@@ -1,4 +1,4 @@
-"""Orchestrate D-02 acquisition without owning ResearchRun state or publishing."""
+"""Orchestrate paper acquisition without owning ResearchRun state or publication."""
 
 from __future__ import annotations
 
@@ -38,7 +38,6 @@ from .canonicalize import (
 from .constants import (
     CANONICALIZATION_VERSION,
     DEDUPE_VERSION,
-    FROZEN_X00_MAIN_SHA,
     PRODUCER_NAME,
     PRODUCER_VERSION,
     QUERY_NORMALIZATION_VERSION,
@@ -58,7 +57,7 @@ Clock = Callable[[], datetime]
 
 
 class PaperCollectionPipeline:
-    """Generate publisher-ready content while leaving publication to B-06."""
+    """Generate publisher-ready content while leaving publication to PaperCollection API."""
 
     def __init__(
         self,
@@ -108,7 +107,6 @@ class PaperCollectionPipeline:
             scientific_payload_hash=self.benchmark.scientific_payload_hash,
             content_hash=self.benchmark.content_hash,
             scenario_id=scenario.scenario_id,
-            x00_main_sha=FROZEN_X00_MAIN_SHA,
         )
         rules = PaperCollectionRules(
             adapter_name=self.adapter.adapter_name,

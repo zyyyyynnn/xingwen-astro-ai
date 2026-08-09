@@ -295,8 +295,8 @@ describe("workspace semantic geometry tokens", () => {
   });
 });
 
-describe("retired palette hygiene", () => {
-  it("does not contain retired haze, lunar or raw-gray tokens", () => {
+describe("palette vocabulary hygiene", () => {
+  it("does not contain disallowed haze, lunar or raw-gray tokens", () => {
     expect(css).not.toMatch(/haze|lunar|--raw-gray-/iu);
   });
 

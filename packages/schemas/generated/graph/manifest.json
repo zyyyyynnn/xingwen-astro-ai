@@ -2,13 +2,13 @@
   "authoring_source": "apps/api/src/app/schemas",
   "models": [
     {
-      "content_hash": "sha256:924b9c54a621fd8c24eb9b83215ba7f6584873f49d9b8e69df42b5ed7c0e1caf",
+      "content_hash": "sha256:0e0310d7cc10eb391ee9b15f9def84d72411b843eb29c92118d3a77433446ca7",
       "module": "app.schemas.graph_artifact",
       "name": "GraphAdmissionResult",
       "path": "json/GraphAdmissionResult.schema.json"
     },
     {
-      "content_hash": "sha256:f948cf7b51f340855233aac93affd2cbaa27e5768f368d2ecf9d241b722299d1",
+      "content_hash": "sha256:5aa3258eb60004e5266f3025376b932e6e0e154cdf737179bdc02d5c6c0ed9ac",
       "module": "app.schemas.graph_artifact",
       "name": "GraphArtifactCandidate",
       "path": "json/GraphArtifactCandidate.schema.json"
@@ -32,13 +32,13 @@
       "path": "json/GraphBenchmarkEvaluationCase.schema.json"
     },
     {
-      "content_hash": "sha256:f7ebbe4a821649d0037c76b4ce530a4e2b787e95135595bbe1329fd8d786f283",
+      "content_hash": "sha256:0eee1d5a19416f5310313dc3afd7c305619cadddd001569aff7d7b4052824335",
       "module": "app.schemas.graph_artifact",
       "name": "GraphBenchmarkReport",
       "path": "json/GraphBenchmarkReport.schema.json"
     },
     {
-      "content_hash": "sha256:c702b318bd5a99a2c8389dd8f8d4599a7153a098ef566fa71300f544bfb1982c",
+      "content_hash": "sha256:dc0d5afec1574f08fa1b0467f02369f76ed7bd1466a141b932eaaa3bdebf924a",
       "module": "app.schemas.graph_artifact",
       "name": "GraphBuildRequest",
       "path": "json/GraphBuildRequest.schema.json"
@@ -50,7 +50,7 @@
       "path": "json/GraphEvidenceUse.schema.json"
     },
     {
-      "content_hash": "sha256:8e680040217356a650a53492ec84657d3064910b0a6224f2508517ee8de8225e",
+      "content_hash": "sha256:7238111187e1375691537234ce4435672c28c82d27eef381a961ff85327d07be",
       "module": "app.schemas.graph_artifact",
       "name": "GraphIntegrityReport",
       "path": "json/GraphIntegrityReport.schema.json"

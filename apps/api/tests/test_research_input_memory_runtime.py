@@ -1,4 +1,4 @@
-"""Concurrency invariants for the coordinated B-19 in-memory runtime."""
+"""Concurrency invariants for the coordinated Research Input Ingestion in-memory runtime."""
 
 from __future__ import annotations
 

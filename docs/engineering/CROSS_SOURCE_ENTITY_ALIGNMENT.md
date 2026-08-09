@@ -58,7 +58,7 @@ rejects:
 - Snapshot request metadata that contradicts the declared origin.
 
 `CrossmatchInput` validates both typed source origins against the versioned
-`source-policy.v1.json` carried by the input and pinned by the RuleSet. The
+`source-policy.json` carried by the input and pinned by the RuleSet. The
 frozen SourcePolicy is the only allowlist; neither the Schema nor the engine
 keeps a second hard-coded source-mode/data-level matrix.
 
@@ -124,9 +124,9 @@ coordinates and frozen RuleSet. Conflict codes are derived from the admitted
 Edge/Evidence component instead of trusted as caller metadata.
 
 Identifier and alias conditions carry only field/left/right values; coordinate
-conditions carry only separation plus both thresholds. `source_scope` remains a
-reserved v1 operator value and is rejected as an executable condition because
-v1 defines no dedicated payload for it.
+conditions carry only separation plus both thresholds. `source_scope` is a
+reserved operator value and is rejected as an executable condition because it
+has no dedicated payload.
 
 An optional `ManualReviewDecision` is a separate, hashed input. It binds the
 pre-adjudication source-input hash, full RuleSet identity, logical match key,
@@ -188,7 +188,7 @@ or final data quality.
 
 ## 7. Frozen benchmark and limitations
 
-`services/data_pipeline/benchmarks/exoplanet_host_star/crossmatch-benchmark.v1.json`
+`services/data_pipeline/benchmarks/exoplanet_host_star/crossmatch-benchmark.json`
 contains 28 machine-executable synthetic scenarios. It covers exact identifier
 topologies (including many-to-many), host-only TIC semantics, reference-row
 preservation, the absent TOI Gaia mapping, strict/manual coordinate bands, RA

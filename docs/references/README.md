@@ -23,7 +23,7 @@ docs/references/
 - 先理解思路和约束，再根据当前领域模型重新设计；不得机械复制接口或目录。
 - 参考代码的模型、依赖、许可、安全和数据来源必须独立审查。
 - 第三方示例中的 Prompt、工具调用、错误处理和缓存策略不能直接视为适合本项目。
-- 任何涉及模型迁移的改动必须经过 Model Policy、Prompt Versioning、Schema 和 Evidence 验证。
+- 任何涉及模型迁移的改动必须经过 Model Policy、Prompt Registry、Schema 和 Evidence 验证。
 - 外部 API、论文来源和数据源的访问方式、许可、配额和可用性需要在实施时重新核验。
 - 参考资料中的结果不得被包装为星文智析的真实运行结果。
 
@@ -33,7 +33,7 @@ docs/references/
 | --------- | ---------------------------------- | --------------------------------------------------- |
 | AutoAstro | 数据获取、对象匹配、分析任务组织   | Data Model、Module Boundaries、C 系列 Issues        |
 | mavis     | 天文工具封装、可视化与交互模式     | Frontend Architecture、Workspace UX、Graph Contract |
-| InnoSum   | 论文章节识别、结构化摘要和质量评估 | Model Policy、Prompt Versioning、Reasoning Protocol |
+| InnoSum   | 论文章节识别、结构化摘要和质量评估 | Model Policy、Prompt Registry、Reasoning Protocol |
 
 “可研究方向”不表示已采用或已实现。
 

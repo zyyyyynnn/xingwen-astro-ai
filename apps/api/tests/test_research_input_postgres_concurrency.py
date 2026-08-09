@@ -1,4 +1,4 @@
-"""PostgreSQL concurrency/recovery invariants for B-19 Research Inputs."""
+"""PostgreSQL concurrency and recovery tests for research-input persistence."""
 
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def database() -> tuple[Engine, object, UUID, str]:
     engine = create_engine_from_url(TEST_DATABASE_URL)
     factory = session_factory(engine)
     project_id = uuid4()
-    session_id = "b19-concurrency-session"
+    session_id = "research_input-concurrency-session"
     now = datetime(2026, 8, 7, 11, 0, tzinfo=UTC)
 
     with factory() as session, session.begin():
@@ -75,7 +75,7 @@ def database() -> tuple[Engine, object, UUID, str]:
             ResearchProjectModel(
                 id=project_id,
                 session_id=session_id,
-                name="B-19 concurrency",
+                name="Research Input Ingestion concurrency",
                 case_key="exoplanet_host_star",
                 revision=1,
                 created_at=now,

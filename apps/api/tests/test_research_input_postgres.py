@@ -1,4 +1,4 @@
-"""PostgreSQL-backed integration tests for the B-19 research input store.
+"""PostgreSQL integration tests for research-input persistence.
 
 Gate: requires TEST_DATABASE_URL naming a database whose name contains "test"
 (never touches a production database). Schema is rebuilt from Alembic on each
@@ -99,7 +99,7 @@ def store_context(postgres_engine: Engine) -> dict[str, object]:
                 ResearchProjectModel(
                     id=ids["project"],
                     session_id=owner.id,
-                    name="B-19 inputs",
+                    name="Research Input Ingestion inputs",
                     case_key="exoplanet_host_star",
                     revision=1,
                     created_at=NOW,

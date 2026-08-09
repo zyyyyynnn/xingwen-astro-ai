@@ -10,7 +10,7 @@ from .enums import PaperAcquisitionStatus
 
 
 class PaperSearchQuery(BaseModel):
-    """Phase 0 paper query domain model with the legacy Pipeline wire alias."""
+    """Paper query projection used by the task-read API."""
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 

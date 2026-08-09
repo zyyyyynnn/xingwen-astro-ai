@@ -277,13 +277,13 @@
     },
     "GraphBenchmarkDenominatorScope": {
       "enum": [
-        "d01_scientific_graph_cases",
-        "d01_expected_nodes",
-        "d01_expected_edges",
-        "d01_edge_evidence_uses",
-        "d01_accepted_relations",
-        "d01_reasoning_traces",
-        "d01_nonaccepted_relations",
+        "paper_benchmark_scientific_graph_cases",
+        "paper_benchmark_expected_nodes",
+        "paper_benchmark_expected_edges",
+        "paper_benchmark_edge_evidence_uses",
+        "paper_benchmark_accepted_relations",
+        "paper_benchmark_reasoning_traces",
+        "paper_benchmark_nonaccepted_relations",
         "schema_valid_expected_pass_cases",
         "data_mapping_fixture_cases",
         "rejection_fixture_cases",
@@ -342,56 +342,56 @@
       "additionalProperties": false,
       "properties": {
         "aggregation_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Aggregation Policy Version",
           "type": "string"
         },
         "capacity_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Capacity Policy Version",
           "type": "string"
         },
         "filter_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Filter Policy Version",
           "type": "string"
         },
         "graph_schema_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Graph Schema Version",
           "type": "string"
         },
         "identity_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Identity Policy Version",
           "type": "string"
         },
         "integrity_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Integrity Policy Version",
           "type": "string"
         },
         "producer_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Producer Version",
           "type": "string"
         },
         "progressive_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Progressive Policy Version",
           "type": "string"
         },
         "taxonomy_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Taxonomy Policy Version",
           "type": "string"
         }
@@ -515,30 +515,6 @@
       "title": "Cases",
       "type": "array"
     },
-    "d01_benchmark_version": {
-      "maxLength": 32,
-      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-      "title": "D01 Benchmark Version",
-      "type": "string"
-    },
-    "d01_content_hash": {
-      "maxLength": 71,
-      "pattern": "^sha256:[0-9a-f]{64}$",
-      "title": "D01 Content Hash",
-      "type": "string"
-    },
-    "d01_schema_version": {
-      "maxLength": 32,
-      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-      "title": "D01 Schema Version",
-      "type": "string"
-    },
-    "d01_scientific_payload_hash": {
-      "maxLength": 71,
-      "pattern": "^sha256:[0-9a-f]{64}$",
-      "title": "D01 Scientific Payload Hash",
-      "type": "string"
-    },
     "data_mapping_fixture_pass_rate": {
       "$ref": "#/$defs/GraphBenchmarkMetric"
     },
@@ -598,6 +574,30 @@
       "title": "Output Hash",
       "type": "string"
     },
+    "paper_benchmark_content_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Paper Benchmark Content Hash",
+      "type": "string"
+    },
+    "paper_benchmark_schema_version": {
+      "maxLength": 32,
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Paper Benchmark Schema Version",
+      "type": "string"
+    },
+    "paper_benchmark_scientific_payload_hash": {
+      "maxLength": 71,
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Paper Benchmark Scientific Payload Hash",
+      "type": "string"
+    },
+    "paper_benchmark_version": {
+      "maxLength": 32,
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Paper Benchmark Version",
+      "type": "string"
+    },
     "reasoning_trace_coverage_rate": {
       "$ref": "#/$defs/GraphBenchmarkMetric"
     },
@@ -605,8 +605,8 @@
       "$ref": "#/$defs/GraphBenchmarkMetric"
     },
     "report_schema_version": {
-      "const": "1.0.0",
-      "default": "1.0.0",
+      "const": "2.0.0",
+      "default": "2.0.0",
       "title": "Report Schema Version",
       "type": "string"
     },
@@ -645,10 +645,10 @@
     }
   },
   "required": [
-    "d01_schema_version",
-    "d01_benchmark_version",
-    "d01_scientific_payload_hash",
-    "d01_content_hash",
+    "paper_benchmark_schema_version",
+    "paper_benchmark_version",
+    "paper_benchmark_scientific_payload_hash",
+    "paper_benchmark_content_hash",
     "graph_versions",
     "taxonomy_node_types",
     "taxonomy_edge_types",

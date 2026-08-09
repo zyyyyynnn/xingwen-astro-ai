@@ -1,4 +1,4 @@
-"""Port-level admission and safety contracts for the B-14 publisher."""
+"""Port-level admission and safety contracts for the Atomic Publisher."""
 
 from __future__ import annotations
 
@@ -130,7 +130,7 @@ def test_admission_rejects_free_text_and_untyped_mappings(candidate: object) -> 
         )
 
 
-def test_phase0_graph_response_cannot_bypass_d05_admission() -> None:
+def test_graph_read_projection_cannot_bypass_evidence_graph_admission() -> None:
     candidate = GraphResponse(
         nodes=[
             GraphNode(
@@ -157,7 +157,7 @@ def test_phase0_graph_response_cannot_bypass_d05_admission() -> None:
         ],
     )
 
-    with pytest.raises(PublicationAdmissionError, match="Phase 0 GraphResponse"):
+    with pytest.raises(PublicationAdmissionError, match="Graph read projection"):
         admit_artifact_candidate(
             candidate,
             schema_version="1.0.0",
@@ -187,10 +187,10 @@ def test_any_failed_admission_gate_prevents_candidate_creation() -> None:
         )
 
 
-def test_unmarked_data_kind_cannot_bypass_c05_attestation() -> None:
+def test_unmarked_data_kind_cannot_bypass_data_quality_attestation() -> None:
     candidate = UnmarkedDataArtifactCandidate(rows=({"object_id": "TOI-700 d"},))
 
-    with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
+    with pytest.raises(PublicationAdmissionError, match="Data Quality Evaluation attestation"):
         admit_artifact_candidate(
             candidate,
             schema_version="2.0.0",
@@ -202,7 +202,7 @@ def test_unmarked_data_kind_cannot_bypass_c05_attestation() -> None:
         )
 
 
-def test_unmarked_literature_claims_cannot_bypass_d07_admission() -> None:
+def test_unmarked_literature_claims_cannot_bypass_literature_claim_admission() -> None:
     candidate = UnmarkedLiteratureClaimsCandidate(claim_ids=("claim.fixture",))
 
     with pytest.raises(

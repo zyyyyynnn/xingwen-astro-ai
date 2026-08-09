@@ -1,2 +1,1 @@
-"""External service client placeholders for later backend integrations."""
-
+"""External-service client boundaries."""

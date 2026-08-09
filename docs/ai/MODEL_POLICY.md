@@ -1,13 +1,13 @@
 # Model Policy
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
+| 元数据    | 值                                       |
+| --------- | ---------------------------------------- |
+| Status    | Accepted                                 |
 | Authority | 模型调用准入、验证、记录、降级与评测规范 |
 
 本文规定模型调用进入科研产物前的准入、验证与记录要求。竞赛资格与提交证据见
-[Competition Compliance](../product/COMPETITION_COMPLIANCE.md)，Prompt 版本管理见
-[Prompt Versioning](PROMPT_VERSIONING.md)，推理推导协议见 [Reasoning Protocol](REASONING_PROTOCOL.md)，
+[Competition Compliance](../product/COMPETITION_COMPLIANCE.md)，Prompt 当前定义见
+[Prompt Registry](PROMPT_REGISTRY.md)，推理推导协议见 [Reasoning Protocol](REASONING_PROTOCOL.md)，
 安全与日志规范见 [Security](../../SECURITY.md)。
 
 ## 1. 模型调用路径
@@ -23,6 +23,7 @@ Workflow Step -> Model Application Service -> Model Client -> Structure & Eviden
 每次模型调用必须绑定 `run_id`、`step_key`、Prompt 名称/版本/哈希、模型名称与参数、输入 `input_hash`。
 
 模型响应进入持久化前必须依次通过：
+
 1. 受控 JSON 语法解析；
 2. Pydantic / JSON Schema 结构校验；
 3. 字段级与枚举业务校验；
@@ -53,21 +54,20 @@ Workflow Step -> Model Application Service -> Model Client -> Structure & Eviden
 
 `ReasoningTrace` 仅包含用户可审查的依据、条件与引用，绝对不记录或展示模型私有 chain-of-thought。
 
-## 6. 合格模型与 ModelExecutionPort
+## 6. ModelExecutionPort 与 Adapter
 
-竞赛主案例的合格模型路径是通过 Alibaba Cloud Model Studio / Bailian 或其他已批准
-官方路线调用 Qwen。实现必须先定义稳定的 `ModelExecutionPort`，再由薄 Qwen
-Adapter 处理 provider protocol、鉴权配置、限流/超时、结构化响应和安全元数据；
-Adapter 不实现领域算法、字段映射或第二套 Prompt Registry。
+模型能力必须先定义稳定的 `ModelExecutionPort`，再由薄 Adapter 处理 provider
+protocol、鉴权配置、限流/超时、结构化响应和安全元数据。Adapter 不实现领域算法、
+字段映射、科研事实发布或第二套 Prompt Registry；调用结果统一进入本文定义的结构、
+Evidence、ProducerExecution 与 Publisher 准入链。
 
-DeepSeek、Gemini 等只能作为明确标注的 benchmark/reference，不能作为合格主模型
-证据。每次合格执行需要 provider、model/version/revision、Prompt、Contract/input
-hash、parameters、call proof、output hash、ProducerExecution 和 admission 记录；
-禁止使用浮动 `latest`，禁止将 Fixture/Recorded/Benchmark/Cached 伪装成 Live。
+模型与平台的竞赛资格、允许的官方调用路径及提交证明字段只由
+[Competition Compliance](../product/COMPETITION_COMPLIANCE.md) 定义，本文不重复维护
+provider 或 model 清单。
 
 ## 7. 失败、部分结果与能力声明
 
-没有真实 provider call proof 的实现只能声明为未验证或 benchmark。网络/配额/解析
-失败必须保留失败 Attempt；可恢复失败才能按 [Data Versioning](../architecture/DATA_VERSIONING.md)
-选择真实历史 CacheRecord。`partial`、`unsupported`、`candidate` 和 `rejected`
-不得自动升级为成功科研事实或完成状态。
+没有可复核 ProducerExecution、准入结果与 ArtifactVersion/Evidence 的执行只能声明为
+未验证或 benchmark。网络/配额/解析失败必须保留失败 Attempt；可恢复失败才能按
+[Data Versioning](../architecture/DATA_VERSIONING.md) 选择真实历史 CacheRecord。
+`partial`、`unsupported`、`candidate` 和 `rejected` 不得自动升级为成功科研事实或完成状态。

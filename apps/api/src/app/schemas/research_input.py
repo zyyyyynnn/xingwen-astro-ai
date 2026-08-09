@@ -1,4 +1,4 @@
-"""Research Input attachment and URL ingestion contract (B-19).
+"""Contracts for research-input attachments and URL ingestion.
 
 Controlled ingestion boundary for the Research Composer: URL, PDF, CSV, JSON,
 image and plain-text inputs. This contract only *receives* inputs into an
@@ -60,7 +60,7 @@ class ResearchInputType(StrEnum):
 class ResearchInputStatus(StrEnum):
     """Lifecycle of a controlled research input after ingestion.
 
-    ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+    ``accepted`` is the only state Research Input Ingestion produces: ingestion succeeded and the
     content is frozen behind an immutable content hash. ``unsupported_processing``
     and ``failed_ingestion`` are reserved states the API exposes so consumers
     never mistake "uploaded" for "understood".
@@ -249,4 +249,3 @@ BindResearchInputRequest = Annotated[
     BindResearchInputToContractRequest | BindResearchInputToRunRequest,
     Field(union_mode="left_to_right"),
 ]
-

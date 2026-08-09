@@ -165,7 +165,7 @@ describe("contract — drift guard", () => {
     "json/ArtifactVersion.schema.json",
     "json/ResearchArtifact.schema.json",
   ]) {
-    it(`vendored ${file} matches the B-15 source`, () => {
+    it(`vendored ${file} matches the Core Domain and Transport Contract source`, () => {
       const source = readFileSync(resolve(sourceRoot, file), "utf8");
       const vendored = readFileSync(resolve(vendoredRoot, file), "utf8");
       expect(vendored).toBe(source);

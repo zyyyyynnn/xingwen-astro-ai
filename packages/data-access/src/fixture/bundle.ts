@@ -23,7 +23,7 @@ import type {
 import type { Evidence } from "@xingwen/domain";
 
 /**
- * One B-06 paper acquisition read model pinned to an ArtifactVersion id,
+ * One PaperCollection API paper acquisition read model pinned to an ArtifactVersion id,
  * with its candidate reads in authoritative server ranking order.
  */
 export interface FixturePaperAcquisition {
@@ -33,7 +33,7 @@ export interface FixturePaperAcquisition {
   readonly candidates: readonly PaperCollectionCandidateReadDto[];
 }
 
-/** One B-07 paper summary read model pinned to an ArtifactVersion id. */
+/** One PaperSummary API paper summary read model pinned to an ArtifactVersion id. */
 export interface FixturePaperSummary {
   /** Full immutable version as returned by the real Artifact detail boundary. */
   readonly version: ArtifactVersionDetailDto;

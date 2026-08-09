@@ -58,13 +58,13 @@ def cases(
     return build_frozen_graph_benchmark_cases(benchmark)
 
 
-def test_frozen_d01_graph_label_is_exact_and_directional(
+def test_frozen_paper_benchmark_graph_label_is_exact_and_directional(
     benchmark: BenchmarkPackage,
 ) -> None:
     validate_frozen_graph_label(benchmark)
 
-    assert benchmark.schema_version == FROZEN_BENCHMARK_SCHEMA_VERSION == "1.3.0"
-    assert benchmark.benchmark_version == FROZEN_BENCHMARK_VERSION == "1.3.0"
+    assert benchmark.schema_version == FROZEN_BENCHMARK_SCHEMA_VERSION == "2.0.0"
+    assert benchmark.benchmark_version == FROZEN_BENCHMARK_VERSION == "2.0.0"
     assert benchmark.scientific_payload_hash == FROZEN_SCIENTIFIC_PAYLOAD_HASH
     assert benchmark.content_hash == FROZEN_BENCHMARK_CONTENT_HASH
     assert len(benchmark.graph.nodes) == 6
@@ -135,7 +135,7 @@ def test_formal_graph_benchmark_is_complete_reproducible_and_exact(
     assert first.full_graph_exact_match_rate.rate == 1.0
     assert (
         first.full_graph_exact_match_rate.denominator_scope
-        is GraphBenchmarkDenominatorScope.d01_scientific_graph_cases
+        is GraphBenchmarkDenominatorScope.paper_benchmark_scientific_graph_cases
     )
     assert first.node_exact_match_rate.numerator == 6
     assert first.node_exact_match_rate.denominator == 6
@@ -312,7 +312,7 @@ def test_graph_benchmark_empty_denominators_are_null(
         ("content_hash", "sha256:" + "2" * 64),
     ),
 )
-def test_graph_benchmark_rejects_d01_identity_drift(
+def test_graph_benchmark_rejects_paper_benchmark_identity_drift(
     benchmark: BenchmarkPackage,
     cases: tuple[GraphBenchmarkEvaluationCase, ...],
     field: str,
@@ -320,7 +320,7 @@ def test_graph_benchmark_rejects_d01_identity_drift(
 ) -> None:
     changed = benchmark.model_copy(update={field: value})
 
-    with pytest.raises(ValueError, match="frozen D-01 benchmark identity mismatch"):
+    with pytest.raises(ValueError, match="frozen paper acquisition benchmark identity mismatch"):
         evaluate_graph_benchmark(benchmark=changed, cases=cases)
 
 
@@ -390,13 +390,13 @@ def test_graph_benchmark_report_output_hash_mismatch_is_rejected(
 @pytest.mark.parametrize(
     ("field", "value"),
     (
-        ("d01_schema_version", "9.9.9"),
-        ("d01_benchmark_version", "9.9.9"),
-        ("d01_scientific_payload_hash", "sha256:" + "1" * 64),
-        ("d01_content_hash", "sha256:" + "2" * 64),
+        ("paper_benchmark_schema_version", "9.9.9"),
+        ("paper_benchmark_version", "9.9.9"),
+        ("paper_benchmark_scientific_payload_hash", "sha256:" + "1" * 64),
+        ("paper_benchmark_content_hash", "sha256:" + "2" * 64),
     ),
 )
-def test_graph_benchmark_report_rejects_rehashed_d01_identity_drift(
+def test_graph_benchmark_report_rejects_rehashed_paper_benchmark_identity_drift(
     benchmark: BenchmarkPackage,
     cases: tuple[GraphBenchmarkEvaluationCase, ...],
     field: str,
@@ -408,10 +408,10 @@ def test_graph_benchmark_report_rejects_rehashed_d01_identity_drift(
     payload[field] = value
     payload["input_hash"] = compute_canonical_payload_hash(
         {
-            "d01_schema_version": payload["d01_schema_version"],
-            "d01_benchmark_version": payload["d01_benchmark_version"],
-            "d01_scientific_payload_hash": payload["d01_scientific_payload_hash"],
-            "d01_content_hash": payload["d01_content_hash"],
+            "paper_benchmark_schema_version": payload["paper_benchmark_schema_version"],
+            "paper_benchmark_version": payload["paper_benchmark_version"],
+            "paper_benchmark_scientific_payload_hash": payload["paper_benchmark_scientific_payload_hash"],
+            "paper_benchmark_content_hash": payload["paper_benchmark_content_hash"],
             "graph_versions": payload["graph_versions"],
             "taxonomy_node_types": payload["taxonomy_node_types"],
             "taxonomy_edge_types": payload["taxonomy_edge_types"],
@@ -422,7 +422,7 @@ def test_graph_benchmark_report_rejects_rehashed_d01_identity_drift(
     )
     payload["output_hash"] = compute_graph_benchmark_output_hash(payload)
 
-    with pytest.raises(ValidationError, match="frozen D-01 identity mismatch"):
+    with pytest.raises(ValidationError, match="frozen Paper Acquisition Benchmark identity mismatch"):
         GraphBenchmarkReport.model_validate_json(json.dumps(payload))
 
 

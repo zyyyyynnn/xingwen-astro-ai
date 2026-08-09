@@ -1,8 +1,8 @@
-"""PostgreSQL publication and replay contracts for D-05 Graph artifacts.
+"""PostgreSQL publication and replay contracts for Versioned Evidence Graph artifacts.
 
 Set TEST_DATABASE_URL to an isolated database whose name contains ``test``.
 The module reuses the Publisher integration migration fixture and deletes only
-the deterministic D-05 project between cases.
+the deterministic Versioned Evidence Graph project between cases.
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
 )
-GRAPH_PROJECT_ID = UUID(stable_uuid("project:d05-real-d08"))
+GRAPH_PROJECT_ID = UUID(stable_uuid("project:evidence_graph-real-literature_relation"))
 
 
 def _accept(_: ArtifactAdmissionContext) -> None:
@@ -165,7 +165,7 @@ def _active_graph_publication(
     project = ResearchProjectModel(
         id=GRAPH_PROJECT_ID,
         session_id=f"session-{uuid4()}",
-        name="D-05 Graph publisher integration",
+        name="Versioned Evidence Graph publisher integration",
         case_key="exoplanet_host_star",
         revision=1,
     )
@@ -236,7 +236,7 @@ def _active_graph_publication(
     elif producer_mutation == "prompt_name":
         prompt_name = "fabricated-prompt"
     elif producer_mutation == "prompt_version":
-        prompt_version = "v0"
+        prompt_version = "invalid-version"
     elif producer_mutation == "prompt_hash":
         prompt_hash = "sha256:" + "d" * 64
 
@@ -293,7 +293,7 @@ def _active_graph_publication(
 
     publication = ArtifactPublication(
         artifact_id=artifact.id,
-        publication_key="graph.d05.publisher.v1",
+        publication_key="graph.evidence_graph.publisher",
         producer_execution_id=execution.id,
         candidate=admitted,
         source_mode="fixture",
@@ -338,8 +338,8 @@ def _seed_upstream_graph_closure(
         id=UUID(pins.artifact_id),
         project_id=project.id,
         kind="literature_relations",
-        title="D-08 admitted LiteratureRelations",
-        logical_key="d08-literature-relations",
+        title="LiteratureRelation Pipeline admitted LiteratureRelations",
+        logical_key="literature_relation-literature-relations",
     )
     upstream_execution = ProducerExecutionModel(
         id=UUID(pins.producer_execution.id),
@@ -379,7 +379,7 @@ def _seed_upstream_graph_closure(
         step_attempt_id=attempt_id,
         producer_execution_id=upstream_execution.id,
         version_number=pins.version_number,
-        publication_key="d08.fixture.upstream",
+        publication_key="literature_relation.fixture.upstream",
         schema_version=pins.schema_version,
         content=upstream.candidate.model_dump(mode="json", exclude_none=True),
         content_hash=pins.content_hash,

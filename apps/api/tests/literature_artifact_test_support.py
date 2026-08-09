@@ -33,7 +33,7 @@ from services.paper_pipeline.relation_benchmark_cases import (
 )
 
 NOW = datetime(2026, 8, 1, 8, 0, tzinfo=UTC)
-PROJECT_ID = "project.d08_benchmark"
+PROJECT_ID = "project.literature_relation_benchmark"
 RUN_ID = "run-literature"
 
 
@@ -80,7 +80,7 @@ class FixtureArtifactReads:
 
 
 class FixturePaperSummaryReads:
-    """Test-only Summary envelope validator for frozen D-01 benchmark inputs."""
+    """Test-only Summary envelope validator for frozen paper acquisition benchmark inputs."""
 
     def __init__(self, artifacts: FixtureArtifactReads) -> None:
         self._artifacts = artifacts

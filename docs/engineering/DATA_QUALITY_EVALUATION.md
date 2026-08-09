@@ -15,7 +15,7 @@ outcome。它只负责确定性质量算法、typed result、Contract gate 和 P
 Workflow、CacheSelector、前端或科学真实性判定。
 
 `apps/api/src/app/schemas/data_quality.py` 是公共 Pydantic Schema authoring
-source。`quality-rules.v1.json` 是唯一版本化 RuleSet。入口先校验 RuleSet 自身
+source。`quality-rules.json` 是唯一版本化 RuleSet。入口先校验 RuleSet 自身
 hash，再由 `compile_quality_evaluation_plan()` 把冻结 RuleSet 编译为不可变
 `QualityEvaluationPlan`。执行、gate、结果闭包和 admission 都消费同一个 plan；
 不得在 Python 中另行维护公式选择或 Contract gate 清单。
@@ -89,7 +89,7 @@ RuleSet 的 `incomplete_source_policy=insufficient` 对所有三层适用 metric
 一致传播：completeness、missingness、provenance、Evidence、unit、conflict、
 object-match、low-confidence、review-required、inconclusive、source scope 和
 validation integrity 都不能在来源不完整时输出 determinate。真正不适用的目标
-仍保持 `not_applicable`。`aggregate_score` 在 v1 固定关闭，质量结果不能被描述为
+仍保持 `not_applicable`。`aggregate_score` 固定关闭，质量结果不能被描述为
 科学真实性、科学正确率或 ground truth score。
 
 结果 Schema 还校验领域闭包：result ID 与 input/RuleSet 绑定，field/row 精确覆盖，
@@ -117,7 +117,7 @@ SourceSnapshot、source scope 和 unit policy 仍分别执行其明确的 boolea
 
 Evidence 完整性属于字段映射 candidate admission：质量评估首先按冻结 input 重建并
 精确校验 candidate，缺失 Transformation/Crossmatch Evidence 的 payload 在进入
-observations 前即以 `QUALITY_C04_CANDIDATE_MISMATCH` 拒绝。质量评估不维护不可达的
+observations 前即以 `QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH` 拒绝。质量评估不维护不可达的
 `QUALITY_EVIDENCE_GAP` 二次分支；Evidence coverage metric 与 gate 只审计已经通过
 字段映射/实体对齐 admission 的覆盖计数，来源不完整时按 plan 传播 `insufficient`。
 

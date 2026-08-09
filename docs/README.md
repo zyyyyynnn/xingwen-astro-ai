@@ -25,7 +25,7 @@ GitHub Issues/PRs 定义实时工作状态；代码、测试和真实运行定�
 | 运行状态与并发控制                | [Workflow Design](architecture/WORKFLOW_DESIGN.md)                                           | Accepted | Run 状态机、Step、重试、取消与并发控制                                                  |
 | 版本、缓存与修订                  | [Data Versioning](architecture/DATA_VERSIONING.md)                                           | Accepted | ArtifactVersion、SourceSnapshot、CacheRecord 与 Revision                                |
 | 模型准入与降级                    | [Model Policy](ai/MODEL_POLICY.md)                                                           | Accepted | 模型调用准入、记录、降级与评测                                                          |
-| Prompt 管理                       | [Prompt Versioning](ai/PROMPT_VERSIONING.md)                                                 | Accepted | Prompt 不可变版本、Registry 与运行引用                                                  |
+| Prompt 管理                       | [Prompt Registry](ai/PROMPT_REGISTRY.md)                                                     | Accepted | Prompt 当前定义、Registry、内容固定与运行引用                                           |
 | Prompt Registry 包                | [Prompt Registry](../packages/prompts/README.md)                                             | Accepted | packages/prompts 目录结构与本地使用方式                                                 |
 | Schema 包                         | [Schema Package](../packages/schemas/README.md)                                              | Accepted | Schema 导出与消费边界                                                                   |
 | 证据准入与推导协议                | [Reasoning Protocol](ai/REASONING_PROTOCOL.md)                                               | Accepted | Claim、Relation、ReasoningTrace 与 Graph 发布门                                         |
@@ -60,8 +60,8 @@ GitHub Issues/PRs 定义实时工作状态；代码、测试和真实运行定�
 ## 3. 文档治理规则
 
 1. **单一事实源**：一项事实只能有一个完整规范正文，其他文档仅提供相对链接或单行摘要。
-2. **仅保留有效规范**：活跃文档只描述当前已批准且有效的规范，不记录历史方案、废弃过程或 ADR 比较。
-3. ** Git 保存历史**：历史演进、废弃决策和迁移原因由 Git Commit 记录，不在活跃树保留 Superseded / Archive 文档。
+2. **仅保留有效规范**：活跃文档只描述当前已批准且有效的规范，不维护演进过程或 ADR 比较。
+3. **Git 保存演进**：规范演进与迁移原因由 Git Commit 记录，活跃树只保留当前 Authority。
 4. **GitHub 保存状态**：任务实时状态、WIP 进度与依赖由 GitHub Issues / PRs 保存，不在 Markdown 维护 Backlog / Roadmap。
 5. **不混淆实现与目标**：规范正文可以超前定义已批准但尚未代码实现的要求，
    但不得把 Draft/Open PR、Issue、Fixture、Benchmark、Recorded 或 Cached 写成 Current。

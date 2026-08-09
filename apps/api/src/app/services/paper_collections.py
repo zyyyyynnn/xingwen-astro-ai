@@ -29,7 +29,7 @@ _UNSAFE_HTML = re.compile(r"<\s*/?\s*[a-z][^>]*>", re.IGNORECASE)
 
 
 class PaperCollectionReadService:
-    """Validate and project D-02 content without repeating its algorithms."""
+    """Validate and project Paper Acquisition Pipeline content without repeating its algorithms."""
 
     def __init__(self, artifacts: ArtifactReadService) -> None:
         self._artifacts = artifacts

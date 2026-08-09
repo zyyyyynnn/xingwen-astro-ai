@@ -1,6 +1,6 @@
 # Quality rules
 
-`quality-rules.v1.json` is the frozen, versioned RuleSet for the quality
+`quality-rules.json` is the frozen, versioned RuleSet for the quality
 evaluation of the `exoplanet_host_star` case. It is loaded through
 `services.data_pipeline.data_quality.policy.load_frozen_quality_rule_set` and
 must compare equal to the caller-supplied `DataQualityRuleSet`.
@@ -14,7 +14,7 @@ and denominator observation bindings. The plan interpreter owns counting,
 applicability, empty-denominator behavior and incomplete-source behavior;
 execution, gate validation and result validation must consume that plan instead
 of maintaining a second formula or gate registry.
-The aggregate score is deliberately disabled in v1; raw field/row/dataset
+The aggregate score is deliberately disabled; raw field/row/dataset
 metrics are authoritative and do not represent scientific conclusion accuracy.
 
 Raw metrics intentionally do not carry Contract thresholds. Thresholds are

@@ -87,7 +87,7 @@ Manifest hash 使用 `sha256:<64 lowercase hex>`：
 4. 使用 UTF-8、无 BOM、紧凑分隔符和明确 ISO 8601 日期编码；
 5. 对所得字节计算 SHA-256。
 
-hash 标识内容，不替代 `case_id`、`manifest_id` 或 `manifest_version`。任何字段语义、来源别名、单位或规则变化都必须提升 Manifest 版本并更新变更记录。
+hash 标识内容，不替代 `case_id`、`manifest_id` 或 `manifest_version`。任何字段语义、来源别名、单位或规则变化都必须提升对应技术版本；演进事实由 Git Commit 与 PR 保留，不在运行资产旁维护第二份变更记录。
 
 ## 8. 校验和消费方式
 
@@ -106,6 +106,6 @@ Schema/模型校验必须覆盖：
 ## 9. 维护规则
 
 - 初始版本由数据负责人维护。
-- 修改字段事实必须关联 GitHub Issue，并同步 `CHANGELOG.md`、版本和 hash。
+- 修改字段事实必须关联 GitHub Issue，并同步当前 Manifest 的技术身份与 content hash。
 - 消费方必须固定 manifest version/hash；不得读取动态“latest”作为可复现输入。
 - Fixture 可以引用 Manifest，但必须另带 fixture/scenario/schema/provenance 标记；Manifest 本身不是 Fixture、Live 或 Cached 数据结果。

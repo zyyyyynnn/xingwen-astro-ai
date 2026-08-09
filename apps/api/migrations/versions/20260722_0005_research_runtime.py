@@ -7,7 +7,7 @@ Create Date: 2026-07-22
 Adds the session-scoped ``research_contract_drafts`` table and the columns that
 let an immutable ``research_contracts`` row recover its full frozen
 ``ResearchContractInput`` payload (not only ``content_hash``). Both column
-additions are nullable so pre-existing #76/#77 workflow rows remain valid.
+additions are nullable so pre-existing workflow rows remain valid.
 """
 
 from __future__ import annotations

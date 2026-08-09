@@ -1,4 +1,4 @@
-"""Contract and defensive read tests for B-06 PaperCollection API."""
+"""Contract and defensive read tests for the PaperCollection API."""
 
 from __future__ import annotations
 
@@ -65,13 +65,13 @@ ARTIFACT_ID = "00000000-0000-0000-0000-000000000102"
 PROJECT_ID = "00000000-0000-0000-0000-000000000103"
 RUN_ID = "a0000000-0000-0000-0000-000000000104"
 SNAPSHOT_ID = "a0000000-0000-0000-0000-000000000105"
-SNAPSHOT_RECORD_ID = "snapshot.crossref.b06"
+SNAPSHOT_RECORD_ID = "snapshot.crossref.paper_collection_api"
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 
 
 class _FixtureAdapter:
     source_id = "crossref"
-    adapter_name = "b06_fixture"
+    adapter_name = "paper_collection_api_fixture"
     adapter_version = "1.0.0"
 
     def __init__(self, count: int = 3) -> None:
@@ -217,7 +217,7 @@ class _Artifacts:
                     query_hash=self.collection.query.query_hash,
                     content_hash=self.collection.source_snapshots[0].content_hash,
                     license_note="Public metadata only.",
-                    request_metadata={"adapter_name": "b06_fixture"},
+                    request_metadata={"adapter_name": "paper_collection_api_fixture"},
                 ),
             )
             if self.collection.source_snapshots
@@ -229,7 +229,7 @@ class _Artifacts:
             project_id=PROJECT_ID,
             created_by_run_id=RUN_ID,
             version_number=1,
-            schema_version="1.0.0",
+            schema_version="2.0.0",
             content=self.collection.model_dump(mode="json", exclude_none=True),
             content_hash=compute_canonical_payload_hash(
                 self.collection.model_dump(mode="json", exclude_none=True)
@@ -310,7 +310,7 @@ def test_detail_exposes_reproducible_typed_collection(
     assert detail.content_hash != detail.collection.output_hash
 
 
-def test_fixture_uses_b14_publisher_content_hash_semantics() -> None:
+def test_fixture_uses_atomic_publisher_content_hash_semantics() -> None:
     collection = _collection()
     admitted = admit_artifact_candidate(
         collection,
@@ -606,7 +606,7 @@ def _seed_published_collection(
     project = ResearchProjectModel(
         id=project_id,
         session_id=owner_id,
-        name="B-06 PostgreSQL read",
+        name="PaperCollection API PostgreSQL read",
         case_key="exoplanet_host_star",
         revision=1,
         created_at=NOW,
@@ -630,7 +630,7 @@ def _seed_published_collection(
         cache_policy="disabled",
         latest_event_sequence=1,
         revision=1,
-        idempotency_key="b06-postgres-run",
+        idempotency_key="paper_collection_api-postgres-run",
         request_hash=collection.input_hash,
         created_at=NOW,
         updated_at=NOW,
@@ -652,7 +652,7 @@ def _seed_published_collection(
         id=attempt_id,
         run_step_id=step_id,
         attempt_number=1,
-        idempotency_key="b06-attempt",
+        idempotency_key="paper_collection_api-attempt",
         status="completed",
         started_at=NOW,
         finished_at=NOW,
@@ -664,7 +664,7 @@ def _seed_published_collection(
         run_step_id=step_id,
         step_attempt_id=attempt_id,
         step_key="searching_papers",
-        idempotency_key="b06-producer",
+        idempotency_key="paper_collection_api-producer",
         lease_generation=1,
         producer_type="algorithm",
         producer_name=collection.producer.producer_name,
@@ -711,7 +711,7 @@ def _seed_published_collection(
         step_attempt_id=attempt_id,
         producer_execution_id=producer_id,
         version_number=1,
-        publication_key="b06-paper-collection",
+        publication_key="paper_collection_api-paper-collection",
         schema_version=collection.schema_version,
         content=admitted_content,
         content_hash=admitted_hash,

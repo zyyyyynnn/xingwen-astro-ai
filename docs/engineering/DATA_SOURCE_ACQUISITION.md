@@ -17,10 +17,10 @@
 
 | 输入 | 固定值 |
 | --- | --- |
-| Case Manifest version | `1.0.1` |
-| Case Manifest hash | `sha256:bb870d3c8b6b6c972cd8d7139b9cfcb672bb9ce75401109271aaf05a147819d3` |
-| Field Manifest version | `1.0.1` |
-| Field Manifest hash | `sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53` |
+| Case Manifest version | `2.0.0` |
+| Case Manifest hash | `sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c` |
+| Field Manifest version | `2.0.0` |
+| Field Manifest hash | `sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f` |
 | Query normalization | `1.0.0` |
 | NASA TAP Adapter | `1.0.0` |
 
@@ -46,7 +46,7 @@ NASA TOI TAP 实测响应未提供 ETag、独立 source version 或 request-id�
 
 Live 请求必须使用 `source_mode=live` 与 `data_level=live_result`。版本化 replay 必须使用 `source_mode=fixture` 与 `data_level=recorded_response`，并在 Snapshot 中绑定 fixture id、schema version、scenario、recorded time、Case / Field Manifest 版本与 hash、fixture content hash 和 provenance note。`source_mode=cached` 不被此 Adapter 接受，因为该 Adapter 没有真实 origin Run、ArtifactVersion 和 CacheRecord。
 
-Recorded Fixture 位于 `services/data_pipeline/fixtures/exoplanet_host_star/nasa-toi-first-page.recorded.v1.json`。它来自 2026-07-22 对官方 TAP endpoint 的成功 metadata-only 小流量请求，只用于离线复现 Contract、分页和 provenance；回放结果不是当前 Live 数据，也不是历史 Run cache。Fixture payload 或 provenance 的任何变化都必须更新 schema/version 规则与 content hash。
+Recorded Fixture 位于 `services/data_pipeline/fixtures/exoplanet_host_star/nasa-toi-first-page.recorded.json`。它来自 2026-07-22 对官方 TAP endpoint 的成功 metadata-only 小流量请求，只用于离线复现 Contract、分页和 provenance；回放结果不是当前 Live 数据，也不是历史 Run cache。Fixture payload 或 provenance 的任何变化都必须更新 schema/version 规则与 content hash。
 
 ## 5. 失败、重试与空结果
 

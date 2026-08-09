@@ -104,9 +104,3 @@ def test_public_share_instance_hides_token() -> None:
     instance = api_surface.public_share_instance()
     assert instance == "/api/public/shares/public"
     assert api_surface.PUBLIC_SHARE_PREFIX in instance
-
-
-def test_deprecated_operations_seam_is_empty() -> None:
-    # The evolution seam is documented but dormant: no deprecation-header
-    # middleware is mounted while this map is empty.
-    assert api_surface.DEPRECATED_OPERATIONS == {}

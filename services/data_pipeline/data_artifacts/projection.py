@@ -1,4 +1,4 @@
-"""Single C-04 domain projection derived from canonical frozen inputs.
+"""Single Versioned Data Artifact domain projection derived from canonical frozen inputs.
 
 The projection is the only owner of scientific derivation. Candidate assembly
 serializes it, while independent admission derives a fresh projection and
@@ -62,7 +62,7 @@ from .policy import load_mapping_rule_set, load_unit_conversion_catalog
 
 @dataclass(frozen=True, slots=True)
 class DataArtifactDomainProjection:
-    """Complete process-local expectation for all three C-04 candidates."""
+    """Complete process-local expectation for all three Versioned Data Artifact candidates."""
 
     input_value: DataArtifactBuildInput
     fields: tuple[FieldDefinition, ...]
@@ -123,7 +123,7 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
     if actual != expected:
         raise DataArtifactError(
             DataArtifactErrorCode.manifest_pin_mismatch,
-            "frozen manifests disagree with the C-04 input pins",
+            "frozen manifests disagree with the Versioned Data Artifact input pins",
         )
     if input_value.mapping_rule_set != load_mapping_rule_set():
         raise DataArtifactError(
@@ -180,7 +180,7 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
                 )
             expected_kind = (
                 QuantityKind.none
-                if implemented.rule_id == "unit.identity.v1"
+                if implemented.rule_id == "unit.identity"
                 else QuantityKind(_quantity_kind(field, bundle))
             )
             if implemented.quantity_kind is not expected_kind:
@@ -203,7 +203,7 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
     if input_value.input_hash != compute_data_artifact_input_hash(input_value):
         raise DataArtifactError(
             DataArtifactErrorCode.input_hash_mismatch,
-            "C-04 input hash does not match the supplied typed input",
+            "Versioned Data Artifact input hash does not match the supplied typed input",
         )
     for policy, label in (
         (input_value.mapping_rule_set, "MappingRuleSet"),
@@ -291,7 +291,7 @@ def validate_frozen_crossmatch_handoff(input_value: DataArtifactBuildInput) -> N
     ):
         raise DataArtifactError(
             DataArtifactErrorCode.crossmatch_result_mismatch,
-            "CrossmatchResult is not bound to the repository-frozen C-08 policies",
+            "CrossmatchResult is not bound to the repository-frozen Cross-source Entity Alignment policies",
         )
     expected = (
         rule_set.rule_set_id,
@@ -789,7 +789,7 @@ def _source_members(input_value: DataArtifactBuildInput) -> tuple[SourceCollecti
 def derive_data_artifact_domain_projection(
     input_value: DataArtifactBuildInput,
 ) -> DataArtifactDomainProjection:
-    """Derive the complete expected C-04 domain from canonical frozen inputs."""
+    """Derive the complete expected Versioned Data Artifact domain from canonical frozen inputs."""
 
     validate_runtime_input_integrity(input_value)
     validate_frozen_crossmatch_handoff(input_value)
@@ -839,7 +839,7 @@ def derive_data_artifact_domain_projection(
                 if raw is None or raw.content_hash != member.source_record.record_content_hash:
                     raise DataArtifactError(
                         DataArtifactErrorCode.source_record_reference_not_found,
-                        "C-08 source record reference is unavailable",
+                        "Cross-source Entity Alignment source record reference is unavailable",
                     )
                 for alias in field.source_aliases_for(source_id):
                     if alias.raw_field not in raw.payload:

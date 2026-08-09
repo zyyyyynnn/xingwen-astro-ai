@@ -1,4 +1,4 @@
-"""Unit tests for the B-19 research input contract boundary.
+"""Unit tests for the research-input contract.
 
 Covers the schemas, MIME sniffing, filename sanitization, the in-memory
 ownership store and the content-addressed storage port — everything that does

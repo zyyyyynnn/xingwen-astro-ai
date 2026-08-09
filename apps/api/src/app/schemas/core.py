@@ -486,7 +486,7 @@ class PaperCollectionArtifactContent(BaseModel):
 
 class LiteratureClaimsArtifactContent(BaseModel):
     model_config = CORE_MODEL_CONFIG
-    # Legacy core projection; it is not a D-07 publication candidate.
+    # Compact read projection; publication requires the typed LiteratureClaim candidate.
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     kind: Literal[ArtifactKind.literature_claims]
@@ -495,7 +495,7 @@ class LiteratureClaimsArtifactContent(BaseModel):
 
 class LiteratureRelationsArtifactContent(BaseModel):
     model_config = CORE_MODEL_CONFIG
-    # Legacy core projection; it is not a D-08 publication candidate.
+    # Compact read projection; publication requires the typed LiteratureRelation candidate.
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     kind: Literal[ArtifactKind.literature_relations]
@@ -504,7 +504,7 @@ class LiteratureRelationsArtifactContent(BaseModel):
 
 class ReasoningTracesArtifactContent(BaseModel):
     model_config = CORE_MODEL_CONFIG
-    # Legacy core projection; it is not a D-08 publication candidate.
+    # Compact read projection; traces publish inside the typed Relation candidate.
     __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     kind: Literal[ArtifactKind.reasoning_traces]
@@ -941,7 +941,7 @@ class UpdateResearchContractDraftRequest(BaseModel):
 
 
 class CreateResearchProjectRequest(BaseModel):
-    """Minimal M1 project creation payload; `case_key` stays frozen to the main case."""
+    """Minimal project creation payload; `case_key` stays frozen to the main case."""
 
     model_config = CORE_MODEL_CONFIG
 

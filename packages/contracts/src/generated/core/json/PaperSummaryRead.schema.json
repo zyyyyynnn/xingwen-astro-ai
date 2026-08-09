@@ -138,11 +138,6 @@
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Scientific Payload Hash",
           "type": "string"
-        },
-        "x00_main_sha": {
-          "pattern": "^[0-9a-f]{40}$",
-          "title": "X00 Main Sha",
-          "type": "string"
         }
       },
       "required": [
@@ -151,15 +146,14 @@
         "benchmark_version",
         "scientific_payload_hash",
         "content_hash",
-        "scenario_id",
-        "x00_main_sha"
+        "scenario_id"
       ],
       "title": "PaperBenchmarkReference",
       "type": "object"
     },
     "PaperSummaryArtifactContent": {
       "additionalProperties": false,
-      "description": "Publisher-ready D-03 content used directly by the core Artifact discriminator.",
+      "description": "Publisher-ready PaperSummary Pipeline content used directly by the core Artifact discriminator.",
       "properties": {
         "benchmark": {
           "$ref": "#/$defs/PaperBenchmarkReference"

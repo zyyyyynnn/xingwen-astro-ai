@@ -1,7 +1,7 @@
 /**
  * Data-access error types.
  *
- * These errors are thrown by repository adapters (fixture and, later, HTTP)
+ * These errors are thrown by fixture and HTTP repository adapters
  * when data fails validation or cannot be found. They carry enough context for
  * the UI to render actionable failure states.
  */

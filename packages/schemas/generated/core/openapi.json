@@ -738,7 +738,7 @@
       },
       "CreateResearchProjectRequest": {
         "additionalProperties": false,
-        "description": "Minimal M1 project creation payload; `case_key` stays frozen to the main case.",
+        "description": "Minimal project creation payload; `case_key` stays frozen to the main case.",
         "properties": {
           "case_key": {
             "const": "exoplanet_host_star",
@@ -1687,7 +1687,7 @@
       },
       "LiteratureClaimCandidate": {
         "additionalProperties": false,
-        "description": "Schema-valid Claim with the outcome of deterministic D-07 admission.",
+        "description": "Schema-valid Claim with the outcome of deterministic LiteratureClaim Pipeline admission.",
         "properties": {
           "claim_id": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
@@ -3104,11 +3104,6 @@
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Scientific Payload Hash",
             "type": "string"
-          },
-          "x00_main_sha": {
-            "pattern": "^[0-9a-f]{40}$",
-            "title": "X00 Main Sha",
-            "type": "string"
           }
         },
         "required": [
@@ -3117,8 +3112,7 @@
           "benchmark_version",
           "scientific_payload_hash",
           "content_hash",
-          "scenario_id",
-          "x00_main_sha"
+          "scenario_id"
         ],
         "title": "PaperBenchmarkReference",
         "type": "object"
@@ -3231,8 +3225,8 @@
             "$ref": "#/components/schemas/PaperCollectionRules"
           },
           "schema_version": {
-            "const": "1.0.0",
-            "default": "1.0.0",
+            "const": "2.0.0",
+            "default": "2.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -4225,7 +4219,7 @@
       },
       "PaperSummaryArtifactContent": {
         "additionalProperties": false,
-        "description": "Publisher-ready D-03 content used directly by the core Artifact discriminator.",
+        "description": "Publisher-ready PaperSummary Pipeline content used directly by the core Artifact discriminator.",
         "properties": {
           "benchmark": {
             "$ref": "#/components/schemas/PaperBenchmarkReference"
@@ -6474,7 +6468,7 @@
         "type": "object"
       },
       "ResearchInputStatus": {
-        "description": "Lifecycle of a controlled research input after ingestion.\n\n``accepted`` is the only state B-19 produces: ingestion succeeded and the\ncontent is frozen behind an immutable content hash. ``unsupported_processing``\nand ``failed_ingestion`` are reserved states the API exposes so consumers\nnever mistake \"uploaded\" for \"understood\".",
+        "description": "Lifecycle of a controlled research input after ingestion.\n\n``accepted`` is the only state Research Input Ingestion produces: ingestion succeeded and the\ncontent is frozen behind an immutable content hash. ``unsupported_processing``\nand ``failed_ingestion`` are reserved states the API exposes so consumers\nnever mistake \"uploaded\" for \"understood\".",
         "enum": [
           "accepted",
           "unsupported_processing",
@@ -7293,7 +7287,7 @@
       },
       "SourceSnapshotRecord": {
         "additionalProperties": false,
-        "description": "Immutable pipeline source record consumed by the future publisher.\n\nImplements the core ``SourceSnapshot`` target entity described in\n``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen\nPhase 0 ``SourceSnapshot`` projection above stays unchanged.",
+        "description": "Immutable source record consumed by publication pipelines.\n\nThis complete provenance record and the compact task-read projection serve\nseparate current interfaces; neither is a historical compatibility model.",
         "properties": {
           "cache_version": {
             "anyOf": [

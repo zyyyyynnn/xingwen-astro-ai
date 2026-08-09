@@ -55,7 +55,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "One canonical figure block (caption/text only — no pixel measurement).\n\nPhase-1 explicitly forbids plot digitization, curve recovery, scatter-point\nrecovery and scientific pixel measurement. Only visible/ocr labels and\nsurrounding text are captured.",
+  "description": "One canonical figure block (caption/text only — no pixel measurement).\n\nThe parsing contract explicitly forbids plot digitization, curve recovery, scatter-point\nrecovery and scientific pixel measurement. Only visible/ocr labels and\nsurrounding text are captured.",
   "properties": {
     "axis_text": {
       "anyOf": [

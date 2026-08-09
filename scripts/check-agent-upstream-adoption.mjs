@@ -414,7 +414,7 @@ export function checkAgentUpstreamAdoption(root) {
         !Array.isArray(entries)
       ) {
         failures.push(
-          "G5: provenance.json must use the v2 manifest object contract.",
+          "G5: provenance.json must use the manifest object contract.",
         );
       }
       provenanceEntries = entryList;

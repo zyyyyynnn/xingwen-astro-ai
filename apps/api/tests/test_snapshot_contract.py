@@ -1,4 +1,4 @@
-"""Contract, security, and concurrency tests for B-17 snapshots and shares."""
+"""Contract, security, and concurrency tests for snapshots and shares."""
 
 from __future__ import annotations
 

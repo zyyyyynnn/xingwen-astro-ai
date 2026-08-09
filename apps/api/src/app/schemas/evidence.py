@@ -57,18 +57,17 @@ class Locator(BaseModel):
 
 
 class SourceSnapshot(BaseModel):
-    """Phase 0 Evidence projection retained for the existing Pipeline response."""
+    """Compact SourceSnapshot projection returned by task-read endpoints."""
 
     retrieved_at: datetime
     query_hash: str | None = None
 
 
 class SourceSnapshotRecord(BaseModel):
-    """Immutable pipeline source record consumed by the future publisher.
+    """Immutable source record consumed by publication pipelines.
 
-    Implements the core ``SourceSnapshot`` target entity described in
-    ``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen
-    Phase 0 ``SourceSnapshot`` projection above stays unchanged.
+    This complete provenance record and the compact task-read projection serve
+    separate current interfaces; neither is a historical compatibility model.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)

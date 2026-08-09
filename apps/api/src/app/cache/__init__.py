@@ -1,6 +1,5 @@
-"""Cache boundary placeholder.
+"""Namespace boundary for cache adapters.
 
-Cache fallback behavior is a later task. B-01 only reserves the package
-location.
+Cache fallback policy belongs to the calling application service; this package
+does not define a competing runtime policy.
 """
-

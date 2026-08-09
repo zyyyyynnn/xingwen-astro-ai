@@ -1,4 +1,4 @@
-"""Add Evidence and SourceSnapshot persistence for the B-18 read boundary.
+"""Add Evidence and SourceSnapshot persistence for the Artifact read boundary.
 
 Revision ID: 20260722_0004
 Revises: 20260722_0003

@@ -1,4 +1,4 @@
-"""HTTP-level security and transport contract tests for B-19 ingestion.
+"""HTTP-level security and transport contract tests for Research Input ingestion.
 
 Exercises the mounted runtime boundary: CSRF/Idempotency headers, MIME
 sniffing rejections, filename sanitization, size and rate limits, URL fetch

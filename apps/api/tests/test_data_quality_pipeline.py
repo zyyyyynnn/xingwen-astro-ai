@@ -21,8 +21,8 @@ from data_artifact_test_support import build_input
 
 def _contract(*requested_fields: str, source_min: float = 1.0) -> ResearchContract:
     payload = {
-        "id": "rc_c05_test",
-        "project_id": "proj_c05_test",
+        "id": "rc_data_quality_test",
+        "project_id": "proj_data_quality_test",
         "version": 1,
         "research_goal": "Evaluate evidence-bound exoplanet data quality",
         "target_objects": ["exoplanet_candidate", "host_star"],
@@ -40,7 +40,7 @@ def _contract(*requested_fields: str, source_min: float = 1.0) -> ResearchContra
             "source_completeness_min": source_min,
             "unit_consistency_min": 1.0,
         },
-        "created_from_draft_id": "rcd_c05_test",
+        "created_from_draft_id": "rcd_data_quality_test",
         "created_at": datetime(2026, 8, 3, tzinfo=timezone.utc),
         "content_hash": "sha256:" + "1" * 64,
     }
@@ -101,7 +101,7 @@ def test_projected_field_scope_excludes_inapplicable_planet_rows() -> None:
     assert result.row_results[-1].completeness.status is QualityMetricStatus.not_applicable
 
 
-def test_manifest_declared_unit_metric_uses_c04_canonical_unit_admission() -> None:
+def test_manifest_declared_unit_metric_uses_data_artifact_canonical_unit_admission() -> None:
     quality_input, _ = make_quality_input(
         "system.right_ascension",
         scenario_id="coordinate_only",
@@ -187,7 +187,7 @@ def test_rule_policy_formula_and_capacity_tampering_stays_non_frozen() -> None:
     assert result.error_code is QualityErrorCode.QUALITY_RULE_SET_MISMATCH
 
 
-def test_valid_candidate_from_another_c04_build_cannot_be_reused() -> None:
+def test_valid_candidate_from_another_data_artifact_build_cannot_be_reused() -> None:
     data_input = build_input("star.tic_id")
     original = build_data_artifact_candidates(data_input)
     foreign = build_data_artifact_candidates(build_input("planet.name"))
@@ -208,4 +208,4 @@ def test_valid_candidate_from_another_c04_build_cannot_be_reused() -> None:
     result = evaluate_data_quality(quality_input)
 
     assert isinstance(result, DataQualityEvaluationRejected)
-    assert result.error_code is QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH
+    assert result.error_code is QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH

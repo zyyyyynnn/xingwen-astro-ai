@@ -773,5 +773,5 @@
       }
     ]
   },
-  "capture_note": "Each table observation queries every C-01 declared alias, companion, and row-key column plus the five critical fields. The independent confirmation repeats the five critical fields across all three tables."
+  "capture_note": "Each table observation queries every case and field manifest declared alias, companion, and row-key column plus the five critical fields. The independent confirmation repeats the five critical fields across all three tables."
 }

@@ -71,9 +71,9 @@ planning <-> waiting_for_input
 
 | `derivation_kind` | 语义 | 复用规则 |
 | --- | --- | --- |
-| `retry` | 从失败步骤重新执行 | 可复用父 Run 中已通过校验且 Input Hash 一致的旧版本 |
+| `retry` | 从失败步骤重新执行 | 可引用父 Run 中已通过校验且 Input Hash 一致的 ArtifactVersion |
 | `revision` | 依据 UserFeedback / RevisionPlan 修订 | 仅重算受影响步骤，生成新 ArtifactVersion |
-| `fork` | 更换 Contract 或研究范围 | 仅当新 Contract 允许且输入 Hash 一致时可复用旧版本 |
+| `fork` | 更换 Contract 或研究范围 | 仅当新 Contract 允许且输入 Hash 一致时可引用父 Run 的 ArtifactVersion |
 
 ## 8. 取消语义
 

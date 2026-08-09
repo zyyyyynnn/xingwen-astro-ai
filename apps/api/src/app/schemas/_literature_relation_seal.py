@@ -1,4 +1,4 @@
-"""Process-local publication commitment for D-08 Relation candidates.
+"""Process-local publication commitment for LiteratureRelation Pipeline Relation candidates.
 
 The admission snapshot and seal are intentionally absent from JSON Schema and
 serialization. Reconstructing a valid public Pydantic payload therefore never

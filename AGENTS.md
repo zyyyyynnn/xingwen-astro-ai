@@ -83,7 +83,7 @@ LangGraph 或第二套通用平台类别。所有上游采用必须记录版本�
 - 先检查工作区、分支、根目录、基线与相关 diff；保留用户已有修改。
 - 一个 Issue 只承担一个模块、一个可观察交付物、一个主要负责人和一个主要 PR。
 - Epic 只维护父级范围与退出证据；父子关系不自动等于 blocked-by，真实阻塞使用 GitHub 原生依赖。
-- Issue 必须区分 `Completed baseline` 与 `Planned handoff`；未来计划不能写成已实现。
+- Issue 必须区分 `Completed baseline` 与 `Planned handoff`；两者不得混写或互相冒充。
 - 新能力必须先明确 Contract、失败/拒绝语义、版本/Evidence 边界与回归验收。
 - 禁止使用带序号的工作阶段代号或 GitHub 批次字段表达执行顺序；执行顺序只由 priority
   与 GitHub 原生依赖表达。竞赛赛道/方向及领域 failure stage 不属于工作阶段标识。

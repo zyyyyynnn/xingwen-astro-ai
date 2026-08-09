@@ -1,4 +1,4 @@
-"""PostgreSQL and HTTP contract tests for the B-18 generic read boundary."""
+"""PostgreSQL and HTTP contract tests for generic artifact reads."""
 
 from __future__ import annotations
 
@@ -97,7 +97,7 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
         project = ResearchProjectModel(
             id=ids["project"],
             session_id=owner.id,
-            name="B-18 reads",
+            name="Artifact boundary reads",
             case_key="exoplanet_host_star",
             revision=1,
             created_at=NOW,
@@ -121,7 +121,7 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
             cache_policy="disabled",
             latest_event_sequence=1,
             revision=1,
-            idempotency_key="b18-run",
+            idempotency_key="artifact_read-run",
             request_hash=HASH_B,
             created_at=NOW,
             updated_at=NOW,

@@ -1,4 +1,4 @@
-"""Deterministic D-05 Graph construction and sealed admission."""
+"""Deterministic Versioned Evidence Graph construction and sealed admission."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from app.schemas._graph_seal import _bind_graph_pipeline_authority
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import EvidenceType, GraphEdgeType, GraphNodeType
 from app.schemas.graph_artifact import (
-    GRAPH_TAXONOMY_V1_EDGE_TYPES,
-    GRAPH_TAXONOMY_V1_NODE_TYPES,
+    GRAPH_TAXONOMY_EDGE_TYPES,
+    GRAPH_TAXONOMY_NODE_TYPES,
     GraphAdmissionResult,
     GraphAlgorithmProducer,
     GraphArtifactCandidate,
@@ -199,11 +199,11 @@ def _version_reference(
 
 def _taxonomy() -> GraphTaxonomy:
     payload = {
-        "taxonomy_id": "taxonomy.graph.d05.v1",
-        "schema_version": "1.0.0",
-        "version": "1.0.0",
-        "node_types": GRAPH_TAXONOMY_V1_NODE_TYPES,
-        "edge_types": GRAPH_TAXONOMY_V1_EDGE_TYPES,
+        "taxonomy_id": "taxonomy.graph.evidence_graph",
+        "schema_version": "2.0.0",
+        "version": "2.0.0",
+        "node_types": GRAPH_TAXONOMY_NODE_TYPES,
+        "edge_types": GRAPH_TAXONOMY_EDGE_TYPES,
     }
     return GraphTaxonomy(
         **payload,
@@ -758,7 +758,7 @@ def _add_literature_relations(
                 GraphIntegrityStage.taxonomy,
                 GraphRejectionReason.taxonomy_violation,
                 f"relations.{relation_id}.relation_type",
-                "accepted Relation type has no authorized D-05 GraphEdgeType",
+                "accepted Relation type has no authorized Versioned Evidence Graph edge type",
             ) from exc
         trace = traces.get(relation.reasoning_trace_id or "")
         failure = _reasoning_trace_failure(relation_id, relation, trace)
@@ -896,7 +896,7 @@ def _data_evidence_bindings(
                 GraphIntegrityStage.evidence_snapshot,
                 GraphRejectionReason.evidence_inconsistent,
                 f"data.evidence.{evidence_id}",
-                "data Evidence target/locator/Snapshot does not close its C-04 identity",
+                "data Evidence target/locator/Snapshot does not close its Versioned Data Artifact identity",
             )
     return tuple(sorted(matches, key=lambda item: item[0].artifact_version_id))
 
@@ -1303,7 +1303,7 @@ def _collect_literature_gate_failures(
                     GraphIntegrityStage.taxonomy,
                     GraphRejectionReason.taxonomy_violation,
                     f"scope.structural_edges.{index}.edge_type",
-                    "D-05 v1 structural scope only admits supports_finding",
+                    "Versioned Evidence Graph structural scope only admits supports_finding",
                 )
             )
 
@@ -1364,7 +1364,7 @@ def _collect_literature_gate_failures(
                     GraphIntegrityStage.taxonomy,
                     GraphRejectionReason.taxonomy_violation,
                     f"relations.{relation_id}.relation_type",
-                    "accepted Relation type has no authorized D-05 GraphEdgeType",
+                    "accepted Relation type has no authorized Versioned Evidence Graph edge type",
                 )
             )
         trace_failure = _reasoning_trace_failure(
@@ -1581,7 +1581,7 @@ def _assemble_candidate(
     )
     payload: dict[str, Any] = {
         "kind": "graph",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "project_id": request.project_id,
         "input_versions": input_versions,
         "taxonomy": taxonomy,

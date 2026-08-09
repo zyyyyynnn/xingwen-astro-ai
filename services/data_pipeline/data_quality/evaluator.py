@@ -1,4 +1,4 @@
-"""Public C-05 evaluator entry point."""
+"""Public data-quality evaluation entry point."""
 
 from __future__ import annotations
 
@@ -173,15 +173,15 @@ def _validate_input_bindings(
         value.source_collection_candidate,
     )
     if compute_data_artifact_input_hash(data_input) != data_input.input_hash:
-        _fail(QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH, QualityFailureStage.c04_validation)
+        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
     for candidate in candidates:
         try:
             validate_data_artifact_candidates_against_input(candidate, data_input)
         except Exception as error:
             raise DataQualityError(
-                QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH,
-                "C-04 candidate does not match its immutable build input",
-                stage=QualityFailureStage.c04_validation,
+                QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+                "Versioned Data Artifact candidate does not match its immutable build input",
+                stage=QualityFailureStage.data_artifact_validation,
                 cause=error,
             ) from error
     _validate_candidate_cross_bindings(candidates, data_input)
@@ -202,7 +202,7 @@ def _validate_input_bindings(
         data_input.manifest_pins.field_manifest_content_hash,
     )
     if actual_pins != expected_pins:
-        _fail(QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH, QualityFailureStage.c04_validation)
+        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
     result = data_input.crossmatch_result
     recomputed_metrics = compute_crossmatch_metrics(
         result.candidates,
@@ -229,20 +229,20 @@ def _validate_candidate_cross_bindings(
 ) -> None:
     dataset, field_dictionary, source_collection = candidates
     if any(candidate.quality_evaluation_status != "not_evaluated" for candidate in candidates):
-        _fail(QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH, QualityFailureStage.c04_validation)
+        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
     if tuple(dataset.requested_fields) != tuple(field_dictionary.requested_fields):
-        _fail(QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH, QualityFailureStage.c04_validation)
+        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
     if tuple(column.field for column in dataset.columns) != tuple(field_dictionary.field_definitions):
-        _fail(QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH, QualityFailureStage.c04_validation)
+        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
     if source_collection.source_value_ids != tuple(item.source_value_id for item in dataset.source_values):
-        _fail(QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH, QualityFailureStage.c04_validation)
+        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
     if (
         source_collection.crossmatch_result_id != dataset.crossmatch_result_id
         or source_collection.crossmatch_content_hash != dataset.crossmatch_content_hash
     ):
-        _fail(QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH, QualityFailureStage.c04_validation)
+        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
     if any(candidate.input_hash != data_input.input_hash for candidate in candidates):
-        _fail(QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH, QualityFailureStage.c04_validation)
+        _fail(QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH, QualityFailureStage.data_artifact_validation)
 
 
 def _validate_research_contract(value: DataQualityEvaluationInput, manifests: ManifestBundle) -> None:
@@ -256,12 +256,12 @@ def _validate_research_contract(value: DataQualityEvaluationInput, manifests: Ma
         if contract.data_requirements.unit_policy.value != "canonical":
             raise ValueError("only canonical unit policy is admitted")
         if ArtifactKind.dataset not in contract.output_requirements:
-            raise ValueError("C-05 requires Dataset in Contract output_requirements")
+            raise ValueError("Data Quality Evaluation requires Dataset in Contract output_requirements")
         manifests.resolve_source_scope(contract.source_scope.allowed_sources)
     except Exception as error:
         raise DataQualityError(
             QualityErrorCode.QUALITY_RESEARCH_CONTRACT_MISMATCH,
-            "ResearchContract is outside the frozen C-05 input binding",
+            "ResearchContract is outside the frozen Data Quality Evaluation input binding",
             stage=QualityFailureStage.contract_validation,
             cause=error,
         ) from error
@@ -271,7 +271,7 @@ def _count_public_metric_records(
     value: DataQualityEvaluationInput,
     plan: QualityEvaluationPlan,
 ) -> int:
-    """Count every public metric result and Contract gate check emitted by C-05."""
+    """Count every public metric result and Contract gate check emitted by Data Quality Evaluation."""
 
     metrics_by_scope = Counter(metric.scope for metric in plan.metrics)
     return (
@@ -489,7 +489,7 @@ def _build_result(
         ),
     )
     input_refs = QualityInputReferences(
-        c04_input_hash=value.data_artifact_input.input_hash,
+        data_artifact_input_hash=value.data_artifact_input.input_hash,
         candidates=candidates,
         requested_field_ids=value.dataset_candidate.requested_fields,
         row_ids=tuple(item.row_id for item in value.dataset_candidate.rows),
@@ -518,7 +518,7 @@ def _build_result(
     )
     payload = {
         "kind": "data_quality",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "result_id": compute_data_quality_result_id(value.input_hash, rules.content_hash),
         "input_references": input_refs.model_dump(mode="json"),
         "evaluation_plan": plan.model_dump(mode="json"),
@@ -582,7 +582,7 @@ def _execute_scope_metrics(
 def _rejected(error: DataQualityError, *, input_hash: str | None) -> DataQualityEvaluationRejected:
     payload: dict[str, Any] = {
         "kind": "data_quality_rejected",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "failure_stage": error.stage.value,
         "error_code": error.code.value,
         "message": str(error),
@@ -598,7 +598,7 @@ def _rejected(error: DataQualityError, *, input_hash: str | None) -> DataQuality
 
 
 def _fail(code: QualityErrorCode, stage: QualityFailureStage) -> None:
-    raise DataQualityError(code, "C-05 quality validation failed", stage=stage)
+    raise DataQualityError(code, "data quality validation failed", stage=stage)
 
 
 __all__ = ["evaluate_data_quality"]

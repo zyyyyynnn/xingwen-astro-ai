@@ -1,4 +1,4 @@
-"""Tests for the Phase 0 workflow transition contract."""
+"""Tests for the workflow transition contract."""
 
 from __future__ import annotations
 

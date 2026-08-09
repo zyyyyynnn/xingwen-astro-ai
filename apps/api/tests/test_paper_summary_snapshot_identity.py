@@ -38,8 +38,8 @@ def _snapshot(
 @pytest.mark.parametrize(
     ("source_version_or_etag", "cache_version", "expected_version"),
     [
-        ('W/"crossref-v1"', None, 'W/"crossref-v1"'),
-        (None, "cache-v1", "cache-v1"),
+        ('W/"crossref-etag"', None, 'W/"crossref-etag"'),
+        (None, "cache-token", "cache-token"),
         (None, None, CONTENT_HASH),
     ],
     ids=("upstream-version", "cache-version", "content-hash"),

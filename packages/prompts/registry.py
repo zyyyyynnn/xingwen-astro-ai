@@ -11,11 +11,11 @@ from typing import Any
 
 
 CONTENT_HASH_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
-VERSION_PATTERN = re.compile(r"^v[1-9][0-9]*$")
+VERSION_PATTERN = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 
 
 class PromptRegistryError(ValueError):
-    """The registry or one immutable prompt version is invalid."""
+    """The registry or one hash-pinned prompt definition is invalid."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,38 +25,27 @@ class PromptRecord:
     path: str
     content_hash: str
     output_models: tuple[str, ...]
-    status: str
+    input_schema_version: str
+    output_schema_version: str
+    evidence_required: bool
     content: str
     front_matter: dict[str, str]
 
 
 class PromptRegistry:
-    """Resolve prompts only through hash-pinned version records."""
+    """Resolve each production prompt through one hash-pinned current record."""
 
     def __init__(self, root: Path | None = None) -> None:
         self.root = root or Path(__file__).resolve().parent
-        self._current, self._records = self._load()
+        self._records = self._load()
 
-    def get(self, name: str, version: str | None = None) -> PromptRecord:
-        selected = version or self._current.get(name)
-        if selected is None:
-            raise KeyError(f"unknown prompt: {name}")
+    def get(self, name: str) -> PromptRecord:
         try:
-            return self._records[(name, selected)]
+            return self._records[name]
         except KeyError as exc:
-            raise KeyError(f"unknown prompt version: {name}@{selected}") from exc
-
-    def versions(self, name: str) -> tuple[PromptRecord, ...]:
-        records = tuple(
-            record
-            for (record_name, _), record in self._records.items()
-            if record_name == name
-        )
-        if not records:
             raise KeyError(f"unknown prompt: {name}")
-        return tuple(sorted(records, key=lambda record: record.version))
 
-    def _load(self) -> tuple[dict[str, str], dict[tuple[str, str], PromptRecord]]:
+    def _load(self) -> dict[str, PromptRecord]:
         registry_path = self.root / "registry.json"
         try:
             payload = json.loads(
@@ -65,8 +54,8 @@ class PromptRegistry:
             )
         except (OSError, json.JSONDecodeError) as exc:
             raise PromptRegistryError("prompt registry cannot be loaded") from exc
-        if payload.get("registry_version") != 2 or set(payload) != {
-            "registry_version",
+        if payload.get("schema_version") != "1.0.0" or set(payload) != {
+            "schema_version",
             "prompts",
         }:
             raise PromptRegistryError("unsupported prompt registry structure")
@@ -74,44 +63,34 @@ class PromptRegistry:
         if not isinstance(prompts, dict) or not prompts:
             raise PromptRegistryError("prompt registry must contain prompts")
 
-        current: dict[str, str] = {}
-        records: dict[tuple[str, str], PromptRecord] = {}
+        records: dict[str, PromptRecord] = {}
         paths: set[str] = set()
         hashes: set[str] = set()
-        for name, prompt in prompts.items():
-            if not isinstance(name, str) or not name or not isinstance(prompt, dict):
+        for name, raw_record in prompts.items():
+            if not isinstance(name, str) or not name:
                 raise PromptRegistryError("invalid prompt registry entry")
-            if set(prompt) != {"current", "versions"}:
-                raise PromptRegistryError(f"invalid registry fields for {name}")
-            selected = prompt.get("current")
-            versions = prompt.get("versions")
-            if not isinstance(selected, str) or not isinstance(versions, dict):
-                raise PromptRegistryError(f"invalid versions for {name}")
-            if selected not in versions:
-                raise PromptRegistryError(f"current version is not registered for {name}")
-            current[name] = selected
-            for version, raw_record in versions.items():
-                record = self._load_record(name, version, raw_record)
-                key = (name, version)
-                if key in records or record.path in paths or record.content_hash in hashes:
-                    raise PromptRegistryError("prompt versions, paths, and hashes must be unique")
-                records[key] = record
-                paths.add(record.path)
-                hashes.add(record.content_hash)
-        return current, records
+            record = self._load_record(name, raw_record)
+            if record.path in paths or record.content_hash in hashes:
+                raise PromptRegistryError("prompt paths and hashes must be unique")
+            records[name] = record
+            paths.add(record.path)
+            hashes.add(record.content_hash)
+        return records
 
-    def _load_record(self, name: str, version: str, raw_record: Any) -> PromptRecord:
-        if not VERSION_PATTERN.fullmatch(version) or not isinstance(raw_record, dict):
-            raise PromptRegistryError(f"invalid prompt version for {name}")
-        required = {"path", "content_hash", "output_models", "status"}
+    def _load_record(self, name: str, raw_record: Any) -> PromptRecord:
+        if not isinstance(raw_record, dict):
+            raise PromptRegistryError(f"invalid prompt record for {name}")
+        required = {"version", "path", "content_hash", "output_models"}
         if set(raw_record) != required:
-            raise PromptRegistryError(f"invalid version record for {name}@{version}")
+            raise PromptRegistryError(f"invalid prompt record for {name}")
+        version = raw_record["version"]
         path = raw_record["path"]
         content_hash = raw_record["content_hash"]
         output_models = raw_record["output_models"]
-        status = raw_record["status"]
         if (
-            not isinstance(path, str)
+            not isinstance(version, str)
+            or not VERSION_PATTERN.fullmatch(version)
+            or not isinstance(path, str)
             or Path(path).is_absolute()
             or ".." in Path(path).parts
             or not isinstance(content_hash, str)
@@ -119,20 +98,32 @@ class PromptRegistry:
             or not isinstance(output_models, list)
             or not output_models
             or not all(isinstance(item, str) and item for item in output_models)
-            or status not in {"active", "deprecated", "disabled"}
         ):
-            raise PromptRegistryError(f"invalid metadata for {name}@{version}")
+            raise PromptRegistryError(f"invalid metadata for {name}")
         prompt_path = self.root / path
         try:
             content = prompt_path.read_text(encoding="utf-8")
         except OSError as exc:
-            raise PromptRegistryError(f"prompt file is missing for {name}@{version}") from exc
+            raise PromptRegistryError(f"prompt file is missing for {name}") from exc
         actual_hash = compute_prompt_content_hash(content)
         if actual_hash != content_hash:
-            raise PromptRegistryError(f"immutable prompt content changed for {name}@{version}")
+            raise PromptRegistryError(f"immutable prompt content changed for {name}")
         front_matter = _parse_front_matter(content)
+        output_key = (
+            "output_models" if "output_models" in front_matter else "output_model"
+        )
+        required_front_matter = {
+            "name",
+            "version",
+            output_key,
+            "input_schema_version",
+            "output_schema_version",
+            "evidence_required",
+        }
+        if set(front_matter) != required_front_matter:
+            raise PromptRegistryError(f"invalid front matter fields for {name}")
         if front_matter.get("name") != name or front_matter.get("version") != version:
-            raise PromptRegistryError(f"front matter mismatch for {name}@{version}")
+            raise PromptRegistryError(f"front matter mismatch for {name}")
         declared_outputs = tuple(
             item.strip()
             for item in front_matter.get(
@@ -141,14 +132,25 @@ class PromptRegistry:
             if item.strip()
         )
         if declared_outputs != tuple(output_models):
-            raise PromptRegistryError(f"output model mismatch for {name}@{version}")
+            raise PromptRegistryError(f"output model mismatch for {name}")
+        input_schema_version = front_matter["input_schema_version"]
+        output_schema_version = front_matter["output_schema_version"]
+        evidence_required = front_matter["evidence_required"]
+        if (
+            not VERSION_PATTERN.fullmatch(input_schema_version)
+            or not VERSION_PATTERN.fullmatch(output_schema_version)
+            or evidence_required not in {"true", "false"}
+        ):
+            raise PromptRegistryError(f"invalid prompt contract metadata for {name}")
         return PromptRecord(
             name=name,
             version=version,
             path=path,
             content_hash=content_hash,
             output_models=tuple(output_models),
-            status=status,
+            input_schema_version=input_schema_version,
+            output_schema_version=output_schema_version,
+            evidence_required=evidence_required == "true",
             content=content,
             front_matter=front_matter,
         )

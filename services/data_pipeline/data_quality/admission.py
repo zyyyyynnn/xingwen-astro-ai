@@ -1,4 +1,4 @@
-"""Process-local C-05 admission bound to the exact C-04 sealed candidates."""
+"""Process-local Data Quality Evaluation admission bound to the exact Versioned Data Artifact sealed candidates."""
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def admit_data_artifact_quality(
     evaluation_input: DataQualityEvaluationInput,
     evaluation_result: DataQualityEvaluationResult,
 ) -> QualityAdmittedDataArtifacts:
-    """Create a process-local admission only for a passing, exact C-04 bundle."""
+    """Create a process-local admission only for a passing, exact Versioned Data Artifact bundle."""
 
     candidates = (
         build_result.dataset,
@@ -96,26 +96,26 @@ def admit_data_artifact_quality(
     )
     if any(left is not right for left, right in zip(candidates, input_candidates, strict=True)):
         raise DataQualityError(
-            QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH,
-            "quality input is not bound to the original C-04 candidate instances",
+            QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+            "quality input is not bound to the original Versioned Data Artifact candidate instances",
             stage=QualityFailureStage.admission_validation,
         )
     try:
         if any(not candidate.__artifact_publication_is_admitted__() for candidate in candidates):
-            raise ValueError("one or more C-04 candidates are not sealed")
+            raise ValueError("one or more Versioned Data Artifact candidates are not sealed")
         DataArtifactBuildResult.model_validate_json(build_result.model_dump_json())
         reparsed_input = DataQualityEvaluationInput.model_validate_json(
             evaluation_input.model_dump_json()
         )
         if not isinstance(evaluation_result, DataQualityEvaluationResult):
-            raise ValueError("only a typed C-05 result can be admitted")
+            raise ValueError("only a typed Data Quality Evaluation result can be admitted")
         reparsed_result = DataQualityEvaluationResult.model_validate_json(
             evaluation_result.model_dump_json()
         )
     except (ValidationError, ValueError, AttributeError) as error:
         raise DataQualityError(
             QualityErrorCode.QUALITY_ADMISSION_NOT_SEALED,
-            "quality admission failed immutable input or C-04 seal validation",
+            "quality admission failed immutable input or Versioned Data Artifact seal validation",
             stage=QualityFailureStage.admission_validation,
             cause=error,
         ) from error
@@ -138,7 +138,7 @@ def admit_data_artifact_quality(
     if not isinstance(canonical_result, DataQualityEvaluationResult):
         raise DataQualityError(
             QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
-            "quality admission input does not produce a typed C-05 result",
+            "quality admission input does not produce a typed Data Quality Evaluation result",
             stage=QualityFailureStage.admission_validation,
         )
     if canonical_result != reparsed_result:
@@ -189,7 +189,7 @@ def admit_data_artifact_quality(
     )
     references = trusted_result.input_references
     if (
-        references.c04_input_hash != evaluation_input.data_artifact_input.input_hash
+        references.data_artifact_input_hash != evaluation_input.data_artifact_input.input_hash
         or references.candidates != expected_candidate_references
         or references.crossmatch_result_id
         != evaluation_input.data_artifact_input.crossmatch_result.result_id
@@ -217,7 +217,7 @@ def admit_data_artifact_quality(
     ):
         raise DataQualityError(
             QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
-            "quality result references do not match the exact C-04/C-05 input",
+            "quality result references do not match the exact Versioned Data Artifact/Data Quality Evaluation input",
             stage=QualityFailureStage.admission_validation,
         )
     snapshot = _make_snapshot(build_result, reparsed_input, trusted_result)
@@ -234,7 +234,7 @@ def build_data_quality_publication_validator(
     *,
     candidate_kind: CandidateKind,
 ) -> AdmissionValidator:
-    """Return the C-05 validator accepted by the real #78 Publisher port."""
+    """Return the Data Quality Evaluation validator accepted by the Publisher port."""
 
     expected = {
         "dataset": admitted.build_result.dataset,
@@ -246,30 +246,30 @@ def build_data_quality_publication_validator(
         candidate = context.candidate
         if candidate is not expected or id(candidate) not in admitted.snapshot.original_candidate_object_ids:
             raise DataQualityError(
-                QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH,
-                "Publisher candidate is not the exact admitted C-04 instance",
+                QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+                "Publisher candidate is not the exact admitted Versioned Data Artifact instance",
                 stage=QualityFailureStage.admission_validation,
             )
         try:
             if not candidate.__artifact_publication_is_admitted__():
-                raise ValueError("C-04 candidate seal is no longer valid")
+                raise ValueError("Versioned Data Artifact candidate seal is no longer valid")
         except (AttributeError, ValueError) as error:
             raise DataQualityError(
                 QualityErrorCode.QUALITY_ADMISSION_NOT_SEALED,
-                "C-04 candidate publication seal is invalid",
+                "Versioned Data Artifact candidate publication seal is invalid",
                 stage=QualityFailureStage.admission_validation,
                 cause=error,
             ) from error
         if tuple(context.source_snapshot_ids) != admitted.snapshot.source_snapshot_ids:
             raise DataQualityError(
                 QualityErrorCode.QUALITY_METRIC_REFERENCE_INVALID,
-                "Publisher SourceSnapshot references differ from C-05 admission",
+                "Publisher SourceSnapshot references differ from Data Quality Evaluation admission",
                 stage=QualityFailureStage.admission_validation,
             )
         if tuple(context.evidence_ids) != admitted.snapshot.evidence_ids:
             raise DataQualityError(
                 QualityErrorCode.QUALITY_METRIC_REFERENCE_INVALID,
-                "Publisher Evidence references differ from C-05 admission",
+                "Publisher Evidence references differ from Data Quality Evaluation admission",
                 stage=QualityFailureStage.admission_validation,
             )
         try:
@@ -279,7 +279,7 @@ def build_data_quality_publication_validator(
         except ValidationError as error:
             raise DataQualityError(
                 QualityErrorCode.QUALITY_INPUT_INVALID,
-                "immutable C-05 input snapshot is invalid",
+                "immutable Data Quality Evaluation input snapshot is invalid",
                 stage=QualityFailureStage.admission_validation,
                 cause=error,
             ) from error
@@ -294,8 +294,8 @@ def build_data_quality_publication_validator(
             or candidate.output_hash != admitted.snapshot.candidate_output_hashes[candidate_index]
         ):
             raise DataQualityError(
-                QualityErrorCode.QUALITY_C04_CANDIDATE_MISMATCH,
-                "candidate payload differs from C-05 admission candidate binding",
+                QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
+                "candidate payload differs from Data Quality Evaluation admission candidate binding",
                 stage=QualityFailureStage.admission_validation,
             )
         if (
@@ -308,13 +308,13 @@ def build_data_quality_publication_validator(
         ):
             raise DataQualityError(
                 QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
-                "C-05 result fields differ from the admission commitment",
+                "Data Quality Evaluation result fields differ from the admission commitment",
                 stage=QualityFailureStage.admission_validation,
             )
         if immutable_input != admitted.evaluation_input:
             raise DataQualityError(
                 QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
-                "immutable C-05 input differs from the admission commitment",
+                "immutable Data Quality Evaluation input differs from the admission commitment",
                 stage=QualityFailureStage.admission_validation,
             )
         if admitted.snapshot.evaluation_commitment != _evaluation_commitment(
@@ -323,13 +323,13 @@ def build_data_quality_publication_validator(
         ):
             raise DataQualityError(
                 QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
-                "C-05 evaluation commitment is not self-consistent",
+                "Data-quality evaluation commitment is not self-consistent",
                 stage=QualityFailureStage.admission_validation,
             )
         if admitted.snapshot.bundle_commitment != _bundle_commitment(admitted.snapshot):
             raise DataQualityError(
                 QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
-                "C-04/C-05 bundle commitment is not self-consistent",
+                "Versioned Data Artifact/Data Quality Evaluation bundle commitment is not self-consistent",
                 stage=QualityFailureStage.admission_validation,
             )
         if admitted.evaluation_result.contract_gate.overall_status.value != "pass":

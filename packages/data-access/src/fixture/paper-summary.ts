@@ -1,9 +1,9 @@
 /**
- * A-06 paper summary fixture — generated consumption layer.
+ * Literature Summary Workspace paper summary fixture — generated consumption layer.
  *
  * The actual data lives in `paper-summary.fixture.json`, which is built by
- * the real D-03 pipeline (`services/paper_pipeline/demo_summary_fixture.py`)
- * over the deterministic A-05 demo PaperCollection and validated by the
+ * the real PaperSummary pipeline (`services/paper_pipeline/demo_summary_fixture.py`)
+ * over the deterministic Paper Acquisition Workspace demo PaperCollection and validated by the
  * authoritative Pydantic contract gates in CI. Nothing scientific is authored
  * in TypeScript here.
  *
@@ -22,7 +22,7 @@ import fixtureDocument from "./paper-summary.fixture.json";
 /** Generation provenance: tool, command, benchmark identity and demo note. */
 export const paperSummaryFixtureProvenance = fixtureDocument.$generated;
 
-/** The complete B-07 summary read pinned to `artv_papsum_01`. */
+/** The complete PaperSummary API summary read pinned to `artv_papsum_01`. */
 export const paperSummaryReadFixture =
   fixtureDocument.read as unknown as PaperSummaryReadDto;
 

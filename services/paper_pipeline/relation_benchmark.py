@@ -1,4 +1,4 @@
-"""Reproducible D-08 evaluation against the frozen D-01 Relation labels."""
+"""Reproducible LiteratureRelation Pipeline evaluation against the frozen Paper Acquisition Benchmark Relation labels."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def evaluate_literature_relations(
     benchmark: BenchmarkPackage,
     cases: tuple[LiteratureRelationBenchmarkEvaluationCase, ...],
 ) -> LiteratureRelationBenchmarkReport:
-    """Evaluate D-08 admission without inventing labels beyond frozen D-01."""
+    """Evaluate LiteratureRelation Pipeline admission without inventing labels beyond frozen Paper Acquisition Benchmark."""
 
     if not cases:
         raise ValueError("LiteratureRelation benchmark requires at least one case")
@@ -96,7 +96,7 @@ def evaluate_literature_relations(
                 or expected_trace.relation_id != expected_relation.relation_id
             ):
                 raise ValueError(
-                    "scientific cases must reference matching approved D-01 Relation/Trace labels"
+                    "scientific cases must reference matching approved Paper Acquisition Benchmark Relation/Trace labels"
                 )
 
         record = _select_record(case)
@@ -397,7 +397,7 @@ def validate_scientific_label_coverage(
     benchmark: BenchmarkPackage,
     cases: tuple[LiteratureRelationBenchmarkEvaluationCase, ...],
 ) -> None:
-    """Require every approved D-01 Relation and matching Trace exactly once."""
+    """Require every approved Paper Acquisition Benchmark Relation and matching Trace exactly once."""
 
     validate_frozen_benchmark(benchmark)
     traces = {item.relation_id: item for item in benchmark.reasoning_traces}
@@ -421,7 +421,7 @@ def validate_scientific_label_coverage(
     )
     if actual != expected:
         raise ValueError(
-            "formal D-08 benchmark must cover every approved D-01 Relation/Trace exactly once"
+            "formal LiteratureRelation Pipeline benchmark must cover every approved Paper Acquisition Benchmark Relation/Trace exactly once"
         )
 
 
@@ -435,7 +435,7 @@ def validate_formal_case_coverage(
 
     validate_scientific_label_coverage(benchmark, cases)
     if len({item.case_id for item in cases}) != len(cases):
-        raise ValueError("formal D-08 benchmark case ids must be unique")
+        raise ValueError("formal LiteratureRelation Pipeline benchmark case ids must be unique")
     trace_ids = {item.relation_id: item.trace_id for item in benchmark.reasoning_traces}
     expected_scientific = tuple(
         sorted(
@@ -460,7 +460,7 @@ def validate_formal_case_coverage(
         )
     )
     if actual_scientific != expected_scientific:
-        raise ValueError("formal D-08 benchmark scientific case identity drifted")
+        raise ValueError("formal LiteratureRelation Pipeline benchmark scientific case identity drifted")
     actual = tuple(
         sorted(
             (
@@ -474,7 +474,7 @@ def validate_formal_case_coverage(
     )
     if actual != FORMAL_REJECTION_EXPECTATIONS:
         raise ValueError(
-            "formal D-08 benchmark must contain the fixed rejection suite exactly"
+            "formal LiteratureRelation Pipeline benchmark must contain the fixed rejection suite exactly"
         )
 
 
@@ -530,9 +530,9 @@ def _matches_approved_label(
     expected_source_claim_id: str,
     expected_target_claim_id: str,
 ) -> bool:
-    """Compare the frozen D-01 fields representable in the D-08 domain model.
+    """Compare the frozen Paper Acquisition Benchmark fields representable in the LiteratureRelation Pipeline domain model.
 
-    D-08 requires protocol bookkeeping beyond the two frozen Trace steps.  Those
+    LiteratureRelation Pipeline requires protocol bookkeeping beyond the two frozen Trace steps.  Those
     extra public operations are excluded here; every frozen step and condition is
     still compared exactly as a projection of the admitted Trace.
     """
@@ -748,14 +748,14 @@ def _rate(numerator: int, denominator: int) -> float | None:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Evaluate serialized D-08 admission cases against frozen D-01 Relations."
+        description="Evaluate serialized LiteratureRelation Pipeline admission cases against frozen Paper Acquisition Benchmark Relations."
     )
     parser.add_argument(
         "--cases",
         type=Path,
         help=(
             "Optional JSON array of LiteratureRelationBenchmarkEvaluationCase values; "
-            "omit to generate the formal suite deterministically from tracked D-01."
+            "omit to generate the formal suite deterministically from tracked Paper Acquisition Benchmark."
         ),
     )
     parser.add_argument("--cases-output", type=Path)

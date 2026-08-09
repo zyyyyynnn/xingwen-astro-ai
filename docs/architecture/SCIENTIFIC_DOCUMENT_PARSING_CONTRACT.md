@@ -237,12 +237,12 @@ For native-only, structural table/formula/figure recovery is `unsupported`,
 reading-order error and resource measurements are `not_run`, and visual routing
 is `not_applicable`. The hybrid parser adapter supplies the real comparison.
 
-`check_d10_benchmark_report.py` reloads the produced artifact through the
+`check_scientific_document_benchmark_report.py` reloads the produced artifact through the
 Pydantic report contract and therefore verifies its hash and non-empty execution.
 
 ## 14. Governance gate
 
-`scripts/check_d10_governance.py` is stdlib-only and runs in Foundation CI. It:
+`scripts/check_scientific_document_governance.py` is stdlib-only and runs in Foundation CI. It:
 
 - AST-detects both `import docs.references...` and
   `from docs.references...` in production code;
@@ -258,7 +258,7 @@ Machine detection is necessary but not sufficient. The human checklist in
 
 ## 15. Non-goals
 
-This contract freeze contains no production Paddle adapter, hybrid/page router, model
-loader, DocumentParse PostgreSQL persistence, SourceSnapshot materialization,
-PaperSummary/C-pipeline integration, HTTP endpoint, frontend, HTML parser or plot
-digitizer.
+The following are outside this contract: production Paddle adapters, hybrid/page
+routing, model loading, DocumentParse PostgreSQL persistence, SourceSnapshot
+materialization, paper-summary or data-pipeline integration, HTTP endpoints,
+frontend behavior, HTML parsing, and plot digitization.

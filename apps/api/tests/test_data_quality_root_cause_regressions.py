@@ -85,9 +85,9 @@ def test_row_flags_use_independent_formula_scope_and_metric_ids() -> None:
     assert row.low_confidence.metric_id.value == "row_low_confidence_flag"
     assert row.review_required.metric_id.value == "row_review_required_flag"
     assert row.inconclusive.metric_id.value == "row_inconclusive_flag"
-    assert row.low_confidence.formula_id == "row_low_confidence_flag.v1"
-    assert row.review_required.formula_id == "row_review_required_flag.v1"
-    assert row.inconclusive.formula_id == "row_inconclusive_flag.v1"
+    assert row.low_confidence.formula_id == "row_low_confidence_flag"
+    assert row.review_required.formula_id == "row_review_required_flag"
+    assert row.inconclusive.formula_id == "row_inconclusive_flag"
     assert result.field_results[0].same_source_conflict_rate.metric_id.value == (
         "field_same_source_conflict_rate"
     )
@@ -106,7 +106,7 @@ def test_formula_scope_mismatch_is_rejected_by_the_metric_schema() -> None:
             numerator=1,
             denominator=1,
             value=Decimal("1"),
-            formula_id="row_completeness.v1",
+            formula_id="row_completeness",
             formula_version="1.0.0",
             formula_scope="dataset",
             precision_digits=28,
@@ -147,14 +147,14 @@ def test_contract_hash_drift_is_rejected_even_when_input_hash_is_recomputed() ->
     assert result.error_code is QualityErrorCode.QUALITY_RESEARCH_CONTRACT_MISMATCH
 
 
-def test_production_confirmed_contract_enters_c05_without_hash_translation() -> None:
+def test_production_confirmed_contract_enters_data_quality_without_hash_translation() -> None:
     draft = _contract("star.tic_id")
     contract_input = ResearchContractInput.model_validate(
         draft.model_dump(mode="json", include=set(ResearchContractInput.model_fields))
     )
     manifests = load_manifest_bundle(
-        MANIFEST_ROOT / "case-manifest.v1.json",
-        MANIFEST_ROOT / "field-manifest.v1.json",
+        MANIFEST_ROOT / "case-manifest.json",
+        MANIFEST_ROOT / "field-manifest.json",
     )
     confirmed = confirm_research_contract(
         contract_input,
@@ -239,7 +239,7 @@ def test_low_confidence_edge_component_marks_only_its_dataset_row() -> None:
         (AdjudicationDecision.rejected, "rejected", Decimal("0")),
     ),
 )
-def test_conflict_review_required_follows_final_c04_alignment(
+def test_conflict_review_required_follows_final_data_artifact_alignment(
     adjudication,
     expected_alignment: str,
     expected_review: Decimal,
@@ -380,7 +380,7 @@ def test_observations_visit_each_row_outcome_sequence_once() -> None:
     assert visits[0] == len(rows)
 
 
-def test_missing_c04_evidence_is_rejected_at_c04_boundary() -> None:
+def test_missing_data_artifact_evidence_is_rejected_at_data_artifact_boundary() -> None:
     quality_input, build_result = make_quality_input("star.tic_id")
     malformed = build_result.dataset.model_copy(update={"transformation_evidence": ()})
 
@@ -461,7 +461,7 @@ def test_compiled_rule_set_formula_binding_drives_metric_creation() -> None:
 
     frozen = load_frozen_quality_rule_set()
     payload = frozen.model_dump(mode="json")
-    payload["formula_registry"][0]["formula_id"] = "field_completeness.rebound.v1"
+    payload["formula_registry"][0]["formula_id"] = "field_completeness.rebound"
     metric_plan = payload["formula_registry"][0]
     metric_plan["numerator_observation"] = "field.declared_null_count"
     metric_plan["denominator_observation"] = "field.applicable_count"
@@ -483,7 +483,7 @@ def test_compiled_rule_set_formula_binding_drives_metric_creation() -> None:
         input_locator="dataset.field.star.tic_id.completeness",
     )
 
-    assert metric.formula_id == "field_completeness.rebound.v1"
+    assert metric.formula_id == "field_completeness.rebound"
     assert metric.numerator == 0
 
 
@@ -591,7 +591,7 @@ def test_publisher_validators_use_admission_commitment_without_re_evaluation(mon
     validator = build_data_quality_publication_validator(admitted, candidate_kind="dataset")
 
     def fail_if_recomputed(_value):
-        raise AssertionError("Publisher must not re-run the C-05 evaluator")
+        raise AssertionError("Publisher must not re-run data-quality evaluation")
 
     monkeypatch.setattr(
         "services.data_pipeline.data_quality.admission.evaluate_data_quality",

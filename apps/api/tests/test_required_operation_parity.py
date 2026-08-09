@@ -1,9 +1,9 @@
-"""M1 required-operation parity between the contract and the runtime.
+"""Required-operation parity between the contract and the runtime.
 
 The contract-only OpenAPI (`app.contracts.core`) is the authoritative operation
-surface. This test asserts that the mounted runtime implements every M1
-required operation with the *same* HTTP method, path and operationId. It does
-not force any future ``/api`` target to exist early; it only checks the M1
+surface. This test asserts that the mounted runtime implements every required
+operation with the *same* HTTP method, path and operationId. It does not
+require an unavailable ``/api`` target; it only checks the declared
 required set (which currently equals the full frozen 24-operation contract).
 """
 
@@ -56,11 +56,11 @@ def _required_headers(operation: dict[str, object]) -> set[str]:
     }
 
 
-def test_runtime_implements_every_m1_required_contract_operation() -> None:
+def test_runtime_implements_every_required_contract_operation() -> None:
     contract = _operations(create_contract_app().openapi())
     runtime = _operations(create_app().openapi())
 
-    # The M1 required set is the full frozen contract surface.
+# The required set is the full frozen contract surface.
     missing = sorted(contract - runtime)
     assert not missing, f"runtime is missing required operations: {missing}"
 

@@ -16,7 +16,7 @@
 
 Graph Pipeline 只消费同一 Project 内已经固定的不可变输入：
 
-- Graph v1 的 version selection 不包含 ResearchContract 或 ResearchGoal，因此当前不得生成
+- Graph 的 version selection 不包含 ResearchContract 或 ResearchGoal，因此不得生成
   research_goal node 或 `uses_dataset` edge；
 - 完整发布的 LiteratureRelations ArtifactVersion，以及其内嵌的 PaperSummary、Claim、
   Relation、ReasoningTrace 与 provenance 闭包；
@@ -35,10 +35,10 @@ Graph 内容。若调用方需要缩小构建范围，scope 必须在构建前�
 latest 或集合 API 的单页结果。Dataset 与 FieldDictionary 只能同时存在或同时缺席；半闭合的
 数据输入不能表示为合法 Graph build。
 
-Graph v1 的 `GraphBuildScope` 对未固定的 `research_goal_id` 直接拒绝；不得从 Project 名称、
+Graph 的 `GraphBuildScope` 对未固定的 `research_goal_id` 直接拒绝；不得从 Project 名称、
 Dataset metadata、页面输入或默认文本推测研究目标。该省略不影响 literature-only 或
-Dataset/FieldDictionary Graph 的合法性。未来只有先增加版本固定的正式输入 Authority，才可
-启用已保留的 research_goal node 与 `uses_dataset` 端点规则。
+Dataset/FieldDictionary Graph 的合法性。`research_goal` node 与 `uses_dataset` 端点规则
+只接受版本固定的正式 ResearchGoal 输入 Authority；缺少该 Authority 时保持禁用并拒绝构建。
 
 输出是一个不可变、typed、publisher-ready Graph candidate。它至少封闭：
 
@@ -56,7 +56,7 @@ Pipeline 不创建数据库 ArtifactVersion 或 Evidence 记录，不推进 Rese
 
 节点身份来自上游领域身份，不来自标签、数组位置、数据库自增值或当前 ArtifactVersion：
 
-- `research_goal` 节点身份规则为已确认 ResearchContract 中的目标及 Contract 身份；Graph v1
+- `research_goal` 节点身份规则为已确认 ResearchContract 中的目标及 Contract 身份；当前 Graph Contract
   尚无该版本输入，因此当前不会生成这种节点；
 - `dataset` 节点的领域身份严格等于 `ResearchArtifact.artifact_id`。用于构建的
   `ArtifactVersion.id` 另行保存在版本 provenance 中，不能替代节点身份；
@@ -247,7 +247,7 @@ Graph 使用相互独立的 hash 层，禁止用一个 hash 代替全部职责�
 
 1. **输入 hash**：`input_hash` 覆盖 Project、显式 scope、taxonomy、完整 policy set、所有上游
    ArtifactVersion id/kind/schema/content/input/output hash 与 producer pins，以及
-   Evidence-use/SourceSnapshot closure；Graph v1 不包含未固定的 ResearchContract、运行时
+   Evidence-use/SourceSnapshot closure；Graph Contract 不包含未固定的 ResearchContract、运行时
    execution id 或 Publisher 新分配的 Graph ArtifactVersion；
 2. **领域身份与 fingerprint**：node identity 遵循第 2 节；edge fingerprint 覆盖 edge type、
    有向端点及必要的 Relation binding；Evidence-use identity 覆盖第 5 节三元组；
@@ -375,5 +375,5 @@ report 必须字节一致。`.artifacts` 仅是运行输出，不是 Benchmark �
 - 生产模型调用、Agent 自由代码执行、私有 chain-of-thought、受限全文或凭据保存；
 - CacheSelector、ResearchRun 状态推进、RevisionPlan 执行或 ShareSnapshot 发布。
 
-Graph 修订仍遵循 Data Versioning：通过新的 Run 和 Graph ArtifactVersion 表达，保留旧版本与
+Graph 修订仍遵循 Data Versioning：通过新的 Run 和 Graph ArtifactVersion 表达，既有 ArtifactVersion 保持不可变并与
 Evidence；任何展示便利都不能降低 immutable version、Evidence-first 与 Project ownership 门。

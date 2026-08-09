@@ -6,6 +6,18 @@ import process from "node:process";
 import { JSDOM } from "jsdom";
 
 import { inspectMarkdown } from "./check-docs-rules.mjs";
+import {
+  containsProductionSchemaStatusWording,
+  containsRepositoryPhaseIdentifier,
+  containsRepositoryPhaseIdentifierPath,
+  containsRepositoryProgressWording,
+  containsRepositoryTaskCode,
+  containsRepositoryTaskCodePath,
+  containsRepositoryVersionLabel,
+  containsRepositoryVersionLabelPath,
+  isIssueOrPullRequestBodyTemplatePath,
+  isRepositoryTextPath,
+} from "./governance-identifiers.mjs";
 
 const root = process.cwd();
 const documentWindow = new JSDOM("<!doctype html><html><body></body></html>")
@@ -13,22 +25,42 @@ const documentWindow = new JSDOM("<!doctype html><html><body></body></html>")
 globalThis.window = documentWindow;
 globalThis.document = documentWindow.document;
 const { default: mermaid } = await import("mermaid");
-const files = Array.from(
-  new Set(
-    execFileSync(
-      "git",
-      ["-c", "core.quotepath=false", "ls-files", "*.md", "**/*.md"],
-      { cwd: root, encoding: "utf8" },
-    )
-      .split(/\r?\n/u)
-      .filter(Boolean)
-      .map((file) => file.replaceAll("\\", "/"))
-      .filter((file) => existsSync(resolve(root, file))),
-  ),
+const trackedFiles = execFileSync(
+  "git",
+  ["-c", "core.quotepath=false", "ls-files", "-z"],
+  { cwd: root, encoding: "utf8" },
+)
+  .split("\0")
+  .filter(Boolean)
+  .map((file) => file.replaceAll("\\", "/"))
+  .filter((file) => existsSync(resolve(root, file)));
+const files = trackedFiles.filter((file) => file.endsWith(".md"));
+const repositoryTextFiles = trackedFiles.filter(
+  (file) =>
+    isRepositoryTextPath(file) &&
+    !file.startsWith("apps/workspace/upstream/") &&
+    !["apps/api/uv.lock", "pnpm-lock.yaml"].includes(file) &&
+    file !== "scripts/governance-identifiers.mjs" &&
+    file !== "scripts/check-docs.test.mjs" &&
+    file !== "scripts/check-title-governance.test.mjs",
 );
 const results = new Map();
 const errors = [];
 const authorities = new Map();
+
+for (const file of trackedFiles) {
+  if (containsRepositoryTaskCodePath(file)) {
+    errors.push(`${file}: task code is not allowed in tracked file paths`);
+  }
+  if (containsRepositoryPhaseIdentifierPath(file)) {
+    errors.push(
+      `${file}: phase identifier is not allowed in tracked file paths`,
+    );
+  }
+  if (containsRepositoryVersionLabelPath(file)) {
+    errors.push(`${file}: version label is not allowed in tracked file paths`);
+  }
+}
 
 function requiresMetadata(file) {
   return (
@@ -72,9 +104,7 @@ for (const file of files) {
     ? "Reference"
     : null;
   const result = inspectMarkdown(readFileSync(resolve(root, file), "utf8"), {
-    requireSingleH1:
-      !file.startsWith(".github/") &&
-      !/^packages\/prompts\/[^/]+\/v\d+\.md$/u.test(file),
+    requireSingleH1: !file.startsWith(".github/"),
     expectedStatus,
     requireMetadata: requiresMetadata(file),
   });
@@ -114,6 +144,40 @@ for (const file of files) {
     } catch (error) {
       errors.push(
         `${file}: line ${block.line}: invalid Mermaid: ${error.message}`,
+      );
+    }
+  }
+}
+
+for (const file of repositoryTextFiles) {
+  const lines = readFileSync(resolve(root, file), "utf8").split(/\r?\n/u);
+  for (const [index, line] of lines.entries()) {
+    if (containsRepositoryTaskCode(line)) {
+      errors.push(
+        `${file}: line ${index + 1}: task code is not allowed in repository prose`,
+      );
+    }
+    if (containsRepositoryPhaseIdentifier(line)) {
+      errors.push(
+        `${file}: line ${index + 1}: phase identifier is not allowed in repository prose`,
+      );
+    }
+    if (containsRepositoryVersionLabel(line)) {
+      errors.push(
+        `${file}: line ${index + 1}: version label is not allowed in repository prose`,
+      );
+    }
+    if (
+      !isIssueOrPullRequestBodyTemplatePath(file) &&
+      containsRepositoryProgressWording(line)
+    ) {
+      errors.push(
+        `${file}: line ${index + 1}: implementation-progress wording is not allowed in repository prose`,
+      );
+    }
+    if (containsProductionSchemaStatusWording(line, file)) {
+      errors.push(
+        `${file}: line ${index + 1}: stub status is not allowed in production schemas`,
       );
     }
   }

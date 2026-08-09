@@ -1,5 +1,5 @@
 /**
- * Fixture/HTTP consistency test — A-02 Epic exit criteria.
+ * Fixture/HTTP consistency test — Frontend Workspace Epic exit criteria.
  *
  * Verifies that the fixture adapter and HTTP adapter (backed by MSW mocks
  * serving the same fixture DTOs) return deep-equal domain entities for the

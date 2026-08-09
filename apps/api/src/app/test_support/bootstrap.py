@@ -1,13 +1,13 @@
 """Deterministic demo_replay fixture publication for real integration runs.
 
-#131 narrowed this module's responsibility: the public Authoring Chain
+The public Authoring Chain keeps this module focused on fixture publication:
 (``createResearchProject``, ``createResearchContractDraft``, draft update,
 contract confirm, run create) is exercised through the real ``/api``
 runtime, so the bootstrap no longer injects Project, ContractDraft, Contract,
 Run, credentials or Share tokens. Its only job is publishing the frozen main
 case's deterministic ``demo_replay``/``fixture`` ArtifactVersion + Evidence
 onto a session-owned Run through the existing Persistence/Publisher boundary
-(M1 has no live executor to produce them).
+(the fixture path has no live executor to produce them).
 
 Hard boundaries:
 
@@ -77,7 +77,7 @@ def _validate_domain(context: ArtifactAdmissionContext) -> None:
     if not isinstance(candidate, _FixtureDatasetCandidate):
         raise ValueError("fixture publication requires the typed dataset candidate")
     if candidate.field_ids != ("planet.toi_id", "star.tic_id"):
-        raise ValueError("fixture dataset fields must match the frozen M1 scenario")
+        raise ValueError("fixture dataset fields must match the frozen primary scenario")
     declared = set(candidate.field_ids)
     if any(set(row) != declared for row in candidate.rows):
         raise ValueError("every fixture row must contain exactly the declared fields")
@@ -202,7 +202,7 @@ def _publish_fixture_version(
     snapshot = workflow_store.load_snapshot(run_uuid)
     lease = workflow_store.acquire_lease(
         run_uuid,
-        owner="x01-test-bootstrap",
+        owner="real_integration-test-bootstrap",
         lease_duration=timedelta(minutes=5),
         expected_status="queued",
         expected_revision=snapshot.revision,
@@ -210,7 +210,7 @@ def _publish_fixture_version(
     attempt = workflow_store.begin_step(
         run_uuid,
         step_key="planning",
-        attempt_idempotency_key=f"x01-bootstrap-attempt-{run_id}",
+        attempt_idempotency_key=f"real_integration-bootstrap-attempt-{run_id}",
         token=lease.token,
         generation=lease.generation,
         expected_status="queued",
@@ -234,7 +234,7 @@ def _publish_fixture_version(
                 SourceSnapshotModel(
                     id=source_snapshot_id,
                     project_id=project_id,
-                    source_id="x01_test_bootstrap_fixture",
+                    source_id="real_integration_test_bootstrap_fixture",
                     source_type="fixture",
                     retrieved_at=_NOW,
                     query={"scenario": "exoplanet_host_star"},
@@ -263,9 +263,9 @@ def _publish_fixture_version(
             run_id=run_uuid,
             step_key="planning",
             attempt_id=attempt.attempt_id,
-            idempotency_key=f"x01-bootstrap-producer-{run_id}",
+            idempotency_key=f"real_integration-bootstrap-producer-{run_id}",
             producer_type="pipeline",
-            producer_name="x01-test-bootstrap",
+            producer_name="real_integration-test-bootstrap",
             producer_version="1.0.0",
             input_hash="sha256:" + "3" * 64,
             parameters={"scenario": "exoplanet_host_star"},
@@ -291,7 +291,7 @@ def _publish_fixture_version(
         publications=(
             ArtifactPublication(
                 artifact_id=artifact_id,
-                publication_key=f"x01-bootstrap-fixture-{run_id}",
+                publication_key=f"real_integration-bootstrap-fixture-{run_id}",
                 producer_execution_id=execution.id,
                 candidate=candidate,
                 source_mode="fixture",

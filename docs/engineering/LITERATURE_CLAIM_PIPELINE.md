@@ -3,8 +3,8 @@
 | 元数据    | 值                                                                 |
 | --------- | ------------------------------------------------------------------ |
 | Status    | Accepted                                                           |
-| Authority | LiteratureClaim 抽取、规范化、准入、固定 Benchmark 与交接边界 |
-| Scope | Detached Claim admission、可复现 Benchmark 与 typed candidate 契约 |
+| Authority | LiteratureClaim 抽取、规范化、准入、固定 Benchmark 与交接边界      |
+| Scope     | Detached Claim admission、可复现 Benchmark 与 typed candidate 契约 |
 
 本文是 LiteratureClaim 运行规则和操作方式的唯一完整事实源。Claim 字段与不变量仍由
 [Data Model](../architecture/DATA_MODEL.md) 负责，ArtifactVersion/hash 规则由
@@ -18,7 +18,7 @@
 - `PaperSummaryArtifactVersionInput` repository-port 值；其中 content 必须已经通过
   已验证的 `PaperSummaryArtifactContent` Pydantic 校验；
 - 请求的 PaperSummary ArtifactVersion id 和 paper id；
-- `literature_claim@v1` Prompt 对应的模型 JSON 响应；
+- `literature_claim` 当前 Prompt 定义对应的模型 JSON 响应；
 - model、parameters version、安全 parameters；
 - 可选的 Evidence/SourceSnapshot 存在性集合和既有 Claim fingerprint。
 
@@ -47,15 +47,15 @@ admission port；Pipeline 自身不创建数据库 ArtifactVersion。
 
 同一输入同时触发多个错误时，只返回最早阶段的主拒绝原因：
 
-| 阶段 | 稳定拒绝原因 |
-| ---- | ------------ |
-| JSON | `literature_claim.json_invalid` |
-| Schema | `literature_claim.schema_invalid` |
-| input | `literature_claim.input_artifact_version_unknown`、`literature_claim.input_schema_version_unsupported` |
-| Evidence | `literature_claim.evidence_missing`、`literature_claim.evidence_not_found`、`literature_claim.source_snapshot_not_found` |
-| ownership | `literature_claim.ownership_mismatch` |
-| normalization | `literature_claim.normalization_unsafe` |
-| duplicate | `literature_claim.duplicate` |
+| 阶段          | 稳定拒绝原因                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| JSON          | `literature_claim.json_invalid`                                                                                          |
+| Schema        | `literature_claim.schema_invalid`                                                                                        |
+| input         | `literature_claim.input_artifact_version_unknown`、`literature_claim.input_schema_version_unsupported`                   |
+| Evidence      | `literature_claim.evidence_missing`、`literature_claim.evidence_not_found`、`literature_claim.source_snapshot_not_found` |
+| ownership     | `literature_claim.ownership_mismatch`                                                                                    |
+| normalization | `literature_claim.normalization_unsafe`                                                                                  |
+| duplicate     | `literature_claim.duplicate`                                                                                             |
 
 JSON/Schema 失败产生无 Claim record 的统一 rejected result；后续阶段只处理已经通过
 唯一 model-output Schema 的结构化记录。
@@ -79,14 +79,14 @@ Relation 输入只能选择 candidate/accepted Claim。
 `LiteratureClaimModelCandidate`、`LiteratureClaimExtractionOutput`、单条
 `LiteratureClaimCandidate` 和 `LiteratureClaimAdmissionResult` 不能绕过 Pipeline 直接进入
 Publisher；只有 Pipeline 封印的完整
-`LiteratureClaimsCandidate@1.0.0` 才是领域 typed candidate。旧版
-`app.schemas.reasoning.LiteratureClaim` 及其 `LiteratureReasoningResponse` 包络与 core
-`LiteratureClaimsArtifactContent` 只是冻结传输/投影兼容，同样带不可发布 marker，
-不是第二套编写源。独立 tracked JSON Schema 位于
+`LiteratureClaimsCandidate@1.0.0` 才是领域 typed candidate。task-read
+`app.schemas.reasoning.LiteratureClaim`、`LiteratureReasoningResponse` 和 core
+`LiteratureClaimsArtifactContent` 是当前读取投影，带不可发布 marker，不是第二套编写源。
+独立 tracked JSON Schema 位于
 `packages/schemas/generated/literature_claim`，不进入 HTTP OpenAPI。
 
-生产 Prompt 位于 `packages/prompts/literature_claim/v1.md`，通过
-`packages/prompts/registry.json` 的 immutable hash-pinned record 加载。Prompt 要求：
+生产 Prompt 位于 `packages/prompts/literature_claim/prompt.md`，通过
+`packages/prompts/registry.json` 的单一 hash-pinned 当前记录加载。Prompt 要求：
 
 - 每条 Claim 指向一个明确 Summary statement 及其 Evidence；
 - finding、method、dataset、limitation 使用契约枚举；
@@ -130,8 +130,8 @@ fingerprint；不使用模糊文本相似度。
 因此相同版本化输入产生相同 hash；Prompt、parameters 或输入 ArtifactVersion 变化会
 改变 input/output hash。随机 id、时间戳和 Claim 集合遍历顺序不会破坏稳定性。
 ArtifactVersion admission 另对准备持久化的完整 JSON 计算 `content_hash`；该 hash
-覆盖嵌入的审计字段，和稳定 `output_hash` 职责不同，不要求相等。后续持久化
-边界使用 admitted `content_hash` 对照数据库 ProducerExecution。
+覆盖嵌入的审计字段，和稳定 `output_hash` 职责不同，不要求相等。持久化边界使用
+admitted `content_hash` 对照数据库 ProducerExecution。
 
 ## 7. 固定 Benchmark
 
@@ -143,8 +143,8 @@ Package，校验其 schema/version/scientific payload/content 四项 pin，并�
 
 ```powershell
 uv run --project apps/api python -m services.paper_pipeline.claim_benchmark `
-  --cases-output .artifacts/d07-claim-cases.json `
-  --output .artifacts/d07-claim-benchmark-report.json
+  --cases-output .artifacts/literature-claim-benchmark-cases.json `
+  --output .artifacts/literature-claim-benchmark-report.json
 ```
 
 冻结的 `1.3.0` 实际有 8 条适用于 Claim Pipeline 的 approved Claim（method 3、dataset 2、
@@ -182,7 +182,7 @@ id、时间戳或 latency。exact match 只是对既有人工审核标签和 adm
   Evidence/SourceSnapshot 和 Summary version 做可比性与 provenance 校验，不复制或
   重做 Claim admission。
 - 依赖输出的唯一发布交接是同时内嵌 Relation 与 `LiteratureReasoningTraceCandidate` 的
-  `LiteratureRelationsCandidate@1.0.0`。单条 Relation、Trace、模型 extraction、旧版包络和重解析批次不能替代该封印对象。
+  `LiteratureRelationsCandidate@1.0.0`。单条 Relation、Trace、模型 extraction、读取包络和重解析批次不能替代该封印对象。
 - 持久化边界接收完整 `LiteratureClaimsCandidate`，重新验证 Pydantic、Pipeline seal、
   schema/input/output hash 和 Evidence references 后调用 ArtifactVersion Publisher。
   读取边界提供 version-pinned HTTP projection；两者都不复制 Claim Schema 或重做

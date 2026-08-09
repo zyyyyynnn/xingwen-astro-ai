@@ -5,7 +5,7 @@
 | Status    | Accepted                                  |
 | Authority | `packages/prompts` 目录结构与本地使用方式 |
 
-全局 Prompt 生命周期、版本和发布规则见 [Prompt Versioning](../../docs/ai/PROMPT_VERSIONING.md)。本文件不重复模型准入、Evidence 或评测政策。
+全局规则见 [Prompt Registry](../../docs/ai/PROMPT_REGISTRY.md)。本文件不重复模型准入、Evidence 或评测政策。
 
 ## 目录
 
@@ -14,36 +14,25 @@ packages/prompts/
 ├─ README.md
 ├─ registry.json
 ├─ literature_claim/
-│  └─ v1.md
+│  └─ prompt.md
 ├─ paper_summary/
-│  └─ v1.md
+│  └─ prompt.md
 └─ literature_reasoning/
-   ├─ v1.md
-   └─ v2.md
+   └─ prompt.md
 ```
 
 ## 使用规则
 
-- 业务代码通过 registry 选择 Prompt；公共加载器由对应实现 Issue 交付后才能在生产中使用。
-- 文件名使用稳定版本 `vN.md`，不创建 `latest.md`。
-- 已被 Run、ArtifactVersion、Benchmark 或 CacheRecord 引用的版本不原地改写。
-- `registry.json` 的默认版本变化必须通过 PR 和回归验证。
-- 新 Prompt 或新版本包含完整 front matter，并与目标输出 Schema 对齐。
+- 每个领域能力只登记一个当前 Prompt 定义；业务代码只按名称解析该定义。
+- Registry 固定 path、语义版本、content hash 与输出模型；文件和 front matter 必须一致。
+- Prompt Contract 变化时提升语义版本并更新当前文件，不保留旧文件、状态字段或兼容入口。
+- `ProducerExecution` 记录当次执行的 Prompt 名称、版本和 hash，提供不可变执行证据。
 - 包内文件不保存运行凭据、用户数据、受限全文或实际模型响应。
-- `literature_claim@v1` 是单 Claim extraction Prompt；
-  `literature_reasoning@v1` 只保留旧版多输出兼容。后者可由 Registry 读取不表示其旧
-  `LiteratureClaim` 或 `LiteratureReasoningResponse` 包络可发布，旧模型由 Publisher
-  admission marker 拒绝。
-- `literature_reasoning@v2` 是 Relation extraction Prompt，只输出
-  `LiteratureRelationExtractionOutput`。它引用已经通过准入的 Claim、Evidence、
-  SourceSnapshot 和外部版本化 confidence assessment；最终 Relation/ReasoningTrace
-  状态、hash 与发布资格仍由 Pipeline 决定。
+- Literature Relation Prompt 只输出 `LiteratureRelationExtractionOutput`；最终 Relation/ReasoningTrace 状态、hash 与发布资格仍由 Pipeline 决定。
 
 ## 变更验证
 
-- registry 与文件路径、名称和版本一致；
-- front matter 可解析；
-- Prompt hash 稳定且唯一；
-- 目标 JSON/Schema、Evidence 和领域准入测试通过；
-- 旧版本仍可加载；
-- 相关 Benchmark 和生成物无未解释漂移。
+- Registry 与文件路径、名称、语义版本和 hash 一致；
+- front matter 可解析，目标输出 Contract 一致；
+- Prompt、Evidence、领域准入和相关 Benchmark 回归通过；
+- 仓库不存在旧 Prompt 副本、生命周期状态或版本选择测试。

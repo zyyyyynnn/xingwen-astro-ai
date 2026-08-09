@@ -1,4 +1,4 @@
-"""Producer execution ledger and atomic ArtifactVersion publication for B-14."""
+"""Producer execution ledger and atomic ArtifactVersion publication."""
 
 from __future__ import annotations
 
@@ -341,7 +341,7 @@ def _seal_data_quality_attestation(
         or projection.candidate_content_hash != candidate_content_hash
     ):
         raise PublicationAdmissionError(
-            "C-05 attestation does not match the exact data candidate"
+            "Data Quality Evaluation attestation does not match the exact data candidate"
         )
     projection_json = json.dumps(
         projection.model_dump(mode="json"),
@@ -368,7 +368,7 @@ def _quality_projection_from_attestation(
 ) -> DataQualityProjection:
     if not isinstance(attestation, _DataQualityPublicationAttestation):
         raise PublicationAdmissionError(
-            "Final data Artifact publication requires a C-05 attestation"
+            "Final data Artifact publication requires a Data Quality Evaluation attestation"
         )
     content_hash = compute_canonical_payload_hash(
         candidate.model_dump(mode="json", exclude_none=True)
@@ -386,7 +386,7 @@ def _quality_projection_from_attestation(
         or projection.candidate_content_hash != content_hash
     ):
         raise PublicationAdmissionError(
-            "C-05 attestation is not sealed to the exact data candidate"
+            "Data Quality Evaluation attestation is not sealed to the exact data candidate"
         )
     return projection
 
@@ -1450,13 +1450,13 @@ def _require_pipeline_admission(candidate: BaseModel) -> None:
 
     if candidate_class is GraphResponse:
         raise PublicationAdmissionError(
-            "Phase 0 GraphResponse cannot bypass D-05 Graph admission"
+            "Graph read projection cannot bypass Versioned Evidence Graph admission"
         )
     candidate_kind = getattr(candidate, "kind", None)
     if hasattr(candidate_kind, "value"):
         candidate_kind = candidate_kind.value
 
-    # D-05/D-07/D-08 own these Artifact kinds exclusively. Caller-defined wrappers
+    # Versioned Evidence Graph/LiteratureClaim Pipeline/LiteratureRelation Pipeline own these Artifact kinds exclusively. Caller-defined wrappers
     # cannot opt out by omitting the marker or opt in with a forged method.
     if candidate_kind == "literature_claims":
         from app.schemas.literature_claim import LiteratureClaimsCandidate
@@ -1481,7 +1481,7 @@ def _require_pipeline_admission(candidate: BaseModel) -> None:
 
         if candidate_class is not GraphArtifactCandidate:
             raise PublicationAdmissionError(
-                "graph requires the authoritative D-05 Pipeline candidate"
+                "graph requires the authoritative Versioned Evidence Graph Pipeline candidate"
             )
 
     if not getattr(
@@ -2268,7 +2268,7 @@ def _validate_candidate_artifact_kind(
         )
     if artifact.kind == "graph" and candidate_kind != "graph":
         raise PublicationAdmissionError(
-            "Graph ResearchArtifacts require an admitted D-05 Graph candidate"
+            "Graph ResearchArtifacts require an admitted Versioned Evidence Graph candidate"
         )
 
 

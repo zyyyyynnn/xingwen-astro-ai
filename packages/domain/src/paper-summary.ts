@@ -1,7 +1,7 @@
 /**
- * Paper summary review domain model (A-06).
+ * Paper summary review domain model (Literature Summary Workspace).
  *
- * A read-only projection of the B-07 `PaperSummaryRead` transport contract into
+ * A read-only projection of the PaperSummary API `PaperSummaryRead` transport contract into
  * the frontend domain: structured summary statements (goal, method, dataset,
  * findings, limitations, future work), per-item evidence with locators and
  * support status, source-version conflicts, the model/prompt provenance and the
@@ -147,7 +147,7 @@ export interface PaperSummaryCacheAuditReview {
 /**
  * The complete paper summary review for one immutable ArtifactVersion.
  *
- * `evidence` carries the generic B-18 Evidence records (for the Provenance
+ * `evidence` carries the generic Artifact Read Boundary Evidence records (for the Provenance
  * Observatory and Share), while `summaryEvidence` carries the summary-internal
  * evidence with quotes/locators/status shown inline against each statement.
  */

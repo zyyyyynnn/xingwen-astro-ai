@@ -1,4 +1,4 @@
-"""Versioned C-08 cross-source entity-alignment contracts."""
+"""Contracts for cross-source entity alignment and publication."""
 
 from __future__ import annotations
 
@@ -370,7 +370,7 @@ class CrossmatchRuleSet(BaseModel):
 
 
 class CrossmatchSourceInput(BaseModel):
-    """Typed projection of one C-02/C-07 acquisition result."""
+    """Typed projection of one primary/supplemental source acquisition result."""
 
     model_config = MODEL_CONFIG
 
@@ -755,7 +755,7 @@ class CrossmatchCondition(BaseModel):
         ):
             raise ValueError("coordinate conditions must not carry identifier values")
         if self.operator is ConditionOperator.source_scope:
-            raise ValueError("source_scope condition is not supported by v1")
+            raise ValueError("source_scope condition has no executable payload")
         expected_id = compute_crossmatch_condition_id(self)
         if self.condition_id != expected_id:
             raise ValueError(f"condition_id does not match payload: {expected_id}")
@@ -1553,7 +1553,7 @@ class CrossmatchAdmissionContext(BaseModel):
 
 
 class CrossmatchResult(BaseModel):
-    """Typed C-04 handoff; publication and ArtifactVersion identity are out of scope."""
+    """Typed Versioned Data Artifact handoff; publication and ArtifactVersion identity are out of scope."""
 
     model_config = MODEL_CONFIG
 
@@ -2487,7 +2487,7 @@ class CrossmatchResult(BaseModel):
 def resolve_crossmatch_record_edge_components(
     result: CrossmatchResult,
 ) -> dict[str, tuple[CandidateEdge, ...]]:
-    """Resolve paired/conflict records to C-08 edge components by membership.
+    """Resolve paired/conflict records to Cross-source Entity Alignment edge components by membership.
 
     CandidateEdge logical keys identify individual candidate pairs, while
     record logical keys identify connected components. Consumers must use

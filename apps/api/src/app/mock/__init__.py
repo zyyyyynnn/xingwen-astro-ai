@@ -1,1 +1,1 @@
-"""Mock artifacts for P0 API integration."""
+"""Mock artifacts used by API contract integration."""

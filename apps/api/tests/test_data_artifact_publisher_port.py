@@ -26,7 +26,7 @@ def _admit(candidate):
     )
 
 
-def test_c04_prerequisites_cannot_bypass_final_c05_publication_gate() -> None:
+def test_data_artifact_prerequisites_cannot_bypass_final_data_quality_publication_gate() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
 
     for candidate in (
@@ -34,7 +34,7 @@ def test_c04_prerequisites_cannot_bypass_final_c05_publication_gate() -> None:
         result.field_dictionary,
         result.source_collection,
     ):
-        with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
+        with pytest.raises(PublicationAdmissionError, match="Data Quality Evaluation attestation"):
             _admit(candidate)
 
 
@@ -62,7 +62,7 @@ def test_reparsed_copied_and_intermediate_candidates_cannot_bypass_port() -> Non
 
 
 @pytest.mark.parametrize("candidate", ({"kind": "dataset"}, "free text"))
-def test_untyped_content_is_rejected_before_c04_validators(candidate) -> None:
+def test_untyped_content_is_rejected_before_data_artifact_validators(candidate) -> None:
     with pytest.raises(PublicationAdmissionError, match="validated Pydantic"):
         admit_artifact_candidate(
             candidate,

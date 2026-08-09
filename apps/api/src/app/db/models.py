@@ -1,5 +1,5 @@
 
-"""SQLAlchemy models for the #76/#77 workflow persistence baseline.
+"""SQLAlchemy models for workflow persistence.
 
 Statuses remain text plus database CHECK constraints so migrations are explicit
 and do not depend on PostgreSQL enum lifecycle operations.
@@ -56,7 +56,7 @@ class ResearchProjectModel(TimestampMixin, Base):
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     # Public createResearchProject idempotent-replay identity; nullable for
-    # rows that predate the #131 public authoring chain.
+    # rows created before the public authoring chain fields were populated.
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     request_hash: Mapped[str | None] = mapped_column(String(71))
 
@@ -78,8 +78,8 @@ class ResearchContractModel(TimestampMixin, Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     # Full frozen ``ResearchContractInput`` payload so the immutable contract can
-    # be recovered verbatim (not only by hash). Nullable for the #76/#77 workflow
-    # baseline rows that predate the B-runtime confirm path.
+    # be recovered verbatim (not only by hash). Nullable for workflow rows
+    # created before the public confirmation path.
     content: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_from_draft_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
@@ -102,7 +102,7 @@ class ResearchContractModel(TimestampMixin, Base):
 
 
 class ResearchContractDraftModel(TimestampMixin, Base):
-    """Editable, session-scoped draft persisted for the B-runtime confirm path.
+    """Editable, session-scoped draft persisted for the public confirmation path.
 
     A draft is owned by a session (not a project); ``version`` is the optimistic
     concurrency token used by the ``If-Match`` header on PATCH updates.
@@ -122,7 +122,7 @@ class ResearchContractDraftModel(TimestampMixin, Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     # Public createResearchContractDraft idempotent-replay identity; nullable
-    # for rows that predate the #131 public authoring chain.
+    # for rows created before the public authoring chain identity was persisted.
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     request_hash: Mapped[str | None] = mapped_column(String(71))
 
@@ -578,7 +578,7 @@ class EvidenceModel(TimestampMixin, Base):
 
 
 class ResearchInputModel(Base):
-    """Immutable provenance reference for one ingested Research Input (B-19).
+    """Immutable provenance reference for one ingested Research Input (Research Input Ingestion).
 
     Content facts (``storage_ref``, ``mime_type``, ``size_bytes``) live solely
     in :class:`ResearchInputContentModel`, referenced through the composite FK
@@ -641,7 +641,7 @@ class ResearchInputModel(Base):
 
 
 class ResearchInputContentModel(Base):
-    """Immutable content identity for ingested Research Input bytes (B-19).
+    """Immutable content identity for ingested Research Input bytes (Research Input Ingestion).
 
     This row is the *content* identity: a given ``(project_id, content_hash)``
     is exactly one blob with one storage ref, MIME and size. It is fully
@@ -722,7 +722,7 @@ class ResearchInputBindingModel(Base):
 
 
 class ResearchInputIdempotencyModel(Base):
-    """HTTP request identity for Research Input creation (B-19).
+    """HTTP request identity for Research Input creation (Research Input Ingestion).
 
     This table is deliberately *not* part of :class:`ResearchInputModel`.
     Two identities exist and they are not the same thing:
@@ -794,4 +794,3 @@ class ResearchInputIdempotencyModel(Base):
             "input_id",
         ),
     )
-

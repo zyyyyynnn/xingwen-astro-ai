@@ -61,8 +61,8 @@ def _load_case_manifests() -> ManifestBundle:
     relative = Path("services/data_pipeline/manifests/exoplanet_host_star")
     for parent in Path(__file__).resolve().parents:
         manifest_root = parent / relative
-        case_manifest = manifest_root / "case-manifest.v1.json"
-        field_manifest = manifest_root / "field-manifest.v1.json"
+        case_manifest = manifest_root / "case-manifest.json"
+        field_manifest = manifest_root / "field-manifest.json"
         if case_manifest.is_file() and field_manifest.is_file():
             return load_manifest_bundle(case_manifest, field_manifest)
     raise RuntimeError("Exoplanet host-star Case/Field Manifest assets are missing")
