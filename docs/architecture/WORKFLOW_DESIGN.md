@@ -18,6 +18,12 @@ Routers -> Application Services -> Workflow Executor -> Step Adapters -> Pipelin
 
 Router 不直接调用 Pipeline；Pipeline 不直接推进 Run 主状态。
 
+真实 ResearchRun 只能由这一条 Workflow Executor 路径驱动：它取得 fenced lease，
+按 Run/Step Contract 调用 Step Adapter，提交 Attempt/Event，接收 typed candidate，
+再交给 Publisher。创建 `queued` Run 或写入初始 Event 不代表执行已经发生；没有
+实际 Executor/Adapter 运行证据时，状态必须保持真实的 queued/failed 语义，不能生成
+伪造 running、tool 或 artifact event。
+
 ## 2. Run 状态机
 
 ```text
@@ -42,9 +48,9 @@ planning <-> waiting_for_input
 
 ## 4. 进度与事件 (RunEvent)
 
-- `GET /runs/{id}` 提供权威的状态快照。
+- `GET /runs/{id}` 提供权威的状态快照；Feed 首次读取必须先取快照，再按序读取事件。
 - `RunEvent` 包含 `run_id`、单调递增 `sequence`、`step_key`、`progress` (0–100) 与 `occurred_at`。
-- Event 仅包含公开状态与进度，不包含模型私有思维过程。客户端丢失事件时拉取最新快照并从 `latest_event_sequence` 恢复。
+- Event 仅包含公开状态与进度，不包含模型私有思维过程。客户端丢失事件时拉取最新快照并从 `latest_event_sequence` 恢复；Polling 使用有界 backoff，SSE 不是状态事实源。
 
 ## 5. 持久化与并发不变量
 

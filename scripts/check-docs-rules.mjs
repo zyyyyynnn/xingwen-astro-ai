@@ -191,7 +191,9 @@ export function inspectMarkdown(
     errors.push(`document must contain exactly one H1; found ${h1Count}`);
   }
   for (const key of metadataKeys) {
-    if (forbiddenMetadataFields.has(key)) {
+    if (metadata.Status === "Accepted" && key === "Issue") {
+      errors.push("Issue metadata is not allowed in Accepted Authority");
+    } else if (forbiddenMetadataFields.has(key)) {
       errors.push(`metadata field is a forbidden progress field: ${key}`);
     } else if (!allowedMetadataFields.has(key)) {
       errors.push(`metadata field is not on the allowlist: ${key}`);
@@ -207,6 +209,35 @@ export function inspectMarkdown(
   }
   if (expectedStatus && metadata.Status !== expectedStatus) {
     errors.push(`metadata Status must be ${expectedStatus} for this location`);
+  }
+  if (metadata.Status === "Accepted") {
+    for (const [index, line] of lines.entries()) {
+      const lineNumber = index + 1;
+      if (/^\s*(?:<<<<<<<|=======|>>>>>>>)\s*$/u.test(line)) {
+        errors.push(
+          `line ${lineNumber}: merge-conflict marker is not allowed in Accepted Authority`,
+        );
+      }
+      if (/\b(?:PR|Issue)\s*#\d+\b/iu.test(line)) {
+        errors.push(
+          `line ${lineNumber}: PR/Issue progress reference is not allowed in Accepted Authority`,
+        );
+      }
+      if (/\b[A-DX]-\d{2,3}\b/u.test(line)) {
+        errors.push(
+          `line ${lineNumber}: task code is not allowed in Accepted Authority`,
+        );
+      }
+      if (
+        /(?:当前实现|当前 Workspace|Current runtime|Current Progress|Current PR|Implementation Status|Pending Tasks?)/u.test(
+          line,
+        )
+      ) {
+        errors.push(
+          `line ${lineNumber}: implementation-progress wording is not allowed in Accepted Authority`,
+        );
+      }
+    }
   }
   return { errors, links, mermaidBlocks, metadata };
 }

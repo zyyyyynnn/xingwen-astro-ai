@@ -3,12 +3,13 @@
 | Field     | Value                                                         |
 | --------- | ------------------------------------------------------------- |
 | Status    | Accepted                                                      |
-| Scope     | C-08 deterministic TOI/PS entity alignment                    |
+| Scope     | Deterministic TOI/PS entity alignment                         |
 | Authority | Runtime behavior, Evidence, review input, and benchmark rules |
 
 ## 1. Scope and boundaries
 
-C-08 consumes the immutable outputs of C-02 and C-07. The primary source is
+The alignment engine consumes the immutable outputs of the primary and supplemental
+acquisition adapters. The primary source is
 `nasa_exoplanet_archive.toi`; the supplemental source is
 `nasa_exoplanet_archive.ps`. Each side retains its own `SourceSnapshotRecord`,
 query hash, content hash, source mode, data level, completion status, cursor,
@@ -21,8 +22,8 @@ align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult
 ```
 
 The function is deterministic and has no HTTP, database, cache, Run, Router, or
-Artifact side effects. It never invokes either source Adapter. C-04 canonical
-field mapping, C-05 quality scoring, unit conversion, Dataset construction,
+Artifact side effects. It never invokes either source Adapter. Canonical field
+mapping, quality scoring, unit conversion, Dataset construction,
 Artifact publication, and runtime orchestration are owned by their respective
 responsibility boundaries.
 
@@ -81,7 +82,7 @@ Normalization is conservative and versioned:
 
 - TIC and Gaia DR3 identifiers accept only positive catalog integers and known
   prefixes; catalog identifiers are bounded to 19 digits.
-- TOI accepts the C-02 numeric form plus `TOI 1243.01` and `TOI-1243.01`, while
+- TOI accepts the primary acquisition numeric form plus `TOI 1243.01` and `TOI-1243.01`, while
   retaining the numeric candidate suffix. It never infers a lettered planet
   name.
 - Names use Unicode NFKC, trimmed/collapsed whitespace, and `casefold`.
@@ -198,7 +199,7 @@ record pairs into eight eligible entity-level comparisons and verifies fail-fast
 rejection. Parameterized pipeline tests additionally cover `unknown` scope.
 
 The benchmark and alias entries are synthetic fixtures, not scientific ground
-truth. The frozen TOI Manifest does not expose Gaia DR3, so C-08 retains PS Gaia
+truth. The frozen TOI Manifest does not expose Gaia DR3, so the alignment result retains PS Gaia
 values but does not fabricate a TOI Gaia field merely to claim an exact Gaia
 cross-source case. Existing recorded TOI and PS fixtures also do not share a
 verified entity identity; they are acquisition evidence and are not presented
@@ -229,6 +230,6 @@ node scripts/check-docs.mjs
 git diff --check
 ```
 
-The JSON Schema export includes the public C-08 input, output, completion,
+The JSON Schema export includes the public alignment input, output, completion,
 benchmark-manifest, and benchmark-report contracts. No HTTP route or duplicate
 transport DTO is introduced.

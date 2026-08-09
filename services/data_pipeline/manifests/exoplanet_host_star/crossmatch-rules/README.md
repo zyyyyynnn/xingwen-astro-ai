@@ -3,9 +3,9 @@
 | 元数据    | 值                                                      |
 | --------- | ------------------------------------------------------- |
 | Status    | Accepted                                                |
-| Authority | C-08 crossmatch rule asset versioning and hash coupling |
+| Authority | Crossmatch rule asset versioning and hash coupling |
 
-本目录保存 C-08 跨源对齐的版本化规则资产：
+本目录保存跨源对齐的版本化规则资产：
 
 - `crossmatch-rules.v1.json`：RuleSet（identity/coordinate/capacity policy 版本、method priority、confidence、conflict policy 与各 manifest/policy 的 version/hash pin）。
 - `entity-alias-catalog.v1.json`：版本化 `EntityAliasCatalog`（`catalog_id`、`version`、`content_hash`、`entries`、`source`、`maintainer`、`created_at`）。
@@ -20,5 +20,5 @@
 ## 边界
 
 - `entity-alias-catalog.v1.json` 当前仅为合成 benchmark fixture，用于确定性评审。
-- 合成 alias 不是科研 gold truth；本 PR 不引入真实 curated catalog。
+- 合成 alias 不是科研 gold truth；本规则资产不引入真实 curated catalog。
 - 未经明确授权不创建新的跟踪 Issue。

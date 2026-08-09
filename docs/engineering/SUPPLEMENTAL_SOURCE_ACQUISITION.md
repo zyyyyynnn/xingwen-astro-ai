@@ -3,12 +3,11 @@
 | 元数据    | 值                                                                         |
 | --------- | -------------------------------------------------------------------------- |
 | Status    | Accepted                                                                   |
-| Authority | C-07 补充来源查询、录制响应与独立 SourceSnapshot 运行规则                  |
-| Issue     | #90                                                                        |
+| Authority | 补充来源查询、录制响应与独立 SourceSnapshot 运行规则                         |
 | Scope     | `exoplanet_host_star` 的 NASA Exoplanet Archive Planetary Systems metadata |
 
-本文定义 C-07 的可执行边界。字段与来源表事实仍以
-[C-01 Manifest](../../services/data_pipeline/manifests/README.md) 为唯一来源；
+本文定义补充来源 Adapter 的可执行边界。字段与来源表事实仍以
+[Manifest](../../services/data_pipeline/manifests/README.md) 为唯一来源；
 通用 SourceSnapshot 不变量仍由
 [Data Versioning](../architecture/DATA_VERSIONING.md) 管理。本文不定义跨源匹配、
 字段合并、单位转换、质量评分、ResearchRun 状态或 HTTP DTO。
@@ -20,7 +19,7 @@
 ## 1. 来源选择与冻结边界
 
 补充来源是 NASA Exoplanet Archive 的 `ps`（Planetary Systems）真实 TAP
-表，table source id 为 `nasa_exoplanet_archive.ps`。C-02 主来源是独立的
+表，table source id 为 `nasa_exoplanet_archive.ps`。主来源是独立的
 `nasa_exoplanet_archive.toi` 表；两次查询分别产生 SourceSnapshot，不把缓存、
 Fixture、seed 或 TOI 结果副本当作补充来源。
 
@@ -33,7 +32,7 @@ Fixture、seed 或 TOI 结果副本当作补充来源。
 - `star.tic_id` 是 Case Manifest 的宿主恒星 identity field，并由 Field
   Manifest 映射到 `ps.tic_id`；
 - Provider/table 映射复用既有 registry，不创建第二套 source registry，也不修改
-  X-00 冻结包。
+  冻结 Manifest 包。
 
 固定输入先归一化为排序且去重的 `TIC <positive integer>`。单次最多 100 个标识符，
 数字部分最多 19 位；空白、大小写和调用方顺序不影响稳定 hash，非法或可注入值在发出
@@ -49,7 +48,6 @@ SHA-256。
 | Field Manifest version/hash      | `1.0.1` / `sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53` |
 | Column adjudication version/hash | `1.0.0` / `sha256:b27b6fc8aab5d2ddeda2f21420650291567e09c26e969bb4eb89c54853d0766b` |
 | Runtime schema contract          | `nasa_exoplanet_archive.ps.runtime_schema.2026-07-30` / `1.0.0`                     |
-| X-00 baseline                    | `main@eb7e23f6d0c14555627c602c6e5a2b84210ba833`                                     |
 | Query normalization / Adapter    | `1.1.0` / `1.1.0`                                                                   |
 
 ## 2. Provider 层、Adapter 层与职责
@@ -71,8 +69,8 @@ cursor、schema/row validator、分页编排和来源专用 provenance。安全�
 ## 3. 列契约与 Schema Drift
 
 运行时首先验证 Field Manifest 引用的列裁决文件路径、文件 SHA-256、snapshot identity
-和 table contract。C-01 裁决保留官方定义的 `raerr1`、`raerr2`、`decerr1`、
-`decerr2`，同时记录这些列连续两次未出现在 live `TAP_SCHEMA`。C-07 不删除这些
+和 table contract。Manifest 裁决保留官方定义的 `raerr1`、`raerr2`、`decerr1`、
+`decerr2`，同时记录这些列连续两次未出现在 live `TAP_SCHEMA`。Adapter 不删除这些
 Manifest 声明，而是将其记录为 `live_unavailable_columns`，只查询其余批准列。
 
 实际查询列还绑定版本化运行时类型契约：
@@ -227,7 +225,7 @@ PS 是动态表，同步 endpoint 不提供稳定 release id。Schema response h
 同一 NASA provider，符合冻结 Case SourcePolicy 对补充来源的约束。
 
 输出只包含原始 PS 记录及其 provenance。如何把 TOI 与 PS 实体进行 exact、alias、
-coordinate 或人工对齐属于 Issue #91，本文边界不提供任何匹配结论。
+coordinate 或人工对齐属于独立的跨源对齐能力，本文边界不提供任何匹配结论。
 
 | 验收能力                                    | 代码或测试证据                                |
 | ------------------------------------------- | --------------------------------------------- |

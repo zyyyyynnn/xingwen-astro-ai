@@ -80,8 +80,8 @@ Draft 是编辑态资源，一旦确认即产生不可变 Contract。
 
 ## 5. LiteratureClaim、LiteratureRelation 与 ReasoningTrace
 
-- `literature_claims` ArtifactVersion 保存 D-07 唯一 typed candidate。每个非 rejected Claim 固定一个已验证 PaperSummary ArtifactVersion，并通过持久化 Evidence 与 SourceSnapshot 形成完整 provenance。
-- `literature_relations` ArtifactVersion 保存 D-08 Relation、双方 Claim 投影和可审查 ReasoningTrace。每个非 rejected Relation 必须精确固定 source/target Claim ArtifactVersion 与对应 PaperSummary ArtifactVersion。
+- `literature_claims` ArtifactVersion 保存唯一的 typed Claim candidate。每个非 rejected Claim 固定一个已验证 PaperSummary ArtifactVersion，并通过持久化 Evidence 与 SourceSnapshot 形成完整 provenance。
+- `literature_relations` ArtifactVersion 保存 Relation、双方 Claim 投影和可审查 ReasoningTrace。每个非 rejected Relation 必须精确固定 source/target Claim ArtifactVersion 与对应 PaperSummary ArtifactVersion。
 - ReasoningTrace 不是独立 ArtifactVersion；它只公开 premise、结构化比较步骤、条件、限制、冲突、结论与 Evidence 引用。
 - `graph_eligible` 是读取闭包结果，不是新的科学判定。只有 accepted Relation、accepted endpoints 与完整 Trace/Evidence/SourceSnapshot 同时成立时为真。
 - ArtifactVersion 与 Evidence 在同一 Publisher 事务内原子创建。Pipeline Evidence/SourceSnapshot ID 保留在 locator 与 typed content 中，数据库 registry 保存对应 PostgreSQL UUID；两侧必须一一闭合且同属一个 Project。

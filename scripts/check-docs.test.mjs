@@ -144,7 +144,7 @@ test("requires Status: Archived for archived documents", () => {
 
 test("allows stable context metadata fields", () => {
   const source = metadataDoc([
-    "| Status | Accepted |",
+    "| Status | Proposed |",
     "| Authority | X |",
     "| Scope | exoplanet_host_star |",
     "| Issue | #32 |",
@@ -154,4 +154,63 @@ test("allows stable context metadata fields", () => {
     "| Applies to | all Markdown |",
   ]);
   assert.deepEqual(inspectMarkdown(source).errors, []);
+});
+
+test("rejects Issue metadata for Accepted Authority", () => {
+  const source = metadataDoc([
+    "| Status | Accepted |",
+    "| Authority | X |",
+    "| Issue | #32 |",
+  ]);
+  assert.match(
+    inspectMarkdown(source).errors.join("\n"),
+    /Issue metadata is not allowed in Accepted Authority/u,
+  );
+});
+
+test("rejects task and progress references in Accepted Authority", () => {
+  const source = metadataDoc([
+    "| Status | Accepted |",
+    "| Authority | X |",
+    "",
+    "D-10 is not a stable Authority reference.",
+    "当前实现不得写入规范。",
+  ]).replace("| Authority | X |\n\n", "| Authority | X |\n\n## Rules\n\n");
+  const errors = inspectMarkdown(source).errors.join("\n");
+  assert.match(errors, /task code is not allowed/u);
+  assert.match(errors, /implementation-progress wording is not allowed/u);
+});
+
+test("rejects each forbidden progress phrase in Accepted Authority", () => {
+  for (const phrase of [
+    "Current Progress",
+    "Current PR",
+    "Pending Tasks",
+    "Implementation Status",
+  ]) {
+    const source = metadataDoc([
+      "| Status | Accepted |",
+      "| Authority | X |",
+      "",
+      phrase,
+    ]).replace("| Authority | X |\n\n", "| Authority | X |\n\n## Rules\n\n");
+    assert.match(
+      inspectMarkdown(source).errors.join("\n"),
+      /implementation-progress wording is not allowed/u,
+      phrase,
+    );
+  }
+});
+
+test("rejects merge-conflict markers in Accepted Authority", () => {
+  const source = metadataDoc([
+    "| Status | Accepted |",
+    "| Authority | X |",
+    "",
+    "=======",
+  ]).replace("| Authority | X |\n\n", "| Authority | X |\n\n## Rules\n\n");
+  assert.match(
+    inspectMarkdown(source).errors.join("\n"),
+    /merge-conflict marker/u,
+  );
 });

@@ -5,7 +5,10 @@
 | Status | Accepted |
 | Authority | 模型调用准入、验证、记录、降级与评测规范 |
 
-本文规定模型调用进入科研产物前的准入、验证与记录要求。Prompt 版本管理见 [Prompt Versioning](PROMPT_VERSIONING.md)，推理推导协议见 [Reasoning Protocol](REASONING_PROTOCOL.md)，安全与日志规范见 [Security](../../SECURITY.md)。
+本文规定模型调用进入科研产物前的准入、验证与记录要求。竞赛资格与提交证据见
+[Competition Compliance](../product/COMPETITION_COMPLIANCE.md)，Prompt 版本管理见
+[Prompt Versioning](PROMPT_VERSIONING.md)，推理推导协议见 [Reasoning Protocol](REASONING_PROTOCOL.md)，
+安全与日志规范见 [Security](../../SECURITY.md)。
 
 ## 1. 模型调用路径
 
@@ -49,3 +52,22 @@ Workflow Step -> Model Application Service -> Model Client -> Structure & Eviden
 每次模型或算法执行必须记录包含 `run_id`、`step_key`、`producer_name/version`、`model_provider/name`、`prompt_name/version/hash`、`parameters_hash`、`input_hash`、`output_hash`、`status`、`latency_ms` 与 `token_usage` 的完整元数据。
 
 `ReasoningTrace` 仅包含用户可审查的依据、条件与引用，绝对不记录或展示模型私有 chain-of-thought。
+
+## 6. 合格模型与 ModelExecutionPort
+
+竞赛主案例的合格模型路径是通过 Alibaba Cloud Model Studio / Bailian 或其他已批准
+官方路线调用 Qwen。实现必须先定义稳定的 `ModelExecutionPort`，再由薄 Qwen
+Adapter 处理 provider protocol、鉴权配置、限流/超时、结构化响应和安全元数据；
+Adapter 不实现领域算法、字段映射或第二套 Prompt Registry。
+
+DeepSeek、Gemini 等只能作为明确标注的 benchmark/reference，不能作为合格主模型
+证据。每次合格执行需要 provider、model/version/revision、Prompt、Contract/input
+hash、parameters、call proof、output hash、ProducerExecution 和 admission 记录；
+禁止使用浮动 `latest`，禁止将 Fixture/Recorded/Benchmark/Cached 伪装成 Live。
+
+## 7. 失败、部分结果与能力声明
+
+没有真实 provider call proof 的实现只能声明为未验证或 benchmark。网络/配额/解析
+失败必须保留失败 Attempt；可恢复失败才能按 [Data Versioning](../architecture/DATA_VERSIONING.md)
+选择真实历史 CacheRecord。`partial`、`unsupported`、`candidate` 和 `rejected`
+不得自动升级为成功科研事实或完成状态。
