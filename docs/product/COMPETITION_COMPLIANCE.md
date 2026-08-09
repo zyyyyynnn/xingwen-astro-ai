@@ -1,8 +1,8 @@
 # Competition Compliance
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
+| 元数据    | 值                                         |
+| --------- | ------------------------------------------ |
+| Status    | Accepted                                   |
 | Authority | 竞赛方向、模型资格、平台合规与提交证据规范 |
 
 本文把 [赛题要求](../references/赛题要求.md) 中与产品、模型和提交材料有关的约束
@@ -34,20 +34,10 @@ confirmed Contract / data requirements
 ## 2. 合格模型与调用路径
 
 参赛主案例的合格模型必须是 Qwen，并通过 Alibaba Cloud Model Studio / Bailian
-或比赛官网明确推荐的工具调用。模型调用必须沿用：
-
-```text
-ResearchRun Step
-→ ModelExecutionPort
-→ qualifying Qwen adapter
-→ typed Schema / Evidence admission
-→ ProducerExecution
-→ Publisher
-```
-
-Qwen 适配器是薄边界：只负责 provider protocol、鉴权配置、超时/限流、结构化
-响应与安全元数据映射，不在 Adapter 中实现科研规则、字段事实或第二套 Prompt
-Registry。禁止使用浮动的 `latest` 作为提交证据。
+或比赛官网明确推荐的工具调用。本文只判定模型与平台是否具备参赛资格，以及提交
+材料必须提供什么证明；内部调用边界、Schema/Evidence 准入、失败处理、
+ProducerExecution 与发布规则统一由 [Model Policy](../ai/MODEL_POLICY.md) 定义。
+禁止使用浮动的 `latest` 作为提交证据。
 
 每次合格调用必须能够复核：
 
