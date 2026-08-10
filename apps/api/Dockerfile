@@ -21,7 +21,7 @@ WORKDIR /app
 # 先复制依赖清单，利用 Docker 层缓存。
 COPY apps/api/pyproject.toml apps/api/uv.lock ./
 
-# 同步依赖到隔离的 .venv，不安装项目本身
+# 先同步依赖以保留缓存层；源码复制后再安装当前项目本身。
 RUN uv sync --frozen --no-install-project
 
 # 复制源码与迁移资产（migrate one-shot service 与运行时共用同一镜像）
@@ -29,6 +29,9 @@ COPY apps/api/alembic.ini ./
 COPY apps/api/migrations ./migrations
 COPY apps/api/src ./src
 COPY services/data_pipeline/manifests/exoplanet_host_star ./services/data_pipeline/manifests/exoplanet_host_star
+
+# 安装当前 API distribution，使运行时 package metadata 与实际项目版本同源。
+RUN uv sync --frozen
 
 # 把 .venv/bin 加入 PATH，uvicorn 直接可用
 # PYTHONPATH 指向 src 目录，配合 src layout（app 包在 src/app）
