@@ -1,0 +1,58 @@
+name: Isolated governance materializer PR trigger
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.event.pull_request.head.ref == 'codex/pr209-final-repair-scratch' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/pr209-final-repair-scratch
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.7.8'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Extract isolated materializer
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/isolated-governance-materializer.yml').read_text(encoding='utf-8')
+
+          materialize_marker = "      - name: Materialize current-only architecture\n        shell: bash\n        run: |\n"
+          commit_marker = "      - name: Commit clean candidate tree\n        shell: bash\n        run: |\n"
+
+          materialize_start = source.index(materialize_marker) + len(materialize_marker)
+          materialize_end = source.index("\n      - name: Commit clean candidate tree", materialize_start)
+          materialize = textwrap.dedent(source[materialize_start:materialize_end])
+
+          commit_start = source.index(commit_marker) + len(commit_marker)
+          commit = textwrap.dedent(source[commit_start:])
+
+          Path('/tmp/pr209-materialize.sh').write_text(materialize, encoding='utf-8')
+          Path('/tmp/pr209-commit.sh').write_text(commit, encoding='utf-8')
+          PY
+
+      - name: Materialize and commit clean tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/isolated-governance-materializer.yml \
+                .github/workflows/isolated-governance-materializer-pr.yml
+          bash /tmp/pr209-materialize.sh
+          bash /tmp/pr209-commit.sh
