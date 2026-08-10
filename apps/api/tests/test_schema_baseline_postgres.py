@@ -55,8 +55,8 @@ def test_migration_directory_has_one_current_root_and_head() -> None:
     config.set_main_option("script_location", str(API_ROOT / "migrations"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_bases() == ("schema_baseline",)
-    assert scripts.get_heads() == ("schema_baseline",)
+    assert scripts.get_bases() == ["schema_baseline"]
+    assert scripts.get_heads() == ["schema_baseline"]
 
 
 def test_fresh_postgres_matches_current_schema_contract() -> None:
