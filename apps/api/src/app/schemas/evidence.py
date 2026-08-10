@@ -1,4 +1,4 @@
-"""Evidence schemas."""
+"""Scientific Evidence provenance contracts shared by current pipelines."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from typing import Annotated, Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .enums import EvidenceType
 from .manifest import ContentHash, Identifier
 
 
@@ -51,23 +50,12 @@ _HEADER_CREDENTIAL_QUALIFIERS = frozenset(
 )
 
 
-class Locator(BaseModel):
-    kind: str
-    value: str
-
-
-class SourceSnapshot(BaseModel):
-    """Compact SourceSnapshot projection returned by task-read endpoints."""
-
-    retrieved_at: datetime
-    query_hash: str | None = None
-
-
 class SourceSnapshotRecord(BaseModel):
-    """Immutable source record consumed by publication pipelines.
+    """Immutable source provenance consumed by scientific pipelines.
 
-    This complete provenance record and the compact task-read projection serve
-    separate current interfaces; neither is a historical compatibility model.
+    This is a pipeline/runtime record, not an HTTP read projection. It preserves
+    the exact source, query and content identity required for reproducibility
+    while rejecting credential-bearing request metadata before publication.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -97,36 +85,16 @@ class SourceSnapshotRecord(BaseModel):
             _metadata_key_is_sensitive(key)
             for key in _nested_keys(self.request_metadata)
         ):
-            raise ValueError("SourceSnapshotRecord request_metadata contains sensitive keys")
+            raise ValueError(
+                "SourceSnapshotRecord request_metadata contains sensitive keys"
+            )
         return self
-
-
-class EvidenceResponse(BaseModel):
-    id: str
-    task_id: str
-    type: EvidenceType
-    source_id: str | None = None
-    paper_id: str | None = None
-    target_type: str
-    target_id: str
-    content: str | None = None
-    locator: Locator | None = None
-    quote_or_value: str | None = None
-    extraction_method: str
-    source_snapshot: SourceSnapshot
-    confidence: float = Field(ge=0.0, le=1.0)
-    created_at: datetime
 
 
 def _nested_keys(value: Any) -> tuple[str, ...]:
     if isinstance(value, dict):
-        return tuple(
-            str(key)
-            for key, nested in value.items()
-        ) + tuple(
-            child
-            for nested in value.values()
-            for child in _nested_keys(nested)
+        return tuple(str(key) for key in value) + tuple(
+            child for nested in value.values() for child in _nested_keys(nested)
         )
     if isinstance(value, (list, tuple)):
         return tuple(child for nested in value for child in _nested_keys(nested))
