@@ -20,7 +20,7 @@ test("brand site remains useful without client-side JavaScript", async ({
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
 
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   await expect(page).toHaveTitle(/星文智析/);
   await expect(
@@ -37,14 +37,14 @@ test("brand site remains useful without client-side JavaScript", async ({
 });
 
 test("brand site exposes a clear not-found page", async ({ page }) => {
-  await page.goto("http://127.0.0.1:4321/missing-page");
+  await page.goto("http://127.0.0.1:14321/missing-page");
   await expect(page.getByRole("heading", { name: "页面未找到" })).toBeVisible();
 });
 
 test("brand site has no runtime console errors", async ({ page }) => {
   const errors = collectRuntimeErrors(page);
 
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
   await expect(
     page.getByRole("heading", { name: /让每一颗系外行星候选体\s*都可溯源/ }),
   ).toBeVisible();
@@ -62,6 +62,15 @@ for (const entry of [
     const expectedMissingShareUrl = entry[0].startsWith("/share/")
       ? `http://localhost:8000/api/public/shares/${entry[0].slice("/share/".length)}`
       : undefined;
+    if (expectedMissingShareUrl) {
+      await page.route(expectedMissingShareUrl, (route) =>
+        route.fulfill({
+          status: 404,
+          contentType: "application/json",
+          body: "{}",
+        }),
+      );
+    }
     const errors = collectRuntimeErrors(
       page,
       expectedMissingShareUrl
@@ -72,7 +81,7 @@ for (const entry of [
         : undefined,
     );
 
-    await page.goto(`http://127.0.0.1:5173${entry[0]}`);
+    await page.goto(`http://127.0.0.1:15173${entry[0]}`);
 
     await expect(page.getByRole("heading", { name: entry[1] })).toBeVisible();
     const navigation = page.getByRole("navigation", { name: "工作台导航" });
@@ -86,6 +95,6 @@ for (const entry of [
 }
 
 test("workspace renders its not-found boundary", async ({ page }) => {
-  await page.goto("http://127.0.0.1:5173/not-a-route");
+  await page.goto("http://127.0.0.1:15173/not-a-route");
   await expect(page.getByRole("heading", { name: "页面未找到" })).toBeVisible();
 });

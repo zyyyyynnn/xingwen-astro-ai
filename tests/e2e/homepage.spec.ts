@@ -9,7 +9,7 @@ const HERO_TITLE = /让每一颗系外行星候选体\s*都可溯源/;
 test("homepage renders the ASCII video element from the public visual dir", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   const video = page.locator("video.hero-video");
   await expect(video).toBeVisible();
@@ -31,7 +31,7 @@ test("homepage keeps title, notes and single CTA when video fails to load", asyn
     route.abort("failed"),
   );
 
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   await expect(page.getByRole("heading", { name: HERO_TITLE })).toBeVisible();
   await expect(page.getByRole("link", { name: "进入工作台" })).toBeVisible();
@@ -44,7 +44,7 @@ test("homepage honours reduced motion by hiding the video", async ({
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   const video = page.locator("video.hero-video");
   await expect(video).toBeHidden();
@@ -56,7 +56,7 @@ test("homepage honours reduced motion by hiding the video", async ({
 test("homepage exposes exactly one CTA pointing at the workspace", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   const cta = page.getByRole("link", { name: "进入工作台" });
   await expect(cta).toHaveCount(1);
@@ -70,7 +70,7 @@ test("homepage title renders as two lines without client-side scripting", async 
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
 
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   const titleHtml = await page
     .locator("#hero-title")
@@ -87,7 +87,7 @@ test("homepage pauses the hero video under reduced motion via lifecycle", async 
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   const video = page.locator("video.hero-video");
   await expect(video).toBeHidden();
@@ -103,7 +103,7 @@ test("homepage pauses the hero video under reduced motion via lifecycle", async 
 test("homepage pauses the hero video while the tab is hidden and resumes on return", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   const video = page.locator("video.hero-video");
   await expect(video).toBeVisible();

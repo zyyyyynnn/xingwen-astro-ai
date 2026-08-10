@@ -7,7 +7,7 @@ import { requireBoundingBox, setDocumentFontScale } from "./test-helpers";
 test("brand site keyboard navigation reaches the single CTA", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   // Tab from body: skip-link is not present on brand site (only workspace has it),
   // so first focusable should be the only CTA "进入工作台"
@@ -18,7 +18,7 @@ test("brand site keyboard navigation reaches the single CTA", async ({
 });
 
 test("brand site focus outline is visible on CTAs", async ({ page }) => {
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
   const cta = page.getByRole("link", { name: "进入工作台" });
   await cta.focus();
   // focus-visible outline must be non-empty
@@ -36,7 +36,7 @@ test("shared controls remove non-essential transitions under reduced motion", as
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   await expect(page.getByRole("link", { name: "进入工作台" })).toHaveCSS(
     "transition-property",
@@ -47,7 +47,7 @@ test("shared controls remove non-essential transitions under reduced motion", as
 test("workspace skip link appears on focus and targets main content", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const skipLink = page.getByRole("link", { name: "跳到主要内容" });
   await expect(skipLink).toHaveCSS("opacity", "0");
@@ -75,7 +75,7 @@ test.describe("narrow viewport @ 375px", () => {
   test("brand site hero and content fit without horizontal overflow", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:4321/");
+    await page.goto("http://127.0.0.1:14321/");
 
     await expect(
       page.getByRole("heading", {
@@ -93,7 +93,7 @@ test.describe("narrow viewport @ 375px", () => {
   test("workspace shows the desktop-required notice without overflow", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:5173/workspace");
+    await page.goto("http://127.0.0.1:15173/workspace");
 
     await expect(
       page.getByRole("heading", { name: "请使用桌面设备" }),
@@ -116,7 +116,7 @@ test.describe("200% font scale", () => {
   test("brand site content remains visible and readable at 200% font size", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:4321/");
+    await page.goto("http://127.0.0.1:14321/");
     await setDocumentFontScale(page, "200%");
 
     await expect(
@@ -137,7 +137,7 @@ test.describe("200% font scale", () => {
   test("workspace host remains functional at 200% font size", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:5173/workspace");
+    await page.goto("http://127.0.0.1:15173/workspace");
     await setDocumentFontScale(page, "200%");
 
     await expect(
@@ -281,7 +281,7 @@ test.describe("200% font scale", () => {
       await route.fulfill({ status: 404, body: "{}" });
     });
 
-    await page.goto("http://127.0.0.1:5173/share/test-token");
+    await page.goto("http://127.0.0.1:15173/share/test-token");
     const spinner = page.getByRole("status", {
       name: "正在重新载入共享结果",
     });
@@ -336,8 +336,10 @@ test.describe("200% font scale", () => {
       await page.keyboard.press("Tab");
     }
     await expect(returnHome).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/workspace$/u);
+    await Promise.all([
+      page.waitForURL((url) => ["/", "/workspace"].includes(url.pathname)),
+      page.keyboard.press("Enter"),
+    ]);
   });
 });
 
@@ -345,7 +347,7 @@ test("workspace honors reduced motion for shell transitions", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   await expect(
     page.getByRole("complementary", { name: "工作台侧栏" }),

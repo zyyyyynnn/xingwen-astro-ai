@@ -96,7 +96,7 @@ async function assertDesktopWorkspacePath(page: Page) {
 test("root entry redirects to the Workspace host", async ({ page }) => {
   const errors = collectRuntimeErrors(page);
 
-  await page.goto("http://127.0.0.1:5173/");
+  await page.goto("http://127.0.0.1:15173/");
   await expect(page).toHaveURL(/\/workspace$/u);
   await expect(page.getByRole("heading", { name: "研究工作台" })).toBeVisible();
   expect(errors).toEqual([]);
@@ -105,7 +105,7 @@ test("root entry redirects to the Workspace host", async ({ page }) => {
 test("Workspace host renders the desktop shell", async ({ page }) => {
   const errors = collectRuntimeErrors(page);
 
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const heading = page.getByRole("heading", { name: "研究工作台" });
   const runtimeStatus = page.getByText("运行服务未连接", { exact: true });
@@ -142,7 +142,7 @@ test("Workspace host renders the desktop shell", async ({ page }) => {
 test("Workspace top bars share one height, divider, and type scale", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   const sidebarBar = sidebar.locator("header");
@@ -193,7 +193,7 @@ test.describe("Workspace desktop shell at 1440×900", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test("keeps the desktop mechanics aligned", async ({ page }) => {
-    await page.goto("http://127.0.0.1:5173/workspace");
+    await page.goto("http://127.0.0.1:15173/workspace");
     await assertDesktopWorkspacePath(page);
   });
 });
@@ -204,7 +204,7 @@ test.describe("Workspace desktop shell at 1280×800", () => {
   test("keeps the desktop mechanics aligned at normal scale", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:5173/workspace");
+    await page.goto("http://127.0.0.1:15173/workspace");
     await assertDesktopWorkspacePath(page);
   });
 });
@@ -212,7 +212,7 @@ test.describe("Workspace desktop shell at 1280×800", () => {
 test("Workspace right-panel toggle stays anchored while the panel collapses", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const leftSidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   const rightPanel = page.locator("#workspace-activity-panel");
@@ -288,7 +288,7 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
 test("Sidebar toggle tracks the rail edge throughout collapse and expansion", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   const geometry = await sidebar.evaluate((sidebarElement) => {
@@ -338,7 +338,7 @@ test("Sidebar toggle tracks the rail edge throughout collapse and expansion", as
 });
 
 test("Sidebar text stays horizontal after expansion", async ({ page }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   await page.getByRole("button", { name: "收起侧栏" }).click();
@@ -379,7 +379,7 @@ test("Sidebar text stays horizontal after expansion", async ({ page }) => {
 test("Composer stays transparent without a full-width hover line", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const composer = page.getByTestId("chat-input-container");
   await expect(composer).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
@@ -408,7 +408,7 @@ test("Composer stays transparent without a full-width hover line", async ({
 });
 
 test("Workspace command menu preserves keyboard focus", async ({ page }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
   const trigger = page.getByRole("button", { name: "打开命令菜单" });
   await trigger.focus();
 
@@ -435,7 +435,7 @@ test("Workspace command menu preserves keyboard focus", async ({ page }) => {
 test("Workspace tabs and split panel support keyboard control", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const activityTab = page.getByRole("tab", { name: "活动" });
   await activityTab.focus();
@@ -490,7 +490,7 @@ test("Workspace tabs and split panel support keyboard control", async ({
 test("Composer natural layout grows without clipping at 100%", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const input = page.getByRole("textbox", { name: "向 Agent 发送指令" });
   const composer = page.getByTestId("chat-input-container");
@@ -548,7 +548,7 @@ test.describe("Workspace overflow menu at 1024×800", () => {
   test("closes on Escape and restores focus after a tab selection at 200%", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:5173/workspace");
+    await page.goto("http://127.0.0.1:15173/workspace");
     await setDocumentFontScale(page, "200%");
 
     const more = page.getByRole("button", { name: "更多面板" });
@@ -574,7 +574,7 @@ test.describe("Workspace overflow menu at 1024×800", () => {
 test("Split-panel drag has no easing or leftover interception", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const separator = page.getByRole("separator", {
     name: "调整任务与活动面板宽度",
@@ -654,11 +654,14 @@ test("Split-panel drag has no easing or leftover interception", async ({
 test("Public share route renders the fixed safe boundary", async ({ page }) => {
   const errors = collectRuntimeErrors(page);
   const failedResponses: string[] = [];
+  await page.route("**/api/public/shares/demo-token", (route) =>
+    route.fulfill({ status: 404, contentType: "application/json", body: "{}" }),
+  );
   page.on("response", (response) => {
     if (response.status() >= 400) failedResponses.push(response.url());
   });
 
-  await page.goto("http://127.0.0.1:5173/share/demo-token");
+  await page.goto("http://127.0.0.1:15173/share/demo-token");
 
   await expect(
     page.getByRole("heading", { name: "共享结果当前不可用" }),
@@ -705,7 +708,7 @@ test("Public share route never creates a private session", async ({ page }) => {
     }
   });
 
-  await page.goto("http://127.0.0.1:5173/share/demo-token");
+  await page.goto("http://127.0.0.1:15173/share/demo-token");
   await expect(
     page.getByRole("heading", { name: "共享结果当前不可用" }),
   ).toBeVisible();
@@ -721,7 +724,7 @@ test("Public share route never creates a private session", async ({ page }) => {
 test("returning home from the share boundary lands on the Workspace host", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:5173/share/demo-token");
+  await page.goto("http://127.0.0.1:15173/share/demo-token");
   await page.getByRole("link", { name: "返回首页" }).click();
 
   await expect(page).toHaveURL(/\/workspace$/u);
