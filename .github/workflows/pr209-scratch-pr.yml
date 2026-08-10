@@ -1,0 +1,93 @@
+name: PR209 isolated repair trigger
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.event.pull_request.head.ref == 'codex/pr209-final-repair-scratch'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: xingwen_test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d xingwen_test_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/xingwen_test_db
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/xingwen_test_db
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/pr209-final-repair-scratch
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.7.8'
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Sync backend dependencies
+        run: uv sync --project apps/api --frozen
+
+      - name: Apply deterministic repair
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/pr209_scratch_repair.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''                node.args.kwonlyargs = [\n                    arg for arg in node.args.kwonlyargs if arg.arg not in {"sequence", "supersedes"}\n                ]\n                # Keep defaults aligned with keyword-only arguments.\n                original_pairs = list(zip(node.args.kwonlyargs, node.args.kw_defaults))\n                node.args.kwonlyargs = [pair[0] for pair in original_pairs]\n                node.args.kw_defaults = [pair[1] for pair in original_pairs]\n'''
+          new = '''                original_pairs = list(zip(node.args.kwonlyargs, node.args.kw_defaults))\n                kept_pairs = [\n                    pair\n                    for pair in original_pairs\n                    if pair[0].arg not in {"sequence", "supersedes"}\n                ]\n                node.args.kwonlyargs = [pair[0] for pair in kept_pairs]\n                node.args.kw_defaults = [pair[1] for pair in kept_pairs]\n'''
+          if old not in text:
+              raise SystemExit('scratch repair helper signature block drifted')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          python scripts/pr209_scratch_repair.py
+          rm -f .github/workflows/pr209-scratch-pr.yml
+          git diff --check
+
+      - name: Fast current-boundary validation
+        working-directory: apps/api
+        shell: bash
+        run: |
+          uv run python - <<'PY'
+          import app.main
+          from app.services.research import ResearchApplicationService
+          from app.routers import research
+          from app.schemas import core
+          print('research import boundary: OK')
+          PY
+          uv run python -m compileall -q src tests
+          uv run alembic upgrade head
+          uv run pytest tests/test_schema_baseline_postgres.py tests/test_schema_baseline_fk_postgres.py -q
+
+      - name: Commit clean candidate tree
+        shell: bash
+        run: |
+          test ! -e scripts/pr209_scratch_repair.py
+          test ! -e .github/workflows/pr209-scratch-repair.yml
+          test ! -e .github/workflows/pr209-scratch-pr.yml
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m 'refactor(repo): materialize final current architecture'
+          git push origin HEAD:codex/pr209-final-repair-scratch
