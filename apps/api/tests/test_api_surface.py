@@ -6,10 +6,9 @@ import json
 from pathlib import Path
 
 import pytest
-from fastapi.routing import APIRoute
 
 from app import api_surface
-from app.main import app
+from app.main import create_app
 
 
 ROOT = Path(__file__).parents[3]
@@ -106,11 +105,16 @@ def test_runtime_api_routes_match_generated_current_contract() -> None:
         for method in operations
         if method in _OPENAPI_METHODS
     }
+
+    # Build a fresh application and compare its generated HTTP contract rather
+    # than depending on a mutable module-level singleton or FastAPI route class
+    # identity left behind by unrelated tests.
+    runtime_openapi = create_app().openapi()
     runtime_operations = {
-        (method, route.path)
-        for route in app.routes
-        if isinstance(route, APIRoute) and route.path.startswith("/api")
-        for method in route.methods
+        (method.upper(), path)
+        for path, operations in runtime_openapi["paths"].items()
+        for method in operations
+        if method in _OPENAPI_METHODS
     }
 
     assert runtime_operations == contract_operations | SYSTEM_ONLY_OPERATIONS
