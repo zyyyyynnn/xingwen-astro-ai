@@ -1,4 +1,10 @@
-"""Session-scoped Project/Contract/Run application service backed by PostgreSQL."""
+"""Research runtime application boundary for the current ``/api`` chain.
+
+Router -> ResearchApplicationService -> manifest/domain admission + PostgreSQL /
+PersistentWorkflowStore. Routers own HTTP/auth/DTO mapping only. This service
+owns Project, ContractDraft, Contract and ResearchRun use cases while preserving
+session ownership, idempotency and optimistic concurrency.
+"""
 
 from __future__ import annotations
 
@@ -7,10 +13,11 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.contracts.manifest_policy import confirm_research_contract
 from app.db.models import (
     ResearchContractDraftModel,
     ResearchContractModel,
@@ -18,10 +25,10 @@ from app.db.models import (
     ResearchRunModel,
 )
 from app.schemas.core import (
+    ConfirmResearchContractRequest,
     ContractDraftStatus,
-    ContractDraftUpdate,
-    CreateContractDraftRequest,
-    CreateProjectRequest,
+    CreateResearchContractDraftRequest,
+    CreateResearchProjectRequest,
     CreateRunRequest,
     ResearchContract,
     ResearchContractDraft,
@@ -29,12 +36,12 @@ from app.schemas.core import (
     ResearchProject,
     ResearchRun,
     RunEvent,
-    confirm_research_contract,
+    UpdateResearchContractDraftRequest,
+    compute_research_contract_content_hash,
     validate_research_contract_content_hash,
 )
 from app.schemas.manifest import ManifestBundle
-from app.security import SecurityProblem
-from app.services.resource_authority import canonical_request_hash
+from app.security import SecurityProblem, canonical_request_hash, require_revision
 from app.workflow.store import (
     EventSnapshot,
     PersistentWorkflowStore,
@@ -45,85 +52,61 @@ from app.workflow.store import (
 )
 
 
-SessionFactory = Callable[[], Session]
-
-CANONICAL_RUN_STEPS = (
+CANONICAL_RUN_STEPS: tuple[RunStepDefinition, ...] = (
     RunStepDefinition(
-        position=0,
         key="planning",
         label="Planning",
         enter_status="planning",
         success_status="fetching_data",
-        max_attempts=1,
     ),
     RunStepDefinition(
-        position=1,
         key="fetching_data",
         label="Fetching data",
         enter_status="fetching_data",
         success_status="cleaning_data",
-        max_attempts=2,
     ),
     RunStepDefinition(
-        position=2,
         key="cleaning_data",
         label="Cleaning data",
         enter_status="cleaning_data",
         success_status="searching_papers",
-        max_attempts=1,
     ),
     RunStepDefinition(
-        position=3,
         key="searching_papers",
         label="Searching papers",
         enter_status="searching_papers",
         success_status="summarizing_papers",
-        max_attempts=2,
     ),
     RunStepDefinition(
-        position=4,
         key="summarizing_papers",
         label="Summarizing papers",
         enter_status="summarizing_papers",
         success_status="reasoning_literature",
-        max_attempts=1,
     ),
     RunStepDefinition(
-        position=5,
         key="reasoning_literature",
-        label="Reasoning literature",
+        label="Reasoning over literature",
         enter_status="reasoning_literature",
         success_status="building_graph",
-        max_attempts=1,
     ),
     RunStepDefinition(
-        position=6,
         key="building_graph",
         label="Building graph",
         enter_status="building_graph",
         success_status="completed",
-        max_attempts=1,
     ),
 )
 
-
-class ResearchInvalidState(SecurityProblem):
-    def __init__(self, detail: str) -> None:
-        super().__init__(
-            status=409,
-            code="INVALID_STATE_TRANSITION",
-            title="Invalid state transition",
-            detail=detail,
-        )
+DRAFT_TTL = timedelta(hours=1)
 
 
 class ResearchApplicationService:
-    """Own public authoring and Run resource application semantics."""
+    """Ownership-scoped Project, ContractDraft, Contract and Run use cases."""
 
     def __init__(
         self,
         *,
-        factory: SessionFactory,
+        factory: Callable[[], Session],
         workflow_store: PersistentWorkflowStore,
         manifests: ManifestBundle,
     ) -> None:
@@ -131,42 +114,12 @@ class ResearchApplicationService:
         self._workflow = workflow_store
         self._manifests = manifests
 
-    # ---- Projects ---------------------------------------------------------
+    # ---- Project ---------------------------------------------------------
 
-    def create_project(
-        self,
-        *,
-        session_id: str,
-        idempotency_key: str,
-        request: CreateProjectRequest,
-    ) -> ResearchProject:
-        request_hash = canonical_request_hash(request.model_dump(mode="json"))
-        with self._factory() as session, session.begin():
-            existing = session.scalar(
-                select(ResearchProjectModel).where(
-                    ResearchProjectModel.session_id == session_id,
-                    ResearchProjectModel.idempotency_key == idempotency_key,
-                )
-            )
-            if existing is not None:
-                if existing.request_hash != request_hash:
-                    raise _idempotency_conflict()
-                return self._project_read(session, existing)
-
-            model = ResearchProjectModel(
-                session_id=session_id,
-                name=request.name,
-                description=request.description,
-                case_key=request.case_key,
-                idempotency_key=idempotency_key,
-                request_hash=request_hash,
-            )
-            session.add(model)
-            try:
-                session.flush()
-            except IntegrityError as exc:
-                raise _idempotency_conflict() from exc
-            return self._project_read(session, model)
+    def get_project(self, *, project_id: str, session_id: str) -> ResearchProject:
+        with self._factory() as session:
+            project = self._require_project(session, project_id, session_id)
+            return self._project_read(session, project)
 
     def list_projects(
         self,
@@ -175,188 +128,280 @@ class ResearchApplicationService:
         cursor: str | None,
         limit: int,
     ) -> tuple[tuple[ResearchProject, ...], str | None, bool]:
-        after_id = _decode_project_cursor(cursor) if cursor else None
+        """Return a stable newest-first session-scoped keyset page."""
+
         with self._factory() as session:
             query = select(ResearchProjectModel).where(
                 ResearchProjectModel.session_id == session_id
             )
-            if after_id is not None:
-                query = query.where(ResearchProjectModel.id > after_id)
-            rows = tuple(
+            if cursor is not None:
+                anchor_uuid = _decode_project_cursor(cursor)
+                anchor = session.get(ResearchProjectModel, anchor_uuid)
+                if anchor is None or anchor.session_id != session_id:
+                    raise _invalid_cursor()
+                query = query.where(
+                    (ResearchProjectModel.created_at < anchor.created_at)
+                    | (
+                        (ResearchProjectModel.created_at == anchor.created_at)
+                        & (ResearchProjectModel.id < anchor.id)
+                    )
+                )
+            rows = list(
                 session.scalars(
-                    query.order_by(ResearchProjectModel.id).limit(limit + 1)
+                    query.order_by(
+                        ResearchProjectModel.created_at.desc(),
+                        ResearchProjectModel.id.desc(),
+                    ).limit(limit + 1)
                 )
             )
             has_more = len(rows) > limit
-            page = rows[:limit]
-            items = tuple(self._project_read(session, row) for row in page)
+            selected = rows[:limit]
             next_cursor = (
-                _encode_project_cursor(page[-1].id)
-                if has_more and page
+                _encode_project_cursor(selected[-1].id)
+                if selected and has_more
                 else None
             )
-            return items, next_cursor, has_more
+            return (
+                tuple(self._project_read(session, row) for row in selected),
+                next_cursor,
+                has_more,
+            )
 
-    def get_project(self, *, project_id: str, session_id: str) -> ResearchProject:
-        with self._factory() as session:
-            project = self._require_project(session, project_id, session_id)
-            return self._project_read(session, project)
-
-    # ---- Contract drafts --------------------------------------------------
-
-    def create_contract_draft(
+    def create_project(
         self,
         *,
         session_id: str,
         idempotency_key: str,
-        request: CreateContractDraftRequest,
+        request: CreateResearchProjectRequest,
+    ) -> ResearchProject:
+        request_hash = canonical_request_hash(request.model_dump(mode="json"))
+        with self._factory() as session, session.begin():
+            replay = self._project_replay(
+                session,
+                session_id=session_id,
+                idempotency_key=idempotency_key,
+            )
+            if replay is not None:
+                _require_same_idempotent_request(replay.request_hash, request_hash)
+                return self._project_read(session, replay)
+
+            now = datetime.now(UTC)
+            model = ResearchProjectModel(
+                session_id=session_id,
+                name=request.name,
+                description=request.description,
+                case_key=request.case_key,
+                revision=1,
+                created_at=now,
+                updated_at=now,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+            )
+            try:
+                with session.begin_nested():
+                    session.add(model)
+                    session.flush()
+            except IntegrityError as exc:
+                replay = self._project_replay(
+                    session,
+                    session_id=session_id,
+                    idempotency_key=idempotency_key,
+                )
+                if replay is None:
+                    raise
+                _require_same_idempotent_request(
+                    replay.request_hash,
+                    request_hash,
+                    cause=exc,
+                )
+                return self._project_read(session, replay)
+            return self._project_read(session, model)
+
+    # ---- Contract Draft --------------------------------------------------
+
+    def create_draft(
+        self,
+        *,
+        project_id: str,
+        session_id: str,
+        idempotency_key: str,
+        request: CreateResearchContractDraftRequest,
     ) -> ResearchContractDraft:
         request_hash = canonical_request_hash(request.model_dump(mode="json"))
         with self._factory() as session, session.begin():
-            existing = session.scalar(
-                select(ResearchContractDraftModel).where(
-                    ResearchContractDraftModel.session_id == session_id,
-                    ResearchContractDraftModel.idempotency_key == idempotency_key,
-                )
+            # Ownership is checked before any insert or idempotency side effect.
+            self._require_project(session, project_id, session_id)
+            replay = self._draft_replay(
+                session,
+                session_id=session_id,
+                idempotency_key=idempotency_key,
             )
-            if existing is not None:
-                if existing.request_hash != request_hash:
-                    raise _idempotency_conflict()
-                _expire_draft(existing)
-                return _draft(existing)
+            if replay is not None:
+                _require_same_idempotent_request(replay.request_hash, request_hash)
+                return _draft(replay)
 
             now = datetime.now(UTC)
             model = ResearchContractDraftModel(
                 session_id=session_id,
+                version=1,
                 intent=request.intent,
+                status=ContractDraftStatus.draft.value,
                 contract=request.contract.model_dump(mode="json"),
-                warnings=list(request.warnings),
+                warnings=[],
+                created_at=now,
+                updated_at=now,
                 expires_at=now + DRAFT_TTL,
                 idempotency_key=idempotency_key,
                 request_hash=request_hash,
             )
-            session.add(model)
             try:
-                session.flush()
+                with session.begin_nested():
+                    session.add(model)
+                    session.flush()
             except IntegrityError as exc:
-                raise _idempotency_conflict() from exc
+                replay = self._draft_replay(
+                    session,
+                    session_id=session_id,
+                    idempotency_key=idempotency_key,
+                )
+                if replay is None:
+                    raise
+                _require_same_idempotent_request(
+                    replay.request_hash,
+                    request_hash,
+                    cause=exc,
+                )
+                return _draft(replay)
             return _draft(model)
 
-    def get_contract_draft(
-        self, *, draft_id: str, session_id: str
+    def get_draft(
+        self,
+        *,
+        draft_id: str,
+        session_id: str,
     ) -> ResearchContractDraft:
-        draft_uuid = _uuid_or_not_found(draft_id, "CONTRACT_DRAFT_NOT_FOUND")
+        draft_uuid = _uuid_or_not_found(draft_id, "DRAFT_NOT_FOUND")
         with self._factory() as session, session.begin():
-            draft = session.get(ResearchContractDraftModel, draft_uuid)
+            draft = session.get(
+                ResearchContractDraftModel,
+                draft_uuid,
+                with_for_update=True,
+            )
             if draft is None or draft.session_id != session_id:
-                raise _not_found("CONTRACT_DRAFT_NOT_FOUND")
+                raise _not_found("DRAFT_NOT_FOUND")
             _expire_draft(draft)
             return _draft(draft)
 
-    def update_contract_draft(
+    def update_draft(
         self,
         *,
         draft_id: str,
         session_id: str,
         if_match: str,
-        request: ContractDraftUpdate,
+        request: UpdateResearchContractDraftRequest,
     ) -> ResearchContractDraft:
-        expected_version = _parse_if_match(if_match)
-        draft_uuid = _uuid_or_not_found(draft_id, "CONTRACT_DRAFT_NOT_FOUND")
+        expected = _parse_if_match(if_match)
+        draft_uuid = _uuid_or_not_found(draft_id, "DRAFT_NOT_FOUND")
         with self._factory() as session, session.begin():
             draft = session.get(
-                ResearchContractDraftModel, draft_uuid, with_for_update=True
+                ResearchContractDraftModel,
+                draft_uuid,
+                with_for_update=True,
             )
             if draft is None or draft.session_id != session_id:
-                raise _not_found("CONTRACT_DRAFT_NOT_FOUND")
+                raise _not_found("DRAFT_NOT_FOUND")
             _expire_draft(draft)
             if draft.status != ContractDraftStatus.draft.value:
-                raise ResearchInvalidState("Only draft contracts may be updated")
-            if draft.version != expected_version:
                 raise SecurityProblem(
-                    status=412,
-                    code="CONTRACT_VERSION_MISMATCH",
-                    title="Contract version mismatch",
-                    detail="The draft version changed; reload before updating",
+                    status=409,
+                    code="DRAFT_NOT_EDITABLE",
+                    title="Draft not editable",
+                    detail="Only a draft in the draft state can be updated",
                 )
+            require_revision(expected=expected, current=draft.version)
+            if request.intent is not None:
+                draft.intent = request.intent
             if request.contract is not None:
                 draft.contract = request.contract.model_dump(mode="json")
-            if request.warnings is not None:
-                draft.warnings = list(request.warnings)
             draft.version += 1
             draft.updated_at = datetime.now(UTC)
             session.flush()
             return _draft(draft)
 
-    # ---- Contracts --------------------------------------------------------
+    # ---- Contract --------------------------------------------------------
 
-    def get_contract(self, *, contract_id: str, session_id: str) -> ResearchContract:
+    def get_contract(
+        self,
+        *,
+        contract_id: str,
+        session_id: str,
+    ) -> ResearchContract:
         contract_uuid = _uuid_or_not_found(contract_id, "CONTRACT_NOT_FOUND")
         with self._factory() as session:
-            row = session.get(ResearchContractModel, contract_uuid)
-            if row is None:
+            contract = session.get(ResearchContractModel, contract_uuid)
+            if contract is None:
                 raise _not_found("CONTRACT_NOT_FOUND")
-            project = session.get(ResearchProjectModel, row.project_id)
-            if project is None or project.session_id != session_id:
-                raise _not_found("CONTRACT_NOT_FOUND")
-            return _contract(row)
+            self._require_project(session, str(contract.project_id), session_id)
+            return _contract(contract)
 
     def confirm_contract(
         self,
         *,
         project_id: str,
-        draft_id: str,
         session_id: str,
         idempotency_key: str,
+        request: ConfirmResearchContractRequest,
     ) -> ResearchContract:
-        project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
-        draft_uuid = _uuid_or_not_found(draft_id, "CONTRACT_DRAFT_NOT_FOUND")
-        request_hash = canonical_request_hash(
-            {"project_id": project_id, "draft_id": draft_id}
-        )
+        draft_uuid = _uuid_or_not_found(request.draft_id, "DRAFT_NOT_FOUND")
+        request_hash = canonical_request_hash(request.model_dump(mode="json"))
         with self._factory() as session, session.begin():
+            # The Project lock serializes version allocation and confirmation.
             project = self._require_project(
-                session, project_id, session_id, with_for_update=True
+                session,
+                project_id,
+                session_id,
+                with_for_update=True,
             )
-            existing = session.scalar(
+            replay = session.scalar(
                 select(ResearchContractModel).where(
-                    ResearchContractModel.project_id == project_uuid,
+                    ResearchContractModel.project_id == project.id,
                     ResearchContractModel.idempotency_key == idempotency_key,
                 )
             )
-            if existing is not None:
-                if existing.request_hash != request_hash:
-                    raise _idempotency_conflict()
-                return _contract(existing)
+            if replay is not None:
+                _require_same_idempotent_request(replay.request_hash, request_hash)
+                return _contract(replay)
 
             draft = session.get(
-                ResearchContractDraftModel, draft_uuid, with_for_update=True
+                ResearchContractDraftModel,
+                draft_uuid,
+                with_for_update=True,
             )
             if draft is None or draft.session_id != session_id:
-                raise _not_found("CONTRACT_DRAFT_NOT_FOUND")
+                raise _not_found("DRAFT_NOT_FOUND")
             _expire_draft(draft)
             if draft.status != ContractDraftStatus.draft.value:
-                raise ResearchInvalidState("Only draft contracts may be confirmed")
-            already_confirmed = session.scalar(
-                select(ResearchContractModel).where(
-                    ResearchContractModel.created_from_draft_id == draft.id
+                raise SecurityProblem(
+                    status=409,
+                    code="DRAFT_NOT_EDITABLE",
+                    title="Draft not editable",
+                    detail="Only a draft in the draft state can be confirmed",
                 )
+            require_revision(
+                expected=request.expected_draft_version,
+                current=draft.version,
             )
-            if already_confirmed is not None:
-                raise ResearchInvalidState(
-                    "This draft has already been confirmed as a Contract"
-                )
+
+            contract_input = _contract_input(draft.contract)
+            content_hash = compute_research_contract_content_hash(contract_input)
             next_version = (
                 session.scalar(
-                    select(ResearchContractModel.version)
-                    .where(ResearchContractModel.project_id == project.id)
-                    .order_by(ResearchContractModel.version.desc())
-                    .limit(1)
+                    select(func.coalesce(func.max(ResearchContractModel.version), 0)).where(
+                        ResearchContractModel.project_id == project.id
+                    )
                 )
                 or 0
             ) + 1
-            contract_input = _contract_input(draft.contract)
-            content_hash = contract_input.content_hash()
             confirmed = _confirm_or_reject(
                 contract_input,
                 project_id=str(project.id),
@@ -407,6 +452,7 @@ class ResearchApplicationService:
                 parent = session.get(ResearchRunModel, parent_uuid)
                 if parent is None or parent.project_id != project_uuid:
                     raise _not_found("RUN_NOT_FOUND")
+
         request_hash = canonical_request_hash(request.model_dump(mode="json"))
         try:
             snapshot = self._workflow.create_run(
@@ -422,20 +468,19 @@ class ResearchApplicationService:
                 retry_from_step=request.retry_from_step,
             )
         except WorkflowConflictError as exc:
-            raise SecurityProblem(
-                status=409,
-                code="IDEMPOTENCY_CONFLICT",
-                title="Idempotency conflict",
-                detail="The idempotency key was already used with a different request",
-            ) from exc
+            raise _idempotency_conflict() from exc
         return _run(snapshot)
 
     def get_run(self, *, run_id: str, session_id: str) -> ResearchRun:
-        snapshot = self._load_owned_run(run_id, session_id)
-        return _run(snapshot)
+        return _run(self._load_owned_run(run_id, session_id))
 
     def list_run_events(
-        self, *, run_id: str, session_id: str, cursor: str | None, limit: int
+        self,
+        *,
+        run_id: str,
+        session_id: str,
+        cursor: str | None,
+        limit: int,
     ) -> tuple[tuple[RunEvent, ...], str | None, bool]:
         after = _parse_event_cursor(cursor)
         snapshot = self._load_owned_run(
@@ -453,7 +498,9 @@ class ResearchApplicationService:
     # ---- helpers ---------------------------------------------------------
 
     def _project_read(
-        self, session: Session, project: ResearchProjectModel
+        self,
+        session: Session,
+        project: ResearchProjectModel,
     ) -> ResearchProject:
         active_contract_id = session.scalar(
             select(ResearchContractModel.id)
@@ -464,7 +511,10 @@ class ResearchApplicationService:
         latest_run_id = session.scalar(
             select(ResearchRunModel.id)
             .where(ResearchRunModel.project_id == project.id)
-            .order_by(ResearchRunModel.created_at.desc(), ResearchRunModel.id.desc())
+            .order_by(
+                ResearchRunModel.created_at.desc(),
+                ResearchRunModel.id.desc(),
+            )
             .limit(1)
         )
         return _project(
@@ -510,11 +560,55 @@ class ResearchApplicationService:
     ) -> ResearchProjectModel:
         project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
         project = session.get(
-            ResearchProjectModel, project_uuid, with_for_update=with_for_update
+            ResearchProjectModel,
+            project_uuid,
+            with_for_update=with_for_update,
         )
         if project is None or project.session_id != session_id:
             raise _not_found("PROJECT_NOT_FOUND")
         return project
+
+    @staticmethod
+    def _project_replay(
+        session: Session,
+        *,
+        session_id: str,
+        idempotency_key: str,
+    ) -> ResearchProjectModel | None:
+        return session.scalar(
+            select(ResearchProjectModel).where(
+                ResearchProjectModel.session_id == session_id,
+                ResearchProjectModel.idempotency_key == idempotency_key,
+            )
+        )
+
+    @staticmethod
+    def _draft_replay(
+        session: Session,
+        *,
+        session_id: str,
+        idempotency_key: str,
+    ) -> ResearchContractDraftModel | None:
+        return session.scalar(
+            select(ResearchContractDraftModel).where(
+                ResearchContractDraftModel.session_id == session_id,
+                ResearchContractDraftModel.idempotency_key == idempotency_key,
+            )
+        )
+
+
+def _require_same_idempotent_request(
+    stored_hash: str,
+    request_hash: str,
+    *,
+    cause: Exception | None = None,
+) -> None:
+    if stored_hash == request_hash:
+        return
+    conflict = _idempotency_conflict()
+    if cause is None:
+        raise conflict
+    raise conflict from cause
 
 
 def _idempotency_conflict() -> SecurityProblem:
@@ -524,10 +618,6 @@ def _idempotency_conflict() -> SecurityProblem:
         title="Idempotency conflict",
         detail="The idempotency key was already used with a different request",
     )
-
-
-# Drafts expire after one hour.
-DRAFT_TTL = timedelta(hours=1)
 
 
 def _encode_project_cursor(project_id: UUID) -> str:
@@ -655,7 +745,9 @@ def _run(snapshot: RunSnapshot) -> ResearchRun:
         status=snapshot.status,
         progress=snapshot.progress,
         parent_run_id=(
-            str(snapshot.parent_run_id) if snapshot.parent_run_id is not None else None
+            str(snapshot.parent_run_id)
+            if snapshot.parent_run_id is not None
+            else None
         ),
         derivation_kind=snapshot.derivation_kind,
         retry_from_step=snapshot.retry_from_step,
@@ -726,7 +818,10 @@ def _uuid_or_not_found(value: str, code: str) -> UUID:
 
 def _not_found(code: str) -> SecurityProblem:
     return SecurityProblem(
-        status=404, code=code, title="Resource not found", detail="Resource not found"
+        status=404,
+        code=code,
+        title="Resource not found",
+        detail="Resource not found",
     )
 
 
