@@ -28,24 +28,66 @@ jobs:
       - name: Sync backend dependencies
         run: uv sync --project apps/api --frozen
 
-      - name: Apply already-proven deterministic transform
+      - name: Apply deterministic current-tree transform
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          import textwrap
 
-          workflow = Path('.github/workflows/pr209-scratch-pr-v6.yml').read_text(encoding='utf-8')
-          start_marker = "          python - <<'PY'\n"
-          end_marker = "\n          PY\n\n          python scripts/pr209_scratch_repair.py"
-          start = workflow.index(start_marker) + len(start_marker)
-          end = workflow.index(end_marker, start)
-          patch_program = textwrap.dedent(workflow[start:end])
-          exec(compile(patch_program, '<v6-transform-patch>', 'exec'))
+          path = Path('scripts/pr209_scratch_repair.py')
+          text = path.read_text(encoding='utf-8')
+
+          old_defaults = '''                node.args.kwonlyargs = [\n                    arg for arg in node.args.kwonlyargs if arg.arg not in {"sequence", "supersedes"}\n                ]\n                # Keep defaults aligned with keyword-only arguments.\n                original_pairs = list(zip(node.args.kwonlyargs, node.args.kw_defaults))\n                node.args.kwonlyargs = [pair[0] for pair in original_pairs]\n                node.args.kw_defaults = [pair[1] for pair in original_pairs]\n'''
+          new_defaults = '''                original_pairs = list(zip(node.args.kwonlyargs, node.args.kw_defaults))\n                kept_pairs = [pair for pair in original_pairs if pair[0].arg not in {"sequence", "supersedes"}]\n                node.args.kwonlyargs = [pair[0] for pair in kept_pairs]\n                node.args.kw_defaults = [pair[1] for pair in kept_pairs]\n'''
+          if old_defaults in text:
+              text = text.replace(old_defaults, new_defaults, 1)
+
+          text = text.replace(
+              '"    review_records: tuple[BenchmarkReviewRecord, ...] = Field(min_length=1, max_length=1)"',
+              '"    review_records: tuple[BenchmarkReviewRecord, ...] = ()"',
+              1,
+          )
+          text = text.replace(
+              'text = text.replace(anchor, binding, 1)',
+              'text = text.replace(anchor, anchor, 1)',
+              1,
+          )
+
+          history_guard = '    if any(token in text for token in HISTORY_TOKENS):\n'
+          final_review_guard = '''    text = text.replace(\n        "        expected_scientific = compute_benchmark_scientific_payload_hash(self)\\n",\n        "        if len(self.review_records) != 1:\\n"\n        "            raise ValueError(\\\"benchmark package requires exactly one current scientific review\\\")\\n"\n        "        expected_scientific = compute_benchmark_scientific_payload_hash(self)\\n",\n        1,\n    )\n'''
+          if history_guard not in text:
+              raise SystemExit('benchmark history guard drifted')
+          text = text.replace(history_guard, final_review_guard + history_guard, 1)
+          text = text.replace('segment = _node_text(source, node)', 'segment = ast.unparse(node)')
+
+          old_import_scan = '''    hits: dict[str, list[str]] = {module: [] for module in RETIRED_MODULES}\n    for path in (ROOT / "apps/api").rglob("*.py"):\n        relative = path.relative_to(ROOT).as_posix()\n        if relative in {\n            "apps/api/src/app/schemas/graph.py",\n            "apps/api/src/app/schemas/reasoning.py",\n        }:\n            continue\n        source = path.read_text(encoding="utf-8", errors="ignore")\n        for module in RETIRED_MODULES:\n            if module in source:\n                hits[module].append(relative)\n    blocking = {module: paths for module, paths in hits.items() if paths}\n'''
+          exact_import_scan = '''    hits: dict[str, list[str]] = {module: [] for module in RETIRED_MODULES}\n    for path in (ROOT / "apps/api").rglob("*.py"):\n        relative = path.relative_to(ROOT).as_posix()\n        if relative in {\n            "apps/api/src/app/schemas/graph.py",\n            "apps/api/src/app/schemas/reasoning.py",\n        }:\n            continue\n        source = path.read_text(encoding="utf-8", errors="ignore")\n        try:\n            tree = ast.parse(source)\n        except SyntaxError:\n            continue\n        for node in ast.walk(tree):\n            if isinstance(node, ast.ImportFrom) and node.module in RETIRED_MODULES:\n                hits[node.module].append(relative)\n            elif isinstance(node, ast.Import):\n                for alias in node.names:\n                    if alias.name in RETIRED_MODULES:\n                        hits[alias.name].append(relative)\n    blocking = {module: sorted(set(paths)) for module, paths in hits.items() if paths}\n'''
+          if old_import_scan not in text:
+              raise SystemExit('retired import scan drifted')
+          text = text.replace(old_import_scan, exact_import_scan, 1)
+
+          markdown_loop = '''        for line in lines:\n            if re.match(r"^\\|\\s*(?:Status|Issue|Superseded by|Time range)\\s*\\|", line, re.I):\n                continue\n'''
+          markdown_loop_new = '''        for line in lines:\n            if "/api/tasks" in line:\n                continue\n            if re.match(r"^\\|\\s*(?:Status|Issue|Superseded by|Time range)\\s*\\|", line, re.I):\n                continue\n'''
+          if markdown_loop not in text:
+              raise SystemExit('Markdown cleanup loop drifted')
+          text = text.replace(markdown_loop, markdown_loop_new, 1)
+
+          api_write = '''    api_path.write_text(api, encoding="utf-8", newline="\\n")\n\n'''
+          benchmark_docs = api_write + '''    benchmark_readme = ROOT / "services/paper_pipeline/benchmarks/README.md"\n    benchmark_doc = benchmark_readme.read_text(encoding="utf-8")\n    benchmark_doc = benchmark_doc.replace(\n        "- 内容或语义变化必须提升 `benchmark_version`，更新当前 `change_records`、`review_records` 和 `content_hash`。\\n",\n        "- 内容或语义变化必须提升 `benchmark_version`，更新当前 `review_records` 和 `content_hash`。\\n",\n    )\n    benchmark_doc = benchmark_doc.replace(\n        "- `review_records` 只表达科研评审：记录 reviewer identity、verdict、review sequence/supersedes、version、scientific payload hash、findings 和结构化对象范围；automation 不能产生正式通过结论。\\n",\n        "- `review_records` 只表达当前科研评审：记录 reviewer identity、reviewed_at、purpose、verdict、当前 benchmark version、scientific payload hash、findings 和结构化对象范围；automation 不能产生正式通过结论。\\n",\n    )\n    benchmark_doc = benchmark_doc.replace(\n        "- Review 链最新叶节点有效，存在未解决的科研阻断项时不得批准 Package。\\n",\n        "- 当前科研评审存在阻断项时不得批准 Package。\\n",\n    )\n    benchmark_doc = benchmark_doc.replace(\n        "`created_at`、`review_records` 和 `change_records` 均进入完整 `content_hash`，因为它们属于已发布基准的审计内容。",\n        "`created_at` 与当前 `review_records` 进入完整 `content_hash`，因为它们属于当前基准的审计内容。",\n    )\n    benchmark_doc = benchmark_doc.replace(\n        "`scientific_payload_hash` 使用相同 canonical JSON 规则，但排除 `content_hash`、自身、`review_records` 和 `change_records`，",\n        "`scientific_payload_hash` 使用相同 canonical JSON 规则，但排除 `content_hash`、自身和 `review_records`，",\n    )\n    benchmark_readme.write_text(benchmark_doc, encoding="utf-8", newline="\\n")\n\n'''
+          if api_write not in text:
+              raise SystemExit('API doc anchor drifted')
+          text = text.replace(api_write, benchmark_docs, 1)
+
+          old_order = '''    delete_development_migrations()\n    final_static_assertions()\n    remove_scratch_assets()\n'''
+          new_order = '''    delete_development_migrations()\n    remove_scratch_assets()\n    final_static_assertions()\n'''
+          if old_order not in text:
+              raise SystemExit('final assertion order drifted')
+          text = text.replace(old_order, new_order, 1)
+          path.write_text(text, encoding='utf-8')
           PY
 
           python scripts/pr209_scratch_repair.py
-          rm -f .github/workflows/pr209-scratch-pr*.yml
+          rm -f .github/workflows/pr209-scratch-pr-v7.yml
           git diff --check
 
       - name: Fast import and compile smoke
