@@ -1,4 +1,4 @@
-"""Publisher-port bypass and provenance contracts for Versioned Evidence Graph artifacts."""
+"""Publisher-port bypass and provenance contracts for Evidence Graph artifacts."""
 
 from __future__ import annotations
 
@@ -11,8 +11,6 @@ import pytest
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.core import ArtifactKind, GraphArtifactContent
-from app.schemas.enums import GraphEdgeType, GraphNodeType
-from app.schemas.graph import GraphEdge, GraphNode, GraphResponse
 from app.schemas.graph_artifact import GraphArtifactCandidate
 from app.workflow import publisher as publisher_module
 from app.workflow.publisher import (
@@ -133,7 +131,7 @@ def test_idempotent_graph_replay_requires_exact_persisted_producer_snapshot(
     parameters_hash = "sha256:" + "b" * 64
     producer = SimpleNamespace(
         producer_type="algorithm",
-        producer_name="versioned-evidence-graph-pipeline",
+        producer_name="evidence-graph-pipeline",
         producer_version="1.0.0",
         parameters_hash=parameters_hash,
         input_hash=input_hash,
@@ -353,45 +351,6 @@ def test_raw_graph_mapping_is_rejected() -> None:
         )
 
 
-def test_graph_read_projection_is_rejected() -> None:
-    candidate = GraphResponse(
-        nodes=[
-            GraphNode(
-                id="node.paper",
-                type=GraphNodeType.paper,
-                label="Paper",
-                ref_id="paper.1",
-            ),
-            GraphNode(
-                id="node.claim",
-                type=GraphNodeType.claim,
-                label="Claim",
-                ref_id="claim.1",
-            ),
-        ],
-        edges=[
-            GraphEdge(
-                id="edge.supports",
-                source="node.paper",
-                target="node.claim",
-                type=GraphEdgeType.supports_finding,
-                evidence_ids=["evidence.1"],
-            )
-        ],
-    )
-
-    with pytest.raises(PublicationAdmissionError, match="Graph read projection"):
-        admit_artifact_candidate(
-            candidate,
-            schema_version="1.0.0",
-            source_snapshot_ids=("snapshot.1",),
-            evidence_ids=("evidence.1",),
-            evidence_validator=_accept,
-            domain_validator=_accept,
-            quality_validator=_accept,
-        )
-
-
 def test_core_graph_artifact_projection_cannot_bypass_evidence_graph_admission() -> None:
     candidate = GraphArtifactContent(
         kind=ArtifactKind.graph,
@@ -399,7 +358,7 @@ def test_core_graph_artifact_projection_cannot_bypass_evidence_graph_admission()
         edge_ids=("edge.supports",),
     )
 
-    with pytest.raises(PublicationAdmissionError, match="authoritative Versioned Evidence Graph"):
+    with pytest.raises(PublicationAdmissionError, match="authoritative Evidence Graph"):
         admit_artifact_candidate(
             candidate,
             schema_version="1.0.0",
@@ -417,7 +376,7 @@ def test_forged_graph_model_and_admission_method_are_rejected() -> None:
         evidence_ids=("evidence.1",),
     )
 
-    with pytest.raises(PublicationAdmissionError, match="authoritative Versioned Evidence Graph"):
+    with pytest.raises(PublicationAdmissionError, match="authoritative Evidence Graph"):
         admit_artifact_candidate(
             candidate,
             schema_version=candidate.schema_version,
