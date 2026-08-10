@@ -79,9 +79,6 @@ REQUIRED_ENV_KEYS = {
     "URL_FETCH_MAX_RESPONSE_BYTES",
 }
 
-# These settings previously represented runtime switches or capabilities with no
-# current consumer. A future implementation must introduce its exact consumed
-# settings together with the implementation rather than reserving placeholders.
 FORBIDDEN_ENV_KEYS = {
     "PERSISTENT_WORKFLOW_ENABLED",
     "DASHSCOPE_API_KEY",
@@ -105,6 +102,13 @@ DEPENDENCY_FIELDS = (
 )
 FORBIDDEN_FRONTEND_PACKAGES = {"vue", "vue-demi"}
 FORBIDDEN_FRONTEND_PACKAGE_PREFIXES = ("@vue/",)
+
+WORKFLOW_AUTHORING_ALLOWLIST: frozenset[str] = frozenset()
+_WORKFLOW_AUTHORING_PATTERNS = (
+    ("contents: write", re.compile(r"(?mi)^\s*contents\s*:\s*write\s*(?:#.*)?$")),
+    ("git commit", re.compile(r"(?i)\bgit\s+commit\b")),
+    ("git push", re.compile(r"(?i)\bgit\s+push\b")),
+)
 
 
 def tracked_files() -> list[str]:
@@ -156,6 +160,21 @@ def lockfile_package_names(content: str) -> set[str]:
     return names
 
 
+def workflow_authoring_violations(relative: str, content: str) -> tuple[str, ...]:
+    """Return forbidden self-authoring capabilities in one tracked workflow."""
+
+    normalized = relative.replace("\\", "/")
+    if not normalized.startswith(".github/workflows/"):
+        return ()
+    if Path(normalized).suffix.lower() not in {".yml", ".yaml"}:
+        return ()
+    if normalized in WORKFLOW_AUTHORING_ALLOWLIST:
+        return ()
+    return tuple(
+        label for label, pattern in _WORKFLOW_AUTHORING_PATTERNS if pattern.search(content)
+    )
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -193,6 +212,16 @@ def main() -> int:
                     errors.append(
                         f"forbidden frontend dependency in {normalized}: {package_name}"
                     )
+
+        if normalized.startswith(".github/workflows/") and path.suffix.lower() in {
+            ".yml",
+            ".yaml",
+        }:
+            workflow = (ROOT / normalized).read_text(encoding="utf-8")
+            for violation in workflow_authoring_violations(normalized, workflow):
+                errors.append(
+                    f"self-authoring CI is forbidden in {normalized}: {violation}"
+                )
 
     if lockfiles != ["pnpm-lock.yaml"]:
         errors.append(
