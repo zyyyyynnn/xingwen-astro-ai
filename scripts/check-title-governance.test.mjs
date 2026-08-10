@@ -108,7 +108,14 @@ test("template CLI validates an explicit template directory", () => {
       ["scripts/check-title-governance.mjs"],
       {
         cwd: process.cwd(),
-        env: { ...process.env, TEMPLATE_DIR: directory },
+        env: {
+          ...process.env,
+          PR_TITLE: "",
+          BASE_SHA: "",
+          HEAD_SHA: "",
+          INTEGRATION_SHA: "",
+          TEMPLATE_DIR: directory,
+        },
         encoding: "utf8",
       },
     );
