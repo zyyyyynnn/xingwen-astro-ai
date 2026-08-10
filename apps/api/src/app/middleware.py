@@ -1,4 +1,4 @@
-"""Request ID middleware and API error handlers."""
+"""Request ID middleware, security enforcement, and RFC 9457 error handlers."""
 
 from __future__ import annotations
 
@@ -8,24 +8,31 @@ from typing import Any
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from app import api_surface
-from app.errors import ApiError
-from app.schemas.common import ApiResponse
 from app.schemas.core import ProblemDetails, ProblemFieldError
 from app.security import SecurityProblem, SessionService
 
-ERROR_CODE_MAP = {
-    400: "INVALID_REQUEST",
-    404: "TASK_NOT_FOUND",
-    409: "TASK_NOT_READY",
-    422: "SCHEMA_VALIDATION_FAILED",
+
+_HTTP_PROBLEMS: dict[int, tuple[str, str]] = {
+    400: ("INVALID_REQUEST", "Invalid request"),
+    401: ("UNAUTHORIZED", "Unauthorized"),
+    403: ("FORBIDDEN", "Forbidden"),
+    404: ("RESOURCE_NOT_FOUND", "Resource not found"),
+    405: ("METHOD_NOT_ALLOWED", "Method not allowed"),
+    409: ("CONFLICT", "Conflict"),
+    413: ("PAYLOAD_TOO_LARGE", "Payload too large"),
+    415: ("UNSUPPORTED_MEDIA_TYPE", "Unsupported media type"),
+    422: ("SCHEMA_VALIDATION_FAILED", "Request validation failed"),
+    429: ("RATE_LIMITED", "Too many requests"),
+    500: ("INTERNAL_ERROR", "Internal server error"),
+    503: ("SERVICE_UNAVAILABLE", "Service unavailable"),
 }
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Any) -> JSONResponse:  # noqa: ANN401
+    async def dispatch(self, request: Request, call_next: Any) -> Response:  # noqa: ANN401
         request_id = request.headers.get("X-Request-Id", uuid.uuid4().hex[:12])
         request.state.request_id = request_id
         response = await call_next(request)
@@ -39,7 +46,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         self.sessions = sessions
         self.cookie_name = cookie_name
 
-    async def dispatch(self, request: Request, call_next: Any) -> JSONResponse:  # noqa: ANN401
+    async def dispatch(self, request: Request, call_next: Any) -> Response:  # noqa: ANN401
         if not api_surface.requires_authentication(request.method, request.url.path):
             return await call_next(request)
         try:
@@ -53,6 +60,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
 
 def problem_response(request: Request, exc: SecurityProblem) -> JSONResponse:
+    """Serialize one application/security failure using the sole error contract."""
+
     request_id = getattr(request.state, "request_id", "") or "unknown"
     problem = ProblemDetails(
         type=f"https://xingwen.example/errors/{exc.code.lower().replace('_', '-')}",
@@ -80,93 +89,53 @@ async def security_exception_handler(
     return problem_response(request, exc)
 
 
-async def api_error_exception_handler(request: Request, exc: ApiError) -> JSONResponse:
-    request_id = getattr(request.state, "request_id", "")
-    response = ApiResponse.fail(
-        exc.code, exc.message, exc.detail, request_id=request_id
-    )
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=response.model_dump(mode="json"),
-        headers={"X-Request-Id": request_id},
-    )
-
-
 async def api_http_exception_handler(
     request: Request, exc: HTTPException
 ) -> JSONResponse:
-    if api_surface.uses_problem_details(request.url.path):
-        problem = SecurityProblem(
-            status=exc.status_code,
-            code="INVALID_REQUEST" if exc.status_code == 400 else "RESOURCE_NOT_FOUND",
-            title="Invalid request" if exc.status_code == 400 else "Resource not found",
-            detail="The request could not be completed",
-        )
-        return problem_response(request, problem)
-    request_id = getattr(request.state, "request_id", "")
-    response = ApiResponse.fail(
-        ERROR_CODE_MAP.get(exc.status_code, "INVALID_REQUEST"),
-        str(exc.detail),
-        request_id=request_id,
+    code, title = _HTTP_PROBLEMS.get(
+        exc.status_code, ("HTTP_ERROR", "Request failed")
     )
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=response.model_dump(mode="json"),
-        headers={"X-Request-Id": request_id},
+    detail = str(exc.detail) if isinstance(exc.detail, str) and exc.detail else title
+    return problem_response(
+        request,
+        SecurityProblem(
+            status=exc.status_code,
+            code=code,
+            title=title,
+            detail=detail,
+            headers=dict(exc.headers or {}),
+        ),
     )
 
 
 async def api_validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    if api_surface.uses_problem_details(request.url.path):
-        request_id = getattr(request.state, "request_id", "") or "unknown"
-        problem = ProblemDetails(
-            type="https://xingwen.example/errors/schema-validation-failed",
-            title="Request validation failed",
-            status=422,
-            detail="The request does not match the required schema",
-            instance=_problem_instance(request),
-            code="SCHEMA_VALIDATION_FAILED",
-            request_id=request_id,
-            errors=tuple(
-                ProblemFieldError(
-                    field=".".join(str(loc) for loc in error["loc"]),
-                    code=error["type"],
-                    message=error["msg"],
-                )
-                for error in exc.errors()
-            ),
-        )
-        headers = {"X-Request-Id": request_id, "Cache-Control": "no-store"}
-        headers.update(_public_share_headers(request))
-        return JSONResponse(
-            status_code=422,
-            content=problem.model_dump(mode="json"),
-            media_type="application/problem+json",
-            headers=headers,
-        )
-    request_id = getattr(request.state, "request_id", "")
-    detail = {
-        "validation_errors": [
-            {
-                "loc": " -> ".join(str(loc) for loc in error["loc"]),
-                "msg": error["msg"],
-                "type": error["type"],
-            }
-            for error in exc.errors()
-        ]
-    }
-    response = ApiResponse.fail(
-        "SCHEMA_VALIDATION_FAILED",
-        "Request validation failed",
-        detail,
+    request_id = getattr(request.state, "request_id", "") or "unknown"
+    problem = ProblemDetails(
+        type="https://xingwen.example/errors/schema-validation-failed",
+        title="Request validation failed",
+        status=422,
+        detail="The request does not match the required schema",
+        instance=_problem_instance(request),
+        code="SCHEMA_VALIDATION_FAILED",
         request_id=request_id,
+        errors=tuple(
+            ProblemFieldError(
+                field=".".join(str(loc) for loc in error["loc"]),
+                code=error["type"],
+                message=error["msg"],
+            )
+            for error in exc.errors()
+        ),
     )
+    headers = {"X-Request-Id": request_id, "Cache-Control": "no-store"}
+    headers.update(_public_share_headers(request))
     return JSONResponse(
         status_code=422,
-        content=response.model_dump(mode="json"),
-        headers={"X-Request-Id": request_id},
+        content=problem.model_dump(mode="json"),
+        media_type="application/problem+json",
+        headers=headers,
     )
 
 
