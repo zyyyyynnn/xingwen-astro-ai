@@ -41,6 +41,12 @@ jobs:
           materialize_end = source.index("\n      - name: Commit clean candidate tree", materialize_start)
           materialize = textwrap.dedent(source[materialize_start:materialize_end])
 
+          old_scan = '''                  if rel.startswith("apps/workspace/upstream/") or rel.startswith(".github/ISSUE_TEMPLATE/") or rel == ".github/pull_request_template.md" or not path.is_file():\n                      continue\n'''
+          new_scan = '''                  if (\n                      rel.startswith("apps/workspace/upstream/")\n                      or rel.startswith(".github/ISSUE_TEMPLATE/")\n                      or rel == ".github/pull_request_template.md"\n                      or rel in {\n                          "scripts/check-architecture-delegacy.mjs",\n                          "scripts/check-architecture-delegacy.test.mjs",\n                      }\n                      or not path.is_file()\n                  ):\n                      continue\n'''
+          if old_scan not in materialize:
+              raise SystemExit('materializer static sweep anchor drifted')
+          materialize = materialize.replace(old_scan, new_scan, 1)
+
           commit_start = source.index(commit_marker) + len(commit_marker)
           commit = textwrap.dedent(source[commit_start:])
 
