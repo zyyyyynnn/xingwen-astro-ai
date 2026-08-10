@@ -116,6 +116,7 @@ def register_data_artifact_contract(
         "/api/exports/{export_id}/download",
         operation_id="downloadArtifactExport",
         response_class=Response,
+        response_model=None,
         responses=problem_responses,
     )
     def download_artifact_export(
