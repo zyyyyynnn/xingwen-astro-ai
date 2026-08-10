@@ -11,4 +11,4 @@ router = APIRouter(tags=["system"])
 
 @router.get("/api/health")
 async def health():
-    return {"status": "ok", "version": settings.APP_VERSION, "env": settings.APP_ENV}
+    return {"status": "ok", "env": settings.APP_ENV}
