@@ -214,6 +214,14 @@ class ResearchRunModel(TimestampMixin, Base):
             "(derivation_kind <> 'original' AND parent_run_id IS NOT NULL)",
             name="derivation_parent",
         ),
+        CheckConstraint(
+            "retry_from_step IS NULL OR derivation_kind = 'retry'",
+            name="retry_step_derivation",
+        ),
+        CheckConstraint(
+            "cache_policy IN ('disabled','fallback_on_recoverable_failure')",
+            name="cache_policy",
+        ),
     )
 
 

@@ -639,6 +639,22 @@ class BenchmarkPackagePayload(BaseModel):
                     f"{missing_review_targets}"
                 )
 
+        if (
+            self.review_status is BenchmarkReviewStatus.pending_scientific_review
+            and self.scientific_review is not None
+        ):
+            raise ValueError("pending package cannot include a scientific review")
+
+        if self.review_status is BenchmarkReviewStatus.changes_requested:
+            current_review = self.scientific_review
+            if (
+                current_review is None
+                or current_review.verdict is not BenchmarkReviewVerdict.blocked
+            ):
+                raise ValueError(
+                    "changes requested requires current BLOCKED review"
+                )
+
         if self.review_status is BenchmarkReviewStatus.approved:
             current_review = self.scientific_review
             if current_review is None:

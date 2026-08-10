@@ -164,6 +164,7 @@ def _review_fixture(
 
     payload = _read_payload()
     payload["review_status"] = package_status.value
+    payload["scientific_review"] = None
     for index, relation in enumerate(payload["relations"]):
         relation["review_status"] = (
             BenchmarkReviewStatus.approved.value
@@ -457,13 +458,14 @@ def test_automation_review_cannot_approve_package() -> None:
         BenchmarkPackagePayload.model_validate(payload)
 
 
-def test_web_gpt_review_requires_explicit_purpose_and_content_binding() -> None:
+def test_changes_requested_accepts_current_blocked_web_gpt_review() -> None:
     payload = _read_payload()
     payload.pop("content_hash")
-    payload["review_status"] = "pending_scientific_review"
+    payload["review_status"] = "changes_requested"
     payload["scientific_review"] = _review_record(
         payload,
-        review_id="review.web_gpt_technical_pass",
+        review_id="review.web_gpt_blocked",
+        verdict="blocked",
         scope=_full_review_scope(payload),
     )
 
@@ -609,6 +611,27 @@ def test_pending_package_can_omit_scientific_review() -> None:
 
     package = BenchmarkPackage.model_validate(payload)
     assert package.scientific_review is None
+
+
+def test_pending_package_rejects_existing_scientific_review() -> None:
+    payload = _approved_payload("benchmark_scientific_review")
+    payload["review_status"] = "pending_scientific_review"
+
+    with pytest.raises(ValidationError, match="pending package cannot include"):
+        BenchmarkPackagePayload.model_validate(payload)
+
+
+@pytest.mark.parametrize("review_case", ["missing", "passed"])
+def test_changes_requested_requires_current_blocked_review(review_case: str) -> None:
+    payload = _approved_payload("benchmark_scientific_review")
+    payload["review_status"] = "changes_requested"
+    if review_case == "missing":
+        payload["scientific_review"] = None
+
+    with pytest.raises(
+        ValidationError, match="changes requested requires current BLOCKED review"
+    ):
+        BenchmarkPackagePayload.model_validate(payload)
 
 
 def test_unsupported_reviewer_type_is_rejected() -> None:

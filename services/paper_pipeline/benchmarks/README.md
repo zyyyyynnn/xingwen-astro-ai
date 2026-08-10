@@ -38,7 +38,7 @@ Seed papers 和结构化样例属于 `Benchmark / seed` 数据等级，只允许
 - `benchmark_version` 表示论文、Evidence、科研审核标签、Graph 或指标内容版本。
 - 内容或语义变化必须提升 `benchmark_version`，同步当前 `scientific_review` 与 `content_hash`。
 - `scientific_review` 表达单一当前科研评审：记录 reviewer identity、`reviewed_at`、purpose、verdict、当前 benchmark version、scientific payload hash、findings 和结构化对象范围；automation 不能产生正式通过结论。
-- 当前科研评审存在阻断项时不得批准 Package。
+- `pending_scientific_review` 不得携带评审；`changes_requested` 必须绑定当前完整范围的 `BLOCKED` 评审；`approved` 必须绑定当前完整范围的正式 `PASS` 评审。
 - 已发布的技术身份不得原地改变语义；仓库只维护当前消费的 Benchmark 定义。
 - 消费方固定 `benchmark_id + benchmark_version + content_hash`，不得读取动态 latest。
 

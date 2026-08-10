@@ -27,6 +27,7 @@ REQUIRED_FILES = (
     "scripts/check-docs-rules.mjs",
     "scripts/check-docs.test.mjs",
     "scripts/check-frontend-architecture.mjs",
+    "scripts/check-versionless-api.test.mjs",
     "scripts/test_check_foundation.py",
     "apps/site/package.json",
     "apps/workspace/package.json",

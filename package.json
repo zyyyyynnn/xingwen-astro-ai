@@ -20,7 +20,7 @@
     "check:architecture": "node --test scripts/check-architecture-delegacy.test.mjs && node scripts/check-architecture-delegacy.mjs && node scripts/check-frontend-architecture.mjs && node --test scripts/check-agent-upstream-adoption.test.mjs scripts/check-agent-upstream-policy.test.mjs && node scripts/check-agent-upstream-adoption.mjs && node scripts/check-agent-upstream-policy.mjs",
     "check:agent-upstream": "node --test scripts/check-agent-upstream-adoption.test.mjs scripts/check-agent-upstream-policy.test.mjs && node scripts/check-agent-upstream-adoption.mjs && node scripts/check-agent-upstream-policy.mjs",
     "generate:agent-upstream-provenance": "node scripts/generate-agent-upstream-provenance.mjs",
-    "check:versionless": "node scripts/check-versionless-api.mjs",
+    "check:versionless": "node --test scripts/check-versionless-api.test.mjs && node scripts/check-versionless-api.mjs",
     "check": "pnpm format:check && pnpm check:docs && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:architecture && pnpm check:versionless"
   },
   "devDependencies": {

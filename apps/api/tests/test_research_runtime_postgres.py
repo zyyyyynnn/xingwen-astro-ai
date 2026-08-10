@@ -213,7 +213,7 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
         json={"draft_id": draft_id, "expected_draft_version": 2},
     )
     assert confirm_replay.status_code == 201
-    assert confirm_replay.json()["data"]["id"] == contract_id
+    assert confirm_replay.json()["data"] == confirmed.json()["data"]
 
     conflicting_draft_id = uuid4()
     factory = runtime["factory"]

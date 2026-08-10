@@ -241,6 +241,14 @@ def upgrade() -> None:
             "(derivation_kind <> 'original' AND parent_run_id IS NOT NULL)",
             name="ck_research_runs_derivation_parent",
         ),
+        sa.CheckConstraint(
+            "retry_from_step IS NULL OR derivation_kind = 'retry'",
+            name="ck_research_runs_retry_step_derivation",
+        ),
+        sa.CheckConstraint(
+            "cache_policy IN ('disabled','fallback_on_recoverable_failure')",
+            name="ck_research_runs_cache_policy",
+        ),
         sa.ForeignKeyConstraint(
             ["contract_id", "project_id"],
             ["research_contracts.id", "research_contracts.project_id"],

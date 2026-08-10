@@ -96,7 +96,7 @@ popd
 if not "%MIGRATION_RESULT%"=="0" goto :abort
 
 echo [INFO] Starting backend window...
-start "Xingwen Backend" pwsh -NoLogo -NoExit -Command "Set-Location -LiteralPath '%API_DIR%'; $env:DATABASE_URL='%LOCAL_DATABASE_URL%'; uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000"
+start "Xingwen Backend" pwsh -NoLogo -NoExit -Command "Set-Location -LiteralPath '%ROOT%'; $env:DATABASE_URL='%LOCAL_DATABASE_URL%'; uv run --project '%API_DIR%' uvicorn app.main:app --app-dir '%API_DIR%\src' --reload --host 127.0.0.1 --port 8000"
 call :wait_for_url "%API_HEALTH_URL%" 120 Backend || goto :diagnose
 
 echo [INFO] Starting frontend window...

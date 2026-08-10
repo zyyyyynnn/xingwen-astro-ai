@@ -26,8 +26,6 @@ from app.db.models import (
     ArtifactVersionModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
-    ResearchContractModel,
-    ResearchProjectModel,
     ResearchRunModel,
     RunEventModel,
     RunStepModel,
@@ -270,6 +268,44 @@ def test_database_rejects_cross_project_contract_reference(postgres_engine: Engi
     with UnitOfWork(factory) as uow:
         uow.session.add(other_project)
         uow.session.flush()
+        uow.runs.add(invalid_run)
+        with pytest.raises(IntegrityError):
+            uow.commit()
+        uow.rollback()
+
+
+@pytest.mark.parametrize(
+    ("overrides", "idempotency_key"),
+    [
+        ({"retry_from_step": "fetching_data"}, "invalid-retry-origin"),
+        ({"cache_policy": "arbitrary"}, "invalid-cache-policy"),
+    ],
+)
+def test_database_rejects_run_values_outside_domain_contract(
+    postgres_engine: Engine,
+    overrides: dict[str, str],
+    idempotency_key: str,
+) -> None:
+    existing_run, _ = _seed_run(postgres_engine)
+    factory = session_factory(postgres_engine)
+    run_values: dict[str, object] = {
+        "id": uuid4(),
+        "project_id": existing_run.project_id,
+        "contract_id": existing_run.contract_id,
+        "execution_mode": "live",
+        "status": "queued",
+        "progress": 0,
+        "derivation_kind": "original",
+        "cache_policy": "disabled",
+        "latest_event_sequence": 0,
+        "revision": 1,
+        "idempotency_key": idempotency_key,
+        "request_hash": "sha256:" + "f" * 64,
+    }
+    run_values.update(overrides)
+    invalid_run = ResearchRunModel(**run_values)
+
+    with UnitOfWork(factory) as uow:
         uow.runs.add(invalid_run)
         with pytest.raises(IntegrityError):
             uow.commit()
