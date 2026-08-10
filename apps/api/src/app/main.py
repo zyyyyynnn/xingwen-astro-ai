@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import timedelta
+from importlib.metadata import version as package_version
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -89,7 +90,7 @@ def create_app() -> FastAPI:
     install_share_token_access_log_filter()
     app = FastAPI(
         title=settings.APP_TITLE,
-        version=settings.APP_VERSION,
+        version=package_version("api"),
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
     )
