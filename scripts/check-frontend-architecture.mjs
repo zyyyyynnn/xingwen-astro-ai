@@ -259,9 +259,9 @@ if (!existsSync(uiComponentsConfigPath)) {
       `packages/ui #utils import (${imports["#utils"]}) must resolve to an existing local module.`,
     );
   }
-  if (imports["#ui"] === "./src") {
+  if (!imports["#ui/*"] || !imports["#ui/*"].startsWith("./src/")) {
     failures.push(
-      "packages/ui/package.json #ui import must use subpath pattern #ui/* -> ./src/* for component subpath resolution.",
+      "packages/ui/package.json #ui/* import must use subpath pattern #ui/* -> ./src/*.tsx for component subpath resolution.",
     );
   }
 }
@@ -338,6 +338,52 @@ const productionUiUsagesByFile = new Map(
   ]),
 );
 
+function collectPublicRuntimeExports(file, content) {
+  const sourceFile = ts.createSourceFile(
+    file,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindFor(file),
+  );
+  const runtimeExports = new Set();
+
+  for (const statement of sourceFile.statements) {
+    if (ts.isExportDeclaration(statement)) {
+      if (statement.isTypeOnly) continue;
+      if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+        for (const element of statement.exportClause.elements) {
+          if (!element.isTypeOnly) {
+            runtimeExports.add(element.name.text);
+          }
+        }
+      }
+    } else if (
+      (ts.isFunctionDeclaration(statement) ||
+        ts.isClassDeclaration(statement) ||
+        ts.isVariableStatement(statement)) &&
+      statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+    ) {
+      if (ts.isVariableStatement(statement)) {
+        for (const decl of statement.declarationList.declarations) {
+          if (ts.isIdentifier(decl.name)) {
+            runtimeExports.add(decl.name.text);
+          }
+        }
+      } else if (statement.name && ts.isIdentifier(statement.name)) {
+        runtimeExports.add(statement.name.text);
+      }
+    }
+  }
+
+  return runtimeExports;
+}
+
+const publicUiRuntimeExports = collectPublicRuntimeExports(
+  "packages/ui/src/index.ts",
+  readFileSync(resolve(root, "packages/ui/src/index.ts"), "utf8"),
+);
+
 if (!existsSync(componentSourcesPath)) {
   failures.push(
     "packages/ui/component-sources.json must record shadcn provenance.",
@@ -358,6 +404,12 @@ if (!existsSync(componentSourcesPath)) {
       );
     } else {
       seenNames.add(component.name);
+    }
+
+    if (!publicUiRuntimeExports.has(component.name)) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} in component-sources.json must be a public runtime value export of @xingwen/ui.`,
+      );
     }
 
     if (!component.local_path || typeof component.local_path !== "string") {
@@ -399,6 +451,25 @@ if (!existsSync(componentSourcesPath)) {
     ) {
       failures.push(
         `UI component ${component.name ?? "unknown"} must declare an immutable upstream_revision (not main/master/latest).`,
+      );
+    }
+
+    if (
+      !component.upstream_commit ||
+      typeof component.upstream_commit !== "string" ||
+      !/^[0-9a-f]{40}$/.test(component.upstream_commit)
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare a valid 40-character hex upstream_commit.`,
+      );
+    }
+
+    if (
+      !component.registry_item ||
+      typeof component.registry_item !== "string"
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare registry_item.`,
       );
     }
 
@@ -447,16 +518,11 @@ if (!existsSync(componentSourcesPath)) {
   }
 }
 
-const uiIndex = readFileSync(resolve(root, "packages/ui/src/index.ts"), "utf8");
-const publicUiValues = [...uiIndex.matchAll(/export\s+\{([^}]+)\}\s+from/gu)]
-  .flatMap((match) => match[1].split(","))
-  .map((name) => name.trim())
-  .filter(Boolean);
 const productionUiUsages = new Set(
   [...productionUiUsagesByFile.values()].flatMap((usages) => [...usages]),
 );
 
-for (const exportedValue of publicUiValues) {
+for (const exportedValue of publicUiRuntimeExports) {
   if (!productionUiUsages.has(exportedValue)) {
     failures.push(
       `@xingwen/ui public value ${exportedValue} has no production consumer.`,

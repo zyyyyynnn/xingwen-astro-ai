@@ -7,10 +7,8 @@
     "**/*.css"
   ],
   "imports": {
-    "#components/*": "./src/*",
-    "#hooks/*": "./src/*",
-    "#lib/*": "./src/lib/*",
-    "#ui/*": "./src/*",
+    "#lib/*": "./src/lib/*.ts",
+    "#ui/*": "./src/*.tsx",
     "#utils": "./src/lib/utils.ts"
   },
   "exports": {
