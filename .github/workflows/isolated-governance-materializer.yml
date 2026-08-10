@@ -1,0 +1,335 @@
+name: Isolated governance materializer
+
+on:
+  push:
+    branches:
+      - codex/pr209-final-repair-scratch
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.repository == 'zyyyyynnn/xingwen-astro-ai' && github.ref == 'refs/heads/codex/pr209-final-repair-scratch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/pr209-final-repair-scratch
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.7.8'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Sync backend dependencies
+        run: uv sync --project apps/api --frozen
+
+      - name: Materialize current-only architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=apps/api/src uv run --project apps/api python - <<'PY'
+          from __future__ import annotations
+
+          import ast
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          ROOT = Path.cwd()
+
+          def tracked_files() -> list[Path]:
+              raw = subprocess.check_output(["git", "ls-files", "-z"])
+              return [ROOT / item.decode() for item in raw.split(b"\0") if item]
+
+          def replace_once(path: Path, old: str, new: str) -> None:
+              text = path.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"anchor missing in {path}: {old[:80]!r}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+
+          # 1. Benchmark machine asset: keep one current scientific review; delete history chain.
+          from app.schemas.paper_benchmark import (
+              BenchmarkPackage,
+              compute_benchmark_content_hash,
+              compute_benchmark_scientific_payload_hash,
+          )
+
+          benchmark_path = ROOT / "services/paper_pipeline/benchmarks/exoplanet_host_star/paper-reasoning-benchmark.json"
+          benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+          old_content_hash = benchmark["content_hash"]
+          reviews = benchmark.get("review_records")
+          if not isinstance(reviews, list) or len(reviews) != 1:
+              raise SystemExit("benchmark must have exactly one current scientific review before conversion")
+          for review in reviews:
+              review.pop("review_sequence", None)
+              review.pop("supersedes_review_id", None)
+          benchmark.pop("change_records", None)
+          scientific_hash = compute_benchmark_scientific_payload_hash(benchmark)
+          if scientific_hash != benchmark["scientific_payload_hash"]:
+              raise SystemExit(
+                  f"scientific payload changed unexpectedly: {scientific_hash} != {benchmark['scientific_payload_hash']}"
+              )
+          benchmark["content_hash"] = compute_benchmark_content_hash(benchmark)
+          BenchmarkPackage.model_validate(benchmark)
+          new_content_hash = benchmark["content_hash"]
+          benchmark_path.write_text(
+              json.dumps(benchmark, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+
+          # Synchronize the exact full-package hash wherever it is pinned.
+          if old_content_hash != new_content_hash:
+              for path in tracked_files():
+                  rel = path.relative_to(ROOT).as_posix()
+                  if rel == benchmark_path.relative_to(ROOT).as_posix() or rel.startswith("apps/workspace/upstream/"):
+                      continue
+                  if not path.is_file():
+                      continue
+                  try:
+                      text = path.read_text(encoding="utf-8")
+                  except UnicodeDecodeError:
+                      continue
+                  if old_content_hash in text:
+                      path.write_text(text.replace(old_content_hash, new_content_hash), encoding="utf-8", newline="\n")
+
+          # 2. Literature tests: retain current admission/provenance coverage, remove retired read DTO baselines only.
+          claim_test = ROOT / "apps/api/tests/test_literature_claim_pipeline.py"
+          claim = claim_test.read_text(encoding="utf-8")
+          claim = re.sub(
+              r"from app\.schemas\.reasoning import \(\n    LiteratureClaim as LiteratureClaimReadProjection,\n\)\nfrom app\.schemas\.reasoning import \(\n    LiteratureReasoningResponse as LiteratureReasoningReadProjection,\n\)\n",
+              "",
+              claim,
+              count=1,
+          )
+          start = claim.index("def test_read_projections_and_single_claim_models_cannot_bypass_publisher() -> None:\n")
+          end = claim.index("\ndef test_fixed_paper_benchmark_claim_benchmark_is_reproducible_and_uses_approved_labels()", start)
+          replacement = '''def test_non_authoritative_claim_models_cannot_bypass_publisher() -> None:\n    result = _admit(_response())\n    projection = LiteratureClaimsArtifactContent(\n        kind=ArtifactKind.literature_claims,\n        claim_ids=("claim.read_projection",),\n    )\n\n    for candidate in (result.records[0], result, projection):\n        with pytest.raises(PublicationAdmissionError, match="cannot bypass"):\n            admit_artifact_candidate(\n                candidate,\n                schema_version="1.0.0",\n                source_snapshot_ids=(SNAPSHOT_ID,),\n                evidence_ids=(EVIDENCE_ID,),\n                evidence_validator=lambda _: None,\n                domain_validator=lambda _: None,\n                quality_validator=lambda _: None,\n            )\n\n'''
+          claim = claim[:start] + replacement + claim[end + 1 :]
+          claim_test.write_text(claim, encoding="utf-8", newline="\n")
+
+          relation_test = ROOT / "apps/api/tests/test_literature_relation_pipeline.py"
+          relation = relation_test.read_text(encoding="utf-8")
+          relation = re.sub(
+              r"from app\.schemas\.reasoning import \(\n    LiteratureRelation as LiteratureRelationReadProjection,\n\)\nfrom app\.schemas\.reasoning import \(\n    ReasoningTrace as ReasoningTraceReadProjection,\n\)\n",
+              "",
+              relation,
+              count=1,
+          )
+          start = relation.index("def test_publisher_blocks_unsealed_copy_raw_records_and_read_projections() -> None:\n")
+          end = relation.index("\ndef test_public_hashes_and_handmade_seals_cannot_mint_publication_authority()", start)
+          replacement = '''def test_publisher_blocks_non_authoritative_relation_models() -> None:\n    result = _admit()\n    candidate = result.publisher_candidate\n    assert candidate is not None\n    raw = LiteratureRelationExtractionOutput.model_validate(\n        json.loads(_response(_relation()))\n    )\n    copied = candidate.model_copy(deep=True)\n    reparsed = candidate.__class__.model_validate(\n        candidate.model_dump(mode="json", exclude_none=True)\n    )\n    record = result.records[0]\n    admitted_trace = result.reasoning_traces[0]\n    projections = (\n        LiteratureRelationsArtifactContent(\n            kind=ArtifactKind.literature_relations,\n            relation_ids=("relation.read_projection",),\n        ),\n        ReasoningTracesArtifactContent(\n            kind=ArtifactKind.reasoning_traces,\n            reasoning_trace_ids=("trace.read_projection",),\n        ),\n    )\n\n    for value in (raw, copied, reparsed, record, admitted_trace, result, *projections):\n        with pytest.raises(PublicationAdmissionError):\n            admit_artifact_candidate(\n                value,\n                schema_version="1.0.0",\n                source_snapshot_ids=("snapshot.source",),\n                evidence_ids=("evidence.source",),\n                evidence_validator=lambda _context: None,\n                domain_validator=lambda _context: None,\n                quality_validator=lambda _context: None,\n            )\n\n'''
+          relation = relation[:start] + replacement + relation[end + 1 :]
+          relation_test.write_text(relation, encoding="utf-8", newline="\n")
+
+          # Prove the retired modules have no exact Python import before deleting them.
+          retired_modules = {"app.schemas.graph", "app.schemas.reasoning"}
+          hits: dict[str, list[str]] = {module: [] for module in retired_modules}
+          for path in (ROOT / "apps/api").rglob("*.py"):
+              rel = path.relative_to(ROOT).as_posix()
+              if rel in {"apps/api/src/app/schemas/graph.py", "apps/api/src/app/schemas/reasoning.py"}:
+                  continue
+              try:
+                  tree = ast.parse(path.read_text(encoding="utf-8"))
+              except SyntaxError:
+                  continue
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.ImportFrom) and node.module in retired_modules:
+                      hits[node.module].append(rel)
+                  elif isinstance(node, ast.Import):
+                      for alias in node.names:
+                          if alias.name in retired_modules:
+                              hits[alias.name].append(rel)
+          blocking = {key: sorted(set(value)) for key, value in hits.items() if value}
+          if blocking:
+              raise SystemExit(f"retired schema modules still have current consumers: {blocking}")
+          (ROOT / "apps/api/src/app/schemas/graph.py").unlink(missing_ok=True)
+          (ROOT / "apps/api/src/app/schemas/reasoning.py").unlink(missing_ok=True)
+
+          # 3. Scenario-driven PaperCollection is explicitly a benchmark runner, not production search.
+          old_class = "PaperCollectionPipeline"
+          new_class = "PaperCollectionBenchmarkRunner"
+          for path in tracked_files():
+              rel = path.relative_to(ROOT).as_posix()
+              if rel.startswith("apps/workspace/upstream/") or not path.is_file():
+                  continue
+              try:
+                  text = path.read_text(encoding="utf-8")
+              except UnicodeDecodeError:
+                  continue
+              changed = text.replace(old_class, new_class)
+              changed = changed.replace(
+                  "from .pipeline import PaperCollectionBenchmarkRunner",
+                  "from .benchmark_runner import PaperCollectionBenchmarkRunner",
+              )
+              changed = changed.replace(
+                  "from services.paper_pipeline.pipeline import PaperCollectionBenchmarkRunner",
+                  "from services.paper_pipeline.benchmark_runner import PaperCollectionBenchmarkRunner",
+              )
+              changed = changed.replace(
+                  "services.paper_pipeline.pipeline.PaperCollectionBenchmarkRunner",
+                  "services.paper_pipeline.benchmark_runner.PaperCollectionBenchmarkRunner",
+              )
+              changed = changed.replace(
+                  "services/paper_pipeline/pipeline.py",
+                  "services/paper_pipeline/benchmark_runner.py",
+              )
+              if changed != text:
+                  path.write_text(changed, encoding="utf-8", newline="\n")
+
+          pipeline_path = ROOT / "services/paper_pipeline/pipeline.py"
+          runner_path = ROOT / "services/paper_pipeline/benchmark_runner.py"
+          if not pipeline_path.exists():
+              raise SystemExit("PaperCollection scenario runner source path drifted")
+          runner_text = pipeline_path.read_text(encoding="utf-8")
+          runner_text = runner_text.replace(
+              '"""Orchestrate paper acquisition without owning ResearchRun state or publication."""',
+              '"""Run scenario-driven PaperCollection benchmark acquisition without owning production search."""',
+          )
+          runner_text = runner_text.replace(
+              '"""Generate publisher-ready content while leaving publication to PaperCollection API."""',
+              '"""Evaluate the frozen PaperCollection scenario through reusable acquisition components."""',
+          )
+          runner_path.write_text(runner_text, encoding="utf-8", newline="\n")
+          pipeline_path.unlink()
+
+          old_test = ROOT / "apps/api/tests/test_paper_collection_pipeline.py"
+          new_test = ROOT / "apps/api/tests/test_paper_collection_benchmark_runner.py"
+          if old_test.exists():
+              old_test.replace(new_test)
+
+          # 4. Markdown lifecycle metadata: structure, not Status/Issue history, defines authority.
+          forbidden_metadata = re.compile(
+              r"^\|\s*(?:Status|Issue|Superseded by|Time range)\s*\|",
+              re.IGNORECASE,
+          )
+          forbidden_scalar = re.compile(
+              r"^(?:Status|Issue|Superseded by|Time range)\s*[:：]",
+              re.IGNORECASE,
+          )
+          for path in tracked_files():
+              rel = path.relative_to(ROOT).as_posix()
+              if path.suffix.lower() != ".md" or rel.startswith("apps/workspace/upstream/") or not path.is_file():
+                  continue
+              lines = path.read_text(encoding="utf-8").splitlines()
+              cleaned: list[str] = []
+              for index, line in enumerate(lines):
+                  if index < 30 and (forbidden_metadata.match(line) or forbidden_scalar.match(line)):
+                      continue
+                  cleaned.append(line)
+              text = "\n".join(cleaned) + "\n"
+              # Remove an empty top metadata table if lifecycle rows were its only data.
+              text = re.sub(
+                  r"\n\|\s*元数据\s*\|\s*值\s*\|\n\|[- :|]+\|\n(?=\n|[^|])",
+                  "\n",
+                  text,
+                  count=1,
+              )
+              path.write_text(text, encoding="utf-8", newline="\n")
+
+          agents = ROOT / "AGENTS.md"
+          agents_text = agents.read_text(encoding="utf-8")
+          agents_text = agents_text.replace("## 2. 真实性、状态与产品主链", "## 2. 真实性与产品主链")
+          agents_text = agents_text.replace("“Current Implementation”", "“实现事实”")
+          agents_text = agents_text.replace("Accepted Authority", "Authority")
+          agents_text = re.sub(
+              r"审计时可在临时 Truth Matrix 中区分 `CURRENT / TARGET / PLANNED /\nREFERENCE`，但不把该矩阵提交为第二套状态源。\n",
+              "审计记录只用于本次判断，不提交为第二套状态源。\n",
+              agents_text,
+              count=1,
+          )
+          agents.write_text(agents_text, encoding="utf-8", newline="\n")
+
+          # 5. Private JS package manifests do not carry arbitrary release identity.
+          for path in tracked_files():
+              rel = path.relative_to(ROOT).as_posix()
+              if path.name != "package.json" or rel.startswith("apps/workspace/upstream/") or not path.is_file():
+                  continue
+              data = json.loads(path.read_text(encoding="utf-8"))
+              if data.get("private") is True and "version" in data:
+                  data.pop("version")
+                  path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+          # Regenerate the deterministic frontend PaperCollection fixture after the benchmark full hash changed.
+          subprocess.run(
+              ["uv", "run", "--project", "apps/api", "python", "-m", "services.paper_pipeline.demo_fixture"],
+              cwd=ROOT,
+              check=True,
+              env={**os.environ, "PYTHONPATH": str(ROOT / "apps/api/src")},
+          )
+
+          # Final static closure on the materialized tree.
+          forbidden_text = {
+              "retired task route": "/api/tasks",
+              "retired task service": "TaskService",
+              "old PaperCollection runner": old_class,
+              "benchmark review chain": "supersedes_review_id",
+              "benchmark review sequence": "review_sequence",
+              "benchmark change history": "change_records",
+              "runtime app version": "APP_VERSION",
+              "workflow feature flag": "PERSISTENT_WORKFLOW_ENABLED",
+          }
+          for label, needle in forbidden_text.items():
+              offenders: list[str] = []
+              for path in tracked_files():
+                  rel = path.relative_to(ROOT).as_posix()
+                  if rel.startswith("apps/workspace/upstream/") or rel.startswith(".github/ISSUE_TEMPLATE/") or rel == ".github/pull_request_template.md" or not path.is_file():
+                      continue
+                  try:
+                      text = path.read_text(encoding="utf-8")
+                  except UnicodeDecodeError:
+                      continue
+                  if needle in text:
+                      offenders.append(rel)
+              if offenders:
+                  raise SystemExit(f"{label} remains in active tree: {sorted(set(offenders))[:20]}")
+
+          versions = sorted((ROOT / "apps/api/migrations/versions").glob("*.py"))
+          if [path.name for path in versions] != ["schema_baseline.py"]:
+              raise SystemExit(f"active Alembic versions are not one baseline: {[p.name for p in versions]}")
+          if (ROOT / "packages/schemas/generated/pipeline").exists():
+              raise SystemExit("retired generic generated/pipeline family still exists")
+          required_families = {"core", "data_pipeline", "literature_claim", "literature_relation", "graph", "scientific_document"}
+          actual_families = {p.name for p in (ROOT / "packages/schemas/generated").iterdir() if p.is_dir()}
+          missing = required_families - actual_families
+          if missing:
+              raise SystemExit(f"required schema families missing: {sorted(missing)}")
+          PY
+
+          # Remove this one-shot authoring mechanism before validating or committing the candidate tree.
+          rm -f .github/workflows/isolated-governance-materializer.yml
+
+          git diff --check
+          PYTHONPATH=apps/api/src uv run --project apps/api python -m compileall -q apps/api/src apps/api/tests services scripts
+          PYTHONPATH=apps/api/src uv run --project apps/api pytest \
+            apps/api/tests/test_paper_benchmark.py \
+            apps/api/tests/test_literature_claim_pipeline.py \
+            apps/api/tests/test_literature_relation_pipeline.py \
+            apps/api/tests/test_paper_collection_benchmark_runner.py \
+            apps/api/tests/test_paper_collection_api.py \
+            apps/api/tests/test_graph_publisher_port.py -q
+          python scripts/check_foundation.py
+          node scripts/check-architecture-delegacy.mjs
+          node scripts/check-docs-rules.mjs
+
+      - name: Commit clean candidate tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .github/workflows/isolated-governance-materializer.yml
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m 'refactor(repo): materialize current architecture'
+          git push origin HEAD:codex/pr209-final-repair-scratch
