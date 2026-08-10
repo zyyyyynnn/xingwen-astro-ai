@@ -1,0 +1,81 @@
+name: PR209 CI repair
+
+on:
+  push:
+    branches:
+      - codex/governance-authority-current-main
+    paths:
+      - .github/workflows/pr209-ci-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/governance-authority-current-main
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.7.8"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Sync API environment
+        run: uv sync --project apps/api --frozen
+
+      - name: Regenerate deterministic paper fixtures
+        run: |
+          uv run --project apps/api python -m services.paper_pipeline.demo_fixture
+          uv run --project apps/api python -m services.paper_pipeline.demo_summary_fixture
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.1
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install frontend toolchain
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply canonical formatting
+        run: |
+          pnpm exec prettier --write \
+            packages/data-access/src/fixture/paper-acquisition.fixture.json \
+            packages/data-access/src/fixture/paper-summary.fixture.json \
+            scripts/check-architecture-delegacy.mjs \
+            scripts/check-docs-rules.mjs \
+            scripts/check-docs.mjs \
+            scripts/check-docs.test.mjs \
+            scripts/governance-identifiers.mjs
+
+      - name: Verify deterministic fixtures and API surface
+        run: |
+          uv run --project apps/api pytest \
+            apps/api/tests/test_paper_acquisition_fixture.py \
+            apps/api/tests/test_paper_summary_fixture.py \
+            apps/api/tests/test_api_surface.py -q
+          pnpm format:check
+
+      - name: Commit generated repair and remove one-shot workflow
+        run: |
+          rm .github/workflows/pr209-ci-repair.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "fix(ci): align current closure fixtures"
+          git push origin HEAD:codex/governance-authority-current-main
