@@ -10,5 +10,5 @@ router = APIRouter(tags=["system"])
 
 
 @router.get("/api/health")
-async def health():
+async def health() -> dict[str, str]:
     return {"status": "ok", "env": settings.APP_ENV}

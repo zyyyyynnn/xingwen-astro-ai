@@ -26,7 +26,7 @@ Hard boundaries:
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Callable, Literal
+from typing import Callable
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel, ConfigDict
@@ -39,6 +39,7 @@ from app.db.models import (
     ResearchArtifactModel,
     SourceSnapshotModel,
 )
+from app.schemas.core import ArtifactKind, ExportArtifactContent
 from app.security import SecurityProblem
 from app.services.research import ResearchApplicationService
 from app.workflow.publisher import (
@@ -59,12 +60,6 @@ def _seed_uuid(run_id: str, entity: str) -> UUID:
     return uuid5(NAMESPACE_URL, f"{_NAMESPACE}/{run_id}/{entity}")
 
 
-class _FixtureDatasetCandidate(BaseModel):
-    kind: Literal["export"] = "export"
-    field_ids: tuple[str, ...]
-    rows: tuple[dict[str, str], ...]
-
-
 def _validate_evidence(context: ArtifactAdmissionContext) -> None:
     if len(context.source_snapshot_ids) != 1 or len(context.evidence_ids) != 1:
         raise ValueError("fixture publication requires one SourceSnapshot and Evidence")
@@ -74,21 +69,18 @@ def _validate_evidence(context: ArtifactAdmissionContext) -> None:
 
 def _validate_domain(context: ArtifactAdmissionContext) -> None:
     candidate = context.candidate
-    if not isinstance(candidate, _FixtureDatasetCandidate):
-        raise ValueError("fixture publication requires the typed dataset candidate")
-    if candidate.field_ids != ("planet.toi_id", "star.tic_id"):
-        raise ValueError("fixture dataset fields must match the frozen primary scenario")
-    declared = set(candidate.field_ids)
-    if any(set(row) != declared for row in candidate.rows):
-        raise ValueError("every fixture row must contain exactly the declared fields")
+    if not isinstance(candidate, ExportArtifactContent):
+        raise ValueError("fixture publication requires canonical export content")
+    if candidate.format != "json" or candidate.artifact_version_ids != ("artv_dataset_01",):
+        raise ValueError("fixture export must reference the frozen dataset version")
 
 
 def _validate_quality(context: ArtifactAdmissionContext) -> None:
     candidate = context.candidate
-    if not isinstance(candidate, _FixtureDatasetCandidate) or len(candidate.rows) != 1:
-        raise ValueError("fixture dataset must contain exactly one deterministic row")
-    if any(not value.strip() for value in candidate.rows[0].values()):
-        raise ValueError("fixture dataset values must be non-empty")
+    if not isinstance(candidate, ExportArtifactContent):
+        raise ValueError("fixture publication requires canonical export content")
+    if len(candidate.artifact_version_ids) != 1:
+        raise ValueError("fixture export must contain one deterministic source version")
 
 
 class BootstrapResult(BaseModel):
@@ -246,9 +238,10 @@ def _publish_fixture_version(
             )
 
     candidate = admit_artifact_candidate(
-        _FixtureDatasetCandidate(
-            field_ids=("planet.toi_id", "star.tic_id"),
-            rows=({"planet.toi_id": "TOI-1234", "star.tic_id": "TIC-5678"},),
+        ExportArtifactContent(
+            kind=ArtifactKind.export,
+            format="json",
+            artifact_version_ids=("artv_dataset_01",),
         ),
         schema_version="2.0.0",
         source_snapshot_ids=(str(source_snapshot_id),),

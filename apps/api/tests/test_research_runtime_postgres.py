@@ -17,14 +17,13 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 import os
 from pathlib import Path
-from typing import Literal
 from uuid import UUID, uuid4
 
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
-from pydantic import BaseModel
+from pydantic import TypeAdapter
 from sqlalchemy import Engine, func, select
 
 from app.config import settings
@@ -42,6 +41,7 @@ from authoring_test_support import (
     persist_authoring_models,
 )
 from app.main import _load_case_manifests, create_app
+from app.schemas.core import ArtifactContent, ArtifactKind, ExportArtifactContent
 from app.services.artifacts import ArtifactReadService
 from app.services.research import ResearchApplicationService
 from app.services.resource_authority import PersistentResourceAuthority
@@ -61,12 +61,6 @@ pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
 )
 NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
-
-
-class _FixtureDatasetCandidate(BaseModel):
-    kind: Literal["export"] = "export"
-    field_ids: tuple[str, ...]
-    rows: tuple[dict[str, str], ...]
 
 
 def _accept(_context: object) -> None:
@@ -451,9 +445,10 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         )
 
     candidate = admit_artifact_candidate(
-        _FixtureDatasetCandidate(
-            field_ids=("planet.toi_id", "star.tic_id"),
-            rows=({"planet.toi_id": "TOI-700 d", "star.tic_id": "TIC-150428135"},),
+        ExportArtifactContent(
+            kind=ArtifactKind.export,
+            format="json",
+            artifact_version_ids=("artv_dataset_01",),
         ),
         schema_version="2.0.0",
         source_snapshot_ids=(str(source_snapshot_id),),
@@ -516,7 +511,10 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
                 target_id="planet.toi_id",
                 evidence_type="database_query",
                 source_snapshot_id=source_snapshot_id,
-                locator={"kind": "fixture_row", "row_key": "TOI-700 d"},
+                locator={
+                    "kind": "fixture_row",
+                    "row_key": "TOI-700 d",
+                },
                 quote_or_value="TOI-700 d",
                 extraction_method="real_integration_demo_fixture.replay",
                 confidence=1.0,
@@ -527,6 +525,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
     assert version.status_code == 200
     assert version.json()["data"]["source_mode"] == "fixture"
     assert version.json()["data"]["evidence_ids"] == [str(evidence_id)]
+    TypeAdapter(ArtifactContent).validate_python(version.json()["data"]["content"])
 
     shared = client.post(
         f"/api/projects/{project_id}/shares",

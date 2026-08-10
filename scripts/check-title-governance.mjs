@@ -340,9 +340,6 @@ export function validateIssueTemplate(name, content) {
       "Template must not contain a `- [ ] #` sub-task checklist (use GitHub native Sub-issue)",
     );
   }
-  // NOTE: [A/B/C/D/X]-NN responsibility taxonomy is an approved stable identifier
-  // in GitHub Issue titles/bodies and must NOT be flagged here. Only live-state
-  // mirrors (sections / checklists / "blocked-by #" guidance) are forbidden.
   // Forbidden guidance that tells users to copy live metadata into the body.
   const forbiddenGuidance = [
     "blocked-by #",
@@ -351,10 +348,10 @@ export function validateIssueTemplate(name, content) {
     "已 merged",
     "当前 main 尚未",
   ];
-  for (const g of forbiddenGuidance) {
-    if (content.includes(g)) {
+  for (const guidance of forbiddenGuidance) {
+    if (content.includes(guidance)) {
       errors.push(
-        `Template must not instruct users to mirror live state ("${g}")`,
+        `Template must not instruct users to mirror live state ("${guidance}")`,
       );
     }
   }

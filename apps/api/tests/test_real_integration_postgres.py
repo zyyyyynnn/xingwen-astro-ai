@@ -24,24 +24,22 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 import os
 from pathlib import Path
-from typing import Literal
 from uuid import UUID, uuid4
 
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
-from pydantic import BaseModel, SecretStr
+from pydantic import SecretStr, TypeAdapter
 
 from app.config import settings
 from app.db.models import (
     EvidenceModel,
     ResearchArtifactModel,
-    ResearchContractDraftModel,
-    ResearchProjectModel,
     SourceSnapshotModel,
 )
 from app.main import create_app
+from app.schemas.core import ArtifactContent, ArtifactKind, ExportArtifactContent
 from authoring_test_support import (
     build_contract_draft,
     build_research_project,
@@ -65,12 +63,6 @@ pytestmark = pytest.mark.skipif(
 NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
 
 
-class _FixtureDatasetCandidate(BaseModel):
-    kind: Literal["export"] = "export"
-    field_ids: tuple[str, ...]
-    rows: tuple[dict[str, str], ...]
-
-
 def _validate_evidence(context: ArtifactAdmissionContext) -> None:
     if len(context.source_snapshot_ids) != 1 or len(context.evidence_ids) != 1:
         raise ValueError("fixture publication requires one SourceSnapshot and Evidence")
@@ -80,21 +72,18 @@ def _validate_evidence(context: ArtifactAdmissionContext) -> None:
 
 def _validate_domain(context: ArtifactAdmissionContext) -> None:
     candidate = context.candidate
-    if not isinstance(candidate, _FixtureDatasetCandidate):
-        raise ValueError("fixture publication requires the typed dataset candidate")
-    declared = set(candidate.field_ids)
-    if candidate.field_ids != ("planet.toi_id", "star.tic_id") or any(
-        set(row) != declared for row in candidate.rows
-    ):
-        raise ValueError("fixture dataset must match the frozen primary fields")
+    if not isinstance(candidate, ExportArtifactContent):
+        raise ValueError("fixture publication requires canonical export content")
+    if candidate.format != "json" or candidate.artifact_version_ids != ("artv_dataset_01",):
+        raise ValueError("fixture export must reference the frozen dataset version")
 
 
 def _validate_quality(context: ArtifactAdmissionContext) -> None:
     candidate = context.candidate
-    if not isinstance(candidate, _FixtureDatasetCandidate) or len(candidate.rows) != 1:
-        raise ValueError("fixture dataset must contain exactly one deterministic row")
-    if any(not value.strip() for value in candidate.rows[0].values()):
-        raise ValueError("fixture dataset values must be non-empty")
+    if not isinstance(candidate, ExportArtifactContent):
+        raise ValueError("fixture publication requires canonical export content")
+    if len(candidate.artifact_version_ids) != 1:
+        raise ValueError("fixture export must contain one deterministic source version")
 
 
 def _contract_input() -> dict[str, object]:
@@ -244,7 +233,7 @@ def _publish_fixture_artifact(
                 id=artifact_id,
                 project_id=project_uuid,
                 kind="export",
-                title="Real Compose and Browser Integration gap fixture dataset",
+                title="Real Compose and Browser Integration fixture dataset",
                 logical_key=f"gap-fixture-{run_id}",
             )
         )
@@ -263,9 +252,10 @@ def _publish_fixture_artifact(
             )
         )
     candidate = admit_artifact_candidate(
-        _FixtureDatasetCandidate(
-            field_ids=("planet.toi_id", "star.tic_id"),
-            rows=({"planet.toi_id": "TOI-700 d", "star.tic_id": "TIC-150428135"},),
+        ExportArtifactContent(
+            kind=ArtifactKind.export,
+            format="json",
+            artifact_version_ids=("artv_dataset_01",),
         ),
         schema_version="2.0.0",
         source_snapshot_ids=(str(source_snapshot_id),),
@@ -325,7 +315,10 @@ def _publish_fixture_artifact(
                 target_id="planet.toi_id",
                 evidence_type="database_query",
                 source_snapshot_id=source_snapshot_id,
-                locator={"kind": "fixture_row", "row_key": "TOI-700 d"},
+                locator={
+                    "kind": "fixture_row",
+                    "row_key": "TOI-700 d",
+                },
                 quote_or_value="TOI-700 d",
                 extraction_method="real_integration_gap_fixture.replay",
                 confidence=1.0,
@@ -627,6 +620,7 @@ def test_bootstrap_publishes_fixture_onto_public_chain_run(
     version = client.get(f"/api/artifact-versions/{data['artifact_version_id']}")
     assert version.status_code == 200
     assert version.json()["data"]["source_mode"] == "fixture"
+    TypeAdapter(ArtifactContent).validate_python(version.json()["data"]["content"])
     evidence = client.get(f"/api/evidence/{data['evidence_id']}")
     assert evidence.status_code == 200
     assert evidence.json()["data"]["id"] == data["evidence_id"]
