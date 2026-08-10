@@ -1,4 +1,4 @@
-"""Orchestrate paper acquisition without owning ResearchRun state or publication."""
+"""Run scenario-driven PaperCollection benchmark acquisition without owning production search."""
 
 from __future__ import annotations
 
@@ -56,8 +56,8 @@ from .sources.crossref import CrossrefAdapter
 Clock = Callable[[], datetime]
 
 
-class PaperCollectionPipeline:
-    """Generate publisher-ready content while leaving publication to PaperCollection API."""
+class PaperCollectionBenchmarkRunner:
+    """Evaluate the frozen PaperCollection scenario through reusable acquisition components."""
 
     def __init__(
         self,

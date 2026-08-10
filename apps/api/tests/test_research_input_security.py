@@ -34,7 +34,6 @@ def app_and_client(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> tuple[FastAPI, TestClient, str, str]:
     monkeypatch.setattr(settings, "DATABASE_URL", None)
-    monkeypatch.setattr(settings, "PERSISTENT_WORKFLOW_ENABLED", False)
     monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
     app = create_app()
     client = TestClient(app, base_url="https://testserver")

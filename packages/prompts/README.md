@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                        |
 | --------- | ----------------------------------------- |
-| Status    | Accepted                                  |
 | Authority | `packages/prompts` 目录结构与本地使用方式 |
 
 全局规则见 [Prompt Registry](../../docs/ai/PROMPT_REGISTRY.md)。本文件不重复模型准入、Evidence 或评测政策。

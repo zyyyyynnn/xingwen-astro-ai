@@ -47,12 +47,6 @@ from app.schemas.paper_summary import (
     PaperSummarySourceSnapshotReference,
     PaperSummarySupportStatus,
 )
-from app.schemas.reasoning import (
-    LiteratureRelation as LiteratureRelationReadProjection,
-)
-from app.schemas.reasoning import (
-    ReasoningTrace as ReasoningTraceReadProjection,
-)
 from app.workflow.publisher import (
     ArtifactEvidenceBinding,
     ArtifactSourceSnapshotBinding,
@@ -521,7 +515,7 @@ def test_complete_relation_taxonomy_is_admitted() -> None:
     )
 
 
-def test_publisher_blocks_unsealed_copy_raw_records_and_read_projections() -> None:
+def test_publisher_blocks_non_authoritative_relation_models() -> None:
     result = _admit()
     candidate = result.publisher_candidate
     assert candidate is not None
@@ -534,25 +528,6 @@ def test_publisher_blocks_unsealed_copy_raw_records_and_read_projections() -> No
     )
     record = result.records[0]
     admitted_trace = result.reasoning_traces[0]
-    read_relation = LiteratureRelationReadProjection(
-        relation_id="relation.read_projection",
-        task_id="task.read_projection",
-        source_claim_id="claim.source",
-        target_claim_id="claim.target",
-        relation_type="supports",
-        reasoning_trace_id="trace.read_projection",
-        evidence_ids=["evidence.source"],
-        confidence=1.0,
-    )
-    read_trace = ReasoningTraceReadProjection(
-        trace_id="trace.read_projection",
-        task_id="task.read_projection",
-        relation_id="relation.read_projection",
-        steps=[],
-        evidence_ids=["evidence.source"],
-        model_name="read-projection",
-        prompt_version="1.0.0",
-    )
     projections = (
         LiteratureRelationsArtifactContent(
             kind=ArtifactKind.literature_relations,
@@ -564,17 +539,7 @@ def test_publisher_blocks_unsealed_copy_raw_records_and_read_projections() -> No
         ),
     )
 
-    for value in (
-        raw,
-        copied,
-        reparsed,
-        record,
-        admitted_trace,
-        result,
-        read_relation,
-        read_trace,
-        *projections,
-    ):
+    for value in (raw, copied, reparsed, record, admitted_trace, result, *projections):
         with pytest.raises(PublicationAdmissionError):
             admit_artifact_candidate(
                 value,
@@ -585,7 +550,6 @@ def test_publisher_blocks_unsealed_copy_raw_records_and_read_projections() -> No
                 domain_validator=lambda _context: None,
                 quality_validator=lambda _context: None,
             )
-
 
 def test_public_hashes_and_handmade_seals_cannot_mint_publication_authority() -> None:
     assert not hasattr(relation_seal, "seal_literature_relations_candidate")

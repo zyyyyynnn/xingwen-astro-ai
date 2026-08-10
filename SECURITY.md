@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 密钥、信任边界、输入、会话、分享、日志与安全要求 |
 
 本文定义系统必须满足的稳定安全控制。部署拓扑见 [Deployment](DEPLOYMENT.md)，HTTP 授权与错误响应见 [API Contract](docs/architecture/API_CONTRACT.md)，模型调用准入见 [Model Policy](docs/ai/MODEL_POLICY.md)。

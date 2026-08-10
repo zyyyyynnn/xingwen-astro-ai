@@ -1605,10 +1605,11 @@ export interface PaperSourcePage {
   total_results?: number | null;
 }
 /**
- * Immutable source record consumed by publication pipelines.
+ * Immutable source provenance consumed by scientific pipelines.
  *
- * This complete provenance record and the compact task-read projection serve
- * separate current interfaces; neither is a historical compatibility model.
+ * This is a pipeline/runtime record, not an HTTP read projection. It preserves
+ * the exact source, query and content identity required for reproducibility
+ * while rejecting credential-bearing request metadata before publication.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "SourceSnapshotRecord".

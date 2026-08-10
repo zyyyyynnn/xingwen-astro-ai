@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                   |
 | --------- | ------------------------------------ |
-| Status    | Accepted                             |
 | Authority | 产品交付与发布的退出标准及一票否决项 |
 
 本文定义产品交付与发布的退出标准。单个 PR 审查见 [Review Checklist](../quality/REVIEW_CHECKLIST.md)，测试设计见 [Test Strategy](../engineering/TEST_STRATEGY.md)。

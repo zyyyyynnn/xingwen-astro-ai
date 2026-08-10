@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                                                         |
 | --------- | -------------------------------------------------------------------------- |
-| Status    | Accepted                                                                   |
 | Authority | 补充来源查询、录制响应与独立 SourceSnapshot 运行规则                         |
 | Scope     | `exoplanet_host_star` 的 NASA Exoplanet Archive Planetary Systems metadata |
 

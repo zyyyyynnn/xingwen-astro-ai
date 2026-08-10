@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 核心领域实体、实体关系、所有权与数据不变量 |
 
 本文定义系统的核心领域实体、领域语义与关系不变量。具体字段全集由后端 Pydantic 模型、数据库 Schema 与前端 TypeScript Domain 编写源权威定义。

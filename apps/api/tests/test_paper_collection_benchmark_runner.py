@@ -39,7 +39,7 @@ from services.paper_pipeline.constants import (
     FROZEN_SCIENTIFIC_PAYLOAD_HASH,
 )
 from services.paper_pipeline.dedupe import group_duplicates
-from services.paper_pipeline.pipeline import PaperCollectionPipeline
+from services.paper_pipeline.benchmark_runner import PaperCollectionBenchmarkRunner
 from services.paper_pipeline.query import normalize_benchmark_query
 from services.paper_pipeline.ranking import rank_and_select
 from services.paper_pipeline.sources.base import (
@@ -564,7 +564,7 @@ def test_pipeline_schema_provenance_metrics_and_hashes_are_stable() -> None:
         ),
         _record("topical", "A TESS host stars study", 2020, doi="10.1/topical"),
     )
-    first = PaperCollectionPipeline(
+    first = PaperCollectionBenchmarkRunner(
         adapter=FixtureAdapter(records, retrieved_at=FIXED_TIME),
         clock=lambda: FIXED_TIME,
     ).run(
@@ -576,7 +576,7 @@ def test_pipeline_schema_provenance_metrics_and_hashes_are_stable() -> None:
         run_id="run.example",
     )
     later = FIXED_TIME + timedelta(days=1)
-    second = PaperCollectionPipeline(
+    second = PaperCollectionBenchmarkRunner(
         adapter=FixtureAdapter(records, retrieved_at=later),
         clock=lambda: later,
     ).run(
@@ -605,7 +605,7 @@ def test_pipeline_schema_provenance_metrics_and_hashes_are_stable() -> None:
 
 
 def test_live_failure_records_truth_and_never_falls_back_to_seed() -> None:
-    collection = PaperCollectionPipeline(
+    collection = PaperCollectionBenchmarkRunner(
         adapter=FailureAdapter(), clock=lambda: FIXED_TIME
     ).run(
         scenario_id="search.tess_mission_and_catalogs",
@@ -624,7 +624,7 @@ def test_live_failure_records_truth_and_never_falls_back_to_seed() -> None:
 
 
 def test_pipeline_empty_result_has_distinct_metrics() -> None:
-    collection = PaperCollectionPipeline(
+    collection = PaperCollectionBenchmarkRunner(
         adapter=FixtureAdapter(()), clock=lambda: FIXED_TIME
     ).run(
         scenario_id="search.tess_mission_and_catalogs",
@@ -639,7 +639,7 @@ def test_pipeline_empty_result_has_distinct_metrics() -> None:
 
 
 def test_output_hash_tampering_fails_schema_validation() -> None:
-    collection = PaperCollectionPipeline(
+    collection = PaperCollectionBenchmarkRunner(
         adapter=FixtureAdapter(()), clock=lambda: FIXED_TIME
     ).run(
         scenario_id="search.tess_mission_and_catalogs",
@@ -668,7 +668,7 @@ def test_source_snapshot_rejects_sensitive_request_metadata() -> None:
 
 
 def test_source_mode_and_data_level_cannot_be_misrepresented() -> None:
-    collection = PaperCollectionPipeline(
+    collection = PaperCollectionBenchmarkRunner(
         adapter=FixtureAdapter(()), clock=lambda: FIXED_TIME
     ).run(
         scenario_id="search.tess_mission_and_catalogs",
@@ -758,7 +758,7 @@ def test_failure_logs_do_not_include_credentials_or_response_body(caplog) -> Non
 
 
 def test_pipeline_has_no_research_run_state_dependency() -> None:
-    source = inspect.getsource(PaperCollectionPipeline)
+    source = inspect.getsource(PaperCollectionBenchmarkRunner)
     assert "ResearchRun" not in source
     assert "state_machine" not in source
     assert "ArtifactVersion" not in source
@@ -770,7 +770,7 @@ def test_pipeline_has_no_research_run_state_dependency() -> None:
     reason="set XINGWEN_RUN_LIVE_PAPER_TEST=1 for explicit Crossref live smoke",
 )
 def test_frozen_benchmark_query_runs_against_real_crossref() -> None:
-    collection = PaperCollectionPipeline(timeout_seconds=20.0).run(
+    collection = PaperCollectionBenchmarkRunner(timeout_seconds=20.0).run(
         scenario_id="search.tess_mission_and_catalogs",
         page_size=25,
         selection_limit=10,

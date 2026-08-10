@@ -2,7 +2,6 @@
 
 | Field     | Value                                                         |
 | --------- | ------------------------------------------------------------- |
-| Status    | Accepted                                                      |
 | Scope     | Deterministic TOI/PS entity alignment                         |
 | Authority | Runtime behavior, Evidence, review input, and benchmark rules |
 

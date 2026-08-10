@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                           |
 | --------- | -------------------------------------------- |
-| Status    | Accepted                                     |
 | Authority | 测试分层、测试数据等级、环境、门禁与证据格式 |
 
 本文定义系统的测试架构与质量校验规范。阶段退出见 [Acceptance](../product/ACCEPTANCE.md)，单个 PR 检查见 [Review Checklist](../quality/REVIEW_CHECKLIST.md)。

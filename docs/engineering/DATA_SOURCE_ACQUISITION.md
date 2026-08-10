@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 主数据源查询、原始记录、失败语义与 SourceSnapshot 运行规则 |
 | Scope | `exoplanet_host_star` 的 NASA Exoplanet Archive TOI metadata |
 

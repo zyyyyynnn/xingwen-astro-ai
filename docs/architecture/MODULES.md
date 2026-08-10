@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 跨模块职责、输入输出、依赖方向与交接边界 |
 
 本文定义系统各架构分层的职责分工、依赖方向与交接边界。前端包依赖见 [Frontend Architecture](FRONTEND_ARCHITECTURE.md)。

@@ -50,7 +50,7 @@ from app.security import SecurityProblem
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.artifacts import ArtifactReadService
 from app.workflow.publisher import ArtifactAdmissionContext, admit_artifact_candidate
-from services.paper_pipeline.pipeline import PaperCollectionPipeline
+from services.paper_pipeline.benchmark_runner import PaperCollectionBenchmarkRunner
 from services.paper_pipeline.sources.base import (
     RawSourceRecord,
     SourceFailure,
@@ -123,7 +123,7 @@ class _FixtureAdapter:
 
 
 def _collection(count: int = 3) -> PaperCollection:
-    return PaperCollectionPipeline(
+    return PaperCollectionBenchmarkRunner(
         adapter=_FixtureAdapter(count), clock=lambda: NOW
     ).run(
         scenario_id="search.tess_mission_and_catalogs",
@@ -146,7 +146,7 @@ class _FailureAdapter(_FixtureAdapter):
 
 
 def _failed_collection(classification: UpstreamFailureClass) -> PaperCollection:
-    return PaperCollectionPipeline(
+    return PaperCollectionBenchmarkRunner(
         adapter=_FailureAdapter(classification), clock=lambda: NOW
     ).run(
         scenario_id="search.tess_mission_and_catalogs",

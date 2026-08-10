@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                                        |
 | --------- | --------------------------------------------------------- |
-| Status    | Accepted                                                  |
 | Authority | 生产 Prompt 的当前定义、Registry、内容固定与运行引用规范 |
 
 本文定义生产 Prompt 的单一当前事实源。模型调用准入见 [Model Policy](MODEL_POLICY.md)，推导协议见 [Reasoning Protocol](REASONING_PROTOCOL.md)。

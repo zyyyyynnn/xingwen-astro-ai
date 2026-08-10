@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 代码组织、命名、类型、安全输入与实现边界 |
 
 本文定义系统的编码规范与技术实现边界。模块职责见 [Module Boundaries](../architecture/MODULES.md)，前端架构见 [Frontend Architecture](../architecture/FRONTEND_ARCHITECTURE.md)。

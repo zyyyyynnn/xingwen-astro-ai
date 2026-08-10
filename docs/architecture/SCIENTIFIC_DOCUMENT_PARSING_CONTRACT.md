@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                                                                      |
 | --------- | --------------------------------------------------------------------------------------- |
-| Status    | Accepted                                                                                |
 | Authority | Scientific Document Parsing 冻结契约、Parser Port、Golden Set、Benchmark 与上游采用边界 |
 
 This document is the authoritative design record for the Canonical Contract and

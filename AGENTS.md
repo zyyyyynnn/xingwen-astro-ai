@@ -15,19 +15,18 @@
 不要默认递归读取 `docs/references/`、全量 Markdown、历史 Commit、已关闭 PR
 或过程性 Handoff。需要扩大范围时说明原因，并保持事实来源可追溯。
 
-## 2. 真实性、状态与产品主链
+## 2. 真实性与产品主链
 
-只有以下证据可以支持“Current Implementation”：`origin/main` 中的代码、已合并
+只有以下证据可以支持“实现事实”：`origin/main` 中的代码、已合并
 PR、生成 Contract、当前测试、可执行运行时、PostgreSQL 数据或真实 Browser/集成
 运行证据。Draft/Open PR、Issue、目标架构、Fixture、Recorded response、Benchmark、
 Seed、Cached 结果、未来 handoff 与参考项目都不是 Current。
 
 活跃规范只描述已批准的稳定规则，不描述实现进度、PR 状态、Issue 状态或动态
-“当前实现”。审计时可在临时 Truth Matrix 中区分 `CURRENT / TARGET / PLANNED /
-REFERENCE`，但不把该矩阵提交为第二套状态源。
+“当前实现”。审计记录只用于本次判断，不提交为第二套状态源。
 
 冲突按事实职责裁决：当前任务范围由用户直接授权或 Issue 定义；稳定预期行为由
-Accepted Authority 定义；实现状态由当前代码、Contract、测试与真实运行证据定义；
+Authority 定义；实现状态由当前代码、Contract、测试与真实运行证据定义；
 研究灵感只来自 Reference，不能覆盖前三者。
 
 产品主链固定为：

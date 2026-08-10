@@ -2,7 +2,6 @@
 
 | 元数据    | 值                    |
 | --------- | --------------------- |
-| Status    | Accepted              |
 | Authority | Schema 导出与消费边界 |
 
 本目录记录 Pydantic Schema 的导出与消费规则。生成结果是本地或 CI Artifact，默认不提交。HTTP 资源和传输语义见 [API Contract](../../docs/architecture/API_CONTRACT.md)，领域实体见 [Data Model](../../docs/architecture/DATA_MODEL.md)。
@@ -96,9 +95,9 @@ CI 使用临时目录执行导出和 stale diff。只有作为契约漂移基线
 - `Benchmark*` Pydantic 模型属于 **Benchmark / Pipeline Contract**，会进入全量 JSON Schema 导出。
 - `PaperCollection`、完整 `SourceSnapshot` 与 `ProducerExecution` 是 Pipeline content Contract；HTTP 投影直接组合这些模型与 provenance DTO，不复制第二套 PaperCollection，也不承担 Publisher。
 - Benchmark Contract 不是 HTTP Transport API；只有被 FastAPI Router 引用的模型才会自动进入运行 OpenAPI。
-- `generated/literature_claim` 固定唯一领域编写源的 extraction、admission、publisher candidate 与 Benchmark report；task-read `reasoning.LiteratureClaim`/`LiteratureReasoningResponse` 和 core `LiteratureClaimsArtifactContent` 是当前读取投影，不能进入 Publisher。
-- `generated/literature_relation` 固定唯一领域编写源的 extraction、Relation/ReasoningTrace admission、publisher candidate 与 Benchmark report；task-read `reasoning.LiteratureRelation`/`ReasoningTrace` 和 core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 是当前读取投影，不能进入 Publisher。
-- `generated/graph` 固定 Versioned Evidence Graph 的唯一领域编写源和 Benchmark contract；它不是 HTTP DTO。Graph-owned Evidence-use、完整上游版本闭包与 Publisher handoff 必须由 typed candidate 表达，task-read `GraphResponse` 或页面 Domain model 不能进入 Publisher。
+- `generated/literature_claim` 固定唯一领域编写源的 extraction、admission、publisher candidate 与 Benchmark report；core `LiteratureClaimsArtifactContent` 仅为读取投影，不能进入 Publisher。
+- `generated/literature_relation` 固定唯一领域编写源的 extraction、Relation/ReasoningTrace admission、publisher candidate 与 Benchmark report；core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 仅为读取投影，不能进入 Publisher。
+- `generated/graph` 固定 Evidence Graph 的唯一领域编写源和 Benchmark contract；它不是 HTTP DTO。Graph-owned Evidence-use、完整上游版本闭包与 Publisher handoff 必须由 typed candidate 表达，页面 Domain model 不能进入 Publisher。
 - 数据产物生成 Schema 同步导出 build input、三类 typed candidate、MappingRuleSet 与 UnitConversionCatalog；`DataArtifactBuildResult`、领域投影和 publication seal 仅是进程内对象，不是公共 JSON Contract。六个公共模型均可 JSON/Pydantic round-trip，但 round-trip candidate 不恢复 publication seal。这些 Schema 是 Pipeline Contract，不会因此成为 HTTP DTO 或数据库记录。
 - `Benchmark*` Schema 不改变 `/api` DTO 或路由；Schema 导出不等于运行 Pipeline 接线。
 - Pydantic Contract 的统一编写源为 `apps/api/src/app/schemas`，Pipeline 和文档不得复制同名生产 Schema 形成第二事实源。

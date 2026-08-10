@@ -124,7 +124,6 @@ def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
     command.upgrade(config, "head")
 
     monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
-    monkeypatch.setattr(settings, "PERSISTENT_WORKFLOW_ENABLED", True)
     monkeypatch.setattr(settings, "APP_ENV", "test")
 
     app = create_app()
@@ -152,6 +151,8 @@ def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
                 revision=1,
                 created_at=NOW,
                 updated_at=NOW,
+                idempotency_key="fixture-project",
+                request_hash="sha256:" + "a" * 64,
             )
         )
         session.add(
@@ -166,6 +167,8 @@ def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
                 created_at=NOW,
                 updated_at=NOW,
                 expires_at=datetime.now(UTC) + timedelta(hours=1),
+                idempotency_key="fixture-draft",
+                request_hash="sha256:" + "b" * 64,
             )
         )
 

@@ -15,8 +15,6 @@
   "review_records": [
     {
       "review_id": "review.paper_reasoning_scientific",
-      "review_sequence": 1,
-      "supersedes_review_id": null,
       "reviewed_at": "2026-07-21T14:50:40+08:00",
       "reviewer_type": "web_gpt",
       "reviewer_identity": "openai:web-gpt",
@@ -28,7 +26,9 @@
       "scope": [
         {
           "target_type": "benchmark_package",
-          "target_ids": ["exoplanet_host_star.paper_reasoning"]
+          "target_ids": [
+            "exoplanet_host_star.paper_reasoning"
+          ]
         },
         {
           "target_type": "source_policy",
@@ -129,14 +129,6 @@
         "Clark remains limited to the stated GALAH DR2, TIC, and Gaia DR2 cross-matched sample."
       ],
       "notes": "Scientific review covers the declared public abstract and bibliographic evidence, object scopes, relation admission decisions, and graph edges."
-    }
-  ],
-  "change_records": [
-    {
-      "version": "2.0.0",
-      "changed_at": "2026-08-10",
-      "summary": "Define the current paper acquisition, scientific review, relation admission, graph integrity, and metric benchmark contract without repository workflow metadata.",
-      "affects_content_hash": true
     }
   ],
   "source_policies": [
@@ -336,7 +328,11 @@
         "year_from": 2014,
         "year_to": 2021
       },
-      "source_ids": ["arxiv", "crossref", "nasa_ads"],
+      "source_ids": [
+        "arxiv",
+        "crossref",
+        "nasa_ads"
+      ],
       "candidate_limit": 25,
       "dedupe_expectation": "Group records by normalized DOI first, then arXiv id, then normalized title and publication year; retain every source record and conflict.",
       "ranking_expectation": "Rank exact title and identifier matches before topical matches; prefer records directly describing TESS mission, TIC/CTL, or TOI catalog scope.",
@@ -361,7 +357,11 @@
         "year_from": 2013,
         "year_to": 2021
       },
-      "source_ids": ["arxiv", "crossref", "nasa_ads"],
+      "source_ids": [
+        "arxiv",
+        "crossref",
+        "nasa_ads"
+      ],
       "candidate_limit": 25,
       "dedupe_expectation": "Use DOI/arXiv/title-year canonicalization and keep publisher, repository, and preprint records as provenance for one paper identity.",
       "ranking_expectation": "Prefer papers that explicitly expose archive contents or quantify how host-star parameters affect TESS planet candidates.",
@@ -376,7 +376,11 @@
     {
       "paper_id": "paper.ricker_2015_tess",
       "title": "Transiting Exoplanet Survey Satellite",
-      "authors": ["George R. Ricker", "Joshua N. Winn", "Roland Vanderspek"],
+      "authors": [
+        "George R. Ricker",
+        "Joshua N. Winn",
+        "Roland Vanderspek"
+      ],
       "authors_complete": false,
       "year": 2015,
       "doi": "10.1117/1.JATIS.1.1.014003",
@@ -387,16 +391,30 @@
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/1406.0151",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "authors", "abstract", "arxiv_id"]
+          "verified_fields": [
+            "title",
+            "authors",
+            "abstract",
+            "arxiv_id"
+          ]
         },
         {
           "source_id": "crossref",
           "url": "https://api.crossref.org/works/10.1117%2F1.JATIS.1.1.014003",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "year", "doi", "license"]
+          "verified_fields": [
+            "title",
+            "year",
+            "doi",
+            "license"
+          ]
         }
       ],
-      "intended_uses": ["benchmark", "scientific_review", "fixture"],
+      "intended_uses": [
+        "benchmark",
+        "scientific_review",
+        "fixture"
+      ],
       "metadata_public": true,
       "abstract_public": true,
       "full_text_access": "open_preprint",
@@ -407,7 +425,11 @@
     {
       "paper_id": "paper.stassun_2018_tic",
       "title": "The TESS Input Catalog and Candidate Target List",
-      "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Joshua Pepper"],
+      "authors": [
+        "Keivan G. Stassun",
+        "Ryan J. Oelkers",
+        "Joshua Pepper"
+      ],
       "authors_complete": false,
       "year": 2018,
       "doi": "10.3847/1538-3881/aad050",
@@ -418,16 +440,30 @@
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/1706.00495",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "authors", "abstract", "arxiv_id"]
+          "verified_fields": [
+            "title",
+            "authors",
+            "abstract",
+            "arxiv_id"
+          ]
         },
         {
           "source_id": "crossref",
           "url": "https://api.crossref.org/works/10.3847%2F1538-3881%2Faad050",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "authors", "year", "doi"]
+          "verified_fields": [
+            "title",
+            "authors",
+            "year",
+            "doi"
+          ]
         }
       ],
-      "intended_uses": ["benchmark", "scientific_review", "fixture"],
+      "intended_uses": [
+        "benchmark",
+        "scientific_review",
+        "fixture"
+      ],
       "metadata_public": true,
       "abstract_public": true,
       "full_text_access": "open_preprint",
@@ -438,7 +474,11 @@
     {
       "paper_id": "paper.stassun_2019_revised_tic",
       "title": "The Revised TESS Input Catalog and Candidate Target List",
-      "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Martin Paegert"],
+      "authors": [
+        "Keivan G. Stassun",
+        "Ryan J. Oelkers",
+        "Martin Paegert"
+      ],
       "authors_complete": false,
       "year": 2019,
       "doi": "10.3847/1538-3881/ab3467",
@@ -449,7 +489,12 @@
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/1905.10694",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "authors", "abstract", "arxiv_id"]
+          "verified_fields": [
+            "title",
+            "authors",
+            "abstract",
+            "arxiv_id"
+          ]
         },
         {
           "source_id": "nasa_ntrs",
@@ -464,7 +509,11 @@
           ]
         }
       ],
-      "intended_uses": ["benchmark", "scientific_review", "fixture"],
+      "intended_uses": [
+        "benchmark",
+        "scientific_review",
+        "fixture"
+      ],
       "metadata_public": true,
       "abstract_public": true,
       "full_text_access": "open_preprint",
@@ -475,7 +524,11 @@
     {
       "paper_id": "paper.guerrero_2021_toi",
       "title": "The TESS Objects of Interest Catalog from the TESS Prime Mission",
-      "authors": ["Natalia M. Guerrero", "Sara Seager", "Chelsea X. Huang"],
+      "authors": [
+        "Natalia M. Guerrero",
+        "Sara Seager",
+        "Chelsea X. Huang"
+      ],
       "authors_complete": false,
       "year": 2021,
       "doi": "10.3847/1538-4365/abefe1",
@@ -486,16 +539,29 @@
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/2103.12538",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "authors", "abstract", "arxiv_id"]
+          "verified_fields": [
+            "title",
+            "authors",
+            "abstract",
+            "arxiv_id"
+          ]
         },
         {
           "source_id": "crossref",
           "url": "https://api.crossref.org/works/10.3847%2F1538-4365%2Fabefe1",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "year", "doi"]
+          "verified_fields": [
+            "title",
+            "year",
+            "doi"
+          ]
         }
       ],
-      "intended_uses": ["benchmark", "scientific_review", "fixture"],
+      "intended_uses": [
+        "benchmark",
+        "scientific_review",
+        "fixture"
+      ],
       "metadata_public": true,
       "abstract_public": true,
       "full_text_access": "open_preprint",
@@ -506,7 +572,11 @@
     {
       "paper_id": "paper.akeson_2013_archive",
       "title": "The NASA Exoplanet Archive: Data and Tools for Exoplanet Research",
-      "authors": ["R. L. Akeson", "X. Chen", "D. Ciardi"],
+      "authors": [
+        "R. L. Akeson",
+        "X. Chen",
+        "D. Ciardi"
+      ],
       "authors_complete": false,
       "year": 2013,
       "doi": "10.1086/672273",
@@ -517,16 +587,30 @@
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/1307.2944",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "authors", "abstract", "arxiv_id"]
+          "verified_fields": [
+            "title",
+            "authors",
+            "abstract",
+            "arxiv_id"
+          ]
         },
         {
           "source_id": "caltech_ipac",
           "url": "https://www.ipac.caltech.edu/publication/2013PASP..125..989A",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "abstract", "doi", "publisher_record"]
+          "verified_fields": [
+            "title",
+            "abstract",
+            "doi",
+            "publisher_record"
+          ]
         }
       ],
-      "intended_uses": ["benchmark", "scientific_review", "fixture"],
+      "intended_uses": [
+        "benchmark",
+        "scientific_review",
+        "fixture"
+      ],
       "metadata_public": true,
       "abstract_public": true,
       "full_text_access": "open_preprint",
@@ -537,7 +621,11 @@
     {
       "paper_id": "paper.clark_2021_galah_tess",
       "title": "The GALAH Survey: Using Galactic Archaeology to Refine our Knowledge of TESS Target Stars",
-      "authors": ["Jake T. Clark", "Mathieu Clerté", "Natalie R. Hinkel"],
+      "authors": [
+        "Jake T. Clark",
+        "Mathieu Clerté",
+        "Natalie R. Hinkel"
+      ],
       "authors_complete": false,
       "year": 2021,
       "doi": "10.1093/mnras/stab1052",
@@ -548,16 +636,30 @@
           "source_id": "arxiv",
           "url": "https://arxiv.org/abs/2008.05372",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "authors", "abstract", "arxiv_id"]
+          "verified_fields": [
+            "title",
+            "authors",
+            "abstract",
+            "arxiv_id"
+          ]
         },
         {
           "source_id": "crossref",
           "url": "https://api.crossref.org/works/10.1093%2Fmnras%2Fstab1052",
           "verified_at": "2026-07-21",
-          "verified_fields": ["title", "authors", "year", "doi"]
+          "verified_fields": [
+            "title",
+            "authors",
+            "year",
+            "doi"
+          ]
         }
       ],
-      "intended_uses": ["benchmark", "scientific_review", "fixture"],
+      "intended_uses": [
+        "benchmark",
+        "scientific_review",
+        "fixture"
+      ],
       "metadata_public": true,
       "abstract_public": true,
       "full_text_access": "open_preprint",
@@ -574,21 +676,27 @@
       "method": {
         "statement_id": "summary_statement.ricker_method",
         "text": "The mission uses transit photometry of bright and nearby stars.",
-        "evidence_ids": ["evidence.summary_ricker_method"]
+        "evidence_ids": [
+          "evidence.summary_ricker_method"
+        ]
       },
       "dataset": null,
       "findings": [
         {
           "statement_id": "summary_statement.ricker_yield",
           "text": "The paper states a pre-launch expectation of more than one thousand planets smaller than Neptune.",
-          "evidence_ids": ["evidence.summary_ricker_yield"]
+          "evidence_ids": [
+            "evidence.summary_ricker_yield"
+          ]
         }
       ],
       "limitations": [
         {
           "statement_id": "summary_statement.ricker_limitation",
           "text": "The quoted yield is an expectation, not an observed prime-mission catalog result.",
-          "evidence_ids": ["evidence.summary_ricker_yield"]
+          "evidence_ids": [
+            "evidence.summary_ricker_yield"
+          ]
         }
       ],
       "future_work": [],
@@ -601,21 +709,27 @@
       "method": {
         "statement_id": "summary_statement.stassun_2018_method",
         "text": "The authors assembled catalogs and algorithms for the TIC and ranked stars for the CTL.",
-        "evidence_ids": ["evidence.summary_stassun_2018_method"]
+        "evidence_ids": [
+          "evidence.summary_stassun_2018_method"
+        ]
       },
       "dataset": null,
       "findings": [
         {
           "statement_id": "summary_statement.stassun_2018_selection",
           "text": "Target prioritization is tied to the smallest transiting planet detectable.",
-          "evidence_ids": ["evidence.summary_stassun_2018_method"]
+          "evidence_ids": [
+            "evidence.summary_stassun_2018_method"
+          ]
         }
       ],
       "limitations": [
         {
           "statement_id": "summary_statement.stassun_2018_limitation",
           "text": "Additional factors affect photometric detection and dynamic confirmation of small planets.",
-          "evidence_ids": ["evidence.summary_stassun_2018_limitation"]
+          "evidence_ids": [
+            "evidence.summary_stassun_2018_limitation"
+          ]
         }
       ],
       "future_work": [],
@@ -628,21 +742,27 @@
       "method": {
         "statement_id": "summary_statement.stassun_2019_method",
         "text": "The revised TIC incorporates Gaia DR2 and uses a revised target ranking system.",
-        "evidence_ids": ["evidence.summary_stassun_2019_method"]
+        "evidence_ids": [
+          "evidence.summary_stassun_2019_method"
+        ]
       },
       "dataset": null,
       "findings": [
         {
           "statement_id": "summary_statement.stassun_2019_revision",
           "text": "The paper explicitly presents the catalog and ranking as revisions of the earlier TIC and CTL.",
-          "evidence_ids": ["evidence.summary_stassun_2019_revision"]
+          "evidence_ids": [
+            "evidence.summary_stassun_2019_revision"
+          ]
         }
       ],
       "limitations": [
         {
           "statement_id": "summary_statement.stassun_2019_limitation",
           "text": "The abstract supports catalog construction and ranking claims, not realized planet-yield claims.",
-          "evidence_ids": ["evidence.summary_stassun_2019_revision"]
+          "evidence_ids": [
+            "evidence.summary_stassun_2019_revision"
+          ]
         }
       ],
       "future_work": [],
@@ -656,20 +776,26 @@
       "dataset": {
         "statement_id": "summary_statement.guerrero_dataset",
         "text": "The TOI catalog contains 2,241 candidates identified from the two-year TESS prime mission.",
-        "evidence_ids": ["evidence.summary_guerrero_dataset"]
+        "evidence_ids": [
+          "evidence.summary_guerrero_dataset"
+        ]
       },
       "findings": [
         {
           "statement_id": "summary_statement.guerrero_public_data",
           "text": "Prime-mission TOI catalog and related TESS data products are publicly available through MAST.",
-          "evidence_ids": ["evidence.summary_guerrero_public_data"]
+          "evidence_ids": [
+            "evidence.summary_guerrero_public_data"
+          ]
         }
       ],
       "limitations": [
         {
           "statement_id": "summary_statement.guerrero_limitation",
           "text": "The 2,241 records are candidates and include previously known planets, so they are not equivalent to newly confirmed planets.",
-          "evidence_ids": ["evidence.summary_guerrero_dataset"]
+          "evidence_ids": [
+            "evidence.summary_guerrero_dataset"
+          ]
         }
       ],
       "future_work": [],
@@ -682,25 +808,33 @@
       "method": {
         "statement_id": "summary_statement.clark_crossmatch",
         "text": "The study cross-matched GALAH DR2, TIC, and Gaia DR2 data.",
-        "evidence_ids": ["evidence.summary_clark_crossmatch"]
+        "evidence_ids": [
+          "evidence.summary_clark_crossmatch"
+        ]
       },
       "dataset": {
         "statement_id": "summary_statement.clark_dataset",
         "text": "The cross-match produced a catalog of physical and chemical properties for 47,285 stars.",
-        "evidence_ids": ["evidence.summary_clark_crossmatch"]
+        "evidence_ids": [
+          "evidence.summary_clark_crossmatch"
+        ]
       },
       "findings": [
         {
           "statement_id": "summary_statement.clark_dependency",
           "text": "Exoplanet mass and radius estimates depend strongly on measured host-star properties.",
-          "evidence_ids": ["evidence.summary_clark_dependency"]
+          "evidence_ids": [
+            "evidence.summary_clark_dependency"
+          ]
         }
       ],
       "limitations": [
         {
           "statement_id": "summary_statement.clark_limitation",
           "text": "The result applies to the stated GALAH DR2, TIC, and Gaia DR2 cross-matched sample.",
-          "evidence_ids": ["evidence.summary_clark_crossmatch"]
+          "evidence_ids": [
+            "evidence.summary_clark_crossmatch"
+          ]
         }
       ],
       "future_work": [],
@@ -1063,7 +1197,9 @@
         "Mission design described before completion of the prime mission",
         "Evidence is limited to the public abstract"
       ],
-      "evidence_ids": ["evidence.claim_ricker_method"],
+      "evidence_ids": [
+        "evidence.claim_ricker_method"
+      ],
       "confidence": 0.99,
       "status": "accepted",
       "rejection_reason": null,
@@ -1080,7 +1216,9 @@
         "This is a pre-launch expectation, not an observed yield",
         "Planet candidates and confirmed planets must not be substituted for this quantity"
       ],
-      "evidence_ids": ["evidence.claim_ricker_yield"],
+      "evidence_ids": [
+        "evidence.claim_ricker_yield"
+      ],
       "confidence": 0.98,
       "status": "accepted",
       "rejection_reason": null,
@@ -1097,7 +1235,9 @@
         "Applies to the initial published TIC/CTL version",
         "Does not describe TIC-8 revisions"
       ],
-      "evidence_ids": ["evidence.claim_stassun_2018_method"],
+      "evidence_ids": [
+        "evidence.claim_stassun_2018_method"
+      ],
       "confidence": 0.96,
       "status": "accepted",
       "rejection_reason": null,
@@ -1114,7 +1254,9 @@
         "The abstract does not enumerate every factor",
         "This limits interpretation of ranking as a guaranteed discovery outcome"
       ],
-      "evidence_ids": ["evidence.claim_stassun_2018_limitation"],
+      "evidence_ids": [
+        "evidence.claim_stassun_2018_limitation"
+      ],
       "confidence": 0.93,
       "status": "accepted",
       "rejection_reason": null,
@@ -1131,7 +1273,9 @@
         "Applies to the revised TIC described in the 2019 paper",
         "The claim concerns catalog construction rather than planet validation"
       ],
-      "evidence_ids": ["evidence.claim_stassun_2019_revision"],
+      "evidence_ids": [
+        "evidence.claim_stassun_2019_revision"
+      ],
       "confidence": 0.99,
       "status": "accepted",
       "rejection_reason": null,
@@ -1148,7 +1292,9 @@
         "Restricted to the two-year TESS prime mission",
         "Candidates are not equivalent to newly confirmed planets"
       ],
-      "evidence_ids": ["evidence.claim_guerrero_dataset"],
+      "evidence_ids": [
+        "evidence.claim_guerrero_dataset"
+      ],
       "confidence": 0.99,
       "status": "accepted",
       "rejection_reason": null,
@@ -1165,7 +1311,9 @@
         "Applies to the surveys and releases named in the paper",
         "Does not represent every TESS target or host star"
       ],
-      "evidence_ids": ["evidence.claim_clark_dataset"],
+      "evidence_ids": [
+        "evidence.claim_clark_dataset"
+      ],
       "confidence": 0.98,
       "status": "accepted",
       "rejection_reason": null,
@@ -1182,7 +1330,9 @@
         "Applies to inferred orbital and physical parameters discussed by the paper",
         "Evidence is an abstract-level methodological limitation"
       ],
-      "evidence_ids": ["evidence.claim_clark_dependency"],
+      "evidence_ids": [
+        "evidence.claim_clark_dependency"
+      ],
       "confidence": 0.97,
       "status": "accepted",
       "rejection_reason": null,
@@ -1290,7 +1440,9 @@
         {
           "order": 2,
           "statement": "Verify that the later paper explicitly incorporates Gaia DR2 and calls the ranking revised.",
-          "evidence_ids": ["evidence.claim_stassun_2019_revision"]
+          "evidence_ids": [
+            "evidence.claim_stassun_2019_revision"
+          ]
         }
       ],
       "conditions": [
@@ -1315,12 +1467,16 @@
         {
           "order": 1,
           "statement": "Confirm that the source Clark catalog names TIC and Gaia DR2 as direct cross-match inputs.",
-          "evidence_ids": ["evidence.claim_clark_dataset"]
+          "evidence_ids": [
+            "evidence.claim_clark_dataset"
+          ]
         },
         {
           "order": 2,
           "statement": "Keep the specific revised-TIC lineage as a candidate because the Clark abstract does not identify its TIC release.",
-          "evidence_ids": ["evidence.claim_stassun_2019_revision"]
+          "evidence_ids": [
+            "evidence.claim_stassun_2019_revision"
+          ]
         }
       ],
       "conditions": [
@@ -1408,8 +1564,15 @@
     }
   ],
   "graph_taxonomy": {
-    "allowed_node_types": ["paper", "claim"],
-    "allowed_edge_types": ["supports_finding", "extends", "derived_from"],
+    "allowed_node_types": [
+      "paper",
+      "claim"
+    ],
+    "allowed_edge_types": [
+      "supports_finding",
+      "extends",
+      "derived_from"
+    ],
     "integrity_rules": [
       "Every node id is unique and every edge endpoint resolves to a declared node.",
       "Every edge binds at least one declared Evidence id.",
@@ -1463,7 +1626,9 @@
         "source": "node.paper_stassun_2018",
         "target": "node.claim_stassun_2018_method",
         "edge_type": "supports_finding",
-        "evidence_ids": ["evidence.claim_stassun_2018_method"],
+        "evidence_ids": [
+          "evidence.claim_stassun_2018_method"
+        ],
         "cross_document": false,
         "relation_id": null,
         "reasoning_trace_id": null
@@ -1515,5 +1680,5 @@
       "empty_set_behavior": "report_not_available"
     }
   ],
-  "content_hash": "sha256:0e3fc3705987a8a9562630e72bcc1f84f0164e8cdf0f58fd73a6b821f6a23e55"
+  "content_hash": "sha256:2bd6b19f8f202c821f11912abd22176b8e53790f9fcdd23d177cbb562d81ba0e"
 }

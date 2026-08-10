@@ -39,12 +39,6 @@ from app.schemas.paper_summary import (
     _seal_paper_summary_for_publication,
     compute_paper_summary_output_hash,
 )
-from app.schemas.reasoning import (
-    LiteratureClaim as LiteratureClaimReadProjection,
-)
-from app.schemas.reasoning import (
-    LiteratureReasoningResponse as LiteratureReasoningReadProjection,
-)
 from app.workflow.publisher import (
     ArtifactAdmissionContext,
     ArtifactEvidenceBinding,
@@ -950,35 +944,14 @@ def test_intermediate_model_output_cannot_bypass_publisher() -> None:
             )
 
 
-def test_read_projections_and_single_claim_models_cannot_bypass_publisher() -> None:
+def test_non_authoritative_claim_models_cannot_bypass_publisher() -> None:
     result = _admit(_response())
-    read_claim = LiteratureClaimReadProjection(
-        claim_id="claim.read_projection",
-        task_id="task.read_projection",
-        paper_id=PAPER_ID,
-        claim_type=ClaimType.method,
-        text="Task read projection claim.",
-        normalized_text="Task read projection claim.",
-        evidence_ids=[EVIDENCE_ID],
-        confidence=1.0,
-    )
     projection = LiteratureClaimsArtifactContent(
         kind=ArtifactKind.literature_claims,
         claim_ids=("claim.read_projection",),
     )
-    read_response = LiteratureReasoningReadProjection(
-        claims=[read_claim],
-        relations=[],
-        traces=[],
-    )
 
-    for candidate in (
-        result.records[0],
-        result,
-        read_claim,
-        read_response,
-        projection,
-    ):
+    for candidate in (result.records[0], result, projection):
         with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
             admit_artifact_candidate(
                 candidate,
@@ -989,7 +962,6 @@ def test_read_projections_and_single_claim_models_cannot_bypass_publisher() -> N
                 domain_validator=lambda _: None,
                 quality_validator=lambda _: None,
             )
-
 
 def test_fixed_paper_benchmark_claim_benchmark_is_reproducible_and_uses_approved_labels() -> None:
     benchmark = load_frozen_benchmark()

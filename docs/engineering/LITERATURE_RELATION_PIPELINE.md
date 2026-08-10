@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                                                             |
 | --------- | ------------------------------------------------------------------------------ |
-| Status    | Accepted                                                                       |
 | Authority | LiteratureRelation、ReasoningTrace 准入、confidence、固定 Benchmark 与交接边界 |
 | Scope     | Detached Relation admission、可复现 Benchmark 与 typed candidate 契约          |
 
@@ -78,9 +77,8 @@ object 必须显式为 comparable；metric/unit 只有双方都缺失时可为 `
 如实声明 incomparable 也必须拒绝，不能把“声明一致”误当成“数据可比”。
 
 独立 tracked JSON Schema 位于 `packages/schemas/generated/literature_relation`，不进入
-HTTP OpenAPI。task-read `app.schemas.reasoning.LiteratureRelation`/`ReasoningTrace` 与
-core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 是当前读取投影，
-不是编写源，也不能进入 Publisher。
+HTTP OpenAPI。core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent`
+仅表达当前读取投影，不是编写源，也不能进入 Publisher。
 
 ## 3. 固定准入顺序与拒绝优先级
 
@@ -242,8 +240,8 @@ mint 还要求调用帧是绑定时记录的原始 `admit` code object，且待�
 
 绑定完成后模块不保留可导入 mint、binder 或可写 registry。JSON/Pydantic round-trip、
 copy/deepcopy、偷取或手工构造 seal、
-手工重建、单条 Relation/Trace、raw extraction、
-task-read 投影均不恢复 seal。修改 Relation、Evidence、Trace、confidence、版本、
+手工重建、单条 Relation/Trace、raw extraction 与读取投影均不恢复 seal。
+修改 Relation、Evidence、Trace、confidence、版本、
 Producer 或 hash 会使 seal 失效。candidate/rejected 状态保留在批次内也不得冒充
 accepted；Graph 消费端只能选择真正 accepted 的 Relation。
 

@@ -35,7 +35,7 @@ from services.paper_pipeline.constants import (
     SUMMARY_PRODUCER_NAME,
     SUMMARY_PRODUCER_VERSION,
 )
-from services.paper_pipeline.pipeline import PaperCollectionPipeline
+from services.paper_pipeline.benchmark_runner import PaperCollectionBenchmarkRunner
 from services.paper_pipeline.sources.base import (
     RawSourceRecord,
     SourceSearchResult,
@@ -113,7 +113,7 @@ class SummaryFixtureAdapter:
 
 
 def _collection() -> PaperCollection:
-    return PaperCollectionPipeline(
+    return PaperCollectionBenchmarkRunner(
         adapter=SummaryFixtureAdapter(), clock=lambda: FIXED_TIME
     ).run(
         scenario_id="search.tess_mission_and_catalogs",

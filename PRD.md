@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 用户、问题、产品范围、主流程、成功指标与非目标 |
 
 本文定义星文智析要解决的问题和必须交付的产品结果。交互细节见 [Workspace UX](docs/design/WORKSPACE_UX.md)，规范索引见 [docs/README.md](docs/README.md)，阶段退出标准见 [Acceptance](docs/product/ACCEPTANCE.md)。

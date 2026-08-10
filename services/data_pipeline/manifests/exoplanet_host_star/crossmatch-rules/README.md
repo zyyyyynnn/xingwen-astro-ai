@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                                      |
 | --------- | ------------------------------------------------------- |
-| Status    | Accepted                                                |
 | Authority | Crossmatch rule asset versioning and hash coupling |
 
 本目录保存跨源对齐的版本化规则资产：

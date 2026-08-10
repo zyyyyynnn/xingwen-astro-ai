@@ -116,5 +116,6 @@
       "name": "UnitConversionCatalog",
       "path": "json/UnitConversionCatalog.schema.json"
     }
-  ]
+  ],
+  "schema_version": 1
 }

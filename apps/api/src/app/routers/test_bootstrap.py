@@ -36,8 +36,8 @@ def _persistent_runtime_unavailable() -> SecurityProblem:
         code="BOOTSTRAP_UNAVAILABLE",
         title="Bootstrap unavailable",
         detail=(
-            "The test-only bootstrap requires the persistent runtime "
-            "(DATABASE_URL and PERSISTENT_WORKFLOW_ENABLED=true)"
+            "The test-only bootstrap requires the configured PostgreSQL runtime "
+            "(DATABASE_URL)"
         ),
     )
 

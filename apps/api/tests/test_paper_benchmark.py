@@ -43,8 +43,6 @@ def _review_record(
     review_id: str,
     purpose: str = "benchmark_scientific_review",
     verdict: str = "pass",
-    sequence: int = 1,
-    supersedes: str | None = None,
     reviewer_type: str = "web_gpt",
     reviewed_benchmark_version: str | None = None,
     reviewed_content_hash: str | None = None,
@@ -52,8 +50,6 @@ def _review_record(
 ) -> dict[str, Any]:
     return {
         "review_id": review_id,
-        "review_sequence": sequence,
-        "supersedes_review_id": supersedes,
         "reviewed_at": "2026-07-21T12:00:00+08:00",
         "reviewer_type": reviewer_type,
         "reviewer_identity": (
@@ -307,25 +303,13 @@ def test_hash_sorts_object_keys_but_preserves_array_order() -> None:
     assert compute_benchmark_content_hash(reordered_array) != payload["content_hash"]
 
 
-@pytest.mark.parametrize(
-    "field",
-    ["created_at", "review_records", "change_records"],
-)
-def test_audit_and_review_metadata_are_hash_bound(field: str) -> None:
+@pytest.mark.parametrize("field", ["created_at", "review_records"])
+def test_current_audit_and_review_metadata_are_hash_bound(field: str) -> None:
     payload = _read_payload()
     if field == "created_at":
         payload[field] = "2026-07-20"
-    elif field == "review_records":
-        payload[field].append(
-            _review_record(
-                payload,
-                review_id="review.hash_bound_metadata",
-                verdict="blocked",
-                reviewer_type="automation",
-            )
-        )
     else:
-        payload[field][0]["summary"] += " changed"
+        payload["review_records"][0]["notes"] += " changed"
 
     assert compute_benchmark_content_hash(payload) != _read_payload()["content_hash"]
 
@@ -503,86 +487,6 @@ def test_automation_cannot_issue_formal_pass() -> None:
         BenchmarkPackagePayload.model_validate(payload)
 
 
-@pytest.mark.parametrize(
-    ("records", "expected_message"),
-    [
-        (
-            lambda source: [
-                _review_record(
-                    source,
-                    review_id="review.child",
-                    sequence=2,
-                    supersedes="review.missing",
-                )
-            ],
-            "unknown supersedes_review_id",
-        ),
-        (
-            lambda source: [
-                _review_record(source, review_id="review.root"),
-                _review_record(
-                    source,
-                    review_id="review.child_a",
-                    sequence=2,
-                    supersedes="review.root",
-                ),
-                _review_record(
-                    source,
-                    review_id="review.child_b",
-                    sequence=2,
-                    supersedes="review.root",
-                ),
-            ],
-            "more than one direct successor",
-        ),
-        (
-            lambda source: [
-                _review_record(
-                    source,
-                    review_id="review.a",
-                    sequence=2,
-                    supersedes="review.b",
-                ),
-                _review_record(
-                    source,
-                    review_id="review.b",
-                    sequence=3,
-                    supersedes="review.a",
-                ),
-            ],
-            "supersedes cycle",
-        ),
-        (
-            lambda source: [
-                _review_record(source, review_id="review.root"),
-                _review_record(
-                    source,
-                    review_id="review.child",
-                    sequence=2,
-                    supersedes="review.root",
-                    scope=[
-                        {
-                            "target_type": "source_policy",
-                            "target_ids": ["crossref"],
-                        }
-                    ],
-                ),
-            ],
-            "review scope",
-        ),
-    ],
-)
-def test_invalid_review_evolution_is_rejected(
-    records: Any, expected_message: str
-) -> None:
-    payload = _read_payload()
-    payload.pop("content_hash")
-    payload["review_records"] = records(_read_payload())
-
-    with pytest.raises(ValidationError, match=expected_message):
-        BenchmarkPackagePayload.model_validate(payload)
-
-
 def test_scientific_hash_excludes_review_metadata_but_detects_payload_tampering() -> (
     None
 ):
@@ -670,24 +574,33 @@ def test_scientific_review_scope_must_cover_every_object() -> None:
         BenchmarkPackagePayload.model_validate(payload)
 
 
-def test_unresolved_scientific_block_prevents_approval() -> None:
+def test_current_blocked_scientific_review_prevents_approval() -> None:
     payload = _approved_payload("benchmark_scientific_review")
     passed = payload["review_records"][0]
-    payload["review_records"].append(
+    payload["review_records"] = [
         _review_record(
             {**payload, "content_hash": payload["scientific_payload_hash"]},
             review_id="review.scientific_blocked",
             purpose="benchmark_scientific_review",
             verdict="blocked",
-            sequence=2,
-            supersedes=passed["review_id"],
             reviewed_content_hash=payload["scientific_payload_hash"],
             scope=passed["scope"],
         )
-    )
+    ]
 
-    with pytest.raises(ValidationError, match="unresolved BLOCKED scientific"):
+    with pytest.raises(ValidationError, match="BLOCKED scientific review"):
         BenchmarkPackagePayload.model_validate(payload)
+
+
+def test_final_package_requires_exactly_one_current_scientific_review() -> None:
+    payload = _read_payload()
+    payload["review_status"] = "pending_scientific_review"
+    payload["review_records"] = []
+    payload["scientific_payload_hash"] = compute_benchmark_scientific_payload_hash(payload)
+    payload["content_hash"] = compute_benchmark_content_hash(payload)
+
+    with pytest.raises(ValidationError, match="exactly one current scientific review"):
+        BenchmarkPackage.model_validate(payload)
 
 
 def test_unsupported_reviewer_type_is_rejected() -> None:

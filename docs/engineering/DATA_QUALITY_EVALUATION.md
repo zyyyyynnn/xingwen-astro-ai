@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 分层质量指标、Evidence 覆盖、Contract gate 与 Publisher handoff |
 
 ## 1. 边界与唯一事实源

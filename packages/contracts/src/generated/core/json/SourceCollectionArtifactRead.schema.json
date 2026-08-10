@@ -1105,7 +1105,7 @@
     },
     "SourceSnapshotRecord": {
       "additionalProperties": false,
-      "description": "Immutable source record consumed by publication pipelines.\n\nThis complete provenance record and the compact task-read projection serve\nseparate current interfaces; neither is a historical compatibility model.",
+      "description": "Immutable source provenance consumed by scientific pipelines.\n\nThis is a pipeline/runtime record, not an HTTP read projection. It preserves\nthe exact source, query and content identity required for reproducibility\nwhile rejecting credential-bearing request metadata before publication.",
       "properties": {
         "cache_version": {
           "anyOf": [

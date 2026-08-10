@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                                                 |
 | --------- | ------------------------------------------------------------------ |
-| Status    | Accepted                                                           |
 | Authority | LiteratureClaim 抽取、规范化、准入、固定 Benchmark 与交接边界      |
 | Scope     | Detached Claim admission、可复现 Benchmark 与 typed candidate 契约 |
 
@@ -79,9 +78,8 @@ Relation 输入只能选择 candidate/accepted Claim。
 `LiteratureClaimModelCandidate`、`LiteratureClaimExtractionOutput`、单条
 `LiteratureClaimCandidate` 和 `LiteratureClaimAdmissionResult` 不能绕过 Pipeline 直接进入
 Publisher；只有 Pipeline 封印的完整
-`LiteratureClaimsCandidate@1.0.0` 才是领域 typed candidate。task-read
-`app.schemas.reasoning.LiteratureClaim`、`LiteratureReasoningResponse` 和 core
-`LiteratureClaimsArtifactContent` 是当前读取投影，带不可发布 marker，不是第二套编写源。
+`LiteratureClaimsCandidate@1.0.0` 才是领域 typed candidate。core
+`LiteratureClaimsArtifactContent` 仅表达当前读取投影，不是第二套编写源，也不能进入 Publisher。
 独立 tracked JSON Schema 位于
 `packages/schemas/generated/literature_claim`，不进入 HTTP OpenAPI。
 
