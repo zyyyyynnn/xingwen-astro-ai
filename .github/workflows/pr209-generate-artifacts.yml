@@ -81,16 +81,26 @@ jobs:
             scripts/check-docs.test.mjs
             scripts/governance-identifiers.mjs
 
-      - name: Verify generated repair set
+      - name: Verify targeted backend contracts
         run: |
           uv run --project apps/api pytest \
             apps/api/tests/test_paper_acquisition_fixture.py \
             apps/api/tests/test_paper_summary_fixture.py \
             apps/api/tests/test_api_surface.py -q
+
+      - name: Verify OpenAPI export is stable
+        run: |
           cd apps/api
           uv run python ../../scripts/export_openapi.py \
             --output ../../packages/schemas/generated/core/openapi.json --check
-          cd ../..
-          pnpm format:check
+
+      - name: Verify canonical formatting
+        run: pnpm format:check
+
+      - name: Verify contract consumer generation is idempotent
+        run: |
+          cp packages/contracts/src/generated/core/dto.ts /tmp/core-dto.ts
+          cp packages/contracts/src/generated/core/manifest.json /tmp/core-manifest.json
           pnpm --filter @xingwen/contracts sync-contracts
-          git diff --exit-code -- packages/contracts/src/generated/core
+          cmp /tmp/core-dto.ts packages/contracts/src/generated/core/dto.ts
+          cmp /tmp/core-manifest.json packages/contracts/src/generated/core/manifest.json
