@@ -1,11 +1,6 @@
 # Reference Materials
 
-| 元数据    | 值                             |
-| --------- | ------------------------------ |
-| Status    | Reference                      |
-| Authority | 无；本目录不定义当前产品或实现 |
-
-本目录保存赛题要求、第三方参考代码、研究摘要和来源审计记录。内容只用于比较、调研和形成设计输入；任何规则必须先进入 PRD、ADR、Contract 或专项规范，才能成为实现依据。
+本目录保存赛题要求、第三方参考代码、研究摘要和来源审计记录，仅用于比较、调研和形成设计输入，不定义当前产品或实现规则。任何规则必须先进入对应的当前 Authority，才能成为实现依据。
 
 ## 内容
 
@@ -29,17 +24,17 @@ docs/references/
 
 ## 与当前模块的可能关联
 
-| 参考      | 可研究方向                         | 当前权威规范                                        |
-| --------- | ---------------------------------- | --------------------------------------------------- |
-| AutoAstro | 数据获取、对象匹配、分析任务组织   | Data Model、Module Boundaries、C 系列 Issues        |
-| mavis     | 天文工具封装、可视化与交互模式     | Frontend Architecture、Workspace UX、Graph Contract |
+| 参考      | 可研究方向                         | 当前 Authority                                   |
+| --------- | ---------------------------------- | ------------------------------------------------ |
+| AutoAstro | 数据获取、对象匹配、分析任务组织   | Data Model、Module Boundaries                    |
+| mavis     | 天文工具封装、可视化与交互模式     | Frontend Architecture、Workspace UX、Graph Pipeline |
 | InnoSum   | 论文章节识别、结构化摘要和质量评估 | Model Policy、Prompt Registry、Reasoning Protocol |
 
 “可研究方向”不表示已采用或已实现。
 
 ## 赛题要求
 
-[赛题要求.md](赛题要求.md) 是外部要求的仓库整理版。产品范围和提交口径仍由 PRD、Acceptance 与 Handoff 维护；两者冲突时应先核对原始赛题材料，再通过 Issue 修改内部规范。
+[赛题要求.md](赛题要求.md) 是外部要求的仓库整理版。产品范围和提交口径仍由 PRD 与 Acceptance 负责；两者冲突时应先核对原始赛题材料，再通过 GitHub Issue 修改内部 Authority。
 
 ## 外部资料边界
 
