@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 本地与 Docker 启动方式、环境变量与调试命令 |
 
 本地开发采用 Docker-first 模式。Docker Compose 管理 `site`、`workspace`、`api`、`migrate`、`postgres`；前端本机调试统一在仓库根目录执行。
@@ -25,7 +24,7 @@
 Copy-Item .env.example .env
 ```
 
-在 `.env` 中按实际需求填写 `DASHSCOPE_API_KEY` 与 `PAPER_SOURCE_API_KEY`。严禁提交 `.env`。
+`.env.example` 只声明当前运行时实际消费的配置。严禁提交 `.env`、密钥、Cookie 或其他凭据。
 
 | 变量 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -34,6 +33,9 @@ Copy-Item .env.example .env
 | `SESSION_COOKIE_SECURE` | `false` | 本地 HTTP 设为 false，生产部署必须显式为 true |
 | `SESSION_TTL_SECONDS` | `86400` | 匿名 Session 有效期 |
 | `CURSOR_SIGNING_KEY` | `development-only-cursor-signing-key` | 不透明分页 cursor HMAC 密钥 |
+| `DATABASE_URL` | Docker Compose PostgreSQL URL | ResearchRun、Artifact、Evidence 与 ResearchInput 的权威存储 |
+| `RESEARCH_INPUT_UPLOAD_DIR` | `.data/research-inputs` | ResearchInput 内容寻址存储目录 |
+| `URL_FETCH_ALLOWED_HOSTS` | 空 | URL ResearchInput host allowlist；空值 fail closed |
 
 ## 3. Docker Compose 启动
 
@@ -101,6 +103,8 @@ uv run uvicorn app.main:app --reload
 $env:DATABASE_URL = "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/xingwen_astro_ai"
 uv run alembic upgrade head
 ```
+
+活动 migration 是描述当前数据库的单一 baseline；开发数据库需要跨 schema 变化时直接重建，不维护开发期升级兼容链。
 
 Schema 导出：
 
