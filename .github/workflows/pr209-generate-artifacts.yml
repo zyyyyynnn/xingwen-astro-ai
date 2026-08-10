@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - .github/workflows/pr209-generate-artifacts.yml
+      - apps/api/src/app/contracts/**
+      - scripts/export_openapi.py
 
 permissions:
   contents: read
