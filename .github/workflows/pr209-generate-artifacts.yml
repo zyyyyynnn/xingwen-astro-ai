@@ -1,9 +1,9 @@
 name: PR209 closure diagnostics
 
 on:
-  push:
+  pull_request:
     branches:
-      - codex/governance-authority-current-main
+      - main
     paths:
       - .github/workflows/pr209-generate-artifacts.yml
 
