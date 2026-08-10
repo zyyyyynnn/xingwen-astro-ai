@@ -2,15 +2,14 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | HTTP 资源、传输结构、错误、授权语义与 API 演进规范 |
 
-本文定义无版本前缀的单一 `/api/*` 接口面。包含 Core APIs 与 Pipeline APIs（`/api/health`、`/api/tasks*`）。系统仅做加法演进，不升级 URL 版本号。具体 Endpoints、DTOs 与字段由 Pydantic 编写源、OpenAPI 与生成的 Contract 权威定义。
+本文定义无版本前缀的单一 `/api/*` 接口面：当前 Research resource surface 与明确的 system endpoints（例如 `/api/health`）。系统不维护旧 API、目标 API、兼容 API 或 Task API。具体 Endpoints、DTOs 与字段由 Pydantic 编写源、OpenAPI 与生成的 Contract 权威定义。
 
 ## 1. 设计原则
 
 - URI 使用复数资源名与 `snake_case` 字段。
-- 成功响应使用统一 Envelope；错误响应遵循 RFC 9457 Problem Details。
+- 单资源成功响应使用 `Envelope`，集合成功响应使用 `CollectionEnvelope`；失败响应统一遵循 RFC 9457 `ProblemDetails`。
 - 集合接口使用不透明 cursor 分页（默认 20，最大 100）。
 - 写操作通过 `Idempotency-Key` 或版本前置条件确保幂等。
 - `execution_mode`（demo_replay / live）与 `source_mode`（fixture / live / cached）分离。
@@ -37,6 +36,8 @@
 
 ### 4.1 成功 Envelope
 
+单资源：
+
 ```json
 {
   "data": {},
@@ -51,7 +52,7 @@
 }
 ```
 
-分页集合额外包含 `page: { "next_cursor": "...", "has_more": false, "limit": 20 }`。
+集合使用 `CollectionEnvelope`，并额外包含 `page: { "next_cursor": "...", "has_more": false, "limit": 20 }`。
 
 ### 4.2 Problem Details 错误响应
 
