@@ -619,7 +619,7 @@ def _build_admitted_candidate_authority(
     """Bind the generic wrapper to the exact admission call and payload.
 
     The constructor's private token alone is not an authority boundary in
-    Python because module globals can be imported.  Keep the registration
+    Python because module globals can be imported. Keep the registration
     ledger inside this closure, require the exact admission frame, and verify
     every immutable field again before any publication or replay.
     """
@@ -1446,18 +1446,13 @@ def _require_declared_candidate_context(
 
 def _require_pipeline_admission(candidate: BaseModel) -> None:
     candidate_class = candidate.__class__
-    from app.schemas.graph import GraphResponse
-
-    if candidate_class is GraphResponse:
-        raise PublicationAdmissionError(
-            "Graph read projection cannot bypass Versioned Evidence Graph admission"
-        )
     candidate_kind = getattr(candidate, "kind", None)
     if hasattr(candidate_kind, "value"):
         candidate_kind = candidate_kind.value
 
-    # Versioned Evidence Graph/LiteratureClaim Pipeline/LiteratureRelation Pipeline own these Artifact kinds exclusively. Caller-defined wrappers
-    # cannot opt out by omitting the marker or opt in with a forged method.
+    # Evidence Graph/LiteratureClaim/LiteratureRelation own these Artifact kinds
+    # exclusively. Caller-defined wrappers cannot opt out by omitting the marker
+    # or opt in with a forged admission method.
     if candidate_kind == "literature_claims":
         from app.schemas.literature_claim import LiteratureClaimsCandidate
 
@@ -1481,7 +1476,7 @@ def _require_pipeline_admission(candidate: BaseModel) -> None:
 
         if candidate_class is not GraphArtifactCandidate:
             raise PublicationAdmissionError(
-                "graph requires the authoritative Versioned Evidence Graph Pipeline candidate"
+                "graph requires the authoritative Evidence Graph Pipeline candidate"
             )
 
     if not getattr(
@@ -2268,7 +2263,7 @@ def _validate_candidate_artifact_kind(
         )
     if artifact.kind == "graph" and candidate_kind != "graph":
         raise PublicationAdmissionError(
-            "Graph ResearchArtifacts require an admitted Versioned Evidence Graph candidate"
+            "Graph ResearchArtifacts require an admitted Evidence Graph candidate"
         )
 
 
