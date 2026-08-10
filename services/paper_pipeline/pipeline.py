@@ -1,4 +1,4 @@
-"""Orchestrate paper acquisition without owning ResearchRun state or publication."""
+"""Run scenario-driven paper benchmark acquisition without owning ResearchRun state."""
 
 from __future__ import annotations
 
@@ -56,8 +56,8 @@ from .sources.crossref import CrossrefAdapter
 Clock = Callable[[], datetime]
 
 
-class PaperCollectionPipeline:
-    """Generate publisher-ready content while leaving publication to PaperCollection API."""
+class PaperCollectionBenchmarkRunner:
+    """Run one frozen benchmark scenario through reusable paper-search primitives."""
 
     def __init__(
         self,
@@ -337,7 +337,7 @@ class PaperCollectionPipeline:
     def _now(self) -> datetime:
         value = self.clock()
         if value.tzinfo is None:
-            raise ValueError("pipeline clock must return timezone-aware datetime")
+            raise ValueError("benchmark runner clock must return timezone-aware datetime")
         return value
 
 
