@@ -25,6 +25,7 @@ const documentWindow = new JSDOM("<!doctype html><html><body></body></html>")
 globalThis.window = documentWindow;
 globalThis.document = documentWindow.document;
 const { default: mermaid } = await import("mermaid");
+
 const trackedFiles = execFileSync(
   "git",
   ["-c", "core.quotepath=false", "ls-files", "-z"],
@@ -34,6 +35,7 @@ const trackedFiles = execFileSync(
   .filter(Boolean)
   .map((file) => file.replaceAll("\\", "/"))
   .filter((file) => existsSync(resolve(root, file)));
+
 const files = trackedFiles.filter((file) => file.endsWith(".md"));
 const repositoryTextFiles = trackedFiles.filter(
   (file) =>
@@ -42,27 +44,21 @@ const repositoryTextFiles = trackedFiles.filter(
     !["apps/api/uv.lock", "pnpm-lock.yaml"].includes(file) &&
     file !== "scripts/governance-identifiers.mjs" &&
     file !== "scripts/check-docs.test.mjs" &&
+    file !== "scripts/check-architecture-delegacy.mjs" &&
+    file !== "scripts/check-architecture-delegacy.test.mjs" &&
     file !== "scripts/check-title-governance.test.mjs",
 );
+
 const results = new Map();
 const errors = [];
 const authorities = new Map();
 
-for (const file of trackedFiles) {
-  if (containsRepositoryTaskCodePath(file)) {
-    errors.push(`${file}: task code is not allowed in tracked file paths`);
-  }
-  if (containsRepositoryPhaseIdentifierPath(file)) {
-    errors.push(
-      `${file}: phase identifier is not allowed in tracked file paths`,
-    );
-  }
-  if (containsRepositoryVersionLabelPath(file)) {
-    errors.push(`${file}: version label is not allowed in tracked file paths`);
-  }
+function isReference(file) {
+  return file.startsWith("docs/references/");
 }
 
-function requiresMetadata(file) {
+function requiresAuthority(file) {
+  if (isReference(file)) return false;
   return (
     [
       "CONTRIBUTING.md",
@@ -76,7 +72,6 @@ function requiresMetadata(file) {
     /^docs\/(?:ai|architecture|design|engineering|product|quality)\/[^/]+\.md$/u.test(
       file,
     ) ||
-    file.startsWith("docs/references/") ||
     file === "packages/prompts/README.md" ||
     file === "packages/schemas/README.md"
   );
@@ -99,22 +94,30 @@ function localTarget(rawTarget) {
   }
 }
 
+for (const file of trackedFiles) {
+  if (containsRepositoryTaskCodePath(file)) {
+    errors.push(`${file}: task code is not allowed in tracked file paths`);
+  }
+  if (containsRepositoryPhaseIdentifierPath(file)) {
+    errors.push(`${file}: phase identifier is not allowed in tracked file paths`);
+  }
+  if (containsRepositoryVersionLabelPath(file)) {
+    errors.push(`${file}: pseudo-version label is not allowed in tracked file paths`);
+  }
+}
+
 for (const file of files) {
-  const expectedStatus = file.startsWith("docs/references/")
-    ? "Reference"
-    : null;
   const result = inspectMarkdown(readFileSync(resolve(root, file), "utf8"), {
     requireSingleH1: !file.startsWith(".github/"),
-    expectedStatus,
-    requireMetadata: requiresMetadata(file),
+    requireAuthority: requiresAuthority(file),
   });
   results.set(file, result);
   for (const error of result.errors) errors.push(`${file}: ${error}`);
 
-  if (
-    result.metadata.Authority &&
-    !["Reference", "Archived"].includes(result.metadata.Status)
-  ) {
+  if (isReference(file) && result.metadata.Authority) {
+    errors.push(`${file}: Reference material must not declare normative Authority`);
+  }
+  if (!isReference(file) && result.metadata.Authority) {
     const previous = authorities.get(result.metadata.Authority);
     if (previous) {
       errors.push(`${file}: duplicates Authority from ${previous}`);
@@ -164,7 +167,7 @@ for (const file of repositoryTextFiles) {
     }
     if (containsRepositoryVersionLabel(line)) {
       errors.push(
-        `${file}: line ${index + 1}: version label is not allowed in repository prose`,
+        `${file}: line ${index + 1}: pseudo-version label is not allowed in repository prose`,
       );
     }
     if (
@@ -193,14 +196,19 @@ for (const link of results.get(indexFile)?.links ?? []) {
     indexTargets.add(relative(root, absolute).replaceAll("\\", "/"));
   }
 }
-for (const [file, result] of results) {
+
+for (const file of files) {
   if (
-    requiresMetadata(file) &&
+    requiresAuthority(file) &&
     file !== indexFile &&
-    !["Reference", "Archived"].includes(result.metadata.Status) &&
     !indexTargets.has(file)
   ) {
-    errors.push(`${file}: normative document is missing from ${indexFile}`);
+    errors.push(`${file}: normative Authority is missing from ${indexFile}`);
+  }
+}
+for (const file of indexTargets) {
+  if (isReference(file)) {
+    errors.push(`${indexFile}: Reference material cannot appear in the Authority map: ${file}`);
   }
 }
 
