@@ -2,7 +2,7 @@
 
 ## 1. 目的与范围
 
-本目录保存固定主案例 `exoplanet_host_star` 的版本化、机器可读论文与推理 Benchmark Package。它为论文检索、结构化摘要、Claim/Relation 准入、Graph 完整性、API 集成与端到端评测提供固定输入。
+本目录保存固定主案例 `exoplanet_host_star` 的版本化、机器可读论文与推理 Benchmark Package。它为论文检索、结构化摘要、Claim/Relation 准入、Graph 完整性和端到端评测提供固定输入。
 
 本 Package 只提供静态基准、Pydantic 校验、稳定 hash 和纯指标计算，不实现论文检索 Adapter、外部请求、模型调用、自动摘要、自动 Claim/Relation、Graph 生成、API、数据库或 Run/ArtifactVersion 发布。
 
@@ -18,7 +18,7 @@ services/paper_pipeline/benchmarks/
 - JSON 是基准内容的唯一事实源，Graph taxonomy 与完整性规则也保存在同一 Package 中。
 - `apps/api/src/app/schemas/paper_benchmark.py` 是 Benchmark Pydantic v2 Schema、引用完整性和指标定义的编写源。
 - `apps/api/tests/test_paper_benchmark.py` 验证正常加载、恶意篡改、hash、Evidence、Relation、Trace、Graph 和指标。
-- Benchmark 模型全部使用 `Benchmark` 前缀，不替代或修改 Pipeline（`/api/tasks`）DTO，也不声明 `/api` 已实现。
+- Benchmark 模型全部使用 `Benchmark` 前缀，只描述静态科研基准，不替代生产 Research API 或 Pipeline domain contracts。
 
 ## 3. 数据等级与使用边界
 
@@ -36,9 +36,9 @@ Seed papers 和结构化样例属于 `Benchmark / seed` 数据等级，只允许
 
 - `schema_version` 表示 Pydantic/JSON 结构版本。
 - `benchmark_version` 表示论文、Evidence、科研审核标签、Graph 或指标内容版本。
-- 内容或语义变化必须提升 `benchmark_version`，更新当前 `change_records`、`review_records` 和 `content_hash`。
-- `review_records` 只表达科研评审：记录 reviewer identity、verdict、review sequence/supersedes、version、scientific payload hash、findings 和结构化对象范围；automation 不能产生正式通过结论。
-- Review 链最新叶节点有效，存在未解决的科研阻断项时不得批准 Package。
+- 内容或语义变化必须提升 `benchmark_version`，同步当前 `review_records` 与 `content_hash`。
+- `review_records` 只表达一个当前科研评审：记录 reviewer identity、`reviewed_at`、purpose、verdict、当前 benchmark version、scientific payload hash、findings 和结构化对象范围；automation 不能产生正式通过结论。
+- 当前科研评审存在阻断项时不得批准 Package。
 - 已发布的技术身份不得原地改变语义；仓库只维护当前消费的 Benchmark 定义。
 - 消费方固定 `benchmark_id + benchmark_version + content_hash`，不得读取动态 latest。
 
@@ -54,9 +54,9 @@ Benchmark 与 Case/Field Manifest 共同调用 `app.schemas._hashing.compute_can
 6. 使用 UTF-8、非 ASCII 转义关闭、紧凑分隔符且禁止 NaN；
 7. 对规范化字节计算 SHA-256，格式为 `sha256:<64 lowercase hex>`。
 
-`created_at`、`review_records` 和 `change_records` 均进入完整 `content_hash`，因为它们属于已发布基准的审计内容。测试固定了对象 key 重排不改变 hash、数组重排改变 hash，以及 JSON 重复加载后的 hash 稳定性。
+`created_at` 与当前 `review_records` 进入完整 `content_hash`，因为它们属于当前基准的审计内容。测试固定了对象 key 重排不改变 hash、数组重排改变 hash，以及 JSON 重复加载后的 hash 稳定性。
 
-`scientific_payload_hash` 使用相同 canonical JSON 规则，但排除 `content_hash`、自身、`review_records` 和 `change_records`，并递归规范化 Package 与所有对象级 `review_status`。它仍覆盖版本、来源、论文、Summary、Evidence、Claim、Relation、Trace、Graph 和指标，使科研 Review 能绑定稳定科研内容，再追加 Review 元数据而不形成 hash 自引用；仅改变批准状态不会改变 scientific hash，但会改变完整 `content_hash`。当前值为 `sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9`；完整 Package hash 为 `sha256:0e3fc3705987a8a9562630e72bcc1f84f0164e8cdf0f58fd73a6b821f6a23e55`。
+`scientific_payload_hash` 使用相同 canonical JSON 规则，但排除 `content_hash`、自身和 `review_records`，并递归规范化 Package 与所有对象级 `review_status`。它仍覆盖版本、来源、论文、Summary、Evidence、Claim、Relation、Trace、Graph 和指标，使科研 Review 能绑定稳定科研内容，再追加 Review 元数据而不形成 hash 自引用；仅改变批准状态不会改变 scientific hash，但会改变完整 `content_hash`。`scientific_payload_hash` 与完整 Package `content_hash` 均由当前 Pydantic/共享 hashing 边界计算并由测试固定，不在文档维护第二份算法或动态 latest。
 
 ## 6. 论文核验与访问边界
 
@@ -74,7 +74,7 @@ Package 还逐篇记录：
 
 本基准只保存元数据和短 abstract evidence。无法访问或未核验的全文不得生成全文 locator、页码或正文 Quote。来源 API 的实时配额和许可仍需论文检索 Adapter 在运行时重新核验，静态声明不能替代运行时 SourceSnapshot。
 
-Crossref 的 `documented_policy` 同时保存 2025-11 计划公告、2025-12 实施更新和 access documentation 的声明与冲突；`observed_runtime_limits` 保存 2026-07-21 public 单记录/列表请求实际返回的 `x-api-pool=public`、`5/1s`、并发 `1` 和 HTTP 200。未配置真实联系身份，因此 polite 响应头记为未观测且不伪造。静态值只是版本化快照，运行时 Adapter 必须优先服从当前响应头、处理 `429`/backoff，并在缺失头时使用保守策略；本 Package 不实现 Adapter。
+Crossref 的 `documented_policy` 保存当前基准所固定的官方声明与冲突说明；`observed_runtime_limits` 保存基准核验时 public 单记录/列表请求实际观测值。未配置真实联系身份时不得伪造 polite 响应头。静态值只是版本化快照，运行时 Adapter 必须优先服从当前响应头、处理 `429`/backoff，并在缺失头时使用保守策略；本 Package 不实现 Adapter。
 
 ## 7. Evidence 等级
 
@@ -103,7 +103,7 @@ Relation 方向语义以 [Reasoning Protocol](../../../docs/ai/REASONING_PROTOCO
 5. review-approved Relation 是否绑定双方 Evidence 和已批准 Trace；
 6. candidate/rejected 的保留原因是否充分；
 7. Graph 是否只发布 accepted Relation；
-8. `reviewer_type=web_gpt`、稳定 identity、purpose、version、scientific payload hash、结构化对象范围、日期、verdict 与 findings 是否进入 `review_records`。
+8. `reviewer_type=web_gpt`、稳定 identity、purpose、当前 version、scientific payload hash、结构化对象范围、日期、verdict 与 findings 是否进入唯一当前 `review_records`。
 
 不得把本地自动生成草案或测试 identity 标记为科研通过。Package 只有在当前 version/hash 的有效 `benchmark_scientific_review` 通过记录覆盖所有 source policy、seed paper、Summary、Evidence、Claim、Relation、Trace 和 GraphEdge，且所有带科研评审状态的对象均已批准时才能标为 `approved`。PR 技术审查由 GitHub 工作流独立管理，不得写入 Benchmark。
 
@@ -123,7 +123,7 @@ Relation 方向语义以 [Reasoning Protocol](../../../docs/ai/REASONING_PROTOCO
 
 ## 10. 下游消费
 
-- 论文检索消费 search scenarios、source policy、expected candidates 与 seed identifiers，并另建真实 SourceSnapshot；实现规则见 [PaperCollection Pipeline](../../../docs/engineering/PAPER_COLLECTION_PIPELINE.md)。
+- Benchmark runner 消费 search scenarios、source policy、expected candidates 与 seed identifiers；生产 Paper Search 则从 `ResearchContract.paper_search_scope` 产生 typed `PaperSearchInput`，两者复用 Crossref、normalization、canonicalization、dedupe、ranking、SourceSnapshot、ProducerExecution 与 hashing primitives。
 - 摘要生成使用 Summary/Evidence 草案做 Prompt、Schema 和 Evidence 回归，不能直接发布为模型产物。
 - 文献推理使用 Claim、Relation、Trace 和负例验证准入与科研评测。
 - Graph 发布门使用同包 Graph taxonomy、accepted Relation 和完整性规则。
