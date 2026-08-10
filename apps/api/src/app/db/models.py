@@ -1,8 +1,7 @@
+"""SQLAlchemy models for the current PostgreSQL persistence contract.
 
-"""SQLAlchemy models for workflow persistence.
-
-Statuses remain text plus database CHECK constraints so migrations are explicit
-and do not depend on PostgreSQL enum lifecycle operations.
+Statuses remain text plus database CHECK constraints so schema evolution stays
+explicit and does not depend on PostgreSQL enum lifecycle operations.
 """
 
 from __future__ import annotations
@@ -55,10 +54,8 @@ class ResearchProjectModel(TimestampMixin, Base):
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    # Public createResearchProject idempotent-replay identity; nullable for
-    # rows created before the public authoring chain fields were populated.
-    idempotency_key: Mapped[str | None] = mapped_column(String(200))
-    request_hash: Mapped[str | None] = mapped_column(String(71))
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
 
     __table_args__ = (
         CheckConstraint("revision >= 1", name="revision_positive"),
@@ -77,16 +74,14 @@ class ResearchContractModel(TimestampMixin, Base):
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
-    # Full frozen ``ResearchContractInput`` payload so the immutable contract can
-    # be recovered verbatim (not only by hash). Nullable for workflow rows
-    # created before the public confirmation path.
-    content: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    created_from_draft_id: Mapped[UUID | None] = mapped_column(
+    content: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_from_draft_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
         ForeignKey("research_contract_drafts.id", ondelete="RESTRICT"),
+        nullable=False,
     )
-    idempotency_key: Mapped[str | None] = mapped_column(String(200))
-    request_hash: Mapped[str | None] = mapped_column(String(71))
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
 
     __table_args__ = (
         UniqueConstraint("id", "project_id", name="uq_research_contract_id_project"),
@@ -102,10 +97,10 @@ class ResearchContractModel(TimestampMixin, Base):
 
 
 class ResearchContractDraftModel(TimestampMixin, Base):
-    """Editable, session-scoped draft persisted for the public confirmation path.
+    """Editable, session-scoped draft persisted for contract confirmation.
 
-    A draft is owned by a session (not a project); ``version`` is the optimistic
-    concurrency token used by the ``If-Match`` header on PATCH updates.
+    A draft is owned by a session; ``version`` is the optimistic concurrency
+    token consumed by ``If-Match`` on updates.
     """
 
     __tablename__ = "research_contract_drafts"
@@ -121,10 +116,8 @@ class ResearchContractDraftModel(TimestampMixin, Base):
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    # Public createResearchContractDraft idempotent-replay identity; nullable
-    # for rows created before the public authoring chain identity was persisted.
-    idempotency_key: Mapped[str | None] = mapped_column(String(200))
-    request_hash: Mapped[str | None] = mapped_column(String(71))
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
 
     __table_args__ = (
         CheckConstraint("version >= 1", name="version_positive"),
@@ -578,15 +571,15 @@ class EvidenceModel(TimestampMixin, Base):
 
 
 class ResearchInputModel(Base):
-    """Immutable provenance reference for one ingested Research Input (Research Input Ingestion).
+    """Immutable provenance reference for one ingested Research Input.
 
     Content facts (``storage_ref``, ``mime_type``, ``size_bytes``) live solely
     in :class:`ResearchInputContentModel`, referenced through the composite FK
-    ``(project_id, content_hash)``.  This table only records *who* ingested
-    *what hash* from *which source* and *when*.
+    ``(project_id, content_hash)``. This table records who ingested which
+    content identity from which source and when.
 
-    ``expires_at`` doubles as the soft-delete marker: deletion only expires the
-    reference, never the blob.
+    ``expires_at`` is the soft-delete marker: deletion expires the reference,
+    never the content blob.
     """
 
     __tablename__ = "research_inputs"
@@ -608,10 +601,6 @@ class ResearchInputModel(Base):
     )
 
     __table_args__ = (
-        # NOTE: no (session_id, project_id, content_hash) unique constraint.
-        # The same bytes ingested from different *sources* (upload vs URL vs
-        # text) are distinct provenance events and must NOT be collapsed into a
-        # single ResearchInput row. Content dedup lives in research_input_contents.
         UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
         ForeignKeyConstraint(
             ["project_id", "content_hash"],
@@ -641,18 +630,10 @@ class ResearchInputModel(Base):
 
 
 class ResearchInputContentModel(Base):
-    """Immutable content identity for ingested Research Input bytes (Research Input Ingestion).
+    """Immutable content identity for ingested Research Input bytes.
 
-    This row is the *content* identity: a given ``(project_id, content_hash)``
-    is exactly one blob with one storage ref, MIME and size. It is fully
-    decoupled from how the bytes were ingested. The same bytes uploaded and the
-    same bytes fetched from a URL therefore share one ``ResearchInputContent``
-    row (one physical blob) while remaining two distinct ``ResearchInput``
-    provenance rows.
-
-    Nothing about a source belongs here: no filename, no source_type, no URL,
-    no source_snapshot_id, no idempotency_key -- those describe an *ingestion*,
-    not the bytes.
+    A ``(project_id, content_hash)`` pair identifies one blob with one storage
+    reference, MIME type and size. Source facts do not belong on this table.
     """
 
     __tablename__ = "research_input_contents"
@@ -677,11 +658,7 @@ class ResearchInputContentModel(Base):
 
 
 class ResearchInputBindingModel(Base):
-    """One active binding from an ingested input to a ContractDraft or Run.
-
-    Only the immutable reference is bound; binary content and full text never
-    enter public DTOs. Re-binding to a different target replaces the binding.
-    """
+    """One active binding from an immutable Research Input to a Draft or Run."""
 
     __tablename__ = "research_input_bindings"
 
@@ -722,26 +699,13 @@ class ResearchInputBindingModel(Base):
 
 
 class ResearchInputIdempotencyModel(Base):
-    """HTTP request identity for Research Input creation (Research Input Ingestion).
+    """HTTP request identity for Research Input creation.
 
-    This table is deliberately *not* part of :class:`ResearchInputModel`.
-    Two identities exist and they are not the same thing:
-
-    * content dedup -- ``(session_id, project_id, content_hash)`` on
-      ``research_inputs``; the same bytes resolve to one immutable resource.
-    * request idempotency -- ``(session_id, project_id, idempotency_key)``
-      here; it answers "have I already executed *this HTTP request*?".
-
-    Because the mapping lives in its own row, several distinct
-    ``Idempotency-Key`` values may legitimately point at the *same*
-    ``ResearchInput`` (same content submitted twice under different keys),
-    which a single ``idempotency_key`` column on the content row could never
-    represent.
-
-    ``status`` supports two-phase use: a row is reserved as ``pending`` before
-    a URL is fetched so a replay cannot trigger a second network request, then
-    completed with the resolved ``input_id``. A reservation that never
-    completes is removed, so a failed fetch stays retryable.
+    Content deduplication belongs to ``research_input_contents`` under the
+    ``(project_id, content_hash)`` key. Request idempotency belongs here under
+    ``(session_id, project_id, idempotency_key)``. Distinct ingestion requests
+    may therefore reference the same immutable content without being collapsed
+    into one provenance event.
     """
 
     __tablename__ = "research_input_idempotency"
@@ -756,10 +720,6 @@ class ResearchInputIdempotencyModel(Base):
     request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     input_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
-    # Lease ownership: a pending reservation is owned by the worker that holds
-    # ``lease_token`` until ``lease_expires_at``. A crashed worker's stale
-    # reservation becomes reclaimable, and the reclaimer receives a NEW token so
-    # the old worker can no longer release or complete it.
     lease_token: Mapped[str | None] = mapped_column(String(64))
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
