@@ -118,43 +118,7 @@ a {
 .cta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.625rem;
-}
-
-.cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.5rem;
-  padding-inline: 1.15rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  font: inherit;
-  font-size: var(--font-size-2);
-  font-weight: 600;
-  text-decoration: none;
-  transition:
-    background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
-}
-
-.cta:focus-visible {
-  outline: var(--focus-ring-width) solid var(--color-focus);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.cta--primary {
-  background: var(--color-brand);
-  color: var(--color-brand-on);
-}
-
-.cta--primary:hover {
-  background: var(--color-brand-hover);
-}
-
-.cta--primary:active {
-  background: var(--color-brand-pressed);
+  gap: var(--space-2);
 }
 
 .home-content__main h1 {

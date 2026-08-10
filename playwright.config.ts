@@ -11,15 +11,20 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "pnpm --filter @xingwen/site dev",
-      url: "http://127.0.0.1:4321",
-      reuseExistingServer: !process.env.CI,
+      command:
+        "pnpm --filter @xingwen/site build && pnpm --filter @xingwen/site exec astro preview --host 127.0.0.1 --port 14321",
+      url: "http://127.0.0.1:14321",
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {
-      command: "pnpm --filter @xingwen/workspace dev",
-      url: "http://127.0.0.1:5173",
-      reuseExistingServer: !process.env.CI,
+      command:
+        "pnpm --filter @xingwen/workspace exec vite --host 127.0.0.1 --port 15173 --strictPort",
+      url: "http://127.0.0.1:15173",
+      env: {
+        VITE_API_BASE_URL: "http://localhost:8000",
+      },
+      reuseExistingServer: false,
       timeout: 120_000,
     },
   ],

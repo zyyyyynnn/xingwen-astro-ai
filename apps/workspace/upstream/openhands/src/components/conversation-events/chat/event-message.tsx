@@ -6,7 +6,7 @@ import {
   ChevronUp,
   Circle,
   LoaderCircle,
-} from "lucide-react";
+} from "@xingwen/ui/icons";
 
 import type { ActivityPresentationEvent } from "./group-events";
 

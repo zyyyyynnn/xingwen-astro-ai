@@ -1,4 +1,4 @@
-import { ArrowUp } from "lucide-react";
+import { ArrowUp } from "@xingwen/ui/icons";
 
 interface ChatSendButtonProps {
   readonly handleSubmit: () => void;

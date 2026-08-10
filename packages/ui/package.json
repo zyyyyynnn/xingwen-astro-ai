@@ -5,10 +5,20 @@
   "sideEffects": [
     "**/*.css"
   ],
+  "imports": {
+    "#components/*": "./src/*.tsx",
+    "#lib/*": "./src/lib/*.ts",
+    "#ui/*": "./src/*.tsx",
+    "#utils": "./src/lib/utils.ts"
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./icons": {
+      "types": "./src/icons.ts",
+      "default": "./src/icons.ts"
     },
     "./styles.css": "./src/styles.css"
   },
@@ -20,6 +30,10 @@
   },
   "peerDependencies": {
     "react": "19.2.7"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "lucide-react": "1.25.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "6.9.1",

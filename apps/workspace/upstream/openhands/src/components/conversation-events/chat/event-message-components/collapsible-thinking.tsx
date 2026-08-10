@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronDown, FileSearch } from "lucide-react";
+import { ChevronDown, FileSearch } from "@xingwen/ui/icons";
 
 interface CollapsibleRationaleProps {
   readonly summary: string;
