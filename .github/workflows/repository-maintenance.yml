@@ -1,0 +1,264 @@
+name: Repository maintenance
+
+on:
+  push:
+    branches:
+      - codex/governance-authority-current-main
+    paths:
+      - .github/workflows/repository-maintenance.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/governance-authority-current-main
+          fetch-depth: 0
+
+      - name: Apply exact current-tree cleanup
+        shell: bash
+        run: |
+          git fetch origin main
+          git checkout origin/main -- apps/workspace/upstream
+
+          python - <<'PY'
+          from __future__ import annotations
+
+          import ast
+          import re
+          from pathlib import Path
+
+          ROOT = Path('.')
+          RETIRED_MODULES = {'app.schemas.reasoning', 'app.schemas.graph'}
+
+
+          class RetiredVariableFilter(ast.NodeTransformer):
+              def __init__(self, names: set[str]) -> None:
+                  self.names = names
+
+              def _filter(self, values: list[ast.expr]) -> list[ast.expr]:
+                  return [
+                      value
+                      for value in values
+                      if not (isinstance(value, ast.Name) and value.id in self.names)
+                  ]
+
+              def visit_Tuple(self, node: ast.Tuple) -> ast.AST:
+                  self.generic_visit(node)
+                  node.elts = self._filter(node.elts)
+                  return node
+
+              def visit_List(self, node: ast.List) -> ast.AST:
+                  self.generic_visit(node)
+                  node.elts = self._filter(node.elts)
+                  return node
+
+              def visit_Set(self, node: ast.Set) -> ast.AST:
+                  self.generic_visit(node)
+                  node.elts = self._filter(node.elts)
+                  return node
+
+
+          def transform_projection_tests(path: Path) -> None:
+              source = path.read_text(encoding='utf-8')
+              tree = ast.parse(source)
+              lines = source.splitlines(keepends=True)
+              retired_aliases: set[str] = set()
+              import_ranges: list[tuple[int, int]] = []
+              for node in tree.body:
+                  if isinstance(node, ast.ImportFrom) and node.module in RETIRED_MODULES:
+                      import_ranges.append((node.lineno, node.end_lineno or node.lineno))
+                      retired_aliases.update(alias.asname or alias.name for alias in node.names)
+              if not retired_aliases:
+                  return
+
+              replacements: list[tuple[int, int, str]] = []
+              used_aliases: set[str] = set()
+              for node in tree.body:
+                  if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                      continue
+                  segment = ast.get_source_segment(source, node) or ''
+                  used = {
+                      name
+                      for name in retired_aliases
+                      if re.search(rf'\b{re.escape(name)}\b', segment)
+                  }
+                  if not used:
+                      continue
+                  used_aliases.update(used)
+
+                  retired_variables: set[str] = set()
+                  for statement in node.body:
+                      statement_text = ast.get_source_segment(source, statement) or ''
+                      if not any(
+                          re.search(rf'\b{re.escape(name)}\b', statement_text)
+                          for name in used
+                      ):
+                          continue
+                      if isinstance(statement, ast.Assign):
+                          for target in statement.targets:
+                              if isinstance(target, ast.Name):
+                                  retired_variables.add(target.id)
+                      elif isinstance(statement, ast.AnnAssign) and isinstance(
+                          statement.target, ast.Name
+                      ):
+                          retired_variables.add(statement.target.id)
+
+                  body: list[ast.stmt] = []
+                  for statement in node.body:
+                      statement_text = ast.get_source_segment(source, statement) or ''
+                      if any(
+                          re.search(rf'\b{re.escape(name)}\b', statement_text)
+                          for name in used
+                      ):
+                          continue
+                      body.append(RetiredVariableFilter(retired_variables).visit(statement))
+
+                  replacement = ast.FunctionDef(
+                      name=node.name
+                          .replace('read_and_candidate_shapes', 'non_authoritative_candidate_shapes')
+                          .replace('read_and_candidate_shape', 'non_authoritative_candidate_shape'),
+                      args=node.args,
+                      body=body or [ast.Pass()],
+                      decorator_list=node.decorator_list,
+                      returns=node.returns,
+                      type_comment=node.type_comment,
+                  )
+                  ast.fix_missing_locations(replacement)
+                  replacements.append(
+                      (node.lineno, node.end_lineno or node.lineno, ast.unparse(replacement) + '\n')
+                  )
+
+              unused = retired_aliases - used_aliases
+              if unused:
+                  raise RuntimeError(f'{path}: imported retired aliases are unused: {sorted(unused)}')
+              replacements.extend((start, end, '') for start, end in import_ranges)
+              for start, end, replacement in sorted(replacements, reverse=True):
+                  lines[start - 1:end] = [replacement]
+              updated = ''.join(lines)
+              ast.parse(updated)
+              for alias in retired_aliases:
+                  if re.search(rf'\b{re.escape(alias)}\b', updated):
+                      raise RuntimeError(f'{path}: retired alias remains: {alias}')
+              path.write_text(updated, encoding='utf-8')
+
+
+          for test_path in (
+              ROOT / 'apps/api/tests/test_literature_claim_pipeline.py',
+              ROOT / 'apps/api/tests/test_literature_relation_pipeline.py',
+          ):
+              if test_path.exists():
+                  transform_projection_tests(test_path)
+
+          def clean_markdown(path: Path) -> None:
+              if path.as_posix().startswith('apps/workspace/upstream/'):
+                  return
+              lines = path.read_text(encoding='utf-8').splitlines(keepends=True)
+              kept: list[str] = []
+              reference = path.as_posix().startswith('docs/references/')
+              for line in lines:
+                  if re.match(
+                      r'^\|\s*(?:Status|Issue|Superseded by|Time range)\s*\|',
+                      line,
+                      re.I,
+                  ):
+                      continue
+                  if reference and re.match(r'^\|\s*Authority\s*\|', line, re.I):
+                      continue
+                  kept.append(line)
+              updated = ''.join(kept)
+              updated = updated.replace(
+                  'VERSIONED_DATA_ARTIFACTS.md', 'DATA_ARTIFACTS.md'
+              )
+              updated = updated.replace('Versioned Data Artifacts', 'Data Artifacts')
+              updated = updated.replace(
+                  'Versioned Evidence Graph Pipeline', 'Evidence Graph Pipeline'
+              )
+              updated = updated.replace('Versioned Evidence Graph', 'Evidence Graph')
+              # Remove an empty leading metadata table left in Reference files.
+              updated = re.sub(
+                  r'(?m)^\|\s*元数据\s*\|\s*值\s*\|\s*\n'
+                  r'^\|\s*:?-{3,}:?\s*\|\s*:?-{3,}:?\s*\|\s*\n(?=\s*(?:\n|##))',
+                  '',
+                  updated,
+              )
+              path.write_text(updated, encoding='utf-8')
+
+
+          for markdown in ROOT.rglob('*.md'):
+              if '.git' not in markdown.parts:
+                  clean_markdown(markdown)
+
+          for relative in (
+              'packages/prompts/literature_reasoning/v1.md',
+              'packages/prompts/paper_summary/v1.md',
+              'services/data_pipeline/fixtures/exoplanet_host_star/nasa-toi-first-page.recorded.v1.json',
+              'services/data_pipeline/manifests/exoplanet_host_star/quality-rules/quality-rules.v1.json',
+              'services/data_pipeline/manifests/CHANGELOG.md',
+              'services/paper_pipeline/benchmarks/CHANGELOG.md',
+          ):
+              target = ROOT / relative
+              if target.exists():
+                  target.unlink()
+
+          # ArtifactVersion is immutable. Deleting a latest version must be
+          # rejected rather than attempting SET NULL on the artifact primary key
+          # through the composite same-artifact foreign key.
+          for relative in (
+              'apps/api/src/app/db/models.py',
+              'apps/api/migrations/versions/schema_baseline.py',
+          ):
+              target = ROOT / relative
+              text = target.read_text(encoding='utf-8')
+              count = text.count('ondelete="SET NULL"')
+              if count > 1:
+                  raise RuntimeError(f'{relative}: unexpected SET NULL count {count}')
+              if count == 1:
+                  text = text.replace('ondelete="SET NULL"', 'ondelete="RESTRICT"')
+                  target.write_text(text, encoding='utf-8')
+
+          active_python = [
+              path
+              for path in ROOT.rglob('*.py')
+              if not path.as_posix().startswith('apps/workspace/upstream/')
+              and path.as_posix()
+              not in {
+                  'apps/api/src/app/schemas/graph.py',
+                  'apps/api/src/app/schemas/reasoning.py',
+              }
+          ]
+          for module in RETIRED_MODULES:
+              hits = [
+                  path.as_posix()
+                  for path in active_python
+                  if module in path.read_text(encoding='utf-8', errors='ignore')
+              ]
+              if hits:
+                  raise RuntimeError(f'{module} still imported by: {hits}')
+          for relative in (
+              'apps/api/src/app/schemas/graph.py',
+              'apps/api/src/app/schemas/reasoning.py',
+          ):
+              target = ROOT / relative
+              if target.exists():
+                  target.unlink()
+          PY
+
+          python -m compileall -q apps/api/src apps/api/tests
+          git diff --check
+
+      - name: Commit cleanup and remove maintenance workflows
+        shell: bash
+        run: |
+          rm -f .github/workflows/one-time-delegacy-edit.yml
+          rm -f .github/workflows/repository-maintenance.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "refactor(repo): remove residual historical projections"
+          git push origin HEAD:codex/governance-authority-current-main
