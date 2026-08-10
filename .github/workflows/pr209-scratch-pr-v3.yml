@@ -1,0 +1,97 @@
+name: Isolated current-tree materializer
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.event.pull_request.head.ref == 'codex/pr209-final-repair-scratch'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: xingwen_test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d xingwen_test_db"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/xingwen_test_db
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/xingwen_test_db
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/pr209-final-repair-scratch
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.7.8'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: uv sync --project apps/api --frozen
+
+      - name: Apply current-only transform
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/pr209_scratch_repair.py')
+          s = p.read_text(encoding='utf-8')
+          old = '''                node.args.kwonlyargs = [\n                    arg for arg in node.args.kwonlyargs if arg.arg not in {"sequence", "supersedes"}\n                ]\n                # Keep defaults aligned with keyword-only arguments.\n                original_pairs = list(zip(node.args.kwonlyargs, node.args.kw_defaults))\n                node.args.kwonlyargs = [pair[0] for pair in original_pairs]\n                node.args.kw_defaults = [pair[1] for pair in original_pairs]\n'''
+          new = '''                original_pairs = list(zip(node.args.kwonlyargs, node.args.kw_defaults))\n                kept_pairs = [pair for pair in original_pairs if pair[0].arg not in {"sequence", "supersedes"}]\n                node.args.kwonlyargs = [pair[0] for pair in kept_pairs]\n                node.args.kw_defaults = [pair[1] for pair in kept_pairs]\n'''
+          if old in s:
+              s = s.replace(old, new, 1)
+          s = s.replace(
+              '"    review_records: tuple[BenchmarkReviewRecord, ...] = Field(min_length=1, max_length=1)"',
+              '"    review_records: tuple[BenchmarkReviewRecord, ...] = ()"', 1,
+          )
+          s = s.replace('text = text.replace(anchor, binding, 1)', 'text = text.replace(anchor, anchor, 1)', 1)
+          guard = '    if any(token in text for token in HISTORY_TOKENS):\n'
+          insert = '''    text = text.replace(\n        "        expected_scientific = compute_benchmark_scientific_payload_hash(self)\\n",\n        "        if len(self.review_records) != 1:\\n"\n        "            raise ValueError(\\\"benchmark package requires exactly one current scientific review\\\")\\n"\n        "        expected_scientific = compute_benchmark_scientific_payload_hash(self)\\n",\n        1,\n    )\n'''
+          if guard not in s:
+              raise SystemExit('benchmark guard drifted')
+          s = s.replace(guard, insert + guard, 1)
+          s = s.replace('segment = _node_text(source, node)', 'segment = ast.unparse(node)')
+          p.write_text(s, encoding='utf-8')
+          PY
+          python scripts/pr209_scratch_repair.py
+          rm -f .github/workflows/pr209-scratch-pr.yml \
+                .github/workflows/pr209-scratch-pr-v2.yml \
+                .github/workflows/pr209-scratch-pr-v3.yml
+          git diff --check
+
+      - name: Fast invariants
+        working-directory: apps/api
+        run: |
+          uv run python - <<'PY'
+          import app.main
+          from app.services.research import ResearchApplicationService
+          from app.routers import research
+          from app.schemas import core
+          print('research import boundary: OK')
+          PY
+          uv run python -m compileall -q src tests
+          uv run alembic upgrade head
+          uv run pytest tests/test_schema_baseline_postgres.py tests/test_schema_baseline_fk_postgres.py -q
+
+      - name: Commit clean tree
+        run: |
+          test ! -e scripts/pr209_scratch_repair.py
+          test ! -e .github/workflows/pr209-scratch-repair.yml
+          test ! -e .github/workflows/pr209-scratch-pr.yml
+          test ! -e .github/workflows/pr209-scratch-pr-v2.yml
+          test ! -e .github/workflows/pr209-scratch-pr-v3.yml
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m 'refactor(repo): materialize final current architecture'
+          git push origin HEAD:codex/pr209-final-repair-scratch
