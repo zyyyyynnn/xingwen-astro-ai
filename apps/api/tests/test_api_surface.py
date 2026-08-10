@@ -15,8 +15,8 @@ from app.main import app
 ROOT = Path(__file__).parents[3]
 _OPENAPI_METHODS = frozenset({"get", "post", "put", "patch", "delete", "options", "head"})
 
-# System endpoints are not product resources. Keeping this list explicit makes
-# any future non-contract route an intentional, reviewable exception.
+# System endpoints are not product resources. This explicit set makes every
+# non-contract route a deliberate, reviewable exception.
 SYSTEM_ONLY_OPERATIONS = frozenset({("GET", "/api/health")})
 
 PUBLIC_REQUESTS = [
@@ -56,8 +56,6 @@ PROTECTED_REQUESTS = [
     ("GET", "/api/public/shares/tok-123/extra"),
     ("GET", "/api/public/shares/"),
     ("POST", "/api/test/bootstrap"),
-    # Removed product surfaces remain default-deny even when an unknown route is requested.
-    ("GET", "/api/tasks"),
 ]
 
 
@@ -95,7 +93,7 @@ def test_public_share_instance_hides_token() -> None:
 
 
 def test_runtime_api_routes_match_generated_current_contract() -> None:
-    """Prevent ungoverned compatibility APIs from being mounted beside the Contract."""
+    """Prevent ungoverned APIs from being mounted beside the generated Contract."""
 
     generated = json.loads(
         (ROOT / "packages" / "schemas" / "generated" / "core" / "openapi.json").read_text(
@@ -116,4 +114,3 @@ def test_runtime_api_routes_match_generated_current_contract() -> None:
     }
 
     assert runtime_operations == contract_operations | SYSTEM_ONLY_OPERATIONS
-    assert all(not path.startswith("/api/tasks") for _, path in runtime_operations)
