@@ -19,6 +19,9 @@ export default defineConfig({
     {
       command: "pnpm --filter @xingwen/workspace dev",
       url: "http://127.0.0.1:5173",
+      env: {
+        VITE_API_BASE_URL: "http://localhost:8000",
+      },
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },
