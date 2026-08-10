@@ -60,5 +60,45 @@ jobs:
           set -euo pipefail
           rm -f .github/workflows/isolated-governance-materializer.yml \
                 .github/workflows/isolated-governance-materializer-pr.yml
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/api/tests/test_paper_benchmark.py')
+          text = path.read_text(encoding='utf-8')
+
+          old_signature = '''    verdict: str = "pass",\n    sequence: int = 1,\n    supersedes: str | None = None,\n    reviewer_type: str = "web_gpt",\n'''
+          new_signature = '''    verdict: str = "pass",\n    reviewer_type: str = "web_gpt",\n'''
+          if old_signature not in text:
+              raise SystemExit('benchmark review helper signature drifted')
+          text = text.replace(old_signature, new_signature, 1)
+
+          old_fields = '''        "review_id": review_id,\n        "review_sequence": sequence,\n        "supersedes_review_id": supersedes,\n        "reviewed_at": "2026-07-21T12:00:00+08:00",\n'''
+          new_fields = '''        "review_id": review_id,\n        "reviewed_at": "2026-07-21T12:00:00+08:00",\n'''
+          if old_fields not in text:
+              raise SystemExit('benchmark review helper fields drifted')
+          text = text.replace(old_fields, new_fields, 1)
+
+          audit_start = text.index('@pytest.mark.parametrize(\n    "field",\n    ["created_at", "review_records", "change_records"],\n)\ndef test_audit_and_review_metadata_are_hash_bound')
+          audit_end = text.index('\ndef test_wrong_content_hash_is_rejected()', audit_start)
+          audit_replacement = '''@pytest.mark.parametrize("field", ["created_at", "review_records"])\ndef test_current_audit_and_review_metadata_are_hash_bound(field: str) -> None:\n    payload = _read_payload()\n    if field == "created_at":\n        payload[field] = "2026-07-20"\n    else:\n        payload[field] = [\n            _review_record(\n                payload,\n                review_id="review.hash_bound_metadata",\n                verdict="blocked",\n                reviewer_type="automation",\n            )\n        ]\n\n    assert compute_benchmark_content_hash(payload) != _read_payload()["content_hash"]\n\n\n'''
+          text = text[:audit_start] + audit_replacement + text[audit_end + 1:]
+
+          evolution_start = text.index('@pytest.mark.parametrize(\n    ("records", "expected_message"),')
+          evolution_end = text.index('\ndef test_scientific_hash_excludes_review_metadata_but_detects_payload_tampering()', evolution_start)
+          text = text[:evolution_start] + text[evolution_end + 1:]
+
+          blocked_start = text.index('def test_unresolved_scientific_block_prevents_approval() -> None:\n')
+          blocked_end = text.index('\ndef test_unsupported_reviewer_type_is_rejected()', blocked_start)
+          blocked_replacement = '''def test_current_blocked_scientific_review_prevents_approval() -> None:\n    payload = _approved_payload("benchmark_scientific_review")\n    passed = payload["review_records"][0]\n    payload["review_records"] = [\n        _review_record(\n            {**payload, "content_hash": payload["scientific_payload_hash"]},\n            review_id="review.scientific_blocked",\n            purpose="benchmark_scientific_review",\n            verdict="blocked",\n            reviewed_content_hash=payload["scientific_payload_hash"],\n            scope=passed["scope"],\n        )\n    ]\n\n    with pytest.raises(ValidationError, match="BLOCKED scientific review"):\n        BenchmarkPackagePayload.model_validate(payload)\n\n\ndef test_final_package_requires_exactly_one_current_scientific_review() -> None:\n    payload = _read_payload()\n    payload["review_records"] = []\n    payload["content_hash"] = compute_benchmark_content_hash(payload)\n\n    with pytest.raises(ValidationError, match="exactly one current scientific review"):\n        BenchmarkPackage.model_validate(payload)\n\n\n'''
+          text = text[:blocked_start] + blocked_replacement + text[blocked_end + 1:]
+
+          for forbidden in ('review_sequence', 'supersedes_review_id', 'change_records', 'sequence=', 'supersedes='):
+              if forbidden in text:
+                  raise SystemExit(f'benchmark history token remains in test file: {forbidden}')
+
+          path.write_text(text, encoding='utf-8', newline='\n')
+          PY
+
           bash /tmp/pr209-materialize.sh
           bash /tmp/pr209-commit.sh
