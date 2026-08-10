@@ -8,13 +8,14 @@ from pathlib import Path
 
 from app.schemas.enums import PaperDataLevel, SourceMode
 
-from .pipeline import PaperCollectionPipeline
+from .pipeline import PaperCollectionBenchmarkRunner
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the Paper Acquisition Pipeline Crossref metadata search against a frozen benchmark scenario."
+            "Run the Paper Collection Benchmark Runner Crossref metadata search "
+            "against a frozen benchmark scenario."
         )
     )
     parser.add_argument(
@@ -31,7 +32,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    collection = PaperCollectionPipeline(timeout_seconds=args.timeout).run(
+    collection = PaperCollectionBenchmarkRunner(timeout_seconds=args.timeout).run(
         scenario_id=args.scenario,
         page_size=args.page_size,
         selection_limit=args.selection_limit,
