@@ -3,21 +3,28 @@ const repositoryTaskCodePattern =
   /(?:\b[A-DX]-(?:\d+|[XN]+)\b|\b[a-dx]-\d{2,}\b)/u;
 const compactTaskCodePattern =
   /(?:(?<![A-Za-z0-9_])(?:[A-D]\d{2,}|X(?!(?:64|86)\b)\d{2,})(?![A-Za-z0-9_])|(?<![A-Za-z0-9])(?:[a-d]\d{2,}|x(?!(?:64|86)\b)\d{2,})(?![A-Za-z0-9]))/u;
+
 const phaseIdentifierPattern =
   /(?:\b(?:Phase|Stage)(?:\s*[-:]\s*|\s+)(?:\d+|[IVXLCDM]+|[A-Z])\b|\bM\d+\b|\bPR\s*[-:]?\s*\d+\s*\/\s*\d+\b|第\s*[一二三四五六七八九十0-9]+\s*(?:阶段|期)|阶段\s*[一二三四五六七八九十0-9]+|(?:^|[\s（(])期\s*[一二三四五六七八九十0-9]+|\bMilestones?\b|里程碑)/iu;
-const repositoryPhaseIdentifierPattern =
-  /(?:\b(?:Phase|Stage)(?:\s*[-:]\s*|\s+)(?:\d+|[IVXLCDM]+|[A-Z])\b|\bM\d+\b|\bPR\s*[-:]?\s*\d+\s*\/\s*\d+\b|第\s*[一二三四五六七八九十0-9]+\s*(?:阶段|期)|阶段\s*[一二三四五六七八九十0-9]+|(?:^|[\s（(])期\s*[一二三四五六七八九十0-9]+|\bMilestones?\b|里程碑)/iu;
 const compactRepositoryPhaseIdentifierPattern =
-  /(?<![A-Za-z0-9])phase\d+(?![A-Za-z0-9])/iu;
+  /(?<![A-Za-z0-9])phase(?:[_-]?\d+)(?![A-Za-z0-9])/iu;
 const priorityPhaseIdentifierPattern = /\bP\d+\b/u;
-const repositoryVersionLabelPattern =
-  /(?<![/@A-Za-z0-9])v\d+(?!\.\d|[\dA-Za-z0-9]|_\d)/iu;
+
+// Repository pseudo-versions are implementation/work identities, not scientific
+// technical versions. Dotted semantic versions (1.2.3 / v1.2.3), explicit
+// external action tags and known library-major prose are excluded below.
+const separatedPseudoVersionPattern =
+  /(?:^|[._-])v\d+(?:_\d+)*(?!\.\d|[A-Za-z0-9])/iu;
+const standalonePseudoVersionPattern =
+  /(?<![/@A-Za-z0-9])v\d+(?:_\d+)*(?!\.\d|[A-Za-z0-9])/iu;
+const camelPseudoVersionPattern = /\b[A-Za-z][A-Za-z0-9]*V\d+(?:_\d+)*\b/u;
+
 const repositoryProgressWordingPattern =
   /(?:\b(?:client|cache|module|package|boundary|integration)\s+placeholders?\b|\bplaceholders?\s+for\s+(?:later|future)\b|\b(?:later|future)[,\s]+(?:the\s+)?(?:[A-Za-z][\w-]*\s+){0,3}(?:apis?|adapters?|owners?|controls?|runtimes?|services?|clients?|ports?|pipelines?|modules?|tasks?|issues?|integrations?|publishers?|baselines?)\b|\b(?:later|future)\s+(?:quality|source|workspace)\b|\bnot implemented in\b|\bretained for future\b|\bcontract[- ]freeze(?:\s+change)?\b|\bparser contract change\b|\b[A-D]-(?:module|pipeline)\b|\b[A-D]\s+mapping changes?\b|未来.{0,24}(?:边界|消费端|适配器|接口|实现|启用|任务|模块)|后续.{0,16}(?:边界|持久化))/iu;
 const repositoryTextPathPattern =
   /\.(?:astro|bat|cmd|conf|csv|css|env|example|html|ini|js|json|md|mjs|ps1|py|sh|sql|svg|toml|ts|tsx|txt|xml|ya?ml)$/iu;
 const taskCodePathTokenPattern = /^(?:[a-d]\d+|x(?!(?:64|86)$)\d+)$/iu;
-const phasePathTokenPattern = /^phase\d+$/iu;
+const phasePathTokenPattern = /^phase(?:[_-]?\d+)$/iu;
 
 function withoutAllowedDomainIdentifiers(value) {
   return value
@@ -37,6 +44,9 @@ function withoutAllowedDomainIdentifiers(value) {
     .replace(/碳(?:同位素)?\s*C-14/gu, "")
     .replace(/\bA4\b(?=\s*(?:paper|@))/giu, "")
     .replace(/\bPydantic\s+v\d+\b/giu, "")
+    .replace(/\b(?:actions|astral-sh)\/[A-Za-z0-9_.-]+@v\d+(?:\.\d+)*\b/giu, "")
+    .replace(/\b[A-Za-z0-9_.-]+@v\d+(?:\.\d+)+\b/giu, "")
+    .replace(/\bv\d+\.\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?\b/giu, "")
     .replace(
       /\bfailure[\s_-]+stage\s*[-:]?\s*(?:\d+|[IVXLCDM]+|[A-Z])\b/giu,
       "",
@@ -46,9 +56,7 @@ function withoutAllowedDomainIdentifiers(value) {
 
 export function containsTaskCode(value) {
   const normalized = withoutAllowedDomainIdentifiers(value);
-  return (
-    taskCodePattern.test(normalized) || compactTaskCodePattern.test(normalized)
-  );
+  return taskCodePattern.test(normalized) || compactTaskCodePattern.test(normalized);
 }
 
 export function containsRepositoryTaskCode(value) {
@@ -68,7 +76,7 @@ export function containsRepositoryTaskCodePath(value) {
 export function containsRepositoryPhaseIdentifier(value) {
   const normalized = withoutAllowedDomainIdentifiers(value);
   return (
-    repositoryPhaseIdentifierPattern.test(normalized) ||
+    phaseIdentifierPattern.test(normalized) ||
     compactRepositoryPhaseIdentifierPattern.test(normalized) ||
     priorityPhaseIdentifierPattern.test(normalized)
   );
@@ -76,30 +84,30 @@ export function containsRepositoryPhaseIdentifier(value) {
 
 export function containsRepositoryPhaseIdentifierPath(value) {
   return value
-    .split(/[\\/_.-]/u)
-    .some((token) => phasePathTokenPattern.test(token));
+    .split(/[\\/.]/u)
+    .some((segment) => phasePathTokenPattern.test(segment));
 }
 
 export function containsRepositoryVersionLabel(value) {
-  return repositoryVersionLabelPattern.test(
-    withoutAllowedDomainIdentifiers(value),
+  const normalized = withoutAllowedDomainIdentifiers(value);
+  return (
+    separatedPseudoVersionPattern.test(normalized) ||
+    standalonePseudoVersionPattern.test(normalized) ||
+    camelPseudoVersionPattern.test(normalized)
   );
 }
 
 export function containsRepositoryVersionLabelPath(value) {
-  const normalized = value.replace(
-    /(^|[\\/])api[\\/]v\d+(?=[\\/]|$)/giu,
-    "$1api",
-  );
+  const normalized = value
+    .replace(/(^|[\\/])api[\\/]v\d+(?=[\\/]|$)/giu, "$1api")
+    .replace(/(^|[\\/])vendor(?:ed)?[\\/][^\s]*/giu, "");
   return normalized
     .split(/[\\/]/u)
-    .some((segment) => repositoryVersionLabelPattern.test(segment));
+    .some((segment) => containsRepositoryVersionLabel(segment));
 }
 
 export function containsRepositoryProgressWording(value) {
-  return repositoryProgressWordingPattern.test(
-    withoutAllowedDomainIdentifiers(value),
-  );
+  return repositoryProgressWordingPattern.test(withoutAllowedDomainIdentifiers(value));
 }
 
 export function isRepositoryTextPath(value) {
