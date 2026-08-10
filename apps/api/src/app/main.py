@@ -2,41 +2,26 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.db.session import create_engine_from_url, session_factory
-from app.errors import ApiError
 from app.middleware import (
     RequestIDMiddleware,
     SecurityMiddleware,
-    api_error_exception_handler,
     api_http_exception_handler,
     api_validation_exception_handler,
     security_exception_handler,
 )
-from app.routers import (
-    artifacts,
-    dataset,
-    evidence,
-    graph,
-    health,
-    paper_acquisition,
-    papers,
-    reasoning,
-    research,
-    research_inputs,
-    sessions,
-    snapshots,
-    sources,
-    tasks,
-)
+from app.routers import artifacts, health, research, research_inputs, sessions, snapshots
 from app.schemas.manifest import ManifestBundle, load_manifest_bundle
 from app.security import (
     InMemoryRateLimiter,
@@ -45,7 +30,6 @@ from app.security import (
     SessionService,
     install_share_token_access_log_filter,
 )
-from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
 from app.services.research import ResearchApplicationService
@@ -53,8 +37,12 @@ from app.services.resource_authority import (
     PersistentResourceAuthority,
     ResourceAuthority,
 )
+from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.store import PersistentWorkflowStore
+
+
+SessionFactory = Callable[[], Session]
 
 
 def _load_case_manifests() -> ManifestBundle:
@@ -66,6 +54,35 @@ def _load_case_manifests() -> ManifestBundle:
         if case_manifest.is_file() and field_manifest.is_file():
             return load_manifest_bundle(case_manifest, field_manifest)
     raise RuntimeError("Exoplanet host-star Case/Field Manifest assets are missing")
+
+
+def _configure_database_runtime(
+    app: FastAPI,
+) -> tuple[object | None, SessionFactory | None, ResourceAuthority | None]:
+    """Wire the single PostgreSQL-backed Research runtime when a database is configured."""
+
+    if settings.DATABASE_URL is None:
+        return None, None, None
+
+    engine = create_engine_from_url(settings.DATABASE_URL.get_secret_value())
+    factory = session_factory(engine)
+    app.state.db_session_factory = factory
+
+    artifact_read_service = ArtifactReadService(factory)
+    app.state.artifact_read_service = artifact_read_service
+    app.state.data_artifact_read_service = DataArtifactReadService(artifact_read_service)
+
+    resource_authority: ResourceAuthority = PersistentResourceAuthority(factory)
+    workflow_store = PersistentWorkflowStore(factory)
+    app.state.workflow_store = workflow_store
+    app.state.workflow_executor = PersistentWorkflowExecutor(workflow_store)
+    app.state.research_service = ResearchApplicationService(
+        factory=factory,
+        workflow_store=workflow_store,
+        manifests=_load_case_manifests(),
+    )
+    app.router.add_event_handler("shutdown", engine.dispose)
+    return engine, factory, resource_authority
 
 
 def create_app() -> FastAPI:
@@ -87,48 +104,22 @@ def create_app() -> FastAPI:
     app.state.share_rate_limiter = InMemoryRateLimiter(
         limit=settings.SHARE_CREATE_RATE_LIMIT
     )
+
     app.state.workflow_store = None
     app.state.workflow_executor = None
     app.state.artifact_read_service = None
     app.state.data_artifact_read_service = None
     app.state.research_service = None
     app.state.db_session_factory = None
-    database_engine = None
-    resource_authority: ResourceAuthority | None = None
-    if settings.DATABASE_URL is not None:
-        database_engine = create_engine_from_url(
-            settings.DATABASE_URL.get_secret_value()
-        )
-        app.state.db_session_factory = session_factory(database_engine)
-        app.state.artifact_read_service = ArtifactReadService(
-            session_factory(database_engine)
-        )
-        app.state.data_artifact_read_service = DataArtifactReadService(
-            app.state.artifact_read_service
-        )
-        resource_authority = PersistentResourceAuthority(
-            session_factory(database_engine)
-        )
-        app.router.add_event_handler("shutdown", database_engine.dispose)
-    if settings.PERSISTENT_WORKFLOW_ENABLED:
-        if database_engine is None:
-            raise RuntimeError(
-                "DATABASE_URL is required when PERSISTENT_WORKFLOW_ENABLED is true"
-            )
-        workflow_store = PersistentWorkflowStore(session_factory(database_engine))
-        app.state.workflow_store = workflow_store
-        app.state.workflow_executor = PersistentWorkflowExecutor(workflow_store)
-        app.state.research_service = ResearchApplicationService(
-            factory=session_factory(database_engine),
-            workflow_store=workflow_store,
-            manifests=_load_case_manifests(),
-        )
+    _, database_session_factory, resource_authority = _configure_database_runtime(app)
+
     app.state.snapshot_store = None
     app.state.snapshot_service = None
     if resource_authority is not None:
         snapshot_store = InMemorySnapshotStore(resource_authority)
         app.state.snapshot_store = snapshot_store
         app.state.snapshot_service = SnapshotService(snapshot_store)
+
     app.state.research_input_store = None
     app.state.content_storage = None
     app.state.research_input_idempotency = None
@@ -136,6 +127,7 @@ def create_app() -> FastAPI:
     app.state.research_input_rate_limiter = InMemoryRateLimiter(
         limit=settings.RESEARCH_INPUT_RATE_LIMIT
     )
+
     from app.services.content_storage import LocalContentStorage
     from app.services.research_input_ingestion import ResearchInputIngestionService
     from app.services.research_input_memory_runtime import InMemoryResearchInputRuntime
@@ -148,21 +140,20 @@ def create_app() -> FastAPI:
 
     app.state.content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
     lease_ttl = timedelta(seconds=settings.RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS)
-    if database_engine is not None:
-        factory = session_factory(database_engine)
-        app.state.research_input_store = PersistentResearchInputStore(factory)
+    if database_session_factory is not None:
+        app.state.research_input_store = PersistentResearchInputStore(
+            database_session_factory
+        )
         app.state.research_input_idempotency = PersistentIdempotencyRepository(
-            factory, lease_ttl=lease_ttl
+            database_session_factory, lease_ttl=lease_ttl
         )
     else:
-        # One explicit coordinator implements both ports so lease resolution and
-        # the in-memory content/input commit share a transaction boundary.
+        # Explicit dependency-injected fallback for local/test ingestion only;
+        # it does not provide a second ResearchRun workflow runtime.
         in_memory_runtime = InMemoryResearchInputRuntime(lease_ttl=lease_ttl)
         app.state.research_input_store = in_memory_runtime
         app.state.research_input_idempotency = in_memory_runtime
 
-    # The ingestion policy is resolved from settings once, here, so the domain
-    # layer never reaches back into global configuration.
     app.state.research_input_policy = ResearchInputPolicy.from_values(
         allowed_mime_types=settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES,
         max_size_bytes=settings.RESEARCH_INPUT_MAX_SIZE_BYTES,
@@ -182,6 +173,7 @@ def create_app() -> FastAPI:
             max_response_bytes=settings.URL_FETCH_MAX_RESPONSE_BYTES,
         ),
     )
+
     app.add_middleware(
         SecurityMiddleware,
         sessions=session_service,
@@ -199,21 +191,12 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestIDMiddleware)
 
-    app.add_exception_handler(ApiError, api_error_exception_handler)
     app.add_exception_handler(HTTPException, api_http_exception_handler)
     app.add_exception_handler(StarletteHTTPException, api_http_exception_handler)
     app.add_exception_handler(RequestValidationError, api_validation_exception_handler)
     app.add_exception_handler(SecurityProblem, security_exception_handler)
 
     app.include_router(health.router)
-    app.include_router(tasks.router)
-    app.include_router(dataset.router)
-    app.include_router(sources.router)
-    app.include_router(paper_acquisition.router)
-    app.include_router(papers.router)
-    app.include_router(reasoning.router)
-    app.include_router(graph.router)
-    app.include_router(evidence.router)
     app.include_router(sessions.router)
     app.include_router(artifacts.router)
     app.include_router(research.router)
@@ -221,8 +204,7 @@ def create_app() -> FastAPI:
     app.include_router(research_inputs.router)
 
     # Test-only bootstrap is mounted exclusively in test/integration
-    # environments, outside the frozen /api contract surface. It is never
-    # available in development or production.
+    # environments, outside the generated current API contract surface.
     if settings.APP_ENV.lower() in {"test", "integration"}:
         from app.routers import test_bootstrap
 
