@@ -1,4 +1,4 @@
-"""C-05 data-quality evaluation and process-local Publisher handoff."""
+"""Data-quality evaluation and process-local Publisher handoff."""
 
 from .evaluator import evaluate_data_quality
 

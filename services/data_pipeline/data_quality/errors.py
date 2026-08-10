@@ -1,4 +1,4 @@
-"""Stable, non-HTTP errors for C-05 evaluation and admission."""
+"""Stable, non-HTTP errors for data-quality evaluation and admission."""
 
 from __future__ import annotations
 

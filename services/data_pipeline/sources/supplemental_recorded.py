@@ -1,4 +1,4 @@
-"""Validated replay transport for the versioned C-07 NASA PS fixture."""
+"""Validated replay transport for the versioned Supplemental Source Acquisition NASA PS fixture."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ DEFAULT_RECORDED_PS_FIXTURE_PATH = (
     Path(__file__).resolve().parents[1]
     / "fixtures"
     / "exoplanet_host_star"
-    / "nasa-ps-by-tic-first-page.recorded.v1.json"
+    / "nasa-ps-by-tic-first-page.recorded.json"
 )
 _MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
 _NonEmptyString = Annotated[str, Field(min_length=1)]

@@ -3,6 +3,11 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import {
+  containsPhaseIdentifier,
+  containsTaskCode,
+} from "./governance-identifiers.mjs";
+
 const ALLOWED_TYPES = new Set([
   "feat",
   "fix",
@@ -31,7 +36,6 @@ const ALLOWED_SYSTEM_SCOPES = new Set([
   "sync",
 ]);
 
-const TASK_SCOPE_REGEX = /^[a-dx]-[0-9]{2,3}$/u;
 const TITLE_REGEX = /^([a-z]+)\(([^()\s]+)\)(!)?: (.+)$/u;
 const FULL_SHA_REGEX = /^[0-9a-f]{40}$/u;
 const REFERENCE_REGEX = /#\d+/gu;
@@ -44,8 +48,6 @@ const CONTROL_CHARACTER_REGEX = /[\u0000-\u001f\u007f]/u;
 const LOCAL_PATH_REGEX =
   /(?:\b[A-Za-z]:[\\/]|(?:^|\s)\/(?:home|Users|mnt|tmp)\/)/u;
 const DATE_REGEX = /\b\d{4}-\d{2}-\d{2}\b/u;
-const LEGACY_TASK_SUFFIX_REGEX = /\([A-DX]-\d{2,3}\)/iu;
-const STACKED_PR_MARKER_REGEX = /\bPR-\d+\/\d+\b/iu;
 const AGENT_MARKER_REGEX = /\[agent-fixed-[^\]]+\]/iu;
 const PROCESS_STATUS_REGEX = /\b(?:WIP|Draft|Ready|Merged|PASS|BLOCKED)\b/iu;
 const REVIEW_ID_REGEX = /\breview(?:\s+id)?\s*#?\d+\b/iu;
@@ -80,11 +82,11 @@ function addSummaryPolicyErrors(summary, errors) {
   if (ISSUE_PR_ID_REGEX.test(summary)) {
     errors.push("Summary must not contain an Issue or PR identifier");
   }
-  if (LEGACY_TASK_SUFFIX_REGEX.test(summary)) {
-    errors.push("Summary must not contain a legacy task suffix such as (A-21)");
+  if (containsTaskCode(summary)) {
+    errors.push("Summary must not contain a task code");
   }
-  if (STACKED_PR_MARKER_REGEX.test(summary)) {
-    errors.push("Summary must not contain a stacked PR marker such as PR-1/5");
+  if (containsPhaseIdentifier(summary)) {
+    errors.push("Summary must not contain a work-stage identifier");
   }
   if (AGENT_MARKER_REGEX.test(summary)) {
     errors.push("Summary must not contain an agent/process marker");
@@ -138,11 +140,10 @@ export function validateTitleGrammar(
     );
   }
 
-  const isTaskScope = TASK_SCOPE_REGEX.test(scope);
   const isSystemScope = ALLOWED_SYSTEM_SCOPES.has(scope);
-  if (!isTaskScope && !isSystemScope) {
+  if (!isSystemScope) {
     errors.push(
-      `Scope '${scope}' is invalid. Use ^[a-dx]-[0-9]{2,3}$ or one of: ${Array.from(ALLOWED_SYSTEM_SCOPES).join(", ")}`,
+      `Scope '${scope}' is invalid. Use one of: ${Array.from(ALLOWED_SYSTEM_SCOPES).join(", ")}`,
     );
   }
 

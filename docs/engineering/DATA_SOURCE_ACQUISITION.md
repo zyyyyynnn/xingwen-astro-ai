@@ -2,24 +2,24 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
-| Authority | C-02 主数据源查询、原始记录、失败语义与 SourceSnapshot 运行规则 |
-| Issue | #32 |
+| Authority | 主数据源查询、原始记录、失败语义与 SourceSnapshot 运行规则 |
 | Scope | `exoplanet_host_star` 的 NASA Exoplanet Archive TOI metadata |
 
-本文定义 C-02 的可执行边界。Case / Field Manifest 的字段事实仍由 [C-01 Manifest](../../services/data_pipeline/manifests/README.md) 管理，SourceSnapshot 的通用不变量仍由 [Data Versioning](../architecture/DATA_VERSIONING.md) 管理，ResearchRun 状态只由 [Workflow Design](../architecture/WORKFLOW_DESIGN.md) 管理。
+本文定义主数据源 Adapter 的可执行边界。Case / Field Manifest 的字段事实仍由
+[Manifest](../../services/data_pipeline/manifests/README.md) 管理，SourceSnapshot 的
+通用不变量仍由 [Data Versioning](../architecture/DATA_VERSIONING.md) 管理，ResearchRun
+状态只由 [Workflow Design](../architecture/WORKFLOW_DESIGN.md) 管理。
 
 ## 1. 冻结输入与任务边界
 
-C-02 只读取 X-00 冻结的 `exoplanet_host_star` Case / Field Manifest，不读取动态 `latest`，也不接受调用方传入另一套字段清单。运行前同时校验版本与内容 hash。
+主数据源 Adapter 只读取冻结的 `exoplanet_host_star` Case / Field Manifest，不读取动态 `latest`，也不接受调用方传入另一套字段清单。运行前同时校验版本与内容 hash。
 
 | 输入 | 固定值 |
 | --- | --- |
-| Case Manifest version | `1.0.1` |
-| Case Manifest hash | `sha256:bb870d3c8b6b6c972cd8d7139b9cfcb672bb9ce75401109271aaf05a147819d3` |
-| Field Manifest version | `1.0.1` |
-| Field Manifest hash | `sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53` |
-| X-00 baseline | `main@eb7e23f6d0c14555627c602c6e5a2b84210ba833` |
+| Case Manifest version | `2.0.0` |
+| Case Manifest hash | `sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c` |
+| Field Manifest version | `2.0.0` |
+| Field Manifest hash | `sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f` |
 | Query normalization | `1.0.0` |
 | NASA TAP Adapter | `1.0.0` |
 
@@ -35,7 +35,7 @@ C-02 只读取 X-00 冻结的 `exoplanet_host_star` Case / Field Manifest，不�
 
 ## 3. 原始记录与 SourceSnapshot
 
-每条 `RawDataSourceRecord` 保存 table source id、Manifest row key、按 approved column 顺序构造的原始 payload 和稳定 SHA-256 content hash。C-02 不解释数值科学含义，不把 null 改成零，不执行单位转换，也不选择 canonical value。
+每条 `RawDataSourceRecord` 保存 table source id、Manifest row key、按 approved column 顺序构造的原始 payload 和稳定 SHA-256 content hash。主数据源 Adapter 不解释数值科学含义，不把 null 改成零，不执行单位转换，也不选择 canonical value。
 
 成功 acquisition 生成一个 `SourceSnapshotRecord`。Snapshot 绑定规范化 query 与 query hash、抓取时间、原始记录和分页内容 hash、许可说明、Adapter 版本、endpoint、TAP_SCHEMA 请求/响应 hash、分页 request/response hash、状态码、attempt count、latency、游标、限流摘要及安全 request-id。响应只经过 header allowlist；Authorization、Cookie、API key、credential 与未批准的响应头不会进入 Snapshot。
 
@@ -43,9 +43,9 @@ NASA TOI TAP 实测响应未提供 ETag、独立 source version 或 request-id�
 
 ## 4. 来源等级与 Recorded Fixture
 
-Live 请求必须使用 `source_mode=live` 与 `data_level=live_result`。版本化 replay 必须使用 `source_mode=fixture` 与 `data_level=recorded_response`，并在 Snapshot 中绑定 fixture id、schema version、scenario、recorded time、Case / Field Manifest 版本与 hash、fixture content hash 和 provenance note。`source_mode=cached` 不被此 Adapter 接受，因为 C-02 没有真实 origin Run、ArtifactVersion 和 CacheRecord。
+Live 请求必须使用 `source_mode=live` 与 `data_level=live_result`。版本化 replay 必须使用 `source_mode=fixture` 与 `data_level=recorded_response`，并在 Snapshot 中绑定 fixture id、schema version、scenario、recorded time、Case / Field Manifest 版本与 hash、fixture content hash 和 provenance note。`source_mode=cached` 不被此 Adapter 接受，因为该 Adapter 没有真实 origin Run、ArtifactVersion 和 CacheRecord。
 
-Recorded Fixture 位于 `services/data_pipeline/fixtures/exoplanet_host_star/nasa-toi-first-page.recorded.v1.json`。它来自 2026-07-22 对官方 TAP endpoint 的成功 metadata-only 小流量请求，只用于离线复现 Contract、分页和 provenance；回放结果不是当前 Live 数据，也不是历史 Run cache。Fixture payload 或 provenance 的任何变化都必须更新 schema/version 规则与 content hash。
+Recorded Fixture 位于 `services/data_pipeline/fixtures/exoplanet_host_star/nasa-toi-first-page.recorded.json`。它来自 2026-07-22 对官方 TAP endpoint 的成功 metadata-only 小流量请求，只用于离线复现 Contract、分页和 provenance；回放结果不是当前 Live 数据，也不是历史 Run cache。Fixture payload 或 provenance 的任何变化都必须更新 schema/version 规则与 content hash。
 
 ## 5. 失败、重试与空结果
 
@@ -96,7 +96,7 @@ $env:XINGWEN_RUN_LIVE_DATA_SOURCE_TESTS = "1"
 uv run pytest -m live tests/test_data_source_pipeline.py
 ```
 
-## 7. Issue #32 验收映射
+## 7. 验收映射
 
 | 验收能力 | 自动化或运行证据 |
 | --- | --- |
@@ -111,4 +111,5 @@ uv run pytest -m live tests/test_data_source_pipeline.py
 | Fixture 不冒充 Live/Cached | recorded replay 与 origin-masquerading tests |
 | 不推进 ResearchRun | CLI output `research_run_advanced=false`，Pipeline 无 Workflow 依赖 |
 
-C-02 的结果是主来源 acquisition 边界和证据记录，不是已经完成的数据集。C-03 及后续 Issue 才能在明确 Contract 下执行 crossmatch、字段归一、质量计算和发布集成。
+该 Adapter 的结果是主来源 acquisition 边界和证据记录，不是已经完成的数据集。下游
+数据能力必须在明确 Contract 下执行 crossmatch、字段归一、质量计算和发布集成。

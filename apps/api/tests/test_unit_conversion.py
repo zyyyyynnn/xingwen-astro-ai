@@ -31,16 +31,16 @@ def test_frozen_conversion_catalog_is_hash_valid_and_iau_provenanced() -> None:
 @pytest.mark.parametrize(
     ("rule_id", "source_unit", "target_unit", "value", "expected"),
     (
-        ("unit.identity.v1", "day", "day", "0", "0"),
+        ("unit.identity", "day", "day", "0", "0"),
         (
-            "unit.jupiter_radius_to_earth_radius.v1",
+            "unit.jupiter_radius_to_earth_radius",
             "jupiter_radius",
             "earth_radius",
             "1",
             "11.20898073093868079835687744",
         ),
         (
-            "unit.jupiter_mass_to_earth_mass.v1",
+            "unit.jupiter_mass_to_earth_mass",
             "jupiter_mass",
             "earth_mass",
             "1",
@@ -63,7 +63,7 @@ def test_decimal_conversions_are_deterministic(
         rule_version="1.0.0",
         source_unit=source_unit,
         target_unit=target_unit,
-        quantity_kind=("none" if rule_id == "unit.identity.v1" else "length" if "radius" in rule_id else "mass"),
+        quantity_kind=("none" if rule_id == "unit.identity" else "length" if "radius" in rule_id else "mass"),
         catalog=catalog,
     )
 
@@ -75,7 +75,7 @@ def test_conversion_rejects_invalid_or_non_finite_values(value: object) -> None:
     with pytest.raises(DataArtifactError) as exc_info:
         convert_decimal_value(
             value,
-            rule_id="unit.identity.v1",
+            rule_id="unit.identity",
             rule_version="1.0.0",
             source_unit="day",
             target_unit="day",
@@ -95,7 +95,7 @@ def test_identity_and_unit_bindings_fail_closed() -> None:
     with pytest.raises(DataArtifactError) as exc_info:
         convert_decimal_value(
             Decimal("1"),
-            rule_id="unit.identity.v1",
+            rule_id="unit.identity",
             rule_version="1.0.0",
             source_unit="day",
             target_unit="earth_mass",
@@ -109,9 +109,9 @@ def test_identity_and_unit_bindings_fail_closed() -> None:
 @pytest.mark.parametrize(
     ("rule_id", "source_unit", "target_unit", "quantity_kind", "code"),
     (
-        ("unit.missing.v1", "day", "day", "time", "UNKNOWN_CONVERSION_RULE"),
-        ("unit.jupiter_radius_to_earth_radius.v1", "earth_radius", "earth_radius", "length", "INCOMPATIBLE_UNIT"),
-        ("unit.jupiter_radius_to_earth_radius.v1", "jupiter_radius", "earth_radius", "mass", "QUANTITY_KIND_MISMATCH"),
+        ("unit.missing", "day", "day", "time", "UNKNOWN_CONVERSION_RULE"),
+        ("unit.jupiter_radius_to_earth_radius", "earth_radius", "earth_radius", "length", "INCOMPATIBLE_UNIT"),
+        ("unit.jupiter_radius_to_earth_radius", "jupiter_radius", "earth_radius", "mass", "QUANTITY_KIND_MISMATCH"),
     ),
 )
 def test_conversion_rule_unit_and_quantity_bindings_fail_closed(

@@ -1,29 +1,20 @@
-const allowedStatuses = new Set([
-  "Proposed",
-  "Accepted",
-  "Superseded",
-  "Archived",
-  "Reference",
-]);
+import {
+  containsPhaseIdentifier,
+  containsTaskCode,
+} from "./governance-identifiers.mjs";
 
-// The only metadata keys a leading metadata table may declare. Any other key
-// fails the check; the table describes stable scope, source and supersession,
-// never volatile progress.
 const allowedMetadataFields = new Set([
-  "Status",
   "Authority",
   "Scope",
-  "Issue",
-  "Superseded by",
   "Authoring source",
-  "Time range",
   "Applies to",
 ]);
 
-// Metadata keys that describe volatile progress. They are rejected with a
-// dedicated message; real-time status lives in GitHub Issues, PRs, Milestones and
-// verified run evidence.
-const forbiddenMetadataFields = new Set([
+const lifecycleMetadataFields = new Set([
+  "Status",
+  "Issue",
+  "Superseded by",
+  "Time range",
   "Implementation",
   "Current runtime",
   "Target runtime",
@@ -34,8 +25,6 @@ const forbiddenMetadataFields = new Set([
   "Progress",
 ]);
 
-// GFM treats an unescaped pipe as a column delimiter even inside a code span;
-// only a backslash-escaped pipe (\|) is literal cell content.
 function tableCells(line) {
   const cells = [];
   let current = "";
@@ -69,11 +58,7 @@ function isDelimiterRow(line) {
 
 export function inspectMarkdown(
   content,
-  {
-    requireSingleH1 = true,
-    expectedStatus = null,
-    requireMetadata = false,
-  } = {},
+  { requireSingleH1 = true, requireAuthority = false } = {},
 ) {
   const lines = content.split(/\r?\n/u);
   const errors = [];
@@ -190,23 +175,39 @@ export function inspectMarkdown(
   if (requireSingleH1 && h1Count !== 1) {
     errors.push(`document must contain exactly one H1; found ${h1Count}`);
   }
+
   for (const key of metadataKeys) {
-    if (forbiddenMetadataFields.has(key)) {
-      errors.push(`metadata field is a forbidden progress field: ${key}`);
+    if (lifecycleMetadataFields.has(key)) {
+      errors.push(`metadata field belongs to Git/GitHub history or status: ${key}`);
     } else if (!allowedMetadataFields.has(key)) {
-      errors.push(`metadata field is not on the allowlist: ${key}`);
+      errors.push(`metadata field is not on the stable allowlist: ${key}`);
     }
   }
-  if (requireMetadata) {
-    for (const field of ["Status", "Authority"]) {
-      if (!metadata[field]) errors.push(`missing ${field} metadata`);
+  if (requireAuthority && !metadata.Authority) {
+    errors.push("missing Authority metadata");
+  }
+
+  for (const [index, line] of lines.entries()) {
+    const lineNumber = index + 1;
+    if (containsTaskCode(line)) {
+      errors.push(
+        `line ${lineNumber}: task code is not allowed in governed Markdown`,
+      );
+    }
+    if (containsPhaseIdentifier(line)) {
+      errors.push(
+        `line ${lineNumber}: phase identifier is not allowed in governed Markdown`,
+      );
+    }
+    if (/^\s*(?:<<<<<<<|=======|>>>>>>>)\s*$/u.test(line)) {
+      errors.push(`line ${lineNumber}: merge-conflict marker is not allowed`);
+    }
+    if (/\b(?:PR|Issue)\s*#\d+\b/iu.test(line)) {
+      errors.push(
+        `line ${lineNumber}: PR/Issue work-state reference is not allowed in governed Markdown`,
+      );
     }
   }
-  if (metadata.Status && !allowedStatuses.has(metadata.Status)) {
-    errors.push(`metadata Status is not recognized: ${metadata.Status}`);
-  }
-  if (expectedStatus && metadata.Status !== expectedStatus) {
-    errors.push(`metadata Status must be ${expectedStatus} for this location`);
-  }
+
   return { errors, links, mermaidBlocks, metadata };
 }

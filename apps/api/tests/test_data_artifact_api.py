@@ -197,7 +197,7 @@ def test_dataset_rows_cursor_is_bound_to_version() -> None:
 
     encoded = _encode_cursor(version_id=version_id, row_id=rows[0].row.row_id)
     payload = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
-    payload["ordering"] = "row_id.desc.v1"
+    payload["ordering"] = "row_id.desc"
     tampered = base64.urlsafe_b64encode(
         json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     ).decode("ascii").rstrip("=")
@@ -258,7 +258,7 @@ def test_dataset_export_is_idempotent_and_rejects_unknown_format() -> None:
     assert conflict.value.code == "IDEMPOTENCY_CONFLICT"
 
 
-def test_provenance_export_includes_c05_quality_attestation() -> None:
+def test_provenance_export_includes_data_quality_attestation() -> None:
     service, version_id = _service_for_dataset()
     exported = service.create_export(
         version_id=version_id,

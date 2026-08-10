@@ -1,4 +1,4 @@
-"""B-05 typed data artifact reads, cursors and process-local exports."""
+"""Typed data-artifact reads, cursors, and process-local exports."""
 
 from __future__ import annotations
 
@@ -46,13 +46,13 @@ _MAX_EXPORTS_PER_SESSION = 8
 _MAX_EXPORT_BYTES_PER_SESSION = 50 * 1024 * 1024
 _MAX_ARTIFACT_CONTENT_BYTES = 50 * 1024 * 1024
 _MAX_DATASET_ROWS = 1_000_000
-_ROW_ORDERING = "row_id.asc.v1"
+_ROW_ORDERING = "row_id.asc"
 _ROW_QUERY_SCOPE = compute_canonical_payload_hash({"filters": {}, "ordering": _ROW_ORDERING})
 DataKind = Literal["dataset", "field_dictionary", "source_collection"]
 
 
 class DataArtifactReadService:
-    """Validate and project C-04/C-05 output without rerunning its algorithms."""
+    """Validate and project Versioned Data Artifact/Data Quality Evaluation output without rerunning its algorithms."""
 
     def __init__(self, artifacts: ArtifactReadService) -> None:
         self._artifacts = artifacts
@@ -540,7 +540,7 @@ def _quality_projection(
             409,
             "DATA_QUALITY_PROJECTION_REQUIRED",
             "Data quality projection required",
-            "The ArtifactVersion has no valid passing C-05 quality projection",
+            "The ArtifactVersion has no valid passing data quality projection",
         ) from exc
     if (
         version.quality_projection_hash != projection.content_hash
@@ -555,7 +555,7 @@ def _quality_projection(
             409,
             "DATA_QUALITY_PROJECTION_INVALID",
             "Data quality projection invalid",
-            "The C-05 projection is not bound to this ArtifactVersion",
+            "The Data Quality Evaluation projection is not bound to this ArtifactVersion",
         )
     return projection
 

@@ -168,8 +168,8 @@
           "type": "integer"
         },
         "version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Version",
           "type": "string"
         }
@@ -228,8 +228,8 @@
           "type": "string"
         },
         "aggregation_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Aggregation Policy Version",
           "type": "string"
         },
@@ -243,20 +243,20 @@
           "type": "string"
         },
         "filter_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Filter Policy Version",
           "type": "string"
         },
         "identity_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Identity Policy Version",
           "type": "string"
         },
         "integrity_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Integrity Policy Version",
           "type": "string"
         },
@@ -267,14 +267,14 @@
           "type": "string"
         },
         "progressive_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Progressive Policy Version",
           "type": "string"
         },
         "taxonomy_policy_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Taxonomy Policy Version",
           "type": "string"
         }

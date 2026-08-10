@@ -8,9 +8,9 @@ CI 将契约导出到临时 Artifact 目录验证生成能力，不默认提交�
 
 本目录包含的基线：
 
-- `phase0/`：已冻结的 DTO JSON Schema。
+- 既有 DTO JSON Schema 基线：由导出脚本生成并通过 manifest 固定，不按工作阶段命名其契约语义。
 - `literature_claim/`：LiteratureClaim extraction、admission、publisher-ready candidate 与 Benchmark report 的领域 Pipeline JSON Schema；不是 HTTP DTO。
 - `literature_relation/`：LiteratureRelation/ReasoningTrace extraction、admission、publisher-ready candidate 与 Benchmark report 的领域 Pipeline JSON Schema；不是 HTTP DTO。
-- `graph/`：D-05 Versioned Evidence Graph build、admission、publisher-ready candidate、integrity 与 Benchmark 的领域 Pipeline JSON Schema；不是 HTTP DTO。
+- `graph/`：Versioned Evidence Graph build、admission、publisher-ready candidate、integrity 与 Benchmark 的领域 Pipeline JSON Schema；不是 HTTP DTO。
 - `core/`：核心资源与 Artifact provenance read 投影的 JSON Schema、manifest 和契约 OpenAPI 3.1；路由挂载状态以 API Contract 为准。
 - `security/`：Session、CSRF/Problem Details 相关传输 Schema。

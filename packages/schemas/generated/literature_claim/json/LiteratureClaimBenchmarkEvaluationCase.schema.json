@@ -86,7 +86,7 @@
     },
     "LiteratureClaimCandidate": {
       "additionalProperties": false,
-      "description": "Schema-valid Claim with the outcome of deterministic D-07 admission.",
+      "description": "Schema-valid Claim with the outcome of deterministic LiteratureClaim Pipeline admission.",
       "properties": {
         "claim_id": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
@@ -705,7 +705,7 @@
     },
     "LiteratureClaimsCandidate": {
       "additionalProperties": false,
-      "description": "Publisher-ready typed candidate produced only by the D-07 pipeline.",
+      "description": "Publisher-ready typed candidate produced only by the LiteratureClaim pipeline.",
       "properties": {
         "claims": {
           "items": {

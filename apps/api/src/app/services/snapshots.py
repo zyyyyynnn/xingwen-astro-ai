@@ -49,7 +49,7 @@ class _ShareRecord:
 
 
 class InMemorySnapshotStore:
-    """Process-local adapter preserving B-17 concurrency and security semantics."""
+    """Process-local adapter preserving Snapshot Projection concurrency and security semantics."""
 
     def __init__(self, authority: ResourceAuthority | None = None) -> None:
         self._authority: ResourceAuthority = authority or InMemoryResourceAuthority()

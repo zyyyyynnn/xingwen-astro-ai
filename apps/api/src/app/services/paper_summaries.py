@@ -22,7 +22,7 @@ from app.services.artifacts import ArtifactReadService
 
 
 class PaperSummaryReadService:
-    """Validate and project D-03 content without repeating pipeline logic."""
+    """Validate and project PaperSummary Pipeline content without repeating pipeline logic."""
 
     def __init__(self, artifacts: ArtifactReadService) -> None:
         self._artifacts = artifacts

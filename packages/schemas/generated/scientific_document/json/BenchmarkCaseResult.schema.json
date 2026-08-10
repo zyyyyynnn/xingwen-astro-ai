@@ -10,7 +10,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "One document's parse evaluation against its expected annotation.\n\nCounts (``accepted_count``/``partial_count``/``unsupported_count``) describe\nTHIS case only — they are derived from the case's own blocks/regions, never\nfrom a running global accumulator (D-10 E4).",
+  "description": "One document's parse evaluation against its expected annotation.\n\nCounts (``accepted_count``/``partial_count``/``unsupported_count``) describe\nTHIS case only — they are derived from the case's own blocks/regions, never\nfrom a running global accumulator (Scientific Document Parsing Contract E4).",
   "properties": {
     "accepted_count": {
       "default": 0,

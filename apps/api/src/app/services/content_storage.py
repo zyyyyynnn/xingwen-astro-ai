@@ -1,4 +1,4 @@
-"""Content-addressed immutable blob storage port (B-19).
+"""Content-addressed immutable blob storage port (Research Input Ingestion).
 
 Research Input content is never a source of truth inside process memory: it is
 stored byte-for-byte behind a ``sha256:<hex>`` content hash in a local,

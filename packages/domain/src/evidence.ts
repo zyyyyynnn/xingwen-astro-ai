@@ -7,8 +7,8 @@
  * snapshots. Repository adapters (including the fixture adapter) produce
  * Evidence instances directly in domain form.
  *
- * The `evidenceType` enum reuses the canonical values defined by the v1
- * `EvidenceType` contract so the vocabulary stays consistent across phases.
+ * The `evidenceType` enum reuses the canonical values defined by the
+ * `EvidenceType` contract so the vocabulary stays consistent across layers.
  */
 
 import type { DomainEntityId } from "./identifiers";

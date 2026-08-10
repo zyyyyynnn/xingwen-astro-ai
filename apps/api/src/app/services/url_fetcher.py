@@ -1,4 +1,4 @@
-"""Controlled external URL ingestion for Research Inputs (B-19).
+"""Controlled external URL ingestion for research inputs.
 
 Fail-closed fetch boundary: protocol allowlist, host allowlist, SSRF denial of
 private/link-local/loopback targets, bounded redirects with per-hop re-checks,
@@ -306,4 +306,3 @@ __all__ = [
     "sanitize_url_for_display",
     "validate_url_policy",
 ]
-

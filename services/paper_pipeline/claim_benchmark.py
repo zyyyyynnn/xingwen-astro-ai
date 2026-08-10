@@ -1,4 +1,4 @@
-"""Reproducible D-07 evaluation against the frozen D-01 Claim labels."""
+"""Reproducible literature-claim evaluation against frozen paper-acquisition labels."""
 
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ def evaluate_literature_claims(
                 or expected.review_status is not BenchmarkReviewStatus.approved
             ):
                 raise ValueError(
-                    "scientific cases must reference approved D-01 Claim labels"
+                    "scientific cases must reference approved Paper Acquisition Benchmark Claim labels"
                 )
         if _producer_signature(case.admission.producer) != signature:
             raise ValueError(
@@ -241,7 +241,7 @@ def validate_scientific_label_coverage(
     benchmark: BenchmarkPackage,
     cases: tuple[LiteratureClaimBenchmarkEvaluationCase, ...],
 ) -> None:
-    """Require the formal suite to cover every approved D-01 Claim exactly once."""
+    """Require the formal suite to cover every approved Paper Acquisition Benchmark Claim exactly once."""
 
     validate_frozen_benchmark(benchmark)
     expected = tuple(
@@ -262,7 +262,7 @@ def validate_scientific_label_coverage(
     )
     if actual != expected:
         raise ValueError(
-            "formal D-07 benchmark must cover every approved D-01 Claim exactly once"
+            "formal LiteratureClaim Pipeline benchmark must cover every approved Paper Acquisition Benchmark Claim exactly once"
         )
 
 
@@ -343,14 +343,14 @@ def _producer_signature(producer: object) -> tuple[object, ...]:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Evaluate serialized D-07 admission cases against frozen D-01 Claims."
+        description="Evaluate serialized LiteratureClaim Pipeline admission cases against frozen Paper Acquisition Benchmark Claims."
     )
     parser.add_argument(
         "--cases",
         type=Path,
         help=(
             "Optional JSON array of LiteratureClaimBenchmarkEvaluationCase values; "
-            "omit to generate the formal suite deterministically from tracked D-01."
+            "omit to generate the formal suite deterministically from tracked Paper Acquisition Benchmark."
         ),
     )
     parser.add_argument(

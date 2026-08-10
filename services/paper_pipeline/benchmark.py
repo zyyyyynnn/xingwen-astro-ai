@@ -1,4 +1,4 @@
-"""Load only the explicitly frozen D-01 package."""
+"""Load only the explicitly frozen Paper Acquisition Benchmark package."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def load_frozen_benchmark(path: Path = FROZEN_BENCHMARK_PATH) -> BenchmarkPackag
 
 
 def validate_frozen_benchmark(package: BenchmarkPackage) -> None:
-    """Reject a valid package when it is not the explicitly frozen D-01 identity."""
+    """Reject a valid package when it is not the explicitly frozen Paper Acquisition Benchmark identity."""
 
     expected = {
         "schema_version": FROZEN_BENCHMARK_SCHEMA_VERSION,
@@ -32,4 +32,4 @@ def validate_frozen_benchmark(package: BenchmarkPackage) -> None:
     }
     actual = {field: getattr(package, field) for field in expected}
     if actual != expected:
-        raise ValueError("frozen D-01 benchmark identity mismatch")
+        raise ValueError("frozen paper acquisition benchmark identity mismatch")

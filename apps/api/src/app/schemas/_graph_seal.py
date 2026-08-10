@@ -1,8 +1,8 @@
-"""Process-local publication authority for D-05 Graph candidates.
+"""Process-local publication authority for Versioned Evidence Graph candidates.
 
 The public candidate is intentionally round-trippable, while the admission
-snapshot, seal, and authority registry are not serialized.  A future
-``services.graph_pipeline.pipeline.GraphPipeline`` must consume
+snapshot, seal, and authority registry are not serialized.
+``services.graph_pipeline.pipeline.GraphPipeline`` consumes
 ``_bind_graph_pipeline_authority`` once at import time and define ``admit``
 with a private keyword-only ``_authority_minter`` parameter.  The binder then
 removes itself, and only the exact active ``GraphPipeline.admit`` frame can
@@ -109,7 +109,7 @@ def build_graph_admission_snapshot(
     input_json: str,
     public_payload_hash: str,
 ) -> GraphAdmissionSnapshot:
-    """Build the single canonical context/commitment snapshot used by D-05."""
+    """Build the single canonical context/commitment snapshot used by Versioned Evidence Graph."""
 
     if not isinstance(input_json, str) or not input_json:
         raise ValueError("Graph admission input_json must be nonempty")
@@ -324,7 +324,7 @@ def _build_graph_publication_authority() -> tuple[Any, Any]:
         )
 
     def bind_graph_pipeline_authority(pipeline_class: Any) -> Any:
-        """Bind once to the future exact GraphPipeline owner and wrap ``admit``."""
+        """Bind once to the exact GraphPipeline owner and wrap ``admit``."""
 
         nonlocal authorized_admit_code, minter_available
         if not minter_available:

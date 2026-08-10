@@ -332,7 +332,7 @@ export function mapResearchArtifactDetail(
  * `ArtifactVersionMetadata` domain shape.
  *
  * The generic workspace read deliberately drops the scientific `content`
- * payload: rich kind-specific content (e.g. the B-06 PaperCollection) must be
+ * payload: rich kind-specific content (e.g. the PaperCollection read contract) must be
  * read through its dedicated repository and contract instead of being force
  * cast into the generic `ArtifactContent` union.
  */

@@ -42,7 +42,7 @@ def build_input(
         "crossmatch_result": crossmatch_result.model_dump(mode="json"),
         "mapping_rule_set": mapping_rule_set.model_dump(mode="json"),
         "conversion_catalog": conversion_catalog.model_dump(mode="json"),
-        "producer_version": "1.0.0",
+        "producer_version": mapping_rule_set.producer_version,
         "quality_constraints_reference": "research_contract.quality_constraints.fixture",
     }
     unhashed = DataArtifactBuildInput.model_construct(
@@ -53,7 +53,7 @@ def build_input(
         crossmatch_result=crossmatch_result,
         mapping_rule_set=mapping_rule_set,
         conversion_catalog=conversion_catalog,
-        producer_version="1.0.0",
+        producer_version=mapping_rule_set.producer_version,
         quality_constraints_reference="research_contract.quality_constraints.fixture",
         input_hash="sha256:" + "0" * 64,
     )

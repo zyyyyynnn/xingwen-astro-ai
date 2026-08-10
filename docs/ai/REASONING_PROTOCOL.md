@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | Claim、Relation 与 ReasoningTrace 的推导、准入与图谱发布规范 |
 
 本文定义跨文献推理的领域规则与准入门禁。模型调用要求见 [Model Policy](MODEL_POLICY.md)，实体模型见 [Data Model](../architecture/DATA_MODEL.md)。

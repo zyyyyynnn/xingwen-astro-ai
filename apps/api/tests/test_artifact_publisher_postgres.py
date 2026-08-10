@@ -1,4 +1,4 @@
-"""PostgreSQL transaction, fencing, and concurrency tests for B-14.
+"""PostgreSQL transaction, fencing, and concurrency tests for Atomic Publisher.
 
 Set TEST_DATABASE_URL to an isolated database whose name contains ``test``.
 """
@@ -119,7 +119,7 @@ def _seed_project(
     project = ResearchProjectModel(
         id=uuid4(),
         session_id=f"session-{uuid4()}",
-        name="B-14 publisher integration",
+        name="Atomic Publisher integration",
         case_key="exoplanet_host_star",
         revision=1,
     )

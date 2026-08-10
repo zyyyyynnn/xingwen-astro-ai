@@ -131,7 +131,7 @@
     },
     "DocumentFigure": {
       "additionalProperties": false,
-      "description": "One canonical figure block (caption/text only — no pixel measurement).\n\nPhase-1 explicitly forbids plot digitization, curve recovery, scatter-point\nrecovery and scientific pixel measurement. Only visible/ocr labels and\nsurrounding text are captured.",
+      "description": "One canonical figure block (caption/text only — no pixel measurement).\n\nThe parsing contract explicitly forbids plot digitization, curve recovery, scatter-point\nrecovery and scientific pixel measurement. Only visible/ocr labels and\nsurrounding text are captured.",
       "properties": {
         "axis_text": {
           "anyOf": [
@@ -354,7 +354,7 @@
     },
     "DocumentParseProfile": {
       "additionalProperties": false,
-      "description": "Versioned parser profile / configuration identity (D-10 logical).\n\n``configuration_hash`` MUST be stable and reproducible: it must not depend\non wall-clock time, random ordering, unsorted dicts, floating model aliases\nor machine-specific absolute paths.",
+      "description": "Parser profile with a reproducible configuration identity.\n\n``configuration_hash`` MUST be stable and reproducible: it must not depend\non wall-clock time, random ordering, unsorted dicts, floating model aliases\nor machine-specific absolute paths.",
       "properties": {
         "configuration_hash": {
           "pattern": "^sha256:[0-9a-f]{64}$",
@@ -501,7 +501,7 @@
     },
     "DocumentTableCell": {
       "additionalProperties": false,
-      "description": "One table cell with stable identity, span and (when available) text/quality.\n\n``cell_id`` is the canonical, stable identity of the cell within a table; it\nis referenced by ``DocumentLocator.cell_id``. ``is_header`` carries the\nexplicit header/body role (D-10 C4). ``row_span``/``column_span`` express\nmerged cells; out-of-range spans are rejected at the aggregate level.",
+      "description": "One table cell with stable identity, span and (when available) text/quality.\n\n``cell_id`` is the canonical, stable identity of the cell within a table; it\nis referenced by ``DocumentLocator.cell_id``. ``is_header`` carries the\nexplicit header/body role. ``row_span``/``column_span`` express\nmerged cells; out-of-range spans are rejected at the aggregate level.",
       "properties": {
         "bbox": {
           "anyOf": [
@@ -584,7 +584,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Top-level canonical output of one document parse.\n\nLogical identity (consumed by B-20): the same input + same parser/model/\nconfig MUST yield a deterministic, reusable identity; a different config or\nrevision MUST yield a different identity. ``canonical_output_hash`` is the\ncontent-addressed hash over the frozen canonical payload.",
+  "description": "Top-level canonical output of one document parse.\n\nLogical identity (consumed by DocumentParse Persistence): the same input + same parser/model/\nconfig MUST yield a deterministic, reusable identity; a different config or\nrevision MUST yield a different identity. ``canonical_output_hash`` is the\ncontent-addressed hash over the frozen canonical payload.",
   "properties": {
     "blocks": {
       "default": [],

@@ -178,7 +178,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The complete JSON shape accepted before D-07 admission.",
+  "description": "The complete JSON shape accepted before LiteratureClaim Pipeline admission.",
   "properties": {
     "claims": {
       "items": {

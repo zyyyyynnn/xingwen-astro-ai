@@ -1,4 +1,4 @@
-"""Compile Contract gate observations from the immutable C-05 plan."""
+"""Compile Contract gate observations from the immutable Data Quality Evaluation plan."""
 
 from __future__ import annotations
 

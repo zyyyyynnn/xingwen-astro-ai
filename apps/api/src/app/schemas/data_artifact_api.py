@@ -1,4 +1,4 @@
-"""Transport projections for the B-05 data artifact read boundary."""
+"""Transport projections for version-pinned data-artifact reads."""
 
 from __future__ import annotations
 

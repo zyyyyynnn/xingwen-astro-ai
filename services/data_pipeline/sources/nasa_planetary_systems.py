@@ -1,4 +1,4 @@
-"""NASA Planetary Systems TAP adapter for the C-07 supplemental source."""
+"""NASA Planetary Systems TAP adapter for supplemental-source acquisition."""
 
 from __future__ import annotations
 
@@ -21,7 +21,6 @@ from app.schemas.source_acquisition import (
 )
 
 from ..constants import (
-    FROZEN_X00_MAIN_SHA,
     NASA_PS_SUPPLEMENTAL_ADAPTER_VERSION,
     PRODUCER_NAME,
     PRODUCER_VERSION,
@@ -293,7 +292,6 @@ class NasaPlanetarySystemsSupplementalAdapter:
                     "retry_policy": RETRY_POLICY_VERSION,
                     "source_policy": SOURCE_POLICY_VERSION,
                 },
-                "x00_main_sha": FROZEN_X00_MAIN_SHA,
                 "source_mode": source_mode.value,
                 "data_level": data_level.value,
                 "input_hash": query.input_hash,

@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                           |
 | --------- | -------------------------------------------- |
-| Status    | Accepted                                     |
 | Authority | 测试分层、测试数据等级、环境、门禁与证据格式 |
 
 本文定义系统的测试架构与质量校验规范。阶段退出见 [Acceptance](../product/ACCEPTANCE.md)，单个 PR 检查见 [Review Checklist](../quality/REVIEW_CHECKLIST.md)。
@@ -37,7 +36,7 @@
 
 - Domain -> UI ViewModel、Run Event -> Research Event 转换；
 - Composer Input -> Research Intent 映射；
-- Artifact Kind -> Renderer 路由映射与失败退役。
+- Artifact Kind -> Renderer 路由映射与失效处理。
 
 ### Component
 
@@ -66,7 +65,11 @@
 
 覆盖从进入 Workspace -> 创建/选择 Project -> 确认 Contract -> 启动 Run -> 审查 Agent Activity 与 Artifact -> 定位 Evidence -> 提议修订 -> 查看新 ArtifactVersion -> Compare -> Export / Share 的完整用户路径。
 
-当前 E2E 覆盖根路径进入唯一私有工作台、未知路由拒绝、`/workspace` 源码采用壳层（命令菜单、焦点回归、标签、面板、键盘缩放、1024px 桌面边界、200% 字体）与 `/share/$shareToken` 安全边界（不创建私有会话、不泄露 Token、撤销后保持固定）。组件测试通过注入薄执行接口覆盖 Running、Cancel、Error 与 Retry；生产宿主不注入伪运行时。
+E2E 必须覆盖唯一私有工作台、未知路由拒绝、批准的上游交互机械、私有 Session Gate、
+真实 HTTP/Browser 数据路径与 `/share/$shareToken` 安全边界（不创建私有会话、不泄露
+Token、撤销后保持固定）。当真实执行服务未提供时，测试只能验证禁用/未连接与失败状态，
+不得注入伪运行时来宣称 Running、Artifact 或科研结果。完整纵向 E2E 还必须覆盖
+Research Intent → Contract → Real ResearchRun → Artifact/Evidence → revision/export/share。
 
 ### Visual & Accessibility
 
@@ -84,6 +87,10 @@
 | Live result       | Live smoke 与真实运行  | 保存真实 Run、SourceSnapshot、时间与参数 |
 | Real run cache    | Live 失败兜底          | 必须标记为 Cached 并关联 origin Run      |
 
+合格模型测试还必须区分 Alibaba Model Studio/Bailian 的 Qwen 真实调用证据与
+DeepSeek/Gemini 等 non-qualifying benchmark/reference。没有 provider/model/version/call
+proof 的测试只证明契约或适配器行为，不证明竞赛资格。
+
 ## 4. 环境矩阵
 
 | 环境       | 主要用途                           | 外部服务                        |
@@ -92,6 +99,13 @@
 | CI         | 契约、PostgreSQL 集成与 E2E 自动化 | Stub / Recorded + fresh Compose |
 | preview    | 部署 Smoke 与授权验证              | 隔离配置与测试凭据              |
 | production | 生产环境                           | 受限主案例与配额                |
+
+跨层回归必须覆盖：Contract Planner 的 refusal/unsupported、Qwen ModelExecutionPort
+的结构化拒绝与限流、真实 Executor 的 lease/recovery、Open Access PaperCandidate 到
+ResearchInput 的桥接、snapshot-first RunEventFeed 的分页/polling/backoff、穷举
+Renderer Registry、共享 Evidence Inspector、partial/unsupported parsing，以及
+ArtifactVersion immutable revision。NFR 证据至少包含初始 JS/lazy chunk、长 Activity、
+大表/图预算、200% 字体与长会话内存观察。
 
 ## 5. 测试证据格式
 

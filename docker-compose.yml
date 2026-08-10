@@ -29,7 +29,6 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    # one-shot：执行 alembic upgrade head 后退出；失败时 API 不会启动。
     restart: "no"
     env_file:
       - .env
@@ -50,11 +49,9 @@ services:
     environment:
       # APP_ENV 仅允许 development/integration/test；integration/test 才挂载 test-only bootstrap。
       APP_ENV: ${APP_ENV:-development}
-      # 真实 /api Runtime 必须使用 PostgreSQL 权威存储。
-      PERSISTENT_WORKFLOW_ENABLED: "true"
       # 浏览器跨端口访问 API 时显式覆盖 env_file，确保自定义 Compose 端口一致。
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
-      # 容器内通过服务名访问 postgres；生产环境必须覆盖默认凭据。
+      # ResearchRun、Artifact 与 Evidence 的当前权威存储固定为 PostgreSQL。
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-xingwen_astro_ai}
       RESEARCH_INPUT_UPLOAD_DIR: /var/lib/xingwen/research-inputs
     volumes:

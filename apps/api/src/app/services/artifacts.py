@@ -97,7 +97,7 @@ _SAFE_RESPONSE_HEADER_KEYS = frozenset(
         "etag",
         "last_modified",
         "x_api_pool",
-        "x_rate_limit_limit",
+        "rate_limit_ceiling",
         "x_rate_limit_interval",
         "retry_after",
     }
@@ -309,7 +309,7 @@ class ArtifactReadService:
                     status=409,
                     code="DATA_QUALITY_PROJECTION_REQUIRED",
                     title="Data quality projection required",
-                    detail="The ArtifactVersion has no valid passing C-05 quality projection",
+                    detail="The ArtifactVersion has no valid passing data quality projection",
                 ) from exc
             if (
                 version.quality_projection_hash != projection.content_hash
@@ -325,7 +325,7 @@ class ArtifactReadService:
                     status=409,
                     code="DATA_QUALITY_PROJECTION_INVALID",
                     title="Data quality projection invalid",
-                    detail="The C-05 projection is not bound to this ArtifactVersion",
+                    detail="The Data Quality Evaluation projection is not bound to this ArtifactVersion",
                 )
             projected_count = session.scalar(
                 select(func.count())

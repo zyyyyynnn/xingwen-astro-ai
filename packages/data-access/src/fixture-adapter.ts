@@ -1,7 +1,7 @@
 /**
  * Fixture adapter — the Demo Replay `RepositorySet` implementation.
  *
- * Validates every fixture DTO against the B-15 JSON Schemas, enforces Demo
+ * Validates every fixture DTO against the Core Domain and Transport Contract JSON Schemas, enforces Demo
  * Replay semantics (no `live`/`cached` data), maps payloads into the domain
  * model, and serves reads from in-memory stores. It implements the same
  * narrowed ports as the HTTP adapter so the two are structurally
@@ -826,7 +826,7 @@ export function createFixtureRepositories(
           (item) => item.summary.artifact_version_id === artifactVersionId,
         );
         if (!entry) {
-          // Mirrors the B-07 backend: an unknown version id is a generic
+          // Mirrors the PaperSummary API backend: an unknown version id is a generic
           // ARTIFACT_VERSION_NOT_FOUND, never an "empty summary" state.
           throw new NotFoundError(
             `Paper summary ${artifactVersionId} not found`,

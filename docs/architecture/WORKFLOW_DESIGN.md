@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | Run 状态机、事件、取消、重试、缓存与派生运行语义 |
 
 本文定义系统的 ResearchRun 工作流编排、状态机、事件推送、取消、重试、缓存与派生运行规范。
@@ -17,6 +16,12 @@ Routers -> Application Services -> Workflow Executor -> Step Adapters -> Pipelin
 ```
 
 Router 不直接调用 Pipeline；Pipeline 不直接推进 Run 主状态。
+
+真实 ResearchRun 只能由这一条 Workflow Executor 路径驱动：它取得 fenced lease，
+按 Run/Step Contract 调用 Step Adapter，提交 Attempt/Event，接收 typed candidate，
+再交给 Publisher。创建 `queued` Run 或写入初始 Event 不代表执行已经发生；没有
+实际 Executor/Adapter 运行证据时，状态必须保持真实的 queued/failed 语义，不能生成
+伪造 running、tool 或 artifact event。
 
 ## 2. Run 状态机
 
@@ -42,9 +47,9 @@ planning <-> waiting_for_input
 
 ## 4. 进度与事件 (RunEvent)
 
-- `GET /runs/{id}` 提供权威的状态快照。
+- `GET /runs/{id}` 提供权威的状态快照；Feed 首次读取必须先取快照，再按序读取事件。
 - `RunEvent` 包含 `run_id`、单调递增 `sequence`、`step_key`、`progress` (0–100) 与 `occurred_at`。
-- Event 仅包含公开状态与进度，不包含模型私有思维过程。客户端丢失事件时拉取最新快照并从 `latest_event_sequence` 恢复。
+- Event 仅包含公开状态与进度，不包含模型私有思维过程。客户端丢失事件时拉取最新快照并从 `latest_event_sequence` 恢复；Polling 使用有界 backoff，SSE 不是状态事实源。
 
 ## 5. 持久化与并发不变量
 
@@ -65,9 +70,9 @@ planning <-> waiting_for_input
 
 | `derivation_kind` | 语义 | 复用规则 |
 | --- | --- | --- |
-| `retry` | 从失败步骤重新执行 | 可复用父 Run 中已通过校验且 Input Hash 一致的旧版本 |
+| `retry` | 从失败步骤重新执行 | 可引用父 Run 中已通过校验且 Input Hash 一致的 ArtifactVersion |
 | `revision` | 依据 UserFeedback / RevisionPlan 修订 | 仅重算受影响步骤，生成新 ArtifactVersion |
-| `fork` | 更换 Contract 或研究范围 | 仅当新 Contract 允许且输入 Hash 一致时可复用旧版本 |
+| `fork` | 更换 Contract 或研究范围 | 仅当新 Contract 允许且输入 Hash 一致时可引用父 Run 的 ArtifactVersion |
 
 ## 8. 取消语义
 

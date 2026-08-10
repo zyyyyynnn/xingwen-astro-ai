@@ -1,0 +1,59 @@
+{
+  "rule_set_id": "exoplanet_host_star.mapping_rules",
+  "schema_version": "1.0.0",
+  "version": "2.0.0",
+  "content_hash": "sha256:6b4bbc5f3172c764088a07c18feef0174bb9978a994428ef0a7f16edb198f8e2",
+  "case_manifest_id": "exoplanet_host_star",
+  "case_manifest_version": "2.0.0",
+  "case_manifest_content_hash": "sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c",
+  "field_manifest_id": "exoplanet_host_star.fields",
+  "field_manifest_version": "2.0.0",
+  "field_manifest_content_hash": "sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f",
+  "producer_name": "xingwen.data_artifacts",
+  "producer_version": "2.0.0",
+  "source_selection_policy_version": "1.0.0",
+  "conflict_comparison_policy_version": "1.0.0",
+  "null_derivation_policy_version": "1.0.0",
+  "uncertainty_policy_implementation_version": "1.0.0",
+  "limit_policy_implementation_version": "1.0.0",
+  "numeric_normalization_serialization_version": "1.0.0",
+  "canonical_ordering_policy": "field_manifest_then_stable_identity",
+  "same_source_conflict_policy": "preserve_conflict_no_scientific_winner",
+  "unresolved_identity_policy": "preserve_unresolved_rows",
+  "non_nullable_missing_policy": "fail_admission",
+  "entity_projection_policy": {
+    "version": "1.0.0",
+    "system_context_policy": "host_and_source_assertion_only_no_implicit_join",
+    "rules": [
+      {
+        "entity_level": "host_star",
+        "allowed_object_types": ["star", "system"]
+      },
+      {
+        "entity_level": "planet_assertion",
+        "allowed_object_types": ["planet", "star", "system"]
+      },
+      {
+        "entity_level": "planet_candidate",
+        "allowed_object_types": ["planet"]
+      }
+    ]
+  },
+  "numeric_comparison": {
+    "absolute_tolerance": "0",
+    "relative_tolerance": "0",
+    "threshold_inclusive": true,
+    "collection_semantics": "span_absolute_or_relative_max_magnitude",
+    "relative_denominator_floor": "1e-28"
+  },
+  "capacity": {
+    "max_rows": 10000,
+    "max_requested_fields": 64,
+    "max_source_values_per_field": 32,
+    "max_transformation_evidence": 500000,
+    "max_conflict_candidates": 128,
+    "max_total_cell_outcomes": 500000
+  },
+  "created_at": "2026-08-02",
+  "maintained_by": "data pipeline maintainers"
+}

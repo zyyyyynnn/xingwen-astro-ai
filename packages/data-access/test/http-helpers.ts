@@ -417,7 +417,7 @@ export const defaultHandlers = [
     if (!version) return new HttpResponse(null, { status: 404 });
     return HttpResponse.json(envelope(versionDetail(version)));
   }),
-  // B-06 paper acquisition read boundary. Candidates are deliberately served
+  // PaperCollection API paper acquisition read boundary. Candidates are deliberately served
   // in 2-item pages so the adapter's cursor loop is exercised by default.
   http.get(
     `${BASE_URL}/api/artifact-versions/:versionId/paper-collection`,
@@ -473,12 +473,12 @@ export const defaultHandlers = [
       });
     },
   ),
-  // B-07 paper summary read boundary (single required read, no pagination).
+  // PaperSummary API paper summary read boundary (single required read, no pagination).
   http.get(
     `${BASE_URL}/api/artifact-versions/:versionId/paper-summary`,
     ({ params }) => {
       if (params.versionId !== paperSummaryReadFixture.artifact_version_id) {
-        // Mirrors B-07: an unknown version id is a generic 404, never an
+        // Mirrors PaperSummary API: an unknown version id is a generic 404, never an
         // "empty summary" contract state.
         return HttpResponse.json(
           problem(

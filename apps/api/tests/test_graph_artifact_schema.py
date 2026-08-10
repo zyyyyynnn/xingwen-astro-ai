@@ -127,7 +127,7 @@ def test_tracked_graph_schemas_and_manifest_hashes_match_authoring_models() -> N
         assert json.loads(schema_bytes) == models[item["name"]].model_json_schema()
 
 
-def test_graph_v1_json_schema_exposes_only_the_exact_authorized_taxonomy() -> None:
+def test_graph_json_schema_exposes_only_the_exact_authorized_taxonomy() -> None:
     node_schema = GraphArtifactNode.model_json_schema()
     edge_schema = GraphArtifactEdge.model_json_schema()
     taxonomy_schema = GraphTaxonomy.model_json_schema()

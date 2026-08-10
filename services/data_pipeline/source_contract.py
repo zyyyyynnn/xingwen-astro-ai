@@ -21,7 +21,7 @@ _PS_RUNTIME_SCHEMA_CONTRACT_PATH = (
     / "source-evidence"
     / "nasa-exoplanet-archive"
     / "2026-07-30"
-    / "ps-runtime-schema-contract.v1.json"
+    / "ps-runtime-schema-contract.json"
 )
 _ALLOWED_DATATYPE_CATEGORIES = frozenset({"string", "integer", "number"})
 

@@ -36,7 +36,7 @@ def _quality_admission():
     return admitted, build_result
 
 
-def test_real_publisher_port_accepts_each_exact_c04_candidate_with_c05_gate() -> None:
+def test_real_publisher_port_accepts_each_exact_data_artifact_candidate_with_data_quality_gate() -> None:
     admitted, build_result = _quality_admission()
 
     admitted_candidates = []
@@ -135,7 +135,7 @@ def test_real_publisher_port_accepts_each_exact_c04_candidate_with_c05_gate() ->
         )
 
 
-def test_reparsed_or_foreign_candidate_cannot_use_c05_admission() -> None:
+def test_reparsed_or_foreign_candidate_cannot_use_data_quality_admission() -> None:
     admitted, build_result = _quality_admission()
     foreign_input, foreign_result = make_quality_input("planet.name")
     validator = build_data_quality_publication_validator(admitted, candidate_kind="dataset")
@@ -154,7 +154,7 @@ def test_reparsed_or_foreign_candidate_cannot_use_c05_admission() -> None:
     assert foreign_input.dataset_candidate is not build_result.dataset
 
 
-def test_self_consistent_public_projection_cannot_forge_c05_capability() -> None:
+def test_self_consistent_public_projection_cannot_forge_data_quality_capability() -> None:
     admitted, build_result = _quality_admission()
     trusted = build_data_quality_publication_validator(
         admitted,
@@ -165,7 +165,7 @@ def test_self_consistent_public_projection_cannot_forge_c05_capability() -> None
         return None
 
     forged_validator.quality_projection = trusted._data_quality_attestation.projection_json
-    with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
+    with pytest.raises(PublicationAdmissionError, match="Data Quality Evaluation attestation"):
         admit_artifact_candidate(
             build_result.dataset,
             schema_version=build_result.dataset.schema_version,

@@ -1,0 +1,121 @@
+{
+  "authoring_source": "apps/api/src/app/schemas",
+  "models": [
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchBenchmarkManifest",
+      "path": "json/CrossmatchBenchmarkManifest.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchBenchmarkReport",
+      "path": "json/CrossmatchBenchmarkReport.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchInput",
+      "path": "json/CrossmatchInput.schema.json"
+    },
+    {
+      "module": "app.schemas.crossmatch",
+      "name": "CrossmatchResult",
+      "path": "json/CrossmatchResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DataArtifactBuildInput",
+      "path": "json/DataArtifactBuildInput.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityEvaluationInput",
+      "path": "json/DataQualityEvaluationInput.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityEvaluationRejected",
+      "path": "json/DataQualityEvaluationRejected.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityEvaluationResult",
+      "path": "json/DataQualityEvaluationResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DataQualityRuleSet",
+      "path": "json/DataQualityRuleSet.schema.json"
+    },
+    {
+      "module": "app.schemas.source_acquisition",
+      "name": "DataSourceCompletion",
+      "path": "json/DataSourceCompletion.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "DatasetArtifactCandidate",
+      "path": "json/DatasetArtifactCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "DatasetQualityResult",
+      "path": "json/DatasetQualityResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "FieldDictionaryArtifactCandidate",
+      "path": "json/FieldDictionaryArtifactCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "FieldQualityResult",
+      "path": "json/FieldQualityResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "MappingRuleSet",
+      "path": "json/MappingRuleSet.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityConstraintResult",
+      "path": "json/QualityConstraintResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityEvaluationPlan",
+      "path": "json/QualityEvaluationPlan.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityMetricPlan",
+      "path": "json/QualityMetricPlan.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "QualityMetricResult",
+      "path": "json/QualityMetricResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "ResearchContractQualityGate",
+      "path": "json/ResearchContractQualityGate.schema.json"
+    },
+    {
+      "module": "app.schemas.data_quality",
+      "name": "RowQualityResult",
+      "path": "json/RowQualityResult.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "SourceCollectionArtifactCandidate",
+      "path": "json/SourceCollectionArtifactCandidate.schema.json"
+    },
+    {
+      "module": "app.schemas.data_artifacts",
+      "name": "UnitConversionCatalog",
+      "path": "json/UnitConversionCatalog.schema.json"
+    }
+  ],
+  "schema_version": 1
+}

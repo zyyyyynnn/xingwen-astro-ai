@@ -1,5 +1,5 @@
 /**
- * Paper summary review repository (A-06) over the B-07 read boundary.
+ * Paper summary review repository (Literature Summary Workspace) over the PaperSummary API read boundary.
  *
  * One deep port method — `getSummary(artifactVersionId)` — hides the entire
  * transport protocol:
@@ -186,7 +186,7 @@ function summaryContractViolation(detail: string): ValidationError {
  *
  * Shared by the HTTP and fixture adapters so both return byte-identical
  * domain shapes. The summary-internal evidence keeps its locator/quote/status
- * for inline display, while `read.evidence` maps to the generic B-18 Evidence
+ * for inline display, while `read.evidence` maps to the generic Artifact Read Boundary Evidence
  * records through the same `mapEvidenceDetail` used everywhere else.
  */
 export function assemblePaperSummaryReview(

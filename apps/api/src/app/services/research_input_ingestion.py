@@ -1,4 +1,4 @@
-"""Research Input ingestion application service (B-19).
+"""Application service for research-input ingestion.
 
 This is the use-case boundary for creating a Research Input. It owns the
 orchestration the HTTP router used to perform inline:

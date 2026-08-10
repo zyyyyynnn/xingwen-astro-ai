@@ -2,26 +2,25 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | HTTP 资源、传输结构、错误、授权语义与 API 演进规范 |
 
-本文定义无版本前缀的单一 `/api/*` 接口面。包含 Core APIs 与 Pipeline APIs（`/api/health`、`/api/tasks*`）。系统仅做加法演进，不升级 URL 版本号。具体 Endpoints、DTOs 与字段由 Pydantic 编写源、OpenAPI 与生成的 Contract 权威定义。
+本文定义无版本前缀的单一 `/api/*` 接口面：当前 Research resource surface 与明确的 system endpoints（例如 `/api/health`）。系统不维护旧 API、目标 API、兼容 API 或 Task API。具体 Endpoints、DTOs 与字段由 Pydantic 编写源、OpenAPI 与生成的 Contract 权威定义。
 
 ## 1. 设计原则
 
 - URI 使用复数资源名与 `snake_case` 字段。
-- 成功响应使用统一 Envelope；错误响应遵循 RFC 9457 Problem Details。
+- 单资源成功响应使用 `Envelope`，集合成功响应使用 `CollectionEnvelope`；失败响应统一遵循 RFC 9457 `ProblemDetails`。
 - 集合接口使用不透明 cursor 分页（默认 20，最大 100）。
 - 写操作通过 `Idempotency-Key` 或版本前置条件确保幂等。
 - `execution_mode`（demo_replay / live）与 `source_mode`（fixture / live / cached）分离。
 - 前端组件不直接依赖 Transport DTO，必须经由 Repository Adapter 校验与映射。
 - API 严禁返回模型私有思维过程；ReasoningTrace 仅包含可审查依据与引用。
 
-## 2. API 演进规则 (Additive-Only)
+## 2. API 演进规则
 
-- 仅允许新增端点、新增可选字段或新增 Query 参数。
-- 严禁删除、重命名既有字段或改变现有字段语义。
-- 字段废弃通过 Pydantic / OpenAPI `deprecated=True` 标记。
+- 维护单一当前 Contract；端点、字段和语义在同一变更中同步编写源、生成 Contract、前端 Adapter 与测试。
+- API 只维护当前契约面，不引入并行接口或字段分支。
+- 破坏性变更必须在 PR 中明确调用方影响，并以当前 Contract 的端到端验证收口。
 - 严禁通过在 URL 中增加版本号段进行断代演进。
 
 ## 3. 会话、安全与授权
@@ -37,6 +36,8 @@
 
 ### 4.1 成功 Envelope
 
+单资源：
+
 ```json
 {
   "data": {},
@@ -51,7 +52,7 @@
 }
 ```
 
-分页集合额外包含 `page: { "next_cursor": "...", "has_more": false, "limit": 20 }`。
+集合使用 `CollectionEnvelope`，并额外包含 `page: { "next_cursor": "...", "has_more": false, "limit": 20 }`。
 
 ### 4.2 Problem Details 错误响应
 
@@ -97,7 +98,7 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 
 ## 7. 文献 Claim、Relation 与 Trace 读取
 
-B-08 在不可变 ArtifactVersion 边界提供以下无版本端点：
+在不可变 ArtifactVersion 边界提供以下无版本端点：
 
 - `GET /api/artifact-versions/{version_id}/literature-claims`
 - `GET /api/artifact-versions/{version_id}/literature-claims/{claim_id}`
@@ -106,9 +107,8 @@ B-08 在不可变 ArtifactVersion 边界提供以下无版本端点：
 - `GET /api/artifact-versions/{version_id}/reasoning-traces`
 - `GET /api/artifact-versions/{version_id}/reasoning-traces/{trace_id}`
 
-集合端点支持 `status`、不透明 HMAC cursor 与 `limit`（默认 20、最大 100）。cursor 绑定 ArtifactVersion、集合、过滤条件与 `stable_id.asc.v1` 排序；跨 scope、悬空 ID 或签名篡改返回 `400 INVALID_CURSOR`。响应使用 `Cache-Control: no-store`。
+集合端点支持 `status`、不透明 HMAC cursor 与 `limit`（默认 20、最大 100）。cursor 绑定 ArtifactVersion、集合、过滤条件与 `stable_id.asc` 排序；跨 scope、悬空 ID 或签名篡改返回 `400 INVALID_CURSOR`。响应使用 `Cache-Control: no-store`。
 
-Claim 读取必须先通过 B-07 PaperSummary 权威验证，再闭合 PaperSummary、ProducerExecution、Evidence 与 SourceSnapshot。Relation 读取必须把每个 Claim 精确绑定到声明的 Claim ArtifactVersion 和 PaperSummary ArtifactVersion。仅当 Relation 为 `accepted`，双方 Claim 为 `accepted`，且 Trace、Evidence、SourceSnapshot 全部闭合时，`graph_eligible` 才为 `true`。
+Claim 读取必须先通过已验证的 PaperSummary 权威边界，再闭合 PaperSummary、ProducerExecution、Evidence 与 SourceSnapshot。Relation 读取必须把每个 Claim 精确绑定到声明的 Claim ArtifactVersion 和 PaperSummary ArtifactVersion。仅当 Relation 为 `accepted`，双方 Claim 为 `accepted`，且 Trace、Evidence、SourceSnapshot 全部闭合时，`graph_eligible` 才为 `true`。
 
 Pipeline ID 与 PostgreSQL UUID 属于不同命名空间。文学 Artifact 发布必须在同一 fenced transaction 内创建 ArtifactVersion 与其 Evidence，并验证所引用 SourceSnapshot 的 Project、source identity、version 与 content hash；禁止发布后补写 provenance。ReasoningTrace 只作为 LiteratureRelations 内容的一部分读取，不允许独立发布。API 不返回私有 chain-of-thought、原始模型响应、凭据或受限全文。
->>>>>>> origin/main

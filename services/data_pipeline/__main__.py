@@ -1,4 +1,4 @@
-"""Bounded C-02 acquisition smoke/replay entrypoint; never advances ResearchRun."""
+"""Bounded primary source acquisition smoke/replay entrypoint; never advances ResearchRun."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from .sources.recorded import (
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the bounded C-02 NASA TOI adapter in live or explicitly recorded "
+            "Run the bounded Primary Source Acquisition NASA TOI adapter in live or explicitly recorded "
             "fixture mode. This command does not create or advance a ResearchRun."
         )
     )

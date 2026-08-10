@@ -1,4 +1,4 @@
-"""Trusted application adapter for exact, versioned D-05 graph inputs."""
+"""Trusted application adapter for immutable evidence-graph inputs."""
 
 from __future__ import annotations
 
@@ -571,7 +571,7 @@ def _quality_projection(version: ArtifactVersionDetail) -> DataQualityProjection
         or version.quality_projection_hash is None
     ):
         raise _artifact_error(
-            "data ArtifactVersion requires a persisted C-05 projection",
+            "data ArtifactVersion requires a persisted Data Quality Evaluation projection",
             reason=GraphRejectionReason.input_version_unpublished,
             path=f"input_versions.{version.id}.quality_projection",
         )
@@ -581,13 +581,13 @@ def _quality_projection(version: ArtifactVersionDetail) -> DataQualityProjection
         )
     except ValidationError as exc:
         raise _artifact_error(
-            "persisted C-05 projection is not schema-valid",
+            "persisted Data Quality Evaluation projection is not schema-valid",
             reason=GraphRejectionReason.unsupported_schema_version,
             path=f"input_versions.{version.id}.quality_projection",
         ) from exc
     if projection.content_hash != version.quality_projection_hash:
         raise _artifact_error(
-            "persisted C-05 projection hash disagrees with ArtifactVersion",
+            "persisted Data Quality Evaluation projection hash disagrees with ArtifactVersion",
             reason=GraphRejectionReason.content_hash_mismatch,
             path=f"input_versions.{version.id}.quality_projection_hash",
         )
@@ -746,7 +746,7 @@ def _validated_data_mappings(
             )
         if not valid:
             raise GraphInputIntegrityError(
-                "governed data Evidence mapping does not close its C-04 Transformation/Crossmatch identity",
+                "governed data Evidence mapping does not close its Versioned Data Artifact Transformation/Crossmatch identity",
                 stage=GraphIntegrityStage.evidence_snapshot,
                 reason=GraphRejectionReason.evidence_inconsistent,
                 path=(

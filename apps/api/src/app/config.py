@@ -15,14 +15,15 @@ def _parse_csv_list(value: Any) -> list[str]:  # noqa: ANN401
     if value is None:
         return []
     if isinstance(value, str):
-        items = [item.strip() for item in value.split(",") if item.strip()]
-        return items
+        return [item.strip() for item in value.split(",") if item.strip()]
     if isinstance(value, (list, tuple, set)):
         return [str(item).strip() for item in value if str(item).strip()]
     return []
 
 
 class Settings(BaseSettings):
+    """Configuration consumed by the current API runtime only."""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -33,10 +34,10 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     DEBUG: bool = True
     APP_TITLE: str = "星文智析 API"
-    APP_VERSION: str = "0.1.0"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+
     SESSION_COOKIE_NAME: str = "xingwen_session"
     SESSION_TTL_SECONDS: int = Field(default=86400, gt=0)
     SESSION_COOKIE_SECURE: bool = False
@@ -47,9 +48,11 @@ class Settings(BaseSettings):
         default=SecretStr("development-only-cursor-signing-key"),
         min_length=32,
     )
-    PERSISTENT_WORKFLOW_ENABLED: bool = False
 
-    # Research Input ingestion (B-19). The content-addressed local store is the
+    DATABASE_URL: SecretStr | None = None
+    POSTGRES_PASSWORD: SecretStr | None = None
+
+    # Research Input ingestion. The content-addressed local store is the
     # reference boundary; uploads are capped, MIME-sniffed and never executed.
     RESEARCH_INPUT_MAX_SIZE_BYTES: int = Field(default=26214400, gt=0)
     RESEARCH_INPUT_ALLOWED_MIME_TYPES: list[str] | str = Field(
@@ -67,15 +70,10 @@ class Settings(BaseSettings):
     )
     RESEARCH_INPUT_UPLOAD_DIR: Path = Path(".data/research-inputs")
     RESEARCH_INPUT_RATE_LIMIT: int = Field(default=30, gt=0)
-    # Lease window for a pending idempotency reservation. Must comfortably
-    # exceed the worst-case URL fetch (timeout * (max_redirects + 1)) plus a
-    # margin, so a reservation is never reclaimed while a legitimate fetch is
-    # still in flight.
     RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS: int = Field(default=300, gt=0)
 
-    # URL fetch (B-19). Defaults are fail-closed: only HTTPS is allowed and an
-    # empty host allowlist rejects every external fetch until a domain is
-    # configured. Development may append http and allowlisted test hosts.
+    # URL fetch is part of Research Input ingestion. Defaults are fail-closed:
+    # HTTPS only and no external host until an allowlist is configured.
     URL_FETCH_ALLOWED_PROTOCOLS: tuple[str, ...] | str = Field(
         default=("https",),
         description="Allowed protocols for url_fetch ingestion.",
@@ -87,11 +85,6 @@ class Settings(BaseSettings):
     URL_FETCH_TIMEOUT_SECONDS: float = Field(default=15.0, gt=0)
     URL_FETCH_MAX_REDIRECTS: int = Field(default=3, ge=0)
     URL_FETCH_MAX_RESPONSE_BYTES: int = Field(default=26214400, gt=0)
-
-    DATABASE_URL: SecretStr | None = None
-    POSTGRES_PASSWORD: SecretStr | None = None
-    DASHSCOPE_API_KEY: SecretStr | None = None
-    PAPER_SOURCE_API_KEY: SecretStr | None = None
 
     @field_validator("RESEARCH_INPUT_ALLOWED_MIME_TYPES", mode="before")
     @classmethod
@@ -163,7 +156,6 @@ class Settings(BaseSettings):
         errors: list[str] = []
         database_url = self._secret_value(self.DATABASE_URL)
         postgres_password = self._secret_value(self.POSTGRES_PASSWORD)
-        dashscope_api_key = self._secret_value(self.DASHSCOPE_API_KEY)
         cors_origins = {origin.strip() for origin in self.CORS_ORIGINS.split(",")}
 
         if self.DEBUG:
@@ -174,8 +166,6 @@ class Settings(BaseSettings):
             errors.append("DATABASE_URL must not use the local default credentials")
         if postgres_password == "postgres":
             errors.append("POSTGRES_PASSWORD must not use the local default")
-        if dashscope_api_key in {"", "replace_me"}:
-            errors.append("DASHSCOPE_API_KEY must be configured")
         if "*" in cors_origins:
             errors.append("CORS_ORIGINS must not contain '*' in production")
         if not self.SESSION_COOKIE_SECURE:
@@ -206,4 +196,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

@@ -2,7 +2,7 @@
   "$defs": {
     "DataQualityProjection": {
       "additionalProperties": false,
-      "description": "Persisted C-05 attestation bound to one published data candidate.",
+      "description": "Persisted Data Quality Evaluation attestation bound to one published data candidate.",
       "properties": {
         "bundle_commitment": {
           "pattern": "^sha256:[0-9a-f]{64}$",

@@ -21,7 +21,6 @@ from app.schemas.source_acquisition import (
 )
 
 from ..constants import (
-    FROZEN_X00_MAIN_SHA,
     NASA_TAP_ADAPTER_VERSION,
     PRODUCER_NAME,
     PRODUCER_VERSION,
@@ -258,7 +257,6 @@ class NasaExoplanetArchiveAdapter:
                     "retry_policy": RETRY_POLICY_VERSION,
                     "source_policy": SOURCE_POLICY_VERSION,
                 },
-                "x00_main_sha": FROZEN_X00_MAIN_SHA,
                 "endpoint": NASA_TAP_SYNC_URL,
                 "documentation_url": NASA_TOI_DOCUMENTATION_URL,
                 "source_mode": source_mode.value,

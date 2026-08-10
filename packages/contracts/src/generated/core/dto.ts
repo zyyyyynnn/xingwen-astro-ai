@@ -5,7 +5,7 @@
  * Authoring source: apps/api/src/app/schemas/core.py (Pydantic)
  *
  * These TypeScript types are the /api transport DTOs (snake_case). They are
- * generated from the B-15 frozen JSON Schemas so the frontend never maintains
+ * generated from the Core Domain and Transport Contract frozen JSON Schemas so the frontend never maintains
  * a hand-written second production schema.
  *
  * To regenerate: pnpm --filter @xingwen/contracts sync-contracts
@@ -184,7 +184,7 @@ export type LiteratureTraceOperation =
 /**
  * Lifecycle of a controlled research input after ingestion.
  *
- * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+ * ``accepted`` is the only state Research Input Ingestion produces: ingestion succeeded and the
  * content is frozen behind an immutable content hash. ``unsupported_processing``
  * and ``failed_ingestion`` are reserved states the API exposes so consumers
  * never mistake "uploaded" for "understood".
@@ -274,7 +274,7 @@ export type ContractDraftStatus1 = "draft" | "confirmed" | "expired";
 /**
  * Lifecycle of a controlled research input after ingestion.
  *
- * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+ * ``accepted`` is the only state Research Input Ingestion produces: ingestion succeeded and the
  * content is frozen behind an immutable content hash. ``unsupported_processing``
  * and ``failed_ingestion`` are reserved states the API exposes so consumers
  * never mistake "uploaded" for "understood".
@@ -305,7 +305,7 @@ export type SessionStatus = "active" | "expired" | "revoked";
 /**
  * Lifecycle of a controlled research input after ingestion.
  *
- * ``accepted`` is the only state B-19 produces: ingestion succeeded and the
+ * ``accepted`` is the only state Research Input Ingestion produces: ingestion succeeded and the
  * content is frozen behind an immutable content hash. ``unsupported_processing``
  * and ``failed_ingestion`` are reserved states the API exposes so consumers
  * never mistake "uploaded" for "understood".
@@ -353,7 +353,7 @@ export type NullReason =
   | "unresolved_conflict"
   | "below_detection_limit";
 /**
- * The only C-01 selection declaration approved for this case.
+ * The only Case and Field Manifest selection declaration approved for this case.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ConflictResolutionStrategy".
@@ -374,7 +374,7 @@ export type DataType = "string" | "integer" | "number";
  */
 export type ObjectType = "planet" | "star" | "system";
 /**
- * Future quality dimensions to which a field contributes.
+ * Quality dimensions to which a field contributes.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "QualityMetricInput".
@@ -632,7 +632,7 @@ export interface LiteratureClaimRead {
   version: LiteratureArtifactVersionContext;
 }
 /**
- * Schema-valid Claim with the outcome of deterministic D-07 admission.
+ * Schema-valid Claim with the outcome of deterministic LiteratureClaim Pipeline admission.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "LiteratureClaimCandidate".
@@ -1256,7 +1256,7 @@ export interface CreateResearchInputMultipartRequest {
   type: "pdf" | "csv" | "json" | "image";
 }
 /**
- * Minimal M1 project creation payload; `case_key` stays frozen to the main case.
+ * Minimal project creation payload; `case_key` stays frozen to the main case.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CreateResearchProjectRequest".
@@ -1411,7 +1411,7 @@ export interface PaperCollection {
   query: NormalizedPaperQuery;
   ranking_rule: string;
   rules: PaperCollectionRules;
-  schema_version?: "1.0.0";
+  schema_version?: "2.0.0";
   selected_paper_ids?: string[];
   /**
    * @minItems 1
@@ -1447,7 +1447,6 @@ export interface PaperBenchmarkReference {
   scenario_id: string;
   schema_version: string;
   scientific_payload_hash: string;
-  x00_main_sha: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1606,11 +1605,11 @@ export interface PaperSourcePage {
   total_results?: number | null;
 }
 /**
- * Immutable pipeline source record consumed by the future publisher.
+ * Immutable source provenance consumed by scientific pipelines.
  *
- * Implements the core ``SourceSnapshot`` target entity described in
- * ``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen
- * Phase 0 ``SourceSnapshot`` projection above stays unchanged.
+ * This is a pipeline/runtime record, not an HTTP read projection. It preserves
+ * the exact source, query and content identity required for reproducibility
+ * while rejecting credential-bearing request metadata before publication.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "SourceSnapshotRecord".
@@ -1691,7 +1690,7 @@ export interface PaperSummaryPaperMetadata {
   year?: number | null;
 }
 /**
- * Publisher-ready D-03 content used directly by the core Artifact discriminator.
+ * Publisher-ready PaperSummary Pipeline content used directly by the core Artifact discriminator.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PaperSummaryArtifactContent".
@@ -2431,7 +2430,7 @@ export interface DataArtifactReadBase {
   source_snapshots: SourceSnapshotDetail[];
 }
 /**
- * Persisted C-05 attestation bound to one published data candidate.
+ * Persisted Data Quality Evaluation attestation bound to one published data candidate.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "DataQualityProjection".
@@ -2635,7 +2634,7 @@ export interface DatasetColumn {
   field: FieldDefinition;
 }
 /**
- * The complete C-01 contract for one canonical field.
+ * The complete Case and Field Manifest contract for one canonical field.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "FieldDefinition".

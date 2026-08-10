@@ -23,7 +23,7 @@ dev = [
     "httpx2>=0.28.1",
     "pytest>=9.0.2",
 ]
-# D-10 Scientific Document Parsing benchmark-only tooling. Kept OUT of core API
+# Scientific Document Parsing benchmark-only tooling. Kept OUT of core API
 # runtime dependencies so API startup never requires docling/pillow. The native
 # baseline (benchmark-only) and fixture generation need exactly these versions.
 benchmark = [
@@ -43,5 +43,5 @@ module-name = "app"
 pythonpath = ["../.."]
 markers = [
     "live: opt-in tests that call a real external source",
-    "d10_native: D-10 native baseline tests requiring the benchmark dependency group (docling-parse)",
+    "scientific_document_native: Scientific Document Parsing Contract native baseline tests requiring the benchmark dependency group (docling-parse)",
 ]

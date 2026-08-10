@@ -1,22 +1,26 @@
-"""Table-driven guard for the centralized API-surface classification.
-
-These expectations pin the versionless single-surface behavior: everything
-lives under ``/api``; a small public allowlist (health, data-pipeline tasks,
-docs, openapi, anonymous session-create, public share reads) is served without
-a session, and every other ``/api`` path is protected by default.
-"""
+"""Security and generated-contract invariants for the sole HTTP API surface."""
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
+from fastapi.routing import APIRoute
 
 from app import api_surface
+from app.main import app
 
-# Requests that must be served WITHOUT an anonymous session.
+
+ROOT = Path(__file__).parents[3]
+_OPENAPI_METHODS = frozenset({"get", "post", "put", "patch", "delete", "options", "head"})
+
+# System endpoints are not product resources. This explicit set makes every
+# non-contract route a deliberate, reviewable exception.
+SYSTEM_ONLY_OPERATIONS = frozenset({("GET", "/api/health")})
+
 PUBLIC_REQUESTS = [
     ("GET", "/api/health"),
-    ("POST", "/api/tasks"),
-    ("GET", "/api/tasks/task-123"),
     ("GET", "/api/docs"),
     ("GET", "/api/openapi.json"),
     ("GET", "/"),
@@ -28,7 +32,6 @@ PUBLIC_REQUESTS = [
     ("GET", "/apis"),
 ]
 
-# Requests that MUST require an authenticated session.
 PROTECTED_REQUESTS = [
     ("GET", "/api/sessions"),
     ("DELETE", "/api/sessions"),
@@ -49,11 +52,10 @@ PROTECTED_REQUESTS = [
     ("GET", "/api/source-snapshots/snap-1"),
     ("GET", "/api/projects/proj-1/shares"),
     ("POST", "/api/projects/proj-1/shares"),
-    ("POST", "/api/public/shares/tok-123"),  # non-read method on a share token
-    ("GET", "/api/public/shares/tok-123/extra"),  # multi-segment is not a token read
-    ("GET", "/api/public/shares/"),  # empty token is not a public share read
+    ("POST", "/api/public/shares/tok-123"),
+    ("GET", "/api/public/shares/tok-123/extra"),
+    ("GET", "/api/public/shares/"),
     ("POST", "/api/test/bootstrap"),
-    ("GET", "/api/tasksfoo"),  # sibling of /api/tasks must NOT be public
 ]
 
 
@@ -63,7 +65,9 @@ def test_public_requests_skip_authentication(method: str, path: str) -> None:
 
 
 @pytest.mark.parametrize(("method", "path"), PROTECTED_REQUESTS)
-def test_protected_requests_require_authentication(method: str, path: str) -> None:
+def test_product_and_unknown_api_requests_require_authentication(
+    method: str, path: str
+) -> None:
     assert api_surface.requires_authentication(method, path) is True
 
 
@@ -82,31 +86,31 @@ def test_public_share_read_detection(method: str, path: str, expected: bool) -> 
     assert api_surface.is_public_share_read(method, path) is expected
 
 
-@pytest.mark.parametrize(
-    ("path", "expected"),
-    [
-        ("/api/projects", True),
-        ("/api/public/shares/tok-123", True),
-        ("/api/sessions", True),
-        ("/api/contracts/drafts/draft-1", True),
-        ("/api/health", False),
-        ("/api/tasks/task-1", False),
-        ("/", False),
-        ("/apix", False),
-        ("/apis", False),
-    ],
-)
-def test_problem_details_classification(path: str, expected: bool) -> None:
-    assert api_surface.uses_problem_details(path) is expected
-
-
 def test_public_share_instance_hides_token() -> None:
     instance = api_surface.public_share_instance()
     assert instance == "/api/public/shares/public"
     assert api_surface.PUBLIC_SHARE_PREFIX in instance
 
 
-def test_deprecated_operations_seam_is_empty() -> None:
-    # The evolution seam is documented but dormant: no deprecation-header
-    # middleware is mounted while this map is empty.
-    assert api_surface.DEPRECATED_OPERATIONS == {}
+def test_runtime_api_routes_match_generated_current_contract() -> None:
+    """Prevent ungoverned APIs from being mounted beside the generated Contract."""
+
+    generated = json.loads(
+        (ROOT / "packages" / "schemas" / "generated" / "core" / "openapi.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    contract_operations = {
+        (method.upper(), path)
+        for path, operations in generated["paths"].items()
+        for method in operations
+        if method in _OPENAPI_METHODS
+    }
+    runtime_operations = {
+        (method, route.path)
+        for route in app.routes
+        if isinstance(route, APIRoute) and route.path.startswith("/api")
+        for method in route.methods
+    }
+
+    assert runtime_operations == contract_operations | SYSTEM_ONLY_OPERATIONS

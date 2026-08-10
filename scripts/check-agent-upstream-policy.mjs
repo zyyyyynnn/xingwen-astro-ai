@@ -388,7 +388,7 @@ function validateVendoredSource(
   }
   const entries = provenance.entries;
   if (!Array.isArray(entries)) {
-    failures.push("provenance.json must use the v2 manifest object contract.");
+    failures.push("provenance.json must use the manifest object contract.");
     return;
   }
 

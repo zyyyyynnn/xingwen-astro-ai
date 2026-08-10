@@ -10,7 +10,9 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 15_000 },
   use: {
-    baseURL: process.env.X01_WORKSPACE_BASE_URL ?? "http://localhost:5173",
+    baseURL:
+      process.env.REAL_INTEGRATION_WORKSPACE_BASE_URL ??
+      "http://localhost:5173",
     trace: "on-first-retry",
   },
   projects: [

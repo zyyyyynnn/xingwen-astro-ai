@@ -132,7 +132,7 @@ export interface ArtifactVersion {
  * Version identity and provenance without the scientific `content` payload.
  *
  * Generic workspace reads (panel slots, Share wiring, hash display) only need
- * this projection. Rich kind-specific content — such as the B-06
+ * this projection. Rich kind-specific content — such as the PaperCollection API
  * PaperCollection — must be read through its dedicated repository (e.g.
  * `PaperAcquisitionRepository`) instead of being squeezed through the generic
  * `ArtifactContent` union.

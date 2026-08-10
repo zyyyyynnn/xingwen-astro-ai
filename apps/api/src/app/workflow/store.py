@@ -1,4 +1,4 @@
-"""PostgreSQL-backed ResearchRun lifecycle store for #77.
+"""PostgreSQL-backed ResearchRun lifecycle store.
 
 Every mutating operation is a short transaction. Pipeline, model, and source
 calls must happen between these operations and never while a store transaction

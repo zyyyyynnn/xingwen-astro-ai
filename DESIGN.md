@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 产品设计原则、体验域关系与设计不变量 |
 
 本文定义星文智析的设计判断标准。产品范围与成功指标见 [PRD.md](PRD.md)。页面规格见 [Workspace UX](docs/design/WORKSPACE_UX.md)，视觉规则见 [Visual Language](docs/design/VISUAL_LANGUAGE.md)，工程边界见 [Frontend Architecture](docs/architecture/FRONTEND_ARCHITECTURE.md)。

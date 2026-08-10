@@ -1,4 +1,4 @@
-"""Transport projections for the B-07 PaperSummary read boundary."""
+"""Transport projections for the paper-summary read boundary."""
 
 from __future__ import annotations
 

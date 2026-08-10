@@ -114,7 +114,7 @@ def test_multiple_planet_assertions_stay_out_of_the_host_row() -> None:
         (("numeric_comparison", "absolute_tolerance"), "0.1"),
         (("numeric_comparison", "relative_tolerance"), "0.01"),
         (("capacity", "max_rows"), 9999),
-        (("producer_version",), "1.0.1"),
+        (("producer_version",), "9.9.9"),
     ),
 )
 def test_public_build_rejects_self_consistent_non_frozen_mapping_policy(
@@ -140,7 +140,7 @@ def test_public_build_rejects_self_consistent_non_frozen_conversion_catalog() ->
     rule = next(
         item
         for item in catalog_payload["rules"]
-        if item["rule_id"] == "unit.jupiter_radius_to_earth_radius.v1"
+        if item["rule_id"] == "unit.jupiter_radius_to_earth_radius"
     )
     rule["factor_numerator"] = "71492001"
     rule["factor"] = str(
@@ -236,7 +236,7 @@ def test_dataset_rejects_evidence_value_drift_after_synchronized_rehash() -> Non
 def test_build_result_rejects_cross_candidate_producer_drift() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
     dictionary_payload = result.field_dictionary.model_dump(mode="json")
-    dictionary_payload["producer"]["producer_version"] = "1.0.1"
+    dictionary_payload["producer"]["producer_version"] = "9.9.9"
     _rehash_candidate_payload(dictionary_payload)
     dictionary = FieldDictionaryArtifactCandidate.model_validate(dictionary_payload)
     payload = result.model_dump(mode="json")
@@ -325,10 +325,10 @@ def test_host_row_projection_contains_only_star_and_system_fields() -> None:
     ("path", "replacement"),
     (
         (("rule_set_id",), "replacement.mapping.rules"),
-        (("version",), "1.0.1"),
+        (("version",), "9.9.9"),
         (("numeric_comparison", "threshold_inclusive"), False),
         (("numeric_comparison", "relative_denominator_floor"), "1E-20"),
-        (("entity_projection_policy", "version"), "1.0.1"),
+        (("entity_projection_policy", "version"), "9.9.9"),
         (
             (
                 "entity_projection_policy",
@@ -362,7 +362,7 @@ def test_public_build_rejects_additional_self_consistent_mapping_policy_tamper(
     ("path", "replacement"),
     (
         (("catalog_id",), "replacement.unit.conversions"),
-        (("version",), "1.0.1"),
+        (("version",), "9.9.9"),
         (("decimal_capacity", "max_adjusted_exponent"), 999),
         (("rules", 1, "quantity_kind"), "mass"),
         (("rules", 1, "source_unit"), "earth_radius"),
@@ -391,7 +391,7 @@ def test_public_build_rejects_self_consistent_jupiter_mass_factor_tamper() -> No
     rule = next(
         item
         for item in payload["rules"]
-        if item["rule_id"] == "unit.jupiter_mass_to_earth_mass.v1"
+        if item["rule_id"] == "unit.jupiter_mass_to_earth_mass"
     )
     rule["factor_numerator"] = str(int(rule["factor_numerator"]) + 1)
     from decimal import localcontext

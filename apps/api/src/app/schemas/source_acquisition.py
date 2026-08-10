@@ -1,4 +1,4 @@
-"""Typed C-02 source acquisition query contract."""
+"""Typed primary source acquisition query contract."""
 
 from __future__ import annotations
 

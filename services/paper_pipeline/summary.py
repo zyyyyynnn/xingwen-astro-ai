@@ -1,4 +1,4 @@
-"""D-03 PaperSummary admission over D-02 PaperCollection provenance."""
+"""Produce and admit summaries over collected-document provenance."""
 
 from __future__ import annotations
 
@@ -77,14 +77,11 @@ class PaperSummaryPipeline:
         model_name: str,
         parameters: Mapping[str, ParameterValue],
         evidence_candidates: tuple[PaperSummaryEvidenceCandidate, ...],
-        prompt_version: str | None = None,
         parameters_version: str = SUMMARY_PARAMETERS_VERSION,
         execution_id: str | None = None,
         run_id: str | None = None,
     ) -> PaperSummaryAdmissionResult:
-        prompt = self.prompt_registry.get("paper_summary", prompt_version)
-        if prompt.status == "disabled":
-            raise ValueError("disabled Prompt version cannot be executed")
+        prompt = self.prompt_registry.get("paper_summary")
         if paper_id not in paper_collection.selected_paper_ids:
             raise ValueError("PaperSummary input paper must be selected by PaperCollection")
         safe_parameters = _validate_parameters(parameters)

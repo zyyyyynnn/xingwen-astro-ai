@@ -92,7 +92,7 @@ def toi_record(columns: tuple[str, ...], *, tid: int, toi: str) -> dict[str, obj
     return record
 
 
-def test_frozen_manifest_loader_pins_x00_case_and_field_versions() -> None:
+def test_frozen_manifest_loader_pins_case_and_field_manifest_versions() -> None:
     bundle = load_frozen_manifest_bundle()
 
     assert bundle.case_manifest.case_id == "exoplanet_host_star"
@@ -177,7 +177,7 @@ def test_nasa_tap_adapter_preflights_schema_and_builds_paginated_snapshot() -> N
         ),
         json_response(
             first_page,
-            headers={"ETag": 'W/"toi-v1"', "X-Request-Id": "req-page-1"},
+            headers={"ETag": 'W/"toi-fixture"', "X-Request-Id": "req-page-1"},
         ),
         json_response(second_page),
     )
@@ -212,7 +212,7 @@ def test_nasa_tap_adapter_preflights_schema_and_builds_paginated_snapshot() -> N
     assert result.retry_count == 0
     assert result.snapshot.source_id == "nasa_exoplanet_archive.toi"
     assert result.snapshot.query_hash == query.query_hash
-    assert result.snapshot.source_version_or_etag == 'W/"toi-v1"'
+    assert result.snapshot.source_version_or_etag == 'W/"toi-fixture"'
     assert result.snapshot.content_hash.startswith("sha256:")
     assert result.snapshot.request_metadata["producer"] == {
         "name": "xingwen.data_acquisition",

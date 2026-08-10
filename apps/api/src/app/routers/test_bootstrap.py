@@ -8,7 +8,7 @@ lives under ``/api``, the standard security middleware enforces the same
 session cookie + CSRF rules as every other private endpoint — ownership
 checks are never bypassed, and no credential is ever returned or logged.
 
-Since #131 the bootstrap no longer injects Project, ContractDraft, Contract,
+The bootstrap does not inject Project, ContractDraft, Contract,
 Run, credentials or Share tokens: the browser main chain creates those through
 the public Authoring Chain. The bootstrap only publishes the frozen main
 case's deterministic ``demo_replay``/``fixture`` ArtifactVersion + Evidence
@@ -36,8 +36,8 @@ def _persistent_runtime_unavailable() -> SecurityProblem:
         code="BOOTSTRAP_UNAVAILABLE",
         title="Bootstrap unavailable",
         detail=(
-            "The test-only bootstrap requires the persistent runtime "
-            "(DATABASE_URL and PERSISTENT_WORKFLOW_ENABLED=true)"
+            "The test-only bootstrap requires the configured PostgreSQL runtime "
+            "(DATABASE_URL)"
         ),
     )
 

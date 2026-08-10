@@ -1,10 +1,9 @@
 # LiteratureRelation Pipeline
 
-| 元数据    | 值                                                                          |
-| --------- | --------------------------------------------------------------------------- |
-| Status    | Accepted                                                                    |
+| 元数据    | 值                                                                             |
+| --------- | ------------------------------------------------------------------------------ |
 | Authority | LiteratureRelation、ReasoningTrace 准入、confidence、固定 Benchmark 与交接边界 |
-| Scope | Detached Relation admission、可复现 Benchmark 与 typed candidate 契约 |
+| Scope     | Detached Relation admission、可复现 Benchmark 与 typed candidate 契约          |
 
 本文是 LiteratureRelation 运行规则和操作方式的唯一完整事实源。Relation taxonomy 与科研准入原则由
 [Reasoning Protocol](../ai/REASONING_PROTOCOL.md) 负责，字段和领域不变量由
@@ -17,7 +16,7 @@
 
 - 经过 LiteratureClaim Pipeline 封印的 `LiteratureClaimsCandidate@1.0.0`，以及每个 Claim 所属
   LiteratureClaims/PaperSummary ArtifactVersion、Project、Evidence 和 SourceSnapshot；
-- `literature_reasoning@v2` 对应的模型 JSON 响应；
+- `literature_reasoning` 当前定义对应的模型 JSON 响应；
 - model、parameters version 与安全 parameters；
 - 由调用方提供且已经版本化、校准的 `LiteratureRelationConfidenceAssessment`；模型只
   引用 assessment id，不生成 score；
@@ -47,16 +46,16 @@ DTO，也不生成 Graph 或 GraphEdge。
 唯一 Pydantic 编写源是 `apps/api/src/app/schemas/literature_relation.py`，所有
 公共 contract version 为 `1.0.0`：
 
-| 模型                                         | 职责                                                                    |
-| -------------------------------------------- | ----------------------------------------------------------------------- |
-| `LiteratureRelationExtractionOutput`         | 模型 JSON；包含 `schema_version` 和至少一条严格 Relation model candidate |
-| `LiteratureRelationCandidate`                | 单条 Relation 的方向、条件、可比性、provenance、三态与稳定拒绝结果       |
-| `LiteratureReasoningTraceCandidate`          | Relation 绑定的公开可审查 Trace；包含 premises、连续 steps、限制和 Evidence |
-| `LiteratureRelationConfidenceAssessment`     | 绑定具体方向、Claim 版本、relation type 与 admission decision 的外部校准输入 |
-| `LiteratureRelationAdmissionResult`          | 批次准入结果；JSON/Schema 顶层拒绝或 record-level 结果                   |
-| `LiteratureRelationsCandidate`               | 唯一 publisher-ready 批次，内嵌 Relation 与 Trace 完整闭包               |
-| `LiteratureRelationBenchmarkEvaluationCase`  | 冻结科研标签或稳定负例的完整重放输入                                    |
-| `LiteratureRelationBenchmarkReport`          | 指标分子/分母、逐 case 结果、confidence 分布与稳定 hash                  |
+| 模型                                        | 职责                                                                         |
+| ------------------------------------------- | ---------------------------------------------------------------------------- |
+| `LiteratureRelationExtractionOutput`        | 模型 JSON；包含 `schema_version` 和至少一条严格 Relation model candidate     |
+| `LiteratureRelationCandidate`               | 单条 Relation 的方向、条件、可比性、provenance、三态与稳定拒绝结果           |
+| `LiteratureReasoningTraceCandidate`         | Relation 绑定的公开可审查 Trace；包含 premises、连续 steps、限制和 Evidence  |
+| `LiteratureRelationConfidenceAssessment`    | 绑定具体方向、Claim 版本、relation type 与 admission decision 的外部校准输入 |
+| `LiteratureRelationAdmissionResult`         | 批次准入结果；JSON/Schema 顶层拒绝或 record-level 结果                       |
+| `LiteratureRelationsCandidate`              | 唯一 publisher-ready 批次，内嵌 Relation 与 Trace 完整闭包                   |
+| `LiteratureRelationBenchmarkEvaluationCase` | 冻结科研标签或稳定负例的完整重放输入                                         |
+| `LiteratureRelationBenchmarkReport`         | 指标分子/分母、逐 case 结果、confidence 分布与稳定 hash                      |
 
 模型 extraction 同时包含：
 
@@ -78,9 +77,8 @@ object 必须显式为 comparable；metric/unit 只有双方都缺失时可为 `
 如实声明 incomparable 也必须拒绝，不能把“声明一致”误当成“数据可比”。
 
 独立 tracked JSON Schema 位于 `packages/schemas/generated/literature_relation`，不进入
-HTTP OpenAPI。旧版 `app.schemas.reasoning.LiteratureRelation`/`ReasoningTrace` 与
-core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 仅保留冻结传输
-兼容，不是编写源，也不能进入 Publisher。
+HTTP OpenAPI。core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent`
+仅表达当前读取投影，不是编写源，也不能进入 Publisher。
 
 ## 3. 固定准入顺序与拒绝优先级
 
@@ -104,21 +102,21 @@ JSON
 
 同一输入触发多个错误时，只返回最早阶段的主拒绝原因：
 
-| 阶段            | 稳定拒绝原因 |
-| --------------- | ------------ |
-| JSON            | `literature_relation.json_invalid` |
-| schema          | `literature_relation.schema_invalid` |
-| input           | `literature_relation.input_artifact_version_unknown`、`literature_relation.input_schema_version_unsupported`、`literature_relation.input_content_hash_mismatch` |
-| Claim           | `literature_relation.claim_not_found`、`literature_relation.paper_summary_artifact_version_unknown`、`literature_relation.claim_status_invalid` |
-| Evidence        | `literature_relation.evidence_missing`、`literature_relation.evidence_not_found`、`literature_relation.source_snapshot_not_found`、`literature_relation.evidence_inconsistent` |
-| ownership       | `literature_relation.ownership_mismatch` |
-| pairing         | `literature_relation.self_pair` |
-| direction       | `literature_relation.direction_mismatch` |
-| duplicate       | `literature_relation.duplicate` |
-| conditions      | `literature_relation.conditions_missing`、`literature_relation.conditions_conflict` |
-| comparability   | `literature_relation.object_incomparable`、`literature_relation.metric_incomparable`、`literature_relation.unit_incomparable` |
-| Trace           | `literature_relation.trace_missing`、`literature_relation.trace_incomplete`、`literature_relation.trace_unsafe`、`literature_relation.trace_direction_mismatch`、`literature_relation.trace_evidence_incomplete` |
-| confidence      | `literature_relation.confidence_undefined`、`literature_relation.confidence_definition_unsupported`、`literature_relation.confidence_calibration_missing`、`literature_relation.confidence_subject_mismatch`、`literature_relation.confidence_decision_mismatch` |
+| 阶段          | 稳定拒绝原因                                                                                                                                                                                                                                                     |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| JSON          | `literature_relation.json_invalid`                                                                                                                                                                                                                               |
+| schema        | `literature_relation.schema_invalid`                                                                                                                                                                                                                             |
+| input         | `literature_relation.input_artifact_version_unknown`、`literature_relation.input_schema_version_unsupported`、`literature_relation.input_content_hash_mismatch`                                                                                                  |
+| Claim         | `literature_relation.claim_not_found`、`literature_relation.paper_summary_artifact_version_unknown`、`literature_relation.claim_status_invalid`                                                                                                                  |
+| Evidence      | `literature_relation.evidence_missing`、`literature_relation.evidence_not_found`、`literature_relation.source_snapshot_not_found`、`literature_relation.evidence_inconsistent`                                                                                   |
+| ownership     | `literature_relation.ownership_mismatch`                                                                                                                                                                                                                         |
+| pairing       | `literature_relation.self_pair`                                                                                                                                                                                                                                  |
+| direction     | `literature_relation.direction_mismatch`                                                                                                                                                                                                                         |
+| duplicate     | `literature_relation.duplicate`                                                                                                                                                                                                                                  |
+| conditions    | `literature_relation.conditions_missing`、`literature_relation.conditions_conflict`                                                                                                                                                                              |
+| comparability | `literature_relation.object_incomparable`、`literature_relation.metric_incomparable`、`literature_relation.unit_incomparable`                                                                                                                                    |
+| Trace         | `literature_relation.trace_missing`、`literature_relation.trace_incomplete`、`literature_relation.trace_unsafe`、`literature_relation.trace_direction_mismatch`、`literature_relation.trace_evidence_incomplete`                                                 |
+| confidence    | `literature_relation.confidence_undefined`、`literature_relation.confidence_definition_unsupported`、`literature_relation.confidence_calibration_missing`、`literature_relation.confidence_subject_mismatch`、`literature_relation.confidence_decision_mismatch` |
 
 JSON/Schema 失败产生无 Relation record 的统一 rejected result；后续阶段只处理已经通过
 唯一 model-output Schema 的结构化记录。pair identity 与 duplicate fingerprint 覆盖双方
@@ -132,7 +130,7 @@ Claim ArtifactVersion/id、relation type 和稳定方向。输入集合顺序变
 - `candidate`：全部硬门通过，但 Claim 尚为 candidate、conditions 仍有可审查不确定性、
   confidence 为已验证的 `not_evaluable`，或已校准 score 低于阈值。对应 review reason
   为 `claim_not_accepted | conditions_unresolved | confidence_not_evaluable |
-  confidence_below_threshold`。
+confidence_below_threshold`。
 - `rejected`：命中固定拒绝阶段和原因。高 confidence 不能覆盖任何硬门。
 
 每条非 rejected Relation 必须具有 source 和 target 两侧 Evidence。每个引用同时绑定
@@ -158,8 +156,8 @@ Trace `conditions` 必须等于 Relation conditions，Trace `conflicts` 必须�
 rejected Relation 可以保留满足上述安全边界且 Claim/Evidence/SourceSnapshot 引用与
 Relation 精确闭合的负例 Trace，用于解释不可比或拒绝依据；Claim、Evidence 或 ownership
 等较早阶段已破坏该闭包时不保留伪完整 Trace。Trace 的 `relation_status` 必须与 Relation
-一致。rejected Relation 不进入最终 Graph，也不能被解释为 accepted。Graph 发布和
-GraphEdge 完整性属于后续边界。
+一致。rejected Relation 不进入最终 Graph，也不能被解释为 accepted。Graph Pipeline
+拥有 Graph 发布和 GraphEdge 完整性规则。
 
 ## 5. Confidence 定义
 
@@ -169,16 +167,16 @@ conditions、comparability 和 Trace 硬门先执行，confidence 最后执行�
 
 Pipeline 冻结：
 
-| 字段 | 值 |
-| ---- | -- |
-| definition id/version | `relation_classification_decision_confidence@1.0.0` |
-| calibration id/version | `exoplanet_host_star.paper_reasoning.relation_labels@1.3.0` |
-| calibration scientific/content hash | Benchmark `1.3.0` 当前 scientific payload/content hash |
-| calibration sample size | `4` 条 review-approved Relation labels |
-| calibration method | `frozen_approved_label_reference` |
-| applicability scope | `benchmark.exoplanet_host_star.relation_admission_regression` |
-| score interpretation | `confidence_in_relation_type_and_admission_decision` |
-| accepted threshold | `0.9` |
+| 字段                                | 值                                                            |
+| ----------------------------------- | ------------------------------------------------------------- |
+| definition id/version               | `relation_classification_decision_confidence@1.0.0`           |
+| calibration id/version              | `exoplanet_host_star.paper_reasoning.relation_labels@1.3.0`   |
+| calibration scientific/content hash | Benchmark `1.3.0` 当前 scientific payload/content hash        |
+| calibration sample size             | `4` 条 review-approved Relation labels                        |
+| calibration method                  | `frozen_approved_label_reference`                             |
+| applicability scope                 | `benchmark.exoplanet_host_star.relation_admission_regression` |
+| score interpretation                | `confidence_in_relation_type_and_admission_decision`          |
+| accepted threshold                  | `0.9`                                                         |
 
 模型只能引用调用方提供的 `LiteratureRelationConfidenceAssessment.assessment_id`。该对象
 保存 source/target Claim ArtifactVersion+Claim id、relation type 与 subject fingerprint，
@@ -197,9 +195,9 @@ accepted probability：它们表示对“当前 relation type + rejected admissi
 
 ## 6. Prompt、ProducerExecution 与 Hash
 
-生产 Prompt 是 `packages/prompts/literature_reasoning/v2.md`，Registry 以不可变
-UTF-8/LF hash `sha256:0027fe9c00efa8f205d4af97c1b219809e7b78400dbc1a7e6f95486474038b6d`
-加载。`literature_reasoning@v1` 只保留旧版兼容且状态为 deprecated，不得原地修改。
+生产 Prompt 是 `packages/prompts/literature_reasoning/prompt.md`，Registry 以 UTF-8/LF hash
+固定当前定义。仓库只保留当前 Prompt 文件，业务代码不提供 Prompt 选择入口；已发布执行
+通过 `ProducerExecution` 中的 Prompt 名称、语义版本与 hash 保留证据。
 
 ProducerExecution 固定记录 producer/model、Prompt name/version/hash、schema/parameters/
 pairing/comparison/Trace/confidence definition 与完整 calibration policy、全部输入 ArtifactVersion、
@@ -242,10 +240,10 @@ mint 还要求调用帧是绑定时记录的原始 `admit` code object，且待�
 
 绑定完成后模块不保留可导入 mint、binder 或可写 registry。JSON/Pydantic round-trip、
 copy/deepcopy、偷取或手工构造 seal、
-手工重建、单条 Relation/Trace、raw extraction、
-旧版兼容投影均不恢复 seal。修改 Relation、Evidence、Trace、confidence、版本、
+手工重建、单条 Relation/Trace、raw extraction 与读取投影均不恢复 seal。
+修改 Relation、Evidence、Trace、confidence、版本、
 Producer 或 hash 会使 seal 失效。candidate/rejected 状态保留在批次内也不得冒充
-accepted；未来 Graph 消费端只能选择真正 accepted 的 Relation。
+accepted；Graph 消费端只能选择真正 accepted 的 Relation。
 
 ## 8. 固定 Benchmark
 
@@ -255,8 +253,8 @@ accepted；未来 Graph 消费端只能选择真正 accepted 的 Relation。
 benchmark_id: exoplanet_host_star.paper_reasoning
 schema_version: 1.3.0
 benchmark_version: 1.3.0
-scientific_payload_hash: sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd
-content_hash: sha256:07fa19820cdbd5b908d4f30705bb863fb9a28050caf7bf54f6c01130467b1e2d
+scientific_payload_hash: sha256:35ccf88f92e2ed86603702dd1251ee43998ea2babb4184f2c9d46d00fc85afc4
+content_hash: sha256:54046b775299d0b97fc61f12466255e7818eab50471d506ea07137cb61956337
 tracked_file_sha256: 89fadef6a72ea484b4c22896889f9e874fe9ff9e586f1bebcb63ed1898c4cec5
 ```
 
@@ -275,8 +273,8 @@ duplicate、incomplete Trace、undefined confidence、confidence subject/decisio
 
 ```powershell
 uv run --project apps/api python -m services.paper_pipeline.relation_benchmark `
-  --cases-output .artifacts/d08-relation-cases.json `
-  --output .artifacts/d08-relation-benchmark-report.json
+  --cases-output .artifacts/literature-relation-benchmark-cases.json `
+  --output .artifacts/literature-relation-benchmark-report.json
 ```
 
 报告分别保存分子、分母和 rate：
@@ -315,13 +313,13 @@ uv sync --project apps/api --frozen
 uv run --project apps/api pytest apps/api/tests/test_literature_relation_pipeline.py
 uv run --project apps/api pytest apps/api/tests/test_literature_claim_pipeline.py apps/api/tests/test_literature_relation_pipeline.py
 uv run --project apps/api pytest
-uv run --project apps/api python -m services.paper_pipeline.relation_benchmark --cases-output .artifacts/d08-relation-cases-a.json --output .artifacts/d08-relation-report-a.json
-uv run --project apps/api python -m services.paper_pipeline.relation_benchmark --cases-output .artifacts/d08-relation-cases-b.json --output .artifacts/d08-relation-report-b.json
+uv run --project apps/api python -m services.paper_pipeline.relation_benchmark --cases-output .artifacts/literature-relation-benchmark-cases-a.json --output .artifacts/literature-relation-benchmark-report-a.json
+uv run --project apps/api python -m services.paper_pipeline.relation_benchmark --cases-output .artifacts/literature-relation-benchmark-cases-b.json --output .artifacts/literature-relation-benchmark-report-b.json
 ```
 
 双跑后使用 `Get-FileHash -Algorithm SHA256` 比较两份 cases/report；对应文件 hash、stable
-input hash 和 stable output hash 都必须相同。Prompt Registry 必须加载 v1 deprecated 和
-v2 active，且 v2 front matter、output model 与 LF 文件 hash 一致。
+input hash 和 stable output hash 都必须相同。Prompt Registry 必须加载当前登记定义，
+并确保其 front matter、output model 与 LF 文件 hash 一致。
 
 tracked Schema 使用 [Schema Package](../../packages/schemas/README.md) 中正式
 export/`--check` 命令验证；CI 同时运行 Benchmark、Schema、

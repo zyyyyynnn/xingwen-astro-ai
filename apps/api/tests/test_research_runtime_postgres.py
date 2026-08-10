@@ -1,4 +1,4 @@
-"""Real FastAPI + PostgreSQL integration for the B-runtime research chain (#121).
+"""Real FastAPI + PostgreSQL integration for the research runtime chain.
 
 Set ``TEST_DATABASE_URL`` to an isolated database whose name contains ``test``.
 The suite skips when PostgreSQL is unavailable rather than substituting SQLite,
@@ -126,7 +126,7 @@ def runtime() -> Iterator[dict[str, object]]:
             ResearchProjectModel(
                 id=project_id,
                 session_id=owner.id,
-                name="B-runtime research chain",
+                name="Research runtime chain",
                 case_key="exoplanet_host_star",
                 revision=1,
                 created_at=NOW,
@@ -405,7 +405,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
     snapshot = workflow.load_snapshot(run_id)
     lease = workflow.acquire_lease(
         run_id,
-        owner="x01-fixture-publisher",
+        owner="real_integration-fixture-publisher",
         lease_duration=timedelta(minutes=5),
         expected_status="queued",
         expected_revision=snapshot.revision,
@@ -431,14 +431,14 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
                 project_id=UUID(str(project_id)),
                 kind="export",
                 title="Deterministic exoplanet fixture",
-                logical_key="x01-demo-fixture-dataset",
+                logical_key="real_integration-demo-fixture-dataset",
             )
         )
         session.add(
             SourceSnapshotModel(
                 id=source_snapshot_id,
                 project_id=UUID(str(project_id)),
-                source_id="x01_demo_fixture",
+                source_id="real_integration_demo_fixture",
                 source_type="fixture",
                 retrieved_at=NOW,
                 query={"scenario": "exoplanet_host_star"},
@@ -469,7 +469,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
             attempt_id=attempt.attempt_id,
             idempotency_key="fixture-producer",
             producer_type="pipeline",
-            producer_name="x01-demo-fixture",
+            producer_name="real_integration-demo-fixture",
             producer_version="1.0.0",
             input_hash="sha256:" + "3" * 64,
             parameters={"scenario": "exoplanet_host_star"},
@@ -495,7 +495,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         publications=(
             ArtifactPublication(
                 artifact_id=artifact_id,
-                publication_key="x01-demo-fixture-v1",
+                publication_key="real-integration-demo-fixture",
                 producer_execution_id=execution.id,
                 candidate=candidate,
                 source_mode="fixture",
@@ -517,7 +517,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
                 source_snapshot_id=source_snapshot_id,
                 locator={"kind": "fixture_row", "row_key": "TOI-700 d"},
                 quote_or_value="TOI-700 d",
-                extraction_method="x01_demo_fixture.replay",
+                extraction_method="real_integration_demo_fixture.replay",
                 confidence=1.0,
             )
         )
@@ -531,7 +531,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         f"/api/projects/{project_id}/shares",
         headers=csrf,
         json={
-            "title": "X-01 deterministic fixture evidence",
+            "title": "Real Compose and Browser Integration deterministic fixture evidence",
             "artifact_version_ids": [str(version_id)],
             "evidence_ids": [str(evidence_id)],
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
@@ -548,7 +548,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
 def test_public_authoring_chain_creates_project_and_draft(
     runtime: dict[str, object],
 ) -> None:
-    """#131: Session → createResearchProject → createResearchContractDraft →
+    """Session → createResearchProject → createResearchContractDraft →
     update → confirm → run entirely over the public runtime (no bootstrap)."""
     client: TestClient = runtime["client"]  # type: ignore[assignment]
     csrf = {"X-CSRF-Token": runtime["owner_csrf"]}

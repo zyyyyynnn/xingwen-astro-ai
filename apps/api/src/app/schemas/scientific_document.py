@@ -1,19 +1,16 @@
-"""Canonical Scientific Document Parsing contract (D-10).
+"""Canonical schemas for parsed scientific documents.
 
-Single authoritative Pydantic authoring source for the Scientific Document
-Parsing boundary frozen by #190 D-10. This module defines Xingwen's own
-Canonical Domain for parsed scientific documents; it intentionally contains
-**no vendor type, no vendor config type, and no third-party import**. The
-Parser Port (``services.scientific_document.ports``) is the only place a
-production adapter may later map an approved upstream result onto these
-models.
+This is the sole Pydantic authoring source for Xingwen's parsed-document
+domain. It contains no vendor type, vendor configuration type, or third-party
+import. Production adapters map approved upstream results to these models
+through ``services.scientific_document.ports``.
 
-Scope (D-10, not D-11/D-12):
-- Canonical contract, quality semantics, locator, table/formula/figure.
-- Logical identity requirements for later persistence (B-20).
-- The ``ScientificDataExtractionCandidate`` extraction stub, which must NOT
-  carry canonical mapping / unit normalization / scientific admission — those
-  belong to the existing C Pipeline.
+Scope:
+- Parse quality semantics, locators, tables, formulas, and figures.
+- Logical identity requirements needed by persistence.
+- The ``ScientificDataExtractionCandidate`` raw-observation contract, which must not
+  perform canonical mapping, unit normalization, or scientific admission;
+  those responsibilities belong to the data pipeline.
 
 Coordinate system (authoritative, single source of truth):
 - origin: top-left corner of the page, ``(0, 0)``.
@@ -49,10 +46,10 @@ from .core import (
 )
 
 
-#: Schema version for the D-10 Scientific Document Parsing contract.
+#: Schema version for the Scientific Document Parsing contract.
 SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.1.0"
 
-#: Every canonical model that participates in the D-10 contract. The schema
+#: Every canonical model that participates in the Scientific Document Parsing contract. The schema
 #: hash is computed over the JSON Schema of exactly these models, in this
 #: order, so additions/changes are reflected deterministically.
 CONTRACT_MODEL_NAMES: tuple[str, ...] = (
@@ -178,7 +175,7 @@ class DocumentLocator(BaseModel):
 
     A locator is only complete together with the owning ``DocumentParseCandidate``
     (which carries ``research_input_id`` / input ``content_hash``). It must be
-    persistable and verifiable by B-20 without re-parsing the source.
+    persistable and verifiable by DocumentParse Persistence without re-parsing the source.
 
     This is the ONLY locator representation in the contract. ``page_index``,
     ``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere
@@ -238,7 +235,7 @@ class DocumentTableCell(BaseModel):
 
     ``cell_id`` is the canonical, stable identity of the cell within a table; it
     is referenced by ``DocumentLocator.cell_id``. ``is_header`` carries the
-    explicit header/body role (D-10 C4). ``row_span``/``column_span`` express
+    explicit header/body role. ``row_span``/``column_span`` express
     merged cells; out-of-range spans are rejected at the aggregate level.
     """
 
@@ -361,7 +358,7 @@ class DocumentFormula(BaseModel):
 class DocumentFigure(BaseModel):
     """One canonical figure block (caption/text only — no pixel measurement).
 
-    Phase-1 explicitly forbids plot digitization, curve recovery, scatter-point
+    The parsing contract explicitly forbids plot digitization, curve recovery, scatter-point
     recovery and scientific pixel measurement. Only visible/ocr labels and
     surrounding text are captured.
     """
@@ -396,7 +393,7 @@ class DocumentFigure(BaseModel):
 
 
 class DocumentParseProfile(BaseModel):
-    """Versioned parser profile / configuration identity (D-10 logical).
+    """Parser profile with a reproducible configuration identity.
 
     ``configuration_hash`` MUST be stable and reproducible: it must not depend
     on wall-clock time, random ordering, unsorted dicts, floating model aliases
@@ -633,7 +630,7 @@ def _check_referential_integrity(candidate: DocumentParseCandidate) -> None:
 
 
 def _check_quality_invariants(candidate: DocumentParseCandidate) -> None:
-    """Quality semantics must not be self-contradictory (D-10 C7)."""
+    """Quality semantics must not be self-contradictory."""
     if candidate.overall_quality == DocumentParseQuality.accepted and not candidate.blocks:
         raise _ReferentialIntegrityError("accepted document parse must contain usable blocks")
     if candidate.overall_quality == DocumentParseQuality.unsupported:
@@ -656,7 +653,7 @@ def _check_quality_invariants(candidate: DocumentParseCandidate) -> None:
 class DocumentParseCandidate(BaseModel):
     """Top-level canonical output of one document parse.
 
-    Logical identity (consumed by B-20): the same input + same parser/model/
+    Logical identity (consumed by DocumentParse Persistence): the same input + same parser/model/
     config MUST yield a deterministic, reusable identity; a different config or
     revision MUST yield a different identity. ``canonical_output_hash`` is the
     content-addressed hash over the frozen canonical payload.
@@ -693,12 +690,12 @@ class DocumentParseCandidate(BaseModel):
 
 
 class ScientificDataExtractionCandidate(BaseModel):
-    """Stub describing one extracted scientific value observation.
+    """Candidate describing one raw scientific-value observation.
 
-    HARD BOUNDARY (D-10 / #20): this candidate describes only the *observed*
+    HARD BOUNDARY: this candidate describes only the *observed*
     raw value and where it came from. It MUST NOT carry canonical mapping,
     unit normalization, accepted scientific value or dataset publication
-    status — those belong to the existing C Pipeline (Field Manifest → mapping
+    status — those belong to the data pipeline (Field Manifest → mapping
     → unit normalization → quality/admission → Dataset candidate → Publisher).
 
     Correct chain:
@@ -749,7 +746,7 @@ class ScientificDataExtractionCandidate(BaseModel):
 
 
 def compute_scientific_document_schema_hash() -> str:
-    """Deterministic hash over the JSON Schema of every D-10 contract model.
+    """Deterministic hash over the JSON Schema of every Scientific Document Parsing contract model.
 
     Stable for identical schema definitions; changes when any contract model's
     JSON Schema changes. This is the machine-checkable contract fingerprint

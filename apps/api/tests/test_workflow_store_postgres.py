@@ -1,4 +1,4 @@
-"""PostgreSQL concurrency and recovery contract tests for #77.
+"""PostgreSQL concurrency and recovery contract tests for the workflow store.
 
 Set TEST_DATABASE_URL to an isolated database whose name contains ``test``.
 These tests exercise PostgreSQL row locks and database time and therefore do

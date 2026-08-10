@@ -273,12 +273,12 @@ test("vendored source without provenance fails", () => {
   }
 });
 
-test("the retired array provenance shape fails", () => {
+test("provenance requires the manifest object shape", () => {
   const root = freshRepo();
   try {
     const { entry } = createSingleFileFixture(root);
     save(root, "provenance.json", [entry]);
-    assertFail(root, /v2 manifest object contract/u, "retired manifest shape");
+    assertFail(root, /manifest object contract/u, "invalid manifest shape");
   } finally {
     cleanup(root);
   }

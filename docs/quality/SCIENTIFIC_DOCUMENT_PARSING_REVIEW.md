@@ -1,18 +1,17 @@
-# Scientific Document Parsing — Review Checklist (D-10 / #190)
+# Scientific Document Parsing — Review Checklist
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | Scientific Document Parsing 人工审查清单：reference-after-rewrite、vendor 边界与采用完整性 |
 
 This checklist is the human counterpart to
-`scripts/check_d10_governance.py`. Machine gates can validate imports, versions,
+`scripts/check_scientific_document_governance.py`. Machine gates can validate imports, versions,
 manifests and tracked files; they cannot determine whether a developer read an
 upstream implementation and rewrote the same engine by hand.
 
 ## 1. Reference-after-rewrite — highest priority
 
-The D-10 red line: third-party parser capability is adopted through an official
+Adoption red line: third-party parser capability is adopted through an official
 stable package/documented API (or a separately approved minimal vendored source),
 not reconstructed inside Xingwen.
 
@@ -38,7 +37,7 @@ Any violation is `verdict: BLOCKED` regardless of CI status.
       output (`DocumentParseCandidate`).
 - [ ] `source_type`/`mime_type` are explicit facts; no output→input reconstruction
       or default provenance exists.
-- [ ] A D-11 adapter maps upstream output **into** the Canonical Contract and does
+- [ ] A parser adapter maps upstream output **into** the Canonical Contract and does
       not leak raw vendor objects across the Port.
 
 ## 3. Canonical integrity
@@ -82,7 +81,7 @@ Any violation is `verdict: BLOCKED` regardless of CI status.
 
 - [ ] Coordinates are top-left origin, absolute PDF points, page-relative and
       **not normalized**; unknown bbox is `None`.
-- [ ] A future persisted locator can trace through DocumentParse →
+- [ ] Persisted locators can trace through DocumentParse →
       SourceSnapshot → ResearchInput/content hash.
 - [ ] Restricted/full-text content is not copied into public/logging surfaces.
 
@@ -105,11 +104,11 @@ Any violation is `verdict: BLOCKED` regardless of CI status.
 
 ## 8. Scope discipline
 
-- [ ] No production Paddle/hybrid/page router/model loader in D-10.
-- [ ] No DocumentParse PostgreSQL tables/migrations or SourceSnapshot DB
-      materialization (B-20).
-- [ ] No PaperSummary/Claim/Relation/C mapping changes (D-12/C-09 and existing
-      downstream tasks own those).
+- [ ] The Canonical Contract owns no production Paddle adapter, hybrid/page
+      router, or model loader.
+- [ ] The parser contract owns no DocumentParse PostgreSQL tables/migrations or
+      SourceSnapshot database materialization.
+- [ ] Paper summary, claim, relation, and data mapping remain downstream responsibilities.
 - [ ] No HTTP endpoint, frontend, HTML parser or plot digitizer.
 - [ ] No model weights committed to Git.
 
@@ -117,9 +116,9 @@ Any violation is `verdict: BLOCKED` regardless of CI status.
 
 Before merge, reviewer must bind the verdict to the exact PR HEAD and verify:
 
-- [ ] `origin/main` has not drifted from the task's locked base unexpectedly.
-- [ ] Foundation, Backend, Frontend and X-01 integration jobs are green.
-- [ ] D-10 native benchmark step installed the locked benchmark dependency group,
+- [ ] The reviewed commit has the intended target branch as its verified merge base.
+- [ ] Foundation, Backend, Frontend and integration jobs are green.
+- [ ] The native benchmark step installed the locked benchmark dependency group,
       ran real native tests, produced a report and validated it inside the same
       locked uv environment.
 - [ ] No unresolved review blocker/thread remains.

@@ -161,7 +161,7 @@ def _replace_public_fields(original, replacement) -> None:
         object.__setattr__(original, field_name, getattr(replacement, field_name))
 
 
-def test_public_build_rejects_self_consistent_non_frozen_c08_result() -> None:
+def test_public_build_rejects_self_consistent_non_frozen_entity_alignment_result() -> None:
     benchmark = load_crossmatch_benchmark()
     scenario = next(
         item for item in benchmark.scenarios if item.scenario_id == "exact_one_to_one"
@@ -283,7 +283,7 @@ def test_original_candidates_retain_immutable_replay_snapshot() -> None:
         assert isinstance(context, DataArtifactAdmissionSnapshot)
         assert context.input_hash == candidate.input_hash
         assert not isinstance(context, DataArtifactBuildInput)
-        with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
+        with pytest.raises(PublicationAdmissionError, match="Data Quality Evaluation attestation"):
             _admit(candidate)
 
 
@@ -296,7 +296,7 @@ def test_reparsed_candidate_still_cannot_recreate_replay_context() -> None:
         _admit(reparsed)
 
 
-def test_six_public_c04_models_round_trip_without_publication_authority() -> None:
+def test_six_public_data_artifact_models_round_trip_without_publication_authority() -> None:
     input_value = build_input("star.tic_id")
     result = build_data_artifact_candidates(input_value)
     public_models = (
@@ -483,7 +483,7 @@ def test_projection_admission_rejects_hidden_conflict(monkeypatch) -> None:
         )
 
 
-def test_dataset_candidate_id_rejects_output_hash_legacy_identity() -> None:
+def test_dataset_candidate_id_rejects_noncanonical_output_hash_identity() -> None:
     candidate = build_data_artifact_candidates(build_input("star.tic_id")).dataset
     payload = candidate.model_dump(mode="json")
     payload["candidate_id"] = compute_data_artifact_candidate_id(

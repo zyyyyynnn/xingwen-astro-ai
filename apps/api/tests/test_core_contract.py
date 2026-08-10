@@ -155,8 +155,8 @@ def test_contract_has_no_execution_mode_and_manifest_admission_is_authoritative(
     assert "execution_mode" not in ResearchContract.model_fields
 
     manifests = load_manifest_bundle(
-        MANIFEST_ROOT / "case-manifest.v1.json",
-        MANIFEST_ROOT / "field-manifest.v1.json",
+        MANIFEST_ROOT / "case-manifest.json",
+        MANIFEST_ROOT / "field-manifest.json",
     )
     validate_contract_against_manifest(
         contract,

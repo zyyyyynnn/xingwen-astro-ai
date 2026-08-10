@@ -1,4 +1,4 @@
-"""Atomic in-memory Research Input runtime composition (B-19).
+"""Atomic in-memory composition for research-input ingestion.
 
 The production PostgreSQL path gets transaction atomicity from the database.
 The no-database/test runtime has two independent adapters instead:
@@ -33,7 +33,7 @@ from app.services.research_input_store import (
 
 
 class InMemoryResearchInputRuntime:
-    """Coordinated in-memory implementation of both B-19 persistence ports.
+    """Coordinated in-memory implementation of both Research Input Ingestion persistence ports.
 
     ``resolve`` / ``release`` and ``commit_ingestion`` use the same coordinator
     lock. Therefore a stale-lease reclaimer cannot slip between the store's

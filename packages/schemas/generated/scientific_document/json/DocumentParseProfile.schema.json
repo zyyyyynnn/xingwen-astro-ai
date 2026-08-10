@@ -1,6 +1,6 @@
 {
   "additionalProperties": false,
-  "description": "Versioned parser profile / configuration identity (D-10 logical).\n\n``configuration_hash`` MUST be stable and reproducible: it must not depend\non wall-clock time, random ordering, unsorted dicts, floating model aliases\nor machine-specific absolute paths.",
+  "description": "Parser profile with a reproducible configuration identity.\n\n``configuration_hash`` MUST be stable and reproducible: it must not depend\non wall-clock time, random ordering, unsorted dicts, floating model aliases\nor machine-specific absolute paths.",
   "properties": {
     "configuration_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",

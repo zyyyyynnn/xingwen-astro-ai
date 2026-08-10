@@ -1,23 +1,21 @@
-"""Frozen X-00 inputs and versioned data-acquisition rules."""
+"""Frozen Product Case Baseline inputs and versioned data-acquisition rules."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 
-FROZEN_CASE_MANIFEST_VERSION = "1.0.1"
+FROZEN_CASE_MANIFEST_VERSION = "2.0.0"
 FROZEN_CASE_MANIFEST_CONTENT_HASH = (
-    "sha256:bb870d3c8b6b6c972cd8d7139b9cfcb672bb9ce75401109271aaf05a147819d3"
+    "sha256:efbee5ec7d9e9e450a1b08685eb27e0a600f58faec5524d37dc05a9b1f28276c"
 )
-FROZEN_FIELD_MANIFEST_VERSION = "1.0.1"
+FROZEN_FIELD_MANIFEST_VERSION = "2.0.0"
 FROZEN_FIELD_MANIFEST_CONTENT_HASH = (
-    "sha256:c29b3ab32044f7e14b9d9fe618acf957373db33b4d1b4d8eb8ac4d83a8404d53"
+    "sha256:b0ce150bebbfa9549273ecbb5e26ed302f64b9925d768bb42f944554d011a86f"
 )
-FROZEN_X00_MAIN_SHA = "eb7e23f6d0c14555627c602c6e5a2b84210ba833"
-
 _MANIFEST_ROOT = Path(__file__).resolve().parent / "manifests" / "exoplanet_host_star"
-FROZEN_CASE_MANIFEST_PATH = _MANIFEST_ROOT / "case-manifest.v1.json"
-FROZEN_FIELD_MANIFEST_PATH = _MANIFEST_ROOT / "field-manifest.v1.json"
+FROZEN_CASE_MANIFEST_PATH = _MANIFEST_ROOT / "case-manifest.json"
+FROZEN_FIELD_MANIFEST_PATH = _MANIFEST_ROOT / "field-manifest.json"
 
 PRODUCER_NAME = "xingwen.data_acquisition"
 PRODUCER_VERSION = "1.0.0"
@@ -32,4 +30,4 @@ NASA_TAP_ADAPTER_VERSION = "1.1.0"
 NASA_PS_SUPPLEMENTAL_ADAPTER_VERSION = "1.1.0"
 SUPPLEMENTAL_QUERY_NORMALIZATION_VERSION = "1.1.0"
 CROSSMATCH_PRODUCER_NAME = "xingwen.cross_source_alignment"
-CROSSMATCH_PRODUCER_VERSION = "1.0.0"
+CROSSMATCH_PRODUCER_VERSION = "2.0.0"

@@ -8,7 +8,7 @@ function cachedRead() {
   const read = structuredClone(paperSummaryReadFixture);
   const snapshot = read.source_snapshots[0]!;
   read.source_mode = "cached";
-  snapshot.cache_version = "cache-v1";
+  snapshot.cache_version = "cache-fixture";
   snapshot.request_metadata = {
     ...snapshot.request_metadata,
     origin_run_id: "run-origin",
@@ -46,7 +46,7 @@ describe("assemblePaperSummaryReview — cache audit integrity", () => {
       {
         source_id: "crossref",
         source_snapshot_id: "snapshot-cached",
-        cache_version: "cache-v1",
+        cache_version: "cache-fixture",
         cache_applicability: "same normalized query",
         live_failure_class: "timeout",
         live_failure_code: "CROSSREF_TIMEOUT",

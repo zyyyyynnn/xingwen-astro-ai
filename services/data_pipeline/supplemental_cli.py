@@ -1,4 +1,4 @@
-"""Bounded C-07 supplemental acquisition smoke/replay entrypoint."""
+"""Bounded smoke and replay entrypoint for supplemental-source acquisition."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ DEFAULT_TIC_IDS = ("TIC 219698776",)
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the bounded C-07 NASA PS supplemental adapter in live or "
+            "Run the bounded Supplemental Source Acquisition NASA PS supplemental adapter in live or "
             "explicitly recorded fixture mode. This command does not match "
             "entities or advance a ResearchRun. A completed command may still "
             "report completion_status=truncated when the configured bound was hit."

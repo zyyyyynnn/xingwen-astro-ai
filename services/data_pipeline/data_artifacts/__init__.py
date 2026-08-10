@@ -1,4 +1,4 @@
-"""C-04 deterministic field mapping and data Artifact candidate builder."""
+"""Deterministic field mapping and publication-ready data artifact candidates."""
 
 from .pipeline import build_data_artifact_candidates
 

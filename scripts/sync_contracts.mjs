@@ -1,5 +1,5 @@
 /**
- * Synchronises the B-15 generated versionless `/api` core contract into the
+ * Synchronises the Core Domain and Transport Contract generated versionless `/api` core contract into the
  * frontend `@xingwen/contracts` package.
  *
  * This script is the single bridge between the Python authoring source
@@ -41,7 +41,7 @@ const BANNER = `/**
  * Authoring source: apps/api/src/app/schemas/core.py (Pydantic)
  *
  * These TypeScript types are the /api transport DTOs (snake_case). They are
- * generated from the B-15 frozen JSON Schemas so the frontend never maintains
+ * generated from the Core Domain and Transport Contract frozen JSON Schemas so the frontend never maintains
  * a hand-written second production schema.
  *
  * To regenerate: pnpm --filter @xingwen/contracts sync-contracts

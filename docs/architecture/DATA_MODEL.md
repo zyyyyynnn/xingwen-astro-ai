@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 核心领域实体、实体关系、所有权与数据不变量 |
 
 本文定义系统的核心领域实体、领域语义与关系不变量。具体字段全集由后端 Pydantic 模型、数据库 Schema 与前端 TypeScript Domain 编写源权威定义。
@@ -80,8 +79,8 @@ Draft 是编辑态资源，一旦确认即产生不可变 Contract。
 
 ## 5. LiteratureClaim、LiteratureRelation 与 ReasoningTrace
 
-- `literature_claims` ArtifactVersion 保存 D-07 唯一 typed candidate。每个非 rejected Claim 固定一个已验证 PaperSummary ArtifactVersion，并通过持久化 Evidence 与 SourceSnapshot 形成完整 provenance。
-- `literature_relations` ArtifactVersion 保存 D-08 Relation、双方 Claim 投影和可审查 ReasoningTrace。每个非 rejected Relation 必须精确固定 source/target Claim ArtifactVersion 与对应 PaperSummary ArtifactVersion。
+- `literature_claims` ArtifactVersion 保存唯一的 typed Claim candidate。每个非 rejected Claim 固定一个已验证 PaperSummary ArtifactVersion，并通过持久化 Evidence 与 SourceSnapshot 形成完整 provenance。
+- `literature_relations` ArtifactVersion 保存 Relation、双方 Claim 投影和可审查 ReasoningTrace。每个非 rejected Relation 必须精确固定 source/target Claim ArtifactVersion 与对应 PaperSummary ArtifactVersion。
 - ReasoningTrace 不是独立 ArtifactVersion；它只公开 premise、结构化比较步骤、条件、限制、冲突、结论与 Evidence 引用。
 - `graph_eligible` 是读取闭包结果，不是新的科学判定。只有 accepted Relation、accepted endpoints 与完整 Trace/Evidence/SourceSnapshot 同时成立时为真。
 - ArtifactVersion 与 Evidence 在同一 Publisher 事务内原子创建。Pipeline Evidence/SourceSnapshot ID 保留在 locator 与 typed content 中，数据库 registry 保存对应 PostgreSQL UUID；两侧必须一一闭合且同属一个 Project。
@@ -99,7 +98,7 @@ Draft 是编辑态资源，一旦确认即产生不可变 Contract。
   `dataset -> field`。数据字段边必须保存 selected、unselected、null、unresolved 与 conflict
   对应 Evidence-use 的完整并集，不能只保留展示 winner。该并集覆盖所有以
   `projected_field_ids` 声明 field 适用的行；不同 entity 且未投影该 field 的行不得被虚构为
-  null，但已投影行缺 outcome 必须失败关闭。Graph v1 的固定输入不含
+  null，但已投影行缺 outcome 必须失败关闭。Graph 的固定输入不含
   ResearchContract/ResearchGoal，因此当前不生成 research_goal node 或 `uses_dataset` edge；
   该缺失是合法状态，不能从 Project 或 Dataset metadata 推测目标。
 - Field node 集合由固定 FieldDictionary 的 canonical field 全集决定，不由某行是否存在值决定。
