@@ -1,5 +1,4 @@
-
-"""Tests for production configuration guards."""
+"""Tests for current runtime configuration and production safety guards."""
 
 from __future__ import annotations
 
@@ -11,20 +10,12 @@ from pydantic import ValidationError
 from app.config import Settings
 
 
-
 def test_development_allows_local_defaults() -> None:
     settings = Settings(_env_file=None)
 
     assert settings.APP_ENV == "development"
     assert settings.DEBUG is True
     assert settings.SESSION_COOKIE_SECURE is False
-    assert settings.PERSISTENT_WORKFLOW_ENABLED is False
-
-
-def test_persistent_workflow_requires_explicit_feature_flag() -> None:
-    settings = Settings(_env_file=None, PERSISTENT_WORKFLOW_ENABLED=True)
-
-    assert settings.PERSISTENT_WORKFLOW_ENABLED is True
 
 
 def test_production_accepts_managed_database_url_without_postgres_password() -> None:
@@ -33,7 +24,6 @@ def test_production_accepts_managed_database_url_without_postgres_password() -> 
         APP_ENV="production",
         DEBUG=False,
         DATABASE_URL="postgresql+psycopg://app:strong-secret@db.example:5432/xingwen",
-        DASHSCOPE_API_KEY="dashscope-secret",
         CORS_ORIGINS="https://astro.example",
         SESSION_COOKIE_SECURE=True,
         CURSOR_SIGNING_KEY="production-cursor-signing-key-with-high-entropy",
@@ -53,7 +43,6 @@ def test_production_rejects_local_defaults_and_wildcard_cors() -> None:
                 "xingwen_astro_ai"
             ),
             POSTGRES_PASSWORD="postgres",
-            DASHSCOPE_API_KEY="replace_me",
             CORS_ORIGINS="*",
         )
 
@@ -61,7 +50,6 @@ def test_production_rejects_local_defaults_and_wildcard_cors() -> None:
     assert "DEBUG must be false" in message
     assert "DATABASE_URL must not use the local default credentials" in message
     assert "POSTGRES_PASSWORD must not use the local default" in message
-    assert "DASHSCOPE_API_KEY must be configured" in message
     assert "CORS_ORIGINS must not contain '*'" in message
 
 
@@ -71,7 +59,6 @@ def test_production_requires_database_url() -> None:
             _env_file=None,
             APP_ENV="production",
             DEBUG=False,
-            DASHSCOPE_API_KEY="dashscope-secret",
             CORS_ORIGINS="https://astro.example",
         )
 
@@ -83,7 +70,6 @@ def test_production_requires_secure_session_cookie() -> None:
             APP_ENV="production",
             DEBUG=False,
             DATABASE_URL="postgresql+psycopg://app:secret@db.example/xingwen",
-            DASHSCOPE_API_KEY="dashscope-secret",
             CORS_ORIGINS="https://astro.example",
             SESSION_COOKIE_SECURE=False,
         )
@@ -96,7 +82,6 @@ def test_production_requires_non_default_cursor_signing_key() -> None:
             APP_ENV="production",
             DEBUG=False,
             DATABASE_URL="postgresql+psycopg://app:secret@db.example/xingwen",
-            DASHSCOPE_API_KEY="dashscope-secret",
             CORS_ORIGINS="https://astro.example",
             SESSION_COOKIE_SECURE=True,
         )
@@ -115,21 +100,25 @@ def test_config_loads_from_env_example(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("RESEARCH_INPUT_ALLOWED_MIME_TYPES", raising=False)
     monkeypatch.delenv("URL_FETCH_ALLOWED_PROTOCOLS", raising=False)
     monkeypatch.delenv("URL_FETCH_ALLOWED_HOSTS", raising=False)
-    s = Settings(_env_file=env_example)
-    assert "application/pdf" in s.RESEARCH_INPUT_ALLOWED_MIME_TYPES
-    assert "text/csv" in s.RESEARCH_INPUT_ALLOWED_MIME_TYPES
-    assert s.URL_FETCH_ALLOWED_PROTOCOLS == ("https",)
-    assert s.URL_FETCH_ALLOWED_HOSTS is None
+    settings = Settings(_env_file=env_example)
+    assert "application/pdf" in settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES
+    assert "text/csv" in settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES
+    assert settings.URL_FETCH_ALLOWED_PROTOCOLS == ("https",)
+    assert settings.URL_FETCH_ALLOWED_HOSTS is None
 
 
 def test_config_parses_csv_list_and_empty_hosts() -> None:
-    s = Settings(
+    settings = Settings(
         _env_file=None,
-        RESEARCH_INPUT_ALLOWED_MIME_TYPES="application/pdf, text/csv , APPLICATION/PDF",
+        RESEARCH_INPUT_ALLOWED_MIME_TYPES=(
+            "application/pdf, text/csv , APPLICATION/PDF"
+        ),
         URL_FETCH_ALLOWED_PROTOCOLS="https, HTTPs",
         URL_FETCH_ALLOWED_HOSTS="",
     )
-    assert s.RESEARCH_INPUT_ALLOWED_MIME_TYPES == ["application/pdf", "text/csv"]
-    assert s.URL_FETCH_ALLOWED_PROTOCOLS == ("https",)
-    assert s.URL_FETCH_ALLOWED_HOSTS is None
-
+    assert settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES == [
+        "application/pdf",
+        "text/csv",
+    ]
+    assert settings.URL_FETCH_ALLOWED_PROTOCOLS == ("https",)
+    assert settings.URL_FETCH_ALLOWED_HOSTS is None
