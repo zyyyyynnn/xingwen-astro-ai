@@ -59,6 +59,17 @@ describe("@xingwen/ui foundation config integrity", () => {
     const compilerOptions = parsedConfig.options;
     const containingFile = resolve(process.cwd(), "src/index.ts");
 
+    const resolvedComponentsButton = ts.bundlerModuleNameResolver(
+      "#components/button",
+      containingFile,
+      compilerOptions,
+      ts.sys,
+    );
+    expect(resolvedComponentsButton.resolvedModule).toBeDefined();
+    expect(resolvedComponentsButton.resolvedModule?.resolvedFileName).toContain(
+      "src/button.tsx",
+    );
+
     const resolvedButton = ts.bundlerModuleNameResolver(
       "#ui/button",
       containingFile,
@@ -101,11 +112,13 @@ describe("@xingwen/ui foundation config integrity", () => {
       readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
     );
 
+    expect(componentsConfig.aliases.components).toBe("#components");
     expect(componentsConfig.aliases.utils).toBe("#utils");
     expect(componentsConfig.aliases.ui).toBe("#ui");
     expect(componentsConfig.aliases.lib).toBe("#lib");
 
     const imports = manifest.imports;
+    expect(imports["#components/*"]).toBe("./src/*.tsx");
     expect(imports["#utils"]).toBe("./src/lib/utils.ts");
     expect(imports["#ui/*"]).toBe("./src/*.tsx");
     expect(imports["#lib/*"]).toBe("./src/lib/*.ts");

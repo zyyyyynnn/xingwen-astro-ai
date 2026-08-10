@@ -7,6 +7,7 @@
     "**/*.css"
   ],
   "imports": {
+    "#components/*": "./src/*.tsx",
     "#lib/*": "./src/lib/*.ts",
     "#ui/*": "./src/*.tsx",
     "#utils": "./src/lib/utils.ts"

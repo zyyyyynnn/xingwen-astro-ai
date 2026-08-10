@@ -242,6 +242,20 @@ if (!existsSync(uiComponentsConfigPath)) {
     );
   }
 
+  if (
+    !config.aliases?.components ||
+    typeof config.aliases.components !== "string"
+  ) {
+    failures.push(
+      "packages/ui/components.json must declare required aliases.components for shadcn schema compliance.",
+    );
+  }
+  if (!config.aliases?.utils || typeof config.aliases.utils !== "string") {
+    failures.push(
+      "packages/ui/components.json must declare required aliases.utils for shadcn schema compliance.",
+    );
+  }
+
   const uiManifest = JSON.parse(
     readFileSync(resolve(root, "packages/ui/package.json"), "utf8"),
   );
@@ -262,6 +276,14 @@ if (!existsSync(uiComponentsConfigPath)) {
   if (!imports["#ui/*"] || !imports["#ui/*"].startsWith("./src/")) {
     failures.push(
       "packages/ui/package.json #ui/* import must use subpath pattern #ui/* -> ./src/*.tsx for component subpath resolution.",
+    );
+  }
+  if (
+    !imports["#components/*"] ||
+    !imports["#components/*"].startsWith("./src/")
+  ) {
+    failures.push(
+      "packages/ui/package.json #components/* import must use subpath pattern #components/* -> ./src/*.tsx for component resolution.",
     );
   }
 }

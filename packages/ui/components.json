@@ -12,6 +12,7 @@
   },
   "iconLibrary": "lucide",
   "aliases": {
+    "components": "#components",
     "utils": "#utils",
     "ui": "#ui",
     "lib": "#lib"
