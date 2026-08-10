@@ -26,4 +26,16 @@ describe("Link", () => {
     const link = screen.getByRole("link");
     expect(link).not.toHaveAttribute("target");
   });
+
+  it("provides the shared button treatment without changing link semantics", () => {
+    render(
+      <Link href="/workspace" variant="button">
+        进入工作台
+      </Link>,
+    );
+    const link = screen.getByRole("link", { name: "进入工作台" });
+    expect(link).toHaveAttribute("data-variant", "button");
+    link.focus();
+    expect(link).toHaveFocus();
+  });
 });

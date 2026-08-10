@@ -12,7 +12,9 @@ describe("Spinner", () => {
 
   it("supports a custom label", () => {
     render(<Spinner label="正在加载项目" />);
-    expect(screen.getByText("正在加载项目")).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: "正在加载项目" }),
+    ).toBeInTheDocument();
   });
 
   it("hides the dot from assistive tech", () => {

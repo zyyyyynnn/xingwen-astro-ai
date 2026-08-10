@@ -1,0 +1,16 @@
+{
+  "components": [
+    {
+      "name": "Button",
+      "local_path": "packages/ui/src/button.tsx",
+      "source": "@shadcn/button",
+      "documentation": "https://ui.shadcn.com/docs/components/radix/button",
+      "license": "MIT",
+      "adaptation": "Uses native button semantics, Xingwen semantic tokens, and a dependency-free class API; omits Radix Slot because there is no production asChild consumer.",
+      "production_consumers": [
+        "apps/workspace/src/router.tsx",
+        "apps/workspace/src/share-page.tsx"
+      ]
+    }
+  ]
+}

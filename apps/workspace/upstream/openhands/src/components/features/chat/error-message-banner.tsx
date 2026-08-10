@@ -1,4 +1,5 @@
-import { RotateCcw, X } from "lucide-react";
+import { buttonClassName } from "@xingwen/ui";
+import { RotateCcw, X } from "@xingwen/ui/icons";
 
 interface ErrorMessageBannerProps {
   readonly message: string;
@@ -28,7 +29,7 @@ export function ErrorMessageBanner({
         </div>
         <button
           type="button"
-          className="oh-icon-button"
+          className={buttonClassName({ variant: "ghost", size: "icon" })}
           aria-label="关闭错误提示"
           onClick={onDismiss}
         >

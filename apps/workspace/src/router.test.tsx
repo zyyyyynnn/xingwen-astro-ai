@@ -112,6 +112,10 @@ describe("Workspace routes", () => {
       screen.getByText("该链接可能无效、已撤销或已过期。"),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重试" })).toHaveAttribute(
+      "data-slot",
+      "button",
+    );
     expect(screen.getByRole("link", { name: "返回首页" })).toHaveAttribute(
       "href",
       "/",

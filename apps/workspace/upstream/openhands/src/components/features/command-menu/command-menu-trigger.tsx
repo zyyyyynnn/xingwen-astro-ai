@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Search } from "@xingwen/ui/icons";
 
 import { cn } from "../../../utils/utils";
 import {

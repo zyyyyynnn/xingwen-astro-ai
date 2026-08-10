@@ -1,11 +1,12 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { Link } from "@xingwen/ui";
 ---
 
 <BaseLayout title="页面未找到｜星文智析" description="请求的页面不存在。">
   <section class="not-found" aria-labelledby="not-found-title">
     <h1 id="not-found-title">页面未找到</h1>
     <p>请求的品牌站页面不存在，请返回首页。</p>
-    <a class="cta cta--primary" href="/">返回首页</a>
+    <Link variant="button" href="/">返回首页</Link>
   </section>
 </BaseLayout>

@@ -1,5 +1,6 @@
 import React from "react";
-import { Activity, Layers3, MoreHorizontal } from "lucide-react";
+import { buttonClassName } from "@xingwen/ui";
+import { Activity, Layers3, MoreHorizontal } from "@xingwen/ui/icons";
 
 import { ConversationTabNav } from "./conversation-tab-nav";
 
@@ -258,7 +259,11 @@ export function ConversationTabs({
         <div className="relative shrink-0">
           <button
             type="button"
-            className="oh-icon-button h-full"
+            className={buttonClassName({
+              variant: "ghost",
+              size: "icon",
+              className: "h-full",
+            })}
             aria-label="更多面板"
             aria-expanded={isMoreOpen}
             ref={moreButtonRef}

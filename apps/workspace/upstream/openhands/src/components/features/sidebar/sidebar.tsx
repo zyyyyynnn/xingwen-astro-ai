@@ -1,4 +1,4 @@
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "@xingwen/ui/icons";
 
 import { SidebarRailBody } from "./sidebar-rail-body";
 import { useSidebarStore } from "../../../stores/sidebar-store";

@@ -1,11 +1,11 @@
 import {
-  Link,
   Outlet,
   createRootRouteWithContext,
   createRoute,
   createRouter,
   redirect,
 } from "@tanstack/react-router";
+import { Button, Link, Spinner } from "@xingwen/ui";
 import type {
   ErrorComponentProps,
   RouterHistory,
@@ -28,6 +28,7 @@ function LoadingPage() {
   return (
     <section className="route-content" aria-busy="true" aria-live="polite">
       <h1>正在载入</h1>
+      <Spinner label="正在载入工作台" />
     </section>
   );
 }
@@ -37,9 +38,9 @@ function RouteErrorPage({ reset }: ErrorComponentProps) {
     <section className="route-content" role="alert">
       <h1>页面载入失败</h1>
       <p>请重试；若问题持续，请返回工作台入口。</p>
-      <button type="button" onClick={reset}>
+      <Button variant="secondary" onClick={reset}>
         重试
-      </button>
+      </Button>
     </section>
   );
 }
@@ -49,9 +50,7 @@ function NotFoundPage() {
     <section className="route-content">
       <h1>页面未找到</h1>
       <p>请求的工作台入口不存在。</p>
-      <Link className="text-link" to="/">
-        返回工作台入口
-      </Link>
+      <Link href="/">返回工作台入口</Link>
     </section>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useRouteContext } from "@tanstack/react-router";
+import { useRouteContext } from "@tanstack/react-router";
+import { Button, Link } from "@xingwen/ui";
 
 export interface SharePageProps {
   readonly shareToken: string;
@@ -43,12 +44,10 @@ export function SharePage({ shareToken }: SharePageProps) {
       <h1>共享结果当前不可用</h1>
       <p>该链接可能无效、已撤销或已过期。</p>
       <div className="action-row">
-        <button type="button" onClick={retry} disabled={inFlight}>
+        <Button variant="secondary" onClick={retry} disabled={inFlight}>
           重试
-        </button>
-        <Link className="text-link" to="/">
-          返回首页
-        </Link>
+        </Button>
+        <Link href="/">返回首页</Link>
       </div>
     </main>
   );

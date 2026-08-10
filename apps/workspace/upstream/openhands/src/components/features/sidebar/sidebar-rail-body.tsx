@@ -1,5 +1,5 @@
 import { BrandMark } from "@xingwen/ui";
-import { Plus } from "lucide-react";
+import { Plus } from "@xingwen/ui/icons";
 
 import { cn } from "../../../utils/utils";
 

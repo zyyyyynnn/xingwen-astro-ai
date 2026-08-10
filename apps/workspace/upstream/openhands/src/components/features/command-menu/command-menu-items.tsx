@@ -1,5 +1,5 @@
 import type React from "react";
-import { PanelLeft, Plus } from "lucide-react";
+import { PanelLeft, Plus } from "@xingwen/ui/icons";
 
 export type CommandMenuGroupId = "workspace" | "view";
 export type CommandMenuItemId = "new-task" | "toggle-sidebar";

@@ -39,7 +39,18 @@ const allowedLocalDependencies = new Map([
 
 const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
-  ["@xingwen/ui", new Set(["react"])],
+  ["@xingwen/ui", new Set(["lucide-react", "react"])],
+]);
+
+const approvedIconPackages = new Set(["lucide-react"]);
+const knownIconPackages = new Set([
+  "@fortawesome/react-fontawesome",
+  "@heroicons/react",
+  "@iconify/react",
+  "@phosphor-icons/react",
+  "@tabler/icons-react",
+  "lucide-react",
+  "react-icons",
 ]);
 
 const failures = [];
@@ -64,6 +75,21 @@ for (const [expectedName, location] of packageLocations) {
     .flatMap((group) => Object.keys(group))
     .filter((name) => name.startsWith("@xingwen/"));
   const allowed = allowedLocalDependencies.get(expectedName);
+
+  const declaredIconPackages = dependencyGroups
+    .flatMap((group) => Object.keys(group))
+    .filter((name) => knownIconPackages.has(name));
+
+  for (const dependency of declaredIconPackages) {
+    if (
+      expectedName !== "@xingwen/ui" ||
+      !approvedIconPackages.has(dependency)
+    ) {
+      failures.push(
+        `${expectedName} must consume icons through @xingwen/ui/icons, not ${dependency}.`,
+      );
+    }
+  }
 
   for (const dependency of localDependencies) {
     if (!allowed?.has(dependency)) {
@@ -139,6 +165,8 @@ const sourceFiles = listedFiles.filter((file) =>
   /\.(?:astro|mjs|ts|tsx)$/u.test(file),
 );
 const importPattern = /(?:from\s+|import\s*)["'](@xingwen\/[^"']+)["']/gu;
+const directIconImportPattern =
+  /(?:from\s+|import\s*)["']([^"']*(?:lucide-react|react-icons|heroicons|tabler\/icons|fontawesome|iconify|phosphor)[^"']*)["']/gu;
 
 for (const file of sourceFiles) {
   const content = readFileSync(resolve(root, file), "utf8");
@@ -147,6 +175,153 @@ for (const file of sourceFiles) {
     if (specifier && !exportedSpecifiers.has(specifier)) {
       failures.push(`${file} imports non-public package path ${specifier}.`);
     }
+  }
+
+  for (const match of content.matchAll(directIconImportPattern)) {
+    const specifier = match[1];
+    if (file !== "packages/ui/src/icons.ts" || specifier !== "lucide-react") {
+      failures.push(
+        `${file} imports icon package ${specifier} directly; use @xingwen/ui/icons.`,
+      );
+    }
+  }
+}
+
+const uiSourceFiles = listedFiles.filter(
+  (file) =>
+    file.startsWith("packages/ui/src/") && /\.(?:css|ts|tsx)$/u.test(file),
+);
+const applicationPresentationSourceFiles = listedFiles.filter(
+  (file) =>
+    (file.startsWith("apps/site/src/") ||
+      file.startsWith("apps/workspace/src/") ||
+      file.startsWith("apps/workspace/upstream/openhands/src/")) &&
+    /\.(?:astro|css|ts|tsx)$/u.test(file) &&
+    !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(file),
+);
+const rawColorPattern = /#[\da-f]{3,8}\b|\b(?:rgb|hsl|oklch)a?\s*\(/iu;
+
+for (const file of [...uiSourceFiles, ...applicationPresentationSourceFiles]) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  if (rawColorPattern.test(content)) {
+    failures.push(`${file} hardcodes a raw color outside design tokens.`);
+  }
+}
+
+for (const file of uiSourceFiles) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  for (const forbiddenToken of ["--oh-", "--raw-", "--workspace-"]) {
+    if (content.includes(forbiddenToken)) {
+      failures.push(
+        `${file} uses forbidden ${forbiddenToken} tokens; @xingwen/ui must consume core semantic tokens.`,
+      );
+    }
+  }
+}
+
+const uiComponentsConfigPath = resolve(root, "packages/ui/components.json");
+if (!existsSync(uiComponentsConfigPath)) {
+  failures.push(
+    "packages/ui/components.json must govern shadcn source adoption.",
+  );
+} else {
+  const config = JSON.parse(readFileSync(uiComponentsConfigPath, "utf8"));
+  if (config.iconLibrary !== "lucide") {
+    failures.push(
+      "packages/ui/components.json must select Lucide as iconLibrary.",
+    );
+  }
+  if (config.rsc !== false || config.tsx !== true) {
+    failures.push(
+      "packages/ui/components.json must match the React client TypeScript package.",
+    );
+  }
+  if (config.tailwind?.css !== "src/styles.css") {
+    failures.push(
+      "packages/ui/components.json must target the existing public UI stylesheet.",
+    );
+  }
+}
+
+const componentSourcesPath = resolve(
+  root,
+  "packages/ui/component-sources.json",
+);
+if (!existsSync(componentSourcesPath)) {
+  failures.push(
+    "packages/ui/component-sources.json must record shadcn provenance.",
+  );
+} else {
+  const sourceCatalog = JSON.parse(readFileSync(componentSourcesPath, "utf8"));
+  for (const component of sourceCatalog.components ?? []) {
+    if (!component.source?.startsWith("@shadcn/")) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} has an unapproved shadcn source.`,
+      );
+    }
+    if (!existsSync(resolve(root, component.local_path ?? ""))) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} is missing local_path ${component.local_path ?? ""}.`,
+      );
+    }
+    if (
+      !Array.isArray(component.production_consumers) ||
+      component.production_consumers.length === 0
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must record a production consumer.`,
+      );
+    }
+    for (const consumer of component.production_consumers ?? []) {
+      const consumerPath = resolve(root, consumer);
+      if (
+        !existsSync(consumerPath) ||
+        !readFileSync(consumerPath, "utf8").includes(component.name)
+      ) {
+        failures.push(
+          `UI component ${component.name ?? "unknown"} consumer ${consumer} is missing or stale.`,
+        );
+      }
+    }
+  }
+}
+
+const uiIndex = readFileSync(resolve(root, "packages/ui/src/index.ts"), "utf8");
+const publicUiValues = [...uiIndex.matchAll(/export\s+\{([^}]+)\}\s+from/gu)]
+  .flatMap((match) => match[1].split(","))
+  .map((name) => name.trim())
+  .filter(Boolean);
+const applicationSources = sourceFiles
+  .filter((file) => file.startsWith("apps/"))
+  .map((file) => readFileSync(resolve(root, file), "utf8"))
+  .join("\n");
+
+for (const exportedValue of publicUiValues) {
+  const publicImportPattern = new RegExp(
+    `import\\s*\\{[^}]*\\b${exportedValue}\\b[^}]*\\}\\s*from\\s*["']@xingwen/ui["']`,
+    "u",
+  );
+  if (!publicImportPattern.test(applicationSources)) {
+    failures.push(
+      `@xingwen/ui public value ${exportedValue} has no production consumer.`,
+    );
+  }
+}
+
+for (const file of sourceFiles.filter(
+  (entry) =>
+    entry.startsWith("apps/") &&
+    !entry.startsWith("apps/workspace/upstream/openhands/src/") &&
+    !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(entry),
+)) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  if (/<(?:button|input|select|textarea)\b/u.test(content)) {
+    failures.push(
+      `${file} declares an app-private form primitive; use @xingwen/ui public exports.`,
+    );
+  }
+  if (/packages\/ui\/src|@xingwen\/ui\/src/u.test(content)) {
+    failures.push(`${file} deep-imports private @xingwen/ui source.`);
   }
 }
 
@@ -191,6 +366,7 @@ const boundaryRules = new Map([
     {
       description: "the presentation-only UI boundary",
       allowedBareImports: new Set([
+        "lucide-react",
         "react",
         "react/jsx-runtime",
         "react/jsx-dev-runtime",

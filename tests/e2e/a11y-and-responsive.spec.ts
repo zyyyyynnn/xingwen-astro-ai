@@ -32,6 +32,18 @@ test("brand site focus outline is visible on CTAs", async ({ page }) => {
   expect(parseFloat(outlineWidth)).toBeGreaterThan(0);
 });
 
+test("shared controls remove non-essential transitions under reduced motion", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("http://127.0.0.1:4321/");
+
+  await expect(page.getByRole("link", { name: "进入工作台" })).toHaveCSS(
+    "transition-property",
+    "none",
+  );
+});
+
 test("workspace skip link appears on focus and targets main content", async ({
   page,
 }) => {
@@ -248,6 +260,25 @@ test.describe("200% font scale", () => {
     });
 
     // No horizontal overflow
+    const scrollWidth = await page.evaluate(
+      () => document.documentElement.scrollWidth,
+    );
+    expect(scrollWidth).toBeLessThanOrEqual(1280);
+  });
+
+  test("shared share-route controls remain operable at 200% font size", async ({
+    page,
+  }) => {
+    await page.goto("http://127.0.0.1:5173/share/test-token");
+    await setDocumentFontScale(page, "200%");
+
+    const retry = page.getByRole("button", { name: "重试" });
+    await expect(retry).toBeVisible();
+    await expect(retry).toBeEnabled();
+    await retry.focus();
+    await expect(retry).toBeFocused();
+    await expect(page.getByRole("link", { name: "返回首页" })).toBeVisible();
+
     const scrollWidth = await page.evaluate(
       () => document.documentElement.scrollWidth,
     );

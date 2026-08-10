@@ -1,6 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { Search, X } from "lucide-react";
+import { buttonClassName } from "@xingwen/ui";
+import { Search, X } from "@xingwen/ui/icons";
 
 import { useCommandMenuStore } from "../../../stores/command-menu-store";
 import { useSidebarStore } from "../../../stores/sidebar-store";
@@ -190,7 +191,7 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
           {query ? (
             <button
               type="button"
-              className="oh-icon-button"
+              className={buttonClassName({ variant: "ghost", size: "icon" })}
               aria-label="清除搜索"
               tabIndex={-1}
               onClick={() => {
