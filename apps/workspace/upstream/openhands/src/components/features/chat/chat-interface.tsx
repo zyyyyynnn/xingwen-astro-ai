@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageSquareText } from "lucide-react";
+import { MessageSquareText } from "@xingwen/ui/icons";
 
 import type { AgentWorkspaceRuntime } from "../../../root";
 

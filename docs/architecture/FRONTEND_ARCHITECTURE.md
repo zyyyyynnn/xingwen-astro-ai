@@ -75,6 +75,16 @@ Existing Core
 
 Activity 采用 OpenHands 的事件列表、连续事件分组、可展开事件组、渐进状态展示与滚动锚定机制；OpenHands Activity 仅消费 domain-neutral presentation event，Research Adapter 负责将 Project、Run、Artifact、Evidence 等领域语义映射到该 presentation contract；运行时只注入公开 Activity Event，空状态不生成测试或演示事件。
 
+### 3.3 共享 UI、shadcn 与图标治理
+
+`@xingwen/ui` 是 Brand Site、Workspace Page / Feature 与 OpenHands 适配层唯一的通用共享 UI 入口。消费者只能使用包公开 `exports`；不得深层导入 `packages/ui/src/*`，不得在 Page / Feature 建立第二套 Button、Link、Input、Dialog 或 Icon Primitive。OpenHands 已采用的 Shell、Activity、Tabs、Composer、Overlay、Focus 与 Resize mechanics 继续作为产品机械结构复用，不因共享组件治理而重写。
+
+shadcn 仅作为按需采用的源码来源，不作为第二套运行时组件库。采用顺序固定为：检查 OpenHands mechanics 与 `@xingwen/ui` 现有 export → 确认生产消费者缺口 → 通过 `packages/ui/components.json` 审查当前 registry 配置与源码 → 只将需要的组件放入 `@xingwen/ui`。每个 shadcn-derived component 必须在 `packages/ui/component-sources.json` 记录来源、许可证、适配说明与现有生产消费者；没有消费者不得加入。
+
+Lucide 是唯一通用动作图标库，由 `@xingwen/ui/icons` 提供受控 public export；App、Page、Feature 与 OpenHands 适配源码不得直接依赖图标包。品牌资产与科研专用可视化不经 Lucide 替换。`@xingwen/ui` 只消费 `--color-*`、`--space-*`、`--control-*`、`--icon-*`、`--font-size-ui-*`、`--line-height-ui-*`、`--radius-*`、`--shadow-*`、`--motion-*` 与 `--focus-*` 等 Core semantic Token，不得依赖 `--workspace-*`、`--oh-*` 或 Raw palette。
+
+共享 Link 视觉呈现与 Router 导航所有权划分：`@xingwen/ui` 拥有 Link 视觉外观（文本/按钮样式、焦点圈、外部链接 semantics）；TanStack Router 拥有内部 SPA 路由、类型化导航与预加载生命周期。Workspace 在路由场景下使用 TanStack Router 进行 SPA 导航不属于建立第二套视觉 Link primitive，前提是其最终消费 `@xingwen/ui` 的共享视觉 contract。`@xingwen/ui` 本身不增加 Router 框架依赖。
+
 ## 4. 依赖方向
 
 ```text

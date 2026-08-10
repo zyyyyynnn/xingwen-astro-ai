@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { BrandMark } from "@xingwen/ui";
+import { BrandMark, Link } from "@xingwen/ui";
 import { resolvePublicHttpUrl } from "../lib/public-url";
 
 const workspaceUrl = resolvePublicHttpUrl(
@@ -45,7 +45,7 @@ const notes = [
       <div class="home-content__row">
         <div class="home-content__main">
           <div class="cta-row">
-            <a class="cta cta--primary" href={workspaceUrl}>进入工作台</a>
+            <Link variant="button" href={workspaceUrl}>进入工作台</Link>
           </div>
           <h1 id="hero-title">让每一颗系外行星候选体<br />都可溯源</h1>
         </div>

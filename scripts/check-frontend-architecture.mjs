@@ -39,7 +39,18 @@ const allowedLocalDependencies = new Map([
 
 const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
-  ["@xingwen/ui", new Set(["react"])],
+  ["@xingwen/ui", new Set(["clsx", "lucide-react", "react"])],
+]);
+
+const approvedIconPackages = new Set(["lucide-react"]);
+const knownIconPackages = new Set([
+  "@fortawesome/react-fontawesome",
+  "@heroicons/react",
+  "@iconify/react",
+  "@phosphor-icons/react",
+  "@tabler/icons-react",
+  "lucide-react",
+  "react-icons",
 ]);
 
 const failures = [];
@@ -64,6 +75,21 @@ for (const [expectedName, location] of packageLocations) {
     .flatMap((group) => Object.keys(group))
     .filter((name) => name.startsWith("@xingwen/"));
   const allowed = allowedLocalDependencies.get(expectedName);
+
+  const declaredIconPackages = dependencyGroups
+    .flatMap((group) => Object.keys(group))
+    .filter((name) => knownIconPackages.has(name));
+
+  for (const dependency of declaredIconPackages) {
+    if (
+      expectedName !== "@xingwen/ui" ||
+      !approvedIconPackages.has(dependency)
+    ) {
+      failures.push(
+        `${expectedName} must consume icons through @xingwen/ui/icons, not ${dependency}.`,
+      );
+    }
+  }
 
   for (const dependency of localDependencies) {
     if (!allowed?.has(dependency)) {
@@ -139,6 +165,8 @@ const sourceFiles = listedFiles.filter((file) =>
   /\.(?:astro|mjs|ts|tsx)$/u.test(file),
 );
 const importPattern = /(?:from\s+|import\s*)["'](@xingwen\/[^"']+)["']/gu;
+const directIconImportPattern =
+  /(?:from\s+|import\s*)["']([^"']*(?:lucide-react|react-icons|heroicons|tabler\/icons|fontawesome|iconify|phosphor)[^"']*)["']/gu;
 
 for (const file of sourceFiles) {
   const content = readFileSync(resolve(root, file), "utf8");
@@ -147,6 +175,434 @@ for (const file of sourceFiles) {
     if (specifier && !exportedSpecifiers.has(specifier)) {
       failures.push(`${file} imports non-public package path ${specifier}.`);
     }
+  }
+
+  for (const match of content.matchAll(directIconImportPattern)) {
+    const specifier = match[1];
+    if (file !== "packages/ui/src/icons.ts" || specifier !== "lucide-react") {
+      failures.push(
+        `${file} imports icon package ${specifier} directly; use @xingwen/ui/icons.`,
+      );
+    }
+  }
+}
+
+const uiSourceFiles = listedFiles.filter(
+  (file) =>
+    file.startsWith("packages/ui/src/") && /\.(?:css|ts|tsx)$/u.test(file),
+);
+const applicationPresentationSourceFiles = listedFiles.filter(
+  (file) =>
+    (file.startsWith("apps/site/src/") ||
+      file.startsWith("apps/workspace/src/") ||
+      file.startsWith("apps/workspace/upstream/openhands/src/")) &&
+    /\.(?:astro|css|ts|tsx)$/u.test(file) &&
+    !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(file),
+);
+const rawColorPattern = /#[\da-f]{3,8}\b|\b(?:rgb|hsl|oklch)a?\s*\(/iu;
+
+for (const file of [...uiSourceFiles, ...applicationPresentationSourceFiles]) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  if (rawColorPattern.test(content)) {
+    failures.push(`${file} hardcodes a raw color outside design tokens.`);
+  }
+}
+
+for (const file of uiSourceFiles) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  for (const forbiddenToken of ["--oh-", "--raw-", "--workspace-"]) {
+    if (content.includes(forbiddenToken)) {
+      failures.push(
+        `${file} uses forbidden ${forbiddenToken} tokens; @xingwen/ui must consume core semantic tokens.`,
+      );
+    }
+  }
+}
+
+const uiComponentsConfigPath = resolve(root, "packages/ui/components.json");
+if (!existsSync(uiComponentsConfigPath)) {
+  failures.push(
+    "packages/ui/components.json must govern shadcn source adoption.",
+  );
+} else {
+  const config = JSON.parse(readFileSync(uiComponentsConfigPath, "utf8"));
+  if (config.iconLibrary !== "lucide") {
+    failures.push(
+      "packages/ui/components.json must select Lucide as iconLibrary.",
+    );
+  }
+  if (config.rsc !== false || config.tsx !== true) {
+    failures.push(
+      "packages/ui/components.json must match the React client TypeScript package.",
+    );
+  }
+  if (config.tailwind?.css !== "src/styles.css") {
+    failures.push(
+      "packages/ui/components.json must target the existing public UI stylesheet.",
+    );
+  }
+
+  if (
+    !config.aliases?.components ||
+    typeof config.aliases.components !== "string"
+  ) {
+    failures.push(
+      "packages/ui/components.json must declare required aliases.components for shadcn schema compliance.",
+    );
+  }
+  if (!config.aliases?.utils || typeof config.aliases.utils !== "string") {
+    failures.push(
+      "packages/ui/components.json must declare required aliases.utils for shadcn schema compliance.",
+    );
+  }
+
+  const uiManifest = JSON.parse(
+    readFileSync(resolve(root, "packages/ui/package.json"), "utf8"),
+  );
+  const imports = uiManifest.imports ?? {};
+  if (imports["#utils"] === "./src") {
+    failures.push(
+      "packages/ui/package.json #utils import must point to a specific utility module, not whole ./src.",
+    );
+  }
+  if (
+    !imports["#utils"] ||
+    !existsSync(resolve(root, "packages/ui", imports["#utils"]))
+  ) {
+    failures.push(
+      `packages/ui #utils import (${imports["#utils"]}) must resolve to an existing local module.`,
+    );
+  }
+  if (!imports["#ui/*"] || !imports["#ui/*"].startsWith("./src/")) {
+    failures.push(
+      "packages/ui/package.json #ui/* import must use subpath pattern #ui/* -> ./src/*.tsx for component subpath resolution.",
+    );
+  }
+  if (
+    !imports["#components/*"] ||
+    !imports["#components/*"].startsWith("./src/")
+  ) {
+    failures.push(
+      "packages/ui/package.json #components/* import must use subpath pattern #components/* -> ./src/*.tsx for component resolution.",
+    );
+  }
+}
+
+const componentSourcesPath = resolve(
+  root,
+  "packages/ui/component-sources.json",
+);
+
+function collectPublicUiValueUsages(file, content) {
+  const sourceFile = ts.createSourceFile(
+    file,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindFor(file),
+  );
+  const importedValuesByLocalName = new Map();
+
+  for (const statement of sourceFile.statements) {
+    if (
+      !ts.isImportDeclaration(statement) ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      statement.moduleSpecifier.text !== "@xingwen/ui" ||
+      statement.importClause?.isTypeOnly ||
+      !statement.importClause?.namedBindings ||
+      !ts.isNamedImports(statement.importClause.namedBindings)
+    ) {
+      continue;
+    }
+
+    for (const element of statement.importClause.namedBindings.elements) {
+      if (!element.isTypeOnly) {
+        importedValuesByLocalName.set(
+          element.name.text,
+          element.propertyName?.text ?? element.name.text,
+        );
+      }
+    }
+  }
+
+  const usages = new Set();
+  function visit(node) {
+    if (ts.isImportDeclaration(node)) return;
+    if (ts.isIdentifier(node)) {
+      const importedValue = importedValuesByLocalName.get(node.text);
+      const isJsxTag =
+        ((ts.isJsxOpeningElement(node.parent) ||
+          ts.isJsxSelfClosingElement(node.parent)) &&
+          node.parent.tagName === node) ||
+        (ts.isJsxClosingElement(node.parent) && node.parent.tagName === node);
+      const isDirectCall =
+        ts.isCallExpression(node.parent) && node.parent.expression === node;
+      if (importedValue && (isJsxTag || isDirectCall)) {
+        usages.add(importedValue);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return usages;
+}
+
+const productionApplicationFiles = sourceFiles.filter(
+  (file) =>
+    file.startsWith("apps/") &&
+    !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(file) &&
+    !/\.d\.ts$/u.test(file),
+);
+const productionUiUsagesByFile = new Map(
+  productionApplicationFiles.map((file) => [
+    file,
+    collectPublicUiValueUsages(file, readFileSync(resolve(root, file), "utf8")),
+  ]),
+);
+
+function collectPublicRuntimeExports(file, content) {
+  const sourceFile = ts.createSourceFile(
+    file,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindFor(file),
+  );
+  const runtimeExports = new Set();
+
+  for (const statement of sourceFile.statements) {
+    if (ts.isExportDeclaration(statement)) {
+      if (statement.isTypeOnly) continue;
+      if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+        for (const element of statement.exportClause.elements) {
+          if (!element.isTypeOnly) {
+            runtimeExports.add(element.name.text);
+          }
+        }
+      }
+    } else if (
+      (ts.isFunctionDeclaration(statement) ||
+        ts.isClassDeclaration(statement) ||
+        ts.isVariableStatement(statement)) &&
+      statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+    ) {
+      if (ts.isVariableStatement(statement)) {
+        for (const decl of statement.declarationList.declarations) {
+          if (ts.isIdentifier(decl.name)) {
+            runtimeExports.add(decl.name.text);
+          }
+        }
+      } else if (statement.name && ts.isIdentifier(statement.name)) {
+        runtimeExports.add(statement.name.text);
+      }
+    }
+  }
+
+  return runtimeExports;
+}
+
+const publicUiRuntimeExports = collectPublicRuntimeExports(
+  "packages/ui/src/index.ts",
+  readFileSync(resolve(root, "packages/ui/src/index.ts"), "utf8"),
+);
+
+if (!existsSync(componentSourcesPath)) {
+  failures.push(
+    "packages/ui/component-sources.json must record shadcn provenance.",
+  );
+} else {
+  const sourceCatalog = JSON.parse(readFileSync(componentSourcesPath, "utf8"));
+  const seenNames = new Set();
+  const seenPaths = new Set();
+
+  for (const component of sourceCatalog.components ?? []) {
+    if (!component.name || typeof component.name !== "string") {
+      failures.push(
+        "UI component entry in component-sources.json is missing a valid name.",
+      );
+    } else if (seenNames.has(component.name)) {
+      failures.push(
+        `UI component name ${component.name} must be unique in component-sources.json.`,
+      );
+    } else {
+      seenNames.add(component.name);
+    }
+
+    if (!publicUiRuntimeExports.has(component.name)) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} in component-sources.json must be a public runtime value export of @xingwen/ui.`,
+      );
+    }
+
+    if (!component.local_path || typeof component.local_path !== "string") {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} is missing local_path.`,
+      );
+    } else if (seenPaths.has(component.local_path)) {
+      failures.push(
+        `UI component local_path ${component.local_path} must be unique in component-sources.json.`,
+      );
+    } else {
+      seenPaths.add(component.local_path);
+      if (!existsSync(resolve(root, component.local_path))) {
+        failures.push(
+          `UI component ${component.name ?? "unknown"} local_path ${component.local_path} does not exist.`,
+        );
+      }
+    }
+
+    if (!component.source?.startsWith("@shadcn/")) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} has an unapproved shadcn source.`,
+      );
+    }
+
+    if (
+      !component.upstream_repository ||
+      typeof component.upstream_repository !== "string"
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare upstream_repository.`,
+      );
+    }
+
+    if (
+      !component.upstream_revision ||
+      typeof component.upstream_revision !== "string" ||
+      /^(?:main|master|latest)$/i.test(component.upstream_revision)
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare an immutable upstream_revision (not main/master/latest).`,
+      );
+    }
+
+    if (
+      !component.upstream_commit ||
+      typeof component.upstream_commit !== "string" ||
+      !/^[0-9a-f]{40}$/.test(component.upstream_commit)
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare a valid 40-character hex upstream_commit.`,
+      );
+    }
+
+    if (
+      !component.registry_item ||
+      typeof component.registry_item !== "string"
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare registry_item.`,
+      );
+    }
+
+    if (!component.license || typeof component.license !== "string") {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare a license.`,
+      );
+    }
+
+    if (
+      !component.notice ||
+      typeof component.notice !== "string" ||
+      !existsSync(resolve(root, component.notice))
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} notice path (${component.notice}) must be a valid existing file.`,
+      );
+    }
+
+    if (!component.adaptation || typeof component.adaptation !== "string") {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare adaptation details.`,
+      );
+    }
+
+    if (
+      !Array.isArray(component.production_consumers) ||
+      component.production_consumers.length === 0
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must record a production consumer.`,
+      );
+    }
+
+    for (const consumer of component.production_consumers ?? []) {
+      const consumerPath = resolve(root, consumer);
+      if (
+        !existsSync(consumerPath) ||
+        !productionUiUsagesByFile.get(consumer)?.has(component.name)
+      ) {
+        failures.push(
+          `UI component ${component.name ?? "unknown"} consumer ${consumer} must import and use it in production code.`,
+        );
+      }
+    }
+  }
+}
+
+const productionUiUsages = new Set(
+  [...productionUiUsagesByFile.values()].flatMap((usages) => [...usages]),
+);
+
+for (const exportedValue of publicUiRuntimeExports) {
+  if (!productionUiUsages.has(exportedValue)) {
+    failures.push(
+      `@xingwen/ui public value ${exportedValue} has no production consumer.`,
+    );
+  }
+}
+
+const publicUiUsageFixtures = [
+  ['/* import { Button } from "@xingwen/ui"; <Button /> */', "Button", false],
+  ['import { Button } from "@xingwen/ui";', "Button", false],
+  [
+    'import { Button } from "@xingwen/ui"; type T = typeof Button;',
+    "Button",
+    false,
+  ],
+  ['import { Button } from "@xingwen/ui"; <Button />;', "Button", true],
+  [
+    'import { buttonClassName as styles } from "@xingwen/ui"; styles({});',
+    "buttonClassName",
+    true,
+  ],
+];
+for (const [content, exportedValue, expected] of publicUiUsageFixtures) {
+  const actual = collectPublicUiValueUsages(
+    "ui-consumer-fixture.tsx",
+    content,
+  ).has(exportedValue);
+  if (actual !== expected) {
+    failures.push(
+      `Architecture production-consumer self-test failed for ${exportedValue}.`,
+    );
+  }
+}
+
+if (
+  productionApplicationFiles.some((file) =>
+    /\.(?:test|spec)\.(?:ts|tsx)$/u.test(file),
+  )
+) {
+  failures.push(
+    "Architecture production-consumer self-test included an application test file.",
+  );
+}
+
+for (const file of sourceFiles.filter(
+  (entry) =>
+    entry.startsWith("apps/") &&
+    !entry.startsWith("apps/workspace/upstream/openhands/src/") &&
+    !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(entry),
+)) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  if (/<(?:button|input|select|textarea)\b/u.test(content)) {
+    failures.push(
+      `${file} declares an app-private form primitive; use @xingwen/ui public exports.`,
+    );
+  }
+  if (/packages\/ui\/src|@xingwen\/ui\/src/u.test(content)) {
+    failures.push(`${file} deep-imports private @xingwen/ui source.`);
   }
 }
 
@@ -191,6 +647,8 @@ const boundaryRules = new Map([
     {
       description: "the presentation-only UI boundary",
       allowedBareImports: new Set([
+        "clsx",
+        "lucide-react",
         "react",
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
@@ -215,7 +673,11 @@ const workspacePresentationRule = {
 };
 
 function isRelativeImport(specifier) {
-  return specifier.startsWith("./") || specifier.startsWith("../");
+  return (
+    specifier.startsWith("./") ||
+    specifier.startsWith("../") ||
+    specifier.startsWith("#")
+  );
 }
 
 function scriptKindFor(file) {

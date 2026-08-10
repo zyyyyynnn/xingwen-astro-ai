@@ -1,4 +1,4 @@
-import { Square } from "lucide-react";
+import { Square } from "@xingwen/ui/icons";
 
 interface ChatStopButtonProps {
   readonly handleStop: () => void;

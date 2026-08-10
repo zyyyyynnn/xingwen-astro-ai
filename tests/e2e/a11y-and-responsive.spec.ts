@@ -7,7 +7,7 @@ import { requireBoundingBox, setDocumentFontScale } from "./test-helpers";
 test("brand site keyboard navigation reaches the single CTA", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
 
   // Tab from body: skip-link is not present on brand site (only workspace has it),
   // so first focusable should be the only CTA "进入工作台"
@@ -18,7 +18,7 @@ test("brand site keyboard navigation reaches the single CTA", async ({
 });
 
 test("brand site focus outline is visible on CTAs", async ({ page }) => {
-  await page.goto("http://127.0.0.1:4321/");
+  await page.goto("http://127.0.0.1:14321/");
   const cta = page.getByRole("link", { name: "进入工作台" });
   await cta.focus();
   // focus-visible outline must be non-empty
@@ -32,10 +32,22 @@ test("brand site focus outline is visible on CTAs", async ({ page }) => {
   expect(parseFloat(outlineWidth)).toBeGreaterThan(0);
 });
 
+test("shared controls remove non-essential transitions under reduced motion", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("http://127.0.0.1:14321/");
+
+  await expect(page.getByRole("link", { name: "进入工作台" })).toHaveCSS(
+    "transition-property",
+    "none",
+  );
+});
+
 test("workspace skip link appears on focus and targets main content", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   const skipLink = page.getByRole("link", { name: "跳到主要内容" });
   await expect(skipLink).toHaveCSS("opacity", "0");
@@ -63,7 +75,7 @@ test.describe("narrow viewport @ 375px", () => {
   test("brand site hero and content fit without horizontal overflow", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:4321/");
+    await page.goto("http://127.0.0.1:14321/");
 
     await expect(
       page.getByRole("heading", {
@@ -81,7 +93,7 @@ test.describe("narrow viewport @ 375px", () => {
   test("workspace shows the desktop-required notice without overflow", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:5173/workspace");
+    await page.goto("http://127.0.0.1:15173/workspace");
 
     await expect(
       page.getByRole("heading", { name: "请使用桌面设备" }),
@@ -104,7 +116,7 @@ test.describe("200% font scale", () => {
   test("brand site content remains visible and readable at 200% font size", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:4321/");
+    await page.goto("http://127.0.0.1:14321/");
     await setDocumentFontScale(page, "200%");
 
     await expect(
@@ -125,7 +137,7 @@ test.describe("200% font scale", () => {
   test("workspace host remains functional at 200% font size", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:5173/workspace");
+    await page.goto("http://127.0.0.1:15173/workspace");
     await setDocumentFontScale(page, "200%");
 
     await expect(
@@ -253,13 +265,89 @@ test.describe("200% font scale", () => {
     );
     expect(scrollWidth).toBeLessThanOrEqual(1280);
   });
+
+  test("shared share-route controls remain operable at 200% font size", async ({
+    page,
+  }) => {
+    let shareRequests = 0;
+    let initialRequestsReleased = false;
+    let releaseInitialRequest = () => {};
+    const initialRequestPending = new Promise<void>((resolve) => {
+      releaseInitialRequest = resolve;
+    });
+    await page.route("**/api/public/shares/test-token", async (route) => {
+      shareRequests += 1;
+      if (!initialRequestsReleased) await initialRequestPending;
+      await route.fulfill({ status: 404, body: "{}" });
+    });
+
+    await page.goto("http://127.0.0.1:15173/share/test-token");
+    const spinner = page.getByRole("status", {
+      name: "正在重新载入共享结果",
+    });
+    await expect(spinner).toBeVisible();
+    const normalSpinnerFontSize = Number.parseFloat(
+      await spinner.evaluate((element) => getComputedStyle(element).fontSize),
+    );
+
+    await setDocumentFontScale(page, "200%");
+    await expect(spinner).toBeVisible();
+    expect(
+      Number.parseFloat(
+        await spinner.evaluate((element) => getComputedStyle(element).fontSize),
+      ),
+    ).toBeGreaterThanOrEqual(normalSpinnerFontSize * 2);
+
+    initialRequestsReleased = true;
+    releaseInitialRequest();
+    const retry = page.getByRole("button", { name: "重试" });
+    await expect(retry).toBeVisible();
+    await expect(retry).toBeEnabled();
+    const initialRequestCount = shareRequests;
+    await page.keyboard.press("Tab");
+    await expect(retry).toBeFocused();
+
+    await page.keyboard.press("Enter");
+    await expect.poll(() => shareRequests).toBe(initialRequestCount + 1);
+    await expect(retry).toBeEnabled();
+    for (let tabCount = 0; tabCount < 3; tabCount += 1) {
+      if (await retry.evaluate((element) => element === document.activeElement))
+        break;
+      await page.keyboard.press("Tab");
+    }
+    await expect(retry).toBeFocused();
+    await page.keyboard.press("Space");
+    await expect.poll(() => shareRequests).toBe(initialRequestCount + 2);
+    await expect(retry).toBeEnabled();
+
+    const scrollWidth = await page.evaluate(
+      () => document.documentElement.scrollWidth,
+    );
+    expect(scrollWidth).toBeLessThanOrEqual(1280);
+
+    const returnHome = page.getByRole("link", { name: "返回首页" });
+    for (let tabCount = 0; tabCount < 3; tabCount += 1) {
+      if (
+        await returnHome.evaluate(
+          (element) => element === document.activeElement,
+        )
+      )
+        break;
+      await page.keyboard.press("Tab");
+    }
+    await expect(returnHome).toBeFocused();
+    await Promise.all([
+      page.waitForURL((url) => ["/", "/workspace"].includes(url.pathname)),
+      page.keyboard.press("Enter"),
+    ]);
+  });
 });
 
 test("workspace honors reduced motion for shell transitions", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("http://127.0.0.1:5173/workspace");
+  await page.goto("http://127.0.0.1:15173/workspace");
 
   await expect(
     page.getByRole("complementary", { name: "工作台侧栏" }),

@@ -1,3 +1,5 @@
+import { buttonClassName } from "@xingwen/ui";
+
 import { cn } from "../../../utils/utils";
 
 export const navInteractiveTransitionClassName =
@@ -42,7 +44,8 @@ export function sidebarNavLabelClassName(collapsed: boolean): string {
   return cn("min-w-0 truncate whitespace-nowrap", collapsed && "invisible");
 }
 
-export const SIDEBAR_ICON_BUTTON_CLASS = cn(
-  "oh-icon-button",
-  navInteractiveTransitionClassName,
-);
+export const SIDEBAR_ICON_BUTTON_CLASS = buttonClassName({
+  variant: "ghost",
+  size: "icon",
+  className: navInteractiveTransitionClassName,
+});

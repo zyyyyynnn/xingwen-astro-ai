@@ -1,5 +1,6 @@
 import React from "react";
-import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import { buttonClassName } from "@xingwen/ui";
+import { PanelRightClose, PanelRightOpen } from "@xingwen/ui/icons";
 
 import { ActivitySurface } from "../../../conversation-events/chat/messages";
 import { ChatInterfaceWrapper } from "./chat-interface-wrapper";
@@ -110,7 +111,12 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
     >
       <button
         type="button"
-        className="oh-icon-button absolute right-[var(--oh-header-control-inset-inline)] top-[var(--oh-header-control-inset-block)] z-[var(--oh-layer-header-toggle)]"
+        className={buttonClassName({
+          variant: "ghost",
+          size: "icon",
+          className:
+            "absolute right-[var(--oh-header-control-inset-inline)] top-[var(--oh-header-control-inset-block)] z-[var(--oh-layer-header-toggle)]",
+        })}
         aria-label={isRightPanelShown ? "收起活动面板" : "展开活动面板"}
         aria-controls="workspace-activity-panel"
         aria-expanded={isRightPanelShown}
