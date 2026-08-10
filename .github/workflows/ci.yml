@@ -119,30 +119,17 @@ jobs:
           --cases-output .artifacts/literature-relation-benchmark-cases.json
           --output .artifacts/literature-relation-benchmark-report.json
 
-      - name: Run reproducible Versioned Evidence Graph benchmark
+      - name: Run reproducible Evidence Graph benchmark
         working-directory: .
         run: >
           uv run --project apps/api python -m services.graph_pipeline.benchmark
           --cases-output .artifacts/evidence-graph-benchmark-cases.json
           --output .artifacts/evidence-graph-benchmark-report.json
 
-      - name: Check shared pipeline schema contracts
+      - name: Check data pipeline schema contracts
         run: >
           uv run python ../../scripts/export_schemas.py
-          --output ../../packages/schemas/generated/pipeline
-          --include DatasetResponse
-          --include ColumnInfo
-          --include QualityScore
-          --include SourceRecordItem
-          --include PaperSearchQuery
-          --include PaperAcquisitionRun
-          --include PaperCandidate
-          --include PaperSummary
-          --include LiteratureClaim
-          --include LiteratureRelation
-          --include ReasoningTrace
-          --include EvidenceResponse
-          --include SourceSnapshot
+          --output ../../packages/schemas/generated/data_pipeline
           --include DataSourceCompletion
           --include CrossmatchInput
           --include CrossmatchResult
@@ -193,7 +180,7 @@ jobs:
           --include LiteratureRelationBenchmarkReport
           --check
 
-      - name: Check Versioned Evidence Graph pipeline contracts
+      - name: Check Evidence Graph pipeline contracts
         run: >
           uv run python ../../scripts/export_schemas.py
           --output ../../packages/schemas/generated/graph
