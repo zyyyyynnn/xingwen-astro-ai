@@ -1,4 +1,4 @@
-"""Process-local publication seal state for Versioned Data Artifact candidates.
+"""Process-local publication seal state for Data Artifact candidates.
 
 Nothing in this module is serialized or exported as JSON Schema. A valid
 contract round-trip intentionally loses this state and must be admitted again

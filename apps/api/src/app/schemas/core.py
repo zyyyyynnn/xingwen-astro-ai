@@ -215,6 +215,7 @@ class ResearchContractDraft(BaseModel):
             "examples": [
                 {
                     "id": "rcd_01JEXAMPLE",
+                    "project_id": "proj_01JEXAMPLE",
                     "session_id": "sess_01JEXAMPLE",
                     "version": 1,
                     "intent": "Integrate exoplanet candidates and host-star parameters",
@@ -240,6 +241,7 @@ class ResearchContractDraft(BaseModel):
     )
 
     id: Identifier
+    project_id: Identifier
     session_id: Identifier
     version: int = Field(ge=1)
     intent: NonEmptyString

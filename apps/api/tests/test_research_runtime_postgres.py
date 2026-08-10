@@ -36,6 +36,11 @@ from app.db.models import (
     SourceSnapshotModel,
 )
 from app.db.session import create_engine_from_url, session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.main import _load_case_manifests, create_app
 from app.services.artifacts import ArtifactReadService
 from app.services.research import ResearchApplicationService
@@ -122,31 +127,25 @@ def runtime() -> Iterator[dict[str, object]]:
     project_id = uuid4()
     draft_id = uuid4()
     with factory() as session, session.begin():
-        session.add(
-            ResearchProjectModel(
-                id=project_id,
-                session_id=owner.id,
-                name="Research runtime chain",
-                case_key="exoplanet_host_star",
-                revision=1,
-                created_at=NOW,
-                updated_at=NOW,
-            )
+        project = build_research_project(
+            project_id=project_id,
+            session_id=owner.id,
+            name="Research runtime chain",
+            case_key="exoplanet_host_star",
+            created_at=NOW,
+            updated_at=NOW,
         )
-        session.add(
-            ResearchContractDraftModel(
-                id=draft_id,
-                session_id=owner.id,
-                version=1,
-                intent="Integrate exoplanet candidates and host-star parameters",
-                status="draft",
-                contract=_contract_input(),
-                warnings=[],
-                created_at=NOW,
-                updated_at=NOW,
-                expires_at=datetime.now(UTC) + timedelta(hours=1),
-            )
+        draft = build_contract_draft(
+            project,
+            draft_id=draft_id,
+            intent="Integrate exoplanet candidates and host-star parameters",
+            status="draft",
+            content=_contract_input(),
+            created_at=NOW,
+            updated_at=NOW,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
+        persist_authoring_models(session, project=project, draft=draft)
 
     client = TestClient(app, base_url="https://testserver")
     client.cookies.set(settings.SESSION_COOKIE_NAME, owner_credential)
@@ -219,15 +218,15 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     conflicting_draft_id = uuid4()
     factory = runtime["factory"]
     with factory() as session, session.begin():  # type: ignore[operator]
+        project = session.get(ResearchProjectModel, UUID(project_id))
+        assert project is not None
         session.add(
-            ResearchContractDraftModel(
-                id=conflicting_draft_id,
-                session_id=runtime["owner_session_id"],
-                version=1,
+            build_contract_draft(
+                project,
+                draft_id=conflicting_draft_id,
                 intent="Different confirmation request",
                 status="draft",
-                contract=_contract_input(),
-                warnings=[],
+                content=_contract_input(),
                 created_at=NOW,
                 updated_at=NOW,
                 expires_at=datetime(2026, 7, 23, tzinfo=UTC),
@@ -335,15 +334,15 @@ def test_expired_draft_is_visible_but_cannot_be_changed_or_confirmed(
     factory = runtime["factory"]
     expired_id = uuid4()
     with factory() as session, session.begin():  # type: ignore[operator]
+        project = session.get(ResearchProjectModel, UUID(runtime["project_id"]))
+        assert project is not None
         session.add(
-            ResearchContractDraftModel(
-                id=expired_id,
-                session_id=runtime["owner_session_id"],
-                version=1,
+            build_contract_draft(
+                project,
+                draft_id=expired_id,
                 intent="Expired contract draft",
                 status="draft",
-                contract=_contract_input(),
-                warnings=[],
+                content=_contract_input(),
                 created_at=NOW - timedelta(days=2),
                 updated_at=NOW - timedelta(days=2),
                 expires_at=datetime.now(UTC) - timedelta(minutes=1),
@@ -682,6 +681,49 @@ def test_create_draft_hides_missing_and_cross_session_projects(
     )
     assert cross.status_code == 404
     assert cross.json()["code"] == "PROJECT_NOT_FOUND"
+
+
+def test_draft_idempotency_and_confirmation_are_project_scoped(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+    body = {
+        "intent": "Integrate exoplanet candidates and host-star parameters",
+        "contract": _contract_input(),
+    }
+    project = client.post(
+        "/api/projects",
+        headers={**csrf, "Idempotency-Key": "draft-scope-project"},
+        json={"name": "Draft scope project", "case_key": "exoplanet_host_star"},
+    ).json()["data"]
+
+    first = client.post(
+        f"/api/projects/{runtime['project_id']}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "shared-draft-key"},
+        json=body,
+    )
+    second = client.post(
+        f"/api/projects/{project['id']}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "shared-draft-key"},
+        json=body,
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["data"]["id"] != second.json()["data"]["id"]
+    assert first.json()["data"]["project_id"] == runtime["project_id"]
+    assert second.json()["data"]["project_id"] == project["id"]
+
+    cross_project = client.post(
+        f"/api/projects/{project['id']}/contracts",
+        headers={**csrf, "Idempotency-Key": "cross-project-confirm"},
+        json={
+            "draft_id": first.json()["data"]["id"],
+            "expected_draft_version": 1,
+        },
+    )
+    assert cross_project.status_code == 404
+    assert cross_project.json()["code"] == "DRAFT_NOT_FOUND"
 
 
 def test_list_projects_is_session_scoped_with_stable_cursor(

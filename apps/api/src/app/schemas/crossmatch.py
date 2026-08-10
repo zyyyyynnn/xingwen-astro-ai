@@ -1553,7 +1553,7 @@ class CrossmatchAdmissionContext(BaseModel):
 
 
 class CrossmatchResult(BaseModel):
-    """Typed Versioned Data Artifact handoff; publication and ArtifactVersion identity are out of scope."""
+    """Typed Data Artifact handoff; publication and ArtifactVersion identity are out of scope."""
 
     model_config = MODEL_CONFIG
 

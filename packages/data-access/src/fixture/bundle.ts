@@ -1,5 +1,5 @@
 /**
- * Versioned fixture bundle type.
+ * Fixture bundle type with explicit identity and provenance.
  *
  * A fixture bundle carries deterministic Demo Replay data for the Guided Tour
  * and workspace previews. Every bundle declares its scenario, schema version,

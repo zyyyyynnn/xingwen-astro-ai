@@ -2,13 +2,13 @@
   "authoring_source": "apps/api/src/app/schemas",
   "models": [
     {
-      "content_hash": "sha256:0e0310d7cc10eb391ee9b15f9def84d72411b843eb29c92118d3a77433446ca7",
+      "content_hash": "sha256:9c30f0f7a284e3e8f5e50b1865763e5ca223da8df3dcd4d64026a32000d75ca2",
       "module": "app.schemas.graph_artifact",
       "name": "GraphAdmissionResult",
       "path": "json/GraphAdmissionResult.schema.json"
     },
     {
-      "content_hash": "sha256:5aa3258eb60004e5266f3025376b932e6e0e154cdf737179bdc02d5c6c0ed9ac",
+      "content_hash": "sha256:b1b599456cac84cbfe26c4d13f6a4656e264dd7bac7c39eee9655f0251570da0",
       "module": "app.schemas.graph_artifact",
       "name": "GraphArtifactCandidate",
       "path": "json/GraphArtifactCandidate.schema.json"

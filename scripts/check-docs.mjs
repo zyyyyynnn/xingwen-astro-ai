@@ -99,10 +99,14 @@ for (const file of trackedFiles) {
     errors.push(`${file}: task code is not allowed in tracked file paths`);
   }
   if (containsRepositoryPhaseIdentifierPath(file)) {
-    errors.push(`${file}: phase identifier is not allowed in tracked file paths`);
+    errors.push(
+      `${file}: phase identifier is not allowed in tracked file paths`,
+    );
   }
   if (containsRepositoryVersionLabelPath(file)) {
-    errors.push(`${file}: pseudo-version label is not allowed in tracked file paths`);
+    errors.push(
+      `${file}: pseudo-version label is not allowed in tracked file paths`,
+    );
   }
 }
 
@@ -115,7 +119,9 @@ for (const file of files) {
   for (const error of result.errors) errors.push(`${file}: ${error}`);
 
   if (isReference(file) && result.metadata.Authority) {
-    errors.push(`${file}: Reference material must not declare normative Authority`);
+    errors.push(
+      `${file}: Reference material must not declare normative Authority`,
+    );
   }
   if (!isReference(file) && result.metadata.Authority) {
     const previous = authorities.get(result.metadata.Authority);
@@ -188,7 +194,17 @@ for (const file of repositoryTextFiles) {
 
 const indexFile = "docs/README.md";
 const indexTargets = new Set();
-for (const link of results.get(indexFile)?.links ?? []) {
+const indexContent = readFileSync(resolve(root, indexFile), "utf8");
+const authorityMapContent = indexContent
+  .split(/^## 1\. Authority Map\s*$/mu, 2)
+  .at(1)
+  ?.split(/^##\s+/mu, 1)
+  .at(0);
+const authorityMapLines = authorityMapContent?.split(/\r?\n/u) ?? [];
+for (const link of authorityMapContent
+  ? inspectMarkdown(authorityMapContent, { requireSingleH1: false }).links
+  : []) {
+  if (!authorityMapLines[link.line - 1]?.trimStart().startsWith("|")) continue;
   const target = localTarget(link.target);
   if (!target) continue;
   const absolute = resolve(root, dirname(indexFile), target);
@@ -208,7 +224,9 @@ for (const file of files) {
 }
 for (const file of indexTargets) {
   if (isReference(file)) {
-    errors.push(`${indexFile}: Reference material cannot appear in the Authority map: ${file}`);
+    errors.push(
+      `${indexFile}: Reference material cannot appear in the Authority map: ${file}`,
+    );
   }
 }
 

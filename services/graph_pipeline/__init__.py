@@ -1,4 +1,4 @@
-"""Version-pinned inputs and stable logical identities for Versioned Evidence Graph."""
+"""Version-pinned inputs and stable logical identities for Evidence Graph."""
 
 from .admission import GraphAdmissionFailure, build_integrity_report
 

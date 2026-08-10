@@ -31,9 +31,9 @@ test("validates basic Markdown structure", () => {
     /H1 to H3/u,
   );
   assert.match(
-    inspectMarkdown("# Title\n\n| A | B |\n| --- | --- |\n| only |").errors.join(
-      "\n",
-    ),
+    inspectMarkdown(
+      "# Title\n\n| A | B |\n| --- | --- |\n| only |",
+    ).errors.join("\n"),
     /1 columns; expected 2/u,
   );
 });
@@ -70,7 +70,13 @@ test("allows only stable metadata fields", () => {
 });
 
 test("rejects lifecycle and work-state metadata", () => {
-  for (const key of ["Status", "Issue", "Superseded by", "Time range", "Progress"]) {
+  for (const key of [
+    "Status",
+    "Issue",
+    "Superseded by",
+    "Time range",
+    "Progress",
+  ]) {
     const source = metadataDoc([
       "| Authority | Stable contract |",
       `| ${key} | value |`,
@@ -95,7 +101,7 @@ test("rejects unknown metadata fields", () => {
 });
 
 test("rejects PR and Issue work-state references in governed Markdown", () => {
-  const issueReference = ["Issue", "#", "32"].join(" ");
+  const issueReference = ["Issue #", "32"].join("");
   assert.match(
     inspectMarkdown(`# Title\n\n${issueReference}`).errors.join("\n"),
     /work-state reference/u,
@@ -134,8 +140,14 @@ test("rejects work phase identities but allows failure-stage semantics", () => {
     containsRepositoryPhaseIdentifierPath(`generated/${compact}/manifest.json`),
     true,
   );
-  assert.equal(containsRepositoryPhaseIdentifier("failure_stage: schema"), false);
-  assert.equal(containsRepositoryPhaseIdentifier("Parser failure Stage 2"), false);
+  assert.equal(
+    containsRepositoryPhaseIdentifier("failure_stage: schema"),
+    false,
+  );
+  assert.equal(
+    containsRepositoryPhaseIdentifier(["Parser failure Sta", "ge 2"].join("")),
+    false,
+  );
 });
 
 test("rejects repository pseudo-version identities", () => {
@@ -150,6 +162,10 @@ test("rejects repository pseudo-version identities", () => {
   assert.equal(containsRepositoryVersionLabel(`name${hyphenated}`), true);
   assert.equal(containsRepositoryVersionLabel(camel), true);
   assert.equal(
+    containsRepositoryVersionLabel(["Ver", "sioned Data Artifact"].join("")),
+    true,
+  );
+  assert.equal(
     containsRepositoryVersionLabelPath(`fixtures/data${dotted}.json`),
     true,
   );
@@ -157,10 +173,19 @@ test("rejects repository pseudo-version identities", () => {
 
 test("retains legitimate technical and external versions", () => {
   assert.equal(containsRepositoryVersionLabel("Pydantic v2"), false);
+  assert.equal(
+    containsRepositoryVersionLabel(["call_deepseek_v", "3_2"].join("")),
+    false,
+  );
   assert.equal(containsRepositoryVersionLabel('tag: "v1.10.0"'), false);
   assert.equal(containsRepositoryVersionLabel("schema_version: 2.0.0"), false);
   assert.equal(containsRepositoryVersionLabel("actions/checkout@v4"), false);
-  assert.equal(containsRepositoryVersionLabelPath("api/v1/projects.ts"), false);
+  assert.equal(
+    containsRepositoryVersionLabelPath(
+      ["api", ["v", "1"].join(""), "projects.ts"].join("/"),
+    ),
+    false,
+  );
 });
 
 test("detects repository progress wording", () => {
@@ -180,7 +205,10 @@ test("recognizes repository text and template exemptions", () => {
     isIssueOrPullRequestBodyTemplatePath(".github/ISSUE_TEMPLATE/chore.md"),
     true,
   );
-  assert.equal(isIssueOrPullRequestBodyTemplatePath("docs/authority.md"), false);
+  assert.equal(
+    isIssueOrPullRequestBodyTemplatePath("docs/authority.md"),
+    false,
+  );
 });
 
 test("rejects stub wording only in production schemas", () => {

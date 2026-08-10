@@ -1164,7 +1164,7 @@
     },
     "CrossmatchResult": {
       "additionalProperties": false,
-      "description": "Typed Versioned Data Artifact handoff; publication and ArtifactVersion identity are out of scope.",
+      "description": "Typed Data Artifact handoff; publication and ArtifactVersion identity are out of scope.",
       "properties": {
         "admission_context": {
           "$ref": "#/$defs/CrossmatchAdmissionContext"
@@ -6335,7 +6335,7 @@
     },
     "UncertaintyPolicy": {
       "additionalProperties": false,
-      "description": "Versioned declaration for preserving source uncertainties.",
+      "description": "Hashed declaration for preserving source uncertainties.",
       "properties": {
         "mode": {
           "$ref": "#/$defs/UncertaintyMode"

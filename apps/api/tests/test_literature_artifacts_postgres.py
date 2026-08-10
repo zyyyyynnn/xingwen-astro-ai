@@ -26,6 +26,12 @@ from app.db.models import (
     StepAttemptModel,
 )
 from app.db.session import create_engine_from_url, session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_contract,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.main import create_app
 from app.schemas.literature_relation import LiteratureRelationStatus
 from app.services.artifacts import ArtifactReadService
@@ -233,19 +239,19 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
     }
 
     with factory() as session, session.begin():
-        project = ResearchProjectModel(
-            id=project_id,
+        project = build_research_project(
+            project_id=project_id,
             session_id=owner.id,
             name="Literature Artifact API PostgreSQL reads",
             case_key="exoplanet_host_star",
-            revision=1,
             created_at=NOW,
             updated_at=NOW,
         )
-        contract = ResearchContractModel(
-            id=contract_id,
-            project_id=project_id,
-            version=1,
+        draft = build_contract_draft(project, created_at=NOW, updated_at=NOW)
+        contract = build_research_contract(
+            project,
+            draft,
+            contract_id=contract_id,
             content_hash=HASH_A,
             created_at=NOW,
         )
@@ -288,9 +294,9 @@ def literature_context(postgres_engine: Engine) -> dict[str, Any]:
             finished_at=NOW + timedelta(seconds=1),
             created_at=NOW,
         )
-        session.add(project)
-        session.flush()
-        session.add(contract)
+        persist_authoring_models(
+            session, project=project, draft=draft, contract=contract
+        )
         session.flush()
         session.add(run)
         session.flush()

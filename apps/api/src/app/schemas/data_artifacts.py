@@ -1364,7 +1364,7 @@ class DataArtifactBuildInput(BaseModel):
             self.mapping_rule_set.field_manifest_content_hash,
         )
         if result_pins != expected_pins or rule_pins != expected_pins:
-            raise ValueError("Manifest pins disagree across Versioned Data Artifact inputs")
+            raise ValueError("Manifest pins disagree across Data Artifact inputs")
         if (
             self.conversion_catalog.field_manifest_id != pins.field_manifest_id
             or self.conversion_catalog.field_manifest_version

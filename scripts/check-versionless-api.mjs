@@ -4,9 +4,8 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 
 /**
- * Guards against reintroduction of version-prefixed API paths (`/api/v1`,
- * `/api/v2`, …) after the versionless de-naming pass. The whole product now
- * speaks a single versionless `/api/*` surface; a stray `/api/vN` literal in
+ * Guards against reintroduction of version-prefixed API paths. The whole product now
+ * speaks a single versionless `/api/*` surface; a stray version segment in
  * source, config, or docs signals an accidental regression.
  *
  * Node built-ins only; mirrors the style of the other `scripts/check-*.mjs`

@@ -1,12 +1,12 @@
 {
   "benchmark_id": "exoplanet_host_star.crossmatch_benchmark",
   "version": "2.0.0",
-  "content_hash": "sha256:65ea8d8be76d5ba14c98f4450ce99a5a3eafd438b92d5a5f3225c04e51449760",
+  "content_hash": "sha256:f71d5a55121efbc6d5447fb6b61cb6cec7de34886a83c40ac0a35094bffedf11",
   "data_level": "synthetic_fixture",
-  "provenance_note": "Versioned synthetic fixture for deterministic cross-source entity alignment review; not scientific ground truth.",
+  "provenance_note": "Pinned synthetic fixture for deterministic cross-source entity alignment review; not scientific ground truth.",
   "rule_set_id": "exoplanet_host_star.crossmatch_rules",
   "rule_set_version": "2.0.0",
-  "rule_set_content_hash": "sha256:11429d2c1a883dff6805597fd582c28fb50012b133565b6d180b2a17f7164863",
+  "rule_set_content_hash": "sha256:6af2835af2d41ee01b96310de078f69027a2bf1b212215d158e840e0e8d03209",
   "scenarios": [
     {
       "scenario_id": "exact_one_to_one",

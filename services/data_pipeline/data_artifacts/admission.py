@@ -1,4 +1,4 @@
-"""Independent, projection-based Publisher admission for Versioned Data Artifact candidates."""
+"""Independent, projection-based Publisher admission for Data Artifact candidates."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def _candidate(context: AdmissionContext) -> Candidate:
             SourceCollectionArtifactCandidate,
         ),
     ):
-        raise ValueError("unsupported Versioned Data Artifact candidate type")
+        raise ValueError("unsupported Data Artifact candidate type")
     return candidate
 
 
@@ -59,11 +59,11 @@ def _revalidate(candidate: Candidate) -> Candidate:
 def _publication_input(candidate: Candidate) -> DataArtifactBuildInput:
     snapshot = getattr(candidate, "_artifact_publication_context", None)
     if snapshot is None or not hasattr(snapshot, "input_json"):
-        raise ValueError("candidate lacks its immutable Versioned Data Artifact admission snapshot")
+        raise ValueError("candidate lacks its immutable Data Artifact admission snapshot")
     try:
         input_value = DataArtifactBuildInput.model_validate_json(snapshot.input_json)
     except ValidationError as exc:
-        raise ValueError("immutable Versioned Data Artifact admission snapshot is invalid") from exc
+        raise ValueError("immutable Data Artifact admission snapshot is invalid") from exc
     if (
         snapshot.input_hash != input_value.input_hash
         or input_value.input_hash != candidate.input_hash
@@ -250,7 +250,7 @@ def validate_data_artifact_candidates_against_input(
         elif isinstance(candidate, SourceCollectionArtifactCandidate):
             _validate_source_collection(candidate, projection)
         else:
-            raise ValueError("unsupported Versioned Data Artifact candidate type")
+            raise ValueError("unsupported Data Artifact candidate type")
         _validate_identity(candidate)
         _revalidate(candidate)
 
@@ -281,7 +281,7 @@ def validate_data_artifact_domain(context: AdmissionContext) -> None:
 def validate_data_artifact_quality_prerequisites(context: AdmissionContext) -> None:
     candidate = _independent_validate(_candidate(context))
     if candidate.quality_evaluation_status != "not_evaluated":
-        raise ValueError("Versioned Data Artifact must not evaluate data quality")
+        raise ValueError("Data Artifact must not evaluate data quality")
     if (
         isinstance(candidate, DatasetArtifactCandidate)
         and not candidate.quality_metric_input_declarations

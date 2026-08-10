@@ -29,6 +29,12 @@ from app.db.models import (
 )
 from app.db.repositories import UnitOfWork
 from app.db.session import create_engine_from_url, session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_contract,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.workflow.store import (
     LeaseGrant,
     LeaseUnavailableError,
@@ -99,23 +105,23 @@ def _seed_project(
     engine: Engine,
 ) -> tuple[PersistentWorkflowStore, ResearchProjectModel, ResearchContractModel]:
     factory = session_factory(engine)
-    project = ResearchProjectModel(
-        id=uuid4(),
+    project = build_research_project(
+        project_id=uuid4(),
         session_id=f"session-{uuid4()}",
         name="Workflow Store Test",
         case_key="exoplanet_host_star",
-        revision=1,
     )
-    contract = ResearchContractModel(
-        id=uuid4(),
-        project_id=project.id,
-        version=1,
+    draft = build_contract_draft(project)
+    contract = build_research_contract(
+        project,
+        draft,
+        contract_id=uuid4(),
         content_hash="sha256:" + "a" * 64,
     )
     with UnitOfWork(factory) as uow:
-        uow.session.add(project)
-        uow.session.flush()
-        uow.session.add(contract)
+        persist_authoring_models(
+            uow.session, project=project, draft=draft, contract=contract
+        )
         uow.commit()
     store = PersistentWorkflowStore(factory)
     return store, project, contract

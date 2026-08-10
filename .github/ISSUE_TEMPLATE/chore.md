@@ -25,6 +25,10 @@ labels: ["type:task"]
 
 -
 
+## 失败语义
+
+-
+
 ## 验收标准
 
 - [ ] 每项验收都能通过测试、运行、Contract 或可复核材料观察。
@@ -47,5 +51,5 @@ labels: ["type:task"]
 
 本模板只用于原子 Task / Chore。一个 PR 只能有一个主要 Task、Bug 或 Gate；同一 Issue 的
 真实阻塞使用原生依赖。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub native metadata，
-不得复制到正文，不在正文维护第二套动态状态、依赖清单或子任务 checklist。Issue 标题必须使用
-仓库批准的 responsibility task code，形式为 `[A|B|C|D|X]-NN 简短领域描述`。
+不得复制到正文，不在正文维护第二套动态状态、依赖清单或子任务 checklist。Issue 标题遵循
+`CONTRIBUTING.md` 的唯一规范。

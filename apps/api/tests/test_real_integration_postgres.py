@@ -42,6 +42,11 @@ from app.db.models import (
     SourceSnapshotModel,
 )
 from app.main import create_app
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.workflow.publisher import (
     ArtifactAdmissionContext,
     ArtifactPublication,
@@ -142,35 +147,25 @@ def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
     project_id = uuid4()
     draft_id = uuid4()
     with factory() as session, session.begin():
-        session.add(
-            ResearchProjectModel(
-                id=project_id,
-                session_id=owner.id,
-                name="Real Compose and Browser Integration gap coverage chain",
-                case_key="exoplanet_host_star",
-                revision=1,
-                created_at=NOW,
-                updated_at=NOW,
-                idempotency_key="fixture-project",
-                request_hash="sha256:" + "a" * 64,
-            )
+        project = build_research_project(
+            project_id=project_id,
+            session_id=owner.id,
+            name="Real Compose and Browser Integration gap coverage chain",
+            case_key="exoplanet_host_star",
+            created_at=NOW,
+            updated_at=NOW,
         )
-        session.add(
-            ResearchContractDraftModel(
-                id=draft_id,
-                session_id=owner.id,
-                version=1,
-                intent="Integrate exoplanet candidates and host-star parameters",
-                status="draft",
-                contract=_contract_input(),
-                warnings=[],
-                created_at=NOW,
-                updated_at=NOW,
-                expires_at=datetime.now(UTC) + timedelta(hours=1),
-                idempotency_key="fixture-draft",
-                request_hash="sha256:" + "b" * 64,
-            )
+        draft = build_contract_draft(
+            project,
+            draft_id=draft_id,
+            intent="Integrate exoplanet candidates and host-star parameters",
+            status="draft",
+            content=_contract_input(),
+            created_at=NOW,
+            updated_at=NOW,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
+        persist_authoring_models(session, project=project, draft=draft)
 
     with TestClient(app, base_url="https://testserver") as client:
         client.cookies.set(settings.SESSION_COOKIE_NAME, owner_credential)

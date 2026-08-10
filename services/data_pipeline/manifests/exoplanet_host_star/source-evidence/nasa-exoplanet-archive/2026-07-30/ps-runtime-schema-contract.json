@@ -53,5 +53,5 @@
     "sy_refname": "string",
     "tic_id": "string"
   },
-  "provenance_note": "Versioned runtime datatype categories derived from the frozen case and field manifest NASA PS column adjudication and the recorded official TAP_SCHEMA response. Exact upstream datatype spellings are normalized to string, integer, or number before comparison."
+  "provenance_note": "Pinned runtime datatype categories derived from the frozen case and field manifest NASA PS column adjudication and the recorded official TAP_SCHEMA response. Exact upstream datatype spellings are normalized to string, integer, or number before comparison."
 }

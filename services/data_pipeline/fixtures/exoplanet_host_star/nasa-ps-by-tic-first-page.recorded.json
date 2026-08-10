@@ -19,7 +19,7 @@
   "column_contract_content_hash": "sha256:a4351598b4cc9ec0537a95e30f6abaa1af6e6c8e015f1d7a8662a4ce4708625a",
   "runtime_schema_contract_id": "nasa_exoplanet_archive.ps.runtime_schema.2026-07-30",
   "runtime_schema_contract_version": "1.0.0",
-  "runtime_schema_contract_content_hash": "sha256:c2e193fb0bceb59ce68672747004c503892326f58a9e7887f3e0f5495649a066",
+  "runtime_schema_contract_content_hash": "sha256:9542eb05dc37053347e3d27c1598a1ea3586d439fb05eb6f331fef9960c49245",
   "input_identity_field": "star.tic_id",
   "input_values": ["TIC 219698776"],
   "pagination": {
@@ -28,7 +28,7 @@
     "record_limit": 2
   },
   "input_hash": "sha256:29433dc3cd93c27fc9a59132895dbd7b43c7054a115bb08a1871edebe517e662",
-  "query_hash": "sha256:823adc455cfe1807ed9470fa33f3aaafef57123ee627e2213eb2d45da537776e",
+  "query_hash": "sha256:8ab5444cb0000fc7533ef5511fc00a428b458f82f7c402c35d7705ea0eef8995",
   "schema_response_hash": "sha256:a28e495ee8ee1d22d4d3d312cccf9e0e61ec68684454c83724ac5f7e4ba3151a",
   "page_response_hash": "sha256:d79407c7c9385291a58fdd02037e87b70270ba8880c95eb08976f7a117c176e9",
   "provenance_note": "Recorded from a successful bounded supplemental source acquisition metadata request to the official NASA Exoplanet Archive TAP sync endpoint. The request used the normalized TIC inputs and pagination stored here; schema_response_hash and page_response_hash bind the two captured JSON responses. Replay is fixture evidence and must never be labeled live or cached.",
@@ -382,5 +382,5 @@
   "page_safe_response_headers": {
     "date": "Thu, 30 Jul 2026 05:56:12 GMT"
   },
-  "content_hash": "sha256:072506e9f2918f344e432ff3db408f77cf62295b7443373468c1ed8e2e511c57"
+  "content_hash": "sha256:07621a53faf7320afdd93eb3b312df20aa05b9bfb43c3f767c7fb43d0e916c26"
 }

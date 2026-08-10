@@ -16,8 +16,8 @@
     "version_number": 1,
     "supersedes_version_id": null,
     "source_mode": "fixture",
-    "content_hash": "sha256:f39aee42051a9f0f4dd06c4ceef7b0f0b5758fde3912ff6c6c39f3de89ede0e1",
-    "input_hash": "sha256:09a77b147fbf799b6c7b6f15fc1c13284337ad057f55747a254ac820a51bb144",
+    "content_hash": "sha256:ac42f12e62c2373bdc6c5f06f58030de4504ea7a804276d36aeca16806e52a01",
+    "input_hash": "sha256:5fe27228186f3fe15db7f32b72c2632db86cfd6a23d03163b1b0c88c1f5a5bf6",
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -28,7 +28,7 @@
     "summary": {
       "kind": "paper_summary",
       "schema_version": "1.0.0",
-      "summary_id": "summary.ff8d05f60b90dbf0cb777012",
+      "summary_id": "summary.02003538f97339c4b570e1dc",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "benchmark": {
         "benchmark_id": "exoplanet_host_star.paper_reasoning",
@@ -41,7 +41,7 @@
       "input_versions": {
         "paper_collection_version_id": "artv_papcol_01",
         "paper_collection_schema_version": "2.0.0",
-        "paper_collection_output_hash": "sha256:e4385568436b63926318b49da02d12dc40ef0ef5c532f2ee2793a6a1be596729",
+        "paper_collection_output_hash": "sha256:90a43952773d09a05cfb8950bbadd9e6e7c02a5ca03403e5fb517ecdada9401d",
         "source_snapshots": [
           {
             "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
@@ -185,7 +185,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.09a77b147fbf799b6c7b6f15",
+        "execution_id": "execution.5fe27228186f3fe15db7f32b",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -200,7 +200,7 @@
         "input_versions": {
           "paper_collection_version_id": "artv_papcol_01",
           "paper_collection_schema_version": "2.0.0",
-          "paper_collection_output_hash": "sha256:e4385568436b63926318b49da02d12dc40ef0ef5c532f2ee2793a6a1be596729",
+          "paper_collection_output_hash": "sha256:90a43952773d09a05cfb8950bbadd9e6e7c02a5ca03403e5fb517ecdada9401d",
           "source_snapshots": [
             {
               "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
@@ -210,17 +210,17 @@
             }
           ]
         },
-        "input_hash": "sha256:09a77b147fbf799b6c7b6f15fc1c13284337ad057f55747a254ac820a51bb144",
+        "input_hash": "sha256:5fe27228186f3fe15db7f32b72c2632db86cfd6a23d03163b1b0c88c1f5a5bf6",
         "model_response_hash": "sha256:55298827faa717234747414f5c3fd53bf7b9e2fa0967b3f186600571d4223c39",
-        "output_hash": "sha256:ac54170e1d7b4c8905d2f8eb39d0b6ecc94eecaddc385f88a0d6ec49acd079eb",
+        "output_hash": "sha256:ed430649b6f99a4120721fe779d97c9cc1ad8304e940bf5ef1aaf0fc0fa43723",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:09a77b147fbf799b6c7b6f15fc1c13284337ad057f55747a254ac820a51bb144",
-      "output_hash": "sha256:ac54170e1d7b4c8905d2f8eb39d0b6ecc94eecaddc385f88a0d6ec49acd079eb"
+      "input_hash": "sha256:5fe27228186f3fe15db7f32b72c2632db86cfd6a23d03163b1b0c88c1f5a5bf6",
+      "output_hash": "sha256:ed430649b6f99a4120721fe779d97c9cc1ad8304e940bf5ef1aaf0fc0fa43723"
     },
     "cache_audits": [],
     "producer_execution": {
@@ -244,8 +244,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:09a77b147fbf799b6c7b6f15fc1c13284337ad057f55747a254ac820a51bb144",
-      "output_hash": "sha256:f39aee42051a9f0f4dd06c4ceef7b0f0b5758fde3912ff6c6c39f3de89ede0e1",
+      "input_hash": "sha256:5fe27228186f3fe15db7f32b72c2632db86cfd6a23d03163b1b0c88c1f5a5bf6",
+      "output_hash": "sha256:ac42f12e62c2373bdc6c5f06f58030de4504ea7a804276d36aeca16806e52a01",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -366,7 +366,7 @@
     "content": {
       "kind": "paper_summary",
       "schema_version": "1.0.0",
-      "summary_id": "summary.ff8d05f60b90dbf0cb777012",
+      "summary_id": "summary.02003538f97339c4b570e1dc",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "benchmark": {
         "benchmark_id": "exoplanet_host_star.paper_reasoning",
@@ -379,7 +379,7 @@
       "input_versions": {
         "paper_collection_version_id": "artv_papcol_01",
         "paper_collection_schema_version": "2.0.0",
-        "paper_collection_output_hash": "sha256:e4385568436b63926318b49da02d12dc40ef0ef5c532f2ee2793a6a1be596729",
+        "paper_collection_output_hash": "sha256:90a43952773d09a05cfb8950bbadd9e6e7c02a5ca03403e5fb517ecdada9401d",
         "source_snapshots": [
           {
             "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
@@ -523,7 +523,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.09a77b147fbf799b6c7b6f15",
+        "execution_id": "execution.5fe27228186f3fe15db7f32b",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -538,7 +538,7 @@
         "input_versions": {
           "paper_collection_version_id": "artv_papcol_01",
           "paper_collection_schema_version": "2.0.0",
-          "paper_collection_output_hash": "sha256:e4385568436b63926318b49da02d12dc40ef0ef5c532f2ee2793a6a1be596729",
+          "paper_collection_output_hash": "sha256:90a43952773d09a05cfb8950bbadd9e6e7c02a5ca03403e5fb517ecdada9401d",
           "source_snapshots": [
             {
               "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
@@ -548,20 +548,20 @@
             }
           ]
         },
-        "input_hash": "sha256:09a77b147fbf799b6c7b6f15fc1c13284337ad057f55747a254ac820a51bb144",
+        "input_hash": "sha256:5fe27228186f3fe15db7f32b72c2632db86cfd6a23d03163b1b0c88c1f5a5bf6",
         "model_response_hash": "sha256:55298827faa717234747414f5c3fd53bf7b9e2fa0967b3f186600571d4223c39",
-        "output_hash": "sha256:ac54170e1d7b4c8905d2f8eb39d0b6ecc94eecaddc385f88a0d6ec49acd079eb",
+        "output_hash": "sha256:ed430649b6f99a4120721fe779d97c9cc1ad8304e940bf5ef1aaf0fc0fa43723",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:09a77b147fbf799b6c7b6f15fc1c13284337ad057f55747a254ac820a51bb144",
-      "output_hash": "sha256:ac54170e1d7b4c8905d2f8eb39d0b6ecc94eecaddc385f88a0d6ec49acd079eb"
+      "input_hash": "sha256:5fe27228186f3fe15db7f32b72c2632db86cfd6a23d03163b1b0c88c1f5a5bf6",
+      "output_hash": "sha256:ed430649b6f99a4120721fe779d97c9cc1ad8304e940bf5ef1aaf0fc0fa43723"
     },
-    "content_hash": "sha256:f39aee42051a9f0f4dd06c4ceef7b0f0b5758fde3912ff6c6c39f3de89ede0e1",
-    "input_hash": "sha256:09a77b147fbf799b6c7b6f15fc1c13284337ad057f55747a254ac820a51bb144",
+    "content_hash": "sha256:ac42f12e62c2373bdc6c5f06f58030de4504ea7a804276d36aeca16806e52a01",
+    "input_hash": "sha256:5fe27228186f3fe15db7f32b72c2632db86cfd6a23d03163b1b0c88c1f5a5bf6",
     "source_mode": "fixture",
     "producer": {
       "type": "model",
@@ -604,8 +604,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:09a77b147fbf799b6c7b6f15fc1c13284337ad057f55747a254ac820a51bb144",
-      "output_hash": "sha256:f39aee42051a9f0f4dd06c4ceef7b0f0b5758fde3912ff6c6c39f3de89ede0e1",
+      "input_hash": "sha256:5fe27228186f3fe15db7f32b72c2632db86cfd6a23d03163b1b0c88c1f5a5bf6",
+      "output_hash": "sha256:ac42f12e62c2373bdc6c5f06f58030de4504ea7a804276d36aeca16806e52a01",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",

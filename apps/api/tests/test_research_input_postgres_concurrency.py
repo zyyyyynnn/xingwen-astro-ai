@@ -21,6 +21,7 @@ from app.db.models import (
     ResearchProjectModel,
 )
 from app.db.session import create_engine_from_url, session_factory
+from authoring_test_support import build_research_project
 from app.schemas.research_input import ResearchInputCreate
 from app.security import SecurityProblem
 from app.services.content_storage import sha256_content_hash
@@ -72,12 +73,11 @@ def database() -> tuple[Engine, object, UUID, str]:
 
     with factory() as session, session.begin():
         session.add(
-            ResearchProjectModel(
-                id=project_id,
+            build_research_project(
+                project_id=project_id,
                 session_id=session_id,
                 name="Research Input Ingestion concurrency",
                 case_key="exoplanet_host_star",
-                revision=1,
                 created_at=now,
                 updated_at=now,
             )

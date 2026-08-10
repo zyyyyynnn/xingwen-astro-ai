@@ -1,7 +1,7 @@
-"""Canonical identity projections for Versioned Data Artifact Dataset candidates.
+"""Canonical identity projections for Data Artifact Dataset candidates.
 
 This module operates on serialized contract payloads and does not import the
-Versioned Data Artifact Pydantic models. Scientific identity therefore stays independent from
+Data Artifact Pydantic models. Scientific identity therefore stays independent from
 Schema construction and process-local publication admission.
 """
 
@@ -208,7 +208,7 @@ def _canonical_row_identity(value: Any) -> dict[str, Any]:
 
 
 def dataset_scientific_projection(value: Any) -> dict[str, Any]:
-    """Return the complete Versioned Data Artifact scientific projection used for Dataset identity."""
+    """Return the complete Data Artifact scientific projection used for Dataset identity."""
 
     payload = _payload(value)
     source_values = {

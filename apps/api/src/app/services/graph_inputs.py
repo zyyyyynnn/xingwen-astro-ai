@@ -746,7 +746,7 @@ def _validated_data_mappings(
             )
         if not valid:
             raise GraphInputIntegrityError(
-                "governed data Evidence mapping does not close its Versioned Data Artifact Transformation/Crossmatch identity",
+                "governed data Evidence mapping does not close its Data Artifact Transformation/Crossmatch identity",
                 stage=GraphIntegrityStage.evidence_snapshot,
                 reason=GraphRejectionReason.evidence_inconsistent,
                 path=(

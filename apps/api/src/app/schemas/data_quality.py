@@ -799,7 +799,7 @@ class QualityInputReferences(BaseModel):
             "field_dictionary",
             "source_collection",
         ):
-            raise ValueError("quality input references must use canonical Versioned Data Artifact candidate order")
+            raise ValueError("quality input references must use canonical Data Artifact candidate order")
         if len(self.requested_field_ids) != len(set(self.requested_field_ids)):
             raise ValueError("quality input references contain duplicate requested fields")
         if len(self.row_ids) != len(set(self.row_ids)):

@@ -29,6 +29,12 @@ from app.db.models import (
     SourceSnapshotModel,
 )
 from app.db.session import create_engine_from_url, session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_contract,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.main import create_app
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.research_input import ResearchInputCreate
@@ -95,50 +101,46 @@ def store_context(postgres_engine: Engine) -> dict[str, object]:
     }
     with factory() as session, session.begin():
         session.add_all(
-            [
-                ResearchProjectModel(
-                    id=ids["project"],
+            (
+                build_research_project(
+                    project_id=ids["project"],
                     session_id=owner.id,
                     name="Research Input Ingestion inputs",
                     case_key="exoplanet_host_star",
-                    revision=1,
                     created_at=NOW,
                     updated_at=NOW,
                 ),
-                ResearchProjectModel(
-                    id=ids["other_project"],
+                build_research_project(
+                    project_id=ids["other_project"],
                     session_id=other.id,
                     name="other session",
                     case_key="exoplanet_host_star",
-                    revision=1,
                     created_at=NOW,
                     updated_at=NOW,
                 ),
-            ]
+            )
         )
     with factory() as session, session.begin():
-        session.add_all(
-            [
-                ResearchContractModel(
-                    id=ids["contract"],
-                    project_id=ids["project"],
-                    version=1,
-                    content_hash="sha256:" + "0" * 64,
-                    content={},
-                    idempotency_key="test-contract-1",
-                    created_at=NOW,
-                ),
-                ResearchContractDraftModel(
-                    id=ids["contract"],
-                    session_id=owner.id,
-                    version=1,
-                    intent="seed draft",
-                    status="draft",
-                    contract={},
-                    warnings=[],
-                    expires_at=NOW,
-                ),
-            ]
+        project = session.get(ResearchProjectModel, ids["project"])
+        assert project is not None
+        draft = build_contract_draft(
+            project,
+            draft_id=ids["contract"],
+            intent="Research Input seed draft",
+            status="draft",
+            created_at=NOW,
+            updated_at=NOW,
+            expires_at=NOW,
+        )
+        contract = build_research_contract(
+            project,
+            draft,
+            contract_id=ids["contract"],
+            content_hash="sha256:" + "0" * 64,
+            created_at=NOW,
+        )
+        persist_authoring_models(
+            session, project=project, draft=draft, contract=contract
         )
     with factory() as session, session.begin():
         session.add_all(

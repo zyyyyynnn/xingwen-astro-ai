@@ -44,9 +44,7 @@
         "normalized_query_string": "(tess or \"transiting exoplanet survey satellite\") and (\"input catalog\" or \"objects of interest\" or \"nearby bright stars\")",
         "year_from": 2014,
         "year_to": 2021,
-        "source_ids": [
-          "crossref"
-        ],
+        "source_ids": ["crossref"],
         "source_parameters": {
           "crossref": {
             "query.bibliographic": "(tess or \"transiting exoplanet survey satellite\") and (\"input catalog\" or \"objects of interest\" or \"nearby bright stars\")",
@@ -146,9 +144,7 @@
           }
         }
       ],
-      "source_snapshot_ids": [
-        "snapshot.crossref.68fe9f1b242e5c96da0ba707"
-      ],
+      "source_snapshot_ids": ["snapshot.crossref.68fe9f1b242e5c96da0ba707"],
       "candidates": [
         {
           "candidate_id": "candidate.9c9bf84a0444a734b7c3e1d319eeb544e21e04aa8ff4f53831e544ed4554df9c",
@@ -157,10 +153,7 @@
             "source_record_id": "crossref:demo-duplicate-toi-catalog",
             "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
             "title": "TESS Objects of Interest Catalog from the TESS Prime Mission",
-            "authors": [
-              "Natalia M. Guerrero",
-              "Sara Seager"
-            ],
+            "authors": ["Natalia M. Guerrero", "Sara Seager"],
             "year": 2021,
             "doi": "10.3847/1538-4365/abefe1",
             "arxiv_id": null,
@@ -172,14 +165,8 @@
           "canonical_identity_basis": "doi",
           "title": "TESS Objects of Interest Catalog from the TESS Prime Mission",
           "normalized_title": "tess objects of interest catalog from the tess prime mission",
-          "authors": [
-            "Natalia M. Guerrero",
-            "Sara Seager"
-          ],
-          "normalized_authors": [
-            "natalia m guerrero",
-            "sara seager"
-          ],
+          "authors": ["Natalia M. Guerrero", "Sara Seager"],
+          "normalized_authors": ["natalia m guerrero", "sara seager"],
           "year": 2021,
           "doi": "10.3847/1538-4365/abefe1",
           "arxiv_id": null,
@@ -233,11 +220,7 @@
           "canonical_identity_basis": "doi",
           "title": "The TESS Objects of Interest Catalog from the TESS Prime Mission",
           "normalized_title": "the tess objects of interest catalog from the tess prime mission",
-          "authors": [
-            "Natalia M. Guerrero",
-            "Sara Seager",
-            "Chelsea X. Huang"
-          ],
+          "authors": ["Natalia M. Guerrero", "Sara Seager", "Chelsea X. Huang"],
           "normalized_authors": [
             "natalia m guerrero",
             "sara seager",
@@ -296,11 +279,7 @@
           "canonical_identity_basis": "doi",
           "title": "The Revised TESS Input Catalog and Candidate Target List",
           "normalized_title": "the revised tess input catalog and candidate target list",
-          "authors": [
-            "Keivan G. Stassun",
-            "Ryan J. Oelkers",
-            "Martin Paegert"
-          ],
+          "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Martin Paegert"],
           "normalized_authors": [
             "keivan g stassun",
             "ryan j oelkers",
@@ -311,9 +290,7 @@
           "arxiv_id": "1905.10694",
           "url": "https://doi.org/10.3847/1538-3881/ab3467",
           "duplicate_group_id": "duplicate.bbe6ce23a7d76788c050b579dc9c5b05a9ffea24ff30db642c4f771809f059f7",
-          "dedupe_evidence": [
-            "singleton"
-          ],
+          "dedupe_evidence": ["singleton"],
           "conflicts": [],
           "relevance_score": 0.541667,
           "ranking_key": "0.458333|the revised tess input catalog and candidate target list|2019|paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad|candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
@@ -346,11 +323,7 @@
           "canonical_identity_basis": "doi",
           "title": "The TESS Input Catalog and Candidate Target List",
           "normalized_title": "the tess input catalog and candidate target list",
-          "authors": [
-            "Keivan G. Stassun",
-            "Ryan J. Oelkers",
-            "Joshua Pepper"
-          ],
+          "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Joshua Pepper"],
           "normalized_authors": [
             "keivan g stassun",
             "ryan j oelkers",
@@ -361,9 +334,7 @@
           "arxiv_id": "1706.00495",
           "url": "https://doi.org/10.3847/1538-3881/aad050",
           "duplicate_group_id": "duplicate.2568e5ac65b929080c736831f4102cf986c3f7b8571fc9794fc3e3689a9d3fc4",
-          "dedupe_evidence": [
-            "singleton"
-          ],
+          "dedupe_evidence": ["singleton"],
           "conflicts": [],
           "relevance_score": 0.541667,
           "ranking_key": "0.458333|the tess input catalog and candidate target list|2018|paper.5150cdc95743446bb0b705185b7b07ea6d09fb7bda82b860a28b72ec6cacb3ab|candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a",
@@ -411,9 +382,7 @@
           "arxiv_id": "1406.0151",
           "url": "https://doi.org/10.1117/1.jatis.1.1.014003",
           "duplicate_group_id": "duplicate.d2a5221deb0352e365e98ea8a58f79e9d130ca04aee8b852999dc83f7346e0c0",
-          "dedupe_evidence": [
-            "singleton"
-          ],
+          "dedupe_evidence": ["singleton"],
           "conflicts": [
             {
               "field": "authors",
@@ -437,9 +406,7 @@
             "source_record_id": "crossref:demo-uncertain-mission-reprint",
             "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
             "title": "Transiting Exoplanet Survey Satellite",
-            "authors": [
-              "Anonymous Compiler"
-            ],
+            "authors": ["Anonymous Compiler"],
             "year": 2015,
             "doi": null,
             "arxiv_id": null,
@@ -451,20 +418,14 @@
           "canonical_identity_basis": "title_year_authors",
           "title": "Transiting Exoplanet Survey Satellite",
           "normalized_title": "transiting exoplanet survey satellite",
-          "authors": [
-            "Anonymous Compiler"
-          ],
-          "normalized_authors": [
-            "anonymous compiler"
-          ],
+          "authors": ["Anonymous Compiler"],
+          "normalized_authors": ["anonymous compiler"],
           "year": 2015,
           "doi": null,
           "arxiv_id": null,
           "url": "https://example.org/reprints/tess-mission",
           "duplicate_group_id": "duplicate.85ad77c19ab2d40de63fc99f6705789d3c24e5664181cca9e9bc2b53b3cc8ec9",
-          "dedupe_evidence": [
-            "singleton"
-          ],
+          "dedupe_evidence": ["singleton"],
           "conflicts": [
             {
               "field": "authors",
@@ -488,9 +449,7 @@
             "source_record_id": "crossref:demo-unrelated-flares",
             "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
             "title": "A Survey of Unrelated M-dwarf Flares",
-            "authors": [
-              "D. Surveyor"
-            ],
+            "authors": ["D. Surveyor"],
             "year": 2019,
             "doi": null,
             "arxiv_id": null,
@@ -502,20 +461,14 @@
           "canonical_identity_basis": "title_year_authors",
           "title": "A Survey of Unrelated M-dwarf Flares",
           "normalized_title": "a survey of unrelated m dwarf flares",
-          "authors": [
-            "D. Surveyor"
-          ],
-          "normalized_authors": [
-            "d surveyor"
-          ],
+          "authors": ["D. Surveyor"],
+          "normalized_authors": ["d surveyor"],
           "year": 2019,
           "doi": null,
           "arxiv_id": null,
           "url": null,
           "duplicate_group_id": "duplicate.0a892787b4fd17747cfd680ebe3823c47af8e80d4c8a6a93c02eb46a9b324629",
-          "dedupe_evidence": [
-            "singleton"
-          ],
+          "dedupe_evidence": ["singleton"],
           "conflicts": [],
           "relevance_score": 0.133333,
           "ranking_key": "0.866667|a survey of unrelated m dwarf flares|2019|paper.1cd1bbb7e10827a8207b559d4f0ae95d97d5822a4cea48e296607119a61a443c|candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b",
@@ -533,9 +486,7 @@
           "candidate_ids": [
             "candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b"
           ],
-          "match_basis": [
-            "singleton"
-          ],
+          "match_basis": ["singleton"],
           "conflicts": []
         },
         {
@@ -544,9 +495,7 @@
           "candidate_ids": [
             "candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a"
           ],
-          "match_basis": [
-            "singleton"
-          ],
+          "match_basis": ["singleton"],
           "conflicts": []
         },
         {
@@ -556,9 +505,7 @@
             "candidate.02ce823d0f143321d28cc5559795fe8bbc1c15e39e6323ad845e71c123cbcedb",
             "candidate.9c9bf84a0444a734b7c3e1d319eeb544e21e04aa8ff4f53831e544ed4554df9c"
           ],
-          "match_basis": [
-            "doi_exact"
-          ],
+          "match_basis": ["doi_exact"],
           "conflicts": [
             {
               "field": "authors",
@@ -592,9 +539,7 @@
           "candidate_ids": [
             "candidate.b2abb7b70b542ae94f90f3f305d5b8222df8e4ce6b1777ebab159daa3bac781c"
           ],
-          "match_basis": [
-            "singleton"
-          ],
+          "match_basis": ["singleton"],
           "conflicts": []
         },
         {
@@ -603,9 +548,7 @@
           "candidate_ids": [
             "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488"
           ],
-          "match_basis": [
-            "singleton"
-          ],
+          "match_basis": ["singleton"],
           "conflicts": []
         },
         {
@@ -614,9 +557,7 @@
           "candidate_ids": [
             "candidate.c46a7e7bc6d500bbdd3d1a4dcabb15fa2db8ca4d67fccef4c2b56816d7dc0c0e"
           ],
-          "match_basis": [
-            "singleton"
-          ],
+          "match_basis": ["singleton"],
           "conflicts": []
         }
       ],
@@ -874,10 +815,7 @@
           "source_record_id": "crossref:demo-duplicate-toi-catalog",
           "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
           "title": "TESS Objects of Interest Catalog from the TESS Prime Mission",
-          "authors": [
-            "Natalia M. Guerrero",
-            "Sara Seager"
-          ],
+          "authors": ["Natalia M. Guerrero", "Sara Seager"],
           "year": 2021,
           "doi": "10.3847/1538-4365/abefe1",
           "arxiv_id": null,
@@ -889,14 +827,8 @@
         "canonical_identity_basis": "doi",
         "title": "TESS Objects of Interest Catalog from the TESS Prime Mission",
         "normalized_title": "tess objects of interest catalog from the tess prime mission",
-        "authors": [
-          "Natalia M. Guerrero",
-          "Sara Seager"
-        ],
-        "normalized_authors": [
-          "natalia m guerrero",
-          "sara seager"
-        ],
+        "authors": ["Natalia M. Guerrero", "Sara Seager"],
+        "normalized_authors": ["natalia m guerrero", "sara seager"],
         "year": 2021,
         "doi": "10.3847/1538-4365/abefe1",
         "arxiv_id": null,
@@ -934,9 +866,7 @@
           "candidate.02ce823d0f143321d28cc5559795fe8bbc1c15e39e6323ad845e71c123cbcedb",
           "candidate.9c9bf84a0444a734b7c3e1d319eeb544e21e04aa8ff4f53831e544ed4554df9c"
         ],
-        "match_basis": [
-          "doi_exact"
-        ],
+        "match_basis": ["doi_exact"],
         "conflicts": [
           {
             "field": "authors",
@@ -1011,11 +941,7 @@
           "source_record_id": "crossref:10.3847/1538-4365/abefe1",
           "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
           "title": "The TESS Objects of Interest Catalog from the TESS Prime Mission",
-          "authors": [
-            "Natalia M. Guerrero",
-            "Sara Seager",
-            "Chelsea X. Huang"
-          ],
+          "authors": ["Natalia M. Guerrero", "Sara Seager", "Chelsea X. Huang"],
           "year": 2021,
           "doi": "10.3847/1538-4365/abefe1",
           "arxiv_id": "2103.12538",
@@ -1027,11 +953,7 @@
         "canonical_identity_basis": "doi",
         "title": "The TESS Objects of Interest Catalog from the TESS Prime Mission",
         "normalized_title": "the tess objects of interest catalog from the tess prime mission",
-        "authors": [
-          "Natalia M. Guerrero",
-          "Sara Seager",
-          "Chelsea X. Huang"
-        ],
+        "authors": ["Natalia M. Guerrero", "Sara Seager", "Chelsea X. Huang"],
         "normalized_authors": [
           "natalia m guerrero",
           "sara seager",
@@ -1074,9 +996,7 @@
           "candidate.02ce823d0f143321d28cc5559795fe8bbc1c15e39e6323ad845e71c123cbcedb",
           "candidate.9c9bf84a0444a734b7c3e1d319eeb544e21e04aa8ff4f53831e544ed4554df9c"
         ],
-        "match_basis": [
-          "doi_exact"
-        ],
+        "match_basis": ["doi_exact"],
         "conflicts": [
           {
             "field": "authors",
@@ -1151,11 +1071,7 @@
           "source_record_id": "crossref:10.3847/1538-3881/ab3467",
           "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
           "title": "The Revised TESS Input Catalog and Candidate Target List",
-          "authors": [
-            "Keivan G. Stassun",
-            "Ryan J. Oelkers",
-            "Martin Paegert"
-          ],
+          "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Martin Paegert"],
           "year": 2019,
           "doi": "10.3847/1538-3881/ab3467",
           "arxiv_id": "1905.10694",
@@ -1167,11 +1083,7 @@
         "canonical_identity_basis": "doi",
         "title": "The Revised TESS Input Catalog and Candidate Target List",
         "normalized_title": "the revised tess input catalog and candidate target list",
-        "authors": [
-          "Keivan G. Stassun",
-          "Ryan J. Oelkers",
-          "Martin Paegert"
-        ],
+        "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Martin Paegert"],
         "normalized_authors": [
           "keivan g stassun",
           "ryan j oelkers",
@@ -1182,9 +1094,7 @@
         "arxiv_id": "1905.10694",
         "url": "https://doi.org/10.3847/1538-3881/ab3467",
         "duplicate_group_id": "duplicate.bbe6ce23a7d76788c050b579dc9c5b05a9ffea24ff30db642c4f771809f059f7",
-        "dedupe_evidence": [
-          "singleton"
-        ],
+        "dedupe_evidence": ["singleton"],
         "conflicts": [],
         "relevance_score": 0.541667,
         "ranking_key": "0.458333|the revised tess input catalog and candidate target list|2019|paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad|candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
@@ -1200,9 +1110,7 @@
         "candidate_ids": [
           "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488"
         ],
-        "match_basis": [
-          "singleton"
-        ],
+        "match_basis": ["singleton"],
         "conflicts": []
       },
       "source_snapshot": {
@@ -1252,11 +1160,7 @@
           "source_record_id": "crossref:10.3847/1538-3881/aad050",
           "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
           "title": "The TESS Input Catalog and Candidate Target List",
-          "authors": [
-            "Keivan G. Stassun",
-            "Ryan J. Oelkers",
-            "Joshua Pepper"
-          ],
+          "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Joshua Pepper"],
           "year": 2018,
           "doi": "10.3847/1538-3881/aad050",
           "arxiv_id": "1706.00495",
@@ -1268,11 +1172,7 @@
         "canonical_identity_basis": "doi",
         "title": "The TESS Input Catalog and Candidate Target List",
         "normalized_title": "the tess input catalog and candidate target list",
-        "authors": [
-          "Keivan G. Stassun",
-          "Ryan J. Oelkers",
-          "Joshua Pepper"
-        ],
+        "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Joshua Pepper"],
         "normalized_authors": [
           "keivan g stassun",
           "ryan j oelkers",
@@ -1283,9 +1183,7 @@
         "arxiv_id": "1706.00495",
         "url": "https://doi.org/10.3847/1538-3881/aad050",
         "duplicate_group_id": "duplicate.2568e5ac65b929080c736831f4102cf986c3f7b8571fc9794fc3e3689a9d3fc4",
-        "dedupe_evidence": [
-          "singleton"
-        ],
+        "dedupe_evidence": ["singleton"],
         "conflicts": [],
         "relevance_score": 0.541667,
         "ranking_key": "0.458333|the tess input catalog and candidate target list|2018|paper.5150cdc95743446bb0b705185b7b07ea6d09fb7bda82b860a28b72ec6cacb3ab|candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a",
@@ -1301,9 +1199,7 @@
         "candidate_ids": [
           "candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a"
         ],
-        "match_basis": [
-          "singleton"
-        ],
+        "match_basis": ["singleton"],
         "conflicts": []
       },
       "source_snapshot": {
@@ -1369,11 +1265,7 @@
         "canonical_identity_basis": "doi",
         "title": "Transiting Exoplanet Survey Satellite",
         "normalized_title": "transiting exoplanet survey satellite",
-        "authors": [
-          "George R. Ricker",
-          "Joshua N. Winn",
-          "Roland Vanderspek"
-        ],
+        "authors": ["George R. Ricker", "Joshua N. Winn", "Roland Vanderspek"],
         "normalized_authors": [
           "george r ricker",
           "joshua n winn",
@@ -1384,9 +1276,7 @@
         "arxiv_id": "1406.0151",
         "url": "https://doi.org/10.1117/1.jatis.1.1.014003",
         "duplicate_group_id": "duplicate.d2a5221deb0352e365e98ea8a58f79e9d130ca04aee8b852999dc83f7346e0c0",
-        "dedupe_evidence": [
-          "singleton"
-        ],
+        "dedupe_evidence": ["singleton"],
         "conflicts": [
           {
             "field": "authors",
@@ -1409,9 +1299,7 @@
         "candidate_ids": [
           "candidate.c46a7e7bc6d500bbdd3d1a4dcabb15fa2db8ca4d67fccef4c2b56816d7dc0c0e"
         ],
-        "match_basis": [
-          "singleton"
-        ],
+        "match_basis": ["singleton"],
         "conflicts": []
       },
       "source_snapshot": {
@@ -1461,9 +1349,7 @@
           "source_record_id": "crossref:demo-uncertain-mission-reprint",
           "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
           "title": "Transiting Exoplanet Survey Satellite",
-          "authors": [
-            "Anonymous Compiler"
-          ],
+          "authors": ["Anonymous Compiler"],
           "year": 2015,
           "doi": null,
           "arxiv_id": null,
@@ -1475,20 +1361,14 @@
         "canonical_identity_basis": "title_year_authors",
         "title": "Transiting Exoplanet Survey Satellite",
         "normalized_title": "transiting exoplanet survey satellite",
-        "authors": [
-          "Anonymous Compiler"
-        ],
-        "normalized_authors": [
-          "anonymous compiler"
-        ],
+        "authors": ["Anonymous Compiler"],
+        "normalized_authors": ["anonymous compiler"],
         "year": 2015,
         "doi": null,
         "arxiv_id": null,
         "url": "https://example.org/reprints/tess-mission",
         "duplicate_group_id": "duplicate.85ad77c19ab2d40de63fc99f6705789d3c24e5664181cca9e9bc2b53b3cc8ec9",
-        "dedupe_evidence": [
-          "singleton"
-        ],
+        "dedupe_evidence": ["singleton"],
         "conflicts": [
           {
             "field": "authors",
@@ -1511,9 +1391,7 @@
         "candidate_ids": [
           "candidate.b2abb7b70b542ae94f90f3f305d5b8222df8e4ce6b1777ebab159daa3bac781c"
         ],
-        "match_basis": [
-          "singleton"
-        ],
+        "match_basis": ["singleton"],
         "conflicts": []
       },
       "source_snapshot": {
@@ -1563,9 +1441,7 @@
           "source_record_id": "crossref:demo-unrelated-flares",
           "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
           "title": "A Survey of Unrelated M-dwarf Flares",
-          "authors": [
-            "D. Surveyor"
-          ],
+          "authors": ["D. Surveyor"],
           "year": 2019,
           "doi": null,
           "arxiv_id": null,
@@ -1577,20 +1453,14 @@
         "canonical_identity_basis": "title_year_authors",
         "title": "A Survey of Unrelated M-dwarf Flares",
         "normalized_title": "a survey of unrelated m dwarf flares",
-        "authors": [
-          "D. Surveyor"
-        ],
-        "normalized_authors": [
-          "d surveyor"
-        ],
+        "authors": ["D. Surveyor"],
+        "normalized_authors": ["d surveyor"],
         "year": 2019,
         "doi": null,
         "arxiv_id": null,
         "url": null,
         "duplicate_group_id": "duplicate.0a892787b4fd17747cfd680ebe3823c47af8e80d4c8a6a93c02eb46a9b324629",
-        "dedupe_evidence": [
-          "singleton"
-        ],
+        "dedupe_evidence": ["singleton"],
         "conflicts": [],
         "relevance_score": 0.133333,
         "ranking_key": "0.866667|a survey of unrelated m dwarf flares|2019|paper.1cd1bbb7e10827a8207b559d4f0ae95d97d5822a4cea48e296607119a61a443c|candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b",
@@ -1606,9 +1476,7 @@
         "candidate_ids": [
           "candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b"
         ],
-        "match_basis": [
-          "singleton"
-        ],
+        "match_basis": ["singleton"],
         "conflicts": []
       },
       "source_snapshot": {
@@ -1687,9 +1555,7 @@
         "normalized_query_string": "(tess or \"transiting exoplanet survey satellite\") and (\"input catalog\" or \"objects of interest\" or \"nearby bright stars\")",
         "year_from": 2014,
         "year_to": 2021,
-        "source_ids": [
-          "crossref"
-        ],
+        "source_ids": ["crossref"],
         "source_parameters": {
           "crossref": {
             "query.bibliographic": "(tess or \"transiting exoplanet survey satellite\") and (\"input catalog\" or \"objects of interest\" or \"nearby bright stars\")",
@@ -1789,9 +1655,7 @@
           }
         }
       ],
-      "source_snapshot_ids": [
-        "snapshot.crossref.68fe9f1b242e5c96da0ba707"
-      ],
+      "source_snapshot_ids": ["snapshot.crossref.68fe9f1b242e5c96da0ba707"],
       "candidates": [
         {
           "candidate_id": "candidate.9c9bf84a0444a734b7c3e1d319eeb544e21e04aa8ff4f53831e544ed4554df9c",
@@ -1800,10 +1664,7 @@
             "source_record_id": "crossref:demo-duplicate-toi-catalog",
             "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
             "title": "TESS Objects of Interest Catalog from the TESS Prime Mission",
-            "authors": [
-              "Natalia M. Guerrero",
-              "Sara Seager"
-            ],
+            "authors": ["Natalia M. Guerrero", "Sara Seager"],
             "year": 2021,
             "doi": "10.3847/1538-4365/abefe1",
             "arxiv_id": null,
@@ -1815,14 +1676,8 @@
           "canonical_identity_basis": "doi",
           "title": "TESS Objects of Interest Catalog from the TESS Prime Mission",
           "normalized_title": "tess objects of interest catalog from the tess prime mission",
-          "authors": [
-            "Natalia M. Guerrero",
-            "Sara Seager"
-          ],
-          "normalized_authors": [
-            "natalia m guerrero",
-            "sara seager"
-          ],
+          "authors": ["Natalia M. Guerrero", "Sara Seager"],
+          "normalized_authors": ["natalia m guerrero", "sara seager"],
           "year": 2021,
           "doi": "10.3847/1538-4365/abefe1",
           "arxiv_id": null,
@@ -1876,11 +1731,7 @@
           "canonical_identity_basis": "doi",
           "title": "The TESS Objects of Interest Catalog from the TESS Prime Mission",
           "normalized_title": "the tess objects of interest catalog from the tess prime mission",
-          "authors": [
-            "Natalia M. Guerrero",
-            "Sara Seager",
-            "Chelsea X. Huang"
-          ],
+          "authors": ["Natalia M. Guerrero", "Sara Seager", "Chelsea X. Huang"],
           "normalized_authors": [
             "natalia m guerrero",
             "sara seager",
@@ -1939,11 +1790,7 @@
           "canonical_identity_basis": "doi",
           "title": "The Revised TESS Input Catalog and Candidate Target List",
           "normalized_title": "the revised tess input catalog and candidate target list",
-          "authors": [
-            "Keivan G. Stassun",
-            "Ryan J. Oelkers",
-            "Martin Paegert"
-          ],
+          "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Martin Paegert"],
           "normalized_authors": [
             "keivan g stassun",
             "ryan j oelkers",
@@ -1954,9 +1801,7 @@
           "arxiv_id": "1905.10694",
           "url": "https://doi.org/10.3847/1538-3881/ab3467",
           "duplicate_group_id": "duplicate.bbe6ce23a7d76788c050b579dc9c5b05a9ffea24ff30db642c4f771809f059f7",
-          "dedupe_evidence": [
-            "singleton"
-          ],
+          "dedupe_evidence": ["singleton"],
           "conflicts": [],
           "relevance_score": 0.541667,
           "ranking_key": "0.458333|the revised tess input catalog and candidate target list|2019|paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad|candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488",
@@ -1989,11 +1834,7 @@
           "canonical_identity_basis": "doi",
           "title": "The TESS Input Catalog and Candidate Target List",
           "normalized_title": "the tess input catalog and candidate target list",
-          "authors": [
-            "Keivan G. Stassun",
-            "Ryan J. Oelkers",
-            "Joshua Pepper"
-          ],
+          "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Joshua Pepper"],
           "normalized_authors": [
             "keivan g stassun",
             "ryan j oelkers",
@@ -2004,9 +1845,7 @@
           "arxiv_id": "1706.00495",
           "url": "https://doi.org/10.3847/1538-3881/aad050",
           "duplicate_group_id": "duplicate.2568e5ac65b929080c736831f4102cf986c3f7b8571fc9794fc3e3689a9d3fc4",
-          "dedupe_evidence": [
-            "singleton"
-          ],
+          "dedupe_evidence": ["singleton"],
           "conflicts": [],
           "relevance_score": 0.541667,
           "ranking_key": "0.458333|the tess input catalog and candidate target list|2018|paper.5150cdc95743446bb0b705185b7b07ea6d09fb7bda82b860a28b72ec6cacb3ab|candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a",
@@ -2054,9 +1893,7 @@
           "arxiv_id": "1406.0151",
           "url": "https://doi.org/10.1117/1.jatis.1.1.014003",
           "duplicate_group_id": "duplicate.d2a5221deb0352e365e98ea8a58f79e9d130ca04aee8b852999dc83f7346e0c0",
-          "dedupe_evidence": [
-            "singleton"
-          ],
+          "dedupe_evidence": ["singleton"],
           "conflicts": [
             {
               "field": "authors",
@@ -2080,9 +1917,7 @@
             "source_record_id": "crossref:demo-uncertain-mission-reprint",
             "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
             "title": "Transiting Exoplanet Survey Satellite",
-            "authors": [
-              "Anonymous Compiler"
-            ],
+            "authors": ["Anonymous Compiler"],
             "year": 2015,
             "doi": null,
             "arxiv_id": null,
@@ -2094,20 +1929,14 @@
           "canonical_identity_basis": "title_year_authors",
           "title": "Transiting Exoplanet Survey Satellite",
           "normalized_title": "transiting exoplanet survey satellite",
-          "authors": [
-            "Anonymous Compiler"
-          ],
-          "normalized_authors": [
-            "anonymous compiler"
-          ],
+          "authors": ["Anonymous Compiler"],
+          "normalized_authors": ["anonymous compiler"],
           "year": 2015,
           "doi": null,
           "arxiv_id": null,
           "url": "https://example.org/reprints/tess-mission",
           "duplicate_group_id": "duplicate.85ad77c19ab2d40de63fc99f6705789d3c24e5664181cca9e9bc2b53b3cc8ec9",
-          "dedupe_evidence": [
-            "singleton"
-          ],
+          "dedupe_evidence": ["singleton"],
           "conflicts": [
             {
               "field": "authors",
@@ -2131,9 +1960,7 @@
             "source_record_id": "crossref:demo-unrelated-flares",
             "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
             "title": "A Survey of Unrelated M-dwarf Flares",
-            "authors": [
-              "D. Surveyor"
-            ],
+            "authors": ["D. Surveyor"],
             "year": 2019,
             "doi": null,
             "arxiv_id": null,
@@ -2145,20 +1972,14 @@
           "canonical_identity_basis": "title_year_authors",
           "title": "A Survey of Unrelated M-dwarf Flares",
           "normalized_title": "a survey of unrelated m dwarf flares",
-          "authors": [
-            "D. Surveyor"
-          ],
-          "normalized_authors": [
-            "d surveyor"
-          ],
+          "authors": ["D. Surveyor"],
+          "normalized_authors": ["d surveyor"],
           "year": 2019,
           "doi": null,
           "arxiv_id": null,
           "url": null,
           "duplicate_group_id": "duplicate.0a892787b4fd17747cfd680ebe3823c47af8e80d4c8a6a93c02eb46a9b324629",
-          "dedupe_evidence": [
-            "singleton"
-          ],
+          "dedupe_evidence": ["singleton"],
           "conflicts": [],
           "relevance_score": 0.133333,
           "ranking_key": "0.866667|a survey of unrelated m dwarf flares|2019|paper.1cd1bbb7e10827a8207b559d4f0ae95d97d5822a4cea48e296607119a61a443c|candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b",
@@ -2176,9 +1997,7 @@
           "candidate_ids": [
             "candidate.e3ff8c08ef3c48d0df02ea937ad554396bf724680a747f47a8bb5e3e1c27ec9b"
           ],
-          "match_basis": [
-            "singleton"
-          ],
+          "match_basis": ["singleton"],
           "conflicts": []
         },
         {
@@ -2187,9 +2006,7 @@
           "candidate_ids": [
             "candidate.3583c307e03702c060c706e7fe3aa39cac4afed4c3e1f47eded9d2adcc8f415a"
           ],
-          "match_basis": [
-            "singleton"
-          ],
+          "match_basis": ["singleton"],
           "conflicts": []
         },
         {
@@ -2199,9 +2016,7 @@
             "candidate.02ce823d0f143321d28cc5559795fe8bbc1c15e39e6323ad845e71c123cbcedb",
             "candidate.9c9bf84a0444a734b7c3e1d319eeb544e21e04aa8ff4f53831e544ed4554df9c"
           ],
-          "match_basis": [
-            "doi_exact"
-          ],
+          "match_basis": ["doi_exact"],
           "conflicts": [
             {
               "field": "authors",
@@ -2235,9 +2050,7 @@
           "candidate_ids": [
             "candidate.b2abb7b70b542ae94f90f3f305d5b8222df8e4ce6b1777ebab159daa3bac781c"
           ],
-          "match_basis": [
-            "singleton"
-          ],
+          "match_basis": ["singleton"],
           "conflicts": []
         },
         {
@@ -2246,9 +2059,7 @@
           "candidate_ids": [
             "candidate.37d4117680fb46f5c7838bf6ed330655bf7739a2a4171b97b7f3ca5704f64488"
           ],
-          "match_basis": [
-            "singleton"
-          ],
+          "match_basis": ["singleton"],
           "conflicts": []
         },
         {
@@ -2257,9 +2068,7 @@
           "candidate_ids": [
             "candidate.c46a7e7bc6d500bbdd3d1a4dcabb15fa2db8ca4d67fccef4c2b56816d7dc0c0e"
           ],
-          "match_basis": [
-            "singleton"
-          ],
+          "match_basis": ["singleton"],
           "conflicts": []
         }
       ],
@@ -2340,9 +2149,7 @@
       "prompt_hash": null,
       "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794"
     },
-    "source_snapshot_ids": [
-      "snap_paper_crossref_01"
-    ],
+    "source_snapshot_ids": ["snap_paper_crossref_01"],
     "evidence_ids": [
       "evd_paper_01",
       "evd_paper_02",

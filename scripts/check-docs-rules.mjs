@@ -178,7 +178,9 @@ export function inspectMarkdown(
 
   for (const key of metadataKeys) {
     if (lifecycleMetadataFields.has(key)) {
-      errors.push(`metadata field belongs to Git/GitHub history or status: ${key}`);
+      errors.push(
+        `metadata field belongs to Git/GitHub history or status: ${key}`,
+      );
     } else if (!allowedMetadataFields.has(key)) {
       errors.push(`metadata field is not on the stable allowlist: ${key}`);
     }

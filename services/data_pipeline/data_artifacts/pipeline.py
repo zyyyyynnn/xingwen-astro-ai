@@ -1,4 +1,4 @@
-"""Serialize, independently admit, and seal Versioned Data Artifact domain projections."""
+"""Serialize, independently admit, and seal Data Artifact domain projections."""
 
 from __future__ import annotations
 
@@ -185,7 +185,7 @@ def _bundle_commitment(result: DataArtifactBuildResult) -> str:
 def build_data_artifact_candidates(
     input: DataArtifactBuildInput,
 ) -> DataArtifactBuildResult:
-    """Derive, serialize, independently admit, and finally seal one Versioned Data Artifact bundle."""
+    """Derive, serialize, independently admit, and finally seal one Data Artifact bundle."""
 
     try:
         validated_input = DataArtifactBuildInput.model_validate_json(input.model_dump_json())
@@ -197,7 +197,7 @@ def build_data_artifact_candidates(
                 raise domain_error from exc
         raise DataArtifactError(
             DataArtifactErrorCode.input_hash_mismatch,
-            "Versioned Data Artifact input cannot be reparsed as a valid canonical build input",
+            "Data Artifact input cannot be reparsed as a valid canonical build input",
             cause=exc,
         ) from exc
 

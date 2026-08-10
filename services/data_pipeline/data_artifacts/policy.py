@@ -1,4 +1,4 @@
-"""Load the frozen Versioned Data Artifact execution policies with full hash validation."""
+"""Load the frozen Data Artifact execution policies with full hash validation."""
 
 from __future__ import annotations
 

@@ -1257,7 +1257,7 @@
     },
     "UncertaintyPolicy": {
       "additionalProperties": false,
-      "description": "Versioned declaration for preserving source uncertainties.",
+      "description": "Hashed declaration for preserving source uncertainties.",
       "properties": {
         "mode": {
           "$ref": "#/$defs/UncertaintyMode"

@@ -17,7 +17,7 @@
   ```
 - **Commit & PR Title Grammar**：本节是标题格式的唯一权威规范。PR title 与 commit subject 必须符合 `<type>(<scope>)[!]: <summary>`。
   - **Type 允许值**：`feat`, `fix`, `refactor`, `docs`, `test`, `ci`, `build`, `chore`, `perf`, `style`, `revert`。
-  - **System Scope 允许值**：`repo`, `frontend`, `backend`, `contracts`, `data`, `security`, `docs`, `ci`, `deps`, `release`, `sync`；不得使用 `wip`, `temp`, `final`, `review-fix`, `agent-fixed-*` 等临时 scope。
+  - **System Scope 允许值**：`repo`, `frontend`, `backend`, `api`, `contracts`, `data`, `security`, `docs`, `ci`, `deps`, `release`, `sync`；不得使用 `wip`, `temp`, `final`, `review-fix`, `agent-fixed-*` 等临时 scope。
   - **Summary**：使用英文动作描述；单行；无首尾空白；冒号后严格一个空格；不以句号结尾；不得包含本地绝对路径、Commit SHA、执行日期、Review ID、CI 执行状态或 `WIP` / `Draft` / `Ready` / `Merged` / `PASS` / `BLOCKED` 等过程状态。
   - **PR Title**：不得包含 Issue / PR 编号，不得附带 task code、stacked-PR 序号、责任域标签、Agent 标记等历史或过程信息。
   - **PR 分支 Commit**：不得包含 Issue / PR 编号；每个 Commit 只表达一个独立主要目的。

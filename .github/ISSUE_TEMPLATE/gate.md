@@ -23,7 +23,7 @@ labels: ["type:gate"]
 
 - [ ] 真实运行路径可观察，未合并 PR / Fixture / Benchmark / Recorded / Cached 不冒充 Live。
 - [ ] 至少一条失败 / 拒绝 / partial / unsupported 真实可见且不被补成 complete。
-- [ ] 真实数据与文献版本、缓存、修订、部署、安全、分享 / 导出与材料 smoke 均有证据。
+- [ ] 本 Gate 声明的验证范围内，Version、Evidence、Security、Failure 与 NFR 均有可复核证据。
 - [ ] 未达预算或存在真实缺陷时标记 BLOCKED，不降低标准。
 
 ## 失败回路
@@ -47,4 +47,4 @@ labels: ["type:gate"]
 
 Gate 只验证，不修生产代码。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub native
 metadata；依赖使用原生 blocked-by，不复制 current state、upstream Issue list 或 current DAG 到正文。
-Gate 标题应使用 X 类 responsibility task code，形式为 `[X-NN] 简短领域描述`。
+Gate 标题遵循 `CONTRIBUTING.md` 的唯一规范。

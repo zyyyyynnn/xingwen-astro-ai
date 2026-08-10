@@ -2755,7 +2755,7 @@ def _stable_json(value: object) -> str:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Replay the formal Versioned Evidence Graph benchmark suite."
+        description="Replay the formal Evidence Graph benchmark suite."
     )
     parser.add_argument(
         "--cases",

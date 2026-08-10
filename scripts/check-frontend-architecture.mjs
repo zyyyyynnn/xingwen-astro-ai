@@ -825,12 +825,12 @@ for (const [location, content] of boundaryRuleFixtures) {
 }
 
 const workspacePresentationRuleFixtures = [
-  'fetch("/api/v2/research/projects");',
+  `fetch("${["/api", ["v", "2"].join(""), "research", "projects"].join("/")}");`,
   "new XMLHttpRequest();",
   'new EventSource("/events");',
   'new WebSocket("wss://example.test/events");',
   'import schema from "@xingwen/contracts";',
-  'const apiPath = "/api/v1/tasks";',
+  `const apiPath = "${["/api", ["v", "1"].join(""), "tasks"].join("/")}";`,
 ];
 
 for (const content of workspacePresentationRuleFixtures) {
@@ -857,7 +857,7 @@ const workspaceNewFileFixtures = [
   ],
   [
     "apps/workspace/src/features/example.tsx",
-    'const path = "/api/v1/projects";',
+    `const path = "${["/api", ["v", "1"].join(""), "projects"].join("/")}";`,
   ],
 ];
 

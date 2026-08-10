@@ -244,7 +244,7 @@ class LimitPolicy(BaseModel):
 
 
 class UncertaintyPolicy(BaseModel):
-    """Versioned declaration for preserving source uncertainties."""
+    """Hashed declaration for preserving source uncertainties."""
 
     model_config = MODEL_CONFIG
 

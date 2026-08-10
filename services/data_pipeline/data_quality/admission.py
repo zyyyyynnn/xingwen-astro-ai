@@ -1,4 +1,4 @@
-"""Process-local Data Quality Evaluation admission bound to the exact Versioned Data Artifact sealed candidates."""
+"""Process-local Data Quality Evaluation admission bound to the exact Data Artifact sealed candidates."""
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def admit_data_artifact_quality(
     evaluation_input: DataQualityEvaluationInput,
     evaluation_result: DataQualityEvaluationResult,
 ) -> QualityAdmittedDataArtifacts:
-    """Create a process-local admission only for a passing, exact Versioned Data Artifact bundle."""
+    """Create a process-local admission only for a passing, exact Data Artifact bundle."""
 
     candidates = (
         build_result.dataset,
@@ -97,12 +97,12 @@ def admit_data_artifact_quality(
     if any(left is not right for left, right in zip(candidates, input_candidates, strict=True)):
         raise DataQualityError(
             QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
-            "quality input is not bound to the original Versioned Data Artifact candidate instances",
+            "quality input is not bound to the original Data Artifact candidate instances",
             stage=QualityFailureStage.admission_validation,
         )
     try:
         if any(not candidate.__artifact_publication_is_admitted__() for candidate in candidates):
-            raise ValueError("one or more Versioned Data Artifact candidates are not sealed")
+            raise ValueError("one or more Data Artifact candidates are not sealed")
         DataArtifactBuildResult.model_validate_json(build_result.model_dump_json())
         reparsed_input = DataQualityEvaluationInput.model_validate_json(
             evaluation_input.model_dump_json()
@@ -115,7 +115,7 @@ def admit_data_artifact_quality(
     except (ValidationError, ValueError, AttributeError) as error:
         raise DataQualityError(
             QualityErrorCode.QUALITY_ADMISSION_NOT_SEALED,
-            "quality admission failed immutable input or Versioned Data Artifact seal validation",
+            "quality admission failed immutable input or Data Artifact seal validation",
             stage=QualityFailureStage.admission_validation,
             cause=error,
         ) from error
@@ -217,7 +217,7 @@ def admit_data_artifact_quality(
     ):
         raise DataQualityError(
             QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
-            "quality result references do not match the exact Versioned Data Artifact/Data Quality Evaluation input",
+            "quality result references do not match the exact Data Artifact/Data Quality Evaluation input",
             stage=QualityFailureStage.admission_validation,
         )
     snapshot = _make_snapshot(build_result, reparsed_input, trusted_result)
@@ -247,16 +247,16 @@ def build_data_quality_publication_validator(
         if candidate is not expected or id(candidate) not in admitted.snapshot.original_candidate_object_ids:
             raise DataQualityError(
                 QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
-                "Publisher candidate is not the exact admitted Versioned Data Artifact instance",
+                "Publisher candidate is not the exact admitted Data Artifact instance",
                 stage=QualityFailureStage.admission_validation,
             )
         try:
             if not candidate.__artifact_publication_is_admitted__():
-                raise ValueError("Versioned Data Artifact candidate seal is no longer valid")
+                raise ValueError("Data Artifact candidate seal is no longer valid")
         except (AttributeError, ValueError) as error:
             raise DataQualityError(
                 QualityErrorCode.QUALITY_ADMISSION_NOT_SEALED,
-                "Versioned Data Artifact candidate publication seal is invalid",
+                "Data Artifact candidate publication seal is invalid",
                 stage=QualityFailureStage.admission_validation,
                 cause=error,
             ) from error
@@ -329,7 +329,7 @@ def build_data_quality_publication_validator(
         if admitted.snapshot.bundle_commitment != _bundle_commitment(admitted.snapshot):
             raise DataQualityError(
                 QualityErrorCode.QUALITY_RESULT_HASH_MISMATCH,
-                "Versioned Data Artifact/Data Quality Evaluation bundle commitment is not self-consistent",
+                "Data Artifact/Data Quality Evaluation bundle commitment is not self-consistent",
                 stage=QualityFailureStage.admission_validation,
             )
         if admitted.evaluation_result.contract_gate.overall_status.value != "pass":

@@ -67,6 +67,7 @@ def core_examples() -> dict[type[object], dict[str, object]]:
         },
         ResearchContractDraft: {
             "id": "rcd_01J",
+            "project_id": "proj_01J",
             "session_id": "sess_01J",
             "version": 1,
             "intent": "Integrate exoplanet candidates and host-star parameters",

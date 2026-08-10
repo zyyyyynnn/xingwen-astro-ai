@@ -54,8 +54,8 @@
           "type": "string"
         },
         "producer_name": {
-          "const": "versioned-evidence-graph-pipeline",
-          "default": "versioned-evidence-graph-pipeline",
+          "const": "evidence-graph-pipeline",
+          "default": "evidence-graph-pipeline",
           "title": "Producer Name",
           "type": "string"
         },
@@ -92,7 +92,7 @@
     },
     "GraphArtifactCandidate": {
       "additionalProperties": false,
-      "description": "The only Versioned Evidence Graph candidate accepted by the generic Publisher port.",
+      "description": "The only Evidence Graph candidate accepted by the generic Publisher port.",
       "properties": {
         "edges": {
           "items": {

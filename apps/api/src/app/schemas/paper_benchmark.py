@@ -1,4 +1,4 @@
-"""Versioned contract for paper acquisition and reasoning evaluation.
+"""Hashed contract for paper acquisition and reasoning evaluation.
 
 The models in this module validate static benchmark declarations only. They do
 not implement paper retrieval, model calls, reasoning, graph generation, API
@@ -556,7 +556,7 @@ class BenchmarkPackagePayload(BaseModel):
     maintainers: tuple[BenchmarkMaintainer, ...] = Field(min_length=1)
     review_status: BenchmarkReviewStatus
     scientific_payload_hash: ContentHash
-    review_records: tuple[BenchmarkReviewRecord, ...] = ()
+    review_records: tuple[BenchmarkReviewRecord, ...] = Field(default=(), max_length=1)
     source_policies: tuple[BenchmarkSourcePolicy, ...] = Field(min_length=1)
     search_scenarios: tuple[BenchmarkSearchScenario, ...] = Field(min_length=1)
     seed_papers: tuple[BenchmarkSeedPaper, ...] = Field(min_length=5, max_length=8)

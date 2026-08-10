@@ -51,5 +51,4 @@ Bug/Task，不在本 Bug 中扩张范围。
 
 本模板只用于 Bug。一个 PR 只能有一个主要 Task、Bug 或 Gate。任务状态、负责人、标签、
 层级与阻塞关系只使用 GitHub native metadata，不得复制到正文；真实阻塞使用 GitHub 原生
-依赖，不在正文维护依赖清单或子任务 checklist。Issue 标题必须使用仓库批准的 responsibility
-task code，形式为 `[A|B|C|D|X]-NN 简短领域描述`（如 `[X-09] ...`）。
+依赖，不在正文维护依赖清单或子任务 checklist。Issue 标题遵循 `CONTRIBUTING.md` 的唯一规范。

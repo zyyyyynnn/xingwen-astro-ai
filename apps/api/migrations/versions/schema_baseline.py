@@ -53,6 +53,7 @@ def upgrade() -> None:
             "revision >= 1", name="ck_research_projects_revision_positive"
         ),
         sa.PrimaryKeyConstraint("id", name="pk_research_projects"),
+        sa.UniqueConstraint("id", "session_id", name="uq_research_project_id_session"),
         sa.UniqueConstraint(
             "session_id",
             "idempotency_key",
@@ -66,6 +67,7 @@ def upgrade() -> None:
     op.create_table(
         "research_contract_drafts",
         sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
         sa.Column("session_id", sa.String(128), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("intent", sa.Text(), nullable=False),
@@ -95,8 +97,17 @@ def upgrade() -> None:
             name="ck_research_contract_drafts_draft_status",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_research_contract_drafts"),
+        sa.ForeignKeyConstraint(
+            ["project_id", "session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_research_contract_drafts_project_session",
+            ondelete="CASCADE",
+        ),
         sa.UniqueConstraint(
-            "session_id",
+            "id", "project_id", name="uq_research_contract_draft_id_project"
+        ),
+        sa.UniqueConstraint(
+            "project_id",
             "idempotency_key",
             name="uq_research_contract_draft_idempotency",
         ),
@@ -133,9 +144,9 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
-            ["created_from_draft_id"],
-            ["research_contract_drafts.id"],
-            name="fk_research_contracts_created_from_draft",
+            ["created_from_draft_id", "project_id"],
+            ["research_contract_drafts.id", "research_contract_drafts.project_id"],
+            name="fk_research_contracts_draft_project",
             ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_research_contracts"),
@@ -896,9 +907,9 @@ def upgrade() -> None:
             ["project_id"], ["research_projects.id"], ondelete="CASCADE"
         ),
         sa.ForeignKeyConstraint(
-            ["contract_draft_id"],
-            ["research_contract_drafts.id"],
-            name="fk_research_input_binding_contract_draft",
+            ["contract_draft_id", "project_id"],
+            ["research_contract_drafts.id", "research_contract_drafts.project_id"],
+            name="fk_research_input_binding_draft_project",
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(

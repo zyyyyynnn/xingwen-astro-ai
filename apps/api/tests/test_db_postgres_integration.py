@@ -35,6 +35,12 @@ from app.db.models import (
 )
 from app.db.repositories import UnitOfWork
 from app.db.session import create_engine_from_url, session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_contract,
+    build_research_project,
+    persist_authoring_models,
+)
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
@@ -63,12 +69,16 @@ def postgres_engine() -> Engine:
 
 def _seed_run(engine: Engine) -> tuple[ResearchRunModel, RunStepModel]:
     factory = session_factory(engine)
-    project = ResearchProjectModel(
-        id=uuid4(),
+    project = build_research_project(
+        project_id=uuid4(),
         session_id="session-test", name="Test", case_key="exoplanet_host_star", revision=1
     )
-    contract = ResearchContractModel(
-        id=uuid4(), project_id=project.id, version=1, content_hash="sha256:" + "a" * 64
+    draft = build_contract_draft(project)
+    contract = build_research_contract(
+        project,
+        draft,
+        contract_id=uuid4(),
+        content_hash="sha256:" + "a" * 64,
     )
     run = ResearchRunModel(
         id=uuid4(),
@@ -90,9 +100,9 @@ def _seed_run(engine: Engine) -> tuple[ResearchRunModel, RunStepModel]:
         status="pending", progress=0
     )
     with UnitOfWork(factory) as uow:
-        uow.session.add(project)
-        uow.session.flush()
-        uow.session.add(contract)
+        persist_authoring_models(
+            uow.session, project=project, draft=draft, contract=contract
+        )
         uow.session.flush()
         uow.session.add(run)
         uow.session.flush()
@@ -249,8 +259,8 @@ def test_database_rejects_foreign_key_failure(postgres_engine: Engine) -> None:
 def test_database_rejects_cross_project_contract_reference(postgres_engine: Engine) -> None:
     original_run, _ = _seed_run(postgres_engine)
     factory = session_factory(postgres_engine)
-    other_project = ResearchProjectModel(
-        id=uuid4(), session_id="session-other", name="Other",
+    other_project = build_research_project(
+        project_id=uuid4(), session_id="session-other", name="Other",
         case_key="exoplanet_host_star", revision=1
     )
     invalid_run = ResearchRunModel(

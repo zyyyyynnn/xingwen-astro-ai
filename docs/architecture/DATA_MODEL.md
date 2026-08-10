@@ -85,7 +85,7 @@ Draft 是编辑态资源，一旦确认即产生不可变 Contract。
 - `graph_eligible` 是读取闭包结果，不是新的科学判定。只有 accepted Relation、accepted endpoints 与完整 Trace/Evidence/SourceSnapshot 同时成立时为真。
 - ArtifactVersion 与 Evidence 在同一 Publisher 事务内原子创建。Pipeline Evidence/SourceSnapshot ID 保留在 locator 与 typed content 中，数据库 registry 保存对应 PostgreSQL UUID；两侧必须一一闭合且同属一个 Project。
 
-## 6. Versioned Evidence Graph
+## 6. Evidence Graph
 
 - `graph` ArtifactVersion 保存同一 Project 内由明确上游 ArtifactVersion 派生的不可变节点、
   有向边与 Graph-owned Evidence-use 闭包。它不引用动态 `latest`，也不把过滤或渐进读取结果

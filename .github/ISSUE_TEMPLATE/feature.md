@@ -40,5 +40,4 @@ labels: ["type:feature"]
 
 本模板只用于 Epic。原子实现统一使用 Task/Bug 模板。子任务关系使用原生 Sub-issue，不在正文
 维护依赖清单或 `#` 子任务 checklist。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub
-native metadata，不得复制到正文。Epic 标题必须使用仓库批准的 responsibility task code，形式为
-`[A|B|C|D|X]-NN 简短领域描述`。
+native metadata，不得复制到正文。Epic 标题遵循 `CONTRIBUTING.md` 的唯一规范。

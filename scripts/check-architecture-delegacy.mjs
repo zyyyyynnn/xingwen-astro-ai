@@ -3,7 +3,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 
-import { isIssueOrPullRequestBodyTemplatePath, isRepositoryTextPath } from "./governance-identifiers.mjs";
+import {
+  isIssueOrPullRequestBodyTemplatePath,
+  isRepositoryTextPath,
+} from "./governance-identifiers.mjs";
 
 const FORBIDDEN_SURFACES = [
   ["retired task API", /\/api\/tasks(?:\/|\b)/u],
@@ -40,11 +43,10 @@ export function inspectArchitecturePath(path) {
 }
 
 function trackedFiles(root) {
-  return execFileSync(
-    "git",
-    ["-c", "core.quotepath=false", "ls-files", "-z"],
-    { cwd: root, encoding: "utf8" },
-  )
+  return execFileSync("git", ["-c", "core.quotepath=false", "ls-files", "-z"], {
+    cwd: root,
+    encoding: "utf8",
+  })
     .split("\0")
     .filter(Boolean)
     .map((file) => file.replaceAll("\\", "/"));

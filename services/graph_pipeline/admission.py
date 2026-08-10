@@ -1,4 +1,4 @@
-"""Stable integrity findings and priority handling for Versioned Evidence Graph."""
+"""Stable integrity findings and priority handling for Evidence Graph."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ _PRIORITY = {
 
 @dataclass(frozen=True, slots=True)
 class GraphAdmissionFailure(ValueError):
-    """One stable Versioned Evidence Graph integrity failure before candidate sealing."""
+    """One stable Evidence Graph integrity failure before candidate sealing."""
 
     stage: GraphIntegrityStage
     reason: GraphRejectionReason

@@ -1,7 +1,7 @@
 {
   "catalog_id": "exoplanet_host_star.entity_aliases",
   "version": "2.0.0",
-  "content_hash": "sha256:7b6ae3a4e37695aa8bd97e185e69599d882e729082ca97e29e1ade90788f8298",
+  "content_hash": "sha256:4800fefb859ef7f15dd097063580c68c260264a5275361ebd30613e0313cfa07",
   "entries": [
     {
       "alias_id": "alias.toi_700_01.planet_seven_b",
@@ -48,7 +48,7 @@
       "rationale": "Synthetic alias-conflict benchmark branch; requires review."
     }
   ],
-  "source": "Versioned synthetic cross-source entity alignment benchmark adjudications; not scientific ground truth.",
+  "source": "Curated synthetic cross-source entity alignment benchmark adjudications; not scientific ground truth.",
   "maintainer": "data pipeline maintainers",
   "created_at": "2026-07-30"
 }

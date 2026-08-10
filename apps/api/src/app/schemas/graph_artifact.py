@@ -291,7 +291,7 @@ GRAPH_TAXONOMY_EDGE_TYPES = tuple(
     )
 )
 
-# Keep the exported JSON Schema as strict as the runtime Versioned Evidence Graph contract.  A
+# Keep the exported JSON Schema as strict as the runtime Evidence Graph contract.  A
 # broad ``GraphNodeType``/``GraphEdgeType`` annotation followed by an
 # ``after`` validator is not sufficient here because JSON Schema consumers do
 # not execute Pydantic validators.
@@ -358,11 +358,11 @@ class GraphTaxonomy(BaseModel):
     def validate_taxonomy(self) -> Self:
         if self.node_types != GRAPH_TAXONOMY_NODE_TYPES:
             raise ValueError(
-                "Versioned Evidence Graph node_types must equal its exact authority"
+                "Evidence Graph node_types must equal its exact authority"
             )
         if self.edge_types != GRAPH_TAXONOMY_EDGE_TYPES:
             raise ValueError(
-                "Versioned Evidence Graph edge_types must equal its exact authority"
+                "Evidence Graph edge_types must equal its exact authority"
             )
         expected = compute_canonical_payload_hash(
             self.model_dump(mode="json", exclude={"content_hash"})
@@ -447,7 +447,7 @@ class GraphBuildScope(BaseModel):
         _require_sorted_unique(self.exclusion_reasons, "scope exclusion reason")
         if self.research_goal_id is not None:
             raise ValueError(
-                "Versioned Evidence Graph has no pinned ResearchGoal input and cannot infer uses_dataset"
+                "Evidence Graph has no pinned ResearchGoal input and cannot infer uses_dataset"
             )
         return self
 
@@ -559,7 +559,7 @@ class GraphArtifactNode(BaseModel):
             GraphNodeType.reasoning_trace,
             GraphNodeType.evidence,
         }:
-            raise ValueError("Versioned Evidence Graph does not generate this Graph node type")
+            raise ValueError("Evidence Graph does not generate this Graph node type")
         reference_keys = tuple((item.name, item.value) for item in self.logical_reference)
         if reference_keys != tuple(sorted(reference_keys)) or len(reference_keys) != len(
             set(reference_keys)
@@ -593,7 +593,7 @@ class GraphRelationTraceBinding(BaseModel):
     def validate_trace(self) -> Self:
         if self.relation_type not in GRAPH_TAXONOMY_LITERATURE_EDGE_TYPES:
             raise ValueError(
-                "RelationTrace relation_type is outside the Versioned Evidence Graph Literature taxonomy"
+                "RelationTrace relation_type is outside the Evidence Graph Literature taxonomy"
             )
         if self.premise_claim_ids != (
             self.source_claim_id,
@@ -666,7 +666,7 @@ class GraphArtifactEdge(BaseModel):
                 )
         else:
             raise ValueError(
-                "Graph edge_type is outside the exact Versioned Evidence Graph taxonomy"
+                "Graph edge_type is outside the exact Evidence Graph taxonomy"
             )
         if (self.edge_type is GraphEdgeType.provides_field) != (
             self.data_aggregation is not None
@@ -771,9 +771,7 @@ class GraphAlgorithmProducer(BaseModel):
     model_config = MODEL_CONFIG
 
     producer_type: Literal["algorithm"] = "algorithm"
-    producer_name: Literal["versioned-evidence-graph-pipeline"] = (
-        "versioned-evidence-graph-pipeline"
-    )
+    producer_name: Literal["evidence-graph-pipeline"] = "evidence-graph-pipeline"
     producer_version: Literal["2.0.0"] = "2.0.0"
     identity_policy_version: Literal["2.0.0"] = "2.0.0"
     taxonomy_policy_version: Literal["2.0.0"] = "2.0.0"
@@ -786,7 +784,7 @@ class GraphAlgorithmProducer(BaseModel):
 
 
 class GraphArtifactCandidate(BaseModel):
-    """The only Versioned Evidence Graph candidate accepted by the generic Publisher port."""
+    """The only Evidence Graph candidate accepted by the generic Publisher port."""
 
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
@@ -892,7 +890,7 @@ class GraphArtifactCandidate(BaseModel):
                     ),
                 }.get(edge.edge_type)
                 if expected_endpoints is None:
-                    raise ValueError("Graph edge lies outside the exact Versioned Evidence Graph taxonomy")
+                    raise ValueError("Graph edge lies outside the exact Evidence Graph taxonomy")
             if (source.node_type, target.node_type) != expected_endpoints:
                 raise ValueError("Graph edge violates its authoritative endpoint direction")
             edge_uses = tuple(

@@ -1,9 +1,9 @@
-"""Deterministic, fully published inputs for focused Versioned Evidence Graph pipeline tests.
+"""Deterministic, fully published inputs for focused Evidence Graph pipeline tests.
 
 The LiteratureRelations payload is produced by the real LiteratureRelation Pipeline admission
 pipeline.  The frozen Paper Acquisition Benchmark fixture predates UUID database identifiers, so the
 upstream LiteratureClaim Pipeline candidates are first rebound to deterministic UUID version IDs
-and then LiteratureRelation Pipeline is rerun.  No unvalidated candidate dictionaries cross the Versioned Evidence Graph
+and then LiteratureRelation Pipeline is rerun.  No unvalidated candidate dictionaries cross the Evidence Graph
 read port.
 """
 
@@ -187,7 +187,7 @@ def build_literature_graph_fixture(
     """Build a real LiteratureRelation Pipeline literature-only envelope for one frozen Paper Acquisition Benchmark pair.
 
     ``accepted`` is the happy-path pair. ``candidate`` is retained by LiteratureRelation Pipeline but
-    must be rejected by Versioned Evidence Graph's accepted-relation scope.
+    must be rejected by Evidence Graph's accepted-relation scope.
     """
 
     if relation_status not in {
@@ -325,7 +325,7 @@ def build_data_graph_fixture(
     reverse_published_bindings: bool = False,
     reverse_data_bindings: bool = False,
 ) -> LiteratureGraphFixture:
-    """Build a typed Versioned Evidence Graph input from real Versioned Data Artifact and passing Data Quality Evaluation outputs.
+    """Build a typed Evidence Graph input from real Data Artifact and passing Data Quality Evaluation outputs.
 
     The identifier-conflict fixture is intentionally used because its two
     canonical fields jointly retain mapped, selected, unselected,
@@ -525,7 +525,7 @@ def _data_source_snapshot_bindings(
                     query_hash=source_value.query_hash,
                     source_version_or_etag="fixture-etag",
                     content_hash=source_value.source_snapshot_content_hash,
-                    license_note="Frozen Versioned Data Artifact/Data Quality Evaluation fixture provenance",
+                    license_note="Frozen Data Artifact/Data Quality Evaluation fixture provenance",
                     request_metadata={"data_level": "fixture"},
                 ),
             )

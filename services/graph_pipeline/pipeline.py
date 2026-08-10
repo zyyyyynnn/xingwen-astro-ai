@@ -1,4 +1,4 @@
-"""Deterministic Versioned Evidence Graph construction and sealed admission."""
+"""Deterministic Evidence Graph construction and sealed admission."""
 
 from __future__ import annotations
 
@@ -758,7 +758,7 @@ def _add_literature_relations(
                 GraphIntegrityStage.taxonomy,
                 GraphRejectionReason.taxonomy_violation,
                 f"relations.{relation_id}.relation_type",
-                "accepted Relation type has no authorized Versioned Evidence Graph edge type",
+                "accepted Relation type has no authorized Evidence Graph edge type",
             ) from exc
         trace = traces.get(relation.reasoning_trace_id or "")
         failure = _reasoning_trace_failure(relation_id, relation, trace)
@@ -896,7 +896,7 @@ def _data_evidence_bindings(
                 GraphIntegrityStage.evidence_snapshot,
                 GraphRejectionReason.evidence_inconsistent,
                 f"data.evidence.{evidence_id}",
-                "data Evidence target/locator/Snapshot does not close its Versioned Data Artifact identity",
+                "data Evidence target/locator/Snapshot does not close its Data Artifact identity",
             )
     return tuple(sorted(matches, key=lambda item: item[0].artifact_version_id))
 
@@ -1303,7 +1303,7 @@ def _collect_literature_gate_failures(
                     GraphIntegrityStage.taxonomy,
                     GraphRejectionReason.taxonomy_violation,
                     f"scope.structural_edges.{index}.edge_type",
-                    "Versioned Evidence Graph structural scope only admits supports_finding",
+                    "Evidence Graph structural scope only admits supports_finding",
                 )
             )
 
@@ -1364,7 +1364,7 @@ def _collect_literature_gate_failures(
                     GraphIntegrityStage.taxonomy,
                     GraphRejectionReason.taxonomy_violation,
                     f"relations.{relation_id}.relation_type",
-                    "accepted Relation type has no authorized Versioned Evidence Graph edge type",
+                    "accepted Relation type has no authorized Evidence Graph edge type",
                 )
             )
         trace_failure = _reasoning_trace_failure(

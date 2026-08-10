@@ -108,7 +108,7 @@ export interface PaperAcquisitionMetrics {
   readonly sourceEmptyResultCount: number;
 }
 
-/** Versioned rule identifiers proving which algorithms produced the result. */
+/** Pinned rule identifiers proving which algorithms produced the result. */
 export interface PaperAcquisitionRules {
   readonly dedupeRule: string;
   readonly rankingRule: string;

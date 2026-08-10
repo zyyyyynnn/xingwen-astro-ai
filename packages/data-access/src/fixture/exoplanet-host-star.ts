@@ -93,6 +93,7 @@ const project: ResearchProjectDto = {
 const draft: ResearchContractDraftDto = {
   id: "rcd_01JEXAMPLE",
   session_id: "sess_01JEXAMPLE",
+  project_id: "proj_01JEXAMPLE",
   version: 1,
   intent: "Integrate exoplanet candidates and host-star parameters",
   status: "confirmed",

@@ -1,4 +1,4 @@
-"""Process-local publication authority for Versioned Evidence Graph candidates.
+"""Process-local publication authority for Evidence Graph candidates.
 
 The public candidate is intentionally round-trippable, while the admission
 snapshot, seal, and authority registry are not serialized.
@@ -109,7 +109,7 @@ def build_graph_admission_snapshot(
     input_json: str,
     public_payload_hash: str,
 ) -> GraphAdmissionSnapshot:
-    """Build the single canonical context/commitment snapshot used by Versioned Evidence Graph."""
+    """Build the single canonical context/commitment snapshot used by Evidence Graph."""
 
     if not isinstance(input_json, str) or not input_json:
         raise ValueError("Graph admission input_json must be nonempty")

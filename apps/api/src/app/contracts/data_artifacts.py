@@ -1,7 +1,7 @@
 """Contract-only Data Artifact HTTP operations.
 
 This module owns the transport declarations for current Data Artifact reads and
-exports. It contains no runtime service wiring; ``app.contracts.current``
+exports. It contains no runtime service wiring; ``app.contracts.api``
 composes these operations with the core contract before OpenAPI generation.
 """
 

@@ -26,7 +26,7 @@ mapping, quality scoring, unit conversion, Dataset construction,
 Artifact publication, and runtime orchestration are owned by their respective
 responsibility boundaries.
 
-## 2. Versioned inputs
+## 2. Pinned inputs
 
 The Pydantic authoring source is
 `apps/api/src/app/schemas/crossmatch.py`. All contracts are immutable and reject

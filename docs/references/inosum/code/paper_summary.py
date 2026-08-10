@@ -547,4 +547,3 @@ if __name__ == "__main__":
     os.makedirs(result_json_dir, exist_ok=True)
 
     process_md_files(md_files_dict, temp_dir, result_dir,result_json_dir, keep_temp=True)
-

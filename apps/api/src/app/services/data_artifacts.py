@@ -52,7 +52,7 @@ DataKind = Literal["dataset", "field_dictionary", "source_collection"]
 
 
 class DataArtifactReadService:
-    """Validate and project Versioned Data Artifact/Data Quality Evaluation output without rerunning its algorithms."""
+    """Validate and project Data Artifact/Data Quality Evaluation output without rerunning its algorithms."""
 
     def __init__(self, artifacts: ArtifactReadService) -> None:
         self._artifacts = artifacts

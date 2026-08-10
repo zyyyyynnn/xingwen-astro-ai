@@ -2,7 +2,7 @@
   "rule_set_id": "exoplanet_host_star.crossmatch_rules",
   "schema_version": "1.0.0",
   "version": "2.0.0",
-  "content_hash": "sha256:11429d2c1a883dff6805597fd582c28fb50012b133565b6d180b2a17f7164863",
+  "content_hash": "sha256:6af2835af2d41ee01b96310de078f69027a2bf1b212215d158e840e0e8d03209",
   "producer_name": "xingwen.cross_source_alignment",
   "producer_version": "2.0.0",
   "case_manifest_id": "exoplanet_host_star",
@@ -18,7 +18,7 @@
   "alias_policy_version": "1.0.0",
   "coordinate_policy_version": "1.0.0",
   "entity_alias_catalog_version": "2.0.0",
-  "entity_alias_catalog_content_hash": "sha256:7b6ae3a4e37695aa8bd97e185e69599d882e729082ca97e29e1ade90788f8298",
+  "entity_alias_catalog_content_hash": "sha256:4800fefb859ef7f15dd097063580c68c260264a5275361ebd30613e0313cfa07",
   "capacity_policy_version": "1.0.0",
   "conflict_policy_version": "1.0.0",
   "supported_entity_levels": [

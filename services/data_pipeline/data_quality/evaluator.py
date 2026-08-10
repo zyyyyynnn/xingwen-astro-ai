@@ -180,7 +180,7 @@ def _validate_input_bindings(
         except Exception as error:
             raise DataQualityError(
                 QualityErrorCode.QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH,
-                "Versioned Data Artifact candidate does not match its immutable build input",
+                "Data Artifact candidate does not match its immutable build input",
                 stage=QualityFailureStage.data_artifact_validation,
                 cause=error,
             ) from error

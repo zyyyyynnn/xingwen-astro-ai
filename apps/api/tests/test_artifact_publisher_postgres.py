@@ -33,6 +33,12 @@ from app.db.models import (
     StepAttemptModel,
 )
 from app.db.session import create_engine_from_url, session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_contract,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.workflow.publisher import (
     ArtifactAdmissionContext,
     ArtifactPublication,
@@ -116,23 +122,23 @@ def _steps() -> tuple[RunStepDefinition, ...]:
 def _seed_project(
     factory: Callable[[], Session],
 ) -> tuple[ResearchProjectModel, ResearchContractModel]:
-    project = ResearchProjectModel(
-        id=uuid4(),
+    project = build_research_project(
+        project_id=uuid4(),
         session_id=f"session-{uuid4()}",
         name="Atomic Publisher integration",
         case_key="exoplanet_host_star",
-        revision=1,
     )
-    contract = ResearchContractModel(
-        id=uuid4(),
-        project_id=project.id,
-        version=1,
+    draft = build_contract_draft(project)
+    contract = build_research_contract(
+        project,
+        draft,
+        contract_id=uuid4(),
         content_hash=HASH_A,
     )
     with factory() as session, session.begin():
-        session.add(project)
-        session.flush()
-        session.add(contract)
+        persist_authoring_models(
+            session, project=project, draft=draft, contract=contract
+        )
     return project, contract
 
 

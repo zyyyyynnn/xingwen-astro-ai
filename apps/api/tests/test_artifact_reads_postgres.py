@@ -27,6 +27,12 @@ from app.db.models import (
     StepAttemptModel,
 )
 from app.db.session import create_engine_from_url, session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_contract,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.main import create_app
 from app.services.artifacts import ArtifactReadService
 
@@ -94,19 +100,19 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
         )
     }
     with factory() as session, session.begin():
-        project = ResearchProjectModel(
-            id=ids["project"],
+        project = build_research_project(
+            project_id=ids["project"],
             session_id=owner.id,
             name="Artifact boundary reads",
             case_key="exoplanet_host_star",
-            revision=1,
             created_at=NOW,
             updated_at=NOW,
         )
-        contract = ResearchContractModel(
-            id=ids["contract"],
-            project_id=project.id,
-            version=1,
+        draft = build_contract_draft(project, created_at=NOW, updated_at=NOW)
+        contract = build_research_contract(
+            project,
+            draft,
+            contract_id=ids["contract"],
             content_hash=HASH_A,
             created_at=NOW,
         )
@@ -176,9 +182,9 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
             latency_ms=50,
             created_at=NOW,
         )
-        session.add(project)
-        session.flush()
-        session.add(contract)
+        persist_authoring_models(
+            session, project=project, draft=draft, contract=contract
+        )
         session.flush()
         session.add(run)
         session.flush()

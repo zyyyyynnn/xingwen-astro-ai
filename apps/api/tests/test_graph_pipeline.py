@@ -328,7 +328,7 @@ def test_graph_algorithm_producer_uses_scalar_ledger_parameters() -> None:
 @pytest.mark.parametrize(
     ("field", "drifted_value"),
     (
-        ("producer_name", "drifted-versioned-evidence-graph-pipeline"),
+        ("producer_name", "drifted-evidence-graph-pipeline"),
         ("producer_version", "9.9.9"),
         ("parameters_hash", "sha256:" + "f" * 64),
     ),

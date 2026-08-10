@@ -230,10 +230,10 @@ class ResearchApplicationService:
         request_hash = canonical_request_hash(request.model_dump(mode="json"))
         with self._factory() as session, session.begin():
             # Ownership is checked before any insert or idempotency side effect.
-            self._require_project(session, project_id, session_id)
+            project = self._require_project(session, project_id, session_id)
             replay = self._draft_replay(
                 session,
-                session_id=session_id,
+                project_id=project.id,
                 idempotency_key=idempotency_key,
             )
             if replay is not None:
@@ -242,6 +242,7 @@ class ResearchApplicationService:
 
             now = datetime.now(UTC)
             model = ResearchContractDraftModel(
+                project_id=project.id,
                 session_id=session_id,
                 version=1,
                 intent=request.intent,
@@ -261,7 +262,7 @@ class ResearchApplicationService:
             except IntegrityError as exc:
                 replay = self._draft_replay(
                     session,
-                    session_id=session_id,
+                    project_id=project.id,
                     idempotency_key=idempotency_key,
                 )
                 if replay is None:
@@ -377,7 +378,11 @@ class ResearchApplicationService:
                 draft_uuid,
                 with_for_update=True,
             )
-            if draft is None or draft.session_id != session_id:
+            if (
+                draft is None
+                or draft.session_id != session_id
+                or draft.project_id != project.id
+            ):
                 raise _not_found("DRAFT_NOT_FOUND")
             _expire_draft(draft)
             if draft.status != ContractDraftStatus.draft.value:
@@ -586,12 +591,12 @@ class ResearchApplicationService:
     def _draft_replay(
         session: Session,
         *,
-        session_id: str,
+        project_id: UUID,
         idempotency_key: str,
     ) -> ResearchContractDraftModel | None:
         return session.scalar(
             select(ResearchContractDraftModel).where(
-                ResearchContractDraftModel.session_id == session_id,
+                ResearchContractDraftModel.project_id == project_id,
                 ResearchContractDraftModel.idempotency_key == idempotency_key,
             )
         )
@@ -707,6 +712,7 @@ def _project(
 def _draft(row: ResearchContractDraftModel) -> ResearchContractDraft:
     return ResearchContractDraft(
         id=str(row.id),
+        project_id=str(row.project_id),
         session_id=row.session_id,
         version=row.version,
         intent=row.intent,

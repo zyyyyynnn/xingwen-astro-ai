@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
@@ -26,6 +27,7 @@ const ALLOWED_SYSTEM_SCOPES = new Set([
   "repo",
   "frontend",
   "backend",
+  "api",
   "contracts",
   "data",
   "security",
@@ -316,8 +318,8 @@ export function validateIssueTemplate(name, content) {
   }
   // Forbidden dynamic-state mirrors that create a second source of truth.
   const forbiddenSection = [
-    "## Completed baseline",
-    "## Planned handoff",
+    ["## Completed", " baseline"].join(""),
+    ["## Planned", " handoff"].join(""),
     "## 依赖",
     "## 边界与依赖",
     "## 状态",
@@ -327,12 +329,16 @@ export function validateIssueTemplate(name, content) {
   ];
   for (const sec of forbiddenSection) {
     if (content.includes(sec)) {
-      errors.push(`Template must not contain the section "${sec}" (GitHub native metadata is the sole state source)`);
+      errors.push(
+        `Template must not contain the section "${sec}" (GitHub native metadata is the sole state source)`,
+      );
     }
   }
   // Forbidden child-task checklist that duplicates native Sub-issue relation.
   if (/-\s*\[\s*\]\s*#/.test(content)) {
-    errors.push("Template must not contain a `- [ ] #` sub-task checklist (use GitHub native Sub-issue)");
+    errors.push(
+      "Template must not contain a `- [ ] #` sub-task checklist (use GitHub native Sub-issue)",
+    );
   }
   // NOTE: [A/B/C/D/X]-NN responsibility taxonomy is an approved stable identifier
   // in GitHub Issue titles/bodies and must NOT be flagged here. Only live-state
@@ -347,7 +353,9 @@ export function validateIssueTemplate(name, content) {
   ];
   for (const g of forbiddenGuidance) {
     if (content.includes(g)) {
-      errors.push(`Template must not instruct users to mirror live state ("${g}")`);
+      errors.push(
+        `Template must not instruct users to mirror live state ("${g}")`,
+      );
     }
   }
   return { valid: errors.length === 0, errors, name };
@@ -359,14 +367,10 @@ function runTemplateMode() {
     console.error("Template governance check requires TEMPLATE_DIR");
     return 1;
   }
-  const fs = require("node:fs");
-  const path = require("node:path");
-  const files = fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith(".md"));
+  const files = readdirSync(dir).filter((f) => f.endsWith(".md"));
   let failed = false;
   for (const f of files) {
-    const content = fs.readFileSync(path.join(dir, f), "utf8");
+    const content = readFileSync(join(dir, f), "utf8");
     const result = validateIssueTemplate(f, content);
     if (!result.valid) {
       console.error(`Template ${f} error: ${result.errors.join("; ")}`);

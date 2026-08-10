@@ -1,8 +1,8 @@
-"""PostgreSQL publication and replay contracts for Versioned Evidence Graph artifacts.
+"""PostgreSQL publication and replay contracts for Evidence Graph artifacts.
 
 Set TEST_DATABASE_URL to an isolated database whose name contains ``test``.
 The module reuses the Publisher integration migration fixture and deletes only
-the deterministic Versioned Evidence Graph project between cases.
+the deterministic Evidence Graph project between cases.
 """
 
 from __future__ import annotations
@@ -30,6 +30,12 @@ from app.db.models import (
     StepAttemptModel,
 )
 from app.db.session import session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_contract,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.schemas.graph_artifact import (
     GraphArtifactCandidate,
     graph_algorithm_parameters,
@@ -162,23 +168,23 @@ def _active_graph_publication(
     candidate, fixture = _candidate_and_fixture()
     admitted = _admitted(candidate)
     factory = session_factory(engine)
-    project = ResearchProjectModel(
-        id=GRAPH_PROJECT_ID,
+    project = build_research_project(
+        project_id=GRAPH_PROJECT_ID,
         session_id=f"session-{uuid4()}",
-        name="Versioned Evidence Graph publisher integration",
+        name="Evidence Graph publisher integration",
         case_key="exoplanet_host_star",
-        revision=1,
     )
-    contract = ResearchContractModel(
-        id=uuid4(),
-        project_id=project.id,
-        version=1,
+    draft = build_contract_draft(project)
+    contract = build_research_contract(
+        project,
+        draft,
+        contract_id=uuid4(),
         content_hash="sha256:" + "a" * 64,
     )
     with factory() as session, session.begin():
-        session.add(project)
-        session.flush()
-        session.add(contract)
+        persist_authoring_models(
+            session, project=project, draft=draft, contract=contract
+        )
 
     workflow = PersistentWorkflowStore(factory)
     snapshot = workflow.create_run(
@@ -205,7 +211,7 @@ def _active_graph_publication(
         generation=lease.generation,
         expected_status="queued",
         expected_revision=lease.revision,
-        public_message="Build versioned Graph",
+        public_message="Build Evidence Graph",
     )
 
     producer = candidate.producer
@@ -275,7 +281,7 @@ def _active_graph_publication(
         id=uuid4(),
         project_id=project.id,
         kind=artifact_kind,
-        title="Versioned Evidence Graph",
+        title="Evidence Graph",
         logical_key=f"graph-{uuid4()}",
     )
     with factory() as session, session.begin():
@@ -456,7 +462,7 @@ def _publish(active: ActiveGraphPublication) -> PublicationResult:
         expected_status=active.run_status,
         expected_revision=active.run_revision,
         publications=(active.publication,),
-        public_message="Versioned Evidence Graph published",
+        public_message="Evidence Graph published",
     )
 
 

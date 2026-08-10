@@ -59,6 +59,7 @@ class ResearchProjectModel(TimestampMixin, Base):
 
     __table_args__ = (
         CheckConstraint("revision >= 1", name="revision_positive"),
+        UniqueConstraint("id", "session_id", name="uq_research_project_id_session"),
         UniqueConstraint(
             "session_id", "idempotency_key", name="uq_research_project_idempotency"
         ),
@@ -77,7 +78,6 @@ class ResearchContractModel(TimestampMixin, Base):
     content: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     created_from_draft_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("research_contract_drafts.id", ondelete="RESTRICT"),
         nullable=False,
     )
     idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -92,20 +92,23 @@ class ResearchContractModel(TimestampMixin, Base):
         UniqueConstraint(
             "created_from_draft_id", name="uq_research_contract_created_from_draft"
         ),
+        ForeignKeyConstraint(
+            ["created_from_draft_id", "project_id"],
+            ["research_contract_drafts.id", "research_contract_drafts.project_id"],
+            name="fk_research_contracts_draft_project",
+            ondelete="RESTRICT",
+        ),
         CheckConstraint("version >= 1", name="version_positive"),
     )
 
 
 class ResearchContractDraftModel(TimestampMixin, Base):
-    """Editable, session-scoped draft persisted for contract confirmation.
-
-    A draft is owned by a session; ``version`` is the optimistic concurrency
-    token consumed by ``If-Match`` on updates.
-    """
+    """Editable Project-owned draft persisted for contract confirmation."""
 
     __tablename__ = "research_contract_drafts"
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     session_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     intent: Mapped[str] = mapped_column(Text, nullable=False)
@@ -120,14 +123,21 @@ class ResearchContractDraftModel(TimestampMixin, Base):
     request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
 
     __table_args__ = (
+        UniqueConstraint("id", "project_id", name="uq_research_contract_draft_id_project"),
         CheckConstraint("version >= 1", name="version_positive"),
         CheckConstraint(
             "status IN ('draft','confirmed','expired')", name="draft_status"
         ),
         UniqueConstraint(
-            "session_id",
+            "project_id",
             "idempotency_key",
             name="uq_research_contract_draft_idempotency",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_research_contract_drafts_project_session",
+            ondelete="CASCADE",
         ),
     )
 
@@ -671,7 +681,6 @@ class ResearchInputBindingModel(Base):
     )
     contract_draft_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("research_contract_drafts.id", ondelete="CASCADE"),
     )
     run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     bound_at: Mapped[datetime] = mapped_column(
@@ -683,6 +692,12 @@ class ResearchInputBindingModel(Base):
             ["input_id", "project_id"],
             ["research_inputs.id", "research_inputs.project_id"],
             name="fk_research_input_binding_input_project",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["contract_draft_id", "project_id"],
+            ["research_contract_drafts.id", "research_contract_drafts.project_id"],
+            name="fk_research_input_binding_draft_project",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(

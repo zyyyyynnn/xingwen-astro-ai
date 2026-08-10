@@ -56,7 +56,7 @@ uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/ge
 uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/literature_relation --include LiteratureRelationExtractionOutput --include LiteratureRelationCandidate --include LiteratureRelationAdmissionResult --include LiteratureRelationsCandidate --include LiteratureReasoningTraceCandidate --include LiteratureRelationBenchmarkEvaluationCase --include LiteratureRelationBenchmarkReport --check
 ```
 
-Versioned Evidence Graph 领域使用独立的正式导出组：
+Evidence Graph 领域使用独立的正式导出组：
 
 ```text
 packages/schemas/generated/graph/
@@ -107,7 +107,7 @@ CI 使用临时目录执行导出和 stale diff。只有作为契约漂移基线
 - 核心资源及 Workspace/Share Contract 的 Pydantic / OpenAPI 由编写源生成。
 - LiteratureClaim Pipeline Schema 使用独立 tracked JSON Schema 基线，不进入 HTTP OpenAPI。
 - LiteratureRelation/ReasoningTrace Pipeline Schema 使用独立 tracked JSON Schema 基线，不进入 HTTP OpenAPI。
-- Versioned Evidence Graph Pipeline Schema 使用 `generated/graph` 独立 tracked JSON Schema 基线，不进入 HTTP OpenAPI；Graph 的 HTTP read projection 只有在 Router 实际引用时才进入 core OpenAPI。
+- Evidence Graph Pipeline Schema 使用 `generated/graph` 独立 tracked JSON Schema 基线，不进入 HTTP OpenAPI；Graph 的 HTTP read projection 只有在 Router 实际引用时才进入 core OpenAPI。
 - 契约字段集以 `packages/schemas/generated/core/openapi.json` 与 `packages/contracts/src/generated/core/dto.ts` 为权威来源；本文不维护状态叙述，实时状态见 GitHub Issues。
 - `packages/contracts` 是前端 Contract 包边界：从生成 Schema 得到 Transport Type，经 validation 与 mapper 转为 Domain Model。
 - 独立手写 IDL 未采用。
