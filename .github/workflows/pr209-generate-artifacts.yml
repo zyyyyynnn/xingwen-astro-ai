@@ -1,35 +1,223 @@
-name: PR209 closure patch inspection
+name: PR209 final repair materializer
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - codex/governance-authority-current-main
     paths:
       - .github/workflows/pr209-generate-artifacts.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  materialize:
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: xingwen_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d xingwen_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/xingwen_test
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/xingwen_test
+
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/governance-authority-current-main
+          fetch-depth: 0
 
-      - name: Decode staged patch without modifying the repository
+      - name: Apply verified closure patch
         run: |
           cat scripts/.pr209-final-patch-1 scripts/.pr209-final-patch-2 scripts/.pr209-final-patch-3 \
             | base64 --decode \
             | gzip --decompress \
             > /tmp/pr209-final.patch
           git apply --check /tmp/pr209-final.patch
-          git apply --stat /tmp/pr209-final.patch
+          git apply /tmp/pr209-final.patch
+          git rm .github/workflows/pr209-generate-artifacts.yml \
+            scripts/.pr209-final-patch-1 \
+            scripts/.pr209-final-patch-2 \
+            scripts/.pr209-final-patch-3
 
-      - name: Upload decoded patch
-        uses: actions/upload-artifact@v4
+      - uses: astral-sh/setup-uv@v6
         with:
-          name: pr209-decoded-patch
-          if-no-files-found: error
-          path: /tmp/pr209-final.patch
+          version: "0.7.8"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Sync locked API environment
+        run: uv sync --project apps/api --frozen
+
+      - name: Regenerate current backend artifacts
+        run: |
+          uv run --project apps/api python -m services.paper_pipeline.demo_fixture
+          uv run --project apps/api python -m services.paper_pipeline.demo_summary_fixture
+          cd apps/api
+          uv run python ../../scripts/export_schemas.py \
+            --output ../../packages/schemas/generated/core \
+            --include ResearchProject \
+            --include ResearchContractDraft \
+            --include ResearchContract \
+            --include ResearchRun \
+            --include RunEvent \
+            --include ResearchArtifact \
+            --include ArtifactVersion \
+            --include ResearchArtifactDetail \
+            --include ArtifactVersionDetail \
+            --include PaperSummaryArtifactContent \
+            --include PaperSummaryRead \
+            --include PaperCollectionRead \
+            --include PaperCollectionCandidateRead \
+            --include DataArtifactReadBase \
+            --include DatasetArtifactRead \
+            --include FieldDictionaryArtifactRead \
+            --include SourceCollectionArtifactRead \
+            --include DataArtifactRowRead \
+            --include LiteratureClaimRead \
+            --include LiteratureRelationRead \
+            --include LiteratureReasoningTraceRead \
+            --include CreateArtifactExportRequest \
+            --include ArtifactExportRead \
+            --include EvidenceRead \
+            --include SourceSnapshotDetail \
+            --include SessionCreated \
+            --include WorkspaceSnapshot \
+            --include ShareSnapshot \
+            --include ShareSnapshotCreated \
+            --include PublicShareSnapshot \
+            --include ResearchInputRef \
+            --include ResearchInputDetail \
+            --include CreateResearchInputRequest \
+            --include CreateResearchInputMultipartRequest \
+            --include BindResearchInputRequest
+          uv run python ../../scripts/export_schemas.py \
+            --output ../../packages/schemas/generated/graph \
+            --include GraphBuildRequest \
+            --include GraphArtifactNode \
+            --include GraphArtifactEdge \
+            --include GraphEvidenceUse \
+            --include GraphIntegrityReport \
+            --include GraphArtifactCandidate \
+            --include GraphAdmissionResult \
+            --include GraphBenchmarkEvaluationCase \
+            --include GraphBenchmarkReport \
+            --manifest-content-hashes
+          uv run python ../../scripts/export_openapi.py \
+            --output ../../packages/schemas/generated/core/openapi.json
+          cd ../..
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.1
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install locked frontend environment
+        run: pnpm install --frozen-lockfile
+
+      - name: Sync generated consumers and canonical formatting
+        run: |
+          pnpm --filter @xingwen/contracts sync-contracts
+          pnpm exec prettier --write \
+            packages/data-access/src/fixture/paper-acquisition.fixture.json \
+            packages/data-access/src/fixture/paper-summary.fixture.json \
+            packages/schemas/generated/core/openapi.json \
+            scripts/check-architecture-delegacy.mjs \
+            scripts/check-docs-rules.mjs \
+            scripts/check-docs.mjs \
+            scripts/check-docs.test.mjs \
+            scripts/governance-identifiers.mjs
+
+      - name: Validate fresh database and backend
+        run: |
+          uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head
+          uv run --project apps/api pytest
+
+      - name: Validate generated contracts and governance
+        run: |
+          cd apps/api
+          uv run python ../../scripts/export_schemas.py \
+            --output ../../packages/schemas/generated/core \
+            --include ResearchProject \
+            --include ResearchContractDraft \
+            --include ResearchContract \
+            --include ResearchRun \
+            --include RunEvent \
+            --include ResearchArtifact \
+            --include ArtifactVersion \
+            --include ResearchArtifactDetail \
+            --include ArtifactVersionDetail \
+            --include PaperSummaryArtifactContent \
+            --include PaperSummaryRead \
+            --include PaperCollectionRead \
+            --include PaperCollectionCandidateRead \
+            --include DataArtifactReadBase \
+            --include DatasetArtifactRead \
+            --include FieldDictionaryArtifactRead \
+            --include SourceCollectionArtifactRead \
+            --include DataArtifactRowRead \
+            --include LiteratureClaimRead \
+            --include LiteratureRelationRead \
+            --include LiteratureReasoningTraceRead \
+            --include CreateArtifactExportRequest \
+            --include ArtifactExportRead \
+            --include EvidenceRead \
+            --include SourceSnapshotDetail \
+            --include SessionCreated \
+            --include WorkspaceSnapshot \
+            --include ShareSnapshot \
+            --include ShareSnapshotCreated \
+            --include PublicShareSnapshot \
+            --include ResearchInputRef \
+            --include ResearchInputDetail \
+            --include CreateResearchInputRequest \
+            --include CreateResearchInputMultipartRequest \
+            --include BindResearchInputRequest \
+            --check
+          uv run python ../../scripts/export_schemas.py \
+            --output ../../packages/schemas/generated/graph \
+            --include GraphBuildRequest \
+            --include GraphArtifactNode \
+            --include GraphArtifactEdge \
+            --include GraphEvidenceUse \
+            --include GraphIntegrityReport \
+            --include GraphArtifactCandidate \
+            --include GraphAdmissionResult \
+            --include GraphBenchmarkEvaluationCase \
+            --include GraphBenchmarkReport \
+            --manifest-content-hashes \
+            --check
+          uv run python ../../scripts/export_openapi.py \
+            --output ../../packages/schemas/generated/core/openapi.json --check
+          cd ../..
+          pnpm format:check
+          node scripts/check-architecture-delegacy.mjs
+          node scripts/check-docs.mjs
+          python scripts/check_foundation.py
+          git diff --check
+
+      - name: Commit clean materialized tree
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(repo): close final governance review blockers"
+          git push origin HEAD:codex/governance-authority-current-main
