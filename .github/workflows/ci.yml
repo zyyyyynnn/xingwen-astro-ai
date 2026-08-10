@@ -98,6 +98,17 @@ jobs:
       - name: Sync locked dependencies
         run: uv sync --frozen
 
+      - name: Smoke current Research import boundary
+        run: |
+          uv run python - <<'PY'
+          import app.main
+          from app.services.research import ResearchApplicationService
+          from app.routers import research
+          from app.schemas import core
+          print("research import boundary: OK")
+          PY
+          uv run python -m compileall -q src tests
+
       - name: Upgrade isolated PostgreSQL schema
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
