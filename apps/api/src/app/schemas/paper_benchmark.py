@@ -109,8 +109,6 @@ class BenchmarkReviewRecord(BaseModel):
     model_config = MODEL_CONFIG
 
     review_id: Identifier
-    review_sequence: int = Field(ge=1)
-    supersedes_review_id: Identifier | None = None
     reviewed_at: datetime
     reviewer_type: BenchmarkReviewerType
     reviewer_identity: ReviewerIdentity
@@ -146,59 +144,6 @@ class BenchmarkReviewRecord(BaseModel):
         ):
             raise ValueError("BLOCKED review requires blocking findings")
         return self
-
-
-def _effective_review_records(
-    records: tuple[BenchmarkReviewRecord, ...],
-) -> tuple[BenchmarkReviewRecord, ...]:
-    _require_unique_model_ids(records, "review_id", "review record")
-    by_id = {record.review_id: record for record in records}
-    successor_by_id: dict[str, str] = {}
-
-    for record in records:
-        parent_id = record.supersedes_review_id
-        if parent_id is None:
-            continue
-        if parent_id not in by_id:
-            raise ValueError(f"unknown supersedes_review_id: {parent_id}")
-        if parent_id in successor_by_id:
-            raise ValueError(f"review {parent_id} has more than one direct successor")
-        successor_by_id[parent_id] = record.review_id
-
-    for record in records:
-        visited: set[str] = set()
-        current = record
-        while current.supersedes_review_id is not None:
-            if current.review_id in visited:
-                raise ValueError("review supersedes cycle is not allowed")
-            visited.add(current.review_id)
-            current = by_id[current.supersedes_review_id]
-
-    for record in records:
-        parent_id = record.supersedes_review_id
-        if parent_id is None:
-            if record.review_sequence != 1:
-                raise ValueError("root review_sequence must be 1")
-            continue
-        parent = by_id[parent_id]
-        if record.review_sequence != parent.review_sequence + 1:
-            raise ValueError("review_sequence must increment its superseded review")
-        if record.review_purpose is not parent.review_purpose:
-            raise ValueError("a review cannot supersede a different review purpose")
-        if record.scope != parent.scope:
-            raise ValueError("a review cannot supersede a different review scope")
-
-    return tuple(
-        record for record in records if record.review_id not in successor_by_id
-    )
-
-class BenchmarkChangeRecord(BaseModel):
-    model_config = MODEL_CONFIG
-
-    version: SemanticVersion
-    changed_at: date
-    summary: NonEmptyString
-    affects_content_hash: bool
 
 
 class BenchmarkCrossrefRateLimit(BaseModel):
@@ -365,9 +310,7 @@ class BenchmarkSeedPaper(BaseModel):
     verification_sources: tuple[BenchmarkVerificationSource, ...] = Field(min_length=1)
     intended_uses: tuple[
         Literal["benchmark", "scientific_review", "fixture"], ...
-    ] = Field(
-        min_length=1
-    )
+    ] = Field(min_length=1)
     metadata_public: bool
     abstract_public: bool
     full_text_access: BenchmarkFullTextAccess
@@ -614,7 +557,6 @@ class BenchmarkPackagePayload(BaseModel):
     review_status: BenchmarkReviewStatus
     scientific_payload_hash: ContentHash
     review_records: tuple[BenchmarkReviewRecord, ...] = ()
-    change_records: tuple[BenchmarkChangeRecord, ...] = Field(min_length=1)
     source_policies: tuple[BenchmarkSourcePolicy, ...] = Field(min_length=1)
     search_scenarios: tuple[BenchmarkSearchScenario, ...] = Field(min_length=1)
     seed_papers: tuple[BenchmarkSeedPaper, ...] = Field(min_length=5, max_length=8)
@@ -670,12 +612,10 @@ class BenchmarkPackagePayload(BaseModel):
                     f"{scope.target_type.value} review target",
                 )
 
-        effective_review_records = _effective_review_records(self.review_records)
-
         if self.review_status is BenchmarkReviewStatus.approved:
             scientific_reviews = tuple(
                 record
-                for record in effective_review_records
+                for record in self.review_records
                 if record.reviewer_type is BenchmarkReviewerType.web_gpt
                 and record.review_purpose
                 is BenchmarkReviewPurpose.benchmark_scientific_review
@@ -685,7 +625,7 @@ class BenchmarkPackagePayload(BaseModel):
                 for record in scientific_reviews
             ):
                 raise ValueError(
-                    "unresolved BLOCKED scientific review prevents package approval"
+                    "BLOCKED scientific review prevents package approval"
                 )
             scientific_passes = tuple(
                 record
@@ -934,9 +874,7 @@ class BenchmarkPackagePayload(BaseModel):
             _require_known(trace.premise_claim_ids, set(claims), "trace premise claim")
             relation = relations[trace.relation_id]
             if relation.reasoning_trace_id != trace.trace_id:
-                raise ValueError(
-                    f"trace {trace.trace_id} is not pinned by its relation"
-                )
+                raise ValueError(f"trace {trace.trace_id} is not pinned by its relation")
             if trace.premise_claim_ids != (
                 relation.source_claim_id,
                 relation.target_claim_id,
@@ -958,6 +896,7 @@ class BenchmarkPackagePayload(BaseModel):
                 _require_known((node.ref_id,), set(papers), "graph paper node ref")
             elif node.node_type is GraphNodeType.claim:
                 _require_known((node.ref_id,), set(claims), "graph claim node ref")
+
         for edge in self.graph.edges:
             _require_known((edge.source, edge.target), set(nodes), "graph edge node")
             _require_known(edge.evidence_ids, set(evidence), "graph edge evidence")
@@ -1020,6 +959,19 @@ class BenchmarkPackage(BenchmarkPackagePayload):
 
     @model_validator(mode="after")
     def validate_content_hash(self) -> Self:
+        if len(self.review_records) != 1:
+            raise ValueError(
+                "benchmark package requires exactly one current scientific review"
+            )
+        current_review = self.review_records[0]
+        if current_review.reviewed_benchmark_version != self.benchmark_version:
+            raise ValueError(
+                "scientific review must bind the current benchmark version"
+            )
+        if current_review.reviewed_content_hash != self.scientific_payload_hash:
+            raise ValueError(
+                "scientific review must bind the current scientific payload hash"
+            )
         expected_scientific = compute_benchmark_scientific_payload_hash(self)
         if self.scientific_payload_hash != expected_scientific:
             raise ValueError(
@@ -1137,7 +1089,6 @@ def compute_benchmark_scientific_payload_hash(
         "scientific_payload_hash",
         "review_status",
         "review_records",
-        "change_records",
     ):
         scientific_payload.pop(field, None)
     return compute_canonical_payload_hash(scientific_payload)
