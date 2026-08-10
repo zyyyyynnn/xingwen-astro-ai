@@ -1,106 +1,40 @@
-name: PR209 repair artifact generator
+name: PR209 closure diagnostics
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - codex/governance-authority-current-main
     paths:
       - .github/workflows/pr209-generate-artifacts.yml
-      - apps/api/src/app/contracts/**
-      - scripts/export_openapi.py
 
 permissions:
   contents: read
 
 jobs:
-  generate:
+  snapshot:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.7.8"
+          ref: codex/governance-authority-current-main
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Sync API environment
-        run: uv sync --project apps/api --frozen
-
-      - name: Regenerate deterministic backend artifacts
+      - name: Report direct persistence fixture constructors
         run: |
-          uv run --project apps/api python -m services.paper_pipeline.demo_fixture
-          uv run --project apps/api python -m services.paper_pipeline.demo_summary_fixture
-          cd apps/api
-          uv run python ../../scripts/export_openapi.py \
-            --output ../../packages/schemas/generated/core/openapi.json
+          git grep -n -E 'Research(Project|ContractDraft|Contract)Model\(' -- apps/api/tests || true
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11.13.1
-          run_install: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.18.0
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install frontend toolchain
-        run: pnpm install --frozen-lockfile
-
-      - name: Apply canonical formatting and sync consumers
-        run: |
-          pnpm exec prettier --write \
-            packages/data-access/src/fixture/paper-acquisition.fixture.json \
-            packages/data-access/src/fixture/paper-summary.fixture.json \
-            packages/schemas/generated/core/openapi.json \
-            scripts/check-architecture-delegacy.mjs \
-            scripts/check-docs-rules.mjs \
-            scripts/check-docs.mjs \
-            scripts/check-docs.test.mjs \
-            scripts/governance-identifiers.mjs
-          pnpm --filter @xingwen/contracts sync-contracts
-
-      - name: Upload generated repair files
+      - name: Upload closure source snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: pr209-repair-files-current
+          name: pr209-closure-source
           if-no-files-found: error
           path: |
+            apps/api/migrations/versions
+            apps/api/src/app
+            apps/api/tests
+            docs/architecture/DATA_MODEL.md
+            packages/contracts/src/generated/core
             packages/data-access/src/fixture/paper-acquisition.fixture.json
             packages/data-access/src/fixture/paper-summary.fixture.json
-            packages/schemas/generated/core/openapi.json
-            packages/contracts/src/generated/core/dto.ts
-            packages/contracts/src/generated/core/manifest.json
-            scripts/check-architecture-delegacy.mjs
-            scripts/check-docs-rules.mjs
-            scripts/check-docs.mjs
-            scripts/check-docs.test.mjs
-            scripts/governance-identifiers.mjs
-
-      - name: Verify targeted backend contracts
-        run: |
-          uv run --project apps/api pytest \
-            apps/api/tests/test_paper_acquisition_fixture.py \
-            apps/api/tests/test_paper_summary_fixture.py \
-            apps/api/tests/test_api_surface.py -q
-
-      - name: Verify OpenAPI export is stable
-        run: |
-          cd apps/api
-          uv run python ../../scripts/export_openapi.py \
-            --output ../../packages/schemas/generated/core/openapi.json --check
-
-      - name: Verify canonical formatting
-        run: pnpm format:check
-
-      - name: Verify contract consumer generation is idempotent
-        run: |
-          cp packages/contracts/src/generated/core/dto.ts /tmp/core-dto.ts
-          cp packages/contracts/src/generated/core/manifest.json /tmp/core-manifest.json
-          pnpm --filter @xingwen/contracts sync-contracts
-          cmp /tmp/core-dto.ts packages/contracts/src/generated/core/dto.ts
-          cmp /tmp/core-manifest.json packages/contracts/src/generated/core/manifest.json
+            packages/schemas/generated/core
+            scripts
+            services/paper_pipeline/benchmarks/exoplanet_host_star
