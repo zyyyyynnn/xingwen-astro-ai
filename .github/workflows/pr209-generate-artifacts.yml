@@ -1,4 +1,4 @@
-name: PR209 closure diagnostics
+name: PR209 closure patch inspection
 
 on:
   pull_request:
@@ -11,30 +11,25 @@ permissions:
   contents: read
 
 jobs:
-  snapshot:
+  inspect:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
           ref: codex/governance-authority-current-main
 
-      - name: Report direct persistence fixture constructors
+      - name: Decode staged patch without modifying the repository
         run: |
-          git grep -n -E 'Research(Project|ContractDraft|Contract)Model\(' -- apps/api/tests || true
+          cat scripts/.pr209-final-patch-1 scripts/.pr209-final-patch-2 scripts/.pr209-final-patch-3 \
+            | base64 --decode \
+            | gzip --decompress \
+            > /tmp/pr209-final.patch
+          git apply --check /tmp/pr209-final.patch
+          git apply --stat /tmp/pr209-final.patch
 
-      - name: Upload closure source snapshot
+      - name: Upload decoded patch
         uses: actions/upload-artifact@v4
         with:
-          name: pr209-closure-source
+          name: pr209-decoded-patch
           if-no-files-found: error
-          path: |
-            apps/api/migrations/versions
-            apps/api/src/app
-            apps/api/tests
-            docs/architecture/DATA_MODEL.md
-            packages/contracts/src/generated/core
-            packages/data-access/src/fixture/paper-acquisition.fixture.json
-            packages/data-access/src/fixture/paper-summary.fixture.json
-            packages/schemas/generated/core
-            scripts
-            services/paper_pipeline/benchmarks/exoplanet_host_star
+          path: /tmp/pr209-final.patch
