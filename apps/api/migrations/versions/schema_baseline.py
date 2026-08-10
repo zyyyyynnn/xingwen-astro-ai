@@ -634,7 +634,7 @@ def upgrade() -> None:
         "artifact_versions",
         ["latest_version_id", "id"],
         ["id", "artifact_id"],
-        ondelete="SET NULL",
+        ondelete="RESTRICT",
     )
 
     op.create_table(
