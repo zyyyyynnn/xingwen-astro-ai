@@ -10,6 +10,7 @@ jobs:
   materialize-clean-tree:
     if: github.event.pull_request.head.ref == 'codex/pr209-final-repair-scratch'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
