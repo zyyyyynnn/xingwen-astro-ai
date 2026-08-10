@@ -2,11 +2,6 @@
   "authoring_source": "apps/api/src/app/schemas",
   "models": [
     {
-      "module": "app.schemas.dataset",
-      "name": "ColumnInfo",
-      "path": "json/ColumnInfo.schema.json"
-    },
-    {
       "module": "app.schemas.crossmatch",
       "name": "CrossmatchBenchmarkManifest",
       "path": "json/CrossmatchBenchmarkManifest.schema.json"
@@ -67,16 +62,6 @@
       "path": "json/DatasetQualityResult.schema.json"
     },
     {
-      "module": "app.schemas.dataset",
-      "name": "DatasetResponse",
-      "path": "json/DatasetResponse.schema.json"
-    },
-    {
-      "module": "app.schemas.evidence",
-      "name": "EvidenceResponse",
-      "path": "json/EvidenceResponse.schema.json"
-    },
-    {
       "module": "app.schemas.data_artifacts",
       "name": "FieldDictionaryArtifactCandidate",
       "path": "json/FieldDictionaryArtifactCandidate.schema.json"
@@ -87,39 +72,9 @@
       "path": "json/FieldQualityResult.schema.json"
     },
     {
-      "module": "app.schemas.reasoning",
-      "name": "LiteratureClaim",
-      "path": "json/LiteratureClaim.schema.json"
-    },
-    {
-      "module": "app.schemas.reasoning",
-      "name": "LiteratureRelation",
-      "path": "json/LiteratureRelation.schema.json"
-    },
-    {
       "module": "app.schemas.data_artifacts",
       "name": "MappingRuleSet",
       "path": "json/MappingRuleSet.schema.json"
-    },
-    {
-      "module": "app.schemas.paper",
-      "name": "PaperAcquisitionRun",
-      "path": "json/PaperAcquisitionRun.schema.json"
-    },
-    {
-      "module": "app.schemas.paper",
-      "name": "PaperCandidate",
-      "path": "json/PaperCandidate.schema.json"
-    },
-    {
-      "module": "app.schemas.paper",
-      "name": "PaperSearchQuery",
-      "path": "json/PaperSearchQuery.schema.json"
-    },
-    {
-      "module": "app.schemas.paper",
-      "name": "PaperSummary",
-      "path": "json/PaperSummary.schema.json"
     },
     {
       "module": "app.schemas.data_quality",
@@ -142,16 +97,6 @@
       "path": "json/QualityMetricResult.schema.json"
     },
     {
-      "module": "app.schemas.dataset",
-      "name": "QualityScore",
-      "path": "json/QualityScore.schema.json"
-    },
-    {
-      "module": "app.schemas.reasoning",
-      "name": "ReasoningTrace",
-      "path": "json/ReasoningTrace.schema.json"
-    },
-    {
       "module": "app.schemas.data_quality",
       "name": "ResearchContractQualityGate",
       "path": "json/ResearchContractQualityGate.schema.json"
@@ -167,20 +112,9 @@
       "path": "json/SourceCollectionArtifactCandidate.schema.json"
     },
     {
-      "module": "app.schemas.source",
-      "name": "SourceRecordItem",
-      "path": "json/SourceRecordItem.schema.json"
-    },
-    {
-      "module": "app.schemas.evidence",
-      "name": "SourceSnapshot",
-      "path": "json/SourceSnapshot.schema.json"
-    },
-    {
       "module": "app.schemas.data_artifacts",
       "name": "UnitConversionCatalog",
       "path": "json/UnitConversionCatalog.schema.json"
     }
-  ],
-  "schema_version": 1
+  ]
 }
