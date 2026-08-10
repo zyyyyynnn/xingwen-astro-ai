@@ -44,6 +44,12 @@ jobs:
           node scripts/check-title-governance.test.mjs
           node scripts/check-title-governance.mjs
 
+      - name: Lint issue templates for live-state mirrors
+        env:
+          TEMPLATE_DIR: .github/ISSUE_TEMPLATE
+        run: |
+          node scripts/check-title-governance.mjs
+
       - name: Check integration commit title grammar
         if: github.event_name == 'push'
         env:

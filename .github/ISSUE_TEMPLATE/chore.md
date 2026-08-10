@@ -8,40 +8,17 @@ labels: ["type:task"]
 
 完成后交付什么可观察、可验证的结果。
 
-## Completed baseline
-
-只填写已经在 `main`、已合并 PR、当前 Contract、当前测试或真实运行中可核验的输入。
-Issue、Draft/Open PR、目标架构、Fixture、Benchmark、Recorded 和未来 handoff 不得写成
-完成基线。
+## 输入
 
 -
 
-## Planned handoff
-
-明确本 Task 计划交付的模块、边界、测试与文档；以下内容均是未来工作，不表示已经实现。
-
--
-
-## 依赖
-
-只填写真正阻塞该交付的外部 Issue、Contract、Artifact 或环境条件；父 Issue/Epic
-或普通协作关系不是阻塞。真实阻塞使用 GitHub 原生 blocked-by。
-
-- 无 /
-
-## 输入与输出
-
-**输入**
-
--
-
-**输出**
+## 输出
 
 -
 
 ## 技术范围
 
-- 一个主要模块、一个主要负责人、一个可观察交付物。
+- 一个主要模块、一个可观察交付物。
 - 明确不修改的边界、公共接口、数据版本与失败语义。
 
 ## 核心不变量
@@ -68,6 +45,7 @@ Issue、Draft/Open PR、目标架构、Fixture、Benchmark、Recorded 和未来 
 
 ## 治理要求
 
-必须添加 `type:task`、适用的 `area:*` 与一个 `priority:p0/p1/p2`。一个 PR 只能有一个
-主要 Task、Bug 或 Gate；同一 Issue 的真实阻塞使用原生依赖，不在正文维护第二套
-动态状态。
+本模板只用于原子 Task / Chore。一个 PR 只能有一个主要 Task、Bug 或 Gate；同一 Issue 的
+真实阻塞使用原生依赖。任务状态、负责人、标签、层级与阻塞关系只使用 GitHub native metadata，
+不得复制到正文，不在正文维护第二套动态状态、依赖清单或子任务 checklist。Issue 标题必须使用
+仓库批准的 responsibility task code，形式为 `[A|B|C|D|X]-NN 简短领域描述`。

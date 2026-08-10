@@ -308,11 +308,87 @@ function runPrMode(prTitle, baseSha, headSha) {
   return failed ? 1 : 0;
 }
 
+export function validateIssueTemplate(name, content) {
+  const errors = [];
+  if (!content || typeof content !== "string") {
+    errors.push("Template content must be a non-empty string");
+    return { valid: false, errors };
+  }
+  // Forbidden dynamic-state mirrors that create a second source of truth.
+  const forbiddenSection = [
+    "## Completed baseline",
+    "## Planned handoff",
+    "## 依赖",
+    "## 边界与依赖",
+    "## 状态",
+    "## 当前 DAG",
+    "## 当前主线",
+    "## 当前批准",
+  ];
+  for (const sec of forbiddenSection) {
+    if (content.includes(sec)) {
+      errors.push(`Template must not contain the section "${sec}" (GitHub native metadata is the sole state source)`);
+    }
+  }
+  // Forbidden child-task checklist that duplicates native Sub-issue relation.
+  if (/-\s*\[\s*\]\s*#/.test(content)) {
+    errors.push("Template must not contain a `- [ ] #` sub-task checklist (use GitHub native Sub-issue)");
+  }
+  // NOTE: [A/B/C/D/X]-NN responsibility taxonomy is an approved stable identifier
+  // in GitHub Issue titles/bodies and must NOT be flagged here. Only live-state
+  // mirrors (sections / checklists / "blocked-by #" guidance) are forbidden.
+  // Forbidden guidance that tells users to copy live metadata into the body.
+  const forbiddenGuidance = [
+    "blocked-by #",
+    "经 #",
+    "已 consolidated",
+    "已 merged",
+    "当前 main 尚未",
+  ];
+  for (const g of forbiddenGuidance) {
+    if (content.includes(g)) {
+      errors.push(`Template must not instruct users to mirror live state ("${g}")`);
+    }
+  }
+  return { valid: errors.length === 0, errors, name };
+}
+
+function runTemplateMode() {
+  const dir = process.env.TEMPLATE_DIR;
+  if (!dir) {
+    console.error("Template governance check requires TEMPLATE_DIR");
+    return 1;
+  }
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const files = fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".md"));
+  let failed = false;
+  for (const f of files) {
+    const content = fs.readFileSync(path.join(dir, f), "utf8");
+    const result = validateIssueTemplate(f, content);
+    if (!result.valid) {
+      console.error(`Template ${f} error: ${result.errors.join("; ")}`);
+      failed = true;
+    } else {
+      console.log(`Template ${f} PASS`);
+    }
+  }
+  return failed ? 1 : 0;
+}
+
 function runCli() {
   const prTitle = process.env.PR_TITLE;
   const baseSha = process.env.BASE_SHA;
   const headSha = process.env.HEAD_SHA;
   const integrationSha = process.env.INTEGRATION_SHA;
+  const templateDir = process.env.TEMPLATE_DIR;
+
+  if (templateDir && !prTitle && !baseSha && !headSha && !integrationSha) {
+    return runTemplateMode();
+  }
+
   const hasPrContext = Boolean(prTitle || baseSha || headSha);
 
   if (integrationSha && hasPrContext) {

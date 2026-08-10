@@ -8,47 +8,25 @@ labels: ["bug"]
 
 修复什么可复现缺陷，以及修复后应恢复什么可观察行为。
 
-## Completed baseline
-
-只填写可核验的基线：`main`/已合并 PR、当前 Contract、失败测试、真实运行或最小复现。
-Draft/Open PR、Issue、Fixture、Benchmark 和计划中的能力不是已完成基线。
-
--
-
-## Planned handoff
-
-以下是本 Bug 计划交付的修复、回归测试和文档；计划内容不表示已实现。
-
--
-
-## 依赖
-
-只填写真正阻塞修复的外部 Issue、Contract、Artifact 或环境条件；父 Issue/父 Epic
-不自动构成阻塞。真实阻塞使用 GitHub 原生 blocked-by。
-
-- 无 /
-
-## 复现与证据
-
-**复现条件**
+## 复现条件
 
 1.
 2.
 3.
 
-**实际行为**
+## 实际行为
 
 -
 
-**预期行为**
+## 预期行为
 
 -
 
-**证据**
+## 证据
 
 - 日志、截图、版本、失败测试或最小复现；不得包含密钥、Cookie、受限全文或个人信息。
 
-## 技术范围与不变量
+## 根因边界与不变量
 
 - 根因修复，不通过放宽契约、删除测试或隐藏错误恢复表面可用。
 - 不引入与根因无关的新功能、架构迁移或重构。
@@ -65,7 +43,13 @@ Draft/Open PR、Issue、Fixture、Benchmark 和计划中的能力不是已完成
 单一修复 PR，包含根因修复、回归测试、必要文档和验证证据。独立后续问题另建
 Bug/Task，不在本 Bug 中扩张范围。
 
+## 边界
+
+- 明确不做什么；不夹带无关功能、依赖升级或重构。
+
 ## 治理要求
 
-必须添加 `bug`、一个或多个 `area:*` 与一个 `priority:p0/p1/p2`。一个 PR 只能有一个
-主要 Task、Bug 或 Gate；Epic 只能作为父级补充引用。
+本模板只用于 Bug。一个 PR 只能有一个主要 Task、Bug 或 Gate。任务状态、负责人、标签、
+层级与阻塞关系只使用 GitHub native metadata，不得复制到正文；真实阻塞使用 GitHub 原生
+依赖，不在正文维护依赖清单或子任务 checklist。Issue 标题必须使用仓库批准的 responsibility
+task code，形式为 `[A|B|C|D|X]-NN 简短领域描述`（如 `[X-09] ...`）。
