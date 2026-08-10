@@ -247,6 +247,74 @@ const componentSourcesPath = resolve(
   root,
   "packages/ui/component-sources.json",
 );
+
+function collectPublicUiValueUsages(file, content) {
+  const sourceFile = ts.createSourceFile(
+    file,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindFor(file),
+  );
+  const importedValuesByLocalName = new Map();
+
+  for (const statement of sourceFile.statements) {
+    if (
+      !ts.isImportDeclaration(statement) ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      statement.moduleSpecifier.text !== "@xingwen/ui" ||
+      statement.importClause?.isTypeOnly ||
+      !statement.importClause?.namedBindings ||
+      !ts.isNamedImports(statement.importClause.namedBindings)
+    ) {
+      continue;
+    }
+
+    for (const element of statement.importClause.namedBindings.elements) {
+      if (!element.isTypeOnly) {
+        importedValuesByLocalName.set(
+          element.name.text,
+          element.propertyName?.text ?? element.name.text,
+        );
+      }
+    }
+  }
+
+  const usages = new Set();
+  function visit(node) {
+    if (ts.isImportDeclaration(node)) return;
+    if (ts.isIdentifier(node)) {
+      const importedValue = importedValuesByLocalName.get(node.text);
+      const isJsxTag =
+        ((ts.isJsxOpeningElement(node.parent) ||
+          ts.isJsxSelfClosingElement(node.parent)) &&
+          node.parent.tagName === node) ||
+        (ts.isJsxClosingElement(node.parent) && node.parent.tagName === node);
+      const isDirectCall =
+        ts.isCallExpression(node.parent) && node.parent.expression === node;
+      if (importedValue && (isJsxTag || isDirectCall)) {
+        usages.add(importedValue);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return usages;
+}
+
+const productionApplicationFiles = sourceFiles.filter(
+  (file) =>
+    file.startsWith("apps/") &&
+    !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(file) &&
+    !/\.d\.ts$/u.test(file),
+);
+const productionUiUsagesByFile = new Map(
+  productionApplicationFiles.map((file) => [
+    file,
+    collectPublicUiValueUsages(file, readFileSync(resolve(root, file), "utf8")),
+  ]),
+);
+
 if (!existsSync(componentSourcesPath)) {
   failures.push(
     "packages/ui/component-sources.json must record shadcn provenance.",
@@ -276,10 +344,10 @@ if (!existsSync(componentSourcesPath)) {
       const consumerPath = resolve(root, consumer);
       if (
         !existsSync(consumerPath) ||
-        !readFileSync(consumerPath, "utf8").includes(component.name)
+        !productionUiUsagesByFile.get(consumer)?.has(component.name)
       ) {
         failures.push(
-          `UI component ${component.name ?? "unknown"} consumer ${consumer} is missing or stale.`,
+          `UI component ${component.name ?? "unknown"} consumer ${consumer} must import and use it in production code.`,
         );
       }
     }
@@ -291,21 +359,53 @@ const publicUiValues = [...uiIndex.matchAll(/export\s+\{([^}]+)\}\s+from/gu)]
   .flatMap((match) => match[1].split(","))
   .map((name) => name.trim())
   .filter(Boolean);
-const applicationSources = sourceFiles
-  .filter((file) => file.startsWith("apps/"))
-  .map((file) => readFileSync(resolve(root, file), "utf8"))
-  .join("\n");
+const productionUiUsages = new Set(
+  [...productionUiUsagesByFile.values()].flatMap((usages) => [...usages]),
+);
 
 for (const exportedValue of publicUiValues) {
-  const publicImportPattern = new RegExp(
-    `import\\s*\\{[^}]*\\b${exportedValue}\\b[^}]*\\}\\s*from\\s*["']@xingwen/ui["']`,
-    "u",
-  );
-  if (!publicImportPattern.test(applicationSources)) {
+  if (!productionUiUsages.has(exportedValue)) {
     failures.push(
       `@xingwen/ui public value ${exportedValue} has no production consumer.`,
     );
   }
+}
+
+const publicUiUsageFixtures = [
+  ['/* import { Button } from "@xingwen/ui"; <Button /> */', "Button", false],
+  ['import { Button } from "@xingwen/ui";', "Button", false],
+  [
+    'import { Button } from "@xingwen/ui"; type T = typeof Button;',
+    "Button",
+    false,
+  ],
+  ['import { Button } from "@xingwen/ui"; <Button />;', "Button", true],
+  [
+    'import { buttonClassName as styles } from "@xingwen/ui"; styles({});',
+    "buttonClassName",
+    true,
+  ],
+];
+for (const [content, exportedValue, expected] of publicUiUsageFixtures) {
+  const actual = collectPublicUiValueUsages(
+    "ui-consumer-fixture.tsx",
+    content,
+  ).has(exportedValue);
+  if (actual !== expected) {
+    failures.push(
+      `Architecture production-consumer self-test failed for ${exportedValue}.`,
+    );
+  }
+}
+
+if (
+  productionApplicationFiles.some((file) =>
+    /\.(?:test|spec)\.(?:ts|tsx)$/u.test(file),
+  )
+) {
+  failures.push(
+    "Architecture production-consumer self-test included an application test file.",
+  );
 }
 
 for (const file of sourceFiles.filter(

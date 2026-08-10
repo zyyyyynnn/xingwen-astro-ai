@@ -269,20 +269,75 @@ test.describe("200% font scale", () => {
   test("shared share-route controls remain operable at 200% font size", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:5173/share/test-token");
-    await setDocumentFontScale(page, "200%");
+    let shareRequests = 0;
+    let initialRequestsReleased = false;
+    let releaseInitialRequest = () => {};
+    const initialRequestPending = new Promise<void>((resolve) => {
+      releaseInitialRequest = resolve;
+    });
+    await page.route("**/api/public/shares/test-token", async (route) => {
+      shareRequests += 1;
+      if (!initialRequestsReleased) await initialRequestPending;
+      await route.fulfill({ status: 404, body: "{}" });
+    });
 
+    await page.goto("http://127.0.0.1:5173/share/test-token");
+    const spinner = page.getByRole("status", {
+      name: "正在重新载入共享结果",
+    });
+    await expect(spinner).toBeVisible();
+    const normalSpinnerFontSize = Number.parseFloat(
+      await spinner.evaluate((element) => getComputedStyle(element).fontSize),
+    );
+
+    await setDocumentFontScale(page, "200%");
+    await expect(spinner).toBeVisible();
+    expect(
+      Number.parseFloat(
+        await spinner.evaluate((element) => getComputedStyle(element).fontSize),
+      ),
+    ).toBeGreaterThanOrEqual(normalSpinnerFontSize * 2);
+
+    initialRequestsReleased = true;
+    releaseInitialRequest();
     const retry = page.getByRole("button", { name: "重试" });
     await expect(retry).toBeVisible();
     await expect(retry).toBeEnabled();
-    await retry.focus();
+    const initialRequestCount = shareRequests;
+    await page.keyboard.press("Tab");
     await expect(retry).toBeFocused();
-    await expect(page.getByRole("link", { name: "返回首页" })).toBeVisible();
+
+    await page.keyboard.press("Enter");
+    await expect.poll(() => shareRequests).toBe(initialRequestCount + 1);
+    await expect(retry).toBeEnabled();
+    for (let tabCount = 0; tabCount < 3; tabCount += 1) {
+      if (await retry.evaluate((element) => element === document.activeElement))
+        break;
+      await page.keyboard.press("Tab");
+    }
+    await expect(retry).toBeFocused();
+    await page.keyboard.press("Space");
+    await expect.poll(() => shareRequests).toBe(initialRequestCount + 2);
+    await expect(retry).toBeEnabled();
 
     const scrollWidth = await page.evaluate(
       () => document.documentElement.scrollWidth,
     );
     expect(scrollWidth).toBeLessThanOrEqual(1280);
+
+    const returnHome = page.getByRole("link", { name: "返回首页" });
+    for (let tabCount = 0; tabCount < 3; tabCount += 1) {
+      if (
+        await returnHome.evaluate(
+          (element) => element === document.activeElement,
+        )
+      )
+        break;
+      await page.keyboard.press("Tab");
+    }
+    await expect(returnHome).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/workspace$/u);
   });
 });
 

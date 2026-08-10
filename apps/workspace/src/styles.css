@@ -262,6 +262,10 @@ button:disabled {
   margin-top: 1rem;
 }
 
+.public-share-page > .xw-spinner {
+  margin-top: var(--space-4);
+}
+
 @media (max-width: 1023px) {
   .skip-link,
   .workspace-host__desktop {
