@@ -337,7 +337,7 @@ class ResearchArtifactModel(TimestampMixin, Base):
             ["artifact_versions.id", "artifact_versions.artifact_id"],
             name="fk_research_artifacts_latest_version_same_artifact",
             use_alter=True,
-            ondelete="SET NULL",
+            ondelete="RESTRICT",
         ),
     )
 
