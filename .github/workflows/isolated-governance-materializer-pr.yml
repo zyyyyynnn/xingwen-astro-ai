@@ -42,7 +42,7 @@ jobs:
           materialize = textwrap.dedent(source[materialize_start:materialize_end])
 
           old = ' or rel == ".github/pull_request_template.md" or not path.is_file():'
-          new = ' or rel == ".github/pull_request_template.md" or rel in {"scripts/check-architecture-delegacy.mjs", "scripts/check-architecture-delegacy.test.mjs"} or not path.is_file():'
+          new = ' or rel == ".github/pull_request_template.md" or rel in {"scripts/check-architecture-delegacy.mjs", "scripts/check-architecture-delegacy.test.mjs", "scripts/check_foundation.py", "scripts/test_check_foundation.py"} or not path.is_file():'
           if materialize.count(old) != 1:
               raise SystemExit(f'materializer static sweep anchor count: {materialize.count(old)}')
           materialize = materialize.replace(old, new, 1)
@@ -64,6 +64,47 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
+          def rewrite(path_text: str, replacements: list[tuple[str, str]]) -> None:
+              path = Path(path_text)
+              text = path.read_text(encoding='utf-8')
+              for old, new in replacements:
+                  if old not in text:
+                      raise SystemExit(f'anchor missing in {path}: {old!r}')
+                  text = text.replace(old, new, 1)
+              path.write_text(text, encoding='utf-8', newline='\n')
+
+          # Remove the retired workflow feature flag from current runtime/test fixtures.
+          rewrite(
+              'apps/api/src/app/routers/test_bootstrap.py',
+              [(
+                  '            "The test-only bootstrap requires the persistent runtime "\n            "(DATABASE_URL and PERSISTENT_WORKFLOW_ENABLED=true)"\n',
+                  '            "The test-only bootstrap requires the configured PostgreSQL runtime "\n            "(DATABASE_URL)"\n',
+              )],
+          )
+          rewrite(
+              'apps/api/tests/test_research_input_security.py',
+              [('    monkeypatch.setattr(settings, "PERSISTENT_WORKFLOW_ENABLED", False)\n', '')],
+          )
+          rewrite(
+              'apps/api/tests/test_snapshot_contract.py',
+              [('    monkeypatch.setattr(settings, "PERSISTENT_WORKFLOW_ENABLED", False)\n', '')],
+          )
+          rewrite(
+              'apps/api/tests/test_real_integration_postgres.py',
+              [
+                  ('    monkeypatch.setattr(settings, "PERSISTENT_WORKFLOW_ENABLED", True)\n', ''),
+                  (
+                      '                updated_at=NOW,\n            )\n        )\n        session.add(\n            ResearchContractDraftModel(',
+                      '                updated_at=NOW,\n                idempotency_key="fixture-project",\n                request_hash="sha256:" + "a" * 64,\n            )\n        )\n        session.add(\n            ResearchContractDraftModel(',
+                  ),
+                  (
+                      '                expires_at=datetime.now(UTC) + timedelta(hours=1),\n            )\n        )\n',
+                      '                expires_at=datetime.now(UTC) + timedelta(hours=1),\n                idempotency_key="fixture-draft",\n                request_hash="sha256:" + "b" * 64,\n            )\n        )\n',
+                  ),
+              ],
+          )
+
+          # Convert benchmark tests from review-history semantics to one current scientific review.
           path = Path('apps/api/tests/test_paper_benchmark.py')
           text = path.read_text(encoding='utf-8')
 
