@@ -64,10 +64,37 @@ REQUIRED_ENV_KEYS = {
     "PUBLIC_WORKSPACE_URL",
     "VITE_API_BASE_URL",
     "DATABASE_URL",
-    "DASHSCOPE_API_KEY",
     "POSTGRES_DB",
     "POSTGRES_USER",
     "POSTGRES_PASSWORD",
+    "RESEARCH_INPUT_MAX_SIZE_BYTES",
+    "RESEARCH_INPUT_ALLOWED_MIME_TYPES",
+    "RESEARCH_INPUT_UPLOAD_DIR",
+    "RESEARCH_INPUT_RATE_LIMIT",
+    "RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS",
+    "URL_FETCH_ALLOWED_PROTOCOLS",
+    "URL_FETCH_ALLOWED_HOSTS",
+    "URL_FETCH_TIMEOUT_SECONDS",
+    "URL_FETCH_MAX_REDIRECTS",
+    "URL_FETCH_MAX_RESPONSE_BYTES",
+}
+
+# These settings previously represented runtime switches or capabilities with no
+# current consumer. A future implementation must introduce its exact consumed
+# settings together with the implementation rather than reserving placeholders.
+FORBIDDEN_ENV_KEYS = {
+    "PERSISTENT_WORKFLOW_ENABLED",
+    "DASHSCOPE_API_KEY",
+    "QWEN_BASE_URL",
+    "QWEN_MODEL",
+    "QWEN_TIMEOUT_SECONDS",
+    "PAPER_SOURCE_BASE_URL",
+    "PAPER_SOURCE_API_KEY",
+    "PAPER_SEARCH_TIMEOUT_SECONDS",
+    "PAPER_SEARCH_MAX_RESULTS",
+    "ENABLE_DEMO_CACHE",
+    "CACHE_TTL_SECONDS",
+    "DEMO_CASE_KEY",
 }
 
 DEPENDENCY_FIELDS = (
@@ -175,9 +202,11 @@ def main() -> int:
 
     env_path = ROOT / ".env.example"
     if env_path.exists():
-        missing_keys = sorted(REQUIRED_ENV_KEYS - parse_env_keys(env_path))
-        for key in missing_keys:
+        env_keys = parse_env_keys(env_path)
+        for key in sorted(REQUIRED_ENV_KEYS - env_keys):
             errors.append(f".env.example missing key: {key}")
+        for key in sorted(FORBIDDEN_ENV_KEYS & env_keys):
+            errors.append(f".env.example contains unused placeholder key: {key}")
 
     if errors:
         print("\n".join(errors), file=sys.stderr)
