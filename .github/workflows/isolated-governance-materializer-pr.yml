@@ -58,8 +58,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f .github/workflows/isolated-governance-materializer.yml \
-                .github/workflows/isolated-governance-materializer-pr.yml
+          git rm -f -- .github/workflows/isolated-governance-materializer.yml \
+                       .github/workflows/isolated-governance-materializer-pr.yml
 
           python - <<'PY'
           from pathlib import Path
