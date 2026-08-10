@@ -1,5 +1,7 @@
 import type { AnchorHTMLAttributes } from "react";
 
+import { cn } from "#utils";
+
 export type LinkVariant = "text" | "button";
 
 export interface LinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
@@ -13,9 +15,7 @@ export function Link({
   className,
   ...props
 }: LinkProps) {
-  const combined = ["xw-link", `xw-link--${variant}`, className]
-    .filter(Boolean)
-    .join(" ");
+  const combined = cn("xw-link", `xw-link--${variant}`, className);
   const externalProps = external
     ? { target: "_blank", rel: "noopener noreferrer" }
     : {};

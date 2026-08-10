@@ -7,11 +7,11 @@
     "**/*.css"
   ],
   "imports": {
-    "#components": "./src",
-    "#hooks": "./src",
-    "#lib": "./src",
-    "#ui": "./src",
-    "#utils": "./src"
+    "#components/*": "./src/*",
+    "#hooks/*": "./src/*",
+    "#lib/*": "./src/lib/*",
+    "#ui/*": "./src/*",
+    "#utils": "./src/lib/utils.ts"
   },
   "exports": {
     ".": {
@@ -34,6 +34,7 @@
     "react": "19.2.7"
   },
   "dependencies": {
+    "clsx": "2.1.1",
     "lucide-react": "1.25.0"
   },
   "devDependencies": {

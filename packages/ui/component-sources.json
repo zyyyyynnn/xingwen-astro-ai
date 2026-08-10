@@ -4,8 +4,11 @@
       "name": "Button",
       "local_path": "packages/ui/src/button.tsx",
       "source": "@shadcn/button",
-      "documentation": "https://ui.shadcn.com/docs/components/radix/button",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-ui@0.9.4",
+      "registry_item": "button",
       "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
       "adaptation": "Uses native button semantics, Xingwen semantic tokens, and a dependency-free class API; omits Radix Slot because there is no production asChild consumer.",
       "production_consumers": [
         "apps/workspace/src/router.tsx",

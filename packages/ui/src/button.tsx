@@ -1,5 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 
+import { cn } from "#utils";
+
 /**
  * Source: shadcn/ui `button` (MIT), adapted to Xingwen semantic tokens and a
  * dependency-free class API. Radix Slot/asChild is intentionally omitted
@@ -39,9 +41,12 @@ export function buttonClassName({
   size = "default",
   className,
 }: ButtonClassNameOptions = {}) {
-  return ["xw-button", `xw-button--${variant}`, `xw-button--${size}`, className]
-    .filter(Boolean)
-    .join(" ");
+  return cn(
+    "xw-button",
+    `xw-button--${variant}`,
+    `xw-button--${size}`,
+    className,
+  );
 }
 
 export function Button({

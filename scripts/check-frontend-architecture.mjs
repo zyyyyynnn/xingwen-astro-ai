@@ -39,7 +39,7 @@ const allowedLocalDependencies = new Map([
 
 const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
-  ["@xingwen/ui", new Set(["lucide-react", "react"])],
+  ["@xingwen/ui", new Set(["clsx", "lucide-react", "react"])],
 ]);
 
 const approvedIconPackages = new Set(["lucide-react"]);
@@ -241,6 +241,29 @@ if (!existsSync(uiComponentsConfigPath)) {
       "packages/ui/components.json must target the existing public UI stylesheet.",
     );
   }
+
+  const uiManifest = JSON.parse(
+    readFileSync(resolve(root, "packages/ui/package.json"), "utf8"),
+  );
+  const imports = uiManifest.imports ?? {};
+  if (imports["#utils"] === "./src") {
+    failures.push(
+      "packages/ui/package.json #utils import must point to a specific utility module, not whole ./src.",
+    );
+  }
+  if (
+    !imports["#utils"] ||
+    !existsSync(resolve(root, "packages/ui", imports["#utils"]))
+  ) {
+    failures.push(
+      `packages/ui #utils import (${imports["#utils"]}) must resolve to an existing local module.`,
+    );
+  }
+  if (imports["#ui"] === "./src") {
+    failures.push(
+      "packages/ui/package.json #ui import must use subpath pattern #ui/* -> ./src/* for component subpath resolution.",
+    );
+  }
 }
 
 const componentSourcesPath = resolve(
@@ -321,17 +344,86 @@ if (!existsSync(componentSourcesPath)) {
   );
 } else {
   const sourceCatalog = JSON.parse(readFileSync(componentSourcesPath, "utf8"));
+  const seenNames = new Set();
+  const seenPaths = new Set();
+
   for (const component of sourceCatalog.components ?? []) {
+    if (!component.name || typeof component.name !== "string") {
+      failures.push(
+        "UI component entry in component-sources.json is missing a valid name.",
+      );
+    } else if (seenNames.has(component.name)) {
+      failures.push(
+        `UI component name ${component.name} must be unique in component-sources.json.`,
+      );
+    } else {
+      seenNames.add(component.name);
+    }
+
+    if (!component.local_path || typeof component.local_path !== "string") {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} is missing local_path.`,
+      );
+    } else if (seenPaths.has(component.local_path)) {
+      failures.push(
+        `UI component local_path ${component.local_path} must be unique in component-sources.json.`,
+      );
+    } else {
+      seenPaths.add(component.local_path);
+      if (!existsSync(resolve(root, component.local_path))) {
+        failures.push(
+          `UI component ${component.name ?? "unknown"} local_path ${component.local_path} does not exist.`,
+        );
+      }
+    }
+
     if (!component.source?.startsWith("@shadcn/")) {
       failures.push(
         `UI component ${component.name ?? "unknown"} has an unapproved shadcn source.`,
       );
     }
-    if (!existsSync(resolve(root, component.local_path ?? ""))) {
+
+    if (
+      !component.upstream_repository ||
+      typeof component.upstream_repository !== "string"
+    ) {
       failures.push(
-        `UI component ${component.name ?? "unknown"} is missing local_path ${component.local_path ?? ""}.`,
+        `UI component ${component.name ?? "unknown"} must declare upstream_repository.`,
       );
     }
+
+    if (
+      !component.upstream_revision ||
+      typeof component.upstream_revision !== "string" ||
+      /^(?:main|master|latest)$/i.test(component.upstream_revision)
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare an immutable upstream_revision (not main/master/latest).`,
+      );
+    }
+
+    if (!component.license || typeof component.license !== "string") {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare a license.`,
+      );
+    }
+
+    if (
+      !component.notice ||
+      typeof component.notice !== "string" ||
+      !existsSync(resolve(root, component.notice))
+    ) {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} notice path (${component.notice}) must be a valid existing file.`,
+      );
+    }
+
+    if (!component.adaptation || typeof component.adaptation !== "string") {
+      failures.push(
+        `UI component ${component.name ?? "unknown"} must declare adaptation details.`,
+      );
+    }
+
     if (
       !Array.isArray(component.production_consumers) ||
       component.production_consumers.length === 0
@@ -340,6 +432,7 @@ if (!existsSync(componentSourcesPath)) {
         `UI component ${component.name ?? "unknown"} must record a production consumer.`,
       );
     }
+
     for (const consumer of component.production_consumers ?? []) {
       const consumerPath = resolve(root, consumer);
       if (
@@ -466,6 +559,7 @@ const boundaryRules = new Map([
     {
       description: "the presentation-only UI boundary",
       allowedBareImports: new Set([
+        "clsx",
         "lucide-react",
         "react",
         "react/jsx-runtime",
@@ -491,7 +585,11 @@ const workspacePresentationRule = {
 };
 
 function isRelativeImport(specifier) {
-  return specifier.startsWith("./") || specifier.startsWith("../");
+  return (
+    specifier.startsWith("./") ||
+    specifier.startsWith("../") ||
+    specifier.startsWith("#")
+  );
 }
 
 function scriptKindFor(file) {

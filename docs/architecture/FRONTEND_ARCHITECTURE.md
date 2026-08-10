@@ -83,6 +83,8 @@ shadcn 仅作为按需采用的源码来源，不作为第二套运行时组件�
 
 Lucide 是唯一通用动作图标库，由 `@xingwen/ui/icons` 提供受控 public export；App、Page、Feature 与 OpenHands 适配源码不得直接依赖图标包。品牌资产与科研专用可视化不经 Lucide 替换。`@xingwen/ui` 只消费 `--color-*`、`--space-*`、`--control-*`、`--icon-*`、`--font-size-ui-*`、`--line-height-ui-*`、`--radius-*`、`--shadow-*`、`--motion-*` 与 `--focus-*` 等 Core semantic Token，不得依赖 `--workspace-*`、`--oh-*` 或 Raw palette。
 
+共享 Link 视觉呈现与 Router 导航所有权划分：`@xingwen/ui` 拥有 Link 视觉外观（文本/按钮样式、焦点圈、外部链接 semantics）；TanStack Router 拥有内部 SPA 路由、类型化导航与预加载生命周期。Workspace 在路由场景下使用 TanStack Router 进行 SPA 导航不属于建立第二套视觉 Link primitive，前提是其最终消费 `@xingwen/ui` 的共享视觉 contract。`@xingwen/ui` 本身不增加 Router 框架依赖。
+
 ## 4. 依赖方向
 
 ```text
