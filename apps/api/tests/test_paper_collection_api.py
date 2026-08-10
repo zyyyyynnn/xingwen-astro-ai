@@ -632,8 +632,6 @@ def _seed_published_collection(
         execution_mode="demo_replay",
         status="completed",
         progress=100,
-        derivation_kind="original",
-        cache_policy="disabled",
         latest_event_sequence=1,
         revision=1,
         idempotency_key="paper_collection_api-postgres-run",

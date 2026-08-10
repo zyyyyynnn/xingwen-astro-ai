@@ -45,7 +45,6 @@ const SKIP_PATH_PREFIXES = ["apps/api/migrations"];
 const ALLOWLIST = new Set([
   "scripts/check-frontend-architecture.mjs",
   "scripts/check-versionless-api.mjs",
-  "CONTRIBUTING.md", // past GitHub issue titles quoted verbatim
 ]);
 
 const VERSION_PATH_PATTERN = /\/api\/v[0-9](?=[/\W]|$)/u;

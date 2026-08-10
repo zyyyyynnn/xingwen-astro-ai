@@ -17,10 +17,8 @@
 
 import type {
   ArtifactVersionMetadata,
-  CachePolicy,
   CaseKey,
   CreateShareSnapshotRequest,
-  DerivationKind,
   DomainEntityId,
   Evidence,
   ExecutionMode,
@@ -77,10 +75,6 @@ export interface CreateResearchRunInput {
   /** Stable per user action; reuse only when retrying that same action. */
   readonly idempotencyKey: string;
   readonly executionMode: ExecutionMode;
-  readonly derivationKind?: DerivationKind;
-  readonly parentRunId?: DomainEntityId | null;
-  readonly retryFromStep?: DomainEntityId | null;
-  readonly cachePolicy?: CachePolicy;
 }
 
 /** Snapshot-first RunEvent recovery result, capped to the authoritative tail. */

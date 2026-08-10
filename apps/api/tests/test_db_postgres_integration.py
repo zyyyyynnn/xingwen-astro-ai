@@ -87,8 +87,6 @@ def _seed_run(engine: Engine) -> tuple[ResearchRunModel, RunStepModel]:
         execution_mode="live",
         status="queued",
         progress=0,
-        derivation_kind="original",
-        cache_policy="disabled",
         latest_event_sequence=0,
         revision=1,
         idempotency_key="run-key",
@@ -265,8 +263,8 @@ def test_database_rejects_cross_project_contract_reference(postgres_engine: Engi
     )
     invalid_run = ResearchRunModel(
         id=uuid4(), project_id=other_project.id, contract_id=original_run.contract_id,
-        execution_mode="live", status="queued", progress=0, derivation_kind="original",
-        cache_policy="disabled", latest_event_sequence=0, revision=1,
+        execution_mode="live", status="queued", progress=0,
+        latest_event_sequence=0, revision=1,
         idempotency_key="cross-project", request_hash="sha256:" + "e" * 64
     )
     with UnitOfWork(factory) as uow:

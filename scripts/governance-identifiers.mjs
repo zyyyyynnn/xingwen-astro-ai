@@ -34,7 +34,6 @@ const phasePathTokenPattern = /^phase(?:[_-]?\d+)$/iu;
 
 function withoutAllowedDomainIdentifiers(value) {
   return value
-    .replace(externalTechnicalIdentifierPattern, "")
     .replace(/https?:\/\/[^\s)\]}>]+/giu, "")
     .replace(
       /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/giu,
@@ -105,6 +104,15 @@ export function containsRepositoryVersionLabel(value) {
     camelPseudoVersionPattern.test(normalized) ||
     versionedDomainIdentityPattern.test(normalized)
   );
+}
+
+export function containsRepositoryVersionLabelForPath(value, path) {
+  const normalizedPath = path.replaceAll("\\", "/");
+  const scopedValue =
+    normalizedPath === "docs/references/inosum/code/paper_summary.py"
+      ? value.replace(externalTechnicalIdentifierPattern, "")
+      : value;
+  return containsRepositoryVersionLabel(scopedValue);
 }
 
 export function containsRepositoryVersionLabelPath(value) {

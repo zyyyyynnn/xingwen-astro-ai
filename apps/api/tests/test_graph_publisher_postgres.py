@@ -191,7 +191,6 @@ def _active_graph_publication(
         project_id=project.id,
         contract_id=contract.id,
         execution_mode="live",
-        cache_policy="disabled",
         idempotency_key=f"graph-run-{uuid4()}",
         request_hash="sha256:" + "b" * 64,
         steps=_steps(),

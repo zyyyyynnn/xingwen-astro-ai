@@ -10,6 +10,7 @@ import {
   containsRepositoryTaskCode,
   containsRepositoryTaskCodePath,
   containsRepositoryVersionLabel,
+  containsRepositoryVersionLabelForPath,
   containsRepositoryVersionLabelPath,
   isIssueOrPullRequestBodyTemplatePath,
   isRepositoryTextPath,
@@ -132,10 +133,10 @@ test("does not confuse platform architecture tokens with task codes", () => {
 test("rejects work phase identities but allows failure-stage semantics", () => {
   const phase = ["Phase", "2"].join(" ");
   const compact = ["phase", "_", "1"].join("");
-  const milestone = ["M", "2"].join("");
+  const workMarker = ["M", "2"].join("");
   assert.equal(containsRepositoryPhaseIdentifier(phase), true);
   assert.equal(containsRepositoryPhaseIdentifier(compact), true);
-  assert.equal(containsRepositoryPhaseIdentifier(milestone), true);
+  assert.equal(containsRepositoryPhaseIdentifier(workMarker), true);
   assert.equal(
     containsRepositoryPhaseIdentifierPath(`generated/${compact}/manifest.json`),
     true,
@@ -173,8 +174,20 @@ test("rejects repository pseudo-version identities", () => {
 
 test("retains legitimate technical and external versions", () => {
   assert.equal(containsRepositoryVersionLabel("Pydantic v2"), false);
+  const externalIdentity = ["call_deepseek_v", "3_2"].join("");
+  assert.equal(containsRepositoryVersionLabel(externalIdentity), true);
   assert.equal(
-    containsRepositoryVersionLabel(["call_deepseek_v", "3_2"].join("")),
+    containsRepositoryVersionLabelForPath(
+      externalIdentity,
+      "apps/api/src/app/services/model.py",
+    ),
+    true,
+  );
+  assert.equal(
+    containsRepositoryVersionLabelForPath(
+      externalIdentity,
+      "docs/references/inosum/code/paper_summary.py",
+    ),
     false,
   );
   assert.equal(containsRepositoryVersionLabel('tag: "v1.10.0"'), false);

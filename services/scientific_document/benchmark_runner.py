@@ -1,9 +1,8 @@
 """Reproducible Scientific Document Parsing benchmark runner.
 
 Runs the benchmark-only native baseline (docling-parse) over the committed
-Golden Set fixtures and emits a versioned, hashed ``BenchmarkReport``. Hybrid
-mode is reserved: the result structure exists but real hybrid runs belong to
-Hybrid Scientific Document Parser. Native-only is the only mode executed here.
+Golden Set fixtures and emits a hashed ``BenchmarkReport``. The report contract
+also carries hybrid provenance; this runner never claims a hybrid execution.
 
 Fail-closed rules:
 - a committed fixture that is missing is a benchmark error, never a skip;
@@ -257,10 +256,7 @@ def run_native_only() -> BenchmarkReport:
             sum((case.native_routing_coverage or 0.0) for case in cases),
             total,
         ),
-        _metric(
-            "visual_routing_coverage",
-            BenchmarkMetricStatus.not_applicable,
-        ),
+        _metric("visual_routing_coverage", BenchmarkMetricStatus.not_applicable),
         _metric("block_recovery", block_status, block_num, block_den),
         _metric("reading_order_error", BenchmarkMetricStatus.not_run),
         _metric("table_structure_recovery", BenchmarkMetricStatus.unsupported),

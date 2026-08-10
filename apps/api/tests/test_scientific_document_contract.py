@@ -36,8 +36,8 @@ def _profile() -> DocumentParseProfile:
         parser_profile_id="p1",
         parser_profile_version="1.1.0",
         native_backend="native-engine==1.0.0",
-        routing_policy_version="native-only",
-        resource_policy_version="cpu-capable",
+        routing_policy_id="native-only",
+        resource_policy_id="cpu-capable",
         configuration_hash=_HASH_C,
     )
 
@@ -95,6 +95,34 @@ def _candidate(
 def test_bbox_rejects_unordered_rect() -> None:
     with pytest.raises(ValidationError):
         DocumentBBox(x1=10, y1=10, x2=5, y2=20)
+
+
+def test_parse_profile_uses_policy_identity_fields_only() -> None:
+    assert {"routing_policy_id", "resource_policy_id"} <= set(
+        DocumentParseProfile.model_fields
+    )
+    assert "routing_policy_version" not in DocumentParseProfile.model_fields
+    assert "resource_policy_version" not in DocumentParseProfile.model_fields
+
+
+def test_visual_provenance_must_match_profile_and_be_complete() -> None:
+    base = _candidate().model_dump(mode="json")
+    base["profile"]["visual_backend"] = "visual-engine"
+    with pytest.raises(ValidationError, match="visual_engine presence"):
+        DocumentParseCandidate.model_validate(base)
+
+    base["visual_engine"] = "visual-engine"
+    with pytest.raises(ValidationError, match="present together"):
+        DocumentParseCandidate.model_validate(base)
+
+    base["visual_engine_version"] = "3.6.0"
+    base["visual_model_id"] = "PaddlePaddle/PaddleOCR-VL-1.6"
+    with pytest.raises(ValidationError, match="present together"):
+        DocumentParseCandidate.model_validate(base)
+
+    base["visual_model_revision"] = "cdc88f5feff0e4079e75863205053a68358e52f7"
+    candidate = DocumentParseCandidate.model_validate(base)
+    assert candidate.profile.visual_backend == candidate.visual_engine
 
 
 def test_bbox_rejects_negative() -> None:

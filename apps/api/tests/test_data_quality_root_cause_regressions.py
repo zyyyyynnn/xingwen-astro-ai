@@ -7,7 +7,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from app.contracts.manifest_policy import confirm_research_contract
+from app.contracts.manifest_policy import validate_research_contract_admission
 from app.db.models import ResearchContractModel
 from app.schemas.core import (
     ResearchContract,
@@ -156,25 +156,21 @@ def test_production_confirmed_contract_enters_data_quality_without_hash_translat
         MANIFEST_ROOT / "case-manifest.json",
         MANIFEST_ROOT / "field-manifest.json",
     )
-    confirmed = confirm_research_contract(
+    content_hash = compute_research_contract_content_hash(contract_input)
+    validate_research_contract_admission(
         contract_input,
-        id="11111111-1111-4111-8111-111111111111",
-        project_id="22222222-2222-4222-8222-222222222222",
-        version=3,
-        created_from_draft_id="33333333-3333-4333-8333-333333333333",
-        created_at=draft.created_at,
-        content_hash=compute_research_contract_content_hash(contract_input),
+        content_hash=content_hash,
         case_key="exoplanet_host_star",
         manifests=manifests,
     )
     persisted = ResearchContractModel(
-        id=UUID(confirmed.id),
-        project_id=UUID(confirmed.project_id),
-        version=confirmed.version,
-        content_hash=confirmed.content_hash,
+        id=UUID("11111111-1111-4111-8111-111111111111"),
+        project_id=UUID("22222222-2222-4222-8222-222222222222"),
+        version=3,
+        content_hash=content_hash,
         content=contract_input.model_dump(mode="json"),
-        created_from_draft_id=UUID(confirmed.created_from_draft_id),
-        created_at=confirmed.created_at,
+        created_from_draft_id=UUID("33333333-3333-4333-8333-333333333333"),
+        created_at=draft.created_at,
     )
     read_contract = read_persisted_contract(persisted)
     quality_input, _ = make_quality_input("star.tic_id", contract=read_contract)
@@ -182,8 +178,11 @@ def test_production_confirmed_contract_enters_data_quality_without_hash_translat
     result = evaluate_data_quality(quality_input)
 
     assert isinstance(result, DataQualityEvaluationResult)
-    assert read_contract == confirmed
-    assert result.input_references.research_contract_content_hash == confirmed.content_hash
+    assert read_contract.content_hash == content_hash
+    assert read_contract.model_dump(
+        mode="json", include=set(ResearchContractInput.model_fields)
+    ) == contract_input.model_dump(mode="json")
+    assert result.input_references.research_contract_content_hash == content_hash
 
 
 def test_requested_field_order_is_a_set_semantic_for_contract_gate() -> None:

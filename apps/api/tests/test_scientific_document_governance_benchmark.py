@@ -58,6 +58,23 @@ def test_adoption_manifest_paddle_exact_revision() -> None:
     assert paddle["model_resolved_id"] == "PaddleOCR-VL-1.6-0.9B"
 
 
+def test_benchmark_contract_preserves_hybrid_shape_without_claiming_execution() -> None:
+    from app.schemas.scientific_document_benchmark import (
+        BenchmarkCaseResult,
+        BenchmarkParserMode,
+        BenchmarkReport,
+    )
+
+    assert BenchmarkParserMode.hybrid.value == "hybrid"
+    assert "visual_routing_coverage" in BenchmarkCaseResult.model_fields
+    assert {
+        "visual_engine",
+        "visual_engine_version",
+        "visual_model_id",
+        "visual_model_revision",
+    } <= set(BenchmarkReport.model_fields)
+
+
 def test_adoption_contract_validates_and_only_approved_is_consumable() -> None:
     from services.scientific_document.adoption_contract import (
         AdoptionStatus,

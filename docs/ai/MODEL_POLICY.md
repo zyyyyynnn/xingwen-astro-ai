@@ -1,72 +1,44 @@
 # Model Policy
 
-| 元数据    | 值                                       |
-| --------- | ---------------------------------------- |
-| Authority | 模型调用准入、验证、记录、降级与评测规范 |
+| 元数据 | 值 |
+| --- | --- |
+| Authority | 模型输出准入、执行记录、Evidence 与失败语义 |
 
-本文规定模型调用进入科研产物前的准入、验证与记录要求。竞赛资格与提交证据见
-[Competition Compliance](../product/COMPETITION_COMPLIANCE.md)，Prompt 当前定义见
-[Prompt Registry](PROMPT_REGISTRY.md)，推理推导协议见 [Reasoning Protocol](REASONING_PROTOCOL.md)，
-安全与日志规范见 [Security](../../SECURITY.md)。
+模型与比赛资格由 [Competition Compliance](../product/COMPETITION_COMPLIANCE.md) 约束；Prompt identity 由 [Prompt Registry](PROMPT_REGISTRY.md) 管理。本文定义模型执行边界、候选输出准入与 provenance 规则。
 
-## 1. 模型调用路径
+## 1. 模型输出不是发布事实
 
-```text
-Workflow Step -> Model Application Service -> Model Client -> Structure & Evidence Admission -> ProducerExecution -> ArtifactVersion Publisher
-```
+模型输出必须先解析为对应的 Pydantic output model，再通过领域、Evidence、质量与 hash 准入。原始自由文本、解析失败内容或缺少 Evidence 的结论不得成为 ArtifactVersion。
 
-前端、Router 或脚本严禁绕过后端模型服务直接调用模型 API；模型输出的自然语言严禁不经校验直接充当科研事实。
+当前使用模型候选的文献 Pipeline 包括 PaperSummary、LiteratureClaim 与 LiteratureRelation。每条 Pipeline 独立验证输入 ArtifactVersion、Prompt identity、输出 Schema、Evidence locator、状态计数与 canonical output hash。
 
-## 2. 输入与输出准入
+## 2. ProducerExecution
 
-每次模型调用必须绑定 `run_id`、`step_key`、Prompt 名称/版本/哈希、模型名称与参数、输入 `input_hash`。
+模型执行记录使用 ProducerExecution 保存：
 
-模型响应进入持久化前必须依次通过：
+- `producer_type=model`、producer/model identity；
+- `prompt_name`、`prompt_version`、`prompt_hash`；
+- `parameters_hash`、`input_hash`、`output_hash`；
+- 状态、错误码、token usage 与 latency。
 
-1. 受控 JSON 语法解析；
-2. Pydantic / JSON Schema 结构校验；
-3. 字段级与枚举业务校验；
-4. Evidence 引用存在性与归属校验；
-5. 对应领域（Summary / Claim / Relation / Trace）的准入门校验；
-6. `ProducerExecution` 与哈希计算；
-7. `ArtifactVersion` 原子发布事务。
+记录不得包含 API key、认证头、受限全文、原始响应或私有 chain-of-thought。ReasoningTrace 只保存可审查的依据、假设、限制、Evidence 与 Claim/Relation 引用。
 
-任何环节失败均严禁将原始自然语言作为临时事实返回给客户端。
+## 3. 失败关闭
 
-## 3. Evidence 强度规则
+- JSON 解析、Schema、Evidence、方向、单位、可比性或 provenance 校验失败时，Candidate 必须拒绝或标记为对应科学状态。
+- 可恢复的外部失败只在调用方已有的有界 attempt 规则内重试；失败不得用 Fixture 冒充 Live 结果。
+- Pipeline 不得自行推进 ResearchRun、写 Artifact latest pointer 或绕过 Publisher。
 
-- **数据与属性**：必须绑定 `SourceSnapshot` 与对应字段/转换 Evidence。
-- **PaperSummary**：核心 finding / limitation 必须逐项绑定文献 Evidence。
-- **Claim**：必须包含至少一条绑定当前输入版本的 Evidence。
-- **Accepted Relation**：必须包含双方 Evidence、明确条件与 `ReasoningTrace`。
-- **GraphEdge**：必须包含 Evidence；跨文献边额外包含 Accepted Relation 与 `ReasoningTrace`。
-- 无 Evidence 支撑的模型推测仅能标记为 `candidate` / `unsupported`。
+## 4. 可复现身份
 
-## 4. 失败与降级
+发布身份必须固定实际使用的 Prompt 内容 hash、模型/producer identity、参数 hash、输入 ArtifactVersion 与输出 hash。动态别名、页面状态或未持久化临时对象不得作为可复现事实源。
 
-- **允许**：对明确的网络超时/限流执行有界自动重试，记录 `StepAttempt`；在 Live 失败后由 CacheSelector 挑选匹配的真实历史版本；将无法确证的输出转为 `unsupported` / `unverifiable`。
-- **禁止**：删除 Evidence、 Schema 或质量要求换取成功；把无法解析的文本直接展示为事实；使用 Fixture 或手写响应伪造真实模型输出；覆盖失败 Attempt。
+## 5. ModelExecutionPort
 
-## 5. ProducerExecution
+ModelExecutionPort 是 provider-neutral 的模型执行边界，拥有 typed request、Prompt identity、参数、超时、token usage、provider request identity 与原始失败分类。Provider Adapter 只负责调用与传输映射，不能决定 Artifact 准入或推进 Run。
 
-每次模型或算法执行必须记录包含 `run_id`、`step_key`、`producer_name/version`、`model_provider/name`、`prompt_name/version/hash`、`parameters_hash`、`input_hash`、`output_hash`、`status`、`latency_ms` 与 `token_usage` 的完整元数据。
+调用方必须先存在可验证的 Adapter 与 ProducerExecution writer 才能执行该 Port。没有实现绑定时必须拒绝调用；不得生成模拟模型响应、成功状态、ArtifactVersion 或比赛调用证明。
 
-`ReasoningTrace` 仅包含用户可审查的依据、条件与引用，绝对不记录或展示模型私有 chain-of-thought。
+## 6. CacheSelector 协作
 
-## 6. ModelExecutionPort 与 Adapter
-
-模型能力必须先定义稳定的 `ModelExecutionPort`，再由薄 Adapter 处理 provider
-protocol、鉴权配置、限流/超时、结构化响应和安全元数据。Adapter 不实现领域算法、
-字段映射、科研事实发布或第二套 Prompt Registry；调用结果统一进入本文定义的结构、
-Evidence、ProducerExecution 与 Publisher 准入链。
-
-模型与平台的竞赛资格、允许的官方调用路径及提交证明字段只由
-[Competition Compliance](../product/COMPETITION_COMPLIANCE.md) 定义，本文不重复维护
-provider 或 model 清单。
-
-## 7. 失败、部分结果与能力声明
-
-没有可复核 ProducerExecution、准入结果与 ArtifactVersion/Evidence 的执行只能声明为
-未验证或 benchmark。网络/配额/解析失败必须保留失败 Attempt；可恢复失败才能按
-[Data Versioning](../architecture/DATA_VERSIONING.md) 选择真实历史 CacheRecord。
-`partial`、`unsupported`、`candidate` 和 `rejected` 不得自动升级为成功科研事实或完成状态。
+模型调用发生可恢复失败时，只有 Workflow 的 CacheSelector 可以选择真实 CacheRecord。选择结果必须匹配 Contract、input hash、model/prompt identity 与 Evidence；模型 Pipeline 自身不得把 Fixture 或本地 seed 标记为 cached。

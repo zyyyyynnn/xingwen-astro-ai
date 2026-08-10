@@ -7,7 +7,7 @@ small security-relevant path classification needed before routing:
 * which anonymous share reads receive hardened response handling, and
 * the default-deny rule for every other ``/api`` request.
 
-There is no compatibility API or alternate error-envelope surface here.
+Every other API route and error-envelope shape remains outside this surface.
 """
 
 from __future__ import annotations

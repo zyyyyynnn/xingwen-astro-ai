@@ -1,5 +1,5 @@
 ---
-name: literature_reasoning
+name: literature_relation
 version: 2.0.1
 output_model: LiteratureRelationExtractionOutput
 input_schema_version: 1.0.0

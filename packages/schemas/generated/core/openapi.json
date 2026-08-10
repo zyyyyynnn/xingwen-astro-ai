@@ -1029,58 +1029,14 @@
       "CreateRunRequest": {
         "additionalProperties": false,
         "properties": {
-          "cache_policy": {
-            "$ref": "#/components/schemas/CachePolicy",
-            "default": "fallback_on_recoverable_failure"
-          },
           "contract_id": {
             "maxLength": 128,
             "minLength": 1,
             "title": "Contract Id",
             "type": "string"
           },
-          "derivation_kind": {
-            "$ref": "#/components/schemas/DerivationKind",
-            "default": "original"
-          },
           "execution_mode": {
             "$ref": "#/components/schemas/ExecutionMode"
-          },
-          "feedback_ids": {
-            "default": [],
-            "items": {
-              "maxLength": 128,
-              "minLength": 1,
-              "type": "string"
-            },
-            "title": "Feedback Ids",
-            "type": "array"
-          },
-          "parent_run_id": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Run Id"
-          },
-          "retry_from_step": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retry From Step"
           }
         },
         "required": [
@@ -8518,7 +8474,7 @@
         "type": "object"
       },
       "ResearchInputStatus": {
-        "description": "Lifecycle of a controlled research input after ingestion.\n\n``accepted`` is the only state Research Input Ingestion produces: ingestion succeeded and the\ncontent is frozen behind an immutable content hash. ``unsupported_processing``\nand ``failed_ingestion`` are reserved states the API exposes so consumers\nnever mistake \"uploaded\" for \"understood\".",
+        "description": "Stable lifecycle states for a controlled research input.\n\nThe ingestion writer produces ``accepted`` only. The other states preserve\nthe domain distinction between unsupported processing and failed ingestion;\nthey must be recorded only by a writer that has observed that outcome.",
         "enum": [
           "accepted",
           "unsupported_processing",
@@ -8639,7 +8595,7 @@
         "additionalProperties": false,
         "examples": [
           {
-            "cache_policy": "fallback_on_recoverable_failure",
+            "cache_policy": "disabled",
             "contract_id": "rc_01JEXAMPLE",
             "created_at": "2026-07-21T08:00:00Z",
             "derivation_kind": "original",

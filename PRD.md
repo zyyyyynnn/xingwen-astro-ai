@@ -4,7 +4,7 @@
 | --- | --- |
 | Authority | 用户、问题、产品范围、主流程、成功指标与非目标 |
 
-本文定义星文智析要解决的问题和必须交付的产品结果。交互细节见 [Workspace UX](docs/design/WORKSPACE_UX.md)，规范索引见 [docs/README.md](docs/README.md)，阶段退出标准见 [Acceptance](docs/product/ACCEPTANCE.md)。
+本文定义星文智析要解决的问题和必须交付的产品结果。交互细节见 [Workspace UX](docs/design/WORKSPACE_UX.md)，规范索引见 [docs/README.md](docs/README.md)，退出标准见 [Acceptance](docs/product/ACCEPTANCE.md)。
 
 ## 1. 产品目标
 
@@ -48,8 +48,8 @@ MVP 固定主案例为 **系外行星候选体与宿主恒星参数整合**。�
 5. 生成逐项绑定 Evidence 的 PaperSummary
 6. 抽取 Claim -> 构建候选与最终 Relation、ReasoningTrace
 7. 生成每条边可核验的证据图谱
-8. 用户审查产物与 Evidence -> 导出、分享或提交对象级反馈
-9. 系统生成 RevisionPlan -> 派生 Run 生成新 ArtifactVersion，保留历史版本
+8. 用户审查产物与 Evidence -> 导出或分享
+9. 用户提交对象级反馈 -> 确认 RevisionPlan -> 派生 Run 生成新的 ArtifactVersion
 ```
 
 ## 6. 真实性语义
@@ -72,8 +72,8 @@ MVP 固定主案例为 **系外行星候选体与宿主恒星参数整合**。�
 - **跨文献推理**：Claim、候选/最终 Relation、Trace、条件与 Evidence。
 - **学术图谱**：所有边绑定 Evidence 的证据图谱。
 - **科研工作台**：成熟 Agent 骨架、导航、Agent Activity、Artifact Workspace、Inspector 与 Composer。
-- **反馈修订**：对象级 Feedback、RevisionPlan、追加式 ArtifactVersion。
 - **分享与导出**：只读快照、CSV、JSON 和溯源报告。
+- **反馈修订**：对象级 UserFeedback、可确认 RevisionPlan 与追加式 ArtifactVersion。
 
 ## 8. 非目标
 

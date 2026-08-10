@@ -61,7 +61,7 @@
       "type": "string"
     },
     "ParserBackend": {
-      "description": "Vendor-neutral provenance of a parsed element.\n\nRecords whether a block/cell/formula came from the born-digital native\nengine or the visual (OCR/VLM) engine. It never names a vendor package.",
+      "description": "Vendor-neutral parser provenance of a parsed element.",
       "enum": [
         "native",
         "visual"

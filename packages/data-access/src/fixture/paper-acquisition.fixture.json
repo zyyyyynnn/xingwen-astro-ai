@@ -12,8 +12,8 @@
     "artifact_id": "art_papcol_01",
     "project_id": "proj_01JEXAMPLE",
     "source_mode": "fixture",
-    "content_hash": "sha256:7b5f1cb9d53a1f2d160d60b0e33a6c9799608e92f5654ac0660fa37d52bd8b0e",
-    "input_hash": "sha256:d90bae2830123392d9c74c18d70e3aa2e34be62ea0841fecc4ddd477112eb136",
+    "content_hash": "sha256:880a853ac955b8f34d7de93975c2bb417f4f0d57c28677ab7d281b116b592e2b",
+    "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
     "created_at": "2026-07-21T08:24:45Z",
     "collection": {
       "schema_version": "2.0.0",
@@ -22,7 +22,7 @@
         "schema_version": "2.0.0",
         "benchmark_version": "2.0.0",
         "scientific_payload_hash": "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9",
-        "content_hash": "sha256:2bd6b19f8f202c821f11912abd22176b8e53790f9fcdd23d177cbb562d81ba0e",
+        "content_hash": "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57",
         "scenario_id": "search.tess_mission_and_catalogs"
       },
       "query": {
@@ -63,7 +63,7 @@
         "query_hash": "sha256:77cb8ed59e38acc5b736dcb98947292c3c11c3acfbae3b39c8a2a94c91c17085"
       },
       "acquisition_run": {
-        "acquisition_id": "acquisition.6739a66e0fe91eef94fdc448",
+        "acquisition_id": "acquisition.dd3224316c182460b2f3fa21",
         "status": "completed",
         "started_at": "2026-07-21T08:24:00Z",
         "finished_at": "2026-07-21T08:24:45Z",
@@ -591,7 +591,7 @@
         "selection_limit": 3
       },
       "producer": {
-        "execution_id": "producer.e85d2aa310e288abcdf2c311",
+        "execution_id": "producer.357b055914ac0abc9dc5e4e1",
         "run_id": null,
         "step_key": "searching_papers",
         "producer_type": "algorithm",
@@ -601,15 +601,15 @@
         "prompt_name": null,
         "prompt_version": null,
         "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
-        "input_hash": "sha256:d90bae2830123392d9c74c18d70e3aa2e34be62ea0841fecc4ddd477112eb136",
-        "output_hash": "sha256:90a43952773d09a05cfb8950bbadd9e6e7c02a5ca03403e5fb517ecdada9401d",
+        "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
+        "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06",
         "status": "completed",
         "started_at": "2026-07-21T08:24:00Z",
         "finished_at": "2026-07-21T08:24:45Z",
         "latency_ms": 45000,
         "error_code": null
       },
-      "input_hash": "sha256:d90bae2830123392d9c74c18d70e3aa2e34be62ea0841fecc4ddd477112eb136",
+      "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
       "metrics": {
         "source_execution_count": 1,
         "source_failure_count": 0,
@@ -622,7 +622,7 @@
         "recalled_expected_candidate_count": 4,
         "candidate_recall": 1.0
       },
-      "output_hash": "sha256:90a43952773d09a05cfb8950bbadd9e6e7c02a5ca03403e5fb517ecdada9401d"
+      "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06"
     },
     "producer_execution": {
       "id": "pexec_run_papcol_01",
@@ -642,8 +642,8 @@
       },
       "parameters": {},
       "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
-      "input_hash": "sha256:d90bae2830123392d9c74c18d70e3aa2e34be62ea0841fecc4ddd477112eb136",
-      "output_hash": "sha256:90a43952773d09a05cfb8950bbadd9e6e7c02a5ca03403e5fb517ecdada9401d",
+      "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
+      "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06",
       "status": "completed",
       "started_at": "2026-07-21T08:24:00Z",
       "finished_at": "2026-07-21T08:24:45Z",
@@ -1533,7 +1533,7 @@
         "schema_version": "2.0.0",
         "benchmark_version": "2.0.0",
         "scientific_payload_hash": "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9",
-        "content_hash": "sha256:2bd6b19f8f202c821f11912abd22176b8e53790f9fcdd23d177cbb562d81ba0e",
+        "content_hash": "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57",
         "scenario_id": "search.tess_mission_and_catalogs"
       },
       "query": {
@@ -1574,7 +1574,7 @@
         "query_hash": "sha256:77cb8ed59e38acc5b736dcb98947292c3c11c3acfbae3b39c8a2a94c91c17085"
       },
       "acquisition_run": {
-        "acquisition_id": "acquisition.6739a66e0fe91eef94fdc448",
+        "acquisition_id": "acquisition.dd3224316c182460b2f3fa21",
         "status": "completed",
         "started_at": "2026-07-21T08:24:00Z",
         "finished_at": "2026-07-21T08:24:45Z",
@@ -2102,7 +2102,7 @@
         "selection_limit": 3
       },
       "producer": {
-        "execution_id": "producer.e85d2aa310e288abcdf2c311",
+        "execution_id": "producer.357b055914ac0abc9dc5e4e1",
         "run_id": null,
         "step_key": "searching_papers",
         "producer_type": "algorithm",
@@ -2112,15 +2112,15 @@
         "prompt_name": null,
         "prompt_version": null,
         "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
-        "input_hash": "sha256:d90bae2830123392d9c74c18d70e3aa2e34be62ea0841fecc4ddd477112eb136",
-        "output_hash": "sha256:90a43952773d09a05cfb8950bbadd9e6e7c02a5ca03403e5fb517ecdada9401d",
+        "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
+        "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06",
         "status": "completed",
         "started_at": "2026-07-21T08:24:00Z",
         "finished_at": "2026-07-21T08:24:45Z",
         "latency_ms": 45000,
         "error_code": null
       },
-      "input_hash": "sha256:d90bae2830123392d9c74c18d70e3aa2e34be62ea0841fecc4ddd477112eb136",
+      "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
       "metrics": {
         "source_execution_count": 1,
         "source_failure_count": 0,
@@ -2133,10 +2133,10 @@
         "recalled_expected_candidate_count": 4,
         "candidate_recall": 1.0
       },
-      "output_hash": "sha256:90a43952773d09a05cfb8950bbadd9e6e7c02a5ca03403e5fb517ecdada9401d"
+      "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06"
     },
-    "content_hash": "sha256:7b5f1cb9d53a1f2d160d60b0e33a6c9799608e92f5654ac0660fa37d52bd8b0e",
-    "input_hash": "sha256:d90bae2830123392d9c74c18d70e3aa2e34be62ea0841fecc4ddd477112eb136",
+    "content_hash": "sha256:880a853ac955b8f34d7de93975c2bb417f4f0d57c28677ab7d281b116b592e2b",
+    "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
     "source_mode": "fixture",
     "producer": {
       "type": "algorithm",
@@ -2179,8 +2179,8 @@
       },
       "parameters": {},
       "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
-      "input_hash": "sha256:d90bae2830123392d9c74c18d70e3aa2e34be62ea0841fecc4ddd477112eb136",
-      "output_hash": "sha256:90a43952773d09a05cfb8950bbadd9e6e7c02a5ca03403e5fb517ecdada9401d",
+      "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
+      "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06",
       "status": "completed",
       "started_at": "2026-07-21T08:24:00Z",
       "finished_at": "2026-07-21T08:24:45Z",

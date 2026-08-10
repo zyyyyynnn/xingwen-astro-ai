@@ -377,14 +377,14 @@
           "title": "Parser Profile Version",
           "type": "string"
         },
-        "resource_policy_version": {
+        "resource_policy_id": {
           "minLength": 1,
-          "title": "Resource Policy Version",
+          "title": "Resource Policy Id",
           "type": "string"
         },
-        "routing_policy_version": {
+        "routing_policy_id": {
           "minLength": 1,
-          "title": "Routing Policy Version",
+          "title": "Routing Policy Id",
           "type": "string"
         },
         "visual_backend": {
@@ -405,8 +405,8 @@
         "parser_profile_id",
         "parser_profile_version",
         "native_backend",
-        "routing_policy_version",
-        "resource_policy_version",
+        "routing_policy_id",
+        "resource_policy_id",
         "configuration_hash"
       ],
       "title": "DocumentParseProfile",
@@ -574,7 +574,7 @@
       "type": "object"
     },
     "ParserBackend": {
-      "description": "Vendor-neutral provenance of a parsed element.\n\nRecords whether a block/cell/formula came from the born-digital native\nengine or the visual (OCR/VLM) engine. It never names a vendor package.",
+      "description": "Vendor-neutral parser provenance of a parsed element.",
       "enum": [
         "native",
         "visual"

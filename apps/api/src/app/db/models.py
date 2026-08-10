@@ -48,7 +48,7 @@ class ResearchProjectModel(TimestampMixin, Base):
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
     session_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     case_key: Mapped[str] = mapped_column(String(128), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
@@ -156,7 +156,7 @@ class ResearchRunModel(TimestampMixin, Base):
     parent_run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     derivation_kind: Mapped[str] = mapped_column(String(32), nullable=False, default="original")
     retry_from_step: Mapped[str | None] = mapped_column(String(128))
-    cache_policy: Mapped[str] = mapped_column(String(64), nullable=False)
+    cache_policy: Mapped[str] = mapped_column(String(64), nullable=False, default="disabled")
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(
@@ -206,7 +206,8 @@ class ResearchRunModel(TimestampMixin, Base):
             name="lease_fields_complete",
         ),
         CheckConstraint(
-            "derivation_kind IN ('original','retry','revision','fork')", name="derivation_kind"
+            "derivation_kind IN ('original','retry','revision','fork')",
+            name="derivation_kind",
         ),
         CheckConstraint(
             "(derivation_kind = 'original' AND parent_run_id IS NULL) OR "

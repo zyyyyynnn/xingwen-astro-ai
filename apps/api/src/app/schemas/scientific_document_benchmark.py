@@ -1,7 +1,6 @@
 """Reproducible benchmark schemas and metrics for document parsing.
 
-Defines the reproducible Benchmark manifest/report schemas and metric
-definitions. Covers Native-only vs Hybrid (hybrid result structure reserved).
+Defines reproducible Benchmark manifest/report schemas and metric definitions.
 Metrics carry explicit technical versions, denominators, empty-sample behavior, and
 deterministic hashing — never a single vague "accuracy".
 """

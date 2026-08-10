@@ -12,8 +12,7 @@
   ],
   "review_status": "approved",
   "scientific_payload_hash": "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9",
-  "review_records": [
-    {
+  "scientific_review": {
       "review_id": "review.paper_reasoning_scientific",
       "reviewed_at": "2026-07-21T14:50:40+08:00",
       "reviewer_type": "web_gpt",
@@ -129,8 +128,7 @@
         "Clark remains limited to the stated GALAH DR2, TIC, and Gaia DR2 cross-matched sample."
       ],
       "notes": "Scientific review covers the declared public abstract and bibliographic evidence, object scopes, relation admission decisions, and graph edges."
-    }
-  ],
+  },
   "source_policies": [
     {
       "source_id": "arxiv",
@@ -1680,5 +1678,5 @@
       "empty_set_behavior": "report_not_available"
     }
   ],
-  "content_hash": "sha256:2bd6b19f8f202c821f11912abd22176b8e53790f9fcdd23d177cbb562d81ba0e"
+  "content_hash": "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57"
 }

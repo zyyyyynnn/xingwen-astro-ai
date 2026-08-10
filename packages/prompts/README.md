@@ -16,7 +16,7 @@ packages/prompts/
 │  └─ prompt.md
 ├─ paper_summary/
 │  └─ prompt.md
-└─ literature_reasoning/
+└─ literature_relation/
    └─ prompt.md
 ```
 

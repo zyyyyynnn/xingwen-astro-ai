@@ -37,7 +37,9 @@ EXPECTED_TABLES = frozenset(
     }
 )
 CURRENT_REQUIRED_COLUMNS = {
-    "research_projects": frozenset({"idempotency_key", "request_hash"}),
+    "research_projects": frozenset(
+        {"description", "idempotency_key", "request_hash"}
+    ),
     "research_contract_drafts": frozenset({"idempotency_key", "request_hash"}),
     "research_contracts": frozenset(
         {

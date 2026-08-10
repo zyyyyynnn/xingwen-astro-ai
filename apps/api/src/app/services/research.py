@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.contracts.manifest_policy import confirm_research_contract
+from app.contracts.manifest_policy import validate_research_contract_admission
 from app.db.models import (
     ResearchContractDraftModel,
     ResearchContractModel,
@@ -407,29 +407,28 @@ class ResearchApplicationService:
                 )
                 or 0
             ) + 1
-            confirmed = _confirm_or_reject(
+            _validate_contract_admission_or_reject(
                 contract_input,
-                project_id=str(project.id),
-                version=next_version,
-                created_from_draft_id=str(draft.id),
                 content_hash=content_hash,
                 case_key=project.case_key,
                 manifests=self._manifests,
             )
+            created_at = datetime.now(UTC)
             model = ResearchContractModel(
                 project_id=project.id,
                 version=next_version,
                 content_hash=content_hash,
                 content=contract_input.model_dump(mode="json"),
                 created_from_draft_id=draft.id,
+                created_at=created_at,
                 idempotency_key=idempotency_key,
                 request_hash=request_hash,
             )
             session.add(model)
             draft.status = ContractDraftStatus.confirmed.value
-            draft.updated_at = datetime.now(UTC)
+            draft.updated_at = created_at
             session.flush()
-            return confirmed.model_copy(update={"id": str(model.id)})
+            return _contract(model)
 
     # ---- Run + Events ----------------------------------------------------
 
@@ -443,20 +442,11 @@ class ResearchApplicationService:
     ) -> ResearchRun:
         project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
         contract_uuid = _uuid_or_not_found(request.contract_id, "CONTRACT_NOT_FOUND")
-        parent_uuid = (
-            _uuid_or_not_found(request.parent_run_id, "RUN_NOT_FOUND")
-            if request.parent_run_id is not None
-            else None
-        )
         with self._factory() as session:
             self._require_project(session, project_id, session_id)
             contract = session.get(ResearchContractModel, contract_uuid)
             if contract is None or contract.project_id != project_uuid:
                 raise _not_found("CONTRACT_NOT_FOUND")
-            if parent_uuid is not None:
-                parent = session.get(ResearchRunModel, parent_uuid)
-                if parent is None or parent.project_id != project_uuid:
-                    raise _not_found("RUN_NOT_FOUND")
 
         request_hash = canonical_request_hash(request.model_dump(mode="json"))
         try:
@@ -464,13 +454,9 @@ class ResearchApplicationService:
                 project_id=project_uuid,
                 contract_id=contract_uuid,
                 execution_mode=request.execution_mode.value,
-                cache_policy=request.cache_policy.value,
                 idempotency_key=idempotency_key,
                 request_hash=request_hash,
                 steps=CANONICAL_RUN_STEPS,
-                parent_run_id=parent_uuid,
-                derivation_kind=request.derivation_kind.value,
-                retry_from_step=request.retry_from_step,
             )
         except WorkflowConflictError as exc:
             raise _idempotency_conflict() from exc
@@ -658,24 +644,16 @@ def _expire_draft(draft: ResearchContractDraftModel) -> None:
         draft.updated_at = now
 
 
-def _confirm_or_reject(
+def _validate_contract_admission_or_reject(
     contract_input: ResearchContractInput,
     *,
-    project_id: str,
-    version: int,
-    created_from_draft_id: str,
     content_hash: str,
     case_key: str,
     manifests: ManifestBundle,
-) -> ResearchContract:
+) -> None:
     try:
-        return confirm_research_contract(
+        validate_research_contract_admission(
             contract_input,
-            id="pending",
-            project_id=project_id,
-            version=version,
-            created_from_draft_id=created_from_draft_id,
-            created_at=datetime.now(UTC),
             content_hash=content_hash,
             case_key=case_key,
             manifests=manifests,
@@ -699,7 +677,7 @@ def _project(
         id=str(row.id),
         session_id=row.session_id,
         name=row.name,
-        description=row.description or "",
+        description=row.description,
         case_key=row.case_key,
         active_contract_id=str(active_contract_id) if active_contract_id else None,
         latest_run_id=str(latest_run_id) if latest_run_id else None,
@@ -750,11 +728,7 @@ def _run(snapshot: RunSnapshot) -> ResearchRun:
         execution_mode=snapshot.execution_mode,
         status=snapshot.status,
         progress=snapshot.progress,
-        parent_run_id=(
-            str(snapshot.parent_run_id)
-            if snapshot.parent_run_id is not None
-            else None
-        ),
+        parent_run_id=(str(snapshot.parent_run_id) if snapshot.parent_run_id else None),
         derivation_kind=snapshot.derivation_kind,
         retry_from_step=snapshot.retry_from_step,
         cache_policy=snapshot.cache_policy,

@@ -556,7 +556,7 @@ class BenchmarkPackagePayload(BaseModel):
     maintainers: tuple[BenchmarkMaintainer, ...] = Field(min_length=1)
     review_status: BenchmarkReviewStatus
     scientific_payload_hash: ContentHash
-    review_records: tuple[BenchmarkReviewRecord, ...] = Field(default=(), max_length=1)
+    scientific_review: BenchmarkReviewRecord | None = None
     source_policies: tuple[BenchmarkSourcePolicy, ...] = Field(min_length=1)
     search_scenarios: tuple[BenchmarkSearchScenario, ...] = Field(min_length=1)
     seed_papers: tuple[BenchmarkSeedPaper, ...] = Field(min_length=5, max_length=8)
@@ -571,7 +571,6 @@ class BenchmarkPackagePayload(BaseModel):
 
     @model_validator(mode="after")
     def validate_package_integrity(self) -> Self:
-        _require_unique_model_ids(self.review_records, "review_id", "review record")
         _require_unique_model_ids(self.source_policies, "source_id", "source policy")
         _require_unique_model_ids(
             self.search_scenarios, "scenario_id", "search scenario"
@@ -602,7 +601,8 @@ class BenchmarkPackagePayload(BaseModel):
             BenchmarkReviewTargetType.reasoning_trace: set(traces),
             BenchmarkReviewTargetType.graph_edge: set(edges),
         }
-        for record in self.review_records:
+        if self.scientific_review is not None:
+            record = self.scientific_review
             scope_types = tuple(scope.target_type for scope in record.scope)
             _require_unique(scope_types, "review scope target type")
             for scope in record.scope:
@@ -612,48 +612,14 @@ class BenchmarkPackagePayload(BaseModel):
                     f"{scope.target_type.value} review target",
                 )
 
-        if self.review_status is BenchmarkReviewStatus.approved:
-            scientific_reviews = tuple(
-                record
-                for record in self.review_records
-                if record.reviewer_type is BenchmarkReviewerType.web_gpt
-                and record.review_purpose
-                is BenchmarkReviewPurpose.benchmark_scientific_review
-            )
-            if any(
-                record.verdict is BenchmarkReviewVerdict.blocked
-                for record in scientific_reviews
-            ):
-                raise ValueError(
-                    "BLOCKED scientific review prevents package approval"
-                )
-            scientific_passes = tuple(
-                record
-                for record in scientific_reviews
-                if record.verdict is BenchmarkReviewVerdict.passed
-            )
-            if not scientific_passes:
-                raise ValueError("approved package requires scientific Review PASS")
-            version_matches = tuple(
-                record
-                for record in scientific_passes
-                if record.reviewed_benchmark_version == self.benchmark_version
-            )
-            if not version_matches:
-                raise ValueError("scientific Review PASS has a stale benchmark version")
-            current_scientific_passes = tuple(
-                record
-                for record in version_matches
-                if record.reviewed_content_hash == self.scientific_payload_hash
-            )
-            if not current_scientific_passes:
-                raise ValueError(
-                    "scientific Review PASS has a stale scientific payload hash"
-                )
+            if record.reviewed_benchmark_version != self.benchmark_version:
+                raise ValueError("scientific review must bind the current benchmark version")
+            if record.reviewed_content_hash != self.scientific_payload_hash:
+                raise ValueError("scientific review must bind the current scientific payload hash")
+
             scientifically_reviewed_targets = {
                 target_type: {
                     target_id
-                    for record in current_scientific_passes
                     for scope in record.scope
                     if scope.target_type is target_type
                     for target_id in scope.target_ids
@@ -669,9 +635,25 @@ class BenchmarkPackagePayload(BaseModel):
             }
             if missing_review_targets:
                 raise ValueError(
-                    "approved package scientific review scope is incomplete: "
+                    "scientific review scope is incomplete: "
                     f"{missing_review_targets}"
                 )
+
+        if self.review_status is BenchmarkReviewStatus.approved:
+            current_review = self.scientific_review
+            if current_review is None:
+                raise ValueError("approved package requires scientific Review PASS")
+            if current_review.verdict is BenchmarkReviewVerdict.blocked:
+                raise ValueError(
+                    "BLOCKED scientific review prevents package approval"
+                )
+            if (
+                current_review.reviewer_type is not BenchmarkReviewerType.web_gpt
+                or current_review.review_purpose
+                is not BenchmarkReviewPurpose.benchmark_scientific_review
+                or current_review.verdict is not BenchmarkReviewVerdict.passed
+            ):
+                raise ValueError("approved package requires scientific Review PASS")
             reviewable_objects = (
                 *self.paper_summaries,
                 *self.evidence,
@@ -959,19 +941,6 @@ class BenchmarkPackage(BenchmarkPackagePayload):
 
     @model_validator(mode="after")
     def validate_content_hash(self) -> Self:
-        if len(self.review_records) != 1:
-            raise ValueError(
-                "benchmark package requires exactly one current scientific review"
-            )
-        current_review = self.review_records[0]
-        if current_review.reviewed_benchmark_version != self.benchmark_version:
-            raise ValueError(
-                "scientific review must bind the current benchmark version"
-            )
-        if current_review.reviewed_content_hash != self.scientific_payload_hash:
-            raise ValueError(
-                "scientific review must bind the current scientific payload hash"
-            )
         expected_scientific = compute_benchmark_scientific_payload_hash(self)
         if self.scientific_payload_hash != expected_scientific:
             raise ValueError(
@@ -1081,14 +1050,14 @@ def compute_benchmark_scientific_payload_hash(
         raise TypeError("benchmark payload must be an object")
     raw_payload = normalized_statuses
     raw_payload["scientific_payload_hash"] = f"sha256:{'0' * 64}"
-    raw_payload["review_records"] = []
+    raw_payload["scientific_review"] = None
     normalized = BenchmarkPackagePayload.model_validate(raw_payload)
     scientific_payload = normalized.model_dump(mode="json", exclude_none=True)
     for field in (
         "content_hash",
         "scientific_payload_hash",
         "review_status",
-        "review_records",
+        "scientific_review",
     ):
         scientific_payload.pop(field, None)
     return compute_canonical_payload_hash(scientific_payload)

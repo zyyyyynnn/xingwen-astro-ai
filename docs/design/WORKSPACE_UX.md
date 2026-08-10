@@ -146,23 +146,19 @@ Inspector 支持返回、固定和关闭，并保持最小访问历史。
 
 ## 7. Research Composer
 
-Composer 继承上游成熟输入、附件、快捷键、提交、取消和焦点行为。
+Composer 继承上游成熟输入、附件、快捷键、提交和焦点行为。
 
 提交语义：
 
 ```text
-Start Research
-Continue Research
-Revise Artifact
-Verify Statement
-Change Scope
-Resolve Checkpoint
-Derive Run
+Create Contract Draft
+Confirm Contract
+Start Research Run
 ```
 
 前端将输入映射为结构化 Research Intent，不直接创建科研事实。
 
-Completed 状态不得禁用 Composer；必须允许继续研究、请求修订或派生 Run。
+Completed 状态不得隐藏既有产物、Evidence 与运行记录；新的研究范围通过新的 Project/Contract 流程表达。
 
 ## 8. 页面状态
 
@@ -176,11 +172,11 @@ Completed 状态不得禁用 Composer；必须允许继续研究、请求修订�
 
 ### Running
 
-展示 Agent Plan、当前步骤、最新 Deliverable、暂停或取消入口。Checkpoint 到达时突出用户决策。
+展示当前步骤、最新 Deliverable 与 RunEvent 进度；页面从 Run 快照恢复权威状态。
 
 ### Needs Review
 
-默认打开待复核对象。支持接受、请求修订、扩大来源、改变条件和继续研究。
+默认打开待复核对象，展示 Evidence、限制与可审查状态。
 
 ### Completed
 

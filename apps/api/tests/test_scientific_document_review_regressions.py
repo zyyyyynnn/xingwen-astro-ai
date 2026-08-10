@@ -98,9 +98,7 @@ def test_adoption_manifest_declares_exact_import_roots() -> None:
 
     manifest = load_adoption_manifest(ADOPTION)
     roots = collect_approved_packages(manifest)
-    assert "docling_parse" in roots
-    assert "paddleocr" in roots
-    assert "paddle" in roots
+    assert roots == {"docling_parse", "paddleocr", "paddle"}
 
 
 def test_adoption_json_has_no_implicit_import_mapping() -> None:

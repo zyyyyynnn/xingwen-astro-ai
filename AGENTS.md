@@ -1,96 +1,49 @@
 # AGENTS
 
 本文件是仓库的 Agent 执行协议。协作与合并流程见
-[CONTRIBUTING.md](CONTRIBUTING.md)，规范地图与文档治理见
+[CONTRIBUTING.md](CONTRIBUTING.md)，Authority 地图与文档治理见
 [docs/README.md](docs/README.md)。
 
-## 1. 默认读取顺序
+## 默认读取顺序
 
-1. 读取本文件，确定执行协议与核心边界。
-2. 读取当前 Issue 或用户直接授权，确定目标、范围与验收标准。
+1. 读取本文件，确定执行协议与核心约束。
+2. 读取用户直接授权或当前 Issue，确定目标、范围与验收标准。
 3. 读取 [docs/README.md](docs/README.md)，定位唯一 Authority。
-4. 只读取 1–3 份与任务直接相关的 Authority 正文。
-5. 核对当前代码、生成 Contract、测试与真实运行证据；参考资料仅按需读取。
+4. 只读取与任务直接相关的 Authority 正文。
+5. 核对代码、生成 Contract、测试与真实运行证据。
 
-不要默认递归读取 `docs/references/`、全量 Markdown、历史 Commit、已关闭 PR
-或过程性 Handoff。需要扩大范围时说明原因，并保持事实来源可追溯。
+不默认递归读取 `docs/references/`、全量 Markdown、历史 Commit、关闭的 PR
+或历史方案。确需扩大范围时说明原因，并保持事实来源可追溯。
 
-## 2. 真实性与产品主链
+## 真实性与边界
 
-只有以下证据可以支持“实现事实”：`origin/main` 中的代码、已合并
-PR、生成 Contract、当前测试、可执行运行时、PostgreSQL 数据或真实 Browser/集成
-运行证据。Draft/Open PR、Issue、目标架构、Fixture、Recorded response、Benchmark、
-Seed、Cached 结果、未来 handoff 与参考项目都不是 Current。
+- 不编造事实、代码、接口、文件内容、历史记录或验证结果。
+- 先定位唯一事实来源，不在执行协议中复制产品主链、数据模型或架构 Authority。
+- 改变公共接口、数据契约、工作流、安全或 UI 规则时，同步更新对应的唯一 Authority。
+- Fixture、Recorded、Benchmark 与 Live 证据必须如实区分；不得以测试数据冒充真实运行。
+- 不实现请求之外的能力，不夹带无关格式化、重构或依赖调整。
 
-活跃规范只描述已批准的稳定规则，不描述实现进度、PR 状态、Issue 状态或动态
-“当前实现”。审计记录只用于本次判断，不提交为第二套状态源。
+## 命名与 GitHub 治理
 
-冲突按事实职责裁决：当前任务范围由用户直接授权或 Issue 定义；稳定预期行为由
-Authority 定义；实现状态由当前代码、Contract、测试与真实运行证据定义；
-研究灵感只来自 Reference，不能覆盖前三者。
+- 除 Issue 与 PR 正文外，仓库文件、路径、标识符和文档不得保存工作阶段、批次、
+  进度或状态代号。
+- 稳定领域事实使用领域术语；真实技术版本只存在于 Schema、API、依赖、模型、
+  Prompt、Producer 与 provenance 等有版本语义的边界。
+- Issue 正文保存稳定任务契约；进度、负责人、父子关系和阻塞关系使用 GitHub 原生元数据。
+- 一个 Issue 只承担一个主要交付物、一个主要负责人和一个主要 PR；真实阻塞使用
+  GitHub 原生依赖关系表达。
 
-产品主链固定为：
+## 工作区与 Git 安全
 
-```text
-Research Intent → Draft → Contract → Run → Artifact → Evidence
-→ review → revision / export / share
-```
+- 修改前检查工作区状态与相关 diff，保留已有有效变更。
+- 未经明确要求，不执行 destructive Git 操作，不直接提交 `main`、推送、变基、
+  合并、切换分支或强制覆盖。
+- 不输出、提交或传播密钥、凭据与隐私数据。
+- 涉及生产配置或不可逆迁移时，先确认影响范围与授权边界。
 
-Fixture、Recorded、Benchmark、Cached 与 Live 必须显式区分；Revision 创建新的
-Run/ArtifactVersion；ArtifactVersion 不可变；Evidence、Export、Share 固定到明确
-版本；Event 不是唯一状态事实；candidate/rejected 不是科研事实；parser confidence
-不是 scientific confidence；partial/unsupported 不得自动补成 complete。
+## 验证与报告
 
-## 3. 架构边界
-
-```text
-Experience
-→ Frontend Application Boundary
-→ Research Adapter / Query
-→ Repository Port
-→ Fixture / HTTP Adapter
-→ API Application Service
-→ Workflow
-→ Step Adapter
-→ Scientific Pipeline
-→ Publisher
-→ ArtifactVersion / Evidence / SourceSnapshot
-```
-
-- Domain 不依赖 React、DOM、HTTP 或 SQL；Page/Feature 不直接 `fetch`。
-- UI 不读取 API path、raw DTO 或未校验响应；Runtime DTO 必须先验证，再映射为 Domain/ViewModel。
-- Fixture 与 HTTP Adapter 共享同一 Repository/Domain 映射；Adapter 不写科研事实。
-- Router 不承载算法或直接串联 Pipeline；Pipeline 不推进 Run 状态、不写 HTTP DTO、不分配版本。
-- Publisher 是 ArtifactVersion/Evidence 的唯一发布事务边界。
-- Prompt 只从 Prompt Registry 加载；禁止 `any`、不安全断言、深层 import 与第二套状态机、事件存储、执行器、Shell 或渲染器。
-
-## 4. OpenHands 与成熟能力复用
-
-OpenHands 只提供产品交互机械结构：Shell、Navigation、Activity、Composer、
-Command、公开事件呈现、Resize 与 Focus。它不带入后端 Agent Runtime、Sandbox、
-Terminal、Git/Editor/Repo Browser、任意代码执行、认证、Cloud/Enterprise 或编码
-工作面；不得据此声称 Xingwen ResearchRun 已经执行。
-
-优先复用成熟 upstream：OpenHands、TanStack Query/Table/Virtual、XYFlow/React Flow、
-shadcn/ui（仅补缺失组件）、Docling/docling-parse native、PaddleOCR-VL visual，以及
-通过 Alibaba Cloud Model Studio/Bailian 的 Qwen。不得新增泛化 RAG、向量数据库、
-LangGraph 或第二套通用平台类别。所有上游采用必须记录版本、Commit/Revision、许可、
-边界和升级策略。
-
-## 5. 实现与 Issue 治理
-
-- 先检查工作区、分支、根目录、基线与相关 diff；保留用户已有修改。
-- 一个 Issue 只承担一个模块、一个可观察交付物、一个主要负责人和一个主要 PR。
-- Epic 只维护父级范围与退出证据；父子关系不自动等于 blocked-by，真实阻塞使用 GitHub 原生依赖。
-- Issue 正文只保存稳定任务契约；进度、负责人、父子关系与阻塞关系由 GitHub 原生元数据保存。
-- 新能力必须先明确 Contract、失败/拒绝语义、版本/Evidence 边界与回归验收。
-- 禁止使用带序号的工作阶段代号或 GitHub 批次字段表达执行顺序；执行顺序只由 priority
-  与 GitHub 原生依赖表达。竞赛赛道/方向及领域 failure stage 不属于工作阶段标识。
-- 默认不引入新依赖、不修改生成物/供应商代码/锁文件、不夹带无关重构。
-- 未经明确要求，不提交、推送、变基、合并、切换分支、强制覆盖或删除数据。
-
-## 6. 验证与报告
-
-优先运行实际路径、针对性测试、相关测试、构建/静态检查；不跳过直接相关测试。
-只报告真实执行并观察到的结果。无法验证时明确写“未验证”、原因与建议的
-PowerShell 命令，并区分本地检查、CI、PR 状态、合并状态和能力阻塞。
+- 优先使用实际运行、针对性测试、项目构建与静态检查验证结果。
+- 不跳过已有且直接相关的测试；测试失败时区分当前修改与既有问题。
+- 修改完成后检查最终 diff，排除无关改动、调试代码、生成物漂移与凭据。
+- 无法验证时说明原因与建议命令；只报告实际执行并观察到的结果。

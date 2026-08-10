@@ -11,7 +11,7 @@
 `ResearchContract`，产生 `DataQualityEvaluationResult` 或结构化 rejected
 outcome。它只负责确定性质量算法、typed result、Contract gate 和 Publisher
 质量交接；不实现 mapping、crossmatch engine、HTTP、数据库、ArtifactVersion、
-Workflow、CacheSelector、前端或科学真实性判定。
+Workflow、缓存读取、前端或科学真实性判定。
 
 `apps/api/src/app/schemas/data_quality.py` 是公共 Pydantic Schema authoring
 source。`quality-rules.json` 是唯一版本化 RuleSet。入口先校验 RuleSet 自身

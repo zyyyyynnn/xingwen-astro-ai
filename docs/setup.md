@@ -4,7 +4,8 @@
 | --- | --- |
 | Authority | 本地与 Docker 启动方式、环境变量与调试命令 |
 
-本地开发采用 Docker-first 模式。Docker Compose 管理 `site`、`workspace`、`api`、`migrate`、`postgres`；前端本机调试统一在仓库根目录执行。
+本地开发默认只由 Docker Compose 管理 PostgreSQL，API 与两个前端应用在本机进程中运行。
+完整容器栈仍可通过 Docker Compose 直接启动。
 
 ## 1. 环境要求
 
@@ -51,10 +52,11 @@ docker compose up --build --wait
 .\start-dev.bat
 ```
 
-脚本会校验 Docker/Compose、在缺失时从 `.env.example` 创建本地 `.env`，启动 Compose
-服务并等待 API、Workspace 与 Brand Site 可访问，最后自动打开 Workspace。启动失败时保留
-容器现场并打印诊断命令，不会自动删除数据卷。需要关闭本地服务时执行
-`docker compose -p xingwen-astro-ai-dev down`；该命令不会删除数据卷。
+脚本使用三个窗口：当前窗口执行工具、依赖、PostgreSQL 与 Alembic 前置检查；Backend
+窗口运行 FastAPI；Frontend 窗口运行 Brand Site 与 Workspace。后端可访问后才启动前端，
+两个前端均可访问后自动打开 Brand Site 首页。脚本会停止同一 Compose project 中占用应用
+端口的容器，但保留 PostgreSQL 与数据卷。关闭本地服务时，在 Backend/Frontend 窗口按
+`Ctrl+C`，再执行 `docker compose -p xingwen-astro-ai-dev stop postgres`。
 
 | 服务 | 职责 | 默认地址 |
 | --- | --- | --- |
@@ -64,7 +66,8 @@ docker compose up --build --wait
 | `migrate` | Alembic `upgrade head` one-shot | 无端口 |
 | `postgres` | PostgreSQL 17 | `localhost:5432` |
 
-服务依赖顺序为 `postgres healthy -> migrate exited 0 -> api healthy -> workspace`。应用进程不隐式执行 migration。
+完整容器栈的依赖顺序为 `postgres healthy -> migrate exited 0 -> api healthy -> workspace`。
+分窗口启动时，前置检查显式完成 Alembic migration，应用进程不隐式执行 migration。
 
 ## 4. 前端本机调试
 

@@ -7,10 +7,10 @@
       "content_hash": "sha256:246c9b390d553122b5cf1d5286a64e40f16b56fb56b24417cec1c336b95a48db",
       "output_models": ["LiteratureClaimExtractionOutput"]
     },
-    "literature_reasoning": {
+    "literature_relation": {
       "version": "2.0.1",
-      "path": "literature_reasoning/prompt.md",
-      "content_hash": "sha256:96ef0d7bfe6af8bc853359f5fd5222559626c11c77d494dc95d8553e99fa5e6c",
+      "path": "literature_relation/prompt.md",
+      "content_hash": "sha256:4d1f4dfb5763a28d4f13fe87af9c6e03e3bff17eea0d3722d33258b15ce5e997",
       "output_models": ["LiteratureRelationExtractionOutput"]
     },
     "paper_summary": {

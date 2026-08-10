@@ -205,12 +205,11 @@ export type LiteratureTraceOperation =
   | "classify_relation"
   | "record_limitation";
 /**
- * Lifecycle of a controlled research input after ingestion.
+ * Stable lifecycle states for a controlled research input.
  *
- * ``accepted`` is the only state Research Input Ingestion produces: ingestion succeeded and the
- * content is frozen behind an immutable content hash. ``unsupported_processing``
- * and ``failed_ingestion`` are reserved states the API exposes so consumers
- * never mistake "uploaded" for "understood".
+ * The ingestion writer produces ``accepted`` only. The other states preserve
+ * the domain distinction between unsupported processing and failed ingestion;
+ * they must be recorded only by a writer that has observed that outcome.
  */
 export type ResearchInputStatus = "accepted" | "unsupported_processing" | "failed_ingestion";
 /**
@@ -241,8 +240,6 @@ export type ConflictResolutionStrategy = "prefer_source_priority_preserve_all";
  */
 export type ContractDraftStatus = "draft" | "confirmed" | "expired";
 export type UnitPolicy = "canonical";
-export type CachePolicy1 = "disabled" | "fallback_on_recoverable_failure";
-export type DerivationKind = "original" | "retry" | "revision" | "fork";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ExecutionMode".
@@ -320,7 +317,7 @@ export type SelectionStatus = "selected" | "unselected" | "conflict";
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "DerivationKind".
  */
-export type DerivationKind1 = "original" | "retry" | "revision" | "fork";
+export type DerivationKind = "original" | "retry" | "revision" | "fork";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ProducerExecutionStatus".
@@ -370,12 +367,11 @@ export type PaperSourceExecutionStatus = "completed" | "failed";
 export type PaperSummarySupportStatus = "supported" | "unsupported" | "unverifiable";
 export type ContractDraftStatus1 = "draft" | "confirmed" | "expired";
 /**
- * Lifecycle of a controlled research input after ingestion.
+ * Stable lifecycle states for a controlled research input.
  *
- * ``accepted`` is the only state Research Input Ingestion produces: ingestion succeeded and the
- * content is frozen behind an immutable content hash. ``unsupported_processing``
- * and ``failed_ingestion`` are reserved states the API exposes so consumers
- * never mistake "uploaded" for "understood".
+ * The ingestion writer produces ``accepted`` only. The other states preserve
+ * the domain distinction between unsupported processing and failed ingestion;
+ * they must be recorded only by a writer that has observed that outcome.
  */
 export type ResearchInputStatus1 = "accepted" | "unsupported_processing" | "failed_ingestion";
 /**
@@ -401,12 +397,11 @@ export type RunStatus =
  */
 export type SessionStatus = "active" | "expired" | "revoked";
 /**
- * Lifecycle of a controlled research input after ingestion.
+ * Stable lifecycle states for a controlled research input.
  *
- * ``accepted`` is the only state Research Input Ingestion produces: ingestion succeeded and the
- * content is frozen behind an immutable content hash. ``unsupported_processing``
- * and ``failed_ingestion`` are reserved states the API exposes so consumers
- * never mistake "uploaded" for "understood".
+ * The ingestion writer produces ``accepted`` only. The other states preserve
+ * the domain distinction between unsupported processing and failed ingestion;
+ * they must be recorded only by a writer that has observed that outcome.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ResearchInputStatus".
@@ -1405,13 +1400,8 @@ export interface CreateResearchProjectRequest {
  * via the `definition` "CreateRunRequest".
  */
 export interface CreateRunRequest {
-  cache_policy?: CachePolicy1;
   contract_id: string;
-  derivation_kind?: DerivationKind;
   execution_mode: ExecutionMode;
-  feedback_ids?: string[];
-  parent_run_id?: string | null;
-  retry_from_step?: string | null;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2633,7 +2623,7 @@ export interface ResearchRun {
   cache_policy: CachePolicy;
   contract_id: string;
   created_at: string;
-  derivation_kind: DerivationKind1;
+  derivation_kind: DerivationKind;
   execution_mode: ExecutionMode;
   failure_code?: string | null;
   failure_summary?: string | null;

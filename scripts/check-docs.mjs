@@ -13,7 +13,7 @@ import {
   containsRepositoryProgressWording,
   containsRepositoryTaskCode,
   containsRepositoryTaskCodePath,
-  containsRepositoryVersionLabel,
+  containsRepositoryVersionLabelForPath,
   containsRepositoryVersionLabelPath,
   isIssueOrPullRequestBodyTemplatePath,
   isRepositoryTextPath,
@@ -43,10 +43,8 @@ const repositoryTextFiles = trackedFiles.filter(
     !file.startsWith("apps/workspace/upstream/") &&
     !["apps/api/uv.lock", "pnpm-lock.yaml"].includes(file) &&
     file !== "scripts/governance-identifiers.mjs" &&
-    file !== "scripts/check-docs.test.mjs" &&
     file !== "scripts/check-architecture-delegacy.mjs" &&
-    file !== "scripts/check-architecture-delegacy.test.mjs" &&
-    file !== "scripts/check-title-governance.test.mjs",
+    file !== "scripts/check-title-governance.mjs",
 );
 
 const results = new Map();
@@ -171,7 +169,7 @@ for (const file of repositoryTextFiles) {
         `${file}: line ${index + 1}: phase identifier is not allowed in repository prose`,
       );
     }
-    if (containsRepositoryVersionLabel(line)) {
+    if (containsRepositoryVersionLabelForPath(line, file)) {
       errors.push(
         `${file}: line ${index + 1}: pseudo-version label is not allowed in repository prose`,
       );

@@ -46,8 +46,6 @@
 3. Edge 必须完整绑定 Evidence、Relation 与 ReasoningTrace；
 4. 严禁为了视觉美化生成无科学依据或无法追溯 Evidence 的节点与边。
 
-## 6. 反馈与修订
+## 6. 反馈与修订准入
 
-- 针对 Claim、Relation 或 GraphEdge 的修订必须通过提交 `UserFeedback` 触发。
-- 修订由 `derivation_kind=revision` 的新 Run 重新计算受影响闭包，生成新的 `ArtifactVersion` 与 `supersedes` 关系。
-- 历史 Relation、Trace、Evidence 与 Graph 保持不可变读。
+UserFeedback 必须固定目标 ArtifactVersion、对象 locator、建议内容与提交者可见 Evidence。RevisionPlan 将一组 Feedback 映射为受影响 Artifact 闭包；只有确认后的 Plan 才能创建 `derivation_kind=revision` 的派生 Run。没有 Revision executor 时，系统不得接受 feedback 参数后返回成功，也不得覆盖原 ArtifactVersion。

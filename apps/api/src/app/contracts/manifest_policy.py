@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from app.schemas.manifest import ManifestBundle
 from app.schemas.core import (
     ResearchContract,
     ResearchContractInput,
     compute_research_contract_content_hash,
-    validate_research_contract_content_hash,
 )
 
 
@@ -33,19 +30,14 @@ def validate_contract_against_manifest(
     manifests.resolve_source_scope(contract.source_scope.allowed_sources)
 
 
-def confirm_research_contract(
+def validate_research_contract_admission(
     contract: ResearchContractInput,
     *,
-    id: str,
-    project_id: str,
-    version: int,
-    created_from_draft_id: str,
-    created_at: datetime,
     content_hash: str,
     case_key: str,
     manifests: ManifestBundle,
-) -> ResearchContract:
-    """Create an immutable contract only after frozen-manifest admission."""
+) -> None:
+    """Validate frozen-manifest admission and the canonical content identity."""
 
     validate_contract_against_manifest(
         contract,
@@ -57,15 +49,3 @@ def confirm_research_contract(
         raise ValueError(
             f"ResearchContract content_hash does not match ResearchContractInput: {expected_hash}"
         )
-    confirmed = ResearchContract.model_validate(
-        {
-            **contract.model_dump(mode="python"),
-            "id": id,
-            "project_id": project_id,
-            "version": version,
-            "created_from_draft_id": created_from_draft_id,
-            "created_at": created_at,
-            "content_hash": content_hash,
-        }
-    )
-    return validate_research_contract_content_hash(confirmed)

@@ -3,9 +3,9 @@
 Controlled ingestion boundary for the Research Composer: URL, PDF, CSV, JSON,
 image and plain-text inputs. This contract only *receives* inputs into an
 immutable, content-addressed boundary and records provenance; it never
-promises PDF/image comprehension, OCR, cleaning or model inference. The API
-distinguishes ``accepted`` inputs from ``unsupported_processing`` and
-``failed_ingestion`` states without pretending ingestion equals understanding.
+promises PDF/image comprehension, OCR, cleaning or model inference. Controlled
+ingestion persists only accepted input; failures use Problem Details without
+manufacturing a failed resource.
 """
 
 from __future__ import annotations
@@ -58,12 +58,11 @@ class ResearchInputType(StrEnum):
 
 
 class ResearchInputStatus(StrEnum):
-    """Lifecycle of a controlled research input after ingestion.
+    """Stable lifecycle states for a controlled research input.
 
-    ``accepted`` is the only state Research Input Ingestion produces: ingestion succeeded and the
-    content is frozen behind an immutable content hash. ``unsupported_processing``
-    and ``failed_ingestion`` are reserved states the API exposes so consumers
-    never mistake "uploaded" for "understood".
+    The ingestion writer produces ``accepted`` only. The other states preserve
+    the domain distinction between unsupported processing and failed ingestion;
+    they must be recorded only by a writer that has observed that outcome.
     """
 
     accepted = "accepted"

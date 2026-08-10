@@ -202,7 +202,6 @@ def _confirm_and_run(runtime: dict[str, object], *, key_suffix: str) -> tuple[st
         json={
             "contract_id": contract_id,
             "execution_mode": "demo_replay",
-            "derivation_kind": "original",
         },
     )
     assert created.status_code == 201, created.text
@@ -349,6 +348,44 @@ def test_draft_and_contract_payloads_never_carry_execution_mode(
     contract = client.get(f"/api/contracts/{contract_id}")
     assert contract.status_code == 200
     assert "execution_mode" not in contract.json()["data"]
+
+
+def test_contract_confirmation_replay_returns_the_persisted_resource(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    headers = {
+        "X-CSRF-Token": str(runtime["owner_csrf"]),
+        "Idempotency-Key": "contract-persisted-resource",
+    }
+    request = {
+        "draft_id": runtime["draft_id"],
+        "expected_draft_version": 1,
+    }
+    path = f"/api/projects/{runtime['project_id']}/contracts"
+
+    first = client.post(path, headers=headers, json=request)
+    replay = client.post(path, headers=headers, json=request)
+
+    assert first.status_code == replay.status_code == 201
+    assert first.json()["data"] == replay.json()["data"]
+    assert set(first.json()["data"]) == {
+        "id",
+        "project_id",
+        "version",
+        "created_from_draft_id",
+        "created_at",
+        "content_hash",
+        *set(_contract_input()),
+    }
+
+    conflict = client.post(
+        path,
+        headers=headers,
+        json={**request, "expected_draft_version": 2},
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
 
 
 def test_run_events_never_exceed_latest_event_sequence(
@@ -532,7 +569,6 @@ def _public_chain(
         json={
             "contract_id": contract_id,
             "execution_mode": execution_mode,
-            "derivation_kind": "original",
         },
     )
     assert run.status_code == 201, run.text

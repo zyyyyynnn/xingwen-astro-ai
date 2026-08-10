@@ -713,10 +713,6 @@ export function createFixtureRepositories(
           projectId: input.projectId,
           contractId: input.contractId,
           executionMode: input.executionMode,
-          derivationKind: input.derivationKind ?? "original",
-          parentRunId: input.parentRunId ?? null,
-          retryFromStep: input.retryFromStep ?? null,
-          cachePolicy: input.cachePolicy ?? "fallback_on_recoverable_failure",
         });
         const replay = runsByIdempotencyKey.get(input.idempotencyKey);
         if (replay) {
@@ -737,10 +733,10 @@ export function createFixtureRepositories(
           executionMode: input.executionMode,
           status: "queued",
           progress: 0,
-          parentRunId: input.parentRunId ?? null,
-          derivationKind: input.derivationKind ?? "original",
-          retryFromStep: input.retryFromStep ?? null,
-          cachePolicy: input.cachePolicy ?? "fallback_on_recoverable_failure",
+          parentRunId: null,
+          derivationKind: "original",
+          retryFromStep: null,
+          cachePolicy: "disabled",
           startedAt: null,
           finishedAt: null,
           createdAt: now,

@@ -1465,7 +1465,7 @@ def test_upstream_claim_execution_runtime_is_excluded_only_from_stable_output_ha
 
 def test_prompt_model_parameters_and_input_versions_are_hash_pinned() -> None:
     baseline = _admit()
-    active_prompt = PromptRegistry().get("literature_reasoning")
+    active_prompt = PromptRegistry().get("literature_relation")
 
     class ChangedPromptRegistry:
         def get(self, _name: str):
@@ -1534,7 +1534,7 @@ def test_prompt_model_parameters_and_input_versions_are_hash_pinned() -> None:
 def test_wrong_output_prompt_contract_cannot_execute() -> None:
     source = _claim_version("source")
     target = _claim_version("target")
-    active_prompt = PromptRegistry().get("literature_reasoning")
+    active_prompt = PromptRegistry().get("literature_relation")
 
     class WrongOutputRegistry:
         def get(self, _name: str):
@@ -1787,3 +1787,10 @@ def test_truthful_incomparable_metric_or_unit_is_still_rejected(
         result.records[0].failure_stage is LiteratureRelationFailureStage.comparability
     )
     assert result.records[0].rejection_reason is reason
+
+
+def test_literature_relation_is_the_only_relation_prompt_identity() -> None:
+    registry = PromptRegistry()
+    assert registry.get("literature_relation").name == "literature_relation"
+    with pytest.raises(KeyError, match="unknown prompt"):
+        registry.get("literature_reasoning")

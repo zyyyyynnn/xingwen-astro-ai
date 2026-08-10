@@ -70,7 +70,7 @@ export { validateContractInputInvariants } from "./research-contract";
 export type { ResearchProject } from "./project";
 
 export type { RunEvent, ResearchRun } from "./run";
-export { validateRunDerivationInvariants } from "./run";
+export { validateRunInvariants } from "./run";
 
 export type {
   ArtifactContent,

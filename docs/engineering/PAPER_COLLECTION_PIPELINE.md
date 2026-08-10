@@ -19,7 +19,7 @@ Benchmark machine asset：
 生产 Contract-driven Paper Search 不由本 runner 伪装实现。生产入口需要单一 `ResearchContract.paper_search_scope → typed PaperSearchInput` mapper，并由对应的独立实现 Issue 引入。该实现落地前：
 
 - scenario runner 不描述为 production search；
-- 不增加 `scenario_id → PaperSearchInput` compatibility adapter；
+- `scenario_id` 不映射为 `PaperSearchInput`；
 - 不让 Router/Workspace 把 benchmark scenario 当生产事实；
 - 不用 Fixture/Benchmark seed 回退 Live failure。
 
@@ -39,7 +39,7 @@ fixed benchmark scenario
 -> validated PaperCollection benchmark content
 ```
 
-runner 只生成经过 `PaperCollection` Pydantic Schema 校验的内容；它不创建/更新 ArtifactVersion、latest pointer、CacheRecord、ResearchRun、RunStep 或 RunEvent，也不实现 PaperSummary、Claim、Relation、ReasoningTrace、Evidence Graph 或 Workspace。
+runner 只生成经过 `PaperCollection` Pydantic Schema 校验的内容；它不创建或更新 ArtifactVersion、latest pointer、ResearchRun、RunStep 或 RunEvent，也不实现 PaperSummary、Claim、Relation、ReasoningTrace、Evidence Graph 或 Workspace。
 
 ## 3. Crossref adapter 边界
 

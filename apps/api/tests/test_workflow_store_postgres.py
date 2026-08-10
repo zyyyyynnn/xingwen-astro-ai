@@ -135,7 +135,6 @@ def _create_run(
         project_id=project.id,
         contract_id=contract.id,
         execution_mode="live",
-        cache_policy="disabled",
         idempotency_key=f"run-{uuid4()}",
         request_hash="sha256:" + "b" * 64,
         steps=_step_definitions(max_attempts=max_attempts),
@@ -194,7 +193,6 @@ def test_concurrent_create_run_is_idempotent_and_rejects_conflicting_request(
             project_id=project.id,
             contract_id=contract.id,
             execution_mode="live",
-            cache_policy="disabled",
             idempotency_key=idempotency_key,
             request_hash=request_hash,
             steps=_step_definitions(),
@@ -214,7 +212,6 @@ def test_concurrent_create_run_is_idempotent_and_rejects_conflicting_request(
             project_id=project.id,
             contract_id=contract.id,
             execution_mode="live",
-            cache_policy="disabled",
             idempotency_key=idempotency_key,
             request_hash="sha256:" + "e" * 64,
             steps=_step_definitions(),
@@ -231,7 +228,6 @@ def test_invalid_transition_chain_is_rejected_before_database_write(
             project_id=project.id,
             contract_id=contract.id,
             execution_mode="live",
-            cache_policy="disabled",
             idempotency_key=f"invalid-chain-{uuid4()}",
             request_hash="sha256:" + "c" * 64,
             steps=(
@@ -577,6 +573,68 @@ def test_persistent_executor_records_adapter_failure_after_begin_transaction(
     assert current.steps[0].status == "pending"
     assert current.steps[0].attempts[0].status == "failed"
     assert current.steps[0].attempts[0].retryable is True
+
+
+def test_failed_run_rejects_late_results_and_snapshot_cursor_recovers(
+    postgres_engine: Engine,
+) -> None:
+    store, snapshot = _create_run(postgres_engine)
+    lease = store.acquire_lease(
+        snapshot.id,
+        owner="executor",
+        lease_duration=timedelta(seconds=30),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
+    )
+    attempt = store.begin_step(
+        snapshot.id,
+        step_key="planning",
+        attempt_idempotency_key="attempt-1",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="queued",
+        expected_revision=lease.revision,
+        public_message="Planning",
+    )
+    failed = store.fail_run(
+        snapshot.id,
+        step_key="planning",
+        attempt_id=attempt.attempt_id,
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="planning",
+        expected_revision=attempt.run_revision,
+        error_class="PipelineError",
+        error_code="PIPELINE_FAILED",
+        public_message="Pipeline failed",
+    )
+    with pytest.raises(StaleWorkflowWriteError):
+        store.fail_run(
+            snapshot.id,
+            step_key="planning",
+            attempt_id=attempt.attempt_id,
+            token=lease.token,
+            generation=lease.generation,
+            expected_status="planning",
+            expected_revision=failed.revision,
+            error_class="LateResult",
+            error_code="LATE_RESULT",
+            public_message="Late result",
+        )
+
+    first_page = store.load_snapshot(snapshot.id, event_limit=1)
+    second_page = store.load_snapshot(
+        snapshot.id, after_event_sequence=first_page.next_event_cursor, event_limit=10
+    )
+    current = store.load_snapshot(snapshot.id)
+
+    assert current.status == "failed"
+    assert current.steps[0].status == "failed"
+    assert current.steps[0].attempts[0].status == "failed"
+    assert first_page.has_more_events is True
+    assert [event.sequence for event in first_page.events + second_page.events] == list(
+        range(1, current.latest_event_sequence + 1)
+    )
 
 
 def test_cancellation_rejects_late_results_and_snapshot_cursor_recovers(

@@ -150,8 +150,7 @@ Token、credential 及其值不会进入 Snapshot、Fixture 或错误日志。
 | 合成测试样例         | `fixture`     | `fixture`           | 必须携带版本化 provenance |
 | seed 输入或样例      | `fixture`     | `seed`              | 不得标记 Live             |
 
-该 Adapter 不接受 `cached`。任何缓存集成都必须引用真实历史 Run、ArtifactVersion 和
-SourceSnapshot，并由 CacheSelector 所属边界负责。
+该 Adapter 不接受 `cached`，也不实现缓存读取或回退；Recorded Fixture 只按其录制 provenance 返回。
 
 ## 7. Recorded Fixture
 

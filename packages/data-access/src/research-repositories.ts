@@ -199,10 +199,6 @@ export function createResearchRepositories(
       const body: CreateRunRequest = {
         contract_id: input.contractId,
         execution_mode: input.executionMode,
-        derivation_kind: input.derivationKind ?? "original",
-        parent_run_id: input.parentRunId ?? null,
-        retry_from_step: input.retryFromStep ?? null,
-        cache_policy: input.cachePolicy ?? "fallback_on_recoverable_failure",
       };
       const payload = await http.post<unknown>(
         `/api/projects/${seg(input.projectId)}/runs`,

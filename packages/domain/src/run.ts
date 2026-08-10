@@ -46,15 +46,9 @@ export interface RunEvent {
 }
 
 /**
- * Validate the derivation invariants of a run.
- *
- * Mirrors the `model_validator` on `ResearchRun`: original runs must not carry
- * a parent; derived runs must; `retry_from_step` is only valid for retries;
- * completed runs must report full progress.
+ * Validate stable derivation and terminal-progress invariants of a run.
  */
-export function validateRunDerivationInvariants(
-  run: ResearchRun,
-): readonly string[] {
+export function validateRunInvariants(run: ResearchRun): readonly string[] {
   const violations: string[] = [];
 
   if (run.derivationKind === "original" && run.parentRunId !== null) {

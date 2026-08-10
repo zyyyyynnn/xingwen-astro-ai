@@ -31,10 +31,10 @@ Prompt Contract 变化时直接更新当前定义、提升语义版本并同步�
 
 ## 3. 运行引用
 
-每次模型调用必须在 `ProducerExecution` 中记录 `prompt_name`、`prompt_version` 与 `prompt_hash`。`ArtifactVersion` 与 `CacheRecord` 只通过这些固定值引用当次执行输入，不读取动态别名。
+每次模型调用必须在 `ProducerExecution` 中记录 `prompt_name`、`prompt_version` 与 `prompt_hash`。ArtifactVersion 通过 ProducerExecution 与输入版本固定当次执行身份，不读取动态别名。
 
-## 4. Research Intent 到 Contract Planner
+## 4. Contract Planner
 
-Research Intent 进入运行前必须经过 Contract Planner Prompt。Planner 的输入只包含 Intent、项目范围、允许来源、字段/质量约束和必要的已发布 ArtifactVersion 摘要；它不直接访问数据库、外部来源或页面状态，也不生成 Artifact。
+Contract Planner 拥有 Research Intent 到 ResearchContractDraft candidate 的规划职责。输入只包含 Intent、Project 范围、允许来源、字段与质量约束以及必要的已发布 ArtifactVersion 摘要；输出必须通过 ResearchContractInput Schema 与领域校验，且不能直接创建 Contract、Run 或 Artifact。
 
-输出必须先通过生成的 Contract/Manifest Schema 与领域规则校验，再形成可编辑 Draft；用户确认后才产生不可变 Contract。无法支持的字段、来源或研究范围必须返回结构化 refusal/review-required，不得猜测或静默删减。
+HTTP Draft authoring 只有在绑定真实 Planner 与 ModelExecutionPort 时才能声称模型规划已执行。没有该绑定时必须使用明确的结构化输入路径或拒绝模型规划请求，不得用模板结果伪造 Planner 执行。

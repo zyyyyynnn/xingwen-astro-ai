@@ -42,7 +42,7 @@ GRAPH_BENCHMARK_PAPER_BENCHMARK_IDENTITY = (
     "2.0.0",
     "2.0.0",
     "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9",
-    "sha256:2bd6b19f8f202c821f11912abd22176b8e53790f9fcdd23d177cbb562d81ba0e",
+    "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57",
 )
 GRAPH_BENCHMARK_DISCLAIMER = (
     "This Benchmark only demonstrates frozen human labels, Graph integrity "

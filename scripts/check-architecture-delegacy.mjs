@@ -68,7 +68,6 @@ export function runArchitectureDelegacyCheck(root = process.cwd()) {
         "apps/api/uv.lock",
         "pnpm-lock.yaml",
         "scripts/check-architecture-delegacy.mjs",
-        "scripts/check-architecture-delegacy.test.mjs",
       ].includes(file)
     ) {
       continue;

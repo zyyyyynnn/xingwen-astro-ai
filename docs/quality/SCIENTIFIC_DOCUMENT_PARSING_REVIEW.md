@@ -50,8 +50,10 @@ Any violation is `verdict: BLOCKED` regardless of CI status.
       require fabricated placeholder cells.
 - [ ] `DocumentLocator` is the only locator representation; cell locator requires
       table identity and text span requires block identity.
-- [ ] Candidate config/native/visual/model provenance is internally consistent
-      with its parser profile.
+- [ ] Candidate config/native provenance is internally consistent with its
+      parser profile.
+- [ ] Visual engine/model provenance is complete and agrees with the parser
+      profile whenever visual output is present.
 
 ## 4. Upstream adoption integrity
 
@@ -104,8 +106,10 @@ Any violation is `verdict: BLOCKED` regardless of CI status.
 
 ## 8. Scope discipline
 
-- [ ] The Canonical Contract owns no production Paddle adapter, hybrid/page
-      router, or model loader.
+- [ ] Production parser imports are limited to package roots explicitly approved
+      by the adoption manifest.
+- [ ] An approved visual dependency is not presented as execution evidence
+      without a real DocumentParserPort adapter and benchmark/runtime output.
 - [ ] The parser contract owns no DocumentParse PostgreSQL tables/migrations or
       SourceSnapshot database materialization.
 - [ ] Paper summary, claim, relation, and data mapping remain downstream responsibilities.

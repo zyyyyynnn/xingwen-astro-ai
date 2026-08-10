@@ -148,7 +148,7 @@ class LiteratureRelationPipeline:
         requested_ids = tuple(sorted(set(literature_claim_artifact_version_ids)))
         if not requested_ids:
             raise ValueError("at least one LiteratureClaims ArtifactVersion is required")
-        prompt = self.prompt_registry.get("literature_reasoning")
+        prompt = self.prompt_registry.get("literature_relation")
         if prompt.output_models != ("LiteratureRelationExtractionOutput",):
             raise ValueError("Prompt output contract is not LiteratureRelationExtractionOutput")
         safe_parameters = _validate_parameters(parameters)

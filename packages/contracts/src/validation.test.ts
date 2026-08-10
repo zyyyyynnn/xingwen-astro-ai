@@ -74,7 +74,7 @@ describe("contract validation — ResearchRun", () => {
     status: "completed",
     progress: 100,
     derivation_kind: "original",
-    cache_policy: "fallback_on_recoverable_failure",
+    cache_policy: "disabled",
     created_at: "2026-07-21T08:00:00Z",
     updated_at: "2026-07-21T08:30:00Z",
   };

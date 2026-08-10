@@ -213,7 +213,6 @@ def _active_publication(
         project_id=project.id,
         contract_id=contract.id,
         execution_mode="live",
-        cache_policy="disabled",
         idempotency_key=f"run-{uuid4()}",
         request_hash="sha256:" + "b" * 64,
         steps=_steps(),
@@ -492,6 +491,37 @@ def test_any_publication_write_failure_rolls_back_the_entire_snapshot(
         )
 
 
+def test_failed_run_rejects_late_output_without_updating_latest(
+    postgres_engine: Engine,
+) -> None:
+    active = _active_publication(postgres_engine)
+    active.workflow.fail_run(
+        active.run_id,
+        step_key="planning",
+        attempt_id=active.attempt_id,
+        token=active.token,
+        generation=active.generation,
+        expected_status=active.run_status,
+        expected_revision=active.run_revision,
+        error_class="PipelineError",
+        error_code="PIPELINE_FAILED",
+        public_message="Pipeline failed",
+    )
+    with pytest.raises(StalePublicationError):
+        _publish(active)
+    with active.factory() as session:
+        artifact = session.get(ResearchArtifactModel, active.artifact.id)
+        assert artifact is not None and artifact.latest_version_id is None
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ArtifactVersionModel)
+                .where(ArtifactVersionModel.artifact_id == active.artifact.id)
+            )
+            == 0
+        )
+
+
 def test_cancelled_run_rejects_late_output_without_updating_latest(
     postgres_engine: Engine,
 ) -> None:
@@ -710,7 +740,6 @@ def test_last_step_atomically_completes_run_and_releases_lease(
         project_id=project.id,
         contract_id=contract.id,
         execution_mode="live",
-        cache_policy="disabled",
         idempotency_key=f"run-{uuid4()}",
         request_hash="sha256:" + "d" * 64,
         steps=_steps(),

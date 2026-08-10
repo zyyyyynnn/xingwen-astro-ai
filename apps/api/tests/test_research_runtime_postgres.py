@@ -25,7 +25,7 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
 from pydantic import BaseModel
-from sqlalchemy import Engine
+from sqlalchemy import Engine, func, select
 
 from app.config import settings
 from app.db.models import (
@@ -248,18 +248,40 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
         "star.tic_id",
     ]
 
+    rejected_unsupported_target_fields = client.post(
+        f"/api/projects/{project_id}/runs",
+        headers={**csrf, "Idempotency-Key": "run-unsupported-target-fields"},
+        json={
+            "contract_id": contract_id,
+            "execution_mode": "live",
+            "feedback_ids": ["feedback_01J"],
+            "retry_from_step": "fetching_data",
+            "cache_policy": "reuse",
+            "parent_run_id": "run_01J",
+            "derivation_kind": "retry",
+        },
+    )
+    assert rejected_unsupported_target_fields.status_code == 422
+    assert (
+        client.get(f"/api/projects/{project_id}").json()["data"]["latest_run_id"]
+        is None
+    )
+
     created = client.post(
         f"/api/projects/{project_id}/runs",
         headers={**csrf, "Idempotency-Key": "run-1"},
         json={
             "contract_id": contract_id,
             "execution_mode": "live",
-            "derivation_kind": "original",
         },
     )
     assert created.status_code == 201
     run_id = created.json()["data"]["id"]
     assert created.json()["data"]["status"] == "queued"
+    assert created.json()["data"]["parent_run_id"] is None
+    assert created.json()["data"]["derivation_kind"] == "original"
+    assert created.json()["data"]["retry_from_step"] is None
+    assert created.json()["data"]["cache_policy"] == "disabled"
 
     project_after_run = client.get(f"/api/projects/{project_id}")
     assert project_after_run.json()["data"]["active_contract_id"] == contract_id
@@ -271,7 +293,6 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
         json={
             "contract_id": contract_id,
             "execution_mode": "live",
-            "derivation_kind": "original",
         },
     )
     assert replay.status_code == 201
@@ -283,7 +304,6 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
         json={
             "contract_id": contract_id,
             "execution_mode": "demo_replay",
-            "derivation_kind": "original",
         },
     )
     assert conflict.status_code == 409
@@ -308,23 +328,6 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     assert saved.json()["data"]["revision"] == 1
     reloaded = client.get(f"/api/projects/{project_id}/workspace-snapshot")
     assert reloaded.json()["data"] == saved.json()["data"]
-
-    non_raising = TestClient(
-        client.app, base_url="https://testserver", raise_server_exceptions=False
-    )
-    non_raising.cookies.update(client.cookies)
-    missing_parent = non_raising.post(
-        f"/api/projects/{project_id}/runs",
-        headers={**csrf, "Idempotency-Key": "derived-missing-parent"},
-        json={
-            "contract_id": contract_id,
-            "execution_mode": "live",
-            "derivation_kind": "retry",
-            "parent_run_id": str(uuid4()),
-        },
-    )
-    assert missing_parent.status_code == 404
-    assert missing_parent.json()["code"] == "RUN_NOT_FOUND"
 
 
 def test_expired_draft_is_visible_but_cannot_be_changed_or_confirmed(
@@ -393,7 +396,6 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         json={
             "contract_id": contract_id,
             "execution_mode": "demo_replay",
-            "derivation_kind": "original",
         },
     )
     assert created.status_code == 201
@@ -589,6 +591,26 @@ def test_public_authoring_chain_creates_project_and_draft(
     assert conflict.status_code == 409
     assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
 
+    factory = runtime["factory"]
+    with factory() as session:  # type: ignore[operator]
+        draft_count_before = session.scalar(
+            select(func.count()).select_from(ResearchContractDraftModel)
+        )
+
+    # Intent-only authoring would require a bound Contract Planner and
+    # ModelExecutionPort. The current structured-input API fails closed.
+    planner_unavailable = client.post(
+        f"/api/projects/{project['id']}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "authoring-planner-unavailable"},
+        json={"intent": "Plan a contract from this research intent"},
+    )
+    assert planner_unavailable.status_code == 422
+    with factory() as session:  # type: ignore[operator]
+        assert (
+            session.scalar(select(func.count()).select_from(ResearchContractDraftModel))
+            == draft_count_before
+        )
+
     draft_created = client.post(
         f"/api/projects/{project['id']}/contract-drafts",
         headers={**csrf, "Idempotency-Key": "authoring-draft-1"},
@@ -645,7 +667,6 @@ def test_public_authoring_chain_creates_project_and_draft(
         json={
             "contract_id": contract_id,
             "execution_mode": "demo_replay",
-            "derivation_kind": "original",
         },
     )
     assert run.status_code == 201, run.text

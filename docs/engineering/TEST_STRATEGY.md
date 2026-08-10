@@ -28,7 +28,7 @@
 
 - Case / Field Manifest 与单位转换；
 - 实体匹配、去重、排序与质量评估；
-- Run 状态机、重试策略与 CacheSelector；
+- Run 状态机、派生不变量、lease、StepAttempt、取消与 CacheSelector；
 - Schema、Mapper、Hash 计算、版本号与 Supersedes 关系；
 - Evidence、Relation 与 Graph 完整性准入。
 
@@ -100,8 +100,7 @@ proof 的测试只证明契约或适配器行为，不证明竞赛资格。
 | preview    | 部署 Smoke 与授权验证              | 隔离配置与测试凭据              |
 | production | 生产环境                           | 受限主案例与配额                |
 
-跨层回归必须覆盖：Contract Planner 的 refusal/unsupported、Qwen ModelExecutionPort
-的结构化拒绝与限流、真实 Executor 的 lease/recovery、Open Access PaperCandidate 到
+跨层回归必须覆盖：Contract confirmation 的 persisted-resource 幂等、Run HTTP authoring 的 fail-closed 边界、派生/Revision/Cache target contract、Contract Planner 与 ModelExecutionPort 未绑定时的拒绝语义、真实 Executor 的 lease/recovery、Open Access PaperCandidate 到
 ResearchInput 的桥接、snapshot-first RunEventFeed 的分页/polling/backoff、穷举
 Renderer Registry、共享 Evidence Inspector、partial/unsupported parsing，以及
 ArtifactVersion immutable revision。NFR 证据至少包含初始 JS/lazy chunk、长 Activity、
@@ -109,7 +108,7 @@ ArtifactVersion immutable revision。NFR 证据至少包含初始 JS/lazy chunk�
 
 ## 5. 测试证据格式
 
-PR 或阶段测试报告必须提供：
+PR 或验证报告必须提供：
 
 - 运行环境与具体测试命令；
 - Commit SHA、Contract 版本与 Fixture 版本；

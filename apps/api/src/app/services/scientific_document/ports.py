@@ -11,7 +11,7 @@ boundary (``DocumentParseCandidate``). There is deliberately no second,
 nearly-identical ``ParseRequest``/``ParseResult`` pair and no
 output→input reconstruction: the Canonical contract is the single boundary.
 
-Routing policy, hybrid fallback and resource budget are expressed through the
+Routing policy and resource budget are expressed through the
 ``DocumentParseProfile`` carried on the candidate, not here.
 """
 

@@ -16,7 +16,7 @@
 
 - 经过 LiteratureClaim Pipeline 封印的 `LiteratureClaimsCandidate@1.0.0`，以及每个 Claim 所属
   LiteratureClaims/PaperSummary ArtifactVersion、Project、Evidence 和 SourceSnapshot；
-- `literature_reasoning` 当前定义对应的模型 JSON 响应；
+- `literature_relation` 当前定义对应的模型 JSON 响应；
 - model、parameters version 与安全 parameters；
 - 由调用方提供且已经版本化、校准的 `LiteratureRelationConfidenceAssessment`；模型只
   引用 assessment id，不生成 score；
@@ -195,7 +195,7 @@ accepted probability：它们表示对“当前 relation type + rejected admissi
 
 ## 6. Prompt、ProducerExecution 与 Hash
 
-生产 Prompt 是 `packages/prompts/literature_reasoning/prompt.md`，Registry 以 UTF-8/LF hash
+生产 Prompt 是 `packages/prompts/literature_relation/prompt.md`，Registry 以 UTF-8/LF hash
 固定当前定义。仓库只保留当前 Prompt 文件，业务代码不提供 Prompt 选择入口；已发布执行
 通过 `ProducerExecution` 中的 Prompt 名称、语义版本与 hash 保留证据。
 

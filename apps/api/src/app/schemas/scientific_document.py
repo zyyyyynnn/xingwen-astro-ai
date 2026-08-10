@@ -47,7 +47,7 @@ from .core import (
 
 
 #: Schema version for the Scientific Document Parsing contract.
-SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.1.0"
+SCIENTIFIC_DOCUMENT_SCHEMA_VERSION = "1.2.0"
 
 #: Every canonical model that participates in the Scientific Document Parsing contract. The schema
 #: hash is computed over the JSON Schema of exactly these models, in this
@@ -108,11 +108,7 @@ class DocumentBlockKind(StrEnum):
 
 
 class ParserBackend(StrEnum):
-    """Vendor-neutral provenance of a parsed element.
-
-    Records whether a block/cell/formula came from the born-digital native
-    engine or the visual (OCR/VLM) engine. It never names a vendor package.
-    """
+    """Vendor-neutral parser provenance of a parsed element."""
 
     native = "native"
     visual = "visual"
@@ -406,8 +402,8 @@ class DocumentParseProfile(BaseModel):
     parser_profile_version: NonEmptyString
     native_backend: NonEmptyString
     visual_backend: NonEmptyString | None = None
-    routing_policy_version: NonEmptyString
-    resource_policy_version: NonEmptyString
+    routing_policy_id: NonEmptyString
+    resource_policy_id: NonEmptyString
     configuration_hash: ContentHash
 
 

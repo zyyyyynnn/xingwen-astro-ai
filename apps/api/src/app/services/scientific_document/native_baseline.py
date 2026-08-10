@@ -3,7 +3,7 @@
 This module uses the APPROVED native upstream ``docling-parse==7.11.0`` to
 produce a Canonical ``DocumentParseCandidate`` for a legal fixture. Its purpose
 is to validate the canonical contract, the Golden/Fixture runner, and the
-upstream native package API. It does not define hybrid routing or control
+upstream native package API. It does not define routing or control
 policy. It is imported only by the benchmark runner, never by the API runtime
 or any production path, so the heavy docling-parse dependency stays optional and
 out of core startup.
@@ -141,8 +141,8 @@ def parse_native_baseline(
         parser_profile_id=parser_profile_id,
         parser_profile_version="1.0.0",
         native_backend=_NATIVE_ENGINE,
-        routing_policy_version="native-only",
-        resource_policy_version="cpu-capable",
+        routing_policy_id="native-only",
+        resource_policy_id="cpu-capable",
         configuration_hash=config_hash,
     )
     overall = (

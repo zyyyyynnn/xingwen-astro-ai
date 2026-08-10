@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 from app.config import settings
 from app.main import create_app
 from app.schemas.evidence import SourceSnapshotRecord
+from app.schemas.research_input import ResearchInputStatus
 from app.security import InMemoryRateLimiter
 from app.services import url_fetcher as url_fetcher_module
 from app.services.content_storage import sha256_content_hash
@@ -27,6 +28,14 @@ from app.services.url_fetcher import UrlFetchConfig, UrlFetchError, UrlFetchResu
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FIXTURES_BYTES = {name: (FIXTURES / name).read_bytes() for name in ("sample.pdf", "sample.csv", "sample.json", "sample.png", "sample.txt")}
+
+
+def test_research_input_status_preserves_lifecycle_without_fabricating_failures() -> None:
+    assert {status.value for status in ResearchInputStatus} == {
+        "accepted",
+        "unsupported_processing",
+        "failed_ingestion",
+    }
 
 
 @pytest.fixture()
@@ -45,8 +54,6 @@ def app_and_client(
     session_id = app.state.session_service.authenticate(credential).id
     return app, client, session_id, csrf_token
 
-
-import secrets
 
 def _headers(csrf_token: str, idempotency_key: str | None = None, **extra: str) -> dict[str, str]:
     headers: dict[str, str] = {
@@ -876,6 +883,14 @@ def test_failed_url_fetch_leaves_the_key_retryable(
 
     failed = client.post("/api/research-inputs", json=body, headers=headers)
     assert failed.status_code == 502
+    assert failed.json()["code"] == "URL_FETCH_FAILED"
+    assert failed.json()["type"].startswith("https://")
+    listed = client.get(
+        "/api/research-inputs?project_id=proj_01",
+        headers=_headers(csrf_token),
+    )
+    assert listed.status_code == 200
+    assert listed.json()["data"] == []
 
     state["fail"] = False
     retried = client.post("/api/research-inputs", json=body, headers=headers)

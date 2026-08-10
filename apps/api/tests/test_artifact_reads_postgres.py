@@ -123,8 +123,6 @@ def read_context(postgres_engine: Engine) -> dict[str, object]:
             execution_mode="live",
             status="completed",
             progress=100,
-            derivation_kind="original",
-            cache_policy="disabled",
             latest_event_sequence=1,
             revision=1,
             idempotency_key="artifact_read-run",

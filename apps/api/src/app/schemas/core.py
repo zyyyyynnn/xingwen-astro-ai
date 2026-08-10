@@ -337,7 +337,7 @@ class ResearchRun(BaseModel):
                     "parent_run_id": None,
                     "derivation_kind": "original",
                     "retry_from_step": None,
-                    "cache_policy": "fallback_on_recoverable_failure",
+                    "cache_policy": "disabled",
                     "created_at": "2026-07-21T08:00:00Z",
                     "updated_at": "2026-07-21T08:00:00Z",
                     "latest_event_sequence": 0,
@@ -365,7 +365,7 @@ class ResearchRun(BaseModel):
     failure_summary: str | None = None
 
     @model_validator(mode="after")
-    def validate_derivation(self) -> ResearchRun:
+    def validate_run_invariants(self) -> ResearchRun:
         if self.derivation_kind is DerivationKind.original and self.parent_run_id is not None:
             raise ValueError("original run must not have parent_run_id")
         if self.derivation_kind is not DerivationKind.original and self.parent_run_id is None:
@@ -912,21 +912,6 @@ class CreateRunRequest(BaseModel):
 
     contract_id: Identifier
     execution_mode: ExecutionMode
-    parent_run_id: Identifier | None = None
-    derivation_kind: DerivationKind = DerivationKind.original
-    feedback_ids: tuple[Identifier, ...] = ()
-    retry_from_step: Identifier | None = None
-    cache_policy: CachePolicy = CachePolicy.fallback_on_recoverable_failure
-
-    @model_validator(mode="after")
-    def validate_derivation(self) -> CreateRunRequest:
-        if self.derivation_kind is DerivationKind.original and self.parent_run_id is not None:
-            raise ValueError("original run must not have parent_run_id")
-        if self.derivation_kind is not DerivationKind.original and self.parent_run_id is None:
-            raise ValueError("derived run must have parent_run_id")
-        if self.retry_from_step is not None and self.derivation_kind is not DerivationKind.retry:
-            raise ValueError("retry_from_step is only valid for retry runs")
-        return self
 
 
 class UpdateResearchContractDraftRequest(BaseModel):

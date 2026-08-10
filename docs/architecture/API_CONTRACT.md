@@ -1,10 +1,10 @@
 # API Contract
 
-| 元数据 | 值 |
-| --- | --- |
+| 元数据    | 值                                                 |
+| --------- | -------------------------------------------------- |
 | Authority | HTTP 资源、传输结构、错误、授权语义与 API 演进规范 |
 
-本文定义无版本前缀的单一 `/api/*` 接口面：当前 Research resource surface 与明确的 system endpoints（例如 `/api/health`）。系统不维护旧 API、目标 API、兼容 API 或 Task API。具体 Endpoints、DTOs 与字段由 Pydantic 编写源、OpenAPI 与生成的 Contract 权威定义。
+本文定义无版本前缀的单一 `/api/*` 接口面：当前 Research resource surface 与明确的 system endpoints（例如 `/api/health`）。系统不维护旧 API、并行 API、兼容 API 或 Task API；尚未实现的目标能力不暴露空命令。具体 Endpoints、DTOs 与字段由 Pydantic 编写源、OpenAPI 与生成的 Contract 权威定义。
 
 ## 1. 设计原则
 
@@ -94,7 +94,7 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - **URL 抓取失败关闭**：协议与主机 allowlist、SSRF 拒绝内网地址、每次重定向重新校验、流式大小上限、超时、不转发凭据。
 - **错误码**：`RESEARCH_INPUT_INVALID`（400，载荷组合非法）、`RESEARCH_INPUT_TOO_LARGE`（413）、`RESEARCH_INPUT_MIME_REJECTED`（415）、`RESEARCH_INPUT_FILENAME_INVALID`（400）、`RESEARCH_INPUT_NOT_FOUND`（404）、`URL_FETCH_BLOCKED`（422，策略拒绝）、`URL_FETCH_TOO_LARGE` / `URL_FETCH_FAILED`（502，上游失败）。
 - **绑定语义**：`POST /api/research-inputs/{input_id}/bind` 只绑定引用，不产生所有权转移；输入删除后既有绑定不受影响。
-- **状态语义**：`accepted` 表示摄取成功且内容已冻结；`unsupported_processing` 与 `failed_ingestion` 为预留状态，摄取成功不等于已理解。
+- **状态语义**：稳定生命周期为 `accepted | unsupported_processing | failed_ingestion`。摄取端点只在成功时创建 `accepted` 资源；失败使用 Problem Details 且不创建失败输入。其他状态只能由实际观察到对应结果的 writer 持久化。`accepted` 只证明内容已安全摄取并冻结，不表示内容已被理解。
 
 ## 7. 文献 Claim、Relation 与 Trace 读取
 

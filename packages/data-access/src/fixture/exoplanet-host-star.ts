@@ -133,7 +133,7 @@ const run: ResearchRunDto = {
   parent_run_id: null,
   derivation_kind: "original",
   retry_from_step: null,
-  cache_policy: "fallback_on_recoverable_failure",
+  cache_policy: "disabled",
   started_at: T4,
   finished_at: T9,
   created_at: T3,

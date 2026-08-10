@@ -32,7 +32,7 @@ def upgrade() -> None:
         sa.Column("id", _uuid(), nullable=False),
         sa.Column("session_id", sa.String(128), nullable=False),
         sa.Column("name", sa.String(200), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("description", sa.Text(), server_default=sa.text("''"), nullable=False),
         sa.Column("case_key", sa.String(128), nullable=False),
         sa.Column(
             "updated_at",
