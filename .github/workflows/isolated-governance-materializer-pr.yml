@@ -25,6 +25,20 @@ jobs:
         with:
           python-version: '3.13'
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.1
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install locked frontend dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Extract isolated materializer
         shell: bash
         run: |
@@ -104,6 +118,52 @@ jobs:
               ],
           )
 
+          # Remove retired read-surface vocabulary from current authoring sources.
+          rewrite(
+              'apps/api/src/app/schemas/graph_artifact.py',
+              [(
+                  'This module is the only Pydantic authoring source for publisher-ready Graph\nartifacts. The :mod:`app.schemas.graph` models are task-read DTOs and\nintentionally cannot satisfy this publication contract.\n',
+                  'This module is the only Pydantic authoring source for publisher-ready Evidence\nGraph artifacts. Only its sealed typed candidate can satisfy this publication contract.\n',
+              )],
+          )
+          rewrite(
+              'docs/engineering/LITERATURE_CLAIM_PIPELINE.md',
+              [(
+                  '`LiteratureClaimsCandidate@1.0.0` 才是领域 typed candidate。task-read\n`app.schemas.reasoning.LiteratureClaim`、`LiteratureReasoningResponse` 和 core\n`LiteratureClaimsArtifactContent` 是当前读取投影，带不可发布 marker，不是第二套编写源。\n',
+                  '`LiteratureClaimsCandidate@1.0.0` 才是领域 typed candidate。core\n`LiteratureClaimsArtifactContent` 仅表达当前读取投影，不是第二套编写源，也不能进入 Publisher。\n',
+              )],
+          )
+          rewrite(
+              'docs/engineering/LITERATURE_RELATION_PIPELINE.md',
+              [
+                  (
+                      'HTTP OpenAPI。task-read `app.schemas.reasoning.LiteratureRelation`/`ReasoningTrace` 与\ncore `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 是当前读取投影，\n不是编写源，也不能进入 Publisher。\n',
+                      'HTTP OpenAPI。core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent`\n仅表达当前读取投影，不是编写源，也不能进入 Publisher。\n',
+                  ),
+                  (
+                      '手工重建、单条 Relation/Trace、raw extraction、\ntask-read 投影均不恢复 seal。修改 Relation、Evidence、Trace、confidence、版本、\n',
+                      '手工重建、单条 Relation/Trace、raw extraction 与读取投影均不恢复 seal。\n修改 Relation、Evidence、Trace、confidence、版本、\n',
+                  ),
+              ],
+          )
+          rewrite(
+              'packages/schemas/README.md',
+              [
+                  (
+                      '- `generated/literature_claim` 固定唯一领域编写源的 extraction、admission、publisher candidate 与 Benchmark report；task-read `reasoning.LiteratureClaim`/`LiteratureReasoningResponse` 和 core `LiteratureClaimsArtifactContent` 是当前读取投影，不能进入 Publisher。\n',
+                      '- `generated/literature_claim` 固定唯一领域编写源的 extraction、admission、publisher candidate 与 Benchmark report；core `LiteratureClaimsArtifactContent` 仅为读取投影，不能进入 Publisher。\n',
+                  ),
+                  (
+                      '- `generated/literature_relation` 固定唯一领域编写源的 extraction、Relation/ReasoningTrace admission、publisher candidate 与 Benchmark report；task-read `reasoning.LiteratureRelation`/`ReasoningTrace` 和 core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 是当前读取投影，不能进入 Publisher。\n',
+                      '- `generated/literature_relation` 固定唯一领域编写源的 extraction、Relation/ReasoningTrace admission、publisher candidate 与 Benchmark report；core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent` 仅为读取投影，不能进入 Publisher。\n',
+                  ),
+                  (
+                      '- `generated/graph` 固定 Versioned Evidence Graph 的唯一领域编写源和 Benchmark contract；它不是 HTTP DTO。Graph-owned Evidence-use、完整上游版本闭包与 Publisher handoff 必须由 typed candidate 表达，task-read `GraphResponse` 或页面 Domain model 不能进入 Publisher。\n',
+                      '- `generated/graph` 固定 Evidence Graph 的唯一领域编写源和 Benchmark contract；它不是 HTTP DTO。Graph-owned Evidence-use、完整上游版本闭包与 Publisher handoff 必须由 typed candidate 表达，页面 Domain model 不能进入 Publisher。\n',
+                  ),
+              ],
+          )
+
           # Convert benchmark tests from review-history semantics to one current scientific review.
           path = Path('apps/api/tests/test_paper_benchmark.py')
           text = path.read_text(encoding='utf-8')
@@ -140,6 +200,64 @@ jobs:
 
           path.write_text(text, encoding='utf-8', newline='\n')
           PY
+
+          # Rebuild generated schema families from current authoring sources before semantic gates run.
+          export_schema() {
+            PYTHONPATH="$PWD/apps/api/src" uv run --project apps/api python scripts/export_schemas.py "$@"
+          }
+          export_schema --output packages/schemas/generated/data_pipeline \
+            --include DataSourceCompletion --include CrossmatchInput --include CrossmatchResult \
+            --include CrossmatchBenchmarkManifest --include CrossmatchBenchmarkReport \
+            --include DataArtifactBuildInput --include DatasetArtifactCandidate \
+            --include FieldDictionaryArtifactCandidate --include SourceCollectionArtifactCandidate \
+            --include MappingRuleSet --include UnitConversionCatalog --include DataQualityRuleSet \
+            --include QualityEvaluationPlan --include QualityMetricPlan \
+            --include DataQualityEvaluationInput --include DataQualityEvaluationResult \
+            --include DataQualityEvaluationRejected --include FieldQualityResult \
+            --include RowQualityResult --include DatasetQualityResult \
+            --include ResearchContractQualityGate --include QualityConstraintResult \
+            --include QualityMetricResult
+          export_schema --output packages/schemas/generated/literature_claim \
+            --include LiteratureClaimExtractionOutput --include LiteratureClaimCandidate \
+            --include LiteratureClaimAdmissionResult --include LiteratureClaimsCandidate \
+            --include LiteratureClaimBenchmarkEvaluationCase --include LiteratureClaimBenchmarkReport
+          export_schema --output packages/schemas/generated/literature_relation \
+            --include LiteratureRelationExtractionOutput --include LiteratureRelationCandidate \
+            --include LiteratureRelationAdmissionResult --include LiteratureRelationsCandidate \
+            --include LiteratureReasoningTraceCandidate \
+            --include LiteratureRelationBenchmarkEvaluationCase --include LiteratureRelationBenchmarkReport
+          export_schema --output packages/schemas/generated/graph --manifest-content-hashes \
+            --include GraphBuildRequest --include GraphArtifactNode --include GraphArtifactEdge \
+            --include GraphEvidenceUse --include GraphIntegrityReport --include GraphArtifactCandidate \
+            --include GraphAdmissionResult --include GraphBenchmarkEvaluationCase --include GraphBenchmarkReport
+          export_schema --output packages/schemas/generated/core \
+            --include ResearchProject --include ResearchContractDraft --include ResearchContract \
+            --include ResearchRun --include RunEvent --include ResearchArtifact --include ArtifactVersion \
+            --include ResearchArtifactDetail --include ArtifactVersionDetail \
+            --include PaperSummaryArtifactContent --include PaperSummaryRead \
+            --include PaperCollectionRead --include PaperCollectionCandidateRead \
+            --include DataArtifactReadBase --include DatasetArtifactRead \
+            --include FieldDictionaryArtifactRead --include SourceCollectionArtifactRead \
+            --include DataArtifactRowRead --include LiteratureClaimRead --include LiteratureRelationRead \
+            --include LiteratureReasoningTraceRead --include CreateArtifactExportRequest \
+            --include ArtifactExportRead --include EvidenceRead --include SourceSnapshotDetail \
+            --include SessionCreated --include WorkspaceSnapshot --include ShareSnapshot \
+            --include ShareSnapshotCreated --include PublicShareSnapshot --include ResearchInputRef \
+            --include ResearchInputDetail --include CreateResearchInputRequest \
+            --include CreateResearchInputMultipartRequest --include BindResearchInputRequest
+          PYTHONPATH="$PWD/apps/api/src" uv run --project apps/api python scripts/export_openapi.py \
+            --output packages/schemas/generated/core/openapi.json
+          export_schema --output packages/schemas/generated/scientific_document \
+            --include DocumentBBox --include TextSpan --include DocumentLocator --include DocumentPage \
+            --include DocumentBlock --include DocumentTableCell --include DocumentTable \
+            --include DocumentFormula --include DocumentFigure --include DocumentParseProfile \
+            --include DocumentParseInput --include DocumentParseCandidate \
+            --include ScientificDataExtractionCandidate --include GoldenSetEntry \
+            --include GoldenExpectedAnnotation --include GoldenSetManifest \
+            --include BenchmarkMetricValue --include BenchmarkCaseResult --include BenchmarkReport
+          export_schema --output packages/schemas/generated/security \
+            --include ResearchSession --include SessionCreated --include SessionQuota --include ProblemDetails
+          node scripts/sync_contracts.mjs
 
           bash /tmp/pr209-materialize.sh
           bash /tmp/pr209-commit.sh
