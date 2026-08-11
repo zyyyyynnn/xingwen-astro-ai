@@ -2889,9 +2889,15 @@ def _validate_publishable_producer(
         or producer.run_step_id != step_id
         or producer.step_attempt_id != attempt_id
         or producer.output_hash != output.candidate.content_hash
-        or not _producer_matches_candidate_input_hash(producer, output.candidate)
-        or not _producer_matches_graph_candidate(producer, output.candidate)
     ):
+        raise PublicationAdmissionError(
+            "Publication requires a completed matching ProducerExecution"
+        )
+    if not _producer_matches_candidate_input_hash(producer, output.candidate):
+        raise PublicationAdmissionError(
+            "ProducerExecution input_hash must match the admitted candidate"
+        )
+    if not _producer_matches_graph_candidate(producer, output.candidate):
         raise PublicationAdmissionError(
             "Publication requires a completed matching ProducerExecution"
         )

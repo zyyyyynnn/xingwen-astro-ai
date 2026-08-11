@@ -593,6 +593,7 @@ def test_dataset_without_persisted_provenance_rolls_back_publication(
     with factory() as session, session.begin():
         execution = session.get(ProducerExecutionModel, active.execution_id)
         assert execution is not None
+        execution.input_hash = candidate.content["input_hash"]
         execution.output_hash = candidate.content_hash
     invalid = replace(
         active,
