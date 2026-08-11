@@ -25,7 +25,7 @@ import {
   stableIdempotencyKey,
   validateAndMap,
 } from "./http-client";
-import { NotFoundError } from "./http-errors";
+import { NotFoundError } from "./errors";
 import {
   mapDomainContractInputToDto,
   mapResearchContract,

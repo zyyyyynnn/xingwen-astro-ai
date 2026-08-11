@@ -42,7 +42,7 @@ Experience (Site / Workspace)
 `@xingwen/research-adapter` 是前端唯一的 Research Application Boundary，负责
 Domain 到 UI ViewModel、RunEvent 到公开 ActivityPresentationEvent、UI Intent
 到 ApplicationCommand，以及已归一化 Repository 错误到稳定公开错误的纯映射。
-它只依赖 `@xingwen/domain` 与 `@xingwen/data-access` 的公开边界，不拥有
+它只依赖 `@xingwen/domain` 与 `@xingwen/data-access` 的窄 public ports/errors 边界，不拥有
 transport、session、query/cache、polling、server state 或 renderer 生命周期。
 
 ### 2.2 API、Application 与 Workflow

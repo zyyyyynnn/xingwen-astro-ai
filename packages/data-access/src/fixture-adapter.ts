@@ -30,11 +30,7 @@ import type {
 } from "@xingwen/domain";
 
 import { FixtureSemanticError, FixtureValidationError } from "./errors";
-import {
-  ConflictError,
-  NotFoundError,
-  UnexpectedHttpError,
-} from "./http-errors";
+import { ConflictError, NotFoundError, UnexpectedHttpError } from "./errors";
 import {
   buildFixtureProvenance,
   mapArtifactVersionMetadata,

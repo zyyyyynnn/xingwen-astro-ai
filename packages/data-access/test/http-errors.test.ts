@@ -20,7 +20,7 @@ import {
   UnexpectedHttpError,
   UpstreamError,
   ValidationError,
-} from "../src/http-errors";
+} from "../src/errors";
 
 import {
   createSessionManagerForTest,

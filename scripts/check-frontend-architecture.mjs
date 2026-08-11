@@ -632,7 +632,13 @@ const networkAndStorageGlobals = new Set([
   "localStorage",
   "sessionStorage",
 ]);
-const researchAdapterDataAccessImports = new Set([
+const researchAdapterPortsImports = new Set([
+  "CreateResearchContractDraftInput",
+  "CreateResearchProjectInput",
+  "CreateResearchRunInput",
+  "UpdateResearchContractDraftInput",
+]);
+const researchAdapterErrorsImports = new Set([
   "ConflictError",
   "EntityNotFoundError",
   "ForbiddenError",
@@ -643,10 +649,10 @@ const researchAdapterDataAccessImports = new Set([
   "UnexpectedHttpError",
   "UpstreamError",
   "ValidationError",
-  "CreateResearchContractDraftInput",
-  "CreateResearchProjectInput",
-  "CreateResearchRunInput",
-  "UpdateResearchContractDraftInput",
+]);
+const researchAdapterDataAccessImports = new Map([
+  ["@xingwen/data-access/ports", researchAdapterPortsImports],
+  ["@xingwen/data-access/errors", researchAdapterErrorsImports],
 ]);
 const boundaryRules = new Map([
   [
@@ -684,16 +690,28 @@ const boundaryRules = new Map([
     "packages/research-adapter",
     {
       description: "the framework-free Research Adapter boundary",
-      allowedBareImports: new Set(["@xingwen/data-access", "@xingwen/domain"]),
-      allowedNamedImports: new Map([
-        ["@xingwen/data-access", researchAdapterDataAccessImports],
+      allowedBareImports: new Set([
+        "@xingwen/data-access/errors",
+        "@xingwen/data-access/ports",
+        "@xingwen/domain",
       ]),
+      allowedNamedImports: researchAdapterDataAccessImports,
       forbiddenIdentifiers: new Set([
         ...networkAndStorageGlobals,
+        "Buffer",
+        "Headers",
+        "HeadersInit",
+        "NodeJS",
+        "Request",
+        "Response",
         "document",
         "globalThis",
+        "__dirname",
+        "__filename",
         "location",
         "navigator",
+        "process",
+        "require",
         "window",
       ]),
       forbidRepositorySymbols: true,
@@ -755,6 +773,13 @@ function collectBoundaryViolations(file, content, rule) {
     }
   }
 
+  function isDataAccessSpecifier(specifier) {
+    return (
+      specifier === "@xingwen/data-access" ||
+      specifier.startsWith("@xingwen/data-access/")
+    );
+  }
+
   function checkNamedImportBindings(node, specifier) {
     const allowed = rule.allowedNamedImports?.get(specifier);
     if (!allowed) return;
@@ -801,6 +826,19 @@ function collectBoundaryViolations(file, content, rule) {
   }
 
   function visit(node) {
+    if (ts.isImportTypeNode(node)) {
+      const { argument } = node;
+      if (
+        ts.isLiteralTypeNode(argument) &&
+        ts.isStringLiteral(argument.literal) &&
+        isDataAccessSpecifier(argument.literal.text)
+      ) {
+        violations.add(
+          `forbidden import-type expression ${argument.literal.text}`,
+        );
+      }
+    }
+
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
       node.moduleSpecifier &&
@@ -921,12 +959,37 @@ for (const [location, content] of boundaryRuleFixtures) {
 
 const researchAdapterRule = boundaryRules.get("packages/research-adapter");
 const researchAdapterRuleFixtures = [
-  [true, 'import type { CreateResearchRunInput } from "@xingwen/data-access";'],
+  [
+    true,
+    'import type { CreateResearchRunInput } from "@xingwen/data-access/ports";',
+  ],
+  [true, 'import { NotFoundError } from "@xingwen/data-access/errors";'],
   [false, 'import { createSessionManager } from "@xingwen/data-access";'],
   [false, 'import type { RepositorySet } from "@xingwen/data-access";'],
-  [false, 'import * as dataAccess from "@xingwen/data-access";'],
-  [false, 'import dataAccess from "@xingwen/data-access";'],
+  [false, 'import type { SessionManager } from "@xingwen/data-access";'],
+  [false, 'import type { RepositorySet } from "@xingwen/data-access/ports";'],
+  [false, 'import type { RunRepository } from "@xingwen/data-access/ports";'],
+  [
+    false,
+    'import { FixtureValidationError } from "@xingwen/data-access/errors";',
+  ],
+  [false, 'import "@xingwen/data-access/ports";'],
+  [false, 'import * as ports from "@xingwen/data-access/ports";'],
+  [false, 'import errors from "@xingwen/data-access/errors";'],
+  [false, 'export { RepositorySet } from "@xingwen/data-access/ports";'],
+  [false, 'export * from "@xingwen/data-access/errors";'],
+  [false, 'type Session = import("@xingwen/data-access").SessionManager;'],
+  [
+    false,
+    'type Repository = import("@xingwen/data-access/ports").RepositorySet;',
+  ],
   [false, 'const dataAccess = await import("@xingwen/data-access");'],
+  [false, 'const ports = await import("@xingwen/data-access/ports");'],
+  [false, 'const errors = await import("@xingwen/data-access/errors");'],
+  [false, "process.env.NODE_ENV;"],
+  [false, 'Buffer.from("secret");'],
+  [false, "__dirname;"],
+  [false, "__filename;"],
 ];
 
 for (const [shouldPass, content] of researchAdapterRuleFixtures) {

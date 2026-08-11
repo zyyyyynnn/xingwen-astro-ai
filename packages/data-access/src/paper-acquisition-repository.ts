@@ -47,7 +47,7 @@ import type {
 import { asEntityId } from "@xingwen/domain";
 
 import { HttpClient, seg } from "./http-client";
-import { ValidationError } from "./http-errors";
+import { ValidationError } from "./errors";
 import { mapEvidenceDetail } from "./mapping";
 import type { PaperAcquisitionRepository } from "./ports";
 

@@ -25,7 +25,7 @@ import {
   RateLimitedError,
   UpstreamError,
   ValidationError,
-} from "../src/http-errors";
+} from "../src/errors";
 
 import {
   createSessionManagerForTest,

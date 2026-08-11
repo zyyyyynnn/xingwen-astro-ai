@@ -15,7 +15,7 @@ import { http, HttpResponse } from "msw";
 import { expect, it } from "vitest";
 
 import { createHttpRepositories } from "../src/http-adapter";
-import { NotFoundError } from "../src/http-errors";
+import { NotFoundError } from "../src/errors";
 import { exoplanetHostStarFixture } from "../src/fixture/exoplanet-host-star";
 
 import {

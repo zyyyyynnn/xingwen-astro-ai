@@ -34,9 +34,18 @@ export type {
 } from "./ports";
 
 export {
+  ConflictError,
   EntityNotFoundError,
+  ForbiddenError,
   FixtureSemanticError,
   FixtureValidationError,
+  NetworkError,
+  NotFoundError,
+  RateLimitedError,
+  SessionExpiredError,
+  UnexpectedHttpError,
+  UpstreamError,
+  ValidationError,
 } from "./errors";
 
 export type {
@@ -78,15 +87,6 @@ export {
   type SessionQuota,
 } from "./session";
 export {
-  ConflictError,
-  ForbiddenError,
-  NetworkError,
-  NotFoundError,
-  RateLimitedError,
-  SessionExpiredError,
-  UnexpectedHttpError,
-  UpstreamError,
-  ValidationError,
   mapProblemDetails,
   type ProblemDetails,
   type ProblemDetailsFieldError,

@@ -4,7 +4,7 @@ import { exoplanetHostStarFixture } from "../src/fixture/exoplanet-host-star";
 import type { FixtureBundle } from "../src/fixture/bundle";
 import { createFixtureRepositories } from "../src/fixture-adapter";
 import { FixtureSemanticError, FixtureValidationError } from "../src/errors";
-import { ConflictError, NotFoundError } from "../src/http-errors";
+import { ConflictError, NotFoundError } from "../src/errors";
 
 const repos = createFixtureRepositories(exoplanetHostStarFixture);
 

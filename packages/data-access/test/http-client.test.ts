@@ -15,7 +15,7 @@
 import { describe, expect, it } from "vitest";
 
 import { HttpClient } from "../src/http-client";
-import { NotFoundError, UnexpectedHttpError } from "../src/http-errors";
+import { NotFoundError, UnexpectedHttpError } from "../src/errors";
 import { createSessionManager } from "../src/session";
 
 function makeClient(respond: (url: string) => Response): HttpClient {

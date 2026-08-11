@@ -8,6 +8,18 @@
  * Problem Details shape and `code` values follow API_CONTRACT.md §5.
  */
 
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitedError,
+  SessionExpiredError,
+  UnexpectedHttpError,
+  UpstreamError,
+  ValidationError,
+} from "./errors";
+import type { ValidationFieldError } from "./errors";
+
 /** RFC 9457 Problem Details payload. */
 export interface ProblemDetails {
   readonly type?: string;
@@ -20,109 +32,8 @@ export interface ProblemDetails {
   readonly errors?: readonly ProblemDetailsFieldError[];
 }
 
-export interface ProblemDetailsFieldError {
-  readonly field: string;
-  readonly code: string;
-  readonly message: string;
-}
-
-/** Network-level failure (fetch threw, no response received). */
-export class NetworkError extends Error {
-  override readonly cause?: unknown;
-  constructor(message: string, cause?: unknown) {
-    super(message);
-    this.name = "NetworkError";
-    this.cause = cause;
-  }
-}
-
-/** Session missing or expired (401 SESSION_REQUIRED). */
-export class SessionExpiredError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "SessionExpiredError";
-  }
-}
-
-/** CSRF failure or action not allowed (403). */
-export class ForbiddenError extends Error {
-  readonly code: string;
-  constructor(message: string, code: string) {
-    super(message);
-    this.name = "ForbiddenError";
-    this.code = code;
-  }
-}
-
-/** Resource not found, or private resource not owned by session (404). */
-export class NotFoundError extends Error {
-  readonly code: string;
-  constructor(message: string, code: string) {
-    super(message);
-    this.name = "NotFoundError";
-    this.code = code;
-  }
-}
-
-/** State, version or idempotency conflict (409). */
-export class ConflictError extends Error {
-  readonly code: string;
-  constructor(message: string, code: string) {
-    super(message);
-    this.name = "ConflictError";
-    this.code = code;
-  }
-}
-
-/** Business or schema validation failure (422). */
-export class ValidationError extends Error {
-  readonly code: string;
-  readonly fieldErrors: readonly ProblemDetailsFieldError[];
-  constructor(
-    message: string,
-    code: string,
-    fieldErrors: readonly ProblemDetailsFieldError[],
-  ) {
-    super(message);
-    this.name = "ValidationError";
-    this.code = code;
-    this.fieldErrors = fieldErrors;
-  }
-}
-
-/** Rate limit or quota exceeded (429). */
-export class RateLimitedError extends Error {
-  readonly retryAfterMs: number | null;
-  constructor(message: string, retryAfterMs: number | null) {
-    super(message);
-    this.name = "RateLimitedError";
-    this.retryAfterMs = retryAfterMs;
-  }
-}
-
-/** Upstream service failure (502/503/504). */
-export class UpstreamError extends Error {
-  readonly code: string;
-  readonly status: number;
-  constructor(message: string, code: string, status: number) {
-    super(message);
-    this.name = "UpstreamError";
-    this.code = code;
-    this.status = status;
-  }
-}
-
-/** Unrecognised problem details that did not map to a known category. */
-export class UnexpectedHttpError extends Error {
-  readonly status: number;
-  readonly code: string | null;
-  constructor(message: string, status: number, code: string | null) {
-    super(message);
-    this.name = "UnexpectedHttpError";
-    this.status = status;
-    this.code = code;
-  }
-}
+/** Problem Details field errors remain transport-shaped but fit the pure model. */
+export type ProblemDetailsFieldError = ValidationFieldError;
 
 /** Parse Retry-After header (seconds or HTTP date) into milliseconds. */
 function parseRetryAfter(headerValue: string | null): number | null {

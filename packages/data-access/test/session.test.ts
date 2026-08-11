@@ -14,7 +14,7 @@ import {
   ForbiddenError,
   RateLimitedError,
   SessionExpiredError,
-} from "../src/http-errors";
+} from "../src/errors";
 
 import {
   createSessionManagerForTest,

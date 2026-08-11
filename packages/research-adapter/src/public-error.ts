@@ -9,7 +9,7 @@ import {
   UnexpectedHttpError,
   UpstreamError,
   ValidationError,
-} from "@xingwen/data-access";
+} from "@xingwen/data-access/errors";
 
 export type PublicApplicationError =
   | {

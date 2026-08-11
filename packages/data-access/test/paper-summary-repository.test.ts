@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { paperSummaryReadFixture } from "../src/fixture/paper-summary";
-import { ValidationError } from "../src/http-errors";
+import { ValidationError } from "../src/errors";
 import { assemblePaperSummaryReview } from "../src/paper-summary-repository";
 
 function cachedRead() {

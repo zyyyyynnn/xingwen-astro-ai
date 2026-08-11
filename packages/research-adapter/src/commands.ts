@@ -3,7 +3,7 @@ import type {
   CreateResearchProjectInput,
   CreateResearchRunInput,
   UpdateResearchContractDraftInput,
-} from "@xingwen/data-access";
+} from "@xingwen/data-access/ports";
 import type {
   CreateShareSnapshotRequest,
   DomainEntityId,

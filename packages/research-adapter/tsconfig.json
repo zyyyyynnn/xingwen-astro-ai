@@ -4,8 +4,7 @@
     "declaration": true,
     "lib": ["ES2022"],
     "outDir": "dist",
-    "rootDir": "src",
-    "types": ["node"]
+    "rootDir": "src"
   },
   "include": ["src"],
   "exclude": ["src/**/*.test.ts"]

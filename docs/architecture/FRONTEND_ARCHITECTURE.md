@@ -112,7 +112,7 @@ apps/workspace
 
 Research Adapter
   -> @xingwen/domain
-  -> @xingwen/data-access public boundary
+  -> @xingwen/data-access narrow public ports/errors boundary
 
 `@xingwen/research-adapter` is the framework-free, stateless application
 boundary for Domain-to-ViewModel projections, public RunEvent activity
