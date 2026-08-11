@@ -337,7 +337,7 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     project_id: "proj_01JEXAMPLE",
     created_by_run_id: "run_01JEXAMPLE",
     version_number: 1,
-    schema_version: "2.0.0",
+    schema_version: "1.0.0",
     content: {
       kind: "dataset",
       field_ids: ["planet.toi_id", "star.tic_id"],

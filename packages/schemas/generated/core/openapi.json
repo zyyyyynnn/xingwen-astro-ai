@@ -3257,7 +3257,6 @@
           "selection_id",
           "dataset_row_id",
           "canonical_field_id",
-          "selected_source_value_id",
           "candidate_source_value_ids",
           "strategy",
           "reason",
@@ -5117,6 +5116,12 @@
           "input_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Input Hash",
+            "type": "string"
+          },
+          "kind": {
+            "const": "paper_collection",
+            "default": "paper_collection",
+            "title": "Kind",
             "type": "string"
           },
           "metrics": {
@@ -10164,9 +10169,7 @@
           "raw_record_row_key",
           "raw_record_content_hash",
           "raw_field",
-          "raw_value",
           "source_unit",
-          "canonical_value",
           "canonical_unit",
           "alias_priority",
           "source_priority",
@@ -10522,9 +10525,7 @@
           "canonical_field_id",
           "source_value_id",
           "locator",
-          "raw_value",
           "source_unit",
-          "canonical_value",
           "canonical_unit",
           "conversion_rule_id",
           "conversion_rule_version",

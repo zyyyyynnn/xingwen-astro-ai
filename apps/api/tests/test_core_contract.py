@@ -169,9 +169,7 @@ def test_contract_has_no_execution_mode_and_manifest_admission_is_authoritative(
     admitted = ResearchContractInput.model_validate(contract_input())
     validate_research_contract_admission(
         admitted,
-        content_hash=compute_research_contract_content_hash(
-            admitted
-        ),
+        content_hash=compute_research_contract_content_hash(admitted),
         case_key="exoplanet_host_star",
         manifests=manifests,
     )
@@ -318,28 +316,13 @@ def test_create_run_request_rejects_unimplemented_capability_fields() -> None:
             CreateRunRequest.model_validate({**base, field: value})
 
 
-def test_artifact_content_is_discriminated_and_not_arbitrary_json() -> None:
+def test_artifact_version_content_is_the_persisted_json_boundary() -> None:
     example = core_examples()[ArtifactVersion]
     version = ArtifactVersion.model_validate(example)
-    assert version.content.kind.value == "dataset"
-
-    with pytest.raises(ValidationError, match="union_tag_not_found"):
-        ArtifactVersion.model_validate({**example, "content": {"rows": []}})
-    with pytest.raises(ValidationError, match="union_tag_invalid"):
-        ArtifactVersion.model_validate(
-            {**example, "content": {"kind": "unknown", "rows": []}}
-        )
-    with pytest.raises(ValidationError, match="undeclared field"):
-        ArtifactVersion.model_validate(
-            {
-                **example,
-                "content": {
-                    "kind": "dataset",
-                    "field_ids": ["planet.toi_id"],
-                    "rows": [{"star.unknown": "value"}],
-                },
-            }
-        )
+    assert version.content["kind"] == "dataset"
+    assert ArtifactVersion.model_validate(
+        {**example, "content": {"kind": "unknown", "rows": []}}
+    ).content == {"kind": "unknown", "rows": []}
 
 
 def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -> None:

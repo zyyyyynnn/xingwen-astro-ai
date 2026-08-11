@@ -26,10 +26,9 @@ ResearchProject (1) -- (*) ResearchInput
 ResearchProject (1) -- (0..1) WorkspaceSnapshot
 ResearchProject (1) -- (*) ShareSnapshot
 ShareSnapshot (*) -- (*) ArtifactVersion
-UserFeedback (*) -- (1) ArtifactVersion
-RevisionPlan (1) -- (*) UserFeedback
-CacheRecord (*) -- (1) ArtifactVersion
 ```
+
+`UserFeedback`、`RevisionPlan` 与 `CacheRecord` 的关系属于目标契约；当前运行时不创建这些对象。
 
 ## 2. Project、Draft 与 Contract
 
@@ -44,9 +43,9 @@ CacheRecord (*) -- (1) ArtifactVersion
 - ResearchRun 绑定同一 Project 下的 Contract；派生 Run 通过同 Project 的 `parent_run_id` 与 `derivation_kind` 表达 retry、revision 或 fork。
 - RunStep 保存 canonical step、顺序、状态与进度；StepAttempt 保存真实尝试、错误与上游请求 identity。
 - RunEvent 是单调序列的通知记录，Run 快照才是状态事实源。
-- UserFeedback 固定目标 ArtifactVersion 与对象定位；RevisionPlan 固定受影响产物闭包，确认后才能创建 revision Run。
-- CacheRecord 固定可复用的历史 Run、ArtifactVersion、SourceSnapshot 与匹配 identity；CacheSelector 只返回通过 Contract 与 Evidence 校验的记录。
 - HTTP Run authoring 只创建 original、cache-disabled Run；未暴露的派生字段不得被静默消费。
+
+目标修订与缓存契约：UserFeedback 固定目标 ArtifactVersion 与对象定位；RevisionPlan 固定受影响产物闭包，确认后才能创建 revision Run。CacheRecord 固定可复用的历史 Run、ArtifactVersion、SourceSnapshot 与匹配 identity；CacheSelector 只返回通过 Contract 与 Evidence 校验的记录。它们在对应执行闭环实现前不得被描述为当前数据库或运行时对象。
 
 ## 4. Artifact、Evidence 与来源
 

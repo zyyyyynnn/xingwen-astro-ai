@@ -187,6 +187,14 @@ async function generateDtoTypes() {
   // Strip the empty root interface that compile() emits for the wrapper.
   const cleaned = typescript
     .replace(/export interface CoreContract\w*\s*\{\s*\}\s*/gu, "")
+    // json-schema-to-typescript renders Pydantic's unconstrained JsonValue
+    // object as an object-only interface, which rejects valid JSON scalars
+    // and arrays in generated DTO fixtures. Keep it an opaque JSON value at
+    // the transport boundary; owning repositories validate richer payloads.
+    .replace(
+      /export interface JsonValue \{\s*\[k: string\]: unknown;\s*\}/u,
+      "export type JsonValue = unknown;",
+    )
     .trimEnd();
 
   const dtoPath = resolve(targetDir, "dto.ts");

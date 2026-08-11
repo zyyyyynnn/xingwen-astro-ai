@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Annotated, Any, ClassVar, Generic, Literal, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeVar
+from uuid import UUID
 
 from pydantic import (
     AfterValidator,
@@ -18,11 +19,12 @@ from pydantic import (
 )
 
 from ._hashing import compute_canonical_payload_hash
-from .paper_summary import PaperSummaryArtifactContent
 
 
 CORE_MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
-Identifier = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=128)]
+Identifier = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=128)
+]
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 ResearchGoal = Annotated[
     str,
@@ -30,7 +32,6 @@ ResearchGoal = Annotated[
 ]
 SemanticVersion = Annotated[str, Field(pattern=r"^[1-9]\d*\.\d+\.\d+$")]
 ContentHash = Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
-DataCell = str | int | float | bool | None
 
 
 def _require_utc(value: datetime) -> datetime:
@@ -292,7 +293,9 @@ def project_research_contract_input(
 ) -> ResearchContractInput:
     """Project a persisted Contract onto its authoritative scientific content."""
 
-    payload = value.model_dump(mode="json") if isinstance(value, BaseModel) else dict(value)
+    payload = (
+        value.model_dump(mode="json") if isinstance(value, BaseModel) else dict(value)
+    )
     input_payload = {
         field_name: payload[field_name]
         for field_name in ResearchContractInput.model_fields
@@ -366,11 +369,20 @@ class ResearchRun(BaseModel):
 
     @model_validator(mode="after")
     def validate_run_invariants(self) -> ResearchRun:
-        if self.derivation_kind is DerivationKind.original and self.parent_run_id is not None:
+        if (
+            self.derivation_kind is DerivationKind.original
+            and self.parent_run_id is not None
+        ):
             raise ValueError("original run must not have parent_run_id")
-        if self.derivation_kind is not DerivationKind.original and self.parent_run_id is None:
+        if (
+            self.derivation_kind is not DerivationKind.original
+            and self.parent_run_id is None
+        ):
             raise ValueError("derived run must have parent_run_id")
-        if self.retry_from_step is not None and self.derivation_kind is not DerivationKind.retry:
+        if (
+            self.retry_from_step is not None
+            and self.derivation_kind is not DerivationKind.retry
+        ):
             raise ValueError("retry_from_step is only valid for retry runs")
         if self.status is RunStatus.completed and self.progress != 100:
             raise ValueError("completed run must have progress 100")
@@ -447,80 +459,6 @@ class ProducerReference(BaseModel):
     parameters_hash: ContentHash | None = None
 
 
-class DatasetArtifactContent(BaseModel):
-    model_config = CORE_MODEL_CONFIG
-
-    kind: Literal[ArtifactKind.dataset]
-    field_ids: tuple[Identifier, ...] = Field(min_length=1)
-    rows: tuple[dict[Identifier, DataCell], ...]
-
-    @model_validator(mode="after")
-    def validate_fields(self) -> DatasetArtifactContent:
-        if len(self.field_ids) != len(set(self.field_ids)):
-            raise ValueError("field_ids must not contain duplicates")
-        declared = set(self.field_ids)
-        unknown = sorted({key for row in self.rows for key in row} - declared)
-        if unknown:
-            raise ValueError(f"dataset rows contain undeclared field(s): {unknown}")
-        return self
-
-
-class FieldDictionaryArtifactContent(BaseModel):
-    model_config = CORE_MODEL_CONFIG
-
-    kind: Literal[ArtifactKind.field_dictionary]
-    field_ids: tuple[Identifier, ...] = Field(min_length=1)
-
-
-class SourceCollectionArtifactContent(BaseModel):
-    model_config = CORE_MODEL_CONFIG
-
-    kind: Literal[ArtifactKind.source_collection]
-    source_snapshot_ids: tuple[Identifier, ...] = Field(min_length=1)
-
-
-class PaperCollectionArtifactContent(BaseModel):
-    model_config = CORE_MODEL_CONFIG
-
-    kind: Literal[ArtifactKind.paper_collection]
-    paper_ids: tuple[Identifier, ...]
-
-
-class LiteratureClaimsArtifactContent(BaseModel):
-    model_config = CORE_MODEL_CONFIG
-    # Compact read projection; publication requires the typed LiteratureClaim candidate.
-    __artifact_publication_requires_admission__: ClassVar[bool] = True
-
-    kind: Literal[ArtifactKind.literature_claims]
-    claim_ids: tuple[Identifier, ...]
-
-
-class LiteratureRelationsArtifactContent(BaseModel):
-    model_config = CORE_MODEL_CONFIG
-    # Compact read projection; publication requires the typed LiteratureRelation candidate.
-    __artifact_publication_requires_admission__: ClassVar[bool] = True
-
-    kind: Literal[ArtifactKind.literature_relations]
-    relation_ids: tuple[Identifier, ...]
-
-
-class ReasoningTracesArtifactContent(BaseModel):
-    model_config = CORE_MODEL_CONFIG
-    # Compact read projection; traces publish inside the typed Relation candidate.
-    __artifact_publication_requires_admission__: ClassVar[bool] = True
-
-    kind: Literal[ArtifactKind.reasoning_traces]
-    reasoning_trace_ids: tuple[Identifier, ...]
-
-
-class GraphArtifactContent(BaseModel):
-    model_config = CORE_MODEL_CONFIG
-
-    kind: Literal[ArtifactKind.graph]
-    node_ids: tuple[Identifier, ...]
-    edge_ids: tuple[Identifier, ...]
-
-
 class ExportArtifactContent(BaseModel):
     model_config = CORE_MODEL_CONFIG
 
@@ -528,20 +466,17 @@ class ExportArtifactContent(BaseModel):
     format: Literal["csv", "json", "provenance_report"]
     artifact_version_ids: tuple[Identifier, ...] = Field(min_length=1)
 
-
-ArtifactContent = Annotated[
-    DatasetArtifactContent
-    | FieldDictionaryArtifactContent
-    | SourceCollectionArtifactContent
-    | PaperCollectionArtifactContent
-    | PaperSummaryArtifactContent
-    | LiteratureClaimsArtifactContent
-    | LiteratureRelationsArtifactContent
-    | ReasoningTracesArtifactContent
-    | GraphArtifactContent
-    | ExportArtifactContent,
-    Field(discriminator="kind"),
-]
+    @model_validator(mode="after")
+    def validate_unique_artifact_versions(self) -> ExportArtifactContent:
+        normalized_ids: list[str] = []
+        for reference in self.artifact_version_ids:
+            try:
+                normalized_ids.append(str(UUID(reference)))
+            except ValueError:
+                normalized_ids.append(reference)
+        if len(normalized_ids) != len(set(normalized_ids)):
+            raise ValueError("Export artifact version references must be unique")
+        return self
 
 
 class ArtifactVersion(BaseModel):
@@ -564,7 +499,11 @@ class ArtifactVersion(BaseModel):
                     "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                     "input_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                     "source_mode": "live",
-                    "producer": {"type": "pipeline", "name": "data", "version": "1.0.0"},
+                    "producer": {
+                        "type": "pipeline",
+                        "name": "data",
+                        "version": "1.0.0",
+                    },
                     "source_snapshot_ids": [],
                     "evidence_ids": [],
                     "supersedes_version_id": None,
@@ -580,7 +519,10 @@ class ArtifactVersion(BaseModel):
     created_by_run_id: Identifier
     version_number: int = Field(ge=1)
     schema_version: SemanticVersion
-    content: ArtifactContent
+    # Persisted content is an immutable JSON projection. Typed producer
+    # candidates own publication validation; this core read contract must not
+    # coerce every domain payload into a compact union.
+    content: dict[str, JsonValue]
     content_hash: ContentHash
     input_hash: ContentHash
     source_mode: SourceMode

@@ -23,7 +23,6 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
-from pydantic import TypeAdapter
 from sqlalchemy import Engine, func, select
 
 from app.config import settings
@@ -40,8 +39,9 @@ from authoring_test_support import (
     build_research_project,
     persist_authoring_models,
 )
+from artifact_publication_test_support import publish_reference_dataset
 from app.main import _load_case_manifests, create_app
-from app.schemas.core import ArtifactContent, ArtifactKind, ExportArtifactContent
+from app.schemas.core import ArtifactKind, ExportArtifactContent
 from app.services.artifacts import ArtifactReadService
 from app.services.research import ResearchApplicationService
 from app.services.resource_authority import PersistentResourceAuthority
@@ -413,27 +413,34 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         generation=lease.generation,
         expected_status="queued",
         expected_revision=lease.revision,
-        public_message="Publishing deterministic fixture",
+        public_message="Publishing deterministic export",
     )
 
     artifact_id = uuid4()
     source_snapshot_id = uuid4()
     evidence_id = uuid4()
+    with factory() as session:  # type: ignore[operator]
+        project = session.get(ResearchProjectModel, UUID(str(project_id)))
+        assert project is not None
+    reference_version_id = publish_reference_dataset(
+        factory=factory,  # type: ignore[arg-type]
+        project=project,
+    )
     with factory() as session, session.begin():  # type: ignore[operator]
         session.add(
             ResearchArtifactModel(
                 id=artifact_id,
                 project_id=UUID(str(project_id)),
                 kind="export",
-                title="Deterministic exoplanet fixture",
-                logical_key="real_integration-demo-fixture-dataset",
+                title="Deterministic provenance export",
+                logical_key="real_integration-demo-export",
             )
         )
         session.add(
             SourceSnapshotModel(
                 id=source_snapshot_id,
                 project_id=UUID(str(project_id)),
-                source_id="real_integration_demo_fixture",
+                source_id="real_integration_demo_export_fixture",
                 source_type="fixture",
                 retrieved_at=NOW,
                 query={"scenario": "exoplanet_host_star"},
@@ -444,11 +451,12 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
             )
         )
 
+    ledger = ProducerExecutionStore(factory)  # type: ignore[arg-type]
     candidate = admit_artifact_candidate(
         ExportArtifactContent(
             kind=ArtifactKind.export,
             format="json",
-            artifact_version_ids=("artv_dataset_01",),
+            artifact_version_ids=(str(reference_version_id),),
         ),
         schema_version="2.0.0",
         source_snapshot_ids=(str(source_snapshot_id),),
@@ -457,7 +465,6 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         domain_validator=_accept,
         quality_validator=_accept,
     )
-    ledger = ProducerExecutionStore(factory)  # type: ignore[arg-type]
     execution = ledger.start_producer_execution(
         ProducerExecutionRequest(
             run_id=run_id,
@@ -465,10 +472,13 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
             attempt_id=attempt.attempt_id,
             idempotency_key="fixture-producer",
             producer_type="pipeline",
-            producer_name="real_integration-demo-fixture",
+            producer_name="real_integration-demo-export",
             producer_version="1.0.0",
             input_hash="sha256:" + "3" * 64,
-            parameters={"scenario": "exoplanet_host_star"},
+            parameters={
+                "format": "json",
+                "reference_version_id": str(reference_version_id),
+            },
         ),
         token=lease.token,
         generation=lease.generation,
@@ -491,13 +501,13 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         publications=(
             ArtifactPublication(
                 artifact_id=artifact_id,
-                publication_key="real-integration-demo-fixture",
+                publication_key="real-integration-demo-export",
                 producer_execution_id=execution.id,
                 candidate=candidate,
                 source_mode="fixture",
             ),
         ),
-        public_message="Deterministic fixture published",
+        public_message="Deterministic export published",
     )
     version_id = published.versions[0].id
 
@@ -507,16 +517,16 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
                 id=evidence_id,
                 project_id=UUID(str(project_id)),
                 artifact_version_id=version_id,
-                target_type="field",
-                target_id="planet.toi_id",
-                evidence_type="database_query",
+                target_type="export_artifact",
+                target_id=str(artifact_id),
+                evidence_type="export_provenance",
                 source_snapshot_id=source_snapshot_id,
                 locator={
-                    "kind": "fixture_row",
-                    "row_key": "TOI-700 d",
+                    "kind": "artifact_version_reference",
+                    "artifact_version_id": str(reference_version_id),
                 },
-                quote_or_value="TOI-700 d",
-                extraction_method="real_integration_demo_fixture.replay",
+                quote_or_value=str(reference_version_id),
+                extraction_method="real_integration_demo_export.replay",
                 confidence=1.0,
             )
         )
@@ -525,13 +535,13 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
     assert version.status_code == 200
     assert version.json()["data"]["source_mode"] == "fixture"
     assert version.json()["data"]["evidence_ids"] == [str(evidence_id)]
-    TypeAdapter(ArtifactContent).validate_python(version.json()["data"]["content"])
+    assert version.json()["data"]["content"]["kind"] == "export"
 
     shared = client.post(
         f"/api/projects/{project_id}/shares",
         headers=csrf,
         json={
-            "title": "Real Compose and Browser Integration deterministic fixture evidence",
+            "title": "Real Compose and Browser Integration export evidence",
             "artifact_version_ids": [str(version_id)],
             "evidence_ids": [str(evidence_id)],
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),

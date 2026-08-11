@@ -17,7 +17,6 @@ from uuid import UUID, uuid4
 from alembic import command
 from alembic.config import Config
 import pytest
-from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine, func, select, text, update
 from sqlalchemy.orm import Session
 
@@ -39,8 +38,11 @@ from authoring_test_support import (
     build_research_project,
     persist_authoring_models,
 )
+from artifact_publication_test_support import (
+    build_reference_dataset_candidate,
+    publish_reference_dataset,
+)
 from app.workflow.publisher import (
-    ArtifactAdmissionContext,
     ArtifactPublication,
     ArtifactPublisher,
     ProducerExecutionConflictError,
@@ -52,6 +54,7 @@ from app.workflow.publisher import (
     StalePublicationError,
     admit_artifact_candidate,
 )
+from app.schemas.core import ArtifactKind, ExportArtifactContent
 from app.workflow.store import PersistentWorkflowStore, RunStepDefinition
 
 
@@ -62,15 +65,7 @@ pytestmark = pytest.mark.skipif(
 HASH_A = "sha256:" + "a" * 64
 
 
-class FixtureArtifactCandidate(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    kind: str
-    object_ids: tuple[str, ...]
-    revision: int = 1
-
-
-def _accept(_: ArtifactAdmissionContext) -> None:
+def _accept(_: object) -> None:
     return None
 
 
@@ -147,11 +142,12 @@ def _create_artifact(
     *,
     project_id: UUID,
     logical_key: str,
+    kind: str = "export",
 ) -> ResearchArtifactModel:
     artifact = ResearchArtifactModel(
         id=uuid4(),
         project_id=project_id,
-        kind="export",
+        kind=kind,
         title=logical_key,
         logical_key=logical_key,
     )
@@ -160,19 +156,30 @@ def _create_artifact(
     return artifact
 
 
-def _admit(*, revision: int = 1):
+def _admit(*, reference_version_id: UUID, export_format: str = "json"):
     return admit_artifact_candidate(
-        FixtureArtifactCandidate(
-            kind="export",
-            object_ids=(f"TOI-700-d-r{revision}",),
-            revision=revision,
+        ExportArtifactContent(
+            kind=ArtifactKind.export,
+            format=export_format,
+            artifact_version_ids=(str(reference_version_id),),
         ),
         schema_version="2.0.0",
-        source_snapshot_ids=(f"source_fixture_{revision}",),
-        evidence_ids=(f"evidence_fixture_{revision}",),
+        source_snapshot_ids=(),
+        evidence_ids=(),
         evidence_validator=_accept,
         domain_validator=_accept,
         quality_validator=_accept,
+    )
+
+
+def _seed_reference_version(
+    *,
+    factory: Callable[[], Session],
+    project: ResearchProjectModel,
+) -> UUID:
+    return publish_reference_dataset(
+        factory=factory,
+        project=project,
     )
 
 
@@ -191,6 +198,7 @@ class ActivePublication:
     attempt_id: UUID
     run_status: str
     run_revision: int
+    reference_version_id: UUID
     execution_id: UUID
     publication: ArtifactPublication
 
@@ -240,8 +248,12 @@ def _active_publication(
             project_id=project.id,
             logical_key=f"artifact-{uuid4()}",
         )
-    candidate = _admit(revision=revision)
     ledger = ProducerExecutionStore(factory)
+    reference_version_id = _seed_reference_version(
+        factory=factory,
+        project=project,
+    )
+    candidate = _admit(reference_version_id=reference_version_id)
     request = ProducerExecutionRequest(
         run_id=snapshot.id,
         step_key="planning",
@@ -282,6 +294,7 @@ def _active_publication(
         attempt_id=attempt.attempt_id,
         run_status=attempt.run_status,
         run_revision=attempt.run_revision,
+        reference_version_id=reference_version_id,
         execution_id=execution.id,
         publication=ArtifactPublication(
             artifact_id=artifact.id,
@@ -358,6 +371,40 @@ def test_producer_execution_is_idempotent_auditable_and_secret_free(
         )
 
 
+def _assert_publication_not_started(active: ActivePublication) -> None:
+    with active.factory() as session:
+        artifact = session.get(ResearchArtifactModel, active.artifact.id)
+        run = session.get(ResearchRunModel, active.run_id)
+        step = session.scalar(
+            select(RunStepModel).where(
+                RunStepModel.run_id == active.run_id,
+                RunStepModel.key == "planning",
+            )
+        )
+        assert artifact is not None and artifact.latest_version_id is None
+        assert run is not None and run.status == active.run_status
+        assert step is not None and step.status == "running"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ArtifactVersionModel)
+                .where(ArtifactVersionModel.artifact_id == active.artifact.id)
+            )
+            == 0
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(RunEventModel)
+                .where(
+                    RunEventModel.run_id == active.run_id,
+                    RunEventModel.event_type == "step.completed",
+                )
+            )
+            == 0
+        )
+
+
 @pytest.mark.parametrize("status", ("failed", "rejected"))
 def test_failed_and_rejected_executions_are_retained_without_versions(
     postgres_engine: Engine, status: str
@@ -418,7 +465,10 @@ def test_publication_is_atomic_and_idempotent_with_a_stable_conflict(
 
     changed = replace(
         active.publication,
-        candidate=_admit(revision=2),
+        candidate=_admit(
+            reference_version_id=active.reference_version_id,
+            export_format="csv",
+        ),
     )
     with pytest.raises(PublicationConflictError):
         active.publisher.publish_step_outputs(
@@ -432,6 +482,93 @@ def test_publication_is_atomic_and_idempotent_with_a_stable_conflict(
             publications=(changed,),
             public_message="Conflicting replay",
         )
+
+
+def test_export_publication_rejects_a_dangling_artifact_reference(
+    postgres_engine: Engine,
+) -> None:
+    active = _active_publication(postgres_engine)
+    invalid = replace(
+        active,
+        publication=replace(
+            active.publication,
+            candidate=_admit(reference_version_id=uuid4()),
+        ),
+    )
+
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="must resolve within the Run Project",
+    ):
+        _publish(invalid)
+    _assert_publication_not_started(active)
+
+
+def test_export_publication_rejects_a_cross_project_artifact_reference(
+    postgres_engine: Engine,
+) -> None:
+    active = _active_publication(postgres_engine)
+    other_project = _active_publication(postgres_engine)
+    invalid = replace(
+        active,
+        publication=replace(
+            active.publication,
+            candidate=_admit(reference_version_id=other_project.reference_version_id),
+        ),
+    )
+
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="must resolve within the Run Project",
+    ):
+        _publish(invalid)
+    _assert_publication_not_started(active)
+
+
+def test_publication_rejects_a_candidate_for_the_wrong_artifact_kind(
+    postgres_engine: Engine,
+) -> None:
+    factory = session_factory(postgres_engine)
+    project, contract = _seed_project(factory)
+    artifact = _create_artifact(
+        factory,
+        project_id=project.id,
+        logical_key=f"dataset-{uuid4()}",
+        kind="dataset",
+    )
+    active = _active_publication(
+        postgres_engine,
+        project=project,
+        contract=contract,
+        artifact=artifact,
+    )
+
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="must match its ResearchArtifact kind",
+    ):
+        _publish(active)
+    _assert_publication_not_started(active)
+
+
+def test_publication_rejects_a_dataset_candidate_for_an_export_artifact(
+    postgres_engine: Engine,
+) -> None:
+    active = _active_publication(postgres_engine)
+    invalid = replace(
+        active,
+        publication=replace(
+            active.publication,
+            candidate=build_reference_dataset_candidate(run_id=active.run_id),
+        ),
+    )
+
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="must match its ResearchArtifact kind",
+    ):
+        _publish(invalid)
+    _assert_publication_not_started(active)
 
 
 class _FailingPublisher(ArtifactPublisher):
@@ -616,11 +753,14 @@ def test_terminal_run_rejects_new_publication_without_updating_latest(
     with active.factory() as session:
         artifact = session.get(ResearchArtifactModel, active.artifact.id)
         assert artifact is not None and artifact.latest_version_id is None
-        assert session.scalar(
-            select(func.count())
-            .select_from(ArtifactVersionModel)
-            .where(ArtifactVersionModel.artifact_id == active.artifact.id)
-        ) == 0
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ArtifactVersionModel)
+                .where(ArtifactVersionModel.artifact_id == active.artifact.id)
+            )
+            == 0
+        )
 
 
 def test_new_version_must_supersede_the_locked_latest_version(
@@ -770,7 +910,11 @@ def test_last_step_atomically_completes_run_and_releases_lease(
             project_id=project.id,
             logical_key=f"step-{position}-{uuid4()}",
         )
-        candidate = _admit(revision=position + 1)
+        reference_version_id = _seed_reference_version(
+            factory=factory,
+            project=project,
+        )
+        candidate = _admit(reference_version_id=reference_version_id)
         execution = ledger.start_producer_execution(
             ProducerExecutionRequest(
                 run_id=snapshot.id,

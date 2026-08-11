@@ -30,6 +30,10 @@ from app.db.models import (
     StepAttemptModel,
 )
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import (
+    canonical_artifact_content_model,
+    normalize_artifact_kind,
+)
 from app.schemas.data_quality import DataQualityProjection
 from app.workflow.store import TERMINAL_RUN_STATUSES
 
@@ -178,12 +182,12 @@ class AdmittedArtifactCandidate:
     evidence_ids: tuple[str, ...]
     _quality_projection_json: str | None
     quality_projection_hash: str | None
-    _literature_source_snapshot_materializations: tuple[
-        _CanonicalMaterialization, ...
-    ]
+    _literature_source_snapshot_materializations: tuple[_CanonicalMaterialization, ...]
     _literature_evidence_materializations: tuple[_CanonicalMaterialization, ...]
     _graph_source_snapshot_materializations: tuple[_CanonicalMaterialization, ...]
     _graph_evidence_materializations: tuple[_CanonicalMaterialization, ...]
+    _data_source_snapshot_materializations: tuple[_CanonicalMaterialization, ...]
+    _data_evidence_materializations: tuple[_CanonicalMaterialization, ...]
 
     def __init__(
         self,
@@ -203,9 +207,11 @@ class AdmittedArtifactCandidate:
         graph_source_snapshot_materializations: Sequence[
             _GraphSourceSnapshotMaterialization
         ] = (),
-        graph_evidence_materializations: Sequence[
-            _GraphEvidenceMaterialization
+        graph_evidence_materializations: Sequence[_GraphEvidenceMaterialization] = (),
+        data_source_snapshot_materializations: Sequence[
+            _DataSourceSnapshotMaterialization
         ] = (),
+        data_evidence_materializations: Sequence[_DataEvidenceMaterialization] = (),
         _seal: object,
     ) -> None:
         if _seal is not _ADMISSION_SEAL:
@@ -265,6 +271,22 @@ class AdmittedArtifactCandidate:
                 _GraphEvidenceMaterialization,
             ),
         )
+        object.__setattr__(
+            self,
+            "_data_source_snapshot_materializations",
+            _canonicalize_materializations(
+                data_source_snapshot_materializations,
+                _DataSourceSnapshotMaterialization,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_data_evidence_materializations",
+            _canonicalize_materializations(
+                data_evidence_materializations,
+                _DataEvidenceMaterialization,
+            ),
+        )
         _register_admitted_candidate(self)
 
     @property
@@ -311,6 +333,24 @@ class AdmittedArtifactCandidate:
         return _rebuild_materializations(
             self._graph_evidence_materializations,
             _GraphEvidenceMaterialization,
+        )
+
+    @property
+    def data_source_snapshot_materializations(
+        self,
+    ) -> tuple[_DataSourceSnapshotMaterialization, ...]:
+        return _rebuild_materializations(
+            self._data_source_snapshot_materializations,
+            _DataSourceSnapshotMaterialization,
+        )
+
+    @property
+    def data_evidence_materializations(
+        self,
+    ) -> tuple[_DataEvidenceMaterialization, ...]:
+        return _rebuild_materializations(
+            self._data_evidence_materializations,
+            _DataEvidenceMaterialization,
         )
 
 
@@ -466,6 +506,30 @@ class _GraphEvidenceMaterialization:
     upstream_is_restricted: bool
 
 
+@dataclass(frozen=True, slots=True)
+class _DataSourceSnapshotMaterialization:
+    pipeline_source_snapshot_id: str
+    persisted_source_snapshot_id: str
+    source_id: str
+    query_hash: str
+    content_hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class _DataEvidenceMaterialization:
+    target_type: str
+    target_id: str
+    pipeline_evidence_id: str
+    pipeline_source_snapshot_id: str
+    persisted_evidence_id: str
+    persisted_source_snapshot_id: str
+    evidence_type: str
+    locator_json: str
+    quote_or_value_json: str
+    extraction_method: str
+    confidence: str
+
+
 def _canonicalize_materializations(
     materializations: Sequence[_MaterializationT],
     materialization_type: type[_MaterializationT],
@@ -536,6 +600,8 @@ def admit_artifact_candidate(
         evidence_materializations,
         graph_source_snapshot_materializations,
         graph_evidence_materializations,
+        data_source_snapshot_materializations,
+        data_evidence_materializations,
     ) = _publication_references(
         candidate,
         source_snapshot_ids=snapshots,
@@ -598,14 +664,12 @@ def admit_artifact_candidate(
         source_snapshot_ids=persisted_snapshots,
         evidence_ids=persisted_evidence,
         quality_projection=quality_projection,
-        literature_source_snapshot_materializations=(
-            source_snapshot_materializations
-        ),
+        literature_source_snapshot_materializations=(source_snapshot_materializations),
         literature_evidence_materializations=evidence_materializations,
-        graph_source_snapshot_materializations=(
-            graph_source_snapshot_materializations
-        ),
+        graph_source_snapshot_materializations=(graph_source_snapshot_materializations),
         graph_evidence_materializations=graph_evidence_materializations,
+        data_source_snapshot_materializations=data_source_snapshot_materializations,
+        data_evidence_materializations=data_evidence_materializations,
         _seal=_ADMISSION_SEAL,
     )
 
@@ -644,6 +708,8 @@ def _build_admitted_candidate_authority(
             tuple(value._literature_evidence_materializations),
             tuple(value._graph_source_snapshot_materializations),
             tuple(value._graph_evidence_materializations),
+            tuple(value._data_source_snapshot_materializations),
+            tuple(value._data_evidence_materializations),
         )
 
     def register(value: AdmittedArtifactCandidate) -> None:
@@ -908,6 +974,11 @@ class ArtifactPublisher:
                     artifacts_by_id[output.artifact_id],
                     output.candidate,
                 )
+                _validate_export_references(
+                    session,
+                    output.candidate,
+                    project_id=run.project_id,
+                )
             existing = _existing_publications(session, outputs)
             if existing:
                 return self._replay_existing(
@@ -975,9 +1046,7 @@ class ArtifactPublisher:
                     output.candidate,
                     project_id=run.project_id,
                 )
-                _require_unused_literature_evidence_ids(
-                    session, output.candidate
-                )
+                _require_unused_literature_evidence_ids(session, output.candidate)
                 _validate_graph_source_snapshots(
                     session,
                     output.candidate,
@@ -989,6 +1058,12 @@ class ArtifactPublisher:
                     project_id=run.project_id,
                 )
                 _require_unused_graph_evidence_ids(session, output.candidate)
+                _validate_data_source_snapshots(
+                    session,
+                    output.candidate,
+                    project_id=run.project_id,
+                )
+                _require_unused_data_evidence_ids(session, output.candidate)
                 version_id = uuid4()
                 version = ArtifactVersionModel(
                     id=version_id,
@@ -1018,10 +1093,9 @@ class ArtifactPublisher:
                 )
                 session.add(version)
                 session.flush()
-                _materialize_literature_evidence(
-                    session, version, output.candidate
-                )
+                _materialize_literature_evidence(session, version, output.candidate)
                 _materialize_graph_evidence(session, version, output.candidate)
+                _materialize_data_evidence(session, version, output.candidate)
                 if output.candidate.content.get("kind") == "dataset":
                     for row in output.candidate.content.get("rows", []):
                         if isinstance(row, dict) and isinstance(row.get("row_id"), str):
@@ -1150,9 +1224,8 @@ class ArtifactPublisher:
             _validate_materialized_literature_provenance(
                 session, version, output.candidate
             )
-            _validate_materialized_graph_provenance(
-                session, version, output.candidate
-            )
+            _validate_materialized_graph_provenance(session, version, output.candidate)
+            _validate_materialized_data_provenance(session, version, output.candidate)
             versions.append(version)
         completed_event = session.scalar(
             select(RunEventModel)
@@ -1446,38 +1519,32 @@ def _require_declared_candidate_context(
 
 def _require_pipeline_admission(candidate: BaseModel) -> None:
     candidate_class = candidate.__class__
-    candidate_kind = getattr(candidate, "kind", None)
-    if hasattr(candidate_kind, "value"):
-        candidate_kind = candidate_kind.value
-
-    # Evidence Graph/LiteratureClaim/LiteratureRelation own these Artifact kinds
-    # exclusively. Caller-defined wrappers cannot opt out by omitting the marker
-    # or opt in with a forged admission method.
-    if candidate_kind == "literature_claims":
-        from app.schemas.literature_claim import LiteratureClaimsCandidate
-
-        if candidate_class is not LiteratureClaimsCandidate:
+    candidate_kind = normalize_artifact_kind(getattr(candidate, "kind", None))
+    expected_class = canonical_artifact_content_model(candidate_kind)
+    if expected_class is None:
+        if candidate_kind == "reasoning_traces":
             raise PublicationAdmissionError(
-                "literature_claims cannot bypass its authoritative Pipeline candidate"
+                "ReasoningTrace cannot be published outside literature_relations"
             )
-    elif candidate_kind == "literature_relations":
-        from app.schemas.literature_relation import LiteratureRelationsCandidate
-
-        if candidate_class is not LiteratureRelationsCandidate:
-            raise PublicationAdmissionError(
-                "literature_relations requires the authoritative Pipeline candidate"
-            )
-    elif candidate_kind == "reasoning_traces":
         raise PublicationAdmissionError(
-            "ReasoningTrace cannot be published outside literature_relations"
+            f"{candidate_kind or 'unknown'} candidate cannot bypass its authoritative publication pipeline"
         )
-    elif candidate_kind == "graph":
-        from app.schemas.graph_artifact import GraphArtifactCandidate
-
-        if candidate_class is not GraphArtifactCandidate:
-            raise PublicationAdmissionError(
-                "graph requires the authoritative Evidence Graph Pipeline candidate"
+    if candidate_class is not expected_class:
+        messages = {
+            "graph": "graph requires the authoritative Evidence Graph Pipeline candidate",
+            "literature_claims": (
+                "literature_claims cannot bypass its authoritative Pipeline candidate"
+            ),
+            "literature_relations": (
+                "literature_relations requires the authoritative Pipeline candidate"
+            ),
+        }
+        raise PublicationAdmissionError(
+            messages.get(
+                candidate_kind,
+                f"{candidate_kind} requires its authoritative Pipeline candidate",
             )
+        )
 
     if not getattr(
         candidate_class, "__artifact_publication_requires_admission__", False
@@ -1515,6 +1582,8 @@ def _publication_references(
     tuple[_LiteratureEvidenceMaterialization, ...],
     tuple[_GraphSourceSnapshotMaterialization, ...],
     tuple[_GraphEvidenceMaterialization, ...],
+    tuple[_DataSourceSnapshotMaterialization, ...],
+    tuple[_DataEvidenceMaterialization, ...],
 ]:
     candidate_kind = getattr(candidate, "kind", None)
     if hasattr(candidate_kind, "value"):
@@ -1527,12 +1596,22 @@ def _publication_references(
             source_snapshot_bindings=source_snapshot_bindings,
             evidence_bindings=evidence_bindings,
         )
+    if candidate_kind in {"dataset", "field_dictionary", "source_collection"}:
+        if source_snapshot_bindings is None and evidence_bindings is None:
+            return source_snapshot_ids, evidence_ids, (), (), (), (), (), ()
+        return _data_publication_references(
+            candidate,
+            source_snapshot_ids=source_snapshot_ids,
+            evidence_ids=evidence_ids,
+            source_snapshot_bindings=source_snapshot_bindings,
+            evidence_bindings=evidence_bindings,
+        )
     if candidate_kind not in {"literature_claims", "literature_relations"}:
         if source_snapshot_bindings is not None or evidence_bindings is not None:
             raise PublicationAdmissionError(
                 "Explicit provenance bindings are only supported for admitted domain artifacts"
             )
-        return source_snapshot_ids, evidence_ids, (), (), (), ()
+        return source_snapshot_ids, evidence_ids, (), (), (), (), (), ()
     if source_snapshot_bindings is None or evidence_bindings is None:
         raise PublicationAdmissionError(
             "Literature artifact publication requires explicit persisted provenance bindings"
@@ -1577,7 +1656,9 @@ def _publication_references(
             source_version=snapshot_references[item.pipeline_source_snapshot_id][1],
             content_hash=snapshot_references[item.pipeline_source_snapshot_id][2],
         )
-        for item in sorted(snapshots, key=lambda value: value.pipeline_source_snapshot_id)
+        for item in sorted(
+            snapshots, key=lambda value: value.pipeline_source_snapshot_id
+        )
     )
 
     target_type = "claim" if candidate_kind == "literature_claims" else "relation"
@@ -1611,7 +1692,9 @@ def _publication_references(
         ): item
         for item in bindings
     }
-    if len(actual_evidence) != len(bindings) or set(actual_evidence) != set(expected_evidence):
+    if len(actual_evidence) != len(bindings) or set(actual_evidence) != set(
+        expected_evidence
+    ):
         raise PublicationAdmissionError(
             "Evidence bindings must exactly close the literature provenance graph"
         )
@@ -1623,9 +1706,7 @@ def _publication_references(
             "Persisted Evidence bindings must use UUID identifiers"
         ) from exc
     if len(persisted_evidence_uuids) != len(set(persisted_evidence_uuids)):
-        raise PublicationAdmissionError(
-            "Persisted Evidence bindings must be unique"
-        )
+        raise PublicationAdmissionError("Persisted Evidence bindings must be unique")
 
     pipeline_evidence = {
         item.evidence_id: item for item in getattr(candidate, "evidence", ())
@@ -1675,6 +1756,262 @@ def _publication_references(
         tuple(evidence_materializations),
         (),
         (),
+        (),
+        (),
+    )
+
+
+def _data_snapshot_references(
+    candidate: BaseModel,
+) -> dict[str, tuple[str, str, str]]:
+    references: dict[str, tuple[str, str, str]] = {}
+    for value in getattr(candidate, "source_values", ()):
+        reference = (
+            value.source_id,
+            value.query_hash,
+            value.source_snapshot_content_hash,
+        )
+        existing = references.get(value.source_snapshot_id)
+        if existing is not None and existing != reference:
+            raise PublicationAdmissionError(
+                "Data Artifact SourceSnapshot identity is ambiguous"
+            )
+        references[value.source_snapshot_id] = reference
+    for member in getattr(candidate, "members", ()):
+        snapshot = member.source_snapshot
+        reference = (snapshot.source_id, snapshot.query_hash, snapshot.content_hash)
+        existing = references.get(snapshot.snapshot_id)
+        if existing is not None and existing != reference:
+            raise PublicationAdmissionError(
+                "Data Artifact SourceSnapshot identity is ambiguous"
+            )
+        references[snapshot.snapshot_id] = reference
+    return references
+
+
+def _data_publication_references(
+    candidate: BaseModel,
+    *,
+    source_snapshot_ids: tuple[str, ...],
+    evidence_ids: tuple[str, ...],
+    source_snapshot_bindings: Sequence[ArtifactSourceSnapshotBinding] | None,
+    evidence_bindings: Sequence[ArtifactEvidenceBinding] | None,
+) -> tuple[
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[_LiteratureSourceSnapshotMaterialization, ...],
+    tuple[_LiteratureEvidenceMaterialization, ...],
+    tuple[_GraphSourceSnapshotMaterialization, ...],
+    tuple[_GraphEvidenceMaterialization, ...],
+    tuple[_DataSourceSnapshotMaterialization, ...],
+    tuple[_DataEvidenceMaterialization, ...],
+]:
+    if source_snapshot_bindings is None or evidence_bindings is None:
+        raise PublicationAdmissionError(
+            "Data Artifact publication requires explicit persisted provenance bindings"
+        )
+    snapshots = tuple(source_snapshot_bindings)
+    evidences = tuple(evidence_bindings)
+    snapshot_by_pipeline = {
+        item.pipeline_source_snapshot_id: item for item in snapshots
+    }
+    if (
+        len(snapshot_by_pipeline) != len(snapshots)
+        or set(snapshot_by_pipeline) != set(source_snapshot_ids)
+        or any(not item.pipeline_source_snapshot_id.strip() for item in snapshots)
+    ):
+        raise PublicationAdmissionError(
+            "SourceSnapshot bindings must exactly cover the Data Artifact candidate"
+        )
+    persisted_snapshot_ids = tuple(
+        snapshot_by_pipeline[item].persisted_source_snapshot_id
+        for item in source_snapshot_ids
+    )
+    try:
+        persisted_snapshot_uuids = tuple(UUID(item) for item in persisted_snapshot_ids)
+    except ValueError as exc:
+        raise PublicationAdmissionError(
+            "Persisted Data Artifact SourceSnapshot bindings must use UUID identifiers"
+        ) from exc
+    if len(persisted_snapshot_uuids) != len(set(persisted_snapshot_uuids)):
+        raise PublicationAdmissionError(
+            "Persisted Data Artifact SourceSnapshot bindings must be unique"
+        )
+
+    evidence_by_pipeline = {item.pipeline_evidence_id: item for item in evidences}
+    if len(evidence_by_pipeline) != len(evidences) or set(evidence_by_pipeline) != set(
+        evidence_ids
+    ):
+        raise PublicationAdmissionError(
+            "Evidence bindings must exactly cover the Data Artifact candidate"
+        )
+    persisted_evidence_ids = tuple(
+        evidence_by_pipeline[item].persisted_evidence_id for item in evidence_ids
+    )
+    try:
+        persisted_evidence_uuids = tuple(UUID(item) for item in persisted_evidence_ids)
+    except ValueError as exc:
+        raise PublicationAdmissionError(
+            "Persisted Data Artifact Evidence bindings must use UUID identifiers"
+        ) from exc
+    if len(persisted_evidence_uuids) != len(set(persisted_evidence_uuids)):
+        raise PublicationAdmissionError(
+            "Persisted Data Artifact Evidence bindings must be unique"
+        )
+
+    candidate_kind = getattr(candidate, "kind", None)
+    if hasattr(candidate_kind, "value"):
+        candidate_kind = candidate_kind.value
+    if candidate_kind != "dataset":
+        return (
+            persisted_snapshot_ids,
+            persisted_evidence_ids,
+            (),
+            (),
+            (),
+            (),
+            (),
+            (),
+        )
+
+    snapshot_references = _data_snapshot_references(candidate)
+    if set(snapshot_references) != set(source_snapshot_ids):
+        raise PublicationAdmissionError(
+            "Data Artifact SourceSnapshot registry must exactly cover the candidate"
+        )
+    data_snapshot_materializations: list[_DataSourceSnapshotMaterialization] = []
+    for pipeline_id in source_snapshot_ids:
+        reference = snapshot_references.get(pipeline_id)
+        if reference is None:
+            raise PublicationAdmissionError(
+                "Data Artifact SourceSnapshot registry is not materializable"
+            )
+        binding = snapshot_by_pipeline[pipeline_id]
+        data_snapshot_materializations.append(
+            _DataSourceSnapshotMaterialization(
+                pipeline_source_snapshot_id=pipeline_id,
+                persisted_source_snapshot_id=binding.persisted_source_snapshot_id,
+                source_id=reference[0],
+                query_hash=reference[1],
+                content_hash=reference[2],
+            )
+        )
+
+    transformations = {
+        item.evidence_id: item
+        for item in getattr(candidate, "transformation_evidence", ())
+    }
+    crossmatch_sources: dict[str, list[str]] = {}
+    crossmatch_identity: dict[str, tuple[str, str]] = {}
+    for item in transformations.values():
+        for evidence_id in item.crossmatch_evidence_ids:
+            crossmatch_sources.setdefault(evidence_id, []).append(
+                item.locator.source_snapshot_id
+            )
+            crossmatch_identity[evidence_id] = (
+                item.crossmatch_result_id,
+                item.crossmatch_result_content_hash,
+            )
+
+    candidate_evidence_ids = set(transformations) | set(crossmatch_sources)
+    if candidate_evidence_ids != set(evidence_ids):
+        raise PublicationAdmissionError(
+            "Data Artifact Evidence registry must exactly cover the candidate"
+        )
+
+    data_evidence_materializations: list[_DataEvidenceMaterialization] = []
+    for pipeline_id in evidence_ids:
+        binding = evidence_by_pipeline[pipeline_id]
+        if binding.pipeline_source_snapshot_id not in snapshot_by_pipeline:
+            raise PublicationAdmissionError(
+                "Data Artifact Evidence binding references an unknown SourceSnapshot"
+            )
+        expected_snapshot_id = snapshot_by_pipeline[
+            binding.pipeline_source_snapshot_id
+        ].persisted_source_snapshot_id
+        if binding.persisted_source_snapshot_id != expected_snapshot_id:
+            raise PublicationAdmissionError(
+                "Data Artifact Evidence binding does not match its SourceSnapshot"
+            )
+        transformation = transformations.get(pipeline_id)
+        if transformation is not None:
+            if (
+                binding.pipeline_source_snapshot_id
+                != transformation.locator.source_snapshot_id
+            ):
+                raise PublicationAdmissionError(
+                    "Data Artifact transformation Evidence binding must use its declared SourceSnapshot"
+                )
+            target_type = "canonical_field"
+            target_id = transformation.canonical_field_id
+            evidence_type = "data_transformation"
+            locator = transformation.locator.model_dump(mode="json")
+            quote_or_value = (
+                transformation.canonical_value
+                if transformation.canonical_value is not None
+                else transformation.raw_value
+            )
+            extraction_method = "data_artifact_admission"
+        else:
+            source_ids = crossmatch_sources.get(pipeline_id)
+            identity = crossmatch_identity.get(pipeline_id)
+            if not source_ids or identity is None:
+                raise PublicationAdmissionError(
+                    "Data Artifact Evidence registry is not materializable"
+                )
+            target_type = "crossmatch"
+            target_id = pipeline_id
+            evidence_type = "crossmatch_decision"
+            locator = {
+                "crossmatch_evidence_id": pipeline_id,
+                "crossmatch_result_id": identity[0],
+                "crossmatch_result_content_hash": identity[1],
+            }
+            quote_or_value = None
+            extraction_method = "crossmatch_admission"
+            binding_snapshot_id = min(source_ids)
+            if binding.pipeline_source_snapshot_id != binding_snapshot_id:
+                raise PublicationAdmissionError(
+                    "Data Artifact crossmatch Evidence binding must use its canonical SourceSnapshot"
+                )
+        if binding.target_type != target_type or binding.target_id != target_id:
+            raise PublicationAdmissionError(
+                "Data Artifact Evidence binding target disagrees with the candidate"
+            )
+        data_evidence_materializations.append(
+            _DataEvidenceMaterialization(
+                target_type=target_type,
+                target_id=target_id,
+                pipeline_evidence_id=pipeline_id,
+                pipeline_source_snapshot_id=binding.pipeline_source_snapshot_id,
+                persisted_evidence_id=binding.persisted_evidence_id,
+                persisted_source_snapshot_id=binding.persisted_source_snapshot_id,
+                evidence_type=evidence_type,
+                locator_json=json.dumps(
+                    locator,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                quote_or_value_json=json.dumps(
+                    quote_or_value,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                extraction_method=extraction_method,
+                confidence="1.0",
+            )
+        )
+    return (
+        persisted_snapshot_ids,
+        persisted_evidence_ids,
+        (),
+        (),
+        (),
+        (),
+        tuple(data_snapshot_materializations),
+        tuple(data_evidence_materializations),
     )
 
 
@@ -1684,7 +2021,9 @@ def _literature_snapshot_references(
     candidate_kind = getattr(candidate, "kind", None)
     references: dict[str, tuple[str, str, str]] = {}
     if candidate_kind == "literature_claims":
-        values = getattr(getattr(candidate, "input_versions", None), "source_snapshots", ())
+        values = getattr(
+            getattr(candidate, "input_versions", None), "source_snapshots", ()
+        )
         for item in values:
             reference = (item.source_id, item.source_version, item.content_hash)
             existing = references.get(item.source_snapshot_id)
@@ -1723,6 +2062,8 @@ def _graph_publication_references(
     tuple[_LiteratureEvidenceMaterialization, ...],
     tuple[_GraphSourceSnapshotMaterialization, ...],
     tuple[_GraphEvidenceMaterialization, ...],
+    tuple[_DataSourceSnapshotMaterialization, ...],
+    tuple[_DataEvidenceMaterialization, ...],
 ]:
     if source_snapshot_bindings is None or evidence_bindings is None:
         raise PublicationAdmissionError(
@@ -1733,10 +2074,9 @@ def _graph_publication_references(
         item.source_snapshot_id: item
         for item in getattr(candidate, "source_snapshots", ())
     }
-    if (
-        len(snapshot_references) != len(getattr(candidate, "source_snapshots", ()))
-        or set(snapshot_references) != set(source_snapshot_ids)
-    ):
+    if len(snapshot_references) != len(
+        getattr(candidate, "source_snapshots", ())
+    ) or set(snapshot_references) != set(source_snapshot_ids):
         raise PublicationAdmissionError(
             "Graph candidate SourceSnapshot registry is not self-consistent"
         )
@@ -1759,7 +2099,9 @@ def _graph_publication_references(
         or len(pipeline_snapshot_ids) != len(set(pipeline_snapshot_ids))
         or len(persisted_snapshot_uuids) != len(set(persisted_snapshot_uuids))
         or any(
-            snapshot_references[item.pipeline_source_snapshot_id].persisted_source_snapshot_id
+            snapshot_references[
+                item.pipeline_source_snapshot_id
+            ].persisted_source_snapshot_id
             != item.persisted_source_snapshot_id
             for item in snapshots
         )
@@ -1783,7 +2125,9 @@ def _graph_publication_references(
                 item.pipeline_source_snapshot_id
             ].content_hash,
         )
-        for item in sorted(snapshots, key=lambda value: value.pipeline_source_snapshot_id)
+        for item in sorted(
+            snapshots, key=lambda value: value.pipeline_source_snapshot_id
+        )
     )
 
     uses = tuple(getattr(candidate, "evidence_uses", ()))
@@ -1796,10 +2140,9 @@ def _graph_publication_references(
         ): item
         for item in uses
     }
-    if (
-        len(expected_evidence) != len(uses)
-        or {item.evidence_use_id for item in uses} != set(evidence_ids)
-    ):
+    if len(expected_evidence) != len(uses) or {
+        item.evidence_use_id for item in uses
+    } != set(evidence_ids):
         raise PublicationAdmissionError(
             "Graph Evidence-use registry is not uniquely materializable"
         )
@@ -1829,10 +2172,9 @@ def _graph_publication_references(
         raise PublicationAdmissionError(
             "Graph Evidence bindings must use persisted UUID identifiers"
         ) from exc
-    if (
-        len(persisted_evidence_uuids) != len(set(persisted_evidence_uuids))
-        or set(persisted_evidence_uuids) & set(upstream_evidence_uuids)
-    ):
+    if len(persisted_evidence_uuids) != len(set(persisted_evidence_uuids)) or set(
+        persisted_evidence_uuids
+    ) & set(upstream_evidence_uuids):
         raise PublicationAdmissionError(
             "Graph-owned Evidence ids must be new, unique, and never reuse upstream ids"
         )
@@ -1840,9 +2182,8 @@ def _graph_publication_references(
     evidence_materializations: list[_GraphEvidenceMaterialization] = []
     for key, binding in sorted(actual_evidence.items()):
         evidence_use = expected_evidence[key]
-        if (
-            binding.persisted_source_snapshot_id
-            != persisted_snapshot_by_pipeline.get(binding.pipeline_source_snapshot_id)
+        if binding.persisted_source_snapshot_id != persisted_snapshot_by_pipeline.get(
+            binding.pipeline_source_snapshot_id
         ):
             raise PublicationAdmissionError(
                 "Graph Evidence binding does not match its persisted SourceSnapshot"
@@ -1876,6 +2217,8 @@ def _graph_publication_references(
         (),
         source_materializations,
         tuple(evidence_materializations),
+        (),
+        (),
     )
 
 
@@ -1914,6 +2257,134 @@ def _validate_literature_source_snapshots(
         ):
             raise PublicationAdmissionError(
                 "A persisted literature SourceSnapshot does not match its Pipeline identity"
+            )
+
+
+def _validate_data_source_snapshots(
+    session: Session,
+    candidate: AdmittedArtifactCandidate,
+    *,
+    project_id: UUID,
+) -> None:
+    materializations = candidate.data_source_snapshot_materializations
+    if not materializations:
+        return
+    ids = tuple(UUID(item.persisted_source_snapshot_id) for item in materializations)
+    rows = tuple(
+        session.scalars(
+            select(SourceSnapshotModel).where(
+                SourceSnapshotModel.id.in_(ids),
+                SourceSnapshotModel.project_id == project_id,
+            )
+        )
+    )
+    by_id = {row.id: row for row in rows}
+    if len(by_id) != len(ids):
+        raise PublicationAdmissionError(
+            "A persisted Data Artifact SourceSnapshot binding was not found in the Run Project"
+        )
+    for item in materializations:
+        row = by_id[UUID(item.persisted_source_snapshot_id)]
+        if (
+            row.source_id != item.source_id
+            or row.query_hash != item.query_hash
+            or row.content_hash != item.content_hash
+        ):
+            raise PublicationAdmissionError(
+                "A persisted Data Artifact SourceSnapshot does not match its Pipeline identity"
+            )
+
+
+def _require_unused_data_evidence_ids(
+    session: Session,
+    candidate: AdmittedArtifactCandidate,
+) -> None:
+    materializations = candidate.data_evidence_materializations
+    if not materializations:
+        return
+    ids = tuple(UUID(item.persisted_evidence_id) for item in materializations)
+    existing = tuple(
+        session.scalars(select(EvidenceModel.id).where(EvidenceModel.id.in_(ids)))
+    )
+    if existing:
+        raise PublicationConflictError(
+            "A Data Artifact persisted Evidence id is already bound to another publication"
+        )
+
+
+def _materialize_data_evidence(
+    session: Session,
+    version: ArtifactVersionModel,
+    candidate: AdmittedArtifactCandidate,
+) -> None:
+    for item in candidate.data_evidence_materializations:
+        session.add(
+            EvidenceModel(
+                id=UUID(item.persisted_evidence_id),
+                project_id=version.project_id,
+                artifact_version_id=version.id,
+                target_type=item.target_type,
+                target_id=item.target_id,
+                evidence_type=item.evidence_type,
+                source_snapshot_id=UUID(item.persisted_source_snapshot_id),
+                paper_id=None,
+                locator=json.loads(item.locator_json),
+                quote_or_value=json.loads(item.quote_or_value_json),
+                extraction_method=item.extraction_method,
+                confidence=float(item.confidence),
+                is_restricted=False,
+            )
+        )
+
+
+def _validate_materialized_data_provenance(
+    session: Session,
+    version: ArtifactVersionModel,
+    candidate: AdmittedArtifactCandidate,
+) -> None:
+    try:
+        _validate_data_source_snapshots(
+            session,
+            candidate,
+            project_id=version.project_id,
+        )
+    except PublicationAdmissionError as exc:
+        raise PublicationConflictError(
+            "The idempotent Data Artifact publication source provenance has drifted"
+        ) from exc
+    materializations = candidate.data_evidence_materializations
+    if not materializations:
+        return
+    ids = tuple(UUID(item.persisted_evidence_id) for item in materializations)
+    rows = tuple(
+        session.scalars(
+            select(EvidenceModel).where(
+                EvidenceModel.project_id == version.project_id,
+                EvidenceModel.artifact_version_id == version.id,
+            )
+        )
+    )
+    by_id = {row.id: row for row in rows}
+    if set(by_id) != set(ids):
+        raise PublicationConflictError(
+            "The idempotent Data Artifact publication has a non-exact Evidence registry"
+        )
+    for item in materializations:
+        row = by_id[UUID(item.persisted_evidence_id)]
+        if (
+            row.target_type != item.target_type
+            or row.target_id != item.target_id
+            or row.evidence_type != item.evidence_type
+            or row.source_snapshot_id != UUID(item.persisted_source_snapshot_id)
+            or row.paper_id is not None
+            or row.locator != json.loads(item.locator_json)
+            or row.quote_or_value != json.loads(item.quote_or_value_json)
+            or row.extraction_method != item.extraction_method
+            or row.confidence != float(item.confidence)
+            or row.is_restricted
+        ):
+            raise PublicationConflictError(
+                "The idempotent Data Artifact publication provenance differs from admission"
             )
 
 
@@ -2143,9 +2614,7 @@ def _materialize_graph_evidence(
                 paper_id=None,
                 locator={
                     "graph_evidence_use_id": item.pipeline_evidence_id,
-                    "upstream_artifact_version_id": (
-                        item.upstream_artifact_version_id
-                    ),
+                    "upstream_artifact_version_id": (item.upstream_artifact_version_id),
                     "upstream_evidence_id": item.upstream_evidence_id,
                     "upstream_target_type": item.upstream_target_type,
                     "upstream_target_id": item.upstream_target_id,
@@ -2257,13 +2726,64 @@ def _validate_candidate_artifact_kind(
     candidate: AdmittedArtifactCandidate,
 ) -> None:
     candidate_kind = candidate.content.get("kind")
-    if candidate_kind == "graph" and artifact.kind != "graph":
+    artifact_kind = (
+        artifact.kind.value if hasattr(artifact.kind, "value") else artifact.kind
+    )
+    if candidate_kind == "graph" and artifact_kind != "graph":
         raise PublicationAdmissionError(
             "Graph candidates may only publish to graph ResearchArtifacts"
         )
-    if artifact.kind == "graph" and candidate_kind != "graph":
+    if artifact_kind == "graph" and candidate_kind != "graph":
         raise PublicationAdmissionError(
             "Graph ResearchArtifacts require an admitted Evidence Graph candidate"
+        )
+    if candidate_kind != artifact_kind:
+        raise PublicationAdmissionError(
+            "Artifact candidate kind must match its ResearchArtifact kind"
+        )
+
+
+def _validate_export_references(
+    session: Session,
+    candidate: AdmittedArtifactCandidate,
+    *,
+    project_id: UUID,
+) -> None:
+    if candidate.content.get("kind") != "export":
+        return
+    references = candidate.content.get("artifact_version_ids")
+    if not isinstance(references, (list, tuple)) or not references:
+        raise PublicationAdmissionError(
+            "Export candidates must reference at least one ArtifactVersion"
+        )
+    if any(
+        not isinstance(reference, str) or not reference.strip()
+        for reference in references
+    ):
+        raise PublicationAdmissionError(
+            "Export ArtifactVersion references must be unique and nonempty"
+        )
+    try:
+        version_ids = tuple(UUID(reference) for reference in references)
+    except (TypeError, ValueError) as exc:
+        raise PublicationAdmissionError(
+            "Export ArtifactVersion references must use UUID identifiers"
+        ) from exc
+    if len(version_ids) != len(set(version_ids)):
+        raise PublicationAdmissionError(
+            "Export ArtifactVersion references must be unique and nonempty"
+        )
+    persisted_ids = tuple(
+        session.scalars(
+            select(ArtifactVersionModel.id).where(
+                ArtifactVersionModel.id.in_(version_ids),
+                ArtifactVersionModel.project_id == project_id,
+            )
+        )
+    )
+    if set(persisted_ids) != set(version_ids):
+        raise PublicationAdmissionError(
+            "Export ArtifactVersion references must resolve within the Run Project"
         )
 
 

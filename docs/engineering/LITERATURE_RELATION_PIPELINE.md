@@ -77,8 +77,8 @@ object 必须显式为 comparable；metric/unit 只有双方都缺失时可为 `
 如实声明 incomparable 也必须拒绝，不能把“声明一致”误当成“数据可比”。
 
 独立 tracked JSON Schema 位于 `packages/schemas/generated/literature_relation`，不进入
-HTTP OpenAPI。core `LiteratureRelationsArtifactContent`/`ReasoningTracesArtifactContent`
-仅表达当前读取投影，不是编写源，也不能进入 Publisher。
+HTTP OpenAPI。ArtifactVersion 只保存不可变 JSON；Relation/ReasoningTrace 读取使用本领域
+专用 Contract，不是编写源，也不能进入 Publisher。
 
 ## 3. 固定准入顺序与拒绝优先级
 

@@ -12,10 +12,11 @@
     "artifact_id": "art_papcol_01",
     "project_id": "proj_01JEXAMPLE",
     "source_mode": "fixture",
-    "content_hash": "sha256:880a853ac955b8f34d7de93975c2bb417f4f0d57c28677ab7d281b116b592e2b",
+    "content_hash": "sha256:34ed5251059042ba0ab3e87f3c978d7c71d90922f30383b5184a6a80d6bd0cd7",
     "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
     "created_at": "2026-07-21T08:24:45Z",
     "collection": {
+      "kind": "paper_collection",
       "schema_version": "2.0.0",
       "benchmark": {
         "benchmark_id": "exoplanet_host_star.paper_reasoning",
@@ -602,7 +603,7 @@
         "prompt_version": null,
         "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
         "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
-        "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06",
+        "output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89",
         "status": "completed",
         "started_at": "2026-07-21T08:24:00Z",
         "finished_at": "2026-07-21T08:24:45Z",
@@ -622,7 +623,7 @@
         "recalled_expected_candidate_count": 4,
         "candidate_recall": 1.0
       },
-      "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06"
+      "output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89"
     },
     "producer_execution": {
       "id": "pexec_run_papcol_01",
@@ -643,7 +644,7 @@
       "parameters": {},
       "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
       "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
-      "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06",
+      "output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89",
       "status": "completed",
       "started_at": "2026-07-21T08:24:00Z",
       "finished_at": "2026-07-21T08:24:45Z",
@@ -1527,6 +1528,7 @@
     "version_number": 1,
     "schema_version": "2.0.0",
     "content": {
+      "kind": "paper_collection",
       "schema_version": "2.0.0",
       "benchmark": {
         "benchmark_id": "exoplanet_host_star.paper_reasoning",
@@ -2113,7 +2115,7 @@
         "prompt_version": null,
         "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
         "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
-        "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06",
+        "output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89",
         "status": "completed",
         "started_at": "2026-07-21T08:24:00Z",
         "finished_at": "2026-07-21T08:24:45Z",
@@ -2133,9 +2135,9 @@
         "recalled_expected_candidate_count": 4,
         "candidate_recall": 1.0
       },
-      "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06"
+      "output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89"
     },
-    "content_hash": "sha256:880a853ac955b8f34d7de93975c2bb417f4f0d57c28677ab7d281b116b592e2b",
+    "content_hash": "sha256:34ed5251059042ba0ab3e87f3c978d7c71d90922f30383b5184a6a80d6bd0cd7",
     "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
     "source_mode": "fixture",
     "producer": {
@@ -2180,7 +2182,7 @@
       "parameters": {},
       "parameters_hash": "sha256:193081a3d9fa94466a0b3ab1bf540fb7f681d0343602c035cb9f47899546b794",
       "input_hash": "sha256:ab8f78e6c22d92d303bc7e3b1a531e8245a119bea2916fcd33ab88f14010d043",
-      "output_hash": "sha256:97694bc14d89ab3cbf830cb0acafa853b0b51a6acd6d16e1035c644cd2c8ce06",
+      "output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89",
       "status": "completed",
       "started_at": "2026-07-21T08:24:00Z",
       "finished_at": "2026-07-21T08:24:45Z",

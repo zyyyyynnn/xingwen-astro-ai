@@ -10,7 +10,6 @@ from uuid import UUID
 import pytest
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.core import ArtifactKind, GraphArtifactContent
 from app.schemas.graph_artifact import GraphArtifactCandidate
 from app.workflow import publisher as publisher_module
 from app.workflow.publisher import (
@@ -245,9 +244,7 @@ def test_port_returns_exact_graph_owned_evidence_materialization_plan() -> None:
     snapshots, evidence = _bindings(candidate)
     admitted = _admit(candidate, snapshots=snapshots, evidence=evidence)
 
-    expected_snapshot_ids = {
-        item.persisted_source_snapshot_id for item in snapshots
-    }
+    expected_snapshot_ids = {item.persisted_source_snapshot_id for item in snapshots}
     assert set(admitted.source_snapshot_ids) == expected_snapshot_ids
     assert set(admitted.evidence_ids) == {
         item.persisted_evidence_id for item in evidence
@@ -295,7 +292,9 @@ def test_port_returns_exact_graph_owned_evidence_materialization_plan() -> None:
         assert planned.upstream_is_restricted is use.upstream_is_restricted
 
 
-@pytest.mark.parametrize("operation", (copy, deepcopy, lambda value: value.model_copy()))
+@pytest.mark.parametrize(
+    "operation", (copy, deepcopy, lambda value: value.model_copy())
+)
 def test_copied_candidate_cannot_replay_pipeline_authority(operation) -> None:
     candidate = _accepted_candidate()
     copied = operation(candidate)
@@ -325,7 +324,9 @@ def test_public_payload_tamper_invalidates_pipeline_authority() -> None:
 def test_old_seal_and_context_cannot_be_replayed_on_new_candidate() -> None:
     old = _accepted_candidate()
     new = _accepted_candidate()
-    object.__setattr__(new, "_artifact_publication_seal", old._artifact_publication_seal)
+    object.__setattr__(
+        new, "_artifact_publication_seal", old._artifact_publication_seal
+    )
     object.__setattr__(
         new,
         "_artifact_publication_context",
@@ -341,25 +342,6 @@ def test_raw_graph_mapping_is_rejected() -> None:
 
     with pytest.raises(PublicationAdmissionError, match="Pydantic"):
         admit_artifact_candidate(  # type: ignore[arg-type]
-            candidate,
-            schema_version="1.0.0",
-            source_snapshot_ids=(),
-            evidence_ids=(),
-            evidence_validator=_accept,
-            domain_validator=_accept,
-            quality_validator=_accept,
-        )
-
-
-def test_core_graph_artifact_projection_cannot_bypass_evidence_graph_admission() -> None:
-    candidate = GraphArtifactContent(
-        kind=ArtifactKind.graph,
-        node_ids=("node.paper", "node.claim"),
-        edge_ids=("edge.supports",),
-    )
-
-    with pytest.raises(PublicationAdmissionError, match="authoritative Evidence Graph"):
-        admit_artifact_candidate(
             candidate,
             schema_version="1.0.0",
             source_snapshot_ids=(),
@@ -412,7 +394,9 @@ def test_graph_publication_requires_both_explicit_binding_sets() -> None:
 
 
 @pytest.mark.parametrize("mutation", ("missing", "extra", "wrong_persisted"))
-def test_source_snapshot_bindings_require_exact_candidate_closure(mutation: str) -> None:
+def test_source_snapshot_bindings_require_exact_candidate_closure(
+    mutation: str,
+) -> None:
     candidate = _accepted_candidate()
     snapshots, evidence = _bindings(candidate)
     if mutation == "missing":

@@ -93,6 +93,14 @@ def load_crossmatch_benchmark(
     return benchmark
 
 
+def build_crossmatch_scenario_input(
+    scenario: CrossmatchBenchmarkScenario,
+) -> CrossmatchInput:
+    """Build one frozen benchmark scenario through the public pipeline boundary."""
+
+    return _scenario_input(scenario)
+
+
 def evaluate_crossmatch_benchmark(
     benchmark: CrossmatchBenchmarkManifest,
 ) -> CrossmatchBenchmarkReport:

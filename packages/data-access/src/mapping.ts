@@ -12,7 +12,6 @@ import type {
   ArtifactVersionMetadata,
   CaseKey,
   ContentHash,
-  DataCell,
   DomainEntityId,
   Evidence,
   EvidenceLocator,
@@ -139,67 +138,6 @@ function mapProducer(dto: ProducerReferenceDto): ProducerReference {
   };
 }
 
-function mapArtifactContent(
-  dto: ArtifactVersionDto["content"],
-): ArtifactVersion["content"] {
-  switch (dto.kind) {
-    case "dataset":
-      return {
-        kind: "dataset",
-        fieldIds: mapIds(dto.field_ids),
-        rows: dto.rows.map((row) => ({ ...row }) as Record<string, DataCell>),
-      };
-    case "field_dictionary":
-      return {
-        kind: "field_dictionary",
-        fieldIds: mapIds(dto.field_ids),
-      };
-    case "source_collection":
-      return {
-        kind: "source_collection",
-        sourceSnapshotIds: mapIds(dto.source_snapshot_ids),
-      };
-    case "paper_collection":
-      return {
-        kind: "paper_collection",
-        paperIds: mapIds(dto.paper_ids),
-      };
-    case "paper_summary":
-      return {
-        kind: "paper_summary",
-        paperId: mapId(dto.paper_id),
-        summaryId: mapId(dto.summary_id),
-      };
-    case "literature_claims":
-      return {
-        kind: "literature_claims",
-        claimIds: mapIds(dto.claim_ids),
-      };
-    case "literature_relations":
-      return {
-        kind: "literature_relations",
-        relationIds: mapIds(dto.relation_ids),
-      };
-    case "reasoning_traces":
-      return {
-        kind: "reasoning_traces",
-        reasoningTraceIds: mapIds(dto.reasoning_trace_ids),
-      };
-    case "graph":
-      return {
-        kind: "graph",
-        nodeIds: mapIds(dto.node_ids),
-        edgeIds: mapIds(dto.edge_ids),
-      };
-    case "export":
-      return {
-        kind: "export",
-        format: dto.format,
-        artifactVersionIds: mapIds(dto.artifact_version_ids),
-      };
-  }
-}
-
 export function mapResearchProject(dto: ResearchProjectDto): ResearchProject {
   return {
     id: mapId(dto.id),
@@ -289,7 +227,9 @@ export function mapArtifactVersion(dto: ArtifactVersionDto): ArtifactVersion {
     createdByRunId: mapId(dto.created_by_run_id),
     versionNumber: dto.version_number,
     schemaVersion: dto.schema_version,
-    content: mapArtifactContent(dto.content),
+    // Keep persisted JSON in its canonical API shape. Kind-specific mapping
+    // belongs to the owning repository/read contract, not this generic mapper.
+    content: { ...dto.content },
     contentHash: dto.content_hash as ContentHash,
     inputHash: dto.input_hash as ContentHash,
     sourceMode: dto.source_mode as SourceMode,
@@ -332,9 +272,8 @@ export function mapResearchArtifactDetail(
  * `ArtifactVersionMetadata` domain shape.
  *
  * The generic workspace read deliberately drops the scientific `content`
- * payload: rich kind-specific content (e.g. the PaperCollection read contract) must be
- * read through its dedicated repository and contract instead of being force
- * cast into the generic `ArtifactContent` union.
+ * payload: rich kind-specific content must be read through its dedicated
+ * repository and contract.
  */
 export function mapArtifactVersionMetadata(
   dto: ArtifactVersionDto | ArtifactVersionDetailDto,

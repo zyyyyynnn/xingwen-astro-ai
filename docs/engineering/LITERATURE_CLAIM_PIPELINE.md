@@ -78,8 +78,8 @@ Relation 输入只能选择 candidate/accepted Claim。
 `LiteratureClaimModelCandidate`、`LiteratureClaimExtractionOutput`、单条
 `LiteratureClaimCandidate` 和 `LiteratureClaimAdmissionResult` 不能绕过 Pipeline 直接进入
 Publisher；只有 Pipeline 封印的完整
-`LiteratureClaimsCandidate@1.0.0` 才是领域 typed candidate。core
-`LiteratureClaimsArtifactContent` 仅表达当前读取投影，不是第二套编写源，也不能进入 Publisher。
+`LiteratureClaimsCandidate@1.0.0` 才是领域 typed candidate。ArtifactVersion 只保存不可变
+JSON；文献读取使用本领域专用 Contract，不是第二套编写源，也不能进入 Publisher。
 独立 tracked JSON Schema 位于
 `packages/schemas/generated/literature_claim`，不进入 HTTP OpenAPI。
 

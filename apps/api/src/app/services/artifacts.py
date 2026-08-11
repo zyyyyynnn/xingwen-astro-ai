@@ -13,7 +13,7 @@ from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -134,7 +134,9 @@ class ArtifactReadService:
             run = session.get(ResearchRunModel, run_uuid)
             if run is None:
                 raise _not_found("RUN_NOT_FOUND")
-            self._require_project_owner(session, run.project_id, session_id, "RUN_NOT_FOUND")
+            self._require_project_owner(
+                session, run.project_id, session_id, "RUN_NOT_FOUND"
+            )
             statement = (
                 select(ResearchArtifactModel)
                 .join(
@@ -175,7 +177,9 @@ class ArtifactReadService:
             )
             return tuple(_artifact(row) for row in selected), next_cursor, has_more
 
-    def get_artifact(self, *, artifact_id: str, session_id: str) -> ResearchArtifactDetail:
+    def get_artifact(
+        self, *, artifact_id: str, session_id: str
+    ) -> ResearchArtifactDetail:
         artifact_uuid = _uuid_or_not_found(artifact_id, "ARTIFACT_NOT_FOUND")
         with self._factory() as session:
             row = session.get(ResearchArtifactModel, artifact_uuid)
@@ -271,9 +275,15 @@ class ArtifactReadService:
                     ArtifactVersionModel.project_id,
                     ArtifactVersionModel.artifact_id,
                     ArtifactVersionModel.content_hash,
-                    ArtifactVersionModel.content["candidate_id"].astext.label("candidate_id"),
-                    ArtifactVersionModel.content["input_hash"].astext.label("candidate_input_hash"),
-                    ArtifactVersionModel.content["output_hash"].astext.label("candidate_output_hash"),
+                    ArtifactVersionModel.content["candidate_id"].astext.label(
+                        "candidate_id"
+                    ),
+                    ArtifactVersionModel.content["input_hash"].astext.label(
+                        "candidate_input_hash"
+                    ),
+                    ArtifactVersionModel.content["output_hash"].astext.label(
+                        "candidate_output_hash"
+                    ),
                     ArtifactVersionModel.content["row_count"].astext.label("row_count"),
                     ArtifactVersionModel.quality_projection,
                     ArtifactVersionModel.quality_projection_hash,
@@ -318,8 +328,7 @@ class ArtifactReadService:
                 or projection.candidate_input_hash != version.candidate_input_hash
                 or projection.candidate_output_hash != version.candidate_output_hash
                 or projection.candidate_content_hash != version.content_hash
-                or projection.quality_result_input_hash
-                != projection.quality_input_hash
+                or projection.quality_result_input_hash != projection.quality_input_hash
             ):
                 raise SecurityProblem(
                     status=409,
@@ -380,7 +389,8 @@ class ArtifactReadService:
             if snapshot is None or snapshot.project_id != row.project_id:
                 raise _integrity_problem()
             return EvidenceRead(
-                **_evidence(row).model_dump(), source_snapshot=_source_snapshot(snapshot)
+                **_evidence(row).model_dump(),
+                source_snapshot=_source_snapshot(snapshot),
             )
 
     def get_source_snapshot(
@@ -460,7 +470,9 @@ def _artifact(row: ResearchArtifactModel) -> ResearchArtifact:
         title=row.title,
         logical_key=row.logical_key,
         created_at=_utc(row.created_at),
-        latest_version_id=(str(row.latest_version_id) if row.latest_version_id else None),
+        latest_version_id=(
+            str(row.latest_version_id) if row.latest_version_id else None
+        ),
     )
 
 
@@ -481,9 +493,7 @@ def _version_summary(row: ArtifactVersionModel) -> ArtifactVersionSummary:
 
 def _producer_execution(row: ProducerExecutionModel) -> ProducerExecutionDetail:
     parameters = {
-        key: value
-        for key, value in row.parameters.items()
-        if not _sensitive_key(key)
+        key: value for key, value in row.parameters.items() if not _sensitive_key(key)
     }
     return ProducerExecutionDetail(
         id=str(row.id),
@@ -587,9 +597,7 @@ def _sanitize_object(
     return sanitized if isinstance(sanitized, dict) else {}
 
 
-def _sanitize_json(
-    value: Any, *, max_string: int, max_items: int | None = 500
-) -> Any:
+def _sanitize_json(value: Any, *, max_string: int, max_items: int | None = 500) -> Any:
     if value is None or isinstance(value, (bool, int)):
         return value
     if isinstance(value, float):
@@ -634,16 +642,22 @@ def _strip_sensitive_url_parameters(value: str) -> str:
     ]
     if parsed.username is not None or parsed.password is not None:
         return "[REDACTED]"
-    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(safe_query), ""))
+    return urlunsplit(
+        (parsed.scheme, parsed.netloc, parsed.path, urlencode(safe_query), "")
+    )
 
 
 def _sensitive_key(key: str) -> bool:
     normalized = _normalized_key(key)
-    return normalized in _FORBIDDEN_KEYS or producer_parameter_key_is_sensitive(normalized)
+    return normalized in _FORBIDDEN_KEYS or producer_parameter_key_is_sensitive(
+        normalized
+    )
 
 
 def _contains_sensitive_assignment(value: str) -> bool:
-    return any(_sensitive_key(match.group(1)) for match in _ASSIGNMENT_NAME.finditer(value))
+    return any(
+        _sensitive_key(match.group(1)) for match in _ASSIGNMENT_NAME.finditer(value)
+    )
 
 
 def _normalized_key(key: str) -> str:

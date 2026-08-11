@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -127,7 +126,8 @@ def _evidence(
     *,
     evidence_id: str = "evidence.summary_fixture",
     quote: str = "TESS targets transits around nearby, bright stars.",
-    excerpt: str | None = "The abstract states that TESS targets transits around nearby, bright stars.",
+    excerpt: str
+    | None = "The abstract states that TESS targets transits around nearby, bright stars.",
     claimed_source_version: str | None = None,
 ) -> PaperSummaryEvidenceCandidate:
     candidate = collection.candidates[0]
@@ -272,7 +272,9 @@ def test_prompt_registry_hash_matches_utf8_lf_file_bytes() -> None:
     assert not prompt_bytes.startswith(b"\xef\xbb\xbf")
     assert b"\r" not in prompt_bytes
     assert f"sha256:{sha256(prompt_bytes).hexdigest()}" == record.content_hash
-    assert compute_prompt_content_hash(prompt_bytes.decode("utf-8")) == record.content_hash
+    assert (
+        compute_prompt_content_hash(prompt_bytes.decode("utf-8")) == record.content_hash
+    )
 
 
 def test_model_output_schema_requires_all_core_fields_without_defaults() -> None:
@@ -307,8 +309,14 @@ def test_valid_output_becomes_publisher_ready_summary_with_per_item_evidence() -
     assert summary.limitations[0].validation_code == "evidence.not_provided"
     assert summary.evidence[0].locator.text_range == "sentence 1"
     assert summary.evidence[0].quote_or_value == evidence.quote_or_value
-    assert summary.evidence[0].source_record_id == collection.candidates[0].raw.source_record_id
-    assert summary.producer.prompt_hash == PromptRegistry().get("paper_summary").content_hash
+    assert (
+        summary.evidence[0].source_record_id
+        == collection.candidates[0].raw.source_record_id
+    )
+    assert (
+        summary.producer.prompt_hash
+        == PromptRegistry().get("paper_summary").content_hash
+    )
     assert summary.producer.parameters_hash.startswith("sha256:")
     assert summary.producer.input_versions == summary.input_versions
     assert summary.producer.output_hash == summary.output_hash
@@ -435,7 +443,9 @@ def test_schema_failure_is_rejected_after_json_parse() -> None:
 
 def test_quote_mismatch_marks_finding_unsupported_instead_of_fact() -> None:
     collection = _collection()
-    evidence = _evidence(collection, excerpt="The excerpt contains unrelated text only.")
+    evidence = _evidence(
+        collection, excerpt="The excerpt contains unrelated text only."
+    )
 
     result = _admit(collection, _model_output(), (evidence,))
 
@@ -453,10 +463,14 @@ def test_unavailable_source_text_marks_finding_unverifiable() -> None:
 
     assert result.summary is not None
     assert result.summary.findings[0].status is PaperSummarySupportStatus.unverifiable
-    assert result.summary.evidence[0].validation_code == "evidence.source_text_unavailable"
+    assert (
+        result.summary.evidence[0].validation_code == "evidence.source_text_unavailable"
+    )
 
 
-def test_unknown_evidence_reference_is_unverifiable_and_not_published_as_evidence() -> None:
+def test_unknown_evidence_reference_is_unverifiable_and_not_published_as_evidence() -> (
+    None
+):
     collection = _collection()
 
     result = _admit(collection, _model_output(), ())
@@ -467,7 +481,9 @@ def test_unknown_evidence_reference_is_unverifiable_and_not_published_as_evidenc
     assert result.summary.evidence == ()
 
 
-def test_source_version_conflict_retains_snapshot_version_without_auto_adjudication() -> None:
+def test_source_version_conflict_retains_snapshot_version_without_auto_adjudication() -> (
+    None
+):
     collection = _collection()
     evidence = _evidence(
         collection,
@@ -484,7 +500,9 @@ def test_source_version_conflict_retains_snapshot_version_without_auto_adjudicat
     assert conflict.claimed_source_version == "crossref.fixture.stale"
     assert conflict.source_snapshot_version == "crossref.fixture.2026-07-26"
     assert conflict.resolution == "source_snapshot_version_retained"
-    assert summary.evidence[0].source_snapshot_version == conflict.source_snapshot_version
+    assert (
+        summary.evidence[0].source_snapshot_version == conflict.source_snapshot_version
+    )
 
 
 def test_evidence_cannot_cross_candidate_or_snapshot_provenance() -> None:
@@ -500,7 +518,9 @@ def test_evidence_cannot_cross_candidate_or_snapshot_provenance() -> None:
     assert result.summary.evidence == ()
 
 
-def test_evidence_locator_source_url_must_match_the_paper_acquisition_candidate() -> None:
+def test_evidence_locator_source_url_must_match_the_paper_acquisition_candidate() -> (
+    None
+):
     collection = _collection()
     payload = _evidence(collection).model_dump(mode="json")
     payload["locator"]["source_url"] = "https://example.invalid/unrelated-paper"
@@ -604,23 +624,9 @@ def test_published_summary_excludes_accessible_excerpt_and_raw_response() -> Non
     assert "chain-of-thought" not in serialized
 
 
-def test_artifact_discriminator_uses_the_paper_summary_schema() -> None:
+def test_artifact_version_uses_the_generic_persisted_content_boundary() -> None:
     schema = ArtifactVersion.model_json_schema()
-    summary_schema = schema["$defs"]["PaperSummaryArtifactContent"]
-
-    assert {
-        "research_goal",
-        "method",
-        "dataset",
-        "findings",
-        "limitations",
-        "future_work",
-        "evidence_ids",
-        "producer",
-        "input_hash",
-        "output_hash",
-    } <= set(summary_schema["required"])
-    assert summary_schema["properties"]["kind"]["const"] == "paper_summary"
+    assert schema["properties"]["content"]["type"] == "object"
     assert PaperSummaryArtifactContent.model_json_schema()["title"] == (
         "PaperSummaryArtifactContent"
     )
@@ -690,6 +696,7 @@ def test_paper_benchmark_reports_not_available_for_empty_evidence_denominator() 
     assert report.unsupported_items_total == 0
     assert report.unsupported_block_rate is None
 
+
 def test_unsafe_markup_is_rejected_by_the_model_output_schema() -> None:
     payload = json.loads(_model_output())
     payload["findings"][0]["text"] = "<script>alert(1)</script>"
@@ -735,7 +742,7 @@ def test_summary_passes_existing_structured_publisher_admission_port() -> None:
 def test_intermediate_model_output_cannot_bypass_the_summary_pipeline() -> None:
     model_output = PaperSummaryModelOutput.model_validate_json(_model_output())
 
-    with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
+    with pytest.raises(PublicationAdmissionError, match="canonical|authoritative"):
         admit_artifact_candidate(
             model_output,
             schema_version="1.0.0",
@@ -781,7 +788,7 @@ def test_paper_summary_artifact_version_round_trips_through_json() -> None:
         created_by_run_id="run.paper_summary.fixture",
         version_number=1,
         schema_version="2.0.0",
-        content=result.summary,
+        content=result.summary.model_dump(mode="json"),
         content_hash=result.summary.output_hash,
         input_hash=result.summary.input_hash,
         source_mode=SourceMode.fixture,
@@ -806,5 +813,5 @@ def test_paper_summary_artifact_version_round_trips_through_json() -> None:
     restored = ArtifactVersion.model_validate_json(envelope.model_dump_json())
 
     assert restored == envelope
-    assert isinstance(restored.content, PaperSummaryArtifactContent)
-    assert restored.content.output_hash == result.summary.output_hash
+    restored_summary = PaperSummaryArtifactContent.model_validate(restored.content)
+    assert restored_summary.output_hash == result.summary.output_hash

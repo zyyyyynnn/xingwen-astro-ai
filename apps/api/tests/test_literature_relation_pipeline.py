@@ -12,11 +12,6 @@ from uuid import NAMESPACE_URL, uuid5
 import pytest
 from app.schemas import _literature_relation_seal as relation_seal
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.core import (
-    ArtifactKind,
-    LiteratureRelationsArtifactContent,
-    ReasoningTracesArtifactContent,
-)
 from app.schemas.enums import ClaimType, LiteratureRelationType
 from app.schemas.literature_claim import (
     LiteratureClaimCandidate,
@@ -528,18 +523,7 @@ def test_publisher_blocks_non_authoritative_relation_models() -> None:
     )
     record = result.records[0]
     admitted_trace = result.reasoning_traces[0]
-    projections = (
-        LiteratureRelationsArtifactContent(
-            kind=ArtifactKind.literature_relations,
-            relation_ids=("relation.read_projection",),
-        ),
-        ReasoningTracesArtifactContent(
-            kind=ArtifactKind.reasoning_traces,
-            reasoning_trace_ids=("trace.read_projection",),
-        ),
-    )
-
-    for value in (raw, copied, reparsed, record, admitted_trace, result, *projections):
+    for value in (raw, copied, reparsed, record, admitted_trace, result):
         with pytest.raises(PublicationAdmissionError):
             admit_artifact_candidate(
                 value,
@@ -550,6 +534,7 @@ def test_publisher_blocks_non_authoritative_relation_models() -> None:
                 domain_validator=lambda _context: None,
                 quality_validator=lambda _context: None,
             )
+
 
 def test_public_hashes_and_handmade_seals_cannot_mint_publication_authority() -> None:
     assert not hasattr(relation_seal, "seal_literature_relations_candidate")

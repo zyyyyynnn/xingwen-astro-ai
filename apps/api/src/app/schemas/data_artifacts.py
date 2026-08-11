@@ -56,6 +56,7 @@ PositiveDecimal = Annotated[Decimal, Field(gt=0)]
 NonNegativeDecimal = Annotated[Decimal, Field(ge=0)]
 RawScalar = str | int | float | Decimal | bool
 
+
 class DataArtifactErrorCode(StrEnum):
     unsupported_requested_field = "UNSUPPORTED_REQUESTED_FIELD"
     unknown_source_field = "UNKNOWN_SOURCE_FIELD"
@@ -170,16 +171,16 @@ class EntityProjectionPolicy(BaseModel):
     model_config = MODEL_CONFIG
 
     version: SemanticVersion
-    system_context_policy: Literal[
-        "host_and_source_assertion_only_no_implicit_join"
-    ]
+    system_context_policy: Literal["host_and_source_assertion_only_no_implicit_join"]
     rules: tuple[EntityProjectionRule, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_rules(self) -> Self:
         levels = tuple(rule.entity_level for rule in self.rules)
         if len(levels) != len(set(levels)) or set(levels) != set(EntityLevel):
-            raise ValueError("entity projection policy must define every row grain once")
+            raise ValueError(
+                "entity projection policy must define every row grain once"
+            )
         if levels != tuple(sorted(levels, key=lambda item: item.value)):
             raise ValueError("entity projection rules must use canonical order")
         return self
@@ -354,7 +355,9 @@ class UncertaintyValue(BaseModel):
 
     @model_validator(mode="after")
     def validate_status(self) -> Self:
-        source_count = sum(v is not None for v in (self.source_positive, self.source_negative))
+        source_count = sum(
+            v is not None for v in (self.source_positive, self.source_negative)
+        )
         canonical_count = sum(
             v is not None for v in (self.canonical_positive, self.canonical_negative)
         )
@@ -364,7 +367,12 @@ class UncertaintyValue(BaseModel):
             2: UncertaintyStatus.complete,
         }[source_count]
         if self.status is UncertaintyStatus.not_applicable:
-            if source_count or canonical_count or self.positive_locator or self.negative_locator:
+            if (
+                source_count
+                or canonical_count
+                or self.positive_locator
+                or self.negative_locator
+            ):
                 raise ValueError("not-applicable uncertainty cannot carry values")
         elif self.status is not expected or source_count != canonical_count:
             raise ValueError("uncertainty status does not match retained values")
@@ -401,9 +409,9 @@ class SourceValueCandidate(BaseModel):
     raw_record_row_key: tuple[tuple[NonEmptyString, NonEmptyString], ...]
     raw_record_content_hash: ContentHash
     raw_field: NonEmptyString
-    raw_value: RawScalar | None
+    raw_value: RawScalar | None = None
     source_unit: Identifier
-    canonical_value: str | None
+    canonical_value: str | None = None
     canonical_unit: Identifier
     alias_priority: int = Field(gt=0)
     source_priority: int = Field(gt=0)
@@ -423,7 +431,9 @@ class SourceValueCandidate(BaseModel):
     @model_validator(mode="after")
     def validate_value(self) -> Self:
         if (self.canonical_value is None) != (self.null_status is not None):
-            raise ValueError("source null status must exactly describe an unmapped raw value")
+            raise ValueError(
+                "source null status must exactly describe an unmapped raw value"
+            )
         if self.raw_value is None and self.canonical_value is not None:
             raise ValueError("null source value cannot carry a canonical value")
         expected_record = (
@@ -486,9 +496,9 @@ class TransformationEvidence(BaseModel):
     canonical_field_id: CanonicalFieldId
     source_value_id: Identifier
     locator: SourceCellLocator
-    raw_value: RawScalar | None
+    raw_value: RawScalar | None = None
     source_unit: Identifier
-    canonical_value: str | None
+    canonical_value: str | None = None
     canonical_unit: Identifier
     conversion_rule_id: Identifier
     conversion_rule_version: SemanticVersion
@@ -517,9 +527,13 @@ class TransformationEvidence(BaseModel):
     @model_validator(mode="after")
     def validate_hash(self) -> Self:
         if len(self.uncertainty_locators) != len(set(self.uncertainty_locators)):
-            raise ValueError("transformation Evidence contains duplicate uncertainty locator")
+            raise ValueError(
+                "transformation Evidence contains duplicate uncertainty locator"
+            )
         if len(self.crossmatch_evidence_ids) != len(set(self.crossmatch_evidence_ids)):
-            raise ValueError("transformation Evidence contains duplicate crossmatch Evidence")
+            raise ValueError(
+                "transformation Evidence contains duplicate crossmatch Evidence"
+            )
         if self.crossmatch_evidence_ids != tuple(sorted(self.crossmatch_evidence_ids)):
             raise ValueError("crossmatch Evidence IDs must use canonical order")
         _validate_content_hash(self)
@@ -532,7 +546,7 @@ class FieldSelectionRecord(BaseModel):
     selection_id: Identifier
     dataset_row_id: Identifier
     canonical_field_id: CanonicalFieldId
-    selected_source_value_id: Identifier | None
+    selected_source_value_id: Identifier | None = None
     candidate_source_value_ids: tuple[Identifier, ...]
     strategy: Literal["prefer_source_priority_preserve_all"]
     reason: NonEmptyString
@@ -540,9 +554,14 @@ class FieldSelectionRecord(BaseModel):
 
     @model_validator(mode="after")
     def validate_hash(self) -> Self:
-        if len(self.candidate_source_value_ids) != len(set(self.candidate_source_value_ids)):
+        if len(self.candidate_source_value_ids) != len(
+            set(self.candidate_source_value_ids)
+        ):
             raise ValueError("selection contains duplicate source value ID")
-        if self.selected_source_value_id is not None and self.selected_source_value_id not in self.candidate_source_value_ids:
+        if (
+            self.selected_source_value_id is not None
+            and self.selected_source_value_id not in self.candidate_source_value_ids
+        ):
             raise ValueError("selection winner must be a retained candidate")
         _validate_content_hash(self)
         return self
@@ -716,8 +735,12 @@ class DatasetRow(BaseModel):
 class _PublisherReadyCandidate(BaseModel):
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
-    _artifact_publication_seal: DataArtifactPublicationSeal | None = PrivateAttr(default=None)
-    _artifact_publication_context: DataArtifactAdmissionSnapshot | None = PrivateAttr(default=None)
+    _artifact_publication_seal: DataArtifactPublicationSeal | None = PrivateAttr(
+        default=None
+    )
+    _artifact_publication_context: DataArtifactAdmissionSnapshot | None = PrivateAttr(
+        default=None
+    )
 
     def __artifact_publication_is_admitted__(self) -> bool:
         return data_artifact_candidate_is_sealed(
@@ -772,7 +795,9 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
         if self.requested_fields != tuple(c.field.field_id for c in self.columns):
             raise ValueError("Dataset columns must exactly project requested fields")
         _require_unique(self.source_values, "source_value_id", "source value")
-        _require_unique(self.transformation_evidence, "evidence_id", "transformation Evidence")
+        _require_unique(
+            self.transformation_evidence, "evidence_id", "transformation Evidence"
+        )
         _require_unique(self.selections, "selection_id", "selection")
         _require_unique(self.conflicts, "conflict_id", "conflict")
         for values, label in (
@@ -798,13 +823,17 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
         conflicts = {item.conflict_id: item for item in self.conflicts}
         expected_evidence_ids = {*evidence, *self.crossmatch_evidence_ids}
         if expected_evidence_ids != set(self.evidence_ids):
-            raise ValueError("Dataset Evidence references must be the exact retained set")
+            raise ValueError(
+                "Dataset Evidence references must be the exact retained set"
+            )
         if not {
             crossmatch_id
             for item in evidence.values()
             for crossmatch_id in item.crossmatch_evidence_ids
         } <= set(self.crossmatch_evidence_ids):
-            raise ValueError("transformation Evidence refers to undeclared crossmatch Evidence")
+            raise ValueError(
+                "transformation Evidence refers to undeclared crossmatch Evidence"
+            )
         used_snapshot_ids = {
             *[item.source_snapshot_id for item in self.source_values],
             *[item.locator.source_snapshot_id for item in self.transformation_evidence],
@@ -818,12 +847,16 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
             self.source_snapshot_ids != self.crossmatch_source_snapshot_ids
             or not used_snapshot_ids <= set(self.source_snapshot_ids)
         ):
-            raise ValueError("Dataset SourceSnapshot registry disagrees with crossmatch scope")
+            raise ValueError(
+                "Dataset SourceSnapshot registry disagrees with crossmatch scope"
+            )
         fields = {column.field.field_id: column.field for column in self.columns}
         for item in evidence.values():
             source_value = source_values.get(item.source_value_id)
             if source_value is None:
-                raise ValueError("transformation Evidence must resolve to its source value")
+                raise ValueError(
+                    "transformation Evidence must resolve to its source value"
+                )
             expected_evidence_binding = (
                 source_value.canonical_field_id,
                 source_value.evidence_locator,
@@ -859,7 +892,9 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                 item.provenance_value,
             )
             if actual_evidence_binding != expected_evidence_binding:
-                raise ValueError("transformation Evidence values disagree with source value")
+                raise ValueError(
+                    "transformation Evidence values disagree with source value"
+                )
             if item.uncertainty_locators != tuple(
                 locator
                 for locator in (
@@ -901,19 +936,34 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                 raise ValueError("transformation Evidence execution bindings drifted")
         for row in self.rows:
             row_evidence = {
-                evidence_id for outcome in row.fields for evidence_id in outcome.transformation_evidence_ids
+                evidence_id
+                for outcome in row.fields
+                for evidence_id in outcome.transformation_evidence_ids
             }
-            row_conflicts = {conflict_id for outcome in row.fields for conflict_id in getattr(outcome, "conflict_ids", ())}
-            if set(row.evidence_ids) != row_evidence or set(row.conflict_ids) != row_conflicts:
+            row_conflicts = {
+                conflict_id
+                for outcome in row.fields
+                for conflict_id in getattr(outcome, "conflict_ids", ())
+            }
+            if (
+                set(row.evidence_ids) != row_evidence
+                or set(row.conflict_ids) != row_conflicts
+            ):
                 raise ValueError("Dataset row reference registries are not exact")
             row_fields = tuple(outcome.canonical_field_id for outcome in row.fields)
             if (
                 len(row_fields) != len(set(row_fields))
                 or not set(row_fields) <= set(self.requested_fields)
                 or row_fields
-                != tuple(field_id for field_id in self.requested_fields if field_id in row_fields)
+                != tuple(
+                    field_id
+                    for field_id in self.requested_fields
+                    if field_id in row_fields
+                )
             ):
-                raise ValueError("Dataset row fields are not a canonical requested-field projection")
+                raise ValueError(
+                    "Dataset row fields are not a canonical requested-field projection"
+                )
             for outcome in row.fields:
                 for values, label in (
                     (outcome.candidate_source_value_ids, "source value"),
@@ -926,9 +976,13 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                         )
                 definition = fields[outcome.canonical_field_id]
                 if not set(outcome.candidate_source_value_ids) <= source_values.keys():
-                    raise ValueError("Dataset outcome refers to an unknown source value")
+                    raise ValueError(
+                        "Dataset outcome refers to an unknown source value"
+                    )
                 if not set(outcome.transformation_evidence_ids) <= evidence.keys():
-                    raise ValueError("Dataset outcome refers to unknown transformation Evidence")
+                    raise ValueError(
+                        "Dataset outcome refers to unknown transformation Evidence"
+                    )
                 outcome_source_values = [
                     source_values[item] for item in outcome.candidate_source_value_ids
                 ]
@@ -936,42 +990,75 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                     item.canonical_field_id != outcome.canonical_field_id
                     for item in outcome_source_values
                 ):
-                    raise ValueError("Dataset outcome reuses a source value for another field")
+                    raise ValueError(
+                        "Dataset outcome reuses a source value for another field"
+                    )
                 if isinstance(outcome, MappedCanonicalValue):
                     selection = selections.get(outcome.selection_id)
-                    if selection is None or not set(outcome.conflict_ids) <= conflicts.keys():
-                        raise ValueError("mapped outcome has a dangling selection/conflict reference")
-                    if outcome.selected_source_value_id not in outcome.candidate_source_value_ids:
-                        raise ValueError("mapped outcome winner is not a retained source value")
                     if (
-                        selection.selected_source_value_id != outcome.selected_source_value_id
-                        or selection.candidate_source_value_ids != outcome.candidate_source_value_ids
+                        selection is None
+                        or not set(outcome.conflict_ids) <= conflicts.keys()
+                    ):
+                        raise ValueError(
+                            "mapped outcome has a dangling selection/conflict reference"
+                        )
+                    if (
+                        outcome.selected_source_value_id
+                        not in outcome.candidate_source_value_ids
+                    ):
+                        raise ValueError(
+                            "mapped outcome winner is not a retained source value"
+                        )
+                    if (
+                        selection.selected_source_value_id
+                        != outcome.selected_source_value_id
+                        or selection.candidate_source_value_ids
+                        != outcome.candidate_source_value_ids
                         or selection.dataset_row_id != row.row_id
                         or selection.canonical_field_id != outcome.canonical_field_id
                     ):
-                        raise ValueError("mapped outcome disagrees with its selection record")
+                        raise ValueError(
+                            "mapped outcome disagrees with its selection record"
+                        )
                     if selection.reason != (
                         "highest declared source and alias priority; every candidate is retained"
                     ):
-                        raise ValueError("mapped outcome selection reason is not frozen")
+                        raise ValueError(
+                            "mapped outcome selection reason is not frozen"
+                        )
                     selected = source_values[outcome.selected_source_value_id]
                     if (
                         selected.canonical_value != outcome.canonical_value
                         or selected.canonical_unit != outcome.canonical_unit
                     ):
-                        raise ValueError("mapped outcome disagrees with its selected source value")
+                        raise ValueError(
+                            "mapped outcome disagrees with its selected source value"
+                        )
                 elif isinstance(outcome, DeclaredNullValue):
-                    if not definition.nullable or outcome.reason not in definition.null_policy.allowed_reasons:
-                        raise ValueError("declared null is not authorized by the Field Manifest")
-                outcome_evidence = [evidence[item] for item in outcome.transformation_evidence_ids]
+                    if (
+                        not definition.nullable
+                        or outcome.reason not in definition.null_policy.allowed_reasons
+                    ):
+                        raise ValueError(
+                            "declared null is not authorized by the Field Manifest"
+                        )
+                outcome_evidence = [
+                    evidence[item] for item in outcome.transformation_evidence_ids
+                ]
                 if any(
                     item.dataset_row_id != row.row_id
                     or item.canonical_field_id != outcome.canonical_field_id
                     for item in outcome_evidence
                 ):
-                    raise ValueError("Dataset outcome Evidence is bound to another row/field")
-                if {item.source_value_id for item in outcome_evidence} != set(outcome.candidate_source_value_ids):
-                    raise ValueError("Dataset outcome source values and Evidence are not one-to-one")
+                    raise ValueError(
+                        "Dataset outcome Evidence is bound to another row/field"
+                    )
+                if {item.source_value_id for item in outcome_evidence} != set(
+                    outcome.candidate_source_value_ids
+                ):
+                    raise ValueError(
+                        "Dataset outcome source values and Evidence are not one-to-one"
+                    )
                 expected_statuses = {
                     item.source_value_id: (
                         SelectionStatus.conflict
@@ -1013,7 +1100,9 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                         or conflict.canonical_field_id != outcome.canonical_field_id
                         or conflict.source_value_ids != non_null_ids
                     ):
-                        raise ValueError("conflict candidate set disagrees with its outcome")
+                        raise ValueError(
+                            "conflict candidate set disagrees with its outcome"
+                        )
                     expected_scope = (
                         "same_source"
                         if len(
@@ -1027,7 +1116,9 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                         else "cross_source"
                     )
                     if conflict.conflict_scope != expected_scope:
-                        raise ValueError("conflict scope disagrees with candidate sources")
+                        raise ValueError(
+                            "conflict scope disagrees with candidate sources"
+                        )
                     numeric_values = [
                         Decimal(item.canonical_value)
                         for item in outcome_source_values
@@ -1044,7 +1135,9 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                             or conflict.relative_difference
                             != absolute / conflict.relative_denominator
                         ):
-                            raise ValueError("conflict numeric differences are not derived")
+                            raise ValueError(
+                                "conflict numeric differences are not derived"
+                            )
                     elif any(
                         value is not None
                         for value in (
@@ -1053,7 +1146,9 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
                             conflict.relative_difference,
                         )
                     ):
-                        raise ValueError("non-numeric conflict carries numeric differences")
+                        raise ValueError(
+                            "non-numeric conflict carries numeric differences"
+                        )
         referenced_selections = {
             outcome.selection_id
             for row in self.rows
@@ -1083,7 +1178,9 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
         if referenced_source_values != source_values.keys():
             raise ValueError("Dataset source value registry contains orphan records")
         if referenced_evidence != evidence.keys():
-            raise ValueError("Dataset transformation Evidence registry contains orphan records")
+            raise ValueError(
+                "Dataset transformation Evidence registry contains orphan records"
+            )
         if referenced_conflicts != conflicts.keys():
             raise ValueError("Dataset conflict registry contains orphan records")
         expected_canonical_hash = compute_data_artifact_canonical_content_hash(self)
@@ -1125,7 +1222,9 @@ class FieldDictionaryArtifactCandidate(_PublisherReadyCandidate):
 
     @model_validator(mode="after")
     def validate_candidate(self) -> Self:
-        if self.requested_fields != tuple(field.field_id for field in self.field_definitions):
+        if self.requested_fields != tuple(
+            field.field_id for field in self.field_definitions
+        ):
             raise ValueError("FieldDictionary must exactly project requested fields")
         for values, label in (
             (self.requested_fields, "requested field"),
@@ -1133,13 +1232,16 @@ class FieldDictionaryArtifactCandidate(_PublisherReadyCandidate):
             (self.evidence_ids, "Evidence"),
         ):
             if len(values) != len(set(values)):
-                raise ValueError(f"FieldDictionary contains duplicate {label} reference")
+                raise ValueError(
+                    f"FieldDictionary contains duplicate {label} reference"
+                )
         if len(self.source_snapshot_ids) != 2:
-            raise ValueError("FieldDictionary requires the two crossmatch SourceSnapshots")
-        if (
-            self.source_snapshot_ids != tuple(sorted(self.source_snapshot_ids))
-            or self.evidence_ids != tuple(sorted(self.evidence_ids))
-        ):
+            raise ValueError(
+                "FieldDictionary requires the two crossmatch SourceSnapshots"
+            )
+        if self.source_snapshot_ids != tuple(
+            sorted(self.source_snapshot_ids)
+        ) or self.evidence_ids != tuple(sorted(self.evidence_ids)):
             raise ValueError("FieldDictionary references must use canonical order")
         _validate_output_hash(self)
         _validate_candidate_id(self)
@@ -1191,13 +1293,17 @@ class SourceCollectionMember(BaseModel):
             or self.query_hash != self.source_snapshot.query_hash
             or self.license_note != self.source_snapshot.license_note
         ):
-            raise ValueError("SourceCollection member disagrees with its SourceSnapshot")
+            raise ValueError(
+                "SourceCollection member disagrees with its SourceSnapshot"
+            )
         metadata = self.source_snapshot.request_metadata
-        if (
-            metadata.get("source_mode") not in (None, self.source_mode.value)
-            or metadata.get("data_level") not in (None, self.data_level.value)
-        ):
-            raise ValueError("SourceCollection member execution scope disagrees with snapshot")
+        if metadata.get("source_mode") not in (
+            None,
+            self.source_mode.value,
+        ) or metadata.get("data_level") not in (None, self.data_level.value):
+            raise ValueError(
+                "SourceCollection member execution scope disagrees with snapshot"
+            )
         row_keys = [item.row_key for item in self.raw_record_references]
         record_hashes = [
             item.raw_record_content_hash for item in self.raw_record_references
@@ -1212,7 +1318,9 @@ class SourceCollectionMember(BaseModel):
                 ),
             )
         ):
-            raise ValueError("SourceCollection raw record references must use canonical order")
+            raise ValueError(
+                "SourceCollection raw record references must use canonical order"
+            )
         if len(row_keys) != len(set(row_keys)):
             raise ValueError("SourceCollection member contains duplicate row key")
         if len(record_hashes) != len(set(record_hashes)):
@@ -1275,13 +1383,19 @@ class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
             CrossmatchSide.left,
             CrossmatchSide.right,
         ):
-            raise ValueError("SourceCollection requires one canonical left/right member")
+            raise ValueError(
+                "SourceCollection requires one canonical left/right member"
+            )
         source_ids = tuple(member.source_id for member in self.members)
         snapshot_ids = tuple(member.source_snapshot_id for member in self.members)
         if len(set(source_ids)) != 2 or len(set(snapshot_ids)) != 2:
-            raise ValueError("SourceCollection requires two independent sources and snapshots")
+            raise ValueError(
+                "SourceCollection requires two independent sources and snapshots"
+            )
         if self.source_snapshot_ids != tuple(sorted(snapshot_ids)):
-            raise ValueError("SourceCollection snapshot projection disagrees with members")
+            raise ValueError(
+                "SourceCollection snapshot projection disagrees with members"
+            )
         for values, label in (
             (self.evidence_ids, "Evidence"),
             (self.source_value_ids, "source value"),
@@ -1297,7 +1411,9 @@ class SourceCollectionArtifactCandidate(_PublisherReadyCandidate):
             | set(self.review_required_record_keys)
             | set(self.inconclusive_record_keys)
         ) <= set(self.alignment_record_keys):
-            raise ValueError("SourceCollection status keys must resolve to alignment records")
+            raise ValueError(
+                "SourceCollection status keys must resolve to alignment records"
+            )
         status_sets = (
             set(self.conflict_record_keys),
             set(self.review_required_record_keys),
@@ -1397,7 +1513,9 @@ class DataArtifactBuildInput(BaseModel):
                 or acquisition.data_level is not data_level
                 or acquisition.completion != completion
             ):
-                raise ValueError(f"{side.value} acquisition disagrees with CrossmatchResult")
+                raise ValueError(
+                    f"{side.value} acquisition disagrees with CrossmatchResult"
+                )
             referenced = {
                 (
                     candidate.source_record.row_key,
@@ -1406,7 +1524,9 @@ class DataArtifactBuildInput(BaseModel):
                 for candidate in result.candidates
                 if candidate.side is side
             }
-            acquired = {(record.row_key, record.content_hash) for record in acquisition.records}
+            acquired = {
+                (record.row_key, record.content_hash) for record in acquisition.records
+            }
             if referenced != acquired:
                 raise ValueError(
                     f"{side.value} acquisition records disagree with CrossmatchResult"
@@ -1531,7 +1651,9 @@ def compute_data_artifact_canonical_content_hash(
     return compute_dataset_canonical_content_hash(value)
 
 
-def compute_data_artifact_input_hash(value: DataArtifactBuildInput | dict[str, Any]) -> str:
+def compute_data_artifact_input_hash(
+    value: DataArtifactBuildInput | dict[str, Any],
+) -> str:
     payload = _model_or_dict(value)
     payload.pop("input_hash", None)
     if "requested_fields" in payload:
@@ -1589,7 +1711,9 @@ def _model_or_dict(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
 
 def _drop_none(value: Any) -> Any:
     if isinstance(value, dict):
-        return {key: _drop_none(item) for key, item in value.items() if item is not None}
+        return {
+            key: _drop_none(item) for key, item in value.items() if item is not None
+        }
     if isinstance(value, list):
         return [_drop_none(item) for item in value]
     if isinstance(value, tuple):

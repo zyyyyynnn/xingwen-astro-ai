@@ -332,6 +332,12 @@
           "title": "Input Hash",
           "type": "string"
         },
+        "kind": {
+          "const": "paper_collection",
+          "default": "paper_collection",
+          "title": "Kind",
+          "type": "string"
+        },
         "metrics": {
           "$ref": "#/$defs/PaperCollectionMetrics"
         },

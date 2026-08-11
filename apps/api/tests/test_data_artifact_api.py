@@ -15,7 +15,11 @@ from app.schemas.core import (
     ResearchArtifact,
     SourceSnapshotDetail,
 )
-from app.services.data_artifacts import DataArtifactReadService, _csv_cell, _encode_cursor
+from app.services.data_artifacts import (
+    DataArtifactReadService,
+    _csv_cell,
+    _encode_cursor,
+)
 from app.schemas.manifest import DataType
 from app.schemas.data_artifacts import DatasetArtifactCandidate
 from app.schemas.data_quality import DataQualityProjection
@@ -60,35 +64,87 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
         content_hash=compute_canonical_payload_hash(projection_payload),
     )
     version_id = "version-1"
+    source_identity = {
+        value.source_snapshot_id: (
+            value.source_id,
+            value.query_hash,
+            value.source_snapshot_content_hash,
+        )
+        for value in candidate.source_values
+    }
     snapshots = tuple(
         SourceSnapshotDetail.model_construct(
-            id=candidate.source_snapshot_ids[index],
-            source_id=f"source-{index}",
+            id=snapshot_id,
+            source_id=source_identity[snapshot_id][0],
             source_type="fixture",
             retrieved_at=datetime.now(UTC),
             query={},
-            query_hash="sha256:" + "1" * 64,
-            content_hash="sha256:" + "2" * 64,
+            query_hash=source_identity[snapshot_id][1],
+            content_hash=source_identity[snapshot_id][2],
             license_note="fixture",
             request_metadata={},
         )
-        for index, _ in enumerate(candidate.source_snapshot_ids)
+        for snapshot_id in candidate.source_snapshot_ids
     )
-    evidence = tuple(
-        EvidenceDetail.model_construct(
-            id=candidate.evidence_ids[index],
-            artifact_version_id=version_id,
-            target_type="dataset",
-            target_id="target",
-            evidence_type="source",
-            source_snapshot_id=candidate.source_snapshot_ids[0],
-            locator={},
-            extraction_method="fixture",
-            confidence=1.0,
-            created_at=datetime.now(UTC),
+    transformations = {
+        item.evidence_id: item for item in candidate.transformation_evidence
+    }
+    crossmatch_sources: dict[str, list[str]] = {}
+    crossmatch_identity: dict[str, tuple[str, str]] = {}
+    for transformation in transformations.values():
+        for evidence_id in transformation.crossmatch_evidence_ids:
+            crossmatch_sources.setdefault(evidence_id, []).append(
+                transformation.locator.source_snapshot_id
+            )
+            crossmatch_identity[evidence_id] = (
+                transformation.crossmatch_result_id,
+                transformation.crossmatch_result_content_hash,
+            )
+    evidence_items = []
+    for evidence_id in candidate.evidence_ids:
+        transformation = transformations.get(evidence_id)
+        if transformation is not None:
+            evidence_items.append(
+                EvidenceDetail.model_construct(
+                    id=evidence_id,
+                    artifact_version_id=version_id,
+                    target_type="canonical_field",
+                    target_id=transformation.canonical_field_id,
+                    evidence_type="data_transformation",
+                    source_snapshot_id=transformation.locator.source_snapshot_id,
+                    locator=transformation.locator.model_dump(mode="json"),
+                    quote_or_value=(
+                        transformation.canonical_value
+                        if transformation.canonical_value is not None
+                        else transformation.raw_value
+                    ),
+                    extraction_method="data_artifact_admission",
+                    confidence=1.0,
+                    created_at=datetime.now(UTC),
+                )
+            )
+            continue
+        identity = crossmatch_identity[evidence_id]
+        evidence_items.append(
+            EvidenceDetail.model_construct(
+                id=evidence_id,
+                artifact_version_id=version_id,
+                target_type="crossmatch",
+                target_id=evidence_id,
+                evidence_type="crossmatch_decision",
+                source_snapshot_id=min(crossmatch_sources[evidence_id]),
+                locator={
+                    "crossmatch_evidence_id": evidence_id,
+                    "crossmatch_result_id": identity[0],
+                    "crossmatch_result_content_hash": identity[1],
+                },
+                quote_or_value=None,
+                extraction_method="crossmatch_admission",
+                confidence=1.0,
+                created_at=datetime.now(UTC),
+            )
         )
-        for index, _ in enumerate(candidate.evidence_ids)
-    )
+    evidence = tuple(evidence_items)
     producer = ProducerExecutionDetail.model_construct(
         id="producer-1",
         run_id="run-1",
@@ -134,7 +190,9 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
     )
 
     class FakeArtifacts:
-        def get_version(self, *, version_id: str, session_id: str, full_content: bool = False):
+        def get_version(
+            self, *, version_id: str, session_id: str, full_content: bool = False
+        ):
             assert version_id == version_id_value
             assert session_id == "session-1"
             return self.version
@@ -152,7 +210,11 @@ def test_candidate_rejects_same_count_with_different_provenance_ids() -> None:
     service, _ = _service_for_dataset()
     version = service._artifacts.version
     invalid = version.model_copy(
-        update={"source_snapshot_ids": tuple("wrong-snapshot" for _ in version.source_snapshot_ids)}
+        update={
+            "source_snapshot_ids": tuple(
+                "wrong-snapshot" for _ in version.source_snapshot_ids
+            )
+        }
     )
     with pytest.raises(SecurityProblem) as exc_info:
         service._candidate(invalid, DatasetArtifactCandidate)
@@ -198,9 +260,13 @@ def test_dataset_rows_cursor_is_bound_to_version() -> None:
     encoded = _encode_cursor(version_id=version_id, row_id=rows[0].row.row_id)
     payload = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
     payload["ordering"] = "row_id.desc"
-    tampered = base64.urlsafe_b64encode(
-        json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    ).decode("ascii").rstrip("=")
+    tampered = (
+        base64.urlsafe_b64encode(
+            json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        )
+        .decode("ascii")
+        .rstrip("=")
+    )
     with pytest.raises(SecurityProblem) as tampered_error:
         service.list_dataset_rows(
             version_id=version_id,
@@ -213,10 +279,14 @@ def test_dataset_rows_cursor_is_bound_to_version() -> None:
 
 def test_dataset_rows_use_bounded_repository_projection() -> None:
     service, version_id = _service_for_dataset()
-    candidate = DatasetArtifactCandidate.model_validate(service._artifacts.version.content)
+    candidate = DatasetArtifactCandidate.model_validate(
+        service._artifacts.version.content
+    )
     calls: list[tuple[str | None, int]] = []
 
-    def list_rows(*, version_id: str, session_id: str, after_row_id: str | None, limit: int):
+    def list_rows(
+        *, version_id: str, session_id: str, after_row_id: str | None, limit: int
+    ):
         assert version_id == "version-1"
         assert session_id == "session-1"
         calls.append((after_row_id, limit))

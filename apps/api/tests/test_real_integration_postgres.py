@@ -11,7 +11,7 @@ Repository/WorkflowStore/Publisher):
 - Anonymous Public Share read, redaction, and post-revoke 404.
 - Stable 404 for missing Project/Run/ArtifactVersion/Share.
 - The test-only bootstrap router: mounted only under ``APP_ENV=test``,
-  narrowed to fixture ArtifactVersion/Evidence publication onto a
+  narrowed to Dataset ArtifactVersion/Evidence publication onto a
   session-owned demo_replay run, and absent under ``development``.
 
 Requires ``TEST_DATABASE_URL`` (isolated database whose name contains
@@ -30,23 +30,25 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
-from pydantic import SecretStr, TypeAdapter
+from pydantic import SecretStr
 
 from app.config import settings
 from app.db.models import (
     EvidenceModel,
     ResearchArtifactModel,
+    ResearchProjectModel,
     SourceSnapshotModel,
 )
 from app.main import create_app
-from app.schemas.core import ArtifactContent, ArtifactKind, ExportArtifactContent
+from app.schemas.core import ArtifactKind, ExportArtifactContent
+from app.schemas.data_artifacts import DatasetArtifactCandidate
+from artifact_publication_test_support import publish_reference_dataset
 from authoring_test_support import (
     build_contract_draft,
     build_research_project,
     persist_authoring_models,
 )
 from app.workflow.publisher import (
-    ArtifactAdmissionContext,
     ArtifactPublication,
     ArtifactPublisher,
     ProducerExecutionRequest,
@@ -63,27 +65,8 @@ pytestmark = pytest.mark.skipif(
 NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
 
 
-def _validate_evidence(context: ArtifactAdmissionContext) -> None:
-    if len(context.source_snapshot_ids) != 1 or len(context.evidence_ids) != 1:
-        raise ValueError("fixture publication requires one SourceSnapshot and Evidence")
-    UUID(context.source_snapshot_ids[0])
-    UUID(context.evidence_ids[0])
-
-
-def _validate_domain(context: ArtifactAdmissionContext) -> None:
-    candidate = context.candidate
-    if not isinstance(candidate, ExportArtifactContent):
-        raise ValueError("fixture publication requires canonical export content")
-    if candidate.format != "json" or candidate.artifact_version_ids != ("artv_dataset_01",):
-        raise ValueError("fixture export must reference the frozen dataset version")
-
-
-def _validate_quality(context: ArtifactAdmissionContext) -> None:
-    candidate = context.candidate
-    if not isinstance(candidate, ExportArtifactContent):
-        raise ValueError("fixture publication requires canonical export content")
-    if len(candidate.artifact_version_ids) != 1:
-        raise ValueError("fixture export must contain one deterministic source version")
+def _accept(_: object) -> None:
+    return None
 
 
 def _contract_input() -> dict[str, object]:
@@ -200,7 +183,7 @@ def _confirm_and_run(runtime: dict[str, object], *, key_suffix: str) -> tuple[st
 def _publish_fixture_artifact(
     runtime: dict[str, object], run_id: str
 ) -> tuple[str, str]:
-    """Publish a deterministic fixture version and bind evidence (real path)."""
+    """Publish an export that references an actual version in the same Project."""
     factory = runtime["factory"]
     workflow: PersistentWorkflowStore = runtime["workflow_store"]  # type: ignore[assignment]
     run_uuid = UUID(run_id)
@@ -227,13 +210,20 @@ def _publish_fixture_artifact(
     artifact_id = uuid4()
     source_snapshot_id = uuid4()
     evidence_id = uuid4()
+    with factory() as session:  # type: ignore[operator]
+        project = session.get(ResearchProjectModel, project_uuid)
+        assert project is not None
+    reference_version_id = publish_reference_dataset(
+        factory=factory,  # type: ignore[arg-type]
+        project=project,
+    )
     with factory() as session, session.begin():  # type: ignore[operator]
         session.add(
             ResearchArtifactModel(
                 id=artifact_id,
                 project_id=project_uuid,
                 kind="export",
-                title="Real Compose and Browser Integration fixture dataset",
+                title="Real Compose and Browser Integration export",
                 logical_key=f"gap-fixture-{run_id}",
             )
         )
@@ -251,20 +241,20 @@ def _publish_fixture_artifact(
                 request_metadata={"execution_mode": "demo_replay"},
             )
         )
+    ledger = ProducerExecutionStore(factory)  # type: ignore[arg-type]
     candidate = admit_artifact_candidate(
         ExportArtifactContent(
             kind=ArtifactKind.export,
             format="json",
-            artifact_version_ids=("artv_dataset_01",),
+            artifact_version_ids=(str(reference_version_id),),
         ),
         schema_version="2.0.0",
         source_snapshot_ids=(str(source_snapshot_id),),
         evidence_ids=(str(evidence_id),),
-        evidence_validator=_validate_evidence,
-        domain_validator=_validate_domain,
-        quality_validator=_validate_quality,
+        evidence_validator=_accept,
+        domain_validator=_accept,
+        quality_validator=_accept,
     )
-    ledger = ProducerExecutionStore(factory)  # type: ignore[arg-type]
     execution = ledger.start_producer_execution(
         ProducerExecutionRequest(
             run_id=run_uuid,
@@ -274,7 +264,7 @@ def _publish_fixture_artifact(
             producer_type="pipeline",
             producer_name="real_integration-gap-fixture",
             producer_version="1.0.0",
-            input_hash="sha256:" + "3" * 64,
+            input_hash="sha256:" + "4" * 64,
             parameters={"scenario": "exoplanet_host_star"},
         ),
         token=lease.token,
@@ -576,8 +566,7 @@ def _public_chain(
 def test_bootstrap_publishes_fixture_onto_public_chain_run(
     runtime: dict[str, object], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The bootstrap no longer injects Project/Draft/Contract/Run; it
-    only publishes the deterministic fixture ArtifactVersion/Evidence onto a
+    """The bootstrap publishes the frozen Dataset candidate onto a
     session-owned demo_replay run created through the public runtime."""
     monkeypatch.setattr(settings, "APP_ENV", "test")
     app = create_app()
@@ -609,8 +598,8 @@ def test_bootstrap_publishes_fixture_onto_public_chain_run(
         "run_id",
         "artifact_id",
         "artifact_version_id",
-        "source_snapshot_id",
-        "evidence_id",
+        "source_snapshot_ids",
+        "evidence_ids",
         "execution_mode",
         "source_mode",
         "scenario",
@@ -620,10 +609,20 @@ def test_bootstrap_publishes_fixture_onto_public_chain_run(
     version = client.get(f"/api/artifact-versions/{data['artifact_version_id']}")
     assert version.status_code == 200
     assert version.json()["data"]["source_mode"] == "fixture"
-    TypeAdapter(ArtifactContent).validate_python(version.json()["data"]["content"])
-    evidence = client.get(f"/api/evidence/{data['evidence_id']}")
+    assert version.json()["data"]["content"]["kind"] == "dataset"
+    DatasetArtifactCandidate.model_validate(version.json()["data"]["content"])
+    dataset = client.get(
+        f"/api/artifact-versions/{data['artifact_version_id']}/dataset"
+    )
+    assert dataset.status_code == 200, dataset.text
+    assert dataset.json()["data"]["dataset"]["requested_fields"] == [
+        "planet.toi_id",
+        "star.tic_id",
+    ]
+    evidence_id = data["evidence_ids"][0]
+    evidence = client.get(f"/api/evidence/{evidence_id}")
     assert evidence.status_code == 200
-    assert evidence.json()["data"]["id"] == data["evidence_id"]
+    assert evidence.json()["data"]["id"] == evidence_id
     events = client.get(f"/api/runs/{chain['run_id']}/events")
     assert events.status_code == 200
     assert len(events.json()["data"]) >= 2

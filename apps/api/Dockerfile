@@ -28,15 +28,18 @@ RUN uv sync --frozen --no-install-project
 COPY apps/api/alembic.ini ./
 COPY apps/api/migrations ./migrations
 COPY apps/api/src ./src
-COPY services/data_pipeline/manifests/exoplanet_host_star ./services/data_pipeline/manifests/exoplanet_host_star
+COPY services/data_pipeline ./services/data_pipeline
 
 # 安装当前 API distribution，使运行时 package metadata 与实际项目版本同源。
 RUN uv sync --frozen
 
+# Integration bootstrap 属于 API image 的显式运行边界；构建时即验证本地 Pipeline 包完整。
+RUN PYTHONPATH=/app/src:/app uv run python -c "import app.test_support.bootstrap; import services.data_pipeline.crossmatch"
+
 # 把 .venv/bin 加入 PATH，uvicorn 直接可用
-# PYTHONPATH 指向 src 目录，配合 src layout（app 包在 src/app）
+# PYTHONPATH 同时包含 API 的 src layout 与冻结数据流水线包。
 ENV PATH="/app/.venv/bin:${PATH}" \
-    PYTHONPATH="/app/src"
+    PYTHONPATH="/app/src:/app"
 
 EXPOSE 8000
 

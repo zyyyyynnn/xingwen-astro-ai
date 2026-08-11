@@ -29,7 +29,7 @@ Experience (Site / Workspace)
 - Fixture Adapter 与 HTTP Adapter 必须输出同一 Domain/Repository Port 形状；Adapter 只做协议、解析和 provenance 映射，不写科研事实。
 - Pipeline 纯粹实现科研算法，严禁直接调用 Router、推进 ResearchRun 主状态机、发布 HTTP DTO 或分配版本。
 - Router 严禁直接串联 Pipeline，不直接承载算法实现。
-- Workflow 是 Run/Step/Attempt/Event/lease/retry/cancel/cache/revision/publish 的唯一编排边界；不得创建第二套执行器或状态机。没有公开命令或 Adapter 的能力必须 fail closed。
+- Workflow 是 Run/Step/Attempt/Event/lease/retry/cancel/publish 以及目标 cache/revision 契约的唯一编排边界；不得创建第二套执行器或状态机。没有公开命令或 Adapter 的能力必须 fail closed。
 - Publisher 是 ArtifactVersion、Evidence 与 SourceSnapshot 关联的唯一发布事务边界。
 - 生产者严禁在 Router 或组件中硬编码散落 Prompt，统一由 Prompt Registry 管理；禁止 `any`、不安全断言和深层私有 import。
 
@@ -40,7 +40,7 @@ Experience (Site / Workspace)
 - **不负责**：直连外部模型/数据源、决定 Run 状态、伪造后端未返回的科研事实。
 
 ### 2.2 API、Application 与 Workflow
-- **职责**：提供统一无版本 `/api/*` 接口，管理 Session、Project、Contract、Run 状态机与 Event 读取；Workflow 拥有并发锁、幂等、StepAttempt 重试、取消、CacheSelector、RevisionPlan 与持久化事务，并通过 Persistent Workflow Executor 连接 Step Adapter。HTTP 只暴露有真实执行闭环的命令。
+- **职责**：提供统一无版本 `/api/*` 接口，管理 Session、Project、Contract、Run 状态机与 Event 读取；Workflow 拥有并发锁、幂等、StepAttempt 重试、取消与发布事务，并为 CacheSelector、RevisionPlan 保留唯一目标编排边界；通过 Persistent Workflow Executor 连接 Step Adapter。HTTP 只暴露有真实执行闭环的命令。
 - **不负责**：具体清洗算法、文献检索策略、图谱布局算法。
 
 ### 2.3 数据 Pipeline

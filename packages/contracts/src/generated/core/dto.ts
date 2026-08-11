@@ -470,9 +470,7 @@ export interface ArtifactVersionDetail {
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "JsonValue".
  */
-export interface JsonValue {
-  [k: string]: unknown;
-}
+export type JsonValue = unknown;
 /**
  * Evidence bound to one immutable version and source snapshot.
  *
@@ -1693,7 +1691,7 @@ export interface FieldSelectionRecord {
   content_hash: string;
   dataset_row_id: string;
   reason: string;
-  selected_source_value_id: string | null;
+  selected_source_value_id?: string | null;
   selection_id: string;
   strategy: "prefer_source_priority_preserve_all";
 }
@@ -1705,7 +1703,7 @@ export interface SourceValueCandidate {
   alias_priority: number;
   canonical_field_id: string;
   canonical_unit: string;
-  canonical_value: string | null;
+  canonical_value?: string | null;
   content_hash: string;
   conversion_rule_id: string;
   conversion_rule_version: string;
@@ -1718,7 +1716,7 @@ export interface SourceValueCandidate {
   raw_field: string;
   raw_record_content_hash: string;
   raw_record_row_key: [unknown, unknown][];
-  raw_value: string | number | boolean | null;
+  raw_value?: string | number | boolean | null;
   reference_field?: string | null;
   reference_value?: string | number | boolean | null;
   source_id: string;
@@ -1777,7 +1775,7 @@ export interface UncertaintyValue {
 export interface TransformationEvidence {
   canonical_field_id: string;
   canonical_unit: string;
-  canonical_value: string | null;
+  canonical_value?: string | null;
   content_hash: string;
   conversion_catalog_content_hash: string;
   conversion_catalog_id: string;
@@ -1796,7 +1794,7 @@ export interface TransformationEvidence {
   provenance_field?: string | null;
   provenance_locator?: SourceCellLocator | null;
   provenance_value?: string | number | boolean | null;
-  raw_value: string | number | boolean | null;
+  raw_value?: string | number | boolean | null;
   reference_field?: string | null;
   reference_locator?: SourceCellLocator | null;
   reference_value?: string | number | boolean | null;
@@ -2005,6 +2003,7 @@ export interface PaperCollection {
   dedupe_rule: string;
   duplicate_groups?: PaperDuplicateGroup[];
   input_hash: string;
+  kind?: "paper_collection";
   metrics: PaperCollectionMetrics;
   output_hash: string;
   potential_duplicates?: PaperPotentialDuplicate[];
@@ -2967,17 +2966,9 @@ export interface WorkspaceSnapshotInput {
  */
 export interface ArtifactVersion {
   artifact_id: string;
-  content:
-    | DatasetArtifactContent
-    | FieldDictionaryArtifactContent
-    | SourceCollectionArtifactContent
-    | PaperCollectionArtifactContent
-    | PaperSummaryArtifactContent
-    | LiteratureClaimsArtifactContent
-    | LiteratureRelationsArtifactContent
-    | ReasoningTracesArtifactContent
-    | GraphArtifactContent
-    | ExportArtifactContent;
+  content: {
+    [k: string]: JsonValue;
+  };
   content_hash: string;
   created_at: string;
   created_by_run_id: string;
@@ -2991,95 +2982,6 @@ export interface ArtifactVersion {
   source_snapshot_ids?: string[];
   supersedes_version_id?: string | null;
   version_number: number;
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "DatasetArtifactContent".
- */
-export interface DatasetArtifactContent {
-  /**
-   * @minItems 1
-   */
-  field_ids: [string, ...string[]];
-  kind: "dataset";
-  rows: {
-    [k: string]: string | number | boolean | null;
-  }[];
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "FieldDictionaryArtifactContent".
- */
-export interface FieldDictionaryArtifactContent {
-  /**
-   * @minItems 1
-   */
-  field_ids: [string, ...string[]];
-  kind: "field_dictionary";
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "SourceCollectionArtifactContent".
- */
-export interface SourceCollectionArtifactContent {
-  kind: "source_collection";
-  /**
-   * @minItems 1
-   */
-  source_snapshot_ids: [string, ...string[]];
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "PaperCollectionArtifactContent".
- */
-export interface PaperCollectionArtifactContent {
-  kind: "paper_collection";
-  paper_ids: string[];
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "LiteratureClaimsArtifactContent".
- */
-export interface LiteratureClaimsArtifactContent {
-  claim_ids: string[];
-  kind: "literature_claims";
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "LiteratureRelationsArtifactContent".
- */
-export interface LiteratureRelationsArtifactContent {
-  kind: "literature_relations";
-  relation_ids: string[];
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "ReasoningTracesArtifactContent".
- */
-export interface ReasoningTracesArtifactContent {
-  kind: "reasoning_traces";
-  reasoning_trace_ids: string[];
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "GraphArtifactContent".
- */
-export interface GraphArtifactContent {
-  edge_ids: string[];
-  kind: "graph";
-  node_ids: string[];
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "ExportArtifactContent".
- */
-export interface ExportArtifactContent {
-  /**
-   * @minItems 1
-   */
-  artifact_version_ids: [string, ...string[]];
-  format: "csv" | "json" | "provenance_report";
-  kind: "export";
 }
 /**
  * A typed candidate pinned to one immutable ArtifactVersion.

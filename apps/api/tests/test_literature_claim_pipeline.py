@@ -10,7 +10,6 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import pytest
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.core import ArtifactKind, LiteratureClaimsArtifactContent
 from app.schemas.enums import ClaimType
 from app.schemas.literature_claim import (
     LiteratureClaimAdmissionResult,
@@ -777,7 +776,9 @@ def test_parameter_and_input_version_changes_change_hashes() -> None:
     assert first.output_hash != changed_version.output_hash
 
 
-def test_prompt_definition_change_changes_input_and_output_hashes(tmp_path: Path) -> None:
+def test_prompt_definition_change_changes_input_and_output_hashes(
+    tmp_path: Path,
+) -> None:
     prompt_root = tmp_path / "prompts"
     shutil.copytree(ROOT / "packages" / "prompts", prompt_root)
     prompt_path = prompt_root / "literature_claim" / "prompt.md"
@@ -946,12 +947,7 @@ def test_intermediate_model_output_cannot_bypass_publisher() -> None:
 
 def test_non_authoritative_claim_models_cannot_bypass_publisher() -> None:
     result = _admit(_response())
-    projection = LiteratureClaimsArtifactContent(
-        kind=ArtifactKind.literature_claims,
-        claim_ids=("claim.read_projection",),
-    )
-
-    for candidate in (result.records[0], result, projection):
+    for candidate in (result.records[0], result):
         with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
             admit_artifact_candidate(
                 candidate,
@@ -963,7 +959,10 @@ def test_non_authoritative_claim_models_cannot_bypass_publisher() -> None:
                 quality_validator=lambda _: None,
             )
 
-def test_fixed_paper_benchmark_claim_benchmark_is_reproducible_and_uses_approved_labels() -> None:
+
+def test_fixed_paper_benchmark_claim_benchmark_is_reproducible_and_uses_approved_labels() -> (
+    None
+):
     benchmark = load_frozen_benchmark()
     cases = build_frozen_claim_benchmark_cases(benchmark)
     approved_ids = {
@@ -1069,7 +1068,9 @@ def test_claim_benchmark_rejects_paper_benchmark_identity_mismatch(
     cases = build_frozen_claim_benchmark_cases(benchmark)
     changed = benchmark.model_copy(update={field: value})
 
-    with pytest.raises(ValueError, match="frozen paper acquisition benchmark identity mismatch"):
+    with pytest.raises(
+        ValueError, match="frozen paper acquisition benchmark identity mismatch"
+    ):
         evaluate_literature_claims(benchmark=changed, cases=cases)
 
 
@@ -1082,7 +1083,10 @@ def test_formal_claim_benchmark_rejects_incomplete_scientific_coverage() -> None
         if case.case_id != "scientific.claim.ricker_expected_yield"
     )
 
-    with pytest.raises(ValueError, match="every approved Paper Acquisition Benchmark Claim exactly once"):
+    with pytest.raises(
+        ValueError,
+        match="every approved Paper Acquisition Benchmark Claim exactly once",
+    ):
         validate_scientific_label_coverage(benchmark, incomplete)
 
 

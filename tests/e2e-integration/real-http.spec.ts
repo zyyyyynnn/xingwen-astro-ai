@@ -11,13 +11,13 @@ import { asEntityId } from "@xingwen/domain";
 const API_ORIGIN =
   process.env.REAL_INTEGRATION_API_ORIGIN ?? "http://localhost:8000";
 
-/** Fixture ArtifactVersion/Evidence publication result for the public authoring chain. */
+/** Dataset ArtifactVersion/Evidence publication result for the public authoring chain. */
 interface BootstrapData {
   readonly run_id: string;
   readonly artifact_id: string;
   readonly artifact_version_id: string;
-  readonly source_snapshot_id: string;
-  readonly evidence_id: string;
+  readonly source_snapshot_ids: readonly string[];
+  readonly evidence_ids: readonly string[];
   readonly execution_mode: "demo_replay";
   readonly source_mode: "fixture";
   readonly scenario: "exoplanet_host_star";
@@ -34,7 +34,7 @@ interface ChainData {
   readonly contract_id: string;
   readonly run_id: string;
   readonly artifact_version_id: string;
-  readonly evidence_id: string;
+  readonly evidence_ids: readonly string[];
 }
 
 // Domain-shaped (camelCase) contract input consumed by the repository port;
@@ -136,7 +136,7 @@ async function buildChainWithAdapter() {
     contract_id: String(contract.id),
     run_id: published.run_id,
     artifact_version_id: published.artifact_version_id,
-    evidence_id: published.evidence_id,
+    evidence_ids: published.evidence_ids,
   };
   return { data, repositories };
 }
@@ -202,7 +202,7 @@ test("real HTTP Adapter returns the same Domain Model as the frozen Fixture", as
   const contractId = data.contract_id;
   const runId = data.run_id;
   const artifactVersionId = data.artifact_version_id;
-  const evidenceId = data.evidence_id;
+  expect(data.evidence_ids.length).toBeGreaterThan(1);
 
   const fixture = createFixtureRepositories(exoplanetHostStarFixture);
   const [httpProject, fixtureProject] = await Promise.all([
@@ -225,14 +225,12 @@ test("real HTTP Adapter returns the same Domain Model as the frozen Fixture", as
     http.artifacts.listByRun(asEntityId(runId)),
     fixture.artifacts.listByRun(asEntityId("run_01JEXAMPLE")),
   ]);
-  const [httpVersion, fixtureVersion] = await Promise.all([
-    http.artifacts.getVersion(asEntityId(artifactVersionId)),
-    fixture.artifacts.getVersion(asEntityId("artv_dataset_01")),
-  ]);
-  const [httpEvidence, fixtureEvidence] = await Promise.all([
-    http.artifacts.getEvidence(asEntityId(evidenceId)),
-    fixture.artifacts.getEvidence(asEntityId("evd_01")),
-  ]);
+  const httpVersion = await http.artifacts.getVersion(
+    asEntityId(artifactVersionId),
+  );
+  const httpEvidence = await Promise.all(
+    data.evidence_ids.map((id) => http.artifacts.getEvidence(asEntityId(id))),
+  );
   const recovery = await http.runs.recoverEvents(asEntityId(runId));
 
   expect(httpProject).not.toBeNull();
@@ -241,7 +239,7 @@ test("real HTTP Adapter returns the same Domain Model as the frozen Fixture", as
   expect(httpRun).not.toBeNull();
   expect(httpArtifacts).toHaveLength(1);
   expect(httpVersion).not.toBeNull();
-  expect(httpEvidence).not.toBeNull();
+  expect(httpEvidence.every((item) => item !== null)).toBe(true);
 
   expect(
     without(httpProject!, [
@@ -331,54 +329,22 @@ test("real HTTP Adapter returns the same Domain Model as the frozen Fixture", as
       "latestVersionId",
     ]),
   ).toEqual(
-    without({ ...fixtureArtifacts[0]!, kind: "export" }, [
+    without(fixtureArtifacts[0]!, [
       "id",
       "projectId",
       "createdAt",
       "latestVersionId",
     ]),
   );
-  expect(
-    without(httpVersion!, [
-      "id",
-      "artifactId",
-      "projectId",
-      "createdByRunId",
-      "contentHash",
-      "inputHash",
-      "producer",
-      "sourceSnapshotIds",
-      "evidenceIds",
-      "createdAt",
-    ]),
-  ).toEqual(
-    without(fixtureVersion!, [
-      "id",
-      "artifactId",
-      "projectId",
-      "createdByRunId",
-      "contentHash",
-      "inputHash",
-      "producer",
-      "sourceSnapshotIds",
-      "evidenceIds",
-      "createdAt",
-    ]),
+  expect(httpVersion!.schemaVersion).toBe("1.0.0");
+  expect(httpVersion!.sourceMode).toBe("fixture");
+  expect(httpVersion!.sourceSnapshotIds).toHaveLength(2);
+  expect(httpVersion!.evidenceIds.length).toBeGreaterThan(1);
+  expect(new Set(httpEvidence.map((item) => item!.targetType))).toEqual(
+    new Set(["canonical_field", "crossmatch"]),
   );
-  expect(
-    without(httpEvidence!, [
-      "id",
-      "artifactVersionId",
-      "sourceSnapshotId",
-      "createdAt",
-    ]),
-  ).toEqual(
-    without(fixtureEvidence!, [
-      "id",
-      "artifactVersionId",
-      "sourceSnapshotId",
-      "createdAt",
-    ]),
+  expect(new Set(httpEvidence.map((item) => item!.evidenceType))).toEqual(
+    new Set(["data_transformation", "crossmatch_decision"]),
   );
   expect(recovery.events.length).toBeGreaterThan(1);
   expect(
@@ -406,7 +372,7 @@ test("real HTTP and Fixture adapters align Workspace and Share Domain Models", a
   const httpProjectId = asEntityId(data.project_id);
   const httpRunId = asEntityId(data.run_id);
   const httpVersionId = asEntityId(data.artifact_version_id);
-  const httpEvidenceId = asEntityId(data.evidence_id);
+  const httpEvidenceId = asEntityId(data.evidence_ids[0]!);
   const fixtureProjectId = asEntityId("proj_01JEXAMPLE");
   const fixtureRunId = asEntityId("run_01JEXAMPLE");
   const fixtureVersionId = asEntityId("artv_dataset_01");
@@ -444,7 +410,7 @@ test("real HTTP and Fixture adapters align Workspace and Share Domain Models", a
     [httpWorkspace.id, "workspace"],
     [data.project_id, "project"],
     [data.run_id, "run"],
-    [data.evidence_id, "evidence"],
+    [data.evidence_ids[0]!, "evidence"],
   ]);
   const fixtureWorkspaceAliases = new Map([
     [fixtureWorkspace.id, "workspace"],
@@ -514,7 +480,7 @@ test("real HTTP and Fixture adapters align Workspace and Share Domain Models", a
     [httpShare.expiresAt, "expires-at"],
     [data.project_id, "project"],
     [data.artifact_version_id, "version"],
-    [data.evidence_id, "evidence"],
+    [data.evidence_ids[0]!, "evidence"],
     [httpPublicVersion.artifactId, "artifact"],
     [httpPublicEvidence.sourceSnapshotId, "source-snapshot"],
   ]);
@@ -537,15 +503,8 @@ test("real HTTP and Fixture adapters align Workspace and Share Domain Models", a
   expect(normalizeDomain(httpListed, httpAliases, shareOmissions)).toEqual(
     normalizeDomain(fixtureListed, fixtureAliases, shareOmissions),
   );
-  const fixturePublicForBootstrap = {
-    ...fixturePublic,
-    artifactVersions: fixturePublic.artifactVersions.map((version) => ({
-      ...version,
-      kind: "export" as const,
-    })),
-  };
   expect(normalizeDomain(httpPublic, httpAliases, publicOmissions)).toEqual(
-    normalizeDomain(fixturePublicForBootstrap, fixtureAliases, publicOmissions),
+    normalizeDomain(fixturePublic, fixtureAliases, publicOmissions),
   );
 
   await Promise.all([
@@ -590,7 +549,7 @@ test("real browser session stays silent on the inactive Workspace and Share boun
   const share = await repositories.shares.create(asEntityId(data.project_id), {
     title: "Real Compose and Browser Integration browser share",
     artifactVersionIds: [asEntityId(data.artifact_version_id)],
-    evidenceIds: [asEntityId(data.evidence_id)],
+    evidenceIds: [asEntityId(data.evidence_ids[0]!)],
     expiresAt,
     redactionPolicy: "public_metadata_only",
   });

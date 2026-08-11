@@ -52,6 +52,8 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 
 ## 5. 派生 Run 与修订
 
+以下派生、修订与缓存条目定义稳定目标契约；当前 HTTP authoring 只创建 original、cache-disabled Run，未接入的 writer 不得伪造对应记录。
+
 - `parent_run_id` 固定派生来源；`derivation_kind` 只允许 `original | retry | revision | fork`。
 - `retry_from_step` 只对 retry Run 有效；Executor 不能从该 Step 恢复时必须拒绝创建，不得从首 Step 静默重跑。
 - Revision Run 由 UserFeedback 与已确认 RevisionPlan 约束，只重算受影响闭包并发布新的 ArtifactVersion。
@@ -59,7 +61,7 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 
 ## 6. CacheSelector 与取消
 
-CacheSelector 负责从真实历史 Run 中选择满足 Contract、input hash、producer identity 与 Evidence 约束的 CacheRecord。只有选择成功并绑定 origin Run/ArtifactVersion 时才能写入 `source_mode=cached`；Fixture 不得进入选择结果。
+目标 CacheSelector 负责从真实历史 Run 中选择满足 Contract、input hash、producer identity 与 Evidence 约束的 CacheRecord。只有选择成功并绑定 origin Run/ArtifactVersion 时才能写入 `source_mode=cached`；Fixture 不得进入选择结果。
 
 `cache_policy=disabled` 禁止选择缓存；`fallback_on_recoverable_failure` 只允许在 Live 调用发生可恢复失败后运行 CacheSelector，选择失败时保留原失败事实。
 

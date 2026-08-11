@@ -460,7 +460,7 @@ def test_paper_summary_read_returns_typed_summary_and_provenance() -> None:
     assert version.content_hash != summary.output_hash
     assert version.producer_execution.output_hash == version.content_hash
     artifacts = _Artifacts(version)
-    assert "kind" not in artifacts.collection_version.content
+    assert artifacts.collection_version.content["kind"] == "paper_collection"
     client = _client(artifacts)
     response = client.get(f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary")
 
