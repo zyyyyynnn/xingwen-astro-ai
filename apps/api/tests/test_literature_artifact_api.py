@@ -315,3 +315,37 @@ def test_relation_endpoint_versions_are_bound_to_the_claim_registry(
         )
 
     assert exc_info.value.code == "PROVENANCE_SCOPE_VIOLATION"
+
+
+def test_literature_service_get_relations_batch_projections(
+    fixture: LiteratureFixture,
+) -> None:
+    service = LiteratureArtifactReadService(fixture.artifacts)
+
+    assert (
+        service.get_relations(
+            version_id=fixture.relation_version_id,
+            relation_ids=(),
+            session_id="owner",
+        )
+        == {}
+    )
+
+    relation_id = fixture.accepted_relation_id
+    result = service.get_relations(
+        version_id=fixture.relation_version_id,
+        relation_ids=[relation_id],
+        session_id="owner",
+    )
+    assert relation_id in result
+    assert result[relation_id].relation.relation_id == relation_id
+
+    with pytest.raises(SecurityProblem) as exc_info:
+        service.get_relations(
+            version_id=fixture.relation_version_id,
+            relation_ids=["missing_relation_id"],
+            session_id="owner",
+        )
+    assert exc_info.value.status == 404
+    assert exc_info.value.code == "LITERATURE_RELATION_NOT_FOUND"
+

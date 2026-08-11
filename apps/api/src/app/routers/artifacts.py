@@ -29,6 +29,12 @@ from app.schemas.data_artifact_api import (
     FieldDictionaryArtifactRead,
     SourceCollectionArtifactRead,
 )
+from app.schemas.enums import GraphEdgeType, GraphNodeType
+from app.schemas.graph_artifact_api import (
+    GraphArtifactRead,
+    GraphEdgeRead,
+    GraphNodeRead,
+)
 from app.schemas.literature_artifact_api import (
     LiteratureClaimRead,
     LiteratureReasoningTraceRead,
@@ -44,6 +50,7 @@ from app.schemas.paper_summary_api import PaperSummaryRead
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
+from app.services.graph_artifacts import GraphArtifactReadService
 from app.services.literature_artifacts import LiteratureArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.paper_summaries import PaperSummaryReadService
@@ -92,6 +99,10 @@ def _data_service(request: Request) -> DataArtifactReadService:
 
 def _literature_service(request: Request) -> LiteratureArtifactReadService:
     return LiteratureArtifactReadService(_service(request))
+
+
+def _graph_service(request: Request) -> GraphArtifactReadService:
+    return GraphArtifactReadService(_service(request))
 
 
 def _meta(request: Request) -> ResponseMeta:
@@ -203,6 +214,124 @@ def get_paper_summary(
     )
     _no_store(response)
     path = f"/api/artifact-versions/{version_id}/paper-summary"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/graph",
+    operation_id="getGraphArtifact",
+    response_model=Envelope[GraphArtifactRead],
+)
+def get_graph_artifact(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[GraphArtifactRead]:
+    data = _graph_service(request).get_graph(
+        version_id=version_id, session_id=_session_id(request)
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/graph"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/graph/nodes",
+    operation_id="listGraphNodes",
+    response_model=CollectionEnvelope[GraphNodeRead],
+)
+def list_graph_nodes(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+    node_type: Annotated[GraphNodeType | None, Query()] = None,
+    cursor: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> CollectionEnvelope[GraphNodeRead]:
+    items, next_cursor, has_more = _graph_service(request).list_nodes(
+        version_id=version_id,
+        session_id=_session_id(request),
+        node_type=node_type,
+        cursor=cursor,
+        limit=limit,
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/graph/nodes"
+    return CollectionEnvelope(
+        data=items,
+        page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
+        meta=_meta(request),
+        links=ResponseLinks(self=path),
+    )
+
+
+@router.get(
+    "/artifact-versions/{version_id}/graph/nodes/{node_id}",
+    operation_id="getGraphNode",
+    response_model=Envelope[GraphNodeRead],
+)
+def get_graph_node(
+    version_id: Annotated[str, Path(min_length=1)],
+    node_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[GraphNodeRead]:
+    data = _graph_service(request).get_node(
+        version_id=version_id, node_id=node_id, session_id=_session_id(request)
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/graph/nodes/{node_id}"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/graph/edges",
+    operation_id="listGraphEdges",
+    response_model=CollectionEnvelope[GraphEdgeRead],
+)
+def list_graph_edges(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+    edge_type: Annotated[GraphEdgeType | None, Query()] = None,
+    node_id: Annotated[str | None, Query()] = None,
+    cursor: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> CollectionEnvelope[GraphEdgeRead]:
+    items, next_cursor, has_more = _graph_service(request).list_edges(
+        version_id=version_id,
+        session_id=_session_id(request),
+        edge_type=edge_type,
+        node_id=node_id,
+        cursor=cursor,
+        limit=limit,
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/graph/edges"
+    return CollectionEnvelope(
+        data=items,
+        page=CursorPage(next_cursor=next_cursor, has_more=has_more, limit=limit),
+        meta=_meta(request),
+        links=ResponseLinks(self=path),
+    )
+
+
+@router.get(
+    "/artifact-versions/{version_id}/graph/edges/{edge_id}",
+    operation_id="getGraphEdge",
+    response_model=Envelope[GraphEdgeRead],
+)
+def get_graph_edge(
+    version_id: Annotated[str, Path(min_length=1)],
+    edge_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[GraphEdgeRead]:
+    data = _graph_service(request).get_edge(
+        version_id=version_id, edge_id=edge_id, session_id=_session_id(request)
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/graph/edges/{edge_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 

@@ -35,7 +35,7 @@ uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas 
 
 ```powershell
 Set-Location apps/api
-uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/core --include ResearchProject --include ResearchContractDraft --include ResearchContract --include ResearchRun --include RunEvent --include ResearchArtifact --include ArtifactVersion --include ResearchArtifactDetail --include ArtifactVersionDetail --include PaperSummaryArtifactContent --include PaperCollectionRead --include PaperCollectionCandidateRead --include EvidenceRead --include SourceSnapshotDetail --check
+uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/core --include ResearchProject --include ResearchContractDraft --include ResearchContract --include ResearchRun --include RunEvent --include ResearchArtifact --include ArtifactVersion --include ResearchArtifactDetail --include ArtifactVersionDetail --include PaperSummaryArtifactContent --include PaperCollectionRead --include PaperCollectionCandidateRead --include GraphArtifactRead --include GraphNodeRead --include GraphEdgeRead --include GraphEvidenceUseRead --include EvidenceRead --include SourceSnapshotDetail --check
 uv run python ../../scripts/export_openapi.py --output ../../packages/schemas/generated/core/openapi.json --check
 ```
 
@@ -129,3 +129,7 @@ Schema 变更至少验证：
 ### HTTP Transport projections
 
 `LiteratureClaimRead`、`LiteratureRelationRead` 与 `LiteratureReasoningTraceRead` 是 Core OpenAPI 的 transport projections；Literature Claim/Relation Pipeline candidate 仍是唯一领域 Schema 编写源。Transport 组合候选与版本固定 provenance，不复制 Claim、Relation 或 Trace 领域类型。
+
+`GraphArtifactRead`、`GraphNodeRead`、`GraphEdgeRead` 与 `GraphEvidenceUseRead` 同样是 Core OpenAPI 的 transport projections；`generated/graph` 的 typed candidate 仍是唯一 Evidence Graph 领域 Schema 编写源。这四个模型直接组合 `GraphArtifactNode`、`GraphArtifactEdge`、`GraphEvidenceUse`、`GraphIntegrityReport`、`GraphLayoutHint` 与 provenance DTO，不复制第二套 Node/Edge/Evidence-use 类型，也不承担 Publisher。`GraphEdgeRead.relation` 复用 `LiteratureRelationRead`，因此 scientific relation 与 layout hint 保持分层，Transport 不新增科研事实或布局字段。
+
+四个 Graph read projection 必须同时出现在 `generated/core` 的显式 include 集合与 CI `Check core contracts` 中；只进入 `openapi.json` components 而缺少独立 JSON Schema 不足以满足门禁。

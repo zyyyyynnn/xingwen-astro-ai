@@ -238,6 +238,10 @@ jobs:
             --include LiteratureClaimRead \
             --include LiteratureRelationRead \
             --include LiteratureReasoningTraceRead \
+            --include GraphArtifactRead \
+            --include GraphNodeRead \
+            --include GraphEdgeRead \
+            --include GraphEvidenceUseRead \
             --include CreateArtifactExportRequest \
             --include ArtifactExportRead \
             --include EvidenceRead \

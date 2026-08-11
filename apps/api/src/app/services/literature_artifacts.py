@@ -7,7 +7,7 @@ import binascii
 import hashlib
 import hmac
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, TypeVar
 
@@ -158,6 +158,25 @@ class LiteratureArtifactReadService:
         if relation is None:
             raise _not_found("LITERATURE_RELATION_NOT_FOUND")
         return self._relation_read(context, relation)
+
+    def get_relations(
+        self,
+        *,
+        version_id: str,
+        relation_ids: Collection[str],
+        session_id: str,
+    ) -> dict[str, LiteratureRelationRead]:
+        if not relation_ids:
+            return {}
+        context = self._relations_context(version_id=version_id, session_id=session_id)
+        relations_by_id = {item.relation_id: item for item in context.candidate.relations}
+        result: dict[str, LiteratureRelationRead] = {}
+        for relation_id in set(relation_ids):
+            relation = relations_by_id.get(relation_id)
+            if relation is None:
+                raise _not_found("LITERATURE_RELATION_NOT_FOUND")
+            result[relation_id] = self._relation_read(context, relation)
+        return result
 
     def list_reasoning_traces(
         self,

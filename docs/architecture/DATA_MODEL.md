@@ -54,14 +54,24 @@ ShareSnapshot (*) -- (*) ArtifactVersion
 - SourceSnapshot 保存一次真实或录制来源读取的查询、内容哈希、抓取时间、许可与脱敏元数据。
 - ResearchInput 是受控摄取后的不可变内容引用；稳定生命周期区分 `accepted`、`unsupported_processing` 与 `failed_ingestion`。摄取写入只在成功时创建 `accepted` 资源，失败通过 Problem Details 返回，不伪造失败资源。
 
-## 5. Workspace 与 Share
+## 5. Evidence Graph
+
+- `graph` ArtifactVersion 保存同一 Project 内由明确上游 ArtifactVersion 派生的不可变 node、directed edge 与 Graph-owned Evidence-use closure；Graph 不引用动态 `latest`，分页或渐进读取也不产生新的科学产物。
+- Graph input version references 固定 artifact/version identity、kind、schema、content/input/output hash、source mode 与 producer identity。读取时必须重新解析到 persisted ArtifactVersion 并逐项闭合，不能仅信任 Graph content 自身声明。
+- node version bindings、Evidence-use upstream version 与 literature edge Relation/Trace version 只能落在已验证的 input/provenance registry 及其由可信上游 content 声明的传递版本内。
+- Graph-owned Evidence 由 Publisher 与 Graph ArtifactVersion 在同一事务中物化，target 固定为 `graph_edge`，并在 locator 中保留 upstream ArtifactVersion/Evidence/target/hash；读取层只验证与投影，不重建 Graph 或修补 provenance。
+- literature edge 必须保持 accepted Relation 的方向和 type，并闭合双方 Claim、ReasoningTrace、Evidence 与 SourceSnapshot；structural edge 不伪造 Relation/Trace。
+- Graph taxonomy、build/admission、hash、容量与 publication 规则由 [Evidence Graph Pipeline](../engineering/GRAPH_PIPELINE.md) 定义；本数据模型只保存稳定实体关系与 ownership 不变量。
+
+## 6. Workspace 与 Share
 
 WorkspaceSnapshot 保存私有布局与选中对象，使用乐观锁更新。ShareSnapshot 冻结具体 ArtifactVersion 和 Evidence 范围，服务端只保存 token hash。
 
-## 6. 核心不变量
+## 7. 核心不变量
 
 1. Project、Draft、Contract、Run、Artifact、Evidence、ResearchInput 与 Snapshot 的外键不得跨 Project 聚合。
 2. Contract confirmation、Run creation 与输入摄取的幂等 replay 必须返回已持久化资源的同一事实。
 3. ArtifactVersion 发布后内容与 hash 不可原地修改；latest 指针不替代具体 version 引用。
 4. `execution_mode` 与 `source_mode` 分离；Fixture、Live 与 Cached provenance 不得互相伪装。
 5. 公开 API 不返回凭据、受限全文、原始模型响应或私有 chain-of-thought。
+6. Evidence Graph 的 frozen input versions、Graph-owned Evidence 与 literature relation projection 必须在读取边界保持同 Project、同 Version、同 producer/hash closure；任何漂移 fail closed。
