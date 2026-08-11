@@ -31,6 +31,7 @@ from app.db.models import (
 )
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.artifact_publication import (
+    canonical_artifact_content_payload,
     canonical_artifact_content_model,
     normalize_artifact_kind,
 )
@@ -371,7 +372,7 @@ def _seal_data_quality_attestation(
     candidate: BaseModel,
     projection: DataQualityProjection,
 ) -> _DataQualityPublicationAttestation:
-    content = candidate.model_dump(mode="json", exclude_none=True)
+    content = canonical_artifact_content_payload(candidate)
     candidate_content_hash = compute_canonical_payload_hash(content)
     if (
         projection.candidate_kind != getattr(candidate, "kind", None)
@@ -411,7 +412,7 @@ def _quality_projection_from_attestation(
             "Final data Artifact publication requires a Data Quality Evaluation attestation"
         )
     content_hash = compute_canonical_payload_hash(
-        candidate.model_dump(mode="json", exclude_none=True)
+        canonical_artifact_content_payload(candidate)
     )
     projection = DataQualityProjection.model_validate_json(attestation.projection_json)
     if (
@@ -638,7 +639,12 @@ def admit_artifact_candidate(
         source_snapshot_ids=snapshots,
         evidence_ids=evidence,
     )
-    content = candidate.model_dump(mode="json", exclude_none=True)
+    try:
+        content = canonical_artifact_content_payload(candidate)
+    except (TypeError, ValueError) as exc:
+        raise PublicationAdmissionError(
+            "Canonical Artifact content must remain valid after persistence serialization"
+        ) from exc
     content_json = json.dumps(
         content,
         ensure_ascii=False,
@@ -1597,14 +1603,16 @@ def _publication_references(
             evidence_bindings=evidence_bindings,
         )
     if candidate_kind in {"dataset", "field_dictionary", "source_collection"}:
-        if source_snapshot_bindings is None and evidence_bindings is None:
-            return source_snapshot_ids, evidence_ids, (), (), (), (), (), ()
         return _data_publication_references(
             candidate,
             source_snapshot_ids=source_snapshot_ids,
             evidence_ids=evidence_ids,
             source_snapshot_bindings=source_snapshot_bindings,
             evidence_bindings=evidence_bindings,
+        )
+    if candidate_kind in {"paper_collection", "paper_summary"}:
+        raise PublicationAdmissionError(
+            f"{candidate_kind} publication is unavailable until its persisted provenance bridge is configured"
         )
     if candidate_kind not in {"literature_claims", "literature_relations"}:
         if source_snapshot_bindings is not None or evidence_bindings is not None:
@@ -1806,6 +1814,11 @@ def _data_publication_references(
     tuple[_DataSourceSnapshotMaterialization, ...],
     tuple[_DataEvidenceMaterialization, ...],
 ]:
+    candidate_kind = normalize_artifact_kind(getattr(candidate, "kind", None))
+    if candidate_kind != "dataset":
+        raise PublicationAdmissionError(
+            f"{candidate_kind} publication is unavailable until its persisted provenance bridge is configured"
+        )
     if source_snapshot_bindings is None or evidence_bindings is None:
         raise PublicationAdmissionError(
             "Data Artifact publication requires explicit persisted provenance bindings"
@@ -1859,21 +1872,6 @@ def _data_publication_references(
             "Persisted Data Artifact Evidence bindings must be unique"
         )
 
-    candidate_kind = getattr(candidate, "kind", None)
-    if hasattr(candidate_kind, "value"):
-        candidate_kind = candidate_kind.value
-    if candidate_kind != "dataset":
-        return (
-            persisted_snapshot_ids,
-            persisted_evidence_ids,
-            (),
-            (),
-            (),
-            (),
-            (),
-            (),
-        )
-
     snapshot_references = _data_snapshot_references(candidate)
     if set(snapshot_references) != set(source_snapshot_ids):
         raise PublicationAdmissionError(
@@ -1901,19 +1899,25 @@ def _data_publication_references(
         item.evidence_id: item
         for item in getattr(candidate, "transformation_evidence", ())
     }
-    crossmatch_sources: dict[str, list[str]] = {}
     crossmatch_identity: dict[str, tuple[str, str]] = {}
     for item in transformations.values():
         for evidence_id in item.crossmatch_evidence_ids:
-            crossmatch_sources.setdefault(evidence_id, []).append(
-                item.locator.source_snapshot_id
-            )
-            crossmatch_identity[evidence_id] = (
+            identity = (
                 item.crossmatch_result_id,
                 item.crossmatch_result_content_hash,
             )
+            existing = crossmatch_identity.get(evidence_id)
+            if existing is not None and existing != identity:
+                raise PublicationAdmissionError(
+                    "Data Artifact crossmatch Evidence has conflicting result identity"
+                )
+            crossmatch_identity[evidence_id] = identity
+    crossmatch_evidence = {
+        item.evidence_id: item
+        for item in getattr(candidate, "crossmatch_evidence", ())
+    }
 
-    candidate_evidence_ids = set(transformations) | set(crossmatch_sources)
+    candidate_evidence_ids = set(transformations) | set(crossmatch_evidence)
     if candidate_evidence_ids != set(evidence_ids):
         raise PublicationAdmissionError(
             "Data Artifact Evidence registry must exactly cover the candidate"
@@ -1953,26 +1957,67 @@ def _data_publication_references(
             )
             extraction_method = "data_artifact_admission"
         else:
-            source_ids = crossmatch_sources.get(pipeline_id)
+            evidence = crossmatch_evidence.get(pipeline_id)
             identity = crossmatch_identity.get(pipeline_id)
-            if not source_ids or identity is None:
+            if evidence is None or identity is None:
                 raise PublicationAdmissionError(
                     "Data Artifact Evidence registry is not materializable"
                 )
+            left_source_ids = {
+                item.source_snapshot_id for item in evidence.left_locators
+            }
+            right_source_ids = {
+                item.source_snapshot_id for item in evidence.right_locators
+            }
+            if (
+                len(left_source_ids) != 1
+                or len(right_source_ids) != 1
+                or left_source_ids == right_source_ids
+            ):
+                raise PublicationAdmissionError(
+                    "CrossmatchEvidence must bind one distinct SourceSnapshot per side"
+                )
+            left_source_id = next(iter(left_source_ids))
+            right_source_id = next(iter(right_source_ids))
+            if (
+                left_source_id not in snapshot_by_pipeline
+                or right_source_id not in snapshot_by_pipeline
+            ):
+                raise PublicationAdmissionError(
+                    "CrossmatchEvidence references an unknown SourceSnapshot"
+                )
+            left_persisted_id = snapshot_by_pipeline[
+                left_source_id
+            ].persisted_source_snapshot_id
+            right_persisted_id = snapshot_by_pipeline[
+                right_source_id
+            ].persisted_source_snapshot_id
             target_type = "crossmatch"
             target_id = pipeline_id
             evidence_type = "crossmatch_decision"
             locator = {
-                "crossmatch_evidence_id": pipeline_id,
                 "crossmatch_result_id": identity[0],
                 "crossmatch_result_content_hash": identity[1],
+                "crossmatch_evidence": evidence.model_dump(mode="json"),
+                "source_provenance": {
+                    "left": {
+                        "pipeline_source_snapshot_id": left_source_id,
+                        "persisted_source_snapshot_id": left_persisted_id,
+                    },
+                    "right": {
+                        "pipeline_source_snapshot_id": right_source_id,
+                        "persisted_source_snapshot_id": right_persisted_id,
+                    },
+                },
             }
-            quote_or_value = None
+            quote_or_value = evidence.decision.value
             extraction_method = "crossmatch_admission"
-            binding_snapshot_id = min(source_ids)
-            if binding.pipeline_source_snapshot_id != binding_snapshot_id:
+            if (
+                binding.pipeline_source_snapshot_id != left_source_id
+                or binding.persisted_source_snapshot_id != left_persisted_id
+            ):
                 raise PublicationAdmissionError(
-                    "Data Artifact crossmatch Evidence binding must use its canonical SourceSnapshot"
+                    "Data Artifact crossmatch Evidence binding must use its declared left SourceSnapshot anchor"
                 )
         if binding.target_type != target_type or binding.target_id != target_id:
             raise PublicationAdmissionError(
@@ -2000,7 +2045,11 @@ def _data_publication_references(
                     separators=(",", ":"),
                 ),
                 extraction_method=extraction_method,
-                confidence="1.0",
+                confidence=(
+                    str(evidence.confidence)
+                    if transformation is None
+                    else "1.0"
+                ),
             )
         )
     return (

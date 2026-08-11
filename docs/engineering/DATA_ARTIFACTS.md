@@ -93,7 +93,9 @@ accepted pair/adjudication 只合并同一 row grain 的 members。review-requir
 
 ## 7. Candidate、replay 与 Publisher handoff
 
-三个 candidate 都必须经过其 current schema、domain seal 与 data-quality publication gate。Publisher 是创建 `ArtifactVersion`、更新 latest pointer、持久化 quality projection 与绑定 Evidence 的唯一事务边界。
+三个 candidate 都必须经过其 schema、domain seal 与 data-quality gate。Publisher 是创建 `ArtifactVersion`、更新 latest pointer、持久化 quality projection 与绑定 Evidence 的唯一事务边界。
+
+Publisher admission 只接受 persistence-ready candidate：candidate 声明的每个 SourceSnapshot 与 Evidence 都必须映射到同 Project 的持久化记录，缺失、悬空或不一致的 binding 必须在任何版本、事件或 latest pointer 写入前拒绝。Dataset 的 crossmatch Evidence 必须在单条 persisted Evidence 中保留左右两侧 Snapshot 与 locator；单值 `source_snapshot_id` 仅作为明确的左侧外键锚点，不能替代双侧 provenance。`FieldDictionaryArtifactCandidate` 与 `SourceCollectionArtifactCandidate` 在各自持久化桥完整接入前不得发布。
 
 replay 必须对 exact input/content/producer/provenance 进行等值校验；相同 idempotency/publication identity 被用于不同内容时稳定冲突。不能使用 DTO wrapper、任意 dict、read projection 或自定义 Pydantic model 绕过 typed candidate admission。
 

@@ -10,7 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.enums import PaperDataLevel, SourceMode
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.paper_collection import PaperCollection, PaperSourcePage
@@ -23,6 +23,7 @@ from app.schemas.paper_summary import (
     PaperSummarySupportStatus,
 )
 from app.schemas.core import ArtifactVersion
+from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
 from packages.prompts.registry import (
     PromptRegistry,
     PromptRegistryError,
@@ -716,27 +717,31 @@ def test_output_hash_tampering_fails_summary_schema_validation() -> None:
         PaperSummaryArtifactContent.model_validate(payload)
 
 
-def test_summary_passes_existing_structured_publisher_admission_port() -> None:
+def test_summary_canonical_persisted_payload_preserves_required_nulls() -> None:
     collection = _collection()
     result = _admit(collection, _model_output(), (_evidence(collection),))
     assert result.summary is not None
 
-    admitted = admit_artifact_candidate(
-        result.summary,
-        schema_version=result.summary.schema_version,
-        source_snapshot_ids=tuple(
-            item.source_snapshot_id
-            for item in result.summary.input_versions.source_snapshots
-        ),
-        evidence_ids=result.summary.evidence_ids,
-        evidence_validator=lambda _: None,
-        domain_validator=lambda _: None,
-        quality_validator=lambda _: None,
-    )
+    payload = canonical_artifact_content_payload(result.summary)
 
-    assert admitted.content_hash.startswith("sha256:")
-    assert admitted.content["kind"] == "paper_summary"
-    assert admitted.content["output_hash"] == result.summary.output_hash
+    assert payload["research_goal"] is not None
+    assert "method" in payload and payload["method"] is None
+    assert "dataset" in payload and payload["dataset"] is None
+    assert PaperSummaryArtifactContent.model_validate(payload) == result.summary
+
+    with pytest.raises(PublicationAdmissionError, match="persisted provenance bridge"):
+        admit_artifact_candidate(
+            result.summary,
+            schema_version=result.summary.schema_version,
+            source_snapshot_ids=tuple(
+                item.source_snapshot_id
+                for item in result.summary.input_versions.source_snapshots
+            ),
+            evidence_ids=result.summary.evidence_ids,
+            evidence_validator=lambda _: None,
+            domain_validator=lambda _: None,
+            quality_validator=lambda _: None,
+        )
 
 
 def test_intermediate_model_output_cannot_bypass_the_summary_pipeline() -> None:

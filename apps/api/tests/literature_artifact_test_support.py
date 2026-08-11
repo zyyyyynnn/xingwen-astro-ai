@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.core import (
     ArtifactVersionDetail,
     EvidenceDetail,
@@ -313,10 +314,7 @@ def _version(
     snapshots: tuple[SourceSnapshotDetail, ...],
     evidence: tuple[EvidenceDetail, ...],
 ) -> ArtifactVersionDetail:
-    content = candidate.model_dump(
-        mode="json",
-        exclude_none=not isinstance(candidate, PaperSummaryArtifactContent),
-    )
+    content = canonical_artifact_content_payload(candidate)
     content_hash = compute_canonical_payload_hash(content)
     producer = _producer(candidate)
     return ArtifactVersionDetail(

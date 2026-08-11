@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from pydantic_core import PydanticSerializationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.literature_claim import (
     LiteratureClaimCandidate,
     LiteratureClaimStatus,
@@ -499,7 +500,7 @@ def _resolve_inputs(
             continue
         try:
             content = LiteratureClaimsCandidate.model_validate(
-                wrapper.content.model_dump(mode="json", exclude_none=True)
+                wrapper.content.model_dump(mode="json")
             )
         except (
             ValidationError,
@@ -515,7 +516,7 @@ def _resolve_inputs(
             )
             continue
         actual_content_hash = compute_canonical_payload_hash(
-            content.model_dump(mode="json", exclude_none=True)
+            canonical_artifact_content_payload(content)
         )
         if wrapper.schema_version not in SUPPORTED_CLAIM_SCHEMA_VERSIONS:
             unsupported = True

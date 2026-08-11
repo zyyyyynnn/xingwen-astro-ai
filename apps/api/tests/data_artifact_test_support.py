@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from uuid import NAMESPACE_URL, uuid5
+
 from app.schemas.data_artifacts import (
     DataArtifactBuildInput,
+    DatasetArtifactCandidate,
     ManifestPins,
     compute_data_artifact_input_hash,
 )
+from app.workflow.publisher import ArtifactEvidenceBinding, ArtifactSourceSnapshotBinding
 from services.data_pipeline.crossmatch import align_cross_source_records
 from services.data_pipeline.crossmatch.benchmark import (
     _scenario_input,
@@ -59,3 +63,60 @@ def build_input(
     )
     payload["input_hash"] = compute_data_artifact_input_hash(unhashed)
     return DataArtifactBuildInput.model_validate(payload)
+
+
+def build_data_publication_bindings(
+    candidate: DatasetArtifactCandidate,
+) -> tuple[
+    tuple[ArtifactSourceSnapshotBinding, ...],
+    tuple[ArtifactEvidenceBinding, ...],
+]:
+    persisted_snapshots = {
+        pipeline_id: str(uuid5(NAMESPACE_URL, f"test-source-snapshot:{pipeline_id}"))
+        for pipeline_id in candidate.source_snapshot_ids
+    }
+    snapshots = tuple(
+        ArtifactSourceSnapshotBinding(
+            pipeline_source_snapshot_id=pipeline_id,
+            persisted_source_snapshot_id=persisted_snapshots[pipeline_id],
+        )
+        for pipeline_id in candidate.source_snapshot_ids
+    )
+    transformations = {
+        item.evidence_id: item for item in candidate.transformation_evidence
+    }
+    crossmatch_evidence = {
+        item.evidence_id: item for item in candidate.crossmatch_evidence
+    }
+    evidence_bindings: list[ArtifactEvidenceBinding] = []
+    for pipeline_id in candidate.evidence_ids:
+        transformation = transformations.get(pipeline_id)
+        if transformation is not None:
+            target_type = "canonical_field"
+            target_id = transformation.canonical_field_id
+            pipeline_snapshot_id = transformation.locator.source_snapshot_id
+        else:
+            crossmatch = crossmatch_evidence[pipeline_id]
+            left_snapshot_ids = {
+                item.source_snapshot_id for item in crossmatch.left_locators
+            }
+            if len(left_snapshot_ids) != 1:
+                raise AssertionError("CrossmatchEvidence must have one left Snapshot")
+            target_type = "crossmatch"
+            target_id = pipeline_id
+            pipeline_snapshot_id = next(iter(left_snapshot_ids))
+        evidence_bindings.append(
+            ArtifactEvidenceBinding(
+                target_type=target_type,
+                target_id=target_id,
+                pipeline_evidence_id=pipeline_id,
+                pipeline_source_snapshot_id=pipeline_snapshot_id,
+                persisted_evidence_id=str(
+                    uuid5(NAMESPACE_URL, f"test-evidence:{pipeline_id}")
+                ),
+                persisted_source_snapshot_id=persisted_snapshots[
+                    pipeline_snapshot_id
+                ],
+            )
+        )
+    return snapshots, tuple(evidence_bindings)

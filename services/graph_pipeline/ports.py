@@ -15,6 +15,7 @@ from typing import Protocol, runtime_checkable
 from pydantic import BaseModel, JsonValue
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.core import (
     EvidenceDetail,
     ProducerExecutionDetail,
@@ -491,7 +492,7 @@ def _validate_candidate_pins(
     | FieldDictionaryArtifactCandidate
     | LiteratureRelationsCandidate,
 ) -> None:
-    content = candidate.model_dump(mode="json", exclude_none=True)
+    content = canonical_artifact_content_payload(candidate)
     if pins.schema_version != candidate.schema_version:
         raise _artifact_error(
             "ArtifactVersion schema pin disagrees with candidate",

@@ -492,16 +492,18 @@ class ArtifactVersion(BaseModel):
                     "version_number": 1,
                     "schema_version": "2.0.0",
                     "content": {
-                        "kind": "dataset",
-                        "field_ids": ["planet.toi_id"],
-                        "rows": [],
+                        "kind": "export",
+                        "format": "json",
+                        "artifact_version_ids": [
+                            "11111111-1111-4111-8111-111111111111"
+                        ],
                     },
                     "content_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                     "input_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                     "source_mode": "live",
                     "producer": {
                         "type": "pipeline",
-                        "name": "data",
+                        "name": "artifact-export",
                         "version": "1.0.0",
                     },
                     "source_snapshot_ids": [],

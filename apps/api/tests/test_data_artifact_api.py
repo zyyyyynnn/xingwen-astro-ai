@@ -6,6 +6,7 @@ import json
 import pytest
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.core import (
     ArtifactKind,
     ArtifactVersionDetail,
@@ -31,7 +32,7 @@ from services.data_pipeline.data_artifacts import build_data_artifact_candidates
 
 def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
     candidate = build_data_artifact_candidates(build_input("star.tic_id")).dataset
-    content = candidate.model_dump(mode="json")
+    content = canonical_artifact_content_payload(candidate)
     projection_payload = {
         "schema_version": "1.0.0",
         "candidate_kind": candidate.kind,
@@ -89,13 +90,9 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
     transformations = {
         item.evidence_id: item for item in candidate.transformation_evidence
     }
-    crossmatch_sources: dict[str, list[str]] = {}
     crossmatch_identity: dict[str, tuple[str, str]] = {}
     for transformation in transformations.values():
         for evidence_id in transformation.crossmatch_evidence_ids:
-            crossmatch_sources.setdefault(evidence_id, []).append(
-                transformation.locator.source_snapshot_id
-            )
             crossmatch_identity[evidence_id] = (
                 transformation.crossmatch_result_id,
                 transformation.crossmatch_result_content_hash,
@@ -125,6 +122,18 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
             )
             continue
         identity = crossmatch_identity[evidence_id]
+        crossmatch = next(
+            item for item in candidate.crossmatch_evidence if item.evidence_id == evidence_id
+        )
+        left_snapshot_ids = {
+            item.source_snapshot_id for item in crossmatch.left_locators
+        }
+        right_snapshot_ids = {
+            item.source_snapshot_id for item in crossmatch.right_locators
+        }
+        assert len(left_snapshot_ids) == len(right_snapshot_ids) == 1
+        left_snapshot_id = next(iter(left_snapshot_ids))
+        right_snapshot_id = next(iter(right_snapshot_ids))
         evidence_items.append(
             EvidenceDetail.model_construct(
                 id=evidence_id,
@@ -132,15 +141,25 @@ def _service_for_dataset() -> tuple[DataArtifactReadService, str]:
                 target_type="crossmatch",
                 target_id=evidence_id,
                 evidence_type="crossmatch_decision",
-                source_snapshot_id=min(crossmatch_sources[evidence_id]),
+                source_snapshot_id=left_snapshot_id,
                 locator={
-                    "crossmatch_evidence_id": evidence_id,
                     "crossmatch_result_id": identity[0],
                     "crossmatch_result_content_hash": identity[1],
+                    "crossmatch_evidence": crossmatch.model_dump(mode="json"),
+                    "source_provenance": {
+                        "left": {
+                            "pipeline_source_snapshot_id": left_snapshot_id,
+                            "persisted_source_snapshot_id": left_snapshot_id,
+                        },
+                        "right": {
+                            "pipeline_source_snapshot_id": right_snapshot_id,
+                            "persisted_source_snapshot_id": right_snapshot_id,
+                        },
+                    },
                 },
-                quote_or_value=None,
+                quote_or_value=crossmatch.decision.value,
                 extraction_method="crossmatch_admission",
-                confidence=1.0,
+                confidence=crossmatch.confidence,
                 created_at=datetime.now(UTC),
             )
         )

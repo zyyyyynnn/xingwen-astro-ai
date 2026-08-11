@@ -90,6 +90,10 @@ def _assemble_data_artifact_candidates(
             "crossmatch_output_hash": result.output_hash,
             "crossmatch_content_hash": result.content_hash,
             "crossmatch_source_snapshot_ids": projection.source_snapshot_ids,
+            "crossmatch_evidence": [
+                evidence.model_dump(mode="json")
+                for evidence in projection.crossmatch_evidence
+            ],
             "crossmatch_evidence_ids": projection.crossmatch_evidence_ids,
             "requested_fields": tuple(field.field_id for field in projection.fields),
             "columns": [

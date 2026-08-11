@@ -43,6 +43,7 @@ from services.data_pipeline.data_quality import (
     build_data_quality_publication_validator,
     evaluate_data_quality,
 )
+from data_artifact_test_support import build_data_publication_bindings
 from services.data_pipeline.data_quality.errors import DataQualityError
 from services.data_pipeline.data_quality.observations import observe_quality
 from services.data_pipeline.data_quality.policy import (
@@ -599,6 +600,7 @@ def test_publisher_validators_use_admission_commitment_without_re_evaluation(mon
 
     try:
         candidate = build_result.dataset
+        snapshots, evidence = build_data_publication_bindings(candidate)
         admit_artifact_candidate(
             candidate,
             schema_version=candidate.schema_version,
@@ -607,6 +609,8 @@ def test_publisher_validators_use_admission_commitment_without_re_evaluation(mon
             evidence_validator=validate_data_artifact_evidence,
             domain_validator=validate_data_artifact_domain,
             quality_validator=validator,
+            source_snapshot_bindings=snapshots,
+            evidence_bindings=evidence,
         )
     except AssertionError as error:
         pytest.fail(str(error))

@@ -12,9 +12,11 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 import json
+from types import SimpleNamespace
 from uuid import UUID, uuid5
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.core import (
     EvidenceDetail,
     ProducerExecutionDetail,
@@ -25,7 +27,6 @@ from app.schemas.core import (
 from app.schemas.data_artifacts import (
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
-    compute_data_artifact_public_payload_hash,
 )
 from app.schemas.data_quality import DataQualityProjection
 from app.schemas.enums import GraphEdgeType
@@ -437,6 +438,24 @@ def _quality_projection(
     candidate: DatasetArtifactCandidate | FieldDictionaryArtifactCandidate,
     candidate_kind: str,
 ) -> DataQualityProjection:
+    validator = build_data_quality_publication_validator(
+        admitted,
+        candidate_kind=candidate_kind,
+    )
+    if isinstance(candidate, FieldDictionaryArtifactCandidate):
+        validator(
+            SimpleNamespace(
+                candidate=candidate,
+                source_snapshot_ids=candidate.source_snapshot_ids,
+                evidence_ids=candidate.evidence_ids,
+            )
+        )
+        attestation = validator._data_quality_attestation
+        return DataQualityProjection.model_validate_json(attestation.projection_json)
+
+    from data_artifact_test_support import build_data_publication_bindings
+
+    snapshots, evidence = build_data_publication_bindings(candidate)
     admitted_candidate = admit_artifact_candidate(
         candidate,
         schema_version=candidate.schema_version,
@@ -444,10 +463,9 @@ def _quality_projection(
         evidence_ids=candidate.evidence_ids,
         evidence_validator=validate_data_artifact_evidence,
         domain_validator=validate_data_artifact_domain,
-        quality_validator=build_data_quality_publication_validator(
-            admitted,
-            candidate_kind=candidate_kind,
-        ),
+        quality_validator=validator,
+        source_snapshot_bindings=snapshots,
+        evidence_bindings=evidence,
     )
     projection = admitted_candidate.quality_projection
     if projection is None:
@@ -462,7 +480,9 @@ def _published_data_pins(
     artifact_version_id: str,
     project_id: str,
 ) -> PublishedArtifactVersionPins:
-    content_hash = compute_data_artifact_public_payload_hash(candidate)
+    content_hash = compute_canonical_payload_hash(
+        canonical_artifact_content_payload(candidate)
+    )
     parameters_hash = compute_canonical_payload_hash(
         {
             "mapping_rule_set_content_hash": candidate.mapping_rule_set_content_hash,
@@ -638,7 +658,7 @@ def _uuid_ready_claim_inputs(benchmark: object) -> dict[str, object]:
             artifact_version_id=claim_version_id,
             schema_version=content.schema_version,
             content_hash=compute_canonical_payload_hash(
-                content.model_dump(mode="json", exclude_none=True)
+                canonical_artifact_content_payload(content)
             ),
             project_id=item.version.project_id,
             content=content,
@@ -658,7 +678,7 @@ def _published_literature_version(
     relation_version_id: str,
     reverse_bindings: bool,
 ) -> PublishedLiteratureRelationsVersion:
-    candidate_payload = candidate.model_dump(mode="json", exclude_none=True)
+    candidate_payload = canonical_artifact_content_payload(candidate)
     content_hash = compute_canonical_payload_hash(candidate_payload)
     nested_producer = candidate.producer
     producer = ProducerReference(

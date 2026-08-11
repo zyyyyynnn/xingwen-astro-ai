@@ -228,6 +228,22 @@ export type ShareRedactionPolicy = "public_metadata_only";
  */
 export type ShareStatus = "active" | "expired" | "revoked";
 /**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ConditionOperator".
+ */
+export type ConditionOperator =
+  | "exact"
+  | "curated_alias"
+  | "angular_separation_lte"
+  | "angular_separation_gt"
+  | "contradicts"
+  | "source_scope";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ConfidenceBand".
+ */
+export type ConfidenceBand = "high" | "medium" | "low" | "not_applicable";
+/**
  * The only Case and Field Manifest selection declaration approved for this case.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -247,9 +263,21 @@ export type UnitPolicy = "canonical";
 export type ExecutionMode = "demo_replay" | "live";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "MatchDecision".
+ */
+export type MatchDecision =
+  "accepted" | "rejected" | "review_required" | "conflict" | "inconclusive" | "unmatched";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CrossmatchSide".
  */
 export type CrossmatchSide = "left" | "right";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CrossmatchMethod".
+ */
+export type CrossmatchMethod =
+  "exact_identifier" | "curated_entity_alias" | "coordinate" | "compound";
 /**
  * Whether the bounded acquisition proved that its source scope is complete.
  *
@@ -1421,6 +1449,66 @@ export interface CreateShareSnapshotRequest {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CrossmatchCondition".
+ */
+export interface CrossmatchCondition {
+  condition_id: string;
+  field_id?: string | null;
+  left_value?: string | number | boolean | null;
+  manual_review_threshold_arcsec?: number | null;
+  operator: ConditionOperator;
+  right_value?: string | number | boolean | null;
+  rule_reference: string;
+  separation_arcsec?: number | null;
+  strict_threshold_arcsec?: number | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CrossmatchEvidence".
+ */
+export interface CrossmatchEvidence {
+  /**
+   * @minItems 1
+   */
+  conditions: [CrossmatchCondition, ...CrossmatchCondition[]];
+  confidence: number;
+  confidence_band: ConfidenceBand;
+  content_hash: string;
+  decision: MatchDecision;
+  entity_level: EntityLevel;
+  evidence_id: string;
+  left_candidate_id: string;
+  /**
+   * @minItems 1
+   */
+  left_locators: [EvidenceLocator, ...EvidenceLocator[]];
+  method: CrossmatchMethod;
+  right_candidate_id: string;
+  /**
+   * @minItems 1
+   */
+  right_locators: [EvidenceLocator, ...EvidenceLocator[]];
+  rule_set_content_hash: string;
+  rule_set_id: string;
+  rule_set_version: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "EvidenceLocator".
+ */
+export interface EvidenceLocator {
+  query_hash: string;
+  raw_field: string;
+  /**
+   * @minItems 1
+   */
+  row_key: [[unknown, unknown], ...[unknown, unknown][]];
+  side: CrossmatchSide;
+  source_id: string;
+  source_snapshot_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "DataArtifactProducer".
  */
 export interface DataArtifactProducer {
@@ -1508,6 +1596,7 @@ export interface DatasetArtifactCandidate {
   conversion_catalog_id: string;
   conversion_catalog_version: string;
   crossmatch_content_hash: string;
+  crossmatch_evidence: CrossmatchEvidence[];
   crossmatch_evidence_ids: string[];
   crossmatch_input_hash: string;
   crossmatch_output_hash: string;

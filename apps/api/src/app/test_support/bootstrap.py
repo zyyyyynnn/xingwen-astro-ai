@@ -331,12 +331,9 @@ def _publication_bindings(
     transformations = {
         item.evidence_id: item for item in candidate.transformation_evidence
     }
-    crossmatch_sources: dict[str, list[str]] = {}
-    for item in candidate.transformation_evidence:
-        for evidence_id in item.crossmatch_evidence_ids:
-            crossmatch_sources.setdefault(evidence_id, []).append(
-                item.locator.source_snapshot_id
-            )
+    crossmatch_evidence = {
+        item.evidence_id: item for item in candidate.crossmatch_evidence
+    }
 
     evidence_bindings: list[ArtifactEvidenceBinding] = []
     for pipeline_id in candidate.evidence_ids:
@@ -346,14 +343,21 @@ def _publication_bindings(
             target_id = transformation.canonical_field_id
             pipeline_snapshot_id = transformation.locator.source_snapshot_id
         else:
-            sources = crossmatch_sources.get(pipeline_id)
-            if not sources:
+            evidence = crossmatch_evidence.get(pipeline_id)
+            if evidence is None:
                 raise ValueError(
                     f"Bootstrap Evidence {pipeline_id} has no materializable SourceSnapshot"
                 )
             target_type = "crossmatch"
             target_id = pipeline_id
-            pipeline_snapshot_id = min(sources)
+            left_snapshot_ids = {
+                item.source_snapshot_id for item in evidence.left_locators
+            }
+            if len(left_snapshot_ids) != 1:
+                raise ValueError(
+                    f"Bootstrap Evidence {pipeline_id} has ambiguous left provenance"
+                )
+            pipeline_snapshot_id = next(iter(left_snapshot_ids))
         evidence_bindings.append(
             ArtifactEvidenceBinding(
                 target_type=target_type,

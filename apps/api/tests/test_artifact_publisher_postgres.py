@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
+    EvidenceModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
     ResearchContractModel,
@@ -571,6 +572,42 @@ def test_publication_rejects_a_dataset_candidate_for_an_export_artifact(
     _assert_publication_not_started(active)
 
 
+def test_dataset_without_persisted_provenance_rolls_back_publication(
+    postgres_engine: Engine,
+) -> None:
+    factory = session_factory(postgres_engine)
+    project, contract = _seed_project(factory)
+    artifact = _create_artifact(
+        factory,
+        project_id=project.id,
+        logical_key=f"dataset-missing-provenance-{uuid4()}",
+        kind="dataset",
+    )
+    active = _active_publication(
+        postgres_engine,
+        project=project,
+        contract=contract,
+        artifact=artifact,
+    )
+    candidate = build_reference_dataset_candidate(run_id=active.run_id)
+    with factory() as session, session.begin():
+        execution = session.get(ProducerExecutionModel, active.execution_id)
+        assert execution is not None
+        execution.output_hash = candidate.content_hash
+    invalid = replace(
+        active,
+        publication=replace(active.publication, candidate=candidate),
+    )
+
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="persisted Data Artifact SourceSnapshot binding was not found",
+    ):
+        _publish(invalid)
+
+    _assert_publication_not_started(active)
+
+
 class _FailingPublisher(ArtifactPublisher):
     def _before_commit(self, session: Session) -> None:
         raise RuntimeError("injected transaction failure")
@@ -816,6 +853,39 @@ def test_new_version_must_supersede_the_locked_latest_version(
         latest = session.get(ResearchArtifactModel, artifact.id)
         assert stored is not None and stored.supersedes_version_id == version_one.id
         assert latest is not None and latest.latest_version_id == stored.id
+
+
+def test_dataset_crossmatch_evidence_persists_both_source_sides(
+    postgres_engine: Engine,
+) -> None:
+    factory = session_factory(postgres_engine)
+    project, _ = _seed_project(factory)
+    version_id = publish_reference_dataset(factory=factory, project=project)
+
+    with factory() as session:
+        evidence = session.scalar(
+            select(EvidenceModel).where(
+                EvidenceModel.artifact_version_id == version_id,
+                EvidenceModel.evidence_type == "crossmatch_decision",
+            )
+        )
+        assert evidence is not None
+        provenance = evidence.locator["source_provenance"]
+        assert set(provenance) == {"left", "right"}
+        assert provenance["left"]["pipeline_source_snapshot_id"]
+        assert provenance["right"]["pipeline_source_snapshot_id"]
+        assert provenance["left"]["persisted_source_snapshot_id"]
+        assert provenance["right"]["persisted_source_snapshot_id"]
+        assert (
+            provenance["left"]["persisted_source_snapshot_id"]
+            != provenance["right"]["persisted_source_snapshot_id"]
+        )
+        crossmatch = evidence.locator["crossmatch_evidence"]
+        assert crossmatch["left_locators"]
+        assert crossmatch["right_locators"]
+        assert evidence.source_snapshot_id == UUID(
+            provenance["left"]["persisted_source_snapshot_id"]
+        )
 
 
 def test_concurrent_publishers_never_allocate_duplicate_version_numbers(

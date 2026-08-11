@@ -8,12 +8,12 @@ from typing import Literal, Protocol
 from pydantic import ValidationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.data_artifacts import (
     DataArtifactBuildResult,
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
     SourceCollectionArtifactCandidate,
-    compute_data_artifact_public_payload_hash,
 )
 from app.schemas.data_quality import (
     DataQualityEvaluationInput,
@@ -347,7 +347,9 @@ def build_data_quality_publication_validator(
         "candidate_id": expected.candidate_id,
         "candidate_input_hash": expected.input_hash,
         "candidate_output_hash": expected.output_hash,
-        "candidate_content_hash": compute_data_artifact_public_payload_hash(expected),
+        "candidate_content_hash": compute_canonical_payload_hash(
+            canonical_artifact_content_payload(expected)
+        ),
         "quality_input_hash": admitted.snapshot.input_hash,
         "quality_result_id": admitted.snapshot.result_id,
         "quality_result_input_hash": admitted.snapshot.result_input_hash,

@@ -281,7 +281,15 @@ class DataArtifactReadService:
     @staticmethod
     def _candidate(version: ArtifactVersionDetail, model: type[Any]) -> Any:
         try:
-            candidate = model.model_validate(version.content)
+            candidate = model.model_validate_json(
+                json.dumps(
+                    version.content,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                )
+            )
         except ValidationError as exc:
             raise _schema_problem() from exc
         if (
@@ -384,13 +392,9 @@ def _validate_dataset_provenance(
     transformations = {
         item.evidence_id: item for item in candidate.transformation_evidence
     }
-    crossmatch_sources: dict[str, list[str]] = {}
     crossmatch_identity: dict[str, tuple[str, str]] = {}
     for transformation in transformations.values():
         for evidence_id in transformation.crossmatch_evidence_ids:
-            crossmatch_sources.setdefault(evidence_id, []).append(
-                transformation.locator.source_snapshot_id
-            )
             identity = (
                 transformation.crossmatch_result_id,
                 transformation.crossmatch_result_content_hash,
@@ -399,7 +403,10 @@ def _validate_dataset_provenance(
             if existing is not None and existing != identity:
                 raise _schema_problem()
             crossmatch_identity[evidence_id] = identity
-    if set(transformations) | set(crossmatch_sources) != set(candidate.evidence_ids):
+    crossmatch_evidence = {
+        item.evidence_id: item for item in candidate.crossmatch_evidence
+    }
+    if set(transformations) | set(crossmatch_evidence) != set(candidate.evidence_ids):
         raise _schema_problem()
 
     expected: list[str] = []
@@ -426,24 +433,53 @@ def _validate_dataset_provenance(
                 )
             )
             continue
-        source_ids = crossmatch_sources.get(pipeline_id)
+        evidence = crossmatch_evidence.get(pipeline_id)
         identity = crossmatch_identity.get(pipeline_id)
-        if not source_ids or identity is None:
+        if evidence is None or identity is None:
             raise _schema_problem()
+        left_source_ids = {
+            item.source_snapshot_id for item in evidence.left_locators
+        }
+        right_source_ids = {
+            item.source_snapshot_id for item in evidence.right_locators
+        }
+        if (
+            len(left_source_ids) != 1
+            or len(right_source_ids) != 1
+            or left_source_ids == right_source_ids
+        ):
+            raise _schema_problem()
+        left_source_id = next(iter(left_source_ids))
+        right_source_id = next(iter(right_source_ids))
+        try:
+            left_persisted_id = persisted_by_pipeline[left_source_id]
+            right_persisted_id = persisted_by_pipeline[right_source_id]
+        except KeyError as exc:
+            raise _schema_problem() from exc
         expected.append(
             _evidence_signature(
                 target_type="crossmatch",
                 target_id=pipeline_id,
                 evidence_type="crossmatch_decision",
-                source_snapshot_id=persisted_by_pipeline[min(source_ids)],
+                source_snapshot_id=left_persisted_id,
                 locator={
-                    "crossmatch_evidence_id": pipeline_id,
                     "crossmatch_result_id": identity[0],
                     "crossmatch_result_content_hash": identity[1],
+                    "crossmatch_evidence": evidence.model_dump(mode="json"),
+                    "source_provenance": {
+                        "left": {
+                            "pipeline_source_snapshot_id": left_source_id,
+                            "persisted_source_snapshot_id": left_persisted_id,
+                        },
+                        "right": {
+                            "pipeline_source_snapshot_id": right_source_id,
+                            "persisted_source_snapshot_id": right_persisted_id,
+                        },
+                    },
                 },
-                quote_or_value=None,
+                quote_or_value=evidence.decision.value,
                 extraction_method="crossmatch_admission",
-                confidence=1.0,
+                confidence=evidence.confidence,
             )
         )
 

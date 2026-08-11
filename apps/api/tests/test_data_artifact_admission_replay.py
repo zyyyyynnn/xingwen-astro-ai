@@ -44,10 +44,17 @@ from services.data_pipeline.data_artifacts.admission import (
 )
 from services.data_pipeline.data_artifacts.errors import DataArtifactError
 
-from data_artifact_test_support import build_input
+from data_artifact_test_support import build_data_publication_bindings, build_input
 
 
 def _admit(candidate):
+    bindings = {}
+    if isinstance(candidate, DatasetArtifactCandidate):
+        snapshots, evidence = build_data_publication_bindings(candidate)
+        bindings = {
+            "source_snapshot_bindings": snapshots,
+            "evidence_bindings": evidence,
+        }
     return admit_artifact_candidate(
         candidate,
         schema_version=candidate.schema_version,
@@ -56,6 +63,7 @@ def _admit(candidate):
         evidence_validator=validate_data_artifact_evidence,
         domain_validator=validate_data_artifact_domain,
         quality_validator=validate_data_artifact_quality_prerequisites,
+        **bindings,
     )
 
 
@@ -274,17 +282,16 @@ def test_publisher_replay_rejects_missing_unused_acquisition_record() -> None:
 def test_original_candidates_retain_immutable_replay_snapshot() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
 
-    for candidate in (
-        result.dataset,
-        result.field_dictionary,
-        result.source_collection,
-    ):
+    for candidate in (result.dataset, result.field_dictionary, result.source_collection):
         context = getattr(candidate, "_artifact_publication_context", None)
         assert isinstance(context, DataArtifactAdmissionSnapshot)
         assert context.input_hash == candidate.input_hash
         assert not isinstance(context, DataArtifactBuildInput)
-        with pytest.raises(PublicationAdmissionError, match="Data Quality Evaluation attestation"):
-            _admit(candidate)
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="Data Quality Evaluation attestation",
+    ):
+        _admit(result.dataset)
 
 
 def test_reparsed_candidate_still_cannot_recreate_replay_context() -> None:

@@ -29,6 +29,7 @@ from .data_artifact_seal import (
     data_artifact_candidate_is_sealed,
 )
 from .crossmatch import (
+    CrossmatchEvidence,
     CrossmatchResult,
     CrossmatchSide,
     CrossmatchSourceInput,
@@ -761,6 +762,7 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
     crossmatch_output_hash: ContentHash
     crossmatch_content_hash: ContentHash
     crossmatch_source_snapshot_ids: tuple[Identifier, ...]
+    crossmatch_evidence: tuple[CrossmatchEvidence, ...]
     requested_fields: tuple[CanonicalFieldId, ...]
     columns: tuple[DatasetColumn, ...]
     rows: tuple[DatasetRow, ...]
@@ -819,6 +821,15 @@ class DatasetArtifactCandidate(_PublisherReadyCandidate):
             raise ValueError("Dataset top-level references must use canonical order")
         source_values = {item.source_value_id: item for item in self.source_values}
         evidence = {item.evidence_id: item for item in self.transformation_evidence}
+        crossmatch_evidence = {
+            item.evidence_id: item for item in self.crossmatch_evidence
+        }
+        if len(crossmatch_evidence) != len(self.crossmatch_evidence):
+            raise ValueError("Dataset contains duplicate CrossmatchEvidence records")
+        if tuple(sorted(crossmatch_evidence)) != self.crossmatch_evidence_ids:
+            raise ValueError(
+                "Dataset CrossmatchEvidence records must exactly cover their registry"
+            )
         selections = {item.selection_id: item for item in self.selections}
         conflicts = {item.conflict_id: item for item in self.conflicts}
         expected_evidence_ids = {*evidence, *self.crossmatch_evidence_ids}

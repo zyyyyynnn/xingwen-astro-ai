@@ -152,6 +152,10 @@ def _validate_dataset(
         raise ValueError("Dataset SourceValue set differs from the complete domain projection")
     if candidate.transformation_evidence != projection.transformation_evidence:
         raise ValueError("Dataset Evidence set differs from the complete domain projection")
+    if candidate.crossmatch_evidence != projection.crossmatch_evidence:
+        raise ValueError(
+            "Dataset CrossmatchEvidence set differs from the complete domain projection"
+        )
     if candidate.selections != projection.selections:
         raise ValueError("Dataset selection set differs from the complete domain projection")
     if candidate.conflicts != projection.conflicts:

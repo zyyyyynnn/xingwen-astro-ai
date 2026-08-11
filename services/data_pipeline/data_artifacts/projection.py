@@ -16,6 +16,7 @@ from app.schemas.crossmatch import (
     AdjudicationDecision,
     ConflictGroup,
     CrossmatchRecord,
+    CrossmatchEvidence,
     EntityCandidate,
     UnpairedRecord,
     compute_crossmatch_content_hash,
@@ -74,6 +75,7 @@ class DataArtifactDomainProjection:
     source_members: tuple[SourceCollectionMember, ...]
     producer: DataArtifactProducer
     source_snapshot_ids: tuple[str, ...]
+    crossmatch_evidence: tuple[CrossmatchEvidence, ...]
     crossmatch_evidence_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...]
     alignment_record_keys: tuple[str, ...]
@@ -1033,6 +1035,12 @@ def derive_data_artifact_domain_projection(
             }
         )
     )
+    crossmatch_evidence_by_id = {
+        item.evidence_id: item for item in result.evidence
+    }
+    crossmatch_evidence = tuple(
+        crossmatch_evidence_by_id[item] for item in crossmatch_evidence_ids
+    )
     evidence_ids = tuple(
         sorted(
             {
@@ -1052,6 +1060,7 @@ def derive_data_artifact_domain_projection(
         source_members=_source_members(input_value),
         producer=producer,
         source_snapshot_ids=source_snapshot_ids,
+        crossmatch_evidence=crossmatch_evidence,
         crossmatch_evidence_ids=crossmatch_evidence_ids,
         evidence_ids=evidence_ids,
         alignment_record_keys=tuple(_record_key(record) for record in result.records),
