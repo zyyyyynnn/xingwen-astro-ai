@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Annotated, Any, Generic, Literal, TypeVar
+from typing import Annotated, Any, ClassVar, Generic, Literal, TypeVar
 from uuid import UUID
 
 from pydantic import (
@@ -460,11 +460,23 @@ class ProducerReference(BaseModel):
 
 
 class ExportArtifactContent(BaseModel):
+    """Canonical export payload; direct provenance is carried only by referenced versions."""
+
     model_config = CORE_MODEL_CONFIG
+    __artifact_publication_requires_admission__: ClassVar[bool] = True
 
     kind: Literal[ArtifactKind.export]
+    schema_version: Literal["2.0.0"] = "2.0.0"
     format: Literal["csv", "json", "provenance_report"]
     artifact_version_ids: tuple[Identifier, ...] = Field(min_length=1)
+
+    @property
+    def source_snapshot_ids(self) -> tuple[Identifier, ...]:
+        return ()
+
+    @property
+    def evidence_ids(self) -> tuple[Identifier, ...]:
+        return ()
 
     @model_validator(mode="after")
     def validate_unique_artifact_versions(self) -> ExportArtifactContent:
@@ -477,6 +489,11 @@ class ExportArtifactContent(BaseModel):
         if len(normalized_ids) != len(set(normalized_ids)):
             raise ValueError("Export artifact version references must be unique")
         return self
+
+    def __artifact_publication_is_admitted__(self) -> bool:
+        """The exact frozen Export schema is its admission boundary."""
+
+        return type(self) is ExportArtifactContent
 
 
 class ArtifactVersion(BaseModel):
