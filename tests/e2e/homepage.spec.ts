@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * A-19 MP4 Brand Site homepage: video element, resilience, reduced motion.
+ * Brand Site MP4 Brand Site homepage: video element, resilience, reduced motion.
  */
 
 const HERO_TITLE = /让每一颗系外行星候选体\s*都可溯源/;

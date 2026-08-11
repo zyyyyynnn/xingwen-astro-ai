@@ -1,10 +1,5 @@
-"""Research task workflow primitives.
+"""Authoritative ResearchRun workflow, lease, attempt, event, and publication ports."""
 
-Phase 0 keeps its original executor. The opt-in persistent executor uses
-PostgreSQL lifecycle transactions while pipeline implementations remain ports.
-"""
-
-from .executor import WorkflowExecutionError, WorkflowExecutor
 from .persistent_executor import (
     FailureDecision,
     PersistentWorkflowExecutionError,
@@ -25,35 +20,25 @@ from .publisher import (
     StalePublicationError,
     admit_artifact_candidate,
 )
-from .state_machine import (
-    ALLOWED_TRANSITIONS,
-    InvalidTaskTransition,
-    can_transition,
-    next_statuses,
-    require_transition,
-)
 from .store import (
     AttemptHandle,
     LeaseGrant,
     PersistentWorkflowStore,
+    RetryBudgetExhaustedError,
     RunSnapshot,
     RunStepDefinition,
-    RetryBudgetExhaustedError,
     StaleWorkflowWriteError,
     WorkflowConflictError,
 )
-from .types import WorkflowContext, WorkflowHooks, WorkflowStep
 
 __all__ = [
-    "ALLOWED_TRANSITIONS",
     "AdmittedArtifactCandidate",
     "ArtifactAdmissionContext",
     "ArtifactPublication",
     "ArtifactPublisher",
-    "InvalidTaskTransition",
     "AttemptHandle",
-    "LeaseGrant",
     "FailureDecision",
+    "LeaseGrant",
     "PersistentWorkflowExecutionError",
     "PersistentWorkflowExecutor",
     "PersistentWorkflowStore",
@@ -64,19 +49,11 @@ __all__ = [
     "PublicationAdmissionError",
     "PublicationConflictError",
     "PublicationResult",
+    "RetryBudgetExhaustedError",
     "RunSnapshot",
     "RunStepDefinition",
-    "RetryBudgetExhaustedError",
-    "StaleWorkflowWriteError",
     "StalePublicationError",
-    "WorkflowContext",
+    "StaleWorkflowWriteError",
     "WorkflowConflictError",
-    "WorkflowExecutionError",
-    "WorkflowExecutor",
-    "WorkflowHooks",
-    "WorkflowStep",
-    "can_transition",
     "admit_artifact_candidate",
-    "next_statuses",
-    "require_transition",
 ]

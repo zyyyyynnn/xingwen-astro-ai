@@ -2,10 +2,10 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 本地与 Docker 启动方式、环境变量与调试命令 |
 
-本地开发采用 Docker-first 模式。Docker Compose 管理 `site`、`workspace`、`api`、`migrate`、`postgres`；前端本机调试统一在仓库根目录执行。
+本地开发默认只由 Docker Compose 管理 PostgreSQL，API 与两个前端应用在本机进程中运行。
+完整容器栈仍可通过 Docker Compose 直接启动。
 
 ## 1. 环境要求
 
@@ -25,7 +25,7 @@
 Copy-Item .env.example .env
 ```
 
-在 `.env` 中按实际需求填写 `DASHSCOPE_API_KEY` 与 `PAPER_SOURCE_API_KEY`。严禁提交 `.env`。
+`.env.example` 只声明当前运行时实际消费的配置。严禁提交 `.env`、密钥、Cookie 或其他凭据。
 
 | 变量 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -34,6 +34,9 @@ Copy-Item .env.example .env
 | `SESSION_COOKIE_SECURE` | `false` | 本地 HTTP 设为 false，生产部署必须显式为 true |
 | `SESSION_TTL_SECONDS` | `86400` | 匿名 Session 有效期 |
 | `CURSOR_SIGNING_KEY` | `development-only-cursor-signing-key` | 不透明分页 cursor HMAC 密钥 |
+| `DATABASE_URL` | Docker Compose PostgreSQL URL | ResearchRun、Artifact、Evidence 与 ResearchInput 的权威存储 |
+| `RESEARCH_INPUT_UPLOAD_DIR` | `.data/research-inputs` | ResearchInput 内容寻址存储目录 |
+| `URL_FETCH_ALLOWED_HOSTS` | 空 | URL ResearchInput host allowlist；空值 fail closed |
 
 ## 3. Docker Compose 启动
 
@@ -49,10 +52,11 @@ docker compose up --build --wait
 .\start-dev.bat
 ```
 
-脚本会校验 Docker/Compose、在缺失时从 `.env.example` 创建本地 `.env`，启动 Compose
-服务并等待 API、Workspace 与 Brand Site 可访问，最后自动打开 Workspace。启动失败时保留
-容器现场并打印诊断命令，不会自动删除数据卷。需要关闭本地服务时执行
-`docker compose -p xingwen-astro-ai-dev down`；该命令不会删除数据卷。
+脚本使用三个窗口：当前窗口执行工具、依赖、PostgreSQL 与 Alembic 前置检查；Backend
+窗口运行 FastAPI；Frontend 窗口运行 Brand Site 与 Workspace。后端可访问后才启动前端，
+两个前端均可访问后自动打开 Brand Site 首页。脚本会停止同一 Compose project 中占用应用
+端口的容器，但保留 PostgreSQL 与数据卷。关闭本地服务时，在 Backend/Frontend 窗口按
+`Ctrl+C`，再执行 `docker compose -p xingwen-astro-ai-dev stop postgres`。
 
 | 服务 | 职责 | 默认地址 |
 | --- | --- | --- |
@@ -62,7 +66,8 @@ docker compose up --build --wait
 | `migrate` | Alembic `upgrade head` one-shot | 无端口 |
 | `postgres` | PostgreSQL 17 | `localhost:5432` |
 
-服务依赖顺序为 `postgres healthy -> migrate exited 0 -> api healthy -> workspace`。应用进程不隐式执行 migration。
+完整容器栈的依赖顺序为 `postgres healthy -> migrate exited 0 -> api healthy -> workspace`。
+分窗口启动时，前置检查显式完成 Alembic migration，应用进程不隐式执行 migration。
 
 ## 4. 前端本机调试
 
@@ -101,6 +106,8 @@ uv run uvicorn app.main:app --reload
 $env:DATABASE_URL = "postgresql+psycopg://postgres:postgres@127.0.0.1:5432/xingwen_astro_ai"
 uv run alembic upgrade head
 ```
+
+活动 migration 是描述当前数据库的单一 baseline；开发数据库需要跨 schema 变化时直接重建，不维护开发期升级兼容链。
 
 Schema 导出：
 

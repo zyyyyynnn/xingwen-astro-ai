@@ -1,4 +1,4 @@
-"""PostgreSQL-backed ResearchRun lifecycle store for #77.
+"""PostgreSQL-backed ResearchRun lifecycle store.
 
 Every mutating operation is a short transaction. Pipeline, model, and source
 calls must happen between these operations and never while a store transaction
@@ -187,13 +187,9 @@ class PersistentWorkflowStore:
         project_id: UUID,
         contract_id: UUID,
         execution_mode: str,
-        cache_policy: str,
         idempotency_key: str,
         request_hash: str,
         steps: Sequence[RunStepDefinition],
-        parent_run_id: UUID | None = None,
-        derivation_kind: str = "original",
-        retry_from_step: str | None = None,
     ) -> RunSnapshot:
         self._validate_step_definitions(steps)
         run_id: UUID
@@ -208,10 +204,10 @@ class PersistentWorkflowStore:
                     execution_mode=execution_mode,
                     status="queued",
                     progress=0,
-                    parent_run_id=parent_run_id,
-                    derivation_kind=derivation_kind,
-                    retry_from_step=retry_from_step,
-                    cache_policy=cache_policy,
+                    parent_run_id=None,
+                    derivation_kind="original",
+                    retry_from_step=None,
+                    cache_policy="disabled",
                     latest_event_sequence=1,
                     revision=1,
                     lease_generation=0,
@@ -434,7 +430,7 @@ class PersistentWorkflowStore:
                 .where(
                     RunStepModel.run_id == run_id,
                     RunStepModel.position < step.position,
-                    RunStepModel.status.not_in(("completed", "skipped")),
+                    RunStepModel.status != "completed",
                 )
             )
             if incomplete_predecessors:
@@ -678,6 +674,8 @@ class PersistentWorkflowStore:
         expected_revision: int,
         public_message: str = "Run cancelled",
     ) -> MutationResult:
+        """Cancel an existing Run without exposing an unimplemented HTTP command."""
+
         with self._factory() as session, session.begin():
             run = self._lock_run(session, run_id)
             if run.status in TERMINAL_RUN_STATUSES:

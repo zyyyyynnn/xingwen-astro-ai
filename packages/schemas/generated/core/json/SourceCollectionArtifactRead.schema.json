@@ -73,7 +73,7 @@
     },
     "DataQualityProjection": {
       "additionalProperties": false,
-      "description": "Persisted C-05 attestation bound to one published data candidate.",
+      "description": "Persisted Data Quality Evaluation attestation bound to one published data candidate.",
       "properties": {
         "bundle_commitment": {
           "pattern": "^sha256:[0-9a-f]{64}$",
@@ -1105,7 +1105,7 @@
     },
     "SourceSnapshotRecord": {
       "additionalProperties": false,
-      "description": "Immutable pipeline source record consumed by the future publisher.\n\nImplements the core ``SourceSnapshot`` target entity described in\n``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen\nPhase 0 ``SourceSnapshot`` projection above stays unchanged.",
+      "description": "Immutable source provenance consumed by scientific pipelines.\n\nThis is a pipeline/runtime record, not an HTTP read projection. It preserves\nthe exact source, query and content identity required for reproducibility\nwhile rejecting credential-bearing request metadata before publication.",
       "properties": {
         "cache_version": {
           "anyOf": [

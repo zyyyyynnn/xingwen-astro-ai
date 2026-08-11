@@ -1,4 +1,4 @@
-"""Serialize, independently admit, and seal C-04 domain projections."""
+"""Serialize, independently admit, and seal Data Artifact domain projections."""
 
 from __future__ import annotations
 
@@ -90,6 +90,10 @@ def _assemble_data_artifact_candidates(
             "crossmatch_output_hash": result.output_hash,
             "crossmatch_content_hash": result.content_hash,
             "crossmatch_source_snapshot_ids": projection.source_snapshot_ids,
+            "crossmatch_evidence": [
+                evidence.model_dump(mode="json")
+                for evidence in projection.crossmatch_evidence
+            ],
             "crossmatch_evidence_ids": projection.crossmatch_evidence_ids,
             "requested_fields": tuple(field.field_id for field in projection.fields),
             "columns": [
@@ -185,7 +189,7 @@ def _bundle_commitment(result: DataArtifactBuildResult) -> str:
 def build_data_artifact_candidates(
     input: DataArtifactBuildInput,
 ) -> DataArtifactBuildResult:
-    """Derive, serialize, independently admit, and finally seal one C-04 bundle."""
+    """Derive, serialize, independently admit, and finally seal one Data Artifact bundle."""
 
     try:
         validated_input = DataArtifactBuildInput.model_validate_json(input.model_dump_json())
@@ -197,7 +201,7 @@ def build_data_artifact_candidates(
                 raise domain_error from exc
         raise DataArtifactError(
             DataArtifactErrorCode.input_hash_mismatch,
-            "C-04 input cannot be reparsed as a valid canonical build input",
+            "Data Artifact input cannot be reparsed as a valid canonical build input",
             cause=exc,
         ) from exc
 

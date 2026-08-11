@@ -1,7 +1,7 @@
 {
   "$defs": {
     "ResearchInputStatus": {
-      "description": "Lifecycle of a controlled research input after ingestion.\n\n``accepted`` is the only state B-19 produces: ingestion succeeded and the\ncontent is frozen behind an immutable content hash. ``unsupported_processing``\nand ``failed_ingestion`` are reserved states the API exposes so consumers\nnever mistake \"uploaded\" for \"understood\".",
+      "description": "Stable lifecycle states for a controlled research input.\n\nThe ingestion writer produces ``accepted`` only. The other states preserve\nthe domain distinction between unsupported processing and failed ingestion;\nthey must be recorded only by a writer that has observed that outcome.",
       "enum": [
         "accepted",
         "unsupported_processing",

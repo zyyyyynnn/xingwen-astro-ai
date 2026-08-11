@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 代码组织、命名、类型、安全输入与实现边界 |
 
 本文定义系统的编码规范与技术实现边界。模块职责见 [Module Boundaries](../architecture/MODULES.md)，前端架构见 [Frontend Architecture](../architecture/FRONTEND_ARCHITECTURE.md)。
@@ -55,5 +54,5 @@
 - Python 模块/函数使用 `snake_case`，类使用 `PascalCase`。
 - TypeScript 组件/类型使用 `PascalCase`，函数/变量使用 `camelCase`。
 - API JSON 字段统一使用 `snake_case`。
-- Prompt 文件统一使用 `<name>/vN.md` 命名。
+- Prompt 文件路径、元数据与登记规则统一由 [Prompt Registry](../ai/PROMPT_REGISTRY.md) 定义。
 - 示例代码、文档注释不写入具体临时任务编号或个人本地路径。

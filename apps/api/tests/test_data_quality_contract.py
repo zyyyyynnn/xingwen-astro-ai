@@ -25,7 +25,7 @@ def test_quality_metric_uses_closed_decimal_ratio_states() -> None:
         numerator=2,
         denominator=3,
         value=Decimal("0.6666666666666666666666666667"),
-        formula_id="field_completeness.v1",
+        formula_id="field_completeness",
         formula_version="1.0.0",
         formula_scope="field",
         precision_digits=28,
@@ -46,7 +46,7 @@ def test_quality_metric_rejects_empty_determinate_ratio() -> None:
             numerator=0,
             denominator=0,
             value=None,
-            formula_id="field_completeness.v1",
+            formula_id="field_completeness",
             formula_version="1.0.0",
             formula_scope="field",
             precision_digits=28,
@@ -57,7 +57,7 @@ def test_quality_metric_rejects_empty_determinate_ratio() -> None:
 def test_rejected_quality_outcome_carries_no_fake_metrics() -> None:
     payload = {
         "kind": "data_quality_rejected",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "failure_stage": "input_validation",
         "error_code": QualityErrorCode.QUALITY_INPUT_INVALID,
         "message": "quality input is invalid",

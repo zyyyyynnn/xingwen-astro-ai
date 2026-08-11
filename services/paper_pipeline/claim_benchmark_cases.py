@@ -1,4 +1,4 @@
-"""Deterministically derive the formal D-07 case suite from tracked D-01."""
+"""Deterministically derive the formal LiteratureClaim Pipeline case suite from tracked Paper Acquisition Benchmark."""
 
 from __future__ import annotations
 
@@ -41,14 +41,13 @@ from packages.prompts.registry import PromptRegistry
 from .benchmark import validate_frozen_benchmark
 from .claim import LiteratureClaimPipeline, PaperSummaryArtifactVersionInput
 from .constants import (
-    FROZEN_X00_MAIN_SHA,
     SUMMARY_PARAMETERS_VERSION,
     SUMMARY_PRODUCER_NAME,
     SUMMARY_PRODUCER_VERSION,
 )
 
 
-_REPLAY_MODEL_NAME = "d01-approved-label-replay"
+_REPLAY_MODEL_NAME = "paper_benchmark-approved-label-replay"
 _REPLAY_PARAMETERS: dict[str, str | int] = {
     "temperature": 0,
     "max_output_tokens": 2048,
@@ -73,7 +72,7 @@ def build_frozen_claim_benchmark_cases(
         )
     )
     if not approved:
-        raise ValueError("frozen D-01 package has no approved Claim labels")
+        raise ValueError("frozen Paper Acquisition Benchmark package has no approved Claim labels")
 
     scientific: list[LiteratureClaimBenchmarkEvaluationCase] = []
     accepted_by_claim_id: dict[str, LiteratureClaimAdmissionResult] = {}
@@ -92,7 +91,7 @@ def build_frozen_claim_benchmark_cases(
             or len(admission.records) != 1
         ):
             raise ValueError(
-                f"approved D-01 Claim did not enter accepted D-07 flow: {claim.claim_id}"
+                f"approved Paper Acquisition Benchmark Claim did not enter accepted LiteratureClaim Pipeline flow: {claim.claim_id}"
             )
         accepted_by_claim_id[claim.claim_id] = admission
         scientific.append(
@@ -188,10 +187,10 @@ def _build_claim_fixture(
 ) -> dict[str, Any]:
     evidence_by_id = {item.evidence_id: item for item in benchmark.evidence}
     evidence = tuple(evidence_by_id[item] for item in claim.evidence_ids)
-    statement_id = f"summary_statement.d07.{claim.claim_id.removeprefix('claim.')}"
+    statement_id = f"summary_statement.literature_claim.{claim.claim_id.removeprefix('claim.')}"
     summary = _build_summary(benchmark, claim, statement_id, evidence)
     version_id = (
-        "artifact_version.d07_benchmark."
+        "artifact_version.literature_claim_benchmark."
         f"{claim.claim_id.removeprefix('claim.')}"
     )
     claim_payload = {
@@ -241,10 +240,10 @@ def _build_summary(
     for item in benchmark_evidence:
         snapshot = PaperSummarySourceSnapshotReference(
             source_snapshot_id=(
-                "source_snapshot.d01."
+                "source_snapshot.paper_benchmark."
                 f"{item.evidence_id.removeprefix('evidence.')}"
             ),
-            source_id="d01_benchmark",
+            source_id="paper_benchmark",
             source_version=source_version,
             content_hash=compute_canonical_payload_hash(
                 item.model_dump(mode="json", exclude_none=True)
@@ -256,7 +255,7 @@ def _build_summary(
                 evidence_id=item.evidence_id,
                 paper_id=claim.paper_id,
                 candidate_id=(
-                    f"candidate.d01.{claim.paper_id.removeprefix('paper.')}"
+                    f"candidate.paper_benchmark.{claim.paper_id.removeprefix('paper.')}"
                 ),
                 source_id=snapshot.source_id,
                 source_record_id=item.evidence_id,
@@ -275,10 +274,10 @@ def _build_summary(
     ordered_evidence = tuple(sorted(evidence, key=lambda item: item.evidence_id))
     input_versions = PaperSummaryInputVersions(
         paper_collection_version_id=(
-            "artifact_version.d01_benchmark.paper_collection."
+            "artifact_version.paper_benchmark.paper_collection."
             f"{claim.paper_id.removeprefix('paper.')}"
         ),
-        paper_collection_schema_version="1.0.0",
+        paper_collection_schema_version="2.0.0",
         paper_collection_output_hash=compute_canonical_payload_hash(
             {
                 "benchmark_id": benchmark.benchmark_id,
@@ -297,7 +296,7 @@ def _build_summary(
     )
     prompt = PromptRegistry().get("paper_summary")
     producer = PaperSummaryProducerExecution(
-        execution_id=f"execution.d01_summary.{input_hash[7:31]}",
+        execution_id=f"execution.paper_benchmark_summary.{input_hash[7:31]}",
         producer_name=SUMMARY_PRODUCER_NAME,
         producer_version=SUMMARY_PRODUCER_VERSION,
         model_name=_REPLAY_MODEL_NAME,
@@ -342,7 +341,6 @@ def _build_summary(
             scientific_payload_hash=benchmark.scientific_payload_hash,
             content_hash=benchmark.content_hash,
             scenario_id=benchmark.search_scenarios[0].scenario_id,
-            x00_main_sha=FROZEN_X00_MAIN_SHA,
         ).model_dump(mode="json"),
         "input_versions": input_versions.model_dump(mode="json"),
         **statement_fields,

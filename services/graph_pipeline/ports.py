@@ -1,4 +1,4 @@
-"""Typed, version-pinned read boundary for the D-05 graph pipeline.
+"""Typed, version-pinned read boundary for the Evidence Graph pipeline.
 
 The graph builder is deliberately unable to consume loose JSON, a bare
 pipeline candidate, or one page from an HTTP collection.  A trusted adapter
@@ -15,6 +15,7 @@ from typing import Protocol, runtime_checkable
 from pydantic import BaseModel, JsonValue
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.core import (
     EvidenceDetail,
     ProducerExecutionDetail,
@@ -388,7 +389,7 @@ class PersistedEvidenceBinding:
 
     @property
     def upstream_evidence_content_hash(self) -> str:
-        """Hash every immutable upstream Evidence fact used by D-05."""
+        """Hash every immutable upstream Evidence fact used by Evidence Graph."""
 
         return compute_graph_upstream_evidence_hash(
             self.evidence,
@@ -491,7 +492,7 @@ def _validate_candidate_pins(
     | FieldDictionaryArtifactCandidate
     | LiteratureRelationsCandidate,
 ) -> None:
-    content = candidate.model_dump(mode="json", exclude_none=True)
+    content = canonical_artifact_content_payload(candidate)
     if pins.schema_version != candidate.schema_version:
         raise _artifact_error(
             "ArtifactVersion schema pin disagrees with candidate",
@@ -635,7 +636,7 @@ def _validate_data_evidence_semantics(
     candidate: DatasetArtifactCandidate,
     evidence_bindings: tuple[PersistedEvidenceBinding, ...],
 ) -> None:
-    """Close persisted rows to exact C-04 Transformation/Crossmatch identities."""
+    """Close persisted rows to exact Data Artifact Transformation/Crossmatch identities."""
 
     transformations = {
         item.evidence_id: item for item in candidate.transformation_evidence
@@ -662,7 +663,7 @@ def _validate_data_evidence_semantics(
         if evidence_id not in crossmatch_ids:
             raise _data_evidence_error(
                 evidence_id,
-                "persisted data Evidence does not resolve to a retained C-04 identity",
+                "persisted data Evidence does not resolve to a retained Data Artifact identity",
             )
         locator = binding.pipeline_locator
         content_hash = locator.get("crossmatch_content_hash")
@@ -683,7 +684,7 @@ def _validate_data_evidence_semantics(
         ):
             raise _data_evidence_error(
                 evidence_id,
-                "persisted data Evidence does not close its C-04 Crossmatch Evidence target/locator/Snapshot",
+                "persisted data Evidence does not close its Data Artifact Crossmatch Evidence target/locator/Snapshot",
             )
 
 
@@ -709,7 +710,7 @@ def _validate_quality_projection(
         != quality_projection.quality_input_hash
     ):
         raise _artifact_error(
-            "passing C-05 projection is not bound to the published candidate",
+            "passing Data Quality Evaluation projection is not bound to the published candidate",
             reason=GraphRejectionReason.provenance_version_mismatch,
             path="input_versions.data.quality_projection",
         )
@@ -914,7 +915,7 @@ class PublishedLiteratureRelationsVersion:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class PublishedDataGraphInputs:
-    """One exact, cross-validated C-04/C-05 data input closure."""
+    """One exact, cross-validated Data Artifact/Data Quality Evaluation data input closure."""
 
     dataset: PublishedDatasetVersion
     field_dictionary: PublishedFieldDictionaryVersion
@@ -961,7 +962,7 @@ class PublishedDataGraphInputs:
             )
         ):
             raise _artifact_error(
-                "Dataset and FieldDictionary are not one closed C-04 bundle",
+                "Dataset and FieldDictionary are not one closed Data Artifact bundle",
                 reason=GraphRejectionReason.cross_version_reference,
                 path="input_versions.data",
             )
@@ -985,7 +986,7 @@ class PublishedDataGraphInputs:
             for field in shared_quality
         ):
             raise _artifact_error(
-                "Dataset and FieldDictionary do not share one passing C-05 bundle",
+                "Dataset and FieldDictionary do not share one passing Data Quality Evaluation bundle",
                 reason=GraphRejectionReason.provenance_version_mismatch,
                 path="input_versions.data.quality_projection",
             )
@@ -1081,7 +1082,7 @@ class VersionedGraphInputReadPort(Protocol):
     """Resolve one selection into a complete typed bundle; never return pages."""
 
     def read(self, selection: GraphInputVersionSelection) -> PublishedGraphInputs:
-        """Read and validate all exact ArtifactVersions selected for D-05."""
+        """Read and validate all exact ArtifactVersions selected for Evidence Graph."""
 
 
 @runtime_checkable

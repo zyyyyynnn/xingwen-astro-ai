@@ -1,5 +1,5 @@
 /**
- * Paper acquisition repository tests (A-05 over the B-06 read contract).
+ * Paper acquisition repository tests (Paper Acquisition Workspace over the PaperCollection API read contract).
  *
  * Covers: contract validation of both read models, multi-page cursor
  * aggregation, integrity guards (non-advancing cursor, duplicate candidates,
@@ -491,7 +491,7 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
       execution.live_failure_class = "timeout";
       execution.live_failure_code = "CROSSREF_TIMEOUT";
     }
-    clone.source_snapshots[0]!.cache_version = "cache_v1";
+    clone.source_snapshots[0]!.cache_version = "cache_fixture";
     clone.source_snapshots[0]!.request_metadata = {
       ...clone.source_snapshots[0]!.request_metadata,
       origin_run_id: "run_origin_01",
@@ -522,7 +522,7 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
       liveFailureCode: "CROSSREF_TIMEOUT",
     });
     const snapshot = review.sourceSnapshots[0];
-    expect(snapshot?.cacheVersion).toBe("cache_v1");
+    expect(snapshot?.cacheVersion).toBe("cache_fixture");
     expect(snapshot?.cachedOrigin).toEqual({
       originRunId: "run_origin_01",
       originArtifactVersionId: "artv_origin_01",
@@ -629,7 +629,7 @@ describe("paperAcquisition.getReview — cached provenance audit", () => {
       id: "snap_paper_arxiv_02",
       source_id: "arxiv",
       content_hash: `sha256:${"b".repeat(64)}`,
-      cache_version: "cache_v1",
+      cache_version: "cache_fixture",
       request_metadata: { adapter_name: "arxiv_demo_fixture" },
     });
     overrideCollectionPayload(payload);

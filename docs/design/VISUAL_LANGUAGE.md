@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                      |
 | --------- | --------------------------------------- |
-| Status    | Accepted                                |
 | Authority | 品牌、Token、字体、排版、密度与组件外观 |
 
 本文定义 Brand Site 与 Research Workspace 的统一视觉语言。业务组件只消费语义 Token。

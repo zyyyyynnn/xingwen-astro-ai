@@ -1,4 +1,4 @@
-"""D-03 PaperSummary model-output, Evidence, and Artifact content contracts."""
+"""Contracts for paper-summary model output, evidence, and artifact content."""
 
 from __future__ import annotations
 
@@ -269,7 +269,7 @@ class PaperSummaryProducerExecution(BaseModel):
 
 
 class PaperSummaryArtifactContent(BaseModel):
-    """Publisher-ready D-03 content used directly by the core Artifact discriminator."""
+    """Publisher-ready PaperSummary Pipeline content used directly by the core Artifact discriminator."""
 
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True

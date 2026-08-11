@@ -1,4 +1,4 @@
-"""Reproducible D-03 evaluation against the frozen D-01 package."""
+"""Reproducible PaperSummary Pipeline evaluation against the frozen Paper Acquisition Benchmark package."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def evaluate_paper_summaries(
     for summary_id in human_review_sample_ids:
         summary = benchmark_summaries.get(summary_id)
         if summary is None or summary.review_status is not BenchmarkReviewStatus.approved:
-            raise ValueError("human review samples must reference approved D-01 summaries")
+            raise ValueError("human review samples must reference approved Paper Acquisition Benchmark summaries")
 
     producer = cases[0].admission.producer
     producer_signature = (
@@ -54,7 +54,7 @@ def evaluate_paper_summaries(
     unsupported_blocked_count = 0
     for case in cases:
         if case.benchmark_summary_id not in benchmark_summaries:
-            raise ValueError("evaluation case must reference a D-01 PaperSummary")
+            raise ValueError("evaluation case must reference a Paper Acquisition Benchmark PaperSummary")
         candidate_producer = case.admission.producer
         if (
             candidate_producer.prompt_name,
@@ -130,7 +130,7 @@ def evaluate_paper_summaries(
     metrics_package = benchmark.model_copy(
         update={"review_status": BenchmarkReviewStatus.pending_scientific_review}
     )
-    d01_metrics = {
+    paper_benchmark_metrics = {
         result.metric_id: result
         for result in evaluate_benchmark(
             metrics_package,
@@ -144,8 +144,8 @@ def evaluate_paper_summaries(
             ),
         )
     }
-    schema_metric = d01_metrics[BenchmarkMetricId.schema_pass_rate]
-    evidence_metric = d01_metrics[BenchmarkMetricId.evidence_coverage]
+    schema_metric = paper_benchmark_metrics[BenchmarkMetricId.schema_pass_rate]
+    evidence_metric = paper_benchmark_metrics[BenchmarkMetricId.evidence_coverage]
     payload = {
         "report_version": "1.0.0",
         "benchmark_id": benchmark.benchmark_id,

@@ -1,4 +1,4 @@
-"""Explicit live-smoke entrypoint for the frozen D-01 Benchmark Query."""
+"""Explicit live-smoke entrypoint for the frozen paper benchmark query."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ from pathlib import Path
 
 from app.schemas.enums import PaperDataLevel, SourceMode
 
-from .pipeline import PaperCollectionPipeline
+from .benchmark_runner import PaperCollectionBenchmarkRunner
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the D-02 Crossref metadata search against a frozen benchmark scenario."
+            "Run the Paper Acquisition Pipeline Crossref metadata search against a frozen benchmark scenario."
         )
     )
     parser.add_argument(
@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    collection = PaperCollectionPipeline(timeout_seconds=args.timeout).run(
+    collection = PaperCollectionBenchmarkRunner(timeout_seconds=args.timeout).run(
         scenario_id=args.scenario,
         page_size=args.page_size,
         selection_limit=args.selection_limit,

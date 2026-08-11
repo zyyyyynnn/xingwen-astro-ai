@@ -1,4 +1,4 @@
-"""Public, immutable schemas for the C-05 data-quality handoff.
+"""Public, immutable schemas for the data-quality handoff.
 
 This module is the Pydantic authoring source for quality results.  Pipeline
 admission state and Publisher closures intentionally live under
@@ -50,7 +50,7 @@ class DataQualityProjectionReference(BaseModel):
 
 
 class DataQualityProjection(BaseModel):
-    """Persisted C-05 attestation bound to one published data candidate."""
+    """Persisted Data Quality Evaluation attestation bound to one published data candidate."""
 
     model_config = MODEL_CONFIG
 
@@ -160,7 +160,7 @@ class QualityGateStatus(StrEnum):
 
 class QualityErrorCode(StrEnum):
     QUALITY_INPUT_INVALID = "QUALITY_INPUT_INVALID"
-    QUALITY_C04_CANDIDATE_MISMATCH = "QUALITY_C04_CANDIDATE_MISMATCH"
+    QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH = "QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH"
     QUALITY_CROSSMATCH_METRICS_MISMATCH = "QUALITY_CROSSMATCH_METRICS_MISMATCH"
     QUALITY_RESEARCH_CONTRACT_MISMATCH = "QUALITY_RESEARCH_CONTRACT_MISMATCH"
     QUALITY_RULE_SET_MISMATCH = "QUALITY_RULE_SET_MISMATCH"
@@ -176,7 +176,7 @@ class QualityErrorCode(StrEnum):
 
 class QualityFailureStage(StrEnum):
     input_validation = "input_validation"
-    c04_validation = "c04_validation"
+    data_artifact_validation = "data_artifact_validation"
     crossmatch_validation = "crossmatch_validation"
     contract_validation = "contract_validation"
     rule_validation = "rule_validation"
@@ -453,7 +453,7 @@ class QualityAggregateScorePolicy(BaseModel):
 
 
 class DataQualityRuleSet(BaseModel):
-    """Frozen C-05 rules and all upstream identities they bind."""
+    """Frozen Data Quality Evaluation rules and all upstream identities they bind."""
 
     model_config = MODEL_CONFIG
 
@@ -538,7 +538,7 @@ class DataQualityRuleSet(BaseModel):
             ):
                 raise ValueError("quality gate binds an unknown metric or result field")
         if self.aggregate_score_policy.enabled is not False:
-            raise ValueError("C-05 v1 aggregate score must remain disabled")
+            raise ValueError("Data Quality Evaluation aggregate score must remain disabled")
         expected = compute_quality_rule_set_content_hash(self)
         if self.content_hash != expected:
             raise ValueError(f"quality RuleSet content_hash mismatch: {expected}")
@@ -777,7 +777,7 @@ class QualityArtifactReference(BaseModel):
 class QualityInputReferences(BaseModel):
     model_config = MODEL_CONFIG
 
-    c04_input_hash: ContentHash
+    data_artifact_input_hash: ContentHash
     candidates: tuple[QualityArtifactReference, ...] = Field(min_length=3, max_length=3)
     requested_field_ids: tuple[Identifier, ...] = Field(min_length=1)
     row_ids: tuple[Identifier, ...]
@@ -799,7 +799,7 @@ class QualityInputReferences(BaseModel):
             "field_dictionary",
             "source_collection",
         ):
-            raise ValueError("quality input references must use canonical C-04 candidate order")
+            raise ValueError("quality input references must use canonical Data Artifact candidate order")
         if len(self.requested_field_ids) != len(set(self.requested_field_ids)):
             raise ValueError("quality input references contain duplicate requested fields")
         if len(self.row_ids) != len(set(self.row_ids)):
@@ -816,7 +816,7 @@ class QualityProducerReference(BaseModel):
 
 
 class DataQualityEvaluationInput(BaseModel):
-    """Canonical public input to the C-05 evaluator."""
+    """Canonical public input for data-quality evaluation."""
 
     model_config = MODEL_CONFIG
 
@@ -837,12 +837,12 @@ class DataQualityEvaluationInput(BaseModel):
 
 
 class DataQualityEvaluationResult(BaseModel):
-    """Typed C-05 result; it is not a Core ``ArtifactKind``."""
+    """Typed Data Quality Evaluation result; it is not a Core ``ArtifactKind``."""
 
     model_config = MODEL_CONFIG
 
     kind: Literal["data_quality"] = "data_quality"
-    schema_version: SemanticVersion
+    schema_version: Literal["2.0.0"]
     result_id: Identifier
     input_references: QualityInputReferences
     evaluation_plan: QualityEvaluationPlan
@@ -864,7 +864,7 @@ class DataQualityEvaluationResult(BaseModel):
     @model_validator(mode="after")
     def validate_result_hashes(self) -> DataQualityEvaluationResult:
         if self.aggregate_score_policy.enabled is not False or self.aggregate_score is not None:
-            raise ValueError("C-05 v1 aggregate score must be disabled and null")
+            raise ValueError("Data Quality Evaluation aggregate score must be disabled and null")
         if self.contract_gate.rule_binding_version != self.evaluation_plan.rule_set_version:
             raise ValueError("quality Contract gate is not bound to the evaluation plan version")
         if self.result_id != compute_data_quality_result_id(
@@ -912,7 +912,7 @@ class DataQualityEvaluationRejected(BaseModel):
     model_config = MODEL_CONFIG
 
     kind: Literal["data_quality_rejected"] = "data_quality_rejected"
-    schema_version: SemanticVersion
+    schema_version: Literal["2.0.0"]
     failure_stage: QualityFailureStage
     error_code: QualityErrorCode
     message: NonEmptyString

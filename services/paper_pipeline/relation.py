@@ -1,4 +1,4 @@
-"""D-08 LiteratureRelation classification and deterministic admission."""
+"""Literature-relation classification and deterministic admission."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from pydantic_core import PydanticSerializationError
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.literature_claim import (
     LiteratureClaimCandidate,
     LiteratureClaimStatus,
@@ -87,7 +88,7 @@ _UNSAFE_TRACE = re.compile(
 
 @dataclass(frozen=True, slots=True)
 class LiteratureClaimsArtifactVersionInput:
-    """Repository-port value for one immutable D-07 ArtifactVersion."""
+    """Repository-port value for one immutable LiteratureClaim Pipeline ArtifactVersion."""
 
     artifact_version_id: str
     schema_version: str
@@ -136,7 +137,6 @@ class LiteratureRelationPipeline:
         confidence_assessments: Mapping[
             str, LiteratureRelationConfidenceAssessment
         ],
-        prompt_version: str | None = None,
         parameters_version: str = RELATION_PARAMETERS_VERSION,
         execution_id: str | None = None,
         run_id: str | None = None,
@@ -149,9 +149,7 @@ class LiteratureRelationPipeline:
         requested_ids = tuple(sorted(set(literature_claim_artifact_version_ids)))
         if not requested_ids:
             raise ValueError("at least one LiteratureClaims ArtifactVersion is required")
-        prompt = self.prompt_registry.get("literature_reasoning", prompt_version)
-        if prompt.status != "active":
-            raise ValueError("only an active LiteratureRelation Prompt can be executed")
+        prompt = self.prompt_registry.get("literature_relation")
         if prompt.output_models != ("LiteratureRelationExtractionOutput",):
             raise ValueError("Prompt output contract is not LiteratureRelationExtractionOutput")
         safe_parameters = _validate_parameters(parameters)
@@ -502,7 +500,7 @@ def _resolve_inputs(
             continue
         try:
             content = LiteratureClaimsCandidate.model_validate(
-                wrapper.content.model_dump(mode="json", exclude_none=True)
+                wrapper.content.model_dump(mode="json")
             )
         except (
             ValidationError,
@@ -518,7 +516,7 @@ def _resolve_inputs(
             )
             continue
         actual_content_hash = compute_canonical_payload_hash(
-            content.model_dump(mode="json", exclude_none=True)
+            canonical_artifact_content_payload(content)
         )
         if wrapper.schema_version not in SUPPORTED_CLAIM_SCHEMA_VERSIONS:
             unsupported = True

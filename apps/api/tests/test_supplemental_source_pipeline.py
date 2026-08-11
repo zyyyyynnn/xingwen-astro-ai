@@ -344,13 +344,13 @@ def test_ps_adapter_builds_complete_paginated_snapshot() -> None:
     transport = FakeTransport(
         json_response(
             ps_schema_rows(query.selected_columns),
-            headers={"ETag": 'W/"schema-v1"', "X-Request-Id": "schema-request"},
+            headers={"ETag": 'W/"schema-fixture"', "X-Request-Id": "schema-request"},
         ),
         json_response(
             first_page,
-            headers={"ETag": 'W/"ps-v1"', "X-Request-Id": "page-request-1"},
+            headers={"ETag": 'W/"ps-fixture"', "X-Request-Id": "page-request-1"},
         ),
-        json_response(second_page, headers={"ETag": 'W/"ps-v1"'}),
+        json_response(second_page, headers={"ETag": 'W/"ps-fixture"'}),
     )
 
     result = acquire_live(
@@ -361,13 +361,13 @@ def test_ps_adapter_builds_complete_paginated_snapshot() -> None:
 
     assert [page.returned_rows for page in result.pages] == [2, 1]
     assert len(transport.calls) == 3
-    assert result.snapshot.source_version_or_etag == 'W/"ps-v1"'
+    assert result.snapshot.source_version_or_etag == 'W/"ps-fixture"'
     metadata = result.snapshot.request_metadata
     assert metadata["source_version_evidence"] == {
         "kind": "data_page_etag",
-        "value": 'W/"ps-v1"',
+        "value": 'W/"ps-fixture"',
     }
-    assert metadata["schema_preflight"]["schema_etag"] == 'W/"schema-v1"'
+    assert metadata["schema_preflight"]["schema_etag"] == 'W/"schema-fixture"'
     assert metadata["schema_preflight"]["response_hash"].startswith("sha256:")
     assert metadata["completion_status"] == "complete"
     assert metadata["continuation_cursor"] is None
@@ -419,8 +419,8 @@ def test_ps_adapter_rejects_data_version_change_between_pages() -> None:
     )
     transport = FakeTransport(
         json_response(ps_schema_rows(query.selected_columns)),
-        json_response([first], headers={"ETag": 'W/"v1"'}),
-        json_response([second], headers={"ETag": 'W/"v2"'}),
+        json_response([first], headers={"ETag": 'W/"before"'}),
+        json_response([second], headers={"ETag": 'W/"after"'}),
     )
 
     with pytest.raises(SourceFailure) as error:

@@ -1,4 +1,4 @@
-"""Load and cross-check the frozen C-08 RuleSet and entity alias catalog."""
+"""Load and cross-check the pinned entity-alignment RuleSet and alias catalog."""
 
 from __future__ import annotations
 
@@ -34,9 +34,9 @@ _RULE_ROOT = (
     / "exoplanet_host_star"
     / "crossmatch-rules"
 )
-DEFAULT_SOURCE_POLICY_PATH = _RULE_ROOT / "source-policy.v1.json"
-DEFAULT_ALIAS_CATALOG_PATH = _RULE_ROOT / "entity-alias-catalog.v1.json"
-DEFAULT_CROSSMATCH_RULE_SET_PATH = _RULE_ROOT / "crossmatch-rules.v1.json"
+DEFAULT_SOURCE_POLICY_PATH = _RULE_ROOT / "source-policy.json"
+DEFAULT_ALIAS_CATALOG_PATH = _RULE_ROOT / "entity-alias-catalog.json"
+DEFAULT_CROSSMATCH_RULE_SET_PATH = _RULE_ROOT / "crossmatch-rules.json"
 
 
 def load_entity_alias_catalog(

@@ -11,10 +11,11 @@ from services.data_pipeline.data_artifacts.admission import (
     validate_data_artifact_quality_prerequisites,
 )
 
-from data_artifact_test_support import build_input
+from data_artifact_test_support import build_data_publication_bindings, build_input
 
 
 def _admit(candidate):
+    snapshots, evidence = build_data_publication_bindings(candidate)
     return admit_artifact_candidate(
         candidate,
         schema_version=candidate.schema_version,
@@ -23,19 +24,30 @@ def _admit(candidate):
         evidence_validator=validate_data_artifact_evidence,
         domain_validator=validate_data_artifact_domain,
         quality_validator=validate_data_artifact_quality_prerequisites,
+        source_snapshot_bindings=snapshots,
+        evidence_bindings=evidence,
     )
 
 
-def test_c04_prerequisites_cannot_bypass_final_c05_publication_gate() -> None:
+def test_data_artifact_prerequisites_cannot_bypass_final_data_quality_publication_gate() -> None:
     result = build_data_artifact_candidates(build_input("star.tic_id"))
 
-    for candidate in (
-        result.dataset,
-        result.field_dictionary,
-        result.source_collection,
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="Data Quality Evaluation attestation",
     ):
-        with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
-            _admit(candidate)
+        _admit(result.dataset)
+    for candidate in (result.field_dictionary, result.source_collection):
+        with pytest.raises(PublicationAdmissionError, match="provenance bridge"):
+            admit_artifact_candidate(
+                candidate,
+                schema_version=candidate.schema_version,
+                source_snapshot_ids=candidate.source_snapshot_ids,
+                evidence_ids=candidate.evidence_ids,
+                evidence_validator=validate_data_artifact_evidence,
+                domain_validator=validate_data_artifact_domain,
+                quality_validator=validate_data_artifact_quality_prerequisites,
+            )
 
 
 def test_reparsed_copied_and_intermediate_candidates_cannot_bypass_port() -> None:
@@ -62,7 +74,7 @@ def test_reparsed_copied_and_intermediate_candidates_cannot_bypass_port() -> Non
 
 
 @pytest.mark.parametrize("candidate", ({"kind": "dataset"}, "free text"))
-def test_untyped_content_is_rejected_before_c04_validators(candidate) -> None:
+def test_untyped_content_is_rejected_before_data_artifact_validators(candidate) -> None:
     with pytest.raises(PublicationAdmissionError, match="validated Pydantic"):
         admit_artifact_candidate(
             candidate,

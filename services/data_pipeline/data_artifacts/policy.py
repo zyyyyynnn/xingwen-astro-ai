@@ -1,4 +1,4 @@
-"""Load the frozen C-04 execution policies with full hash validation."""
+"""Load the frozen Data Artifact execution policies with full hash validation."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ _RULE_ROOT = (
     / "exoplanet_host_star"
     / "mapping-rules"
 )
-DEFAULT_MAPPING_RULE_SET_PATH = _RULE_ROOT / "mapping-rules.v1.json"
-DEFAULT_UNIT_CONVERSION_CATALOG_PATH = _RULE_ROOT / "unit-conversions.v1.json"
+DEFAULT_MAPPING_RULE_SET_PATH = _RULE_ROOT / "mapping-rules.json"
+DEFAULT_UNIT_CONVERSION_CATALOG_PATH = _RULE_ROOT / "unit-conversions.json"
 
 
 def load_mapping_rule_set(

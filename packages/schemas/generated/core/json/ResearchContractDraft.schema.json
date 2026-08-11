@@ -273,6 +273,7 @@
       "expires_at": "2026-07-21T09:00:00Z",
       "id": "rcd_01JEXAMPLE",
       "intent": "Integrate exoplanet candidates and host-star parameters",
+      "project_id": "proj_01JEXAMPLE",
       "session_id": "sess_01JEXAMPLE",
       "status": "draft",
       "updated_at": "2026-07-21T08:00:00Z",
@@ -303,6 +304,12 @@
     "intent": {
       "minLength": 1,
       "title": "Intent",
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
       "type": "string"
     },
     "session_id": {
@@ -336,6 +343,7 @@
   },
   "required": [
     "id",
+    "project_id",
     "session_id",
     "version",
     "intent",

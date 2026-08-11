@@ -1,4 +1,4 @@
-"""Load only the explicitly frozen X-00 Case/Field Manifest pair."""
+"""Load the pinned Case/Field Manifest pair."""
 
 from __future__ import annotations
 
@@ -35,6 +35,6 @@ def load_frozen_manifest_bundle(
     }
     if actual != expected:
         raise ValueError(
-            "C-02 manifest pin mismatch; dynamic or modified manifest input is forbidden"
+            "Primary Source Acquisition manifest pin mismatch; dynamic or modified manifest input is forbidden"
         )
     return bundle

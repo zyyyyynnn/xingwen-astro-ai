@@ -1,7 +1,7 @@
 /**
  * Fixture adapter — the Demo Replay `RepositorySet` implementation.
  *
- * Validates every fixture DTO against the B-15 JSON Schemas, enforces Demo
+ * Validates every fixture DTO against the Core Domain and Transport Contract JSON Schemas, enforces Demo
  * Replay semantics (no `live`/`cached` data), maps payloads into the domain
  * model, and serves reads from in-memory stores. It implements the same
  * narrowed ports as the HTTP adapter so the two are structurally
@@ -713,10 +713,6 @@ export function createFixtureRepositories(
           projectId: input.projectId,
           contractId: input.contractId,
           executionMode: input.executionMode,
-          derivationKind: input.derivationKind ?? "original",
-          parentRunId: input.parentRunId ?? null,
-          retryFromStep: input.retryFromStep ?? null,
-          cachePolicy: input.cachePolicy ?? "fallback_on_recoverable_failure",
         });
         const replay = runsByIdempotencyKey.get(input.idempotencyKey);
         if (replay) {
@@ -737,10 +733,10 @@ export function createFixtureRepositories(
           executionMode: input.executionMode,
           status: "queued",
           progress: 0,
-          parentRunId: input.parentRunId ?? null,
-          derivationKind: input.derivationKind ?? "original",
-          retryFromStep: input.retryFromStep ?? null,
-          cachePolicy: input.cachePolicy ?? "fallback_on_recoverable_failure",
+          parentRunId: null,
+          derivationKind: "original",
+          retryFromStep: null,
+          cachePolicy: "disabled",
           startedAt: null,
           finishedAt: null,
           createdAt: now,
@@ -826,7 +822,7 @@ export function createFixtureRepositories(
           (item) => item.summary.artifact_version_id === artifactVersionId,
         );
         if (!entry) {
-          // Mirrors the B-07 backend: an unknown version id is a generic
+          // Mirrors the PaperSummary API backend: an unknown version id is a generic
           // ARTIFACT_VERSION_NOT_FOUND, never an "empty summary" state.
           throw new NotFoundError(
             `Paper summary ${artifactVersionId} not found`,

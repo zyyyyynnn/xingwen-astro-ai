@@ -1,4 +1,4 @@
-"""Stable logical identities owned by the D-05 graph pipeline.
+"""Stable logical identities owned by the Evidence Graph pipeline.
 
 This module intentionally has no dependency on the graph artifact schema.  It
 only turns authoritative logical references into opaque IDs.  Presentation
@@ -80,7 +80,7 @@ class GraphNodeIdentity:
             raise GraphIdentityError("node_type must be a typed GraphNodeType")
         if self.node_type not in _GENERATED_NODE_TYPES:
             raise GraphIdentityError(
-                f"D-05 does not generate {self.node_type.value!r} nodes"
+                f"Evidence Graph does not generate {self.node_type.value!r} nodes"
             )
         if not isinstance(self.logical_reference, tuple) or not self.logical_reference:
             raise GraphIdentityError("logical_reference must be a nonempty tuple")
@@ -211,7 +211,7 @@ class GraphEdgeIdentity:
             expected = _STRUCTURAL_EDGE_ENDPOINTS.get(self.edge_type)
             if expected is None:
                 raise GraphIdentityError(
-                    f"{self.edge_type.value!r} is not a D-05 structural edge"
+                    f"{self.edge_type.value!r} is not an Evidence Graph structural edge"
                 )
             if self.relation_logical_id is not None:
                 raise GraphIdentityError(
@@ -279,7 +279,7 @@ def supports_finding_edge_identity(
     paper: GraphNodeIdentity,
     claim: GraphNodeIdentity,
 ) -> GraphEdgeIdentity:
-    """Create the D-05 paper -> claim supports_finding edge."""
+    """Create the Evidence Graph paper -> claim supports_finding edge."""
 
     return GraphEdgeIdentity(
         edge_type=GraphEdgeType.supports_finding,
@@ -308,11 +308,11 @@ def literature_relation_edge_identity(
 def graph_edge_type_for_literature_relation(
     relation_type: LiteratureRelationType,
 ) -> GraphEdgeType:
-    """Map an upstream Relation type into the frozen v1 Graph taxonomy.
+    """Map an upstream Relation type into the current Graph taxonomy.
 
     Stable identity can be computed for every upstream Relation type, but a
     Graph edge is publishable only when the frozen GraphEdgeType has an exact
-    value match.  D-05 admission turns this failure into ``taxonomy_violation``.
+    value match.  Evidence Graph admission turns this failure into ``taxonomy_violation``.
     """
 
     if type(relation_type) is not LiteratureRelationType:
@@ -323,7 +323,7 @@ def graph_edge_type_for_literature_relation(
         return _LITERATURE_RELATION_GRAPH_EDGE_TYPES[relation_type]
     except KeyError as exc:
         raise GraphIdentityError(
-            f"{relation_type.value!r} is outside the D-05 v1 GraphEdgeType taxonomy"
+            f"{relation_type.value!r} is outside the Evidence Graph GraphEdgeType taxonomy"
         ) from exc
 
 

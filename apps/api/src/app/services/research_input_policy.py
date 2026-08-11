@@ -1,4 +1,4 @@
-"""Pure ingestion domain policy for Research Inputs (B-19).
+"""Pure domain policy for research-input ingestion.
 
 This module is the single authority for the content rules of the ingestion
 boundary: MIME sniffing from magic bytes, declared-type/MIME compatibility,

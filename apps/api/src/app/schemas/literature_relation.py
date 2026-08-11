@@ -1,4 +1,4 @@
-"""D-08 LiteratureRelation and auditable ReasoningTrace contracts."""
+"""Contracts for literature relations and auditable reasoning traces."""
 
 from __future__ import annotations
 
@@ -535,7 +535,7 @@ class LiteratureRelationStatusCounts(BaseModel):
 
 
 class LiteratureRelationsCandidate(BaseModel):
-    """The only D-08 typed candidate accepted by the generic Publisher port."""
+    """The only LiteratureRelation Pipeline typed candidate accepted by the generic Publisher port."""
 
     model_config = MODEL_CONFIG
     __artifact_publication_requires_admission__: ClassVar[bool] = True
@@ -814,7 +814,7 @@ class LiteratureRelationBenchmarkEvaluationCase(BaseModel):
     def validate_expectation(self) -> Self:
         if self.case_kind is LiteratureRelationBenchmarkCaseKind.scientific_label:
             if self.benchmark_relation_id is None or self.benchmark_trace_id is None:
-                raise ValueError("scientific case requires D-01 Relation and Trace ids")
+                raise ValueError("scientific case requires Paper Acquisition Benchmark Relation and Trace ids")
             if (
                 self.expected_failure_stage is not None
                 or self.expected_rejection_reason is not None

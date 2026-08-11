@@ -10,8 +10,8 @@ import pytest
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import GraphEdgeType, GraphNodeType
 from app.schemas.graph_artifact import (
-    GRAPH_TAXONOMY_V1_EDGE_TYPES,
-    GRAPH_TAXONOMY_V1_NODE_TYPES,
+    GRAPH_TAXONOMY_EDGE_TYPES,
+    GRAPH_TAXONOMY_NODE_TYPES,
     GraphArtifactCandidate,
     GraphCapacityPolicy,
     GraphIntegrityStage,
@@ -235,14 +235,14 @@ def test_published_provenance_closure_failures_have_structured_reasons(
     assert captured.value.reason is reason
 
 
-def test_real_d08_literature_only_candidate_builds_four_nodes_and_two_edges() -> None:
+def test_real_literature_relation_literature_only_candidate_builds_four_nodes_and_two_edges() -> None:
     fixture, candidate = _accepted_candidate()
 
     assert len(candidate.nodes) == 4
     assert len(candidate.edges) == 2
     assert len(candidate.evidence_uses) == 3
-    assert candidate.taxonomy.node_types == GRAPH_TAXONOMY_V1_NODE_TYPES
-    assert candidate.taxonomy.edge_types == GRAPH_TAXONOMY_V1_EDGE_TYPES
+    assert candidate.taxonomy.node_types == GRAPH_TAXONOMY_NODE_TYPES
+    assert candidate.taxonomy.edge_types == GRAPH_TAXONOMY_EDGE_TYPES
     assert candidate.integrity_report.counts.node_count == 4
     assert candidate.integrity_report.counts.edge_count == 2
     assert candidate.integrity_report.counts.relation_edge_count == 1
@@ -328,8 +328,8 @@ def test_graph_algorithm_producer_uses_scalar_ledger_parameters() -> None:
 @pytest.mark.parametrize(
     ("field", "drifted_value"),
     (
-        ("producer_name", "drifted-versioned-evidence-graph-pipeline"),
-        ("producer_version", "1.0.1"),
+        ("producer_name", "drifted-evidence-graph-pipeline"),
+        ("producer_version", "9.9.9"),
         ("parameters_hash", "sha256:" + "f" * 64),
     ),
 )
@@ -603,7 +603,7 @@ def test_progressive_request_chunk_capacity_is_enforced_before_normalization() -
         )
 
 
-def test_real_d08_nonaccepted_relation_is_rejected() -> None:
+def test_real_literature_relation_nonaccepted_relation_is_rejected() -> None:
     fixture = build_literature_graph_fixture(
         relation_status=LiteratureRelationStatus.candidate
     )
@@ -704,7 +704,7 @@ def test_node_capacity_exact_boundary_passes_and_one_below_fails() -> None:
     )
 
 
-def test_real_c04_c05_data_maps_dataset_and_every_canonical_field_once() -> None:
+def test_real_data_artifact_quality_data_maps_dataset_and_every_canonical_field_once() -> None:
     fixture, candidate = _accepted_data_candidate()
     assert fixture.inputs.data is not None
     dataset_version = fixture.inputs.data.dataset

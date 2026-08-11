@@ -1,9 +1,9 @@
-"""Vendor-neutral Parser Port for Scientific Document Parsing (D-10).
+"""Vendor-neutral port for scientific-document parsers.
 
 This module defines the *capability* Xingwen needs from a document parser. It
 contains NO vendor package import, NO vendor result type and NO vendor config
-type. A production adapter (D-11) implements ``DocumentParserPort`` by calling
-an approved upstream and mapping its result onto the Canonical
+type. A production adapter implements ``DocumentParserPort`` by calling an
+approved upstream and mapping its result onto the canonical
 ``DocumentParseCandidate`` from ``app.schemas.scientific_document``.
 
 The port has exactly ONE input boundary (``DocumentParseInput``) and ONE output
@@ -11,7 +11,7 @@ boundary (``DocumentParseCandidate``). There is deliberately no second,
 nearly-identical ``ParseRequest``/``ParseResult`` pair and no
 output→input reconstruction: the Canonical contract is the single boundary.
 
-Routing policy, hybrid fallback and resource budget are expressed through the
+Routing policy and resource budget are expressed through the
 ``DocumentParseProfile`` carried on the candidate, not here.
 """
 

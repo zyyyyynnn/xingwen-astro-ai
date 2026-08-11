@@ -53,7 +53,7 @@ class SecurityProblem(Exception):
 
 
 class InMemorySessionStore:
-    """Process-local adapter for B-16; durable storage belongs to B-12."""
+    """Process-local adapter for Session and Write Security; durable storage belongs to Workflow Persistence."""
 
     def __init__(self) -> None:
         self._records: dict[str, SessionRecord] = {}

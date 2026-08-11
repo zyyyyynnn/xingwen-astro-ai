@@ -1,4 +1,4 @@
-"""Real FastAPI + PostgreSQL integration for the B-runtime research chain (#121).
+"""Real FastAPI + PostgreSQL integration for the research runtime chain.
 
 Set ``TEST_DATABASE_URL`` to an isolated database whose name contains ``test``.
 The suite skips when PostgreSQL is unavailable rather than substituting SQLite,
@@ -17,38 +17,32 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 import os
 from pathlib import Path
-from typing import Literal
 from uuid import UUID, uuid4
 
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 import pytest
-from pydantic import BaseModel
-from sqlalchemy import Engine
+from sqlalchemy import Engine, func, select
 
 from app.config import settings
 from app.db.models import (
-    EvidenceModel,
-    ResearchArtifactModel,
     ResearchContractDraftModel,
     ResearchProjectModel,
-    SourceSnapshotModel,
 )
 from app.db.session import create_engine_from_url, session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.main import _load_case_manifests, create_app
 from app.services.artifacts import ArtifactReadService
 from app.services.research import ResearchApplicationService
 from app.services.resource_authority import PersistentResourceAuthority
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
+from app.test_support.bootstrap import bootstrap_fixture_artifacts
 from app.workflow.store import PersistentWorkflowStore
-from app.workflow.publisher import (
-    ArtifactPublication,
-    ArtifactPublisher,
-    ProducerExecutionRequest,
-    ProducerExecutionStore,
-    admit_artifact_candidate,
-)
 
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
@@ -56,16 +50,6 @@ pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
 )
 NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
-
-
-class _FixtureDatasetCandidate(BaseModel):
-    kind: Literal["export"] = "export"
-    field_ids: tuple[str, ...]
-    rows: tuple[dict[str, str], ...]
-
-
-def _accept(_context: object) -> None:
-    return None
 
 
 def _contract_input() -> dict[str, object]:
@@ -122,31 +106,25 @@ def runtime() -> Iterator[dict[str, object]]:
     project_id = uuid4()
     draft_id = uuid4()
     with factory() as session, session.begin():
-        session.add(
-            ResearchProjectModel(
-                id=project_id,
-                session_id=owner.id,
-                name="B-runtime research chain",
-                case_key="exoplanet_host_star",
-                revision=1,
-                created_at=NOW,
-                updated_at=NOW,
-            )
+        project = build_research_project(
+            project_id=project_id,
+            session_id=owner.id,
+            name="Research runtime chain",
+            case_key="exoplanet_host_star",
+            created_at=NOW,
+            updated_at=NOW,
         )
-        session.add(
-            ResearchContractDraftModel(
-                id=draft_id,
-                session_id=owner.id,
-                version=1,
-                intent="Integrate exoplanet candidates and host-star parameters",
-                status="draft",
-                contract=_contract_input(),
-                warnings=[],
-                created_at=NOW,
-                updated_at=NOW,
-                expires_at=datetime.now(UTC) + timedelta(hours=1),
-            )
+        draft = build_contract_draft(
+            project,
+            draft_id=draft_id,
+            intent="Integrate exoplanet candidates and host-star parameters",
+            status="draft",
+            content=_contract_input(),
+            created_at=NOW,
+            updated_at=NOW,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
+        persist_authoring_models(session, project=project, draft=draft)
 
     client = TestClient(app, base_url="https://testserver")
     client.cookies.set(settings.SESSION_COOKIE_NAME, owner_credential)
@@ -155,6 +133,7 @@ def runtime() -> Iterator[dict[str, object]]:
             "client": client,
             "factory": factory,
             "workflow_store": store,
+            "research_service": app.state.research_service,
             "owner_session_id": owner.id,
             "owner_csrf": owner_csrf,
             "other_credential": other_credential,
@@ -214,20 +193,20 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
         json={"draft_id": draft_id, "expected_draft_version": 2},
     )
     assert confirm_replay.status_code == 201
-    assert confirm_replay.json()["data"]["id"] == contract_id
+    assert confirm_replay.json()["data"] == confirmed.json()["data"]
 
     conflicting_draft_id = uuid4()
     factory = runtime["factory"]
     with factory() as session, session.begin():  # type: ignore[operator]
+        project = session.get(ResearchProjectModel, UUID(project_id))
+        assert project is not None
         session.add(
-            ResearchContractDraftModel(
-                id=conflicting_draft_id,
-                session_id=runtime["owner_session_id"],
-                version=1,
+            build_contract_draft(
+                project,
+                draft_id=conflicting_draft_id,
                 intent="Different confirmation request",
                 status="draft",
-                contract=_contract_input(),
-                warnings=[],
+                content=_contract_input(),
                 created_at=NOW,
                 updated_at=NOW,
                 expires_at=datetime(2026, 7, 23, tzinfo=UTC),
@@ -249,18 +228,40 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
         "star.tic_id",
     ]
 
+    rejected_unsupported_target_fields = client.post(
+        f"/api/projects/{project_id}/runs",
+        headers={**csrf, "Idempotency-Key": "run-unsupported-target-fields"},
+        json={
+            "contract_id": contract_id,
+            "execution_mode": "live",
+            "feedback_ids": ["feedback_01J"],
+            "retry_from_step": "fetching_data",
+            "cache_policy": "reuse",
+            "parent_run_id": "run_01J",
+            "derivation_kind": "retry",
+        },
+    )
+    assert rejected_unsupported_target_fields.status_code == 422
+    assert (
+        client.get(f"/api/projects/{project_id}").json()["data"]["latest_run_id"]
+        is None
+    )
+
     created = client.post(
         f"/api/projects/{project_id}/runs",
         headers={**csrf, "Idempotency-Key": "run-1"},
         json={
             "contract_id": contract_id,
             "execution_mode": "live",
-            "derivation_kind": "original",
         },
     )
     assert created.status_code == 201
     run_id = created.json()["data"]["id"]
     assert created.json()["data"]["status"] == "queued"
+    assert created.json()["data"]["parent_run_id"] is None
+    assert created.json()["data"]["derivation_kind"] == "original"
+    assert created.json()["data"]["retry_from_step"] is None
+    assert created.json()["data"]["cache_policy"] == "disabled"
 
     project_after_run = client.get(f"/api/projects/{project_id}")
     assert project_after_run.json()["data"]["active_contract_id"] == contract_id
@@ -272,7 +273,6 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
         json={
             "contract_id": contract_id,
             "execution_mode": "live",
-            "derivation_kind": "original",
         },
     )
     assert replay.status_code == 201
@@ -284,7 +284,6 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
         json={
             "contract_id": contract_id,
             "execution_mode": "demo_replay",
-            "derivation_kind": "original",
         },
     )
     assert conflict.status_code == 409
@@ -310,23 +309,6 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     reloaded = client.get(f"/api/projects/{project_id}/workspace-snapshot")
     assert reloaded.json()["data"] == saved.json()["data"]
 
-    non_raising = TestClient(
-        client.app, base_url="https://testserver", raise_server_exceptions=False
-    )
-    non_raising.cookies.update(client.cookies)
-    missing_parent = non_raising.post(
-        f"/api/projects/{project_id}/runs",
-        headers={**csrf, "Idempotency-Key": "derived-missing-parent"},
-        json={
-            "contract_id": contract_id,
-            "execution_mode": "live",
-            "derivation_kind": "retry",
-            "parent_run_id": str(uuid4()),
-        },
-    )
-    assert missing_parent.status_code == 404
-    assert missing_parent.json()["code"] == "RUN_NOT_FOUND"
-
 
 def test_expired_draft_is_visible_but_cannot_be_changed_or_confirmed(
     runtime: dict[str, object],
@@ -335,15 +317,15 @@ def test_expired_draft_is_visible_but_cannot_be_changed_or_confirmed(
     factory = runtime["factory"]
     expired_id = uuid4()
     with factory() as session, session.begin():  # type: ignore[operator]
+        project = session.get(ResearchProjectModel, UUID(runtime["project_id"]))
+        assert project is not None
         session.add(
-            ResearchContractDraftModel(
-                id=expired_id,
-                session_id=runtime["owner_session_id"],
-                version=1,
+            build_contract_draft(
+                project,
+                draft_id=expired_id,
                 intent="Expired contract draft",
                 status="draft",
-                contract=_contract_input(),
-                warnings=[],
+                content=_contract_input(),
                 created_at=NOW - timedelta(days=2),
                 updated_at=NOW - timedelta(days=2),
                 expires_at=datetime.now(UTC) - timedelta(minutes=1),
@@ -394,146 +376,35 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         json={
             "contract_id": contract_id,
             "execution_mode": "demo_replay",
-            "derivation_kind": "original",
         },
     )
     assert created.status_code == 201
-    run_id = UUID(created.json()["data"]["id"])
+    run_id = created.json()["data"]["id"]
 
-    factory = runtime["factory"]
-    workflow: PersistentWorkflowStore = runtime["workflow_store"]  # type: ignore[assignment]
-    snapshot = workflow.load_snapshot(run_id)
-    lease = workflow.acquire_lease(
-        run_id,
-        owner="x01-fixture-publisher",
-        lease_duration=timedelta(minutes=5),
-        expected_status="queued",
-        expected_revision=snapshot.revision,
+    published = bootstrap_fixture_artifacts(
+        session_id=str(runtime["owner_session_id"]),
+        run_id=run_id,
+        factory=runtime["factory"],  # type: ignore[arg-type]
+        research_service=runtime["research_service"],  # type: ignore[arg-type]
+        workflow_store=runtime["workflow_store"],  # type: ignore[arg-type]
     )
-    attempt = workflow.begin_step(
-        run_id,
-        step_key="planning",
-        attempt_idempotency_key="fixture-attempt",
-        token=lease.token,
-        generation=lease.generation,
-        expected_status="queued",
-        expected_revision=lease.revision,
-        public_message="Publishing deterministic fixture",
-    )
-
-    artifact_id = uuid4()
-    source_snapshot_id = uuid4()
-    evidence_id = uuid4()
-    with factory() as session, session.begin():  # type: ignore[operator]
-        session.add(
-            ResearchArtifactModel(
-                id=artifact_id,
-                project_id=UUID(str(project_id)),
-                kind="export",
-                title="Deterministic exoplanet fixture",
-                logical_key="x01-demo-fixture-dataset",
-            )
-        )
-        session.add(
-            SourceSnapshotModel(
-                id=source_snapshot_id,
-                project_id=UUID(str(project_id)),
-                source_id="x01_demo_fixture",
-                source_type="fixture",
-                retrieved_at=NOW,
-                query={"scenario": "exoplanet_host_star"},
-                query_hash="sha256:" + "1" * 64,
-                content_hash="sha256:" + "2" * 64,
-                license_note="Repository fixture; not a live scientific source",
-                request_metadata={"execution_mode": "demo_replay"},
-            )
-        )
-
-    candidate = admit_artifact_candidate(
-        _FixtureDatasetCandidate(
-            field_ids=("planet.toi_id", "star.tic_id"),
-            rows=({"planet.toi_id": "TOI-700 d", "star.tic_id": "TIC-150428135"},),
-        ),
-        schema_version="2.0.0",
-        source_snapshot_ids=(str(source_snapshot_id),),
-        evidence_ids=(str(evidence_id),),
-        evidence_validator=_accept,
-        domain_validator=_accept,
-        quality_validator=_accept,
-    )
-    ledger = ProducerExecutionStore(factory)  # type: ignore[arg-type]
-    execution = ledger.start_producer_execution(
-        ProducerExecutionRequest(
-            run_id=run_id,
-            step_key="planning",
-            attempt_id=attempt.attempt_id,
-            idempotency_key="fixture-producer",
-            producer_type="pipeline",
-            producer_name="x01-demo-fixture",
-            producer_version="1.0.0",
-            input_hash="sha256:" + "3" * 64,
-            parameters={"scenario": "exoplanet_host_star"},
-        ),
-        token=lease.token,
-        generation=lease.generation,
-        expected_status=attempt.run_status,
-        expected_revision=attempt.run_revision,
-    )
-    ledger.finish_producer_execution(
-        execution.id,
-        status="completed",
-        output_hash=candidate.content_hash,
-    )
-    published = ArtifactPublisher(factory).publish_step_outputs(  # type: ignore[arg-type]
-        run_id,
-        step_key="planning",
-        attempt_id=attempt.attempt_id,
-        token=lease.token,
-        generation=lease.generation,
-        expected_status=attempt.run_status,
-        expected_revision=attempt.run_revision,
-        publications=(
-            ArtifactPublication(
-                artifact_id=artifact_id,
-                publication_key="x01-demo-fixture-v1",
-                producer_execution_id=execution.id,
-                candidate=candidate,
-                source_mode="fixture",
-            ),
-        ),
-        public_message="Deterministic fixture published",
-    )
-    version_id = published.versions[0].id
-
-    with factory() as session, session.begin():  # type: ignore[operator]
-        session.add(
-            EvidenceModel(
-                id=evidence_id,
-                project_id=UUID(str(project_id)),
-                artifact_version_id=version_id,
-                target_type="field",
-                target_id="planet.toi_id",
-                evidence_type="database_query",
-                source_snapshot_id=source_snapshot_id,
-                locator={"kind": "fixture_row", "row_key": "TOI-700 d"},
-                quote_or_value="TOI-700 d",
-                extraction_method="x01_demo_fixture.replay",
-                confidence=1.0,
-            )
-        )
+    assert published.evidence_ids
+    version_id = published.artifact_version_id
+    evidence_id = published.evidence_ids[0]
 
     version = client.get(f"/api/artifact-versions/{version_id}")
     assert version.status_code == 200
     assert version.json()["data"]["source_mode"] == "fixture"
-    assert version.json()["data"]["evidence_ids"] == [str(evidence_id)]
+    assert evidence_id in version.json()["data"]["evidence_ids"]
+    assert version.json()["data"]["content"]["kind"] == "dataset"
 
     shared = client.post(
         f"/api/projects/{project_id}/shares",
         headers=csrf,
         json={
-            "title": "X-01 deterministic fixture evidence",
-            "artifact_version_ids": [str(version_id)],
-            "evidence_ids": [str(evidence_id)],
+            "title": "Real Compose and Browser Integration dataset evidence",
+            "artifact_version_ids": [version_id],
+            "evidence_ids": [evidence_id],
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
             "redaction_policy": "public_metadata_only",
         },
@@ -542,13 +413,13 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
     public = client.get(shared.json()["data"]["share_url"])
     assert public.status_code == 200
     assert public.json()["data"]["artifact_versions"][0]["source_mode"] == "fixture"
-    assert public.json()["data"]["evidence"][0]["id"] == str(evidence_id)
+    assert public.json()["data"]["evidence"][0]["id"] == evidence_id
 
 
 def test_public_authoring_chain_creates_project_and_draft(
     runtime: dict[str, object],
 ) -> None:
-    """#131: Session → createResearchProject → createResearchContractDraft →
+    """Session → createResearchProject → createResearchContractDraft →
     update → confirm → run entirely over the public runtime (no bootstrap)."""
     client: TestClient = runtime["client"]  # type: ignore[assignment]
     csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
@@ -589,6 +460,26 @@ def test_public_authoring_chain_creates_project_and_draft(
     )
     assert conflict.status_code == 409
     assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
+
+    factory = runtime["factory"]
+    with factory() as session:  # type: ignore[operator]
+        draft_count_before = session.scalar(
+            select(func.count()).select_from(ResearchContractDraftModel)
+        )
+
+    # Intent-only authoring would require a bound Contract Planner and
+    # ModelExecutionPort. The current structured-input API fails closed.
+    planner_unavailable = client.post(
+        f"/api/projects/{project['id']}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "authoring-planner-unavailable"},
+        json={"intent": "Plan a contract from this research intent"},
+    )
+    assert planner_unavailable.status_code == 422
+    with factory() as session:  # type: ignore[operator]
+        assert (
+            session.scalar(select(func.count()).select_from(ResearchContractDraftModel))
+            == draft_count_before
+        )
 
     draft_created = client.post(
         f"/api/projects/{project['id']}/contract-drafts",
@@ -646,7 +537,6 @@ def test_public_authoring_chain_creates_project_and_draft(
         json={
             "contract_id": contract_id,
             "execution_mode": "demo_replay",
-            "derivation_kind": "original",
         },
     )
     assert run.status_code == 201, run.text
@@ -682,6 +572,49 @@ def test_create_draft_hides_missing_and_cross_session_projects(
     )
     assert cross.status_code == 404
     assert cross.json()["code"] == "PROJECT_NOT_FOUND"
+
+
+def test_draft_idempotency_and_confirmation_are_project_scoped(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+    body = {
+        "intent": "Integrate exoplanet candidates and host-star parameters",
+        "contract": _contract_input(),
+    }
+    project = client.post(
+        "/api/projects",
+        headers={**csrf, "Idempotency-Key": "draft-scope-project"},
+        json={"name": "Draft scope project", "case_key": "exoplanet_host_star"},
+    ).json()["data"]
+
+    first = client.post(
+        f"/api/projects/{runtime['project_id']}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "shared-draft-key"},
+        json=body,
+    )
+    second = client.post(
+        f"/api/projects/{project['id']}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "shared-draft-key"},
+        json=body,
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["data"]["id"] != second.json()["data"]["id"]
+    assert first.json()["data"]["project_id"] == runtime["project_id"]
+    assert second.json()["data"]["project_id"] == project["id"]
+
+    cross_project = client.post(
+        f"/api/projects/{project['id']}/contracts",
+        headers={**csrf, "Idempotency-Key": "cross-project-confirm"},
+        json={
+            "draft_id": first.json()["data"]["id"],
+            "expected_draft_version": 1,
+        },
+    )
+    assert cross_project.status_code == 404
+    assert cross_project.json()["code"] == "DRAFT_NOT_FOUND"
 
 
 def test_list_projects_is_session_scoped_with_stable_cursor(

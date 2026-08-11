@@ -523,6 +523,8 @@ def get_artifact_export(
 @router.get(
     "/exports/{export_id}/download",
     operation_id="downloadArtifactExport",
+    response_class=RawResponse,
+    response_model=None,
 )
 def download_artifact_export(
     export_id: Annotated[str, Path(min_length=1)],

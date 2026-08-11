@@ -44,6 +44,12 @@ jobs:
           node scripts/check-title-governance.test.mjs
           node scripts/check-title-governance.mjs
 
+      - name: Lint issue templates for live-state mirrors
+        env:
+          TEMPLATE_DIR: .github/ISSUE_TEMPLATE
+        run: |
+          node scripts/check-title-governance.mjs
+
       - name: Check integration commit title grammar
         if: github.event_name == 'push'
         env:
@@ -57,8 +63,8 @@ jobs:
           cp .env.example .env
           docker compose config --quiet
 
-      - name: Check D-10 scientific document parsing governance gate
-        run: python scripts/check_d10_governance.py
+      - name: Check scientific document parsing governance gate
+        run: python scripts/check_scientific_document_governance.py
 
   backend:
     name: Backend tests and schema export
@@ -98,51 +104,49 @@ jobs:
       - name: Sync locked dependencies
         run: uv sync --frozen
 
+      - name: Smoke current Research import boundary
+        run: |
+          uv run python - <<'PY'
+          import app.main
+          from app.services.research import ResearchApplicationService
+          from app.routers import research
+          from app.schemas import core
+          print("research import boundary: OK")
+          PY
+          uv run python -m compileall -q src tests
+
       - name: Upgrade isolated PostgreSQL schema
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
         run: uv run alembic upgrade head
 
       - name: Run backend tests
-        run: uv run pytest -m "not d10_native"
+        run: uv run pytest -m "not scientific_document_native"
 
-      - name: Run reproducible D07 claim benchmark
+      - name: Run reproducible LiteratureClaim benchmark
         working-directory: .
         run: >
           uv run --project apps/api python -m services.paper_pipeline.claim_benchmark
-          --output .artifacts/d07-claim-benchmark-report.json
+          --output .artifacts/literature-claim-benchmark-report.json
 
-      - name: Run reproducible D08 relation benchmark
+      - name: Run reproducible LiteratureRelation benchmark
         working-directory: .
         run: >
           uv run --project apps/api python -m services.paper_pipeline.relation_benchmark
-          --cases-output .artifacts/d08-relation-benchmark-cases.json
-          --output .artifacts/d08-relation-benchmark-report.json
+          --cases-output .artifacts/literature-relation-benchmark-cases.json
+          --output .artifacts/literature-relation-benchmark-report.json
 
-      - name: Run reproducible D05 Graph benchmark
+      - name: Run reproducible Evidence Graph benchmark
         working-directory: .
         run: >
           uv run --project apps/api python -m services.graph_pipeline.benchmark
-          --cases-output .artifacts/d05-graph-benchmark-cases.json
-          --output .artifacts/d05-graph-benchmark-report.json
+          --cases-output .artifacts/evidence-graph-benchmark-cases.json
+          --output .artifacts/evidence-graph-benchmark-report.json
 
-      - name: Check phase0 pipeline schema contracts
+      - name: Check data pipeline schema contracts
         run: >
           uv run python ../../scripts/export_schemas.py
-          --output ../../packages/schemas/generated/phase0
-          --include DatasetResponse
-          --include ColumnInfo
-          --include QualityScore
-          --include SourceRecordItem
-          --include PaperSearchQuery
-          --include PaperAcquisitionRun
-          --include PaperCandidate
-          --include PaperSummary
-          --include LiteratureClaim
-          --include LiteratureRelation
-          --include ReasoningTrace
-          --include EvidenceResponse
-          --include SourceSnapshot
+          --output ../../packages/schemas/generated/data_pipeline
           --include DataSourceCompletion
           --include CrossmatchInput
           --include CrossmatchResult
@@ -168,7 +172,7 @@ jobs:
           --include QualityMetricResult
           --check
 
-      - name: Check D07 LiteratureClaim pipeline contracts
+      - name: Check LiteratureClaim pipeline contracts
         run: >
           uv run python ../../scripts/export_schemas.py
           --output ../../packages/schemas/generated/literature_claim
@@ -180,7 +184,7 @@ jobs:
           --include LiteratureClaimBenchmarkReport
           --check
 
-      - name: Check D08 LiteratureRelation pipeline contracts
+      - name: Check LiteratureRelation pipeline contracts
         run: >
           uv run python ../../scripts/export_schemas.py
           --output ../../packages/schemas/generated/literature_relation
@@ -193,7 +197,7 @@ jobs:
           --include LiteratureRelationBenchmarkReport
           --check
 
-      - name: Check D05 Graph pipeline contracts
+      - name: Check Evidence Graph pipeline contracts
         run: >
           uv run python ../../scripts/export_schemas.py
           --output ../../packages/schemas/generated/graph
@@ -253,7 +257,7 @@ jobs:
             --output ../../packages/schemas/generated/core/openapi.json \
             --check
 
-      - name: Check D-10 scientific document parsing benchmark contracts
+      - name: Check scientific document parsing benchmark contracts
         run: >-
           uv run python ../../scripts/export_schemas.py
           --output ../../packages/schemas/generated/scientific_document
@@ -278,17 +282,17 @@ jobs:
           --include BenchmarkReport
           --check
 
-      - name: Run D-10 native baseline benchmark (benchmark dependency group)
+      - name: Run scientific document native baseline benchmark (benchmark dependency group)
         working-directory: .
         env:
           UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/apps/api/.venv
           PYTHONPATH: ${{ github.workspace }}/apps/api/src
         run: >-
           uv sync --frozen --project apps/api --group benchmark
-          && uv run --project apps/api pytest apps/api/tests/test_d10_*.py -m d10_native -q
+          && uv run --project apps/api pytest apps/api/tests/test_scientific_document_*.py -m scientific_document_native -q
           && uv run --project apps/api python -m services.scientific_document.benchmark_runner
-          --output .artifacts/d10-native-benchmark-report.json
-          && uv run --project apps/api python scripts/check_d10_benchmark_report.py .artifacts/d10-native-benchmark-report.json
+          --output .artifacts/scientific_document-native-benchmark-report.json
+          && uv run --project apps/api python scripts/check_scientific_document_benchmark_report.py .artifacts/scientific_document-native-benchmark-report.json
 
       - name: Check session security contracts
         run: >
@@ -357,13 +361,13 @@ jobs:
       - name: Run frontend entrypoint smoke
         run: pnpm test:e2e
 
-  x01-integration:
-    name: X-01 real Compose and browser integration
+  real-integration:
+    name: Real Compose and browser integration
     runs-on: ubuntu-latest
     env:
-      COMPOSE_PROJECT_NAME: x01-ci-${{ github.run_id }}
-      X01_API_ORIGIN: http://localhost:8000
-      X01_WORKSPACE_BASE_URL: http://localhost:5173
+      COMPOSE_PROJECT_NAME: real-integration-ci-${{ github.run_id }}
+      REAL_INTEGRATION_API_ORIGIN: http://localhost:8000
+      REAL_INTEGRATION_WORKSPACE_BASE_URL: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
 

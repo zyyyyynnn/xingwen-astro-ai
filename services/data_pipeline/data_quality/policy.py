@@ -1,4 +1,4 @@
-"""Load and authenticate the frozen C-05 quality RuleSet."""
+"""Load and authenticate the frozen data quality RuleSet."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ _RULE_ROOT = (
     / "exoplanet_host_star"
     / "quality-rules"
 )
-DEFAULT_QUALITY_RULE_SET_PATH = _RULE_ROOT / "quality-rules.v1.json"
+DEFAULT_QUALITY_RULE_SET_PATH = _RULE_ROOT / "quality-rules.json"
 
 
 def load_quality_rule_set(
@@ -30,7 +30,7 @@ def load_quality_rule_set(
 
 
 def load_frozen_quality_rule_set() -> DataQualityRuleSet:
-    """Load only the repository-authored C-05 RuleSet."""
+    """Load only the repository-authored Data Quality Evaluation RuleSet."""
 
     return load_quality_rule_set(DEFAULT_QUALITY_RULE_SET_PATH)
 

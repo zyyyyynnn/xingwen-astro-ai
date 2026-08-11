@@ -1,4 +1,4 @@
-"""Single-pass C-05 observations over already-admitted C-04/C-08 data."""
+"""Single-pass Data Quality Evaluation observations over already-admitted Data Artifact/Cross-source Entity Alignment data."""
 
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ def observe_quality(
     crossmatch_result: CrossmatchResult,
     manifests: ManifestBundle,
 ) -> QualityObservationBundle:
-    """Aggregate every C-04 outcome once into field, row and dataset counters."""
+    """Aggregate every Data Artifact outcome once into field, row and dataset counters."""
 
     field_by_id = {column.field.field_id: column.field for column in candidate.columns}
     field_accumulators = {
@@ -236,7 +236,7 @@ def observe_quality(
                 dataset_unresolved_count += 1
                 conflict_ids = tuple(outcome.conflict_ids)
             else:
-                raise ValueError("unsupported C-04 canonical outcome")
+                raise ValueError("unsupported Data Artifact canonical outcome")
 
             if conflict_ids:
                 scopes = {conflicts[item].conflict_scope for item in conflict_ids}

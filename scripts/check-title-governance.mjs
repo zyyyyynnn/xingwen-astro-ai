@@ -1,7 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+
+import {
+  containsPhaseIdentifier,
+  containsTaskCode,
+} from "./governance-identifiers.mjs";
 
 const ALLOWED_TYPES = new Set([
   "feat",
@@ -21,6 +27,7 @@ const ALLOWED_SYSTEM_SCOPES = new Set([
   "repo",
   "frontend",
   "backend",
+  "api",
   "contracts",
   "data",
   "security",
@@ -31,7 +38,6 @@ const ALLOWED_SYSTEM_SCOPES = new Set([
   "sync",
 ]);
 
-const TASK_SCOPE_REGEX = /^[a-dx]-[0-9]{2,3}$/u;
 const TITLE_REGEX = /^([a-z]+)\(([^()\s]+)\)(!)?: (.+)$/u;
 const FULL_SHA_REGEX = /^[0-9a-f]{40}$/u;
 const REFERENCE_REGEX = /#\d+/gu;
@@ -44,8 +50,6 @@ const CONTROL_CHARACTER_REGEX = /[\u0000-\u001f\u007f]/u;
 const LOCAL_PATH_REGEX =
   /(?:\b[A-Za-z]:[\\/]|(?:^|\s)\/(?:home|Users|mnt|tmp)\/)/u;
 const DATE_REGEX = /\b\d{4}-\d{2}-\d{2}\b/u;
-const LEGACY_TASK_SUFFIX_REGEX = /\([A-DX]-\d{2,3}\)/iu;
-const STACKED_PR_MARKER_REGEX = /\bPR-\d+\/\d+\b/iu;
 const AGENT_MARKER_REGEX = /\[agent-fixed-[^\]]+\]/iu;
 const PROCESS_STATUS_REGEX = /\b(?:WIP|Draft|Ready|Merged|PASS|BLOCKED)\b/iu;
 const REVIEW_ID_REGEX = /\breview(?:\s+id)?\s*#?\d+\b/iu;
@@ -80,11 +84,11 @@ function addSummaryPolicyErrors(summary, errors) {
   if (ISSUE_PR_ID_REGEX.test(summary)) {
     errors.push("Summary must not contain an Issue or PR identifier");
   }
-  if (LEGACY_TASK_SUFFIX_REGEX.test(summary)) {
-    errors.push("Summary must not contain a legacy task suffix such as (A-21)");
+  if (containsTaskCode(summary)) {
+    errors.push("Summary must not contain a task code");
   }
-  if (STACKED_PR_MARKER_REGEX.test(summary)) {
-    errors.push("Summary must not contain a stacked PR marker such as PR-1/5");
+  if (containsPhaseIdentifier(summary)) {
+    errors.push("Summary must not contain a work-stage identifier");
   }
   if (AGENT_MARKER_REGEX.test(summary)) {
     errors.push("Summary must not contain an agent/process marker");
@@ -138,11 +142,10 @@ export function validateTitleGrammar(
     );
   }
 
-  const isTaskScope = TASK_SCOPE_REGEX.test(scope);
   const isSystemScope = ALLOWED_SYSTEM_SCOPES.has(scope);
-  if (!isTaskScope && !isSystemScope) {
+  if (!isSystemScope) {
     errors.push(
-      `Scope '${scope}' is invalid. Use ^[a-dx]-[0-9]{2,3}$ or one of: ${Array.from(ALLOWED_SYSTEM_SCOPES).join(", ")}`,
+      `Scope '${scope}' is invalid. Use one of: ${Array.from(ALLOWED_SYSTEM_SCOPES).join(", ")}`,
     );
   }
 
@@ -307,11 +310,86 @@ function runPrMode(prTitle, baseSha, headSha) {
   return failed ? 1 : 0;
 }
 
+export function validateIssueTemplate(name, content) {
+  const errors = [];
+  if (!content || typeof content !== "string") {
+    errors.push("Template content must be a non-empty string");
+    return { valid: false, errors };
+  }
+  // Forbidden dynamic-state mirrors that create a second source of truth.
+  const forbiddenSection = [
+    ["## Completed", " baseline"].join(""),
+    ["## Planned", " handoff"].join(""),
+    "## 依赖",
+    "## 边界与依赖",
+    "## 状态",
+    "## 当前 DAG",
+    "## 当前主线",
+    "## 当前批准",
+  ];
+  for (const sec of forbiddenSection) {
+    if (content.includes(sec)) {
+      errors.push(
+        `Template must not contain the section "${sec}" (GitHub native metadata is the sole state source)`,
+      );
+    }
+  }
+  // Forbidden child-task checklist that duplicates native Sub-issue relation.
+  if (/-\s*\[\s*\]\s*#/.test(content)) {
+    errors.push(
+      "Template must not contain a `- [ ] #` sub-task checklist (use GitHub native Sub-issue)",
+    );
+  }
+  // Forbidden guidance that tells users to copy live metadata into the body.
+  const forbiddenGuidance = [
+    "blocked-by #",
+    "经 #",
+    "已 consolidated",
+    "已 merged",
+    "当前 main 尚未",
+  ];
+  for (const guidance of forbiddenGuidance) {
+    if (content.includes(guidance)) {
+      errors.push(
+        `Template must not instruct users to mirror live state ("${guidance}")`,
+      );
+    }
+  }
+  return { valid: errors.length === 0, errors, name };
+}
+
+function runTemplateMode() {
+  const dir = process.env.TEMPLATE_DIR;
+  if (!dir) {
+    console.error("Template governance check requires TEMPLATE_DIR");
+    return 1;
+  }
+  const files = readdirSync(dir).filter((f) => f.endsWith(".md"));
+  let failed = false;
+  for (const f of files) {
+    const content = readFileSync(join(dir, f), "utf8");
+    const result = validateIssueTemplate(f, content);
+    if (!result.valid) {
+      console.error(`Template ${f} error: ${result.errors.join("; ")}`);
+      failed = true;
+    } else {
+      console.log(`Template ${f} PASS`);
+    }
+  }
+  return failed ? 1 : 0;
+}
+
 function runCli() {
   const prTitle = process.env.PR_TITLE;
   const baseSha = process.env.BASE_SHA;
   const headSha = process.env.HEAD_SHA;
   const integrationSha = process.env.INTEGRATION_SHA;
+  const templateDir = process.env.TEMPLATE_DIR;
+
+  if (templateDir && !prTitle && !baseSha && !headSha && !integrationSha) {
+    return runTemplateMode();
+  }
+
   const hasPrContext = Boolean(prTitle || baseSha || headSha);
 
   if (integrationSha && hasPrContext) {

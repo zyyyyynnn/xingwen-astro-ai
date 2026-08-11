@@ -1,4 +1,4 @@
-"""Single C-04 domain projection derived from canonical frozen inputs.
+"""Single Data Artifact domain projection derived from canonical frozen inputs.
 
 The projection is the only owner of scientific derivation. Candidate assembly
 serializes it, while independent admission derives a fresh projection and
@@ -16,6 +16,7 @@ from app.schemas.crossmatch import (
     AdjudicationDecision,
     ConflictGroup,
     CrossmatchRecord,
+    CrossmatchEvidence,
     EntityCandidate,
     UnpairedRecord,
     compute_crossmatch_content_hash,
@@ -62,7 +63,7 @@ from .policy import load_mapping_rule_set, load_unit_conversion_catalog
 
 @dataclass(frozen=True, slots=True)
 class DataArtifactDomainProjection:
-    """Complete process-local expectation for all three C-04 candidates."""
+    """Complete process-local expectation for all three Data Artifact candidates."""
 
     input_value: DataArtifactBuildInput
     fields: tuple[FieldDefinition, ...]
@@ -74,6 +75,7 @@ class DataArtifactDomainProjection:
     source_members: tuple[SourceCollectionMember, ...]
     producer: DataArtifactProducer
     source_snapshot_ids: tuple[str, ...]
+    crossmatch_evidence: tuple[CrossmatchEvidence, ...]
     crossmatch_evidence_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...]
     alignment_record_keys: tuple[str, ...]
@@ -123,7 +125,7 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
     if actual != expected:
         raise DataArtifactError(
             DataArtifactErrorCode.manifest_pin_mismatch,
-            "frozen manifests disagree with the C-04 input pins",
+            "frozen manifests disagree with the Data Artifact input pins",
         )
     if input_value.mapping_rule_set != load_mapping_rule_set():
         raise DataArtifactError(
@@ -180,7 +182,7 @@ def validate_policy_bindings(input_value: DataArtifactBuildInput):
                 )
             expected_kind = (
                 QuantityKind.none
-                if implemented.rule_id == "unit.identity.v1"
+                if implemented.rule_id == "unit.identity"
                 else QuantityKind(_quantity_kind(field, bundle))
             )
             if implemented.quantity_kind is not expected_kind:
@@ -203,7 +205,7 @@ def validate_runtime_input_integrity(input_value: DataArtifactBuildInput) -> Non
     if input_value.input_hash != compute_data_artifact_input_hash(input_value):
         raise DataArtifactError(
             DataArtifactErrorCode.input_hash_mismatch,
-            "C-04 input hash does not match the supplied typed input",
+            "Data Artifact input hash does not match the supplied typed input",
         )
     for policy, label in (
         (input_value.mapping_rule_set, "MappingRuleSet"),
@@ -291,7 +293,7 @@ def validate_frozen_crossmatch_handoff(input_value: DataArtifactBuildInput) -> N
     ):
         raise DataArtifactError(
             DataArtifactErrorCode.crossmatch_result_mismatch,
-            "CrossmatchResult is not bound to the repository-frozen C-08 policies",
+            "CrossmatchResult is not bound to the repository-frozen Cross-source Entity Alignment policies",
         )
     expected = (
         rule_set.rule_set_id,
@@ -789,7 +791,7 @@ def _source_members(input_value: DataArtifactBuildInput) -> tuple[SourceCollecti
 def derive_data_artifact_domain_projection(
     input_value: DataArtifactBuildInput,
 ) -> DataArtifactDomainProjection:
-    """Derive the complete expected C-04 domain from canonical frozen inputs."""
+    """Derive the complete expected Data Artifact domain from canonical frozen inputs."""
 
     validate_runtime_input_integrity(input_value)
     validate_frozen_crossmatch_handoff(input_value)
@@ -839,7 +841,7 @@ def derive_data_artifact_domain_projection(
                 if raw is None or raw.content_hash != member.source_record.record_content_hash:
                     raise DataArtifactError(
                         DataArtifactErrorCode.source_record_reference_not_found,
-                        "C-08 source record reference is unavailable",
+                        "Cross-source Entity Alignment source record reference is unavailable",
                     )
                 for alias in field.source_aliases_for(source_id):
                     if alias.raw_field not in raw.payload:
@@ -1033,6 +1035,12 @@ def derive_data_artifact_domain_projection(
             }
         )
     )
+    crossmatch_evidence_by_id = {
+        item.evidence_id: item for item in result.evidence
+    }
+    crossmatch_evidence = tuple(
+        crossmatch_evidence_by_id[item] for item in crossmatch_evidence_ids
+    )
     evidence_ids = tuple(
         sorted(
             {
@@ -1052,6 +1060,7 @@ def derive_data_artifact_domain_projection(
         source_members=_source_members(input_value),
         producer=producer,
         source_snapshot_ids=source_snapshot_ids,
+        crossmatch_evidence=crossmatch_evidence,
         crossmatch_evidence_ids=crossmatch_evidence_ids,
         evidence_ids=evidence_ids,
         alignment_record_keys=tuple(_record_key(record) for record in result.records),

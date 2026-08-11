@@ -1,0 +1,185 @@
+{
+  "$defs": {
+    "QualityArtifactReference": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "canonical_content_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical Content Hash"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "lineage_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lineage Hash"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "candidate_id",
+        "input_hash",
+        "output_hash"
+      ],
+      "title": "QualityArtifactReference",
+      "type": "object"
+    },
+    "QualityErrorCode": {
+      "enum": [
+        "QUALITY_INPUT_INVALID",
+        "QUALITY_DATA_ARTIFACT_CANDIDATE_MISMATCH",
+        "QUALITY_CROSSMATCH_METRICS_MISMATCH",
+        "QUALITY_RESEARCH_CONTRACT_MISMATCH",
+        "QUALITY_RULE_SET_MISMATCH",
+        "QUALITY_METRIC_FORMULA_INVALID",
+        "QUALITY_METRIC_REFERENCE_INVALID",
+        "QUALITY_SOURCE_SCOPE_INSUFFICIENT",
+        "QUALITY_CONSTRAINT_FAILED",
+        "QUALITY_CONSTRAINT_INSUFFICIENT",
+        "QUALITY_RESULT_HASH_MISMATCH",
+        "QUALITY_ADMISSION_NOT_SEALED",
+        "QUALITY_CAPACITY_EXCEEDED"
+      ],
+      "title": "QualityErrorCode",
+      "type": "string"
+    },
+    "QualityFailureStage": {
+      "enum": [
+        "input_validation",
+        "data_artifact_validation",
+        "crossmatch_validation",
+        "contract_validation",
+        "rule_validation",
+        "metric_validation",
+        "capacity_preflight",
+        "admission_validation"
+      ],
+      "title": "QualityFailureStage",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "dataset_result": {
+      "default": null,
+      "title": "Dataset Result",
+      "type": "null"
+    },
+    "error_code": {
+      "$ref": "#/$defs/QualityErrorCode"
+    },
+    "failure_stage": {
+      "$ref": "#/$defs/QualityFailureStage"
+    },
+    "field_results": {
+      "default": [],
+      "maxItems": 0,
+      "minItems": 0,
+      "title": "Field Results",
+      "type": "array"
+    },
+    "input_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Input Hash"
+    },
+    "kind": {
+      "const": "data_quality_rejected",
+      "default": "data_quality_rejected",
+      "title": "Kind",
+      "type": "string"
+    },
+    "message": {
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    },
+    "output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "row_results": {
+      "default": [],
+      "maxItems": 0,
+      "minItems": 0,
+      "title": "Row Results",
+      "type": "array"
+    },
+    "rule_set_reference": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QualityArtifactReference"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema_version": {
+      "const": "2.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "failure_stage",
+    "error_code",
+    "message",
+    "output_hash",
+    "content_hash"
+  ],
+  "title": "DataQualityEvaluationRejected",
+  "type": "object"
+}

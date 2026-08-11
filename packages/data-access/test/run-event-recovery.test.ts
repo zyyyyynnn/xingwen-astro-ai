@@ -118,7 +118,7 @@ it("recoverEvents excludes events beyond the snapshot sequence", async () => {
           parent_run_id: null,
           derivation_kind: "original",
           retry_from_step: null,
-          cache_policy: "fallback_on_recoverable_failure",
+          cache_policy: "disabled",
           started_at: "2026-07-21T08:16:00Z",
           finished_at: null,
           created_at: "2026-07-21T08:15:00Z",

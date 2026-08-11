@@ -1,8 +1,8 @@
-"""PostgreSQL publication and replay contracts for D-05 Graph artifacts.
+"""PostgreSQL publication and replay contracts for Evidence Graph artifacts.
 
 Set TEST_DATABASE_URL to an isolated database whose name contains ``test``.
 The module reuses the Publisher integration migration fixture and deletes only
-the deterministic D-05 project between cases.
+the deterministic Evidence Graph project between cases.
 """
 
 from __future__ import annotations
@@ -30,6 +30,12 @@ from app.db.models import (
     StepAttemptModel,
 )
 from app.db.session import session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_contract,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.schemas.graph_artifact import (
     GraphArtifactCandidate,
     graph_algorithm_parameters,
@@ -62,7 +68,7 @@ TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
 )
-GRAPH_PROJECT_ID = UUID(stable_uuid("project:d05-real-d08"))
+GRAPH_PROJECT_ID = UUID(stable_uuid("project:evidence_graph-real-literature_relation"))
 
 
 def _accept(_: ArtifactAdmissionContext) -> None:
@@ -162,30 +168,29 @@ def _active_graph_publication(
     candidate, fixture = _candidate_and_fixture()
     admitted = _admitted(candidate)
     factory = session_factory(engine)
-    project = ResearchProjectModel(
-        id=GRAPH_PROJECT_ID,
+    project = build_research_project(
+        project_id=GRAPH_PROJECT_ID,
         session_id=f"session-{uuid4()}",
-        name="D-05 Graph publisher integration",
+        name="Evidence Graph publisher integration",
         case_key="exoplanet_host_star",
-        revision=1,
     )
-    contract = ResearchContractModel(
-        id=uuid4(),
-        project_id=project.id,
-        version=1,
+    draft = build_contract_draft(project)
+    contract = build_research_contract(
+        project,
+        draft,
+        contract_id=uuid4(),
         content_hash="sha256:" + "a" * 64,
     )
     with factory() as session, session.begin():
-        session.add(project)
-        session.flush()
-        session.add(contract)
+        persist_authoring_models(
+            session, project=project, draft=draft, contract=contract
+        )
 
     workflow = PersistentWorkflowStore(factory)
     snapshot = workflow.create_run(
         project_id=project.id,
         contract_id=contract.id,
         execution_mode="live",
-        cache_policy="disabled",
         idempotency_key=f"graph-run-{uuid4()}",
         request_hash="sha256:" + "b" * 64,
         steps=_steps(),
@@ -205,7 +210,7 @@ def _active_graph_publication(
         generation=lease.generation,
         expected_status="queued",
         expected_revision=lease.revision,
-        public_message="Build versioned Graph",
+        public_message="Build Evidence Graph",
     )
 
     producer = candidate.producer
@@ -236,7 +241,7 @@ def _active_graph_publication(
     elif producer_mutation == "prompt_name":
         prompt_name = "fabricated-prompt"
     elif producer_mutation == "prompt_version":
-        prompt_version = "v0"
+        prompt_version = "invalid-version"
     elif producer_mutation == "prompt_hash":
         prompt_hash = "sha256:" + "d" * 64
 
@@ -275,7 +280,7 @@ def _active_graph_publication(
         id=uuid4(),
         project_id=project.id,
         kind=artifact_kind,
-        title="Versioned Evidence Graph",
+        title="Evidence Graph",
         logical_key=f"graph-{uuid4()}",
     )
     with factory() as session, session.begin():
@@ -293,7 +298,7 @@ def _active_graph_publication(
 
     publication = ArtifactPublication(
         artifact_id=artifact.id,
-        publication_key="graph.d05.publisher.v1",
+        publication_key="graph.evidence_graph.publisher",
         producer_execution_id=execution.id,
         candidate=admitted,
         source_mode="fixture",
@@ -338,8 +343,8 @@ def _seed_upstream_graph_closure(
         id=UUID(pins.artifact_id),
         project_id=project.id,
         kind="literature_relations",
-        title="D-08 admitted LiteratureRelations",
-        logical_key="d08-literature-relations",
+        title="LiteratureRelation Pipeline admitted LiteratureRelations",
+        logical_key="literature_relation-literature-relations",
     )
     upstream_execution = ProducerExecutionModel(
         id=UUID(pins.producer_execution.id),
@@ -379,7 +384,7 @@ def _seed_upstream_graph_closure(
         step_attempt_id=attempt_id,
         producer_execution_id=upstream_execution.id,
         version_number=pins.version_number,
-        publication_key="d08.fixture.upstream",
+        publication_key="literature_relation.fixture.upstream",
         schema_version=pins.schema_version,
         content=upstream.candidate.model_dump(mode="json", exclude_none=True),
         content_hash=pins.content_hash,
@@ -456,7 +461,7 @@ def _publish(active: ActiveGraphPublication) -> PublicationResult:
         expected_status=active.run_status,
         expected_revision=active.run_revision,
         publications=(active.publication,),
-        public_message="Versioned Evidence Graph published",
+        public_message="Evidence Graph published",
     )
 
 
@@ -601,7 +606,6 @@ def test_graph_target_kind_is_checked_before_idempotent_replay(
         "type",
         "name",
         "version",
-        "input_hash",
         "parameters_hash",
         "model_provider",
         "model_name",
@@ -620,6 +624,32 @@ def test_graph_publish_rejects_non_exact_producer_execution(
     )
 
     with pytest.raises(PublicationAdmissionError, match="matching ProducerExecution"):
+        _publish(active)
+    with active.factory() as session:
+        artifact = session.get(ResearchArtifactModel, active.artifact.id)
+        assert artifact is not None and artifact.latest_version_id is None
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ArtifactVersionModel)
+                .where(ArtifactVersionModel.artifact_id == active.artifact.id)
+            )
+            == 0
+        )
+
+
+def test_graph_publish_rejects_mismatched_producer_input_hash(
+    postgres_engine: Engine,
+) -> None:
+    active = _active_graph_publication(
+        postgres_engine,
+        producer_mutation="input_hash",
+    )
+
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="ProducerExecution input_hash must match the admitted candidate",
+    ):
         _publish(active)
     with active.factory() as session:
         artifact = session.get(ResearchArtifactModel, active.artifact.id)

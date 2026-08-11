@@ -1,0 +1,996 @@
+{
+  "benchmark_id": "exoplanet_host_star.crossmatch_benchmark",
+  "version": "2.0.0",
+  "content_hash": "sha256:f71d5a55121efbc6d5447fb6b61cb6cec7de34886a83c40ac0a35094bffedf11",
+  "data_level": "synthetic_fixture",
+  "provenance_note": "Pinned synthetic fixture for deterministic cross-source entity alignment review; not scientific ground truth.",
+  "rule_set_id": "exoplanet_host_star.crossmatch_rules",
+  "rule_set_version": "2.0.0",
+  "rule_set_content_hash": "sha256:6af2835af2d41ee01b96310de078f69027a2bf1b212215d158e840e0e8d03209",
+  "scenarios": [
+    {
+      "scenario_id": "exact_one_to_one",
+      "description": "One TOI row and one PS assertion share a TIC identifier.",
+      "category": "topology",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "101.01",
+          "tic_id": 101
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Topology One b",
+          "reference": "Reference 1",
+          "tic_id": "TIC 101"
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 1,
+        "methods": ["exact_identifier"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "exact_one_to_many",
+      "description": "One TOI row maps to two PS assertion rows with the same TIC.",
+      "category": "topology",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "102.01",
+          "tic_id": 102
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Topology Two b",
+          "reference": "Reference 1",
+          "tic_id": "TIC 102"
+        },
+        {
+          "record_type": "ps",
+          "planet_name": "Topology Two b",
+          "reference": "Reference 2",
+          "tic_id": "TIC 102"
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 3,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 2,
+        "methods": ["exact_identifier"],
+        "topologies": ["one_to_many"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "exact_many_to_one",
+      "description": "Two TOI candidates share a host TIC represented by one PS assertion.",
+      "category": "topology",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "103.01",
+          "tic_id": 103
+        },
+        {
+          "record_type": "toi",
+          "toi": "103.02",
+          "tic_id": 103
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Topology Three b",
+          "reference": "Reference 1",
+          "tic_id": "TIC 103"
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 3,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 1,
+        "methods": ["exact_identifier"],
+        "topologies": ["many_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "exact_many_to_many",
+      "description": "Two TOI candidates and two PS assertions share one host TIC, forming a single many-to-many host component.",
+      "category": "topology",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "104.01",
+          "tic_id": 104
+        },
+        {
+          "record_type": "toi",
+          "toi": "104.02",
+          "tic_id": 104
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Topology Four b",
+          "reference": "Reference 1",
+          "tic_id": "TIC 104"
+        },
+        {
+          "record_type": "ps",
+          "planet_name": "Topology Four c",
+          "reference": "Reference 2",
+          "tic_id": "104"
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 4,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 2,
+        "methods": ["exact_identifier"],
+        "topologies": ["many_to_many"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "identifier_coordinate_conflict",
+      "description": "Equal TIC identifiers with coordinates beyond the review threshold remain an explicit conflict.",
+      "category": "conflict",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "104.01",
+          "tic_id": 104,
+          "right_ascension": 10.0,
+          "declination": 20.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Topology Four b",
+          "reference": "Reference 1",
+          "tic_id": "TIC 104",
+          "right_ascension": 30.0,
+          "declination": 20.0
+        }
+      ],
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 1,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 1,
+        "methods": ["compound"],
+        "topologies": [],
+        "conflict_codes": ["crossmatch.identifier_coordinate_conflict"]
+      }
+    },
+    {
+      "scenario_id": "same_tic_host_only",
+      "description": "Equal TIC values align only host_star and do not infer planet identity.",
+      "category": "identity_level",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "105.01",
+          "tic_id": 105
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Different Candidate b",
+          "reference": "Reference",
+          "tic_id": "TIC 105"
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 1,
+        "methods": ["exact_identifier"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "multiple_planet_assertions",
+      "description": "Distinct pl_refname rows remain distinct planet_assertion candidates.",
+      "category": "identity_level",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "106.01",
+          "tic_id": 106
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Assertion Planet b",
+          "reference": "Reference A",
+          "tic_id": "TIC 106"
+        },
+        {
+          "record_type": "ps",
+          "planet_name": "Assertion Planet b",
+          "reference": "Reference B",
+          "tic_id": "TIC 106"
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 3,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 2,
+        "methods": ["exact_identifier"],
+        "topologies": ["one_to_many"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "gaia_not_inferred",
+      "description": "A PS Gaia value is retained but cannot be equated to a TOI field that is absent.",
+      "category": "identity_level",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "107.01",
+          "tic_id": 107
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Gaia Retained b",
+          "reference": "Reference",
+          "tic_id": "TIC 107",
+          "gaia_dr3_id": "Gaia DR3 700107"
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 1,
+        "methods": ["exact_identifier"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "coordinate_only",
+      "description": "A close coordinate-only host candidate requires review.",
+      "category": "coordinate",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "301.01",
+          "right_ascension": 10.0,
+          "declination": 20.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Coordinate One b",
+          "reference": "Reference",
+          "right_ascension": 10.0001,
+          "declination": 20.0
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 1,
+        "planet_assertion_count": 1,
+        "methods": ["coordinate"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "coordinate_ra_wrap",
+      "description": "ICRS separation crosses the right-ascension 0/360 boundary.",
+      "category": "coordinate",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "302.01",
+          "right_ascension": 359.9999,
+          "declination": 45.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Coordinate Wrap b",
+          "reference": "Reference",
+          "right_ascension": 0.0001,
+          "declination": 45.0
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 1,
+        "planet_assertion_count": 1,
+        "methods": ["coordinate"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "coordinate_pole",
+      "description": "ICRS separation remains stable at the north pole.",
+      "category": "coordinate",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "303.01",
+          "right_ascension": 0.0,
+          "declination": 90.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Coordinate Pole b",
+          "reference": "Reference",
+          "right_ascension": 180.0,
+          "declination": 90.0
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 1,
+        "planet_assertion_count": 1,
+        "methods": ["coordinate"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "coordinate_zero_distance",
+      "description": "Identical coordinates produce a zero-distance review candidate.",
+      "category": "coordinate",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "304.01",
+          "right_ascension": 20.0,
+          "declination": -30.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Coordinate Zero b",
+          "reference": "Reference",
+          "right_ascension": 20.0,
+          "declination": -30.0
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 1,
+        "planet_assertion_count": 1,
+        "methods": ["coordinate"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "coordinate_threshold_boundary",
+      "description": "A two-arcsecond separation is included by the frozen coordinate threshold.",
+      "category": "coordinate",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "305.01",
+          "right_ascension": 30.0,
+          "declination": 0.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Coordinate Boundary b",
+          "reference": "Reference",
+          "right_ascension": 30.000555555555554,
+          "declination": 0.0
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 1,
+        "planet_assertion_count": 1,
+        "methods": ["coordinate"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "coordinate_outside_threshold",
+      "description": "A separation outside the frozen threshold produces no candidate edge.",
+      "category": "coordinate",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "306.01",
+          "right_ascension": 40.0,
+          "declination": 0.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Coordinate Outside b",
+          "reference": "Reference",
+          "right_ascension": 40.001,
+          "declination": 0.0
+        }
+      ],
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 0,
+        "unmatched_count": 4,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 1,
+        "methods": [],
+        "topologies": [],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "coordinate_multiple_candidates",
+      "description": "Multiple coordinate candidates remain one review-required topology.",
+      "category": "coordinate",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "307.01",
+          "right_ascension": 50.0,
+          "declination": 10.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Coordinate Multiple b",
+          "reference": "Reference 1",
+          "right_ascension": 50.0001,
+          "declination": 10.0
+        },
+        {
+          "record_type": "ps",
+          "planet_name": "Coordinate Multiple c",
+          "reference": "Reference 2",
+          "right_ascension": 49.9999,
+          "declination": 10.0
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 3,
+        "inconclusive_count": 0,
+        "review_required_count": 1,
+        "planet_assertion_count": 2,
+        "methods": ["coordinate"],
+        "topologies": ["one_to_many"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "curated_alias",
+      "description": "A versioned curated alias and close coordinates remain two reviewable candidate relations.",
+      "category": "alias",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "700.01",
+          "right_ascension": 10.0,
+          "declination": 20.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Planet Seven b",
+          "reference": "Reference",
+          "right_ascension": 10.00025,
+          "declination": 20.0
+        }
+      ],
+      "expectation": {
+        "paired_count": 2,
+        "conflict_group_count": 0,
+        "unmatched_count": 0,
+        "inconclusive_count": 0,
+        "review_required_count": 2,
+        "planet_assertion_count": 1,
+        "methods": ["coordinate", "curated_entity_alias"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "compound_alias",
+      "description": "A curated planet alias corroborated by TIC is a compound accepted match.",
+      "category": "alias",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "800.01",
+          "tic_id": 800
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Planet Eight b",
+          "reference": "Reference",
+          "tic_id": "TIC 800"
+        }
+      ],
+      "expectation": {
+        "paired_count": 2,
+        "conflict_group_count": 0,
+        "unmatched_count": 0,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 1,
+        "methods": ["compound", "exact_identifier"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "alias_conflict",
+      "description": "One curated TOI alias pointing to distinct planet names forms a conflict group.",
+      "category": "conflict",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "900.01",
+          "tic_id": 900
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Planet Nine b",
+          "reference": "Reference B",
+          "tic_id": "TIC 900"
+        },
+        {
+          "record_type": "ps",
+          "planet_name": "Planet Nine c",
+          "reference": "Reference C",
+          "tic_id": "TIC 900"
+        }
+      ],
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 1,
+        "unmatched_count": 0,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 2,
+        "methods": ["compound", "exact_identifier"],
+        "topologies": ["one_to_many"],
+        "conflict_codes": ["crossmatch.alias_conflict"]
+      }
+    },
+    {
+      "scenario_id": "identifier_conflict",
+      "description": "Near coordinates with contradictory TIC values form an auditable conflict.",
+      "category": "conflict",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "1000.01",
+          "tic_id": 1000,
+          "right_ascension": 60.0,
+          "declination": 5.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Identifier Conflict b",
+          "reference": "Reference",
+          "tic_id": "TIC 2000",
+          "right_ascension": 60.0,
+          "declination": 5.0
+        }
+      ],
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 1,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 1,
+        "methods": ["compound"],
+        "topologies": [],
+        "conflict_codes": ["crossmatch.identifier_conflict"]
+      }
+    },
+    {
+      "scenario_id": "complete_unmatched",
+      "description": "No right records in a complete scope yields unmatched left candidates.",
+      "category": "completion",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "1101.01",
+          "tic_id": 1101
+        }
+      ],
+      "right_records": [],
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 0,
+        "methods": [],
+        "topologies": [],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "truncated_inconclusive",
+      "description": "No right candidate in a truncated scope yields inconclusive left candidates.",
+      "category": "completion",
+      "left_completion": "complete",
+      "right_completion": "truncated",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "1102.01",
+          "tic_id": 1102
+        }
+      ],
+      "right_records": [],
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 0,
+        "unmatched_count": 0,
+        "inconclusive_count": 2,
+        "review_required_count": 0,
+        "planet_assertion_count": 0,
+        "methods": [],
+        "topologies": [],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "invalid_coordinate",
+      "description": "A non-finite coordinate is rejected before matching.",
+      "category": "invalid_input",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "1103.01",
+          "right_ascension": "NaN",
+          "declination": 0.0
+        }
+      ],
+      "right_records": [],
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 0,
+        "unmatched_count": 0,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 0,
+        "methods": [],
+        "topologies": [],
+        "conflict_codes": [],
+        "expected_error_code": "CROSSMATCH_INVALID_COORDINATE"
+      }
+    },
+    {
+      "scenario_id": "supplemental_complete_unmatched",
+      "description": "A supplemental-only record is unmatched when the primary source scope is complete.",
+      "category": "completion",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Right Only b",
+          "reference": "Reference",
+          "tic_id": "TIC 1104"
+        }
+      ],
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 1,
+        "methods": [],
+        "topologies": [],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "duplicate_record_reference",
+      "description": "A duplicated source record reference is rejected before matching.",
+      "category": "invalid_input",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "1200.01",
+          "tic_id": 1200
+        }
+      ],
+      "right_records": [],
+      "input_fault": "duplicate_record_reference",
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 0,
+        "unmatched_count": 0,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 0,
+        "methods": [],
+        "topologies": [],
+        "conflict_codes": [],
+        "expected_error_code": "CROSSMATCH_DUPLICATE_RECORD_REFERENCE"
+      }
+    },
+    {
+      "scenario_id": "record_source_mismatch",
+      "description": "A record whose source ID disagrees with its SourceSnapshot is rejected.",
+      "category": "invalid_input",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "1201.01",
+          "tic_id": 1201
+        }
+      ],
+      "right_records": [],
+      "input_fault": "record_source_mismatch",
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 0,
+        "unmatched_count": 0,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 0,
+        "methods": [],
+        "topologies": [],
+        "conflict_codes": [],
+        "expected_error_code": "CROSSMATCH_RECORD_SOURCE_MISMATCH"
+      }
+    },
+    {
+      "scenario_id": "manual_decision_valid",
+      "description": "A synthetic review decision bound to the current source input and RuleSet is applied without erasing the automatic status.",
+      "category": "manual_review",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "1202.01",
+          "right_ascension": 10.0,
+          "declination": 20.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Manual Review Planet b",
+          "reference": "Reference",
+          "right_ascension": 10.00025,
+          "declination": 20.0
+        }
+      ],
+      "manual_adjudication": "accepted",
+      "manual_binding": "valid",
+      "expectation": {
+        "paired_count": 1,
+        "conflict_group_count": 0,
+        "unmatched_count": 2,
+        "inconclusive_count": 0,
+        "review_required_count": 1,
+        "manual_adjudication_count": 1,
+        "planet_assertion_count": 1,
+        "methods": ["coordinate"],
+        "topologies": ["one_to_one"],
+        "conflict_codes": []
+      }
+    },
+    {
+      "scenario_id": "manual_decision_stale_binding",
+      "description": "A synthetic review decision bound to a stale RuleSet hash is rejected fail closed.",
+      "category": "manual_review",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "1301.01",
+          "right_ascension": 10.0,
+          "declination": 20.0
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Stale Review Planet b",
+          "reference": "Reference",
+          "right_ascension": 10.00025,
+          "declination": 20.0
+        }
+      ],
+      "manual_adjudication": "keep_unresolved",
+      "manual_binding": "stale_rule",
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 0,
+        "unmatched_count": 0,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 0,
+        "methods": [],
+        "topologies": [],
+        "conflict_codes": [],
+        "expected_error_code": "CROSSMATCH_MANUAL_DECISION_RULE_SET_MISMATCH"
+      }
+    },
+    {
+      "scenario_id": "eligible_capacity_exceeded",
+      "description": "Two entity levels expand four raw record pairs into eight eligible comparisons and exceed the frozen candidate-pair limit before matching.",
+      "category": "capacity",
+      "left_completion": "complete",
+      "right_completion": "complete",
+      "left_records": [
+        {
+          "record_type": "toi",
+          "toi": "1400.01",
+          "tic_id": 1400
+        },
+        {
+          "record_type": "toi",
+          "toi": "1401.01",
+          "tic_id": 1401
+        }
+      ],
+      "right_records": [
+        {
+          "record_type": "ps",
+          "planet_name": "Capacity Planet b",
+          "reference": "Reference 1",
+          "tic_id": "TIC 1400"
+        },
+        {
+          "record_type": "ps",
+          "planet_name": "Capacity Planet c",
+          "reference": "Reference 2",
+          "tic_id": "TIC 1401"
+        }
+      ],
+      "capacity_override": {
+        "max_left_records": 2,
+        "max_right_records": 2,
+        "max_candidate_pairs": 4
+      },
+      "expectation": {
+        "paired_count": 0,
+        "conflict_group_count": 0,
+        "unmatched_count": 0,
+        "inconclusive_count": 0,
+        "review_required_count": 0,
+        "planet_assertion_count": 0,
+        "methods": [],
+        "topologies": [],
+        "conflict_codes": [],
+        "expected_error_code": "CROSSMATCH_CAPACITY_EXCEEDED"
+      }
+    }
+  ],
+  "created_at": "2026-07-30",
+  "maintained_by": "data pipeline maintainers"
+}

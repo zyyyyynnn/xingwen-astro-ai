@@ -46,7 +46,7 @@
     },
     "DocumentTableCell": {
       "additionalProperties": false,
-      "description": "One table cell with stable identity, span and (when available) text/quality.\n\n``cell_id`` is the canonical, stable identity of the cell within a table; it\nis referenced by ``DocumentLocator.cell_id``. ``is_header`` carries the\nexplicit header/body role (D-10 C4). ``row_span``/``column_span`` express\nmerged cells; out-of-range spans are rejected at the aggregate level.",
+      "description": "One table cell with stable identity, span and (when available) text/quality.\n\n``cell_id`` is the canonical, stable identity of the cell within a table; it\nis referenced by ``DocumentLocator.cell_id``. ``is_header`` carries the\nexplicit header/body role. ``row_span``/``column_span`` express\nmerged cells; out-of-range spans are rejected at the aggregate level.",
       "properties": {
         "bbox": {
           "anyOf": [

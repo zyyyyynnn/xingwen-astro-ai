@@ -1,9 +1,8 @@
-"""Reproducible D-10 Scientific Document Parsing benchmark runner.
+"""Reproducible Scientific Document Parsing benchmark runner.
 
 Runs the benchmark-only native baseline (docling-parse) over the committed
-Golden Set fixtures and emits a versioned, hashed ``BenchmarkReport``. Hybrid
-mode is reserved: the result structure exists but real hybrid runs belong to
-D-11. Native-only is the only mode executed here.
+Golden Set fixtures and emits a hashed ``BenchmarkReport``. The report contract
+also carries hybrid provenance; this runner never claims a hybrid execution.
 
 Fail-closed rules:
 - a committed fixture that is missing is a benchmark error, never a skip;
@@ -121,7 +120,7 @@ def _normalized_text(candidate: DocumentParseCandidate) -> str:
 def _block_recovery(candidate: DocumentParseCandidate, entry: GoldenSetEntry) -> float | None:
     """Recover manually selected textual block anchors for the native baseline.
 
-    D-10 does not pretend the word-level native probe performs semantic layout
+    Scientific Document Parsing Contract does not pretend the word-level native probe performs semantic layout
     classification. For native-only, the defensible block metric is therefore
     the fraction of manually selected critical textual anchors that are present
     in the recovered text layer. Structural table/formula/figure recovery is
@@ -257,10 +256,7 @@ def run_native_only() -> BenchmarkReport:
             sum((case.native_routing_coverage or 0.0) for case in cases),
             total,
         ),
-        _metric(
-            "visual_routing_coverage",
-            BenchmarkMetricStatus.not_applicable,
-        ),
+        _metric("visual_routing_coverage", BenchmarkMetricStatus.not_applicable),
         _metric("block_recovery", block_status, block_num, block_den),
         _metric("reading_order_error", BenchmarkMetricStatus.not_run),
         _metric("table_structure_recovery", BenchmarkMetricStatus.unsupported),
@@ -286,7 +282,7 @@ def run_native_only() -> BenchmarkReport:
     )
 
     report = BenchmarkReport(
-        report_id="d10-native-benchmark",
+        report_id="scientific_document-native-benchmark",
         schema_version=SCHEMA_VERSION,
         parser_mode=BenchmarkParserMode.native_only,
         golden_set_manifest_id=manifest.manifest_id,
@@ -308,7 +304,7 @@ def run_native_only() -> BenchmarkReport:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the D-10 native benchmark.")
+    parser = argparse.ArgumentParser(description="Run the Scientific Document Parsing Contract native benchmark.")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     report = run_native_only()

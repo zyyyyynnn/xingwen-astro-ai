@@ -242,11 +242,6 @@
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Scientific Payload Hash",
           "type": "string"
-        },
-        "x00_main_sha": {
-          "pattern": "^[0-9a-f]{40}$",
-          "title": "X00 Main Sha",
-          "type": "string"
         }
       },
       "required": [
@@ -255,8 +250,7 @@
         "benchmark_version",
         "scientific_payload_hash",
         "content_hash",
-        "scenario_id",
-        "x00_main_sha"
+        "scenario_id"
       ],
       "title": "PaperBenchmarkReference",
       "type": "object"
@@ -338,6 +332,12 @@
           "title": "Input Hash",
           "type": "string"
         },
+        "kind": {
+          "const": "paper_collection",
+          "default": "paper_collection",
+          "title": "Kind",
+          "type": "string"
+        },
         "metrics": {
           "$ref": "#/$defs/PaperCollectionMetrics"
         },
@@ -369,8 +369,8 @@
           "$ref": "#/$defs/PaperCollectionRules"
         },
         "schema_version": {
-          "const": "1.0.0",
-          "default": "1.0.0",
+          "const": "2.0.0",
+          "default": "2.0.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -1820,7 +1820,7 @@
     },
     "SourceSnapshotRecord": {
       "additionalProperties": false,
-      "description": "Immutable pipeline source record consumed by the future publisher.\n\nImplements the core ``SourceSnapshot`` target entity described in\n``docs/architecture/DATA_MODEL.md`` under a distinct name so the frozen\nPhase 0 ``SourceSnapshot`` projection above stays unchanged.",
+      "description": "Immutable source provenance consumed by scientific pipelines.\n\nThis is a pipeline/runtime record, not an HTTP read projection. It preserves\nthe exact source, query and content identity required for reproducibility\nwhile rejecting credential-bearing request metadata before publication.",
       "properties": {
         "cache_version": {
           "anyOf": [

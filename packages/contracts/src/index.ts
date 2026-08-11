@@ -1,5 +1,5 @@
 /**
- * @xingwen/contracts — the frontend consumption boundary for the B-15 frozen
+ * @xingwen/contracts — the frontend consumption boundary for the Core Domain and Transport Contract frozen
  * `/api` core contract.
  *
  * Pydantic remains the sole production schema authoring source. This package
@@ -7,7 +7,7 @@
  *
  * - TypeScript DTO types generated from the OpenAPI components (never
  *   hand-written — see `scripts/sync_contracts.mjs`).
- * - Runtime validation via `ajv` against the real B-15 JSON Schemas.
+ * - Runtime validation via `ajv` against the real Core Domain and Transport Contract JSON Schemas.
  *
  * The fixture adapter (`@xingwen/data-access`) uses these validators to assert
  * contract conformance before mapping payloads into the domain model.

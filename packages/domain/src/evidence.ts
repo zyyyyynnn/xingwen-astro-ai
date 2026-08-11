@@ -7,8 +7,8 @@
  * snapshots. Repository adapters (including the fixture adapter) produce
  * Evidence instances directly in domain form.
  *
- * The `evidenceType` enum reuses the canonical values defined by the v1
- * `EvidenceType` contract so the vocabulary stays consistent across phases.
+ * The `evidenceType` enum reuses the canonical values defined by the
+ * `EvidenceType` contract so the vocabulary stays consistent across layers.
  */
 
 import type { DomainEntityId } from "./identifiers";
@@ -16,6 +16,8 @@ import type { UtcIsoTimestamp } from "./value-types";
 
 export const EVIDENCE_TYPES = [
   "database_query",
+  "data_transformation",
+  "crossmatch_decision",
   "paper_search",
   "paper_metadata",
   "paper_text",
@@ -27,11 +29,12 @@ export const EVIDENCE_TYPES = [
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
 
 /**
- * The kind of domain object an Evidence record locates. Mirrors the feedback
- * target set in [Data Model §11](../../docs/architecture/DATA_MODEL.md).
+ * The kind of domain object an Evidence record locates. This is the closed
+ * vocabulary emitted by persisted Artifact provenance.
  */
 export const EVIDENCE_TARGET_TYPES = [
   "field",
+  "canonical_field",
   "source",
   "paper",
   "paper_candidate",
@@ -40,6 +43,7 @@ export const EVIDENCE_TARGET_TYPES = [
   "relation",
   "reasoning_trace",
   "graph_edge",
+  "crossmatch",
 ] as const;
 export type EvidenceTargetType = (typeof EVIDENCE_TARGET_TYPES)[number];
 

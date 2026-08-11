@@ -1,4 +1,4 @@
-"""Unit tests for the fail-closed URL fetch boundary (B-19).
+"""Unit tests for the fail-closed URL fetch boundary (Research Input Ingestion).
 
 Uses a scripted fake ``httpx`` so no real network is touched: protocol/host
 allowlists, SSRF private-network denial, bounded redirects with per-hop

@@ -1,5 +1,5 @@
 /**
- * Paper acquisition review repository (A-05) over the B-06 read boundary.
+ * Paper acquisition review repository (Paper Acquisition Workspace) over the PaperCollection API read boundary.
  *
  * One deep port method — `getReview(artifactVersionId)` — hides the entire
  * transport protocol:
@@ -95,7 +95,7 @@ function metadataEntries(
     .map(([key, value]) => ({ key, value: displayValue(value) }));
 }
 
-/** Contract-defined origin keys carried by cached snapshots (B-06 validator). */
+/** Contract-defined origin keys carried by cached snapshots (PaperCollection API validator). */
 function cachedOriginOf(
   metadata: Readonly<Record<string, unknown>>,
 ): CachedSnapshotOrigin | null {
@@ -125,7 +125,7 @@ function mapPagination(
   };
 }
 
-/** Shared with the A-06 paper summary repository (same persisted projection). */
+/** Shared with the Literature Summary Workspace paper summary repository (same persisted projection). */
 export function mapSnapshotSummary(
   dto: SourceSnapshotDetailDto,
 ): SourceSnapshotSummary {
@@ -145,7 +145,7 @@ export function mapSnapshotSummary(
   };
 }
 
-/** Shared with the A-06 paper summary repository (same persisted record). */
+/** Shared with the Literature Summary Workspace paper summary repository (same persisted record). */
 export function mapProducerExecutionSummary(
   dto: ProducerExecutionDetailDto,
 ): ProducerExecutionSummary {
@@ -381,7 +381,7 @@ export function assemblePaperAcquisitionReview(
   );
   // Cached executions must be auditable per execution: resolve each cached
   // execution's pipeline snapshot to its persisted projection through the
-  // same stable fingerprint B-06 uses, and require real origin provenance
+  // same stable fingerprint PaperCollection API uses, and require real origin provenance
   // on that exact snapshot (mirrors the Pydantic cached invariant).
   for (const execution of collection.source_executions) {
     if ((execution.source_mode as SourceMode) !== "cached") continue;

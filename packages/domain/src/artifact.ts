@@ -1,12 +1,13 @@
 /**
- * Research artifact and versioned artifact content domain models.
+ * Research artifact identity and immutable publication metadata.
  *
- * Mirror `ResearchArtifact`, `ArtifactVersion`, `ProducerReference` and the
- * discriminated `ArtifactContent` union in the Pydantic `/api` authoring
- * source.
+ * Kind-specific content is validated by its producer and dedicated read
+ * contract. The generic ArtifactVersion projection therefore preserves the
+ * persisted JSON payload without introducing a second content authority in
+ * the frontend domain package.
  */
 
-import type { ArtifactKind, ExportFormat, SourceMode } from "./enums";
+import type { ArtifactKind, SourceMode } from "./enums";
 import type { DomainEntityId } from "./identifiers";
 import type {
   ContentHash,
@@ -37,78 +38,14 @@ export interface ProducerReference {
   readonly parametersHash: ContentHash | null;
 }
 
-/** A single cell value in a dataset artifact row. */
-export type DataCell = string | number | boolean | null;
-
-export interface DatasetArtifactContent {
-  readonly kind: "dataset";
-  readonly fieldIds: readonly DomainEntityId[];
-  readonly rows: readonly Record<string, DataCell>[];
-}
-
-export interface FieldDictionaryArtifactContent {
-  readonly kind: "field_dictionary";
-  readonly fieldIds: readonly DomainEntityId[];
-}
-
-export interface SourceCollectionArtifactContent {
-  readonly kind: "source_collection";
-  readonly sourceSnapshotIds: readonly DomainEntityId[];
-}
-
-export interface PaperCollectionArtifactContent {
-  readonly kind: "paper_collection";
-  readonly paperIds: readonly DomainEntityId[];
-}
-
-export interface PaperSummaryArtifactContent {
-  readonly kind: "paper_summary";
-  readonly paperId: DomainEntityId;
-  readonly summaryId: DomainEntityId;
-}
-
-export interface LiteratureClaimsArtifactContent {
-  readonly kind: "literature_claims";
-  readonly claimIds: readonly DomainEntityId[];
-}
-
-export interface LiteratureRelationsArtifactContent {
-  readonly kind: "literature_relations";
-  readonly relationIds: readonly DomainEntityId[];
-}
-
-export interface ReasoningTracesArtifactContent {
-  readonly kind: "reasoning_traces";
-  readonly reasoningTraceIds: readonly DomainEntityId[];
-}
-
-export interface GraphArtifactContent {
-  readonly kind: "graph";
-  readonly nodeIds: readonly DomainEntityId[];
-  readonly edgeIds: readonly DomainEntityId[];
-}
-
-export interface ExportArtifactContent {
-  readonly kind: "export";
-  readonly format: ExportFormat;
-  readonly artifactVersionIds: readonly DomainEntityId[];
-}
-
 /**
- * Discriminated union of all artifact content variants. The `kind` field is
- * the discriminator and matches the `ArtifactKind` enum.
+ * Immutable JSON payload stored in an ArtifactVersion.
+ *
+ * The API validates this payload at the producer/admission boundary. Generic
+ * consumers must keep the JSON intact and use the owning read contract for
+ * kind-specific interpretation.
  */
-export type ArtifactContent =
-  | DatasetArtifactContent
-  | FieldDictionaryArtifactContent
-  | SourceCollectionArtifactContent
-  | PaperCollectionArtifactContent
-  | PaperSummaryArtifactContent
-  | LiteratureClaimsArtifactContent
-  | LiteratureRelationsArtifactContent
-  | ReasoningTracesArtifactContent
-  | GraphArtifactContent
-  | ExportArtifactContent;
+export type ArtifactVersionContent = Readonly<Record<string, unknown>>;
 
 export interface ArtifactVersion {
   readonly id: DomainEntityId;
@@ -117,7 +54,7 @@ export interface ArtifactVersion {
   readonly createdByRunId: DomainEntityId;
   readonly versionNumber: number;
   readonly schemaVersion: SemanticVersion;
-  readonly content: ArtifactContent;
+  readonly content: ArtifactVersionContent;
   readonly contentHash: ContentHash;
   readonly inputHash: ContentHash;
   readonly sourceMode: SourceMode;
@@ -132,40 +69,7 @@ export interface ArtifactVersion {
  * Version identity and provenance without the scientific `content` payload.
  *
  * Generic workspace reads (panel slots, Share wiring, hash display) only need
- * this projection. Rich kind-specific content — such as the B-06
- * PaperCollection — must be read through its dedicated repository (e.g.
- * `PaperAcquisitionRepository`) instead of being squeezed through the generic
- * `ArtifactContent` union.
+ * this projection. Rich kind-specific content must be read through its
+ * dedicated repository instead of being reconstructed from generic metadata.
  */
 export type ArtifactVersionMetadata = Omit<ArtifactVersion, "content">;
-
-/**
- * Validate dataset content invariants: unique declared fields and no row keys
- * outside the declared set. Mirrors the `DatasetArtifactContent` validator.
- */
-export function validateDatasetContentInvariants(
-  content: DatasetArtifactContent,
-): readonly string[] {
-  const violations: string[] = [];
-
-  if (content.fieldIds.length !== new Set(content.fieldIds).size) {
-    violations.push("field_ids must not contain duplicates");
-  }
-
-  const declared = new Set(content.fieldIds);
-  const unknown = new Set<string>();
-  for (const row of content.rows) {
-    for (const key of Object.keys(row)) {
-      if (!declared.has(key as DomainEntityId)) {
-        unknown.add(key);
-      }
-    }
-  }
-  if (unknown.size > 0) {
-    violations.push(
-      `dataset rows contain undeclared field(s): ${[...unknown].sort().join(", ")}`,
-    );
-  }
-
-  return violations;
-}

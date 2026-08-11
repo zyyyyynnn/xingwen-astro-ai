@@ -1,62 +1,23 @@
 {
-  "registry_version": 2,
+  "schema_version": "1.0.0",
   "prompts": {
     "literature_claim": {
-      "current": "v1",
-      "versions": {
-        "v1": {
-          "path": "literature_claim/v1.md",
-          "content_hash": "sha256:054ab7dea308222716f4cf327c7b01f2781d05e8718bf47b331a62a28775ebe1",
-          "output_models": [
-            "LiteratureClaimExtractionOutput"
-          ],
-          "status": "active"
-        }
-      }
+      "version": "1.0.0",
+      "path": "literature_claim/prompt.md",
+      "content_hash": "sha256:246c9b390d553122b5cf1d5286a64e40f16b56fb56b24417cec1c336b95a48db",
+      "output_models": ["LiteratureClaimExtractionOutput"]
     },
-    "literature_reasoning": {
-      "current": "v2",
-      "versions": {
-        "v1": {
-          "path": "literature_reasoning/v1.md",
-          "content_hash": "sha256:7ef8fff349bde70b40e855f5812258b0144bd91a9e149d4bb2c9842bddbeaf31",
-          "output_models": [
-            "LiteratureClaim",
-            "LiteratureRelation",
-            "ReasoningTrace"
-          ],
-          "status": "deprecated"
-        },
-        "v2": {
-          "path": "literature_reasoning/v2.md",
-          "content_hash": "sha256:0027fe9c00efa8f205d4af97c1b219809e7b78400dbc1a7e6f95486474038b6d",
-          "output_models": [
-            "LiteratureRelationExtractionOutput"
-          ],
-          "status": "active"
-        }
-      }
+    "literature_relation": {
+      "version": "2.0.1",
+      "path": "literature_relation/prompt.md",
+      "content_hash": "sha256:4d1f4dfb5763a28d4f13fe87af9c6e03e3bff17eea0d3722d33258b15ce5e997",
+      "output_models": ["LiteratureRelationExtractionOutput"]
     },
     "paper_summary": {
-      "current": "v2",
-      "versions": {
-        "v1": {
-          "path": "paper_summary/v1.md",
-          "content_hash": "sha256:a296771e1acf2517b4c9fb72eae6d64ebf78a5f103ac973f2d557fcf2a04be2a",
-          "output_models": [
-            "PaperSummary"
-          ],
-          "status": "deprecated"
-        },
-        "v2": {
-          "path": "paper_summary/v2.md",
-          "content_hash": "sha256:594a3e59ea2cbad953e1245efbe4f409a302ed39a73c743feb62d268422f973a",
-          "output_models": [
-            "PaperSummaryModelOutput"
-          ],
-          "status": "active"
-        }
-      }
+      "version": "2.0.0",
+      "path": "paper_summary/prompt.md",
+      "content_hash": "sha256:b7b1024ef42bdeadb2fa2f48b401f882321f7c1ca25b92b07446258e8bb4f4d4",
+      "output_models": ["PaperSummaryModelOutput"]
     }
   }
 }

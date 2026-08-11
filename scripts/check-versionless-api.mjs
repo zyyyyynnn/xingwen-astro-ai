@@ -2,11 +2,11 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 /**
- * Guards against reintroduction of version-prefixed API paths (`/api/v1`,
- * `/api/v2`, …) after the versionless de-naming pass. The whole product now
- * speaks a single versionless `/api/*` surface; a stray `/api/vN` literal in
+ * Guards against reintroduction of version-prefixed API paths. The whole product now
+ * speaks a single versionless `/api/*` surface; a stray version segment in
  * source, config, or docs signals an accidental regression.
  *
  * Node built-ins only; mirrors the style of the other `scripts/check-*.mjs`
@@ -46,18 +46,18 @@ const SKIP_PATH_PREFIXES = ["apps/api/migrations"];
 const ALLOWLIST = new Set([
   "scripts/check-frontend-architecture.mjs",
   "scripts/check-versionless-api.mjs",
-  "CONTRIBUTING.md", // past GitHub issue titles quoted verbatim
 ]);
 
-const VERSION_PATH_PATTERN = /\/api\/v[0-9](?=[/\W]|$)/u;
+const VERSION_PATH_PATTERN = /\/api\/v[0-9]+(?=[/\W]|$)/u;
+const VERSIONED_API_TRACKED_PATH_PATTERN = /(?:^|\/)api\/v[0-9]+(?=\/|$)/u;
 
 /**
- * Collect scannable files under the tracked source tree.
+ * Collect existing tracked and untracked files under the repository root.
  *
  * `git ls-files -co --exclude-standard` lists tracked and untracked files while
  * honouring `.gitignore`, so ignored trees (`node_modules`, `dist`, `.turbo`,
  * Python `.venv`, …) never leak in as false positives. Results are then
- * filtered to the versioned source directories and inspected extensions.
+ * checked for path violations before content-specific filtering.
  */
 function collectFiles() {
   const listed = execFileSync(
@@ -75,52 +75,77 @@ function collectFiles() {
 
   // A generated Contract may be intentionally removed in the working tree;
   // do not attempt to read deleted tracked paths before the next commit.
-  const existing = listed.filter((file) => existsSync(join(root, file)));
-
-  return existing.filter((file) => {
-    if (file.split("/").some((segment) => SKIP_DIR_NAMES.has(segment))) {
-      return false;
-    }
-    if (SKIP_PATH_PREFIXES.some((prefix) => file.startsWith(prefix))) {
-      return false;
-    }
-    const dot = file.lastIndexOf(".");
-    const extension = dot === -1 ? "" : file.slice(dot);
-    // Markdown is policed repo-wide (docs live under docs/ and the repo root);
-    // code/config files are policed only within the versioned source dirs.
-    if (extension === ".md") {
-      return true;
-    }
-    if (!SCAN_DIRS.some((dir) => file === dir || file.startsWith(`${dir}/`))) {
-      return false;
-    }
-    return SCANNED_EXTENSIONS.has(extension);
-  });
+  return listed.filter((file) => existsSync(join(root, file)));
 }
 
-const failures = [];
-
-for (const file of collectFiles()) {
-  if (ALLOWLIST.has(file)) {
-    continue;
+function shouldScanContents(file) {
+  if (file.split("/").some((segment) => SKIP_DIR_NAMES.has(segment))) {
+    return false;
   }
-  const contents = readFileSync(join(root, file), "utf8");
+  if (SKIP_PATH_PREFIXES.some((prefix) => file.startsWith(prefix))) {
+    return false;
+  }
+  const dot = file.lastIndexOf(".");
+  const extension = dot === -1 ? "" : file.slice(dot);
+  // Markdown is policed repo-wide (docs live under docs/ and the repo root);
+  // code/config files are policed only within the versioned source dirs.
+  if (extension === ".md") {
+    return true;
+  }
+  if (!SCAN_DIRS.some((dir) => file === dir || file.startsWith(`${dir}/`))) {
+    return false;
+  }
+  return SCANNED_EXTENSIONS.has(extension);
+}
+
+export function versionlessApiViolations(file, contents = null) {
+  const failures = [];
+  if (VERSIONED_API_TRACKED_PATH_PATTERN.test(file)) {
+    failures.push(`${file}: path contains a version-prefixed API segment`);
+  }
+  if (contents === null || ALLOWLIST.has(file)) {
+    return failures;
+  }
   const lines = contents.split(/\r?\n/u);
   for (let index = 0; index < lines.length; index += 1) {
     if (VERSION_PATH_PATTERN.test(lines[index])) {
       failures.push(`${file}:${index + 1}: ${lines[index].trim()}`);
     }
   }
+  return failures;
 }
 
-if (failures.length > 0) {
-  console.error(
-    "Versionless API check failed — version-prefixed paths found:\n",
-  );
-  for (const failure of failures) {
-    console.error(`- ${failure}`);
+export function inspectTrackedFiles(files, readContents) {
+  const failures = [];
+  for (const file of files) {
+    const contents = shouldScanContents(file) ? readContents(file) : null;
+    failures.push(...versionlessApiViolations(file, contents));
   }
-  process.exit(1);
+  return failures;
 }
 
-console.log("Versionless API check passed.");
+export function main() {
+  const failures = inspectTrackedFiles(collectFiles(), (file) =>
+    readFileSync(join(root, file), "utf8"),
+  );
+
+  if (failures.length > 0) {
+    console.error(
+      "Versionless API check failed — version-prefixed paths found:\n",
+    );
+    for (const failure of failures) {
+      console.error(`- ${failure}`);
+    }
+    return 1;
+  }
+
+  console.log("Versionless API check passed.");
+  return 0;
+}
+
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+) {
+  process.exitCode = main();
+}

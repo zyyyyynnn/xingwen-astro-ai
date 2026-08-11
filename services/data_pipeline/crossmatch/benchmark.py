@@ -1,4 +1,4 @@
-"""Loader and deterministic evaluator for the frozen C-08 benchmark."""
+"""Loader and deterministic evaluator for the frozen Cross-source Entity Alignment benchmark."""
 
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ DEFAULT_CROSSMATCH_BENCHMARK_PATH = (
     / "data_pipeline"
     / "benchmarks"
     / "exoplanet_host_star"
-    / "crossmatch-benchmark.v1.json"
+    / "crossmatch-benchmark.json"
 )
 _TOI_SOURCE_ID = "nasa_exoplanet_archive.toi"
 _PS_SOURCE_ID = "nasa_exoplanet_archive.ps"
@@ -91,6 +91,14 @@ def load_crossmatch_benchmark(
     ):
         raise ValueError("crossmatch benchmark disagrees with frozen RuleSet")
     return benchmark
+
+
+def build_crossmatch_scenario_input(
+    scenario: CrossmatchBenchmarkScenario,
+) -> CrossmatchInput:
+    """Build one frozen benchmark scenario through the public pipeline boundary."""
+
+    return _scenario_input(scenario)
 
 
 def evaluate_crossmatch_benchmark(

@@ -1,9 +1,14 @@
 {
-  "manifest_id": "d10-upstream-adoption",
+  "manifest_id": "scientific_document-upstream-adoption",
   "schema_version": "1.1.0",
   "reviewed_at": "2026-08-07",
   "case_key": "exoplanet_host_star",
-  "allowed_statuses": ["approved", "evaluated_not_adopted", "deferred", "blocked"],
+  "allowed_statuses": [
+    "approved",
+    "evaluated_not_adopted",
+    "deferred",
+    "blocked"
+  ],
   "consumable_statuses": ["approved"],
   "entries": [
     {
@@ -24,10 +29,10 @@
       "model_download_behavior": "does not download model weights",
       "cache_behavior": "no model cache",
       "offline_behavior": "fully offline once installed",
-      "known_risks": "only born-digital/programmatic PDFs; scanned pages get weak/no text layer and must fall back to visual backend",
+      "known_risks": "only born-digital/programmatic PDFs; scanned pages get weak/no text layer and require a visual adapter",
       "upgrade_strategy": "pin exact version in benchmark/optional dependency; re-run native baseline + hash on bump",
       "evidence_source": "https://pypi.org/project/docling-parse/7.11.0/ (MIT, requires-python >=3.10, classifiers include 3.13)",
-      "reviewed_by": "D-10"
+      "reviewed_by": "Scientific Document Parsing Contract"
     },
     {
       "capability": "visual_ocr_layout_table_formula",
@@ -49,17 +54,17 @@
       "license": "Apache-2.0",
       "model_weight_license": "Apache-2.0",
       "official_interface_used": "from paddleocr import PaddleOCRVL; pipeline = PaddleOCRVL(pipeline_version='v1.6'); pipeline.predict(image); res.save_to_json()/save_to_markdown()",
-      "explicitly_unused_scope": "chart recognition (off by default; out of D-10 phase-1 scope), plot digitization, curve recovery, scatter-point recovery, human parse revision",
+      "explicitly_unused_scope": "chart recognition, plot digitization, curve recovery, scatter-point recovery, human parse revision",
       "cpu_behavior": "CPU fallback supported (DEVICE = cuda if available else cpu)",
       "gpu_behavior": "paddlepaddle-gpu==3.2.1 (CUDA 12.6) recommended",
-      "network_behavior": "downloads model weights from BCE Bos / HuggingFace on first use",
-      "model_download_behavior": "downloads PaddleOCR-VL-1.6-0.9B weights on first inference; caches under PaddleOCR model cache dir",
-      "cache_behavior": "caches weights under PaddleOCR model cache; offline requires pre-populated cache",
-      "offline_behavior": "offline only if weights pre-cached",
-      "known_risks": "heavyweight (PaddlePaddle + model download); not a core startup dependency; chart recognition must stay off; D-10 freezes contract only, real hybrid run is D-11",
-      "upgrade_strategy": "pin exact paddleocr version, model_resolved_id and model_revision (immutable HF commit) in D-11 adapter; verify license NOTICE/attribution; re-run benchmark on model bump",
+      "network_behavior": "downloads model weights from BCE Bos or Hugging Face on first use",
+      "model_download_behavior": "downloads PaddleOCR-VL-1.6-0.9B weights on first inference; caches under the PaddleOCR model cache directory",
+      "cache_behavior": "caches weights under PaddleOCR model cache; offline execution requires a populated cache",
+      "offline_behavior": "offline only when weights are already present",
+      "known_risks": "heavyweight runtime and model download; not a core startup dependency; chart recognition must remain disabled; use requires a DocumentParserPort adapter that records complete visual provenance",
+      "upgrade_strategy": "pin exact package, resolved model identity and immutable model revision; verify license attribution and rerun the scientific-document benchmark on any change",
       "evidence_source": "https://pypi.org/project/paddleocr/3.6.0/ (Apache-2.0); https://huggingface.co/api/models/PaddlePaddle/PaddleOCR-VL-1.6 (sha cdc88f5feff0e4079e75863205053a68358e52f7, license apache-2.0); https://www.paddleocr.ai/latest/version3.x/algorithm/PaddleOCR-VL/PaddleOCR-VL.html",
-      "reviewed_by": "D-10"
+      "reviewed_by": "Scientific Document Parsing Contract"
     }
   ]
 }

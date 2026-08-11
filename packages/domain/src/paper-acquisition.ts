@@ -1,7 +1,7 @@
 /**
- * Paper acquisition review domain model (A-05).
+ * Paper acquisition review domain model (Paper Acquisition Workspace).
  *
- * A UI-facing projection of the B-06 `PaperCollectionRead` /
+ * A UI-facing projection of the PaperCollection API `PaperCollectionRead` /
  * `PaperCollectionCandidateRead` transport contract. It is deliberately NOT a
  * field-by-field DTO mirror: identifiers are branded, optionality is resolved
  * into explicit `null`, state is expressed as discriminated unions, and
@@ -85,7 +85,7 @@ export interface PaperAcquisitionRunReview {
   readonly sourceFailureCount: number;
 }
 
-/** Frozen benchmark identity when the collection derives from X-00 seeds. */
+/** Frozen benchmark identity when the collection derives from Product Case Baseline seeds. */
 export interface PaperBenchmarkReview {
   readonly benchmarkId: DomainEntityId;
   readonly benchmarkVersion: string;
@@ -108,7 +108,7 @@ export interface PaperAcquisitionMetrics {
   readonly sourceEmptyResultCount: number;
 }
 
-/** Versioned rule identifiers proving which algorithms produced the result. */
+/** Pinned rule identifiers proving which algorithms produced the result. */
 export interface PaperAcquisitionRules {
   readonly dedupeRule: string;
   readonly rankingRule: string;

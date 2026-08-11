@@ -2,10 +2,10 @@
  * Provenance state — the baseline source/version/coverage summary attached to
  * runs, artifact versions and fixture bundles.
  *
- * Per Issue A-14 the frontend establishes the *base* provenance state:
+ * Per Issue Frontend Domain and Fixture Boundary the frontend establishes the *base* provenance state:
  * execution mode, source mode, schema version, retrieved-at and evidence
  * completeness. Cache-selection reasoning and revision derivation details are
- * deferred to A-09 and are intentionally absent here.
+ * deferred to Evidence Provenance and are intentionally absent here.
  */
 
 import type { ExecutionMode, SourceMode } from "./enums";

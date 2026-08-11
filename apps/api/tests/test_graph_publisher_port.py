@@ -1,4 +1,4 @@
-"""Publisher-port bypass and provenance contracts for D-05 Graph artifacts."""
+"""Publisher-port bypass and provenance contracts for Evidence Graph artifacts."""
 
 from __future__ import annotations
 
@@ -10,9 +10,6 @@ from uuid import UUID
 import pytest
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.core import ArtifactKind, GraphArtifactContent
-from app.schemas.enums import GraphEdgeType, GraphNodeType
-from app.schemas.graph import GraphEdge, GraphNode, GraphResponse
 from app.schemas.graph_artifact import GraphArtifactCandidate
 from app.workflow import publisher as publisher_module
 from app.workflow.publisher import (
@@ -133,7 +130,7 @@ def test_idempotent_graph_replay_requires_exact_persisted_producer_snapshot(
     parameters_hash = "sha256:" + "b" * 64
     producer = SimpleNamespace(
         producer_type="algorithm",
-        producer_name="versioned-evidence-graph-pipeline",
+        producer_name="evidence-graph-pipeline",
         producer_version="1.0.0",
         parameters_hash=parameters_hash,
         input_hash=input_hash,
@@ -247,9 +244,7 @@ def test_port_returns_exact_graph_owned_evidence_materialization_plan() -> None:
     snapshots, evidence = _bindings(candidate)
     admitted = _admit(candidate, snapshots=snapshots, evidence=evidence)
 
-    expected_snapshot_ids = {
-        item.persisted_source_snapshot_id for item in snapshots
-    }
+    expected_snapshot_ids = {item.persisted_source_snapshot_id for item in snapshots}
     assert set(admitted.source_snapshot_ids) == expected_snapshot_ids
     assert set(admitted.evidence_ids) == {
         item.persisted_evidence_id for item in evidence
@@ -297,7 +292,9 @@ def test_port_returns_exact_graph_owned_evidence_materialization_plan() -> None:
         assert planned.upstream_is_restricted is use.upstream_is_restricted
 
 
-@pytest.mark.parametrize("operation", (copy, deepcopy, lambda value: value.model_copy()))
+@pytest.mark.parametrize(
+    "operation", (copy, deepcopy, lambda value: value.model_copy())
+)
 def test_copied_candidate_cannot_replay_pipeline_authority(operation) -> None:
     candidate = _accepted_candidate()
     copied = operation(candidate)
@@ -327,7 +324,9 @@ def test_public_payload_tamper_invalidates_pipeline_authority() -> None:
 def test_old_seal_and_context_cannot_be_replayed_on_new_candidate() -> None:
     old = _accepted_candidate()
     new = _accepted_candidate()
-    object.__setattr__(new, "_artifact_publication_seal", old._artifact_publication_seal)
+    object.__setattr__(
+        new, "_artifact_publication_seal", old._artifact_publication_seal
+    )
     object.__setattr__(
         new,
         "_artifact_publication_context",
@@ -353,71 +352,13 @@ def test_raw_graph_mapping_is_rejected() -> None:
         )
 
 
-def test_phase0_core_graph_response_is_rejected() -> None:
-    candidate = GraphResponse(
-        nodes=[
-            GraphNode(
-                id="node.paper",
-                type=GraphNodeType.paper,
-                label="Paper",
-                ref_id="paper.1",
-            ),
-            GraphNode(
-                id="node.claim",
-                type=GraphNodeType.claim,
-                label="Claim",
-                ref_id="claim.1",
-            ),
-        ],
-        edges=[
-            GraphEdge(
-                id="edge.supports",
-                source="node.paper",
-                target="node.claim",
-                type=GraphEdgeType.supports_finding,
-                evidence_ids=["evidence.1"],
-            )
-        ],
-    )
-
-    with pytest.raises(PublicationAdmissionError, match="Phase 0 GraphResponse"):
-        admit_artifact_candidate(
-            candidate,
-            schema_version="1.0.0",
-            source_snapshot_ids=("snapshot.1",),
-            evidence_ids=("evidence.1",),
-            evidence_validator=_accept,
-            domain_validator=_accept,
-            quality_validator=_accept,
-        )
-
-
-def test_core_graph_artifact_projection_cannot_bypass_d05_admission() -> None:
-    candidate = GraphArtifactContent(
-        kind=ArtifactKind.graph,
-        node_ids=("node.paper", "node.claim"),
-        edge_ids=("edge.supports",),
-    )
-
-    with pytest.raises(PublicationAdmissionError, match="authoritative D-05"):
-        admit_artifact_candidate(
-            candidate,
-            schema_version="1.0.0",
-            source_snapshot_ids=(),
-            evidence_ids=(),
-            evidence_validator=_accept,
-            domain_validator=_accept,
-            quality_validator=_accept,
-        )
-
-
 def test_forged_graph_model_and_admission_method_are_rejected() -> None:
     candidate = ForgedGraphCandidate(
         source_snapshot_ids=("snapshot.1",),
         evidence_ids=("evidence.1",),
     )
 
-    with pytest.raises(PublicationAdmissionError, match="authoritative D-05"):
+    with pytest.raises(PublicationAdmissionError, match="authoritative Evidence Graph"):
         admit_artifact_candidate(
             candidate,
             schema_version=candidate.schema_version,
@@ -453,7 +394,9 @@ def test_graph_publication_requires_both_explicit_binding_sets() -> None:
 
 
 @pytest.mark.parametrize("mutation", ("missing", "extra", "wrong_persisted"))
-def test_source_snapshot_bindings_require_exact_candidate_closure(mutation: str) -> None:
+def test_source_snapshot_bindings_require_exact_candidate_closure(
+    mutation: str,
+) -> None:
     candidate = _accepted_candidate()
     snapshots, evidence = _bindings(candidate)
     if mutation == "missing":

@@ -23,7 +23,7 @@ def compute_canonical_payload_hash(payload: Any) -> str:
 
 
 def compute_canonical_model_hash(model: BaseModel) -> str:
-    """Hash a validated model using the canonical C-01 JSON rules.
+    """Hash a validated model using the canonical Case and Field Manifest JSON rules.
 
     Object keys are sorted, array order is preserved, null values are omitted,
     UTF-8 is used without ASCII escaping, and the top-level ``content_hash``

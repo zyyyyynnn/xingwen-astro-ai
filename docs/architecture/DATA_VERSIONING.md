@@ -2,55 +2,53 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
-| Authority | ArtifactVersion、来源、缓存、修订、分享与保留规则 |
+| Authority | ArtifactVersion、SourceSnapshot、ProducerExecution、修订、分享与哈希规则 |
 
-本文定义科研产物、来源快照、运行缓存、修订版本与分享快照的版本控制规则。
+本文定义已落地科研产物与来源的真实身份，并单独约束尚未接入运行时的修订与缓存契约。运行编排见 [Workflow Design](WORKFLOW_DESIGN.md)。
 
-## 1. 版本对象分类
+## 1. 已落地对象与目标契约
 
-| 对象 | 是否不可变 | 说明与用途 |
-| --- | --- | --- |
-| ResearchContract | 确认后不可变 | 固定 Run 的研究输入协议与质量要求 |
-| ResearchRun | 创建后不可变 | 记录一次由 Contract 驱动的独立执行 |
-| ResearchArtifact | 身份可更新 | 表示同一逻辑产物，维护 `latest_version_id` 指针 |
-| ArtifactVersion | 内容不可变 | 唯一的版本快照，是 Evidence、Cache、Share 的绑定单位 |
-| SourceSnapshot | 不可变 | 抓取或检索到的原始数据/文献快照 |
-| CacheRecord | 不可变 | 绑定真实历史 Run/Version 的复用记录 |
-| WorkspaceSnapshot | 乐观锁可覆盖 | 私有 UI 恢复状态，非科研产物 |
-| ShareSnapshot | 创建后不可变 | 冻结公开的版本快照与脱敏范围 |
+| 对象 | 运行边界 | 可变性 | 作用 |
+| --- | --- | --- | --- |
+| ResearchContract | 当前运行时 | 确认后不可变 | 固定研究目标、字段、来源与质量约束 |
+| ResearchArtifact | 当前运行时 | 身份可更新 | 表示逻辑产物并维护 `latest_version_id` |
+| ArtifactVersion | 当前运行时 | 内容不可变 | 保存具体产物、内容哈希、输入哈希与 provenance |
+| SourceSnapshot | 当前运行时 | 不可变 | 保存一次来源读取的查询、内容与安全元数据 |
+| ProducerExecution | 当前运行时 | 完成后不可变 | 保存算法、Pipeline 或模型执行的输入输出身份 |
+| WorkspaceSnapshot | 当前运行时 | 乐观锁覆盖 | 保存私有 UI 恢复状态，不是科研产物 |
+| ShareSnapshot | 当前运行时 | 创建后不可变 | 冻结公开 ArtifactVersion 与 Evidence 范围 |
+| CacheRecord | 目标契约 | 不可变 | 绑定真实历史 Run、ArtifactVersion、SourceSnapshot 与复用匹配 identity |
+| UserFeedback | 目标契约 | 创建后不可变 | 固定具体 ArtifactVersion 与对象定位 |
+| RevisionPlan | 目标契约 | 确认后不可变 | 固定 UserFeedback 与受影响 Artifact 闭包 |
+
+目标契约描述稳定边界，不表示对应表、Repository 或 Workflow 已在当前运行时提供。
 
 ## 2. ArtifactVersion 不变量
 
-- **版本唯一性**：`(artifact_id, version_number)` 组合在系统中绝对唯一。
-- **不可变性**：`ArtifactVersion` 创建并计算 `content_hash` 后严禁原地修改内容。`latest_version_id` 仅为可变指针。
-- **引用锁定**：Evidence、ShareSnapshot 与 Export 必须固定引用具体的 `version_id`，绝对不引用动态 `latest`。
-- **来源追踪**：`source_mode` 仅允许 `fixture | live | cached`。Cached 必须关联真实的 `origin_run_id` 与 `origin_artifact_version_id`。
-- **修订链表**：修订生成新 `ArtifactVersion`，并通过非空的 `supersedes_version_id` 形成无环单向链。
+- `(artifact_id, version_number)` 与 `(artifact_id, publication_key)` 唯一。
+- 内容、`content_hash`、`input_hash`、ProducerExecution 与 Evidence 绑定发布后不可修改。
+- `latest_version_id` 只是可变读取指针；Evidence、分享与导出必须引用具体 version ID。
+- `source_mode` 的 `fixture | live | cached` 是 provenance 事实。只有目标 CacheSelector 选择到绑定真实 origin Run/ArtifactVersion 的 CacheRecord 时才能标记 `cached`；当前运行时不会伪造 cached 结果。
+- `supersedes_version_id` 仅在真实发布关系存在时记录，并必须保持同一 Artifact 内的无环 lineage。
 
-## 3. ProducerExecution
+## 3. ProducerExecution 与 SourceSnapshot
 
-`ProducerExecution` 记录模型或算法执行的可复现元信息：
-- 包含 `producer_type`、`producer_name`、`producer_version`、`model_name`、`prompt_name`、`prompt_version`、`prompt_hash`、`parameters_hash`、`input_hash`、`output_hash`、`token_usage` 与 `latency_ms`。
-- 严禁保存 Secrets 密钥、认证头、完整受限全文或模型私有 chain-of-thought。
+ProducerExecution 记录 `producer_type`、name/version、可用的 model/prompt identity、parameters/input/output hash、token usage、latency 与执行状态。不得保存密钥、认证头、受限全文或私有 chain-of-thought。
 
-## 4. SourceSnapshot 版本化
+SourceSnapshot 记录来源身份、查询与内容哈希、抓取时间、许可说明和脱敏 request metadata。同一查询的不同抓取分别形成独立 Snapshot；不得用本地时间或随机值伪造上游版本。
 
-- 包含 `source_id`、`retrieved_at`、`query_hash`、`content_hash`、`license_note` 与脱敏后的 `request_metadata`。
-- 相同查询在不同时间抓取产生独立的 `SourceSnapshot` 实例。
+## 4. Canonical hash
 
-## 5. 哈希 (Hash) 计算规则
+- 哈希输入使用 UTF-8、LF 与规范化对象键顺序，格式为 `sha256:<64 lowercase hex>`。
+- `input_hash` 覆盖 Contract、输入版本与 Producer 参数；`content_hash` 覆盖发布给消费者的稳定内容。
+- 自引用哈希、数据库主键、日志与无业务意义的墙上时钟不进入科学内容哈希；审计字段是否进入哈希由对应 Schema 的 canonical authoring function 决定。
 
-- **统一格式**：哈希前数据使用 UTF-8 编码、规范化键顺序与 LF 换行符。`content_hash` / `input_hash` 采用 `sha256:<hex>` 格式。
-- **排除干扰**：哈希计算排除日志、数据库主键 ID、墙上时钟 (wall-clock) 与自引用哈希。
-- **版本哈希分离**：`input_hash` 覆盖研究契约、输入版本与模型/Prompt 参数；`content_hash` 覆盖发布给客户端的稳定 JSON 内容。
+## 5. 分享冻结
 
-## 6. 修订与缓存
+ShareSnapshot 固定 `artifact_version_ids` 与允许公开的 `evidence_ids`。Artifact 的 latest 指针变化不会改变已创建分享；Share token 只保存 hash，公开读取不授予写权限。
 
-- **修订 (Revision)**：确认 `RevisionPlan` 后创建新 Run，重新计算受影响步骤并生成新的 `ArtifactVersion`；历史版本完全保留并支持 Compare 对照。
-- **缓存 (Cached)**：只有来自真实历史 Run 且通过契约/Evidence 校验的产物才能标记为 Cached。Fixture 数据绝对不可作为真实 Cached 使用。
+## 6. 修订与缓存目标契约
 
-## 7. 分享与导出版本控制
-
-- `ShareSnapshot` 仅冻结已发布的 `artifact_version_ids` 与允许公开的 `evidence_ids`。
-- 即使后续产生了新的 `ArtifactVersion` 或更新了 `latest_version_id`，既有分享链接的内容绝对保持冻结、不随之改变。
+- RevisionPlan 将 UserFeedback 映射为受影响产物闭包；确认计划后创建 `derivation_kind=revision` 的新 Run，历史 ArtifactVersion 保持不可变。
+- CacheSelector 只能选择 Contract、input hash、producer identity 与 Evidence 仍匹配的 CacheRecord。选择失败时保持 Live 失败事实，不生成 cached ArtifactVersion。
+- 当前 HTTP Run authoring 不接受 RevisionPlan、feedback、retry 或 cache 参数；缺少对应执行路径时必须 fail closed。

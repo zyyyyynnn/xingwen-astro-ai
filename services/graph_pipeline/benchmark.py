@@ -1,4 +1,4 @@
-"""Deterministic D-05 evaluation against the frozen D-01 Graph label.
+"""Deterministic evidence-graph evaluation against frozen paper-acquisition labels.
 
 The built-in adapter is an offline replay oracle for the tracked Benchmark and
 Fixture cases.  It does not construct or seal a :class:`GraphArtifactCandidate`
@@ -82,15 +82,15 @@ _ContentHash = Annotated[
 _CASE_ADAPTER = TypeAdapter(tuple[GraphBenchmarkEvaluationCase, ...])
 _ZERO_HASH = "sha256:" + "0" * 64
 
-_EXPECTED_D01_SCHEMA_VERSION = "1.3.0"
-_EXPECTED_D01_BENCHMARK_VERSION = "1.3.0"
-_EXPECTED_D01_SCIENTIFIC_HASH = (
-    "sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd"
+_EXPECTED_PAPER_BENCHMARK_SCHEMA_VERSION = "2.0.0"
+_EXPECTED_PAPER_BENCHMARK_BENCHMARK_VERSION = "2.0.0"
+_EXPECTED_PAPER_BENCHMARK_SCIENTIFIC_HASH = (
+    "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9"
 )
-_EXPECTED_D01_CONTENT_HASH = (
-    "sha256:07fa19820cdbd5b908d4f30705bb863fb9a28050caf7bf54f6c01130467b1e2d"
+_EXPECTED_PAPER_BENCHMARK_CONTENT_HASH = (
+    "sha256:a315b54f934bb3b37e8273a9a766d5c87bd494089d99d7e82b6920b782e8ad57"
 )
-_EXPECTED_D01_NODES = (
+_EXPECTED_PAPER_BENCHMARK_NODES = (
     (
         "node.claim_clark_catalog",
         GraphNodeType.claim,
@@ -122,7 +122,7 @@ _EXPECTED_D01_NODES = (
         "paper.stassun_2019_revised_tic",
     ),
 )
-_EXPECTED_D01_EDGES = (
+_EXPECTED_PAPER_BENCHMARK_EDGES = (
     (
         "edge.paper_to_initial_tic_claim",
         "node.paper_stassun_2018",
@@ -240,11 +240,11 @@ class _ReplayInput(BaseModel):
 
     model_config = _MODEL_CONFIG
 
-    schema_version: Literal["1.0.0"]
-    d01_schema_version: Literal["1.3.0"]
-    d01_benchmark_version: Literal["1.3.0"]
-    d01_scientific_payload_hash: _ContentHash
-    d01_content_hash: _ContentHash
+    schema_version: Literal["2.0.0"]
+    paper_benchmark_schema_version: Literal["2.0.0"]
+    paper_benchmark_version: Literal["2.0.0"]
+    paper_benchmark_scientific_payload_hash: _ContentHash
+    paper_benchmark_content_hash: _ContentHash
     project_id: _ReplayIdentifier
     reference_project_id: _ReplayIdentifier
     input_version_id: _ReplayIdentifier
@@ -301,7 +301,7 @@ class GraphBenchmarkObservation:
 
 
 class GraphBenchmarkAdapter(Protocol):
-    """Narrow seam for the future production GraphPipeline benchmark adapter."""
+    """Narrow evaluation seam for GraphPipeline benchmark adapters."""
 
     def evaluate_case(
         self,
@@ -544,7 +544,7 @@ FORMAL_SIZE_EXPECTATIONS: tuple[
 
 
 class FrozenGraphReplayAdapter:
-    """Offline admission oracle for the fixed D-01/Fixture suite."""
+    """Offline admission oracle for the fixed Paper Acquisition Benchmark/Fixture suite."""
 
     def __init__(self, benchmark: BenchmarkPackage) -> None:
         validate_frozen_graph_label(benchmark)
@@ -649,10 +649,10 @@ class FrozenGraphReplayAdapter:
             )
 
         identity = (
-            payload.d01_schema_version,
-            payload.d01_benchmark_version,
-            payload.d01_scientific_payload_hash,
-            payload.d01_content_hash,
+            payload.paper_benchmark_schema_version,
+            payload.paper_benchmark_version,
+            payload.paper_benchmark_scientific_payload_hash,
+            payload.paper_benchmark_content_hash,
         )
         expected_identity = (
             self._benchmark.schema_version,
@@ -665,8 +665,8 @@ class FrozenGraphReplayAdapter:
                 payload,
                 stage=GraphIntegrityStage.artifact_version,
                 reason=GraphRejectionReason.content_hash_mismatch,
-                path="$.d01_content_hash",
-                message="Replay input is not pinned to the frozen D-01 identity.",
+                path="$.paper_benchmark_content_hash",
+                message="Replay input is not pinned to the frozen Paper Acquisition Benchmark identity.",
             )
 
         node_ids = tuple(item.node_id for item in payload.nodes)
@@ -687,7 +687,7 @@ class FrozenGraphReplayAdapter:
             )
         )
 
-        d01_taxonomy = (
+        paper_benchmark_taxonomy = (
             tuple(
                 sorted(
                     self._benchmark.graph_taxonomy.allowed_node_types,
@@ -716,10 +716,10 @@ class FrozenGraphReplayAdapter:
             != tuple(sorted(payload.taxonomy_node_types, key=lambda item: item.value))
             or payload.taxonomy_edge_types
             != tuple(sorted(payload.taxonomy_edge_types, key=lambda item: item.value))
-            or declared_taxonomy not in (d01_taxonomy, data_taxonomy)
+            or declared_taxonomy not in (paper_benchmark_taxonomy, data_taxonomy)
             or (
                 case.kind is GraphBenchmarkCaseKind.scientific_graph
-                and declared_taxonomy != d01_taxonomy
+                and declared_taxonomy != paper_benchmark_taxonomy
             )
             or (
                 case.kind is GraphBenchmarkCaseKind.data_mapping_fixture
@@ -734,7 +734,7 @@ class FrozenGraphReplayAdapter:
                 stage=GraphIntegrityStage.taxonomy,
                 reason=GraphRejectionReason.taxonomy_violation,
                 path="$.nodes|$.edges",
-                message="Replay graph contains a type outside frozen D-01 taxonomy.",
+                message="Replay graph contains a type outside frozen Paper Acquisition Benchmark taxonomy.",
                 stable_order=stable_order,
             )
         if len(node_ids) != len(set(node_ids)):
@@ -863,7 +863,7 @@ class FrozenGraphReplayAdapter:
                 stage=GraphIntegrityStage.evidence_snapshot,
                 reason=GraphRejectionReason.evidence_missing,
                 path="$.edges",
-                message="Replay graph omits a frozen D-01 edge and its Evidence uses.",
+                message="Replay graph omits a frozen Paper Acquisition Benchmark edge and its Evidence uses.",
                 stable_order=stable_order,
             )
 
@@ -1227,16 +1227,16 @@ class FrozenGraphReplayAdapter:
 
 
 def validate_frozen_graph_label(benchmark: BenchmarkPackage) -> None:
-    """Require the exact tracked D-01 6-node/2-edge Graph and status closure."""
+    """Require the exact tracked Paper Acquisition Benchmark 6-node/2-edge Graph and status closure."""
 
     validate_frozen_benchmark(benchmark)
     if (
-        benchmark.schema_version != _EXPECTED_D01_SCHEMA_VERSION
-        or benchmark.benchmark_version != _EXPECTED_D01_BENCHMARK_VERSION
-        or benchmark.scientific_payload_hash != _EXPECTED_D01_SCIENTIFIC_HASH
-        or benchmark.content_hash != _EXPECTED_D01_CONTENT_HASH
+        benchmark.schema_version != _EXPECTED_PAPER_BENCHMARK_SCHEMA_VERSION
+        or benchmark.benchmark_version != _EXPECTED_PAPER_BENCHMARK_BENCHMARK_VERSION
+        or benchmark.scientific_payload_hash != _EXPECTED_PAPER_BENCHMARK_SCIENTIFIC_HASH
+        or benchmark.content_hash != _EXPECTED_PAPER_BENCHMARK_CONTENT_HASH
     ):
-        raise ValueError("frozen D-01 Graph identity mismatch")
+        raise ValueError("frozen Paper Acquisition Benchmark Graph identity mismatch")
     nodes = benchmark.graph.nodes
     edges = benchmark.graph.edges
     actual_nodes = tuple(
@@ -1275,10 +1275,10 @@ def validate_frozen_graph_label(benchmark: BenchmarkPackage) -> None:
         or cross_edges[0].edge_type is not GraphEdgeType.extends
         or structural_edges[0].edge_type is not GraphEdgeType.supports_finding
         or sum(len(item.evidence_ids) for item in edges) != 3
-        or actual_nodes != _EXPECTED_D01_NODES
-        or actual_edges != _EXPECTED_D01_EDGES
+        or actual_nodes != _EXPECTED_PAPER_BENCHMARK_NODES
+        or actual_edges != _EXPECTED_PAPER_BENCHMARK_EDGES
     ):
-        raise ValueError("frozen D-01 Graph must remain exactly 6 nodes and 2 edges")
+        raise ValueError("frozen Paper Acquisition Benchmark Graph must remain exactly 6 nodes and 2 edges")
     if benchmark.graph_taxonomy.allowed_node_types != (
         GraphNodeType.paper,
         GraphNodeType.claim,
@@ -1287,7 +1287,7 @@ def validate_frozen_graph_label(benchmark: BenchmarkPackage) -> None:
         GraphEdgeType.extends,
         GraphEdgeType.derived_from,
     ):
-        raise ValueError("frozen D-01 Graph taxonomy drifted")
+        raise ValueError("frozen Paper Acquisition Benchmark Graph taxonomy drifted")
 
     relations = {item.relation_id: item for item in benchmark.relations}
     traces = {item.trace_id: item for item in benchmark.reasoning_traces}
@@ -1306,7 +1306,7 @@ def validate_frozen_graph_label(benchmark: BenchmarkPackage) -> None:
         item.review_status is not BenchmarkReviewStatus.approved
         for item in benchmark.reasoning_traces
     ):
-        raise ValueError("frozen D-01 Relation status closure drifted")
+        raise ValueError("frozen Paper Acquisition Benchmark Relation status closure drifted")
     for item in benchmark.relations:
         item_trace = traces.get(item.reasoning_trace_id or "")
         if (
@@ -1315,7 +1315,7 @@ def validate_frozen_graph_label(benchmark: BenchmarkPackage) -> None:
             or item_trace.premise_claim_ids
             != (item.source_claim_id, item.target_claim_id)
         ):
-            raise ValueError("frozen D-01 Relation/Trace registry drifted")
+            raise ValueError("frozen Paper Acquisition Benchmark Relation/Trace registry drifted")
     cross = cross_edges[0]
     relation = relations.get(cross.relation_id or "")
     trace = traces.get(cross.reasoning_trace_id or "")
@@ -1333,7 +1333,7 @@ def validate_frozen_graph_label(benchmark: BenchmarkPackage) -> None:
         or node_by_id[cross.target].ref_id != relation.target_claim_id
         or set(cross.evidence_ids) != set(relation.evidence_ids)
     ):
-        raise ValueError("frozen D-01 accepted extends Relation/Trace closure drifted")
+        raise ValueError("frozen Paper Acquisition Benchmark accepted extends Relation/Trace closure drifted")
 
 
 def build_frozen_graph_benchmark_cases(
@@ -1350,7 +1350,7 @@ def build_frozen_graph_benchmark_cases(
     )
     cases: list[GraphBenchmarkEvaluationCase] = [
         _benchmark_case(
-            case_id="scientific.d01_full_graph",
+            case_id="scientific.paper_benchmark_full_graph",
             kind=GraphBenchmarkCaseKind.scientific_graph,
             data_level="benchmark",
             input_json=_canonical_json(base),
@@ -1843,8 +1843,8 @@ def validate_formal_case_coverage(
     scientific = tuple(
         item for item in ordered if item.kind is GraphBenchmarkCaseKind.scientific_graph
     )
-    if len(scientific) != 1 or scientific[0].case_id != "scientific.d01_full_graph":
-        raise ValueError("formal Graph benchmark must cover the full D-01 graph")
+    if len(scientific) != 1 or scientific[0].case_id != "scientific.paper_benchmark_full_graph":
+        raise ValueError("formal Graph benchmark must cover the full Paper Acquisition Benchmark graph")
     data_mapping = tuple(
         item
         for item in ordered
@@ -1939,22 +1939,22 @@ def evaluate_graph_benchmark(
                 for _, _, result in scientific
             ),
             len(scientific),
-            GraphBenchmarkDenominatorScope.d01_scientific_graph_cases,
+            GraphBenchmarkDenominatorScope.paper_benchmark_scientific_graph_cases,
         ),
         "node_exact_match_rate": _metric(
             sum(result.matched_node_count for _, _, result in scientific),
             sum(result.expected_node_count for _, _, result in scientific),
-            GraphBenchmarkDenominatorScope.d01_expected_nodes,
+            GraphBenchmarkDenominatorScope.paper_benchmark_expected_nodes,
         ),
         "edge_exact_match_rate": _metric(
             sum(result.matched_edge_count for _, _, result in scientific),
             sum(result.expected_edge_count for _, _, result in scientific),
-            GraphBenchmarkDenominatorScope.d01_expected_edges,
+            GraphBenchmarkDenominatorScope.paper_benchmark_expected_edges,
         ),
         "evidence_coverage_rate": _metric(
             sum(result.matched_evidence_use_count for _, _, result in scientific),
             sum(result.expected_evidence_use_count for _, _, result in scientific),
-            GraphBenchmarkDenominatorScope.d01_edge_evidence_uses,
+            GraphBenchmarkDenominatorScope.paper_benchmark_edge_evidence_uses,
         ),
         "accepted_relation_coverage_rate": _metric(
             sum(
@@ -1965,12 +1965,12 @@ def evaluate_graph_benchmark(
                 result.expected_accepted_relation_count
                 for _, _, result in scientific
             ),
-            GraphBenchmarkDenominatorScope.d01_accepted_relations,
+            GraphBenchmarkDenominatorScope.paper_benchmark_accepted_relations,
         ),
         "reasoning_trace_coverage_rate": _metric(
             sum(result.matched_reasoning_trace_count for _, _, result in scientific),
             sum(result.expected_reasoning_trace_count for _, _, result in scientific),
-            GraphBenchmarkDenominatorScope.d01_reasoning_traces,
+            GraphBenchmarkDenominatorScope.paper_benchmark_reasoning_traces,
         ),
         "nonaccepted_relation_exclusion_rate": _metric(
             sum(
@@ -1981,7 +1981,7 @@ def evaluate_graph_benchmark(
                 result.expected_nonaccepted_relation_count
                 for _, _, result in scientific
             ),
-            GraphBenchmarkDenominatorScope.d01_nonaccepted_relations,
+            GraphBenchmarkDenominatorScope.paper_benchmark_nonaccepted_relations,
         ),
         "stable_identity_order_rate": _metric(
             sum(item.stable_order_pass for item in stable_applicable),
@@ -2018,10 +2018,10 @@ def evaluate_graph_benchmark(
     )
     graph_versions = GraphBenchmarkVersionSet()
     input_payload = {
-        "d01_schema_version": benchmark.schema_version,
-        "d01_benchmark_version": benchmark.benchmark_version,
-        "d01_scientific_payload_hash": benchmark.scientific_payload_hash,
-        "d01_content_hash": benchmark.content_hash,
+        "paper_benchmark_schema_version": benchmark.schema_version,
+        "paper_benchmark_version": benchmark.benchmark_version,
+        "paper_benchmark_scientific_payload_hash": benchmark.scientific_payload_hash,
+        "paper_benchmark_content_hash": benchmark.content_hash,
         "graph_versions": graph_versions.model_dump(mode="json"),
         "taxonomy_node_types": [item.value for item in taxonomy_nodes],
         "taxonomy_edge_types": [item.value for item in taxonomy_edges],
@@ -2029,12 +2029,12 @@ def evaluate_graph_benchmark(
     }
     report_input_hash = compute_canonical_payload_hash(input_payload)
     report_payload: dict[str, object] = {
-        "report_schema_version": "1.0.0",
+        "report_schema_version": "2.0.0",
         "disclaimer": GRAPH_BENCHMARK_DISCLAIMER,
-        "d01_schema_version": benchmark.schema_version,
-        "d01_benchmark_version": benchmark.benchmark_version,
-        "d01_scientific_payload_hash": benchmark.scientific_payload_hash,
-        "d01_content_hash": benchmark.content_hash,
+        "paper_benchmark_schema_version": benchmark.schema_version,
+        "paper_benchmark_version": benchmark.benchmark_version,
+        "paper_benchmark_scientific_payload_hash": benchmark.scientific_payload_hash,
+        "paper_benchmark_content_hash": benchmark.content_hash,
         "graph_versions": graph_versions.model_dump(mode="json"),
         "taxonomy_node_types": [item.value for item in taxonomy_nodes],
         "taxonomy_edge_types": [item.value for item in taxonomy_edges],
@@ -2259,15 +2259,15 @@ def _case_result(
 
 def _frozen_replay_payload(benchmark: BenchmarkPackage) -> dict[str, object]:
     return {
-        "schema_version": "1.0.0",
-        "d01_schema_version": benchmark.schema_version,
-        "d01_benchmark_version": benchmark.benchmark_version,
-        "d01_scientific_payload_hash": benchmark.scientific_payload_hash,
-        "d01_content_hash": benchmark.content_hash,
-        "project_id": "benchmark.d01.project",
-        "reference_project_id": "benchmark.d01.project",
-        "input_version_id": "benchmark.d01.literature_relations.v1",
-        "reference_input_version_id": "benchmark.d01.literature_relations.v1",
+        "schema_version": "2.0.0",
+        "paper_benchmark_schema_version": benchmark.schema_version,
+        "paper_benchmark_version": benchmark.benchmark_version,
+        "paper_benchmark_scientific_payload_hash": benchmark.scientific_payload_hash,
+        "paper_benchmark_content_hash": benchmark.content_hash,
+        "project_id": "benchmark.paper_benchmark.project",
+        "reference_project_id": "benchmark.paper_benchmark.project",
+        "input_version_id": "benchmark.paper_benchmark.literature_relations",
+        "reference_input_version_id": "benchmark.paper_benchmark.literature_relations",
         "input_version_known": True,
         "input_version_published": True,
         "input_artifact_kind": "literature_relations",
@@ -2345,17 +2345,17 @@ def _frozen_replay_payload(benchmark: BenchmarkPackage) -> dict[str, object]:
         "evidence": [
             {
                 "evidence_id": item.evidence_id,
-                "project_id": "benchmark.d01.project",
-                "input_version_id": "benchmark.d01.literature_relations.v1",
-                "source_snapshot_id": "snapshot.benchmark_d01_public",
+                "project_id": "benchmark.paper_benchmark.project",
+                "input_version_id": "benchmark.paper_benchmark.literature_relations",
+                "source_snapshot_id": "snapshot.benchmark_paper_benchmark_public",
                 "source_snapshot_content_hash": benchmark.content_hash,
             }
             for item in sorted(benchmark.evidence, key=lambda item: item.evidence_id)
         ],
         "source_snapshots": [
             {
-                "source_snapshot_id": "snapshot.benchmark_d01_public",
-                "project_id": "benchmark.d01.project",
+                "source_snapshot_id": "snapshot.benchmark_paper_benchmark_public",
+                "project_id": "benchmark.paper_benchmark.project",
                 "content_hash": benchmark.content_hash,
             }
         ],
@@ -2374,10 +2374,10 @@ def _frozen_replay_payload(benchmark: BenchmarkPackage) -> dict[str, object]:
 def _synthetic_data_replay_payload(
     benchmark: BenchmarkPackage,
 ) -> dict[str, object]:
-    """Build a Fixture-only Dataset/Field closure covering every v1 value state."""
+    """Build a Fixture-only Dataset/Field closure covering every value state."""
 
     project_id = "fixture.data_project"
-    input_version_id = "fixture.dataset_field_dictionary.v1"
+    input_version_id = "fixture.dataset_field_dictionary"
     snapshot_id = "snapshot.fixture_data_public"
     snapshot_hash = compute_canonical_payload_hash(
         {"fixture": "data_source_snapshot", "version": "1.0.0"}
@@ -2402,11 +2402,11 @@ def _synthetic_data_replay_payload(
     dataset_node_id = "node.fixture_dataset"
     field_node_id = "node.fixture_field_star_tic_id"
     return {
-        "schema_version": "1.0.0",
-        "d01_schema_version": benchmark.schema_version,
-        "d01_benchmark_version": benchmark.benchmark_version,
-        "d01_scientific_payload_hash": benchmark.scientific_payload_hash,
-        "d01_content_hash": benchmark.content_hash,
+        "schema_version": "2.0.0",
+        "paper_benchmark_schema_version": benchmark.schema_version,
+        "paper_benchmark_version": benchmark.benchmark_version,
+        "paper_benchmark_scientific_payload_hash": benchmark.scientific_payload_hash,
+        "paper_benchmark_content_hash": benchmark.content_hash,
         "project_id": project_id,
         "reference_project_id": project_id,
         "input_version_id": input_version_id,
@@ -2652,11 +2652,11 @@ def _passing_replay_hashes(
     canonical = payload.model_dump(mode="json", exclude_none=True)
     input_hash = compute_canonical_payload_hash(
         {
-            "d01_identity": {
-                "schema_version": payload.d01_schema_version,
-                "benchmark_version": payload.d01_benchmark_version,
-                "scientific_payload_hash": payload.d01_scientific_payload_hash,
-                "content_hash": payload.d01_content_hash,
+            "paper_benchmark_identity": {
+                "schema_version": payload.paper_benchmark_schema_version,
+                "benchmark_version": payload.paper_benchmark_version,
+                "scientific_payload_hash": payload.paper_benchmark_scientific_payload_hash,
+                "content_hash": payload.paper_benchmark_content_hash,
             },
             "capacity": {
                 "max_nodes": payload.max_nodes,
@@ -2755,7 +2755,7 @@ def _stable_json(value: object) -> str:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Replay the formal D-05 Graph benchmark suite."
+        description="Replay the formal Evidence Graph benchmark suite."
     )
     parser.add_argument(
         "--cases",

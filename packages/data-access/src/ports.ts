@@ -7,9 +7,9 @@
  * (`createHttpRepositories`) implement them. Ports operate exclusively on
  * domain types — transport DTOs never leak through to consumers.
  *
- * The surface is intentionally narrowed to the operations the M1 UI and the
+ * The surface is intentionally narrowed to the operations the current UI and the
  * frozen 27-operation `/api` contract actually support: project listing and
- * creation and client-authored draft creation exist (the #131 public authoring
+ * creation and client-authored draft creation exist (the public authoring
  * chain), but there is still no project/run PATCH/DELETE, no artifact/version
  * writes, and no generic subscription. Each method maps to a real endpoint (or
  * its fixture equivalent) so an abstraction always has two concrete adapters.
@@ -17,10 +17,8 @@
 
 import type {
   ArtifactVersionMetadata,
-  CachePolicy,
   CaseKey,
   CreateShareSnapshotRequest,
-  DerivationKind,
   DomainEntityId,
   Evidence,
   ExecutionMode,
@@ -46,7 +44,7 @@ export interface UpdateResearchContractDraftInput {
   readonly contract?: ResearchContractInput;
 }
 
-/** Minimal M1 project creation payload; `case_key` stays the frozen main case. */
+/** Minimal project creation payload; `case_key` stays the frozen main case. */
 export interface CreateResearchProjectInput {
   readonly name: string;
   readonly description?: string;
@@ -77,10 +75,6 @@ export interface CreateResearchRunInput {
   /** Stable per user action; reuse only when retrying that same action. */
   readonly idempotencyKey: string;
   readonly executionMode: ExecutionMode;
-  readonly derivationKind?: DerivationKind;
-  readonly parentRunId?: DomainEntityId | null;
-  readonly retryFromStep?: DomainEntityId | null;
-  readonly cachePolicy?: CachePolicy;
 }
 
 /** Snapshot-first RunEvent recovery result, capped to the authoritative tail. */
@@ -148,7 +142,7 @@ export interface ArtifactReadRepository {
 }
 
 /**
- * Deep read boundary for the B-06 paper acquisition review (A-05).
+ * Deep read boundary for the PaperCollection API paper acquisition review (Paper Acquisition Workspace).
  *
  * `getReview` hides the entire transport protocol: it reads the collection
  * read model, follows every candidate page by cursor, validates each payload
@@ -163,7 +157,7 @@ export interface PaperAcquisitionRepository {
 }
 
 /**
- * Deep read boundary for the B-07 paper summary review (A-06).
+ * Deep read boundary for the PaperSummary API paper summary review (Literature Summary Workspace).
  *
  * `getSummary` hides the entire transport protocol: it reads the summary
  * read model, validates the payload against the generated contract, and

@@ -22,8 +22,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 MANIFEST_DIRECTORY = (
     REPOSITORY_ROOT / "services" / "data_pipeline" / "manifests" / "exoplanet_host_star"
 )
-CASE_MANIFEST_PATH = MANIFEST_DIRECTORY / "case-manifest.v1.json"
-FIELD_MANIFEST_PATH = MANIFEST_DIRECTORY / "field-manifest.v1.json"
+CASE_MANIFEST_PATH = MANIFEST_DIRECTORY / "case-manifest.json"
+FIELD_MANIFEST_PATH = MANIFEST_DIRECTORY / "field-manifest.json"
 SOURCE_EVIDENCE_DIRECTORY = (
     MANIFEST_DIRECTORY
     / "source-evidence"
@@ -31,7 +31,7 @@ SOURCE_EVIDENCE_DIRECTORY = (
     / "2026-07-19"
 )
 SOURCE_ADJUDICATION_PATH = (
-    SOURCE_EVIDENCE_DIRECTORY / "column-adjudications.v1.json"
+    SOURCE_EVIDENCE_DIRECTORY / "column-adjudications.json"
 )
 
 SOURCE_COLUMN_ROLES = (
@@ -107,12 +107,10 @@ def test_case_manifest_uses_created_at_and_maintained_by() -> None:
 
     assert "created_at" in payload
     assert "maintained_by" in payload
-    assert "maintained_at" not in payload
-    assert "maintainer" not in payload
 
     manifest = CaseManifest.model_validate(payload)
     assert manifest.created_at
-    assert manifest.maintained_by.module == "C"
+    assert manifest.maintained_by.module == "data_pipeline"
 
 
 def test_field_manifest_uses_created_at_and_maintained_by() -> None:
@@ -120,39 +118,27 @@ def test_field_manifest_uses_created_at_and_maintained_by() -> None:
 
     assert "created_at" in payload
     assert "maintained_by" in payload
-    assert "maintained_at" not in payload
-    assert "maintainer" not in payload
 
     manifest = FieldManifest.model_validate(payload)
     assert manifest.created_at
-    assert manifest.maintained_by.module == "C"
+    assert manifest.maintained_by.module == "data_pipeline"
 
 
 @pytest.mark.parametrize(
     ("manifest_class", "path"),
     [(CaseManifest, CASE_MANIFEST_PATH), (FieldManifest, FIELD_MANIFEST_PATH)],
 )
-@pytest.mark.parametrize(
-    ("legacy_field", "replacement_field"),
-    [("maintained_at", "created_at"), ("maintainer", "maintained_by")],
-)
-def test_manifest_metadata_contract_rejects_legacy_fields(
+def test_manifest_metadata_contract_rejects_unknown_fields(
     manifest_class: type[Any],
     path: Path,
-    legacy_field: str,
-    replacement_field: str,
 ) -> None:
     payload = _read_json(path)
-    if "maintained_at" in payload:
-        payload["created_at"] = payload.pop("maintained_at")
-    if "maintainer" in payload:
-        payload["maintained_by"] = payload.pop("maintainer")
-    payload[legacy_field] = deepcopy(payload[replacement_field])
+    payload["unexpected_metadata"] = deepcopy(payload["maintained_by"])
 
     with pytest.raises(ValidationError) as captured:
         manifest_class.model_validate(_rehash(payload))
 
-    assert (legacy_field,) in {
+    assert ("unexpected_metadata",) in {
         tuple(error["loc"]) for error in captured.value.errors()
     }
 
@@ -168,7 +154,7 @@ def test_case_manifest_rejects_missing_audit_metadata(required_field: str) -> No
     assert required_field in str(captured.value)
 
 
-def test_each_field_contains_the_c01_metadata_contract() -> None:
+def test_each_field_contains_the_case_manifest_metadata_contract() -> None:
     manifest = load_manifest_bundle(CASE_MANIFEST_PATH, FIELD_MANIFEST_PATH).field_manifest
 
     for field in manifest.fields:
@@ -562,7 +548,7 @@ def test_bundle_rejects_field_alias_source_not_allowed_by_case() -> None:
             "source_table": "extra",
             "raw_field": "review_name",
             "source_unit": planet_name["canonical_unit"],
-            "conversion_rule_id": "unit.identity.v1",
+            "conversion_rule_id": "unit.identity",
             "priority": 1,
             "row_key_fields": ["review_id"],
         }
@@ -637,6 +623,4 @@ def test_manifest_models_export_machine_readable_json_schema() -> None:
     assert "fields" in field_schema["required"]
     assert "created_at" in field_schema["required"]
     assert "maintained_by" in field_schema["required"]
-    assert "maintained_at" not in field_schema["properties"]
-    assert "maintainer" not in field_schema["properties"]
     assert field_schema["properties"]["fields"]["type"] == "array"

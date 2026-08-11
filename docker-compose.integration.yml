@@ -1,4 +1,4 @@
-# X-01 真实集成编排覆盖层。
+# 真实 Compose/Browser 集成编排覆盖层。
 #
 # 仅在真实集成验证时使用：
 #   docker compose -f docker-compose.yml -f docker-compose.integration.yml -p <project> up --build --wait

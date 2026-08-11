@@ -74,7 +74,7 @@ describe("contract validation — ResearchRun", () => {
     status: "completed",
     progress: 100,
     derivation_kind: "original",
-    cache_policy: "fallback_on_recoverable_failure",
+    cache_policy: "disabled",
     created_at: "2026-07-21T08:00:00Z",
     updated_at: "2026-07-21T08:30:00Z",
   };
@@ -165,7 +165,7 @@ describe("contract — drift guard", () => {
     "json/ArtifactVersion.schema.json",
     "json/ResearchArtifact.schema.json",
   ]) {
-    it(`vendored ${file} matches the B-15 source`, () => {
+    it(`vendored ${file} matches the Core Domain and Transport Contract source`, () => {
       const source = readFileSync(resolve(sourceRoot, file), "utf8");
       const vendored = readFileSync(resolve(vendoredRoot, file), "utf8");
       expect(vendored).toBe(source);

@@ -7,7 +7,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from app.contracts.manifest_policy import confirm_research_contract
+from app.contracts.manifest_policy import validate_research_contract_admission
 from app.db.models import ResearchContractModel
 from app.schemas.core import (
     ResearchContract,
@@ -43,6 +43,7 @@ from services.data_pipeline.data_quality import (
     build_data_quality_publication_validator,
     evaluate_data_quality,
 )
+from data_artifact_test_support import build_data_publication_bindings
 from services.data_pipeline.data_quality.errors import DataQualityError
 from services.data_pipeline.data_quality.observations import observe_quality
 from services.data_pipeline.data_quality.policy import (
@@ -85,9 +86,9 @@ def test_row_flags_use_independent_formula_scope_and_metric_ids() -> None:
     assert row.low_confidence.metric_id.value == "row_low_confidence_flag"
     assert row.review_required.metric_id.value == "row_review_required_flag"
     assert row.inconclusive.metric_id.value == "row_inconclusive_flag"
-    assert row.low_confidence.formula_id == "row_low_confidence_flag.v1"
-    assert row.review_required.formula_id == "row_review_required_flag.v1"
-    assert row.inconclusive.formula_id == "row_inconclusive_flag.v1"
+    assert row.low_confidence.formula_id == "row_low_confidence_flag"
+    assert row.review_required.formula_id == "row_review_required_flag"
+    assert row.inconclusive.formula_id == "row_inconclusive_flag"
     assert result.field_results[0].same_source_conflict_rate.metric_id.value == (
         "field_same_source_conflict_rate"
     )
@@ -106,7 +107,7 @@ def test_formula_scope_mismatch_is_rejected_by_the_metric_schema() -> None:
             numerator=1,
             denominator=1,
             value=Decimal("1"),
-            formula_id="row_completeness.v1",
+            formula_id="row_completeness",
             formula_version="1.0.0",
             formula_scope="dataset",
             precision_digits=28,
@@ -147,34 +148,30 @@ def test_contract_hash_drift_is_rejected_even_when_input_hash_is_recomputed() ->
     assert result.error_code is QualityErrorCode.QUALITY_RESEARCH_CONTRACT_MISMATCH
 
 
-def test_production_confirmed_contract_enters_c05_without_hash_translation() -> None:
+def test_production_confirmed_contract_enters_data_quality_without_hash_translation() -> None:
     draft = _contract("star.tic_id")
     contract_input = ResearchContractInput.model_validate(
         draft.model_dump(mode="json", include=set(ResearchContractInput.model_fields))
     )
     manifests = load_manifest_bundle(
-        MANIFEST_ROOT / "case-manifest.v1.json",
-        MANIFEST_ROOT / "field-manifest.v1.json",
+        MANIFEST_ROOT / "case-manifest.json",
+        MANIFEST_ROOT / "field-manifest.json",
     )
-    confirmed = confirm_research_contract(
+    content_hash = compute_research_contract_content_hash(contract_input)
+    validate_research_contract_admission(
         contract_input,
-        id="11111111-1111-4111-8111-111111111111",
-        project_id="22222222-2222-4222-8222-222222222222",
-        version=3,
-        created_from_draft_id="33333333-3333-4333-8333-333333333333",
-        created_at=draft.created_at,
-        content_hash=compute_research_contract_content_hash(contract_input),
+        content_hash=content_hash,
         case_key="exoplanet_host_star",
         manifests=manifests,
     )
     persisted = ResearchContractModel(
-        id=UUID(confirmed.id),
-        project_id=UUID(confirmed.project_id),
-        version=confirmed.version,
-        content_hash=confirmed.content_hash,
+        id=UUID("11111111-1111-4111-8111-111111111111"),
+        project_id=UUID("22222222-2222-4222-8222-222222222222"),
+        version=3,
+        content_hash=content_hash,
         content=contract_input.model_dump(mode="json"),
-        created_from_draft_id=UUID(confirmed.created_from_draft_id),
-        created_at=confirmed.created_at,
+        created_from_draft_id=UUID("33333333-3333-4333-8333-333333333333"),
+        created_at=draft.created_at,
     )
     read_contract = read_persisted_contract(persisted)
     quality_input, _ = make_quality_input("star.tic_id", contract=read_contract)
@@ -182,8 +179,11 @@ def test_production_confirmed_contract_enters_c05_without_hash_translation() -> 
     result = evaluate_data_quality(quality_input)
 
     assert isinstance(result, DataQualityEvaluationResult)
-    assert read_contract == confirmed
-    assert result.input_references.research_contract_content_hash == confirmed.content_hash
+    assert read_contract.content_hash == content_hash
+    assert read_contract.model_dump(
+        mode="json", include=set(ResearchContractInput.model_fields)
+    ) == contract_input.model_dump(mode="json")
+    assert result.input_references.research_contract_content_hash == content_hash
 
 
 def test_requested_field_order_is_a_set_semantic_for_contract_gate() -> None:
@@ -239,7 +239,7 @@ def test_low_confidence_edge_component_marks_only_its_dataset_row() -> None:
         (AdjudicationDecision.rejected, "rejected", Decimal("0")),
     ),
 )
-def test_conflict_review_required_follows_final_c04_alignment(
+def test_conflict_review_required_follows_final_data_artifact_alignment(
     adjudication,
     expected_alignment: str,
     expected_review: Decimal,
@@ -380,7 +380,7 @@ def test_observations_visit_each_row_outcome_sequence_once() -> None:
     assert visits[0] == len(rows)
 
 
-def test_missing_c04_evidence_is_rejected_at_c04_boundary() -> None:
+def test_missing_data_artifact_evidence_is_rejected_at_data_artifact_boundary() -> None:
     quality_input, build_result = make_quality_input("star.tic_id")
     malformed = build_result.dataset.model_copy(update={"transformation_evidence": ()})
 
@@ -461,7 +461,7 @@ def test_compiled_rule_set_formula_binding_drives_metric_creation() -> None:
 
     frozen = load_frozen_quality_rule_set()
     payload = frozen.model_dump(mode="json")
-    payload["formula_registry"][0]["formula_id"] = "field_completeness.rebound.v1"
+    payload["formula_registry"][0]["formula_id"] = "field_completeness.rebound"
     metric_plan = payload["formula_registry"][0]
     metric_plan["numerator_observation"] = "field.declared_null_count"
     metric_plan["denominator_observation"] = "field.applicable_count"
@@ -483,7 +483,7 @@ def test_compiled_rule_set_formula_binding_drives_metric_creation() -> None:
         input_locator="dataset.field.star.tic_id.completeness",
     )
 
-    assert metric.formula_id == "field_completeness.rebound.v1"
+    assert metric.formula_id == "field_completeness.rebound"
     assert metric.numerator == 0
 
 
@@ -591,7 +591,7 @@ def test_publisher_validators_use_admission_commitment_without_re_evaluation(mon
     validator = build_data_quality_publication_validator(admitted, candidate_kind="dataset")
 
     def fail_if_recomputed(_value):
-        raise AssertionError("Publisher must not re-run the C-05 evaluator")
+        raise AssertionError("Publisher must not re-run data-quality evaluation")
 
     monkeypatch.setattr(
         "services.data_pipeline.data_quality.admission.evaluate_data_quality",
@@ -600,6 +600,7 @@ def test_publisher_validators_use_admission_commitment_without_re_evaluation(mon
 
     try:
         candidate = build_result.dataset
+        snapshots, evidence = build_data_publication_bindings(candidate)
         admit_artifact_candidate(
             candidate,
             schema_version=candidate.schema_version,
@@ -608,6 +609,8 @@ def test_publisher_validators_use_admission_commitment_without_re_evaluation(mon
             evidence_validator=validate_data_artifact_evidence,
             domain_validator=validate_data_artifact_domain,
             quality_validator=validator,
+            source_snapshot_bindings=snapshots,
+            evidence_bindings=evidence,
         )
     except AssertionError as error:
         pytest.fail(str(error))

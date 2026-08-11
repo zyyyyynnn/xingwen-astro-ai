@@ -1,11 +1,11 @@
-"""Generate the D-10 Golden Set fixture PDFs (legal, synthetic, commit-safe).
+"""Generate the Scientific Document Parsing Contract Golden Set fixture PDFs (legal, synthetic, commit-safe).
 
 Every file here is a SYNTHETIC exoplanet_host_star-style document generated
-from scratch — none is a copyrighted paper. These fixtures cover the D-10
+from scratch — none is a copyrighted paper. These fixtures cover the Scientific Document Parsing Contract
 Golden Set dimensions and are committed so CI can run the native baseline and
 golden annotations without network access or restricted content.
 
-Coverage dimensions (D-10 #24):
+Coverage dimensions defined by the Scientific Document Parsing Contract:
 - born-digital, two-column, reading order, plain paragraph
 - simple table, complex table (spans), cross-page table (split => partial)
 - formula, figure+caption, mixed text+image, scanned page, low-quality page
@@ -203,7 +203,7 @@ def build_scanned_like(path: Path) -> None:
     lines = [
         "Archived Observation Note",
         "",
-        "Legacy observation log: host star brightness varied by 0.02 mag",
+        "Archived observation log: host star brightness varied by 0.02 mag",
         "over the monitored window; period estimated near 3.5 days.",
         "Photometric scatter consistent with instrumental noise.",
         "No calibrated photometry in this scan.",

@@ -1,4 +1,4 @@
-"""Port-level admission and safety contracts for the B-14 publisher."""
+"""Port-level admission and safety contracts for the Atomic Publisher."""
 
 from __future__ import annotations
 
@@ -7,8 +7,6 @@ from typing import Literal
 from uuid import uuid4
 
 import pytest
-from app.schemas.graph import GraphEdge, GraphNode, GraphResponse
-from app.schemas.enums import GraphEdgeType, GraphNodeType
 from app.workflow.publisher import (
     ArtifactAdmissionContext,
     ArtifactPublication,
@@ -17,7 +15,8 @@ from app.workflow.publisher import (
     PublicationAdmissionError,
     admit_artifact_candidate,
 )
-from pydantic import BaseModel, ConfigDict
+from app.schemas.core import ArtifactKind, ExportArtifactContent
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 
 class DatasetCandidate(BaseModel):
@@ -69,6 +68,89 @@ def _accept(_: ArtifactAdmissionContext) -> None:
     return None
 
 
+def _export_candidate() -> ExportArtifactContent:
+    return ExportArtifactContent(
+        kind=ArtifactKind.export,
+        format="json",
+        artifact_version_ids=(str(uuid4()),),
+    )
+
+
+def test_canonical_export_candidate_passes_the_typed_admission_port() -> None:
+    candidate = _export_candidate()
+    admitted = admit_artifact_candidate(
+        candidate,
+        schema_version="2.0.0",
+        source_snapshot_ids=(),
+        evidence_ids=(),
+        evidence_validator=_accept,
+        domain_validator=_accept,
+        quality_validator=_accept,
+    )
+    publication = ArtifactPublication(
+        artifact_id=uuid4(),
+        publication_key="fixture-canonical-export",
+        producer_execution_id=uuid4(),
+        candidate=admitted,
+        source_mode="fixture",
+    )
+
+    assert publication.source_mode == "fixture"
+    assert admitted.content_hash.startswith("sha256:")
+    assert admitted.schema_version == candidate.schema_version
+    assert admitted.source_snapshot_ids == ()
+    assert admitted.evidence_ids == ()
+    assert admitted.content == candidate.model_dump(mode="json", exclude_none=True)
+
+
+@pytest.mark.parametrize(
+    ("source_snapshot_ids", "evidence_ids", "field_name"),
+    (
+        (("source_fixture_01",), (), "source_snapshot_ids"),
+        ((), ("evidence_fixture_01",), "evidence_ids"),
+    ),
+)
+def test_export_rejects_direct_provenance_context_before_publication(
+    source_snapshot_ids: tuple[str, ...],
+    evidence_ids: tuple[str, ...],
+    field_name: str,
+) -> None:
+    with pytest.raises(PublicationAdmissionError, match=field_name):
+        admit_artifact_candidate(
+            _export_candidate(),
+            schema_version="2.0.0",
+            source_snapshot_ids=source_snapshot_ids,
+            evidence_ids=evidence_ids,
+            evidence_validator=_accept,
+            domain_validator=_accept,
+            quality_validator=_accept,
+        )
+
+
+def test_export_rejects_schema_version_mismatch_before_publication() -> None:
+    with pytest.raises(PublicationAdmissionError, match="schema_version"):
+        admit_artifact_candidate(
+            _export_candidate(),
+            schema_version="3.0.0",
+            source_snapshot_ids=(),
+            evidence_ids=(),
+            evidence_validator=_accept,
+            domain_validator=_accept,
+            quality_validator=_accept,
+        )
+
+
+def test_export_references_are_unique_after_uuid_normalization() -> None:
+    reference_id = uuid4()
+
+    with pytest.raises(ValidationError, match="references must be unique"):
+        ExportArtifactContent(
+            kind=ArtifactKind.export,
+            format="json",
+            artifact_version_ids=(str(reference_id).upper(), reference_id.hex),
+        )
+
+
 @pytest.mark.parametrize(
     "candidate",
     (
@@ -91,29 +173,19 @@ def _accept(_: ArtifactAdmissionContext) -> None:
         ),
     ),
 )
-def test_representative_fixture_candidates_pass_the_typed_admission_port(
+def test_arbitrary_domain_models_cannot_bypass_the_canonical_candidate_authority(
     candidate: BaseModel,
 ) -> None:
-    admitted = admit_artifact_candidate(
-        candidate,
-        schema_version="2.0.0",
-        source_snapshot_ids=("source_fixture_01",),
-        evidence_ids=("evidence_fixture_01",),
-        evidence_validator=_accept,
-        domain_validator=_accept,
-        quality_validator=_accept,
-    )
-    publication = ArtifactPublication(
-        artifact_id=uuid4(),
-        publication_key=f"fixture-{candidate.__class__.__name__}",
-        producer_execution_id=uuid4(),
-        candidate=admitted,
-        source_mode="fixture",
-    )
-
-    assert publication.source_mode == "fixture"
-    assert admitted.content_hash.startswith("sha256:")
-    assert admitted.content == candidate.model_dump(mode="json", exclude_none=True)
+    with pytest.raises(PublicationAdmissionError, match="canonical|authoritative"):
+        admit_artifact_candidate(
+            candidate,
+            schema_version="2.0.0",
+            source_snapshot_ids=("source_fixture_01",),
+            evidence_ids=("evidence_fixture_01",),
+            evidence_validator=_accept,
+            domain_validator=_accept,
+            quality_validator=_accept,
+        )
 
 
 @pytest.mark.parametrize("candidate", ("free text", {"untyped": "mapping"}))
@@ -130,47 +202,8 @@ def test_admission_rejects_free_text_and_untyped_mappings(candidate: object) -> 
         )
 
 
-def test_phase0_graph_response_cannot_bypass_d05_admission() -> None:
-    candidate = GraphResponse(
-        nodes=[
-            GraphNode(
-                id="node.paper",
-                type=GraphNodeType.paper,
-                label="Paper",
-                ref_id="paper.1",
-            ),
-            GraphNode(
-                id="node.claim",
-                type=GraphNodeType.claim,
-                label="Claim",
-                ref_id="claim.1",
-            ),
-        ],
-        edges=[
-            GraphEdge(
-                id="edge.supports",
-                source="node.paper",
-                target="node.claim",
-                type=GraphEdgeType.supports_finding,
-                evidence_ids=["evidence.1"],
-            )
-        ],
-    )
-
-    with pytest.raises(PublicationAdmissionError, match="Phase 0 GraphResponse"):
-        admit_artifact_candidate(
-            candidate,
-            schema_version="1.0.0",
-            source_snapshot_ids=("snapshot.1",),
-            evidence_ids=("evidence.1",),
-            evidence_validator=_accept,
-            domain_validator=_accept,
-            quality_validator=_accept,
-        )
-
-
 def test_any_failed_admission_gate_prevents_candidate_creation() -> None:
-    candidate = DatasetCandidate(rows=(), quality_score=0.0)
+    candidate = _export_candidate()
 
     def reject(_: ArtifactAdmissionContext) -> None:
         raise ValueError("quality threshold failed")
@@ -179,7 +212,7 @@ def test_any_failed_admission_gate_prevents_candidate_creation() -> None:
         admit_artifact_candidate(
             candidate,
             schema_version="2.0.0",
-            source_snapshot_ids=("source_fixture_01",),
+            source_snapshot_ids=(),
             evidence_ids=(),
             evidence_validator=_accept,
             domain_validator=_accept,
@@ -187,10 +220,10 @@ def test_any_failed_admission_gate_prevents_candidate_creation() -> None:
         )
 
 
-def test_unmarked_data_kind_cannot_bypass_c05_attestation() -> None:
+def test_unmarked_data_kind_cannot_bypass_the_canonical_candidate_authority() -> None:
     candidate = UnmarkedDataArtifactCandidate(rows=({"object_id": "TOI-700 d"},))
 
-    with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
+    with pytest.raises(PublicationAdmissionError, match="authoritative"):
         admit_artifact_candidate(
             candidate,
             schema_version="2.0.0",
@@ -202,7 +235,7 @@ def test_unmarked_data_kind_cannot_bypass_c05_attestation() -> None:
         )
 
 
-def test_unmarked_literature_claims_cannot_bypass_d07_admission() -> None:
+def test_unmarked_literature_claims_cannot_bypass_literature_claim_admission() -> None:
     candidate = UnmarkedLiteratureClaimsCandidate(claim_ids=("claim.fixture",))
 
     with pytest.raises(

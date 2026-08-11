@@ -3,7 +3,7 @@
  * scenario.
  *
  * Every payload is a snake_case `/api` transport DTO that the fixture
- * adapter validates against the B-15 JSON Schemas before mapping into the
+ * adapter validates against the Core Domain and Transport Contract JSON Schemas before mapping into the
  * domain model. Timestamps, hashes and IDs are deterministic so Guided Tour
  * replays are reproducible.
  *
@@ -93,6 +93,7 @@ const project: ResearchProjectDto = {
 const draft: ResearchContractDraftDto = {
   id: "rcd_01JEXAMPLE",
   session_id: "sess_01JEXAMPLE",
+  project_id: "proj_01JEXAMPLE",
   version: 1,
   intent: "Integrate exoplanet candidates and host-star parameters",
   status: "confirmed",
@@ -132,7 +133,7 @@ const run: ResearchRunDto = {
   parent_run_id: null,
   derivation_kind: "original",
   retry_from_step: null,
-  cache_policy: "fallback_on_recoverable_failure",
+  cache_policy: "disabled",
   started_at: T4,
   finished_at: T9,
   created_at: T3,
@@ -336,7 +337,7 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     project_id: "proj_01JEXAMPLE",
     created_by_run_id: "run_01JEXAMPLE",
     version_number: 1,
-    schema_version: "2.0.0",
+    schema_version: "1.0.0",
     content: {
       kind: "dataset",
       field_ids: ["planet.toi_id", "star.tic_id"],
@@ -524,7 +525,7 @@ const evidence = [
     confidence: 0.85,
     createdAt: T8,
   },
-  // Paper acquisition evidence — same ids as the B-06 read fixture so the
+  // Paper acquisition evidence — same ids as the PaperCollection API read fixture so the
   // candidate review, generic Evidence store, pinning and Share stay wired.
   ...paperCollectionReadFixture.evidence.map((item) => ({
     id: item.id,
@@ -546,7 +547,7 @@ const evidence = [
     confidence: item.confidence,
     createdAt: item.created_at,
   })),
-  // Paper summary evidence — same ids as the B-07 read fixture so the summary
+  // Paper summary evidence — same ids as the PaperSummary API read fixture so the summary
   // review, generic Evidence store, pinning and Share stay wired, mapped
   // through the shared `mapEvidenceDetail` DTO→domain projection.
   ...paperSummaryReadFixture.evidence.map((item) =>

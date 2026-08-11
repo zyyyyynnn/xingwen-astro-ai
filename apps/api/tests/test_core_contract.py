@@ -7,14 +7,13 @@ from pathlib import Path
 import pytest
 from app.contracts.core import create_contract_app
 from app.contracts.manifest_policy import (
-    confirm_research_contract,
+    validate_research_contract_admission,
     validate_contract_against_manifest,
 )
 from app.schemas.core import (
     ArtifactVersion,
     CollectionEnvelope,
     CreateRunRequest,
-    DerivationKind,
     Envelope,
     ExecutionMode,
     ProblemDetails,
@@ -67,6 +66,7 @@ def core_examples() -> dict[type[object], dict[str, object]]:
         },
         ResearchContractDraft: {
             "id": "rcd_01J",
+            "project_id": "proj_01J",
             "session_id": "sess_01J",
             "version": 1,
             "intent": "Integrate exoplanet candidates and host-star parameters",
@@ -91,8 +91,10 @@ def core_examples() -> dict[type[object], dict[str, object]]:
             "execution_mode": "live",
             "status": "queued",
             "progress": 0,
+            "parent_run_id": None,
             "derivation_kind": "original",
-            "cache_policy": "fallback_on_recoverable_failure",
+            "retry_from_step": None,
+            "cache_policy": "disabled",
             "created_at": NOW,
             "updated_at": NOW,
         },
@@ -155,8 +157,8 @@ def test_contract_has_no_execution_mode_and_manifest_admission_is_authoritative(
     assert "execution_mode" not in ResearchContract.model_fields
 
     manifests = load_manifest_bundle(
-        MANIFEST_ROOT / "case-manifest.v1.json",
-        MANIFEST_ROOT / "field-manifest.v1.json",
+        MANIFEST_ROOT / "case-manifest.json",
+        MANIFEST_ROOT / "field-manifest.json",
     )
     validate_contract_against_manifest(
         contract,
@@ -164,20 +166,14 @@ def test_contract_has_no_execution_mode_and_manifest_admission_is_authoritative(
         manifests=manifests,
     )
 
-    confirmed = confirm_research_contract(
-        ResearchContractInput.model_validate(contract_input()),
-        id="rc_confirmed",
-        project_id="proj_01J",
-        version=1,
-        created_from_draft_id="rcd_01J",
-        created_at=NOW,
-        content_hash=compute_research_contract_content_hash(
-            ResearchContractInput.model_validate(contract_input())
-        ),
+    admitted = ResearchContractInput.model_validate(contract_input())
+    validate_research_contract_admission(
+        admitted,
+        content_hash=compute_research_contract_content_hash(admitted),
         case_key="exoplanet_host_star",
         manifests=manifests,
     )
-    assert confirmed.requested_fields == ("planet.toi_id", "star.tic_id")
+    assert admitted.requested_fields == ("planet.toi_id", "star.tic_id")
 
     invalid = contract.model_copy(update={"requested_fields": ("planet.unknown",)})
     with pytest.raises(ValueError, match="unsupported requested field"):
@@ -191,13 +187,8 @@ def test_contract_has_no_execution_mode_and_manifest_admission_is_authoritative(
         {**contract_input(), "requested_fields": ["planet.unknown"]}
     )
     with pytest.raises(ValueError, match="unsupported requested field"):
-        confirm_research_contract(
+        validate_research_contract_admission(
             invalid_input,
-            id="rc_invalid",
-            project_id="proj_01J",
-            version=1,
-            created_from_draft_id="rcd_01J",
-            created_at=NOW,
             content_hash=HASH,
             case_key="exoplanet_host_star",
             manifests=manifests,
@@ -275,64 +266,63 @@ def test_contract_rejects_whitespace_goal() -> None:
         )
 
 
-def test_execution_source_and_derivation_enums_do_not_mix() -> None:
+def test_execution_source_and_run_status_enums_preserve_domain_vocabulary() -> None:
     assert set(ExecutionMode) == {ExecutionMode.demo_replay, ExecutionMode.live}
     assert set(SourceMode) == {SourceMode.fixture, SourceMode.live, SourceMode.cached}
-    assert set(DerivationKind) == {
-        DerivationKind.original,
-        DerivationKind.retry,
-        DerivationKind.revision,
-        DerivationKind.fork,
+    run_statuses = {value.value for value in RunStatus}
+    assert run_statuses == {
+        "queued",
+        "planning",
+        "fetching_data",
+        "cleaning_data",
+        "searching_papers",
+        "summarizing_papers",
+        "reasoning_literature",
+        "building_graph",
+        "waiting_for_input",
+        "completed",
+        "failed",
+        "cancelled",
     }
-    assert "cached" not in {value.value for value in RunStatus}
-    assert "fixture" not in {value.value for value in RunStatus}
 
 
-def test_run_derivation_and_terminal_progress_invariants() -> None:
+def test_run_terminal_progress_and_time_invariants() -> None:
     example = core_examples()[ResearchRun]
-    with pytest.raises(ValidationError, match="derived run must have parent_run_id"):
-        ResearchRun.model_validate({**example, "derivation_kind": "retry"})
     with pytest.raises(ValidationError, match="completed run must have progress 100"):
         ResearchRun.model_validate({**example, "status": "completed", "progress": 99})
     with pytest.raises(ValidationError, match="timezone_aware"):
         ResearchRun.model_validate({**example, "created_at": "2026-07-21T08:00:00"})
+    with pytest.raises(ValidationError, match="derived run must have parent_run_id"):
+        ResearchRun.model_validate({**example, "derivation_kind": "retry"})
+    with pytest.raises(ValidationError, match="retry_from_step is only valid"):
+        ResearchRun.model_validate({**example, "retry_from_step": "fetching_data"})
 
 
-def test_create_run_request_enforces_derivation_invariants() -> None:
+def test_create_run_request_rejects_unimplemented_capability_fields() -> None:
     base = {
         "contract_id": "rc_01J",
         "execution_mode": "live",
-        "derivation_kind": "original",
     }
     CreateRunRequest.model_validate(base)
-    with pytest.raises(ValidationError, match="derived run must have parent_run_id"):
-        CreateRunRequest.model_validate({**base, "derivation_kind": "retry"})
-    with pytest.raises(ValidationError, match="retry_from_step is only valid"):
-        CreateRunRequest.model_validate({**base, "retry_from_step": "fetching_data"})
+    assert set(CreateRunRequest.model_fields) == {"contract_id", "execution_mode"}
+    for field, value in {
+        "feedback_ids": ["feedback_01J"],
+        "retry_from_step": "fetching_data",
+        "cache_policy": "disabled",
+        "parent_run_id": "run_01J",
+        "derivation_kind": "retry",
+    }.items():
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            CreateRunRequest.model_validate({**base, field: value})
 
 
-def test_artifact_content_is_discriminated_and_not_arbitrary_json() -> None:
+def test_artifact_version_content_is_the_persisted_json_boundary() -> None:
     example = core_examples()[ArtifactVersion]
     version = ArtifactVersion.model_validate(example)
-    assert version.content.kind.value == "dataset"
-
-    with pytest.raises(ValidationError, match="union_tag_not_found"):
-        ArtifactVersion.model_validate({**example, "content": {"rows": []}})
-    with pytest.raises(ValidationError, match="union_tag_invalid"):
-        ArtifactVersion.model_validate(
-            {**example, "content": {"kind": "unknown", "rows": []}}
-        )
-    with pytest.raises(ValidationError, match="undeclared field"):
-        ArtifactVersion.model_validate(
-            {
-                **example,
-                "content": {
-                    "kind": "dataset",
-                    "field_ids": ["planet.toi_id"],
-                    "rows": [{"star.unknown": "value"}],
-                },
-            }
-        )
+    assert version.content["kind"] == "dataset"
+    assert ArtifactVersion.model_validate(
+        {**example, "content": {"kind": "unknown", "rows": []}}
+    ).content == {"kind": "unknown", "rows": []}
 
 
 def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -> None:

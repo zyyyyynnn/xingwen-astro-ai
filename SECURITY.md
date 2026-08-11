@@ -2,7 +2,6 @@
 
 | 元数据 | 值 |
 | --- | --- |
-| Status | Accepted |
 | Authority | 密钥、信任边界、输入、会话、分享、日志与安全要求 |
 
 本文定义系统必须满足的稳定安全控制。部署拓扑见 [Deployment](DEPLOYMENT.md)，HTTP 授权与错误响应见 [API Contract](docs/architecture/API_CONTRACT.md)，模型调用准入见 [Model Policy](docs/ai/MODEL_POLICY.md)。
@@ -68,9 +67,10 @@
 
 ## 9. 缓存、版本与删除
 
-- Cached 产物必须引用真实历史 Run、ArtifactVersion 和 SourceSnapshot。
-- Fixture 或录制响应不得伪造进入真实 CacheRecord。
-- Revision 产生新 ArtifactVersion，不原地覆盖或删除正常历史。
+- Fixture 或录制响应不得伪造为真实 Run、ArtifactVersion 或 SourceSnapshot。
+- CacheRecord 必须闭合真实 origin Run、ArtifactVersion、SourceSnapshot、Contract/input hash 与 producer identity；Fixture 不得进入 CacheSelector。
+- ArtifactVersion 采用追加写入，不原地覆盖或删除正常历史。
+- UserFeedback 与 RevisionPlan 只能生成新的派生 Run 和 ArtifactVersion，不得原地改写已发布内容或其 Evidence。
 - 涉及密钥泄露或法定要求时执行彻底清理。
 
 ## 10. 供应链与 CI 安全

@@ -1,9 +1,9 @@
-"""Deterministic, fully published inputs for focused D-05 pipeline tests.
+"""Deterministic, fully published inputs for focused Evidence Graph pipeline tests.
 
-The LiteratureRelations payload is produced by the real D-08 admission
-pipeline.  The frozen D-01 fixture predates UUID database identifiers, so the
-upstream D-07 candidates are first rebound to deterministic UUID version IDs
-and then D-08 is rerun.  No unvalidated candidate dictionaries cross the D-05
+The LiteratureRelations payload is produced by the real LiteratureRelation Pipeline admission
+pipeline.  The frozen Paper Acquisition Benchmark fixture predates UUID database identifiers, so the
+upstream LiteratureClaim Pipeline candidates are first rebound to deterministic UUID version IDs
+and then LiteratureRelation Pipeline is rerun.  No unvalidated candidate dictionaries cross the Evidence Graph
 read port.
 """
 
@@ -12,9 +12,11 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 import json
+from types import SimpleNamespace
 from uuid import UUID, uuid5
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.core import (
     EvidenceDetail,
     ProducerExecutionDetail,
@@ -25,7 +27,6 @@ from app.schemas.core import (
 from app.schemas.data_artifacts import (
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
-    compute_data_artifact_public_payload_hash,
 )
 from app.schemas.data_quality import DataQualityProjection
 from app.schemas.enums import GraphEdgeType
@@ -120,7 +121,7 @@ class ExactPublishedGraphInputReader:
 
 @dataclass(frozen=True, slots=True)
 class LiteratureGraphFixture:
-    """Reusable production-pipeline fixture for one real D-08 relation pair."""
+    """Reusable production-pipeline fixture for one real LiteratureRelation Pipeline relation pair."""
 
     inputs: PublishedGraphInputs
     reader: ExactPublishedGraphInputReader
@@ -158,7 +159,7 @@ class LiteratureGraphFixture:
         )
         if progressive is None:
             progressive = build_complete_progressive_input(
-                progressive_id="progressive.d05.real_d08",
+                progressive_id="progressive.evidence_graph.real_literature_relation",
                 literature_relations_artifact_version_id=relation_version_id,
                 dataset_artifact_version_id=dataset_version_id,
                 field_dictionary_artifact_version_id=dictionary_version_id,
@@ -184,17 +185,17 @@ def build_literature_graph_fixture(
     reverse_published_bindings: bool = False,
     include_shared_candidate_relation: bool = False,
 ) -> LiteratureGraphFixture:
-    """Build a real D-08 literature-only envelope for one frozen D-01 pair.
+    """Build a real LiteratureRelation Pipeline literature-only envelope for one frozen Paper Acquisition Benchmark pair.
 
-    ``accepted`` is the happy-path pair. ``candidate`` is retained by D-08 but
-    must be rejected by D-05's accepted-relation scope.
+    ``accepted`` is the happy-path pair. ``candidate`` is retained by LiteratureRelation Pipeline but
+    must be rejected by Evidence Graph's accepted-relation scope.
     """
 
     if relation_status not in {
         LiteratureRelationStatus.accepted,
         LiteratureRelationStatus.candidate,
     }:
-        raise ValueError("fixture requires a D-08 publishable relation status")
+        raise ValueError("fixture requires a LiteratureRelation Pipeline publishable relation status")
 
     benchmark = load_frozen_benchmark()
     claim_inputs = _uuid_ready_claim_inputs(benchmark)
@@ -208,7 +209,7 @@ def build_literature_graph_fixture(
         for item in benchmark.reasoning_traces
         if item.trace_id == benchmark_relation.reasoning_trace_id
     )
-    d08_fixture = _relation_fixture(
+    literature_relation_fixture = _relation_fixture(
         benchmark=benchmark,
         relation=benchmark_relation,
         trace=benchmark_trace,
@@ -236,15 +237,15 @@ def build_literature_graph_fixture(
             trace=shared_trace,
             claims=claim_inputs,
         )
-        versions = {**d08_fixture.versions, **shared_fixture.versions}
-        admission = d08_fixture.pipeline.admit(
+        versions = {**literature_relation_fixture.versions, **shared_fixture.versions}
+        admission = literature_relation_fixture.pipeline.admit(
             literature_claim_artifact_version_ids=tuple(sorted(versions)),
             literature_claim_versions=versions,
             project_id=_PROJECT_ID,
             model_response=json.dumps(
                 {
                     "schema_version": "1.0.0",
-                    "relations": [d08_fixture.payload, shared_fixture.payload],
+                    "relations": [literature_relation_fixture.payload, shared_fixture.payload],
                 },
                 ensure_ascii=False,
                 sort_keys=True,
@@ -254,26 +255,26 @@ def build_literature_graph_fixture(
             model_name=_REPLAY_MODEL_NAME,
             parameters=_REPLAY_PARAMETERS,
             confidence_assessments={
-                d08_fixture.confidence.assessment_id: d08_fixture.confidence,
+                literature_relation_fixture.confidence.assessment_id: literature_relation_fixture.confidence,
                 shared_fixture.confidence.assessment_id: shared_fixture.confidence,
             },
         )
     else:
-        admission = _admit(fixture=d08_fixture)
+        admission = _admit(fixture=literature_relation_fixture)
     candidate = admission.publisher_candidate
     if candidate is None:
-        raise AssertionError("selected real D-08 case did not publish a candidate")
+        raise AssertionError("selected real LiteratureRelation Pipeline case did not publish a candidate")
     selected = tuple(
         item for item in candidate.relations if item.status is relation_status
     )
     if len(selected) != 1:
-        raise AssertionError("real D-08 fixture relation status drifted")
+        raise AssertionError("real LiteratureRelation Pipeline fixture relation status drifted")
     relation = selected[0]
 
     relation_version_id = stable_uuid(
         f"artifact-version:literature-relations:{relation_status.value}"
     )
-    project_id = stable_uuid("project:d05-real-d08")
+    project_id = stable_uuid("project:evidence_graph-real-literature_relation")
     published = _published_literature_version(
         candidate=candidate,
         project_id=project_id,
@@ -325,7 +326,7 @@ def build_data_graph_fixture(
     reverse_published_bindings: bool = False,
     reverse_data_bindings: bool = False,
 ) -> LiteratureGraphFixture:
-    """Build a typed D-05 input from real C-04 and passing C-05 outputs.
+    """Build a typed Evidence Graph input from real Data Artifact and passing Data Quality Evaluation outputs.
 
     The identifier-conflict fixture is intentionally used because its two
     canonical fields jointly retain mapped, selected, unselected,
@@ -351,9 +352,9 @@ def build_data_graph_fixture(
     )
 
     project_id = literature.inputs.selection.project_id
-    dataset_version_id = stable_uuid("artifact-version:d05-data:dataset")
+    dataset_version_id = stable_uuid("artifact-version:evidence_graph-data:dataset")
     dictionary_version_id = stable_uuid(
-        "artifact-version:d05-data:field-dictionary"
+        "artifact-version:evidence_graph-data:field-dictionary"
     )
     snapshots = _data_source_snapshot_bindings(build_result.dataset)
     dataset_evidence = _data_evidence_bindings(
@@ -386,7 +387,7 @@ def build_data_graph_fixture(
     dataset = PublishedDatasetVersion(
         pins=_published_data_pins(
             candidate=build_result.dataset,
-            artifact_id=stable_uuid("artifact:d05-data:dataset"),
+            artifact_id=stable_uuid("artifact:evidence_graph-data:dataset"),
             artifact_version_id=dataset_version_id,
             project_id=project_id,
         ),
@@ -398,7 +399,7 @@ def build_data_graph_fixture(
     dictionary = PublishedFieldDictionaryVersion(
         pins=_published_data_pins(
             candidate=build_result.field_dictionary,
-            artifact_id=stable_uuid("artifact:d05-data:field-dictionary"),
+            artifact_id=stable_uuid("artifact:evidence_graph-data:field-dictionary"),
             artifact_version_id=dictionary_version_id,
             project_id=project_id,
         ),
@@ -437,6 +438,24 @@ def _quality_projection(
     candidate: DatasetArtifactCandidate | FieldDictionaryArtifactCandidate,
     candidate_kind: str,
 ) -> DataQualityProjection:
+    validator = build_data_quality_publication_validator(
+        admitted,
+        candidate_kind=candidate_kind,
+    )
+    if isinstance(candidate, FieldDictionaryArtifactCandidate):
+        validator(
+            SimpleNamespace(
+                candidate=candidate,
+                source_snapshot_ids=candidate.source_snapshot_ids,
+                evidence_ids=candidate.evidence_ids,
+            )
+        )
+        attestation = validator._data_quality_attestation
+        return DataQualityProjection.model_validate_json(attestation.projection_json)
+
+    from data_artifact_test_support import build_data_publication_bindings
+
+    snapshots, evidence = build_data_publication_bindings(candidate)
     admitted_candidate = admit_artifact_candidate(
         candidate,
         schema_version=candidate.schema_version,
@@ -444,14 +463,13 @@ def _quality_projection(
         evidence_ids=candidate.evidence_ids,
         evidence_validator=validate_data_artifact_evidence,
         domain_validator=validate_data_artifact_domain,
-        quality_validator=build_data_quality_publication_validator(
-            admitted,
-            candidate_kind=candidate_kind,
-        ),
+        quality_validator=validator,
+        source_snapshot_bindings=snapshots,
+        evidence_bindings=evidence,
     )
     projection = admitted_candidate.quality_projection
     if projection is None:
-        raise AssertionError("passing C-05 admission did not expose its projection")
+        raise AssertionError("passing Data Quality Evaluation admission did not expose its projection")
     return projection
 
 
@@ -462,7 +480,9 @@ def _published_data_pins(
     artifact_version_id: str,
     project_id: str,
 ) -> PublishedArtifactVersionPins:
-    content_hash = compute_data_artifact_public_payload_hash(candidate)
+    content_hash = compute_canonical_payload_hash(
+        canonical_artifact_content_payload(candidate)
+    )
     parameters_hash = compute_canonical_payload_hash(
         {
             "mapping_rule_set_content_hash": candidate.mapping_rule_set_content_hash,
@@ -523,9 +543,9 @@ def _data_source_snapshot_bindings(
                     retrieved_at=NOW,
                     query={"fixture": pipeline_snapshot_id},
                     query_hash=source_value.query_hash,
-                    source_version_or_etag="fixture-v1",
+                    source_version_or_etag="fixture-etag",
                     content_hash=source_value.source_snapshot_content_hash,
-                    license_note="Frozen C-04/C-05 fixture provenance",
+                    license_note="Frozen Data Artifact/Data Quality Evaluation fixture provenance",
                     request_metadata={"data_level": "fixture"},
                 ),
             )
@@ -592,7 +612,7 @@ def _data_evidence_bindings(
                     source_snapshot_id=snapshot_ids[pipeline_snapshot_id],
                     locator=locator,
                     quote_or_value=None,
-                    extraction_method="c04_data_artifacts",
+                    extraction_method="data_artifact_projection",
                     confidence=1.0,
                     created_at=NOW,
                 ),
@@ -604,7 +624,7 @@ def _data_evidence_bindings(
 
 
 def _uuid_ready_claim_inputs(benchmark: object) -> dict[str, object]:
-    """Rebind frozen D-07 inputs to persistent UUIDs and revalidate hashes."""
+    """Rebind frozen LiteratureClaim Pipeline inputs to persistent UUIDs and revalidate hashes."""
 
     result: dict[str, object] = {}
     for benchmark_claim_id, item in _claim_inputs(benchmark).items():
@@ -638,7 +658,7 @@ def _uuid_ready_claim_inputs(benchmark: object) -> dict[str, object]:
             artifact_version_id=claim_version_id,
             schema_version=content.schema_version,
             content_hash=compute_canonical_payload_hash(
-                content.model_dump(mode="json", exclude_none=True)
+                canonical_artifact_content_payload(content)
             ),
             project_id=item.version.project_id,
             content=content,
@@ -658,7 +678,7 @@ def _published_literature_version(
     relation_version_id: str,
     reverse_bindings: bool,
 ) -> PublishedLiteratureRelationsVersion:
-    candidate_payload = candidate.model_dump(mode="json", exclude_none=True)
+    candidate_payload = canonical_artifact_content_payload(candidate)
     content_hash = compute_canonical_payload_hash(candidate_payload)
     nested_producer = candidate.producer
     producer = ProducerReference(
@@ -723,7 +743,7 @@ def _published_literature_version(
                     ),
                     source_version_or_etag=evidence.source_snapshot_version,
                     content_hash=evidence.source_snapshot_content_hash,
-                    license_note="Frozen D-01 benchmark fixture",
+                    license_note="Frozen paper acquisition benchmark fixture",
                     request_metadata={"data_level": "benchmark"},
                 ),
             )

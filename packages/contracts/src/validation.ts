@@ -1,9 +1,9 @@
 /**
- * Runtime validation against the B-15 frozen `/api` JSON Schemas.
+ * Runtime validation against the Core Domain and Transport Contract frozen `/api` JSON Schemas.
  *
- * Each core entity and B-18 read schema is compiled once into an ajv
+ * Each core entity and Artifact read schema is compiled once into an ajv
  * validator. The public API exposes type-safe `parse*` / `validate*` helpers
- * so the fixture adapter (and, later, the HTTP adapter) can assert contract
+ * so fixture and HTTP adapters can assert contract
  * conformance before mapping payloads into the domain model.
  */
 
@@ -31,7 +31,7 @@ import shareSnapshotCreatedSchema from "./generated/core/json/ShareSnapshotCreat
 import sourceSnapshotDetailSchema from "./generated/core/json/SourceSnapshotDetail.schema.json";
 import workspaceSnapshotSchema from "./generated/core/json/WorkspaceSnapshot.schema.json";
 
-/** Schema version from the B-15 generation manifest. */
+/** Schema version from the Core Domain and Transport Contract generation manifest. */
 export const CONTRACT_SCHEMA_VERSION: number = manifest.schema_version;
 
 /** Authoring source provenance for auditability. */

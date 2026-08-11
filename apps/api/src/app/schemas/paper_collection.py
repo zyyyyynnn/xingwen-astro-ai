@@ -1,7 +1,7 @@
-"""Typed D-02 PaperCollection pipeline content contract.
+"""Typed content contract for collected-paper artifacts.
 
 This is a pipeline contract, not an HTTP resource or ArtifactVersion publisher.
-The future B-06 publisher can place a validated ``PaperCollection`` in an
+The API publisher places a validated ``PaperCollection`` in an
 ArtifactVersion envelope without translating it into a second domain model.
 """
 
@@ -58,7 +58,6 @@ class PaperBenchmarkReference(BaseModel):
     scientific_payload_hash: ContentHash
     content_hash: ContentHash
     scenario_id: Identifier
-    x00_main_sha: Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
 
 
 class PaperQueryPagination(BaseModel):
@@ -96,7 +95,9 @@ class NormalizedPaperQuery(BaseModel):
             raise ValueError("source_ids must be unique and sorted")
         expected_hash = compute_normalized_query_hash(self)
         if self.query_hash != expected_hash:
-            raise ValueError(f"query_hash does not match normalized query: {expected_hash}")
+            raise ValueError(
+                f"query_hash does not match normalized query: {expected_hash}"
+            )
         expected_id = f"query.{expected_hash.removeprefix('sha256:')[:24]}"
         if self.query_id != expected_id:
             raise ValueError(f"query_id does not match normalized query: {expected_id}")
@@ -152,7 +153,7 @@ class PaperSourceExecution(BaseModel):
     retry_count: int = Field(ge=0)
     failure_class: UpstreamFailureClass | None = None
     failure_code: str | None = None
-    # Cached-run audit context (B-06 read boundary): why this cached snapshot
+    # Cached-run audit context (PaperCollection API read boundary): why this cached snapshot
     # applies to the current query, and how the live attempt failed. All three
     # fields are required for cached executions so a cached result is always
     # fully auditable, and forbidden otherwise.
@@ -166,15 +167,25 @@ class PaperSourceExecution(BaseModel):
             if self.failure_class or self.failure_code:
                 raise ValueError("completed source execution must not contain failure")
             if self.source_snapshot_id is None:
-                raise ValueError("completed source execution requires SourceSnapshotRecord")
+                raise ValueError(
+                    "completed source execution requires SourceSnapshotRecord"
+                )
         else:
             if self.failure_class is None or not self.failure_code:
                 raise ValueError("failed source execution requires classified failure")
             if self.source_snapshot_id is not None:
-                raise ValueError("failed source execution must not claim SourceSnapshotRecord")
-        if self.source_mode is SourceMode.live and self.data_level is not PaperDataLevel.live_result:
+                raise ValueError(
+                    "failed source execution must not claim SourceSnapshotRecord"
+                )
+        if (
+            self.source_mode is SourceMode.live
+            and self.data_level is not PaperDataLevel.live_result
+        ):
             raise ValueError("live source_mode requires live_result data level")
-        if self.source_mode is SourceMode.cached and self.data_level is not PaperDataLevel.real_run_cache:
+        if (
+            self.source_mode is SourceMode.cached
+            and self.data_level is not PaperDataLevel.real_run_cache
+        ):
             raise ValueError("cached source_mode requires real_run_cache data level")
         if self.source_mode is SourceMode.fixture and self.data_level not in {
             PaperDataLevel.fixture,
@@ -182,7 +193,9 @@ class PaperSourceExecution(BaseModel):
             PaperDataLevel.benchmark,
             PaperDataLevel.manual_review,
         }:
-            raise ValueError("fixture source_mode requires a non-live test/review data level")
+            raise ValueError(
+                "fixture source_mode requires a non-live test/review data level"
+            )
         if self.source_mode is SourceMode.cached:
             if self.cache_applicability is None:
                 raise ValueError("cached source execution requires cache_applicability")
@@ -195,7 +208,9 @@ class PaperSourceExecution(BaseModel):
             or self.live_failure_class is not None
             or self.live_failure_code is not None
         ):
-            raise ValueError("cache audit fields are only allowed for cached source_mode")
+            raise ValueError(
+                "cache audit fields are only allowed for cached source_mode"
+            )
         return self
 
 
@@ -233,7 +248,9 @@ class PaperCollectionCandidate(BaseModel):
     candidate_id: Identifier
     raw: RawPaperCandidate
     canonical_paper_id: Identifier
-    canonical_identity_basis: Literal["doi", "arxiv_id", "title_year_authors", "source_record"]
+    canonical_identity_basis: Literal[
+        "doi", "arxiv_id", "title_year_authors", "source_record"
+    ]
     title: NonEmptyString
     normalized_title: NonEmptyString
     authors: tuple[NonEmptyString, ...] = ()
@@ -308,7 +325,9 @@ class PaperCollectionMetrics(BaseModel):
         if self.recalled_expected_candidate_count > self.expected_candidate_count:
             raise ValueError("recalled candidates cannot exceed expected candidates")
         if self.expected_candidate_count == 0 and self.candidate_recall is not None:
-            raise ValueError("candidate recall must be unavailable for an empty benchmark")
+            raise ValueError(
+                "candidate recall must be unavailable for an empty benchmark"
+            )
         if self.expected_candidate_count and self.candidate_recall is None:
             raise ValueError("candidate recall is required for a non-empty benchmark")
         return self
@@ -362,7 +381,8 @@ class ProducerExecution(BaseModel):
 class PaperCollectionPayload(BaseModel):
     model_config = MODEL_CONFIG
 
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    kind: Literal["paper_collection"] = "paper_collection"
+    schema_version: Literal["2.0.0"] = "2.0.0"
     benchmark: PaperBenchmarkReference
     query: NormalizedPaperQuery
     acquisition_run: PaperCollectionAcquisitionRun
@@ -383,12 +403,18 @@ class PaperCollectionPayload(BaseModel):
     @model_validator(mode="after")
     def validate_collection_integrity(self) -> Self:
         candidate_by_id = _unique_by(self.candidates, "candidate_id", "candidate")
-        group_by_id = _unique_by(self.duplicate_groups, "duplicate_group_id", "duplicate group")
-        snapshot_by_id = _unique_by(self.source_snapshots, "snapshot_id", "SourceSnapshotRecord")
+        group_by_id = _unique_by(
+            self.duplicate_groups, "duplicate_group_id", "duplicate group"
+        )
+        snapshot_by_id = _unique_by(
+            self.source_snapshots, "snapshot_id", "SourceSnapshotRecord"
+        )
         _unique_by(self.source_executions, "source_id", "source execution")
 
         if self.source_snapshot_ids != tuple(sorted(snapshot_by_id)):
-            raise ValueError("source_snapshot_ids must equal sorted SourceSnapshotRecord ids")
+            raise ValueError(
+                "source_snapshot_ids must equal sorted SourceSnapshotRecord ids"
+            )
 
         grouped_candidate_ids: list[str] = []
         for group in self.duplicate_groups:
@@ -396,41 +422,66 @@ class PaperCollectionPayload(BaseModel):
                 raise ValueError("duplicate group candidate ids must be sorted")
             for candidate_id in group.candidate_ids:
                 if candidate_id not in candidate_by_id:
-                    raise ValueError(f"unknown duplicate group candidate: {candidate_id}")
+                    raise ValueError(
+                        f"unknown duplicate group candidate: {candidate_id}"
+                    )
                 candidate = candidate_by_id[candidate_id]
                 if candidate.duplicate_group_id != group.duplicate_group_id:
                     raise ValueError("candidate duplicate group reference mismatch")
             grouped_candidate_ids.extend(group.candidate_ids)
         if sorted(grouped_candidate_ids) != sorted(candidate_by_id):
-            raise ValueError("every candidate must belong to exactly one duplicate group")
+            raise ValueError(
+                "every candidate must belong to exactly one duplicate group"
+            )
 
         for candidate in self.candidates:
             if candidate.raw.source_snapshot_id not in snapshot_by_id:
-                raise ValueError(f"candidate lacks SourceSnapshotRecord: {candidate.candidate_id}")
+                raise ValueError(
+                    f"candidate lacks SourceSnapshotRecord: {candidate.candidate_id}"
+                )
             if candidate.duplicate_group_id not in group_by_id:
-                raise ValueError(f"candidate has unknown duplicate group: {candidate.candidate_id}")
+                raise ValueError(
+                    f"candidate has unknown duplicate group: {candidate.candidate_id}"
+                )
 
         selected_ids = tuple(
-            sorted({candidate.canonical_paper_id for candidate in self.candidates if candidate.selected})
+            sorted(
+                {
+                    candidate.canonical_paper_id
+                    for candidate in self.candidates
+                    if candidate.selected
+                }
+            )
         )
         if self.selected_paper_ids != selected_ids:
             raise ValueError("selected_paper_ids do not match selected candidates")
 
         for execution in self.source_executions:
-            if execution.source_snapshot_id and execution.source_snapshot_id not in snapshot_by_id:
+            if (
+                execution.source_snapshot_id
+                and execution.source_snapshot_id not in snapshot_by_id
+            ):
                 raise ValueError("source execution has unknown SourceSnapshotRecord")
-            if execution.source_mode is SourceMode.cached and execution.source_snapshot_id:
+            if (
+                execution.source_mode is SourceMode.cached
+                and execution.source_snapshot_id
+            ):
                 snapshot = snapshot_by_id[execution.source_snapshot_id]
                 required_origin = {"origin_run_id", "origin_artifact_version_id"}
                 if not required_origin.issubset(snapshot.request_metadata):
-                    raise ValueError("cached source requires real origin Run and ArtifactVersion")
+                    raise ValueError(
+                        "cached source requires real origin Run and ArtifactVersion"
+                    )
                 if not snapshot.cache_version or not snapshot.cache_version.strip():
                     raise ValueError("cached source snapshot requires cache_version")
 
         expected_input_hash = compute_paper_collection_input_hash(
             self.benchmark, self.query, self.rules
         )
-        if self.input_hash != expected_input_hash or self.producer.input_hash != expected_input_hash:
+        if (
+            self.input_hash != expected_input_hash
+            or self.producer.input_hash != expected_input_hash
+        ):
             raise ValueError("PaperCollection input hash is inconsistent")
 
         failure_count = sum(

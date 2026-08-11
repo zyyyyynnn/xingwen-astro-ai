@@ -48,7 +48,7 @@ def cases(
     return build_frozen_relation_benchmark_cases(benchmark)
 
 
-def test_formal_d01_relation_benchmark_is_reproducible_and_exact(
+def test_formal_paper_benchmark_relation_benchmark_is_reproducible_and_exact(
     benchmark: BenchmarkPackage,
     cases: tuple[LiteratureRelationBenchmarkEvaluationCase, ...],
 ) -> None:
@@ -131,7 +131,7 @@ def test_formal_d01_relation_benchmark_is_reproducible_and_exact(
     assert first.output_hash.startswith("sha256:")
 
 
-def test_formal_cases_consume_resolved_d07_claim_artifact_versions(
+def test_formal_cases_consume_resolved_literature_claim_artifact_versions(
     cases: tuple[LiteratureRelationBenchmarkEvaluationCase, ...],
 ) -> None:
     scientific = tuple(
@@ -155,7 +155,7 @@ def test_formal_cases_consume_resolved_d07_claim_artifact_versions(
         assert all(reference.schema_version == "1.0.0" for reference in references)
         assert all(reference.content_hash is not None for reference in references)
         assert all(reference.output_hash is not None for reference in references)
-        assert all(reference.project_id == "project.d08_benchmark" for reference in references)
+        assert all(reference.project_id == "project.literature_relation_benchmark" for reference in references)
         assert {record.source_claim_id, record.target_claim_id}.issubset(claim_ids)
         assert record.source_claim_artifact_version_id in {
             item.artifact_version_id for item in references
@@ -279,7 +279,7 @@ def test_candidate_pair_coverage_is_separate_from_scientific_exact_match(
         ("content_hash", "sha256:" + "2" * 64),
     ),
 )
-def test_relation_benchmark_rejects_d01_identity_mismatch(
+def test_relation_benchmark_rejects_paper_benchmark_identity_mismatch(
     benchmark: BenchmarkPackage,
     cases: tuple[LiteratureRelationBenchmarkEvaluationCase, ...],
     field: str,
@@ -287,7 +287,7 @@ def test_relation_benchmark_rejects_d01_identity_mismatch(
 ) -> None:
     changed = benchmark.model_copy(update={field: value})
 
-    with pytest.raises(ValueError, match="frozen D-01 benchmark identity mismatch"):
+    with pytest.raises(ValueError, match="frozen paper acquisition benchmark identity mismatch"):
         evaluate_literature_relations(benchmark=changed, cases=cases)
 
 
@@ -305,7 +305,7 @@ def test_formal_relation_benchmark_rejects_incomplete_coverage(
         item for item in cases if item.case_id != "rejection.trace_unsafe"
     )
 
-    with pytest.raises(ValueError, match="every approved D-01 Relation/Trace"):
+    with pytest.raises(ValueError, match="every approved Paper Acquisition Benchmark Relation/Trace"):
         validate_formal_case_coverage(benchmark, without_scientific)
     with pytest.raises(ValueError, match="fixed rejection suite exactly"):
         validate_formal_case_coverage(benchmark, without_rejection)
@@ -364,11 +364,11 @@ def test_relation_benchmark_ignores_execution_runtime_in_report_hash(
         if item.case_id
         == "scientific.relation.revised_tic_extends_initial_tic"
     )
-    execution_id = "execution.d08.runtime_variant"
+    execution_id = "execution.literature_relation.runtime_variant"
     producer = case.admission.producer.model_copy(
         update={
             "execution_id": execution_id,
-            "run_id": "run.d08.runtime_variant",
+            "run_id": "run.literature_relation.runtime_variant",
             "started_at": case.admission.producer.started_at + timedelta(minutes=5),
             "finished_at": case.admission.producer.finished_at + timedelta(minutes=5),
             "latency_ms": 987,

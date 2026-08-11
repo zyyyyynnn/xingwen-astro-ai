@@ -18,7 +18,7 @@ from services.data_pipeline.data_artifacts.policy import load_mapping_rule_set
 from data_artifact_test_support import build_input
 
 
-def test_c04_contracts_are_strict_frozen_and_closed() -> None:
+def test_data_artifact_contracts_are_strict_frozen_and_closed() -> None:
     capacity = DataArtifactCapacity(
         max_rows=10,
         max_requested_fields=4,

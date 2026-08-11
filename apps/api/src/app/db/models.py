@@ -1,8 +1,7 @@
+"""SQLAlchemy models for the current PostgreSQL persistence contract.
 
-"""SQLAlchemy models for the #76/#77 workflow persistence baseline.
-
-Statuses remain text plus database CHECK constraints so migrations are explicit
-and do not depend on PostgreSQL enum lifecycle operations.
+Statuses remain text plus database CHECK constraints so schema evolution stays
+explicit and does not depend on PostgreSQL enum lifecycle operations.
 """
 
 from __future__ import annotations
@@ -49,19 +48,18 @@ class ResearchProjectModel(TimestampMixin, Base):
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
     session_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     case_key: Mapped[str] = mapped_column(String(128), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    # Public createResearchProject idempotent-replay identity; nullable for
-    # rows that predate the #131 public authoring chain.
-    idempotency_key: Mapped[str | None] = mapped_column(String(200))
-    request_hash: Mapped[str | None] = mapped_column(String(71))
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
 
     __table_args__ = (
         CheckConstraint("revision >= 1", name="revision_positive"),
+        UniqueConstraint("id", "session_id", name="uq_research_project_id_session"),
         UniqueConstraint(
             "session_id", "idempotency_key", name="uq_research_project_idempotency"
         ),
@@ -77,16 +75,13 @@ class ResearchContractModel(TimestampMixin, Base):
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
-    # Full frozen ``ResearchContractInput`` payload so the immutable contract can
-    # be recovered verbatim (not only by hash). Nullable for the #76/#77 workflow
-    # baseline rows that predate the B-runtime confirm path.
-    content: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    created_from_draft_id: Mapped[UUID | None] = mapped_column(
+    content: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_from_draft_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("research_contract_drafts.id", ondelete="RESTRICT"),
+        nullable=False,
     )
-    idempotency_key: Mapped[str | None] = mapped_column(String(200))
-    request_hash: Mapped[str | None] = mapped_column(String(71))
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
 
     __table_args__ = (
         UniqueConstraint("id", "project_id", name="uq_research_contract_id_project"),
@@ -97,20 +92,23 @@ class ResearchContractModel(TimestampMixin, Base):
         UniqueConstraint(
             "created_from_draft_id", name="uq_research_contract_created_from_draft"
         ),
+        ForeignKeyConstraint(
+            ["created_from_draft_id", "project_id"],
+            ["research_contract_drafts.id", "research_contract_drafts.project_id"],
+            name="fk_research_contracts_draft_project",
+            ondelete="RESTRICT",
+        ),
         CheckConstraint("version >= 1", name="version_positive"),
     )
 
 
 class ResearchContractDraftModel(TimestampMixin, Base):
-    """Editable, session-scoped draft persisted for the B-runtime confirm path.
-
-    A draft is owned by a session (not a project); ``version`` is the optimistic
-    concurrency token used by the ``If-Match`` header on PATCH updates.
-    """
+    """Editable Project-owned draft persisted for contract confirmation."""
 
     __tablename__ = "research_contract_drafts"
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     session_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     intent: Mapped[str] = mapped_column(Text, nullable=False)
@@ -121,20 +119,25 @@ class ResearchContractDraftModel(TimestampMixin, Base):
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    # Public createResearchContractDraft idempotent-replay identity; nullable
-    # for rows that predate the #131 public authoring chain.
-    idempotency_key: Mapped[str | None] = mapped_column(String(200))
-    request_hash: Mapped[str | None] = mapped_column(String(71))
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
 
     __table_args__ = (
+        UniqueConstraint("id", "project_id", name="uq_research_contract_draft_id_project"),
         CheckConstraint("version >= 1", name="version_positive"),
         CheckConstraint(
             "status IN ('draft','confirmed','expired')", name="draft_status"
         ),
         UniqueConstraint(
-            "session_id",
+            "project_id",
             "idempotency_key",
             name="uq_research_contract_draft_idempotency",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_research_contract_drafts_project_session",
+            ondelete="CASCADE",
         ),
     )
 
@@ -153,7 +156,7 @@ class ResearchRunModel(TimestampMixin, Base):
     parent_run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     derivation_kind: Mapped[str] = mapped_column(String(32), nullable=False, default="original")
     retry_from_step: Mapped[str | None] = mapped_column(String(128))
-    cache_policy: Mapped[str] = mapped_column(String(64), nullable=False)
+    cache_policy: Mapped[str] = mapped_column(String(64), nullable=False, default="disabled")
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(
@@ -203,12 +206,21 @@ class ResearchRunModel(TimestampMixin, Base):
             name="lease_fields_complete",
         ),
         CheckConstraint(
-            "derivation_kind IN ('original','retry','revision','fork')", name="derivation_kind"
+            "derivation_kind IN ('original','retry','revision','fork')",
+            name="derivation_kind",
         ),
         CheckConstraint(
             "(derivation_kind = 'original' AND parent_run_id IS NULL) OR "
             "(derivation_kind <> 'original' AND parent_run_id IS NOT NULL)",
             name="derivation_parent",
+        ),
+        CheckConstraint(
+            "retry_from_step IS NULL OR derivation_kind = 'retry'",
+            name="retry_step_derivation",
+        ),
+        CheckConstraint(
+            "cache_policy IN ('disabled','fallback_on_recoverable_failure')",
+            name="cache_policy",
         ),
     )
 
@@ -344,7 +356,7 @@ class ResearchArtifactModel(TimestampMixin, Base):
             ["artifact_versions.id", "artifact_versions.artifact_id"],
             name="fk_research_artifacts_latest_version_same_artifact",
             use_alter=True,
-            ondelete="SET NULL",
+            ondelete="RESTRICT",
         ),
     )
 
@@ -578,15 +590,15 @@ class EvidenceModel(TimestampMixin, Base):
 
 
 class ResearchInputModel(Base):
-    """Immutable provenance reference for one ingested Research Input (B-19).
+    """Immutable provenance reference for one ingested Research Input.
 
     Content facts (``storage_ref``, ``mime_type``, ``size_bytes``) live solely
     in :class:`ResearchInputContentModel`, referenced through the composite FK
-    ``(project_id, content_hash)``.  This table only records *who* ingested
-    *what hash* from *which source* and *when*.
+    ``(project_id, content_hash)``. This table records who ingested which
+    content identity from which source and when.
 
-    ``expires_at`` doubles as the soft-delete marker: deletion only expires the
-    reference, never the blob.
+    ``expires_at`` is the soft-delete marker: deletion expires the reference,
+    never the content blob.
     """
 
     __tablename__ = "research_inputs"
@@ -608,10 +620,6 @@ class ResearchInputModel(Base):
     )
 
     __table_args__ = (
-        # NOTE: no (session_id, project_id, content_hash) unique constraint.
-        # The same bytes ingested from different *sources* (upload vs URL vs
-        # text) are distinct provenance events and must NOT be collapsed into a
-        # single ResearchInput row. Content dedup lives in research_input_contents.
         UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
         ForeignKeyConstraint(
             ["project_id", "content_hash"],
@@ -641,18 +649,10 @@ class ResearchInputModel(Base):
 
 
 class ResearchInputContentModel(Base):
-    """Immutable content identity for ingested Research Input bytes (B-19).
+    """Immutable content identity for ingested Research Input bytes.
 
-    This row is the *content* identity: a given ``(project_id, content_hash)``
-    is exactly one blob with one storage ref, MIME and size. It is fully
-    decoupled from how the bytes were ingested. The same bytes uploaded and the
-    same bytes fetched from a URL therefore share one ``ResearchInputContent``
-    row (one physical blob) while remaining two distinct ``ResearchInput``
-    provenance rows.
-
-    Nothing about a source belongs here: no filename, no source_type, no URL,
-    no source_snapshot_id, no idempotency_key -- those describe an *ingestion*,
-    not the bytes.
+    A ``(project_id, content_hash)`` pair identifies one blob with one storage
+    reference, MIME type and size. Source facts do not belong on this table.
     """
 
     __tablename__ = "research_input_contents"
@@ -677,11 +677,7 @@ class ResearchInputContentModel(Base):
 
 
 class ResearchInputBindingModel(Base):
-    """One active binding from an ingested input to a ContractDraft or Run.
-
-    Only the immutable reference is bound; binary content and full text never
-    enter public DTOs. Re-binding to a different target replaces the binding.
-    """
+    """One active binding from an immutable Research Input to a Draft or Run."""
 
     __tablename__ = "research_input_bindings"
 
@@ -694,7 +690,6 @@ class ResearchInputBindingModel(Base):
     )
     contract_draft_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("research_contract_drafts.id", ondelete="CASCADE"),
     )
     run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     bound_at: Mapped[datetime] = mapped_column(
@@ -706,6 +701,12 @@ class ResearchInputBindingModel(Base):
             ["input_id", "project_id"],
             ["research_inputs.id", "research_inputs.project_id"],
             name="fk_research_input_binding_input_project",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["contract_draft_id", "project_id"],
+            ["research_contract_drafts.id", "research_contract_drafts.project_id"],
+            name="fk_research_input_binding_draft_project",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
@@ -722,26 +723,13 @@ class ResearchInputBindingModel(Base):
 
 
 class ResearchInputIdempotencyModel(Base):
-    """HTTP request identity for Research Input creation (B-19).
+    """HTTP request identity for Research Input creation.
 
-    This table is deliberately *not* part of :class:`ResearchInputModel`.
-    Two identities exist and they are not the same thing:
-
-    * content dedup -- ``(session_id, project_id, content_hash)`` on
-      ``research_inputs``; the same bytes resolve to one immutable resource.
-    * request idempotency -- ``(session_id, project_id, idempotency_key)``
-      here; it answers "have I already executed *this HTTP request*?".
-
-    Because the mapping lives in its own row, several distinct
-    ``Idempotency-Key`` values may legitimately point at the *same*
-    ``ResearchInput`` (same content submitted twice under different keys),
-    which a single ``idempotency_key`` column on the content row could never
-    represent.
-
-    ``status`` supports two-phase use: a row is reserved as ``pending`` before
-    a URL is fetched so a replay cannot trigger a second network request, then
-    completed with the resolved ``input_id``. A reservation that never
-    completes is removed, so a failed fetch stays retryable.
+    Content deduplication belongs to ``research_input_contents`` under the
+    ``(project_id, content_hash)`` key. Request idempotency belongs here under
+    ``(session_id, project_id, idempotency_key)``. Distinct ingestion requests
+    may therefore reference the same immutable content without being collapsed
+    into one provenance event.
     """
 
     __tablename__ = "research_input_idempotency"
@@ -756,10 +744,6 @@ class ResearchInputIdempotencyModel(Base):
     request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     input_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
-    # Lease ownership: a pending reservation is owned by the worker that holds
-    # ``lease_token`` until ``lease_expires_at``. A crashed worker's stale
-    # reservation becomes reclaimable, and the reclaimer receives a NEW token so
-    # the old worker can no longer release or complete it.
     lease_token: Mapped[str | None] = mapped_column(String(64))
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
@@ -794,4 +778,3 @@ class ResearchInputIdempotencyModel(Base):
             "input_id",
         ),
     )
-

@@ -123,7 +123,7 @@ def convert_decimal_value(
             DataArtifactErrorCode.quantity_kind_mismatch,
             "conversion quantity kind does not match the field",
         )
-    if rule_id == "unit.identity.v1":
+    if rule_id == "unit.identity":
         if source_unit != target_unit:
             raise DataArtifactError(
                 DataArtifactErrorCode.incompatible_unit,

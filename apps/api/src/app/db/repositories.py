@@ -1,7 +1,7 @@
-"""Minimal repositories and Unit of Work for #76.
+"""Minimal repositories and Unit of Work for workflow persistence.
 
-Workflow transitions and publication transactions intentionally remain in
-#77 and #78; this module only supplies transaction and persistence primitives.
+Workflow transitions and publication transactions remain in their owning
+boundaries; this module only supplies transaction and persistence primitives.
 """
 
 from __future__ import annotations

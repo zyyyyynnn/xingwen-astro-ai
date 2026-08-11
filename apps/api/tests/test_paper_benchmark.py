@@ -29,7 +29,7 @@ BENCHMARK_PATH = (
     / "paper_pipeline"
     / "benchmarks"
     / "exoplanet_host_star"
-    / "paper-reasoning-benchmark.v1.json"
+    / "paper-reasoning-benchmark.json"
 )
 
 
@@ -41,40 +41,29 @@ def _review_record(
     payload: dict[str, Any],
     *,
     review_id: str,
-    purpose: str = "pr_technical_review",
+    purpose: str = "benchmark_scientific_review",
     verdict: str = "pass",
-    sequence: int = 1,
-    supersedes: str | None = None,
     reviewer_type: str = "web_gpt",
-    reviewed_head_sha: str = "7a6abc1926f6f5891ad6f209eae8e91f11f7a5b6",
     reviewed_benchmark_version: str | None = None,
     reviewed_content_hash: str | None = None,
     scope: list[dict[str, Any]] | None = None,
-    evidence_review_id: int | None = None,
 ) -> dict[str, Any]:
     return {
         "review_id": review_id,
-        "review_sequence": sequence,
-        "supersedes_review_id": supersedes,
         "reviewed_at": "2026-07-21T12:00:00+08:00",
         "reviewer_type": reviewer_type,
         "reviewer_identity": (
             "openai:web-gpt" if reviewer_type == "web_gpt" else "openai:codex"
         ),
-        "reviewer_role": "pull_request_reviewer",
+        "reviewer_role": "scientific_benchmark_reviewer",
         "review_purpose": purpose,
         "verdict": verdict,
-        "reviewed_head_sha": reviewed_head_sha,
         "reviewed_benchmark_version": (
             reviewed_benchmark_version or payload["benchmark_version"]
         ),
         "reviewed_content_hash": reviewed_content_hash
         or payload.get("scientific_payload_hash")
         or payload["content_hash"],
-        "review_evidence_url": (
-            "https://github.com/zyyyyynnn/xingwen-astro-ai/"
-            f"pull/96#pullrequestreview-{evidence_review_id or sequence}"
-        ),
         "scope": scope
         or [
             {
@@ -89,9 +78,6 @@ def _review_record(
             ["No blocking findings."] if verdict == "pass" else []
         ),
         "notes": "Synthetic review contract fixture.",
-        "evidence_actor_identity": "github:zyyyyynnn",
-        "review_evidence_state": "COMMENTED",
-        "review_evidence_body": f"verdict: {verdict.upper()}",
     }
 
 
@@ -136,15 +122,6 @@ def _full_review_scope(payload: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _pull_request_scope() -> list[dict[str, Any]]:
-    return [
-        {
-            "target_type": "pull_request",
-            "target_ids": ["zyyyyynnn/xingwen-astro-ai#96"],
-        }
-    ]
-
-
 def _approved_payload(review_purpose: str) -> dict[str, Any]:
     from app.schemas.paper_benchmark import compute_benchmark_scientific_payload_hash
 
@@ -164,15 +141,13 @@ def _approved_payload(review_purpose: str) -> dict[str, Any]:
         payload
     )
     source = {**payload, "content_hash": payload["scientific_payload_hash"]}
-    payload["review_records"] = [
-        _review_record(
+    payload["scientific_review"] = _review_record(
             source,
             review_id="review.scientific_pass",
             purpose=review_purpose,
             reviewed_content_hash=payload["scientific_payload_hash"],
             scope=_full_review_scope(payload),
         )
-    ]
     return payload
 
 
@@ -189,6 +164,7 @@ def _review_fixture(
 
     payload = _read_payload()
     payload["review_status"] = package_status.value
+    payload["scientific_review"] = None
     for index, relation in enumerate(payload["relations"]):
         relation["review_status"] = (
             BenchmarkReviewStatus.approved.value
@@ -247,15 +223,15 @@ def test_benchmark_package_is_machine_readable_and_versioned() -> None:
     package = load_benchmark_package(BENCHMARK_PATH)
 
     assert package.benchmark_id == "exoplanet_host_star.paper_reasoning"
-    assert package.schema_version == "1.3.0"
-    assert package.benchmark_version == "1.3.0"
+    assert package.schema_version == "2.0.0"
+    assert package.benchmark_version == "2.0.0"
     assert package.case_id == "exoplanet_host_star"
     assert len(package.seed_papers) == 6
     assert len(package.claims) >= 5
     assert len(package.relations) >= 3
     assert package.review_status is BenchmarkReviewStatus.approved
     assert package.scientific_payload_hash == (
-        "sha256:32db9d4345d904f3f5b9fbe975c41cdfebd4fb45ecc5747e6845959bd220e9cd"
+        "sha256:1a9969d31f80198f73c008eb78cdba70cb4411570345f0829552da4bcda87db9"
     )
 
 
@@ -297,7 +273,7 @@ def test_benchmark_review_labels_name_web_gpt_scientific_review() -> None:
     )
 
 
-def test_content_hash_uses_the_c01_canonical_rules() -> None:
+def test_content_hash_uses_the_case_manifest_canonical_rules() -> None:
     payload = _read_payload()
     package = BenchmarkPackage.model_validate(payload)
 
@@ -326,25 +302,13 @@ def test_hash_sorts_object_keys_but_preserves_array_order() -> None:
     assert compute_benchmark_content_hash(reordered_array) != payload["content_hash"]
 
 
-@pytest.mark.parametrize(
-    "field",
-    ["created_at", "review_records", "change_records"],
-)
-def test_audit_and_review_metadata_are_hash_bound(field: str) -> None:
+@pytest.mark.parametrize("field", ["created_at", "scientific_review"])
+def test_current_audit_and_review_metadata_are_hash_bound(field: str) -> None:
     payload = _read_payload()
     if field == "created_at":
         payload[field] = "2026-07-20"
-    elif field == "review_records":
-        payload[field].append(
-            _review_record(
-                payload,
-                review_id="review.hash_bound_metadata",
-                verdict="blocked",
-                reviewer_type="automation",
-            )
-        )
     else:
-        payload[field][0]["summary"] += " changed"
+        payload["scientific_review"]["notes"] += " changed"
 
     assert compute_benchmark_content_hash(payload) != _read_payload()["content_hash"]
 
@@ -360,7 +324,7 @@ def test_wrong_content_hash_is_rejected() -> None:
 @pytest.mark.parametrize("field", ["schema_version", "benchmark_version"])
 def test_invalid_semantic_version_is_rejected(field: str) -> None:
     payload = _read_payload()
-    payload[field] = "v1"
+    payload[field] = "invalid-version"
 
     with pytest.raises(ValidationError, match=field):
         BenchmarkPackage.model_validate(payload)
@@ -422,7 +386,7 @@ def test_crossref_policy_separates_documented_claims_and_observed_headers() -> N
         (
             observed.request_class,
             observed.x_api_pool,
-            observed.x_rate_limit_limit,
+            observed.rate_limit_ceiling,
             observed.x_rate_limit_interval,
             observed.x_concurrency_limit,
             observed.response_status,
@@ -444,7 +408,7 @@ def test_crossref_observed_headers_can_be_explicitly_unavailable() -> None:
     )
     observed = crossref["crossref_rate_limits"]["observed_runtime_limits"][0]
     observed["x_api_pool"] = "unavailable"
-    observed["x_rate_limit_limit"] = "unavailable"
+    observed["rate_limit_ceiling"] = "unavailable"
     observed["x_rate_limit_interval"] = "unavailable"
     observed["x_concurrency_limit"] = "unavailable"
 
@@ -480,8 +444,7 @@ def test_crossref_limit_snapshot_enforces_boundaries(
 
 def test_automation_review_cannot_approve_package() -> None:
     payload = _approved_payload("benchmark_scientific_review")
-    payload["review_records"] = [
-        _review_record(
+    payload["scientific_review"] = _review_record(
             {**payload, "content_hash": payload["scientific_payload_hash"]},
             review_id="review.automation_blocked",
             purpose="benchmark_scientific_review",
@@ -490,19 +453,21 @@ def test_automation_review_cannot_approve_package() -> None:
             reviewed_content_hash=payload["scientific_payload_hash"],
             scope=_full_review_scope(payload),
         )
-    ]
 
-    with pytest.raises(ValidationError, match="scientific Review PASS"):
+    with pytest.raises(ValidationError, match="BLOCKED scientific review"):
         BenchmarkPackagePayload.model_validate(payload)
 
 
-def test_web_gpt_review_requires_explicit_purpose_and_content_binding() -> None:
+def test_changes_requested_accepts_current_blocked_web_gpt_review() -> None:
     payload = _read_payload()
     payload.pop("content_hash")
-    payload["review_status"] = "pending_scientific_review"
-    payload["review_records"] = [
-        _review_record(_read_payload(), review_id="review.web_gpt_technical_pass")
-    ]
+    payload["review_status"] = "changes_requested"
+    payload["scientific_review"] = _review_record(
+        payload,
+        review_id="review.web_gpt_blocked",
+        verdict="blocked",
+        scope=_full_review_scope(payload),
+    )
 
     BenchmarkPackagePayload.model_validate(payload)
 
@@ -510,310 +475,13 @@ def test_web_gpt_review_requires_explicit_purpose_and_content_binding() -> None:
 def test_automation_cannot_issue_formal_pass() -> None:
     payload = _read_payload()
     payload.pop("content_hash")
-    payload["review_records"] = [
-        _review_record(
+    payload["scientific_review"] = _review_record(
             _read_payload(),
             review_id="review.automation_pass",
             reviewer_type="automation",
         )
-    ]
 
     with pytest.raises(ValidationError, match="automation cannot issue"):
-        BenchmarkPackagePayload.model_validate(payload)
-
-
-@pytest.mark.parametrize(
-    ("verdict", "evidence_state"),
-    [
-        ("blocked", "APPROVED"),
-        ("pass", "CHANGES_REQUESTED"),
-    ],
-)
-def test_review_evidence_state_must_match_verdict(
-    verdict: str, evidence_state: str
-) -> None:
-    payload = _read_payload()
-    payload.pop("content_hash")
-    record = _review_record(
-        _read_payload(),
-        review_id="review.contradictory_state",
-        verdict=verdict,
-    )
-    record["review_evidence_state"] = evidence_state
-    payload["review_records"] = [record]
-
-    with pytest.raises(ValidationError, match="review evidence state.*verdict"):
-        BenchmarkPackagePayload.model_validate(payload)
-
-
-def test_commented_review_body_must_declare_matching_verdict() -> None:
-    payload = _read_payload()
-    payload.pop("content_hash")
-    record = _review_record(
-        _read_payload(),
-        review_id="review.comment_without_verdict",
-    )
-    record["review_evidence_body"] = "review_type: web_gpt"
-    payload["review_records"] = [record]
-
-    with pytest.raises(ValidationError, match="review evidence body.*verdict"):
-        BenchmarkPackagePayload.model_validate(payload)
-
-
-def test_later_blocked_review_is_the_effective_verdict() -> None:
-    payload = _read_payload()
-    payload.pop("content_hash")
-    source = _read_payload()
-    payload["review_records"] = [
-        _review_record(
-            source,
-            review_id="review.pass",
-            scope=_pull_request_scope(),
-        ),
-        _review_record(
-            source,
-            review_id="review.blocked",
-            verdict="blocked",
-            sequence=2,
-            supersedes="review.pass",
-            scope=_pull_request_scope(),
-        ),
-    ]
-
-    from app.schemas.paper_benchmark import BenchmarkPrReviewGate
-
-    with pytest.raises(ValidationError, match="unresolved BLOCKED"):
-        BenchmarkPrReviewGate.model_validate(
-            {
-                "pull_request": "zyyyyynnn/xingwen-astro-ai#96",
-                "current_head_sha": "7a6abc1926f6f5891ad6f209eae8e91f11f7a5b6",
-                "current_benchmark_version": source["benchmark_version"],
-                "current_scientific_payload_hash": source["scientific_payload_hash"],
-                "review_records": payload["review_records"],
-            }
-        )
-
-
-def test_later_pass_resolves_blocked_review() -> None:
-    source = _read_payload()
-    records = [
-        _review_record(
-            source,
-            review_id="review.blocked",
-            verdict="blocked",
-            scope=_pull_request_scope(),
-        ),
-        _review_record(
-            source,
-            review_id="review.pass",
-            sequence=2,
-            supersedes="review.blocked",
-            scope=_pull_request_scope(),
-        ),
-    ]
-
-    from app.schemas.paper_benchmark import BenchmarkPrReviewGate
-
-    gate = BenchmarkPrReviewGate.model_validate(
-        {
-            "pull_request": "zyyyyynnn/xingwen-astro-ai#96",
-            "current_head_sha": "7a6abc1926f6f5891ad6f209eae8e91f11f7a5b6",
-            "current_benchmark_version": source["benchmark_version"],
-            "current_scientific_payload_hash": source["scientific_payload_hash"],
-            "review_records": records,
-        }
-    )
-
-    assert gate.review_records[-1].verdict.value == "pass"
-
-
-@pytest.mark.parametrize(
-    ("records", "expected_message"),
-    [
-        (
-            lambda source: [
-                _review_record(
-                    source,
-                    review_id="review.child",
-                    sequence=2,
-                    supersedes="review.missing",
-                )
-            ],
-            "unknown supersedes_review_id",
-        ),
-        (
-            lambda source: [
-                _review_record(source, review_id="review.root"),
-                _review_record(
-                    source,
-                    review_id="review.child_a",
-                    sequence=2,
-                    supersedes="review.root",
-                ),
-                _review_record(
-                    source,
-                    review_id="review.child_b",
-                    sequence=2,
-                    supersedes="review.root",
-                    evidence_review_id=3,
-                ),
-            ],
-            "more than one direct successor",
-        ),
-        (
-            lambda source: [
-                _review_record(
-                    source,
-                    review_id="review.a",
-                    sequence=2,
-                    supersedes="review.b",
-                ),
-                _review_record(
-                    source,
-                    review_id="review.b",
-                    sequence=3,
-                    supersedes="review.a",
-                ),
-            ],
-            "supersedes cycle",
-        ),
-        (
-            lambda source: [
-                _review_record(source, review_id="review.root"),
-                _review_record(
-                    source,
-                    review_id="review.child",
-                    purpose="benchmark_scientific_review",
-                    sequence=2,
-                    supersedes="review.root",
-                ),
-            ],
-            "review purpose",
-        ),
-        (
-            lambda source: [
-                _review_record(source, review_id="review.root"),
-                _review_record(
-                    source,
-                    review_id="review.child",
-                    sequence=2,
-                    supersedes="review.root",
-                    scope=[
-                        {
-                            "target_type": "source_policy",
-                            "target_ids": ["crossref"],
-                        }
-                    ],
-                ),
-            ],
-            "review scope",
-        ),
-    ],
-)
-def test_invalid_review_evolution_is_rejected(
-    records: Any, expected_message: str
-) -> None:
-    payload = _read_payload()
-    payload.pop("content_hash")
-    payload["review_records"] = records(_read_payload())
-
-    with pytest.raises(ValidationError, match=expected_message):
-        BenchmarkPackagePayload.model_validate(payload)
-
-
-def test_new_review_cannot_reuse_superseded_evidence_url() -> None:
-    payload = _read_payload()
-    payload.pop("content_hash")
-    source = _read_payload()
-    root = _review_record(source, review_id="review.root", verdict="blocked")
-    child = _review_record(
-        source,
-        review_id="review.child",
-        sequence=2,
-        supersedes="review.root",
-    )
-    child["review_evidence_url"] = root["review_evidence_url"]
-    payload["review_records"] = [root, child]
-
-    with pytest.raises(ValidationError, match="review evidence URL"):
-        BenchmarkPackagePayload.model_validate(payload)
-
-
-@pytest.mark.parametrize(
-    ("override", "expected_message"),
-    [
-        ({"reviewed_head_sha": "0" * 40}, "current HEAD"),
-        ({"reviewed_benchmark_version": "9.9.9"}, "benchmark version"),
-        ({"reviewed_content_hash": f"sha256:{'0' * 64}"}, "content hash"),
-        ({"purpose": "benchmark_scientific_review"}, "technical Review PASS"),
-    ],
-)
-def test_pr_gate_rejects_stale_or_wrong_purpose_review(
-    override: dict[str, str], expected_message: str
-) -> None:
-    source = _read_payload()
-    record = _review_record(
-        source,
-        review_id="review.stale",
-        scope=_pull_request_scope(),
-        **override,
-    )
-
-    from app.schemas.paper_benchmark import BenchmarkPrReviewGate
-
-    with pytest.raises(ValidationError, match=expected_message):
-        BenchmarkPrReviewGate.model_validate(
-            {
-                "pull_request": "zyyyyynnn/xingwen-astro-ai#96",
-                "current_head_sha": "7a6abc1926f6f5891ad6f209eae8e91f11f7a5b6",
-                "current_benchmark_version": source["benchmark_version"],
-                "current_scientific_payload_hash": source["scientific_payload_hash"],
-                "review_records": [record],
-            }
-        )
-
-
-def test_pr_gate_rejects_partial_object_scope() -> None:
-    source = _read_payload()
-    record = _review_record(
-        source,
-        review_id="review.partial_technical_pass",
-        scope=[{"target_type": "source_policy", "target_ids": ["crossref"]}],
-    )
-
-    from app.schemas.paper_benchmark import BenchmarkPrReviewGate
-
-    with pytest.raises(ValidationError, match="full pull request scope"):
-        BenchmarkPrReviewGate.model_validate(
-            {
-                "pull_request": "zyyyyynnn/xingwen-astro-ai#96",
-                "current_head_sha": "7a6abc1926f6f5891ad6f209eae8e91f11f7a5b6",
-                "current_benchmark_version": source["benchmark_version"],
-                "current_scientific_payload_hash": source[
-                    "scientific_payload_hash"
-                ],
-                "review_records": [record],
-            }
-        )
-
-
-def test_pull_request_review_scope_must_reference_this_repository() -> None:
-    payload = _read_payload()
-    payload.pop("content_hash")
-    payload["review_records"] = [
-        _review_record(
-            _read_payload(),
-            review_id="review.wrong_repository_scope",
-            scope=[
-                {
-                    "target_type": "pull_request",
-                    "target_ids": ["somewhere/else#96"],
-                }
-            ],
-        )
-    ]
-
-    with pytest.raises(ValidationError):
         BenchmarkPackagePayload.model_validate(payload)
 
 
@@ -826,14 +494,12 @@ def test_scientific_hash_excludes_review_metadata_but_detects_payload_tampering(
     expected = compute_benchmark_scientific_payload_hash(payload)
 
     changed_review = deepcopy(payload)
-    changed_review["review_records"] = [
-        _review_record(
+    changed_review["scientific_review"] = _review_record(
             payload,
             review_id="review.metadata_only",
             verdict="blocked",
             reviewer_type="automation",
         )
-    ]
     assert compute_benchmark_scientific_payload_hash(changed_review) == expected
 
     changed_science = deepcopy(payload)
@@ -848,7 +514,7 @@ def test_scientific_hash_excludes_all_nested_review_statuses() -> None:
 
     pending_objects = deepcopy(payload)
     pending_objects["review_status"] = "pending_scientific_review"
-    pending_objects["review_records"] = []
+    pending_objects["scientific_review"] = None
     for collection_name in (
         "paper_summaries",
         "evidence",
@@ -864,13 +530,6 @@ def test_scientific_hash_excludes_all_nested_review_statuses() -> None:
         == expected_scientific_hash
     )
     assert compute_benchmark_content_hash(pending_objects) != expected_content_hash
-
-
-def test_technical_review_cannot_approve_scientific_benchmark() -> None:
-    payload = _approved_payload("pr_technical_review")
-
-    with pytest.raises(ValidationError, match="scientific Review PASS"):
-        BenchmarkPackagePayload.model_validate(payload)
 
 
 def test_complete_scientific_review_can_approve_benchmark() -> None:
@@ -892,7 +551,7 @@ def test_scientific_review_must_bind_current_version_and_hash(
     field: str, value: str, expected_message: str
 ) -> None:
     payload = _approved_payload("benchmark_scientific_review")
-    payload["review_records"][0][field] = value
+    payload["scientific_review"][field] = value
 
     with pytest.raises(ValidationError, match=expected_message):
         BenchmarkPackagePayload.model_validate(payload)
@@ -902,7 +561,7 @@ def test_scientific_review_scope_must_cover_every_object() -> None:
     payload = _approved_payload("benchmark_scientific_review")
     graph_scope = next(
         scope
-        for scope in payload["review_records"][0]["scope"]
+        for scope in payload["scientific_review"]["scope"]
         if scope["target_type"] == "graph_edge"
     )
     graph_scope["target_ids"].pop()
@@ -911,23 +570,67 @@ def test_scientific_review_scope_must_cover_every_object() -> None:
         BenchmarkPackagePayload.model_validate(payload)
 
 
-def test_unresolved_scientific_block_prevents_approval() -> None:
+def test_changes_requested_review_still_requires_complete_scope() -> None:
     payload = _approved_payload("benchmark_scientific_review")
-    passed = payload["review_records"][0]
-    payload["review_records"].append(
-        _review_record(
+    payload["review_status"] = "changes_requested"
+    payload["scientific_review"]["verdict"] = "blocked"
+    payload["scientific_review"]["blocking_findings"] = ["Relation requires correction."]
+    relation_scope = next(
+        scope
+        for scope in payload["scientific_review"]["scope"]
+        if scope["target_type"] == "relation"
+    )
+    relation_scope["target_ids"].pop()
+
+    with pytest.raises(ValidationError, match="scientific review scope is incomplete"):
+        BenchmarkPackagePayload.model_validate(payload)
+
+
+def test_current_blocked_scientific_review_prevents_approval() -> None:
+    payload = _approved_payload("benchmark_scientific_review")
+    passed = payload["scientific_review"]
+    payload["scientific_review"] = _review_record(
             {**payload, "content_hash": payload["scientific_payload_hash"]},
             review_id="review.scientific_blocked",
             purpose="benchmark_scientific_review",
             verdict="blocked",
-            sequence=2,
-            supersedes=passed["review_id"],
             reviewed_content_hash=payload["scientific_payload_hash"],
             scope=passed["scope"],
         )
-    )
 
-    with pytest.raises(ValidationError, match="unresolved BLOCKED scientific"):
+    with pytest.raises(ValidationError, match="BLOCKED scientific review"):
+        BenchmarkPackagePayload.model_validate(payload)
+
+
+def test_pending_package_can_omit_scientific_review() -> None:
+    payload = _read_payload()
+    payload["review_status"] = "pending_scientific_review"
+    payload["scientific_review"] = None
+    payload["scientific_payload_hash"] = compute_benchmark_scientific_payload_hash(payload)
+    payload["content_hash"] = compute_benchmark_content_hash(payload)
+
+    package = BenchmarkPackage.model_validate(payload)
+    assert package.scientific_review is None
+
+
+def test_pending_package_rejects_existing_scientific_review() -> None:
+    payload = _approved_payload("benchmark_scientific_review")
+    payload["review_status"] = "pending_scientific_review"
+
+    with pytest.raises(ValidationError, match="pending package cannot include"):
+        BenchmarkPackagePayload.model_validate(payload)
+
+
+@pytest.mark.parametrize("review_case", ["missing", "passed"])
+def test_changes_requested_requires_current_blocked_review(review_case: str) -> None:
+    payload = _approved_payload("benchmark_scientific_review")
+    payload["review_status"] = "changes_requested"
+    if review_case == "missing":
+        payload["scientific_review"] = None
+
+    with pytest.raises(
+        ValidationError, match="changes requested requires current BLOCKED review"
+    ):
         BenchmarkPackagePayload.model_validate(payload)
 
 
@@ -936,7 +639,7 @@ def test_unsupported_reviewer_type_is_rejected() -> None:
     payload.pop("content_hash")
     record = _review_record(_read_payload(), review_id="review.unsupported")
     record["reviewer_type"] = "person"
-    payload["review_records"] = [record]
+    payload["scientific_review"] = record
 
     with pytest.raises(ValidationError):
         BenchmarkPackagePayload.model_validate(payload)
@@ -946,46 +649,29 @@ def test_unsupported_reviewer_type_is_rejected() -> None:
     ("field", "value"),
     [
         ("review_purpose", "unsupported_review"),
-        ("reviewed_head_sha", "not-a-40-character-commit-sha"),
-        ("evidence_actor_identity", "openai:web-gpt"),
-        ("review_evidence_state", "UNKNOWN"),
+        ("reviewer_identity", "invalid identity"),
     ],
 )
-def test_review_rejects_invalid_enum_identity_and_head_fields(
+def test_review_rejects_invalid_purpose_and_identity_fields(
     field: str, value: str
 ) -> None:
     payload = _read_payload()
     payload.pop("content_hash")
     record = _review_record(_read_payload(), review_id="review.invalid_contract")
     record[field] = value
-    payload["review_records"] = [record]
+    payload["scientific_review"] = record
 
     with pytest.raises(ValidationError):
         BenchmarkPackagePayload.model_validate(payload)
 
 
-def test_review_records_have_stable_identity_and_machine_readable_scope() -> None:
+def test_scientific_review_has_stable_identity_and_machine_readable_scope() -> None:
     package = load_benchmark_package(BENCHMARK_PATH)
 
-    assert {record.review_purpose.value for record in package.review_records} == {
-        "pr_technical_review",
-        "benchmark_scientific_review",
-    }
-    assert all(record.verdict.value == "pass" for record in package.review_records)
-    assert all(record.reviewed_head_sha == "1a541bb84d9d022bca3da137f4ec41bf60b6aab8" for record in package.review_records)
-
-
-def test_review_evidence_must_belong_to_this_repository() -> None:
-    payload = _read_payload()
-    payload.pop("content_hash")
-    record = _review_record(_read_payload(), review_id="review.wrong_repository")
-    record["review_evidence_url"] = (
-        "https://github.com/another/repository/pull/96#pullrequestreview-1"
-    )
-    payload["review_records"] = [record]
-
-    with pytest.raises(ValidationError, match="this repository"):
-        BenchmarkPackagePayload.model_validate(payload)
+    assert package.scientific_review is not None
+    assert package.scientific_review.review_purpose.value == "benchmark_scientific_review"
+    assert package.scientific_review.verdict.value == "pass"
+    assert package.scientific_review.scope
 
 
 def test_claims_cover_required_types_and_bind_evidence() -> None:
@@ -1123,7 +809,7 @@ def test_approved_relation_requires_approved_dependencies() -> None:
     payload = _read_payload()
     payload.pop("content_hash")
     payload["review_status"] = "pending_scientific_review"
-    payload["review_records"] = []
+    payload["scientific_review"] = None
     for collection_name in (
         "paper_summaries",
         "evidence",

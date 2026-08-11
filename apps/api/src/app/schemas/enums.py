@@ -1,42 +1,8 @@
-"""Enums aligned with API_CONTRACT.md section 2."""
+"""Scientific pipeline enums shared by current domain contracts."""
 
 from __future__ import annotations
 
 from enum import StrEnum
-
-
-class CaseKey(StrEnum):
-    exoplanet_host_star = "exoplanet_host_star"
-
-
-class TaskStatus(StrEnum):
-    pending = "pending"
-    planning = "planning"
-    fetching_data = "fetching_data"
-    cleaning_data = "cleaning_data"
-    searching_papers = "searching_papers"
-    summarizing_papers = "summarizing_papers"
-    reasoning_literature = "reasoning_literature"
-    building_graph = "building_graph"
-    completed = "completed"
-    revising = "revising"
-    failed = "failed"
-
-
-class StepStatus(StrEnum):
-    pending = "pending"
-    running = "running"
-    completed = "completed"
-    failed = "failed"
-    skipped = "skipped"
-
-
-class SourceType(StrEnum):
-    database = "database"
-    paper_source = "paper_source"
-    paper = "paper"
-    cache = "cache"
-    manual_review = "manual_review"
 
 
 class SourceMode(StrEnum):
@@ -76,14 +42,6 @@ class UpstreamFailureClass(StrEnum):
     upstream_client = "upstream_client"
     invalid_response = "invalid_response"
     policy_violation = "policy_violation"
-
-
-class PaperAcquisitionStatus(StrEnum):
-    pending = "pending"
-    running = "running"
-    completed = "completed"
-    failed = "failed"
-    cached = "cached"
 
 
 class ClaimType(StrEnum):

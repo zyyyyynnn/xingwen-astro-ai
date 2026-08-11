@@ -1,8 +1,7 @@
-"""Benchmark contract for Scientific Document Parsing (D-10).
+"""Reproducible benchmark schemas and metrics for document parsing.
 
-Defines the reproducible Benchmark manifest/report schemas and metric
-definitions. Covers Native-only vs Hybrid (hybrid result structure reserved).
-Metrics are versioned, have clear denominators, empty-sample behavior and
+Defines reproducible Benchmark manifest/report schemas and metric definitions.
+Metrics carry explicit technical versions, denominators, empty-sample behavior, and
 deterministic hashing — never a single vague "accuracy".
 """
 
@@ -36,7 +35,7 @@ class BenchmarkParserMode(StrEnum):
 
 
 class BenchmarkMetricStatus(StrEnum):
-    """How a metric value should be interpreted (D-10 E5/E6)."""
+    """How a metric value should be interpreted (Scientific Document Parsing Contract E5/E6)."""
 
     measured = "measured"
     not_applicable = "not_applicable"
@@ -45,7 +44,7 @@ class BenchmarkMetricStatus(StrEnum):
 
 
 class GoldenExpectedAnnotation(BaseModel):
-    """Machine-readable expected structure for one Golden Set entry (D-10 D3).
+    """Machine-readable expected structure for one Golden Set entry.
 
     Lets the benchmark answer "how much of the key structure was recovered?"
     instead of merely "did a block get accepted?". Committed fixtures carry a
@@ -87,7 +86,7 @@ class GoldenSetEntry(BaseModel):
     @model_validator(mode="after")
     def require_exoplanet_case_key(self) -> Self:
         if self.case_key != "exoplanet_host_star":
-            raise ValueError("D-10 Golden Set is scoped to exoplanet_host_star")
+            raise ValueError("Scientific Document Parsing Contract Golden Set is scoped to exoplanet_host_star")
         return self
 
     @model_validator(mode="after")
@@ -147,7 +146,7 @@ class BenchmarkMetricValue(BaseModel):
     ``rate`` is a derived (computed) field: it is always ``numerator /
     denominator`` when a positive denominator is present, regardless of how the
     object was constructed or loaded. This keeps the serialized payload and the
-    benchmark ``output_hash`` deterministic across construction and reload (D-10
+    benchmark ``output_hash`` deterministic across construction and reload (Scientific Document Parsing Contract
     E7/E8).
     """
 
@@ -204,7 +203,7 @@ class BenchmarkCaseResult(BaseModel):
 
     Counts (``accepted_count``/``partial_count``/``unsupported_count``) describe
     THIS case only — they are derived from the case's own blocks/regions, never
-    from a running global accumulator (D-10 E4).
+    from a running global accumulator (Scientific Document Parsing Contract E4).
     """
 
     model_config = ConfigDict(**CORE_MODEL_CONFIG, title="BenchmarkCaseResult")

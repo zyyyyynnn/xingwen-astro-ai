@@ -1,9 +1,9 @@
 """Lease-fenced execution boundary for the persistent workflow.
 
 The executor owns orchestration around one frozen step. External adapters and
-the #78 success committer run after ``begin_step`` has closed its transaction.
-The success committer remains an injected port so #77 does not publish an
-ArtifactVersion or advance a successful Step outside #78's atomic boundary.
+the Publisher success committer run after ``begin_step`` has closed its transaction.
+The success committer remains an injected port so the executor does not publish
+an ArtifactVersion or advance a successful Step outside the Publisher's atomic boundary.
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ class PersistentWorkflowExecutor(Generic[StepResultT, CommitResultT]):
             )
             raise PersistentWorkflowExecutionError(run_id, step_key, cause) from cause
 
-        # #78 supplies this port and owns its atomic Step/Run/Event/Version commit.
+        # The Publisher supplies this port and owns the atomic Step/Run/Event/Version commit.
         # A committer failure is not rewritten here because it may need transaction
         # reconciliation before the Attempt can safely be marked failed.
         return await commit_success(attempt, lease, result)

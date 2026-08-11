@@ -27,6 +27,7 @@ REQUIRED_FILES = (
     "scripts/check-docs-rules.mjs",
     "scripts/check-docs.test.mjs",
     "scripts/check-frontend-architecture.mjs",
+    "scripts/check-versionless-api.test.mjs",
     "scripts/test_check_foundation.py",
     "apps/site/package.json",
     "apps/workspace/package.json",
@@ -64,10 +65,34 @@ REQUIRED_ENV_KEYS = {
     "PUBLIC_WORKSPACE_URL",
     "VITE_API_BASE_URL",
     "DATABASE_URL",
-    "DASHSCOPE_API_KEY",
     "POSTGRES_DB",
     "POSTGRES_USER",
     "POSTGRES_PASSWORD",
+    "RESEARCH_INPUT_MAX_SIZE_BYTES",
+    "RESEARCH_INPUT_ALLOWED_MIME_TYPES",
+    "RESEARCH_INPUT_UPLOAD_DIR",
+    "RESEARCH_INPUT_RATE_LIMIT",
+    "RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS",
+    "URL_FETCH_ALLOWED_PROTOCOLS",
+    "URL_FETCH_ALLOWED_HOSTS",
+    "URL_FETCH_TIMEOUT_SECONDS",
+    "URL_FETCH_MAX_REDIRECTS",
+    "URL_FETCH_MAX_RESPONSE_BYTES",
+}
+
+FORBIDDEN_ENV_KEYS = {
+    "PERSISTENT_WORKFLOW_ENABLED",
+    "DASHSCOPE_API_KEY",
+    "QWEN_BASE_URL",
+    "QWEN_MODEL",
+    "QWEN_TIMEOUT_SECONDS",
+    "PAPER_SOURCE_BASE_URL",
+    "PAPER_SOURCE_API_KEY",
+    "PAPER_SEARCH_TIMEOUT_SECONDS",
+    "PAPER_SEARCH_MAX_RESULTS",
+    "ENABLE_DEMO_CACHE",
+    "CACHE_TTL_SECONDS",
+    "DEMO_CASE_KEY",
 }
 
 DEPENDENCY_FIELDS = (
@@ -78,6 +103,13 @@ DEPENDENCY_FIELDS = (
 )
 FORBIDDEN_FRONTEND_PACKAGES = {"vue", "vue-demi"}
 FORBIDDEN_FRONTEND_PACKAGE_PREFIXES = ("@vue/",)
+
+WORKFLOW_AUTHORING_ALLOWLIST: frozenset[str] = frozenset()
+_WORKFLOW_AUTHORING_PATTERNS = (
+    ("contents: write", re.compile(r"(?mi)^\s*contents\s*:\s*write\s*(?:#.*)?$")),
+    ("git commit", re.compile(r"(?i)\bgit\s+commit\b")),
+    ("git push", re.compile(r"(?i)\bgit\s+push\b")),
+)
 
 
 def tracked_files() -> list[str]:
@@ -129,6 +161,21 @@ def lockfile_package_names(content: str) -> set[str]:
     return names
 
 
+def workflow_authoring_violations(relative: str, content: str) -> tuple[str, ...]:
+    """Return forbidden self-authoring capabilities in one tracked workflow."""
+
+    normalized = relative.replace("\\", "/")
+    if not normalized.startswith(".github/workflows/"):
+        return ()
+    if Path(normalized).suffix.lower() not in {".yml", ".yaml"}:
+        return ()
+    if normalized in WORKFLOW_AUTHORING_ALLOWLIST:
+        return ()
+    return tuple(
+        label for label, pattern in _WORKFLOW_AUTHORING_PATTERNS if pattern.search(content)
+    )
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -167,6 +214,16 @@ def main() -> int:
                         f"forbidden frontend dependency in {normalized}: {package_name}"
                     )
 
+        if normalized.startswith(".github/workflows/") and path.suffix.lower() in {
+            ".yml",
+            ".yaml",
+        }:
+            workflow = (ROOT / normalized).read_text(encoding="utf-8")
+            for violation in workflow_authoring_violations(normalized, workflow):
+                errors.append(
+                    f"self-authoring CI is forbidden in {normalized}: {violation}"
+                )
+
     if lockfiles != ["pnpm-lock.yaml"]:
         errors.append(
             "expected exactly one root pnpm lockfile; found: "
@@ -175,9 +232,11 @@ def main() -> int:
 
     env_path = ROOT / ".env.example"
     if env_path.exists():
-        missing_keys = sorted(REQUIRED_ENV_KEYS - parse_env_keys(env_path))
-        for key in missing_keys:
+        env_keys = parse_env_keys(env_path)
+        for key in sorted(REQUIRED_ENV_KEYS - env_keys):
             errors.append(f".env.example missing key: {key}")
+        for key in sorted(FORBIDDEN_ENV_KEYS & env_keys):
+            errors.append(f".env.example contains unused placeholder key: {key}")
 
     if errors:
         print("\n".join(errors), file=sys.stderr)

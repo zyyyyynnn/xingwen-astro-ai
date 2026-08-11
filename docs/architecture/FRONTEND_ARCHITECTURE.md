@@ -2,7 +2,6 @@
 
 | 元数据    | 值                                                       |
 | --------- | -------------------------------------------------------- |
-| Status    | Accepted                                                 |
 | Authority | 前端运行时、上游源码治理、模块分层、依赖方向与状态所有权 |
 
 本文定义 Brand Site 与 Research Workspace 的工程分层、依赖方向、数据边界与上游 Agent 源码治理规范。
@@ -17,22 +16,35 @@
 
 精确依赖版本以根 `package.json` 与 `pnpm-lock.yaml` 为准。
 
-**当前 Workspace 基线：** `apps/workspace` 已在 `/workspace` 薄宿主内挂载源码采用后的 OpenHands 桌面产品壳，保留导航、活动区、面板、标签、Composer、Overlay、焦点、滚动与尺寸调整机械结构。当前只定义编译安全的薄执行接口，不包含 Research Adapter、领域 ViewModel 或科研 Renderer；未连接 Agent 运行服务时，执行控件保持禁用。私有工作台仅使用 `/workspace`，`/share/$shareToken` 继续维持只读安全边界。
+`/workspace` 是唯一私有工作台入口。实现可以采用锁定版本的 OpenHands-derived
+interaction mechanics，但该源码选择不等于 Xingwen ResearchRun、模型运行时或科研
+Renderer 已经实现。只有真实服务返回的状态、事件和版本化产物可以驱动执行态；没有
+真实运行服务时，执行控件必须保持禁用并显示明确状态。`/share/$shareToken` 继续是
+固定版本的只读安全边界。
 
 ## 2. 模块分层
 
 ```text
-Workspace Host
-  -> Router / Provider / Runtime Composition
-Upstream Agent UI
-  -> Shell / Navigation / Activity / Workspace / Composer
-Research UI
-  -> Event Renderer / Artifact Renderer / Evidence Inspector / Version Diff
+Experience
+  -> Frontend Application Boundary
+  -> Research Adapter / Query Layer
+  -> Repository Port
+  -> Fixture / HTTP Adapter
+  -> API Application Service
+  -> Workflow / Step Adapter
+  -> Scientific Pipeline
+  -> Publisher
+  -> ArtifactVersion / Evidence / SourceSnapshot
+
+Frontend Application Boundary
+  -> Workspace Host / Router / Query Provider / Session Gate
+  -> OpenHands-derived Shell / Navigation / Activity / Composer
+  -> Research Presentation / Artifact Renderer Registry / Evidence Inspector
+
 Research Adapter
   -> Domain -> UI ViewModel
   -> UI Intent -> Application Command
-Existing Core
-  -> Domain / Repository Port / Fixture / HTTP Adapter / Workspace Controller
+  -> RunEvent -> public ActivityPresentationEvent
 ```
 
 ## 3. 上游 Agent 源码治理
@@ -112,6 +124,9 @@ Artifact / Evidence Renderer
 - `@xingwen/domain` 不依赖 React、DOM、HTTP 或上游 UI 组件。
 - 前端页面不得直接调用 `fetch` 或直接解析后端原始 Transport DTO。
 - 依赖只能经由 Package 的公开 `exports` 导入，不得以深层私有路径或 `@ts-expect-error` 绕过。
+- 禁止 `any`、不安全类型断言和以类型逃逸掩盖 DTO 校验；Runtime DTO 必须先验证再映射。
+- Artifact Renderer Registry 必须对每个受支持 `ArtifactKind` 穷举注册；未知/不支持类型
+  必须进入明确的 unsupported/error renderer，不得静默当作通用文本。
 
 ## 5. 状态所有权
 
@@ -120,7 +135,7 @@ Artifact / Evidence Renderer
 | Project / Run / Artifact 路由     | Router                           |
 | Server state、缓存与 Mutation     | Query Layer (经 Repository Port) |
 | Run / Artifact / Evidence 事实    | Domain / Repository              |
-| 流式交互与输入草稿                | Upstream Agent Runtime           |
+| 交互机械与输入草稿                | Workspace Controller / Presentation Boundary |
 | Workspace 布局与恢复              | Workspace Controller             |
 | 组件内部交互状态 (Hover / Active) | Local Component State            |
 | Share / Export 版本               | Server / ShareSnapshot           |
@@ -134,8 +149,12 @@ Transport DTO -> Contract Validation -> Domain Mapping -> Repository Port -> Res
 ```
 
 - Fixture 与 HTTP Adapter 返回完全一致的 Domain Model。
-- Agent Runtime 仅管理交互与流式展现，不直接创建科研事实或推进服务端状态机。
-- 未知类型的 Artifact 明确渲染失败。
+- OpenHands-derived mechanics 仅管理交互与公开事件展现，不是后端 Agent Runtime、
+  执行器或事件存储；它不创建科研事实或推进服务端状态机。
+- Session Gate 负责私有会话边界；Query Layer 负责 server state、快照优先读取、分页、
+  polling/backoff 与 mutation invalidation；页面不得自行复制这些职责。
+- Evidence Inspector 是跨 Artifact 的共享 presentation contract，页面 renderer 只
+  提供类型化内容与 locator；未知类型明确渲染失败。
 
 ## 7. 构建与上游同步
 

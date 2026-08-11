@@ -1,4 +1,4 @@
-"""B-08 version-pinned Claim, Relation, and ReasoningTrace reads."""
+"""Literature Artifact API version-pinned Claim, Relation, and ReasoningTrace reads."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ from app.services.paper_summaries import PaperSummaryReadService
 _MAX_PAGE_SIZE = 100
 _MAX_CONTENT_BYTES = 10 * 1024 * 1024
 _MAX_DOMAIN_ITEMS = 10_000
-_ORDERING = "stable_id.asc.v1"
+_ORDERING = "stable_id.asc"
 _CURSOR_VERSION = 1
 _Item = TypeVar("_Item")
 
@@ -69,7 +69,7 @@ class _RelationsContext:
 
 
 class LiteratureArtifactReadService:
-    """Project D-07/D-08 content without rerunning scientific admission."""
+    """Project LiteratureClaim Pipeline/LiteratureRelation Pipeline content without rerunning scientific admission."""
 
     def __init__(
         self,

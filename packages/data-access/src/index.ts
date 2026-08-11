@@ -5,7 +5,7 @@
  * The public API exposes:
  * - Narrowed Repository Port interfaces (operating on domain types, never DTOs).
  * - The versioned fixture bundle type and the frozen main-case fixture.
- * - `createFixtureRepositories` — validates DTOs against B-15 JSON Schemas,
+ * - `createFixtureRepositories` — validates DTOs against Core Domain and Transport Contract JSON Schemas,
  *   enforces Demo Replay semantics, and returns a ready-to-use `RepositorySet`.
  * - `createHttpRepositories` — implements the same ports against `/api`,
  *   reusing the shared mapping layer so Fixture/HTTP consistency is

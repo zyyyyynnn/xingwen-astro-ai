@@ -1,88 +1,72 @@
 # Research Workflow Design
 
-| 元数据 | 值 |
-| --- | --- |
-| Status | Accepted |
-| Authority | Run 状态机、事件、取消、重试、缓存与派生运行语义 |
+| 元数据    | 值                                                              |
+| --------- | --------------------------------------------------------------- |
+| Authority | Run 状态机、派生关系、Step、Attempt、事件、取消、缓存与并发控制 |
 
-本文定义系统的 ResearchRun 工作流编排、状态机、事件推送、取消、重试、缓存与派生运行规范。
+本文定义 ResearchRun 的稳定生命周期与执行不变量。数据规则、Prompt、科学准入与前端状态由各自 Authority 管理。
 
-## 1. 职责边界
-
-- **工作流负责**：Run 与 RunStep 状态转换、Step 执行顺序校验、StepAttempt 与 RunEvent 记录、幂等键与取消控制、真实缓存选择以及 ArtifactVersion 发布协调。
-- **工作流不负责**：数据清洗规则、论文检索策略、Prompt 内容、推理算法、图谱布局或前端状态。
+## 1. 执行边界
 
 ```text
-Routers -> Application Services -> Workflow Executor -> Step Adapters -> Pipelines
+Router -> Application Service -> Persistent Workflow Executor
+       -> Step Adapter -> Pipeline -> Publisher
 ```
 
-Router 不直接调用 Pipeline；Pipeline 不直接推进 Run 主状态。
+Application Service 创建冻结了 canonical steps 的 `queued` Run。Executor 持有 fenced lease，按顺序启动 StepAttempt；Pipeline 只返回 typed candidate，Publisher 在准入通过后原子发布 ArtifactVersion 并推进 Step。创建 Run 或初始 Event 不代表执行已经发生。
 
-## 2. Run 状态机
+## 2. 状态机
 
 ```text
 [*] -> queued -> planning -> fetching_data -> cleaning_data
+                   <-> waiting_for_input
     -> searching_papers -> summarizing_papers -> reasoning_literature
     -> building_graph -> completed
 
-queued / planning / fetching_data / ... -> failed
-queued / planning / fetching_data / ... -> cancelled
-planning <-> waiting_for_input
+queued / planning / fetching_data / cleaning_data / searching_papers /
+summarizing_papers / reasoning_literature / building_graph -> failed
+
+queued / planning / waiting_for_input / fetching_data / cleaning_data /
+searching_papers / summarizing_papers / reasoning_literature /
+building_graph -> cancelled
 ```
 
-- 终态为 `completed`、`failed`、`cancelled`。终态 Run 不得重新变为 running。
-- `cached`、`fixture`、`demo_replay` 与修订派生关系不属于 Run 状态。人工修订创建 `derivation_kind=revision` 的新 Run。
+`waiting_for_input` 表示执行已停在明确的人工输入边界；`cancelled` 表示取消已持久化。`completed`、`failed` 与 `cancelled` 是终态。RunStep 的稳定状态为 `pending | running | waiting | completed | failed | cancelled | skipped`，StepAttempt 为 `running | completed | failed | cancelled`。没有真实状态写入时不得投影这些状态。
 
-## 3. Step 契约与执行
+Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `waiting_for_input`，并在收到匹配输入后回到 `planning`。没有该 writer/command 时不得进入等待状态。
 
-每个 RunStep 包含：`key` (稳定标识)、`enter_status` (前置状态)、`success_status` (后置状态)、`input_kinds`、`output_kinds`、`idempotency_key` (run + step + input_hash + producer_version) 与 `retry_policy`。
+## 3. 顺序、重试与失败
 
-- Step 输出先通过 Schema、Evidence 与质量校验，再由 Publisher 登记为不可变的 ArtifactVersion。
-- 校验失败的中间结果记入失败诊断，模型自由文本不得直接成为完成产物。
+- RunStep 的 `enter_status` 与 `success_status` 必须符合 canonical transition；前序 Step 未完成时不得启动后序 Step。
+- StepAttempt 使用递增 `attempt_number`、稳定 idempotency key、错误分类与 retryable 标记记录实际尝试。
+- 外部超时、限流或临时网络故障可在该 Step 的 `max_attempts` 内重试；Schema、权限与状态冲突等确定性失败不得重试。
+- Candidate 未通过 Schema、Evidence、质量或领域准入时不得发布 ArtifactVersion。
 
-## 4. 进度与事件 (RunEvent)
+## 4. 快照、事件与并发
 
-- `GET /runs/{id}` 提供权威的状态快照。
-- `RunEvent` 包含 `run_id`、单调递增 `sequence`、`step_key`、`progress` (0–100) 与 `occurred_at`。
-- Event 仅包含公开状态与进度，不包含模型私有思维过程。客户端丢失事件时拉取最新快照并从 `latest_event_sequence` 恢复。
+- PostgreSQL 是 Run、Step、Attempt 与 Event 的唯一事实源。
+- `GET /api/runs/{id}` 返回权威快照；RunEvent 仅用于按 `sequence` 恢复增量通知，且不得超过 `latest_event_sequence`。
+- 状态写入使用 `expected_status + expected_revision` 条件更新。
+- 同一 Run 只允许一个有效 lease；lease 绑定 token、owner、expiry 与递增 generation。
+- Event 只包含公开进度、错误摘要与产物引用，不包含模型私有思维过程。
 
-## 5. 持久化与并发不变量
+## 5. 派生 Run 与修订
 
-- PostgreSQL 是 Run、Step、Attempt 与 Event 的唯一权威事实源。
-- 状态更新采用条件写入 (`expected_status + expected_revision -> target_status + new_revision`)。
-- 同一 Run 仅允许一个 Executor Lease。Lease 包含 token、owner、expires_at 与递增 generation。接管或超期需强行竞争锁。
-- Publisher 在单个原子事务内完成 ArtifactVersion 登记、latest 指针更新与 Run/Step 终态确认。
+以下派生、修订与缓存条目定义稳定目标契约；当前 HTTP authoring 只创建 original、cache-disabled Run，未接入的 writer 不得伪造对应记录。
 
-## 6. 幂等与自动重试
+- `parent_run_id` 固定派生来源；`derivation_kind` 只允许 `original | retry | revision | fork`。
+- `retry_from_step` 只对 retry Run 有效；Executor 不能从该 Step 恢复时必须拒绝创建，不得从首 Step 静默重跑。
+- Revision Run 由 UserFeedback 与已确认 RevisionPlan 约束，只重算受影响闭包并发布新的 ArtifactVersion。
+- Fork Run 使用新的 Contract；复用父 Run 产物时必须重新验证 input hash、Contract 与 Evidence。
 
-- 创建 Live Run 要求 `Idempotency-Key`。
-- 外部超时、限流与临时网络波动可由 StepAttempt 自动重试（记录 `attempt_number`、时间与错误码）。
-- 业务 Schema 校验失败、权限错误、非法状态冲突等判定性失败不得自动重试。
+## 6. CacheSelector 与取消
 
-## 7. 用户重试与派生 Run (Derived Run)
+目标 CacheSelector 负责从真实历史 Run 中选择满足 Contract、input hash、producer identity 与 Evidence 约束的 CacheRecord。只有选择成功并绑定 origin Run/ArtifactVersion 时才能写入 `source_mode=cached`；Fixture 不得进入选择结果。
 
-用户操作通过创建新 Run 落地，并记录 `parent_run_id`：
+`cache_policy=disabled` 禁止选择缓存；`fallback_on_recoverable_failure` 只允许在 Live 调用发生可恢复失败后运行 CacheSelector，选择失败时保留原失败事实。
 
-| `derivation_kind` | 语义 | 复用规则 |
-| --- | --- | --- |
-| `retry` | 从失败步骤重新执行 | 可复用父 Run 中已通过校验且 Input Hash 一致的旧版本 |
-| `revision` | 依据 UserFeedback / RevisionPlan 修订 | 仅重算受影响步骤，生成新 ArtifactVersion |
-| `fork` | 更换 Contract 或研究范围 | 仅当新 Contract 允许且输入 Hash 一致时可复用旧版本 |
+取消必须以条件写入将 Run、未完成 Step 与运行中的 Attempt 一致推进为 `cancelled`，追加单调 Event，并拒绝取消后的晚到产物。重复取消终态 Run 保持幂等。
 
-## 8. 取消语义
+## 7. HTTP authoring 边界
 
-- `POST /runs/{id}/cancellations` 发起取消请求。
-- queued / waiting 状态可立即取消；running 状态执行协作式取消。
-- 已完成的步骤与产物保留并可追溯，明确标记属于已取消的 Run。
-- 终态 Run 重复取消保持幂等，不引发非法状态跳转。
-
-## 9. 缓存选择 (CacheSelector)
-
-仅在同时满足以下条件时启用缓存 (`source_mode=cached`)：
-1. Live 运行发生可恢复的外部失败；
-2. CacheRecord 关联真实历史 Run、ArtifactVersion 与 SourceSnapshot；
-3. Contract、Input Hash 与 Producer Version 完全匹配；
-4. 约束与 Evidence 要求仍满足；
-5. Event 与产物明确标记为 Cached 及原失败原因。
-
-Fixture 绝对不进入 CacheSelector。
+`POST /api/projects/{project_id}/runs` 只接受 `contract_id` 与 `execution_mode`，创建 `derivation_kind=original`、`cache_policy=disabled` 的 Run。派生、选择性 retry、反馈修订、缓存选择与取消没有对应公开命令；额外字段由请求 Schema 拒绝，防止调用者误以为能力已经执行。

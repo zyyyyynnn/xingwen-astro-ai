@@ -22,6 +22,7 @@ from services.data_pipeline.data_quality import (
     evaluate_data_quality,
 )
 
+from data_artifact_test_support import build_data_publication_bindings
 from test_data_quality_pipeline import make_quality_input
 
 
@@ -36,48 +37,78 @@ def _quality_admission():
     return admitted, build_result
 
 
-def test_real_publisher_port_accepts_each_exact_c04_candidate_with_c05_gate() -> None:
+def test_data_artifact_publication_requires_persisted_provenance_bindings() -> None:
     admitted, build_result = _quality_admission()
+    candidate = build_result.dataset
 
-    admitted_candidates = []
-    for kind, candidate in (
-        ("dataset", build_result.dataset),
-        ("field_dictionary", build_result.field_dictionary),
-        ("source_collection", build_result.source_collection),
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="explicit persisted provenance bindings",
     ):
-        admitted_candidates.append(
+        admit_artifact_candidate(
+            candidate,
+            schema_version=candidate.schema_version,
+            source_snapshot_ids=candidate.source_snapshot_ids,
+            evidence_ids=candidate.evidence_ids,
+            evidence_validator=validate_data_artifact_evidence,
+            domain_validator=validate_data_artifact_domain,
+            quality_validator=build_data_quality_publication_validator(
+                admitted,
+                candidate_kind="dataset",
+            ),
+        )
+
+
+def test_real_publisher_port_accepts_persistence_ready_dataset_with_data_quality_gate() -> None:
+    admitted, build_result = _quality_admission()
+    candidate = build_result.dataset
+    snapshots, evidence = build_data_publication_bindings(candidate)
+    admitted_candidate = admit_artifact_candidate(
+        candidate,
+        schema_version=candidate.schema_version,
+        source_snapshot_ids=candidate.source_snapshot_ids,
+        evidence_ids=candidate.evidence_ids,
+        evidence_validator=validate_data_artifact_evidence,
+        domain_validator=validate_data_artifact_domain,
+        quality_validator=build_data_quality_publication_validator(
+            admitted,
+            candidate_kind="dataset",
+        ),
+        source_snapshot_bindings=snapshots,
+        evidence_bindings=evidence,
+    )
+
+    assert admitted_candidate.content["kind"] == "dataset"
+    projection = admitted_candidate.quality_projection
+    assert projection is not None
+    assert projection.quality_result_id == admitted.evaluation_result.result_id
+    assert projection.candidate_content_hash == admitted_candidate.content_hash
+    assert projection.overall_status == "pass"
+    assert projection.evaluation_commitment == admitted.snapshot.evaluation_commitment
+    assert projection.rule_set.content_hash == admitted.snapshot.rule_set_content_hash
+    assert projection.research_contract.content_hash == admitted.snapshot.contract_content_hash
+    with pytest.raises(ValidationError):
+        projection.rule_set.content_hash = "sha256:" + "f" * 64
+
+    for blocked in (
+        build_result.field_dictionary,
+        build_result.source_collection,
+    ):
+        with pytest.raises(PublicationAdmissionError, match="provenance bridge"):
             admit_artifact_candidate(
-                candidate,
-                schema_version=candidate.schema_version,
-                source_snapshot_ids=candidate.source_snapshot_ids,
-                evidence_ids=candidate.evidence_ids,
+                blocked,
+                schema_version=blocked.schema_version,
+                source_snapshot_ids=blocked.source_snapshot_ids,
+                evidence_ids=blocked.evidence_ids,
                 evidence_validator=validate_data_artifact_evidence,
                 domain_validator=validate_data_artifact_domain,
                 quality_validator=build_data_quality_publication_validator(
                     admitted,
-                    candidate_kind=kind,
+                    candidate_kind=blocked.kind,
                 ),
             )
-        )
 
-    assert tuple(item.content["kind"] for item in admitted_candidates) == (
-        "dataset",
-        "field_dictionary",
-        "source_collection",
-    )
-    for candidate in admitted_candidates:
-        projection = candidate.quality_projection
-        assert projection is not None
-        assert projection.quality_result_id == admitted.evaluation_result.result_id
-        assert projection.candidate_content_hash == candidate.content_hash
-        assert projection.overall_status == "pass"
-        assert projection.evaluation_commitment == admitted.snapshot.evaluation_commitment
-        assert projection.rule_set.content_hash == admitted.snapshot.rule_set_content_hash
-        assert projection.research_contract.content_hash == admitted.snapshot.contract_content_hash
-        with pytest.raises(ValidationError):
-            projection.rule_set.content_hash = "sha256:" + "f" * 64
-
-    candidate = admitted_candidates[0]
+    candidate = admitted_candidate
     run_id, step_id, attempt_id, artifact_id, producer_id = (
         uuid4(), uuid4(), uuid4(), uuid4(), uuid4()
     )
@@ -135,12 +166,16 @@ def test_real_publisher_port_accepts_each_exact_c04_candidate_with_c05_gate() ->
         )
 
 
-def test_reparsed_or_foreign_candidate_cannot_use_c05_admission() -> None:
+def test_reparsed_or_foreign_candidate_cannot_use_data_quality_admission() -> None:
     admitted, build_result = _quality_admission()
     foreign_input, foreign_result = make_quality_input("planet.name")
     validator = build_data_quality_publication_validator(admitted, candidate_kind="dataset")
+    snapshots, evidence = build_data_publication_bindings(foreign_result.dataset)
 
-    with pytest.raises(PublicationAdmissionError, match="Artifact candidate admission failed"):
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="SourceSnapshot registry|Artifact candidate admission failed",
+    ):
         admit_artifact_candidate(
             foreign_result.dataset,
             schema_version=foreign_result.dataset.schema_version,
@@ -149,12 +184,14 @@ def test_reparsed_or_foreign_candidate_cannot_use_c05_admission() -> None:
             evidence_validator=validate_data_artifact_evidence,
             domain_validator=validate_data_artifact_domain,
             quality_validator=validator,
+            source_snapshot_bindings=snapshots,
+            evidence_bindings=evidence,
         )
 
     assert foreign_input.dataset_candidate is not build_result.dataset
 
 
-def test_self_consistent_public_projection_cannot_forge_c05_capability() -> None:
+def test_self_consistent_public_projection_cannot_forge_data_quality_capability() -> None:
     admitted, build_result = _quality_admission()
     trusted = build_data_quality_publication_validator(
         admitted,
@@ -165,7 +202,8 @@ def test_self_consistent_public_projection_cannot_forge_c05_capability() -> None
         return None
 
     forged_validator.quality_projection = trusted._data_quality_attestation.projection_json
-    with pytest.raises(PublicationAdmissionError, match="C-05 attestation"):
+    snapshots, evidence = build_data_publication_bindings(build_result.dataset)
+    with pytest.raises(PublicationAdmissionError, match="Data Quality Evaluation attestation"):
         admit_artifact_candidate(
             build_result.dataset,
             schema_version=build_result.dataset.schema_version,
@@ -174,4 +212,6 @@ def test_self_consistent_public_projection_cannot_forge_c05_capability() -> None
             evidence_validator=validate_data_artifact_evidence,
             domain_validator=validate_data_artifact_domain,
             quality_validator=forged_validator,
+            source_snapshot_bindings=snapshots,
+            evidence_bindings=evidence,
         )

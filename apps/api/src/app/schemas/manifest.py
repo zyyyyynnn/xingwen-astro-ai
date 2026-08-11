@@ -1,8 +1,8 @@
-"""Versioned Case and Field Manifest schemas for the C-01 data contract.
+"""Case and Field Manifest schemas for the data contract.
 
 This module deliberately contains only declarative metadata, stable hashing,
-and static validation.  Fetching, matching, conversion, and quality evaluation
-belong to later C-module issues.
+and static validation. Fetching, matching, conversion, and quality evaluation
+belong to their dedicated adapters and pipelines.
 """
 
 from __future__ import annotations
@@ -77,13 +77,13 @@ class UncertaintyMode(StrEnum):
 
 
 class ConflictResolutionStrategy(StrEnum):
-    """The only C-01 selection declaration approved for this case."""
+    """The only Case and Field Manifest selection declaration approved for this case."""
 
     prefer_source_priority_preserve_all = "prefer_source_priority_preserve_all"
 
 
 class QualityMetricInput(StrEnum):
-    """Future quality dimensions to which a field contributes."""
+    """Quality dimensions to which a field contributes."""
 
     completeness = "completeness"
     missingness = "missingness"
@@ -98,7 +98,7 @@ class MaintainerDefinition(BaseModel):
 
     model_config = MODEL_CONFIG
 
-    module: Literal["C"]
+    module: Literal["data_pipeline"]
     role: Literal["data_pipeline"]
 
 
@@ -172,7 +172,7 @@ class UnitDefinition(BaseModel):
 
 
 class UnitConversionRule(BaseModel):
-    """A versioned conversion declaration without conversion code."""
+    """A conversion declaration with explicit rule identity and no executable code."""
 
     model_config = MODEL_CONFIG
 
@@ -190,7 +190,7 @@ class UnitConversionRule(BaseModel):
 
 
 class EvidenceLocatorRule(BaseModel):
-    """Required provenance coordinates for a future source value."""
+    """Required provenance coordinates for a source value."""
 
     model_config = MODEL_CONFIG
 
@@ -244,7 +244,7 @@ class LimitPolicy(BaseModel):
 
 
 class UncertaintyPolicy(BaseModel):
-    """Versioned declaration for preserving source uncertainties."""
+    """Hashed declaration for preserving source uncertainties."""
 
     model_config = MODEL_CONFIG
 
@@ -307,7 +307,7 @@ class SourceAlias(BaseModel):
 
 
 class FieldDefinition(BaseModel):
-    """The complete C-01 contract for one canonical field."""
+    """The complete Case and Field Manifest contract for one canonical field."""
 
     model_config = MODEL_CONFIG
 
@@ -777,7 +777,7 @@ class ManifestBundle(BaseModel):
 
 
 def compute_content_hash(value: BaseModel | Mapping[str, Any]) -> str:
-    """Compute the C-01 canonical SHA-256 hash, excluding ``content_hash``."""
+    """Compute the Case and Field Manifest canonical SHA-256 hash, excluding ``content_hash``."""
 
     if isinstance(value, BaseModel):
         raw_payload = value.model_dump(mode="json", exclude={"content_hash"})

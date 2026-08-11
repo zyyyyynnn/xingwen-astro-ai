@@ -153,7 +153,7 @@ def source_input(
             source_id=source_id,
             source_type="database",
             retrieved_at=datetime(2026, 7, 30, tzinfo=timezone.utc),
-            query="synthetic C-08 benchmark input",
+            query="synthetic Cross-source Entity Alignment benchmark input",
             query_hash="sha256:" + ("1" if is_toi else "2") * 64,
             content_hash="sha256:" + ("3" if is_toi else "4") * 64,
             license_note="Synthetic benchmark fixture; not scientific ground truth.",

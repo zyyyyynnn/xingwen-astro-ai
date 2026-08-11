@@ -1,6 +1,6 @@
 """Authoritative resource facts for the workspace/share application boundary.
 
-The workspace/share store keeps its own snapshot state in memory for the M1
+The workspace/share store keeps its own snapshot state in memory for the initial
 session lifecycle, but every ownership decision and every Artifact/Evidence
 scope check must consult *authoritative* facts. In the runtime these come from
 PostgreSQL (:class:`PersistentResourceAuthority`); unit tests seed the same

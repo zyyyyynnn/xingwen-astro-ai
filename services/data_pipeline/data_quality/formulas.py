@@ -1,4 +1,4 @@
-"""Closed, deterministic interpreter for compiled C-05 metric plans."""
+"""Closed, deterministic interpreter for compiled Data Quality Evaluation metric plans."""
 
 from __future__ import annotations
 

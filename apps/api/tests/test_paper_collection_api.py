@@ -1,4 +1,4 @@
-"""Contract and defensive read tests for B-06 PaperCollection API."""
+"""Contract and defensive read tests for the PaperCollection API."""
 
 from __future__ import annotations
 
@@ -29,8 +29,15 @@ from app.db.models import (
     StepAttemptModel,
 )
 from app.db.session import create_engine_from_url, session_factory
+from authoring_test_support import (
+    build_contract_draft,
+    build_research_contract,
+    build_research_project,
+    persist_authoring_models,
+)
 from app.main import create_app
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.artifact_publication import canonical_artifact_content_payload
 from app.schemas.enums import PaperDataLevel, SourceMode, UpstreamFailureClass
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.paper_collection import (
@@ -49,8 +56,7 @@ from app.schemas.core import (
 from app.security import SecurityProblem
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.artifacts import ArtifactReadService
-from app.workflow.publisher import ArtifactAdmissionContext, admit_artifact_candidate
-from services.paper_pipeline.pipeline import PaperCollectionPipeline
+from services.paper_pipeline.benchmark_runner import PaperCollectionBenchmarkRunner
 from services.paper_pipeline.sources.base import (
     RawSourceRecord,
     SourceFailure,
@@ -65,13 +71,13 @@ ARTIFACT_ID = "00000000-0000-0000-0000-000000000102"
 PROJECT_ID = "00000000-0000-0000-0000-000000000103"
 RUN_ID = "a0000000-0000-0000-0000-000000000104"
 SNAPSHOT_ID = "a0000000-0000-0000-0000-000000000105"
-SNAPSHOT_RECORD_ID = "snapshot.crossref.b06"
+SNAPSHOT_RECORD_ID = "snapshot.crossref.paper_collection_api"
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 
 
 class _FixtureAdapter:
     source_id = "crossref"
-    adapter_name = "b06_fixture"
+    adapter_name = "paper_collection_api_fixture"
     adapter_version = "1.0.0"
 
     def __init__(self, count: int = 3) -> None:
@@ -123,7 +129,7 @@ class _FixtureAdapter:
 
 
 def _collection(count: int = 3) -> PaperCollection:
-    return PaperCollectionPipeline(
+    return PaperCollectionBenchmarkRunner(
         adapter=_FixtureAdapter(count), clock=lambda: NOW
     ).run(
         scenario_id="search.tess_mission_and_catalogs",
@@ -146,7 +152,7 @@ class _FailureAdapter(_FixtureAdapter):
 
 
 def _failed_collection(classification: UpstreamFailureClass) -> PaperCollection:
-    return PaperCollectionPipeline(
+    return PaperCollectionBenchmarkRunner(
         adapter=_FailureAdapter(classification), clock=lambda: NOW
     ).run(
         scenario_id="search.tess_mission_and_catalogs",
@@ -163,10 +169,6 @@ def _unsafe_collection() -> PaperCollection:
     payload["output_hash"] = output_hash
     payload["producer"]["output_hash"] = output_hash
     return PaperCollection.model_validate(payload)
-
-
-def _accept(_: ArtifactAdmissionContext) -> None:
-    return None
 
 
 def _alembic_config(url: str) -> Config:
@@ -217,23 +219,22 @@ class _Artifacts:
                     query_hash=self.collection.query.query_hash,
                     content_hash=self.collection.source_snapshots[0].content_hash,
                     license_note="Public metadata only.",
-                    request_metadata={"adapter_name": "b06_fixture"},
+                    request_metadata={"adapter_name": "paper_collection_api_fixture"},
                 ),
             )
             if self.collection.source_snapshots
             else ()
         )
+        content = canonical_artifact_content_payload(self.collection)
         return ArtifactVersionDetail(
             id=VERSION_ID,
             artifact_id=ARTIFACT_ID,
             project_id=PROJECT_ID,
             created_by_run_id=RUN_ID,
             version_number=1,
-            schema_version="1.0.0",
-            content=self.collection.model_dump(mode="json", exclude_none=True),
-            content_hash=compute_canonical_payload_hash(
-                self.collection.model_dump(mode="json", exclude_none=True)
-            ),
+            schema_version="2.0.0",
+            content=content,
+            content_hash=compute_canonical_payload_hash(content),
             input_hash=self.collection.input_hash,
             source_mode="fixture",
             producer=ProducerReference(
@@ -305,26 +306,19 @@ def test_detail_exposes_reproducible_typed_collection(
         for item in detail.collection.candidates
     )
     assert detail.content_hash == compute_canonical_payload_hash(
-        detail.collection.model_dump(mode="json", exclude_none=True)
+        canonical_artifact_content_payload(detail.collection)
     )
     assert detail.content_hash != detail.collection.output_hash
 
 
-def test_fixture_uses_b14_publisher_content_hash_semantics() -> None:
+def test_fixture_uses_canonical_persisted_content_hash_semantics() -> None:
     collection = _collection()
-    admitted = admit_artifact_candidate(
-        collection,
-        schema_version=collection.schema_version,
-        source_snapshot_ids=(SNAPSHOT_ID,),
-        evidence_ids=("evidence-1",),
-        evidence_validator=_accept,
-        domain_validator=_accept,
-        quality_validator=_accept,
-    )
+    content = canonical_artifact_content_payload(collection)
     version = _Artifacts(collection).get_version(
         version_id=VERSION_ID, session_id="owner"
     )
-    assert version.content_hash == admitted.content_hash
+    assert version.content == content
+    assert version.content_hash == compute_canonical_payload_hash(content)
     assert version.content_hash != collection.output_hash
 
 
@@ -519,15 +513,8 @@ def test_postgres_published_collection_reads_with_ownership_and_redaction() -> N
     version_id = uuid4()
     snapshot_id = uuid4()
     evidence_ids = tuple(uuid4() for _ in collection.candidates)
-    admitted = admit_artifact_candidate(
-        collection,
-        schema_version=collection.schema_version,
-        source_snapshot_ids=(str(snapshot_id),),
-        evidence_ids=tuple(str(item) for item in evidence_ids),
-        evidence_validator=_accept,
-        domain_validator=_accept,
-        quality_validator=_accept,
-    )
+    admitted_content = canonical_artifact_content_payload(collection)
+    admitted_hash = compute_canonical_payload_hash(admitted_content)
     app = create_app()
     owner, credential, _ = app.state.session_service.create(now=datetime.now(UTC))
     _, other_credential, _ = app.state.session_service.create(now=datetime.now(UTC))
@@ -537,8 +524,8 @@ def test_postgres_published_collection_reads_with_ownership_and_redaction() -> N
             _seed_published_collection(
                 session,
                 collection=collection,
-                admitted_content=admitted.content,
-                admitted_hash=admitted.content_hash,
+                admitted_content=admitted_content,
+                admitted_hash=admitted_hash,
                 owner_id=owner.id,
                 project_id=project_id,
                 contract_id=contract_id,
@@ -570,7 +557,7 @@ def test_postgres_published_collection_reads_with_ownership_and_redaction() -> N
             rendered = (detail.text + first.text + second.text).casefold()
             assert "must-not-leak" not in rendered
             assert "authorization" not in rendered
-            assert detail.json()["data"]["content_hash"] == admitted.content_hash
+            assert detail.json()["data"]["content_hash"] == admitted_hash
 
         with TestClient(app) as other:
             other.cookies.set(
@@ -603,19 +590,19 @@ def _seed_published_collection(
     snapshot_id,
     evidence_ids,
 ) -> None:
-    project = ResearchProjectModel(
-        id=project_id,
+    project = build_research_project(
+        project_id=project_id,
         session_id=owner_id,
-        name="B-06 PostgreSQL read",
+        name="PaperCollection API PostgreSQL read",
         case_key="exoplanet_host_star",
-        revision=1,
         created_at=NOW,
         updated_at=NOW,
     )
-    contract = ResearchContractModel(
-        id=contract_id,
-        project_id=project_id,
-        version=1,
+    draft = build_contract_draft(project, created_at=NOW, updated_at=NOW)
+    contract = build_research_contract(
+        project,
+        draft,
+        contract_id=contract_id,
         content_hash=HASH,
         created_at=NOW,
     )
@@ -626,11 +613,9 @@ def _seed_published_collection(
         execution_mode="demo_replay",
         status="completed",
         progress=100,
-        derivation_kind="original",
-        cache_policy="disabled",
         latest_event_sequence=1,
         revision=1,
-        idempotency_key="b06-postgres-run",
+        idempotency_key="paper_collection_api-postgres-run",
         request_hash=collection.input_hash,
         created_at=NOW,
         updated_at=NOW,
@@ -652,7 +637,7 @@ def _seed_published_collection(
         id=attempt_id,
         run_step_id=step_id,
         attempt_number=1,
-        idempotency_key="b06-attempt",
+        idempotency_key="paper_collection_api-attempt",
         status="completed",
         started_at=NOW,
         finished_at=NOW,
@@ -664,7 +649,7 @@ def _seed_published_collection(
         run_step_id=step_id,
         step_attempt_id=attempt_id,
         step_key="searching_papers",
-        idempotency_key="b06-producer",
+        idempotency_key="paper_collection_api-producer",
         lease_generation=1,
         producer_type="algorithm",
         producer_name=collection.producer.producer_name,
@@ -711,7 +696,7 @@ def _seed_published_collection(
         step_attempt_id=attempt_id,
         producer_execution_id=producer_id,
         version_number=1,
-        publication_key="b06-paper-collection",
+        publication_key="paper_collection_api-paper-collection",
         schema_version=collection.schema_version,
         content=admitted_content,
         content_hash=admitted_hash,
@@ -727,9 +712,9 @@ def _seed_published_collection(
         evidence_ids=[str(item) for item in evidence_ids],
         created_at=NOW,
     )
-    session.add(project)
-    session.flush()
-    session.add(contract)
+    persist_authoring_models(
+        session, project=project, draft=draft, contract=contract
+    )
     session.flush()
     session.add(run)
     session.flush()

@@ -45,7 +45,7 @@
       "type": "string"
     },
     "ParserBackend": {
-      "description": "Vendor-neutral provenance of a parsed element.\n\nRecords whether a block/cell/formula came from the born-digital native\nengine or the visual (OCR/VLM) engine. It never names a vendor package.",
+      "description": "Vendor-neutral parser provenance of a parsed element.",
       "enum": [
         "native",
         "visual"
@@ -55,7 +55,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "One canonical figure block (caption/text only — no pixel measurement).\n\nPhase-1 explicitly forbids plot digitization, curve recovery, scatter-point\nrecovery and scientific pixel measurement. Only visible/ocr labels and\nsurrounding text are captured.",
+  "description": "One canonical figure block (caption/text only — no pixel measurement).\n\nThe parsing contract explicitly forbids plot digitization, curve recovery, scatter-point\nrecovery and scientific pixel measurement. Only visible/ocr labels and\nsurrounding text are captured.",
   "properties": {
     "axis_text": {
       "anyOf": [

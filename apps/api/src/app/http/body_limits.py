@@ -1,4 +1,4 @@
-"""Transport-level request body limits (B-19).
+"""Transport-level request body limits (Research Input Ingestion).
 
 ``Content-Length`` is a *hint*, not a security boundary: it is client supplied,
 may be absent entirely (``Transfer-Encoding: chunked``), and may lie. The only

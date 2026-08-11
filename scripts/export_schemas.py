@@ -1,7 +1,7 @@
 """Export every Pydantic model under ``app.schemas`` as JSON Schema.
 
-The API Pydantic models are the Phase 0 authoring source. Generated contracts
-are build artifacts consumed by frontend/type generation tooling later.
+The API Pydantic models are the authoring source. Generated contracts
+are build artifacts consumed by frontend and type-generation tooling.
 """
 
 from __future__ import annotations

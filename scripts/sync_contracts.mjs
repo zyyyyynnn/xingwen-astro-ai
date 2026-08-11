@@ -1,5 +1,5 @@
 /**
- * Synchronises the B-15 generated versionless `/api` core contract into the
+ * Synchronises the Core Domain and Transport Contract generated versionless `/api` core contract into the
  * frontend `@xingwen/contracts` package.
  *
  * This script is the single bridge between the Python authoring source
@@ -41,7 +41,7 @@ const BANNER = `/**
  * Authoring source: apps/api/src/app/schemas/core.py (Pydantic)
  *
  * These TypeScript types are the /api transport DTOs (snake_case). They are
- * generated from the B-15 frozen JSON Schemas so the frontend never maintains
+ * generated from the Core Domain and Transport Contract frozen JSON Schemas so the frontend never maintains
  * a hand-written second production schema.
  *
  * To regenerate: pnpm --filter @xingwen/contracts sync-contracts
@@ -187,6 +187,14 @@ async function generateDtoTypes() {
   // Strip the empty root interface that compile() emits for the wrapper.
   const cleaned = typescript
     .replace(/export interface CoreContract\w*\s*\{\s*\}\s*/gu, "")
+    // json-schema-to-typescript renders Pydantic's unconstrained JsonValue
+    // object as an object-only interface, which rejects valid JSON scalars
+    // and arrays in generated DTO fixtures. Keep it an opaque JSON value at
+    // the transport boundary; owning repositories validate richer payloads.
+    .replace(
+      /export interface JsonValue \{\s*\[k: string\]: unknown;\s*\}/u,
+      "export type JsonValue = unknown;",
+    )
     .trimEnd();
 
   const dtoPath = resolve(targetDir, "dto.ts");

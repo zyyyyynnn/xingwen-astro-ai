@@ -1,4 +1,4 @@
-"""Stable local C-04 errors; HTTP upstream failures are deliberately separate."""
+"""Stable local Data Artifact errors; HTTP upstream failures are deliberately separate."""
 
 from __future__ import annotations
 

@@ -1,10 +1,10 @@
-"""Cross-language gate for the committed A-06 paper-summary fixture.
+"""Cross-language gate for the committed paper-summary fixture.
 
 The frontend consumes ``packages/data-access/src/fixture/paper-summary.fixture.json``.
 AJV can only check the generated JSON Schema shape, so this suite is the
 authoritative semantic gate: the committed document must round-trip through
 the real Pydantic contract models, must equal a deterministic rebuild by the
-real D-03 pipeline, must survive the real B-07 ``PaperSummaryReadService``
+real PaperSummary pipeline, must survive the real PaperSummary API ``PaperSummaryReadService``
 validation path, and intentionally broken payloads must fail validation.
 """
 
@@ -78,7 +78,7 @@ def test_artifact_version_identity_is_consistent_with_the_summary(
     committed_document: dict[str, Any],
     summary_version: ArtifactVersionDetail,
 ) -> None:
-    """Mirror the B-07 `_validated_summary` cross-checks: the generic
+    """Mirror the PaperSummary API `_validated_summary` cross-checks: the generic
     ArtifactVersion identity must be derived from the same canonical dump."""
 
     version = summary_version.model_dump(mode="json", exclude_none=False)
@@ -143,7 +143,7 @@ def test_fixture_exercises_all_three_support_statuses(
 
 
 class _Artifacts:
-    """Minimal in-memory ArtifactReadService double for the B-07 path."""
+    """Minimal in-memory ArtifactReadService double for the PaperSummary API path."""
 
     def __init__(
         self,
@@ -192,12 +192,12 @@ class _Artifacts:
         )
 
 
-def test_committed_read_survives_the_real_b07_service_path(
+def test_committed_read_survives_the_real_paper_summary_api_service_path(
     committed_document: dict[str, Any],
     summary_version: ArtifactVersionDetail,
     collection_version: ArtifactVersionDetail,
 ) -> None:
-    """The fixture must be a service-valid PaperSummaryRead: the real B-07
+    """The fixture must be a service-valid PaperSummaryRead: the real PaperSummary API
     validators (`_validated_summary`, `_validate_input_collection`,
     `_validate_snapshots_and_evidence`) accept it unchanged."""
 

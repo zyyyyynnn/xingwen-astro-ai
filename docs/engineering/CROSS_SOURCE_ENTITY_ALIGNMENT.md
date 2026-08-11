@@ -2,13 +2,13 @@
 
 | Field     | Value                                                         |
 | --------- | ------------------------------------------------------------- |
-| Status    | Accepted                                                      |
-| Scope     | C-08 deterministic TOI/PS entity alignment                    |
+| Scope     | Deterministic TOI/PS entity alignment                         |
 | Authority | Runtime behavior, Evidence, review input, and benchmark rules |
 
 ## 1. Scope and boundaries
 
-C-08 consumes the immutable outputs of C-02 and C-07. The primary source is
+The alignment engine consumes the immutable outputs of the primary and supplemental
+acquisition adapters. The primary source is
 `nasa_exoplanet_archive.toi`; the supplemental source is
 `nasa_exoplanet_archive.ps`. Each side retains its own `SourceSnapshotRecord`,
 query hash, content hash, source mode, data level, completion status, cursor,
@@ -21,12 +21,12 @@ align_cross_source_records(input: CrossmatchInput) -> CrossmatchResult
 ```
 
 The function is deterministic and has no HTTP, database, cache, Run, Router, or
-Artifact side effects. It never invokes either source Adapter. C-04 canonical
-field mapping, C-05 quality scoring, unit conversion, Dataset construction,
+Artifact side effects. It never invokes either source Adapter. Canonical field
+mapping, quality scoring, unit conversion, Dataset construction,
 Artifact publication, and runtime orchestration are owned by their respective
 responsibility boundaries.
 
-## 2. Versioned inputs
+## 2. Pinned inputs
 
 The Pydantic authoring source is
 `apps/api/src/app/schemas/crossmatch.py`. All contracts are immutable and reject
@@ -57,7 +57,7 @@ rejects:
 - Snapshot request metadata that contradicts the declared origin.
 
 `CrossmatchInput` validates both typed source origins against the versioned
-`source-policy.v1.json` carried by the input and pinned by the RuleSet. The
+`source-policy.json` carried by the input and pinned by the RuleSet. The
 frozen SourcePolicy is the only allowlist; neither the Schema nor the engine
 keeps a second hard-coded source-mode/data-level matrix.
 
@@ -81,7 +81,7 @@ Normalization is conservative and versioned:
 
 - TIC and Gaia DR3 identifiers accept only positive catalog integers and known
   prefixes; catalog identifiers are bounded to 19 digits.
-- TOI accepts the C-02 numeric form plus `TOI 1243.01` and `TOI-1243.01`, while
+- TOI accepts the primary acquisition numeric form plus `TOI 1243.01` and `TOI-1243.01`, while
   retaining the numeric candidate suffix. It never infers a lettered planet
   name.
 - Names use Unicode NFKC, trimmed/collapsed whitespace, and `casefold`.
@@ -123,9 +123,9 @@ coordinates and frozen RuleSet. Conflict codes are derived from the admitted
 Edge/Evidence component instead of trusted as caller metadata.
 
 Identifier and alias conditions carry only field/left/right values; coordinate
-conditions carry only separation plus both thresholds. `source_scope` remains a
-reserved v1 operator value and is rejected as an executable condition because
-v1 defines no dedicated payload for it.
+conditions carry only separation plus both thresholds. `source_scope` is a
+reserved operator value and is rejected as an executable condition because it
+has no dedicated payload.
 
 An optional `ManualReviewDecision` is a separate, hashed input. It binds the
 pre-adjudication source-input hash, full RuleSet identity, logical match key,
@@ -187,7 +187,7 @@ or final data quality.
 
 ## 7. Frozen benchmark and limitations
 
-`services/data_pipeline/benchmarks/exoplanet_host_star/crossmatch-benchmark.v1.json`
+`services/data_pipeline/benchmarks/exoplanet_host_star/crossmatch-benchmark.json`
 contains 28 machine-executable synthetic scenarios. It covers exact identifier
 topologies (including many-to-many), host-only TIC semantics, reference-row
 preservation, the absent TOI Gaia mapping, strict/manual coordinate bands, RA
@@ -198,7 +198,7 @@ record pairs into eight eligible entity-level comparisons and verifies fail-fast
 rejection. Parameterized pipeline tests additionally cover `unknown` scope.
 
 The benchmark and alias entries are synthetic fixtures, not scientific ground
-truth. The frozen TOI Manifest does not expose Gaia DR3, so C-08 retains PS Gaia
+truth. The frozen TOI Manifest does not expose Gaia DR3, so the alignment result retains PS Gaia
 values but does not fabricate a TOI Gaia field merely to claim an exact Gaia
 cross-source case. Existing recorded TOI and PS fixtures also do not share a
 verified entity identity; they are acquisition evidence and are not presented
@@ -214,21 +214,14 @@ uv run --project apps/api pytest apps/api/tests/test_crossmatch_contract.py `
   apps/api/tests/test_crossmatch_policy.py `
   apps/api/tests/test_crossmatch_pipeline.py `
   apps/api/tests/test_crossmatch_benchmark.py
-uv run --project apps/api python scripts/export_schemas.py `
-  --output packages/schemas/generated/phase0 `
-  --include DatasetResponse --include ColumnInfo --include QualityScore `
-  --include SourceRecordItem --include PaperSearchQuery `
-  --include PaperAcquisitionRun --include PaperCandidate --include PaperSummary `
-  --include LiteratureClaim --include LiteratureRelation `
-  --include ReasoningTrace --include EvidenceResponse --include SourceSnapshot `
-  --include DataSourceCompletion --include CrossmatchInput `
-  --include CrossmatchResult --include CrossmatchBenchmarkManifest `
-  --include CrossmatchBenchmarkReport --check
 python scripts/check_foundation.py
 node scripts/check-docs.mjs
 git diff --check
 ```
 
-The JSON Schema export includes the public C-08 input, output, completion,
+Schema export integrity uses the package-maintained commands in
+[Schema Package](../../packages/schemas/README.md), avoiding a second output-path contract here.
+
+The JSON Schema export includes the public alignment input, output, completion,
 benchmark-manifest, and benchmark-report contracts. No HTTP route or duplicate
 transport DTO is introduced.

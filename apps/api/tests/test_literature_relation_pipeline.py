@@ -12,11 +12,6 @@ from uuid import NAMESPACE_URL, uuid5
 import pytest
 from app.schemas import _literature_relation_seal as relation_seal
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.core import (
-    ArtifactKind,
-    LiteratureRelationsArtifactContent,
-    ReasoningTracesArtifactContent,
-)
 from app.schemas.enums import ClaimType, LiteratureRelationType
 from app.schemas.literature_claim import (
     LiteratureClaimCandidate,
@@ -46,12 +41,6 @@ from app.schemas.paper_summary import (
     PaperSummaryEvidenceLocator,
     PaperSummarySourceSnapshotReference,
     PaperSummarySupportStatus,
-)
-from app.schemas.reasoning import (
-    LiteratureRelation as Phase0LiteratureRelation,
-)
-from app.schemas.reasoning import (
-    ReasoningTrace as Phase0ReasoningTrace,
 )
 from app.workflow.publisher import (
     ArtifactEvidenceBinding,
@@ -190,8 +179,8 @@ def _claim_version(
         producer_version="1.0.0",
         model_name="model.claim.fixture",
         prompt_name="literature_claim",
-        prompt_version="v1",
-        prompt_hash=PromptRegistry().get("literature_claim", "v1").content_hash,
+        prompt_version="1.0.0",
+        prompt_hash=PromptRegistry().get("literature_claim").content_hash,
         schema_version="1.0.0",
         parameters_version="1.0.0",
         parameters_hash=compute_canonical_payload_hash(SAFE_PARAMETERS),
@@ -521,7 +510,7 @@ def test_complete_relation_taxonomy_is_admitted() -> None:
     )
 
 
-def test_publisher_blocks_unsealed_copy_raw_records_and_legacy_projections() -> None:
+def test_publisher_blocks_non_authoritative_relation_models() -> None:
     result = _admit()
     candidate = result.publisher_candidate
     assert candidate is not None
@@ -534,47 +523,7 @@ def test_publisher_blocks_unsealed_copy_raw_records_and_legacy_projections() -> 
     )
     record = result.records[0]
     admitted_trace = result.reasoning_traces[0]
-    legacy_relation = Phase0LiteratureRelation(
-        relation_id="relation.legacy",
-        task_id="task.legacy",
-        source_claim_id="claim.source",
-        target_claim_id="claim.target",
-        relation_type="supports",
-        reasoning_trace_id="trace.legacy",
-        evidence_ids=["evidence.source"],
-        confidence=1.0,
-    )
-    legacy_trace = Phase0ReasoningTrace(
-        trace_id="trace.legacy",
-        task_id="task.legacy",
-        relation_id="relation.legacy",
-        steps=[],
-        evidence_ids=["evidence.source"],
-        model_name="legacy",
-        prompt_version="v1",
-    )
-    projections = (
-        LiteratureRelationsArtifactContent(
-            kind=ArtifactKind.literature_relations,
-            relation_ids=("relation.legacy",),
-        ),
-        ReasoningTracesArtifactContent(
-            kind=ArtifactKind.reasoning_traces,
-            reasoning_trace_ids=("trace.legacy",),
-        ),
-    )
-
-    for value in (
-        raw,
-        copied,
-        reparsed,
-        record,
-        admitted_trace,
-        result,
-        legacy_relation,
-        legacy_trace,
-        *projections,
-    ):
+    for value in (raw, copied, reparsed, record, admitted_trace, result):
         with pytest.raises(PublicationAdmissionError):
             admit_artifact_candidate(
                 value,
@@ -1501,13 +1450,13 @@ def test_upstream_claim_execution_runtime_is_excluded_only_from_stable_output_ha
 
 def test_prompt_model_parameters_and_input_versions_are_hash_pinned() -> None:
     baseline = _admit()
-    active_prompt = PromptRegistry().get("literature_reasoning", "v2")
+    active_prompt = PromptRegistry().get("literature_relation")
 
     class ChangedPromptRegistry:
-        def get(self, _name: str, _version: str | None = None):
+        def get(self, _name: str):
             return replace(
                 active_prompt,
-                version="v3",
+                version="3.0.0",
                 content_hash=compute_canonical_payload_hash("changed-prompt"),
             )
 
@@ -1567,33 +1516,13 @@ def test_prompt_model_parameters_and_input_versions_are_hash_pinned() -> None:
     )
 
 
-def test_deprecated_or_wrong_output_prompt_contract_cannot_execute() -> None:
+def test_wrong_output_prompt_contract_cannot_execute() -> None:
     source = _claim_version("source")
     target = _claim_version("target")
-    pipeline = LiteratureRelationPipeline(clock=lambda: FIXED_TIME)
-
-    with pytest.raises(ValueError, match="active"):
-        pipeline.admit(
-            literature_claim_artifact_version_ids=(
-                source.artifact_version_id,
-                target.artifact_version_id,
-            ),
-            literature_claim_versions={
-                source.artifact_version_id: source,
-                target.artifact_version_id: target,
-            },
-            project_id=PROJECT_ID,
-            model_response=_response(_relation()),
-            model_name="model.relation.fixture",
-            parameters=SAFE_PARAMETERS,
-            confidence_assessments={"confidence.relation.fixture": _confidence()},
-            prompt_version="v1",
-        )
-
-    active_prompt = PromptRegistry().get("literature_reasoning", "v2")
+    active_prompt = PromptRegistry().get("literature_relation")
 
     class WrongOutputRegistry:
-        def get(self, _name: str, _version: str | None = None):
+        def get(self, _name: str):
             return replace(active_prompt, output_models=("LiteratureRelation",))
 
     with pytest.raises(ValueError, match="output contract"):
@@ -1843,3 +1772,10 @@ def test_truthful_incomparable_metric_or_unit_is_still_rejected(
         result.records[0].failure_stage is LiteratureRelationFailureStage.comparability
     )
     assert result.records[0].rejection_reason is reason
+
+
+def test_literature_relation_is_the_only_relation_prompt_identity() -> None:
+    registry = PromptRegistry()
+    assert registry.get("literature_relation").name == "literature_relation"
+    with pytest.raises(KeyError, match="unknown prompt"):
+        registry.get("literature_reasoning")

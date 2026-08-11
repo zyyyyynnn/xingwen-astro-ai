@@ -1,9 +1,9 @@
-"""Machine-validatable contract for the D-10 upstream adoption manifest.
+"""Validation rules for the scientific-document upstream adoption manifest.
 
-``upstream_adoption.json`` is the single source of truth for which first-party
-packages/models and Python import roots are approved for Scientific Document
-Parsing. Production D-11 adapters may consume only ``approved`` entries.
-Unknown keys are rejected so a typo cannot silently weaken the contract.
+``upstream_adoption.json`` is the single source of truth for which upstream
+packages and Python import roots are approved for Scientific Document Parsing.
+Production parser code may consume only ``approved`` entries. Unknown keys are
+rejected so a typo cannot silently weaken the contract.
 """
 
 from __future__ import annotations
@@ -133,6 +133,7 @@ class AdoptionEntry(BaseModel):
                         f"Hugging Face model capability '{self.capability}' must pin an "
                         "immutable 40-hex commit revision"
                     )
+
         return self
 
 
