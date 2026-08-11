@@ -67,6 +67,26 @@ describe("UI intent to ApplicationCommand", () => {
         executionMode: "live",
       },
       {
+        type: "artifact.inspect",
+        artifactId: asEntityId("artifact_command"),
+      },
+      {
+        type: "artifact.version.inspect",
+        artifactVersionId: asEntityId("version_command"),
+      },
+      {
+        type: "evidence.inspect",
+        evidenceId: asEntityId("evidence_command"),
+      },
+      {
+        type: "evidence.pin",
+        evidenceId: asEntityId("evidence_command"),
+      },
+      {
+        type: "evidence.unpin",
+        evidenceId: asEntityId("evidence_command"),
+      },
+      {
         type: "share.create",
         projectId,
         request: {
@@ -94,6 +114,11 @@ describe("UI intent to ApplicationCommand", () => {
       "contract.draft.update",
       "contract.confirm",
       "run.create",
+      "artifact.inspect",
+      "artifact.version.inspect",
+      "evidence.inspect",
+      "evidence.pin",
+      "evidence.unpin",
       "share.create",
       "share.revoke",
     ]);
@@ -130,7 +155,29 @@ describe("UI intent to ApplicationCommand", () => {
         idempotencyKey: context.idempotencyKey,
       },
     });
-    expect(commands[5]).toMatchObject({
+    expect(commands.slice(5, 10)).toEqual([
+      {
+        type: "artifact.inspect",
+        artifactId: asEntityId("artifact_command"),
+      },
+      {
+        type: "artifact.version.inspect",
+        artifactVersionId: asEntityId("version_command"),
+      },
+      {
+        type: "evidence.inspect",
+        evidenceId: asEntityId("evidence_command"),
+      },
+      {
+        type: "evidence.pin",
+        evidenceId: asEntityId("evidence_command"),
+      },
+      {
+        type: "evidence.unpin",
+        evidenceId: asEntityId("evidence_command"),
+      },
+    ]);
+    expect(commands[10]).toMatchObject({
       type: "share.create",
       projectId,
       request: {
@@ -138,7 +185,7 @@ describe("UI intent to ApplicationCommand", () => {
         evidenceIds: [asEntityId("evidence_shared")],
       },
     });
-    expect(commands[6]).toEqual({
+    expect(commands[11]).toEqual({
       type: "share.revoke",
       projectId,
       shareId: asEntityId("share_command"),
@@ -158,5 +205,21 @@ describe("UI intent to ApplicationCommand", () => {
 
     expect(first).toEqual(second);
     expect(JSON.stringify(first)).not.toMatch(/\/api\/|method|url|dto/iu);
+  });
+
+  it("keeps local Artifact and Evidence commands free of transport or identity data", () => {
+    const intent: ApplicationIntent = {
+      type: "evidence.pin",
+      evidenceId: asEntityId("evidence_command"),
+    };
+
+    const first = toApplicationCommand(intent, context);
+    const second = toApplicationCommand(intent, context);
+
+    expect(first).toEqual(second);
+    expect(first).toEqual(intent);
+    expect(JSON.stringify(first)).not.toMatch(
+      /\/api\/|method|url|dto|idempotency|random/iu,
+    );
   });
 });

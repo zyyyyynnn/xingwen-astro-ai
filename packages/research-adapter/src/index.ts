@@ -14,7 +14,7 @@ export type {
   CommandContext,
 } from "./commands";
 
-export type { PublicApplicationError, PublicFieldIssue } from "./public-error";
+export type { PublicApplicationError } from "./public-error";
 
 export type {
   ArtifactVersionMetadataViewModel,

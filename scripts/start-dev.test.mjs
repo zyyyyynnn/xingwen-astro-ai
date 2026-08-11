@@ -76,6 +76,10 @@ test("start-dev.bat starts local services in standard CMD windows", () => {
   assert.doesNotMatch(startDev, /start\s+"[^"]+"\s+pwsh\b/iu);
 });
 
+test("start-dev.bat keeps dotenv exclamation marks safe from delayed expansion", () => {
+  assert.doesNotMatch(startDev, /EnableDelayedExpansion/iu);
+});
+
 test("workspace Vite keeps the preflight port stable", () => {
   assert.match(workspacePackage.scripts.dev, /--strictPort\b/u);
 });

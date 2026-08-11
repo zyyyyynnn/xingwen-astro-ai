@@ -29,7 +29,6 @@ describe("normalized errors to PublicApplicationError", () => {
     expect(httpError).toEqual({
       kind: "not_found",
       safeMessage: "资源不可用",
-      retryable: false,
     });
   });
 
@@ -68,7 +67,7 @@ describe("normalized errors to PublicApplicationError", () => {
     );
   });
 
-  it("keeps only stable validation field issues", () => {
+  it("does not expose unchecked validation metadata", () => {
     const result = toPublicApplicationError(
       new ValidationError(
         "raw internal validation detail",
@@ -86,19 +85,35 @@ describe("normalized errors to PublicApplicationError", () => {
     expect(result).toEqual({
       kind: "validation",
       safeMessage: "输入未通过校验",
-      retryable: false,
-      fieldIssues: [{ field: "research_goal", code: "too_short" }],
     });
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain("research_goal");
+    expect(serialized).not.toContain("too_short");
+    expect(serialized).not.toContain("raw internal");
+    expect("retryable" in result).toBe(false);
   });
 
-  it("preserves a safe rate-limit retry hint only", () => {
+  it("preserves only the normalized rate-limit delay", () => {
     expect(
       toPublicApplicationError(new RateLimitedError("internal quota", 1500)),
     ).toEqual({
       kind: "rate_limited",
       safeMessage: "请求过于频繁，请稍后重试",
-      retryable: true,
       retryAfterMs: 1500,
     });
+  });
+
+  it.each([
+    new SessionExpiredError("credential details"),
+    new ConflictError("revision conflict", "CONFLICT"),
+    new UnexpectedHttpError("internal details", 500, "INTERNAL"),
+    new FixtureValidationError("Fixture", ["private field"]),
+    new FixtureSemanticError("private fixture path"),
+    new NetworkError("private URL"),
+    new UpstreamError("private upstream detail", "UPSTREAM", 503),
+  ])("does not add retry policy to %s", (error) => {
+    const result = toPublicApplicationError(error);
+
+    expect("retryable" in result).toBe(false);
   });
 });

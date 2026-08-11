@@ -1,8 +1,6 @@
 import {
   ConflictError,
   EntityNotFoundError,
-  FixtureSemanticError,
-  FixtureValidationError,
   ForbiddenError,
   NetworkError,
   NotFoundError,
@@ -13,58 +11,43 @@ import {
   ValidationError,
 } from "@xingwen/data-access";
 
-export interface PublicFieldIssue {
-  readonly field: string;
-  readonly code: string;
-}
-
 export type PublicApplicationError =
   | {
       readonly kind: "session_required";
       readonly safeMessage: string;
-      readonly retryable: true;
     }
   | {
       readonly kind: "forbidden";
       readonly safeMessage: string;
-      readonly retryable: false;
     }
   | {
       readonly kind: "not_found";
       readonly safeMessage: string;
-      readonly retryable: false;
     }
   | {
       readonly kind: "conflict";
       readonly safeMessage: string;
-      readonly retryable: true;
     }
   | {
       readonly kind: "validation";
       readonly safeMessage: string;
-      readonly retryable: false;
-      readonly fieldIssues: readonly PublicFieldIssue[];
     }
   | {
       readonly kind: "rate_limited";
       readonly safeMessage: string;
-      readonly retryable: true;
       readonly retryAfterMs: number | null;
     }
   | {
       readonly kind: "network";
       readonly safeMessage: string;
-      readonly retryable: true;
     }
   | {
       readonly kind: "upstream";
       readonly safeMessage: string;
-      readonly retryable: true;
     }
   | {
       readonly kind: "unexpected";
       readonly safeMessage: string;
-      readonly retryable: true;
     };
 
 const SAFE_MESSAGES = {
@@ -83,7 +66,6 @@ function unexpectedError(): PublicApplicationError {
   return {
     kind: "unexpected",
     safeMessage: SAFE_MESSAGES.unexpected,
-    retryable: true,
   };
 }
 
@@ -94,46 +76,36 @@ export function toPublicApplicationError(
     return {
       kind: "session_required",
       safeMessage: SAFE_MESSAGES.session_required,
-      retryable: true,
     };
   }
   if (error instanceof ForbiddenError) {
     return {
       kind: "forbidden",
       safeMessage: SAFE_MESSAGES.forbidden,
-      retryable: false,
     };
   }
   if (error instanceof NotFoundError || error instanceof EntityNotFoundError) {
     return {
       kind: "not_found",
       safeMessage: SAFE_MESSAGES.not_found,
-      retryable: false,
     };
   }
   if (error instanceof ConflictError) {
     return {
       kind: "conflict",
       safeMessage: SAFE_MESSAGES.conflict,
-      retryable: true,
     };
   }
   if (error instanceof ValidationError) {
     return {
       kind: "validation",
       safeMessage: SAFE_MESSAGES.validation,
-      retryable: false,
-      fieldIssues: error.fieldErrors.map(({ field, code }) => ({
-        field,
-        code,
-      })),
     };
   }
   if (error instanceof RateLimitedError) {
     return {
       kind: "rate_limited",
       safeMessage: SAFE_MESSAGES.rate_limited,
-      retryable: true,
       retryAfterMs: error.retryAfterMs,
     };
   }
@@ -141,23 +113,15 @@ export function toPublicApplicationError(
     return {
       kind: "network",
       safeMessage: SAFE_MESSAGES.network,
-      retryable: true,
     };
   }
   if (error instanceof UpstreamError) {
     return {
       kind: "upstream",
       safeMessage: SAFE_MESSAGES.upstream,
-      retryable: true,
     };
   }
   if (error instanceof UnexpectedHttpError) {
-    return unexpectedError();
-  }
-  if (
-    error instanceof FixtureValidationError ||
-    error instanceof FixtureSemanticError
-  ) {
     return unexpectedError();
   }
   return unexpectedError();

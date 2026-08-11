@@ -632,6 +632,22 @@ const networkAndStorageGlobals = new Set([
   "localStorage",
   "sessionStorage",
 ]);
+const researchAdapterDataAccessImports = new Set([
+  "ConflictError",
+  "EntityNotFoundError",
+  "ForbiddenError",
+  "NetworkError",
+  "NotFoundError",
+  "RateLimitedError",
+  "SessionExpiredError",
+  "UnexpectedHttpError",
+  "UpstreamError",
+  "ValidationError",
+  "CreateResearchContractDraftInput",
+  "CreateResearchProjectInput",
+  "CreateResearchRunInput",
+  "UpdateResearchContractDraftInput",
+]);
 const boundaryRules = new Map([
   [
     "packages/domain",
@@ -669,6 +685,9 @@ const boundaryRules = new Map([
     {
       description: "the framework-free Research Adapter boundary",
       allowedBareImports: new Set(["@xingwen/data-access", "@xingwen/domain"]),
+      allowedNamedImports: new Map([
+        ["@xingwen/data-access", researchAdapterDataAccessImports],
+      ]),
       forbiddenIdentifiers: new Set([
         ...networkAndStorageGlobals,
         "document",
@@ -677,7 +696,7 @@ const boundaryRules = new Map([
         "navigator",
         "window",
       ]),
-      forbidRepositorySymbols: false,
+      forbidRepositorySymbols: true,
       excludeTestFiles: true,
     },
   ],
@@ -736,13 +755,60 @@ function collectBoundaryViolations(file, content, rule) {
     }
   }
 
+  function checkNamedImportBindings(node, specifier) {
+    const allowed = rule.allowedNamedImports?.get(specifier);
+    if (!allowed) return;
+
+    if (ts.isImportDeclaration(node)) {
+      const clause = node.importClause;
+      if (!clause) {
+        violations.add(`side-effect import ${specifier}`);
+        return;
+      }
+      if (clause.name) {
+        violations.add(`forbidden default import ${specifier}`);
+      }
+      if (!clause.namedBindings) return;
+      if (ts.isNamespaceImport(clause.namedBindings)) {
+        violations.add(`forbidden namespace import ${specifier}`);
+        return;
+      }
+      for (const element of clause.namedBindings.elements) {
+        const importedName = (element.propertyName ?? element.name).text;
+        if (!allowed.has(importedName)) {
+          violations.add(
+            `forbidden named import ${importedName} from ${specifier}`,
+          );
+        }
+      }
+      return;
+    }
+
+    if (ts.isExportDeclaration(node)) {
+      if (!node.exportClause || ts.isNamespaceExport(node.exportClause)) {
+        violations.add(`forbidden namespace re-export ${specifier}`);
+        return;
+      }
+      for (const element of node.exportClause.elements) {
+        const exportedName = (element.propertyName ?? element.name).text;
+        if (!allowed.has(exportedName)) {
+          violations.add(
+            `forbidden named re-export ${exportedName} from ${specifier}`,
+          );
+        }
+      }
+    }
+  }
+
   function visit(node) {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
       node.moduleSpecifier &&
       ts.isStringLiteral(node.moduleSpecifier)
     ) {
-      checkModuleSpecifier(node.moduleSpecifier.text);
+      const specifier = node.moduleSpecifier.text;
+      checkModuleSpecifier(specifier);
+      checkNamedImportBindings(node, specifier);
     }
 
     if (
@@ -754,6 +820,9 @@ function collectBoundaryViolations(file, content, rule) {
       const [argument] = node.arguments;
       if (argument && ts.isStringLiteral(argument)) {
         checkModuleSpecifier(argument.text);
+        if (rule.allowedNamedImports?.has(argument.text)) {
+          violations.add(`forbidden dynamic import ${argument.text}`);
+        }
       } else {
         violations.add("non-static runtime import");
       }
@@ -847,6 +916,31 @@ for (const [location, content] of boundaryRuleFixtures) {
     collectBoundaryViolations("boundary-fixture.ts", content, rule).length === 0
   ) {
     failures.push(`Architecture boundary self-test failed for ${location}.`);
+  }
+}
+
+const researchAdapterRule = boundaryRules.get("packages/research-adapter");
+const researchAdapterRuleFixtures = [
+  [true, 'import type { CreateResearchRunInput } from "@xingwen/data-access";'],
+  [false, 'import { createSessionManager } from "@xingwen/data-access";'],
+  [false, 'import type { RepositorySet } from "@xingwen/data-access";'],
+  [false, 'import * as dataAccess from "@xingwen/data-access";'],
+  [false, 'import dataAccess from "@xingwen/data-access";'],
+  [false, 'const dataAccess = await import("@xingwen/data-access");'],
+];
+
+for (const [shouldPass, content] of researchAdapterRuleFixtures) {
+  const violations = researchAdapterRule
+    ? collectBoundaryViolations(
+        "research-adapter-fixture.ts",
+        content,
+        researchAdapterRule,
+      )
+    : [];
+  if (shouldPass ? violations.length > 0 : violations.length === 0) {
+    failures.push(
+      `Research Adapter data-access symbol self-test failed for: ${content}`,
+    );
   }
 }
 

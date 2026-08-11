@@ -43,6 +43,26 @@ export type ApplicationIntent =
       readonly executionMode: ExecutionMode;
     }
   | {
+      readonly type: "artifact.inspect";
+      readonly artifactId: DomainEntityId;
+    }
+  | {
+      readonly type: "artifact.version.inspect";
+      readonly artifactVersionId: DomainEntityId;
+    }
+  | {
+      readonly type: "evidence.inspect";
+      readonly evidenceId: DomainEntityId;
+    }
+  | {
+      readonly type: "evidence.pin";
+      readonly evidenceId: DomainEntityId;
+    }
+  | {
+      readonly type: "evidence.unpin";
+      readonly evidenceId: DomainEntityId;
+    }
+  | {
       readonly type: "share.create";
       readonly projectId: DomainEntityId;
       readonly request: CreateShareSnapshotRequest;
@@ -78,6 +98,26 @@ export type ApplicationCommand =
   | {
       readonly type: "run.create";
       readonly input: CreateResearchRunInput;
+    }
+  | {
+      readonly type: "artifact.inspect";
+      readonly artifactId: DomainEntityId;
+    }
+  | {
+      readonly type: "artifact.version.inspect";
+      readonly artifactVersionId: DomainEntityId;
+    }
+  | {
+      readonly type: "evidence.inspect";
+      readonly evidenceId: DomainEntityId;
+    }
+  | {
+      readonly type: "evidence.pin";
+      readonly evidenceId: DomainEntityId;
+    }
+  | {
+      readonly type: "evidence.unpin";
+      readonly evidenceId: DomainEntityId;
     }
   | {
       readonly type: "share.create";
@@ -140,6 +180,12 @@ export function toApplicationCommand(
           idempotencyKey: context.idempotencyKey,
         },
       };
+    case "artifact.inspect":
+    case "artifact.version.inspect":
+    case "evidence.inspect":
+    case "evidence.pin":
+    case "evidence.unpin":
+      return { ...intent };
     case "share.create":
       return {
         type: intent.type,
