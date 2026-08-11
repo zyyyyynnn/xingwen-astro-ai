@@ -52,25 +52,11 @@
       "modification_reason": "Kept execution phase, cancellation, retry, error, notice, and Composer ownership at the conversation boundary."
     },
     {
-      "upstream_path": "src/components/features/chat/chat-messages-skeleton.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-messages-skeleton.tsx",
-      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
-      "modified": true,
-      "modification_reason": "Kept the running-state loading placeholder while removing upstream conversation data dependencies."
-    },
-    {
       "upstream_path": "src/components/features/chat/chat-send-button.tsx",
       "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-send-button.tsx",
       "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
       "modified": true,
       "modification_reason": "Kept the disabled-aware send control and Xingwen semantic tokens."
-    },
-    {
-      "upstream_path": "src/components/features/chat/chat-stop-button.tsx",
-      "local_path": "apps/workspace/upstream/openhands/src/components/features/chat/chat-stop-button.tsx",
-      "adoption_class": "KEEP_WITH_MINIMAL_PATCH",
-      "modified": true,
-      "modification_reason": "Kept the running-state cancel control and Xingwen semantic tokens."
     },
     {
       "upstream_path": "src/components/features/chat/components/chat-input-actions.tsx",

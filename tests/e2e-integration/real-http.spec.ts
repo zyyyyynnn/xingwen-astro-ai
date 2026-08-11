@@ -517,8 +517,7 @@ test("real HTTP and Fixture adapters align Workspace and Share Domain Models", a
   ).resolves.toBeNull();
 });
 
-test("real browser session stays silent on the inactive Workspace and Share boundaries", async ({
-  browser,
+test("real browser completes Session to Run snapshot and Activity", async ({
   page,
 }) => {
   const runtimeErrors = collectRuntimeErrors(page);
@@ -535,86 +534,84 @@ test("real browser session stays silent on the inactive Workspace and Share boun
     );
   });
 
-  // The host shell renders statically: the Workspace runtime boots the real
-  // HTTP adapter but no API traffic leaves the page.
-  await page.goto("/");
-  await expect(page.getByRole("heading", { name: "研究工作台" })).toBeVisible();
-  expect(apiRequests).toEqual([]);
+  await page.goto("/workspace");
+  await expect(page.getByTestId("root-layout")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "新研究" })).toBeVisible();
+
+  await page.getByRole("button", { name: "新建研究项目" }).click();
+  const projectName = `浏览器真实纵向链 ${String(Date.now())}`;
+  await page.getByRole("textbox", { name: "项目名称" }).fill(projectName);
+  await page
+    .getByRole("textbox", { name: "研究说明" })
+    .fill("验证 Session、协议、运行快照与公开活动的真实闭环");
+  await page.getByRole("button", { name: "创建并进入项目" }).click();
+
+  await expect(page.getByRole("heading", { name: projectName })).toBeVisible();
+  const intent = "整合系外行星候选体及其宿主星参数";
+  await page.getByRole("textbox", { name: "输入研究意图" }).fill(intent);
+  await page.getByRole("button", { name: "提交研究意图" }).click();
+  await expect(
+    page.getByRole("heading", { name: "研究协议检查点" }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("textbox", { name: "研究目标" })
+    .fill("整合系外行星候选体与宿主星参数并形成可审计数据集");
+  await page
+    .getByRole("textbox", { name: "目标对象" })
+    .fill("exoplanet_candidate, host_star");
+  await page
+    .getByRole("textbox", { name: "请求字段" })
+    .fill("planet.toi_id, star.tic_id");
+  await page
+    .getByRole("textbox", { name: "允许来源" })
+    .fill("nasa_exoplanet_archive");
+  await page
+    .getByRole("textbox", { name: "关键词" })
+    .fill("exoplanet, host star parameters");
+  await page.getByRole("spinbutton", { name: "起始年份" }).fill("2018");
+  await page.getByRole("spinbutton", { name: "结束年份" }).fill("2026");
+  await page
+    .getByRole("textbox", { name: "来源 ID" })
+    .fill("nasa_exoplanet_archive");
+  await page.getByRole("spinbutton", { name: "候选数量" }).fill("5");
+  await page.getByRole("textbox", { name: "输出类型" }).fill("dataset, graph");
+
+  await page.getByRole("button", { name: "创建协议草稿" }).click();
+  await expect(page.getByText(/^草稿 v/u)).toContainText(String(1));
+  await page
+    .getByRole("textbox", { name: "研究目标" })
+    .fill("整合系外行星候选体与宿主星参数并形成可复核、可审计数据集");
+  await page.getByRole("button", { name: "保存草稿" }).click();
+  await expect(page.getByText(/^草稿 v/u)).toContainText(String(2));
+  await page.getByRole("button", { name: "确认研究协议" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "研究协议已确认" }),
+  ).toBeVisible();
+  await page.getByLabel("执行模式").click();
+  await page.getByRole("option", { name: "Demo Replay" }).click();
+  await page.getByRole("button", { name: "创建研究运行" }).click();
+
+  await expect(page.getByRole("log", { name: "研究活动" })).toBeVisible();
+  await expect(page.getByText("Run queued")).toBeVisible();
+  await expect
+    .poll(() =>
+      apiRequests.some(
+        (request) =>
+          request.startsWith("GET ") &&
+          /\/api\/runs\/[^/]+$/u.test(request.split(" ", 2)[1] ?? ""),
+      ),
+    )
+    .toBe(true);
+  await expect
+    .poll(() =>
+      apiRequests.some(
+        (request) => request.startsWith("GET ") && request.includes("/events"),
+      ),
+    )
+    .toBe(true);
+
   expect(requestFailures).toEqual([]);
-
-  // Build the full authoring chain over the live API through the public runtime
-  // (same code path and payloads as the parity tests above).
-  const { data, repositories } = await buildChainWithAdapter();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  const share = await repositories.shares.create(asEntityId(data.project_id), {
-    title: "Real Compose and Browser Integration browser share",
-    artifactVersionIds: [asEntityId(data.artifact_version_id)],
-    evidenceIds: [asEntityId(data.evidence_ids[0]!)],
-    expiresAt,
-    redactionPolicy: "public_metadata_only",
-  });
-
-  // The public share route stays a fixed safe boundary: no private session,
-  // no share content, and the token never reaches the DOM or the console.
-  const publicContext = await browser.newContext({
-    baseURL: new URL(page.url()).origin,
-  });
-  const publicPage = await publicContext.newPage();
-  const publicErrors = collectRuntimeErrors(publicPage);
-  const publicSessionRequests: string[] = [];
-  publicPage.on("request", (request) => {
-    if (request.url().includes("/api/sessions")) {
-      publicSessionRequests.push(request.url());
-    }
-  });
-
-  await publicPage.goto(`/share/${share.shareToken}`);
-  await expect(
-    publicPage.getByRole("heading", { name: "共享结果当前不可用" }),
-  ).toBeVisible();
-  await expect(
-    publicPage.getByText("该链接可能无效、已撤销或已过期。"),
-  ).toBeVisible();
-  expect(publicSessionRequests).toEqual([]);
-  expect(await publicPage.locator("body").innerText()).not.toContain(
-    share.shareToken,
-  );
-  expect(publicErrors.join("\n")).not.toContain(share.shareToken);
-
-  await publicPage.reload();
-  await expect(
-    publicPage.getByRole("heading", { name: "共享结果当前不可用" }),
-  ).toBeVisible();
-  expect(publicSessionRequests).toEqual([]);
-
-  // Revoking the share keeps the boundary fixed and session-free.
-  await repositories.shares.revoke(
-    asEntityId(data.project_id),
-    asEntityId(share.id),
-  );
-  await publicPage.reload();
-  await expect(
-    publicPage.getByRole("heading", { name: "共享结果当前不可用" }),
-  ).toBeVisible();
-  expect(publicSessionRequests).toEqual([]);
-
-  // Chromium reports a completed 404 fetch as a console error once the API
-  // no longer resolves the revoked token; the boundary and UI prove it stays
-  // fixed and quiet.
-  expect(
-    publicErrors.filter(
-      (error) =>
-        error !==
-        "Failed to load resource: the server responded with a status of 404 (Not Found)",
-    ),
-  ).toEqual([]);
-  expect(
-    runtimeErrors.filter(
-      (error) =>
-        !/^Failed to load resource: the server responded with a status of (404 \(Not Found\)|409 \(Conflict\))$/u.test(
-          error,
-        ),
-    ),
-  ).toEqual([]);
-  await publicContext.close();
+  expect(runtimeErrors).toEqual([]);
 });

@@ -7,8 +7,15 @@ import {
   requireViewport,
   setDocumentFontScale,
 } from "./test-helpers";
+import {
+  installWorkspaceHttpFixture,
+  VISUAL_PROJECT_NAME,
+  WORKSPACE_PROJECT_URL,
+} from "./workspace-http-fixture";
 
 /** 验证源码采用后的 /workspace 壳层与 /share 安全边界。 */
+
+test.beforeEach(async ({ page }) => installWorkspaceHttpFixture(page));
 
 function collectRuntimeErrors(page: Page) {
   const errors: string[] = [];
@@ -21,7 +28,7 @@ function collectRuntimeErrors(page: Page) {
 
 async function assertDesktopWorkspacePath(page: Page) {
   const header = page
-    .getByRole("heading", { name: "研究工作台" })
+    .getByRole("heading", { name: VISUAL_PROJECT_NAME })
     .locator("xpath=ancestor::header");
   const rightHeader = page
     .getByRole("tablist", { name: "工作区面板" })
@@ -66,7 +73,7 @@ async function assertDesktopWorkspacePath(page: Page) {
   await expect(commandTrigger).toBeFocused();
 
   const composer = page.getByRole("textbox", {
-    name: "向 Agent 发送指令",
+    name: "输入研究意图",
   });
   await expect(composer).toBeVisible();
   const composerContainer = page.getByTestId("chat-input-container");
@@ -98,7 +105,7 @@ test("root entry redirects to the Workspace host", async ({ page }) => {
 
   await page.goto("http://127.0.0.1:15173/");
   await expect(page).toHaveURL(/\/workspace$/u);
-  await expect(page.getByRole("heading", { name: "研究工作台" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "新研究" })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -107,8 +114,8 @@ test("Workspace host renders the desktop shell", async ({ page }) => {
 
   await page.goto("http://127.0.0.1:15173/workspace");
 
-  const heading = page.getByRole("heading", { name: "研究工作台" });
-  const runtimeStatus = page.getByText("运行服务未连接", { exact: true });
+  const heading = page.getByRole("heading", { name: "新研究" });
+  const runtimeStatus = page.getByText("创建项目后开始", { exact: true });
   await expect(heading).toBeVisible();
   await expect(runtimeStatus).toHaveCount(1);
   const headingBox = await requireBoundingBox(heading, "workspace title");
@@ -129,9 +136,11 @@ test("Workspace host renders the desktop shell", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByRole("tablist", { name: "工作区面板" })).toBeVisible();
   await expect(
-    page.getByRole("textbox", { name: "向 Agent 发送指令" }),
-  ).toHaveAttribute("aria-disabled", "true");
-  await expect(page.getByRole("button", { name: "新建任务" })).toBeDisabled();
+    page.getByText("继续已有研究，或开始新项目", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "新建研究", exact: true }),
+  ).toBeEnabled();
   await expect(
     page.getByRole("link", { name: "跳到主要内容" }),
   ).toHaveAttribute("href", "#main-content");
@@ -142,12 +151,12 @@ test("Workspace host renders the desktop shell", async ({ page }) => {
 test("Workspace top bars share one height, divider, and type scale", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:15173/workspace");
+  await page.goto(WORKSPACE_PROJECT_URL);
 
   const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   const sidebarBar = sidebar.locator("header");
   const workspaceBar = page
-    .getByRole("heading", { name: "研究工作台" })
+    .getByRole("heading", { name: VISUAL_PROJECT_NAME })
     .locator("xpath=ancestor::header");
   const activityBar = page
     .getByRole("tablist", { name: "工作区面板" })
@@ -174,13 +183,13 @@ test("Workspace top bars share one height, divider, and type scale", async ({
     .getByText("星文智析", { exact: true })
     .evaluate((element) => getComputedStyle(element).fontSize);
   const titleFontSize = await page
-    .getByRole("heading", { name: "研究工作台" })
+    .getByRole("heading", { name: VISUAL_PROJECT_NAME })
     .evaluate((element) => getComputedStyle(element).fontSize);
   const tabFontSize = await page
     .getByRole("tab", { name: "活动" })
     .evaluate((element) => getComputedStyle(element).fontSize);
   const statusFontSize = await page
-    .getByText("运行服务未连接", { exact: true })
+    .getByText("等待研究协议", { exact: true })
     .evaluate((element) => getComputedStyle(element).fontSize);
   expect(brandFontSize).toBe(titleFontSize);
   expect(titleFontSize).toBe(tabFontSize);
@@ -193,7 +202,7 @@ test.describe("Workspace desktop shell at 1440×900", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test("keeps the desktop mechanics aligned", async ({ page }) => {
-    await page.goto("http://127.0.0.1:15173/workspace");
+    await page.goto(WORKSPACE_PROJECT_URL);
     await assertDesktopWorkspacePath(page);
   });
 });
@@ -204,7 +213,7 @@ test.describe("Workspace desktop shell at 1280×800", () => {
   test("keeps the desktop mechanics aligned at normal scale", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:15173/workspace");
+    await page.goto(WORKSPACE_PROJECT_URL);
     await assertDesktopWorkspacePath(page);
   });
 });
@@ -212,7 +221,7 @@ test.describe("Workspace desktop shell at 1280×800", () => {
 test("Workspace right-panel toggle stays anchored while the panel collapses", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:15173/workspace");
+  await page.goto(WORKSPACE_PROJECT_URL);
 
   const leftSidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   const rightPanel = page.locator("#workspace-activity-panel");
@@ -231,7 +240,8 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
 
   const collapse = page.getByRole("button", { name: "收起活动面板" });
   const before = await requireBoundingBox(collapse, "collapse toggle");
-  const activityHeading = rightPanel.getByText("尚无 Agent 活动", {
+  await page.getByRole("tab", { name: "活动" }).click();
+  const activityHeading = rightPanel.getByText("尚无研究活动", {
     exact: true,
   });
   const initialHeadingBox = await requireBoundingBox(
@@ -250,7 +260,7 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
   const collapsedSurface = page.getByTestId("workspace-main-surface");
   const collapsedSurfaceMetrics = await collapsedSurface.evaluate((surface) => {
     const taskPanel = surface.closest<HTMLElement>(
-      '[aria-labelledby="agent-task-heading"]',
+      '[aria-labelledby="research-project-heading"]',
     );
     if (!taskPanel) return null;
     return {
@@ -288,7 +298,7 @@ test("Workspace right-panel toggle stays anchored while the panel collapses", as
 test("Sidebar toggle tracks the rail edge throughout collapse and expansion", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:15173/workspace");
+  await page.goto(WORKSPACE_PROJECT_URL);
 
   const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   const geometry = await sidebar.evaluate((sidebarElement) => {
@@ -296,7 +306,7 @@ test("Sidebar toggle tracks the rail edge throughout collapse and expansion", as
       'button[aria-label="收起侧栏"]',
     );
     const initialNewTaskIcon = sidebarElement.querySelector<SVGElement>(
-      'button[aria-label="新建任务"] svg',
+      'button[aria-label="新建研究"] svg',
     );
     if (!toggle || !initialNewTaskIcon) return null;
 
@@ -304,7 +314,7 @@ test("Sidebar toggle tracks the rail edge throughout collapse and expansion", as
       const sidebarBox = sidebarElement.getBoundingClientRect();
       const toggleBox = toggle.getBoundingClientRect();
       const newTaskIcon = sidebarElement.querySelector<SVGElement>(
-        'button[aria-label="新建任务"] svg',
+        'button[aria-label="新建研究"] svg',
       );
       if (!newTaskIcon) throw new Error("New task icon is missing");
       const newTaskIconBox = newTaskIcon.getBoundingClientRect();
@@ -338,7 +348,7 @@ test("Sidebar toggle tracks the rail edge throughout collapse and expansion", as
 });
 
 test("Sidebar text stays horizontal after expansion", async ({ page }) => {
-  await page.goto("http://127.0.0.1:15173/workspace");
+  await page.goto(WORKSPACE_PROJECT_URL);
 
   const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
   await page.getByRole("button", { name: "收起侧栏" }).click();
@@ -348,8 +358,8 @@ test("Sidebar text stays horizontal after expansion", async ({ page }) => {
   await page.getByRole("button", { name: "展开侧栏" }).click();
   const brandTitle = page.getByText("星文智析", { exact: true });
   const emptyTask = sidebar
-    .getByRole("region", { name: "任务列表" })
-    .getByText("没有任务记录", { exact: true });
+    .getByRole("region", { name: "研究项目列表" })
+    .getByText(VISUAL_PROJECT_NAME, { exact: true });
   await expect(brandTitle).toBeVisible();
   await expect(emptyTask).toBeVisible();
   const textHeights = await Promise.all(
@@ -379,7 +389,7 @@ test("Sidebar text stays horizontal after expansion", async ({ page }) => {
 test("Composer stays transparent without a full-width hover line", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:15173/workspace");
+  await page.goto(WORKSPACE_PROJECT_URL);
 
   const composer = page.getByTestId("chat-input-container");
   await expect(composer).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
@@ -408,7 +418,7 @@ test("Composer stays transparent without a full-width hover line", async ({
 });
 
 test("Workspace command menu preserves keyboard focus", async ({ page }) => {
-  await page.goto("http://127.0.0.1:15173/workspace");
+  await page.goto(WORKSPACE_PROJECT_URL);
   const trigger = page.getByRole("button", { name: "打开命令菜单" });
   await trigger.focus();
 
@@ -435,7 +445,7 @@ test("Workspace command menu preserves keyboard focus", async ({ page }) => {
 test("Workspace tabs and split panel support keyboard control", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:15173/workspace");
+  await page.goto(WORKSPACE_PROJECT_URL);
 
   const activityTab = page.getByRole("tab", { name: "活动" });
   await activityTab.focus();
@@ -490,9 +500,9 @@ test("Workspace tabs and split panel support keyboard control", async ({
 test("Composer natural layout grows without clipping at 100%", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:15173/workspace");
+  await page.goto(WORKSPACE_PROJECT_URL);
 
-  const input = page.getByRole("textbox", { name: "向 Agent 发送指令" });
+  const input = page.getByRole("textbox", { name: "输入研究意图" });
   const composer = page.getByTestId("chat-input-container");
   const actions = page.getByTestId("chat-input-actions");
   const before = await requireBoundingBox(composer, "initial composer");
@@ -548,7 +558,7 @@ test.describe("Workspace overflow menu at 1024×800", () => {
   test("closes on Escape and restores focus after a tab selection at 200%", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:15173/workspace");
+    await page.goto(WORKSPACE_PROJECT_URL);
     await setDocumentFontScale(page, "200%");
 
     const more = page.getByRole("button", { name: "更多面板" });
@@ -562,26 +572,26 @@ test.describe("Workspace overflow menu at 1024×800", () => {
     await expect(more).toBeFocused();
 
     await more.click();
-    const contextItem = page.getByRole("menuitemradio", { name: "上下文" });
-    await contextItem.focus();
+    const activityItem = page.getByRole("menuitemradio", { name: "活动" });
+    await activityItem.focus();
     await page.keyboard.press("Enter");
     await expect(menu).toHaveCount(0);
-    await expect(page.getByRole("tab", { name: "上下文" })).toBeFocused();
-    await expect(page.getByRole("tabpanel")).toContainText("暂无上下文");
+    await expect(page.getByRole("tab", { name: "活动" })).toBeFocused();
+    await expect(page.getByRole("tabpanel")).toContainText("尚无研究活动");
   });
 });
 
 test("Split-panel drag has no easing or leftover interception", async ({
   page,
 }) => {
-  await page.goto("http://127.0.0.1:15173/workspace");
+  await page.goto(WORKSPACE_PROJECT_URL);
 
   const separator = page.getByRole("separator", {
     name: "调整任务与活动面板宽度",
   });
   const result = await separator.evaluate(async (separatorElement) => {
     const taskPanel = document.querySelector<HTMLElement>(
-      '[aria-labelledby="agent-task-heading"]',
+      '[aria-labelledby="research-project-heading"]',
     );
     const activityPanel = document.querySelector<HTMLElement>(
       '[aria-label="活动面板"]',
@@ -728,5 +738,5 @@ test("returning home from the share boundary lands on the Workspace host", async
   await page.getByRole("link", { name: "返回首页" }).click();
 
   await expect(page).toHaveURL(/\/workspace$/u);
-  await expect(page.getByRole("heading", { name: "研究工作台" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "新研究" })).toBeVisible();
 });

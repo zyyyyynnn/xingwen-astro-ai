@@ -7,10 +7,9 @@ interface ChatInputContainerProps {
   readonly chatContainerRef: React.RefObject<HTMLDivElement | null>;
   readonly disabled: boolean;
   readonly canSubmit: boolean;
-  readonly running: boolean;
+  readonly submitting: boolean;
   readonly chatInputRef: React.RefObject<HTMLDivElement | null>;
   readonly handleSubmit: () => void;
-  readonly handleCancel: () => void;
   readonly onInput: () => void;
   readonly onPaste: (event: React.ClipboardEvent) => void;
   readonly onKeyDown: (event: React.KeyboardEvent) => void;
@@ -22,10 +21,9 @@ export function ChatInputContainer({
   chatContainerRef,
   disabled,
   canSubmit,
-  running,
+  submitting,
   chatInputRef,
   handleSubmit,
-  handleCancel,
   onInput,
   onPaste,
   onKeyDown,
@@ -36,11 +34,11 @@ export function ChatInputContainer({
     <div
       ref={chatContainerRef}
       data-testid="chat-input-container"
-      className="flex h-full min-h-0 w-full flex-col justify-between gap-y-[var(--oh-composer-row-gap)] rounded-[var(--oh-radius-lg)] border border-[var(--oh-border-strong)] bg-transparent px-[var(--oh-composer-padding-inline)] py-[var(--oh-composer-padding-block)]"
+      className="chat-input-container flex h-full min-h-0 w-full flex-col justify-between gap-y-[var(--oh-composer-row-gap)] rounded-[var(--oh-radius-lg)] border border-[var(--oh-border-strong)] bg-transparent px-[var(--oh-composer-padding-inline)] py-[var(--oh-composer-padding-block)]"
     >
       <ChatInputRow
         chatInputRef={chatInputRef}
-        disabled={disabled || running}
+        disabled={disabled || submitting}
         onInput={onInput}
         onPaste={onPaste}
         onKeyDown={onKeyDown}
@@ -50,9 +48,8 @@ export function ChatInputContainer({
       <ChatInputActions
         disabled={disabled}
         canSubmit={canSubmit}
-        running={running}
+        submitting={submitting}
         handleSubmit={handleSubmit}
-        handleCancel={handleCancel}
       />
     </div>
   );

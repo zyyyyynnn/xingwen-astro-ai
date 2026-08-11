@@ -10,6 +10,7 @@ export {
   FileSearch,
   Layers3,
   LoaderCircle,
+  LogOut,
   MessageSquareText,
   MoreHorizontal,
   PanelLeft,

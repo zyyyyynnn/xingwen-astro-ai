@@ -1,5 +1,9 @@
 import { expect, test, type ConsoleMessage } from "@playwright/test";
 
+import { installWorkspaceHttpFixture } from "./workspace-http-fixture";
+
+test.beforeEach(async ({ page }) => installWorkspaceHttpFixture(page));
+
 function collectRuntimeErrors(
   page: import("@playwright/test").Page,
   shouldIgnore?: (message: ConsoleMessage) => boolean,
@@ -52,8 +56,8 @@ test("brand site has no runtime console errors", async ({ page }) => {
 });
 
 for (const entry of [
-  ["/", "研究工作台", true],
-  ["/workspace", "研究工作台", true],
+  ["/", "新研究", true],
+  ["/workspace", "新研究", true],
   ["/share/demo-token", "共享结果当前不可用", false],
 ] as const) {
   test(`workspace route ${entry[0]} is directly addressable`, async ({

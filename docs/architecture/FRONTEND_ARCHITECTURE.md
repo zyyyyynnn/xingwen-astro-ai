@@ -137,15 +137,15 @@ Artifact / Evidence Renderer
 
 ## 5. 状态所有权
 
-| 状态类型                          | 权威来源                         |
-| --------------------------------- | -------------------------------- |
-| Project / Run / Artifact 路由     | Router                           |
-| Server state、缓存与 Mutation     | Query Layer (经 Repository Port) |
-| Run / Artifact / Evidence 事实    | Domain / Repository              |
+| 状态类型                          | 权威来源                                     |
+| --------------------------------- | -------------------------------------------- |
+| Project / Run / Artifact 路由     | Router                                       |
+| Server state、缓存与 Mutation     | Query Layer (经 Repository Port)             |
+| Run / Artifact / Evidence 事实    | Domain / Repository                          |
 | 交互机械与输入草稿                | Workspace Controller / Presentation Boundary |
-| Workspace 布局与恢复              | Workspace Controller             |
-| 组件内部交互状态 (Hover / Active) | Local Component State            |
-| Share / Export 版本               | Server / ShareSnapshot           |
+| Workspace 布局与恢复              | Workspace Controller                         |
+| 组件内部交互状态 (Hover / Active) | Local Component State                        |
+| Share / Export 版本               | Server / ShareSnapshot                       |
 
 同一事实在前端不得由多个全局 Store 重复持有。
 
@@ -160,6 +160,10 @@ Transport DTO -> Contract Validation -> Domain Mapping -> Repository Port -> Res
   执行器或事件存储；它不创建科研事实或推进服务端状态机。
 - Session Gate 负责私有会话边界；Query Layer 负责 server state、快照优先读取、分页、
   polling/backoff 与 mutation invalidation；页面不得自行复制这些职责。
+- `/workspace` 的首次使用、项目创建和已有项目恢复必须留在同一 Workspace Shell 内；
+  不得为项目选择或创建建立第二套独立门户页面。
+- 显式“退出系统”负责撤销当前 Session、清除私有 Query 缓存并返回 Brand Site 首页；
+  只有真实的 Session 失效或私有边界拒绝才进入安全的会话重建状态页。
 - Evidence Inspector 是跨 Artifact 的共享 presentation contract，页面 renderer 只
   提供类型化内容与 locator；未知类型明确渲染失败。
 

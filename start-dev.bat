@@ -108,7 +108,7 @@ start "Xingwen Backend" cmd /k "cd /d "%API_DIR%" && set "DATABASE_URL=%LOCAL_DA
 call :wait_for_url "%API_HEALTH_URL%" 120 Backend || goto :diagnose
 
 echo [INFO] Starting frontend window...
-start "Xingwen Frontend" cmd /k "cd /d "%ROOT%" && set "VITE_API_BASE_URL=%API_URL%" && set "PUBLIC_WORKSPACE_URL=%WORKSPACE_URL%" && pnpm dev"
+start "Xingwen Frontend" cmd /k "cd /d "%ROOT%" && set "VITE_API_BASE_URL=%API_URL%" && set "VITE_SITE_URL=%SITE_URL%" && set "PUBLIC_WORKSPACE_URL=%WORKSPACE_URL%" && pnpm dev"
 call :wait_for_url "%SITE_URL%" 120 Site || goto :diagnose
 call :wait_for_url "%WORKSPACE_URL%" 120 Workspace || goto :diagnose
 

@@ -9,7 +9,7 @@ import { ConversationTabs } from "../conversation-tabs/conversation-tabs";
 import { TabContentArea } from "../conversation-tabs/conversation-tab-content/tab-content-area";
 import { ResizeHandle } from "../../../ui/resize-handle";
 import { useResizablePanels } from "../../../../hooks/use-resizable-panels";
-import type { AgentWorkspaceRuntime } from "../../../../root";
+import type { ResearchWorkspaceRuntime } from "../../../../root";
 import { cn } from "../../../../utils/utils";
 
 type WorkspacePanel = "activity" | "context";
@@ -58,7 +58,7 @@ function readWorkspacePanelLayout(): WorkspacePanelLayout {
 }
 
 interface ConversationMainProps {
-  readonly runtime: AgentWorkspaceRuntime;
+  readonly runtime: ResearchWorkspaceRuntime;
 }
 
 /**
@@ -68,9 +68,20 @@ interface ConversationMainProps {
  * the thin runtime seam.
  */
 export function ConversationMain({ runtime }: ConversationMainProps) {
+  const panelContextKey = runtime.run
+    ? `run:${runtime.run.status}`
+    : runtime.project
+      ? `project:${runtime.project.name}:${runtime.composer.canSubmitIntent ? "intent" : "contract"}`
+      : "workspace-entry";
+
+  return <ConversationMainSurface key={panelContextKey} runtime={runtime} />;
+}
+
+function ConversationMainSurface({ runtime }: ConversationMainProps) {
   const [isRightPanelShown, setIsRightPanelShown] = React.useState(true);
-  const [activePanel, setActivePanel] =
-    React.useState<WorkspacePanel>("activity");
+  const [activePanel, setActivePanel] = React.useState<WorkspacePanel>(
+    runtime.run ? "activity" : "context",
+  );
   const panelLayout = readWorkspacePanelLayout();
   const {
     leftWidth,
@@ -93,20 +104,15 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
     ? PanelRightClose
     : PanelRightOpen;
   const contextSurface = (
-    <div className="h-full overflow-y-auto p-[var(--oh-space-6)]">
-      <div className="oh-empty-state">
-        <p className="text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] font-semibold">
-          暂无上下文
-        </p>
-        <p>当前任务没有可展示的工作区上下文。</p>
-      </div>
+    <div className="h-full overflow-y-auto p-[var(--oh-space-5)]">
+      {runtime.contextPanel}
     </div>
   );
 
   return (
     <section
       className="relative flex h-full min-h-0 flex-col"
-      aria-label="Agent 工作区"
+      aria-label="研究工作区"
       data-testid="conversation-main"
     >
       <button
@@ -139,7 +145,7 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
               ? "transition-none"
               : "transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
           )}
-          aria-labelledby="agent-task-heading"
+          aria-labelledby="research-project-heading"
           style={{ width: isRightPanelShown ? `${leftWidth}%` : "100%" }}
         >
           <header className="flex h-[var(--oh-header-block-size)] shrink-0 items-center gap-[var(--oh-space-3)] border-b border-[var(--oh-border)] py-0 pl-[var(--oh-header-inline-padding)] pr-[var(--oh-header-control-reserve-inline)]">

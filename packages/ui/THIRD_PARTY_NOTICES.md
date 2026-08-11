@@ -10,7 +10,8 @@ catalog including adaptation details and production consumers.
 
 - **Repository**: https://github.com/shadcn-ui/ui
 - **Revision**: `shadcn-ui@0.9.4` (`729b9ec8cacfae0bc31958c1a8e425d0a21be54e`)
-- **Adopted components**: Button
+- **Adopted components**: Alert, Badge, Button, Dialog, Empty, Field, Input,
+  Select, Skeleton, Textarea
 
 ### MIT License
 

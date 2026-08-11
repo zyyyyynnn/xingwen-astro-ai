@@ -105,6 +105,7 @@ services:
     environment:
       # 浏览器公开配置：仅为 API origin（不带 /api 路径），路径由生成的 operation metadata 提供；不得包含密钥。
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+      VITE_SITE_URL: ${VITE_SITE_URL:-http://localhost:4321}
     ports:
       - "${WORKSPACE_PORT:-5173}:5173"
     command: ["pnpm", "--filter", "@xingwen/workspace", "dev"]

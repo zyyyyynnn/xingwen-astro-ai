@@ -18,8 +18,7 @@ const SEARCH_INPUT_ID = "command-menu-search";
 const LISTBOX_ID = "command-menu-results";
 
 interface CommandMenuProps {
-  readonly onNewTask: () => void;
-  readonly canStartTask: boolean;
+  readonly onNewResearch: () => void;
 }
 
 function optionId(item: CommandMenuItemDefinition) {
@@ -34,7 +33,7 @@ function matchesQuery(item: CommandMenuItemDefinition, query: string) {
   return terms.every((term) => searchable.includes(term));
 }
 
-export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
+export function CommandMenu({ onNewResearch }: CommandMenuProps) {
   const isOpen = useCommandMenuStore((state) => state.isOpen);
   const open = useCommandMenuStore((state) => state.open);
   const close = useCommandMenuStore((state) => state.close);
@@ -81,10 +80,10 @@ export function CommandMenu({ onNewTask, canStartTask }: CommandMenuProps) {
   const items = React.useMemo(
     () =>
       createCommandMenuItems({
-        newTask: canStartTask ? onNewTask : undefined,
+        newResearch: onNewResearch,
         toggleSidebar: () => useSidebarStore.getState().toggleCollapsed(),
       }),
-    [canStartTask, onNewTask],
+    [onNewResearch],
   );
   const filteredItems = React.useMemo(
     () => items.filter((item) => matchesQuery(item, query)),

@@ -27,10 +27,10 @@ export function ChatInputField({
         contentEditable={!disabled}
         suppressContentEditableWarning
         role="textbox"
-        aria-label="向 Agent 发送指令"
+        aria-label="输入研究意图"
         aria-multiline="true"
         aria-disabled={disabled}
-        data-placeholder="描述需要 Agent 完成的任务"
+        data-placeholder="描述希望研究的问题、对象与预期结果"
         data-testid="chat-input"
         onInput={onInput}
         onPaste={onPaste}

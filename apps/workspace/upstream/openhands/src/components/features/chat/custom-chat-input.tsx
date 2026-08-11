@@ -7,18 +7,16 @@ import { ChatInputGrip } from "./components/chat-input-grip";
 
 interface CustomChatInputProps {
   readonly disabled?: boolean;
-  readonly running?: boolean;
-  readonly onSubmit: (message: string) => void;
-  readonly onCancel: () => void;
+  readonly submitting?: boolean;
+  readonly onSubmit: (message: string) => Promise<void>;
   readonly onFocus?: () => void;
   readonly onBlur?: () => void;
 }
 
 export function CustomChatInput({
   disabled = false,
-  running = false,
+  submitting = false,
   onSubmit,
-  onCancel,
   onFocus,
   onBlur,
 }: CustomChatInputProps) {
@@ -44,14 +42,18 @@ export function CustomChatInput({
     setCanSubmit(Boolean(chatInputRef.current?.textContent?.trim()));
   }, []);
 
-  const handleSubmit = React.useCallback(() => {
+  const handleSubmit = React.useCallback(async () => {
     const message = chatInputRef.current?.textContent?.trim() ?? "";
-    if (!message || disabled || running) return;
-    onSubmit(message);
-    if (chatInputRef.current) chatInputRef.current.textContent = "";
-    setCanSubmit(false);
-    resetHeight();
-  }, [disabled, onSubmit, resetHeight, running]);
+    if (!message || disabled || submitting) return;
+    try {
+      await onSubmit(message);
+      if (chatInputRef.current) chatInputRef.current.textContent = "";
+      setCanSubmit(false);
+      resetHeight();
+    } catch {
+      chatInputRef.current?.focus();
+    }
+  }, [disabled, onSubmit, resetHeight, submitting]);
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (
@@ -60,7 +62,7 @@ export function CustomChatInput({
       !event.nativeEvent.isComposing
     ) {
       event.preventDefault();
-      handleSubmit();
+      void handleSubmit();
     }
   };
 
@@ -117,10 +119,9 @@ export function CustomChatInput({
         chatContainerRef={chatContainerRef}
         disabled={disabled}
         canSubmit={canSubmit}
-        running={running}
+        submitting={submitting}
         chatInputRef={chatInputRef}
-        handleSubmit={handleSubmit}
-        handleCancel={onCancel}
+        handleSubmit={() => void handleSubmit()}
         onInput={handleInput}
         onPaste={handlePaste}
         onKeyDown={handleKeyDown}

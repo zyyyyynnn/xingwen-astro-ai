@@ -1,8 +1,8 @@
 import { ConversationMain } from "../components/features/conversation/conversation-main/conversation-main";
-import type { AgentWorkspaceRuntime } from "../root";
+import type { ResearchWorkspaceRuntime } from "../root";
 
 interface ConversationViewProps {
-  readonly runtime: AgentWorkspaceRuntime;
+  readonly runtime: ResearchWorkspaceRuntime;
 }
 
 export function ConversationView({ runtime }: ConversationViewProps) {

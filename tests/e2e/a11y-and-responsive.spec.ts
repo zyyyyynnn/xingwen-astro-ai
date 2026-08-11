@@ -1,8 +1,15 @@
 import { expect, test } from "@playwright/test";
 
 import { requireBoundingBox, setDocumentFontScale } from "./test-helpers";
+import {
+  installWorkspaceHttpFixture,
+  VISUAL_PROJECT_NAME,
+  WORKSPACE_PROJECT_URL,
+} from "./workspace-http-fixture";
 
 /** 覆盖入口测试未涉及的键盘、焦点、200% 字体与窄屏边界证据。 */
+
+test.beforeEach(async ({ page }) => installWorkspaceHttpFixture(page));
 
 test("brand site keyboard navigation reaches the single CTA", async ({
   page,
@@ -93,7 +100,7 @@ test.describe("narrow viewport @ 375px", () => {
   test("workspace shows the desktop-required notice without overflow", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:15173/workspace");
+    await page.goto(WORKSPACE_PROJECT_URL);
 
     await expect(
       page.getByRole("heading", { name: "请使用桌面设备" }),
@@ -137,17 +144,17 @@ test.describe("200% font scale", () => {
   test("workspace host remains functional at 200% font size", async ({
     page,
   }) => {
-    await page.goto("http://127.0.0.1:15173/workspace");
+    await page.goto(WORKSPACE_PROJECT_URL);
     await setDocumentFontScale(page, "200%");
 
     await expect(
-      page.getByRole("heading", { name: "研究工作台" }),
+      page.getByRole("heading", { name: VISUAL_PROJECT_NAME }),
     ).toBeVisible();
     await expect(
       page.getByRole("navigation", { name: "工作台导航" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("textbox", { name: "向 Agent 发送指令" }),
+      page.getByRole("textbox", { name: "输入研究意图" }),
     ).toBeVisible();
 
     const sidebar = page.getByRole("complementary", { name: "工作台侧栏" });
@@ -165,10 +172,13 @@ test.describe("200% font scale", () => {
     expect(collapsedSidebarWidth).toBeLessThan(expandedSidebarWidth);
     await page.getByRole("button", { name: "展开侧栏" }).click();
 
-    const activityTab = page.getByRole("tab", { name: "活动" });
-    await activityTab.focus();
-    await page.keyboard.press("ArrowRight");
     await expect(page.getByRole("tab", { name: "上下文" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await page.getByRole("button", { name: "更多面板" }).click();
+    await page.getByRole("menuitemradio", { name: "活动" }).click();
+    await expect(page.getByRole("tab", { name: "活动" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -203,7 +213,7 @@ test.describe("200% font scale", () => {
     });
     const composer = page.getByTestId("chat-input-container");
     const actions = page.getByTestId("chat-input-actions");
-    const input = page.getByRole("textbox", { name: "向 Agent 发送指令" });
+    const input = page.getByRole("textbox", { name: "输入研究意图" });
     const initialComposerBox = await requireBoundingBox(
       composer,
       "initial composer",
@@ -353,7 +363,7 @@ test("workspace honors reduced motion for shell transitions", async ({
     page.getByRole("complementary", { name: "工作台侧栏" }),
   ).toHaveCSS("transition-property", "none");
   await expect(
-    page.locator('[aria-labelledby="agent-task-heading"]'),
+    page.locator('[aria-labelledby="research-project-heading"]'),
   ).toHaveCSS("transition-property", "none");
   await expect(page.locator("#workspace-activity-panel")).toHaveCSS(
     "transition-property",

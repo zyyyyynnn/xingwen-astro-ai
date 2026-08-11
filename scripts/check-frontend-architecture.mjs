@@ -45,7 +45,7 @@ const allowedLocalDependencies = new Map([
 
 const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
-  ["@xingwen/ui", new Set(["clsx", "lucide-react", "react"])],
+  ["@xingwen/ui", new Set(["clsx", "lucide-react", "radix-ui", "react"])],
   ["@xingwen/research-adapter", new Set()],
 ]);
 
@@ -135,6 +135,33 @@ for (const [expectedName, location] of packageLocations) {
         );
       }
     }
+  }
+}
+
+const workspaceManifest = manifests.get("@xingwen/workspace")?.manifest;
+const workspaceRuntimeDependencies = {
+  ...(workspaceManifest?.dependencies ?? {}),
+  ...(workspaceManifest?.optionalDependencies ?? {}),
+};
+const forbiddenServerStateLibraries = new Set([
+  "@reduxjs/toolkit",
+  "@tanstack/query-key-factory",
+  "mobx",
+  "react-redux",
+  "redux",
+  "swr",
+  "xstate",
+]);
+if (!("@tanstack/react-query" in workspaceRuntimeDependencies)) {
+  failures.push(
+    "@xingwen/workspace must use @tanstack/react-query as its sole server-state runtime.",
+  );
+}
+for (const dependency of Object.keys(workspaceRuntimeDependencies)) {
+  if (forbiddenServerStateLibraries.has(dependency)) {
+    failures.push(
+      `@xingwen/workspace must not add second server-state library ${dependency}.`,
+    );
   }
 }
 
@@ -678,6 +705,7 @@ const boundaryRules = new Map([
       allowedBareImports: new Set([
         "clsx",
         "lucide-react",
+        "radix-ui",
         "react",
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
@@ -939,6 +967,39 @@ for (const file of workspaceProductionFiles) {
       workspacePresentationRule,
     ),
   );
+}
+
+const workspaceZustandStoreFiles = sourceFiles.filter(
+  (entry) =>
+    (entry.startsWith("apps/workspace/src/stores/") ||
+      entry.startsWith("apps/workspace/upstream/openhands/src/stores/")) &&
+    !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(entry),
+);
+const serverStateStorePattern =
+  /@tanstack\/react-query|@xingwen\/data-access|@xingwen\/research-adapter|workspaceQueryKeys|(?:Project|Run|Contract|Draft)Repository/u;
+for (const file of workspaceZustandStoreFiles) {
+  const content = readFileSync(resolve(root, file), "utf8");
+  if (serverStateStorePattern.test(content)) {
+    failures.push(`${file} must keep server facts out of Zustand UI stores.`);
+  }
+}
+
+const runEventFeedPath = "apps/workspace/src/application/run-event-feed.ts";
+const runEventFeed = readFileSync(resolve(root, runEventFeedPath), "utf8");
+const runEventTransportPattern =
+  /@xingwen\/contracts|\b(?:EventSource|Headers|Response|URLSearchParams|WebSocket|fetch|parseDto)\b|["'`]\/api\//u;
+if (runEventTransportPattern.test(runEventFeed)) {
+  failures.push(
+    `${runEventFeedPath} must recover Domain events through RunRepository without transport parsing.`,
+  );
+}
+if (
+  !serverStateStorePattern.test(
+    'import { useQuery } from "@tanstack/react-query";',
+  ) ||
+  !runEventTransportPattern.test('fetch("/api/runs/example/events");')
+) {
+  failures.push("Workspace server-state boundary self-test failed.");
 }
 
 const boundaryRuleFixtures = [

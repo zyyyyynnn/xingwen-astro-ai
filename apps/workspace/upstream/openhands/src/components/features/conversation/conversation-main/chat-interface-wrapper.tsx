@@ -1,8 +1,8 @@
 import { ChatInterface } from "../../chat/chat-interface";
-import type { AgentWorkspaceRuntime } from "../../../../root";
+import type { ResearchWorkspaceRuntime } from "../../../../root";
 
 interface ChatInterfaceWrapperProps {
-  readonly runtime: AgentWorkspaceRuntime;
+  readonly runtime: ResearchWorkspaceRuntime;
 }
 
 /** OpenHands' conversation seam with the product-specific execution boundary injected. */

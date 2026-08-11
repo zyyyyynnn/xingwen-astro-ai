@@ -3,13 +3,21 @@ import { PanelLeftClose, PanelLeftOpen } from "@xingwen/ui/icons";
 import { SidebarRailBody } from "./sidebar-rail-body";
 import { useSidebarStore } from "../../../stores/sidebar-store";
 import { SIDEBAR_ICON_BUTTON_CLASS } from "./sidebar-layout";
+import type { ResearchNavigationItem } from "../../../root";
 
 interface SidebarProps {
-  readonly onNewTask: () => void;
-  readonly canStartTask: boolean;
+  readonly projects: readonly ResearchNavigationItem[];
+  readonly onOpenProject: (projectId: string) => void;
+  readonly onNewResearch: () => void;
+  readonly onLogout: () => void;
 }
 
-export function Sidebar({ onNewTask, canStartTask }: SidebarProps) {
+export function Sidebar({
+  projects,
+  onOpenProject,
+  onNewResearch,
+  onLogout,
+}: SidebarProps) {
   const collapsed = useSidebarStore((state) => state.collapsed);
   const toggleCollapsed = useSidebarStore((state) => state.toggleCollapsed);
   const CollapseIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
@@ -27,8 +35,10 @@ export function Sidebar({ onNewTask, canStartTask }: SidebarProps) {
       <div className="h-full w-[var(--oh-sidebar-inner-inline-size)]">
         <SidebarRailBody
           collapsed={collapsed}
-          onNewTask={onNewTask}
-          canStartTask={canStartTask}
+          projects={projects}
+          onOpenProject={onOpenProject}
+          onNewResearch={onNewResearch}
+          onLogout={onLogout}
         />
       </div>
       <button

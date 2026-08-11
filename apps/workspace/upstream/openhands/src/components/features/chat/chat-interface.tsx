@@ -1,122 +1,126 @@
 import React from "react";
-import { MessageSquareText } from "@xingwen/ui/icons";
+import { Button } from "@xingwen/ui";
+import { FileSearch } from "@xingwen/ui/icons";
 
-import type { AgentWorkspaceRuntime } from "../../../root";
+import type { ResearchWorkspaceRuntime } from "../../../root";
 
-import { ChatMessagesSkeleton } from "./chat-messages-skeleton";
 import { ErrorMessageBanner } from "./error-message-banner";
 import { InteractiveChatBox } from "./interactive-chat-box";
 
 interface ChatInterfaceProps {
-  readonly runtime: AgentWorkspaceRuntime;
+  readonly runtime: ResearchWorkspaceRuntime;
 }
 
-type ExecutionPhase = "idle" | "running" | "error";
-
 export function ChatInterface({ runtime }: ChatInterfaceProps) {
-  const [phase, setPhase] = React.useState<ExecutionPhase>("idle");
+  const [lastIntent, setLastIntent] = React.useState<string | null>(null);
+  const [lastAttemptedIntent, setLastAttemptedIntent] = React.useState<
+    string | null
+  >(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [notice, setNotice] = React.useState<string | null>(null);
-  const [lastCommand, setLastCommand] = React.useState<string | null>(null);
-  const abortRef = React.useRef<AbortController | null>(null);
 
-  React.useEffect(
-    () => () => {
-      abortRef.current?.abort();
-    },
-    [],
-  );
-
-  const execute = React.useCallback(
-    async (command: string) => {
-      if (runtime.availability !== "ready") return;
-
-      const controller = new AbortController();
-      abortRef.current?.abort();
-      abortRef.current = controller;
-      setLastCommand(command);
+  const submitIntent = React.useCallback(
+    async (intent: string) => {
+      const submit = runtime.composer.submitIntent;
+      if (!submit) return;
       setError(null);
-      setNotice(null);
-      setPhase("running");
-
+      setLastAttemptedIntent(intent);
       try {
-        await runtime.execute(command, controller.signal);
-        if (!controller.signal.aborted) {
-          setPhase("idle");
-          setNotice("任务已结束");
-        }
+        await submit(intent);
+        setLastIntent(intent);
       } catch (reason) {
-        if (controller.signal.aborted) return;
-        setError(reason instanceof Error ? reason.message : "Agent 运行失败");
-        setPhase("error");
-      } finally {
-        if (abortRef.current === controller) abortRef.current = null;
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "研究意图提交失败，请重试。",
+        );
+        throw reason;
       }
     },
     [runtime],
   );
-
-  const cancel = () => {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setPhase("idle");
-    setNotice("任务已取消");
-  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[var(--oh-canvas)]">
       <div
         className="min-h-0 flex-1 overflow-y-auto"
         aria-live="polite"
-        aria-busy={phase === "running"}
+        aria-busy={runtime.composer.submitting}
       >
-        {phase === "idle" && !notice ? (
+        {runtime.activation ? (
           <div className="flex min-h-full items-center justify-center px-[var(--oh-space-8)] py-[var(--oh-space-8)] text-center">
-            <div className="max-w-sm">
-              <MessageSquareText
+            <section
+              className="max-w-md"
+              aria-labelledby="workspace-activation-title"
+            >
+              <FileSearch
+                className="mx-auto size-7 text-[var(--oh-text-dim)]"
+                aria-hidden="true"
+              />
+              <h2
+                id="workspace-activation-title"
+                className="oh-font-serif mt-[var(--oh-space-4)] text-[length:var(--oh-font-size-heading)] leading-[var(--oh-line-height-heading)] font-medium text-[var(--oh-text)]"
+              >
+                {runtime.activation.title}
+              </h2>
+              <p className="mx-auto mt-[var(--oh-space-2)] max-w-[60ch] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]">
+                {runtime.activation.description}
+              </p>
+              <Button
+                className="mt-[var(--oh-space-5)]"
+                onClick={runtime.activation.onAction}
+              >
+                {runtime.activation.actionLabel}
+              </Button>
+            </section>
+          </div>
+        ) : lastIntent ? (
+          <div className="mx-auto flex min-h-full w-full max-w-[var(--oh-content-max-inline-size)] flex-col justify-end gap-[var(--oh-space-4)] px-[var(--oh-space-6)] py-[var(--oh-space-8)]">
+            <section
+              className="research-intent-message"
+              aria-label="已提交的研究意图"
+            >
+              <p className="research-intent-message__label">研究意图</p>
+              <p>{lastIntent}</p>
+            </section>
+            <p className="text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]">
+              请在右侧“上下文”面板完成研究协议检查点。
+            </p>
+          </div>
+        ) : (
+          <div className="flex min-h-full items-center justify-center px-[var(--oh-space-8)] py-[var(--oh-space-8)] text-center">
+            <div className="max-w-md">
+              <FileSearch
                 className="mx-auto size-7 text-[var(--oh-text-dim)]"
                 aria-hidden="true"
               />
               <h2 className="oh-font-serif mt-[var(--oh-space-4)] text-[length:var(--oh-font-size-heading)] leading-[var(--oh-line-height-heading)] font-medium text-[var(--oh-text)]">
-                从一条明确指令开始
+                先写下研究意图
               </h2>
               <p className="mt-[var(--oh-space-2)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]">
-                连接 Agent 运行服务后，可在下方描述任务。
+                描述希望回答的问题。系统会打开结构化研究协议，由你补齐范围、来源、证据与质量约束。
               </p>
             </div>
           </div>
-        ) : null}
-
-        {phase === "running" ? <ChatMessagesSkeleton /> : null}
+        )}
         {error ? (
           <ErrorMessageBanner
             message={error}
             onRetry={() => {
-              if (lastCommand) void execute(lastCommand);
+              if (lastAttemptedIntent) void submitIntent(lastAttemptedIntent);
             }}
-            onDismiss={() => {
-              setError(null);
-              setPhase("idle");
-            }}
-            isRetrying={phase === "running"}
+            onDismiss={() => setError(null)}
+            isRetrying={runtime.composer.submitting}
           />
-        ) : null}
-        {notice ? (
-          <p
-            className="px-[var(--oh-space-4)] py-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]"
-            role="status"
-          >
-            {notice}
-          </p>
         ) : null}
       </div>
 
-      <InteractiveChatBox
-        disabled={runtime.availability !== "ready"}
-        running={phase === "running"}
-        onSubmit={(command) => void execute(command)}
-        onCancel={cancel}
-      />
+      {runtime.composer.submitIntent ? (
+        <InteractiveChatBox
+          disabled={!runtime.composer.canSubmitIntent}
+          submitting={runtime.composer.submitting}
+          onSubmit={submitIntent}
+        />
+      ) : null}
     </div>
   );
 }

@@ -186,8 +186,147 @@ button:disabled {
   min-height: 0;
 }
 
+.workspace-host * {
+  scrollbar-color: var(--oh-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.workspace-host *::-webkit-scrollbar {
+  width: var(--oh-space-2);
+  height: var(--oh-space-2);
+}
+
+.workspace-host *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.workspace-host *::-webkit-scrollbar-thumb {
+  min-height: var(--oh-control-size-lg);
+  border: 2px solid transparent;
+  border-radius: var(--oh-radius-pill);
+  background: var(--oh-border-strong);
+  background-clip: padding-box;
+}
+
+.workspace-host *::-webkit-scrollbar-thumb:hover {
+  background-color: var(--oh-muted);
+}
+
 .workspace-host__narrow {
   display: none;
+}
+
+.checkpoint-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.workspace-loading-skeleton {
+  block-size: 5.5rem;
+  margin-block: var(--space-2);
+}
+
+.workspace-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.contract-checkpoint {
+  container-type: inline-size;
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.checkpoint-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-block-end: var(--space-4);
+  border-block-end: 1px solid var(--color-border);
+}
+
+.checkpoint-heading h2 {
+  margin: 0;
+  font-size: var(--font-size-ui-heading);
+  line-height: var(--line-height-ui-heading);
+  text-wrap: balance;
+}
+
+.checkpoint-heading p {
+  margin: var(--space-2) 0 0;
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-ui-body);
+  line-height: var(--line-height-ui-body);
+  text-wrap: pretty;
+}
+
+.checkpoint-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.checkpoint-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border-block: 1px solid var(--color-border);
+}
+
+.checkpoint-summary > div {
+  min-inline-size: 0;
+  padding: var(--space-4);
+}
+
+.checkpoint-summary > div + div {
+  border-inline-start: 1px solid var(--color-border);
+}
+
+.checkpoint-summary dt {
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-ui-label);
+}
+
+.checkpoint-summary dd {
+  margin: var(--space-2) 0 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-ui-body);
+  font-weight: 650;
+}
+
+.workspace-context-empty {
+  min-block-size: 22rem;
+}
+
+.research-intent-message {
+  max-inline-size: 42rem;
+  align-self: flex-end;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-brand-muted);
+  color: var(--color-ink-primary);
+}
+
+.research-intent-message p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-ui-body);
+  line-height: var(--line-height-ui-body);
+  white-space: pre-wrap;
+}
+
+.research-intent-message__label {
+  margin-block-end: var(--space-2) !important;
+  color: var(--color-ink-secondary);
+  font-size: var(--font-size-ui-label) !important;
+  font-weight: 650;
 }
 
 .oh-font-serif {
@@ -215,6 +354,18 @@ button:disabled {
   color: var(--oh-text-dim);
   content: attr(data-placeholder);
   pointer-events: none;
+}
+
+.chat-input:focus-visible {
+  outline: none;
+}
+
+.chat-input-container {
+  transition: border-color var(--oh-motion-navigation) ease-out;
+}
+
+.chat-input-container:focus-within {
+  border-color: var(--oh-accent);
 }
 
 /* Route-level generic boundaries */
@@ -295,8 +446,30 @@ button:disabled {
   }
 }
 
+@container (max-width: 34rem) {
+  .checkpoint-field-grid,
+  .checkpoint-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .checkpoint-summary > div + div {
+    border-block-start: 1px solid var(--color-border);
+    border-inline-start: 0;
+  }
+
+  .checkpoint-heading {
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 40rem) {
   .public-share-page {
     padding: 1.25rem 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-input-container {
+    transition: none;
   }
 }

@@ -21,9 +21,11 @@ export function ErrorMessageBanner({
     >
       <div className="flex items-start gap-[var(--oh-space-3)]">
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-[var(--oh-text)]">任务执行失败</p>
+          <p className="font-semibold text-[var(--oh-text)]">
+            研究意图提交失败
+          </p>
           <details className="mt-[var(--oh-space-1)] text-[var(--oh-muted)]">
-            <summary className="cursor-pointer">错误详情</summary>
+            <summary className="cursor-pointer">查看安全错误说明</summary>
             <p className="mt-[var(--oh-space-1)] break-words">{message}</p>
           </details>
         </div>

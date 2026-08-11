@@ -78,7 +78,6 @@
         "src/components/features/chat/components/chat-input-row.tsx",
         "src/components/features/chat/components/chat-input-actions.tsx",
         "src/components/features/chat/chat-send-button.tsx",
-        "src/components/features/chat/chat-stop-button.tsx",
         "src/hooks/chat/use-grip-resize.ts"
       ],
       "requirements": [
@@ -86,7 +85,6 @@
         "composition",
         "paste",
         "submit",
-        "cancel",
         "resize",
         "focus"
       ]
@@ -115,7 +113,6 @@
       "upstream_paths": [
         "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
         "src/components/features/chat/chat-interface.tsx",
-        "src/components/features/chat/chat-messages-skeleton.tsx",
         "src/components/features/chat/error-message-banner.tsx",
         "src/components/ui/resize-handle.tsx",
         "src/hooks/use-resizable-panels.ts",
@@ -138,14 +135,14 @@
     "DEFERRED_NOT_VENDORED": "Upstream exists, no current consumer — vendored only when a consuming integration requires it."
   },
   "summary": {
-    "REQUIRED_VENDOR": 25,
-    "REQUIRED_TRANSITIVE": 7,
+    "REQUIRED_VENDOR": 24,
+    "REQUIRED_TRANSITIVE": 6,
     "PARTIAL_SURGICAL": 6,
     "EXCLUDED": 7,
     "DEFERRED_NOT_VENDORED": 0
   },
   "scope_contract": "files contains the adopted mechanics plus representative excluded boundaries; source-policy remains authoritative for the complete excluded-domain inventory.",
-  "total_scoped_files": 45,
+  "total_scoped_files": 43,
   "files": [
     {
       "upstream_path": "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
@@ -191,17 +188,7 @@
       "reason": "Transitive OpenHands ChatInterface mechanic required by the adopted conversation wrapper; retained for Composer and execution-state ownership."
     },
     {
-      "upstream_path": "src/components/features/chat/chat-messages-skeleton.tsx",
-      "classification": "REQUIRED_TRANSITIVE",
-      "reason": "Transitive loading-state mechanic required by the adopted ChatInterface closure."
-    },
-    {
       "upstream_path": "src/components/features/chat/chat-send-button.tsx",
-      "classification": "REQUIRED_VENDOR",
-      "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
-    },
-    {
-      "upstream_path": "src/components/features/chat/chat-stop-button.tsx",
       "classification": "REQUIRED_VENDOR",
       "reason": "Core Agent Product mechanic (Shell/Nav/Activity/Composer/Panel/Tabs/Overlay/primitives/infra) — vendored as-is or minimal patch."
     },

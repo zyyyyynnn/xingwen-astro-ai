@@ -20,8 +20,6 @@ const TABS: ReadonlyArray<{
   { id: "context", label: "上下文", icon: Layers3 },
 ];
 
-const TAB_STORAGE_KEY = "xingwen-workspace-panel-tab";
-
 export function readCssLengthInPixels(name: string): number {
   const root = document.documentElement;
   const styles = window.getComputedStyle(root);
@@ -58,12 +56,6 @@ export function readCssLengthInPixels(name: string): number {
   return amount * rootFontSize;
 }
 
-function readStoredTab(): WorkspacePanelTab {
-  if (typeof window === "undefined") return "activity";
-  const stored = window.localStorage.getItem(TAB_STORAGE_KEY);
-  return stored === "context" ? "context" : "activity";
-}
-
 export function ConversationTabs({
   activeTab,
   onSelect,
@@ -73,7 +65,6 @@ export function ConversationTabs({
   const measureRowRef = React.useRef<HTMLDivElement>(null);
   const moreButtonRef = React.useRef<HTMLButtonElement>(null);
   const moreMenuRef = React.useRef<HTMLDivElement>(null);
-  const hasRestoredTabRef = React.useRef(false);
   const [inlineTabCount, setInlineTabCount] = React.useState(TABS.length);
   const [isMoreOpen, setIsMoreOpen] = React.useState(false);
   const [pendingFocusTab, setPendingFocusTab] =
@@ -83,21 +74,6 @@ export function ConversationTabs({
     setIsMoreOpen(false);
     if (restoreFocus) moreButtonRef.current?.focus();
   }, []);
-
-  React.useEffect(() => {
-    if (hasRestoredTabRef.current) return;
-    hasRestoredTabRef.current = true;
-    const stored = readStoredTab();
-    if (stored !== activeTab) onSelect(stored);
-    // The parent owns the active tab; restoring it once is the only side effect
-    // this adopted tab strip needs.
-  }, [activeTab, onSelect]);
-
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(TAB_STORAGE_KEY, activeTab);
-    }
-  }, [activeTab]);
 
   React.useLayoutEffect(() => {
     if (pendingFocusTab !== activeTab) return;
