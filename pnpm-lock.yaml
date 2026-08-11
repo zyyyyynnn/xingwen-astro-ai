@@ -119,6 +119,9 @@ importers:
       "@xingwen/design-tokens":
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      "@xingwen/research-adapter":
+        specifier: workspace:*
+        version: link:../../packages/research-adapter
       "@xingwen/ui":
         specifier: workspace:*
         version: link:../../packages/ui
@@ -200,6 +203,15 @@ importers:
   packages/design-tokens: {}
 
   packages/domain: {}
+
+  packages/research-adapter:
+    dependencies:
+      "@xingwen/data-access":
+        specifier: workspace:*
+        version: link:../data-access
+      "@xingwen/domain":
+        specifier: workspace:*
+        version: link:../domain
 
   packages/testing: {}
 

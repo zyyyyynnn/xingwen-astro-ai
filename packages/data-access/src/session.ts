@@ -14,7 +14,8 @@
 
 import { parseDto, type SessionCreated } from "@xingwen/contracts";
 
-import { errorFromResponse, NetworkError } from "./http-errors";
+import { NetworkError } from "./errors";
+import { errorFromResponse } from "./http-errors";
 
 export interface SessionInfo {
   readonly status: SessionCreated["status"];

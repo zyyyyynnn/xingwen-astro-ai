@@ -9,12 +9,8 @@
 
 import { parseDto, type CoreModelName } from "@xingwen/contracts";
 
-import {
-  errorFromResponse,
-  NetworkError,
-  NotFoundError,
-  UnexpectedHttpError,
-} from "./http-errors";
+import { NetworkError, NotFoundError, UnexpectedHttpError } from "./errors";
+import { errorFromResponse } from "./http-errors";
 import type { SessionManager } from "./session";
 
 /** Common envelope for single-resource responses (API_CONTRACT.md §4). */

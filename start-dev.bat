@@ -1,6 +1,14 @@
 @echo off
 setlocal EnableExtensions
 chcp 65001 >nul
+
+if /i "%~1"=="--preflight" (
+  shift
+) else (
+  start "Xingwen Preflight" cmd /k ""%~f0" --preflight %*"
+  exit /b 0
+)
+
 title Xingwen Preflight
 
 set "ROOT=%~dp0"
@@ -22,7 +30,7 @@ echo [INFO] Preflight: checking local tools and repository files...
 call :require_command docker || goto :abort
 call :require_command uv || goto :abort
 call :require_command pnpm || goto :abort
-call :require_command pwsh || goto :abort
+call :require_command powershell || goto :abort
 
 docker info >nul 2>&1
 if errorlevel 1 (
@@ -75,8 +83,8 @@ if errorlevel 1 (
 )
 
 echo [INFO] Preflight: synchronizing locked dependencies...
-uv sync --project "%API_DIR%" --frozen || goto :abort
-pnpm install --frozen-lockfile || goto :abort
+uv sync --project "%API_DIR%" --frozen >nul 2>&1 || goto :abort
+call pnpm install --frozen-lockfile >nul 2>&1 || goto :abort
 
 echo [INFO] Preflight: switching application services to local windows...
 docker compose -p %COMPOSE_PROJECT_NAME% stop api workspace site >nul 2>&1
@@ -85,22 +93,22 @@ call :require_free_port 5173 Workspace || goto :abort
 call :require_free_port 4321 Site || goto :abort
 
 echo [INFO] Preflight: starting PostgreSQL...
-docker compose -p %COMPOSE_PROJECT_NAME% up -d --wait postgres || goto :abort
+docker compose -p %COMPOSE_PROJECT_NAME% up -d --wait postgres >nul 2>&1 || goto :abort
 
 echo [INFO] Preflight: applying the current database schema...
 pushd "%API_DIR%"
 set "DATABASE_URL=%LOCAL_DATABASE_URL%"
-uv run alembic upgrade head
+uv run alembic upgrade head >nul 2>&1
 set "MIGRATION_RESULT=%ERRORLEVEL%"
 popd
 if not "%MIGRATION_RESULT%"=="0" goto :abort
 
 echo [INFO] Starting backend window...
-start "Xingwen Backend" pwsh -NoLogo -NoExit -Command "Set-Location -LiteralPath '%ROOT%'; $env:DATABASE_URL='%LOCAL_DATABASE_URL%'; uv run --project '%API_DIR%' uvicorn app.main:app --app-dir '%API_DIR%\src' --reload --host 127.0.0.1 --port 8000"
+start "Xingwen Backend" cmd /k "cd /d "%API_DIR%" && set "DATABASE_URL=%LOCAL_DATABASE_URL%" && uv run --project "%API_DIR%" uvicorn app.main:app --app-dir "%API_DIR%\src" --reload --host 127.0.0.1 --port 8000"
 call :wait_for_url "%API_HEALTH_URL%" 120 Backend || goto :diagnose
 
 echo [INFO] Starting frontend window...
-start "Xingwen Frontend" pwsh -NoLogo -NoExit -Command "Set-Location -LiteralPath '%ROOT%'; $env:VITE_API_BASE_URL='%API_URL%'; $env:PUBLIC_WORKSPACE_URL='%WORKSPACE_URL%'; pnpm dev"
+start "Xingwen Frontend" cmd /k "cd /d "%ROOT%" && set "VITE_API_BASE_URL=%API_URL%" && set "PUBLIC_WORKSPACE_URL=%WORKSPACE_URL%" && pnpm dev"
 call :wait_for_url "%SITE_URL%" 120 Site || goto :diagnose
 call :wait_for_url "%WORKSPACE_URL%" 120 Workspace || goto :diagnose
 
@@ -133,32 +141,27 @@ if errorlevel 1 (
 exit /b 0
 
 :require_free_port
-set "CHECK_PORT=%~1"
-set "CHECK_NAME=%~2"
-pwsh -NoProfile -Command "if (Get-NetTCPConnection -State Listen -LocalPort $env:CHECK_PORT -ErrorAction SilentlyContinue) { exit 1 }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$port = %~1; if (@(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue).Count -gt 0) { exit 1 }"
 if errorlevel 1 (
-  echo [ERROR] %CHECK_NAME% port %CHECK_PORT% is already in use.
+  echo [ERROR] %~2 port %~1 is already in use.
   exit /b 1
 )
 exit /b 0
 
 :wait_for_url
-set "CHECK_URL=%~1"
-set "CHECK_TIMEOUT=%~2"
-set "CHECK_NAME=%~3"
-echo [INFO] Waiting for %CHECK_NAME% at %CHECK_URL% ...
-pwsh -NoProfile -Command "$deadline = (Get-Date).AddSeconds([int]$env:CHECK_TIMEOUT); while ((Get-Date) -lt $deadline) { try { $response = Invoke-WebRequest -Uri $env:CHECK_URL -TimeoutSec 5; if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) { exit 0 } } catch { }; Start-Sleep -Seconds 2 }; exit 1"
+echo [INFO] Waiting for %~3 at %~1 ...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$url = '%~1'; $deadline = (Get-Date).AddSeconds([int]'%~2'); while ((Get-Date) -lt $deadline) { try { $response = Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 5; if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) { exit 0 } } catch { }; Start-Sleep -Seconds 2 }; exit 1"
 if errorlevel 1 (
-  echo [ERROR] %CHECK_NAME% did not become reachable within %CHECK_TIMEOUT% seconds.
+  echo [ERROR] %~3 did not become reachable within %~2 seconds.
   exit /b 1
 )
-echo [OK] %CHECK_NAME% is reachable.
+echo [OK] %~3 is reachable.
 exit /b 0
 
 :diagnose
 echo.
 echo [ERROR] Startup did not complete. Check the Backend and Frontend windows.
-docker compose -p %COMPOSE_PROJECT_NAME% ps --all
+docker compose -p %COMPOSE_PROJECT_NAME% ps --all >nul 2>&1
 goto :abort
 
 :usage

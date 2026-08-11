@@ -1,4 +1,5 @@
 import type { DomainEntityId } from "@xingwen/domain";
+import { researchAdapter } from "@xingwen/research-adapter";
 import { describe, expect, it } from "vitest";
 
 import { createWorkspaceRuntime } from "./runtime";
@@ -12,6 +13,7 @@ describe("createWorkspaceRuntime", () => {
     const runtime = createWorkspaceRuntime({ apiBaseUrl: undefined });
 
     expect(runtime.adapterKind).toBe("fixture");
+    expect(runtime.researchAdapter).toBe(researchAdapter);
     expect(runtime.workspaceController.getState()).toMatchObject({
       status: "idle",
     });
@@ -23,6 +25,7 @@ describe("createWorkspaceRuntime", () => {
     });
 
     expect(runtime.adapterKind).toBe("http");
+    expect(runtime.researchAdapter).toBe(researchAdapter);
     if (runtime.adapterKind === "http") {
       expect(runtime.session.getCurrent()).toBeNull();
     }
@@ -46,6 +49,15 @@ describe("createWorkspaceRuntime", () => {
       entityId("proj_01JEXAMPLE"),
     );
     expect(project).not.toBeNull();
+    if (project === null) {
+      throw new Error("Expected the fixture project.");
+    }
+    const viewModel = runtime.researchAdapter.toProjectViewModel(project);
+    expect(viewModel).toMatchObject({
+      id: entityId("proj_01JEXAMPLE"),
+      caseKey: "exoplanet_host_star",
+    });
+    expect("sessionId" in viewModel).toBe(false);
     await runtime.workspaceController.load(entityId("proj_01JEXAMPLE"));
     expect(runtime.workspaceController.getState()).toMatchObject({
       status: "draft",
