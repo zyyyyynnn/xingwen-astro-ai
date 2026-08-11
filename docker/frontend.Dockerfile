@@ -18,6 +18,7 @@ COPY packages/contracts/package.json ./packages/contracts/package.json
 COPY packages/data-access/package.json ./packages/data-access/package.json
 COPY packages/design-tokens/package.json ./packages/design-tokens/package.json
 COPY packages/domain/package.json ./packages/domain/package.json
+COPY packages/research-adapter/package.json ./packages/research-adapter/package.json
 COPY packages/testing/package.json ./packages/testing/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
 COPY packages/workspace-core/package.json ./packages/workspace-core/package.json
@@ -31,6 +32,7 @@ COPY packages/contracts ./packages/contracts
 COPY packages/data-access ./packages/data-access
 COPY packages/design-tokens ./packages/design-tokens
 COPY packages/domain ./packages/domain
+COPY packages/research-adapter ./packages/research-adapter
 COPY packages/testing ./packages/testing
 COPY packages/ui ./packages/ui
 COPY packages/workspace-core ./packages/workspace-core
