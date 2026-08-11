@@ -1,0 +1,197 @@
+import type {
+  ArtifactKind,
+  CachePolicy,
+  CaseKey,
+  ContractDraftStatus,
+  ContentHash,
+  DerivationKind,
+  DomainEntityId,
+  ExecutionMode,
+  ResearchGoal,
+  RunStatus,
+  SemanticVersion,
+  SourceMode,
+  UnitPolicy,
+  UtcIsoTimestamp,
+  EvidenceTargetType,
+  EvidenceType,
+} from "@xingwen/domain";
+
+export interface ProjectViewModel {
+  readonly id: DomainEntityId;
+  readonly name: string;
+  readonly description: string;
+  readonly caseKey: CaseKey;
+  readonly activeContractId: DomainEntityId | null;
+  readonly latestRunId: DomainEntityId | null;
+  readonly revision: number;
+  readonly createdAt: UtcIsoTimestamp;
+  readonly updatedAt: UtcIsoTimestamp;
+}
+
+export interface ContractInputViewModel {
+  readonly researchGoal: ResearchGoal;
+  readonly targetObjects: readonly DomainEntityId[];
+  readonly dataRequirements: {
+    readonly unitPolicy: UnitPolicy;
+  };
+  readonly requestedFields: readonly DomainEntityId[];
+  readonly sourceScope: {
+    readonly allowedSources: readonly DomainEntityId[];
+  };
+  readonly paperSearchScope: {
+    readonly keywords: readonly string[];
+    readonly yearFrom: number | null;
+    readonly yearTo: number | null;
+    readonly sourceIds: readonly DomainEntityId[];
+    readonly maxCandidates: number;
+  };
+  readonly outputRequirements: readonly ArtifactKind[];
+  readonly evidenceRequirements: {
+    readonly requireLocator: boolean;
+    readonly requireSourceSnapshot: boolean;
+    readonly minimumCoverage: number;
+  };
+  readonly qualityConstraints: {
+    readonly sourceCompletenessMin: number;
+    readonly unitConsistencyMin: number;
+  };
+}
+
+export interface ResearchContractDraftViewModel {
+  readonly id: DomainEntityId;
+  readonly version: number;
+  readonly intent: string;
+  readonly status: ContractDraftStatus;
+  readonly contract: ContractInputViewModel;
+  readonly warnings: readonly string[];
+  readonly createdAt: UtcIsoTimestamp;
+  readonly updatedAt: UtcIsoTimestamp;
+  readonly expiresAt: UtcIsoTimestamp;
+}
+
+export interface ResearchContractViewModel extends ContractInputViewModel {
+  readonly id: DomainEntityId;
+  readonly projectId: DomainEntityId;
+  readonly version: number;
+  readonly createdAt: UtcIsoTimestamp;
+  readonly createdFromDraftId: DomainEntityId;
+  readonly provenance: {
+    readonly contentHash: ContentHash;
+  };
+}
+
+export interface ResearchRunViewModel {
+  readonly id: DomainEntityId;
+  readonly projectId: DomainEntityId;
+  readonly contractId: DomainEntityId;
+  readonly executionMode: ExecutionMode;
+  readonly status: RunStatus;
+  readonly progress: number;
+  readonly latestEventSequence: number;
+  readonly parentRunId: DomainEntityId | null;
+  readonly derivationKind: DerivationKind;
+  readonly retryFromStep: DomainEntityId | null;
+  readonly cachePolicy: CachePolicy;
+  readonly startedAt: UtcIsoTimestamp | null;
+  readonly finishedAt: UtcIsoTimestamp | null;
+  readonly createdAt: UtcIsoTimestamp;
+  readonly updatedAt: UtcIsoTimestamp;
+  readonly failure: {
+    readonly code: string | null;
+    readonly summary: string | null;
+  } | null;
+  readonly isTerminal: boolean;
+  readonly isFailed: boolean;
+  readonly isCancelled: boolean;
+}
+
+export interface ResearchArtifactViewModel {
+  readonly id: DomainEntityId;
+  readonly projectId: DomainEntityId;
+  readonly kind: ArtifactKind;
+  readonly title: string;
+  readonly logicalKey: DomainEntityId;
+  readonly latestVersionId: DomainEntityId | null;
+  readonly createdAt: UtcIsoTimestamp;
+}
+
+export interface ProducerReferenceViewModel {
+  readonly type: "pipeline" | "model" | "algorithm";
+  readonly name: string;
+  readonly version: string;
+  readonly modelName: string | null;
+  readonly promptName: string | null;
+  readonly promptVersion: string | null;
+  readonly parametersHash: ContentHash | null;
+}
+
+export interface ArtifactVersionProvenanceViewModel {
+  readonly contentHash: ContentHash;
+  readonly inputHash: ContentHash;
+  readonly producer: ProducerReferenceViewModel;
+  readonly sourceSnapshotIds: readonly DomainEntityId[];
+  readonly evidenceIds: readonly DomainEntityId[];
+  readonly supersedesVersionId: DomainEntityId | null;
+}
+
+export interface ArtifactVersionMetadataViewModel {
+  readonly id: DomainEntityId;
+  readonly artifactId: DomainEntityId;
+  readonly projectId: DomainEntityId;
+  readonly createdByRunId: DomainEntityId;
+  readonly versionNumber: number;
+  readonly schemaVersion: SemanticVersion;
+  readonly sourceMode: SourceMode;
+  readonly createdAt: UtcIsoTimestamp;
+  readonly provenance: ArtifactVersionProvenanceViewModel;
+}
+
+export interface DatabaseCellLocatorViewModel {
+  readonly kind: "database_cell";
+  readonly queryHash: string;
+  readonly rowKey: string;
+  readonly field: DomainEntityId;
+}
+
+export interface PaperTextLocatorViewModel {
+  readonly kind: "paper_text";
+  readonly section: string;
+  readonly page: number | null;
+  readonly paragraph: number | null;
+  readonly range: string | null;
+}
+
+export interface ModelExtractionLocatorViewModel {
+  readonly kind: "model_extraction";
+  readonly inputEvidenceId: DomainEntityId;
+  readonly promptName: string;
+  readonly modelVersion: string;
+}
+
+export interface ReasoningTraceLocatorViewModel {
+  readonly kind: "reasoning_trace";
+  readonly relationId: DomainEntityId;
+  readonly stepKey: DomainEntityId;
+}
+
+export type EvidenceLocatorViewModel =
+  | DatabaseCellLocatorViewModel
+  | PaperTextLocatorViewModel
+  | ModelExtractionLocatorViewModel
+  | ReasoningTraceLocatorViewModel;
+
+export interface EvidenceViewModel {
+  readonly id: DomainEntityId;
+  readonly artifactVersionId: DomainEntityId;
+  readonly targetType: EvidenceTargetType;
+  readonly targetId: DomainEntityId;
+  readonly evidenceType: EvidenceType;
+  readonly sourceSnapshotId: DomainEntityId | null;
+  readonly paperId: DomainEntityId | null;
+  readonly locator: EvidenceLocatorViewModel | null;
+  readonly quoteOrValue: string | null;
+  readonly extractionMethod: string;
+  readonly confidence: number;
+  readonly createdAt: UtcIsoTimestamp;
+}

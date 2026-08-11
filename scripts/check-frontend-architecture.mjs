@@ -14,6 +14,7 @@ const packageLocations = new Map([
   ["@xingwen/contracts", "packages/contracts"],
   ["@xingwen/data-access", "packages/data-access"],
   ["@xingwen/workspace-core", "packages/workspace-core"],
+  ["@xingwen/research-adapter", "packages/research-adapter"],
   ["@xingwen/testing", "packages/testing"],
 ]);
 
@@ -26,6 +27,7 @@ const allowedLocalDependencies = new Map([
       "@xingwen/ui",
       "@xingwen/workspace-core",
       "@xingwen/data-access",
+      "@xingwen/research-adapter",
     ]),
   ],
   ["@xingwen/design-tokens", new Set()],
@@ -34,12 +36,17 @@ const allowedLocalDependencies = new Map([
   ["@xingwen/contracts", new Set()],
   ["@xingwen/data-access", new Set(["@xingwen/domain", "@xingwen/contracts"])],
   ["@xingwen/workspace-core", new Set(["@xingwen/domain"])],
+  [
+    "@xingwen/research-adapter",
+    new Set(["@xingwen/domain", "@xingwen/data-access"]),
+  ],
   ["@xingwen/testing", new Set()],
 ]);
 
 const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
   ["@xingwen/ui", new Set(["clsx", "lucide-react", "react"])],
+  ["@xingwen/research-adapter", new Set()],
 ]);
 
 const approvedIconPackages = new Set(["lucide-react"]);
@@ -657,6 +664,23 @@ const boundaryRules = new Map([
       forbidRepositorySymbols: true,
     },
   ],
+  [
+    "packages/research-adapter",
+    {
+      description: "the framework-free Research Adapter boundary",
+      allowedBareImports: new Set(["@xingwen/data-access", "@xingwen/domain"]),
+      forbiddenIdentifiers: new Set([
+        ...networkAndStorageGlobals,
+        "document",
+        "globalThis",
+        "location",
+        "navigator",
+        "window",
+      ]),
+      forbidRepositorySymbols: false,
+      excludeTestFiles: true,
+    },
+  ],
 ]);
 
 const workspacePresentationRule = {
@@ -771,8 +795,10 @@ function collectBoundaryViolations(file, content, rule) {
 }
 
 for (const [location, rule] of boundaryRules) {
-  for (const file of sourceFiles.filter((entry) =>
-    entry.startsWith(`${location}/src/`),
+  for (const file of sourceFiles.filter(
+    (entry) =>
+      entry.startsWith(`${location}/src/`) &&
+      !(rule.excludeTestFiles && /\.(?:test|spec)\.(?:ts|tsx)$/u.test(entry)),
   )) {
     failures.push(
       ...collectBoundaryViolations(

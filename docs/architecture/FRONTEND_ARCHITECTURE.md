@@ -45,6 +45,7 @@ Research Adapter
   -> Domain -> UI ViewModel
   -> UI Intent -> Application Command
   -> RunEvent -> public ActivityPresentationEvent
+  -> Repository/Data-access Error -> stable public application error
 ```
 
 ## 3. 上游 Agent 源码治理
@@ -111,7 +112,13 @@ apps/workspace
 
 Research Adapter
   -> @xingwen/domain
-  -> Repository Port
+  -> @xingwen/data-access public boundary
+
+`@xingwen/research-adapter` is the framework-free, stateless application
+boundary for Domain-to-ViewModel projections, public RunEvent activity
+presentation, typed UI commands, and fail-closed public application errors. It
+does not own transport parsing, session lifecycle, Query/cache state, polling,
+renderers, or server state.
 
 Artifact / Evidence Renderer
   -> @xingwen/domain

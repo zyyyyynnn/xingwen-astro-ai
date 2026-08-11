@@ -4,6 +4,7 @@ import {
   createSessionManager,
   exoplanetHostStarFixture,
 } from "@xingwen/data-access";
+import { researchAdapter } from "@xingwen/research-adapter";
 import { createWorkspaceController } from "@xingwen/workspace-core";
 
 import type { WorkspaceRuntimeBoundaries } from "./boundaries";
@@ -47,6 +48,7 @@ export function createWorkspaceRuntime(
     return {
       adapterKind: "fixture",
       repositories,
+      researchAdapter,
       workspaceController: createWorkspaceController(repositories.workspaces),
     };
   }
@@ -66,6 +68,7 @@ export function createWorkspaceRuntime(
   return {
     adapterKind: "http",
     repositories,
+    researchAdapter,
     session,
     workspaceController: createWorkspaceController(repositories.workspaces),
   };

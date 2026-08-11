@@ -3,10 +3,12 @@ import type {
   RepositorySet,
   SessionManager,
 } from "@xingwen/data-access";
+import type { ResearchAdapter } from "@xingwen/research-adapter";
 import type { WorkspaceController } from "@xingwen/workspace-core";
 
 interface WorkspaceRuntimeBase {
   readonly repositories: RepositorySet;
+  readonly researchAdapter: ResearchAdapter;
   readonly workspaceController: WorkspaceController;
 }
 

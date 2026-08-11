@@ -39,6 +39,12 @@ Experience (Site / Workspace)
 - **职责**：提供 Brand Site 静态站与 Research Workspace 宿主界面，负责 Session Gate、路由、Query/Mutation 组合、公开 Activity 展示、Artifact Renderer Registry、共享 Evidence Inspector、交互响应与分享体验。
 - **不负责**：直连外部模型/数据源、决定 Run 状态、伪造后端未返回的科研事实。
 
+`@xingwen/research-adapter` 是前端唯一的 Research Application Boundary，负责
+Domain 到 UI ViewModel、RunEvent 到公开 ActivityPresentationEvent、UI Intent
+到 ApplicationCommand，以及已归一化 Repository 错误到稳定公开错误的纯映射。
+它只依赖 `@xingwen/domain` 与 `@xingwen/data-access` 的公开边界，不拥有
+transport、session、query/cache、polling、server state 或 renderer 生命周期。
+
 ### 2.2 API、Application 与 Workflow
 - **职责**：提供统一无版本 `/api/*` 接口，管理 Session、Project、Contract、Run 状态机与 Event 读取；Workflow 拥有并发锁、幂等、StepAttempt 重试、取消与发布事务，并为 CacheSelector、RevisionPlan 保留唯一目标编排边界；通过 Persistent Workflow Executor 连接 Step Adapter。HTTP 只暴露有真实执行闭环的命令。
 - **不负责**：具体清洗算法、文献检索策略、图谱布局算法。

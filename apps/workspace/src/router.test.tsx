@@ -49,6 +49,7 @@ function httpShapedRuntime(
   return {
     adapterKind: "http",
     repositories: fixture.repositories,
+    researchAdapter: fixture.researchAdapter,
     workspaceController: fixture.workspaceController,
     session,
   };
