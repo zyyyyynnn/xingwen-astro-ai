@@ -24,7 +24,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 import os
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from alembic import command
 from alembic.config import Config
@@ -33,27 +33,13 @@ import pytest
 from pydantic import SecretStr
 
 from app.config import settings
-from app.db.models import (
-    EvidenceModel,
-    ResearchArtifactModel,
-    ResearchProjectModel,
-    SourceSnapshotModel,
-)
 from app.main import create_app
-from app.schemas.core import ArtifactKind, ExportArtifactContent
 from app.schemas.data_artifacts import DatasetArtifactCandidate
-from artifact_publication_test_support import publish_reference_dataset
+from app.test_support.bootstrap import bootstrap_fixture_artifacts
 from authoring_test_support import (
     build_contract_draft,
     build_research_project,
     persist_authoring_models,
-)
-from app.workflow.publisher import (
-    ArtifactPublication,
-    ArtifactPublisher,
-    ProducerExecutionRequest,
-    ProducerExecutionStore,
-    admit_artifact_candidate,
 )
 from app.workflow.store import PersistentWorkflowStore
 
@@ -63,10 +49,6 @@ pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
 )
 NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
-
-
-def _accept(_: object) -> None:
-    return None
 
 
 def _contract_input() -> dict[str, object]:
@@ -183,138 +165,17 @@ def _confirm_and_run(runtime: dict[str, object], *, key_suffix: str) -> tuple[st
 def _publish_fixture_artifact(
     runtime: dict[str, object], run_id: str
 ) -> tuple[str, str]:
-    """Publish an export that references an actual version in the same Project."""
-    factory = runtime["factory"]
-    workflow: PersistentWorkflowStore = runtime["workflow_store"]  # type: ignore[assignment]
-    run_uuid = UUID(run_id)
-    project_uuid = UUID(str(runtime["project_id"]))
+    """Publish the canonical Dataset fixture onto the target demo_replay Run."""
 
-    snapshot = workflow.load_snapshot(run_uuid)
-    lease = workflow.acquire_lease(
-        run_uuid,
-        owner="real_integration-gap-publisher",
-        lease_duration=timedelta(minutes=5),
-        expected_status="queued",
-        expected_revision=snapshot.revision,
+    result = bootstrap_fixture_artifacts(
+        session_id=str(runtime["owner_session_id"]),
+        run_id=run_id,
+        factory=runtime["factory"],  # type: ignore[arg-type]
+        research_service=runtime["app"].state.research_service,  # type: ignore[union-attr]
+        workflow_store=runtime["workflow_store"],  # type: ignore[arg-type]
     )
-    attempt = workflow.begin_step(
-        run_uuid,
-        step_key="planning",
-        attempt_idempotency_key=f"gap-attempt-{run_id}",
-        token=lease.token,
-        generation=lease.generation,
-        expected_status="queued",
-        expected_revision=lease.revision,
-        public_message="Publishing gap-coverage fixture",
-    )
-    artifact_id = uuid4()
-    source_snapshot_id = uuid4()
-    evidence_id = uuid4()
-    with factory() as session:  # type: ignore[operator]
-        project = session.get(ResearchProjectModel, project_uuid)
-        assert project is not None
-    reference_version_id = publish_reference_dataset(
-        factory=factory,  # type: ignore[arg-type]
-        project=project,
-    )
-    with factory() as session, session.begin():  # type: ignore[operator]
-        session.add(
-            ResearchArtifactModel(
-                id=artifact_id,
-                project_id=project_uuid,
-                kind="export",
-                title="Real Compose and Browser Integration export",
-                logical_key=f"gap-fixture-{run_id}",
-            )
-        )
-        session.add(
-            SourceSnapshotModel(
-                id=source_snapshot_id,
-                project_id=project_uuid,
-                source_id="real_integration_gap_fixture",
-                source_type="fixture",
-                retrieved_at=NOW,
-                query={"scenario": "exoplanet_host_star"},
-                query_hash="sha256:" + "1" * 64,
-                content_hash="sha256:" + "2" * 64,
-                license_note="Test fixture; not a live scientific source",
-                request_metadata={"execution_mode": "demo_replay"},
-            )
-        )
-    ledger = ProducerExecutionStore(factory)  # type: ignore[arg-type]
-    candidate = admit_artifact_candidate(
-        ExportArtifactContent(
-            kind=ArtifactKind.export,
-            format="json",
-            artifact_version_ids=(str(reference_version_id),),
-        ),
-        schema_version="2.0.0",
-        source_snapshot_ids=(str(source_snapshot_id),),
-        evidence_ids=(str(evidence_id),),
-        evidence_validator=_accept,
-        domain_validator=_accept,
-        quality_validator=_accept,
-    )
-    execution = ledger.start_producer_execution(
-        ProducerExecutionRequest(
-            run_id=run_uuid,
-            step_key="planning",
-            attempt_id=attempt.attempt_id,
-            idempotency_key=f"gap-producer-{run_id}",
-            producer_type="pipeline",
-            producer_name="real_integration-gap-fixture",
-            producer_version="1.0.0",
-            input_hash="sha256:" + "4" * 64,
-            parameters={"scenario": "exoplanet_host_star"},
-        ),
-        token=lease.token,
-        generation=lease.generation,
-        expected_status=attempt.run_status,
-        expected_revision=attempt.run_revision,
-    )
-    ledger.finish_producer_execution(
-        execution.id, status="completed", output_hash=candidate.content_hash
-    )
-    published = ArtifactPublisher(factory).publish_step_outputs(  # type: ignore[arg-type]
-        run_uuid,
-        step_key="planning",
-        attempt_id=attempt.attempt_id,
-        token=lease.token,
-        generation=lease.generation,
-        expected_status=attempt.run_status,
-        expected_revision=attempt.run_revision,
-        publications=(
-            ArtifactPublication(
-                artifact_id=artifact_id,
-                publication_key=f"gap-fixture-{run_id}",
-                producer_execution_id=execution.id,
-                candidate=candidate,
-                source_mode="fixture",
-            ),
-        ),
-        public_message="Gap-coverage fixture published",
-    )
-    version_id = published.versions[0].id
-    with factory() as session, session.begin():  # type: ignore[operator]
-        session.add(
-            EvidenceModel(
-                id=evidence_id,
-                project_id=project_uuid,
-                artifact_version_id=version_id,
-                target_type="field",
-                target_id="planet.toi_id",
-                evidence_type="database_query",
-                source_snapshot_id=source_snapshot_id,
-                locator={
-                    "kind": "fixture_row",
-                    "row_key": "TOI-700 d",
-                },
-                quote_or_value="TOI-700 d",
-                extraction_method="real_integration_gap_fixture.replay",
-                confidence=1.0,
-            )
-        )
-    return str(version_id), str(evidence_id)
+    assert result.evidence_ids
+    return result.artifact_version_id, result.evidence_ids[0]
 
 
 def test_draft_and_contract_payloads_never_carry_execution_mode(
