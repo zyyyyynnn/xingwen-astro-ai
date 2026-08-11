@@ -2889,11 +2889,27 @@ def _validate_publishable_producer(
         or producer.run_step_id != step_id
         or producer.step_attempt_id != attempt_id
         or producer.output_hash != output.candidate.content_hash
+        or not _producer_matches_candidate_input_hash(producer, output.candidate)
         or not _producer_matches_graph_candidate(producer, output.candidate)
     ):
         raise PublicationAdmissionError(
             "Publication requires a completed matching ProducerExecution"
         )
+
+
+def _producer_matches_candidate_input_hash(
+    producer: ProducerExecutionModel,
+    candidate: AdmittedArtifactCandidate,
+) -> bool:
+    """Bind every typed candidate input to the ProducerExecution that publishes it."""
+
+    content = candidate.content
+    if content.get("kind") == "export":
+        return True
+    declared_input_hash = content.get("input_hash")
+    return isinstance(declared_input_hash, str) and (
+        producer.input_hash == declared_input_hash
+    )
 
 
 def _producer_matches_graph_candidate(

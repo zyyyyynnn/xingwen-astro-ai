@@ -608,6 +608,39 @@ def test_dataset_without_persisted_provenance_rolls_back_publication(
     _assert_publication_not_started(active)
 
 
+def test_publication_rejects_dataset_with_mismatched_producer_input_hash(
+    postgres_engine: Engine,
+) -> None:
+    factory = session_factory(postgres_engine)
+    project, contract = _seed_project(factory)
+    artifact = _create_artifact(
+        factory,
+        project_id=project.id,
+        logical_key=f"dataset-input-hash-mismatch-{uuid4()}",
+        kind="dataset",
+    )
+    active = _active_publication(
+        postgres_engine,
+        project=project,
+        contract=contract,
+        artifact=artifact,
+    )
+    candidate = build_reference_dataset_candidate(run_id=active.run_id)
+    with factory() as session, session.begin():
+        execution = session.get(ProducerExecutionModel, active.execution_id)
+        assert execution is not None
+        execution.output_hash = candidate.content_hash
+    invalid = replace(
+        active,
+        publication=replace(active.publication, candidate=candidate),
+    )
+
+    with pytest.raises(PublicationAdmissionError, match="input_hash"):
+        _publish(invalid)
+
+    _assert_publication_not_started(active)
+
+
 class _FailingPublisher(ArtifactPublisher):
     def _before_commit(self, session: Session) -> None:
         raise RuntimeError("injected transaction failure")
