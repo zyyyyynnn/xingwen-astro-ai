@@ -606,7 +606,6 @@ def test_graph_target_kind_is_checked_before_idempotent_replay(
         "type",
         "name",
         "version",
-        "input_hash",
         "parameters_hash",
         "model_provider",
         "model_name",
@@ -625,6 +624,32 @@ def test_graph_publish_rejects_non_exact_producer_execution(
     )
 
     with pytest.raises(PublicationAdmissionError, match="matching ProducerExecution"):
+        _publish(active)
+    with active.factory() as session:
+        artifact = session.get(ResearchArtifactModel, active.artifact.id)
+        assert artifact is not None and artifact.latest_version_id is None
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ArtifactVersionModel)
+                .where(ArtifactVersionModel.artifact_id == active.artifact.id)
+            )
+            == 0
+        )
+
+
+def test_graph_publish_rejects_mismatched_producer_input_hash(
+    postgres_engine: Engine,
+) -> None:
+    active = _active_graph_publication(
+        postgres_engine,
+        producer_mutation="input_hash",
+    )
+
+    with pytest.raises(
+        PublicationAdmissionError,
+        match="ProducerExecution input_hash must match the admitted candidate",
+    ):
         _publish(active)
     with active.factory() as session:
         artifact = session.get(ResearchArtifactModel, active.artifact.id)
