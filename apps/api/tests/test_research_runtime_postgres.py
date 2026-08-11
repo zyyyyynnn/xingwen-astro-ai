@@ -27,11 +27,8 @@ from sqlalchemy import Engine, func, select
 
 from app.config import settings
 from app.db.models import (
-    EvidenceModel,
-    ResearchArtifactModel,
     ResearchContractDraftModel,
     ResearchProjectModel,
-    SourceSnapshotModel,
 )
 from app.db.session import create_engine_from_url, session_factory
 from authoring_test_support import (
@@ -39,21 +36,13 @@ from authoring_test_support import (
     build_research_project,
     persist_authoring_models,
 )
-from artifact_publication_test_support import publish_reference_dataset
 from app.main import _load_case_manifests, create_app
-from app.schemas.core import ArtifactKind, ExportArtifactContent
 from app.services.artifacts import ArtifactReadService
 from app.services.research import ResearchApplicationService
 from app.services.resource_authority import PersistentResourceAuthority
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
+from app.test_support.bootstrap import bootstrap_fixture_artifacts
 from app.workflow.store import PersistentWorkflowStore
-from app.workflow.publisher import (
-    ArtifactPublication,
-    ArtifactPublisher,
-    ProducerExecutionRequest,
-    ProducerExecutionStore,
-    admit_artifact_candidate,
-)
 
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
@@ -61,10 +50,6 @@ pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
 )
 NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
-
-
-def _accept(_context: object) -> None:
-    return None
 
 
 def _contract_input() -> dict[str, object]:
@@ -148,6 +133,7 @@ def runtime() -> Iterator[dict[str, object]]:
             "client": client,
             "factory": factory,
             "workflow_store": store,
+            "research_service": app.state.research_service,
             "owner_session_id": owner.id,
             "owner_csrf": owner_csrf,
             "other_credential": other_credential,
@@ -393,157 +379,32 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
         },
     )
     assert created.status_code == 201
-    run_id = UUID(created.json()["data"]["id"])
+    run_id = created.json()["data"]["id"]
 
-    factory = runtime["factory"]
-    workflow: PersistentWorkflowStore = runtime["workflow_store"]  # type: ignore[assignment]
-    snapshot = workflow.load_snapshot(run_id)
-    lease = workflow.acquire_lease(
-        run_id,
-        owner="real_integration-fixture-publisher",
-        lease_duration=timedelta(minutes=5),
-        expected_status="queued",
-        expected_revision=snapshot.revision,
+    published = bootstrap_fixture_artifacts(
+        session_id=str(runtime["owner_session_id"]),
+        run_id=run_id,
+        factory=runtime["factory"],  # type: ignore[arg-type]
+        research_service=runtime["research_service"],  # type: ignore[arg-type]
+        workflow_store=runtime["workflow_store"],  # type: ignore[arg-type]
     )
-    attempt = workflow.begin_step(
-        run_id,
-        step_key="planning",
-        attempt_idempotency_key="fixture-attempt",
-        token=lease.token,
-        generation=lease.generation,
-        expected_status="queued",
-        expected_revision=lease.revision,
-        public_message="Publishing deterministic export",
-    )
-
-    artifact_id = uuid4()
-    source_snapshot_id = uuid4()
-    evidence_id = uuid4()
-    with factory() as session:  # type: ignore[operator]
-        project = session.get(ResearchProjectModel, UUID(str(project_id)))
-        assert project is not None
-    reference_version_id = publish_reference_dataset(
-        factory=factory,  # type: ignore[arg-type]
-        project=project,
-    )
-    with factory() as session, session.begin():  # type: ignore[operator]
-        session.add(
-            ResearchArtifactModel(
-                id=artifact_id,
-                project_id=UUID(str(project_id)),
-                kind="export",
-                title="Deterministic provenance export",
-                logical_key="real_integration-demo-export",
-            )
-        )
-        session.add(
-            SourceSnapshotModel(
-                id=source_snapshot_id,
-                project_id=UUID(str(project_id)),
-                source_id="real_integration_demo_export_fixture",
-                source_type="fixture",
-                retrieved_at=NOW,
-                query={"scenario": "exoplanet_host_star"},
-                query_hash="sha256:" + "1" * 64,
-                content_hash="sha256:" + "2" * 64,
-                license_note="Repository fixture; not a live scientific source",
-                request_metadata={"execution_mode": "demo_replay"},
-            )
-        )
-
-    ledger = ProducerExecutionStore(factory)  # type: ignore[arg-type]
-    candidate = admit_artifact_candidate(
-        ExportArtifactContent(
-            kind=ArtifactKind.export,
-            format="json",
-            artifact_version_ids=(str(reference_version_id),),
-        ),
-        schema_version="2.0.0",
-        source_snapshot_ids=(str(source_snapshot_id),),
-        evidence_ids=(str(evidence_id),),
-        evidence_validator=_accept,
-        domain_validator=_accept,
-        quality_validator=_accept,
-    )
-    execution = ledger.start_producer_execution(
-        ProducerExecutionRequest(
-            run_id=run_id,
-            step_key="planning",
-            attempt_id=attempt.attempt_id,
-            idempotency_key="fixture-producer",
-            producer_type="pipeline",
-            producer_name="real_integration-demo-export",
-            producer_version="1.0.0",
-            input_hash="sha256:" + "3" * 64,
-            parameters={
-                "format": "json",
-                "reference_version_id": str(reference_version_id),
-            },
-        ),
-        token=lease.token,
-        generation=lease.generation,
-        expected_status=attempt.run_status,
-        expected_revision=attempt.run_revision,
-    )
-    ledger.finish_producer_execution(
-        execution.id,
-        status="completed",
-        output_hash=candidate.content_hash,
-    )
-    published = ArtifactPublisher(factory).publish_step_outputs(  # type: ignore[arg-type]
-        run_id,
-        step_key="planning",
-        attempt_id=attempt.attempt_id,
-        token=lease.token,
-        generation=lease.generation,
-        expected_status=attempt.run_status,
-        expected_revision=attempt.run_revision,
-        publications=(
-            ArtifactPublication(
-                artifact_id=artifact_id,
-                publication_key="real-integration-demo-export",
-                producer_execution_id=execution.id,
-                candidate=candidate,
-                source_mode="fixture",
-            ),
-        ),
-        public_message="Deterministic export published",
-    )
-    version_id = published.versions[0].id
-
-    with factory() as session, session.begin():  # type: ignore[operator]
-        session.add(
-            EvidenceModel(
-                id=evidence_id,
-                project_id=UUID(str(project_id)),
-                artifact_version_id=version_id,
-                target_type="export_artifact",
-                target_id=str(artifact_id),
-                evidence_type="export_provenance",
-                source_snapshot_id=source_snapshot_id,
-                locator={
-                    "kind": "artifact_version_reference",
-                    "artifact_version_id": str(reference_version_id),
-                },
-                quote_or_value=str(reference_version_id),
-                extraction_method="real_integration_demo_export.replay",
-                confidence=1.0,
-            )
-        )
+    assert published.evidence_ids
+    version_id = published.artifact_version_id
+    evidence_id = published.evidence_ids[0]
 
     version = client.get(f"/api/artifact-versions/{version_id}")
     assert version.status_code == 200
     assert version.json()["data"]["source_mode"] == "fixture"
-    assert version.json()["data"]["evidence_ids"] == [str(evidence_id)]
-    assert version.json()["data"]["content"]["kind"] == "export"
+    assert evidence_id in version.json()["data"]["evidence_ids"]
+    assert version.json()["data"]["content"]["kind"] == "dataset"
 
     shared = client.post(
         f"/api/projects/{project_id}/shares",
         headers=csrf,
         json={
-            "title": "Real Compose and Browser Integration export evidence",
-            "artifact_version_ids": [str(version_id)],
-            "evidence_ids": [str(evidence_id)],
+            "title": "Real Compose and Browser Integration dataset evidence",
+            "artifact_version_ids": [version_id],
+            "evidence_ids": [evidence_id],
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
             "redaction_policy": "public_metadata_only",
         },
@@ -552,7 +413,7 @@ def test_demo_fixture_publisher_flows_to_artifact_evidence_and_share(
     public = client.get(shared.json()["data"]["share_url"])
     assert public.status_code == 200
     assert public.json()["data"]["artifact_versions"][0]["source_mode"] == "fixture"
-    assert public.json()["data"]["evidence"][0]["id"] == str(evidence_id)
+    assert public.json()["data"]["evidence"][0]["id"] == evidence_id
 
 
 def test_public_authoring_chain_creates_project_and_draft(
