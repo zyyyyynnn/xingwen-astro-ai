@@ -62,6 +62,26 @@
       "path": "json/FieldDictionaryArtifactRead.schema.json"
     },
     {
+      "module": "app.schemas.graph_artifact_api",
+      "name": "GraphArtifactRead",
+      "path": "json/GraphArtifactRead.schema.json"
+    },
+    {
+      "module": "app.schemas.graph_artifact_api",
+      "name": "GraphEdgeRead",
+      "path": "json/GraphEdgeRead.schema.json"
+    },
+    {
+      "module": "app.schemas.graph_artifact_api",
+      "name": "GraphEvidenceUseRead",
+      "path": "json/GraphEvidenceUseRead.schema.json"
+    },
+    {
+      "module": "app.schemas.graph_artifact_api",
+      "name": "GraphNodeRead",
+      "path": "json/GraphNodeRead.schema.json"
+    },
+    {
       "module": "app.schemas.literature_artifact_api",
       "name": "LiteratureClaimRead",
       "path": "json/LiteratureClaimRead.schema.json"

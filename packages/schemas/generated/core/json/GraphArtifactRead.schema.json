@@ -1,0 +1,1305 @@
+{
+  "$defs": {
+    "GraphArtifactVersionContext": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "layout_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Layout Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "producer_execution": {
+          "$ref": "#/$defs/ProducerExecutionDetail"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "report_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Report Hash",
+          "type": "string"
+        },
+        "schema_version": {
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "scientific_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Scientific Hash",
+          "type": "string"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        },
+        "supersedes_version_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Supersedes Version Id"
+        },
+        "version_number": {
+          "minimum": 1,
+          "title": "Version Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_version_id",
+        "artifact_id",
+        "project_id",
+        "version_number",
+        "supersedes_version_id",
+        "source_mode",
+        "schema_version",
+        "content_hash",
+        "input_hash",
+        "scientific_hash",
+        "layout_hash",
+        "report_hash",
+        "output_hash",
+        "created_at",
+        "producer_execution"
+      ],
+      "title": "GraphArtifactVersionContext",
+      "type": "object"
+    },
+    "GraphArtifactVersionReference": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "artifact_version_id": {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "input_hash": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "literature_relations",
+            "dataset",
+            "field_dictionary"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "output_hash": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "parameters_hash": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Parameters Hash",
+          "type": "string"
+        },
+        "producer_name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Producer Name",
+          "type": "string"
+        },
+        "producer_type": {
+          "enum": [
+            "pipeline",
+            "model",
+            "algorithm"
+          ],
+          "title": "Producer Type",
+          "type": "string"
+        },
+        "producer_version": {
+          "maxLength": 32,
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Producer Version",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/GraphInputRole"
+        },
+        "schema_version": {
+          "maxLength": 32,
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_mode": {
+          "enum": [
+            "fixture",
+            "live",
+            "cached"
+          ],
+          "title": "Source Mode",
+          "type": "string"
+        },
+        "version_number": {
+          "minimum": 1,
+          "title": "Version Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "role",
+        "artifact_id",
+        "artifact_version_id",
+        "project_id",
+        "version_number",
+        "kind",
+        "schema_version",
+        "content_hash",
+        "input_hash",
+        "output_hash",
+        "source_mode",
+        "producer_type",
+        "producer_name",
+        "producer_version",
+        "parameters_hash"
+      ],
+      "title": "GraphArtifactVersionReference",
+      "type": "object"
+    },
+    "GraphBuildScope": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted_relation_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Accepted Relation Ids",
+          "type": "array"
+        },
+        "excluded_item_count": {
+          "default": 0,
+          "maximum": 50000,
+          "minimum": 0,
+          "title": "Excluded Item Count",
+          "type": "integer"
+        },
+        "exclusion_reasons": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "title": "Exclusion Reasons",
+          "type": "array"
+        },
+        "filtered_item_count": {
+          "default": 0,
+          "maximum": 50000,
+          "minimum": 0,
+          "title": "Filtered Item Count",
+          "type": "integer"
+        },
+        "include_data": {
+          "default": false,
+          "title": "Include Data",
+          "type": "boolean"
+        },
+        "literature_claim_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Literature Claim Ids",
+          "type": "array"
+        },
+        "literature_paper_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Literature Paper Ids",
+          "type": "array"
+        },
+        "research_goal_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Research Goal Id"
+        },
+        "structural_edges": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/GraphStructuralEdgeRequest"
+          },
+          "title": "Structural Edges",
+          "type": "array"
+        }
+      },
+      "title": "GraphBuildScope",
+      "type": "object"
+    },
+    "GraphCapacityPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "max_edges": {
+          "default": 20000,
+          "maximum": 20000,
+          "minimum": 1,
+          "title": "Max Edges",
+          "type": "integer"
+        },
+        "max_evidence_uses": {
+          "default": 50000,
+          "maximum": 50000,
+          "minimum": 1,
+          "title": "Max Evidence Uses",
+          "type": "integer"
+        },
+        "max_evidence_uses_per_edge": {
+          "default": 5000,
+          "maximum": 5000,
+          "minimum": 1,
+          "title": "Max Evidence Uses Per Edge",
+          "type": "integer"
+        },
+        "max_input_versions": {
+          "default": 3,
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Max Input Versions",
+          "type": "integer"
+        },
+        "max_items_per_chunk": {
+          "default": 10000,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Max Items Per Chunk",
+          "type": "integer"
+        },
+        "max_label_length": {
+          "default": 256,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Max Label Length",
+          "type": "integer"
+        },
+        "max_metadata_length": {
+          "default": 2048,
+          "maximum": 2048,
+          "minimum": 1,
+          "title": "Max Metadata Length",
+          "type": "integer"
+        },
+        "max_nodes": {
+          "default": 10000,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Max Nodes",
+          "type": "integer"
+        },
+        "max_progressive_chunks": {
+          "default": 256,
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Max Progressive Chunks",
+          "type": "integer"
+        },
+        "max_serialized_bytes": {
+          "default": 4194304,
+          "maximum": 4194304,
+          "minimum": 1,
+          "title": "Max Serialized Bytes",
+          "type": "integer"
+        },
+        "version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "title": "GraphCapacityPolicy",
+      "type": "object"
+    },
+    "GraphInputRole": {
+      "enum": [
+        "literature_relations",
+        "dataset",
+        "field_dictionary"
+      ],
+      "title": "GraphInputRole",
+      "type": "string"
+    },
+    "GraphInputVersionClosure": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "versions": {
+          "items": {
+            "$ref": "#/$defs/GraphArtifactVersionReference"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "title": "Versions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "project_id",
+        "versions"
+      ],
+      "title": "GraphInputVersionClosure",
+      "type": "object"
+    },
+    "GraphIntegrityCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_count": {
+          "maximum": 20000,
+          "minimum": 0,
+          "title": "Edge Count",
+          "type": "integer"
+        },
+        "evidence_use_count": {
+          "maximum": 50000,
+          "minimum": 0,
+          "title": "Evidence Use Count",
+          "type": "integer"
+        },
+        "input_version_count": {
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Input Version Count",
+          "type": "integer"
+        },
+        "node_count": {
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Node Count",
+          "type": "integer"
+        },
+        "relation_edge_count": {
+          "minimum": 0,
+          "title": "Relation Edge Count",
+          "type": "integer"
+        },
+        "source_snapshot_count": {
+          "minimum": 0,
+          "title": "Source Snapshot Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "input_version_count",
+        "node_count",
+        "edge_count",
+        "evidence_use_count",
+        "source_snapshot_count",
+        "relation_edge_count"
+      ],
+      "title": "GraphIntegrityCounts",
+      "type": "object"
+    },
+    "GraphIntegrityFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "priority": {
+          "maximum": 1100,
+          "minimum": 100,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "reason": {
+          "$ref": "#/$defs/GraphRejectionReason"
+        },
+        "stage": {
+          "$ref": "#/$defs/GraphIntegrityStage"
+        }
+      },
+      "required": [
+        "stage",
+        "reason",
+        "priority",
+        "path",
+        "message"
+      ],
+      "title": "GraphIntegrityFinding",
+      "type": "object"
+    },
+    "GraphIntegrityReport": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "counts": {
+          "$ref": "#/$defs/GraphIntegrityCounts"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/GraphIntegrityFinding"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "first_failure_stage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphIntegrityStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "first_rejection_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphRejectionReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/GraphIntegrityStatus"
+        }
+      },
+      "required": [
+        "status",
+        "findings",
+        "counts",
+        "content_hash"
+      ],
+      "title": "GraphIntegrityReport",
+      "type": "object"
+    },
+    "GraphIntegrityStage": {
+      "enum": [
+        "input_schema",
+        "artifact_version",
+        "ownership",
+        "taxonomy",
+        "identity",
+        "endpoint",
+        "evidence_snapshot",
+        "relation_trace",
+        "direction_type",
+        "capacity_progressive",
+        "hash_commitment"
+      ],
+      "title": "GraphIntegrityStage",
+      "type": "string"
+    },
+    "GraphIntegrityStatus": {
+      "enum": [
+        "passed",
+        "failed"
+      ],
+      "title": "GraphIntegrityStatus",
+      "type": "string"
+    },
+    "GraphLayoutHint": {
+      "additionalProperties": false,
+      "properties": {
+        "group_order": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/GraphNodeType"
+          },
+          "title": "Group Order",
+          "type": "array"
+        },
+        "strategy": {
+          "default": "none",
+          "enum": [
+            "none",
+            "group_by_node_type",
+            "group_by_domain"
+          ],
+          "title": "Strategy",
+          "type": "string"
+        }
+      },
+      "title": "GraphLayoutHint",
+      "type": "object"
+    },
+    "GraphNodeType": {
+      "enum": [
+        "research_goal",
+        "dataset",
+        "field",
+        "source",
+        "paper",
+        "finding",
+        "claim",
+        "relation",
+        "reasoning_trace",
+        "evidence"
+      ],
+      "title": "GraphNodeType",
+      "type": "string"
+    },
+    "GraphPolicySet": {
+      "additionalProperties": false,
+      "properties": {
+        "aggregation_policy": {
+          "const": "full_upstream_evidence_union",
+          "default": "full_upstream_evidence_union",
+          "title": "Aggregation Policy",
+          "type": "string"
+        },
+        "aggregation_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Aggregation Policy Version",
+          "type": "string"
+        },
+        "capacity_policy": {
+          "$ref": "#/$defs/GraphCapacityPolicy"
+        },
+        "filter_policy": {
+          "const": "complete_scope_no_hidden_evidence",
+          "default": "complete_scope_no_hidden_evidence",
+          "title": "Filter Policy",
+          "type": "string"
+        },
+        "filter_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Filter Policy Version",
+          "type": "string"
+        },
+        "identity_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Identity Policy Version",
+          "type": "string"
+        },
+        "integrity_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Integrity Policy Version",
+          "type": "string"
+        },
+        "progressive_policy": {
+          "const": "complete_set_order_independent",
+          "default": "complete_set_order_independent",
+          "title": "Progressive Policy",
+          "type": "string"
+        },
+        "progressive_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Progressive Policy Version",
+          "type": "string"
+        },
+        "taxonomy_policy_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Taxonomy Policy Version",
+          "type": "string"
+        }
+      },
+      "title": "GraphPolicySet",
+      "type": "object"
+    },
+    "GraphProgressiveChunk": {
+      "additionalProperties": false,
+      "properties": {
+        "chunk_index": {
+          "minimum": 0,
+          "title": "Chunk Index",
+          "type": "integer"
+        },
+        "item_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Item Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "chunk_index",
+        "item_ids"
+      ],
+      "title": "GraphProgressiveChunk",
+      "type": "object"
+    },
+    "GraphProgressiveInput": {
+      "additionalProperties": false,
+      "properties": {
+        "chunk_count": {
+          "maximum": 256,
+          "minimum": 1,
+          "title": "Chunk Count",
+          "type": "integer"
+        },
+        "chunks": {
+          "items": {
+            "$ref": "#/$defs/GraphProgressiveChunk"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "title": "Chunks",
+          "type": "array"
+        },
+        "complete": {
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "progressive_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Progressive Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "progressive_id",
+        "chunk_count",
+        "chunks",
+        "complete"
+      ],
+      "title": "GraphProgressiveInput",
+      "type": "object"
+    },
+    "GraphRejectionReason": {
+      "enum": [
+        "invalid_json",
+        "schema_invalid",
+        "input_version_unknown",
+        "input_version_unpublished",
+        "wrong_artifact_kind",
+        "unsupported_schema_version",
+        "content_hash_mismatch",
+        "input_hash_mismatch",
+        "producer_execution_mismatch",
+        "cross_project_ownership",
+        "cross_version_reference",
+        "taxonomy_violation",
+        "duplicate_node_identity",
+        "duplicate_edge_identity",
+        "identity_collision",
+        "dangling_endpoint",
+        "evidence_missing",
+        "evidence_unknown",
+        "evidence_inconsistent",
+        "source_snapshot_missing",
+        "source_snapshot_unknown",
+        "source_snapshot_inconsistent",
+        "relation_not_accepted",
+        "reasoning_trace_missing",
+        "reasoning_trace_mismatch",
+        "reasoning_trace_incomplete",
+        "wrong_direction",
+        "relation_type_mismatch",
+        "provenance_version_mismatch",
+        "evidence_hidden_by_filter",
+        "aggregation_incomplete",
+        "size_limit_exceeded",
+        "silent_truncation",
+        "progressive_input_incomplete",
+        "candidate_hash_mismatch",
+        "report_hash_mismatch",
+        "admission_commitment_mismatch"
+      ],
+      "title": "GraphRejectionReason",
+      "type": "string"
+    },
+    "GraphStructuralEdgeRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_type": {
+          "const": "supports_finding",
+          "title": "Edge Type",
+          "type": "string"
+        },
+        "source_paper_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Source Paper Id",
+          "type": "string"
+        },
+        "target_claim_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Target Claim Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_type",
+        "source_paper_id",
+        "target_claim_id"
+      ],
+      "title": "GraphStructuralEdgeRequest",
+      "type": "object"
+    },
+    "GraphTaxonomy": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "edge_types": {
+          "maxItems": 10,
+          "minItems": 10,
+          "prefixItems": [
+            {
+              "const": "compares_method",
+              "type": "string"
+            },
+            {
+              "const": "contradicts",
+              "type": "string"
+            },
+            {
+              "const": "derived_from",
+              "type": "string"
+            },
+            {
+              "const": "extends",
+              "type": "string"
+            },
+            {
+              "const": "limits",
+              "type": "string"
+            },
+            {
+              "const": "provides_field",
+              "type": "string"
+            },
+            {
+              "const": "supports",
+              "type": "string"
+            },
+            {
+              "const": "supports_finding",
+              "type": "string"
+            },
+            {
+              "const": "uses_dataset",
+              "type": "string"
+            },
+            {
+              "const": "uses_same_dataset",
+              "type": "string"
+            }
+          ],
+          "title": "Edge Types",
+          "type": "array"
+        },
+        "node_types": {
+          "maxItems": 5,
+          "minItems": 5,
+          "prefixItems": [
+            {
+              "const": "claim",
+              "type": "string"
+            },
+            {
+              "const": "dataset",
+              "type": "string"
+            },
+            {
+              "const": "field",
+              "type": "string"
+            },
+            {
+              "const": "paper",
+              "type": "string"
+            },
+            {
+              "const": "research_goal",
+              "type": "string"
+            }
+          ],
+          "title": "Node Types",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "taxonomy_id": {
+          "const": "taxonomy.graph.evidence_graph",
+          "default": "taxonomy.graph.evidence_graph",
+          "title": "Taxonomy Id",
+          "type": "string"
+        },
+        "version": {
+          "const": "2.0.0",
+          "default": "2.0.0",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node_types",
+        "edge_types",
+        "content_hash"
+      ],
+      "title": "GraphTaxonomy",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "ProducerExecutionDetail": {
+      "additionalProperties": false,
+      "description": "Reproducible producer metadata with private execution state excluded.",
+      "properties": {
+        "error_code": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency Ms"
+        },
+        "output_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Hash"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "parameters_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Parameters Hash",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/ProducerReference"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "running",
+            "completed",
+            "failed",
+            "rejected",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "step_attempt_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Step Attempt Id",
+          "type": "string"
+        },
+        "step_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Step Key",
+          "type": "string"
+        },
+        "token_usage": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Token Usage"
+        }
+      },
+      "required": [
+        "id",
+        "run_id",
+        "step_key",
+        "step_attempt_id",
+        "producer",
+        "parameters",
+        "parameters_hash",
+        "input_hash",
+        "status",
+        "started_at"
+      ],
+      "title": "ProducerExecutionDetail",
+      "type": "object"
+    },
+    "ProducerReference": {
+      "additionalProperties": false,
+      "properties": {
+        "model_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Name"
+        },
+        "model_provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Provider"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parameters_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameters Hash"
+        },
+        "prompt_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Hash"
+        },
+        "prompt_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Name"
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Version"
+        },
+        "type": {
+          "enum": [
+            "pipeline",
+            "model",
+            "algorithm"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "version"
+      ],
+      "title": "ProducerReference",
+      "type": "object"
+    },
+    "SourceMode": {
+      "enum": [
+        "fixture",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Fixed Graph metadata; nodes and edges are read through bounded pages.",
+  "properties": {
+    "edge_count": {
+      "minimum": 0,
+      "title": "Edge Count",
+      "type": "integer"
+    },
+    "evidence_use_count": {
+      "minimum": 0,
+      "title": "Evidence Use Count",
+      "type": "integer"
+    },
+    "graph_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Graph Id",
+      "type": "string"
+    },
+    "input_versions": {
+      "$ref": "#/$defs/GraphInputVersionClosure"
+    },
+    "integrity_report": {
+      "$ref": "#/$defs/GraphIntegrityReport"
+    },
+    "layout_hint": {
+      "$ref": "#/$defs/GraphLayoutHint"
+    },
+    "node_count": {
+      "minimum": 0,
+      "title": "Node Count",
+      "type": "integer"
+    },
+    "policies": {
+      "$ref": "#/$defs/GraphPolicySet"
+    },
+    "progressive": {
+      "$ref": "#/$defs/GraphProgressiveInput"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/GraphBuildScope"
+    },
+    "taxonomy": {
+      "$ref": "#/$defs/GraphTaxonomy"
+    },
+    "version": {
+      "$ref": "#/$defs/GraphArtifactVersionContext"
+    }
+  },
+  "required": [
+    "version",
+    "graph_id",
+    "project_id",
+    "input_versions",
+    "taxonomy",
+    "policies",
+    "scope",
+    "integrity_report",
+    "progressive",
+    "layout_hint",
+    "node_count",
+    "edge_count",
+    "evidence_use_count"
+  ],
+  "title": "GraphArtifactRead",
+  "type": "object"
+}

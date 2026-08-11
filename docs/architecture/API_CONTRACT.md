@@ -112,3 +112,23 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 Claim 读取必须先通过已验证的 PaperSummary 权威边界，再闭合 PaperSummary、ProducerExecution、Evidence 与 SourceSnapshot。Relation 读取必须把每个 Claim 精确绑定到声明的 Claim ArtifactVersion 和 PaperSummary ArtifactVersion。仅当 Relation 为 `accepted`，双方 Claim 为 `accepted`，且 Trace、Evidence、SourceSnapshot 全部闭合时，`graph_eligible` 才为 `true`。
 
 Pipeline ID 与 PostgreSQL UUID 属于不同命名空间。文学 Artifact 发布必须在同一 fenced transaction 内创建 ArtifactVersion 与其 Evidence，并验证所引用 SourceSnapshot 的 Project、source identity、version 与 content hash；禁止发布后补写 provenance。ReasoningTrace 只作为 LiteratureRelations 内容的一部分读取，不允许独立发布。API 不返回私有 chain-of-thought、原始模型响应、凭据或受限全文。
+
+## 8. Evidence Graph 读取
+
+在不可变 ArtifactVersion 边界提供以下无版本端点：
+
+- `GET /api/artifact-versions/{version_id}/graph`
+- `GET /api/artifact-versions/{version_id}/graph/nodes`
+- `GET /api/artifact-versions/{version_id}/graph/nodes/{node_id}`
+- `GET /api/artifact-versions/{version_id}/graph/edges`
+- `GET /api/artifact-versions/{version_id}/graph/edges/{edge_id}`
+
+Graph 元数据端点只返回固定的 taxonomy、policies、scope、integrity report、progressive input、layout hint 与 node/edge/Evidence-use 计数；nodes 与 edges 经有界分页读取，元数据端点不内联整图。集合端点支持 `node_type`（nodes）、`edge_type` 与 `node_id`（edges）、不透明 HMAC cursor 与 `limit`（默认 20、最大 100）。cursor 绑定 ArtifactVersion、集合、过滤条件与稳定 identity 排序；跨版本、跨 filter、跨 collection、悬空 ID 或签名篡改返回 `400 INVALID_CURSOR`。响应使用 `Cache-Control: no-store`。
+
+读取边界重新闭合整个 provenance graph：Graph ArtifactVersion 的 kind、schema、content/input hash、Project 与 ProducerExecution 必须与 typed Graph content 一致；每个 frozen input ArtifactVersion reference 必须解析回同 Project 的持久化版本，并逐项核对 artifact/version identity、kind、schema、content/input/output hash、source mode 与 producer identity。node version bindings、Evidence-use upstream version 与 literature edge Relation version 只能引用该已验证 registry 及其由可信上游 content 声明的传递版本。
+
+Graph-owned Evidence-use 与持久化 Evidence / SourceSnapshot 必须精确一一对应。Evidence locator 闭合 `upstream_evidence_id`、`upstream_artifact_version_id`、`upstream_target_type`、`upstream_target_id` 与 `upstream_evidence_hash`；任一缺失、重复、跨 Project、跨 Version 或 producer/hash 漂移返回 `403 PROVENANCE_SCOPE_VIOLATION`。
+
+scientific relation 与 layout hint 分层投影。structural edge 不携带 Relation/Trace；literature edge 必须携带 `relation_trace`，且投影出的 LiteratureRelation 必须是同一 Project 下、由 frozen ArtifactVersion reference 固定的 `accepted` Relation，其 relation type、方向两端 Claim、ReasoningTrace、Trace Evidence closure 与 `graph_eligible` 必须和 Graph 声明一致，否则返回 `403 PROVENANCE_SCOPE_VIOLATION`。API 只投影已发布科研事实与既有 layout hint，不生成关系、不计算坐标、不修补无效 Graph。
+
+错误使用统一 Problem Details：会话缺失返回 `401`；非本 Session 的 ArtifactVersion 返回不泄露存在性的 `404 ARTIFACT_VERSION_NOT_FOUND`；未知 node/edge 返回 `404 GRAPH_NODE_NOT_FOUND` / `404 GRAPH_EDGE_NOT_FOUND`；非 graph kind 返回 `409 ARTIFACT_KIND_MISMATCH`；content 不是合法 Graph candidate 或 ProducerExecution 与 Graph publication identity 不一致返回 `422 GRAPH_SCHEMA_INVALID`；超出读取尺寸上限返回 `413 GRAPH_ARTIFACT_SIZE_LIMIT_EXCEEDED`。

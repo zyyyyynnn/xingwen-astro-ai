@@ -1,0 +1,490 @@
+{
+  "$defs": {
+    "GraphArtifactNode": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "logical_reference": {
+          "items": {
+            "$ref": "#/$defs/GraphLogicalReferencePart"
+          },
+          "minItems": 1,
+          "title": "Logical Reference",
+          "type": "array"
+        },
+        "node_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Node Id",
+          "type": "string"
+        },
+        "node_type": {
+          "enum": [
+            "research_goal",
+            "dataset",
+            "field",
+            "paper",
+            "claim"
+          ],
+          "title": "Node Type",
+          "type": "string"
+        },
+        "version_bindings": {
+          "items": {
+            "$ref": "#/$defs/GraphNodeVersionBinding"
+          },
+          "minItems": 1,
+          "title": "Version Bindings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "node_id",
+        "node_type",
+        "label",
+        "logical_reference",
+        "version_bindings"
+      ],
+      "title": "GraphArtifactNode",
+      "type": "object"
+    },
+    "GraphArtifactVersionContext": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "layout_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Layout Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Output Hash",
+          "type": "string"
+        },
+        "producer_execution": {
+          "$ref": "#/$defs/ProducerExecutionDetail"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "report_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Report Hash",
+          "type": "string"
+        },
+        "schema_version": {
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "scientific_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Scientific Hash",
+          "type": "string"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/SourceMode"
+        },
+        "supersedes_version_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Supersedes Version Id"
+        },
+        "version_number": {
+          "minimum": 1,
+          "title": "Version Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_version_id",
+        "artifact_id",
+        "project_id",
+        "version_number",
+        "supersedes_version_id",
+        "source_mode",
+        "schema_version",
+        "content_hash",
+        "input_hash",
+        "scientific_hash",
+        "layout_hash",
+        "report_hash",
+        "output_hash",
+        "created_at",
+        "producer_execution"
+      ],
+      "title": "GraphArtifactVersionContext",
+      "type": "object"
+    },
+    "GraphLogicalReferencePart": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "title": "GraphLogicalReferencePart",
+      "type": "object"
+    },
+    "GraphNodeVersionBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_version_id": {
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "domain_object_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Domain Object Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_version_id",
+        "domain_object_id"
+      ],
+      "title": "GraphNodeVersionBinding",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "ProducerExecutionDetail": {
+      "additionalProperties": false,
+      "description": "Reproducible producer metadata with private execution state excluded.",
+      "properties": {
+        "error_code": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency Ms"
+        },
+        "output_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Hash"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "parameters_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Parameters Hash",
+          "type": "string"
+        },
+        "producer": {
+          "$ref": "#/$defs/ProducerReference"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "running",
+            "completed",
+            "failed",
+            "rejected",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "step_attempt_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Step Attempt Id",
+          "type": "string"
+        },
+        "step_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Step Key",
+          "type": "string"
+        },
+        "token_usage": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Token Usage"
+        }
+      },
+      "required": [
+        "id",
+        "run_id",
+        "step_key",
+        "step_attempt_id",
+        "producer",
+        "parameters",
+        "parameters_hash",
+        "input_hash",
+        "status",
+        "started_at"
+      ],
+      "title": "ProducerExecutionDetail",
+      "type": "object"
+    },
+    "ProducerReference": {
+      "additionalProperties": false,
+      "properties": {
+        "model_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Name"
+        },
+        "model_provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Provider"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parameters_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameters Hash"
+        },
+        "prompt_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Hash"
+        },
+        "prompt_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Name"
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Version"
+        },
+        "type": {
+          "enum": [
+            "pipeline",
+            "model",
+            "algorithm"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "version"
+      ],
+      "title": "ProducerReference",
+      "type": "object"
+    },
+    "SourceMode": {
+      "enum": [
+        "fixture",
+        "live",
+        "cached"
+      ],
+      "title": "SourceMode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "node": {
+      "$ref": "#/$defs/GraphArtifactNode"
+    },
+    "version": {
+      "$ref": "#/$defs/GraphArtifactVersionContext"
+    }
+  },
+  "required": [
+    "version",
+    "node"
+  ],
+  "title": "GraphNodeRead",
+  "type": "object"
+}

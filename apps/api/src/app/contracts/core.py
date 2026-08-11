@@ -42,6 +42,12 @@ from app.schemas.core import (
     WorkspaceSnapshot,
     WorkspaceSnapshotInput,
 )
+from app.schemas.enums import GraphEdgeType, GraphNodeType
+from app.schemas.graph_artifact_api import (
+    GraphArtifactRead,
+    GraphEdgeRead,
+    GraphNodeRead,
+)
 from app.schemas.literature_artifact_api import (
     LiteratureClaimRead,
     LiteratureReasoningTraceRead,
@@ -339,6 +345,75 @@ def create_contract_app() -> FastAPI:
     )
     def get_paper_summary(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
         _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/graph",
+        operation_id="getGraphArtifact",
+        response_model=Envelope[GraphArtifactRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_graph_artifact(
+        version_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/graph/nodes",
+        operation_id="listGraphNodes",
+        response_model=CollectionEnvelope[GraphNodeRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def list_graph_nodes(
+        version_id: Annotated[str, Path(min_length=1)],
+        node_type: Annotated[GraphNodeType | None, Query()] = None,
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (version_id, node_type, cursor, limit)
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/graph/nodes/{node_id}",
+        operation_id="getGraphNode",
+        response_model=Envelope[GraphNodeRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_graph_node(
+        version_id: Annotated[str, Path(min_length=1)],
+        node_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = (version_id, node_id)
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/graph/edges",
+        operation_id="listGraphEdges",
+        response_model=CollectionEnvelope[GraphEdgeRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def list_graph_edges(
+        version_id: Annotated[str, Path(min_length=1)],
+        edge_type: Annotated[GraphEdgeType | None, Query()] = None,
+        node_id: Annotated[str | None, Query()] = None,
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (version_id, edge_type, node_id, cursor, limit)
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/graph/edges/{edge_id}",
+        operation_id="getGraphEdge",
+        response_model=Envelope[GraphEdgeRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_graph_edge(
+        version_id: Annotated[str, Path(min_length=1)],
+        edge_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = (version_id, edge_id)
         return _contract_only()
 
     @app.get(
