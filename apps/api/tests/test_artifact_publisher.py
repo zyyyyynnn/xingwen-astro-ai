@@ -68,17 +68,21 @@ def _accept(_: ArtifactAdmissionContext) -> None:
     return None
 
 
-def test_canonical_export_candidate_passes_the_typed_admission_port() -> None:
-    candidate = ExportArtifactContent(
+def _export_candidate() -> ExportArtifactContent:
+    return ExportArtifactContent(
         kind=ArtifactKind.export,
         format="json",
         artifact_version_ids=(str(uuid4()),),
     )
+
+
+def test_canonical_export_candidate_passes_the_typed_admission_port() -> None:
+    candidate = _export_candidate()
     admitted = admit_artifact_candidate(
         candidate,
         schema_version="2.0.0",
-        source_snapshot_ids=("source_fixture_01",),
-        evidence_ids=("evidence_fixture_01",),
+        source_snapshot_ids=(),
+        evidence_ids=(),
         evidence_validator=_accept,
         domain_validator=_accept,
         quality_validator=_accept,
@@ -93,7 +97,47 @@ def test_canonical_export_candidate_passes_the_typed_admission_port() -> None:
 
     assert publication.source_mode == "fixture"
     assert admitted.content_hash.startswith("sha256:")
+    assert admitted.schema_version == candidate.schema_version
+    assert admitted.source_snapshot_ids == ()
+    assert admitted.evidence_ids == ()
     assert admitted.content == candidate.model_dump(mode="json", exclude_none=True)
+
+
+@pytest.mark.parametrize(
+    ("source_snapshot_ids", "evidence_ids", "field_name"),
+    (
+        (("source_fixture_01",), (), "source_snapshot_ids"),
+        ((), ("evidence_fixture_01",), "evidence_ids"),
+    ),
+)
+def test_export_rejects_direct_provenance_context_before_publication(
+    source_snapshot_ids: tuple[str, ...],
+    evidence_ids: tuple[str, ...],
+    field_name: str,
+) -> None:
+    with pytest.raises(PublicationAdmissionError, match=field_name):
+        admit_artifact_candidate(
+            _export_candidate(),
+            schema_version="2.0.0",
+            source_snapshot_ids=source_snapshot_ids,
+            evidence_ids=evidence_ids,
+            evidence_validator=_accept,
+            domain_validator=_accept,
+            quality_validator=_accept,
+        )
+
+
+def test_export_rejects_schema_version_mismatch_before_publication() -> None:
+    with pytest.raises(PublicationAdmissionError, match="schema_version"):
+        admit_artifact_candidate(
+            _export_candidate(),
+            schema_version="3.0.0",
+            source_snapshot_ids=(),
+            evidence_ids=(),
+            evidence_validator=_accept,
+            domain_validator=_accept,
+            quality_validator=_accept,
+        )
 
 
 def test_export_references_are_unique_after_uuid_normalization() -> None:
@@ -159,11 +203,7 @@ def test_admission_rejects_free_text_and_untyped_mappings(candidate: object) -> 
 
 
 def test_any_failed_admission_gate_prevents_candidate_creation() -> None:
-    candidate = ExportArtifactContent(
-        kind=ArtifactKind.export,
-        format="json",
-        artifact_version_ids=(str(uuid4()),),
-    )
+    candidate = _export_candidate()
 
     def reject(_: ArtifactAdmissionContext) -> None:
         raise ValueError("quality threshold failed")
@@ -172,7 +212,7 @@ def test_any_failed_admission_gate_prevents_candidate_creation() -> None:
         admit_artifact_candidate(
             candidate,
             schema_version="2.0.0",
-            source_snapshot_ids=("source_fixture_01",),
+            source_snapshot_ids=(),
             evidence_ids=(),
             evidence_validator=_accept,
             domain_validator=_accept,
