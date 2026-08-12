@@ -36,6 +36,34 @@ function renderRoute(path: string, runtime: WorkspaceRuntimeBoundaries) {
   return { router, history };
 }
 
+const TEST_PROJECT_ID = asEntityId("proj_01JEXAMPLE");
+
+function createUserTurn(
+  suffix: string,
+  sequence: number,
+  publicContent: string,
+): ResearchTurn {
+  const modelExecutionId = asEntityId(`model-execution-${suffix}`);
+  return {
+    outcome: "draft_ready",
+    entries: [
+      {
+        id: asEntityId(`thread-entry-${suffix}`),
+        projectId: TEST_PROJECT_ID,
+        sequence,
+        kind: "user_message",
+        actor: "user",
+        publicContent,
+        structuredPayload: { answerToQuestionId: null },
+        modelExecutionId,
+        createdAt: "2026-08-13T00:00:00Z" as UtcIsoTimestamp,
+      },
+    ],
+    activeDraftId: null,
+    modelExecutionId,
+  };
+}
+
 describe("Workspace routes", () => {
   it("gates /workspace, lists real repository projects, and replaces /", async () => {
     const runtime = createTestRuntime();
@@ -67,12 +95,8 @@ describe("Workspace routes", () => {
       await screen.findByRole("textbox", { name: "输入研究消息" }),
     ).toHaveAttribute("contenteditable", "true");
     expect(screen.queryByLabelText("悬浮研究概览")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "展示悬浮概览" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "展开右侧栏" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "展示悬浮概览" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "展开右侧栏" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "新建研究" })).toBeEnabled();
     expect(screen.queryByText("运行服务未连接")).not.toBeInTheDocument();
   });
@@ -119,6 +143,62 @@ describe("Workspace routes", () => {
     });
   });
 
+  it("keeps two explicitly submitted identical messages as distinct Turns", async () => {
+    const runtime = createTestRuntime();
+    const message = "比较 TESS 与 Gaia 的观测选择偏差";
+    let persistedEntries: readonly ResearchThreadEntry[] = [];
+    vi.spyOn(runtime.repositories.researchThread, "list").mockImplementation(
+      async () => ({ items: persistedEntries, nextCursor: null }),
+    );
+    const firstTurn = createUserTurn("same-message-first", 1, message);
+    const secondTurn = createUserTurn("same-message-second", 2, message);
+    let resolveSecondTurn: ((turn: ResearchTurn) => void) | undefined;
+    const submit = vi
+      .spyOn(runtime.repositories.researchThread, "submit")
+      .mockImplementationOnce(async () => {
+        persistedEntries = firstTurn.entries;
+        return firstTurn;
+      })
+      .mockImplementationOnce(
+        () =>
+          new Promise<ResearchTurn>((resolve) => {
+            resolveSecondTurn = (turn) => {
+              persistedEntries = turn.entries;
+              resolve(turn);
+            };
+          }),
+      );
+    renderRoute("/workspace/proj_01JEXAMPLE", runtime);
+
+    const composer = await screen.findByRole("textbox", {
+      name: "输入研究消息",
+    });
+    composer.textContent = message;
+    fireEvent.input(composer);
+    fireEvent.click(screen.getByRole("button", { name: "发送研究消息" }));
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+    await screen.findByText(message);
+
+    composer.textContent = message;
+    fireEvent.input(composer);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "发送研究消息" }),
+      ).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "发送研究消息" }));
+
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByText(message)).toHaveLength(2);
+
+    await act(async () => {
+      resolveSecondTurn?.({
+        ...secondTurn,
+        entries: [...firstTurn.entries, ...secondTurn.entries],
+      });
+    });
+  });
+
   it("reports submit failures outside the workspace flow and restores the composer", async () => {
     const runtime = createTestRuntime();
     vi.spyOn(runtime.repositories.researchThread, "list").mockResolvedValue({
@@ -140,7 +220,10 @@ describe("Workspace routes", () => {
     const toastTitle = await screen.findByText("消息发送失败");
     expect(screen.getByRole("main")).not.toContainElement(toastTitle);
     expect(composer).toHaveTextContent("比较 TESS 与 Gaia 的观测选择偏差");
-    expect(screen.getByRole("button", { name: "重试" })).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: "重试" }),
+    ).not.toBeInTheDocument();
+    expect(runtime.repositories.researchThread.submit).toHaveBeenCalledTimes(1);
   });
 
   it("keeps public share outside the private Session Gate", async () => {
@@ -396,7 +479,7 @@ describe("Workspace routes", () => {
     await waitFor(() =>
       expect(
         runtime.queryClient.getQueryData<{ status: string }>(
-          workspaceQueryKeys.run(createdRun.id),
+          workspaceQueryKeys.run(projectId, createdRun.id),
         )?.status,
       ).toBe("completed"),
     );

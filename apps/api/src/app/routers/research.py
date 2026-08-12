@@ -20,7 +20,6 @@ from app.schemas.core import (
     CreateRunRequest,
     CursorPage,
     Envelope,
-    ModelExecutionRecord,
     ResearchContract,
     ResearchContractDraft,
     ResearchProject,
@@ -355,27 +354,6 @@ def confirm_research_contract(
     _no_store(response)
     response.headers["Location"] = f"/api/contracts/{data.id}"
     path = f"/api/contracts/{data.id}"
-    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
-
-
-@router.get(
-    "/projects/{project_id}/model-executions/{execution_id}",
-    operation_id="getModelExecution",
-    response_model=Envelope[ModelExecutionRecord],
-)
-def get_model_execution(
-    project_id: Annotated[str, Path(min_length=1)],
-    execution_id: Annotated[str, Path(min_length=1)],
-    request: Request,
-    response: Response,
-) -> Envelope[ModelExecutionRecord]:
-    data = _service(request).get_model_execution(
-        project_id=project_id,
-        execution_id=execution_id,
-        session_id=_session_id(request),
-    )
-    _no_store(response)
-    path = f"/api/projects/{project_id}/model-executions/{execution_id}"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 

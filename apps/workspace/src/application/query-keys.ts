@@ -4,21 +4,31 @@ const PRIVATE_QUERY_ROOT = "workspace" as const;
 
 export const workspaceQueryKeys = Object.freeze({
   projects: () => [PRIVATE_QUERY_ROOT, "projects"] as const,
-  project: (projectId: DomainEntityId) =>
+  projectScope: (projectId: DomainEntityId) =>
     [PRIVATE_QUERY_ROOT, "project", projectId] as const,
+  project: (projectId: DomainEntityId) =>
+    [...workspaceQueryKeys.projectScope(projectId), "detail"] as const,
   researchCatalog: (projectId: DomainEntityId) =>
-    [PRIVATE_QUERY_ROOT, "research-catalog", projectId] as const,
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "research-catalog",
+    ] as const,
   thread: (projectId: DomainEntityId) =>
-    [PRIVATE_QUERY_ROOT, "research-thread", projectId] as const,
-  draft: (draftId: DomainEntityId) =>
-    [PRIVATE_QUERY_ROOT, "draft", draftId] as const,
-  contract: (contractId: DomainEntityId) =>
-    [PRIVATE_QUERY_ROOT, "contract", contractId] as const,
-  run: (runId: DomainEntityId) => [PRIVATE_QUERY_ROOT, "run", runId] as const,
-  runEvents: (runId: DomainEntityId) =>
-    [PRIVATE_QUERY_ROOT, "run-events", runId] as const,
-  runSteps: (runId: DomainEntityId) =>
-    [PRIVATE_QUERY_ROOT, "run-steps", runId] as const,
+    [...workspaceQueryKeys.projectScope(projectId), "research-thread"] as const,
+  draft: (projectId: DomainEntityId, draftId: DomainEntityId) =>
+    [...workspaceQueryKeys.projectScope(projectId), "draft", draftId] as const,
+  contract: (projectId: DomainEntityId, contractId: DomainEntityId) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "contract",
+      contractId,
+    ] as const,
+  run: (projectId: DomainEntityId, runId: DomainEntityId) =>
+    [...workspaceQueryKeys.projectScope(projectId), "run", runId] as const,
+  runEvents: (projectId: DomainEntityId, runId: DomainEntityId) =>
+    [...workspaceQueryKeys.run(projectId, runId), "events"] as const,
+  runSteps: (projectId: DomainEntityId, runId: DomainEntityId) =>
+    [...workspaceQueryKeys.run(projectId, runId), "steps"] as const,
 });
 
 export function isPrivateWorkspaceQuery(queryKey: readonly unknown[]): boolean {

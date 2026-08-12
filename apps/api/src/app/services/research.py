@@ -16,7 +16,7 @@ import hashlib
 import hmac
 import json
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -43,7 +43,6 @@ from app.schemas.core import (
     CreateResearchContractDraftRequest,
     CreateResearchProjectRequest,
     CreateRunRequest,
-    ModelExecutionRecord,
     ResearchContract,
     ResearchContractDraft,
     ResearchContractInput,
@@ -67,61 +66,16 @@ from app.schemas.core import (
 from app.schemas.manifest import ManifestBundle
 from app.security import SecurityProblem, canonical_request_hash, require_revision
 from app.services.model_execution import ModelExecutionError, ModelExecutionResponse
-from app.services.research_planner import ResearchContractPlanner
+from app.services.research_planner import PlannerResult, ResearchContractPlanner
+from app.workflow.run_plan import UnsupportedRunPlanError, compile_run_plan
 from app.workflow.store import (
     EventSnapshot,
     PersistentWorkflowStore,
     RunNotFoundError,
     RunSnapshot,
-    RunStepDefinition,
     WorkflowConflictError,
 )
 
-
-CANONICAL_RUN_STEPS: tuple[RunStepDefinition, ...] = (
-    RunStepDefinition(
-        key="planning",
-        label="Planning",
-        enter_status="planning",
-        success_status="fetching_data",
-    ),
-    RunStepDefinition(
-        key="fetching_data",
-        label="Fetching data",
-        enter_status="fetching_data",
-        success_status="cleaning_data",
-    ),
-    RunStepDefinition(
-        key="cleaning_data",
-        label="Cleaning data",
-        enter_status="cleaning_data",
-        success_status="searching_papers",
-    ),
-    RunStepDefinition(
-        key="searching_papers",
-        label="Searching papers",
-        enter_status="searching_papers",
-        success_status="summarizing_papers",
-    ),
-    RunStepDefinition(
-        key="summarizing_papers",
-        label="Summarizing papers",
-        enter_status="summarizing_papers",
-        success_status="reasoning_literature",
-    ),
-    RunStepDefinition(
-        key="reasoning_literature",
-        label="Reasoning over literature",
-        enter_status="reasoning_literature",
-        success_status="building_graph",
-    ),
-    RunStepDefinition(
-        key="building_graph",
-        label="Building graph",
-        enter_status="building_graph",
-        success_status="completed",
-    ),
-)
 
 DRAFT_TTL = timedelta(hours=1)
 
@@ -136,19 +90,21 @@ class ResearchApplicationService:
         workflow_store: PersistentWorkflowStore,
         manifests: ManifestBundle,
         planner: ResearchContractPlanner | None = None,
+        model_execution_lease_duration: timedelta = timedelta(minutes=5),
     ) -> None:
+        if model_execution_lease_duration <= timedelta(0):
+            raise ValueError("model execution lease duration must be positive")
         self._factory = factory
         self._workflow = workflow_store
         self._manifests = manifests
         self._planner = planner
+        self._model_execution_lease_duration = model_execution_lease_duration
 
     # ---- Project ---------------------------------------------------------
 
     def get_project(self, *, project_id: str, session_id: str) -> ResearchProject:
         with self._factory() as session:
-            project = self._require_project(
-                session, project_id, session_id, with_for_update=True
-            )
+            project = self._require_project(session, project_id, session_id)
             return self._project_read(session, project)
 
     def list_projects(
@@ -522,6 +478,15 @@ class ResearchApplicationService:
             contract = session.get(ResearchContractModel, contract_uuid)
             if contract is None or contract.project_id != project_uuid:
                 raise _not_found("CONTRACT_NOT_FOUND")
+            try:
+                run_steps = compile_run_plan(_contract_input(contract.content))
+            except UnsupportedRunPlanError as exc:
+                raise SecurityProblem(
+                    status=409,
+                    code="RUN_PLAN_UNSUPPORTED_OUTPUT",
+                    title="Run plan unsupported",
+                    detail="The confirmed Contract requests an output without an executable RunStep mapping",
+                ) from exc
 
         request_hash = canonical_request_hash(request.model_dump(mode="json"))
         try:
@@ -531,7 +496,7 @@ class ResearchApplicationService:
                 execution_mode=request.execution_mode.value,
                 idempotency_key=idempotency_key,
                 request_hash=request_hash,
-                steps=CANONICAL_RUN_STEPS,
+                steps=run_steps,
             )
         except WorkflowConflictError as exc:
             raise _idempotency_conflict() from exc
@@ -620,26 +585,6 @@ class ResearchApplicationService:
             )
             return tuple(_thread_entry(row) for row in selected), next_cursor, has_more
 
-    def get_model_execution(
-        self,
-        *,
-        project_id: str,
-        execution_id: str,
-        session_id: str,
-    ) -> ModelExecutionRecord:
-        execution_uuid = _uuid_or_not_found(execution_id, "MODEL_EXECUTION_NOT_FOUND")
-        with self._factory() as session:
-            project = self._require_project(session, project_id, session_id)
-            execution = session.scalar(
-                select(ModelExecutionModel).where(
-                    ModelExecutionModel.id == execution_uuid,
-                    ModelExecutionModel.project_id == project.id,
-                )
-            )
-            if execution is None:
-                raise _not_found("MODEL_EXECUTION_NOT_FOUND")
-            return _model_execution_record(execution)
-
     def get_research_catalog(
         self,
         *,
@@ -677,6 +622,8 @@ class ResearchApplicationService:
             project = self._require_project(
                 session, project_id, session_id, with_for_update=True
             )
+            now = datetime.now(UTC)
+            _expire_stale_model_executions(session, project=project, now=now)
             replay = session.scalar(
                 select(ModelExecutionModel).where(
                     ModelExecutionModel.project_id == project_uuid,
@@ -685,9 +632,22 @@ class ResearchApplicationService:
             )
             if replay is not None:
                 _require_same_idempotent_request(replay.request_hash, request_hash)
+                if replay.status in {"pending", "running"}:
+                    raise _research_assistant_busy()
                 if replay.status != "succeeded":
                     raise _execution_failure(replay.error_code)
                 return _turn_result(session, project, replay)
+
+            active_execution_id = session.scalar(
+                select(ModelExecutionModel.id)
+                .where(
+                    ModelExecutionModel.project_id == project.id,
+                    ModelExecutionModel.status.in_(("pending", "running")),
+                )
+                .limit(1)
+            )
+            if active_execution_id is not None:
+                raise _research_assistant_busy()
 
             if request.answer_to_question_id is not None:
                 question_id = _uuid_or_not_found(
@@ -724,7 +684,7 @@ class ResearchApplicationService:
                 message=request.message,
                 answer_to_question_id=request.answer_to_question_id,
             )
-            now = datetime.now(UTC)
+            lease_token = uuid4()
             execution = ModelExecutionModel(
                 project_id=project.id,
                 provider=prepared_request.provider,
@@ -741,6 +701,8 @@ class ResearchApplicationService:
                 status="pending",
                 idempotency_key=idempotency_key,
                 request_hash=request_hash,
+                lease_token=lease_token,
+                lease_expires_at=now + self._model_execution_lease_duration,
                 created_at=now,
             )
             session.add(execution)
@@ -766,8 +728,16 @@ class ResearchApplicationService:
             execution = session.get(
                 ModelExecutionModel, execution_id, with_for_update=True
             )
-            if execution is not None:
+            if (
+                execution is not None
+                and execution.status == "pending"
+                and execution.lease_token == lease_token
+                and execution.lease_expires_at is not None
+                and execution.lease_expires_at > datetime.now(UTC)
+            ):
                 execution.status = "running"
+            else:
+                raise _research_assistant_busy()
 
         try:
             planner_result = self._planner.execute(prepared_request)
@@ -781,6 +751,7 @@ class ResearchApplicationService:
             self._finish_failed_turn(
                 execution_id=execution_id,
                 project_id=project_uuid,
+                lease_token=lease_token,
                 error=exc,
             )
             raise SecurityProblem(
@@ -796,6 +767,7 @@ class ResearchApplicationService:
             self._finish_failed_turn(
                 execution_id=execution_id,
                 project_id=project_uuid,
+                lease_token=lease_token,
                 error=safe_error,
             )
             raise SecurityProblem(
@@ -805,6 +777,53 @@ class ResearchApplicationService:
                 detail=safe_error.public_message,
             ) from exc
 
+        try:
+            return self._persist_successful_turn(
+                project_id=project_id,
+                project_uuid=project_uuid,
+                session_id=session_id,
+                execution_id=execution_id,
+                lease_token=lease_token,
+                request_hash=request_hash,
+                research_intent=research_intent,
+                planner_result=planner_result,
+            )
+        except Exception as exc:  # noqa: BLE001
+            safe_error = ModelExecutionError(
+                "MODEL_RESULT_PERSISTENCE_FAILED",
+                "研究结果暂时无法保存，请稍后重新发送。",
+                output_hash=planner_result.response.output_hash,
+                token_usage=planner_result.response.token_usage,
+                latency_ms=planner_result.response.latency_ms,
+                provider_request_id=planner_result.response.provider_request_id,
+            )
+            self._finish_failed_turn(
+                execution_id=execution_id,
+                project_id=project_uuid,
+                lease_token=lease_token,
+                error=safe_error,
+            )
+            raise SecurityProblem(
+                status=503,
+                code=safe_error.code,
+                title="Research result unavailable",
+                detail=safe_error.public_message,
+            ) from exc
+
+    # ---- helpers ---------------------------------------------------------
+
+    def _persist_successful_turn(
+        self,
+        *,
+        project_id: str,
+        project_uuid: UUID,
+        session_id: str,
+        execution_id: UUID,
+        lease_token: UUID,
+        request_hash: str,
+        research_intent: str,
+        planner_result: PlannerResult,
+    ) -> ResearchTurnResult:
         with self._factory() as session, session.begin():
             project = self._require_project(
                 session, project_id, session_id, with_for_update=True
@@ -812,15 +831,23 @@ class ResearchApplicationService:
             execution = session.get(
                 ModelExecutionModel, execution_id, with_for_update=True
             )
-            if execution is None:
-                raise _not_found("MODEL_EXECUTION_NOT_FOUND")
+            now = datetime.now(UTC)
+            if (
+                execution is None
+                or execution.project_id != project_uuid
+                or execution.status != "running"
+                or execution.lease_token != lease_token
+                or execution.lease_expires_at is None
+                or execution.lease_expires_at <= now
+            ):
+                raise RuntimeError("model execution lease was lost before persistence")
             execution.status = "succeeded"
             execution.output_hash = planner_result.response.output_hash
             execution.output_snapshot = planner_result.output.model_dump(mode="json")
             execution.token_usage = planner_result.response.token_usage
             execution.latency_ms = planner_result.response.latency_ms
             execution.provider_request_id = planner_result.response.provider_request_id
-            execution.finished_at = datetime.now(UTC)
+            execution.finished_at = now
             output = planner_result.output
             outcome = PlannerOutcomeKind(output.outcome)
             draft_id: UUID | None = None
@@ -833,9 +860,9 @@ class ResearchApplicationService:
                     status=ContractDraftStatus.draft.value,
                     contract=output.contract.model_dump(mode="json"),
                     warnings=list(output.warnings),
-                    created_at=datetime.now(UTC),
-                    updated_at=datetime.now(UTC),
-                    expires_at=datetime.now(UTC) + DRAFT_TTL,
+                    created_at=now,
+                    updated_at=now,
+                    expires_at=now + DRAFT_TTL,
                     idempotency_key=f"research-turn:{execution.id}",
                     request_hash=request_hash,
                 )
@@ -872,9 +899,6 @@ class ResearchApplicationService:
                     structured_payload={**payload},
                     model_execution_id=execution.id,
                 )
-                # The model may return a semantic question key, but answers
-                # must point to the persisted Thread entry owned by this
-                # Project. Expose that database id to the client.
                 question_entry.structured_payload = {
                     **payload,
                     "question_id": str(question_entry.id),
@@ -896,8 +920,6 @@ class ResearchApplicationService:
                 ),
                 model_execution_id=str(execution.id),
             )
-
-    # ---- helpers ---------------------------------------------------------
 
     def _project_read(
         self,
@@ -957,6 +979,7 @@ class ResearchApplicationService:
         *,
         execution_id: UUID,
         project_id: UUID,
+        lease_token: UUID,
         error: ModelExecutionError,
     ) -> None:
         with self._factory() as session, session.begin():
@@ -967,6 +990,13 @@ class ResearchApplicationService:
                 ModelExecutionModel, execution_id, with_for_update=True
             )
             if project is None or execution is None:
+                return
+            if (
+                execution.status not in {"pending", "running"}
+                or execution.lease_token != lease_token
+                or execution.lease_expires_at is None
+                or execution.lease_expires_at <= datetime.now(UTC)
+            ):
                 return
             execution.status = "failed"
             execution.output_hash = error.output_hash
@@ -1033,6 +1063,43 @@ class ResearchApplicationService:
                 ResearchContractDraftModel.project_id == project_id,
                 ResearchContractDraftModel.idempotency_key == idempotency_key,
             )
+        )
+
+
+def _expire_stale_model_executions(
+    session: Session,
+    *,
+    project: ResearchProjectModel,
+    now: datetime,
+) -> None:
+    active = tuple(
+        session.scalars(
+            select(ModelExecutionModel)
+            .where(
+                ModelExecutionModel.project_id == project.id,
+                ModelExecutionModel.status.in_(("pending", "running")),
+            )
+            .with_for_update()
+        )
+    )
+    for execution in active:
+        if execution.lease_expires_at is not None and execution.lease_expires_at > now:
+            continue
+        execution.status = "failed"
+        execution.error_code = "MODEL_EXECUTION_LEASE_EXPIRED"
+        execution.error_summary = "研究助手上一次执行已中断，你可以重新发送研究消息。"
+        execution.finished_at = now
+        _append_thread_entry(
+            session,
+            project_id=project.id,
+            kind=ResearchThreadEntryKind.assistant_message,
+            actor="assistant",
+            public_content=execution.error_summary,
+            structured_payload={
+                "outcome": "unavailable",
+                "error_code": execution.error_code,
+            },
+            model_execution_id=execution.id,
         )
 
 
@@ -1368,34 +1435,6 @@ def _thread_entry(row: ResearchThreadEntryModel) -> ResearchThreadEntry:
     )
 
 
-def _model_execution_record(row: ModelExecutionModel) -> ModelExecutionRecord:
-    return ModelExecutionRecord(
-        id=str(row.id),
-        project_id=str(row.project_id),
-        provider=row.provider,
-        model=row.model,
-        model_revision=row.model_revision,
-        prompt_name=row.prompt_name,
-        prompt_version=row.prompt_version,
-        prompt_hash=row.prompt_hash,
-        prompt_snapshot=row.prompt_snapshot,
-        input_hash=row.input_hash,
-        input_snapshot=row.input_snapshot,
-        output_hash=row.output_hash,
-        output_snapshot=row.output_snapshot,
-        parameters_hash=row.parameters_hash,
-        parameters_snapshot=row.parameters_snapshot,
-        status=row.status,
-        token_usage=row.token_usage,
-        latency_ms=row.latency_ms,
-        provider_request_id=row.provider_request_id,
-        error_code=row.error_code,
-        error_summary=row.error_summary,
-        created_at=row.created_at,
-        finished_at=row.finished_at,
-    )
-
-
 _TARGET_PRESENTATION = {
     "host_star": ("宿主恒星", "系外行星候选体所围绕的恒星。"),
     "exoplanet_candidate": (
@@ -1628,6 +1667,15 @@ def _execution_failure(code: str | None) -> SecurityProblem:
     )
 
 
+def _research_assistant_busy() -> SecurityProblem:
+    return SecurityProblem(
+        status=409,
+        code="RESEARCH_ASSISTANT_BUSY",
+        title="Research assistant busy",
+        detail="研究助手正在处理上一条消息，请等待完成后再发送。",
+    )
+
+
 def _parse_if_match(if_match: str) -> int:
     try:
         return int(if_match.strip().strip('"'))
@@ -1682,4 +1730,4 @@ def _utc(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
-__all__ = ["CANONICAL_RUN_STEPS", "ResearchApplicationService"]
+__all__ = ["ResearchApplicationService"]

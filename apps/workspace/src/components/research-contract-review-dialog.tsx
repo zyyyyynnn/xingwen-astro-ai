@@ -7,6 +7,14 @@ import { useRef, useState } from "react";
 import {
   Alert,
   AlertDescription,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertTitle,
   Badge,
   Button,
@@ -225,38 +233,6 @@ export function ResearchContractReviewDialog({
 
           {draft && catalog ? (
             <div className="research-contract-dialog__body">
-              {discardPromptOpen ? (
-                <Alert
-                  variant="destructive"
-                  className="research-contract-dialog__discard"
-                >
-                  <div>
-                    <AlertTitle>有修改尚未保存</AlertTitle>
-                    <AlertDescription>
-                      继续编辑并保存，或放弃本次修改后关闭。
-                    </AlertDescription>
-                  </div>
-                  <div className="research-contract-dialog__discard-actions">
-                    <Button
-                      variant="secondary"
-                      onClick={() => setDiscardPromptOpen(false)}
-                    >
-                      继续编辑
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => {
-                        setDirty(false);
-                        setDiscardPromptOpen(false);
-                        onOpenChange(false);
-                      }}
-                    >
-                      放弃修改
-                    </Button>
-                  </div>
-                </Alert>
-              ) : null}
-
               <ResearchContractForm
                 draft={draft}
                 catalog={catalog}
@@ -316,6 +292,29 @@ export function ResearchContractReviewDialog({
           ) : null}
         </DialogContent>
       </Dialog>
+      <AlertDialog open={discardPromptOpen} onOpenChange={setDiscardPromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>放弃未保存的修改？</AlertDialogTitle>
+            <AlertDialogDescription>
+              当前研究协议草案的修改尚未保存。放弃后无法恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>继续编辑</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setDirty(false);
+                setDiscardPromptOpen(false);
+                onOpenChange(false);
+              }}
+            >
+              放弃修改
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

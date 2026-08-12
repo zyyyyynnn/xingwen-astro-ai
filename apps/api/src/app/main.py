@@ -40,7 +40,10 @@ from app.security import (
 )
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
-from app.services.model_execution import QwenModelExecutionAdapter
+from app.services.model_execution import (
+    QwenModelExecutionAdapter,
+    qwen_execution_lease_duration,
+)
 from app.services.research import ResearchApplicationService
 from app.services.research_planner import ResearchContractPlanner
 from app.services.resource_authority import (
@@ -96,6 +99,7 @@ def _configure_database_runtime(
         ),
         base_url=settings.DASHSCOPE_BASE_URL,
         timeout_seconds=settings.DASHSCOPE_TIMEOUT_SECONDS,
+        max_retries=settings.DASHSCOPE_MAX_RETRIES,
     )
     app.state.model_execution_port = model_port
     manifests = _load_case_manifests()
@@ -111,6 +115,11 @@ def _configure_database_runtime(
         workflow_store=workflow_store,
         manifests=manifests,
         planner=app.state.research_planner,
+        model_execution_lease_duration=qwen_execution_lease_duration(
+            timeout_seconds=settings.DASHSCOPE_TIMEOUT_SECONDS,
+            max_retries=settings.DASHSCOPE_MAX_RETRIES,
+            grace_seconds=settings.MODEL_EXECUTION_LEASE_GRACE_SECONDS,
+        ),
     )
     app.router.add_event_handler("shutdown", engine.dispose)
     return engine, factory, resource_authority

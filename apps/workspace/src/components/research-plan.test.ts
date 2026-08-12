@@ -1,7 +1,19 @@
-import type { RunStepViewModel } from "@xingwen/research-adapter";
+import type {
+  ProjectViewModel,
+  ResearchThreadEntryViewModel,
+  RunStepViewModel,
+} from "@xingwen/research-adapter";
 import { describe, expect, it } from "vitest";
 
-import { createResearchPlanItems } from "./research-plan";
+import { deriveResearchPresentation } from "../presentation/research-presentation";
+
+const project = {
+  id: "project-1",
+  activeDraftId: null,
+  activeContractId: null,
+  latestRunId: null,
+  latestRunStatus: null,
+} as unknown as ProjectViewModel;
 
 function step(
   status: RunStepViewModel["status"],
@@ -22,26 +34,87 @@ function step(
   } as unknown as RunStepViewModel;
 }
 
-describe("createResearchPlanItems", () => {
+describe("deriveResearchPresentation", () => {
   it("omits redundant secondary copy for steps that have not started", () => {
-    const items = createResearchPlanItems({
-      draft: null,
-      contract: null,
-      run: null,
+    const items = deriveResearchPresentation({
+      project,
       steps: [step("pending", "等待规划研究路径。")],
-    });
+    }).planItems;
 
     expect(items.at(-1)?.detail).toBeUndefined();
   });
 
   it("keeps actionable execution detail", () => {
-    const items = createResearchPlanItems({
-      draft: null,
-      contract: null,
-      run: null,
+    const items = deriveResearchPresentation({
+      project,
       steps: [step("failed", "目录服务暂时不可用。")],
-    });
+    }).planItems;
 
     expect(items.at(-1)?.detail).toBe("目录服务暂时不可用。");
+  });
+
+  it("drives the shared waiting state from an unanswered clarification", () => {
+    const question = {
+      id: "question-entry",
+      actor: "assistant",
+      kind: "clarification_question",
+      structuredPayload: { questionId: "question-1" },
+    } as unknown as ResearchThreadEntryViewModel;
+
+    const presentation = deriveResearchPresentation({
+      project,
+      entries: [question],
+    });
+
+    expect(presentation.state).toBe("awaiting_clarification");
+    expect(presentation.statusLabel).toBe("等待你的回答");
+    expect(presentation.planItems[0]?.status).toBe("waiting");
+  });
+
+  it("does not let an older Contract or Run hide a new clarification", () => {
+    const question = {
+      id: "question-after-run",
+      actor: "assistant",
+      kind: "clarification_question",
+      structuredPayload: { questionId: "question-2" },
+    } as unknown as ResearchThreadEntryViewModel;
+    const projectWithRun = {
+      ...project,
+      activeContractId: "contract-1",
+      latestRunId: "run-1",
+      latestRunStatus: "completed",
+    } as unknown as ProjectViewModel;
+
+    const presentation = deriveResearchPresentation({
+      project: projectWithRun,
+      entries: [question],
+    });
+
+    expect(presentation.state).toBe("awaiting_clarification");
+    expect(presentation.statusLabel).toBe("等待你的回答");
+    expect(presentation.planItems[0]?.status).toBe("waiting");
+  });
+
+  it("leaves the waiting state after the matching answer is recorded", () => {
+    const entries = [
+      {
+        id: "question-entry",
+        actor: "assistant",
+        kind: "clarification_question",
+        structuredPayload: { questionId: "question-1" },
+      },
+      {
+        id: "answer-entry",
+        actor: "user",
+        kind: "clarification_answer",
+        structuredPayload: { answerToQuestionId: "question-1" },
+      },
+    ] as unknown as readonly ResearchThreadEntryViewModel[];
+
+    const presentation = deriveResearchPresentation({ project, entries });
+
+    expect(presentation.state).toBe("assistant_processing");
+    expect(presentation.statusLabel).toBe("研究助手处理中");
+    expect(presentation.planItems[0]?.status).toBe("running");
   });
 });

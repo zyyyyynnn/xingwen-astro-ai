@@ -92,6 +92,8 @@ def upgrade() -> None:
         sa.Column("error_summary", sa.Text(), nullable=True),
         sa.Column("idempotency_key", sa.String(200), nullable=False),
         sa.Column("request_hash", sa.String(71), nullable=False),
+        sa.Column("lease_token", _uuid(), nullable=True),
+        sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
@@ -107,6 +109,11 @@ def upgrade() -> None:
             "latency_ms IS NULL OR latency_ms >= 0",
             name="ck_model_executions_latency_nonnegative",
         ),
+        sa.CheckConstraint(
+            "status NOT IN ('pending','running') OR "
+            "(lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)",
+            name="ck_model_executions_active_lease",
+        ),
         sa.ForeignKeyConstraint(
             ["project_id"],
             ["research_projects.id"],
@@ -120,6 +127,13 @@ def upgrade() -> None:
             "idempotency_key",
             name="uq_model_execution_project_idempotency",
         ),
+    )
+    op.create_index(
+        "uq_model_execution_active_project",
+        "model_executions",
+        ["project_id"],
+        unique=True,
+        postgresql_where=sa.text("status IN ('pending','running')"),
     )
 
     op.create_table(
@@ -1333,6 +1347,9 @@ def downgrade() -> None:
         table_name="research_thread_entries",
     )
     op.drop_table("research_thread_entries")
+    op.drop_index(
+        "uq_model_execution_active_project", table_name="model_executions"
+    )
     op.drop_table("model_executions")
     op.drop_table("research_contracts")
     op.drop_index(

@@ -77,6 +77,12 @@
   --oh-panel-min-ratio: var(--workspace-panel-min-ratio);
   --oh-panel-max-ratio: var(--workspace-panel-max-ratio);
   --oh-panel-keyboard-step: var(--workspace-panel-keyboard-step);
+  --oh-inspector-floating-inline-size: var(
+    --workspace-inspector-floating-inline-size
+  );
+  --oh-inspector-floating-track-inline-size: var(
+    --workspace-inspector-floating-track-inline-size
+  );
   --oh-command-menu-max-inline-size: var(
     --workspace-command-menu-max-inline-size
   );
@@ -854,23 +860,9 @@ button:disabled {
   flex: 1;
 }
 
-.research-contract-dialog__discard,
 .research-contract-dialog__notice {
   flex: 0 0 auto;
   margin: var(--space-3) var(--space-6) 0;
-}
-
-.research-contract-dialog__discard {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.research-contract-dialog__discard-actions {
-  display: flex;
-  flex: 0 0 auto;
-  gap: var(--space-2);
 }
 
 .research-contract-facts {

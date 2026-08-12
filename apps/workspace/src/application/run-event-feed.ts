@@ -29,6 +29,7 @@ interface VisibilitySource {
 }
 
 interface RunEventFeedDependencies {
+  readonly projectId: DomainEntityId;
   readonly runId: DomainEntityId;
   readonly runs: RunRepository;
   readonly researchAdapter: ResearchAdapter;
@@ -52,6 +53,7 @@ function sortedUniqueEvents(events: readonly RunEvent[]): readonly RunEvent[] {
 }
 
 export function createRunEventFeed({
+  projectId,
   runId,
   runs,
   researchAdapter,
@@ -61,7 +63,7 @@ export function createRunEventFeed({
 }: RunEventFeedDependencies) {
   let cache =
     queryClient.getQueryData<RunEventFeedCache>(
-      workspaceQueryKeys.runEvents(runId),
+      workspaceQueryKeys.runEvents(projectId, runId),
     ) ?? emptyCache();
   let status: RunEventFeedSnapshot["status"] = "idle";
   let failureCount = 0;
@@ -71,7 +73,10 @@ export function createRunEventFeed({
 
   const writeCache = (next: RunEventFeedCache) => {
     cache = next;
-    queryClient.setQueryData(workspaceQueryKeys.runEvents(runId), next);
+    queryClient.setQueryData(
+      workspaceQueryKeys.runEvents(projectId, runId),
+      next,
+    );
   };
 
   const cancelTimer = () => {
@@ -121,14 +126,14 @@ export function createRunEventFeed({
     status = "running";
     try {
       let snapshot = await queryClient.fetchQuery({
-        ...runQuery(runId),
+        ...runQuery(projectId, runId),
         staleTime: 0,
       });
       let recovered = await recover(snapshot, cache.cursor, cache);
       if (recovered.gap) {
         writeCache(emptyCache());
         snapshot = await queryClient.fetchQuery({
-          ...runQuery(runId),
+          ...runQuery(projectId, runId),
           staleTime: 0,
         });
         recovered = await recover(snapshot, null, emptyCache());
@@ -142,7 +147,7 @@ export function createRunEventFeed({
       writeCache(recovered.cache);
       if (recovered.cache.lastSequence > previousLastSequence) {
         await queryClient.invalidateQueries({
-          queryKey: workspaceQueryKeys.runSteps(runId),
+          queryKey: workspaceQueryKeys.runSteps(projectId, runId),
         });
       }
       failureCount = 0;

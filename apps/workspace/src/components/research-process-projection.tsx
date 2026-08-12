@@ -1,9 +1,6 @@
 import type {
   ActivityPresentationEvent,
-  ResearchContractDraftViewModel,
-  ResearchContractViewModel,
   ResearchRunViewModel,
-  RunStepViewModel,
 } from "@xingwen/research-adapter";
 import { Alert, AlertDescription } from "@xingwen/ui";
 import { History, ListChecks } from "@xingwen/ui/icons";
@@ -14,18 +11,16 @@ import {
   NarrativeDisclosure,
 } from "../../upstream/openhands/src/root";
 import {
-  createResearchPlanItems,
   ResearchPlanStatusIcon,
   researchPlanStatusLabel,
   researchPlanSummary,
 } from "./research-plan";
+import type { ResearchPlanItem } from "../presentation/research-presentation";
 
 interface ResearchProcessProjectionProps {
   readonly visible: boolean;
-  readonly draft: ResearchContractDraftViewModel | null;
-  readonly contract: ResearchContractViewModel | null;
   readonly run: ResearchRunViewModel | null;
-  readonly steps: readonly RunStepViewModel[];
+  readonly planItems: readonly ResearchPlanItem[];
   readonly events: readonly ActivityPresentationEvent[];
   readonly eventError: string | null;
   readonly focusPlanRequest: number;
@@ -33,20 +28,17 @@ interface ResearchProcessProjectionProps {
 
 export function ResearchProcessProjection({
   visible,
-  draft,
-  contract,
   run,
-  steps,
+  planItems,
   events,
   eventError,
   focusPlanRequest,
 }: ResearchProcessProjectionProps) {
-  const planItems = createResearchPlanItems({ draft, contract, run, steps });
   const planState = researchPlanSummary(planItems);
   const latestEvent = events.at(-1);
   const planTriggerRef = useRef<HTMLButtonElement>(null);
   const [planOpen, setPlanOpen] = useState(
-    planState === "等待用户" || planState === "需要处理",
+    planState === "等待你的回答" || planState === "需要处理",
   );
 
   useEffect(() => {

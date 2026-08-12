@@ -1,5 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import type { ResearchContractViewModel } from "@xingwen/research-adapter";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type {
+  ResearchContractDraftViewModel,
+  ResearchContractViewModel,
+} from "@xingwen/research-adapter";
 import type { ResearchPlanningCatalog } from "@xingwen/domain";
 import { describe, expect, it, vi } from "vitest";
 
@@ -35,6 +38,18 @@ const CONTRACT = {
   createdFromDraftId: "draft-1",
   provenance: { contentHash: "hash" },
 } as unknown as ResearchContractViewModel;
+
+const DRAFT = {
+  id: "draft-1",
+  version: 1,
+  intent: "比较宜居带行星的观测偏差",
+  status: "draft",
+  contract: CONTRACT,
+  warnings: [],
+  createdAt: "2026-08-12T00:00:00.000Z",
+  updatedAt: "2026-08-12T00:00:00.000Z",
+  expiresAt: "2026-08-13T00:00:00.000Z",
+} as unknown as ResearchContractDraftViewModel;
 
 const CATALOG = {
   projectId: "project-1",
@@ -125,5 +140,44 @@ describe("ResearchContractReviewDialog", () => {
     expect(
       screen.getByRole("button", { name: "开始真实研究" }),
     ).toBeInTheDocument();
+  });
+
+  it("uses the shared confirmation dialog before discarding a dirty draft", async () => {
+    const onOpenChange = vi.fn();
+    render(
+      <ResearchContractReviewDialog
+        open
+        onOpenChange={onOpenChange}
+        draft={DRAFT}
+        catalog={CATALOG}
+        contract={null}
+        runStatusLabel={null}
+        pendingAction={null}
+        errorMessage={null}
+        onSave={vi.fn(async () => undefined)}
+        onConfirm={vi.fn(async () => undefined)}
+        onCreateRun={vi.fn(async () => undefined)}
+        onViewPlan={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("研究问题"), {
+      target: { value: "修改后的研究问题" },
+    });
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+      expect(
+        screen.getByRole("alertdialog", { name: "放弃未保存的修改？" }),
+      ).toBeInTheDocument();
+    });
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "继续编辑" }));
+    expect(onOpenChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+    fireEvent.click(screen.getByRole("button", { name: "放弃修改" }));
+
+    expect(onOpenChange).toHaveBeenCalledOnce();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

@@ -477,11 +477,6 @@ export type GraphNodeType =
   | "evidence";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "ModelExecutionStatus".
- */
-export type ModelExecutionStatus = "pending" | "running" | "succeeded" | "failed";
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ProducerExecutionStatus".
  */
 export type ProducerExecutionStatus = "completed" | "failed";
@@ -590,6 +585,11 @@ export type SourceMode = "fixture" | "live" | "cached";
  * via the `definition` "CreateResearchInputRequest".
  */
 export type CreateResearchInputRequest = UrlResearchInputRequest | TextResearchInputRequest;
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelExecutionStatus".
+ */
+export type ModelExecutionStatus = "pending" | "running" | "succeeded" | "failed";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PlannerOutcome".
@@ -2698,54 +2698,6 @@ export interface Envelope_LiteratureRelationRead_ {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "Envelope_ModelExecutionRecord_".
- */
-export interface Envelope_ModelExecutionRecord_ {
-  data: ModelExecutionRecord;
-  links: ResponseLinks;
-  meta: ResponseMeta;
-}
-/**
- * Pre-run model provenance without raw provider output or private reasoning.
- *
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "ModelExecutionRecord".
- */
-export interface ModelExecutionRecord {
-  created_at: string;
-  error_code?: string | null;
-  error_summary?: string | null;
-  finished_at?: string | null;
-  id: string;
-  input_hash?: string | null;
-  input_snapshot: {
-    [k: string]: JsonValue;
-  };
-  latency_ms?: number | null;
-  model: string;
-  model_revision: string;
-  output_hash?: string | null;
-  output_snapshot?: {
-    [k: string]: JsonValue;
-  } | null;
-  parameters_hash: string;
-  parameters_snapshot: {
-    [k: string]: JsonValue;
-  };
-  project_id: string;
-  prompt_hash: string;
-  prompt_name: string;
-  prompt_snapshot: string;
-  prompt_version: string;
-  provider: string;
-  provider_request_id?: string | null;
-  status: ModelExecutionStatus;
-  token_usage?: {
-    [k: string]: JsonValue;
-  } | null;
-}
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_PaperCollectionRead_".
  */
 export interface Envelope_PaperCollectionRead_ {
@@ -3851,6 +3803,45 @@ export interface DataArtifactReadBase {
   schema_version: string;
   source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
+}
+/**
+ * Pre-run model provenance without raw provider output or private reasoning.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelExecutionRecord".
+ */
+export interface ModelExecutionRecord {
+  created_at: string;
+  error_code?: string | null;
+  error_summary?: string | null;
+  finished_at?: string | null;
+  id: string;
+  input_hash?: string | null;
+  input_snapshot: {
+    [k: string]: JsonValue;
+  };
+  latency_ms?: number | null;
+  model: string;
+  model_revision: string;
+  output_hash?: string | null;
+  output_snapshot?: {
+    [k: string]: JsonValue;
+  } | null;
+  parameters_hash: string;
+  parameters_snapshot: {
+    [k: string]: JsonValue;
+  };
+  project_id: string;
+  prompt_hash: string;
+  prompt_name: string;
+  prompt_snapshot: string;
+  prompt_version: string;
+  provider: string;
+  provider_request_id?: string | null;
+  status: ModelExecutionStatus;
+  token_usage?: {
+    [k: string]: JsonValue;
+  } | null;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

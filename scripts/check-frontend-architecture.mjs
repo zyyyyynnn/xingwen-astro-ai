@@ -47,7 +47,15 @@ const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
   [
     "@xingwen/ui",
-    new Set(["clsx", "cmdk", "lucide-react", "radix-ui", "react"]),
+    new Set([
+      "clsx",
+      "cmdk",
+      "lucide-react",
+      "radix-ui",
+      "react",
+      "sonner",
+      "tslib",
+    ]),
   ],
   ["@xingwen/research-adapter", new Set()],
 ]);
@@ -374,7 +382,12 @@ function collectPublicUiValueUsages(file, content) {
         (ts.isJsxClosingElement(node.parent) && node.parent.tagName === node);
       const isDirectCall =
         ts.isCallExpression(node.parent) && node.parent.expression === node;
-      if (importedValue && (isJsxTag || isDirectCall)) {
+      const isMemberCall =
+        ts.isPropertyAccessExpression(node.parent) &&
+        node.parent.expression === node &&
+        ts.isCallExpression(node.parent.parent) &&
+        node.parent.parent.expression === node.parent;
+      if (importedValue && (isJsxTag || isDirectCall || isMemberCall)) {
         usages.add(importedValue);
       }
     }
@@ -603,6 +616,7 @@ const publicUiUsageFixtures = [
     "buttonClassName",
     true,
   ],
+  ['import { toast } from "@xingwen/ui"; toast.error("失败");', "toast", true],
 ];
 for (const [content, exportedValue, expected] of publicUiUsageFixtures) {
   const actual = collectPublicUiValueUsages(
@@ -713,6 +727,8 @@ const boundaryRules = new Map([
         "react",
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
+        "sonner",
+        "tslib",
       ]),
       forbiddenIdentifiers: networkAndStorageGlobals,
       forbidRepositorySymbols: true,

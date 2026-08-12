@@ -20,9 +20,9 @@
       "output_models": ["PaperSummaryModelOutput"]
     },
     "research_contract_planner": {
-      "version": "1.1.1",
+      "version": "1.1.2",
       "path": "research_contract_planner/prompt.md",
-      "content_hash": "sha256:d49848c231b878a9ff80842a2f6ec2f0f66c17064d1282f299fe23abaea332fd",
+      "content_hash": "sha256:54409f6224a07bb26f3b51e2296353401da76d4a80ad5b206fcc9e074a7a779d",
       "output_models": ["PlannerOutcome"]
     }
   }

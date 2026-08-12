@@ -30,12 +30,19 @@ def test_dashscope_credentials_use_the_platform_environment_name() -> None:
     assert settings.DASHSCOPE_API_KEY.get_secret_value() == "test-key"
     assert settings.DASHSCOPE_MODEL == "qwen3.7-plus"
     assert settings.DASHSCOPE_MODEL_REVISION == "qwen3.7-plus-2026-05-26"
+    assert settings.DASHSCOPE_MAX_RETRIES == 2
+    assert settings.MODEL_EXECUTION_LEASE_GRACE_SECONDS == 30.0
 
 
 def test_dashscope_placeholder_credentials_fail_closed() -> None:
     settings = Settings(_env_file=None, DASHSCOPE_API_KEY="replace_me")
 
     assert settings.DASHSCOPE_API_KEY is None
+
+
+def test_dashscope_retry_budget_is_bounded() -> None:
+    with pytest.raises(ValidationError, match="DASHSCOPE_MAX_RETRIES"):
+        Settings(_env_file=None, DASHSCOPE_MAX_RETRIES=5)
 
 
 def test_production_accepts_managed_database_url_without_postgres_password() -> None:

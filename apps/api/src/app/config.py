@@ -75,6 +75,8 @@ class Settings(BaseSettings):
     DASHSCOPE_MODEL: str = "qwen3.7-plus"
     DASHSCOPE_MODEL_REVISION: str = "qwen3.7-plus-2026-05-26"
     DASHSCOPE_TIMEOUT_SECONDS: float = Field(default=45.0, gt=0)
+    DASHSCOPE_MAX_RETRIES: int = Field(default=2, ge=0, le=4)
+    MODEL_EXECUTION_LEASE_GRACE_SECONDS: float = Field(default=30.0, gt=0)
 
     # Research Input ingestion. The content-addressed local store is the
     # reference boundary; uploads are capped, MIME-sniffed and never executed.

@@ -1,10 +1,7 @@
 import type {
   ResearchContractDraftViewModel,
   ResearchContractViewModel,
-  ResearchRunViewModel,
-  RunStepViewModel,
 } from "@xingwen/research-adapter";
-import { researchRunStatusLabel } from "@xingwen/research-adapter";
 import {
   Button,
   Collapsible,
@@ -17,16 +14,13 @@ import {
   ListChecks,
   type LucideIcon,
 } from "@xingwen/ui/icons";
-import {
-  createResearchPlanItems,
-  ResearchPlanStatusIcon,
-} from "./research-plan";
+import { ResearchPlanStatusIcon } from "./research-plan";
+import type { ResearchPresentation } from "../presentation/research-presentation";
 
 interface ResearchInspectorProps {
   readonly draft: ResearchContractDraftViewModel | null;
   readonly contract: ResearchContractViewModel | null;
-  readonly run: ResearchRunViewModel | null;
-  readonly steps: readonly RunStepViewModel[];
+  readonly presentation: ResearchPresentation;
 }
 
 interface InspectorDisclosureProps {
@@ -85,16 +79,13 @@ function InspectorDisclosure({
 export function ResearchInspector({
   draft,
   contract,
-  run,
-  steps,
+  presentation,
 }: ResearchInspectorProps) {
-  const protocolStatus = contract ? "已确认" : draft ? "草稿待确认" : "待完善";
-  const planSummary = createResearchPlanItems({ draft, contract, run, steps });
   return (
     <section className="research-inspector" aria-label="研究概览">
       <InspectorDisclosure
         title="研究协议"
-        status={protocolStatus}
+        status={presentation.protocolStatus}
         icon={FileSearch}
         kind="protocol"
       >
@@ -106,12 +97,12 @@ export function ResearchInspector({
       </InspectorDisclosure>
       <InspectorDisclosure
         title="研究计划"
-        status={run ? researchRunStatusLabel(run.status) : undefined}
+        status={presentation.statusLabel}
         icon={ListChecks}
         kind="plan"
       >
         <ol className="research-inspector__plan">
-          {planSummary.map((item) => (
+          {presentation.planItems.map((item) => (
             <li key={item.id} data-status={item.status}>
               <span className="research-inspector__plan-icon">
                 <ResearchPlanStatusIcon status={item.status} />

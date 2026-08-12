@@ -14,9 +14,11 @@ and asserts 401/403/404, ownership hiding, idempotency and revision conflicts.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 import os
 from pathlib import Path
+from threading import Event, Lock
 from uuid import UUID, uuid4
 
 from alembic import command
@@ -50,6 +52,7 @@ from app.schemas.core import (
     PlannerClarificationRequired,
     PlannerDraftReady,
     ResearchContractInput,
+    ResearchTurnResult,
 )
 from app.services.resource_authority import PersistentResourceAuthority
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
@@ -122,6 +125,72 @@ class StubResearchPlanner:
                 latency_ms=2,
                 provider_request_id="test-provider-request",
             ),
+        )
+
+
+class PersistenceFailingResearchService(ResearchApplicationService):
+    def _persist_successful_turn(
+        self,
+        *,
+        project_id: str,
+        project_uuid: UUID,
+        session_id: str,
+        execution_id: UUID,
+        lease_token: UUID,
+        request_hash: str,
+        research_intent: str,
+        planner_result: PlannerResult,
+    ) -> ResearchTurnResult:
+        del (
+            project_id,
+            project_uuid,
+            session_id,
+            execution_id,
+            lease_token,
+            request_hash,
+            research_intent,
+            planner_result,
+        )
+        raise RuntimeError("simulated final persistence failure")
+
+
+class BlockingFirstResearchPlanner(StubResearchPlanner):
+    """Hold the first provider call so a second Turn can test Project single-flight."""
+
+    def __init__(self) -> None:
+        self.started = Event()
+        self.release = Event()
+        self._lock = Lock()
+        self._calls = 0
+
+    def execute(self, request: ModelExecutionRequest) -> PlannerResult:
+        with self._lock:
+            self._calls += 1
+            should_block = self._calls == 1
+        if should_block:
+            self.started.set()
+            if not self.release.wait(timeout=10):
+                raise AssertionError(
+                    "timed out waiting to release the first planner call"
+                )
+        return super().execute(request)
+
+
+class BlockingFailureResearchPlanner(StubResearchPlanner):
+    """Fail only after the test has expired this worker's persisted lease."""
+
+    def __init__(self) -> None:
+        self.started = Event()
+        self.release = Event()
+
+    def execute(self, request: ModelExecutionRequest) -> PlannerResult:
+        del request
+        self.started.set()
+        if not self.release.wait(timeout=10):
+            raise AssertionError("timed out waiting to release the planner failure")
+        raise ModelExecutionError(
+            "MODEL_PROVIDER_TIMEOUT",
+            "研究助手响应超时，请稍后重试。",
         )
 
 
@@ -442,9 +511,7 @@ def test_research_turn_persists_public_thread_and_idempotent_model_execution(
         params={"limit": 1, "cursor": thread_cursor},
     )
     assert next_page.status_code == 200
-    tampered_cursor = thread_cursor[:-1] + (
-        "A" if thread_cursor[-1] != "A" else "B"
-    )
+    tampered_cursor = thread_cursor[:-1] + ("A" if thread_cursor[-1] != "A" else "B")
     rejected_cursor = client.get(
         f"/api/projects/{project_id}/research-turns",
         params={"limit": 1, "cursor": tampered_cursor},
@@ -467,23 +534,6 @@ def test_research_turn_persists_public_thread_and_idempotent_model_execution(
         assert execution.output_snapshot["outcome"] == "draft_ready"
         assert execution.token_usage == {"prompt_tokens": 10, "completion_tokens": 20}
 
-    execution_read = client.get(
-        f"/api/projects/{project_id}/model-executions/{result['model_execution_id']}"
-    )
-    assert execution_read.status_code == 200
-    execution_data = execution_read.json()["data"]
-    assert execution_data["prompt_snapshot"] == "test planner"
-    assert execution_data["input_snapshot"]["message"] == body["message"]
-    assert execution_data["parameters_snapshot"] == {"temperature": 0}
-    assert execution_data["output_snapshot"]["outcome"] == "draft_ready"
-
-    other = TestClient(client.app, base_url="https://testserver")
-    other.cookies.set(settings.SESSION_COOKIE_NAME, runtime["other_credential"])
-    hidden_execution = other.get(
-        f"/api/projects/{project_id}/model-executions/{result['model_execution_id']}"
-    )
-    assert hidden_execution.status_code == 404
-
     replay = client.post(
         f"/api/projects/{project_id}/research-turns",
         headers=headers,
@@ -499,6 +549,220 @@ def test_research_turn_persists_public_thread_and_idempotent_model_execution(
     )
     assert conflict.status_code == 409
     assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
+
+
+def test_research_turn_rejects_a_second_active_execution_for_the_project(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    factory = runtime["factory"]
+    workflow_store = runtime["workflow_store"]
+    planner = BlockingFirstResearchPlanner()
+    client.app.state.research_service = ResearchApplicationService(
+        factory=factory,  # type: ignore[arg-type]
+        workflow_store=workflow_store,  # type: ignore[arg-type]
+        manifests=_load_case_manifests(),
+        planner=planner,
+    )
+    project_id = runtime["project_id"]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+
+    def submit_first_turn():
+        return client.post(
+            f"/api/projects/{project_id}/research-turns",
+            headers={**csrf, "Idempotency-Key": "active-turn-first"},
+            json={"message": "First active research Turn"},
+        )
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first_future = executor.submit(submit_first_turn)
+        assert planner.started.wait(timeout=5)
+        try:
+            second = client.post(
+                f"/api/projects/{project_id}/research-turns",
+                headers={**csrf, "Idempotency-Key": "active-turn-second"},
+                json={"message": "Second concurrent research Turn"},
+            )
+        finally:
+            planner.release.set()
+        first = first_future.result(timeout=10)
+
+    assert first.status_code == 200, first.text
+    assert second.status_code == 409, second.text
+    assert second.json()["code"] == "RESEARCH_ASSISTANT_BUSY"
+    thread = client.get(f"/api/projects/{project_id}/research-turns")
+    assert thread.status_code == 200
+    assert all(
+        entry["public_content"] != "Second concurrent research Turn"
+        for entry in thread.json()["data"]
+    )
+
+
+def test_research_turn_reclaims_an_expired_execution_lease(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    factory = runtime["factory"]
+    project_id = UUID(runtime["project_id"])  # type: ignore[arg-type]
+    stale_id = uuid4()
+    with factory() as session, session.begin():  # type: ignore[operator]
+        session.add(
+            ModelExecutionModel(
+                id=stale_id,
+                project_id=project_id,
+                provider="test",
+                model="abandoned-planner",
+                model_revision="abandoned-planner-1",
+                prompt_name="research_contract_planner",
+                prompt_version="1.0.0",
+                prompt_hash="sha256:" + "a" * 64,
+                prompt_snapshot="abandoned prompt",
+                input_hash="sha256:" + "b" * 64,
+                input_snapshot={"message": "abandoned turn"},
+                parameters_hash="sha256:" + "c" * 64,
+                parameters_snapshot={"temperature": 0},
+                status="running",
+                idempotency_key="abandoned-turn",
+                request_hash="sha256:" + "d" * 64,
+                lease_token=uuid4(),
+                lease_expires_at=datetime.now(UTC) - timedelta(minutes=1),
+                created_at=datetime.now(UTC) - timedelta(minutes=6),
+            )
+        )
+
+    response = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers={
+            "X-CSRF-Token": runtime["owner_csrf"],
+            "Idempotency-Key": "turn-after-abandoned-worker",
+        },
+        json={"message": "Continue after the interrupted worker"},
+    )
+
+    assert response.status_code == 200, response.text
+    with factory() as session:  # type: ignore[operator]
+        abandoned = session.get(ModelExecutionModel, stale_id)
+        assert abandoned is not None
+        assert abandoned.status == "failed"
+        assert abandoned.error_code == "MODEL_EXECUTION_LEASE_EXPIRED"
+        assert abandoned.finished_at is not None
+
+
+def test_expired_worker_cannot_commit_a_failure_terminal_state(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    factory = runtime["factory"]
+    workflow_store = runtime["workflow_store"]
+    planner = BlockingFailureResearchPlanner()
+    client.app.state.research_service = ResearchApplicationService(
+        factory=factory,  # type: ignore[arg-type]
+        workflow_store=workflow_store,  # type: ignore[arg-type]
+        manifests=_load_case_manifests(),
+        planner=planner,
+    )
+    project_id = runtime["project_id"]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+
+    def submit_expiring_turn():
+        return client.post(
+            f"/api/projects/{project_id}/research-turns",
+            headers={**csrf, "Idempotency-Key": "expired-failing-worker"},
+            json={"message": "Let this provider worker expire"},
+        )
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        pending = executor.submit(submit_expiring_turn)
+        assert planner.started.wait(timeout=5)
+        with factory() as session, session.begin():  # type: ignore[operator]
+            execution = session.scalar(
+                select(ModelExecutionModel).where(
+                    ModelExecutionModel.idempotency_key == "expired-failing-worker"
+                )
+            )
+            assert execution is not None
+            execution.lease_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+        planner.release.set()
+        failed = pending.result(timeout=10)
+
+    assert failed.status_code == 503
+    with factory() as session:  # type: ignore[operator]
+        stale = session.scalar(
+            select(ModelExecutionModel).where(
+                ModelExecutionModel.idempotency_key == "expired-failing-worker"
+            )
+        )
+        assert stale is not None
+        assert stale.status == "running"
+        assert stale.error_code is None
+
+    client.app.state.research_service = ResearchApplicationService(
+        factory=factory,  # type: ignore[arg-type]
+        workflow_store=workflow_store,  # type: ignore[arg-type]
+        manifests=_load_case_manifests(),
+        planner=StubResearchPlanner(),
+    )
+    recovered = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers={**csrf, "Idempotency-Key": "turn-after-expired-failure"},
+        json={"message": "Continue after the stale failure"},
+    )
+    assert recovered.status_code == 200, recovered.text
+    with factory() as session:  # type: ignore[operator]
+        stale = session.scalar(
+            select(ModelExecutionModel).where(
+                ModelExecutionModel.idempotency_key == "expired-failing-worker"
+            )
+        )
+        assert stale is not None
+        assert stale.status == "failed"
+        assert stale.error_code == "MODEL_EXECUTION_LEASE_EXPIRED"
+
+
+def test_final_persistence_failure_releases_the_project_execution_slot(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    factory = runtime["factory"]
+    workflow_store = runtime["workflow_store"]
+    client.app.state.research_service = PersistenceFailingResearchService(
+        factory=factory,  # type: ignore[arg-type]
+        workflow_store=workflow_store,  # type: ignore[arg-type]
+        manifests=_load_case_manifests(),
+        planner=StubResearchPlanner(),
+    )
+    project_id = runtime["project_id"]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+
+    failed = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers={**csrf, "Idempotency-Key": "persistence-failure"},
+        json={"message": "Persist this provider result"},
+    )
+    assert failed.status_code == 503
+    assert failed.json()["code"] == "MODEL_RESULT_PERSISTENCE_FAILED"
+
+    with factory() as session:  # type: ignore[operator]
+        execution = session.scalar(
+            select(ModelExecutionModel).where(
+                ModelExecutionModel.idempotency_key == "persistence-failure"
+            )
+        )
+        assert execution is not None
+        assert execution.status == "failed"
+
+    client.app.state.research_service = ResearchApplicationService(
+        factory=factory,  # type: ignore[arg-type]
+        workflow_store=workflow_store,  # type: ignore[arg-type]
+        manifests=_load_case_manifests(),
+        planner=StubResearchPlanner(),
+    )
+    recovered = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers={**csrf, "Idempotency-Key": "after-persistence-failure"},
+        json={"message": "A new Turn after persistence recovery"},
+    )
+    assert recovered.status_code == 200, recovered.text
 
 
 def test_failed_model_execution_keeps_safe_provider_metadata(

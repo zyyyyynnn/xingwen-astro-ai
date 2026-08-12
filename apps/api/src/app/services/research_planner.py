@@ -22,6 +22,7 @@ from app.services.model_execution import (
     ModelExecutionRequest,
     ModelExecutionResponse,
 )
+from app.workflow.run_plan import EXECUTABLE_OUTPUTS
 from packages.prompts.registry import PromptRegistry
 
 
@@ -188,6 +189,12 @@ def _planning_catalog(manifests: ManifestBundle) -> dict[str, Any]:
         ],
         "default_requested_field_ids": list(case.default_requested_fields),
         "output_requirement_ids": [kind.value for kind in ArtifactKind],
+        "executable_output_requirement_ids": [
+            kind.value for kind in ArtifactKind if kind in EXECUTABLE_OUTPUTS
+        ],
+        "unsupported_output_requirement_ids": [
+            kind.value for kind in ArtifactKind if kind not in EXECUTABLE_OUTPUTS
+        ],
     }
 
 

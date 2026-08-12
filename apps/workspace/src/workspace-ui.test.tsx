@@ -42,12 +42,8 @@ describe("Workspace product UI", () => {
     expect(screen.getByTestId("root-layout")).toBeInTheDocument();
     expect(screen.getByLabelText("工作台侧栏")).toBeInTheDocument();
     expect(screen.queryByLabelText("悬浮研究概览")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "展示悬浮概览" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "展开右侧栏" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "展示悬浮概览" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "展开右侧栏" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "新建研究项目" }));
     fireEvent.change(screen.getByLabelText("项目名称"), {
       target: { value: "近邻宿主星比较" },
@@ -90,6 +86,39 @@ describe("Workspace product UI", () => {
 
     expect(screen.getByText("研究 Thread 内容")).toBeInTheDocument();
     expect(screen.getByText("Research Inspector 内容")).toBeInTheDocument();
+    expect(screen.getByLabelText("悬浮研究概览")).toBeInTheDocument();
+    const floatingControl = screen.getByRole("button", {
+      name: "收起悬浮概览",
+    });
+    const dockedControl = screen.getByRole("button", {
+      name: "展开右侧栏",
+    });
+    expect(floatingControl).toHaveAttribute("aria-pressed", "true");
+    expect(dockedControl).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("floating-inspector-safe-track")).toHaveStyle({
+      width: "min(var(--oh-inspector-floating-track-inline-size), 40cqw)",
+    });
+
+    fireEvent.click(floatingControl);
+    expect(screen.getByLabelText("悬浮研究概览")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    expect(screen.getByTestId("floating-inspector-safe-track")).toHaveStyle({
+      width: "0px",
+    });
+    expect(screen.getByRole("button", { name: "展示悬浮概览" })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "展开右侧栏" }));
+    expect(screen.getByLabelText("右侧研究栏")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "展示悬浮概览" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "收起右侧栏" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByTestId("workspace-topbar")).toContainElement(
+      screen.getByRole("button", { name: "收起右侧栏" }),
+    );
     expect(screen.queryByRole("tab", { name: "活动" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("tab", { name: "上下文" }),

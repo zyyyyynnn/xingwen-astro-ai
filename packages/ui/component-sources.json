@@ -240,6 +240,19 @@
       ]
     },
     {
+      "name": "Toaster",
+      "local_path": "packages/ui/src/sonner.tsx",
+      "source": "@shadcn/sonner",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "sonner",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Sonner's accessible toast lifecycle and interaction mechanics with clsx composition, the shared icon gateway and semantic surface tokens without a framework-specific theme provider.",
+      "production_consumers": ["apps/workspace/src/workspace-host.tsx"]
+    },
+    {
       "name": "Tabs",
       "local_path": "packages/ui/src/tabs.tsx",
       "source": "@shadcn/tabs",

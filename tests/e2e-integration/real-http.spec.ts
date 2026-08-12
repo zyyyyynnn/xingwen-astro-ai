@@ -6,7 +6,7 @@ import {
 } from "@xingwen/data-access";
 
 const API_ORIGIN =
-  process.env.REAL_INTEGRATION_API_ORIGIN ?? "http://localhost:8000";
+  process.env.REAL_INTEGRATION_API_ORIGIN ?? "http://127.0.0.1:8000";
 
 function cookieFetch(): typeof fetch {
   let cookie = "";
@@ -187,11 +187,26 @@ test("real browser persists Research Thread and exposes the Run Record path", as
   await confirmedContractButton.click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "开始真实研究" }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(page.getByRole("region", { name: "研究过程" })).toBeVisible();
+  const floatingInspector = page.getByRole("complementary", {
+    name: "悬浮研究概览",
+  });
+  await expect(floatingInspector).toBeVisible();
 
   for (const width of [1024, 1280, 1440]) {
     await page.setViewportSize({ width, height: 800 });
     await expect(page.getByTestId("interactive-chat-box")).toBeVisible();
+    await expect
+      .poll(async () => {
+        const main = await page
+          .getByTestId("workspace-main-track")
+          .boundingBox();
+        const floating = await floatingInspector.boundingBox();
+        if (!main || !floating) return Number.POSITIVE_INFINITY;
+        return main.x + main.width - floating.x;
+      })
+      .toBeLessThanOrEqual(0);
     expect(
       await page.evaluate(
         () =>
@@ -200,10 +215,23 @@ test("real browser persists Research Thread and exposes the Run Record path", as
       ),
     ).toBe(true);
   }
-  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  await page.getByRole("button", { name: "展开右侧栏" }).click();
   await expect(
-    page.getByRole("complementary", { name: "悬浮研究概览" }),
-  ).toHaveCSS("transition-property", "none");
+    page.getByRole("complementary", { name: "右侧研究栏" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("workspace-topbar")).toContainText(projectName);
+  await expect(
+    page.getByTestId("workspace-topbar").getByRole("button", {
+      name: "收起右侧栏",
+    }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "收起右侧栏" }).click();
+  await page.getByRole("button", { name: "展示悬浮概览" }).click();
+  await expect(floatingInspector).toBeVisible();
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(floatingInspector).toHaveCSS("transition-property", "none");
   await page.evaluate(() => {
     document.documentElement.style.fontSize = "200%";
   });
@@ -241,9 +269,7 @@ test("real browser persists Research Thread and exposes the Run Record path", as
   await expect(page.locator("#research-project-heading")).toHaveText(
     projectName,
   );
-  await expect(
-    page.getByRole("complementary", { name: "悬浮研究概览" }),
-  ).toBeVisible();
+  await expect(floatingInspector).toBeVisible();
   await expect(page.getByRole("region", { name: "研究过程" })).toBeVisible();
 
   expect(

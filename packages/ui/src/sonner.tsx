@@ -8,13 +8,10 @@ import {
   Info,
   LoaderCircle,
   TriangleAlert,
-} from "@xingwen/ui/icons";
+} from "./icons";
 
-/**
- * shadcn Sonner registry component adapted at the application composition
- * boundary so transient feedback does not leak runtime state into @xingwen/ui.
- */
-const WorkspaceToaster = ({ className, ...props }: ToasterProps) => (
+/** shadcn Sonner adapted to the app-neutral semantic token boundary. */
+const Toaster = ({ className, ...props }: ToasterProps) => (
   <Sonner
     theme="system"
     position="bottom-right"
@@ -43,4 +40,4 @@ const WorkspaceToaster = ({ className, ...props }: ToasterProps) => (
   />
 );
 
-export { WorkspaceToaster, toast };
+export { Toaster, toast };

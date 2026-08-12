@@ -44,8 +44,10 @@ export function createWorkspaceApplication({
     queries,
     mutations,
     sessionGate,
-    createRunEventFeed(runId: DomainEntityId) {
+    createResearchTurnActionId: createIdempotencyKey,
+    createRunEventFeed(projectId: DomainEntityId, runId: DomainEntityId) {
       return createRunEventFeed({
+        projectId,
         runId,
         runs: repositories.runs,
         researchAdapter,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -16,6 +17,7 @@ from app.services.model_execution import (
     ModelExecutionRequest,
     ModelRuntimeUnavailable,
     QwenModelExecutionAdapter,
+    qwen_execution_lease_duration,
 )
 from app.services.research_planner import ResearchContractPlanner
 from packages.prompts.registry import PromptRegistry
@@ -114,6 +116,7 @@ def test_qwen_adapter_uses_the_sdk_route_and_exact_snapshot(
         api_key="test-secret",
         base_url="https://dashscope.example/compatible-mode/v1/",
         timeout_seconds=7.5,
+        max_retries=4,
     )
 
     response = adapter.execute(request())
@@ -121,7 +124,7 @@ def test_qwen_adapter_uses_the_sdk_route_and_exact_snapshot(
     call = client.calls[0]
     assert constructor["base_url"] == "https://dashscope.example/compatible-mode/v1"
     assert constructor["timeout"] == 7.5
-    assert constructor["max_retries"] == 2
+    assert constructor["max_retries"] == 4
     assert call["model"] == "qwen3.7-plus-2026-05-26"
     assert call["response_format"] == {"type": "json_object"}
     assert call["extra_body"] == {"enable_thinking": False}
@@ -130,6 +133,14 @@ def test_qwen_adapter_uses_the_sdk_route_and_exact_snapshot(
     assert response.output_hash.startswith("sha256:")
     assert response.token_usage == {"prompt_tokens": 10, "completion_tokens": 12}
     assert response.provider_request_id == "provider-123"
+
+
+def test_qwen_execution_lease_covers_all_attempts_and_retry_after_waits() -> None:
+    assert qwen_execution_lease_duration(
+        timeout_seconds=45,
+        max_retries=2,
+        grace_seconds=30,
+    ) == timedelta(seconds=405)
 
 
 @pytest.mark.parametrize(
@@ -352,6 +363,10 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
     ]
     assert catalog["requested_fields"][0]["label"]
     assert catalog["output_requirement_ids"] == [kind.value for kind in ArtifactKind]
+    assert catalog["executable_output_requirement_ids"] == [
+        kind.value for kind in ArtifactKind if kind is not ArtifactKind.export
+    ]
+    assert catalog["unsupported_output_requirement_ids"] == [ArtifactKind.export.value]
     assert (
         request_value.prompt_hash
         == PromptRegistry().get("research_contract_planner").content_hash

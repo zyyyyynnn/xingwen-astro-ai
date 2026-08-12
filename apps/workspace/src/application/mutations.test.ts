@@ -89,22 +89,22 @@ describe("Workspace mutation chain", () => {
       queryClient.getQueryData(workspaceQueryKeys.project(project.id)),
     ).toEqual(project);
 
-    const draft = await new MutationObserver(
-      queryClient,
-      mutations.draftCreate(),
-    ).mutate({
-      projectId: project.id,
-      intent: "Compare the selected host stars",
-      contract: contractInput,
-    });
+    const draft = researchAdapter.toContractDraftViewModel(
+      await repositories.contracts.createDraft(project.id, {
+        intent: "Compare the selected host stars",
+        contract: contractInput,
+        idempotencyKey: "fixture-draft-setup",
+      }),
+    );
     expect(
-      queryClient.getQueryData(workspaceQueryKeys.draft(draft.id)),
-    ).toEqual(draft);
+      queryClient.getQueryData(workspaceQueryKeys.draft(project.id, draft.id)),
+    ).toBeUndefined();
 
     const updatedDraft = await new MutationObserver(
       queryClient,
       mutations.draftUpdate(),
     ).mutate({
+      projectId: project.id,
       draftId: draft.id,
       expectedVersion: draft.version,
       input: {
@@ -113,6 +113,11 @@ describe("Workspace mutation chain", () => {
       },
     });
     expect(updatedDraft.version).toBeGreaterThan(draft.version);
+    expect(
+      queryClient.getQueryData(
+        workspaceQueryKeys.draft(project.id, updatedDraft.id),
+      ),
+    ).toEqual(updatedDraft);
 
     const contract = await new MutationObserver(
       queryClient,
@@ -123,7 +128,9 @@ describe("Workspace mutation chain", () => {
       expectedDraftVersion: updatedDraft.version,
     });
     expect(
-      queryClient.getQueryData(workspaceQueryKeys.contract(contract.id)),
+      queryClient.getQueryData(
+        workspaceQueryKeys.contract(project.id, contract.id),
+      ),
     ).toEqual(contract);
 
     const run = await new MutationObserver(
@@ -134,13 +141,56 @@ describe("Workspace mutation chain", () => {
       contractId: contract.id,
       executionMode: "demo_replay",
     });
-    expect(queryClient.getQueryData(workspaceQueryKeys.run(run.id))).toEqual(
-      run,
-    );
+    expect(
+      queryClient.getQueryData(workspaceQueryKeys.run(project.id, run.id)),
+    ).toEqual(run);
     expect(
       queryClient.getQueryData(workspaceQueryKeys.project(project.id)),
     ).toMatchObject({ latestRunId: run.id });
     expect(run.projectId).toBe(project.id);
+  });
+
+  it("removes every project-owned cache entry when the project is deleted", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+    const repositories = createFixtureRepositories(exoplanetHostStarFixture);
+    const mutations = createWorkspaceMutations({
+      repositories,
+      researchAdapter,
+      queryClient,
+      createIdempotencyKey: () => "project-delete-cache-test",
+    });
+    const project = researchAdapter.toProjectViewModel(
+      await repositories.projects.create({
+        name: "Disposable project",
+        description: "Project-owned cache scope verification",
+        caseKey: CASE_KEY,
+        idempotencyKey: "project-delete-setup",
+      }),
+    );
+    const draftId = asEntityId("project-delete-draft");
+    const runId = asEntityId("project-delete-run");
+
+    queryClient.setQueryData(workspaceQueryKeys.project(project.id), project);
+    queryClient.setQueryData(workspaceQueryKeys.thread(project.id), []);
+    queryClient.setQueryData(workspaceQueryKeys.draft(project.id, draftId), {
+      id: draftId,
+    });
+    queryClient.setQueryData(workspaceQueryKeys.runEvents(project.id, runId), {
+      events: [],
+    });
+
+    await new MutationObserver(queryClient, mutations.projectDelete()).mutate({
+      projectId: project.id,
+      expectedRevision: project.revision,
+    });
+
+    expect(
+      queryClient.getQueriesData({
+        queryKey: workspaceQueryKeys.projectScope(project.id),
+      }),
+    ).toEqual([]);
   });
 
   it("reuses a create idempotency key until the same action is acknowledged", async () => {
@@ -196,7 +246,7 @@ describe("Workspace mutation chain", () => {
     expect(observedKeys[2]).toBe("retry-key-2");
   });
 
-  it("uses a fresh research-turn key after a provider failure", async () => {
+  it("uses the caller-owned action identity for each explicit research Turn", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { mutations: { retry: false } },
     });
@@ -210,30 +260,35 @@ describe("Workspace mutation chain", () => {
         throw new NetworkError("provider unavailable");
       },
     );
-    let sequence = 0;
+    const createIdempotencyKey = vi.fn(() => "unrelated-generated-key");
     const mutations = createWorkspaceMutations({
       repositories,
       researchAdapter,
       queryClient,
-      createIdempotencyKey: () => `research-retry-${String(++sequence)}`,
+      createIdempotencyKey,
     });
-    const variables = {
+    const firstAction = {
       projectId: project.id,
       message: "Compare the selected host stars",
       answerToQuestionId: null,
+      actionId: "research-turn-action-first",
+    } as const;
+    const secondAction = {
+      ...firstAction,
+      actionId: "research-turn-action-second",
     } as const;
 
     await expect(
       new MutationObserver(queryClient, mutations.researchTurnSubmit()).mutate(
-        variables,
+        firstAction,
       ),
     ).rejects.toBeInstanceOf(NetworkError);
     await expect(
       new MutationObserver(queryClient, mutations.researchTurnSubmit()).mutate(
-        variables,
+        secondAction,
       ),
     ).rejects.toBeInstanceOf(NetworkError);
 
-    expect(observedKeys).toEqual(["research-retry-1", "research-retry-2"]);
+    expect(observedKeys).toEqual([firstAction.actionId, secondAction.actionId]);
   });
 });

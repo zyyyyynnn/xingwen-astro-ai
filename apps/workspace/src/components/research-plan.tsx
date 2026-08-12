@@ -1,13 +1,3 @@
-import type {
-  ResearchContractDraftViewModel,
-  ResearchContractViewModel,
-  ResearchRunViewModel,
-  RunStepViewModel,
-} from "@xingwen/research-adapter";
-import {
-  researchRunStepLabel,
-  researchRunStepMessage,
-} from "@xingwen/research-adapter";
 import {
   AlertCircle,
   CheckCircle2,
@@ -15,79 +5,12 @@ import {
   CircleSlash2,
   CircleX,
   LoaderCircle,
+  TriangleAlert,
 } from "@xingwen/ui/icons";
-
-export type ResearchPlanItemStatus =
-  | "pending"
-  | "current"
-  | "running"
-  | "waiting"
-  | "completed"
-  | "failed"
-  | "cancelled"
-  | "skipped";
-
-export interface ResearchPlanItem {
-  readonly id: string;
-  readonly label: string;
-  readonly status: ResearchPlanItemStatus;
-  readonly detail?: string;
-}
-
-interface ResearchPlanFacts {
-  readonly draft: ResearchContractDraftViewModel | null;
-  readonly contract: ResearchContractViewModel | null;
-  readonly run: ResearchRunViewModel | null;
-  readonly steps: readonly RunStepViewModel[];
-}
-
-function preparationItems({
-  draft,
-  contract,
-  run,
-}: ResearchPlanFacts): readonly ResearchPlanItem[] {
-  const hasBoundary = draft !== null || contract !== null || run !== null;
-  return [
-    {
-      id: "prepare-boundary",
-      label: "完善研究边界",
-      status: hasBoundary ? "completed" : "current",
-    },
-    {
-      id: "confirm-contract",
-      label: "确认研究协议",
-      status: contract || run ? "completed" : draft ? "current" : "pending",
-    },
-    {
-      id: "start-run",
-      label: "开始研究",
-      status: run ? "completed" : contract ? "current" : "pending",
-    },
-  ];
-}
-
-export function createResearchPlanItems(
-  facts: ResearchPlanFacts,
-): readonly ResearchPlanItem[] {
-  return [
-    ...preparationItems(facts),
-    ...facts.steps.map((step) => {
-      const hasActiveDetail =
-        step.status === "running" ||
-        step.status === "waiting" ||
-        step.status === "failed";
-      return {
-        id: step.id,
-        label: researchRunStepLabel(step.key, step.label),
-        status: step.status,
-        detail: hasActiveDetail
-          ? step.publicMessage?.trim() ||
-            researchRunStepMessage(step.key, step.status)
-          : undefined,
-      };
-    }),
-  ];
-}
+import type {
+  ResearchPlanItem,
+  ResearchPlanItemStatus,
+} from "../presentation/research-presentation";
 
 export function researchPlanStatusLabel(
   status: ResearchPlanItemStatus,
@@ -97,7 +20,7 @@ export function researchPlanStatusLabel(
     case "running":
       return "正在进行";
     case "waiting":
-      return "等待用户";
+      return "等待你的回答";
     case "completed":
       return "已完成";
     case "failed":
@@ -116,7 +39,7 @@ export function researchPlanSummary(
 ): string {
   if (items.some((item) => item.status === "failed")) return "需要处理";
   if (items.some((item) => item.status === "cancelled")) return "已取消";
-  if (items.some((item) => item.status === "waiting")) return "等待用户";
+  if (items.some((item) => item.status === "waiting")) return "等待你的回答";
   if (
     items.some((item) => item.status === "running" || item.status === "current")
   ) {
@@ -146,7 +69,8 @@ export function ResearchPlanStatusIcon({
       />
     );
   }
-  if (status === "failed") return <AlertCircle aria-hidden="true" />;
+  if (status === "waiting") return <AlertCircle aria-hidden="true" />;
+  if (status === "failed") return <TriangleAlert aria-hidden="true" />;
   if (status === "cancelled") return <CircleX aria-hidden="true" />;
   if (status === "skipped") return <CircleSlash2 aria-hidden="true" />;
   return <Circle aria-hidden="true" />;

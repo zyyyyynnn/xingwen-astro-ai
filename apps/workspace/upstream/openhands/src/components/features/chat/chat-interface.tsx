@@ -76,8 +76,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
         onScroll={(event) => onChatBodyScroll(event.currentTarget)}
       >
         <div
-          className={`flex flex-col px-4 transition-[padding-right] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none md:px-8 ${hasStartedConversation ? "min-h-full pb-8 pt-4" : ""}`}
-          style={{ paddingRight: "var(--oh-inspector-safe-area, 2rem)" }}
+          className={`flex flex-col px-4 md:px-8 ${hasStartedConversation ? "min-h-full pb-8 pt-4" : ""}`}
         >
           {runtime.threadPanel}
           <div ref={endRef} aria-hidden="true" />
@@ -85,8 +84,7 @@ export function ChatInterface({ runtime }: ChatInterfaceProps) {
       </div>
       {composer ? (
         <div
-          className={`relative shrink-0 px-4 transition-[padding-right] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none md:px-8 ${hasStartedConversation ? "pb-4" : ""}`}
-          style={{ paddingRight: "var(--oh-inspector-safe-area, 2rem)" }}
+          className={`relative shrink-0 px-4 md:px-8 ${hasStartedConversation ? "pb-4" : ""}`}
         >
           <div className="relative mx-auto flex w-full max-w-[var(--oh-content-max-inline-size)] flex-col gap-[var(--oh-space-2)]">
             {hasStartedConversation && !hitBottom ? (

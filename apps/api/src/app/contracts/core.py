@@ -24,7 +24,6 @@ from app.schemas.core import (
     CreateShareSnapshotRequest,
     Envelope,
     EvidenceRead,
-    ModelExecutionRecord,
     ProblemDetails,
     PublicShareSnapshot,
     ResearchArtifact,
@@ -248,19 +247,6 @@ def create_contract_app() -> FastAPI:
         idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
     ) -> NoReturn:
         _ = (project_id, request, idempotency_key)
-        return _contract_only()
-
-    @app.get(
-        "/api/projects/{project_id}/model-executions/{execution_id}",
-        operation_id="getModelExecution",
-        response_model=Envelope[ModelExecutionRecord],
-        responses=PROBLEM_RESPONSES,
-    )
-    def get_model_execution(
-        project_id: Annotated[str, Path(min_length=1)],
-        execution_id: Annotated[str, Path(min_length=1)],
-    ) -> NoReturn:
-        _ = (project_id, execution_id)
         return _contract_only()
 
     @app.post(

@@ -1,6 +1,6 @@
 ---
 name: research_contract_planner
-version: 1.1.1
+version: 1.1.2
 output_model: PlannerOutcome
 input_schema_version: 2.0.0
 output_schema_version: 2.0.0
@@ -35,3 +35,9 @@ evidence_required: false
 `contract.requested_fields` 和 `contract.source_scope.allowed_sources` 只能逐字使用输入
 `planning_catalog` 中的 `id`。用户提到但目录不支持的数据集或概念不得伪造成 ID；应映射到
 受支持字段、写入论文检索范围，或返回 `clarification_required` / `partial` 说明缺口。
+
+`contract.output_requirements` 只选择用户明确要求且位于
+`planning_catalog.executable_output_requirement_ids` 的成果，不得把“交付”“结果”等泛化表达
+自行扩写为额外成果。用户明确要求的成果若位于
+`planning_catalog.unsupported_output_requirement_ids`，返回 `unsupported` 或 `partial`，不得生成
+表面可确认、实际无法创建 Run 的协议。

@@ -4,12 +4,33 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+from datetime import timedelta
 from time import monotonic
 from typing import Any, Protocol, cast
 
 from openai import APIConnectionError, APIError, APIStatusError, APITimeoutError, OpenAI
 
 from app.security import canonical_request_hash
+
+
+# OpenAI's compatible client honors each provider Retry-After value up to two
+# minutes. The dependency is pinned, and the lease calculation reserves that
+# complete worst-case wait for every configured retry.
+QWEN_MAX_RETRY_DELAY_SECONDS = 120.0
+
+
+def qwen_execution_lease_duration(
+    *, timeout_seconds: float, max_retries: int, grace_seconds: float
+) -> timedelta:
+    if timeout_seconds <= 0 or grace_seconds <= 0 or max_retries < 0:
+        raise ValueError("Qwen execution timing values must be positive")
+    return timedelta(
+        seconds=(
+            timeout_seconds * (max_retries + 1)
+            + QWEN_MAX_RETRY_DELAY_SECONDS * max_retries
+            + grace_seconds
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +119,7 @@ class QwenModelExecutionAdapter:
         api_key: str | None,
         base_url: str,
         timeout_seconds: float,
+        max_retries: int = 2,
         client: OpenAI | None = None,
     ) -> None:
         self._api_key = api_key.strip() if api_key else None
@@ -107,7 +129,7 @@ class QwenModelExecutionAdapter:
                 api_key=self._api_key,
                 base_url=base_url.rstrip("/"),
                 timeout=timeout_seconds,
-                max_retries=2,
+                max_retries=max_retries,
             )
 
     def execute(self, request: ModelExecutionRequest) -> ModelExecutionResponse:
@@ -224,4 +246,5 @@ __all__ = [
     "ModelExecutionResponse",
     "ModelRuntimeUnavailable",
     "QwenModelExecutionAdapter",
+    "qwen_execution_lease_duration",
 ]

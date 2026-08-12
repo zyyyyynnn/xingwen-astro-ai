@@ -133,24 +133,25 @@ Artifact / Evidence Renderer
 - 前端页面不得直接调用 `fetch` 或直接解析后端原始 Transport DTO。
 - Contract authoring 的对象、字段、来源与成果选项必须读取服务端 Manifest-backed Research Catalog，经 Repository 映射为 Domain；App 不保存第二份目录常量。
 - 依赖只能经由 Package 的公开 `exports` 导入，不得以深层私有路径或 `@ts-expect-error` 绕过。
-- `@xingwen/ui` 只接纳组件级交互依赖；Radix 与 shadcn Command 所需的 `cmdk`
-  属于允许的 UI primitive，不得在 App 内重写其焦点、筛选或键盘选择机制。
+- `@xingwen/ui` 只接纳组件级交互依赖；Radix、shadcn Command 所需的 `cmdk`
+  与 shadcn Toast 所需的 `sonner` 属于允许的 UI primitive，不得在 App 内重写其焦点、
+  筛选、键盘选择或通知生命周期。`tslib` 仅作为这些已采用组件的运行时辅助依赖。
 - 禁止 `any`、不安全类型断言和以类型逃逸掩盖 DTO 校验；Runtime DTO 必须先验证再映射。
 - Artifact Renderer Registry 必须对每个受支持 `ArtifactKind` 穷举注册；未知/不支持类型
   必须进入明确的 unsupported/error renderer，不得静默当作通用文本。
 
 ## 5. 状态所有权
 
-| 状态类型                          | 权威来源                                     |
-| --------------------------------- | -------------------------------------------- |
-| Project / Thread / Run / Artifact 路由 | Router                                  |
-| Server state、缓存与 Mutation     | Query Layer (经 Repository Port)             |
-| Thread / Contract / Run / Artifact / Evidence 事实 | Domain / Repository             |
-| Research assistant outcome         | API ModelExecution + Thread entries         |
-| 交互机械与输入草稿                | Workspace Controller / Presentation Boundary |
-| Workspace 布局与恢复              | Workspace Controller                         |
-| 组件内部交互状态 (Hover / Active) | Local Component State                        |
-| Share / Export 版本               | Server / ShareSnapshot                       |
+| 状态类型                                           | 权威来源                                     |
+| -------------------------------------------------- | -------------------------------------------- |
+| Project / Thread / Run / Artifact 路由             | Router                                       |
+| Server state、缓存与 Mutation                      | Query Layer (经 Repository Port)             |
+| Thread / Contract / Run / Artifact / Evidence 事实 | Domain / Repository                          |
+| Research assistant outcome                         | API ModelExecution + Thread entries          |
+| 交互机械与输入草稿                                 | Workspace Controller / Presentation Boundary |
+| Workspace 布局与恢复                               | Workspace Controller                         |
+| 组件内部交互状态 (Hover / Active)                  | Local Component State                        |
+| Share / Export 版本                                | Server / ShareSnapshot                       |
 
 同一事实在前端不得由多个全局 Store 重复持有。
 

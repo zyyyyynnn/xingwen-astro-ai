@@ -150,6 +150,8 @@ export function SidebarRailBody({
                         className={buttonClassName({
                           variant: "ghost",
                           size: "icon",
+                          className:
+                            "shrink-0 opacity-0 transition-opacity group-hover/project:opacity-100 group-focus-within/project:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none",
                         })}
                         aria-label={`${project.title} 项目操作`}
                       >

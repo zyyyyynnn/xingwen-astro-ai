@@ -43,6 +43,7 @@ export { ScrollArea } from "./scroll-area";
 export { Link } from "./link";
 export type { LinkProps, LinkVariant } from "./link";
 export { Spinner } from "./spinner";
+export { Toaster, toast } from "./sonner";
 export { Separator } from "./separator";
 export { Textarea } from "./textarea";
 export {

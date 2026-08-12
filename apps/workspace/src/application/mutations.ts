@@ -6,11 +6,7 @@ import type {
   UpdateResearchProjectInput,
   UpdateResearchContractDraftInput,
 } from "@xingwen/data-access/ports";
-import type {
-  DomainEntityId,
-  ExecutionMode,
-  ResearchContractInput,
-} from "@xingwen/domain";
+import type { DomainEntityId, ExecutionMode } from "@xingwen/domain";
 import type {
   ProjectViewModel,
   ResearchAdapter,
@@ -86,12 +82,6 @@ function createIdempotencyLedger(createKey: () => string) {
   });
 }
 
-export interface CreateDraftVariables {
-  readonly projectId: DomainEntityId;
-  readonly intent: string;
-  readonly contract: ResearchContractInput;
-}
-
 export interface UpdateProjectVariables {
   readonly projectId: DomainEntityId;
   readonly expectedRevision: number;
@@ -107,9 +97,11 @@ export interface SubmitResearchTurnVariables {
   readonly projectId: DomainEntityId;
   readonly message: string;
   readonly answerToQuestionId: DomainEntityId | null;
+  readonly actionId: string;
 }
 
 export interface UpdateDraftVariables {
+  readonly projectId: DomainEntityId;
   readonly draftId: DomainEntityId;
   readonly expectedVersion: number;
   readonly input: UpdateResearchContractDraftInput;
@@ -204,12 +196,7 @@ export function createWorkspaceMutations({
           repositories.projects.delete(projectId, expectedRevision),
         onSuccess: (_value, variables) => {
           queryClient.removeQueries({
-            queryKey: workspaceQueryKeys.project(variables.projectId),
-            exact: true,
-          });
-          queryClient.removeQueries({
-            queryKey: workspaceQueryKeys.thread(variables.projectId),
-            exact: true,
+            queryKey: workspaceQueryKeys.projectScope(variables.projectId),
           });
           void queryClient.invalidateQueries({
             queryKey: workspaceQueryKeys.projects(),
@@ -228,14 +215,10 @@ export function createWorkspaceMutations({
             await repositories.researchThread.submit(variables.projectId, {
               message: variables.message,
               answerToQuestionId: variables.answerToQuestionId,
-              idempotencyKey: idempotency.keyFor(
-                "research-turn.submit",
-                variables,
-              ),
+              idempotencyKey: variables.actionId,
             } satisfies SubmitResearchTurnInput),
           ),
         onSuccess: (turn, variables) => {
-          idempotency.complete("research-turn.submit", variables);
           queryClient.setQueryData(
             workspaceQueryKeys.thread(variables.projectId),
             (
@@ -250,51 +233,10 @@ export function createWorkspaceMutations({
           });
         },
         onError: (_error, variables) => {
-          // A failed planner execution is persisted as a completed failure.
-          // A manual retry is a new provider attempt, not a replay of that key.
-          idempotency.complete("research-turn.submit", variables);
           void queryClient.invalidateQueries({
             queryKey: workspaceQueryKeys.thread(variables.projectId),
             exact: true,
           });
-        },
-      }),
-    draftCreate: () =>
-      mutationOptions({
-        mutationKey: ["workspace", "draft", "create"],
-        retry: false,
-        mutationFn: async (
-          variables: CreateDraftVariables,
-        ): Promise<ResearchContractDraftViewModel> => {
-          const command = researchAdapter.toApplicationCommand(
-            {
-              type: "contract.draft.create",
-              projectId: variables.projectId,
-              input: {
-                intent: variables.intent,
-                contract: variables.contract,
-              },
-            },
-            {
-              idempotencyKey: idempotency.keyFor(
-                "contract.draft.create",
-                variables,
-              ),
-            },
-          );
-          if (command.type !== "contract.draft.create") {
-            throw new Error("Draft create command mapping failed.");
-          }
-          return researchAdapter.toContractDraftViewModel(
-            await repositories.contracts.createDraft(
-              command.projectId,
-              command.input,
-            ),
-          );
-        },
-        onSuccess: (draft, variables) => {
-          idempotency.complete("contract.draft.create", variables);
-          queryClient.setQueryData(workspaceQueryKeys.draft(draft.id), draft);
         },
       }),
     draftUpdate: () =>
@@ -305,7 +247,12 @@ export function createWorkspaceMutations({
           variables: UpdateDraftVariables,
         ): Promise<ResearchContractDraftViewModel> => {
           const command = researchAdapter.toApplicationCommand(
-            { type: "contract.draft.update", ...variables },
+            {
+              type: "contract.draft.update",
+              draftId: variables.draftId,
+              expectedVersion: variables.expectedVersion,
+              input: variables.input,
+            },
             { idempotencyKey: createIdempotencyKey() },
           );
           if (command.type !== "contract.draft.update") {
@@ -319,8 +266,11 @@ export function createWorkspaceMutations({
             ),
           );
         },
-        onSuccess: (draft) => {
-          queryClient.setQueryData(workspaceQueryKeys.draft(draft.id), draft);
+        onSuccess: (draft, variables) => {
+          queryClient.setQueryData(
+            workspaceQueryKeys.draft(variables.projectId, draft.id),
+            draft,
+          );
         },
       }),
     contractConfirm: () =>
@@ -347,7 +297,7 @@ export function createWorkspaceMutations({
         },
         onSuccess: (contract, variables) => {
           queryClient.setQueryData(
-            workspaceQueryKeys.contract(contract.id),
+            workspaceQueryKeys.contract(variables.projectId, contract.id),
             contract,
           );
           void queryClient.invalidateQueries({
@@ -382,11 +332,10 @@ export function createWorkspaceMutations({
         },
         onSuccess: (run, variables) => {
           idempotency.complete("run.create", variables);
-          queryClient.setQueryData(workspaceQueryKeys.run(run.id), run);
-          void queryClient.invalidateQueries({
-            queryKey: workspaceQueryKeys.run(run.id),
-            exact: true,
-          });
+          queryClient.setQueryData(
+            workspaceQueryKeys.run(variables.projectId, run.id),
+            run,
+          );
           queryClient.setQueryData(
             workspaceQueryKeys.project(run.projectId),
             (current: ProjectViewModel | undefined) =>

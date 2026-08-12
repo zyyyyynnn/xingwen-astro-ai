@@ -13,6 +13,7 @@ import { workspaceQueryKeys } from "./query-keys";
 import { createRunEventFeed } from "./run-event-feed";
 
 const runId = asEntityId("run-feed-test");
+const projectId = asEntityId("project-feed-test");
 
 function runSnapshot(
   status: ResearchRun["status"] = "planning",
@@ -20,7 +21,7 @@ function runSnapshot(
 ): ResearchRun {
   return {
     id: runId,
-    projectId: asEntityId("project-feed-test"),
+    projectId,
     contractId: asEntityId("contract-feed-test"),
     executionMode: "live",
     status,
@@ -79,6 +80,7 @@ function makeFeed(repository = runRepository()) {
     researchAdapter,
   });
   const feed = createRunEventFeed({
+    projectId,
     runId,
     runs: repository,
     researchAdapter,
@@ -111,7 +113,7 @@ describe("RunEventFeed", () => {
     expect(
       queryClient
         .getQueryData<{ events: readonly { id: string }[] }>(
-          workspaceQueryKeys.runEvents(runId),
+          workspaceQueryKeys.runEvents(projectId, runId),
         )
         ?.events.map((item) => item.id),
     ).toEqual([`${runId}:1`, `${runId}:2`, `${runId}:3`]);
@@ -127,7 +129,7 @@ describe("RunEventFeed", () => {
 
     expect(invalidate).toHaveBeenCalledTimes(1);
     expect(invalidate).toHaveBeenCalledWith({
-      queryKey: workspaceQueryKeys.runSteps(runId),
+      queryKey: workspaceQueryKeys.runSteps(projectId, runId),
     });
     feed.stop();
   });
@@ -183,7 +185,7 @@ describe("RunEventFeed", () => {
     expect(feed.getSnapshot().nextDelayMs).toBe(2_000);
     expect(
       queryClient.getQueryData<{ error: unknown }>(
-        workspaceQueryKeys.runEvents(runId),
+        workspaceQueryKeys.runEvents(projectId, runId),
       )?.error,
     ).toBeInstanceOf(Error);
     await feed.syncNow();
@@ -192,7 +194,7 @@ describe("RunEventFeed", () => {
     expect(feed.getSnapshot().nextDelayMs).toBe(1_000);
     expect(
       queryClient.getQueryData<{ error: unknown }>(
-        workspaceQueryKeys.runEvents(runId),
+        workspaceQueryKeys.runEvents(projectId, runId),
       )?.error,
     ).toBeNull();
 

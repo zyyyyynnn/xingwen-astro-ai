@@ -13,7 +13,7 @@ catalog including adaptation details and production consumers.
   and `shadcn-cli@4.16.2` (`efac5987074af84ece57c367c6dd83387b967022`)
 - **Adopted components**: Alert, Alert Dialog, Button, Checkbox, Collapsible,
   Command, Dialog, Dropdown Menu, Field, Input, Popover, Scroll Area, Skeleton,
-  Tabs, Textarea
+  Sonner, Tabs, Textarea
 
 ### MIT License
 

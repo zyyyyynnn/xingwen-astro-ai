@@ -116,9 +116,9 @@ export function createWorkspaceQueries({
           return entries;
         },
       }),
-    draft: (draftId: DomainEntityId) =>
+    draft: (projectId: DomainEntityId, draftId: DomainEntityId) =>
       queryOptions({
-        queryKey: workspaceQueryKeys.draft(draftId),
+        queryKey: workspaceQueryKeys.draft(projectId, draftId),
         queryFn: async (): Promise<ResearchContractDraftViewModel> =>
           researchAdapter.toContractDraftViewModel(
             await requireEntity("ResearchContractDraft", draftId, () =>
@@ -126,9 +126,9 @@ export function createWorkspaceQueries({
             ),
           ),
       }),
-    contract: (contractId: DomainEntityId) =>
+    contract: (projectId: DomainEntityId, contractId: DomainEntityId) =>
       queryOptions({
-        queryKey: workspaceQueryKeys.contract(contractId),
+        queryKey: workspaceQueryKeys.contract(projectId, contractId),
         queryFn: async (): Promise<ResearchContractViewModel> =>
           researchAdapter.toContractViewModel(
             await requireEntity("ResearchContract", contractId, () =>
@@ -136,9 +136,9 @@ export function createWorkspaceQueries({
             ),
           ),
       }),
-    run: (runId: DomainEntityId) =>
+    run: (projectId: DomainEntityId, runId: DomainEntityId) =>
       queryOptions({
-        queryKey: workspaceQueryKeys.run(runId),
+        queryKey: workspaceQueryKeys.run(projectId, runId),
         queryFn: async (): Promise<ResearchRunViewModel> =>
           researchAdapter.toRunViewModel(
             await requireEntity("ResearchRun", runId, () =>
@@ -146,16 +146,16 @@ export function createWorkspaceQueries({
             ),
           ),
       }),
-    runEvents: (runId: DomainEntityId) =>
+    runEvents: (projectId: DomainEntityId, runId: DomainEntityId) =>
       queryOptions({
-        queryKey: workspaceQueryKeys.runEvents(runId),
+        queryKey: workspaceQueryKeys.runEvents(projectId, runId),
         queryFn: async (): Promise<RunEventFeedCache> => EMPTY_RUN_EVENT_FEED,
         initialData: EMPTY_RUN_EVENT_FEED,
         enabled: false,
       }),
-    runSteps: (runId: DomainEntityId) =>
+    runSteps: (projectId: DomainEntityId, runId: DomainEntityId) =>
       queryOptions({
-        queryKey: workspaceQueryKeys.runSteps(runId),
+        queryKey: workspaceQueryKeys.runSteps(projectId, runId),
         queryFn: async (): Promise<readonly RunStepViewModel[]> =>
           (await repositories.runs.listSteps(runId)).map(
             researchAdapter.toRunStepViewModel,

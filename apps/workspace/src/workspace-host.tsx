@@ -1,10 +1,14 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CASE_KEY, parseEntityId, type DomainEntityId } from "@xingwen/domain";
+import type { ProjectViewModel } from "@xingwen/research-adapter";
 import {
-  researchRunStatusLabel,
-  type ProjectViewModel,
-} from "@xingwen/research-adapter";
-import { Alert, AlertDescription, Button, Skeleton } from "@xingwen/ui";
+  Alert,
+  AlertDescription,
+  Button,
+  Skeleton,
+  Toaster,
+  toast,
+} from "@xingwen/ui";
 import { useEffect, useState } from "react";
 
 import {
@@ -18,7 +22,10 @@ import { ResearchContractReviewDialog } from "./components/research-contract-rev
 import { ResearchInspector } from "./components/research-inspector";
 import { ResearchThread } from "./components/research-thread";
 import { ResearchProcessProjection } from "./components/research-process-projection";
-import { toast, WorkspaceToaster } from "./components/workspace-toaster";
+import {
+  deriveResearchPresentation,
+  type ResearchPresentation,
+} from "./presentation/research-presentation";
 
 interface WorkspaceEntryProps {
   readonly runtime: WorkspaceRuntimeBoundaries;
@@ -172,6 +179,7 @@ function projectNavigation(
   projects: readonly ProjectViewModel[],
   projectId: DomainEntityId | null,
   pinnedProjects: readonly string[],
+  currentPresentation?: ResearchPresentation,
 ) {
   const pinned = new Set(pinnedProjects);
   return [...projects]
@@ -180,24 +188,20 @@ function projectNavigation(
         Number(pinned.has(right.id)) - Number(pinned.has(left.id));
       return pinnedOrder || right.updatedAt.localeCompare(left.updatedAt);
     })
-    .map((project) => ({
-      id: project.id,
-      title: project.name,
-      status: project.latestRunStatus
-        ? project.latestRunStatus === "failed"
-          ? project.latestRunFailureSummary || "运行失败"
-          : researchRunStatusLabel(project.latestRunStatus)
-        : project.latestRunId
-          ? "已有运行记录"
-          : project.activeDraftId
-            ? "协议待确认"
-            : project.activeContractId
-              ? "协议已确认"
-              : "等待研究消息",
-      updatedAt: project.updatedAt,
-      current: project.id === projectId,
-      pinned: pinned.has(project.id),
-    }));
+    .map((project) => {
+      const presentation =
+        project.id === projectId && currentPresentation
+          ? currentPresentation
+          : deriveResearchPresentation({ project });
+      return {
+        id: project.id,
+        title: project.name,
+        status: presentation.statusLabel,
+        updatedAt: project.updatedAt,
+        current: project.id === projectId,
+        pinned: pinned.has(project.id),
+      };
+    });
 }
 
 function runtimeForEntry(
@@ -305,7 +309,10 @@ export function WorkspaceHost({
   const [answerToQuestionId, setAnswerToQuestionId] = useState<string | null>(
     null,
   );
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [pendingTurn, setPendingTurn] = useState<{
+    readonly actionId: string;
+    readonly message: string;
+  } | null>(null);
   const project = useQuery(runtime.application.queries.project(projectId));
   const researchCatalog = useQuery(
     runtime.application.queries.researchCatalog(projectId),
@@ -323,33 +330,42 @@ export function WorkspaceHost({
   });
   const activeDraftId = project.data?.activeDraftId ?? null;
   const draft = useQuery({
-    ...runtime.application.queries.draft(activeDraftId as DomainEntityId),
+    ...runtime.application.queries.draft(
+      projectId,
+      activeDraftId as DomainEntityId,
+    ),
     enabled: activeDraftId !== null,
   });
   const activeContractId = project.data?.activeContractId ?? null;
   const contract = useQuery({
-    ...runtime.application.queries.contract(activeContractId as DomainEntityId),
+    ...runtime.application.queries.contract(
+      projectId,
+      activeContractId as DomainEntityId,
+    ),
     enabled: activeContractId !== null,
   });
   const runId = project.data?.latestRunId ?? null;
   const run = useQuery({
-    ...runtime.application.queries.run(runId as DomainEntityId),
+    ...runtime.application.queries.run(projectId, runId as DomainEntityId),
     enabled: runId !== null,
   });
   const steps = useQuery({
-    ...runtime.application.queries.runSteps(runId as DomainEntityId),
+    ...runtime.application.queries.runSteps(projectId, runId as DomainEntityId),
     enabled: runId !== null,
   });
   const events = useQuery({
-    ...runtime.application.queries.runEvents(runId as DomainEntityId),
+    ...runtime.application.queries.runEvents(
+      projectId,
+      runId as DomainEntityId,
+    ),
     enabled: false,
   });
   useEffect(() => {
     if (runId === null) return undefined;
-    const feed = runtime.application.createRunEventFeed(runId);
+    const feed = runtime.application.createRunEventFeed(projectId, runId);
     feed.start();
     return () => feed.stop();
-  }, [runId, runtime.application]);
+  }, [projectId, runId, runtime.application]);
   const thread = useQuery(runtime.application.queries.thread(projectId));
   const submitTurn = useMutation(
     runtime.application.mutations.researchTurnSubmit(),
@@ -404,17 +420,16 @@ export function WorkspaceHost({
   const threadReady = thread.data !== undefined;
   const hasPersistedConversation = threadEntries.length > 0;
   const hasStartedConversation =
-    hasPersistedConversation || pendingMessage !== null;
-  const visiblePendingMessage =
-    pendingMessage !== null &&
-    !threadEntries.some(
-      (entry) =>
-        (entry.kind === "user_message" ||
-          entry.kind === "clarification_answer") &&
-        entry.publicContent === pendingMessage,
-    )
-      ? pendingMessage
-      : null;
+    hasPersistedConversation || pendingTurn !== null;
+  const researchPresentation = deriveResearchPresentation({
+    project: project.data,
+    entries: threadEntries,
+    draft: currentDraft,
+    contract: currentContract,
+    run: currentRun,
+    steps: stepsData,
+    pendingActionId: pendingTurn?.actionId ?? null,
+  });
   const submitMessage = async (nextMessage: string) => {
     const outgoingMessage = nextMessage.trim();
     if (!outgoingMessage || submitTurn.isPending) return;
@@ -423,51 +438,25 @@ export function WorkspaceHost({
     if (answerToQuestionId !== null && parsedAnswerId === null) {
       throw new Error("澄清问题标识无效。");
     }
-    setPendingMessage(outgoingMessage);
+    const actionId = runtime.application.createResearchTurnActionId();
+    setPendingTurn({ actionId, message: outgoingMessage });
     setMessage("");
-    let continuePolling = true;
     try {
-      const submitPromise = submitTurn.mutateAsync({
+      await submitTurn.mutateAsync({
         projectId,
         message: outgoingMessage,
         answerToQuestionId: parsedAnswerId,
+        actionId,
       });
-      const persistedEntryPromise = (async () => {
-        for (let attempt = 0; attempt < 20; attempt += 1) {
-          if (!continuePolling) return;
-          await new Promise((resolve) => window.setTimeout(resolve, 100));
-          if (!continuePolling) return;
-          const refreshed = await thread.refetch({ throwOnError: false });
-          if (
-            refreshed.data?.some(
-              (entry) =>
-                (entry.kind === "user_message" ||
-                  entry.kind === "clarification_answer") &&
-                entry.publicContent === outgoingMessage,
-            )
-          ) {
-            return;
-          }
-        }
-      })();
-      await Promise.all([submitPromise, persistedEntryPromise]);
       setAnswerToQuestionId(null);
     } catch (error) {
-      continuePolling = false;
       setMessage(outgoingMessage);
       toast.error("消息发送失败", {
         description: safeError(runtime, error),
-        action: {
-          label: "重试",
-          onClick: () => {
-            void submitMessage(outgoingMessage).catch(() => undefined);
-          },
-        },
       });
       throw error;
     } finally {
-      continuePolling = false;
-      setPendingMessage(null);
+      setPendingTurn(null);
     }
   };
   const threadPanel = (
@@ -476,7 +465,7 @@ export function WorkspaceHost({
       loading={thread.isPending}
       loadError={threadUnavailable ? safeError(runtime, thread.error) : null}
       submitting={submitTurn.isPending}
-      pendingMessage={visiblePendingMessage}
+      pendingMessage={pendingTurn?.message ?? null}
       processProjection={
         hasPersistedConversation ||
         currentDraft !== null ||
@@ -492,10 +481,8 @@ export function WorkspaceHost({
               node: (
                 <ResearchProcessProjection
                   visible
-                  draft={currentDraft}
-                  contract={currentContract}
                   run={currentRun}
-                  steps={stepsData}
+                  planItems={researchPresentation.planItems}
                   events={events.data.events}
                   eventError={
                     events.data.error
@@ -527,26 +514,20 @@ export function WorkspaceHost({
     <ResearchInspector
       draft={currentDraft}
       contract={currentContract}
-      run={currentRun}
-      steps={stepsData}
+      presentation={researchPresentation}
     />
   );
   const presentationRuntime: ResearchWorkspaceRuntime = {
     project: {
       name: project.data.name,
-      statusLabel: currentRun
-        ? researchRunStatusLabel(currentRun.status)
-        : currentContract
-          ? "协议已确认"
-          : currentDraft
-            ? "协议待确认"
-            : "等待研究消息",
+      statusLabel: researchPresentation.statusLabel,
     },
     navigation: {
       projects: projectNavigation(
         projectList,
         projectId,
         pinned.pinnedProjects,
+        researchPresentation,
       ),
       onOpenProject,
       onNewResearch: () => creation.setDialogOpen(true),
@@ -610,18 +591,13 @@ export function WorkspaceHost({
         draft={currentDraft}
         catalog={researchCatalog.data ?? null}
         contract={currentContract}
-        runStatusLabel={
-          currentRun
-            ? researchRunStatusLabel(currentRun.status)
-            : runId
-              ? "正在载入运行状态"
-              : null
-        }
+        runStatusLabel={runId ? researchPresentation.statusLabel : null}
         pendingAction={pendingAction}
         errorMessage={errorMessage}
         onSave={async (intent, contractInput) => {
           if (!currentDraft) return;
           await updateDraft.mutateAsync({
+            projectId,
             draftId: currentDraft.id,
             expectedVersion: currentDraft.version,
             input: { intent, contract: contractInput },
@@ -669,7 +645,7 @@ function WorkspaceShell({
       <div className="workspace-host__desktop">
         <OpenHandsWorkspaceRoot runtime={runtime} />
       </div>
-      <WorkspaceToaster closeButton />
+      <Toaster closeButton />
       <section className="workspace-host__narrow" aria-label="桌面设备提示">
         <h1>请使用桌面设备</h1>
         <p>研究工作台需要至少 1024 像素宽的浏览器窗口。</p>

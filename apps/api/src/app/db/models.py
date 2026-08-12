@@ -107,6 +107,10 @@ class ModelExecutionModel(TimestampMixin, Base):
     error_summary: Mapped[str | None] = mapped_column(Text)
     idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    lease_token: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
@@ -116,6 +120,12 @@ class ModelExecutionModel(TimestampMixin, Base):
             "idempotency_key",
             name="uq_model_execution_project_idempotency",
         ),
+        Index(
+            "uq_model_execution_active_project",
+            "project_id",
+            unique=True,
+            postgresql_where=text("status IN ('pending','running')"),
+        ),
         CheckConstraint(
             "status IN ('pending','running','succeeded','failed')",
             name="model_execution_status",
@@ -123,6 +133,11 @@ class ModelExecutionModel(TimestampMixin, Base):
         CheckConstraint(
             "latency_ms IS NULL OR latency_ms >= 0",
             name="model_execution_latency_nonnegative",
+        ),
+        CheckConstraint(
+            "status NOT IN ('pending','running') OR "
+            "(lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)",
+            name="model_execution_active_lease",
         ),
     )
 
