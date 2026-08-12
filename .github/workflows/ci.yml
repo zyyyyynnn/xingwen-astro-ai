@@ -85,6 +85,7 @@ jobs:
           --health-retries 10
     env:
       TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/xingwen_test_db
+      PYTHONPATH: ${{ github.workspace }}/apps/api/src:${{ github.workspace }}
     defaults:
       run:
         working-directory: apps/api
