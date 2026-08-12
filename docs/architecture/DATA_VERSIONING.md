@@ -15,6 +15,7 @@
 | ArtifactVersion | 当前运行时 | 内容不可变 | 保存具体产物、内容哈希、输入哈希与 provenance |
 | SourceSnapshot | 当前运行时 | 不可变 | 保存一次来源读取的查询、内容与安全元数据 |
 | ProducerExecution | 当前运行时 | 完成后不可变 | 保存算法、Pipeline 或模型执行的输入输出身份 |
+| DocumentParse | 当前运行时 | 创建后不可变 | ResearchInput-backed 内部 Canonical 解析 derivative；不是公开 ArtifactVersion |
 | WorkspaceSnapshot | 当前运行时 | 乐观锁覆盖 | 保存私有 UI 恢复状态，不是科研产物 |
 | ShareSnapshot | 当前运行时 | 创建后不可变 | 冻结公开 ArtifactVersion 与 Evidence 范围 |
 | CacheRecord | 目标契约 | 不可变 | 绑定真实历史 Run、ArtifactVersion、SourceSnapshot 与复用匹配 identity |
@@ -37,17 +38,25 @@ ProducerExecution 记录 `producer_type`、name/version、可用的 model/prompt
 
 SourceSnapshot 记录来源身份、查询与内容哈希、抓取时间、许可说明和脱敏 request metadata。同一查询的不同抓取分别形成独立 Snapshot；不得用本地时间或随机值伪造上游版本。
 
-## 4. Canonical hash
+- Upload ResearchInput 可在首次正式解析时按需物化一个固定该 ResearchInput/content hash 的 SourceSnapshot；Snapshot 不复制二进制或全文。
+
+## 4. DocumentParse 版本化
+
+- DocumentParse logical identity 固定输入内容、parser/profile/model/config revision 与 Canonical output hash；相同 Project 下严格复用同一身份。
+- 不同 parser、model、configuration 或 output revision 新建记录，不原地覆盖；数据库同时禁止更新 Parse 与其 locator。
+- Canonical payload 以其内容 hash 进入现有 content-addressed storage，PostgreSQL 仅保存安全引用。读取通过 hash 校验恢复 Canonical Contract，不返回存储路径。
+
+## 5. Canonical hash
 
 - 哈希输入使用 UTF-8、LF 与规范化对象键顺序，格式为 `sha256:<64 lowercase hex>`。
 - `input_hash` 覆盖 Contract、输入版本与 Producer 参数；`content_hash` 覆盖发布给消费者的稳定内容。
 - 自引用哈希、数据库主键、日志与无业务意义的墙上时钟不进入科学内容哈希；审计字段是否进入哈希由对应 Schema 的 canonical authoring function 决定。
 
-## 5. 分享冻结
+## 6. 分享冻结
 
 ShareSnapshot 固定 `artifact_version_ids` 与允许公开的 `evidence_ids`。Artifact 的 latest 指针变化不会改变已创建分享；Share token 只保存 hash，公开读取不授予写权限。
 
-## 6. 修订与缓存目标契约
+## 7. 修订与缓存目标契约
 
 - RevisionPlan 将 UserFeedback 映射为受影响产物闭包；确认计划后创建 `derivation_kind=revision` 的新 Run，历史 ArtifactVersion 保持不可变。
 - CacheSelector 只能选择 Contract、input hash、producer identity 与 Evidence 仍匹配的 CacheRecord。选择失败时保持 Live 失败事实，不生成 cached ArtifactVersion。
