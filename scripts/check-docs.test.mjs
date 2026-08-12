@@ -193,6 +193,14 @@ test("retains legitimate technical and external versions", () => {
   assert.equal(containsRepositoryVersionLabel('tag: "v1.10.0"'), false);
   assert.equal(containsRepositoryVersionLabel("schema_version: 2.0.0"), false);
   assert.equal(containsRepositoryVersionLabel("actions/checkout@v4"), false);
+  const upstreamLayoutModel = ["PP-DocLayout", "V", "3"].join("");
+  assert.equal(containsRepositoryVersionLabel(upstreamLayoutModel), false);
+  assert.equal(
+    containsRepositoryVersionLabel(
+      `${upstreamLayoutModel} and PaddleOCR-VL-1.6-0.9B`,
+    ),
+    false,
+  );
   assert.equal(
     containsRepositoryVersionLabelPath(
       ["api", ["v", "1"].join(""), "projects.ts"].join("/"),

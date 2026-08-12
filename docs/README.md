@@ -40,7 +40,6 @@
 | 文献检索 Pipeline | [PaperCollection Pipeline](engineering/PAPER_COLLECTION_PIPELINE.md) | PaperCollection benchmark runner、检索组件、去重、排序与 Summary 准入 |
 | 退出验收标准 | [Acceptance](product/ACCEPTANCE.md) | 产品交付与发布退出标准、一票否决项 |
 | PR 审查清单 | [Review Checklist](quality/REVIEW_CHECKLIST.md) | 单个 PR 的审查清单与合并条件 |
-| 科学文档解析审查清单 | [Scientific Document Parsing Review](quality/SCIENTIFIC_DOCUMENT_PARSING_REVIEW.md) | Scientific Document Parsing 人工审查边界 |
 | 安全要求 | [Security](../SECURITY.md) | 密钥、信任边界、输入、会话、分享与日志要求 |
 | 部署与运维 | [Deployment](../DEPLOYMENT.md) | 环境拓扑、配置边界、migration 与健康检查 |
 | 本地启动 | [Setup](setup.md) | 本地与 Docker 启动方式、环境变量与调试命令 |
