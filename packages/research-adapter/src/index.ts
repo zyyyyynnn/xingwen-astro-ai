@@ -16,6 +16,13 @@ export type {
 
 export type { PublicApplicationError } from "./public-error";
 
+export {
+  researchExecutionModeLabel,
+  researchRunStepMessage,
+  researchRunStatusLabel,
+  researchRunStepLabel,
+} from "./presentation-language";
+
 export type {
   ArtifactVersionMetadataViewModel,
   ArtifactVersionProvenanceViewModel,
@@ -32,4 +39,8 @@ export type {
   ResearchContractDraftViewModel,
   ResearchContractViewModel,
   ResearchRunViewModel,
+  ResearchThreadEntryViewModel,
+  ResearchPlanningCatalogViewModel,
+  ResearchTurnViewModel,
+  RunStepViewModel,
 } from "./view-model";

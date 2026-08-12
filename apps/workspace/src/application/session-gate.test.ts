@@ -1,6 +1,9 @@
 import { QueryClient } from "@tanstack/react-query";
 import type { SessionInfo, SessionManager } from "@xingwen/data-access";
-import { SessionExpiredError } from "@xingwen/data-access/errors";
+import {
+  ForbiddenError,
+  SessionExpiredError,
+} from "@xingwen/data-access/errors";
 import { researchAdapter } from "@xingwen/research-adapter";
 import { describe, expect, it, vi } from "vitest";
 
@@ -36,7 +39,11 @@ function createSessionDouble() {
 describe("Session Gate", () => {
   it.each([
     ["expired", new SessionExpiredError("expired"), "session_required"],
-    ["forbidden", new Error("hidden ownership failure"), "unexpected"],
+    [
+      "forbidden",
+      new ForbiddenError("hidden ownership failure", "ACTION_FORBIDDEN"),
+      "forbidden",
+    ],
   ] as const)(
     "fails closed for %s private-session errors",
     async (_case, error, expectedKind) => {

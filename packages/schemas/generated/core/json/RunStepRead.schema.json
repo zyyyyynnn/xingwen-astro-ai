@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "RunStepStatus": {
+      "enum": [
+        "pending",
+        "running",
+        "waiting",
+        "completed",
+        "failed",
+        "cancelled",
+        "skipped"
+      ],
+      "title": "RunStepStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "failure_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Code"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finished At"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "key": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Key",
+      "type": "string"
+    },
+    "label": {
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "position": {
+      "minimum": 0,
+      "title": "Position",
+      "type": "integer"
+    },
+    "progress": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Progress",
+      "type": "integer"
+    },
+    "public_message": {
+      "title": "Public Message",
+      "type": "string"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "started_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Started At"
+    },
+    "status": {
+      "$ref": "#/$defs/RunStepStatus"
+    }
+  },
+  "required": [
+    "id",
+    "run_id",
+    "position",
+    "key",
+    "label",
+    "status",
+    "progress",
+    "public_message"
+  ],
+  "title": "RunStepRead",
+  "type": "object"
+}

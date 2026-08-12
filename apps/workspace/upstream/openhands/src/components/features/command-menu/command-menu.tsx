@@ -162,7 +162,7 @@ export function CommandMenu({ onNewResearch }: CommandMenuProps) {
         aria-label="关闭命令菜单"
         onClick={dismiss}
       />
-      <div className="relative flex max-h-[var(--oh-command-menu-max-block-size)] w-full max-w-[var(--oh-command-menu-max-inline-size)] flex-col overflow-hidden rounded-[var(--oh-radius-lg)] border border-[var(--oh-border-strong)] bg-[var(--oh-surface)] shadow-[var(--oh-shadow-modal)]">
+      <div className="relative flex max-h-[var(--oh-command-menu-max-block-size)] w-full max-w-[var(--oh-command-menu-max-inline-size)] flex-col overflow-hidden rounded-[var(--oh-radius-lg)] border border-[var(--oh-border)] bg-[var(--oh-surface)] shadow-[var(--oh-shadow-modal)]">
         <div className="group flex items-center gap-[var(--oh-space-3)] border-b border-[var(--oh-border)] px-[var(--oh-space-4)] py-[var(--oh-space-2)] transition-colors focus-within:border-[var(--oh-border-strong)] motion-reduce:transition-none">
           <Search
             className="size-[var(--oh-icon-size-lg)] shrink-0 text-[var(--oh-text-dim)] transition-colors group-focus-within:text-[var(--oh-accent)] motion-reduce:transition-none"

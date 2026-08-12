@@ -8,13 +8,19 @@ import type {
   ResearchAdapter,
   ResearchContractDraftViewModel,
   ResearchContractViewModel,
+  ResearchPlanningCatalogViewModel,
   ResearchRunViewModel,
+  ResearchThreadEntryViewModel,
+  RunStepViewModel,
 } from "@xingwen/research-adapter";
 
 import { workspaceQueryKeys } from "./query-keys";
 
 interface WorkspaceQueriesDependencies {
-  readonly repositories: Pick<RepositorySet, "projects" | "contracts" | "runs">;
+  readonly repositories: Pick<
+    RepositorySet,
+    "projects" | "researchCatalog" | "contracts" | "runs" | "researchThread"
+  >;
   readonly researchAdapter: ResearchAdapter;
 }
 
@@ -23,6 +29,7 @@ export interface RunEventFeedCache {
   readonly cursor: string | null;
   readonly lastSequence: number;
   readonly latestSequence: number;
+  readonly error: unknown | null;
 }
 
 export const EMPTY_RUN_EVENT_FEED: RunEventFeedCache = Object.freeze({
@@ -30,6 +37,7 @@ export const EMPTY_RUN_EVENT_FEED: RunEventFeedCache = Object.freeze({
   cursor: null,
   lastSequence: 0,
   latestSequence: 0,
+  error: null,
 });
 
 async function requireEntity<T>(
@@ -78,6 +86,36 @@ export function createWorkspaceQueries({
             ),
           ),
       }),
+    researchCatalog: (projectId: DomainEntityId) =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.researchCatalog(projectId),
+        queryFn: async (): Promise<ResearchPlanningCatalogViewModel> =>
+          repositories.researchCatalog.getForProject(projectId),
+      }),
+    thread: (projectId: DomainEntityId) =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.thread(projectId),
+        queryFn: async (): Promise<readonly ResearchThreadEntryViewModel[]> => {
+          const entries: ResearchThreadEntryViewModel[] = [];
+          let cursor: string | null = null;
+          const seen = new Set<string>();
+          do {
+            const page = await repositories.researchThread.list(
+              projectId,
+              cursor,
+            );
+            entries.push(
+              ...page.items.map(researchAdapter.toResearchThreadEntryViewModel),
+            );
+            if (page.nextCursor !== null && seen.has(page.nextCursor)) {
+              throw new Error("Research Thread returned a repeated cursor.");
+            }
+            if (page.nextCursor !== null) seen.add(page.nextCursor);
+            cursor = page.nextCursor;
+          } while (cursor !== null);
+          return entries;
+        },
+      }),
     draft: (draftId: DomainEntityId) =>
       queryOptions({
         queryKey: workspaceQueryKeys.draft(draftId),
@@ -114,6 +152,14 @@ export function createWorkspaceQueries({
         queryFn: async (): Promise<RunEventFeedCache> => EMPTY_RUN_EVENT_FEED,
         initialData: EMPTY_RUN_EVENT_FEED,
         enabled: false,
+      }),
+    runSteps: (runId: DomainEntityId) =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.runSteps(runId),
+        queryFn: async (): Promise<readonly RunStepViewModel[]> =>
+          (await repositories.runs.listSteps(runId)).map(
+            researchAdapter.toRunStepViewModel,
+          ),
       }),
   });
 }

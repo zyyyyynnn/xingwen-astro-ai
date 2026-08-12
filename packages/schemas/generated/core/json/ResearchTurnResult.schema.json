@@ -1,0 +1,143 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "PlannerOutcomeKind": {
+      "enum": [
+        "clarification_required",
+        "draft_ready",
+        "partial",
+        "unsupported",
+        "refused"
+      ],
+      "title": "PlannerOutcomeKind",
+      "type": "string"
+    },
+    "ResearchThreadEntry": {
+      "additionalProperties": false,
+      "description": "Public, Project-owned entry in the primary Research Thread.",
+      "properties": {
+        "actor": {
+          "enum": [
+            "user",
+            "assistant",
+            "system"
+          ],
+          "title": "Actor",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ResearchThreadEntryKind"
+        },
+        "model_execution_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Execution Id"
+        },
+        "project_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "public_content": {
+          "title": "Public Content",
+          "type": "string"
+        },
+        "sequence": {
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "structured_payload": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Structured Payload",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "sequence",
+        "kind",
+        "actor",
+        "public_content",
+        "created_at"
+      ],
+      "title": "ResearchThreadEntry",
+      "type": "object"
+    },
+    "ResearchThreadEntryKind": {
+      "enum": [
+        "user_message",
+        "assistant_message",
+        "assistant_analysis",
+        "clarification_question",
+        "clarification_answer"
+      ],
+      "title": "ResearchThreadEntryKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "active_draft_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Active Draft Id"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/ResearchThreadEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "model_execution_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Model Execution Id",
+      "type": "string"
+    },
+    "outcome": {
+      "$ref": "#/$defs/PlannerOutcomeKind"
+    }
+  },
+  "required": [
+    "outcome",
+    "entries",
+    "model_execution_id"
+  ],
+  "title": "ResearchTurnResult",
+  "type": "object"
+}

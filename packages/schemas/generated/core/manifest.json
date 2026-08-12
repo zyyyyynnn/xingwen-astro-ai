@@ -97,6 +97,11 @@
       "path": "json/LiteratureRelationRead.schema.json"
     },
     {
+      "module": "app.schemas.core",
+      "name": "ModelExecutionRecord",
+      "path": "json/ModelExecutionRecord.schema.json"
+    },
+    {
       "module": "app.schemas.paper_collection_api",
       "name": "PaperCollectionCandidateRead",
       "path": "json/PaperCollectionCandidateRead.schema.json"
@@ -118,6 +123,36 @@
     },
     {
       "module": "app.schemas.core",
+      "name": "PlannerClarificationRequired",
+      "path": "json/PlannerClarificationRequired.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "PlannerDraftReady",
+      "path": "json/PlannerDraftReady.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "PlannerOutcome",
+      "path": "json/PlannerOutcome.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "PlannerPartial",
+      "path": "json/PlannerPartial.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "PlannerRefused",
+      "path": "json/PlannerRefused.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "PlannerUnsupported",
+      "path": "json/PlannerUnsupported.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
       "name": "PublicShareSnapshot",
       "path": "json/PublicShareSnapshot.schema.json"
     },
@@ -130,6 +165,11 @@
       "module": "app.schemas.core",
       "name": "ResearchArtifactDetail",
       "path": "json/ResearchArtifactDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchCatalogOption",
+      "path": "json/ResearchCatalogOption.schema.json"
     },
     {
       "module": "app.schemas.core",
@@ -153,6 +193,11 @@
     },
     {
       "module": "app.schemas.core",
+      "name": "ResearchPlanningCatalog",
+      "path": "json/ResearchPlanningCatalog.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
       "name": "ResearchProject",
       "path": "json/ResearchProject.schema.json"
     },
@@ -163,8 +208,28 @@
     },
     {
       "module": "app.schemas.core",
+      "name": "ResearchThreadEntry",
+      "path": "json/ResearchThreadEntry.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchTurnRequest",
+      "path": "json/ResearchTurnRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "ResearchTurnResult",
+      "path": "json/ResearchTurnResult.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
       "name": "RunEvent",
       "path": "json/RunEvent.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "RunStepRead",
+      "path": "json/RunStepRead.schema.json"
     },
     {
       "module": "app.schemas.core",
@@ -190,6 +255,11 @@
       "module": "app.schemas.core",
       "name": "SourceSnapshotDetail",
       "path": "json/SourceSnapshotDetail.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
+      "name": "UpdateResearchProjectRequest",
+      "path": "json/UpdateResearchProjectRequest.schema.json"
     },
     {
       "module": "app.schemas.core",

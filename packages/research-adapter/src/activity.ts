@@ -64,7 +64,7 @@ function buildActivityEvent(
     id: `${event.runId}:${event.sequence}`,
     kind: definition.kind,
     title: definition.title,
-    detail: event.publicMessage,
+    detail: localizePublicMessage(event.publicMessage),
     status: definition.status,
     timestamp: event.occurredAt,
     runId: event.runId,
@@ -78,6 +78,22 @@ function buildActivityEvent(
   return groupId === undefined ? base : { ...base, groupId };
 }
 
+const PUBLIC_MESSAGE_TRANSLATIONS: Readonly<Record<string, string>> = {
+  "Run queued": "研究运行已进入队列。",
+  Planning: "正在规划研究路径。",
+  "Planning data and paper acquisition": "正在规划数据与文献采集路径。",
+  "Fetching data": "正在采集研究数据。",
+  "Cleaning data": "正在整理研究数据。",
+  "Searching papers": "正在检索相关文献。",
+  "Summarizing papers": "正在归纳文献证据。",
+  "Reasoning over literature": "正在综合文献证据。",
+  "Building evidence graph": "正在构建证据关系。",
+};
+
+function localizePublicMessage(message: string): string {
+  return PUBLIC_MESSAGE_TRANSLATIONS[message] ?? message;
+}
+
 /** Map the current exact RunEvent taxonomy; unknown types fail visibly. */
 export function toActivityPresentationEvent(
   event: RunEvent,
@@ -86,7 +102,7 @@ export function toActivityPresentationEvent(
     case "run.queued":
       return buildActivityEvent(event, {
         kind: "message",
-        title: "Run queued",
+        title: "研究已排队",
         status: "pending",
         outcome: "pending",
         groupScope: "none",
@@ -94,7 +110,7 @@ export function toActivityPresentationEvent(
     case "run.planning":
       return buildActivityEvent(event, {
         kind: "progress",
-        title: "Planning",
+        title: "规划研究路径",
         status: "running",
         outcome: "running",
         groupScope: "run",
@@ -102,7 +118,7 @@ export function toActivityPresentationEvent(
     case "run.fetching_data":
       return buildActivityEvent(event, {
         kind: "progress",
-        title: "Fetching data",
+        title: "采集研究数据",
         status: "running",
         outcome: "running",
         groupScope: "run",
@@ -110,7 +126,7 @@ export function toActivityPresentationEvent(
     case "run.cleaning_data":
       return buildActivityEvent(event, {
         kind: "progress",
-        title: "Cleaning data",
+        title: "整理研究数据",
         status: "running",
         outcome: "running",
         groupScope: "run",
@@ -118,7 +134,7 @@ export function toActivityPresentationEvent(
     case "run.searching_papers":
       return buildActivityEvent(event, {
         kind: "progress",
-        title: "Searching papers",
+        title: "检索相关文献",
         status: "running",
         outcome: "running",
         groupScope: "run",
@@ -126,7 +142,7 @@ export function toActivityPresentationEvent(
     case "run.summarizing_papers":
       return buildActivityEvent(event, {
         kind: "progress",
-        title: "Summarizing papers",
+        title: "归纳文献证据",
         status: "running",
         outcome: "running",
         groupScope: "run",
@@ -134,7 +150,7 @@ export function toActivityPresentationEvent(
     case "run.reasoning_literature":
       return buildActivityEvent(event, {
         kind: "progress",
-        title: "Reasoning over literature",
+        title: "综合研究证据",
         status: "running",
         outcome: "running",
         groupScope: "run",
@@ -142,7 +158,7 @@ export function toActivityPresentationEvent(
     case "run.building_graph":
       return buildActivityEvent(event, {
         kind: "progress",
-        title: "Building evidence graph",
+        title: "构建证据关系",
         status: "running",
         outcome: "running",
         groupScope: "run",
@@ -150,7 +166,7 @@ export function toActivityPresentationEvent(
     case "step.started":
       return buildActivityEvent(event, {
         kind: "action",
-        title: "Step started",
+        title: "开始执行步骤",
         status: "running",
         outcome: "running",
         groupScope: "step",
@@ -158,7 +174,7 @@ export function toActivityPresentationEvent(
     case "step.retry_scheduled":
       return buildActivityEvent(event, {
         kind: "action",
-        title: "Step retry scheduled",
+        title: "步骤等待重试",
         status: "pending",
         outcome: "pending",
         groupScope: "step",
@@ -166,7 +182,7 @@ export function toActivityPresentationEvent(
     case "step.completed":
       return buildActivityEvent(event, {
         kind: "result",
-        title: "Step completed",
+        title: "步骤已完成",
         status: "success",
         outcome: "success",
         groupScope: "step",
@@ -174,7 +190,7 @@ export function toActivityPresentationEvent(
     case "run.completed":
       return buildActivityEvent(event, {
         kind: "completion",
-        title: "Run completed",
+        title: "研究已完成",
         status: "success",
         outcome: "success",
         groupScope: "none",
@@ -182,7 +198,7 @@ export function toActivityPresentationEvent(
     case "run.failed":
       return buildActivityEvent(event, {
         kind: "error",
-        title: "Run failed",
+        title: "研究运行失败",
         status: "error",
         outcome: "failed",
         groupScope: "none",
@@ -190,7 +206,7 @@ export function toActivityPresentationEvent(
     case "run.cancelled":
       return buildActivityEvent(event, {
         kind: "error",
-        title: "Run cancelled",
+        title: "研究已取消",
         status: "error",
         outcome: "cancelled",
         groupScope: "none",
@@ -198,7 +214,7 @@ export function toActivityPresentationEvent(
     default:
       return buildActivityEvent(event, {
         kind: "error",
-        title: "Unsupported activity event",
+        title: "暂无法显示此运行事件",
         status: "error",
         outcome: "unsupported",
         groupScope: "none",

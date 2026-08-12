@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "ResearchCatalogOption": {
+      "additionalProperties": false,
+      "description": "One manifest-backed choice rendered by the Contract authoring UI.",
+      "properties": {
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "group": {
+          "anyOf": [
+            {
+              "enum": [
+                "common",
+                "advanced"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "title": "ResearchCatalogOption",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Project-scoped planning choices derived from current Authorities.",
+  "properties": {
+    "allowed_sources": {
+      "items": {
+        "$ref": "#/$defs/ResearchCatalogOption"
+      },
+      "title": "Allowed Sources",
+      "type": "array"
+    },
+    "case_key": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Case Key",
+      "type": "string"
+    },
+    "output_requirements": {
+      "items": {
+        "$ref": "#/$defs/ResearchCatalogOption"
+      },
+      "title": "Output Requirements",
+      "type": "array"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "requested_fields": {
+      "items": {
+        "$ref": "#/$defs/ResearchCatalogOption"
+      },
+      "title": "Requested Fields",
+      "type": "array"
+    },
+    "target_objects": {
+      "items": {
+        "$ref": "#/$defs/ResearchCatalogOption"
+      },
+      "title": "Target Objects",
+      "type": "array"
+    }
+  },
+  "required": [
+    "project_id",
+    "case_key",
+    "target_objects",
+    "requested_fields",
+    "allowed_sources",
+    "output_requirements"
+  ],
+  "title": "ResearchPlanningCatalog",
+  "type": "object"
+}

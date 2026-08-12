@@ -1,0 +1,49 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "assistant_message": {
+      "minLength": 1,
+      "title": "Assistant Message",
+      "type": "string"
+    },
+    "outcome": {
+      "const": "clarification_required",
+      "title": "Outcome",
+      "type": "string"
+    },
+    "public_analysis": {
+      "minLength": 1,
+      "title": "Public Analysis",
+      "type": "string"
+    },
+    "question": {
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+    },
+    "question_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Question Id",
+      "type": "string"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "outcome",
+    "public_analysis",
+    "assistant_message",
+    "question_id",
+    "question"
+  ],
+  "title": "PlannerClarificationRequired",
+  "type": "object"
+}

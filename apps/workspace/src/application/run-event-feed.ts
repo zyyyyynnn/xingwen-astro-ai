@@ -20,7 +20,6 @@ const MAX_FAILURE_DELAY_MS = 5_000;
 export interface RunEventFeedSnapshot extends RunEventFeedCache {
   readonly status: "idle" | "running" | "paused" | "stopped";
   readonly nextDelayMs: number;
-  readonly error: unknown | null;
 }
 
 interface VisibilitySource {
@@ -67,7 +66,6 @@ export function createRunEventFeed({
   let status: RunEventFeedSnapshot["status"] = "idle";
   let failureCount = 0;
   let nextDelayMs = NORMAL_DELAY_MS;
-  let error: unknown | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let syncing: Promise<void> | null = null;
 
@@ -113,6 +111,7 @@ export function createRunEventFeed({
         cursor: recovery.nextCursor,
         lastSequence,
         latestSequence: snapshot.latestEventSequence,
+        error: null,
       },
     };
   };
@@ -139,10 +138,15 @@ export function createRunEventFeed({
           );
         }
       }
+      const previousLastSequence = cache.lastSequence;
       writeCache(recovered.cache);
+      if (recovered.cache.lastSequence > previousLastSequence) {
+        await queryClient.invalidateQueries({
+          queryKey: workspaceQueryKeys.runSteps(runId),
+        });
+      }
       failureCount = 0;
       nextDelayMs = NORMAL_DELAY_MS;
-      error = null;
       if (
         snapshot.isTerminal &&
         recovered.cache.lastSequence >= snapshot.latestEventSequence
@@ -155,7 +159,7 @@ export function createRunEventFeed({
       failureCount += 1;
       nextDelayMs =
         failureCount === 1 ? FIRST_FAILURE_DELAY_MS : MAX_FAILURE_DELAY_MS;
-      error = reason;
+      writeCache({ ...cache, error: reason });
     }
     schedule();
   };
@@ -207,7 +211,7 @@ export function createRunEventFeed({
       );
     },
     getSnapshot(): RunEventFeedSnapshot {
-      return { ...cache, status, nextDelayMs, error };
+      return { ...cache, status, nextDelayMs };
     },
   });
 

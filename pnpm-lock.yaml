@@ -36,7 +36,7 @@ importers:
         version: 10.7.0(jiti@2.7.0)
       eslint-plugin-astro:
         specifier: 3.0.1
-        version: 3.0.1(@typescript-eslint/parser@8.64.0(eslint@10.7.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.7.0(jiti@2.7.0))
+        version: 3.0.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@typescript-eslint/parser@8.64.0(eslint@10.7.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.7.0(jiti@2.7.0))
       eslint-plugin-react-hooks:
         specifier: 7.1.1
         version: 7.1.1(eslint@10.7.0(jiti@2.7.0))
@@ -140,6 +140,9 @@ importers:
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
+      sonner:
+        specifier: 2.0.8
+        version: 2.0.8(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       tailwind-merge:
         specifier: 3.6.0
         version: 3.6.0
@@ -223,6 +226,9 @@ importers:
       clsx:
         specifier: 2.1.1
         version: 2.1.1
+      cmdk:
+        specifier: 1.1.1
+        version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       lucide-react:
         specifier: 1.25.0
         version: 1.25.0(react@19.2.7)
@@ -3891,6 +3897,15 @@ packages:
       }
     engines: { node: ">=6" }
 
+  cmdk@1.1.1:
+    resolution:
+      {
+        integrity: sha512-Vsv7kFaXm+ptHDMZ7izaRsP70GgrW9NBNGswt9OZaVBLlE0SNpDq8eu/VGXyF9r7M0azK3Wy7OlYXsuyYLFzHg==,
+      }
+    peerDependencies:
+      react: ^18 || ^19 || ^19.0.0-rc
+      react-dom: ^18 || ^19 || ^19.0.0-rc
+
   color-convert@2.0.1:
     resolution:
       {
@@ -6157,6 +6172,19 @@ packages:
       }
     engines: { node: ">= 18" }
 
+  sonner@2.0.8:
+    resolution:
+      {
+        integrity: sha512-UM/ByIoFra8yzV75n1o0Puu0bw5U/9UNnDacrJNspekBewIfsQ3D6ez1nvlWpt7aTsO6rujQtifBpycwIivqlg==,
+      }
+    peerDependencies:
+      "@types/react": ^18.0.0 || ^19.0.0
+      react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+    peerDependenciesMeta:
+      "@types/react":
+        optional: true
+
   source-map-js@1.2.1:
     resolution:
       {
@@ -7199,9 +7227,9 @@ snapshots:
   "@astrojs/compiler-binding-linux-x64-musl@0.3.1":
     optional: true
 
-  "@astrojs/compiler-binding-wasm32-wasi@0.3.1":
+  "@astrojs/compiler-binding-wasm32-wasi@0.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)":
     dependencies:
-      "@napi-rs/wasm-runtime": 1.1.6
+      "@napi-rs/wasm-runtime": 1.1.6(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
     transitivePeerDependencies:
       - "@emnapi/core"
       - "@emnapi/runtime"
@@ -7221,7 +7249,7 @@ snapshots:
   "@astrojs/compiler-binding-win32-x64-msvc@0.3.1":
     optional: true
 
-  "@astrojs/compiler-binding@0.3.1":
+  "@astrojs/compiler-binding@0.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)":
     optionalDependencies:
       "@astrojs/compiler-binding-darwin-arm64": 0.3.1
       "@astrojs/compiler-binding-darwin-x64": 0.3.1
@@ -7229,7 +7257,7 @@ snapshots:
       "@astrojs/compiler-binding-linux-arm64-musl": 0.3.1
       "@astrojs/compiler-binding-linux-x64-gnu": 0.3.1
       "@astrojs/compiler-binding-linux-x64-musl": 0.3.1
-      "@astrojs/compiler-binding-wasm32-wasi": 0.3.1
+      "@astrojs/compiler-binding-wasm32-wasi": 0.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
       "@astrojs/compiler-binding-win32-arm64-msvc": 0.3.1
       "@astrojs/compiler-binding-win32-x64-msvc": 0.3.1
     transitivePeerDependencies:
@@ -7251,9 +7279,9 @@ snapshots:
       - "@emnapi/core"
       - "@emnapi/runtime"
 
-  "@astrojs/compiler-rs@0.3.1":
+  "@astrojs/compiler-rs@0.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)":
     dependencies:
-      "@astrojs/compiler-binding": 0.3.1
+      "@astrojs/compiler-binding": 0.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
     transitivePeerDependencies:
       - "@emnapi/core"
       - "@emnapi/runtime"
@@ -7941,11 +7969,6 @@ snapshots:
       is-node-process: 1.2.0
       outvariant: 1.4.3
       strict-event-emitter: 0.5.1
-
-  "@napi-rs/wasm-runtime@1.1.6":
-    dependencies:
-      "@tybys/wasm-util": 0.10.3
-    optional: true
 
   "@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)":
     dependencies:
@@ -9442,9 +9465,9 @@ snapshots:
 
   assertion-error@2.0.1: {}
 
-  astro-eslint-parser@3.0.0:
+  astro-eslint-parser@3.0.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1):
     dependencies:
-      "@astrojs/compiler-rs": 0.3.1
+      "@astrojs/compiler-rs": 0.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
       "@typescript-eslint/scope-manager": 8.64.0
       "@typescript-eslint/types": 8.64.0
       debug: 4.4.3
@@ -9619,6 +9642,18 @@ snapshots:
       wrap-ansi: 7.0.0
 
   clsx@2.1.1: {}
+
+  cmdk@1.1.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+    dependencies:
+      "@radix-ui/react-compose-refs": 1.1.5(@types/react@19.2.17)(react@19.2.7)
+      "@radix-ui/react-dialog": 1.1.23(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      "@radix-ui/react-id": 1.1.4(@types/react@19.2.17)(react@19.2.7)
+      "@radix-ui/react-primitive": 2.1.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+    transitivePeerDependencies:
+      - "@types/react"
+      - "@types/react-dom"
 
   color-convert@2.0.1:
     dependencies:
@@ -10000,12 +10035,12 @@ snapshots:
 
   escape-string-regexp@4.0.0: {}
 
-  eslint-plugin-astro@3.0.1(@typescript-eslint/parser@8.64.0(eslint@10.7.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.7.0(jiti@2.7.0)):
+  eslint-plugin-astro@3.0.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@typescript-eslint/parser@8.64.0(eslint@10.7.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.7.0(jiti@2.7.0)):
     dependencies:
       "@eslint-community/eslint-utils": 4.9.1(eslint@10.7.0(jiti@2.7.0))
       "@jridgewell/sourcemap-codec": 1.5.5
       "@typescript-eslint/types": 8.64.0
-      astro-eslint-parser: 3.0.0
+      astro-eslint-parser: 3.0.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
       eslint: 10.7.0(jiti@2.7.0)
       espree: 11.2.0
       globals: 17.7.0
@@ -11007,6 +11042,13 @@ snapshots:
   sisteransi@1.0.5: {}
 
   smol-toml@1.7.0: {}
+
+  sonner@2.0.8(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+    dependencies:
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+    optionalDependencies:
+      "@types/react": 19.2.17
 
   source-map-js@1.2.1: {}
 

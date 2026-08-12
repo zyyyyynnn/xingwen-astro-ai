@@ -3,15 +3,22 @@ import {
   createFixtureRepositories,
   exoplanetHostStarFixture,
 } from "@xingwen/data-access";
+import { NetworkError } from "@xingwen/data-access/errors";
 import {
   CASE_KEY,
   asEntityId,
   type ResearchContractInput,
 } from "@xingwen/domain";
-import { researchAdapter } from "@xingwen/research-adapter";
-import { describe, expect, it } from "vitest";
+import {
+  researchAdapter,
+  type ResearchThreadEntryViewModel,
+} from "@xingwen/research-adapter";
+import { describe, expect, it, vi } from "vitest";
 
-import { createWorkspaceMutations } from "./mutations";
+import {
+  createWorkspaceMutations,
+  mergeResearchThreadEntries,
+} from "./mutations";
 import { workspaceQueryKeys } from "./query-keys";
 
 const contractInput: ResearchContractInput = {
@@ -40,6 +47,23 @@ const contractInput: ResearchContractInput = {
 };
 
 describe("Workspace mutation chain", () => {
+  it("deduplicates a polled user entry when the completed turn reaches the cache", () => {
+    const userEntry = {
+      id: asEntityId("user-entry"),
+      sequence: 1,
+    } as ResearchThreadEntryViewModel;
+    const assistantEntry = {
+      id: asEntityId("assistant-entry"),
+      sequence: 2,
+    } as ResearchThreadEntryViewModel;
+
+    expect(
+      mergeResearchThreadEntries([userEntry], [userEntry, assistantEntry]).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual([userEntry.id, assistantEntry.id]);
+  });
+
   it("owns the real Project → Draft → Update → Confirm → Run cache lifecycle", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { mutations: { retry: false } },
@@ -113,6 +137,103 @@ describe("Workspace mutation chain", () => {
     expect(queryClient.getQueryData(workspaceQueryKeys.run(run.id))).toEqual(
       run,
     );
+    expect(
+      queryClient.getQueryData(workspaceQueryKeys.project(project.id)),
+    ).toMatchObject({ latestRunId: run.id });
     expect(run.projectId).toBe(project.id);
+  });
+
+  it("reuses a create idempotency key until the same action is acknowledged", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+    const repositories = createFixtureRepositories(exoplanetHostStarFixture);
+    const originalCreate = repositories.projects.create.bind(
+      repositories.projects,
+    );
+    const observedKeys: string[] = [];
+    let loseFirstResponse = true;
+    vi.spyOn(repositories.projects, "create").mockImplementation(
+      async (input) => {
+        observedKeys.push(input.idempotencyKey);
+        const project = await originalCreate(input);
+        if (loseFirstResponse) {
+          loseFirstResponse = false;
+          throw new NetworkError("response lost");
+        }
+        return project;
+      },
+    );
+    let sequence = 0;
+    const mutations = createWorkspaceMutations({
+      repositories,
+      researchAdapter,
+      queryClient,
+      createIdempotencyKey: () => `retry-key-${String(++sequence)}`,
+    });
+    const input = {
+      name: "Stable retry action",
+      description: "The server commits before the first response is lost",
+      caseKey: CASE_KEY,
+    } as const;
+
+    await expect(
+      new MutationObserver(queryClient, mutations.projectCreate()).mutate(
+        input,
+      ),
+    ).rejects.toBeInstanceOf(NetworkError);
+    await expect(
+      new MutationObserver(queryClient, mutations.projectCreate()).mutate(
+        input,
+      ),
+    ).resolves.toMatchObject({ name: input.name });
+
+    expect(observedKeys.slice(0, 2)).toEqual(["retry-key-1", "retry-key-1"]);
+
+    await new MutationObserver(queryClient, mutations.projectCreate()).mutate(
+      input,
+    );
+    expect(observedKeys[2]).toBe("retry-key-2");
+  });
+
+  it("uses a fresh research-turn key after a provider failure", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+    const repositories = createFixtureRepositories(exoplanetHostStarFixture);
+    const project = (await repositories.projects.list()).items[0];
+    if (!project) throw new Error("Fixture project is required.");
+    const observedKeys: string[] = [];
+    vi.spyOn(repositories.researchThread, "submit").mockImplementation(
+      async (_projectId, input) => {
+        observedKeys.push(input.idempotencyKey);
+        throw new NetworkError("provider unavailable");
+      },
+    );
+    let sequence = 0;
+    const mutations = createWorkspaceMutations({
+      repositories,
+      researchAdapter,
+      queryClient,
+      createIdempotencyKey: () => `research-retry-${String(++sequence)}`,
+    });
+    const variables = {
+      projectId: project.id,
+      message: "Compare the selected host stars",
+      answerToQuestionId: null,
+    } as const;
+
+    await expect(
+      new MutationObserver(queryClient, mutations.researchTurnSubmit()).mutate(
+        variables,
+      ),
+    ).rejects.toBeInstanceOf(NetworkError);
+    await expect(
+      new MutationObserver(queryClient, mutations.researchTurnSubmit()).mutate(
+        variables,
+      ),
+    ).rejects.toBeInstanceOf(NetworkError);
+
+    expect(observedKeys).toEqual(["research-retry-1", "research-retry-2"]);
   });
 });

@@ -28,6 +28,7 @@ RUN uv sync --frozen --no-install-project
 COPY apps/api/alembic.ini ./
 COPY apps/api/migrations ./migrations
 COPY apps/api/src ./src
+COPY packages/prompts ./packages/prompts
 COPY services/data_pipeline ./services/data_pipeline
 
 # 安装当前 API distribution，使运行时 package metadata 与实际项目版本同源。

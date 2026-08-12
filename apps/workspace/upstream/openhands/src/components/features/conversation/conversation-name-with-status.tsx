@@ -1,5 +1,3 @@
-import { Badge } from "@xingwen/ui";
-
 import type { ResearchWorkspaceRuntime } from "../../../root";
 
 interface ConversationNameWithStatusProps {
@@ -17,16 +15,9 @@ export function ConversationNameWithStatus({
       >
         {runtime.project?.name ?? "新研究"}
       </h1>
-      {runtime.run ? (
-        <>
-          <Badge variant="secondary">{runtime.run.status}</Badge>
-          <p className="truncate text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-muted)]">
-            {runtime.run.executionMode}
-          </p>
-        </>
-      ) : runtime.project ? (
+      {runtime.project ? (
         <p className="truncate text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-muted)]">
-          等待研究协议
+          {runtime.project.statusLabel}
         </p>
       ) : (
         <p className="truncate text-[length:var(--oh-font-size-label)] leading-[var(--oh-line-height-label)] text-[var(--oh-muted)]">

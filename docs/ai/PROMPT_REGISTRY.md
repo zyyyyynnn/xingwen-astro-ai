@@ -31,10 +31,14 @@ Prompt Contract 变化时直接更新当前定义、提升语义版本并同步�
 
 ## 3. 运行引用
 
-每次模型调用必须在 `ProducerExecution` 中记录 `prompt_name`、`prompt_version` 与 `prompt_hash`。ArtifactVersion 通过 ProducerExecution 与输入版本固定当次执行身份，不读取动态别名。
+Pre-run Research assistant 每次调用必须在 `ModelExecutionRecord` 中记录 `prompt_name`、`prompt_version` 与 Registry `prompt_hash`；Run 内模型 Pipeline 则记录在 `ProducerExecution`。生产调用不得在 Python 中拼接另一份静态 Prompt 或以动态拼接后的 hash 取代 Registry identity；运行时 JSON Schema 必须作为具名 input snapshot 传入。ArtifactVersion 通过 ProducerExecution 与输入版本固定当次执行身份，不读取动态别名。
 
 ## 4. Contract Planner
 
-Contract Planner 拥有 Research Intent 到 ResearchContractDraft candidate 的规划职责。输入只包含 Intent、Project 范围、允许来源、字段与质量约束以及必要的已发布 ArtifactVersion 摘要；输出必须通过 ResearchContractInput Schema 与领域校验，且不能直接创建 Contract、Run 或 Artifact。
+Contract Planner 的生产能力名为 `research_contract_planner`，拥有 Research Intent 到公开 Research assistant outcome 的规划职责。输入只包含 Intent、Project 范围、允许来源、字段与质量约束以及必要的已发布 ArtifactVersion 摘要；输出必须是 typed discriminated outcome，并通过 Pydantic、ResearchContractInput Schema 与领域校验。
+
+允许的 outcome 为 `clarification_required`、`draft_ready`、`partial`、`unsupported`、`refused`。每个 outcome 都必须生成公开 assistant analysis 与 assistant message；只有 `draft_ready` 可以携带可审查的 ContractInput candidate 与 warnings，不能直接创建 Contract、Run 或 Artifact。`partial` 不能被 UI 或 API 静默提升为可执行 Draft。
+
+`research_contract_planner` 必须登记在现有 `packages/prompts/registry.json`，使用 `packages/prompts/research_contract_planner/prompt.md`；不得新增第二套 registry 或 floating latest 选择器。
 
 HTTP Draft authoring 只有在绑定真实 Planner 与 ModelExecutionPort 时才能声称模型规划已执行。没有该绑定时必须使用明确的结构化输入路径或拒绝模型规划请求，不得用模板结果伪造 Planner 执行。

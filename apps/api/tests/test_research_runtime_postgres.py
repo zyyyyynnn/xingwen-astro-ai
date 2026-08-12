@@ -28,6 +28,7 @@ from sqlalchemy import Engine, func, select
 from app.config import settings
 from app.db.models import (
     ResearchContractDraftModel,
+    ModelExecutionModel,
     ResearchProjectModel,
 )
 from app.db.session import create_engine_from_url, session_factory
@@ -39,6 +40,17 @@ from authoring_test_support import (
 from app.main import _load_case_manifests, create_app
 from app.services.artifacts import ArtifactReadService
 from app.services.research import ResearchApplicationService
+from app.services.model_execution import (
+    ModelExecutionError,
+    ModelExecutionRequest,
+    ModelExecutionResponse,
+)
+from app.services.research_planner import PlannerResult
+from app.schemas.core import (
+    PlannerClarificationRequired,
+    PlannerDraftReady,
+    ResearchContractInput,
+)
 from app.services.resource_authority import PersistentResourceAuthority
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 from app.test_support.bootstrap import bootstrap_fixture_artifacts
@@ -50,6 +62,67 @@ pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
 )
 NOW = datetime(2026, 7, 22, 8, tzinfo=UTC)
+
+
+class StubResearchPlanner:
+    """Deterministic planner for DB integration; no provider call is faked in HTTP."""
+
+    def prepare_request(self, **values: object) -> ModelExecutionRequest:
+        return ModelExecutionRequest(
+            provider="test",
+            model="planner-fixture",
+            model_revision="planner-fixture-1",
+            prompt_name="research_contract_planner",
+            prompt_version="1.0.0",
+            prompt_hash="sha256:" + "a" * 64,
+            prompt="test planner",
+            input_payload={
+                "source": "integration-test",
+                "message": values.get("message"),
+                "answer_to_question_id": values.get("answer_to_question_id"),
+            },
+            parameters={"temperature": 0},
+        )
+
+    def execute(self, request: ModelExecutionRequest) -> PlannerResult:
+        if request.input_payload.get("message") == "Force metadata failure":
+            raise ModelExecutionError(
+                "MODEL_RESPONSE_INVALID",
+                "研究助手返回了无法验证的结果。",
+                output_hash="sha256:" + "c" * 64,
+                token_usage={"prompt_tokens": 7, "completion_tokens": 3},
+                latency_ms=9,
+                provider_request_id="provider-failed-request",
+            )
+        if (
+            request.input_payload.get("message") == "Clarify the original stellar study"
+            and request.input_payload.get("answer_to_question_id") is None
+        ):
+            output = PlannerClarificationRequired(
+                outcome="clarification_required",
+                public_analysis="需要确认研究时间范围。",
+                assistant_message="请补充时间范围后继续。",
+                question_id="time_range",
+                question="是否只研究 2020 年之后的数据？",
+            )
+        else:
+            output = PlannerDraftReady(
+                outcome="draft_ready",
+                public_analysis="已将研究消息整理为可核验的协议边界。",
+                assistant_message="研究协议草案已准备好，请检查后确认。",
+                contract=ResearchContractInput.model_validate(_contract_input()),
+            )
+        return PlannerResult(
+            output=output,
+            request=request,
+            response=ModelExecutionResponse(
+                payload={"outcome": "draft_ready"},
+                output_hash="sha256:" + "b" * 64,
+                token_usage={"prompt_tokens": 10, "completion_tokens": 20},
+                latency_ms=2,
+                provider_request_id="test-provider-request",
+            ),
+        )
 
 
 def _contract_input() -> dict[str, object]:
@@ -90,7 +163,10 @@ def runtime() -> Iterator[dict[str, object]]:
     app.state.workflow_store = store
     app.state.artifact_read_service = ArtifactReadService(factory)
     app.state.research_service = ResearchApplicationService(
-        factory=factory, workflow_store=store, manifests=_load_case_manifests()
+        factory=factory,
+        workflow_store=store,
+        manifests=_load_case_manifests(),
+        planner=StubResearchPlanner(),
     )
     app.state.snapshot_service = SnapshotService(
         InMemorySnapshotStore(PersistentResourceAuthority(factory))
@@ -308,6 +384,190 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     assert saved.json()["data"]["revision"] == 1
     reloaded = client.get(f"/api/projects/{project_id}/workspace-snapshot")
     assert reloaded.json()["data"] == saved.json()["data"]
+
+
+def test_research_turn_persists_public_thread_and_idempotent_model_execution(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    factory = runtime["factory"]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+    project_id = runtime["project_id"]
+    catalog = client.get(f"/api/projects/{project_id}/research-catalog")
+    assert catalog.status_code == 200
+    catalog_data = catalog.json()["data"]
+    assert catalog_data["case_key"] == "exoplanet_host_star"
+    assert {item["value"] for item in catalog_data["target_objects"]} == {
+        "exoplanet_candidate",
+        "host_star",
+    }
+    assert len(catalog_data["requested_fields"]) == 15
+    assert {item["group"] for item in catalog_data["output_requirements"]} == {
+        "common",
+        "advanced",
+    }
+    headers = {**csrf, "Idempotency-Key": "research-turn-1"}
+    body = {"message": "Compare the selected host stars"}
+
+    first = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers=headers,
+        json=body,
+    )
+    assert first.status_code == 200
+    result = first.json()["data"]
+    assert result["outcome"] == "draft_ready"
+    assert [entry["kind"] for entry in result["entries"]] == [
+        "user_message",
+        "assistant_analysis",
+        "assistant_message",
+    ]
+    assert result["active_draft_id"]
+
+    listed = client.get(f"/api/projects/{project_id}/research-turns")
+    assert listed.status_code == 200
+    assert [entry["kind"] for entry in listed.json()["data"]] == [
+        "user_message",
+        "assistant_analysis",
+        "assistant_message",
+    ]
+    first_page = client.get(
+        f"/api/projects/{project_id}/research-turns",
+        params={"limit": 1},
+    )
+    thread_cursor = first_page.json()["page"]["next_cursor"]
+    assert thread_cursor is not None and not thread_cursor.isdigit()
+    next_page = client.get(
+        f"/api/projects/{project_id}/research-turns",
+        params={"limit": 1, "cursor": thread_cursor},
+    )
+    assert next_page.status_code == 200
+    tampered_cursor = thread_cursor[:-1] + (
+        "A" if thread_cursor[-1] != "A" else "B"
+    )
+    rejected_cursor = client.get(
+        f"/api/projects/{project_id}/research-turns",
+        params={"limit": 1, "cursor": tampered_cursor},
+    )
+    assert rejected_cursor.status_code == 400
+    assert rejected_cursor.json()["code"] == "INVALID_CURSOR"
+
+    project = client.get(f"/api/projects/{project_id}")
+    assert project.json()["data"]["active_draft_id"] == result["active_draft_id"]
+
+    with factory() as session:  # type: ignore[operator]
+        execution = session.get(ModelExecutionModel, UUID(result["model_execution_id"]))
+        assert execution is not None
+        assert execution.status == "succeeded"
+        assert execution.output_hash == "sha256:" + "b" * 64
+        assert execution.prompt_snapshot == "test planner"
+        assert execution.input_snapshot["message"] == body["message"]
+        assert execution.parameters_snapshot == {"temperature": 0}
+        assert execution.output_snapshot is not None
+        assert execution.output_snapshot["outcome"] == "draft_ready"
+        assert execution.token_usage == {"prompt_tokens": 10, "completion_tokens": 20}
+
+    execution_read = client.get(
+        f"/api/projects/{project_id}/model-executions/{result['model_execution_id']}"
+    )
+    assert execution_read.status_code == 200
+    execution_data = execution_read.json()["data"]
+    assert execution_data["prompt_snapshot"] == "test planner"
+    assert execution_data["input_snapshot"]["message"] == body["message"]
+    assert execution_data["parameters_snapshot"] == {"temperature": 0}
+    assert execution_data["output_snapshot"]["outcome"] == "draft_ready"
+
+    other = TestClient(client.app, base_url="https://testserver")
+    other.cookies.set(settings.SESSION_COOKIE_NAME, runtime["other_credential"])
+    hidden_execution = other.get(
+        f"/api/projects/{project_id}/model-executions/{result['model_execution_id']}"
+    )
+    assert hidden_execution.status_code == 404
+
+    replay = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers=headers,
+        json=body,
+    )
+    assert replay.status_code == 200
+    assert replay.json()["data"] == result
+
+    conflict = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers=headers,
+        json={"message": "A different research message"},
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
+
+
+def test_failed_model_execution_keeps_safe_provider_metadata(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    factory = runtime["factory"]
+    project_id = runtime["project_id"]
+    response = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers={
+            "X-CSRF-Token": runtime["owner_csrf"],
+            "Idempotency-Key": "failed-model-metadata",
+        },
+        json={"message": "Force metadata failure"},
+    )
+    assert response.status_code == 503
+
+    with factory() as session:  # type: ignore[operator]
+        execution = session.scalar(
+            select(ModelExecutionModel).where(
+                ModelExecutionModel.idempotency_key == "failed-model-metadata"
+            )
+        )
+        assert execution is not None
+        assert execution.status == "failed"
+        assert execution.output_hash == "sha256:" + "c" * 64
+        assert execution.token_usage == {
+            "prompt_tokens": 7,
+            "completion_tokens": 3,
+        }
+        assert execution.latency_ms == 9
+        assert execution.provider_request_id == "provider-failed-request"
+
+
+def test_clarification_answer_keeps_the_original_research_intent(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+    project_id = runtime["project_id"]
+    original_intent = "Clarify the original stellar study"
+
+    first = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers={**csrf, "Idempotency-Key": "clarification-root"},
+        json={"message": original_intent},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["data"]["outcome"] == "clarification_required"
+    question = next(
+        entry
+        for entry in first.json()["data"]["entries"]
+        if entry["kind"] == "clarification_question"
+    )
+
+    answered = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers={**csrf, "Idempotency-Key": "clarification-answer"},
+        json={
+            "message": "是，只研究 2020 年之后的数据。",
+            "answer_to_question_id": question["id"],
+        },
+    )
+    assert answered.status_code == 200, answered.text
+    draft_id = answered.json()["data"]["active_draft_id"]
+    draft = client.get(f"/api/contracts/drafts/{draft_id}")
+    assert draft.status_code == 200
+    assert draft.json()["data"]["intent"] == original_intent
 
 
 def test_expired_draft_is_visible_but_cannot_be_changed_or_confirmed(

@@ -23,6 +23,7 @@
   --raw-success-500: oklch(0.56 0.07 165);
   --raw-warning-500: oklch(0.6 0.075 80);
   --raw-error-500: oklch(0.56 0.085 25);
+  --raw-error-600: oklch(0.48 0.085 25);
   --raw-info-500: oklch(0.57 0.06 245);
 
   /* Surface */
@@ -54,6 +55,7 @@
   --color-success: var(--raw-success-500);
   --color-warning: var(--raw-warning-500);
   --color-error: var(--raw-error-500);
+  --color-error-hover: var(--raw-error-600);
   --color-error-muted: color-mix(in srgb, var(--color-error) 9%, transparent);
   --color-info: var(--raw-info-500);
   --color-live: var(--raw-success-500);
@@ -67,8 +69,8 @@
   );
 
   /* Focus and stacking semantics shared by every product surface. */
-  --focus-ring-width: 3px;
-  --focus-ring-offset: 2px;
+  --focus-ring-width: 1px;
+  --focus-ring-offset: 0px;
   --border-width-default: 1px;
   --layer-skip-link: 100;
 
@@ -141,8 +143,8 @@
   --radius-pill: 999px;
 
   /* Shadow */
-  --shadow-float: 0 12px 28px
-    color-mix(in srgb, var(--raw-bluegray-900) 10%, transparent);
+  --shadow-float: 0 3px 8px
+    color-mix(in srgb, var(--raw-bluegray-900) 12%, transparent);
   --shadow-modal: 0 24px 64px
     color-mix(in srgb, var(--raw-bluegray-900) 16%, transparent);
 

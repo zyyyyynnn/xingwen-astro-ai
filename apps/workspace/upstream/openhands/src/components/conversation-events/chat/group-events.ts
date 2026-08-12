@@ -1,32 +1,23 @@
-/**
- * Domain-neutral presentation events consumed by the OpenHands-derived
- * activity surface. Runtime adapters map domain events into this contract;
- * the presentation never receives private content.
- */
-export type ActivityEventKind =
-  | "message"
-  | "action"
-  | "tool"
-  | "progress"
-  | "result"
-  | "error"
-  | "completion";
-
-export type ActivityEventStatus = "pending" | "running" | "success" | "error";
-
+/** Public presentation boundary used by the OpenHands event grouping mechanic. */
 export interface ActivityPresentationEvent {
   readonly id: string;
-  readonly kind: ActivityEventKind;
+  readonly kind:
+    | "message"
+    | "action"
+    | "tool"
+    | "progress"
+    | "result"
+    | "error"
+    | "completion";
   readonly title: string;
   readonly detail?: string;
-  readonly status: ActivityEventStatus;
+  readonly status: "pending" | "running" | "success" | "error";
   readonly groupId?: string;
   readonly timestamp?: string;
 }
 
 export const EVENT_GROUP_MIN_SIZE = 2;
 
-/** Public tool/progress events retain the upstream consecutive-run grouping. */
 export const isGroupableEvent = (event: ActivityPresentationEvent): boolean =>
   event.kind === "tool" || event.kind === "progress";
 
@@ -38,45 +29,37 @@ export type RenderedItem =
     }
   | {
       readonly kind: "group";
-      readonly events: ActivityPresentationEvent[];
+      readonly events: readonly ActivityPresentationEvent[];
       readonly startIndex: number;
     };
 
-/**
- * Walk a public event stream and bucket consecutive tool/progress events into
- * collapsible groups. Non-tool events stay as individual activity items.
- */
-export const groupEvents = (
+/** OpenHands consecutive action grouping over public research events. */
+export function groupEvents(
   events: readonly ActivityPresentationEvent[],
   minSize: number = EVENT_GROUP_MIN_SIZE,
-): RenderedItem[] => {
-  if (minSize < 1) {
-    throw new Error("minSize must be at least 1");
-  }
-
+): RenderedItem[] {
+  if (minSize < 1) throw new Error("minSize must be at least 1");
   const items: RenderedItem[] = [];
-  let run: {
-    events: ActivityPresentationEvent[];
-    startIndex: number;
-  } | null = null;
+  let run: { events: ActivityPresentationEvent[]; startIndex: number } | null =
+    null;
 
   const flushRun = () => {
-    const currentRun = run;
-    if (!currentRun) return;
-    if (currentRun.events.length >= minSize) {
+    const current = run;
+    if (!current) return;
+    if (current.events.length >= minSize) {
       items.push({
         kind: "group",
-        events: currentRun.events,
-        startIndex: currentRun.startIndex,
+        events: current.events,
+        startIndex: current.startIndex,
       });
     } else {
-      currentRun.events.forEach((event, offset) => {
+      current.events.forEach((event, offset) =>
         items.push({
           kind: "single",
           event,
-          index: currentRun.startIndex + offset,
-        });
-      });
+          index: current.startIndex + offset,
+        }),
+      );
     }
     run = null;
   };
@@ -87,7 +70,6 @@ export const groupEvents = (
       items.push({ kind: "single", event, index });
       return;
     }
-
     const previousGroupId = run?.events[0]?.groupId;
     if (
       run &&
@@ -100,7 +82,6 @@ export const groupEvents = (
     if (!run) run = { events: [], startIndex: index };
     run.events.push(event);
   });
-
   flushRun();
   return items;
-};
+}

@@ -1,0 +1,229 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "ModelExecutionStatus": {
+      "enum": [
+        "pending",
+        "running",
+        "succeeded",
+        "failed"
+      ],
+      "title": "ModelExecutionStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Pre-run model provenance without raw provider output or private reasoning.",
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "error_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error Code"
+    },
+    "error_summary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error Summary"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finished At"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "input_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Input Hash"
+    },
+    "input_snapshot": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Input Snapshot",
+      "type": "object"
+    },
+    "latency_ms": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Latency Ms"
+    },
+    "model": {
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    },
+    "model_revision": {
+      "minLength": 1,
+      "title": "Model Revision",
+      "type": "string"
+    },
+    "output_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Output Hash"
+    },
+    "output_snapshot": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Output Snapshot"
+    },
+    "parameters_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Parameters Hash",
+      "type": "string"
+    },
+    "parameters_snapshot": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Parameters Snapshot",
+      "type": "object"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "prompt_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Prompt Hash",
+      "type": "string"
+    },
+    "prompt_name": {
+      "minLength": 1,
+      "title": "Prompt Name",
+      "type": "string"
+    },
+    "prompt_snapshot": {
+      "minLength": 1,
+      "title": "Prompt Snapshot",
+      "type": "string"
+    },
+    "prompt_version": {
+      "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+      "title": "Prompt Version",
+      "type": "string"
+    },
+    "provider": {
+      "minLength": 1,
+      "title": "Provider",
+      "type": "string"
+    },
+    "provider_request_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Request Id"
+    },
+    "status": {
+      "$ref": "#/$defs/ModelExecutionStatus"
+    },
+    "token_usage": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Token Usage"
+    }
+  },
+  "required": [
+    "id",
+    "project_id",
+    "provider",
+    "model",
+    "model_revision",
+    "prompt_name",
+    "prompt_version",
+    "prompt_hash",
+    "prompt_snapshot",
+    "input_snapshot",
+    "parameters_hash",
+    "parameters_snapshot",
+    "status",
+    "created_at"
+  ],
+  "title": "ModelExecutionRecord",
+  "type": "object"
+}

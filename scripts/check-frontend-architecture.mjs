@@ -45,7 +45,10 @@ const allowedLocalDependencies = new Map([
 
 const boundaryRuntimeDependencyAllowlist = new Map([
   ["@xingwen/domain", new Set()],
-  ["@xingwen/ui", new Set(["clsx", "lucide-react", "radix-ui", "react"])],
+  [
+    "@xingwen/ui",
+    new Set(["clsx", "cmdk", "lucide-react", "radix-ui", "react"]),
+  ],
   ["@xingwen/research-adapter", new Set()],
 ]);
 
@@ -704,6 +707,7 @@ const boundaryRules = new Map([
       description: "the presentation-only UI boundary",
       allowedBareImports: new Set([
         "clsx",
+        "cmdk",
         "lucide-react",
         "radix-ui",
         "react",

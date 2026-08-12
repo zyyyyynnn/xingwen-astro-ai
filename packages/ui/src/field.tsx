@@ -55,6 +55,16 @@ export function Field({
   );
 }
 
+export function FieldContent({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="field-content"
+      className={cn("xw-field-content", className)}
+      {...props}
+    />
+  );
+}
+
 export function FieldLabel({ className, ...props }: ComponentProps<"label">) {
   return (
     <label

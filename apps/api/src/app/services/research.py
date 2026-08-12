@@ -9,39 +9,65 @@ session ownership, idempotency and optimistic concurrency.
 from __future__ import annotations
 
 import base64
+import binascii
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+import hashlib
+import hmac
+import json
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.contracts.manifest_policy import validate_research_contract_admission
+from app.contracts.manifest_policy import (
+    validate_contract_against_manifest,
+    validate_research_contract_admission,
+)
+from app.config import settings
 from app.db.models import (
+    ModelExecutionModel,
     ResearchContractDraftModel,
     ResearchContractModel,
     ResearchProjectModel,
     ResearchRunModel,
+    ResearchThreadEntryModel,
+    RunStepModel,
 )
 from app.schemas.core import (
+    ArtifactKind,
     ConfirmResearchContractRequest,
     ContractDraftStatus,
     CreateResearchContractDraftRequest,
     CreateResearchProjectRequest,
     CreateRunRequest,
+    ModelExecutionRecord,
     ResearchContract,
     ResearchContractDraft,
     ResearchContractInput,
     ResearchProject,
+    ResearchPlanningCatalog,
+    ResearchCatalogOption,
     ResearchRun,
+    ResearchThreadEntry,
+    ResearchThreadEntryKind,
+    ResearchTurnRequest,
+    ResearchTurnResult,
+    RunStepRead,
     RunEvent,
+    PlannerOutcome,
+    PlannerOutcomeKind,
     UpdateResearchContractDraftRequest,
+    UpdateResearchProjectRequest,
     compute_research_contract_content_hash,
     validate_research_contract_content_hash,
 )
 from app.schemas.manifest import ManifestBundle
 from app.security import SecurityProblem, canonical_request_hash, require_revision
+from app.services.model_execution import ModelExecutionError, ModelExecutionResponse
+from app.services.research_planner import ResearchContractPlanner
 from app.workflow.store import (
     EventSnapshot,
     PersistentWorkflowStore,
@@ -109,16 +135,20 @@ class ResearchApplicationService:
         factory: Callable[[], Session],
         workflow_store: PersistentWorkflowStore,
         manifests: ManifestBundle,
+        planner: ResearchContractPlanner | None = None,
     ) -> None:
         self._factory = factory
         self._workflow = workflow_store
         self._manifests = manifests
+        self._planner = planner
 
     # ---- Project ---------------------------------------------------------
 
     def get_project(self, *, project_id: str, session_id: str) -> ResearchProject:
         with self._factory() as session:
-            project = self._require_project(session, project_id, session_id)
+            project = self._require_project(
+                session, project_id, session_id, with_for_update=True
+            )
             return self._project_read(session, project)
 
     def list_projects(
@@ -135,7 +165,7 @@ class ResearchApplicationService:
                 ResearchProjectModel.session_id == session_id
             )
             if cursor is not None:
-                anchor_uuid = _decode_project_cursor(cursor)
+                anchor_uuid = _decode_project_cursor(cursor, session_id=session_id)
                 anchor = session.get(ResearchProjectModel, anchor_uuid)
                 if anchor is None or anchor.session_id != session_id:
                     raise _invalid_cursor()
@@ -157,7 +187,7 @@ class ResearchApplicationService:
             has_more = len(rows) > limit
             selected = rows[:limit]
             next_cursor = (
-                _encode_project_cursor(selected[-1].id)
+                _encode_project_cursor(selected[-1].id, session_id=session_id)
                 if selected and has_more
                 else None
             )
@@ -217,6 +247,41 @@ class ResearchApplicationService:
                 return self._project_read(session, replay)
             return self._project_read(session, model)
 
+    def update_project(
+        self,
+        *,
+        project_id: str,
+        session_id: str,
+        if_match: str,
+        request: UpdateResearchProjectRequest,
+    ) -> ResearchProject:
+        expected = _parse_if_match(if_match)
+        with self._factory() as session, session.begin():
+            project = self._require_project(
+                session, project_id, session_id, with_for_update=True
+            )
+            require_revision(expected=expected, current=project.revision)
+            project.name = request.name
+            project.revision += 1
+            project.updated_at = datetime.now(UTC)
+            session.flush()
+            return self._project_read(session, project)
+
+    def delete_project(
+        self,
+        *,
+        project_id: str,
+        session_id: str,
+        if_match: str,
+    ) -> None:
+        expected = _parse_if_match(if_match)
+        with self._factory() as session, session.begin():
+            project = self._require_project(
+                session, project_id, session_id, with_for_update=True
+            )
+            require_revision(expected=expected, current=project.revision)
+            session.delete(project)
+
     # ---- Contract Draft --------------------------------------------------
 
     def create_draft(
@@ -230,7 +295,9 @@ class ResearchApplicationService:
         request_hash = canonical_request_hash(request.model_dump(mode="json"))
         with self._factory() as session, session.begin():
             # Ownership is checked before any insert or idempotency side effect.
-            project = self._require_project(session, project_id, session_id)
+            project = self._require_project(
+                session, project_id, session_id, with_for_update=True
+            )
             replay = self._draft_replay(
                 session,
                 project_id=project.id,
@@ -238,6 +305,7 @@ class ResearchApplicationService:
             )
             if replay is not None:
                 _require_same_idempotent_request(replay.request_hash, request_hash)
+                project.active_draft_id = replay.id
                 return _draft(replay)
 
             now = datetime.now(UTC)
@@ -272,7 +340,9 @@ class ResearchApplicationService:
                     request_hash,
                     cause=exc,
                 )
+                project.active_draft_id = replay.id
                 return _draft(replay)
+            project.active_draft_id = model.id
             return _draft(model)
 
     def get_draft(
@@ -326,6 +396,10 @@ class ResearchApplicationService:
                 draft.contract = request.contract.model_dump(mode="json")
             draft.version += 1
             draft.updated_at = datetime.now(UTC)
+            project = self._require_project(
+                session, str(draft.project_id), session_id, with_for_update=True
+            )
+            project.active_draft_id = draft.id
             session.flush()
             return _draft(draft)
 
@@ -401,9 +475,9 @@ class ResearchApplicationService:
             content_hash = compute_research_contract_content_hash(contract_input)
             next_version = (
                 session.scalar(
-                    select(func.coalesce(func.max(ResearchContractModel.version), 0)).where(
-                        ResearchContractModel.project_id == project.id
-                    )
+                    select(
+                        func.coalesce(func.max(ResearchContractModel.version), 0)
+                    ).where(ResearchContractModel.project_id == project.id)
                 )
                 or 0
             ) + 1
@@ -427,6 +501,7 @@ class ResearchApplicationService:
             session.add(model)
             draft.status = ContractDraftStatus.confirmed.value
             draft.updated_at = created_at
+            project.active_draft_id = None
             session.flush()
             return _contract(model)
 
@@ -486,6 +561,342 @@ class ResearchApplicationService:
         )
         return events, next_cursor, snapshot.has_more_events
 
+    def list_run_steps(
+        self,
+        *,
+        run_id: str,
+        session_id: str,
+    ) -> tuple[RunStepRead, ...]:
+        run_uuid = _uuid_or_not_found(run_id, "RUN_NOT_FOUND")
+        with self._factory() as session:
+            owner = session.scalar(
+                select(ResearchProjectModel.session_id)
+                .join(
+                    ResearchRunModel,
+                    ResearchRunModel.project_id == ResearchProjectModel.id,
+                )
+                .where(ResearchRunModel.id == run_uuid)
+            )
+            if owner is None or owner != session_id:
+                raise _not_found("RUN_NOT_FOUND")
+            rows = session.scalars(
+                select(RunStepModel)
+                .where(RunStepModel.run_id == run_uuid)
+                .order_by(RunStepModel.position.asc())
+            )
+            return tuple(_run_step(row, run_id=run_id) for row in rows)
+
+    def list_thread_entries(
+        self,
+        *,
+        project_id: str,
+        session_id: str,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[tuple[ResearchThreadEntry, ...], str | None, bool]:
+        with self._factory() as session:
+            project = self._require_project(session, project_id, session_id)
+            after = _decode_thread_cursor(cursor, project_id=project.id)
+            query = select(ResearchThreadEntryModel).where(
+                ResearchThreadEntryModel.project_id == project.id,
+                ResearchThreadEntryModel.sequence > after,
+            )
+            rows = list(
+                session.scalars(
+                    query.order_by(ResearchThreadEntryModel.sequence.asc()).limit(
+                        limit + 1
+                    )
+                )
+            )
+            has_more = len(rows) > limit
+            selected = rows[:limit]
+            next_cursor = (
+                _encode_thread_cursor(
+                    project_id=project.id,
+                    sequence=selected[-1].sequence,
+                )
+                if selected and has_more
+                else None
+            )
+            return tuple(_thread_entry(row) for row in selected), next_cursor, has_more
+
+    def get_model_execution(
+        self,
+        *,
+        project_id: str,
+        execution_id: str,
+        session_id: str,
+    ) -> ModelExecutionRecord:
+        execution_uuid = _uuid_or_not_found(execution_id, "MODEL_EXECUTION_NOT_FOUND")
+        with self._factory() as session:
+            project = self._require_project(session, project_id, session_id)
+            execution = session.scalar(
+                select(ModelExecutionModel).where(
+                    ModelExecutionModel.id == execution_uuid,
+                    ModelExecutionModel.project_id == project.id,
+                )
+            )
+            if execution is None:
+                raise _not_found("MODEL_EXECUTION_NOT_FOUND")
+            return _model_execution_record(execution)
+
+    def get_research_catalog(
+        self,
+        *,
+        project_id: str,
+        session_id: str,
+    ) -> ResearchPlanningCatalog:
+        with self._factory() as session:
+            project = self._require_project(session, project_id, session_id)
+            return _research_planning_catalog(
+                project_id=str(project.id),
+                case_key=project.case_key,
+                manifests=self._manifests,
+            )
+
+    def submit_research_turn(
+        self,
+        *,
+        project_id: str,
+        session_id: str,
+        idempotency_key: str,
+        request: ResearchTurnRequest,
+    ) -> ResearchTurnResult:
+        if self._planner is None:
+            raise SecurityProblem(
+                status=503,
+                code="MODEL_RUNTIME_UNAVAILABLE",
+                title="Research assistant unavailable",
+                detail="研究助手暂时不可用，请稍后重试。",
+            )
+
+        request_hash = canonical_request_hash(request.model_dump(mode="json"))
+        project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
+        research_intent = request.message
+        with self._factory() as session, session.begin():
+            project = self._require_project(
+                session, project_id, session_id, with_for_update=True
+            )
+            replay = session.scalar(
+                select(ModelExecutionModel).where(
+                    ModelExecutionModel.project_id == project_uuid,
+                    ModelExecutionModel.idempotency_key == idempotency_key,
+                )
+            )
+            if replay is not None:
+                _require_same_idempotent_request(replay.request_hash, request_hash)
+                if replay.status != "succeeded":
+                    raise _execution_failure(replay.error_code)
+                return _turn_result(session, project, replay)
+
+            if request.answer_to_question_id is not None:
+                question_id = _uuid_or_not_found(
+                    request.answer_to_question_id, "QUESTION_NOT_FOUND"
+                )
+                question = session.scalar(
+                    select(ResearchThreadEntryModel).where(
+                        ResearchThreadEntryModel.id == question_id,
+                        ResearchThreadEntryModel.project_id == project.id,
+                        ResearchThreadEntryModel.kind
+                        == ResearchThreadEntryKind.clarification_question.value,
+                    )
+                )
+                if question is None:
+                    raise _not_found("QUESTION_NOT_FOUND")
+                research_intent = _root_research_intent(
+                    session,
+                    project_id=project.id,
+                    question=question,
+                )
+
+            current_entries = tuple(
+                _thread_entry(row)
+                for row in session.scalars(
+                    select(ResearchThreadEntryModel)
+                    .where(ResearchThreadEntryModel.project_id == project.id)
+                    .order_by(ResearchThreadEntryModel.sequence.asc())
+                )
+            )
+            project_read = self._project_read(session, project)
+            prepared_request = self._planner.prepare_request(
+                project=project_read,
+                entries=current_entries,
+                message=request.message,
+                answer_to_question_id=request.answer_to_question_id,
+            )
+            now = datetime.now(UTC)
+            execution = ModelExecutionModel(
+                project_id=project.id,
+                provider=prepared_request.provider,
+                model=prepared_request.model,
+                model_revision=prepared_request.model_revision,
+                prompt_name=prepared_request.prompt_name,
+                prompt_version=prepared_request.prompt_version,
+                prompt_hash=prepared_request.prompt_hash,
+                prompt_snapshot=prepared_request.prompt,
+                input_hash=prepared_request.input_hash,
+                input_snapshot=prepared_request.input_payload,
+                parameters_hash=prepared_request.parameters_hash,
+                parameters_snapshot=prepared_request.parameters,
+                status="pending",
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                created_at=now,
+            )
+            session.add(execution)
+            session.flush()
+            _append_thread_entry(
+                session,
+                project_id=project.id,
+                kind=(
+                    ResearchThreadEntryKind.clarification_answer
+                    if request.answer_to_question_id is not None
+                    else ResearchThreadEntryKind.user_message
+                ),
+                actor="user",
+                public_content=request.message,
+                structured_payload={
+                    "answer_to_question_id": request.answer_to_question_id,
+                },
+                model_execution_id=execution.id,
+            )
+            execution_id = execution.id
+
+        with self._factory() as session, session.begin():
+            execution = session.get(
+                ModelExecutionModel, execution_id, with_for_update=True
+            )
+            if execution is not None:
+                execution.status = "running"
+
+        try:
+            planner_result = self._planner.execute(prepared_request)
+            _validate_planner_outcome(
+                planner_result.output,
+                case_key=project_read.case_key,
+                manifests=self._manifests,
+                response=planner_result.response,
+            )
+        except ModelExecutionError as exc:
+            self._finish_failed_turn(
+                execution_id=execution_id,
+                project_id=project_uuid,
+                error=exc,
+            )
+            raise SecurityProblem(
+                status=503,
+                code=exc.code,
+                title="Research assistant unavailable",
+                detail=exc.public_message,
+            ) from exc
+        except Exception as exc:  # noqa: BLE001
+            safe_error = ModelExecutionError(
+                "MODEL_RUNTIME_UNAVAILABLE", "研究助手暂时不可用，请稍后重试。"
+            )
+            self._finish_failed_turn(
+                execution_id=execution_id,
+                project_id=project_uuid,
+                error=safe_error,
+            )
+            raise SecurityProblem(
+                status=503,
+                code=safe_error.code,
+                title="Research assistant unavailable",
+                detail=safe_error.public_message,
+            ) from exc
+
+        with self._factory() as session, session.begin():
+            project = self._require_project(
+                session, project_id, session_id, with_for_update=True
+            )
+            execution = session.get(
+                ModelExecutionModel, execution_id, with_for_update=True
+            )
+            if execution is None:
+                raise _not_found("MODEL_EXECUTION_NOT_FOUND")
+            execution.status = "succeeded"
+            execution.output_hash = planner_result.response.output_hash
+            execution.output_snapshot = planner_result.output.model_dump(mode="json")
+            execution.token_usage = planner_result.response.token_usage
+            execution.latency_ms = planner_result.response.latency_ms
+            execution.provider_request_id = planner_result.response.provider_request_id
+            execution.finished_at = datetime.now(UTC)
+            output = planner_result.output
+            outcome = PlannerOutcomeKind(output.outcome)
+            draft_id: UUID | None = None
+            if output.outcome == PlannerOutcomeKind.draft_ready.value:
+                draft = ResearchContractDraftModel(
+                    project_id=project.id,
+                    session_id=session_id,
+                    version=1,
+                    intent=research_intent,
+                    status=ContractDraftStatus.draft.value,
+                    contract=output.contract.model_dump(mode="json"),
+                    warnings=list(output.warnings),
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC),
+                    expires_at=datetime.now(UTC) + DRAFT_TTL,
+                    idempotency_key=f"research-turn:{execution.id}",
+                    request_hash=request_hash,
+                )
+                session.add(draft)
+                session.flush()
+                draft_id = draft.id
+                project.active_draft_id = draft.id
+            payload = _planner_public_payload(output, draft_id=draft_id)
+            _append_thread_entry(
+                session,
+                project_id=project.id,
+                kind=ResearchThreadEntryKind.assistant_analysis,
+                actor="assistant",
+                public_content=output.public_analysis,
+                structured_payload=payload,
+                model_execution_id=execution.id,
+            )
+            _append_thread_entry(
+                session,
+                project_id=project.id,
+                kind=ResearchThreadEntryKind.assistant_message,
+                actor="assistant",
+                public_content=output.assistant_message,
+                structured_payload=payload,
+                model_execution_id=execution.id,
+            )
+            if output.outcome == PlannerOutcomeKind.clarification_required.value:
+                question_entry = _append_thread_entry(
+                    session,
+                    project_id=project.id,
+                    kind=ResearchThreadEntryKind.clarification_question,
+                    actor="assistant",
+                    public_content=output.question,
+                    structured_payload={**payload},
+                    model_execution_id=execution.id,
+                )
+                # The model may return a semantic question key, but answers
+                # must point to the persisted Thread entry owned by this
+                # Project. Expose that database id to the client.
+                question_entry.structured_payload = {
+                    **payload,
+                    "question_id": str(question_entry.id),
+                }
+                session.flush()
+            entries = tuple(
+                _thread_entry(row)
+                for row in session.scalars(
+                    select(ResearchThreadEntryModel)
+                    .where(ResearchThreadEntryModel.model_execution_id == execution.id)
+                    .order_by(ResearchThreadEntryModel.sequence.asc())
+                )
+            )
+            return ResearchTurnResult(
+                outcome=outcome,
+                entries=entries,
+                active_draft_id=(
+                    str(project.active_draft_id) if project.active_draft_id else None
+                ),
+                model_execution_id=str(execution.id),
+            )
+
     # ---- helpers ---------------------------------------------------------
 
     def _project_read(
@@ -499,8 +910,8 @@ class ResearchApplicationService:
             .order_by(ResearchContractModel.version.desc())
             .limit(1)
         )
-        latest_run_id = session.scalar(
-            select(ResearchRunModel.id)
+        latest_run = session.scalar(
+            select(ResearchRunModel)
             .where(ResearchRunModel.project_id == project.id)
             .order_by(
                 ResearchRunModel.created_at.desc(),
@@ -511,7 +922,7 @@ class ResearchApplicationService:
         return _project(
             project,
             active_contract_id=active_contract_id,
-            latest_run_id=latest_run_id,
+            latest_run=latest_run,
         )
 
     def _load_owned_run(
@@ -540,6 +951,43 @@ class ResearchApplicationService:
         if owner is None or owner != session_id:
             raise _not_found("RUN_NOT_FOUND")
         return snapshot
+
+    def _finish_failed_turn(
+        self,
+        *,
+        execution_id: UUID,
+        project_id: UUID,
+        error: ModelExecutionError,
+    ) -> None:
+        with self._factory() as session, session.begin():
+            project = session.get(
+                ResearchProjectModel, project_id, with_for_update=True
+            )
+            execution = session.get(
+                ModelExecutionModel, execution_id, with_for_update=True
+            )
+            if project is None or execution is None:
+                return
+            execution.status = "failed"
+            execution.output_hash = error.output_hash
+            execution.token_usage = error.token_usage
+            execution.latency_ms = error.latency_ms
+            execution.provider_request_id = error.provider_request_id
+            execution.error_code = error.code
+            execution.error_summary = error.public_message
+            execution.finished_at = datetime.now(UTC)
+            _append_thread_entry(
+                session,
+                project_id=project.id,
+                kind=ResearchThreadEntryKind.assistant_message,
+                actor="assistant",
+                public_content=error.public_message,
+                structured_payload={
+                    "outcome": "unavailable",
+                    "error_code": error.code,
+                },
+                model_execution_id=execution.id,
+            )
 
     def _require_project(
         self,
@@ -611,18 +1059,122 @@ def _idempotency_conflict() -> SecurityProblem:
     )
 
 
-def _encode_project_cursor(project_id: UUID) -> str:
-    encoded = base64.urlsafe_b64encode(str(project_id).encode("ascii")).decode("ascii")
-    return encoded.rstrip("=")
+def _encode_project_cursor(project_id: UUID, *, session_id: str) -> str:
+    return _encode_signed_cursor(
+        {
+            "v": 1,
+            "collection": "research_projects",
+            "session_id": session_id,
+            "ordering": "created_at.desc,id.desc",
+            "anchor_id": str(project_id),
+        }
+    )
 
 
-def _decode_project_cursor(cursor: str) -> UUID:
+def _decode_project_cursor(cursor: str, *, session_id: str) -> UUID:
     try:
-        padding = "=" * (-len(cursor) % 4)
-        decoded = base64.urlsafe_b64decode(cursor + padding).decode("ascii")
-        return UUID(decoded)
-    except (UnicodeDecodeError, ValueError):
+        payload = _decode_signed_cursor(cursor)
+        if (
+            set(payload)
+            != {
+                "v",
+                "collection",
+                "session_id",
+                "ordering",
+                "anchor_id",
+                "signature",
+            }
+            or payload["v"] != 1
+            or payload["collection"] != "research_projects"
+            or payload["session_id"] != session_id
+            or payload["ordering"] != "created_at.desc,id.desc"
+        ):
+            raise ValueError
+        return UUID(str(payload["anchor_id"]))
+    except (TypeError, ValueError):
         raise _invalid_cursor() from None
+
+
+def _encode_thread_cursor(*, project_id: UUID, sequence: int) -> str:
+    return _encode_signed_cursor(
+        {
+            "v": 1,
+            "collection": "research_thread",
+            "project_id": str(project_id),
+            "ordering": "sequence.asc",
+            "sequence": sequence,
+        }
+    )
+
+
+def _decode_thread_cursor(cursor: str | None, *, project_id: UUID) -> int:
+    if cursor is None:
+        return 0
+    try:
+        payload = _decode_signed_cursor(cursor)
+        if (
+            set(payload)
+            != {
+                "v",
+                "collection",
+                "project_id",
+                "ordering",
+                "sequence",
+                "signature",
+            }
+            or payload["v"] != 1
+            or payload["collection"] != "research_thread"
+            or payload["project_id"] != str(project_id)
+            or payload["ordering"] != "sequence.asc"
+            or not isinstance(payload["sequence"], int)
+            or payload["sequence"] < 0
+        ):
+            raise ValueError
+        return payload["sequence"]
+    except (TypeError, ValueError):
+        raise _invalid_cursor() from None
+
+
+def _encode_signed_cursor(payload: dict[str, Any]) -> str:
+    signed = {**payload, "signature": _cursor_signature(payload)}
+    encoded = json.dumps(
+        signed,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return base64.urlsafe_b64encode(encoded).decode("ascii").rstrip("=")
+
+
+def _decode_signed_cursor(cursor: str) -> dict[str, Any]:
+    try:
+        if not cursor or len(cursor) > 4096:
+            raise ValueError
+        padded = cursor + "=" * (-len(cursor) % 4)
+        payload = json.loads(
+            base64.b64decode(padded, altchars=b"-_", validate=True).decode("utf-8")
+        )
+        if not isinstance(payload, dict) or not isinstance(
+            payload.get("signature"), str
+        ):
+            raise ValueError
+        unsigned = {key: value for key, value in payload.items() if key != "signature"}
+        if not hmac.compare_digest(payload["signature"], _cursor_signature(unsigned)):
+            raise ValueError
+        return payload
+    except (binascii.Error, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError from exc
+
+
+def _cursor_signature(payload: dict[str, Any]) -> str:
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    key = settings.CURSOR_SIGNING_KEY.get_secret_value().encode("utf-8")
+    return hmac.new(key, canonical, hashlib.sha256).hexdigest()
 
 
 def _invalid_cursor() -> SecurityProblem:
@@ -667,11 +1219,37 @@ def _validate_contract_admission_or_reject(
         ) from exc
 
 
+def _validate_planner_outcome(
+    output: PlannerOutcome,
+    *,
+    case_key: str,
+    manifests: ManifestBundle,
+    response: ModelExecutionResponse,
+) -> None:
+    if output.outcome != PlannerOutcomeKind.draft_ready.value:
+        return
+    try:
+        validate_contract_against_manifest(
+            output.contract,
+            case_key=case_key,
+            manifests=manifests,
+        )
+    except ValueError as exc:
+        raise ModelExecutionError(
+            "MODEL_RESPONSE_INVALID",
+            "研究助手生成的协议超出当前研究目录，请重试或调整研究范围。",
+            output_hash=response.output_hash,
+            token_usage=response.token_usage,
+            latency_ms=response.latency_ms,
+            provider_request_id=response.provider_request_id,
+        ) from exc
+
+
 def _project(
     row: ResearchProjectModel,
     *,
     active_contract_id: UUID | None,
-    latest_run_id: UUID | None,
+    latest_run: ResearchRunModel | None,
 ) -> ResearchProject:
     return ResearchProject(
         id=str(row.id),
@@ -679,8 +1257,11 @@ def _project(
         name=row.name,
         description=row.description,
         case_key=row.case_key,
+        active_draft_id=str(row.active_draft_id) if row.active_draft_id else None,
         active_contract_id=str(active_contract_id) if active_contract_id else None,
-        latest_run_id=str(latest_run_id) if latest_run_id else None,
+        latest_run_id=str(latest_run.id) if latest_run else None,
+        latest_run_status=latest_run.status if latest_run else None,
+        latest_run_failure_summary=latest_run.failure_summary if latest_run else None,
         created_at=_utc(row.created_at),
         updated_at=_utc(row.updated_at),
         revision=row.revision,
@@ -752,6 +1333,298 @@ def _event(item: EventSnapshot, *, run_id: str) -> RunEvent:
         public_message=item.public_message,
         artifact_version_ids=tuple(item.artifact_version_ids),
         occurred_at=_utc(item.occurred_at),
+    )
+
+
+def _run_step(row: RunStepModel, *, run_id: str) -> RunStepRead:
+    return RunStepRead(
+        id=str(row.id),
+        run_id=run_id,
+        position=row.position,
+        key=row.key,
+        label=row.label,
+        status=row.status,
+        progress=row.progress,
+        public_message=row.public_message,
+        started_at=_utc(row.started_at) if row.started_at else None,
+        finished_at=_utc(row.finished_at) if row.finished_at else None,
+        failure_code=row.failure_code,
+    )
+
+
+def _thread_entry(row: ResearchThreadEntryModel) -> ResearchThreadEntry:
+    return ResearchThreadEntry(
+        id=str(row.id),
+        project_id=str(row.project_id),
+        sequence=row.sequence,
+        kind=row.kind,
+        actor=row.actor,
+        public_content=row.public_content,
+        structured_payload=dict(row.structured_payload),
+        model_execution_id=(
+            str(row.model_execution_id) if row.model_execution_id else None
+        ),
+        created_at=_utc(row.created_at),
+    )
+
+
+def _model_execution_record(row: ModelExecutionModel) -> ModelExecutionRecord:
+    return ModelExecutionRecord(
+        id=str(row.id),
+        project_id=str(row.project_id),
+        provider=row.provider,
+        model=row.model,
+        model_revision=row.model_revision,
+        prompt_name=row.prompt_name,
+        prompt_version=row.prompt_version,
+        prompt_hash=row.prompt_hash,
+        prompt_snapshot=row.prompt_snapshot,
+        input_hash=row.input_hash,
+        input_snapshot=row.input_snapshot,
+        output_hash=row.output_hash,
+        output_snapshot=row.output_snapshot,
+        parameters_hash=row.parameters_hash,
+        parameters_snapshot=row.parameters_snapshot,
+        status=row.status,
+        token_usage=row.token_usage,
+        latency_ms=row.latency_ms,
+        provider_request_id=row.provider_request_id,
+        error_code=row.error_code,
+        error_summary=row.error_summary,
+        created_at=row.created_at,
+        finished_at=row.finished_at,
+    )
+
+
+_TARGET_PRESENTATION = {
+    "host_star": ("宿主恒星", "系外行星候选体所围绕的恒星。"),
+    "exoplanet_candidate": (
+        "系外行星候选体",
+        "已进入候选目录、需要进一步核验的行星对象。",
+    ),
+}
+
+_OUTPUT_PRESENTATION = {
+    ArtifactKind.dataset: ("结构化数据", "汇总研究对象与关键字段。", "common"),
+    ArtifactKind.paper_collection: ("文献候选", "保存候选文献与检索范围。", "common"),
+    ArtifactKind.paper_summary: ("文献总结", "归纳与研究问题相关的证据。", "common"),
+    ArtifactKind.graph: ("证据图谱", "呈现对象、主张与证据关系。", "common"),
+    ArtifactKind.field_dictionary: (
+        "字段字典",
+        "解释数据字段、单位和含义。",
+        "advanced",
+    ),
+    ArtifactKind.source_collection: (
+        "数据来源汇总",
+        "整理研究使用的数据来源。",
+        "advanced",
+    ),
+    ArtifactKind.literature_claims: (
+        "文献主张",
+        "提取文献中的可核验主张。",
+        "advanced",
+    ),
+    ArtifactKind.literature_relations: (
+        "文献关系",
+        "整理文献、主张和对象关系。",
+        "advanced",
+    ),
+    ArtifactKind.reasoning_traces: (
+        "推理轨迹",
+        "保存可公开、可审计的推理摘要。",
+        "advanced",
+    ),
+    ArtifactKind.export: ("导出结果", "生成可下载的研究结果包。", "advanced"),
+}
+
+
+def _research_planning_catalog(
+    *,
+    project_id: str,
+    case_key: str,
+    manifests: ManifestBundle,
+) -> ResearchPlanningCatalog:
+    case = manifests.case_manifest
+    if case.case_id != case_key:
+        raise _not_found("RESEARCH_CATALOG_NOT_FOUND")
+    source_by_provider = {
+        source.provider_source_id: source for source in manifests.field_manifest.sources
+    }
+    return ResearchPlanningCatalog(
+        project_id=project_id,
+        case_key=case_key,
+        target_objects=tuple(
+            ResearchCatalogOption(
+                value=target.role,
+                label=_TARGET_PRESENTATION.get(target.role, (target.role, ""))[0],
+                description=_TARGET_PRESENTATION.get(target.role, (target.role, ""))[1],
+            )
+            for target in case.target_objects
+        ),
+        requested_fields=tuple(
+            ResearchCatalogOption(
+                value=field.field_id,
+                label=field.meaning_zh,
+                description=field.description,
+            )
+            for field in manifests.field_manifest.fields
+            if field.field_id in case.default_requested_fields
+        ),
+        allowed_sources=tuple(
+            ResearchCatalogOption(
+                value=source_id,
+                label=source_by_provider[source_id].provider,
+                description="当前研究案例批准使用的公开数据来源。",
+            )
+            for source_id in case.allowed_source_ids
+        ),
+        output_requirements=tuple(
+            ResearchCatalogOption(
+                value=kind.value,
+                label=_OUTPUT_PRESENTATION[kind][0],
+                description=_OUTPUT_PRESENTATION[kind][1],
+                group=_OUTPUT_PRESENTATION[kind][2],
+            )
+            for kind in ArtifactKind
+        ),
+    )
+
+
+def _root_research_intent(
+    session: Session,
+    *,
+    project_id: UUID,
+    question: ResearchThreadEntryModel,
+) -> str:
+    """Trace a clarification chain back to its initiating user message."""
+
+    current = question
+    visited: set[UUID] = set()
+    for _ in range(40):
+        if current.id in visited or current.model_execution_id is None:
+            break
+        visited.add(current.id)
+        inbound = session.scalar(
+            select(ResearchThreadEntryModel)
+            .where(
+                ResearchThreadEntryModel.project_id == project_id,
+                ResearchThreadEntryModel.model_execution_id
+                == current.model_execution_id,
+                ResearchThreadEntryModel.kind.in_(
+                    (
+                        ResearchThreadEntryKind.user_message.value,
+                        ResearchThreadEntryKind.clarification_answer.value,
+                    )
+                ),
+            )
+            .order_by(ResearchThreadEntryModel.sequence.asc())
+        )
+        if inbound is None:
+            break
+        if inbound.kind == ResearchThreadEntryKind.user_message.value:
+            return inbound.public_content
+        previous_id = inbound.structured_payload.get("answer_to_question_id")
+        if not isinstance(previous_id, str):
+            break
+        previous_uuid = _uuid_or_not_found(previous_id, "QUESTION_NOT_FOUND")
+        previous = session.scalar(
+            select(ResearchThreadEntryModel).where(
+                ResearchThreadEntryModel.id == previous_uuid,
+                ResearchThreadEntryModel.project_id == project_id,
+                ResearchThreadEntryModel.kind
+                == ResearchThreadEntryKind.clarification_question.value,
+            )
+        )
+        if previous is None:
+            break
+        current = previous
+    raise _not_found("QUESTION_NOT_FOUND")
+
+
+def _append_thread_entry(
+    session: Session,
+    *,
+    project_id: UUID,
+    kind: ResearchThreadEntryKind,
+    actor: str,
+    public_content: str,
+    structured_payload: dict[str, Any],
+    model_execution_id: UUID | None,
+) -> ResearchThreadEntryModel:
+    next_sequence = (
+        session.scalar(
+            select(func.coalesce(func.max(ResearchThreadEntryModel.sequence), 0)).where(
+                ResearchThreadEntryModel.project_id == project_id
+            )
+        )
+        or 0
+    ) + 1
+    row = ResearchThreadEntryModel(
+        project_id=project_id,
+        sequence=next_sequence,
+        kind=kind.value,
+        actor=actor,
+        public_content=public_content,
+        structured_payload=structured_payload,
+        model_execution_id=model_execution_id,
+        created_at=datetime.now(UTC),
+    )
+    session.add(row)
+    session.flush()
+    return row
+
+
+def _planner_public_payload(output: Any, *, draft_id: UUID | None) -> dict[str, Any]:  # noqa: ANN401
+    payload: dict[str, Any] = {
+        "outcome": output.outcome,
+        "warnings": list(output.warnings),
+    }
+    if draft_id is not None:
+        payload["draft_id"] = str(draft_id)
+    if hasattr(output, "missing_information"):
+        payload["missing_information"] = list(output.missing_information)
+    if hasattr(output, "reason"):
+        payload["reason"] = output.reason
+    return payload
+
+
+def _turn_result(
+    session: Session,
+    project: ResearchProjectModel,
+    execution: ModelExecutionModel,
+) -> ResearchTurnResult:
+    entries = tuple(
+        _thread_entry(row)
+        for row in session.scalars(
+            select(ResearchThreadEntryModel)
+            .where(ResearchThreadEntryModel.model_execution_id == execution.id)
+            .order_by(ResearchThreadEntryModel.sequence.asc())
+        )
+    )
+    outcome_value = next(
+        (
+            str(entry.structured_payload["outcome"])
+            for entry in entries
+            if "outcome" in entry.structured_payload
+        ),
+        PlannerOutcomeKind.partial.value,
+    )
+    return ResearchTurnResult(
+        outcome=PlannerOutcomeKind(outcome_value),
+        entries=entries,
+        active_draft_id=(
+            str(project.active_draft_id) if project.active_draft_id else None
+        ),
+        model_execution_id=str(execution.id),
+    )
+
+
+def _execution_failure(code: str | None) -> SecurityProblem:
+    return SecurityProblem(
+        status=503,
+        code=code or "MODEL_RUNTIME_UNAVAILABLE",
+        title="Research assistant unavailable",
+        detail="研究助手暂时不可用，请稍后重试。",
     )
 
 

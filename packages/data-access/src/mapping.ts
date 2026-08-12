@@ -25,7 +25,13 @@ import type {
   ResearchContractDraft,
   ResearchContractInput,
   ResearchProject,
+  ResearchPlanningCatalog,
   ResearchRun,
+  ResearchThreadEntry,
+  ResearchThreadAssistantPayload,
+  ResearchThreadPublicOutcome,
+  ResearchTurn,
+  RunStepSnapshot,
   RunEvent,
   RunStatus,
   ShareSnapshot,
@@ -41,6 +47,7 @@ import {
   asEntityId,
   isEvidenceTargetType,
   isEvidenceType,
+  parseEntityId,
 } from "@xingwen/domain";
 
 import type {
@@ -57,7 +64,11 @@ import type {
   ResearchContractDraft as ResearchContractDraftDto,
   ResearchContractInput as ResearchContractInputDto,
   ResearchProject as ResearchProjectDto,
+  ResearchPlanningCatalog as ResearchPlanningCatalogDto,
   ResearchRun as ResearchRunDto,
+  ResearchThreadEntry as ResearchThreadEntryDto,
+  ResearchTurnResult as ResearchTurnResultDto,
+  RunStepRead as RunStepReadDto,
   RunEvent as RunEventDto,
   WorkspaceSnapshot as WorkspaceSnapshotDto,
   WorkspaceSnapshotInput as WorkspaceSnapshotInputDto,
@@ -145,11 +156,188 @@ export function mapResearchProject(dto: ResearchProjectDto): ResearchProject {
     name: dto.name,
     description: dto.description ?? "",
     caseKey: dto.case_key as CaseKey,
+    activeDraftId: (dto.active_draft_id ?? null) as DomainEntityId | null,
     activeContractId: (dto.active_contract_id ?? null) as DomainEntityId | null,
     latestRunId: (dto.latest_run_id ?? null) as DomainEntityId | null,
+    latestRunStatus: dto.latest_run_status ?? null,
+    latestRunFailureSummary: dto.latest_run_failure_summary ?? null,
     createdAt: dto.created_at as UtcIsoTimestamp,
     updatedAt: dto.updated_at as UtcIsoTimestamp,
     revision: dto.revision,
+  };
+}
+
+export function mapResearchPlanningCatalog(
+  dto: ResearchPlanningCatalogDto,
+): ResearchPlanningCatalog {
+  const mapOptions = <Value extends string>(
+    options: ResearchPlanningCatalogDto["target_objects"],
+  ) =>
+    options.map((option) => ({
+      value: option.value as Value,
+      label: option.label,
+      description: option.description ?? "",
+      group: option.group ?? null,
+    }));
+  return {
+    projectId: mapId(dto.project_id),
+    caseKey: dto.case_key as CaseKey,
+    targetObjects: mapOptions<DomainEntityId>(dto.target_objects),
+    requestedFields: mapOptions<DomainEntityId>(dto.requested_fields),
+    allowedSources: mapOptions<DomainEntityId>(dto.allowed_sources),
+    outputRequirements: mapOptions<ArtifactKind>(dto.output_requirements),
+  };
+}
+
+export function mapResearchThreadEntry(
+  dto: ResearchThreadEntryDto,
+): ResearchThreadEntry {
+  const base = {
+    id: mapId(dto.id),
+    projectId: mapId(dto.project_id),
+    sequence: dto.sequence,
+    publicContent: dto.public_content,
+    modelExecutionId: (dto.model_execution_id ?? null) as DomainEntityId | null,
+    createdAt: dto.created_at as UtcIsoTimestamp,
+  };
+  const payload = dto.structured_payload ?? {};
+  if (dto.kind === "user_message" || dto.kind === "clarification_answer") {
+    if (dto.actor !== "user") {
+      throw new TypeError("Research Thread user entry has an invalid actor");
+    }
+    return {
+      ...base,
+      kind: dto.kind,
+      actor: "user",
+      structuredPayload: {
+        answerToQuestionId: optionalPayloadId(
+          payload.answer_to_question_id,
+          "answer_to_question_id",
+        ),
+      },
+    };
+  }
+  const assistantPayload = mapAssistantPayload(payload);
+  if (dto.actor !== "assistant") {
+    throw new TypeError("Research Thread assistant entry has an invalid actor");
+  }
+  if (dto.kind === "clarification_question") {
+    return {
+      ...base,
+      kind: dto.kind,
+      actor: "assistant",
+      structuredPayload: {
+        ...assistantPayload,
+        questionId: requiredPayloadId(payload.question_id, "question_id"),
+        options: stringArray(payload.options),
+      },
+    };
+  }
+  if (dto.kind === "assistant_analysis" || dto.kind === "assistant_message") {
+    return {
+      ...base,
+      kind: dto.kind,
+      actor: "assistant",
+      structuredPayload: assistantPayload,
+    };
+  }
+  throw new TypeError(`Unsupported Research Thread entry kind: ${dto.kind}`);
+}
+
+const THREAD_OUTCOMES = new Set<ResearchThreadPublicOutcome>([
+  "clarification_required",
+  "draft_ready",
+  "partial",
+  "unsupported",
+  "refused",
+  "unavailable",
+]);
+
+function mapAssistantPayload(
+  payload: NonNullable<ResearchThreadEntryDto["structured_payload"]>,
+): ResearchThreadAssistantPayload {
+  const outcome = payload.outcome;
+  if (
+    typeof outcome !== "string" ||
+    !THREAD_OUTCOMES.has(outcome as ResearchThreadPublicOutcome)
+  ) {
+    throw new TypeError(
+      "Research Thread assistant payload has an invalid outcome",
+    );
+  }
+  return {
+    outcome: outcome as ResearchThreadPublicOutcome,
+    warnings: stringArray(payload.warnings),
+    draftId: optionalPayloadId(payload.draft_id, "draft_id"),
+    missingInformation: stringArray(payload.missing_information),
+    reason: optionalPayloadString(payload.reason, "reason"),
+    errorCode: optionalPayloadString(payload.error_code, "error_code"),
+  };
+}
+
+function optionalPayloadId(
+  value: unknown,
+  field: string,
+): DomainEntityId | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") {
+    throw new TypeError(
+      `Research Thread payload ${field} must be an identifier`,
+    );
+  }
+  const parsed = parseEntityId(value);
+  if (parsed === null) {
+    throw new TypeError(`Research Thread payload ${field} is invalid`);
+  }
+  return parsed;
+}
+
+function requiredPayloadId(value: unknown, field: string): DomainEntityId {
+  const parsed = optionalPayloadId(value, field);
+  if (parsed === null) {
+    throw new TypeError(`Research Thread payload ${field} is required`);
+  }
+  return parsed;
+}
+
+function optionalPayloadString(value: unknown, field: string): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") {
+    throw new TypeError(`Research Thread payload ${field} must be text`);
+  }
+  return value;
+}
+
+function stringArray(value: unknown): readonly string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    throw new TypeError("Research Thread payload list must contain text only");
+  }
+  return [...value];
+}
+
+export function mapResearchTurn(dto: ResearchTurnResultDto): ResearchTurn {
+  return {
+    outcome: dto.outcome as ResearchTurn["outcome"],
+    entries: dto.entries.map(mapResearchThreadEntry),
+    activeDraftId: (dto.active_draft_id ?? null) as DomainEntityId | null,
+    modelExecutionId: mapId(dto.model_execution_id),
+  };
+}
+
+export function mapRunStep(dto: RunStepReadDto): RunStepSnapshot {
+  return {
+    id: mapId(dto.id),
+    runId: mapId(dto.run_id),
+    position: dto.position,
+    key: mapId(dto.key),
+    label: dto.label,
+    status: dto.status as RunStepSnapshot["status"],
+    progress: dto.progress,
+    publicMessage: dto.public_message,
+    startedAt: (dto.started_at ?? null) as UtcIsoTimestamp | null,
+    finishedAt: (dto.finished_at ?? null) as UtcIsoTimestamp | null,
+    failureCode: dto.failure_code ?? null,
   };
 }
 

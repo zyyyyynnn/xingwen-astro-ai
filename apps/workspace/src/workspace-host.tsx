@@ -1,35 +1,24 @@
-import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { CASE_KEY, parseEntityId, type DomainEntityId } from "@xingwen/domain";
 import {
-  CASE_KEY,
-  type DomainEntityId,
-  type ExecutionMode,
-} from "@xingwen/domain";
-import type {
-  ProjectViewModel,
-  ResearchContractDraftViewModel,
-  ResearchContractViewModel,
-  ResearchRunViewModel,
+  researchRunStatusLabel,
+  type ProjectViewModel,
 } from "@xingwen/research-adapter";
-import {
-  Alert,
-  AlertDescription,
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-  Skeleton,
-} from "@xingwen/ui";
-import { FileSearch } from "@xingwen/ui/icons";
-import { useEffect, useMemo, useState } from "react";
+import { Alert, AlertDescription, Button, Skeleton } from "@xingwen/ui";
+import { useEffect, useState } from "react";
 
 import {
   OpenHandsWorkspaceRoot,
   type ResearchWorkspaceRuntime,
 } from "../upstream/openhands/src/root";
 import type { WorkspaceRuntimeBoundaries } from "./boundaries";
-import { ContractCheckpoint } from "./components/contract-checkpoint";
 import { ProjectCreateDialog } from "./components/project-create-dialog";
+import { ProjectActionDialogs } from "./components/project-action-dialogs";
+import { ResearchContractReviewDialog } from "./components/research-contract-review-dialog";
+import { ResearchInspector } from "./components/research-inspector";
+import { ResearchThread } from "./components/research-thread";
+import { ResearchProcessProjection } from "./components/research-process-projection";
+import { toast, WorkspaceToaster } from "./components/workspace-toaster";
 
 interface WorkspaceEntryProps {
   readonly runtime: WorkspaceRuntimeBoundaries;
@@ -43,28 +32,55 @@ function safeError(
   return runtime.researchAdapter.toPublicApplicationError(error).safeMessage;
 }
 
-async function exitSystem(runtime: WorkspaceRuntimeBoundaries): Promise<void> {
+function returnHome(runtime: WorkspaceRuntimeBoundaries): void {
+  globalThis.location.assign(runtime.siteUrl);
+}
+
+const PINNED_PROJECTS_KEY = "xingwen.pinned-projects";
+const EMPTY_PROJECTS: readonly ProjectViewModel[] = Object.freeze([]);
+
+function readPinnedProjects(): readonly string[] {
+  if (typeof window === "undefined") return [];
   try {
-    await runtime.application.sessionGate.logout();
-  } finally {
-    globalThis.location.assign(runtime.siteUrl);
+    const value = JSON.parse(
+      window.localStorage.getItem(PINNED_PROJECTS_KEY) ?? "[]",
+    );
+    return Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
   }
 }
 
-function FirstRunContext() {
-  return (
-    <Empty className="workspace-context-empty">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FileSearch aria-hidden="true" />
-        </EmptyMedia>
-        <EmptyTitle>从一个真实项目开始</EmptyTitle>
-        <EmptyDescription>
-          创建项目后，在同一工作台依次提出研究意图、确认研究协议并查看运行活动。
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+function writePinnedProjects(projectIds: readonly string[]): void {
+  window.localStorage.setItem(PINNED_PROJECTS_KEY, JSON.stringify(projectIds));
+}
+
+function usePinnedProjects(projects: readonly ProjectViewModel[]) {
+  const [pinnedProjects, setPinnedProjects] =
+    useState<readonly string[]>(readPinnedProjects);
+  const validProjectIds = new Set<string>(
+    projects.map((project) => project.id),
   );
+  const visiblePinnedProjects = pinnedProjects.filter((projectId) =>
+    validProjectIds.has(projectId),
+  );
+  return {
+    pinnedProjects: visiblePinnedProjects,
+    togglePinned(projectId: string) {
+      setPinnedProjects((current) => {
+        const validCurrent = current.filter((item) =>
+          validProjectIds.has(item),
+        );
+        const next = validCurrent.includes(projectId)
+          ? validCurrent.filter((item) => item !== projectId)
+          : [...validCurrent, projectId];
+        writePinnedProjects(next);
+        return next;
+      });
+    },
+  };
 }
 
 function useProjectCreation({ runtime, onOpenProject }: WorkspaceEntryProps) {
@@ -72,13 +88,10 @@ function useProjectCreation({ runtime, onOpenProject }: WorkspaceEntryProps) {
   const createProject = useMutation(
     runtime.application.mutations.projectCreate(),
   );
-  const errorMessage =
-    createProject.error === null
-      ? null
-      : safeError(runtime, createProject.error);
-
+  const errorMessage = createProject.error
+    ? safeError(runtime, createProject.error)
+    : null;
   return {
-    dialogOpen,
     setDialogOpen,
     dialog: (
       <ProjectCreateDialog
@@ -99,64 +112,176 @@ function useProjectCreation({ runtime, onOpenProject }: WorkspaceEntryProps) {
   };
 }
 
+function useProjectActions({
+  runtime,
+  projects,
+  onDeleted,
+}: {
+  readonly runtime: WorkspaceRuntimeBoundaries;
+  readonly projects: readonly ProjectViewModel[];
+  readonly onDeleted: (projectId: string) => void;
+}) {
+  const [renameProjectId, setRenameProjectId] = useState<string | null>(null);
+  const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
+  const updateProject = useMutation(
+    runtime.application.mutations.projectUpdate(),
+  );
+  const deleteProject = useMutation(
+    runtime.application.mutations.projectDelete(),
+  );
+  const renameProject =
+    projects.find((project) => project.id === renameProjectId) ?? null;
+  const projectToDelete =
+    projects.find((project) => project.id === deleteProjectId) ?? null;
+  const error = updateProject.error ?? deleteProject.error;
+  return {
+    requestRename: setRenameProjectId,
+    requestDelete: setDeleteProjectId,
+    dialog: (
+      <ProjectActionDialogs
+        renameProject={renameProject}
+        deleteProject={projectToDelete}
+        pending={updateProject.isPending || deleteProject.isPending}
+        errorMessage={error ? safeError(runtime, error) : null}
+        onCloseRename={() => setRenameProjectId(null)}
+        onCloseDelete={() => setDeleteProjectId(null)}
+        onRename={async (name) => {
+          if (!renameProject) return;
+          await updateProject.mutateAsync({
+            projectId: renameProject.id,
+            expectedRevision: renameProject.revision,
+            input: { name },
+          });
+          setRenameProjectId(null);
+        }}
+        onDelete={async () => {
+          if (!projectToDelete) return;
+          await deleteProject.mutateAsync({
+            projectId: projectToDelete.id,
+            expectedRevision: projectToDelete.revision,
+          });
+          setDeleteProjectId(null);
+          onDeleted(projectToDelete.id);
+        }}
+      />
+    ),
+  };
+}
+
+function projectNavigation(
+  projects: readonly ProjectViewModel[],
+  projectId: DomainEntityId | null,
+  pinnedProjects: readonly string[],
+) {
+  const pinned = new Set(pinnedProjects);
+  return [...projects]
+    .sort((left, right) => {
+      const pinnedOrder =
+        Number(pinned.has(right.id)) - Number(pinned.has(left.id));
+      return pinnedOrder || right.updatedAt.localeCompare(left.updatedAt);
+    })
+    .map((project) => ({
+      id: project.id,
+      title: project.name,
+      status: project.latestRunStatus
+        ? project.latestRunStatus === "failed"
+          ? project.latestRunFailureSummary || "运行失败"
+          : researchRunStatusLabel(project.latestRunStatus)
+        : project.latestRunId
+          ? "已有运行记录"
+          : project.activeDraftId
+            ? "协议待确认"
+            : project.activeContractId
+              ? "协议已确认"
+              : "等待研究消息",
+      updatedAt: project.updatedAt,
+      current: project.id === projectId,
+      pinned: pinned.has(project.id),
+    }));
+}
+
+function runtimeForEntry(
+  runtime: WorkspaceRuntimeBoundaries,
+  projects: readonly ProjectViewModel[],
+  pinnedProjects: readonly string[],
+  onOpenProject: (projectId: string) => void,
+  onNewResearch: () => void,
+  onToggleProjectPinned: (projectId: string) => void,
+  onRequestProjectRename: (projectId: string) => void,
+  onRequestProjectDelete: (projectId: string) => void,
+): ResearchWorkspaceRuntime {
+  return {
+    project: null,
+    navigation: {
+      projects: projectNavigation(projects, null, pinnedProjects),
+      onOpenProject,
+      onNewResearch,
+      onReturnHome: () => returnHome(runtime),
+      onToggleProjectPinned,
+      onRequestProjectRename,
+      onRequestProjectDelete,
+    },
+    composer: null,
+    activation: {
+      title: projects.length === 0 ? "建立第一个研究项目" : "选择一个研究项目",
+      description:
+        projects.length === 0
+          ? "研究项目会保存对话、协议和真实运行引用。"
+          : "从左侧导航选择研究项目，继续同一段研究对话。",
+      actionLabel: projects.length === 0 ? "新建研究项目" : "新建研究项目",
+      onAction: onNewResearch,
+    },
+    threadPanel: <div className="research-thread-entry-placeholder" />,
+    inspectorPanel: null,
+  };
+}
+
 export function WorkspaceEntry({
   runtime,
   onOpenProject,
 }: WorkspaceEntryProps) {
   const projects = useQuery(runtime.application.queries.projects());
   const creation = useProjectCreation({ runtime, onOpenProject });
-  const activation = projects.isError
-    ? {
-        title: "研究项目载入失败",
-        description: safeError(runtime, projects.error),
-        actionLabel: "重试",
-        onAction: () => void projects.refetch(),
-      }
-    : projects.isPending
-      ? {
-          title: "正在载入研究项目",
-          description: "工作台正在恢复当前会话的项目与运行引用。",
-          actionLabel: "重新载入",
-          onAction: () => void projects.refetch(),
-        }
-      : projects.data.length === 0
-        ? {
-            title: "建立第一个研究项目",
-            description:
-              "项目会保存研究协议与运行引用。创建后即可在这里直接提出研究意图。",
-            actionLabel: "新建研究项目",
-            onAction: () => creation.setDialogOpen(true),
-          }
-        : {
-            title: "继续已有研究，或开始新项目",
-            description:
-              "从侧栏选择项目即可恢复上下文；需要新的研究边界时，创建一个独立项目。",
-            actionLabel: "新建研究项目",
-            onAction: () => creation.setDialogOpen(true),
-          };
-  const presentationRuntime: ResearchWorkspaceRuntime = {
-    project: null,
-    run: null,
-    navigation: {
-      projects: projectNavigation(projects.data ?? [], null, new Map()),
-      onOpenProject,
-      onNewResearch: () => creation.setDialogOpen(true),
-      onLogout: () => void exitSystem(runtime),
-    },
-    composer: {
-      canSubmitIntent: false,
-      submitting: false,
-      submitIntent: null,
-    },
-    activation,
-    activityEvents: [],
-    contextPanel: <FirstRunContext />,
-  };
-
+  const projectList = projects.data ?? EMPTY_PROJECTS;
+  const pinned = usePinnedProjects(projectList);
+  const actions = useProjectActions({
+    runtime,
+    projects: projectList,
+    onDeleted: () => undefined,
+  });
+  const content = projects.isError ? (
+    <section className="route-content">
+      <h1>研究项目载入失败</h1>
+      <Alert variant="destructive">
+        <AlertDescription>
+          {safeError(runtime, projects.error)}
+        </AlertDescription>
+      </Alert>
+    </section>
+  ) : projects.isPending ? (
+    <section className="route-content" aria-busy="true">
+      <h1>正在载入研究项目</h1>
+      <Skeleton className="workspace-loading-skeleton" />
+    </section>
+  ) : (
+    <WorkspaceShell
+      runtime={runtimeForEntry(
+        runtime,
+        projectList,
+        pinned.pinnedProjects,
+        onOpenProject,
+        () => creation.setDialogOpen(true),
+        pinned.togglePinned,
+        actions.requestRename,
+        actions.requestDelete,
+      )}
+    />
+  );
   return (
     <>
-      <WorkspaceShell runtime={presentationRuntime} />
+      {content}
       {creation.dialog}
+      {actions.dialog}
     </>
   );
 }
@@ -165,126 +290,75 @@ interface WorkspaceHostProps {
   readonly runtime: WorkspaceRuntimeBoundaries;
   readonly projectId: DomainEntityId;
   readonly onOpenProject: (projectId: string) => void;
-}
-
-function ContextEmpty() {
-  return (
-    <Empty className="workspace-context-empty">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FileSearch aria-hidden="true" />
-        </EmptyMedia>
-        <EmptyTitle>等待研究意图</EmptyTitle>
-        <EmptyDescription>
-          在左侧 Composer 描述问题后，这里会打开结构化研究协议检查点。
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  );
-}
-
-function projectNavigation(
-  projects: readonly ProjectViewModel[],
-  projectId: DomainEntityId | null,
-  statuses: ReadonlyMap<DomainEntityId, string>,
-) {
-  return projects.map((project) => ({
-    id: project.id,
-    title: project.name,
-    status: project.latestRunId
-      ? (statuses.get(project.latestRunId) ?? "已有研究运行")
-      : project.activeContractId
-        ? "协议已确认"
-        : "等待研究意图",
-    updatedAt: project.updatedAt,
-    current: project.id === projectId,
-  }));
+  readonly onProjectDeleted: () => void;
 }
 
 export function WorkspaceHost({
   runtime,
   projectId,
   onOpenProject,
+  onProjectDeleted,
 }: WorkspaceHostProps) {
-  const [intent, setIntent] = useState("");
-  const [draft, setDraft] = useState<ResearchContractDraftViewModel | null>(
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [planFocusRequest, setPlanFocusRequest] = useState(0);
+  const [message, setMessage] = useState("");
+  const [answerToQuestionId, setAnswerToQuestionId] = useState<string | null>(
     null,
   );
-  const [confirmedContract, setConfirmedContract] =
-    useState<ResearchContractViewModel | null>(null);
-  const [createdRun, setCreatedRun] = useState<ResearchRunViewModel | null>(
-    null,
-  );
-  const creation = useProjectCreation({ runtime, onOpenProject });
-
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const project = useQuery(runtime.application.queries.project(projectId));
-  const projects = useQuery(runtime.application.queries.projects());
-  const projectContractId = project.data?.activeContractId ?? null;
-  const activeContractId =
-    confirmedContract?.id ?? projectContractId ?? projectId;
-  const hasActiveContract =
-    confirmedContract !== null || projectContractId !== null;
-  const contractQuery = useQuery({
-    ...runtime.application.queries.contract(activeContractId),
-    enabled: hasActiveContract && confirmedContract === null,
-  });
-  const contract = confirmedContract ?? contractQuery.data ?? null;
-  const projectRunId = project.data?.latestRunId ?? null;
-  const activeRunId = createdRun?.id ?? projectRunId ?? projectId;
-  const hasActiveRun = createdRun !== null || projectRunId !== null;
-  const runQuery = useQuery({
-    ...runtime.application.queries.run(activeRunId),
-    enabled: hasActiveRun,
-  });
-  const run = createdRun ?? runQuery.data ?? null;
-  const runEvents = useQuery(
-    runtime.application.queries.runEvents(activeRunId),
+  const researchCatalog = useQuery(
+    runtime.application.queries.researchCatalog(projectId),
   );
-
-  const projectRuns = useQueries({
-    queries: (projects.data ?? []).flatMap((item) =>
-      item.latestRunId === null
-        ? []
-        : [runtime.application.queries.run(item.latestRunId)],
-    ),
+  const projects = useQuery(runtime.application.queries.projects());
+  const creation = useProjectCreation({ runtime, onOpenProject });
+  const projectList = projects.data ?? EMPTY_PROJECTS;
+  const pinned = usePinnedProjects(projectList);
+  const actions = useProjectActions({
+    runtime,
+    projects: projectList,
+    onDeleted: (deletedProjectId) => {
+      if (deletedProjectId === projectId) onProjectDeleted();
+    },
   });
-  const runStatuses = useMemo(() => {
-    const result = new Map<DomainEntityId, string>();
-    for (const query of projectRuns) {
-      if (query.data) result.set(query.data.id, query.data.status);
-    }
-    return result;
-  }, [projectRuns]);
-
+  const activeDraftId = project.data?.activeDraftId ?? null;
+  const draft = useQuery({
+    ...runtime.application.queries.draft(activeDraftId as DomainEntityId),
+    enabled: activeDraftId !== null,
+  });
+  const activeContractId = project.data?.activeContractId ?? null;
+  const contract = useQuery({
+    ...runtime.application.queries.contract(activeContractId as DomainEntityId),
+    enabled: activeContractId !== null,
+  });
+  const runId = project.data?.latestRunId ?? null;
+  const run = useQuery({
+    ...runtime.application.queries.run(runId as DomainEntityId),
+    enabled: runId !== null,
+  });
+  const steps = useQuery({
+    ...runtime.application.queries.runSteps(runId as DomainEntityId),
+    enabled: runId !== null,
+  });
+  const events = useQuery({
+    ...runtime.application.queries.runEvents(runId as DomainEntityId),
+    enabled: false,
+  });
   useEffect(() => {
-    if (!hasActiveRun) return undefined;
-    const feed = runtime.application.createRunEventFeed(activeRunId);
+    if (runId === null) return undefined;
+    const feed = runtime.application.createRunEventFeed(runId);
     feed.start();
     return () => feed.stop();
-  }, [activeRunId, hasActiveRun, runtime.application]);
-
-  const createDraft = useMutation(runtime.application.mutations.draftCreate());
-  const saveDraft = useMutation(runtime.application.mutations.draftUpdate());
+  }, [runId, runtime.application]);
+  const thread = useQuery(runtime.application.queries.thread(projectId));
+  const submitTurn = useMutation(
+    runtime.application.mutations.researchTurnSubmit(),
+  );
   const confirmContract = useMutation(
     runtime.application.mutations.contractConfirm(),
   );
+  const updateDraft = useMutation(runtime.application.mutations.draftUpdate());
   const createRun = useMutation(runtime.application.mutations.runCreate());
-  const mutationError =
-    createDraft.error ??
-    saveDraft.error ??
-    confirmContract.error ??
-    createRun.error;
-  const readError = contractQuery.error ?? runQuery.error ?? runEvents.error;
-  const errorMessage = mutationError ? safeError(runtime, mutationError) : null;
-  const pendingAction = createDraft.isPending
-    ? "create-draft"
-    : saveDraft.isPending
-      ? "save-draft"
-      : confirmContract.isPending
-        ? "confirm-contract"
-        : createRun.isPending
-          ? "create-run"
-          : null;
 
   if (project.isError) {
     return (
@@ -298,97 +372,286 @@ export function WorkspaceHost({
       </section>
     );
   }
-
   if (project.isPending || !project.data) {
     return (
       <section className="route-content" aria-busy="true">
-        <SpinnerWorkspace />
+        <h1>正在载入研究项目</h1>
+        <Skeleton className="workspace-loading-skeleton" />
       </section>
     );
   }
 
-  const contextPanel =
-    intent || draft || contract || run ? (
-      <ContractCheckpoint
-        intent={intent}
-        draft={draft}
-        contract={contract}
-        run={run}
-        pendingAction={pendingAction}
-        errorMessage={
-          errorMessage ?? (readError ? safeError(runtime, readError) : null)
+  const error =
+    submitTurn.error ??
+    updateDraft.error ??
+    confirmContract.error ??
+    createRun.error ??
+    thread.error;
+  const errorMessage = error ? safeError(runtime, error) : null;
+  const pendingAction = updateDraft.isPending
+    ? "save-draft"
+    : confirmContract.isPending
+      ? "confirm-contract"
+      : createRun.isPending
+        ? "create-run"
+        : null;
+  const currentDraft = draft.data ?? null;
+  const currentContract = contract.data ?? null;
+  const currentRun = run.data ?? null;
+  const stepsData = steps.data ?? [];
+  const threadEntries = thread.data ?? [];
+  const threadUnavailable = thread.isError && thread.data === undefined;
+  const threadReady = thread.data !== undefined;
+  const hasPersistedConversation = threadEntries.length > 0;
+  const hasStartedConversation =
+    hasPersistedConversation || pendingMessage !== null;
+  const visiblePendingMessage =
+    pendingMessage !== null &&
+    !threadEntries.some(
+      (entry) =>
+        (entry.kind === "user_message" ||
+          entry.kind === "clarification_answer") &&
+        entry.publicContent === pendingMessage,
+    )
+      ? pendingMessage
+      : null;
+  const submitMessage = async (nextMessage: string) => {
+    const outgoingMessage = nextMessage.trim();
+    if (!outgoingMessage || submitTurn.isPending) return;
+    const parsedAnswerId =
+      answerToQuestionId === null ? null : parseEntityId(answerToQuestionId);
+    if (answerToQuestionId !== null && parsedAnswerId === null) {
+      throw new Error("澄清问题标识无效。");
+    }
+    setPendingMessage(outgoingMessage);
+    setMessage("");
+    let continuePolling = true;
+    try {
+      const submitPromise = submitTurn.mutateAsync({
+        projectId,
+        message: outgoingMessage,
+        answerToQuestionId: parsedAnswerId,
+      });
+      const persistedEntryPromise = (async () => {
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+          if (!continuePolling) return;
+          await new Promise((resolve) => window.setTimeout(resolve, 100));
+          if (!continuePolling) return;
+          const refreshed = await thread.refetch({ throwOnError: false });
+          if (
+            refreshed.data?.some(
+              (entry) =>
+                (entry.kind === "user_message" ||
+                  entry.kind === "clarification_answer") &&
+                entry.publicContent === outgoingMessage,
+            )
+          ) {
+            return;
+          }
         }
-        onCreateDraft={async (nextIntent, input) => {
-          const nextDraft = await createDraft.mutateAsync({
-            projectId,
-            intent: nextIntent,
-            contract: input,
-          });
-          setIntent(nextIntent);
-          setDraft(nextDraft);
-        }}
-        onSaveDraft={async (nextIntent, input) => {
-          if (!draft) return;
-          const nextDraft = await saveDraft.mutateAsync({
-            draftId: draft.id,
-            expectedVersion: draft.version,
-            input: { intent: nextIntent, contract: input },
-          });
-          setIntent(nextIntent);
-          setDraft(nextDraft);
-        }}
-        onConfirmContract={async () => {
-          if (!draft) return;
-          const nextContract = await confirmContract.mutateAsync({
-            projectId,
-            draftId: draft.id,
-            expectedDraftVersion: draft.version,
-          });
-          setConfirmedContract(nextContract);
-        }}
-        onCreateRun={async (executionMode: ExecutionMode) => {
-          if (!contract) return;
-          const nextRun = await createRun.mutateAsync({
-            projectId,
-            contractId: contract.id,
-            executionMode,
-          });
-          setCreatedRun(nextRun);
-        }}
-      />
-    ) : (
-      <ContextEmpty />
-    );
-
+      })();
+      await Promise.all([submitPromise, persistedEntryPromise]);
+      setAnswerToQuestionId(null);
+    } catch (error) {
+      continuePolling = false;
+      setMessage(outgoingMessage);
+      toast.error("消息发送失败", {
+        description: safeError(runtime, error),
+        action: {
+          label: "重试",
+          onClick: () => {
+            void submitMessage(outgoingMessage).catch(() => undefined);
+          },
+        },
+      });
+      throw error;
+    } finally {
+      continuePolling = false;
+      setPendingMessage(null);
+    }
+  };
+  const threadPanel = (
+    <ResearchThread
+      entries={threadEntries}
+      loading={thread.isPending}
+      loadError={threadUnavailable ? safeError(runtime, thread.error) : null}
+      submitting={submitTurn.isPending}
+      pendingMessage={visiblePendingMessage}
+      processProjection={
+        hasPersistedConversation ||
+        currentDraft !== null ||
+        currentContract !== null ||
+        currentRun !== null
+          ? {
+              occurredAt:
+                currentRun?.createdAt ??
+                currentContract?.createdAt ??
+                currentDraft?.createdAt ??
+                threadEntries.at(-1)?.createdAt ??
+                project.data.createdAt,
+              node: (
+                <ResearchProcessProjection
+                  visible
+                  draft={currentDraft}
+                  contract={currentContract}
+                  run={currentRun}
+                  steps={stepsData}
+                  events={events.data.events}
+                  eventError={
+                    events.data.error
+                      ? safeError(runtime, events.data.error)
+                      : null
+                  }
+                  focusPlanRequest={planFocusRequest}
+                />
+              ),
+            }
+          : null
+      }
+      onAnswer={(questionId, suggestedAnswer) => {
+        setAnswerToQuestionId(questionId);
+        if (suggestedAnswer) setMessage(suggestedAnswer);
+        requestAnimationFrame(() =>
+          document
+            .querySelector<HTMLElement>('[data-testid="chat-input"]')
+            ?.focus(),
+        );
+      }}
+      onOpenDraft={(draftId) => {
+        if (parseEntityId(draftId) !== null) setReviewOpen(true);
+      }}
+      onRetryLoad={() => void thread.refetch()}
+    />
+  );
+  const inspector = (
+    <ResearchInspector
+      draft={currentDraft}
+      contract={currentContract}
+      run={currentRun}
+      steps={stepsData}
+    />
+  );
   const presentationRuntime: ResearchWorkspaceRuntime = {
-    project: { name: project.data.name },
-    run: run ? { status: run.status, executionMode: run.executionMode } : null,
+    project: {
+      name: project.data.name,
+      statusLabel: currentRun
+        ? researchRunStatusLabel(currentRun.status)
+        : currentContract
+          ? "协议已确认"
+          : currentDraft
+            ? "协议待确认"
+            : "等待研究消息",
+    },
     navigation: {
       projects: projectNavigation(
-        projects.data ?? [project.data],
+        projectList,
         projectId,
-        runStatuses,
+        pinned.pinnedProjects,
       ),
       onOpenProject,
       onNewResearch: () => creation.setDialogOpen(true),
-      onLogout: () => void exitSystem(runtime),
+      onReturnHome: () => returnHome(runtime),
+      onToggleProjectPinned: pinned.togglePinned,
+      onRequestProjectRename: actions.requestRename,
+      onRequestProjectDelete: actions.requestDelete,
     },
-    composer: {
-      canSubmitIntent: !intent && !draft && !contract && !run,
-      submitting: false,
-      submitIntent: async (nextIntent) => {
-        setIntent(nextIntent.trim());
-      },
-    },
+    composer: threadReady
+      ? {
+          submitting: submitTurn.isPending,
+          value: message,
+          placeholder: "描述你的研究问题、对象或预期成果",
+          hasStartedConversation,
+          onValueChange: setMessage,
+          onSubmit: submitMessage,
+          leadingActions: (
+            <>
+              <Button
+                variant="ghost"
+                size="small"
+                disabled={currentDraft === null && currentContract === null}
+                onClick={() => setReviewOpen(true)}
+              >
+                {currentContract
+                  ? "研究协议 · 已确认"
+                  : currentDraft
+                    ? "研究协议 · 草稿"
+                    : "研究协议"}
+              </Button>
+              <span className="truncate text-xs text-[var(--oh-muted)]">
+                Enter 提交 · Shift+Enter 换行
+              </span>
+            </>
+          ),
+          beforeInput: answerToQuestionId ? (
+            <div className="flex items-center justify-between px-1 text-xs text-[var(--oh-muted)]">
+              <span>正在回答助手的问题</span>
+              <Button
+                variant="ghost"
+                size="small"
+                onClick={() => setAnswerToQuestionId(null)}
+              >
+                取消回答
+              </Button>
+            </div>
+          ) : null,
+        }
+      : null,
     activation: null,
-    activityEvents: runEvents.data.events,
-    contextPanel,
+    threadPanel,
+    inspectorPanel: hasPersistedConversation ? inspector : null,
   };
 
   return (
     <>
       <WorkspaceShell runtime={presentationRuntime} />
+      <ResearchContractReviewDialog
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        draft={currentDraft}
+        catalog={researchCatalog.data ?? null}
+        contract={currentContract}
+        runStatusLabel={
+          currentRun
+            ? researchRunStatusLabel(currentRun.status)
+            : runId
+              ? "正在载入运行状态"
+              : null
+        }
+        pendingAction={pendingAction}
+        errorMessage={errorMessage}
+        onSave={async (intent, contractInput) => {
+          if (!currentDraft) return;
+          await updateDraft.mutateAsync({
+            draftId: currentDraft.id,
+            expectedVersion: currentDraft.version,
+            input: { intent, contract: contractInput },
+          });
+        }}
+        onConfirm={async () => {
+          if (!currentDraft) return;
+          await confirmContract.mutateAsync({
+            projectId,
+            draftId: currentDraft.id,
+            expectedDraftVersion: currentDraft.version,
+          });
+          setReviewOpen(false);
+        }}
+        onCreateRun={async () => {
+          if (!currentContract) return;
+          await createRun.mutateAsync({
+            projectId,
+            contractId: currentContract.id,
+            executionMode: "live",
+          });
+          setReviewOpen(false);
+        }}
+        onViewPlan={() => {
+          setReviewOpen(false);
+          setPlanFocusRequest((current) => current + 1);
+        }}
+      />
       {creation.dialog}
+      {actions.dialog}
     </>
   );
 }
@@ -406,19 +669,11 @@ function WorkspaceShell({
       <div className="workspace-host__desktop">
         <OpenHandsWorkspaceRoot runtime={runtime} />
       </div>
+      <WorkspaceToaster closeButton />
       <section className="workspace-host__narrow" aria-label="桌面设备提示">
         <h1>请使用桌面设备</h1>
         <p>研究工作台需要至少 1024 像素宽的浏览器窗口。</p>
       </section>
     </div>
-  );
-}
-
-function SpinnerWorkspace() {
-  return (
-    <>
-      <h1>正在载入研究项目</h1>
-      <Skeleton className="workspace-loading-skeleton" />
-    </>
   );
 }

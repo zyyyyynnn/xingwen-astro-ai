@@ -3,21 +3,19 @@ import type React from "react";
 interface ChatInputFieldProps {
   readonly chatInputRef: React.RefObject<HTMLDivElement | null>;
   readonly disabled?: boolean;
+  readonly placeholder: string;
   readonly onInput: () => void;
   readonly onPaste: (event: React.ClipboardEvent) => void;
   readonly onKeyDown: (event: React.KeyboardEvent) => void;
-  readonly onFocus?: () => void;
-  readonly onBlur?: () => void;
 }
 
 export function ChatInputField({
   chatInputRef,
   disabled = false,
+  placeholder,
   onInput,
   onPaste,
   onKeyDown,
-  onFocus,
-  onBlur,
 }: ChatInputFieldProps) {
   return (
     <div className="min-w-0 flex-1">
@@ -27,16 +25,14 @@ export function ChatInputField({
         contentEditable={!disabled}
         suppressContentEditableWarning
         role="textbox"
-        aria-label="输入研究意图"
+        aria-label="输入研究消息"
         aria-multiline="true"
         aria-disabled={disabled}
-        data-placeholder="描述希望研究的问题、对象与预期结果"
+        data-placeholder={placeholder}
         data-testid="chat-input"
         onInput={onInput}
         onPaste={onPaste}
         onKeyDown={onKeyDown}
-        onFocus={onFocus}
-        onBlur={onBlur}
       />
     </div>
   );

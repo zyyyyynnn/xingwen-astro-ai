@@ -2,6 +2,8 @@ import { mutationOptions, type QueryClient } from "@tanstack/react-query";
 import type {
   CreateResearchProjectInput,
   RepositorySet,
+  SubmitResearchTurnInput,
+  UpdateResearchProjectInput,
   UpdateResearchContractDraftInput,
 } from "@xingwen/data-access/ports";
 import type {
@@ -15,21 +17,96 @@ import type {
   ResearchContractDraftViewModel,
   ResearchContractViewModel,
   ResearchRunViewModel,
+  ResearchThreadEntryViewModel,
+  ResearchTurnViewModel,
 } from "@xingwen/research-adapter";
 
 import { workspaceQueryKeys } from "./query-keys";
 
 interface WorkspaceMutationDependencies {
-  readonly repositories: Pick<RepositorySet, "projects" | "contracts" | "runs">;
+  readonly repositories: Pick<
+    RepositorySet,
+    "projects" | "contracts" | "runs" | "researchThread"
+  >;
   readonly researchAdapter: ResearchAdapter;
   readonly queryClient: QueryClient;
   readonly createIdempotencyKey: () => string;
+}
+
+const MAX_PENDING_IDEMPOTENCY_KEYS = 64;
+
+export function mergeResearchThreadEntries(
+  current: readonly ResearchThreadEntryViewModel[] | undefined,
+  incoming: readonly ResearchThreadEntryViewModel[],
+): readonly ResearchThreadEntryViewModel[] {
+  const byId = new Map<DomainEntityId, ResearchThreadEntryViewModel>();
+  for (const entry of current ?? []) byId.set(entry.id, entry);
+  for (const entry of incoming) byId.set(entry.id, entry);
+  return [...byId.values()].sort(
+    (left, right) => left.sequence - right.sequence,
+  );
+}
+
+function stableSerialize(value: unknown): string {
+  if (value === undefined) return "null";
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value) ?? "null";
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableSerialize).join(",")}]`;
+  }
+  return `{${Object.entries(value)
+    .filter(([, item]) => item !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => `${JSON.stringify(key)}:${stableSerialize(item)}`)
+    .join(",")}}`;
+}
+
+function createIdempotencyLedger(createKey: () => string) {
+  const pending = new Map<string, string>();
+  const fingerprint = (scope: string, input: unknown) =>
+    `${scope}:${stableSerialize(input)}`;
+
+  return Object.freeze({
+    keyFor(scope: string, input: unknown): string {
+      const action = fingerprint(scope, input);
+      const existing = pending.get(action);
+      if (existing) return existing;
+      const key = createKey();
+      pending.set(action, key);
+      if (pending.size > MAX_PENDING_IDEMPOTENCY_KEYS) {
+        const oldest = pending.keys().next().value as string | undefined;
+        if (oldest) pending.delete(oldest);
+      }
+      return key;
+    },
+    complete(scope: string, input: unknown): void {
+      pending.delete(fingerprint(scope, input));
+    },
+  });
 }
 
 export interface CreateDraftVariables {
   readonly projectId: DomainEntityId;
   readonly intent: string;
   readonly contract: ResearchContractInput;
+}
+
+export interface UpdateProjectVariables {
+  readonly projectId: DomainEntityId;
+  readonly expectedRevision: number;
+  readonly input: UpdateResearchProjectInput;
+}
+
+export interface DeleteProjectVariables {
+  readonly projectId: DomainEntityId;
+  readonly expectedRevision: number;
+}
+
+export interface SubmitResearchTurnVariables {
+  readonly projectId: DomainEntityId;
+  readonly message: string;
+  readonly answerToQuestionId: DomainEntityId | null;
 }
 
 export interface UpdateDraftVariables {
@@ -56,6 +133,7 @@ export function createWorkspaceMutations({
   queryClient,
   createIdempotencyKey,
 }: WorkspaceMutationDependencies) {
+  const idempotency = createIdempotencyLedger(createIdempotencyKey);
   return Object.freeze({
     projectCreate: () =>
       mutationOptions({
@@ -66,7 +144,7 @@ export function createWorkspaceMutations({
         ): Promise<ProjectViewModel> => {
           const command = researchAdapter.toApplicationCommand(
             { type: "project.create", input },
-            { idempotencyKey: createIdempotencyKey() },
+            { idempotencyKey: idempotency.keyFor("project.create", input) },
           );
           if (command.type !== "project.create") {
             throw new Error("Project create command mapping failed.");
@@ -75,7 +153,8 @@ export function createWorkspaceMutations({
             await repositories.projects.create(command.input),
           );
         },
-        onSuccess: (project) => {
+        onSuccess: (project, input) => {
+          idempotency.complete("project.create", input);
           queryClient.setQueryData(
             workspaceQueryKeys.projects(),
             (current: readonly ProjectViewModel[] | undefined) => [
@@ -87,6 +166,97 @@ export function createWorkspaceMutations({
             workspaceQueryKeys.project(project.id),
             project,
           );
+        },
+      }),
+    projectUpdate: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "project", "update"],
+        retry: false,
+        mutationFn: async (
+          variables: UpdateProjectVariables,
+        ): Promise<ProjectViewModel> =>
+          researchAdapter.toProjectViewModel(
+            await repositories.projects.update(
+              variables.projectId,
+              variables.input,
+              variables.expectedRevision,
+            ),
+          ),
+        onSuccess: (project) => {
+          queryClient.setQueryData(
+            workspaceQueryKeys.project(project.id),
+            project,
+          );
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.projects(),
+            exact: true,
+          });
+        },
+      }),
+    projectDelete: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "project", "delete"],
+        retry: false,
+        mutationFn: async ({
+          projectId,
+          expectedRevision,
+        }: DeleteProjectVariables) =>
+          repositories.projects.delete(projectId, expectedRevision),
+        onSuccess: (_value, variables) => {
+          queryClient.removeQueries({
+            queryKey: workspaceQueryKeys.project(variables.projectId),
+            exact: true,
+          });
+          queryClient.removeQueries({
+            queryKey: workspaceQueryKeys.thread(variables.projectId),
+            exact: true,
+          });
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.projects(),
+            exact: true,
+          });
+        },
+      }),
+    researchTurnSubmit: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "research-turn", "submit"],
+        retry: false,
+        mutationFn: async (
+          variables: SubmitResearchTurnVariables,
+        ): Promise<ResearchTurnViewModel> =>
+          researchAdapter.toResearchTurnViewModel(
+            await repositories.researchThread.submit(variables.projectId, {
+              message: variables.message,
+              answerToQuestionId: variables.answerToQuestionId,
+              idempotencyKey: idempotency.keyFor(
+                "research-turn.submit",
+                variables,
+              ),
+            } satisfies SubmitResearchTurnInput),
+          ),
+        onSuccess: (turn, variables) => {
+          idempotency.complete("research-turn.submit", variables);
+          queryClient.setQueryData(
+            workspaceQueryKeys.thread(variables.projectId),
+            (
+              current:
+                | readonly import("@xingwen/research-adapter").ResearchThreadEntryViewModel[]
+                | undefined,
+            ) => mergeResearchThreadEntries(current, turn.entries),
+          );
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.project(variables.projectId),
+            exact: true,
+          });
+        },
+        onError: (_error, variables) => {
+          // A failed planner execution is persisted as a completed failure.
+          // A manual retry is a new provider attempt, not a replay of that key.
+          idempotency.complete("research-turn.submit", variables);
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.thread(variables.projectId),
+            exact: true,
+          });
         },
       }),
     draftCreate: () =>
@@ -105,7 +275,12 @@ export function createWorkspaceMutations({
                 contract: variables.contract,
               },
             },
-            { idempotencyKey: createIdempotencyKey() },
+            {
+              idempotencyKey: idempotency.keyFor(
+                "contract.draft.create",
+                variables,
+              ),
+            },
           );
           if (command.type !== "contract.draft.create") {
             throw new Error("Draft create command mapping failed.");
@@ -117,7 +292,8 @@ export function createWorkspaceMutations({
             ),
           );
         },
-        onSuccess: (draft) => {
+        onSuccess: (draft, variables) => {
+          idempotency.complete("contract.draft.create", variables);
           queryClient.setQueryData(workspaceQueryKeys.draft(draft.id), draft);
         },
       }),
@@ -193,7 +369,9 @@ export function createWorkspaceMutations({
         ): Promise<ResearchRunViewModel> => {
           const command = researchAdapter.toApplicationCommand(
             { type: "run.create", ...variables },
-            { idempotencyKey: createIdempotencyKey() },
+            {
+              idempotencyKey: idempotency.keyFor("run.create", variables),
+            },
           );
           if (command.type !== "run.create") {
             throw new Error("Run create command mapping failed.");
@@ -202,8 +380,39 @@ export function createWorkspaceMutations({
             await repositories.runs.create(command.input),
           );
         },
-        onSuccess: (run) => {
+        onSuccess: (run, variables) => {
+          idempotency.complete("run.create", variables);
           queryClient.setQueryData(workspaceQueryKeys.run(run.id), run);
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.run(run.id),
+            exact: true,
+          });
+          queryClient.setQueryData(
+            workspaceQueryKeys.project(run.projectId),
+            (current: ProjectViewModel | undefined) =>
+              current
+                ? {
+                    ...current,
+                    latestRunId: run.id,
+                    latestRunStatus: run.status,
+                    latestRunFailureSummary: run.failure?.summary ?? null,
+                  }
+                : current,
+          );
+          queryClient.setQueryData(
+            workspaceQueryKeys.projects(),
+            (current: readonly ProjectViewModel[] | undefined) =>
+              current?.map((project) =>
+                project.id === run.projectId
+                  ? {
+                      ...project,
+                      latestRunId: run.id,
+                      latestRunStatus: run.status,
+                      latestRunFailureSummary: run.failure?.summary ?? null,
+                    }
+                  : project,
+              ),
+          );
           void queryClient.invalidateQueries({
             queryKey: workspaceQueryKeys.project(run.projectId),
             exact: true,

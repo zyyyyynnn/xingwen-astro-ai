@@ -20,6 +20,18 @@ export type DomainEntityId = string & {
   readonly [domainEntityIdBrand]: "DomainEntityId";
 };
 
+/**
+ * Parse an untrusted identifier at a UI or transport boundary.
+ *
+ * Returns `null` instead of silently branding values that violate the backend
+ * `Identifier` contract.
+ */
+export function parseEntityId(value: string): DomainEntityId | null {
+  return value.length > 0 && value.length <= 128 && value.trim() === value
+    ? (value as DomainEntityId)
+    : null;
+}
+
 /** Convenience constructor used by adapters and fixtures. */
 export function asEntityId(value: string): DomainEntityId {
   return value as DomainEntityId;

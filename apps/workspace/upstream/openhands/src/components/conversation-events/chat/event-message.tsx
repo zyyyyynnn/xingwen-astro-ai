@@ -1,84 +1,74 @@
-import React from "react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@xingwen/ui";
 import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
-  ChevronUp,
-  Circle,
   LoaderCircle,
 } from "@xingwen/ui/icons";
 
 import type { ActivityPresentationEvent } from "./group-events";
 
-interface EventMessageProps {
+/** OpenHands GenericEventMessage interaction over a public research event. */
+export function EventMessage({
+  event,
+}: {
   readonly event: ActivityPresentationEvent;
-}
-
-/** OpenHands event-item composition adapted to public Xingwen activity events. */
-export function EventMessage({ event }: EventMessageProps) {
-  const [expanded, setExpanded] = React.useState(false);
-  const detailsId = React.useId();
-  const isError = event.status === "error";
-  const isRunning = event.status === "pending" || event.status === "running";
-  const isSuccess = event.status === "success";
+}) {
   const hasDetails = Boolean(event.detail?.trim());
-  const Chevron = expanded ? ChevronUp : ChevronDown;
-  const StatusIcon = isError
-    ? AlertCircle
-    : isRunning
-      ? LoaderCircle
-      : isSuccess
-        ? CheckCircle2
-        : Circle;
-
+  const isRunning = event.status === "pending" || event.status === "running";
+  const StatusIcon =
+    event.status === "error"
+      ? AlertCircle
+      : isRunning
+        ? LoaderCircle
+        : CheckCircle2;
   const content = (
     <>
+      {hasDetails ? (
+        <ChevronDown className="oh-narrative-chevron" aria-hidden="true" />
+      ) : (
+        <span className="oh-narrative-disclosure-slot" aria-hidden="true" />
+      )}
       <StatusIcon
-        className={`size-[var(--oh-icon-size-md)] shrink-0 ${isRunning ? "animate-spin motion-reduce:animate-none" : ""}`}
+        className={`oh-narrative-icon ${isRunning ? "animate-spin motion-reduce:animate-none" : ""}`}
         aria-hidden="true"
       />
-      <span className="min-w-0 flex-1 truncate">{event.title}</span>
-      {hasDetails ? (
-        <Chevron
-          className="size-[var(--oh-icon-size-md)] shrink-0"
-          aria-hidden="true"
-        />
-      ) : null}
+      <span className="oh-narrative-title truncate">{event.title}</span>
     </>
   );
-
+  if (!hasDetails) {
+    return (
+      <div
+        className="oh-narrative-node oh-narrative-row"
+        data-testid="event-message"
+        data-event-kind={event.kind}
+        data-event-status={event.status}
+        role={event.status === "error" ? "alert" : undefined}
+      >
+        {content}
+      </div>
+    );
+  }
   return (
-    <div
-      className="my-[var(--oh-space-1)] w-full text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]"
+    <Collapsible
+      className="oh-narrative-node"
       data-testid="event-message"
       data-event-kind={event.kind}
       data-event-status={event.status}
-      role={isError ? "alert" : undefined}
+      role={event.status === "error" ? "alert" : undefined}
     >
-      {hasDetails ? (
-        <button
-          type="button"
-          className="flex w-full items-center gap-[var(--oh-space-2)] rounded-[var(--oh-radius-sm)] py-[var(--oh-space-1)] text-left text-[var(--oh-muted)] hover:text-[var(--oh-text)]"
-          aria-controls={detailsId}
-          aria-expanded={expanded}
-          onClick={() => setExpanded((current) => !current)}
-        >
+      <CollapsibleTrigger asChild>
+        <button type="button" className="oh-narrative-row oh-narrative-trigger">
           {content}
         </button>
-      ) : (
-        <div className="flex w-full items-center gap-[var(--oh-space-2)] py-[var(--oh-space-1)] text-[var(--oh-muted)]">
-          {content}
-        </div>
-      )}
-      {expanded ? (
-        <div
-          id={detailsId}
-          role="region"
-          className="ml-[var(--oh-space-6)] mt-[var(--oh-space-1)] border-l border-[var(--oh-border)] pl-[var(--oh-space-3)] text-[var(--oh-muted)]"
-        >
-          {event.detail}
-        </div>
-      ) : null}
-    </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="oh-narrative-content">
+        <div role="region">{event.detail}</div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

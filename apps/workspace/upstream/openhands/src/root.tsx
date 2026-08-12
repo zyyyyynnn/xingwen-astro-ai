@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 
-import type { ActivityPresentationEvent } from "./components/conversation-events/chat/group-events";
 import MainApp from "./routes/root-layout";
+
+export { Messages } from "./components/conversation-events/chat/messages";
+export { CollapsibleRationale } from "./components/conversation-events/chat/event-message-components/collapsible-thinking";
+export { NarrativeDisclosure } from "./components/conversation-events/chat/event-message-components/collapsible-thinking";
+export { ChatMessage } from "./components/features/chat/chat-message";
 
 export interface ResearchNavigationItem {
   readonly id: string;
@@ -9,35 +13,43 @@ export interface ResearchNavigationItem {
   readonly status: string;
   readonly updatedAt: string;
   readonly current: boolean;
+  readonly pinned: boolean;
 }
 
 export interface ResearchWorkspaceRuntime {
   readonly project: {
     readonly name: string;
-  } | null;
-  readonly run: {
-    readonly status: string;
-    readonly executionMode: string;
+    readonly statusLabel: string;
   } | null;
   readonly navigation: {
     readonly projects: readonly ResearchNavigationItem[];
     readonly onOpenProject: (projectId: string) => void;
     readonly onNewResearch: () => void;
-    readonly onLogout: () => void;
+    readonly onReturnHome: () => void;
+    readonly onToggleProjectPinned: (projectId: string) => void;
+    readonly onRequestProjectRename: (projectId: string) => void;
+    readonly onRequestProjectDelete: (projectId: string) => void;
   };
   readonly composer: {
-    readonly canSubmitIntent: boolean;
     readonly submitting: boolean;
-    readonly submitIntent: ((intent: string) => Promise<void>) | null;
-  };
+    readonly value: string;
+    readonly placeholder: string;
+    readonly hasStartedConversation: boolean;
+    readonly leadingActions: ReactNode;
+    readonly beforeInput: ReactNode;
+    readonly onValueChange: (value: string) => void;
+    readonly onSubmit: (message: string) => Promise<void>;
+  } | null;
   readonly activation: {
     readonly title: string;
     readonly description: string;
     readonly actionLabel: string;
     readonly onAction: () => void;
   } | null;
-  readonly activityEvents: readonly ActivityPresentationEvent[];
-  readonly contextPanel: ReactNode;
+  /** Product-owned, server-backed Research Thread projection. */
+  readonly threadPanel: ReactNode;
+  /** Product-owned floating/docked Research Inspector projection. */
+  readonly inspectorPanel: ReactNode | null;
 }
 
 interface OpenHandsWorkspaceRootProps {

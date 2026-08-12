@@ -232,6 +232,39 @@ export type ResearchInputStatus = "accepted" | "unsupported_processing" | "faile
 export type ResearchInputType = "url" | "pdf" | "csv" | "json" | "image" | "text";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RunStatus".
+ */
+export type RunStatus =
+  | "queued"
+  | "planning"
+  | "fetching_data"
+  | "cleaning_data"
+  | "searching_papers"
+  | "summarizing_papers"
+  | "reasoning_literature"
+  | "building_graph"
+  | "waiting_for_input"
+  | "completed"
+  | "failed"
+  | "cancelled";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchThreadEntryKind".
+ */
+export type ResearchThreadEntryKind =
+  | "user_message"
+  | "assistant_message"
+  | "assistant_analysis"
+  | "clarification_question"
+  | "clarification_answer";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RunStepStatus".
+ */
+export type RunStepStatus =
+  "pending" | "running" | "waiting" | "completed" | "failed" | "cancelled" | "skipped";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ShareRedactionPolicy".
  */
 export type ShareRedactionPolicy = "public_metadata_only";
@@ -444,6 +477,11 @@ export type GraphNodeType =
   | "evidence";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelExecutionStatus".
+ */
+export type ModelExecutionStatus = "pending" | "running" | "succeeded" | "failed";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ProducerExecutionStatus".
  */
 export type ProducerExecutionStatus = "completed" | "failed";
@@ -500,26 +538,15 @@ export type ContractDraftStatus1 = "draft" | "confirmed" | "expired";
 export type ResearchInputStatus1 = "accepted" | "unsupported_processing" | "failed_ingestion";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "RunStatus".
- */
-export type RunStatus =
-  | "queued"
-  | "planning"
-  | "fetching_data"
-  | "cleaning_data"
-  | "searching_papers"
-  | "summarizing_papers"
-  | "reasoning_literature"
-  | "building_graph"
-  | "waiting_for_input"
-  | "completed"
-  | "failed"
-  | "cancelled";
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "SessionStatus".
  */
 export type SessionStatus = "active" | "expired" | "revoked";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PlannerOutcomeKind".
+ */
+export type PlannerOutcomeKind =
+  "clarification_required" | "draft_ready" | "partial" | "unsupported" | "refused";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "GraphEdgeType".
@@ -563,6 +590,16 @@ export type SourceMode = "fixture" | "live" | "cached";
  * via the `definition` "CreateResearchInputRequest".
  */
 export type CreateResearchInputRequest = UrlResearchInputRequest | TextResearchInputRequest;
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PlannerOutcome".
+ */
+export type PlannerOutcome =
+  | PlannerClarificationRequired
+  | PlannerDraftReady
+  | PlannerPartial
+  | PlannerUnsupported
+  | PlannerRefused;
 
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1536,15 +1573,47 @@ export interface CollectionEnvelope_ResearchProject_ {
  */
 export interface ResearchProject {
   active_contract_id?: string | null;
+  active_draft_id?: string | null;
   case_key: "exoplanet_host_star";
   created_at: string;
   description?: string;
   id: string;
+  latest_run_failure_summary?: string | null;
   latest_run_id?: string | null;
+  latest_run_status?: RunStatus | null;
   name: string;
   revision: number;
   session_id: string;
   updated_at: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_ResearchThreadEntry_".
+ */
+export interface CollectionEnvelope_ResearchThreadEntry_ {
+  data: ResearchThreadEntry[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * Public, Project-owned entry in the primary Research Thread.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchThreadEntry".
+ */
+export interface ResearchThreadEntry {
+  actor: "user" | "assistant" | "system";
+  created_at: string;
+  id: string;
+  kind: ResearchThreadEntryKind;
+  model_execution_id?: string | null;
+  project_id: string;
+  public_content: string;
+  sequence: number;
+  structured_payload?: {
+    [k: string]: JsonValue;
+  };
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1569,6 +1638,33 @@ export interface RunEvent {
   run_id: string;
   sequence: number;
   step_key?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CollectionEnvelope_RunStepRead_".
+ */
+export interface CollectionEnvelope_RunStepRead_ {
+  data: RunStepRead[];
+  links: ResponseLinks;
+  meta: ResponseMeta;
+  page: CursorPage;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RunStepRead".
+ */
+export interface RunStepRead {
+  failure_code?: string | null;
+  finished_at?: string | null;
+  id: string;
+  key: string;
+  label: string;
+  position: number;
+  progress: number;
+  public_message: string;
+  run_id: string;
+  started_at?: string | null;
+  status: RunStepStatus;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2602,6 +2698,54 @@ export interface Envelope_LiteratureRelationRead_ {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_ModelExecutionRecord_".
+ */
+export interface Envelope_ModelExecutionRecord_ {
+  data: ModelExecutionRecord;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * Pre-run model provenance without raw provider output or private reasoning.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelExecutionRecord".
+ */
+export interface ModelExecutionRecord {
+  created_at: string;
+  error_code?: string | null;
+  error_summary?: string | null;
+  finished_at?: string | null;
+  id: string;
+  input_hash?: string | null;
+  input_snapshot: {
+    [k: string]: JsonValue;
+  };
+  latency_ms?: number | null;
+  model: string;
+  model_revision: string;
+  output_hash?: string | null;
+  output_snapshot?: {
+    [k: string]: JsonValue;
+  } | null;
+  parameters_hash: string;
+  parameters_snapshot: {
+    [k: string]: JsonValue;
+  };
+  project_id: string;
+  prompt_hash: string;
+  prompt_name: string;
+  prompt_snapshot: string;
+  prompt_version: string;
+  provider: string;
+  provider_request_id?: string | null;
+  status: ModelExecutionStatus;
+  token_usage?: {
+    [k: string]: JsonValue;
+  } | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_PaperCollectionRead_".
  */
 export interface Envelope_PaperCollectionRead_ {
@@ -3234,6 +3378,41 @@ export interface Envelope_ResearchInputRef_ {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_ResearchPlanningCatalog_".
+ */
+export interface Envelope_ResearchPlanningCatalog_ {
+  data: ResearchPlanningCatalog;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * Project-scoped planning choices derived from current Authorities.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchPlanningCatalog".
+ */
+export interface ResearchPlanningCatalog {
+  allowed_sources: ResearchCatalogOption[];
+  case_key: string;
+  output_requirements: ResearchCatalogOption[];
+  project_id: string;
+  requested_fields: ResearchCatalogOption[];
+  target_objects: ResearchCatalogOption[];
+}
+/**
+ * One manifest-backed choice rendered by the Contract authoring UI.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchCatalogOption".
+ */
+export interface ResearchCatalogOption {
+  description?: string;
+  group?: ("common" | "advanced") | null;
+  label: string;
+  value: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_ResearchProject_".
  */
 export interface Envelope_ResearchProject_ {
@@ -3301,6 +3480,25 @@ export interface ResearchSession {
 export interface SessionQuota {
   max_projects?: number;
   max_runs?: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_ResearchTurnResult_".
+ */
+export interface Envelope_ResearchTurnResult_ {
+  data: ResearchTurnResult;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchTurnResult".
+ */
+export interface ResearchTurnResult {
+  active_draft_id?: string | null;
+  entries: ResearchThreadEntry[];
+  model_execution_id: string;
+  outcome: PlannerOutcomeKind;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3534,6 +3732,14 @@ export interface ProblemFieldError {
   message: string;
 }
 /**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchTurnRequest".
+ */
+export interface ResearchTurnRequest {
+  answer_to_question_id?: string | null;
+  message: string;
+}
+/**
  * JSON create for ``type=text``: the body carries the text itself.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3553,6 +3759,13 @@ export interface TextResearchInputRequest {
 export interface UpdateResearchContractDraftRequest {
   contract?: ResearchContractInput | null;
   intent?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UpdateResearchProjectRequest".
+ */
+export interface UpdateResearchProjectRequest {
+  name: string;
 }
 /**
  * JSON create for ``type=url``: a URL is fetched server-side.
@@ -3638,4 +3851,63 @@ export interface DataArtifactReadBase {
   schema_version: string;
   source_mode: SourceMode;
   source_snapshots: SourceSnapshotDetail[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PlannerClarificationRequired".
+ */
+export interface PlannerClarificationRequired {
+  assistant_message: string;
+  outcome: "clarification_required";
+  public_analysis: string;
+  question: string;
+  question_id: string;
+  warnings?: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PlannerDraftReady".
+ */
+export interface PlannerDraftReady {
+  assistant_message: string;
+  contract: ResearchContractInput;
+  outcome: "draft_ready";
+  public_analysis: string;
+  warnings?: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PlannerPartial".
+ */
+export interface PlannerPartial {
+  assistant_message: string;
+  /**
+   * @minItems 1
+   */
+  missing_information: [string, ...string[]];
+  outcome: "partial";
+  public_analysis: string;
+  warnings?: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PlannerUnsupported".
+ */
+export interface PlannerUnsupported {
+  assistant_message: string;
+  outcome: "unsupported";
+  public_analysis: string;
+  reason: string;
+  warnings?: string[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PlannerRefused".
+ */
+export interface PlannerRefused {
+  assistant_message: string;
+  outcome: "refused";
+  public_analysis: string;
+  reason: string;
+  warnings?: string[];
 }

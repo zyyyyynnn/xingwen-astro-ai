@@ -22,7 +22,14 @@ from app.middleware import (
     api_validation_exception_handler,
     security_exception_handler,
 )
-from app.routers import artifacts, health, research, research_inputs, sessions, snapshots
+from app.routers import (
+    artifacts,
+    health,
+    research,
+    research_inputs,
+    sessions,
+    snapshots,
+)
 from app.schemas.manifest import ManifestBundle, load_manifest_bundle
 from app.security import (
     InMemoryRateLimiter,
@@ -33,7 +40,9 @@ from app.security import (
 )
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
+from app.services.model_execution import QwenModelExecutionAdapter
 from app.services.research import ResearchApplicationService
+from app.services.research_planner import ResearchContractPlanner
 from app.services.resource_authority import (
     PersistentResourceAuthority,
     ResourceAuthority,
@@ -71,16 +80,37 @@ def _configure_database_runtime(
 
     artifact_read_service = ArtifactReadService(factory)
     app.state.artifact_read_service = artifact_read_service
-    app.state.data_artifact_read_service = DataArtifactReadService(artifact_read_service)
+    app.state.data_artifact_read_service = DataArtifactReadService(
+        artifact_read_service
+    )
 
     resource_authority: ResourceAuthority = PersistentResourceAuthority(factory)
     workflow_store = PersistentWorkflowStore(factory)
     app.state.workflow_store = workflow_store
     app.state.workflow_executor = PersistentWorkflowExecutor(workflow_store)
+    model_port = QwenModelExecutionAdapter(
+        api_key=(
+            settings.DASHSCOPE_API_KEY.get_secret_value()
+            if settings.DASHSCOPE_API_KEY is not None
+            else None
+        ),
+        base_url=settings.DASHSCOPE_BASE_URL,
+        timeout_seconds=settings.DASHSCOPE_TIMEOUT_SECONDS,
+    )
+    app.state.model_execution_port = model_port
+    manifests = _load_case_manifests()
+    app.state.research_planner = ResearchContractPlanner(
+        model_port=model_port,
+        provider="qwen",
+        model=settings.DASHSCOPE_MODEL,
+        model_revision=settings.DASHSCOPE_MODEL_REVISION,
+        manifests=manifests,
+    )
     app.state.research_service = ResearchApplicationService(
         factory=factory,
         workflow_store=workflow_store,
-        manifests=_load_case_manifests(),
+        manifests=manifests,
+        planner=app.state.research_planner,
     )
     app.router.add_event_handler("shutdown", engine.dispose)
     return engine, factory, resource_authority
@@ -111,6 +141,8 @@ def create_app() -> FastAPI:
     app.state.artifact_read_service = None
     app.state.data_artifact_read_service = None
     app.state.research_service = None
+    app.state.model_execution_port = None
+    app.state.research_planner = None
     app.state.db_session_factory = None
     _, database_session_factory, resource_authority = _configure_database_runtime(app)
 
@@ -186,6 +218,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
+        allow_origin_regex=settings.cors_origin_regex,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

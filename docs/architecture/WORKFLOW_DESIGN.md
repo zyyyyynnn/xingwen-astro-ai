@@ -67,6 +67,12 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 
 取消必须以条件写入将 Run、未完成 Step 与运行中的 Attempt 一致推进为 `cancelled`，追加单调 Event，并拒绝取消后的晚到产物。重复取消终态 Run 保持幂等。
 
-## 7. HTTP authoring 边界
+## 7. Research assistant 与 Run 读取边界
+
+Research assistant 在 Run 创建前通过 `ModelExecutionPort` 生成公开 Planner outcome。它可以创建或更新 Draft、追加 Thread entry，不能创建 Run 或 Artifact；只有人类确认 Contract 后才能进入既有 Run 状态机。`clarification_required`、`partial`、`unsupported` 与 `refused` 不能静默提升为可执行 Draft。
+
+`GET /api/runs/{run_id}/steps` 是 RunStep 的只读投影，显示真实 `pending | running | waiting | completed | failed | cancelled | skipped` 状态与顺序。它不产生 Executor、Attempt、lease、Pipeline 或 Publisher 行为。
+
+## 8. HTTP authoring 边界
 
 `POST /api/projects/{project_id}/runs` 只接受 `contract_id` 与 `execution_mode`，创建 `derivation_kind=original`、`cache_policy=disabled` 的 Run。派生、选择性 retry、反馈修订、缓存选择与取消没有对应公开命令；额外字段由请求 Schema 拒绝，防止调用者误以为能力已经执行。

@@ -74,6 +74,30 @@ test("start-dev.bat starts local services in standard CMD windows", () => {
   assert.doesNotMatch(startDev, /start\s+"Xingwen Backend"[^\r\n]*>nul\b/iu);
   assert.doesNotMatch(startDev, /start\s+"Xingwen Frontend"[^\r\n]*>nul\b/iu);
   assert.doesNotMatch(startDev, /start\s+"[^"]+"\s+pwsh\b/iu);
+  assert.match(
+    startDev,
+    /set\s+"PYTHONPATH=%ROOT%"[\s\S]*?start\s+"Xingwen Backend"/iu,
+  );
+});
+
+test("start-dev.bat validates the real API import before opening windows", () => {
+  assert.match(
+    startDev,
+    /uv\s+run\s+--project\s+"%API_DIR%"\s+python\s+-c\s+"from app\.config import settings; from app\.main import app; assert settings\.research_assistant_ready/iu,
+  );
+});
+
+test("start-dev.bat imports the user DASHSCOPE_API_KEY and gates on provider readiness", () => {
+  assert.match(
+    startDev,
+    /GetEnvironmentVariable\('DASHSCOPE_API_KEY','User'\)/u,
+  );
+  assert.match(
+    startDev,
+    /call\s+:require_research_assistant\s+"%API_HEALTH_URL%"/iu,
+  );
+  assert.match(startDev, /research_assistant\.status\s+-ne\s+'ready'/iu);
+  assert.doesNotMatch(startDev, /echo[^\r\n]*DASHSCOPE_API_KEY%/iu);
 });
 
 test("start-dev.bat keeps dotenv exclamation marks safe from delayed expansion", () => {

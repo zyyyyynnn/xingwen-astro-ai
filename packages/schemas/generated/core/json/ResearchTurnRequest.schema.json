@@ -1,0 +1,30 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "answer_to_question_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Answer To Question Id"
+    },
+    "message": {
+      "maxLength": 10000,
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "message"
+  ],
+  "title": "ResearchTurnRequest",
+  "type": "object"
+}

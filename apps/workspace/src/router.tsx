@@ -5,7 +5,7 @@ import {
   createRouter,
   redirect,
 } from "@tanstack/react-router";
-import { asEntityId } from "@xingwen/domain";
+import { parseEntityId } from "@xingwen/domain";
 import { Button, Link, Spinner } from "@xingwen/ui";
 import type {
   ErrorComponentProps,
@@ -57,16 +57,25 @@ function WorkspaceProjectRoute() {
   const runtime = workspaceProjectRoute.useRouteContext();
   const { projectId } = workspaceProjectRoute.useParams();
   const navigate = workspaceProjectRoute.useNavigate();
+  const parsedProjectId = parseEntityId(projectId);
+  if (parsedProjectId === null) {
+    throw new PrivateRouteError({
+      kind: "validation",
+      safeMessage: "项目标识无效",
+    });
+  }
   return (
     <WorkspaceHost
+      key={parsedProjectId}
       runtime={runtime}
-      projectId={asEntityId(projectId)}
+      projectId={parsedProjectId}
       onOpenProject={(nextProjectId) =>
         void navigate({
           to: "/workspace/$projectId",
           params: { projectId: nextProjectId },
         })
       }
+      onProjectDeleted={() => void navigate({ to: "/workspace" })}
     />
   );
 }
@@ -75,7 +84,10 @@ function LoadingPage() {
   return (
     <section className="route-content" aria-busy="true" aria-live="polite">
       <h1>正在载入</h1>
-      <Spinner label="正在载入工作台" />
+      <div className="route-loading" role="status">
+        <Spinner aria-hidden="true" />
+        <span>正在载入工作台</span>
+      </div>
     </section>
   );
 }
@@ -151,7 +163,13 @@ const workspaceProjectRoute = createRoute({
   getParentRoute: () => privateWorkspaceRoute,
   path: "/workspace/$projectId",
   beforeLoad: async ({ context, params }) => {
-    const projectId = asEntityId(params.projectId);
+    const projectId = parseEntityId(params.projectId);
+    if (projectId === null) {
+      throw new PrivateRouteError({
+        kind: "validation",
+        safeMessage: "项目标识无效",
+      });
+    }
     try {
       await context.queryClient.ensureQueryData(
         context.application.queries.project(projectId),

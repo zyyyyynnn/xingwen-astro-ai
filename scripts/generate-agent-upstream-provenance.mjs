@@ -23,44 +23,42 @@ const ADOPTED_CLASSIFICATIONS = new Set([
 ]);
 
 const MINIMAL_PATCH = new Set([
-  "src/components/features/chat/chat-messages-skeleton.tsx",
-  "src/components/features/chat/chat-send-button.tsx",
-  "src/components/features/chat/chat-stop-button.tsx",
-  "src/components/features/chat/components/chat-input-field.tsx",
-  "src/components/features/chat/components/chat-input-grip.tsx",
-  "src/components/features/chat/components/chat-input-row.tsx",
   "src/components/features/sidebar/sidebar-layout.ts",
   "src/components/ui/resize-handle.tsx",
-  "src/hooks/chat/use-grip-resize.ts",
   "src/hooks/use-resizable-panels.ts",
   "src/stores/sidebar-store.ts",
 ]);
 const STRUCTURE_REPLACEMENT = new Set([
-  "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
   "src/components/conversation-events/chat/event-message-components/event-group.tsx",
+  "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
   "src/components/conversation-events/chat/event-message.tsx",
   "src/components/conversation-events/chat/group-events.ts",
   "src/components/conversation-events/chat/messages.tsx",
-  "src/components/features/chat/chat-interface.tsx",
+  "src/components/features/chat/chat-message.tsx",
+  "src/components/features/chat/user-message-body.tsx",
+  "src/components/features/chat/chat-send-button.tsx",
   "src/components/features/chat/components/chat-input-actions.tsx",
   "src/components/features/chat/components/chat-input-container.tsx",
+  "src/components/features/chat/components/chat-input-field.tsx",
+  "src/components/features/chat/components/chat-input-grip.tsx",
+  "src/components/features/chat/components/chat-input-row.tsx",
   "src/components/features/chat/custom-chat-input.tsx",
-  "src/components/features/chat/error-message-banner.tsx",
+  "src/components/features/chat/chat-interface.tsx",
   "src/components/features/chat/interactive-chat-box.tsx",
+  "src/components/shared/buttons/scroll-to-bottom-button.tsx",
   "src/components/features/command-menu/command-menu-items.tsx",
   "src/components/features/command-menu/command-menu-trigger.tsx",
   "src/components/features/command-menu/command-menu.tsx",
   "src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
-  "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx",
   "src/components/features/conversation/conversation-main/conversation-main.tsx",
   "src/components/features/conversation/conversation-name-with-status.tsx",
-  "src/components/features/conversation/conversation-tabs/conversation-tab-content/tab-content-area.tsx",
-  "src/components/features/conversation/conversation-tabs/conversation-tab-nav.tsx",
   "src/components/features/sidebar/sidebar-rail-body.tsx",
   "src/components/features/sidebar/sidebar.tsx",
   "src/root.tsx",
   "src/routes/conversation.tsx",
   "src/routes/root-layout.tsx",
+  "src/hooks/chat/use-grip-resize.ts",
+  "src/hooks/use-scroll-to-bottom.ts",
   "src/utils/utils.ts",
 ]);
 function adoptionClass(upstreamPath) {
@@ -73,72 +71,72 @@ function adoptionClass(upstreamPath) {
 
 const MODIFICATION_REASONS = new Map([
   [
+    "src/components/conversation-events/chat/event-message-components/event-group.tsx",
+    "Kept the OpenHands collapsible action-run group while accepting only public research presentation events.",
+  ],
+  [
     "src/components/conversation-events/chat/event-message-components/collapsible-thinking.tsx",
     "Kept the public disclosure interaction while restricting content to an auditable caller-provided value.",
   ],
   [
-    "src/components/conversation-events/chat/event-message-components/event-group.tsx",
-    "Kept event-group expansion, progress counts, completion feedback, and region semantics for public activity events.",
+    "src/components/features/chat/chat-interface.tsx",
+    "Kept the OpenHands scroll stream, empty and started composition, tail following, Composer placement, and error slot while injecting the research runtime seam.",
   ],
   [
     "src/components/conversation-events/chat/event-message.tsx",
-    "Kept event-item status, error, completion, and expandable-detail presentation for public activity events.",
+    "Kept the OpenHands generic event disclosure and status hierarchy over public research events.",
   ],
   [
     "src/components/conversation-events/chat/group-events.ts",
-    "Kept consecutive tool/progress grouping and single-event fallback with a public activity event model.",
+    "Kept the OpenHands consecutive action grouping algorithm over the public research event contract.",
   ],
   [
     "src/components/conversation-events/chat/messages.tsx",
-    "Kept Messages composition, progressive append, and scroll anchoring for runtime-supplied public activity events.",
+    "Kept the OpenHands ordered Messages composition and finalized action-group behavior.",
   ],
   [
-    "src/components/features/chat/chat-interface.tsx",
-    "Kept execution phase, cancellation, retry, error, notice, and Composer ownership at the conversation boundary.",
+    "src/components/features/chat/chat-message.tsx",
+    "Kept OpenHands user and agent message geometry while removing runtime-only markdown, media, copy, and branch dependencies.",
   ],
   [
-    "src/components/features/chat/chat-messages-skeleton.tsx",
-    "Kept the running-state loading placeholder while removing upstream conversation data dependencies.",
+    "src/components/features/chat/user-message-body.tsx",
+    "Kept the OpenHands long-user-message measurement, collapse, fade, and explicit expansion mechanic over public research text.",
   ],
   [
     "src/components/features/chat/chat-send-button.tsx",
-    "Kept the disabled-aware send control and Xingwen semantic tokens.",
-  ],
-  [
-    "src/components/features/chat/chat-stop-button.tsx",
-    "Kept the running-state cancel control and Xingwen semantic tokens.",
+    "Kept the OpenHands submit and pending button behavior with shared Xingwen icons.",
   ],
   [
     "src/components/features/chat/components/chat-input-actions.tsx",
-    "Kept the Composer action row and send/cancel switching while aligning the natural layout tokens.",
+    "Kept the OpenHands Composer action-row and submit ownership while injecting research-domain leading actions.",
   ],
   [
     "src/components/features/chat/components/chat-input-container.tsx",
-    "Kept the OpenHands Composer container composition while removing forced fixed-height geometry.",
+    "Kept the OpenHands single Composer container and focus boundary while removing coding attachments and mode controls.",
   ],
   [
     "src/components/features/chat/components/chat-input-field.tsx",
-    "Kept contentEditable, multiline, paste, and focus behavior with the natural-height field geometry.",
+    "Kept the OpenHands contenteditable input behavior with controlled research copy.",
   ],
   [
     "src/components/features/chat/components/chat-input-grip.tsx",
-    "Kept pointer and keyboard grip controls with semantic separator feedback and tokenized indicator styling.",
+    "Kept the OpenHands pointer and keyboard Composer resize grip.",
   ],
   [
     "src/components/features/chat/components/chat-input-row.tsx",
-    "Kept the upstream field row boundary for the adapted Composer.",
+    "Kept the OpenHands Composer input-row geometry without coding-only controls.",
   ],
   [
     "src/components/features/chat/custom-chat-input.tsx",
-    "Kept contentEditable input, paste, submit/cancel, focus, and grip wiring while delegating natural expansion to measured layout.",
-  ],
-  [
-    "src/components/features/chat/error-message-banner.tsx",
-    "Kept dismiss and retry presentation for execution failures without backend-specific state.",
+    "Kept the OpenHands contenteditable, paste, submit, controlled-value, and resize orchestration over the research submit adapter.",
   ],
   [
     "src/components/features/chat/interactive-chat-box.tsx",
-    "Kept the upstream Composer wrapper and transparent shell boundary around the adapted input.",
+    "Kept the OpenHands InteractiveChatBox boundary while injecting controlled research Composer state.",
+  ],
+  [
+    "src/components/shared/buttons/scroll-to-bottom-button.tsx",
+    "Kept the OpenHands return-to-latest control with shared Xingwen icons and research-language accessibility copy.",
   ],
   [
     "src/components/features/command-menu/command-menu-items.tsx",
@@ -154,27 +152,15 @@ const MODIFICATION_REASONS = new Map([
   ],
   [
     "src/components/features/conversation/conversation-main/chat-interface-wrapper.tsx",
-    "Kept the centered conversation frame and Composer ownership while injecting the thin runtime seam.",
+    "Kept the centered conversation frame and public Thread panel ownership while injecting the thin runtime seam.",
   ],
   [
     "src/components/features/conversation/conversation-main/conversation-main.tsx",
-    "Kept ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics while composing public surfaces.",
+    "Kept ConversationMain split-panel, resize, visibility, header, and panel-frame mechanics while composing public surfaces through the shared shadcn ScrollArea.",
   ],
   [
     "src/components/features/conversation/conversation-name-with-status.tsx",
     "Kept title/status header alignment while replacing conversation identity with the Workspace label.",
-  ],
-  [
-    "src/components/features/conversation/conversation-tabs/conversation-tab-content/tab-content-area.tsx",
-    "Kept the generic tabpanel frame, active-panel identifiers, focus target, and child composition boundary.",
-  ],
-  [
-    "src/components/features/conversation/conversation-tabs/conversation-tab-nav.tsx",
-    "Kept tab semantics, active indication, measurement mode, focus, and keyboard navigation for neutral tabs.",
-  ],
-  [
-    "src/components/features/conversation/conversation-tabs/conversation-tabs.tsx",
-    "Kept tab selection, persistence, overflow measurement, focus restoration, and keyboard navigation for Activity and Context.",
   ],
   [
     "src/components/features/sidebar/sidebar-layout.ts",
@@ -193,16 +179,20 @@ const MODIFICATION_REASONS = new Map([
     "Kept split-panel pointer and keyboard resizing with a stable separator and motion-safe transitions.",
   ],
   [
-    "src/hooks/chat/use-grip-resize.ts",
-    "Kept grip pointer/keyboard resize mechanics while deriving natural minimum and scale-aware limits from DOM geometry.",
-  ],
-  [
     "src/hooks/use-resizable-panels.ts",
     "Kept split-panel percentage sizing, persistence, pointer drag, and keyboard adjustment mechanics.",
   ],
   [
+    "src/hooks/chat/use-grip-resize.ts",
+    "Kept the OpenHands Composer height, pointer, keyboard, and content-resize mechanics.",
+  ],
+  [
+    "src/hooks/use-scroll-to-bottom.ts",
+    "Kept the OpenHands manual-scroll-aware tail-following state and explicit resume behavior.",
+  ],
+  [
     "src/root.tsx",
-    "Kept the OpenHands root composition while exposing only the thin runtime and public activity event seam.",
+    "Kept the OpenHands root composition while exposing only the thin runtime and public Research Thread/Inspector seams.",
   ],
   [
     "src/routes/conversation.tsx",

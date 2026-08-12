@@ -62,6 +62,7 @@ function runRepository(): RunRepository {
       nextCursor: "3",
       latestSequence: 3,
     })),
+    listSteps: vi.fn(async () => []),
   };
 }
 
@@ -117,6 +118,20 @@ describe("RunEventFeed", () => {
     feed.stop();
   });
 
+  it("refreshes frozen RunStep projections only when the event cursor advances", async () => {
+    const { feed, queryClient } = makeFeed();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    await feed.syncNow();
+    await feed.syncNow();
+
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: workspaceQueryKeys.runSteps(runId),
+    });
+    feed.stop();
+  });
+
   it("restarts snapshot-first recovery when an incremental gap is observed", async () => {
     const { feed, repository } = makeFeed();
     vi.mocked(repository.recoverEvents)
@@ -158,7 +173,7 @@ describe("RunEventFeed", () => {
   });
 
   it("backs off within bounds and supports pause/resume without losing cursor", async () => {
-    const { feed, repository } = makeFeed();
+    const { feed, repository, queryClient } = makeFeed();
     vi.mocked(repository.getById)
       .mockRejectedValueOnce(new Error("offline"))
       .mockRejectedValueOnce(new Error("offline"))
@@ -166,16 +181,55 @@ describe("RunEventFeed", () => {
 
     await feed.syncNow();
     expect(feed.getSnapshot().nextDelayMs).toBe(2_000);
+    expect(
+      queryClient.getQueryData<{ error: unknown }>(
+        workspaceQueryKeys.runEvents(runId),
+      )?.error,
+    ).toBeInstanceOf(Error);
     await feed.syncNow();
     expect(feed.getSnapshot().nextDelayMs).toBe(5_000);
     await feed.syncNow();
     expect(feed.getSnapshot().nextDelayMs).toBe(1_000);
+    expect(
+      queryClient.getQueryData<{ error: unknown }>(
+        workspaceQueryKeys.runEvents(runId),
+      )?.error,
+    ).toBeNull();
 
     feed.pause();
     expect(feed.getSnapshot().status).toBe("paused");
     const cursor = feed.getSnapshot().cursor;
     feed.resume();
     expect(feed.getSnapshot()).toMatchObject({ status: "running", cursor });
+    feed.stop();
+  });
+
+  it("resumes recovery from the cursor stored by the previous sync", async () => {
+    const { feed, repository } = makeFeed();
+    vi.mocked(repository.recoverEvents)
+      .mockResolvedValueOnce({
+        events: [event(1)],
+        nextCursor: "cursor-1",
+        latestSequence: 1,
+      })
+      .mockResolvedValueOnce({
+        events: [event(2), event(3)],
+        nextCursor: "cursor-3",
+        latestSequence: 3,
+      });
+
+    await feed.syncNow();
+    await feed.syncNow();
+
+    expect(repository.recoverEvents).toHaveBeenNthCalledWith(
+      2,
+      runId,
+      "cursor-1",
+    );
+    expect(feed.getSnapshot()).toMatchObject({
+      cursor: "cursor-3",
+      lastSequence: 3,
+    });
     feed.stop();
   });
 });

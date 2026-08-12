@@ -32,8 +32,11 @@ def upgrade() -> None:
         sa.Column("id", _uuid(), nullable=False),
         sa.Column("session_id", sa.String(128), nullable=False),
         sa.Column("name", sa.String(200), nullable=False),
-        sa.Column("description", sa.Text(), server_default=sa.text("''"), nullable=False),
+        sa.Column(
+            "description", sa.Text(), server_default=sa.text("''"), nullable=False
+        ),
         sa.Column("case_key", sa.String(128), nullable=False),
+        sa.Column("active_draft_id", _uuid(), nullable=True),
         sa.Column(
             "updated_at",
             sa.DateTime(timezone=True),
@@ -62,6 +65,117 @@ def upgrade() -> None:
     )
     op.create_index(
         "ix_research_projects_session_id", "research_projects", ["session_id"]
+    )
+
+    op.create_table(
+        "model_executions",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("provider", sa.String(128), nullable=False),
+        sa.Column("model", sa.String(128), nullable=False),
+        sa.Column("model_revision", sa.String(128), nullable=False),
+        sa.Column("prompt_name", sa.String(128), nullable=False),
+        sa.Column("prompt_version", sa.String(64), nullable=False),
+        sa.Column("prompt_hash", sa.String(71), nullable=False),
+        sa.Column("prompt_snapshot", sa.Text(), nullable=False),
+        sa.Column("input_hash", sa.String(71), nullable=True),
+        sa.Column("input_snapshot", _jsonb(), nullable=False),
+        sa.Column("output_hash", sa.String(71), nullable=True),
+        sa.Column("output_snapshot", _jsonb(), nullable=True),
+        sa.Column("parameters_hash", sa.String(71), nullable=False),
+        sa.Column("parameters_snapshot", _jsonb(), nullable=False),
+        sa.Column("status", sa.String(32), nullable=False),
+        sa.Column("token_usage", _jsonb(), nullable=True),
+        sa.Column("latency_ms", sa.Integer(), nullable=True),
+        sa.Column("provider_request_id", sa.String(256), nullable=True),
+        sa.Column("error_code", sa.String(128), nullable=True),
+        sa.Column("error_summary", sa.Text(), nullable=True),
+        sa.Column("idempotency_key", sa.String(200), nullable=False),
+        sa.Column("request_hash", sa.String(71), nullable=False),
+        sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "status IN ('pending','running','succeeded','failed')",
+            name="ck_model_executions_status",
+        ),
+        sa.CheckConstraint(
+            "latency_ms IS NULL OR latency_ms >= 0",
+            name="ck_model_executions_latency_nonnegative",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"],
+            ["research_projects.id"],
+            name="fk_model_executions_project_id_research_projects",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_model_executions"),
+        sa.UniqueConstraint("id", "project_id", name="uq_model_execution_id_project"),
+        sa.UniqueConstraint(
+            "project_id",
+            "idempotency_key",
+            name="uq_model_execution_project_idempotency",
+        ),
+    )
+
+    op.create_table(
+        "research_thread_entries",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("sequence", sa.BigInteger(), nullable=False),
+        sa.Column("kind", sa.String(64), nullable=False),
+        sa.Column("actor", sa.String(32), nullable=False),
+        sa.Column("public_content", sa.Text(), nullable=False),
+        sa.Column("structured_payload", _jsonb(), nullable=False),
+        sa.Column("model_execution_id", _uuid(), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "sequence >= 1", name="ck_research_thread_entries_sequence_positive"
+        ),
+        sa.CheckConstraint(
+            "kind IN ('user_message','assistant_message','assistant_analysis',"
+            "'clarification_question','clarification_answer')",
+            name="ck_research_thread_entries_kind",
+        ),
+        sa.CheckConstraint(
+            "actor IN ('user','assistant','system')",
+            name="ck_research_thread_entries_actor",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"],
+            ["research_projects.id"],
+            name="fk_research_thread_entries_project_id_research_projects",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["model_execution_id"],
+            ["model_executions.id"],
+            name="fk_research_thread_entries_model_execution_id",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_research_thread_entries"),
+        sa.UniqueConstraint(
+            "id", "project_id", name="uq_research_thread_entry_id_project"
+        ),
+        sa.UniqueConstraint(
+            "project_id",
+            "sequence",
+            name="uq_research_thread_entry_project_sequence",
+        ),
+    )
+    op.create_index(
+        "ix_research_thread_entries_project_sequence",
+        "research_thread_entries",
+        ["project_id", "sequence"],
     )
 
     op.create_table(
@@ -150,9 +264,7 @@ def upgrade() -> None:
             ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_research_contracts"),
-        sa.UniqueConstraint(
-            "id", "project_id", name="uq_research_contract_id_project"
-        ),
+        sa.UniqueConstraint("id", "project_id", name="uq_research_contract_id_project"),
         sa.UniqueConstraint(
             "project_id", "version", name="uq_research_contract_project_version"
         ),
@@ -216,9 +328,7 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "progress BETWEEN 0 AND 100", name="ck_research_runs_progress_range"
         ),
-        sa.CheckConstraint(
-            "revision >= 1", name="ck_research_runs_revision_positive"
-        ),
+        sa.CheckConstraint("revision >= 1", name="ck_research_runs_revision_positive"),
         sa.CheckConstraint(
             "latest_event_sequence >= 0",
             name="ck_research_runs_event_sequence_nonnegative",
@@ -297,9 +407,7 @@ def upgrade() -> None:
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
-        sa.CheckConstraint(
-            "position >= 0", name="ck_run_steps_position_nonnegative"
-        ),
+        sa.CheckConstraint("position >= 0", name="ck_run_steps_position_nonnegative"),
         sa.CheckConstraint(
             "max_attempts >= 1", name="ck_run_steps_max_attempts_positive"
         ),
@@ -406,9 +514,7 @@ def upgrade() -> None:
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
-        sa.CheckConstraint(
-            "sequence >= 1", name="ck_run_events_sequence_positive"
-        ),
+        sa.CheckConstraint("sequence >= 1", name="ck_run_events_sequence_positive"),
         sa.CheckConstraint(
             "progress IS NULL OR progress BETWEEN 0 AND 100",
             name="ck_run_events_progress_range",
@@ -447,9 +553,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_research_artifacts"),
-        sa.UniqueConstraint(
-            "id", "project_id", name="uq_research_artifact_id_project"
-        ),
+        sa.UniqueConstraint("id", "project_id", name="uq_research_artifact_id_project"),
         sa.UniqueConstraint(
             "project_id", "logical_key", name="uq_artifact_project_logical_key"
         ),
@@ -523,9 +627,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_producer_executions"),
-        sa.UniqueConstraint(
-            "id", "run_step_id", name="uq_producer_execution_id_step"
-        ),
+        sa.UniqueConstraint("id", "run_step_id", name="uq_producer_execution_id_step"),
         sa.UniqueConstraint(
             "run_step_id",
             "idempotency_key",
@@ -619,9 +721,7 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "id", "artifact_id", name="uq_artifact_version_id_artifact"
         ),
-        sa.UniqueConstraint(
-            "id", "project_id", name="uq_artifact_version_id_project"
-        ),
+        sa.UniqueConstraint("id", "project_id", name="uq_artifact_version_id_project"),
         sa.UniqueConstraint(
             "artifact_id", "version_number", name="uq_artifact_version_number"
         ),
@@ -696,9 +796,7 @@ def upgrade() -> None:
             ["project_id"], ["research_projects.id"], ondelete="CASCADE"
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "id", "project_id", name="uq_source_snapshot_id_project"
-        ),
+        sa.UniqueConstraint("id", "project_id", name="uq_source_snapshot_id_project"),
     )
     op.create_index(
         "ix_source_snapshots_project_retrieved",
@@ -800,7 +898,10 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["project_id", "content_hash"],
-            ["research_input_contents.project_id", "research_input_contents.content_hash"],
+            [
+                "research_input_contents.project_id",
+                "research_input_contents.content_hash",
+            ],
             name="fk_research_input_content",
             ondelete="RESTRICT",
         ),
@@ -811,9 +912,7 @@ def upgrade() -> None:
             ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "id", "project_id", name="uq_research_input_id_project"
-        ),
+        sa.UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
         sa.CheckConstraint(
             "type IN ('url','pdf','csv','json','image','text')",
             name="ck_research_inputs_input_type",
@@ -1036,6 +1135,12 @@ def downgrade() -> None:
     op.drop_table("step_attempts")
     op.drop_table("run_steps")
     op.drop_table("research_runs")
+    op.drop_index(
+        "ix_research_thread_entries_project_sequence",
+        table_name="research_thread_entries",
+    )
+    op.drop_table("research_thread_entries")
+    op.drop_table("model_executions")
     op.drop_table("research_contracts")
     op.drop_index(
         "ix_research_contract_drafts_session_id",

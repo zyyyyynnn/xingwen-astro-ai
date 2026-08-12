@@ -16,7 +16,7 @@ export function ChatSendButton({
       type="button"
       className="flex size-[var(--oh-control-size-xs)] items-center justify-center rounded-[var(--oh-radius-pill)] border border-[var(--oh-accent)] bg-[var(--oh-accent)] text-[var(--oh-accent-on)] hover:bg-[var(--oh-accent-hover)] disabled:border-[var(--oh-border)] disabled:bg-[var(--oh-surface-muted)] disabled:text-[var(--oh-text-dim)]"
       data-testid="submit-button"
-      aria-label={submitting ? "正在提交研究意图" : "提交研究意图"}
+      aria-label={submitting ? "正在发送研究消息" : "发送研究消息"}
       onClick={handleSubmit}
       disabled={disabled}
     >

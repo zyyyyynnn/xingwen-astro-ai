@@ -44,9 +44,9 @@
   --workspace-composer-grip-indicator-block-size: 0.25rem;
 
   /* Panel ratios are unitless percentages for JS resize mechanics. */
-  --workspace-panel-default-ratio: 58;
-  --workspace-panel-min-ratio: 38;
-  --workspace-panel-max-ratio: 72;
+  --workspace-panel-default-ratio: 68;
+  --workspace-panel-min-ratio: 62;
+  --workspace-panel-max-ratio: 78;
   --workspace-panel-keyboard-step: 2;
 
   /* Workspace overlays and motion. */

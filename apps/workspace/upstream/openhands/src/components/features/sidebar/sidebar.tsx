@@ -9,14 +9,20 @@ interface SidebarProps {
   readonly projects: readonly ResearchNavigationItem[];
   readonly onOpenProject: (projectId: string) => void;
   readonly onNewResearch: () => void;
-  readonly onLogout: () => void;
+  readonly onReturnHome: () => void;
+  readonly onToggleProjectPinned: (projectId: string) => void;
+  readonly onRequestProjectRename: (projectId: string) => void;
+  readonly onRequestProjectDelete: (projectId: string) => void;
 }
 
 export function Sidebar({
   projects,
   onOpenProject,
   onNewResearch,
-  onLogout,
+  onReturnHome,
+  onToggleProjectPinned,
+  onRequestProjectRename,
+  onRequestProjectDelete,
 }: SidebarProps) {
   const collapsed = useSidebarStore((state) => state.collapsed);
   const toggleCollapsed = useSidebarStore((state) => state.toggleCollapsed);
@@ -38,7 +44,10 @@ export function Sidebar({
           projects={projects}
           onOpenProject={onOpenProject}
           onNewResearch={onNewResearch}
-          onLogout={onLogout}
+          onReturnHome={onReturnHome}
+          onToggleProjectPinned={onToggleProjectPinned}
+          onRequestProjectRename={onRequestProjectRename}
+          onRequestProjectDelete={onRequestProjectDelete}
         />
       </div>
       <button

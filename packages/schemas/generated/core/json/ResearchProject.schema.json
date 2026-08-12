@@ -1,7 +1,28 @@
 {
+  "$defs": {
+    "RunStatus": {
+      "enum": [
+        "queued",
+        "planning",
+        "fetching_data",
+        "cleaning_data",
+        "searching_papers",
+        "summarizing_papers",
+        "reasoning_literature",
+        "building_graph",
+        "waiting_for_input",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    }
+  },
   "additionalProperties": false,
   "examples": [
     {
+      "active_draft_id": null,
       "case_key": "exoplanet_host_star",
       "created_at": "2026-07-21T08:00:00Z",
       "description": "Evidence-bound integration for the frozen main case",
@@ -27,6 +48,20 @@
       "default": null,
       "title": "Active Contract Id"
     },
+    "active_draft_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Active Draft Id"
+    },
     "case_key": {
       "const": "exoplanet_host_star",
       "title": "Case Key",
@@ -48,6 +83,18 @@
       "title": "Id",
       "type": "string"
     },
+    "latest_run_failure_summary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Latest Run Failure Summary"
+    },
     "latest_run_id": {
       "anyOf": [
         {
@@ -61,6 +108,17 @@
       ],
       "default": null,
       "title": "Latest Run Id"
+    },
+    "latest_run_status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "name": {
       "minLength": 1,

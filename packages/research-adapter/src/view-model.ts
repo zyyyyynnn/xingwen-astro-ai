@@ -8,6 +8,10 @@ import type {
   DomainEntityId,
   ExecutionMode,
   ResearchGoal,
+  ResearchPlanningCatalog,
+  ResearchThreadAssistantPayload,
+  ResearchThreadQuestionPayload,
+  ResearchThreadUserPayload,
   RunStatus,
   SemanticVersion,
   SourceMode,
@@ -22,11 +26,88 @@ export interface ProjectViewModel {
   readonly name: string;
   readonly description: string;
   readonly caseKey: CaseKey;
+  readonly activeDraftId: DomainEntityId | null;
   readonly activeContractId: DomainEntityId | null;
   readonly latestRunId: DomainEntityId | null;
+  readonly latestRunStatus: RunStatus | null;
+  readonly latestRunFailureSummary: string | null;
   readonly revision: number;
   readonly createdAt: UtcIsoTimestamp;
   readonly updatedAt: UtcIsoTimestamp;
+}
+
+export type ResearchPlanningCatalogViewModel = ResearchPlanningCatalog;
+
+interface ResearchThreadEntryViewModelBase<Kind, Actor, Payload> {
+  readonly id: DomainEntityId;
+  readonly projectId: DomainEntityId;
+  readonly sequence: number;
+  readonly kind: Kind;
+  readonly actor: Actor;
+  readonly publicContent: string;
+  readonly structuredPayload: Payload;
+  readonly modelExecutionId: DomainEntityId | null;
+  readonly createdAt: UtcIsoTimestamp;
+}
+
+export type ResearchThreadEntryViewModel =
+  | ResearchThreadEntryViewModelBase<
+      "user_message",
+      "user",
+      ResearchThreadUserPayload
+    >
+  | ResearchThreadEntryViewModelBase<
+      "clarification_answer",
+      "user",
+      ResearchThreadUserPayload
+    >
+  | ResearchThreadEntryViewModelBase<
+      "assistant_analysis",
+      "assistant",
+      ResearchThreadAssistantPayload
+    >
+  | ResearchThreadEntryViewModelBase<
+      "assistant_message",
+      "assistant",
+      ResearchThreadAssistantPayload
+    >
+  | ResearchThreadEntryViewModelBase<
+      "clarification_question",
+      "assistant",
+      ResearchThreadQuestionPayload
+    >;
+
+export interface ResearchTurnViewModel {
+  readonly outcome:
+    | "clarification_required"
+    | "draft_ready"
+    | "partial"
+    | "unsupported"
+    | "refused";
+  readonly entries: readonly ResearchThreadEntryViewModel[];
+  readonly activeDraftId: DomainEntityId | null;
+  readonly modelExecutionId: DomainEntityId;
+}
+
+export interface RunStepViewModel {
+  readonly id: DomainEntityId;
+  readonly runId: DomainEntityId;
+  readonly position: number;
+  readonly key: DomainEntityId;
+  readonly label: string;
+  readonly status:
+    | "pending"
+    | "running"
+    | "waiting"
+    | "completed"
+    | "failed"
+    | "cancelled"
+    | "skipped";
+  readonly progress: number;
+  readonly publicMessage: string;
+  readonly startedAt: UtcIsoTimestamp | null;
+  readonly finishedAt: UtcIsoTimestamp | null;
+  readonly failureCode: string | null;
 }
 
 export interface ContractInputViewModel {

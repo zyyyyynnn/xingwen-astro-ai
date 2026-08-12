@@ -27,11 +27,11 @@ export function ResizeHandle({
   return (
     <div
       className={cn(
-        "group relative z-[var(--oh-layer-resize-handle)] w-0 shrink-0 self-stretch outline-none",
+        "group relative z-[var(--oh-layer-resize-handle)] w-px shrink-0 self-stretch outline-none",
         className,
       )}
       role="separator"
-      aria-label="调整任务与活动面板宽度"
+      aria-label="调整研究对话与研究概览宽度"
       aria-orientation="vertical"
       aria-valuemin={min}
       aria-valuemax={max}

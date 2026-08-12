@@ -218,10 +218,24 @@ jobs:
           uv run python ../../scripts/export_schemas.py \
             --output ../../packages/schemas/generated/core \
             --include ResearchProject \
+            --include UpdateResearchProjectRequest \
+            --include ResearchCatalogOption \
+            --include ResearchPlanningCatalog \
+            --include ModelExecutionRecord \
+            --include PlannerClarificationRequired \
+            --include PlannerDraftReady \
+            --include PlannerPartial \
+            --include PlannerUnsupported \
+            --include PlannerRefused \
+            --include PlannerOutcome \
+            --include ResearchThreadEntry \
+            --include ResearchTurnRequest \
+            --include ResearchTurnResult \
             --include ResearchContractDraft \
             --include ResearchContract \
             --include ResearchRun \
             --include RunEvent \
+            --include RunStepRead \
             --include ResearchArtifact \
             --include ArtifactVersion \
             --include ResearchArtifactDetail \

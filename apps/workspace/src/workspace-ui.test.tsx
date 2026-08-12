@@ -1,6 +1,4 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { asEntityId, type ResearchContractInput } from "@xingwen/domain";
-import { researchAdapter } from "@xingwen/research-adapter";
 import {
   cleanup,
   fireEvent,
@@ -16,7 +14,6 @@ import {
 } from "../upstream/openhands/src/root";
 import { useCommandMenuStore } from "../upstream/openhands/src/stores/command-menu-store";
 import { useSidebarStore } from "../upstream/openhands/src/stores/sidebar-store";
-import { ContractCheckpoint } from "./components/contract-checkpoint";
 import { createTestRuntime } from "./test/runtime";
 import { WorkspaceEntry } from "./workspace-host";
 
@@ -44,6 +41,13 @@ describe("Workspace product UI", () => {
     expect(await screen.findByText("建立第一个研究项目")).toBeInTheDocument();
     expect(screen.getByTestId("root-layout")).toBeInTheDocument();
     expect(screen.getByLabelText("工作台侧栏")).toBeInTheDocument();
+    expect(screen.queryByLabelText("悬浮研究概览")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "展示悬浮概览" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "展开右侧栏" }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "新建研究项目" }));
     fireEvent.change(screen.getByLabelText("项目名称"), {
       target: { value: "近邻宿主星比较" },
@@ -56,92 +60,43 @@ describe("Workspace product UI", () => {
     await waitFor(() => expect(onOpenProject).toHaveBeenCalledOnce());
   });
 
-  it("keeps Contract fields explicit and reuses domain invariant validation", async () => {
-    const onCreateDraft =
-      vi.fn<
-        (intent: string, contract: ResearchContractInput) => Promise<void>
-      >();
-    onCreateDraft.mockResolvedValue(undefined);
-    render(
-      <ContractCheckpoint
-        intent="比较近邻宿主星"
-        draft={null}
-        contract={null}
-        run={null}
-        pendingAction={null}
-        errorMessage={null}
-        onCreateDraft={onCreateDraft}
-        onSaveDraft={vi.fn()}
-        onConfirmContract={vi.fn()}
-        onCreateRun={vi.fn()}
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText("研究目标"), {
-      target: { value: "比较目标宿主星的质量与半径" },
-    });
-    fireEvent.change(screen.getByLabelText("目标对象"), {
-      target: { value: "Kepler-186" },
-    });
-    fireEvent.change(screen.getByLabelText("请求字段"), {
-      target: { value: "stellar_mass, stellar_radius" },
-    });
-    fireEvent.change(screen.getByLabelText("允许来源"), {
-      target: { value: "nasa_exoplanet_archive" },
-    });
-    fireEvent.change(screen.getByLabelText("输出类型"), {
-      target: { value: "dataset, paper_collection" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "创建协议草稿" }));
-
-    await waitFor(() => expect(onCreateDraft).toHaveBeenCalledOnce());
-    expect(onCreateDraft.mock.calls[0]?.[1]).toMatchObject({
-      dataRequirements: { unitPolicy: "canonical" },
-      paperSearchScope: { maxCandidates: 20 },
-      evidenceRequirements: { minimumCoverage: 1 },
-      qualityConstraints: { sourceCompletenessMin: 1, unitConsistencyMin: 1 },
-    });
-  });
-
-  it("renders only Research Adapter public activity and keeps OpenHands mechanics", async () => {
-    const activity = researchAdapter.toActivityPresentationEvent({
-      runId: asEntityId("run-ui"),
-      sequence: 1,
-      eventType: asEntityId("run.queued"),
-      stepKey: null,
-      progress: null,
-      publicMessage: "研究运行已进入队列",
-      artifactVersionIds: [],
-      occurredAt: "2026-08-11T00:00:00Z",
-    });
+  it("renders the Research Thread and Inspector while keeping OpenHands mechanics", async () => {
     const runtime: ResearchWorkspaceRuntime = {
-      project: { name: "宿主星研究" },
-      run: { status: "queued", executionMode: "live" },
+      project: { name: "宿主星研究", statusLabel: "等待开始" },
       navigation: {
         projects: [],
         onOpenProject: vi.fn(),
         onNewResearch: vi.fn(),
-        onLogout: vi.fn(),
+        onReturnHome: vi.fn(),
+        onToggleProjectPinned: vi.fn(),
+        onRequestProjectRename: vi.fn(),
+        onRequestProjectDelete: vi.fn(),
       },
       composer: {
-        canSubmitIntent: false,
         submitting: false,
-        submitIntent: vi.fn(),
+        value: "",
+        placeholder: "描述研究问题",
+        hasStartedConversation: true,
+        leadingActions: null,
+        beforeInput: null,
+        onValueChange: vi.fn(),
+        onSubmit: vi.fn(async () => undefined),
       },
       activation: null,
-      activityEvents: [activity],
-      contextPanel: <p>协议已确认</p>,
+      threadPanel: <p>研究 Thread 内容</p>,
+      inspectorPanel: <p>Research Inspector 内容</p>,
     };
     render(<OpenHandsWorkspaceRoot runtime={runtime} />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "活动" }));
-    expect(screen.getByRole("log", { name: "研究活动" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Run queued/u }));
-    expect(screen.getByText("研究运行已进入队列")).toBeInTheDocument();
-    expect(screen.getByText("queued")).toBeInTheDocument();
+    expect(screen.getByText("研究 Thread 内容")).toBeInTheDocument();
+    expect(screen.getByText("Research Inspector 内容")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "活动" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: "上下文" }),
+    ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "退出系统" }));
-    expect(runtime.navigation.onLogout).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "返回首页" }));
+    expect(runtime.navigation.onReturnHome).toHaveBeenCalledOnce();
 
     const trigger = screen.getByRole("button", { name: "打开命令菜单" });
     trigger.focus();

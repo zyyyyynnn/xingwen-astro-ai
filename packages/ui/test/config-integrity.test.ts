@@ -131,6 +131,10 @@ describe("@xingwen/ui foundation config integrity", () => {
     const catalog = JSON.parse(
       readFileSync(resolve(process.cwd(), "component-sources.json"), "utf8"),
     );
+    const supportedUpstreamRevisions = new Map([
+      ["shadcn-ui@0.9.4", "729b9ec8cacfae0bc31958c1a8e425d0a21be54e"],
+      ["shadcn-cli@4.16.2", "efac5987074af84ece57c367c6dd83387b967022"],
+    ]);
 
     const names = new Set<string>();
     const paths = new Set<string>();
@@ -147,8 +151,11 @@ describe("@xingwen/ui foundation config integrity", () => {
 
       expect(item.source).toMatch(/^@shadcn\//);
       expect(item.upstream_repository).toBe("https://github.com/shadcn-ui/ui");
-      expect(item.upstream_revision).toBe("shadcn-ui@0.9.4");
+      expect(supportedUpstreamRevisions.has(item.upstream_revision)).toBe(true);
       expect(item.upstream_commit).toMatch(/^[0-9a-f]{40}$/);
+      expect(item.upstream_commit).toBe(
+        supportedUpstreamRevisions.get(item.upstream_revision),
+      );
       expect(item.registry_item).toBeTruthy();
       expect(item.license).toBe("MIT");
       expect(item.notice).toBeTruthy();

@@ -20,6 +20,7 @@ EXPECTED_TABLES = frozenset(
         "artifact_versions",
         "dataset_row_projections",
         "evidence",
+        "model_executions",
         "producer_executions",
         "research_artifacts",
         "research_contract_drafts",
@@ -30,6 +31,7 @@ EXPECTED_TABLES = frozenset(
         "research_inputs",
         "research_projects",
         "research_runs",
+        "research_thread_entries",
         "run_events",
         "run_steps",
         "source_snapshots",
@@ -37,9 +39,7 @@ EXPECTED_TABLES = frozenset(
     }
 )
 CURRENT_REQUIRED_COLUMNS = {
-    "research_projects": frozenset(
-        {"description", "idempotency_key", "request_hash"}
-    ),
+    "research_projects": frozenset({"description", "idempotency_key", "request_hash"}),
     "research_contract_drafts": frozenset({"idempotency_key", "request_hash"}),
     "research_contracts": frozenset(
         {
@@ -47,6 +47,13 @@ CURRENT_REQUIRED_COLUMNS = {
             "created_from_draft_id",
             "idempotency_key",
             "request_hash",
+        }
+    ),
+    "model_executions": frozenset(
+        {
+            "prompt_snapshot",
+            "input_snapshot",
+            "parameters_snapshot",
         }
     ),
 }
@@ -74,7 +81,9 @@ def test_fresh_postgres_matches_current_schema_contract() -> None:
         assert frozenset(inspector.get_table_names()) == EXPECTED_TABLES
 
         for table, required_columns in CURRENT_REQUIRED_COLUMNS.items():
-            columns = {column["name"]: column for column in inspector.get_columns(table)}
+            columns = {
+                column["name"]: column for column in inspector.get_columns(table)
+            }
             assert required_columns <= columns.keys()
             assert all(columns[name]["nullable"] is False for name in required_columns)
     finally:

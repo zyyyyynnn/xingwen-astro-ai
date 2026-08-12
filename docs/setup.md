@@ -27,6 +27,12 @@ Copy-Item .env.example .env
 
 `.env.example` 只声明当前运行时实际消费的配置。严禁提交 `.env`、密钥、Cookie 或其他凭据。
 
+真实研究助手使用千问 AI 平台的 OpenAI 兼容接口。根目录 `.env` 或 Windows 用户
+环境变量使用平台官方名称 `DASHSCOPE_API_KEY`。模型 family 与不可漂移的 snapshot
+分别由 `DASHSCOPE_MODEL` 和 `DASHSCOPE_MODEL_REVISION` 指定。这些变量只由 API 读取，不得使用
+`PUBLIC_*` 或 `VITE_*` 前缀。双击 `start-dev.bat` 时，健康门禁要求研究助手状态为
+`ready`；未配置凭据会明确停止启动，不会用 fixture 或模板回答伪装真实 Agent。
+
 | 变量                        | 默认值                                | 作用                                                        |
 | --------------------------- | ------------------------------------- | ----------------------------------------------------------- |
 | `PUBLIC_WORKSPACE_URL`      | `http://localhost:5173/workspace`     | Site 主入口链接                                             |

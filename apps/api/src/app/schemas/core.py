@@ -95,6 +95,29 @@ class ContractDraftStatus(StrEnum):
     expired = "expired"
 
 
+class ModelExecutionStatus(StrEnum):
+    pending = "pending"
+    running = "running"
+    succeeded = "succeeded"
+    failed = "failed"
+
+
+class ResearchThreadEntryKind(StrEnum):
+    user_message = "user_message"
+    assistant_message = "assistant_message"
+    assistant_analysis = "assistant_analysis"
+    clarification_question = "clarification_question"
+    clarification_answer = "clarification_answer"
+
+
+class PlannerOutcomeKind(StrEnum):
+    clarification_required = "clarification_required"
+    draft_ready = "draft_ready"
+    partial = "partial"
+    unsupported = "unsupported"
+    refused = "refused"
+
+
 class UnitPolicy(StrEnum):
     canonical = "canonical"
 
@@ -189,6 +212,7 @@ class ResearchProject(BaseModel):
                     "name": "Exoplanet host-star integration",
                     "description": "Evidence-bound integration for the frozen main case",
                     "case_key": "exoplanet_host_star",
+                    "active_draft_id": None,
                     "created_at": "2026-07-21T08:00:00Z",
                     "updated_at": "2026-07-21T08:00:00Z",
                     "revision": 1,
@@ -202,8 +226,11 @@ class ResearchProject(BaseModel):
     name: NonEmptyString
     description: str = ""
     case_key: Literal["exoplanet_host_star"]
+    active_draft_id: Identifier | None = None
     active_contract_id: Identifier | None = None
     latest_run_id: Identifier | None = None
+    latest_run_status: RunStatus | None = None
+    latest_run_failure_summary: str | None = None
     created_at: UtcDateTime
     updated_at: UtcDateTime
     revision: int = Field(ge=1)
@@ -286,6 +313,181 @@ class ResearchContract(ResearchContractInput):
     created_from_draft_id: Identifier
     created_at: UtcDateTime
     content_hash: ContentHash
+
+
+class ResearchThreadEntry(BaseModel):
+    """Public, Project-owned entry in the primary Research Thread."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    id: Identifier
+    project_id: Identifier
+    sequence: int = Field(ge=1)
+    kind: ResearchThreadEntryKind
+    actor: Literal["user", "assistant", "system"]
+    public_content: str
+    structured_payload: dict[str, JsonValue] = Field(default_factory=dict)
+    model_execution_id: Identifier | None = None
+    created_at: UtcDateTime
+
+
+class ModelExecutionRecord(BaseModel):
+    """Pre-run model provenance without raw provider output or private reasoning."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    id: Identifier
+    project_id: Identifier
+    provider: NonEmptyString
+    model: NonEmptyString
+    model_revision: NonEmptyString
+    prompt_name: NonEmptyString
+    prompt_version: SemanticVersion
+    prompt_hash: ContentHash
+    prompt_snapshot: NonEmptyString
+    input_hash: ContentHash | None = None
+    input_snapshot: dict[str, JsonValue]
+    output_hash: ContentHash | None = None
+    output_snapshot: dict[str, JsonValue] | None = None
+    parameters_hash: ContentHash
+    parameters_snapshot: dict[str, JsonValue]
+    status: ModelExecutionStatus
+    token_usage: dict[str, JsonValue] | None = None
+    latency_ms: int | None = Field(default=None, ge=0)
+    provider_request_id: str | None = None
+    error_code: str | None = None
+    error_summary: str | None = None
+    created_at: UtcDateTime
+    finished_at: UtcDateTime | None = None
+
+
+class ResearchCatalogOption(BaseModel):
+    """One manifest-backed choice rendered by the Contract authoring UI."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    value: Identifier
+    label: NonEmptyString
+    description: str = ""
+    group: Literal["common", "advanced"] | None = None
+
+
+class ResearchPlanningCatalog(BaseModel):
+    """Project-scoped planning choices derived from current Authorities."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    project_id: Identifier
+    case_key: Identifier
+    target_objects: tuple[ResearchCatalogOption, ...]
+    requested_fields: tuple[ResearchCatalogOption, ...]
+    allowed_sources: tuple[ResearchCatalogOption, ...]
+    output_requirements: tuple[ResearchCatalogOption, ...]
+
+
+class PlannerClarificationRequired(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    outcome: Literal["clarification_required"]
+    public_analysis: NonEmptyString
+    assistant_message: NonEmptyString
+    warnings: tuple[NonEmptyString, ...] = ()
+    question_id: Identifier
+    question: NonEmptyString
+
+
+class PlannerDraftReady(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    outcome: Literal["draft_ready"]
+    public_analysis: NonEmptyString
+    assistant_message: NonEmptyString
+    warnings: tuple[NonEmptyString, ...] = ()
+    contract: ResearchContractInput
+
+
+class PlannerPartial(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    outcome: Literal["partial"]
+    public_analysis: NonEmptyString
+    assistant_message: NonEmptyString
+    warnings: tuple[NonEmptyString, ...] = ()
+    missing_information: tuple[NonEmptyString, ...] = Field(min_length=1)
+
+
+class PlannerUnsupported(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    outcome: Literal["unsupported"]
+    public_analysis: NonEmptyString
+    assistant_message: NonEmptyString
+    warnings: tuple[NonEmptyString, ...] = ()
+    reason: NonEmptyString
+
+
+class PlannerRefused(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    outcome: Literal["refused"]
+    public_analysis: NonEmptyString
+    assistant_message: NonEmptyString
+    warnings: tuple[NonEmptyString, ...] = ()
+    reason: NonEmptyString
+
+
+PlannerOutcome = Annotated[
+    PlannerClarificationRequired
+    | PlannerDraftReady
+    | PlannerPartial
+    | PlannerUnsupported
+    | PlannerRefused,
+    Field(discriminator="outcome"),
+]
+
+
+class ResearchTurnRequest(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    message: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=10000)
+    ]
+    answer_to_question_id: Identifier | None = None
+
+
+class ResearchTurnResult(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    outcome: PlannerOutcomeKind
+    entries: tuple[ResearchThreadEntry, ...]
+    active_draft_id: Identifier | None = None
+    model_execution_id: Identifier
+
+
+class RunStepStatus(StrEnum):
+    pending = "pending"
+    running = "running"
+    waiting = "waiting"
+    completed = "completed"
+    failed = "failed"
+    cancelled = "cancelled"
+    skipped = "skipped"
+
+
+class RunStepRead(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    id: Identifier
+    run_id: Identifier
+    position: int = Field(ge=0)
+    key: Identifier
+    label: NonEmptyString
+    status: RunStepStatus
+    progress: int = Field(ge=0, le=100)
+    public_message: str
+    started_at: UtcDateTime | None = None
+    finished_at: UtcDateTime | None = None
+    failure_code: str | None = None
 
 
 def project_research_contract_input(
@@ -900,6 +1102,14 @@ class CreateResearchProjectRequest(BaseModel):
     case_key: Literal["exoplanet_host_star"]
 
 
+class UpdateResearchProjectRequest(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    name: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+    ]
+
+
 class CreateResearchContractDraftRequest(BaseModel):
     """Creates an editable draft bound to a session-owned project.
 
@@ -946,3 +1156,6 @@ class ResearchSession(BaseModel):
 
 class SessionCreated(ResearchSession):
     csrf_token: NonEmptyString
+
+
+__all__ = ["PlannerOutcome"]

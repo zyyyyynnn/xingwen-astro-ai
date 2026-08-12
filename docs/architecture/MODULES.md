@@ -38,7 +38,7 @@ Experience (Site / Workspace)
 
 ### 2.1 前端与产品体验
 
-- **职责**：提供 Brand Site 静态站与 Research Workspace 宿主界面，负责 Session Gate、路由、Query/Mutation 组合、公开 Activity 展示、Artifact Renderer Registry、共享 Evidence Inspector、交互响应与分享体验。
+- **职责**：提供 Brand Site 静态站与 Research Workspace 宿主界面，负责 Session Gate、路由、Query/Mutation 组合、Research Thread 展示、Artifact Renderer Registry、浮动 Research Inspector、交互响应与分享体验。
 - **不负责**：直连外部模型/数据源、决定 Run 状态、伪造后端未返回的科研事实。
 
 `/workspace` 的项目首次创建、项目恢复与研究交互共享同一 Workspace Shell。
@@ -46,7 +46,7 @@ Experience (Site / Workspace)
 Brand Site 首页；会话失效页只承接真实 Session 过期或私有边界拒绝，不是退出后的中转页。
 
 `@xingwen/research-adapter` 是前端唯一的 Research Application Boundary，负责
-Domain 到 UI ViewModel、RunEvent 到公开 ActivityPresentationEvent、UI Intent
+Domain 到 UI ViewModel、Thread/RunEvent 到公开 PresentationEvent、UI Intent
 到 ApplicationCommand，以及已归一化 Repository 错误到稳定公开错误的纯映射。
 它只依赖 `@xingwen/domain` 与 `@xingwen/data-access` 的窄 public ports/errors 边界，不拥有
 transport、session、query/cache、polling、server state 或 renderer 生命周期。

@@ -125,8 +125,13 @@ describe("contract validation — isDto type guard", () => {
 
 describe("contract — schema metadata", () => {
   it("exposes core and generic provenance read model names", () => {
-    expect(CORE_MODEL_NAMES).toHaveLength(19);
+    expect(CORE_MODEL_NAMES).toHaveLength(24);
     expect(CORE_MODEL_NAMES).toContain("ResearchProject");
+    expect(CORE_MODEL_NAMES).toContain("ResearchThreadEntry");
+    expect(CORE_MODEL_NAMES).toContain("ResearchTurnResult");
+    expect(CORE_MODEL_NAMES).toContain("RunStepRead");
+    expect(CORE_MODEL_NAMES).toContain("ModelExecutionRecord");
+    expect(CORE_MODEL_NAMES).toContain("ResearchPlanningCatalog");
     expect(CORE_MODEL_NAMES).toContain("ArtifactVersion");
     expect(CORE_MODEL_NAMES).toContain("EvidenceRead");
     expect(CORE_MODEL_NAMES).toContain("SourceSnapshotDetail");

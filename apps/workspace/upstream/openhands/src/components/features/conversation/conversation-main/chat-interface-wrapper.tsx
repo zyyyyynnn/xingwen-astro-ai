@@ -10,9 +10,9 @@ export function ChatInterfaceWrapper({ runtime }: ChatInterfaceWrapperProps) {
   return (
     <div
       data-testid="workspace-main-surface"
-      className="flex h-full min-h-0 w-full justify-center bg-[var(--oh-canvas)]"
+      className="flex h-full min-h-0 w-full bg-[var(--oh-canvas)]"
     >
-      <div className="flex h-full min-h-0 w-full min-w-0 max-w-[var(--oh-content-max-inline-size)] flex-col">
+      <div className="flex h-full min-h-0 w-full min-w-0 flex-col">
         <ChatInterface runtime={runtime} />
       </div>
     </div>

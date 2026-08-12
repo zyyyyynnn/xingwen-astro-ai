@@ -7,12 +7,10 @@
  * (`createHttpRepositories`) implement them. Ports operate exclusively on
  * domain types — transport DTOs never leak through to consumers.
  *
- * The surface is intentionally narrowed to the operations the current UI and the
- * frozen 27-operation `/api` contract actually support: project listing and
- * creation and client-authored draft creation exist (the public authoring
- * chain), but there is still no project/run PATCH/DELETE, no artifact/version
- * writes, and no generic subscription. Each method maps to a real endpoint (or
- * its fixture equivalent) so an abstraction always has two concrete adapters.
+ * The surface is intentionally narrowed to the operations the current UI and
+ * the `/api` contract actually support. Each method maps to a real endpoint
+ * (or its fixture equivalent) so an abstraction always has two concrete
+ * adapters.
  */
 
 import type {
@@ -30,7 +28,11 @@ import type {
   ResearchContractDraft,
   ResearchContractInput,
   ResearchProject,
+  ResearchPlanningCatalog,
   ResearchRun,
+  ResearchThreadEntry,
+  ResearchTurn,
+  RunStepSnapshot,
   RunEvent,
   ShareSnapshot,
   ShareSnapshotCreated,
@@ -53,6 +55,10 @@ export interface CreateResearchProjectInput {
   readonly idempotencyKey: string;
 }
 
+export interface UpdateResearchProjectInput {
+  readonly name: string;
+}
+
 /** Payload for creating an editable draft bound to a session-owned project. */
 export interface CreateResearchContractDraftInput {
   readonly intent: string;
@@ -65,6 +71,17 @@ export interface CreateResearchContractDraftInput {
 export interface ResearchProjectPage {
   readonly items: readonly ResearchProject[];
   /** Cursor to resume listing, or null when the collection is fully drained. */
+  readonly nextCursor: string | null;
+}
+
+export interface SubmitResearchTurnInput {
+  readonly message: string;
+  readonly answerToQuestionId: DomainEntityId | null;
+  readonly idempotencyKey: string;
+}
+
+export interface ResearchThreadPage {
+  readonly items: readonly ResearchThreadEntry[];
   readonly nextCursor: string | null;
 }
 
@@ -92,6 +109,27 @@ export interface ProjectRepository {
   /** Session-scoped listing in a stable order; follows `cursor` when supplied. */
   list(cursor?: string | null): Promise<ResearchProjectPage>;
   create(input: CreateResearchProjectInput): Promise<ResearchProject>;
+  update(
+    id: DomainEntityId,
+    input: UpdateResearchProjectInput,
+    expectedRevision: number,
+  ): Promise<ResearchProject>;
+  delete(id: DomainEntityId, expectedRevision: number): Promise<void>;
+}
+
+export interface ResearchThreadRepository {
+  list(
+    projectId: DomainEntityId,
+    cursor?: string | null,
+  ): Promise<ResearchThreadPage>;
+  submit(
+    projectId: DomainEntityId,
+    input: SubmitResearchTurnInput,
+  ): Promise<ResearchTurn>;
+}
+
+export interface ResearchCatalogRepository {
+  getForProject(projectId: DomainEntityId): Promise<ResearchPlanningCatalog>;
 }
 
 export interface ContractRepository {
@@ -127,6 +165,7 @@ export interface RunRepository {
     runId: DomainEntityId,
     fromCursor?: string | null,
   ): Promise<RunEventRecovery>;
+  listSteps(runId: DomainEntityId): Promise<readonly RunStepSnapshot[]>;
 }
 
 export interface ArtifactReadRepository {
@@ -195,6 +234,8 @@ export interface ShareRepository {
  */
 export interface RepositorySet {
   readonly projects: ProjectRepository;
+  readonly researchCatalog: ResearchCatalogRepository;
+  readonly researchThread: ResearchThreadRepository;
   readonly contracts: ContractRepository;
   readonly runs: RunRepository;
   readonly artifacts: ArtifactReadRepository;

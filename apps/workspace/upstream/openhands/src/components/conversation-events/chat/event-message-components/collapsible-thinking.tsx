@@ -1,5 +1,66 @@
 import React from "react";
-import { ChevronDown, FileSearch } from "@xingwen/ui/icons";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@xingwen/ui";
+import { ChevronDown, FileSearch, type LucideIcon } from "@xingwen/ui/icons";
+
+interface NarrativeDisclosureProps {
+  readonly summary: string;
+  readonly meta?: string;
+  readonly icon: LucideIcon;
+  readonly defaultOpen?: boolean;
+  readonly open?: boolean;
+  readonly onOpenChange?: (open: boolean) => void;
+  readonly triggerRef?: React.Ref<HTMLButtonElement>;
+  readonly children: React.ReactNode;
+}
+
+/** OpenHands disclosure mechanics shared by public Agent narrative nodes. */
+export function NarrativeDisclosure({
+  summary,
+  meta,
+  icon: Icon,
+  defaultOpen = false,
+  open,
+  onOpenChange,
+  triggerRef,
+  children,
+}: NarrativeDisclosureProps) {
+  return (
+    <Collapsible
+      asChild
+      defaultOpen={defaultOpen}
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <section className="oh-narrative-node">
+        <CollapsibleTrigger asChild>
+          <button
+            ref={triggerRef}
+            type="button"
+            className="oh-narrative-row oh-narrative-trigger"
+          >
+            <ChevronDown className="oh-narrative-chevron" aria-hidden="true" />
+            <Icon className="oh-narrative-icon" aria-hidden="true" />
+            <span className="oh-narrative-title flex items-center gap-[var(--oh-space-2)]">
+              <span className="truncate">{summary}</span>
+              {meta ? (
+                <span className="shrink-0 text-xs text-[var(--oh-muted)]">
+                  {meta}
+                </span>
+              ) : null}
+            </span>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="oh-narrative-content">
+          {children}
+        </CollapsibleContent>
+      </section>
+    </Collapsible>
+  );
+}
 
 interface CollapsibleRationaleProps {
   readonly summary: string;
@@ -11,31 +72,9 @@ export function CollapsibleRationale({
   summary,
   children,
 }: CollapsibleRationaleProps) {
-  const [expanded, setExpanded] = React.useState(false);
-
   return (
-    <section className="border-l border-[var(--oh-border-strong)] pl-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]">
-      <button
-        type="button"
-        onClick={() => setExpanded((current) => !current)}
-        aria-expanded={expanded}
-        className="flex w-full items-center gap-[var(--oh-space-2)] border-0 bg-transparent px-0 py-[var(--oh-space-1)] text-left text-[var(--oh-muted)] hover:text-[var(--oh-text)]"
-      >
-        <ChevronDown
-          className={`size-[var(--oh-icon-size-md)] shrink-0 transition-transform motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
-          aria-hidden="true"
-        />
-        <FileSearch
-          className="size-[var(--oh-icon-size-md)] shrink-0"
-          aria-hidden="true"
-        />
-        <span>{summary}</span>
-      </button>
-      {expanded ? (
-        <div className="pb-[var(--oh-space-2)] pl-[var(--oh-space-6)] pt-[var(--oh-space-1)] text-[var(--oh-text)]">
-          {children}
-        </div>
-      ) : null}
-    </section>
+    <NarrativeDisclosure summary={summary} icon={FileSearch}>
+      {children}
+    </NarrativeDisclosure>
   );
 }

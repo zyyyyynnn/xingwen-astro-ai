@@ -15,6 +15,9 @@ describe("researchAdapter facade", () => {
       "toEvidenceViewModel",
       "toProjectViewModel",
       "toPublicApplicationError",
+      "toResearchThreadEntryViewModel",
+      "toResearchTurnViewModel",
+      "toRunStepViewModel",
       "toRunViewModel",
     ]);
   });

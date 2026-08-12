@@ -78,7 +78,7 @@ describe("RunEvent to public ActivityPresentationEvent", () => {
     expect(result.outcome).toBe("unsupported");
     expect(result.status).toBe("error");
     expect(result.kind).toBe("error");
-    expect(result.title).toBe("Unsupported activity event");
+    expect(result.title).toBe("暂无法显示此运行事件");
     expect(result.detail).toBe("Public activity message");
     expect(JSON.stringify(result)).not.toContain("future_private_event");
   });
