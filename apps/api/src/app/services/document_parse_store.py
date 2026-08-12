@@ -286,6 +286,8 @@ class DocumentParseRepository:
                 identity_hash=identity_hash,
                 schema_hash=schema_hash,
                 payload_semantic_hash=payload_semantic_hash,
+                payload_content_hash=payload_content_hash,
+                payload_storage_ref=payload_storage_ref,
                 expected_snapshot_id=expected_snapshot_id,
             )
             return _record(winner, reused=winner.id != values["id"])
@@ -510,11 +512,14 @@ def _assert_authoritative_upload_snapshot(
         snapshot.project_id != input_row.project_id
         or snapshot.source_id != f"research_input:{input_row.id}"
         or snapshot.source_type != "research_input_upload"
+        or snapshot.retrieved_at != input_row.created_at
         or snapshot.query != expected_query
         or snapshot.query_hash != compute_canonical_payload_hash(expected_query)
         or snapshot.content_hash != input_row.content_hash
-        or snapshot.request_metadata.get("ingestion_source") != "upload"
-        or "content" in snapshot.request_metadata
+        or snapshot.source_version_or_etag is not None
+        or snapshot.cache_version is not None
+        or snapshot.license_note != "user-provided upload"
+        or snapshot.request_metadata != {"ingestion_source": "upload"}
     ):
         raise DocumentParseIntegrityError(
             "ResearchInput SourceSnapshot does not satisfy authoritative "
@@ -706,6 +711,8 @@ def _require_same_parse(
     identity_hash: str,
     schema_hash: str,
     payload_semantic_hash: str,
+    payload_content_hash: str,
+    payload_storage_ref: str,
     expected_snapshot_id: UUID,
 ) -> None:
     if (
@@ -715,6 +722,8 @@ def _require_same_parse(
         or row.parse_input_hash != request.parse_input_hash
         or row.canonical_output_hash != request.candidate.canonical_output_hash
         or row.payload_semantic_hash != payload_semantic_hash
+        or row.payload_content_hash != payload_content_hash
+        or row.payload_storage_ref != payload_storage_ref
         or row.schema_version != SCIENTIFIC_DOCUMENT_SCHEMA_VERSION
         or row.schema_hash != schema_hash
         or row.source_snapshot_id != expected_snapshot_id

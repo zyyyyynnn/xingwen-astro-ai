@@ -519,6 +519,55 @@ def test_blocker1_same_content_wrong_source_rejects_provenance(
         asyncio.run(service.persist(request))
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("retrieved_at", datetime(2026, 8, 12, 9, 0, tzinfo=UTC)),
+        ("source_version_or_etag", "unexpected-etag"),
+        ("cache_version", "unexpected-cache-version"),
+        ("license_note", "unexpected-license"),
+        ("request_metadata", {"ingestion_source": "upload", "extra": "value"}),
+    ),
+)
+def test_blocker1_rejects_noncanonical_upload_snapshot_metadata(
+    context: dict[str, object], field: str, value: object
+) -> None:
+    service = context["service"]
+    request = context["request"]
+    ids = context["ids"]
+    factory = context["factory"]
+    assert isinstance(service, DocumentParseService)
+    assert isinstance(request, PersistDocumentParseRequest)
+    assert isinstance(ids, dict)
+
+    query = {"research_input_id": str(ids["input"])}
+    snapshot_values = {
+        "id": uuid4(),
+        "project_id": ids["project"],
+        "source_id": f"research_input:{ids['input']}",
+        "source_type": "research_input_upload",
+        "retrieved_at": NOW,
+        "query": query,
+        "query_hash": compute_canonical_payload_hash(query),
+        "source_version_or_etag": None,
+        "content_hash": INPUT_HASH,
+        "license_note": "user-provided upload",
+        "cache_version": None,
+        "request_metadata": {"ingestion_source": "upload"},
+    }
+    snapshot_values[field] = value
+    with factory() as session, session.begin():  # type: ignore[operator]
+        snapshot = SourceSnapshotModel(**snapshot_values)
+        session.add(snapshot)
+        session.flush()
+        input_row = session.get(ResearchInputModel, ids["input"])
+        assert input_row is not None
+        input_row.source_snapshot_id = snapshot.id
+
+    with pytest.raises(DocumentParseIntegrityError):
+        asyncio.run(service.persist(request))
+
+
 def test_blocker1_valid_pre_existing_upload_snapshot_reuses(
     context: dict[str, object],
 ) -> None:
