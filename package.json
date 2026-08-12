@@ -38,7 +38,7 @@
     "globals": "17.7.0",
     "jsdom": "29.1.1",
     "json-schema-to-typescript": "15.0.4",
-    "mermaid": "11.12.2",
+    "mermaid": "11.16.1",
     "prettier": "3.9.5",
     "prettier-plugin-astro": "0.14.1",
     "turbo": "2.10.5",

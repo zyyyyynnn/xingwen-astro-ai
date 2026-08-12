@@ -50,8 +50,8 @@ importers:
         specifier: 15.0.4
         version: 15.0.4
       mermaid:
-        specifier: 11.12.2
-        version: 11.12.2
+        specifier: 11.16.1
+        version: 11.16.1
       prettier:
         specifier: 3.9.5
         version: 3.9.5
@@ -747,34 +747,10 @@ packages:
       }
     engines: { node: ">=18" }
 
-  "@chevrotain/cst-dts-gen@11.0.3":
+  "@chevrotain/types@11.1.2":
     resolution:
       {
-        integrity: sha512-BvIKpRLeS/8UbfxXxgC33xOumsacaeCKAjAeLyOn7Pcp95HiRbrpl14S+9vaZLolnbssPIUuiUd8IvgkRyt6NQ==,
-      }
-
-  "@chevrotain/gast@11.0.3":
-    resolution:
-      {
-        integrity: sha512-+qNfcoNk70PyS/uxmj3li5NiECO+2YKZZQMbmjTqRI3Qchu8Hig/Q9vgkHpI3alNjr7M+a2St5pw5w5F6NL5/Q==,
-      }
-
-  "@chevrotain/regexp-to-ast@11.0.3":
-    resolution:
-      {
-        integrity: sha512-1fMHaBZxLFvWI067AVbGJav1eRY7N8DDvYCTwGBiE/ytKBgP8azTdgyrKyWZ9Mfh09eHWb5PgTSO8wi7U824RA==,
-      }
-
-  "@chevrotain/types@11.0.3":
-    resolution:
-      {
-        integrity: sha512-gsiM3G8b58kZC2HaWR50gu6Y1440cHiJ+i3JUvcp/35JchYejb2+5MVeJK0iKThYpAa/P2PYFV4hoi44HD+aHQ==,
-      }
-
-  "@chevrotain/utils@11.0.3":
-    resolution:
-      {
-        integrity: sha512-YslZMgtJUyuMbZ+aKvfF3x1f5liK4mWNxghFRv7jqRR9C3R3fAOGTTKvxXDa2Y1s9zSbcpuO0cAxDYsc9SrXoQ==,
+        integrity: sha512-U+HFai5+zmJCkK86QsaJtoITlboZHBqrVketcO2ROv865xfCMSFpELQoz1GkX5GzME8pTa+3kbKrZHQtI0gdbw==,
       }
 
   "@clack/core@1.4.3":
@@ -1624,10 +1600,10 @@ packages:
         integrity: sha512-4JQNk+3mVzK3xh2rqd6RB4J46qUR19azEHBneZyTZM+c456qOrbbM/5xcR8huNCCcbVt7+UmizG6GuUvPvKUYg==,
       }
 
-  "@mermaid-js/parser@0.6.3":
+  "@mermaid-js/parser@1.2.0":
     resolution:
       {
-        integrity: sha512-lnjOhe7zyHjc+If7yT4zoedx2vo4sHaTmtkl1+or8BRTnCtDmcTpAjpzDSfCZrshM5bCoz0GyidzadJAH1xobA==,
+        integrity: sha512-oYPyv8A4As1yH5Bx+04iQEQxXuIQDe0GKCNSRgao6z8AM9jixXIfP0vsppRLvGf+nKIOb9/LdpWA4YuJiVvESA==,
       }
 
   "@mswjs/interceptors@0.39.8":
@@ -3183,10 +3159,10 @@ packages:
         integrity: sha512-fALi2aI6shfg7vM5KiR1wNJnZ7r6UuggVqtDA+xiEdPZQwy/trcQaHnwShLuLdta2rTymCNpxYTiMZX/e09F4g==,
       }
 
-  "@types/d3-geo@3.1.0":
+  "@types/d3-geo@3.1.1":
     resolution:
       {
-        integrity: sha512-856sckF0oP/diXtS4jNsiQw/UuK5fQG8l/a9VVLeSouf1/PPbBE1i1W852zVwKwYCBkFJJB7nCFTbk6UMEXBOQ==,
+        integrity: sha512-65Emv9fQiQQqphLlRkuQ5ypPsOmWPhtBGCMv61JDPEPMvsx+gzhGf74yw1a78xFKPj6zw4AgQICJoQv0vK9M2w==,
       }
 
   "@types/d3-hierarchy@3.1.7":
@@ -3482,6 +3458,12 @@ packages:
     resolution:
       {
         integrity: sha512-60YRaenCQcVjYEKOcG824+DRGGIQ3VKErcBoAEDJZz5bKIs2ZG+X/H9Nk+Q6EVkwJk5QNApxbrc5QtBSwtrXAg==,
+      }
+
+  "@upsetjs/venn.js@2.0.0":
+    resolution:
+      {
+        integrity: sha512-WbBhLrooyePuQ1VZxrJjtLvTc4NVfpOyKx0sKqioq9bX1C1m7Jgykkn8gLrtwumBioXIqam8DLxp88Adbue6Hw==,
       }
 
   "@vitejs/plugin-react@5.2.0":
@@ -3841,20 +3823,6 @@ packages:
         integrity: sha512-RpPp0asT/6ufRm//AJVwpViZbGM/MkjQFxJccQRHmISF/22NBtsHqAWmL+/pmkPWoIUJdWyeVleTl1wydHATVQ==,
       }
 
-  chevrotain-allstar@0.3.1:
-    resolution:
-      {
-        integrity: sha512-b7g+y9A0v4mxCW1qUhf3BSVPg+/NvGErk/dOkrDaHA0nQIQGAtrOjlX//9OQtRlSCy+x9rfB5N8yC71lH1nvMw==,
-      }
-    peerDependencies:
-      chevrotain: ^11.0.0
-
-  chevrotain@11.0.3:
-    resolution:
-      {
-        integrity: sha512-ci2iJH6LeIkvP9eJW6gpueU8cnZhv85ELY8w8WiFtNjMHA5ad6pQLaJo9mEly/9qUyCpvqX8/POVUTf18/HFdw==,
-      }
-
   chokidar@4.0.3:
     resolution:
       {
@@ -4080,10 +4048,10 @@ packages:
     peerDependencies:
       cytoscape: ^3.2.0
 
-  cytoscape@3.34.0:
+  cytoscape@3.34.1:
     resolution:
       {
-        integrity: sha512-62rNSrioXw93uliKFBwjukeQyeWwH2PqDrTac31r2P6464u3AUvTk0xS4LVvT251g7IgkFunrI48ZEZGjywSOg==,
+        integrity: sha512-Lr0RvH9H75y9ar8h9Toy6u4lxRSCcxUq+hHcQ26sVWo6BnaQp1gwEZOYqwuYTZhyW7npyKnNLP8oJ2p1/3OZ7g==,
       }
     engines: { node: ">=0.10" }
 
@@ -4331,10 +4299,10 @@ packages:
       }
     engines: { node: ">=12" }
 
-  dagre-d3-es@7.0.13:
+  dagre-d3-es@7.0.14:
     resolution:
       {
-        integrity: sha512-efEhnxpSuwpYOKRm/L5KbqoZmNNukHa/Flty4Wp62JRvgH2ojwVgPgdYyr4twpieZnyRDdIH7PY2mopX26+j2Q==,
+        integrity: sha512-P4rFMVq9ESWqmOgK+dlXvOtLwYg0i7u0HBGJER0LZDJT2VHIPAMZ/riPxqJceWMStH5+E61QxFra9kIS3AqdMg==,
       }
 
   data-urls@7.0.0:
@@ -4462,10 +4430,10 @@ packages:
       }
     engines: { node: ">= 4" }
 
-  dompurify@3.4.12:
+  dompurify@3.4.13:
     resolution:
       {
-        integrity: sha512-zQvGet8Z2sWbQhCmfFz/T5QWH2oBmjnqK3qvOjaqaNLrLEF912WamU+ohnTp0TCep/MFVHpdJuCZEdFOdTnEFg==,
+        integrity: sha512-2vmYIoqjze2d+kakP8S/nS5shfsl587kzwEjcGlTdiksUVgFHnFCsLYDVj/JNqJVOQZGSYBTmuycv0PodwmnMQ==,
       }
 
   domutils@3.2.2:
@@ -4531,6 +4499,12 @@ packages:
     resolution:
       {
         integrity: sha512-shc1dbU90Yl/xq1QrC7QRtfcwURZuVRfPhZbDoldJ1cn1gzDvBaBWlv0eFolj5+0znnPJz5TXLxsN77X/12KTA==,
+      }
+
+  es-toolkit@1.50.0:
+    resolution:
+      {
+        integrity: sha512-OyZKhUVvEep9ITEiwHn8GKnMRQIVqoSIX7WnRbkWgJkllCujilqP2rD0u979tkl8wqyc8ICwlc1UBVv/Sl1G6w==,
       }
 
   esbuild@0.28.1:
@@ -5188,13 +5162,6 @@ packages:
       }
     engines: { node: ">=6" }
 
-  langium@3.3.1:
-    resolution:
-      {
-        integrity: sha512-QJv/h939gDpvT+9SiLVlY7tZC3xB2qK57v0J04Sh9wpMb6MP1q8gB21L3WIo8T5P1MSMg3Ep14L7KkDCFG3y4w==,
-      }
-    engines: { node: ">=16.0.0" }
-
   layout-base@1.0.2:
     resolution:
       {
@@ -5331,12 +5298,6 @@ packages:
       }
     engines: { node: ">=10" }
 
-  lodash-es@4.17.21:
-    resolution:
-      {
-        integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==,
-      }
-
   lodash-es@4.18.1:
     resolution:
       {
@@ -5415,10 +5376,10 @@ packages:
         integrity: sha512-9Yubnt3e8A0OKwxYSXyhLymGW4sCufcLG6VdiDdUGVkPhpqLxlvP5vl1983gQjJl3tqbrM731mjaZaP68AgosQ==,
       }
 
-  mermaid@11.12.2:
+  mermaid@11.16.1:
     resolution:
       {
-        integrity: sha512-n34QPDPEKmaeCG4WDMGy0OT6PSyxKCfy2pJgShP+Qow2KLrvWjclwbc3yXfSIf4BanqWEhQEpngWwNp/XhZt6w==,
+        integrity: sha512-TQsq6u22fAn3rek5VOubrhKPo1g5hwC3FXUN9hiyupTckcYiGuuKGkNQrKYwGJkXUxZdojwRG46gsSCFZMDp4g==,
       }
 
   micromark-util-character@2.1.1:
@@ -5652,6 +5613,12 @@ packages:
     resolution:
       {
         integrity: sha512-xg1eHpwYL/D/HEdWw2goFZP6vV0FH7W+PZ5rFkGjdIDLtxq7EkzBUeT3m+lndYCt8wKbmofUu1MUdMCXkCk9ZQ==,
+      }
+
+  package-manager-detector@1.8.0:
+    resolution:
+      {
+        integrity: sha512-yQA4H19AmPEoMUeavPMDIe1higySl/gH/yaQrkT/s07Qp+7pp2hYz30N3z2l5BkjVkF9Ow6o0wjJamm2y7Sn0A==,
       }
 
   parse5@7.3.0:
@@ -6321,6 +6288,13 @@ packages:
       }
     engines: { node: ">=18" }
 
+  tinyexec@1.3.0:
+    resolution:
+      {
+        integrity: sha512-QKAl9m8gWWGHV8jZcPeym6j+XULi6tOf1mT83WYJ4Lk2ytW/uwAWkrP0uFsdoYMdueVJ0qs26wZ+23xeB4ibNQ==,
+      }
+    engines: { node: ">=18" }
+
   tinyglobby@0.2.17:
     resolution:
       {
@@ -6660,10 +6634,10 @@ packages:
         integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==,
       }
 
-  uuid@11.1.1:
+  uuid@14.0.1:
     resolution:
       {
-        integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==,
+        integrity: sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==,
       }
     hasBin: true
 
@@ -6942,12 +6916,6 @@ packages:
         integrity: sha512-RAaHx7B14ZU04EU31pT+rKz2/zSl7xMsfIZuo8pd+KZO6PXtQmpevpq3vxvWNcrGbdmhM/rr5Uw5Mz+NBfhVng==,
       }
 
-  vscode-uri@3.0.8:
-    resolution:
-      {
-        integrity: sha512-AyFQ0EVmsOZOlAnxoFOGOq1SQDWAB7C6aqMGS23svWAllfOaxbuFvcT8D1i8z3Gyn8fraVeZNNmN6e9bxxXkKw==,
-      }
-
   vscode-uri@3.1.0:
     resolution:
       {
@@ -7169,8 +7137,8 @@ snapshots:
 
   "@antfu/install-pkg@1.1.0":
     dependencies:
-      package-manager-detector: 1.7.0
-      tinyexec: 1.2.4
+      package-manager-detector: 1.8.0
+      tinyexec: 1.3.0
 
   "@apidevtools/json-schema-ref-parser@11.9.3":
     dependencies:
@@ -7549,22 +7517,7 @@ snapshots:
     dependencies:
       fontkitten: 1.0.3
 
-  "@chevrotain/cst-dts-gen@11.0.3":
-    dependencies:
-      "@chevrotain/gast": 11.0.3
-      "@chevrotain/types": 11.0.3
-      lodash-es: 4.17.21
-
-  "@chevrotain/gast@11.0.3":
-    dependencies:
-      "@chevrotain/types": 11.0.3
-      lodash-es: 4.17.21
-
-  "@chevrotain/regexp-to-ast@11.0.3": {}
-
-  "@chevrotain/types@11.0.3": {}
-
-  "@chevrotain/utils@11.0.3": {}
+  "@chevrotain/types@11.1.2": {}
 
   "@clack/core@1.4.3":
     dependencies:
@@ -7957,9 +7910,9 @@ snapshots:
 
   "@jsdevtools/ono@7.1.3": {}
 
-  "@mermaid-js/parser@0.6.3":
+  "@mermaid-js/parser@1.2.0":
     dependencies:
-      langium: 3.3.1
+      "@chevrotain/types": 11.1.2
 
   "@mswjs/interceptors@0.39.8":
     dependencies:
@@ -9073,7 +9026,7 @@ snapshots:
 
   "@types/d3-format@3.0.4": {}
 
-  "@types/d3-geo@3.1.0":
+  "@types/d3-geo@3.1.1":
     dependencies:
       "@types/geojson": 7946.0.16
 
@@ -9134,7 +9087,7 @@ snapshots:
       "@types/d3-fetch": 3.0.7
       "@types/d3-force": 3.0.10
       "@types/d3-format": 3.0.4
-      "@types/d3-geo": 3.1.0
+      "@types/d3-geo": 3.1.1
       "@types/d3-hierarchy": 3.1.7
       "@types/d3-interpolate": 3.0.4
       "@types/d3-path": 3.1.1
@@ -9292,6 +9245,11 @@ snapshots:
       eslint-visitor-keys: 5.0.1
 
   "@ungap/structured-clone@1.3.3": {}
+
+  "@upsetjs/venn.js@2.0.0":
+    optionalDependencies:
+      d3-selection: 3.0.0
+      d3-transition: 3.0.1(d3-selection@3.0.0)
 
   "@vitejs/plugin-react@5.2.0(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))":
     dependencies:
@@ -9609,20 +9567,6 @@ snapshots:
 
   character-entities-legacy@3.0.0: {}
 
-  chevrotain-allstar@0.3.1(chevrotain@11.0.3):
-    dependencies:
-      chevrotain: 11.0.3
-      lodash-es: 4.18.1
-
-  chevrotain@11.0.3:
-    dependencies:
-      "@chevrotain/cst-dts-gen": 11.0.3
-      "@chevrotain/gast": 11.0.3
-      "@chevrotain/regexp-to-ast": 11.0.3
-      "@chevrotain/types": 11.0.3
-      "@chevrotain/utils": 11.0.3
-      lodash-es: 4.17.21
-
   chokidar@4.0.3:
     dependencies:
       readdirp: 4.1.2
@@ -9729,17 +9673,17 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  cytoscape-cose-bilkent@4.1.0(cytoscape@3.34.0):
+  cytoscape-cose-bilkent@4.1.0(cytoscape@3.34.1):
     dependencies:
       cose-base: 1.0.3
-      cytoscape: 3.34.0
+      cytoscape: 3.34.1
 
-  cytoscape-fcose@2.2.0(cytoscape@3.34.0):
+  cytoscape-fcose@2.2.0(cytoscape@3.34.1):
     dependencies:
       cose-base: 2.2.0
-      cytoscape: 3.34.0
+      cytoscape: 3.34.1
 
-  cytoscape@3.34.0: {}
+  cytoscape@3.34.1: {}
 
   d3-array@2.12.1:
     dependencies:
@@ -9908,7 +9852,7 @@ snapshots:
       d3-transition: 3.0.1(d3-selection@3.0.0)
       d3-zoom: 3.0.0
 
-  dagre-d3-es@7.0.13:
+  dagre-d3-es@7.0.14:
     dependencies:
       d3: 7.9.0
       lodash-es: 4.18.1
@@ -9968,7 +9912,7 @@ snapshots:
     dependencies:
       domelementtype: 2.3.0
 
-  dompurify@3.4.12:
+  dompurify@3.4.13:
     optionalDependencies:
       "@types/trusted-types": 2.0.7
 
@@ -10001,6 +9945,8 @@ snapshots:
   entities@8.0.0: {}
 
   es-module-lexer@2.3.1: {}
+
+  es-toolkit@1.50.0: {}
 
   esbuild@0.28.1:
     optionalDependencies:
@@ -10416,14 +10362,6 @@ snapshots:
 
   kleur@4.1.5: {}
 
-  langium@3.3.1:
-    dependencies:
-      chevrotain: 11.0.3
-      chevrotain-allstar: 0.3.1(chevrotain@11.0.3)
-      vscode-languageserver: 9.0.1
-      vscode-languageserver-textdocument: 1.0.12
-      vscode-uri: 3.0.8
-
   layout-base@1.0.2: {}
 
   layout-base@2.0.1: {}
@@ -10486,8 +10424,6 @@ snapshots:
     dependencies:
       p-locate: 5.0.0
 
-  lodash-es@4.17.21: {}
-
   lodash-es@4.18.1: {}
 
   lodash@4.18.1: {}
@@ -10532,28 +10468,29 @@ snapshots:
 
   mdn-data@2.27.1: {}
 
-  mermaid@11.12.2:
+  mermaid@11.16.1:
     dependencies:
       "@braintree/sanitize-url": 7.1.2
       "@iconify/utils": 3.1.4
-      "@mermaid-js/parser": 0.6.3
+      "@mermaid-js/parser": 1.2.0
       "@types/d3": 7.4.3
-      cytoscape: 3.34.0
-      cytoscape-cose-bilkent: 4.1.0(cytoscape@3.34.0)
-      cytoscape-fcose: 2.2.0(cytoscape@3.34.0)
+      "@upsetjs/venn.js": 2.0.0
+      cytoscape: 3.34.1
+      cytoscape-cose-bilkent: 4.1.0(cytoscape@3.34.1)
+      cytoscape-fcose: 2.2.0(cytoscape@3.34.1)
       d3: 7.9.0
       d3-sankey: 0.12.3
-      dagre-d3-es: 7.0.13
+      dagre-d3-es: 7.0.14
       dayjs: 1.11.21
-      dompurify: 3.4.12
+      dompurify: 3.4.13
+      es-toolkit: 1.50.0
       katex: 0.16.47
       khroma: 2.1.0
-      lodash-es: 4.18.1
       marked: 16.4.2
       roughjs: 4.6.6
       stylis: 4.4.0
       ts-dedent: 2.3.0
-      uuid: 11.1.1
+      uuid: 14.0.1
 
   micromark-util-character@2.1.1:
     dependencies:
@@ -10684,6 +10621,8 @@ snapshots:
   p-timeout@7.0.1: {}
 
   package-manager-detector@1.7.0: {}
+
+  package-manager-detector@1.8.0: {}
 
   parse5@7.3.0:
     dependencies:
@@ -11113,6 +11052,8 @@ snapshots:
 
   tinyexec@1.2.4: {}
 
+  tinyexec@1.3.0: {}
+
   tinyglobby@0.2.17:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.5)
@@ -11285,7 +11226,7 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  uuid@11.1.1: {}
+  uuid@14.0.1: {}
 
   vfile-location@5.0.3:
     dependencies:
@@ -11451,8 +11392,6 @@ snapshots:
       vscode-languageserver-protocol: 3.17.5
 
   vscode-nls@5.2.0: {}
-
-  vscode-uri@3.0.8: {}
 
   vscode-uri@3.1.0: {}
 
