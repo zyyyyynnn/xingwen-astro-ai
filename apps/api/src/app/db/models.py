@@ -1013,3 +1013,141 @@ class ResearchInputIdempotencyModel(Base):
             "input_id",
         ),
     )
+class DocumentParseModel(Base):
+    """Immutable internal persistence record for a Canonical document parse.
+
+    The large Canonical payload lives behind ``payload_storage_ref`` in the
+    existing content-addressed storage.  This table keeps only identity,
+    ownership and provenance metadata; it is deliberately not an
+    ``ArtifactVersion`` and has no public API representation.
+    """
+
+    __tablename__ = "document_parses"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+    )
+    research_input_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    source_snapshot_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    created_by_run_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    run_step_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    producer_execution_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    candidate_parse_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    identity_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    schema_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    input_content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    parse_input_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    canonical_output_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    payload_content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    payload_semantic_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    payload_storage_ref: Mapped[str] = mapped_column(String(160), nullable=False)
+    parser_profile_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    parser_profile_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    native_engine: Mapped[str] = mapped_column(String(256), nullable=False)
+    native_engine_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    visual_engine: Mapped[str | None] = mapped_column(String(256))
+    visual_engine_version: Mapped[str | None] = mapped_column(String(128))
+    visual_model_id: Mapped[str | None] = mapped_column(String(256))
+    visual_model_revision: Mapped[str | None] = mapped_column(String(256))
+    config_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    overall_quality: Mapped[str] = mapped_column(String(32), nullable=False)
+    candidate_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+
+    __table_args__ = (
+        UniqueConstraint("id", "project_id", name="uq_document_parse_id_project"),
+        UniqueConstraint(
+            "id",
+            "project_id",
+            "source_snapshot_id",
+            name="uq_document_parse_id_project_snapshot",
+        ),
+        UniqueConstraint("project_id", "identity_hash", name="uq_document_parse_identity"),
+        ForeignKeyConstraint(
+            ["research_input_id", "project_id"],
+            ["research_inputs.id", "research_inputs.project_id"],
+            name="fk_document_parse_input_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["source_snapshot_id", "project_id"],
+            ["source_snapshots.id", "source_snapshots.project_id"],
+            name="fk_document_parse_snapshot_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["created_by_run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_document_parse_run_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["run_step_id", "created_by_run_id"],
+            ["run_steps.id", "run_steps.run_id"],
+            name="fk_document_parse_step_run",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["producer_execution_id", "run_step_id"],
+            ["producer_executions.id", "producer_executions.run_step_id"],
+            name="fk_document_parse_producer_step",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "overall_quality IN ('accepted','partial','unsupported')",
+            name="quality",
+        ),
+        CheckConstraint(
+            "(visual_engine IS NULL AND visual_engine_version IS NULL) OR "
+            "(visual_engine IS NOT NULL AND visual_engine_version IS NOT NULL)",
+            name="visual_engine_complete",
+        ),
+        CheckConstraint(
+            "(visual_model_id IS NULL AND visual_model_revision IS NULL) OR "
+            "(visual_model_id IS NOT NULL AND visual_model_revision IS NOT NULL)",
+            name="visual_model_complete",
+        ),
+        Index("ix_document_parses_input", "project_id", "research_input_id"),
+        Index("ix_document_parses_snapshot", "source_snapshot_id"),
+        Index("ix_document_parses_producer", "producer_execution_id"),
+    )
+
+
+class DocumentParseLocatorModel(Base):
+    """Immutable, parse-pinned Canonical Evidence locator."""
+
+    __tablename__ = "document_parse_locators"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+    )
+    document_parse_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    source_snapshot_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    locator_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    locator: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "document_parse_id", "locator_hash", name="uq_document_parse_locator_hash"
+        ),
+        ForeignKeyConstraint(
+            ["document_parse_id", "project_id", "source_snapshot_id"],
+            [
+                "document_parses.id",
+                "document_parses.project_id",
+                "document_parses.source_snapshot_id",
+            ],
+            name="fk_document_parse_locator_parse_project",
+            ondelete="CASCADE",
+        ),
+        Index("ix_document_parse_locators_project", "project_id"),
+        Index("ix_document_parse_locators_snapshot", "source_snapshot_id"),
+    )

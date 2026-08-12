@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -20,6 +21,15 @@ from app.schemas.core import (
 from app.schemas.manifest import load_manifest_bundle
 from app.services.model_execution import ModelExecutionError, ModelExecutionResponse
 from app.services.research import _validate_planner_outcome
+
+
+_MANIFEST_ROOT = (
+    Path(__file__).resolve().parents[3]
+    / "services"
+    / "data_pipeline"
+    / "manifests"
+    / "exoplanet_host_star"
+)
 
 
 def _contract_input() -> ResearchContractInput:
@@ -76,8 +86,8 @@ def test_planner_draft_must_pass_manifest_admission_before_persistence() -> None
         ),
     )
     manifests = load_manifest_bundle(
-        "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
-        "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+        _MANIFEST_ROOT / "case-manifest.json",
+        _MANIFEST_ROOT / "field-manifest.json",
     )
 
     with pytest.raises(ModelExecutionError) as captured:

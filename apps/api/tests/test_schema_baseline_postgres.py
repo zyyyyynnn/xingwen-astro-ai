@@ -19,6 +19,8 @@ EXPECTED_TABLES = frozenset(
         "alembic_version",
         "artifact_versions",
         "dataset_row_projections",
+        "document_parse_locators",
+        "document_parses",
         "evidence",
         "model_executions",
         "producer_executions",

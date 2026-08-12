@@ -1032,6 +1032,182 @@ def upgrade() -> None:
         ),
     )
 
+    op.create_table(
+        "document_parses",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("research_input_id", _uuid(), nullable=False),
+        sa.Column("source_snapshot_id", _uuid(), nullable=False),
+        sa.Column("created_by_run_id", _uuid(), nullable=False),
+        sa.Column("run_step_id", _uuid(), nullable=False),
+        sa.Column("producer_execution_id", _uuid(), nullable=False),
+        sa.Column("candidate_parse_id", sa.String(length=256), nullable=False),
+        sa.Column("identity_hash", sa.String(length=71), nullable=False),
+        sa.Column("schema_version", sa.String(length=32), nullable=False),
+        sa.Column("schema_hash", sa.String(length=71), nullable=False),
+        sa.Column("input_content_hash", sa.String(length=71), nullable=False),
+        sa.Column("parse_input_hash", sa.String(length=71), nullable=False),
+        sa.Column("canonical_output_hash", sa.String(length=71), nullable=False),
+        sa.Column("payload_content_hash", sa.String(length=71), nullable=False),
+        sa.Column("payload_semantic_hash", sa.String(length=71), nullable=False),
+        sa.Column("payload_storage_ref", sa.String(length=160), nullable=False),
+        sa.Column("parser_profile_id", sa.String(length=256), nullable=False),
+        sa.Column("parser_profile_version", sa.String(length=128), nullable=False),
+        sa.Column("native_engine", sa.String(length=256), nullable=False),
+        sa.Column("native_engine_version", sa.String(length=128), nullable=False),
+        sa.Column("visual_engine", sa.String(length=256), nullable=True),
+        sa.Column("visual_engine_version", sa.String(length=128), nullable=True),
+        sa.Column("visual_model_id", sa.String(length=256), nullable=True),
+        sa.Column("visual_model_revision", sa.String(length=256), nullable=True),
+        sa.Column("config_hash", sa.String(length=71), nullable=False),
+        sa.Column("overall_quality", sa.String(length=32), nullable=False),
+        sa.Column("candidate_created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "overall_quality IN ('accepted','partial','unsupported')",
+            name="ck_document_parses_quality",
+        ),
+        sa.CheckConstraint(
+            "(visual_engine IS NULL AND visual_engine_version IS NULL) OR "
+            "(visual_engine IS NOT NULL AND visual_engine_version IS NOT NULL)",
+            name="ck_document_parses_visual_engine_complete",
+        ),
+        sa.CheckConstraint(
+            "(visual_model_id IS NULL AND visual_model_revision IS NULL) OR "
+            "(visual_model_id IS NOT NULL AND visual_model_revision IS NOT NULL)",
+            name="ck_document_parses_visual_model_complete",
+        ),
+        sa.ForeignKeyConstraint(
+            ["research_input_id", "project_id"],
+            ["research_inputs.id", "research_inputs.project_id"],
+            name="fk_document_parse_input_project",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["source_snapshot_id", "project_id"],
+            ["source_snapshots.id", "source_snapshots.project_id"],
+            name="fk_document_parse_snapshot_project",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["created_by_run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_document_parse_run_project",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["run_step_id", "created_by_run_id"],
+            ["run_steps.id", "run_steps.run_id"],
+            name="fk_document_parse_step_run",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["producer_execution_id", "run_step_id"],
+            ["producer_executions.id", "producer_executions.run_step_id"],
+            name="fk_document_parse_producer_step",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_document_parses"),
+        sa.UniqueConstraint("id", "project_id", name="uq_document_parse_id_project"),
+        sa.UniqueConstraint(
+            "id",
+            "project_id",
+            "source_snapshot_id",
+            name="uq_document_parse_id_project_snapshot",
+        ),
+        sa.UniqueConstraint(
+            "project_id", "identity_hash", name="uq_document_parse_identity"
+        ),
+    )
+    op.create_index(
+        "ix_document_parses_input",
+        "document_parses",
+        ["project_id", "research_input_id"],
+    )
+    op.create_index(
+        "ix_document_parses_snapshot", "document_parses", ["source_snapshot_id"]
+    )
+    op.create_index(
+        "ix_document_parses_producer", "document_parses", ["producer_execution_id"]
+    )
+
+    op.create_table(
+        "document_parse_locators",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("document_parse_id", _uuid(), nullable=False),
+        sa.Column("source_snapshot_id", _uuid(), nullable=False),
+        sa.Column("locator_hash", sa.String(length=71), nullable=False),
+        sa.Column("locator", _jsonb(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["document_parse_id", "project_id", "source_snapshot_id"],
+            [
+                "document_parses.id",
+                "document_parses.project_id",
+                "document_parses.source_snapshot_id",
+            ],
+            name="fk_document_parse_locator_parse_project",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_document_parse_locators"),
+        sa.UniqueConstraint(
+            "document_parse_id",
+            "locator_hash",
+            name="uq_document_parse_locator_hash",
+        ),
+    )
+    op.create_index(
+        "ix_document_parse_locators_project",
+        "document_parse_locators",
+        ["project_id"],
+    )
+    op.create_index(
+        "ix_document_parse_locators_snapshot",
+        "document_parse_locators",
+        ["source_snapshot_id"],
+    )
+
+    op.execute(
+        """
+        CREATE FUNCTION reject_document_parse_update() RETURNS trigger AS $$
+        BEGIN
+          RAISE EXCEPTION 'document parse records are immutable';
+        END;
+        $$ LANGUAGE plpgsql
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_document_parses_immutable
+        BEFORE UPDATE ON document_parses
+        FOR EACH ROW EXECUTE FUNCTION reject_document_parse_update()
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_document_parse_locators_immutable
+        BEFORE UPDATE ON document_parse_locators
+        FOR EACH ROW EXECUTE FUNCTION reject_document_parse_update()
+        """
+    )
+
     op.execute(
         """
         CREATE FUNCTION enforce_frozen_run_steps() RETURNS trigger AS $$
@@ -1085,6 +1261,23 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute("DROP TRIGGER IF EXISTS trg_run_steps_frozen ON run_steps")
     op.execute("DROP FUNCTION IF EXISTS enforce_frozen_run_steps()")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_document_parse_locators_immutable "
+        "ON document_parse_locators"
+    )
+    op.execute("DROP TRIGGER IF EXISTS trg_document_parses_immutable ON document_parses")
+    op.execute("DROP FUNCTION IF EXISTS reject_document_parse_update()")
+    op.drop_index(
+        "ix_document_parse_locators_snapshot", table_name="document_parse_locators"
+    )
+    op.drop_index(
+        "ix_document_parse_locators_project", table_name="document_parse_locators"
+    )
+    op.drop_table("document_parse_locators")
+    op.drop_index("ix_document_parses_producer", table_name="document_parses")
+    op.drop_index("ix_document_parses_snapshot", table_name="document_parses")
+    op.drop_index("ix_document_parses_input", table_name="document_parses")
+    op.drop_table("document_parses")
     op.drop_table("research_input_bindings")
     op.drop_index(
         "ix_research_input_idempotency_input",

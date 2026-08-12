@@ -25,6 +25,8 @@ ResearchRun (1) -- (*) ArtifactVersion
 ArtifactVersion (1) -- (*) Evidence
 SourceSnapshot (1) -- (*) Evidence
 ResearchProject (1) -- (*) ResearchInput
+ResearchInput (1) -- (*) DocumentParse -- (*) DocumentParseLocator
+SourceSnapshot (1) -- (*) DocumentParse
 ResearchProject (1) -- (0..1) WorkspaceSnapshot
 ResearchProject (1) -- (*) ShareSnapshot
 ShareSnapshot (*) -- (*) ArtifactVersion
@@ -58,6 +60,9 @@ ShareSnapshot (*) -- (*) ArtifactVersion
 - Evidence 必须绑定具体 ArtifactVersion 与 SourceSnapshot，并提供 target、locator、值或短引文、extraction method 与 confidence。
 - SourceSnapshot 保存一次真实或录制来源读取的查询、内容哈希、抓取时间、许可与脱敏元数据。
 - ResearchInput 是受控摄取后的不可变内容引用；稳定生命周期区分 `accepted`、`unsupported_processing` 与 `failed_ingestion`。摄取写入只在成功时创建 `accepted` 资源，失败通过 Problem Details 返回，不伪造失败资源。
+- DocumentParse 是 Project-owned、ResearchInput-backed 的内部不可变预处理 derivative，不是公开 ResearchArtifact 或 ArtifactVersion kind。其逻辑身份固定输入内容、parser/profile/model/config revision 与 Canonical output hash；完整 Canonical payload 使用原子 content-addressed storage，PostgreSQL 只保存身份、ownership、SourceSnapshot、ProducerExecution 与安全内容引用。
+- Upload ResearchInput 在首次正式解析持久化时按需生成只含 ResearchInput identity、content hash 与安全 provenance 的 SourceSnapshot，不复制 PDF、图片或全文。
+- DocumentParseLocator 固定同 Project 的一个 DocumentParse 与 SourceSnapshot；page、block、bbox、text span、table 与 cell 必须在该 Parse 内闭合，dangling、cross-parse 与 cross-project 引用均拒绝。
 
 ## 5. Evidence Graph
 
@@ -82,3 +87,4 @@ WorkspaceSnapshot 保存私有布局与选中对象，使用乐观锁更新。Sh
 6. Evidence Graph 的 frozen input versions、Graph-owned Evidence 与 literature relation projection 必须在读取边界保持同 Project、同 Version、同 producer/hash closure；任何漂移 fail closed。
 7. Thread sequence 在同一 Project 内严格递增且刷新可重放；跨 Project 的 entry、Draft、Execution、Run 读取统一 fail closed。
 8. `ModelExecutionRecord` 的状态、错误、safe snapshots 与 timing 必须反映实际 provider 调用；失败前已获得的 output hash、token、latency 与 request identity 不得丢失；无 credentials 时不得生成 succeeded 记录。
+9. DocumentParse 与其 locator 创建后不可更新；相同 Project 与相同逻辑身份只能有一个权威 parse，读取时必须校验 payload 与冻结 metadata。

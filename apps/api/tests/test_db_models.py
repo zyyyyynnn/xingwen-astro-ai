@@ -39,6 +39,18 @@ def test_workflow_tables_and_unique_invariants_are_declared() -> None:
     assert ("run_step_id", "idempotency_key") in _unique_columns("producer_executions")
 
 
+def test_document_parse_internal_tables_and_identity_are_declared() -> None:
+    assert {"document_parses", "document_parse_locators"} <= set(
+        Base.metadata.tables
+    )
+    assert ("project_id", "identity_hash") in _unique_columns("document_parses")
+    assert ("document_parse_id", "locator_hash") in _unique_columns(
+        "document_parse_locators"
+    )
+    assert "content" not in Base.metadata.tables["document_parses"].columns
+    assert "payload_storage_ref" in Base.metadata.tables["document_parses"].columns
+
+
 def test_models_compile_to_postgresql_uuid_jsonb_and_timestamptz() -> None:
     dialect = postgresql.dialect()
     version_sql = str(CreateTable(Base.metadata.tables["artifact_versions"]).compile(dialect=dialect))

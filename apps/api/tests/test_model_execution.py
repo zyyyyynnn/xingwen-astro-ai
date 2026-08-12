@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -20,6 +21,15 @@ from app.services.research_planner import ResearchContractPlanner
 from packages.prompts.registry import PromptRegistry
 
 
+_MANIFEST_ROOT = (
+    Path(__file__).resolve().parents[3]
+    / "services"
+    / "data_pipeline"
+    / "manifests"
+    / "exoplanet_host_star"
+)
+
+
 class FakeClient:
     def __init__(self, response: Any = None, error: Exception | None = None) -> None:  # noqa: ANN401
         self.response = response
@@ -36,8 +46,8 @@ class FakeClient:
 
 def _load_case_manifests():
     return load_manifest_bundle(
-        "services/data_pipeline/manifests/exoplanet_host_star/case-manifest.json",
-        "services/data_pipeline/manifests/exoplanet_host_star/field-manifest.json",
+        _MANIFEST_ROOT / "case-manifest.json",
+        _MANIFEST_ROOT / "field-manifest.json",
     )
 
 
