@@ -248,8 +248,7 @@ function ConversationMainSurface({ runtime }: ConversationMainProps) {
                   (inspectorVisible
                     ? "visible translate-x-0 scale-100 opacity-100"
                     : "invisible translate-x-[var(--oh-space-2)] scale-[0.98] opacity-0"),
-                inspectorMode === "docked" &&
-                  (inspectorVisible ? "visible" : "invisible"),
+                inspectorMode === "docked" && "visible",
                 isDragging && "transition-none",
               )}
               style={{
