@@ -10,6 +10,7 @@ overrides:
   undici@: 7.29.0
   js-yaml@: 4.3.1
   postcss@: 8.5.23
+  nanoid@: 3.3.18
 
 importers:
   .:
@@ -120,6 +121,15 @@ importers:
       "@tanstack/react-router":
         specifier: 1.170.18
         version: 1.170.18(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      "@wwtelescope/engine":
+        specifier: 7.39.0
+        version: 7.39.0
+      "@wwtelescope/engine-helpers":
+        specifier: 0.18.0
+        version: 0.18.0
+      "@wwtelescope/engine-types":
+        specifier: 0.9.0
+        version: 0.9.0
       "@xingwen/data-access":
         specifier: workspace:*
         version: link:../../packages/data-access
@@ -3598,6 +3608,30 @@ packages:
         integrity: sha512-KYSIHVmslkaCDyw013pphY+d7x1qV8IZupYfeIfzNA+nsaWHbn5uPuQRvdRFsa9zFzGeudPuoGoZ1Op4jrJXIQ==,
       }
 
+  "@wwtelescope/astro@0.3.3":
+    resolution:
+      {
+        integrity: sha512-DZvRd18utN0WVawGiY3W1i9HaG41vCtaRd9bcQFZp2fVWv0hqfPPMG8J33h7cRgcu5OStybJFzLEKd9m9GqLPg==,
+      }
+
+  "@wwtelescope/engine-helpers@0.18.0":
+    resolution:
+      {
+        integrity: sha512-m5pRfxlb6SthCPUPcxivqyCvaWXdRlMLz0+h1JwSSNR8aI6RNYq/wceQnPsjWnOemP9TGHf3fK2xRv4PVkbStA==,
+      }
+
+  "@wwtelescope/engine-types@0.9.0":
+    resolution:
+      {
+        integrity: sha512-BQRkElXk88m2HbFUk2tgi3wTCmLS4a15jORvN26AylPuqxbUzKX5DOyTIM//ZjbfjWesV4Vve4kmjqYgFskQLQ==,
+      }
+
+  "@wwtelescope/engine@7.39.0":
+    resolution:
+      {
+        integrity: sha512-92nzBHa6/n19nPTTUwFUW0SByezTIvvjve7+ODgm6WwrjlIVWfDFfravcB0Vf5gRfqw26gDYr8TtxlUo8yw1aQ==,
+      }
+
   acorn-jsx@5.3.2:
     resolution:
       {
@@ -5478,10 +5512,10 @@ packages:
       }
     engines: { node: ^18.17.0 || >=20.5.0 }
 
-  nanoid@3.3.16:
+  nanoid@3.3.18:
     resolution:
       {
-        integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==,
+        integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==,
       }
     engines: { node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1 }
     hasBin: true
@@ -5620,6 +5654,12 @@ packages:
     resolution:
       {
         integrity: sha512-yQA4H19AmPEoMUeavPMDIe1higySl/gH/yaQrkT/s07Qp+7pp2hYz30N3z2l5BkjVkF9Ow6o0wjJamm2y7Sn0A==,
+      }
+
+  pako@1.0.11:
+    resolution:
+      {
+        integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==,
       }
 
   parse5@7.3.0:
@@ -9361,6 +9401,22 @@ snapshots:
 
   "@vscode/l10n@0.0.18": {}
 
+  "@wwtelescope/astro@0.3.3": {}
+
+  "@wwtelescope/engine-helpers@0.18.0":
+    dependencies:
+      "@wwtelescope/astro": 0.3.3
+      "@wwtelescope/engine": 7.39.0
+      "@wwtelescope/engine-types": 0.9.0
+
+  "@wwtelescope/engine-types@0.9.0": {}
+
+  "@wwtelescope/engine@7.39.0":
+    dependencies:
+      "@wwtelescope/engine-types": 0.9.0
+      pako: 1.0.11
+      uuid: 14.0.1
+
   acorn-jsx@5.3.2(acorn@8.17.0):
     dependencies:
       acorn: 8.17.0
@@ -10551,7 +10607,7 @@ snapshots:
 
   mute-stream@2.0.0: {}
 
-  nanoid@3.3.16: {}
+  nanoid@3.3.18: {}
 
   natural-compare@1.4.0: {}
 
@@ -10623,6 +10679,8 @@ snapshots:
 
   package-manager-detector@1.8.0: {}
 
+  pako@1.0.11: {}
+
   parse5@7.3.0:
     dependencies:
       entities: 6.0.1
@@ -10673,7 +10731,7 @@ snapshots:
 
   postcss@8.5.23:
     dependencies:
-      nanoid: 3.3.16
+      nanoid: 3.3.18
       picocolors: 1.1.1
       source-map-js: 1.2.1
 

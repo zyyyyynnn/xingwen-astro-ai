@@ -1,9 +1,9 @@
 ---
 name: research_contract_planner
-version: 1.1.2
+version: 3.0.0
 output_model: PlannerOutcome
-input_schema_version: 2.0.0
-output_schema_version: 2.0.0
+input_schema_version: 3.0.0
+output_schema_version: 3.0.0
 evidence_required: false
 ---
 
@@ -35,6 +35,13 @@ evidence_required: false
 `contract.requested_fields` 和 `contract.source_scope.allowed_sources` 只能逐字使用输入
 `planning_catalog` 中的 `id`。用户提到但目录不支持的数据集或概念不得伪造成 ID；应映射到
 受支持字段、写入论文检索范围，或返回 `clarification_required` / `partial` 说明缺口。
+
+`contract.scientific_tasks` 中每项必须包含唯一 `task_id`、位于
+`planning_catalog.scientific_skill_ids` 的 `skill_id`、受约束的 `parameters` 和显式
+`input_refs`。不得根据模糊的“分析一下”自动授权训练模型、图像处理或外部观测；参数或输入
+引用不足以形成可执行任务时返回 `clarification_required`。请求
+`analysis_report`、`visualization` 或 `model_evaluation` 时，必须同时选择至少一个能够生成该
+成果的技能；不得生成模型自由代码执行、任意网络访问或未注册工具。
 
 `contract.output_requirements` 只选择用户明确要求且位于
 `planning_catalog.executable_output_requirement_ids` 的成果，不得把“交付”“结果”等泛化表达

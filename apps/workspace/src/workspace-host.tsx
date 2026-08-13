@@ -1,5 +1,10 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CASE_KEY, parseEntityId, type DomainEntityId } from "@xingwen/domain";
+import {
+  CASE_KEY,
+  parseEntityId,
+  type ContentHash,
+  type DomainEntityId,
+} from "@xingwen/domain";
 import type { ProjectViewModel } from "@xingwen/research-adapter";
 import {
   Alert,
@@ -9,7 +14,7 @@ import {
   Toaster,
   toast,
 } from "@xingwen/ui";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   OpenHandsWorkspaceRoot,
@@ -18,6 +23,7 @@ import {
 import type { WorkspaceRuntimeBoundaries } from "./boundaries";
 import { ProjectCreateDialog } from "./components/project-create-dialog";
 import { ProjectActionDialogs } from "./components/project-action-dialogs";
+import { ScientificArtifactPanel } from "./components/scientific-artifact-panel";
 import { ResearchContractReviewDialog } from "./components/research-contract-review-dialog";
 import { ResearchInspector } from "./components/research-inspector";
 import { ResearchThread } from "./components/research-thread";
@@ -304,6 +310,8 @@ export function WorkspaceHost({
   onProjectDeleted,
 }: WorkspaceHostProps) {
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [explicitArtifactVersionId, setExplicitArtifactVersionId] =
+    useState<DomainEntityId | null>(null);
   const [planFocusRequest, setPlanFocusRequest] = useState(0);
   const [message, setMessage] = useState("");
   const [answerToQuestionId, setAnswerToQuestionId] = useState<string | null>(
@@ -353,6 +361,60 @@ export function WorkspaceHost({
     ...runtime.application.queries.runSteps(projectId, runId as DomainEntityId),
     enabled: runId !== null,
   });
+  const artifacts = useQuery({
+    ...runtime.application.queries.runArtifacts(
+      projectId,
+      runId as DomainEntityId,
+    ),
+    enabled: runId !== null,
+  });
+  const availableArtifactVersionIds = [...(artifacts.data ?? [])]
+    .filter((artifact) =>
+      ["analysis_report", "visualization", "model_evaluation"].includes(
+        artifact.kind,
+      ),
+    )
+    .filter(
+      (
+        artifact,
+      ): artifact is typeof artifact & {
+        readonly latestVersionId: DomainEntityId;
+      } => artifact.latestVersionId !== null,
+    )
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .map((artifact) => artifact.latestVersionId);
+  const selectedArtifactVersionId =
+    explicitArtifactVersionId !== null &&
+    availableArtifactVersionIds.includes(explicitArtifactVersionId)
+      ? explicitArtifactVersionId
+      : (availableArtifactVersionIds[0] ?? null);
+  const selectedArtifact = artifacts.data?.find(
+    (artifact) => artifact.latestVersionId === selectedArtifactVersionId,
+  );
+  const scientificArtifact = useQuery({
+    ...runtime.application.queries.scientificArtifact(
+      projectId,
+      selectedArtifactVersionId as DomainEntityId,
+    ),
+    enabled:
+      selectedArtifactVersionId !== null &&
+      selectedArtifact !== undefined &&
+      ["analysis_report", "visualization", "model_evaluation"].includes(
+        selectedArtifact.kind,
+      ),
+  });
+  const loadScientificContent = useCallback(
+    (contentHash: ContentHash) => {
+      if (selectedArtifactVersionId === null) {
+        return Promise.reject(new Error("尚未选择科学制品版本。"));
+      }
+      return runtime.repositories.scientificArtifacts.getContent(
+        selectedArtifactVersionId,
+        contentHash,
+      );
+    },
+    [runtime.repositories.scientificArtifacts, selectedArtifactVersionId],
+  );
   const events = useQuery({
     ...runtime.application.queries.runEvents(
       projectId,
@@ -515,6 +577,41 @@ export function WorkspaceHost({
       draft={currentDraft}
       contract={currentContract}
       presentation={researchPresentation}
+      artifactStatus={
+        artifacts.isPending
+          ? "载入中"
+          : `${
+              artifacts.data?.filter((artifact) =>
+                [
+                  "analysis_report",
+                  "visualization",
+                  "model_evaluation",
+                ].includes(artifact.kind),
+              ).length ?? 0
+            } 项`
+      }
+      artifactPanel={
+        <ScientificArtifactPanel
+          artifacts={artifacts.data ?? []}
+          selectedVersionId={selectedArtifactVersionId}
+          loading={artifacts.isPending}
+          loadError={
+            artifacts.isError ? safeError(runtime, artifacts.error) : null
+          }
+          detailLoading={
+            scientificArtifact.isPending &&
+            scientificArtifact.fetchStatus !== "idle"
+          }
+          detailError={
+            scientificArtifact.isError
+              ? safeError(runtime, scientificArtifact.error)
+              : null
+          }
+          scientificArtifact={scientificArtifact.data ?? null}
+          onSelect={setExplicitArtifactVersionId}
+          loadContent={loadScientificContent}
+        />
+      }
     />
   );
   const presentationRuntime: ResearchWorkspaceRuntime = {

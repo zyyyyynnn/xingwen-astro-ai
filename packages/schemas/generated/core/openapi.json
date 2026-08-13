@@ -13,6 +13,153 @@
         "title": "AlignmentStatus",
         "type": "string"
       },
+      "AnalysisReportArtifactContent": {
+        "additionalProperties": false,
+        "description": "Evidence-backed result of one or more bounded analysis skills.",
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "findings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "human_required": {
+            "default": [],
+            "items": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Human Required",
+            "type": "array"
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "kind": {
+            "const": "analysis_report",
+            "default": "analysis_report",
+            "title": "Kind",
+            "type": "string"
+          },
+          "limitations": {
+            "default": [],
+            "items": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "metrics": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificMetric"
+            },
+            "title": "Metrics",
+            "type": "array"
+          },
+          "output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Output Hash",
+            "type": "string"
+          },
+          "related_artifact_version_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Related Artifact Version Ids",
+            "type": "array"
+          },
+          "report_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Report Id",
+            "type": "string"
+          },
+          "result_blocks": {
+            "items": {
+              "$ref": "#/components/schemas/ScientificResultBlock"
+            },
+            "minItems": 1,
+            "title": "Result Blocks",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scientific_evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificEvidence"
+            },
+            "title": "Scientific Evidence",
+            "type": "array"
+          },
+          "skill_executions": {
+            "items": {
+              "$ref": "#/components/schemas/ScientificSkillExecution"
+            },
+            "minItems": 1,
+            "title": "Skill Executions",
+            "type": "array"
+          },
+          "source_snapshot_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Source Snapshot Ids",
+            "type": "array"
+          },
+          "summary": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_id",
+          "title",
+          "summary",
+          "skill_executions",
+          "result_blocks",
+          "source_snapshot_ids",
+          "evidence_ids",
+          "input_hash",
+          "output_hash"
+        ],
+        "title": "AnalysisReportArtifactContent",
+        "type": "object"
+      },
       "ArtifactExportRead": {
         "additionalProperties": false,
         "properties": {
@@ -96,6 +243,9 @@
           "dataset",
           "field_dictionary",
           "source_collection",
+          "analysis_report",
+          "visualization",
+          "model_evaluation",
           "paper_collection",
           "paper_summary",
           "literature_claims",
@@ -554,6 +704,207 @@
           "member_entities"
         ],
         "title": "CanonicalRowIdentity",
+        "type": "object"
+      },
+      "ChartAxis": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Field",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "scale": {
+            "default": "linear",
+            "enum": [
+              "linear",
+              "log",
+              "time",
+              "category"
+            ],
+            "title": "Scale",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "field",
+          "label"
+        ],
+        "title": "ChartAxis",
+        "type": "object"
+      },
+      "ChartPoint": {
+        "additionalProperties": false,
+        "description": "One bounded, publication-owned datum for a declarative chart.",
+        "properties": {
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "title": "X"
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "title": "Y"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "ChartPoint",
+        "type": "object"
+      },
+      "ChartSeries": {
+        "additionalProperties": false,
+        "properties": {
+          "color_token": {
+            "default": "brand",
+            "enum": [
+              "brand",
+              "information",
+              "success",
+              "warning",
+              "error",
+              "neutral"
+            ],
+            "title": "Color Token",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "mark": {
+            "enum": [
+              "line",
+              "point",
+              "bar",
+              "area"
+            ],
+            "title": "Mark",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ChartPoint"
+            },
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Points",
+            "type": "array"
+          },
+          "series_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Series Id",
+            "type": "string"
+          },
+          "x_field": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "X Field",
+            "type": "string"
+          },
+          "y_field": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Y Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "series_id",
+          "label",
+          "x_field",
+          "y_field",
+          "mark",
+          "points"
+        ],
+        "title": "ChartSeries",
+        "type": "object"
+      },
+      "ChartVisualizationSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "dataset_artifact_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Dataset Artifact Version Id",
+            "type": "string"
+          },
+          "mode": {
+            "const": "chart",
+            "default": "chart",
+            "title": "Mode",
+            "type": "string"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/ChartSeries"
+            },
+            "minItems": 1,
+            "title": "Series",
+            "type": "array"
+          },
+          "x_axis": {
+            "$ref": "#/components/schemas/ChartAxis"
+          },
+          "y_axis": {
+            "$ref": "#/components/schemas/ChartAxis"
+          }
+        },
+        "required": [
+          "dataset_artifact_version_id",
+          "x_axis",
+          "y_axis",
+          "series"
+        ],
+        "title": "ChartVisualizationSpec",
         "type": "object"
       },
       "ClaimType": {
@@ -2874,6 +3225,27 @@
         "title": "Envelope[ResearchTurnResult]",
         "type": "object"
       },
+      "Envelope_ScientificArtifactRead_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ScientificArtifactRead"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[ScientificArtifactRead]",
+        "type": "object"
+      },
       "Envelope_SessionCreated_": {
         "additionalProperties": false,
         "properties": {
@@ -3810,6 +4182,64 @@
           "content_hash"
         ],
         "title": "FieldSelectionRecord",
+        "type": "object"
+      },
+      "FitsImageVisualizationSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "color_map": {
+            "default": "gray",
+            "enum": [
+              "gray",
+              "viridis",
+              "magma",
+              "inferno"
+            ],
+            "title": "Color Map",
+            "type": "string"
+          },
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "content_ref": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Content Ref",
+            "type": "string"
+          },
+          "mode": {
+            "const": "fits_image",
+            "default": "fits_image",
+            "title": "Mode",
+            "type": "string"
+          },
+          "source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Snapshot Id",
+            "type": "string"
+          },
+          "stretch": {
+            "default": "sqrt",
+            "enum": [
+              "linear",
+              "sqrt",
+              "log",
+              "power",
+              "histogram_equalization"
+            ],
+            "title": "Stretch",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_snapshot_id",
+          "content_ref",
+          "content_hash"
+        ],
+        "title": "FitsImageVisualizationSpec",
         "type": "object"
       },
       "GraphArtifactEdge": {
@@ -6931,6 +7361,310 @@
         "title": "MatchDecision",
         "type": "string"
       },
+      "ModelBinaryReference": {
+        "additionalProperties": false,
+        "properties": {
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "content_ref": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Content Ref",
+            "type": "string"
+          },
+          "media_type": {
+            "enum": [
+              "application/onnx",
+              "application/vnd.sklearn",
+              "application/octet-stream"
+            ],
+            "title": "Media Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content_ref",
+          "content_hash",
+          "media_type"
+        ],
+        "title": "ModelBinaryReference",
+        "type": "object"
+      },
+      "ModelDiagnosticVisualizationSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "diagnostic": {
+            "enum": [
+              "confusion_matrix",
+              "roc_curve",
+              "precision_recall",
+              "residuals",
+              "forecast",
+              "feature_importance"
+            ],
+            "title": "Diagnostic",
+            "type": "string"
+          },
+          "mode": {
+            "const": "model_diagnostic",
+            "default": "model_diagnostic",
+            "title": "Mode",
+            "type": "string"
+          },
+          "model_evaluation_artifact_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Model Evaluation Artifact Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_evaluation_artifact_version_id",
+          "diagnostic"
+        ],
+        "title": "ModelDiagnosticVisualizationSpec",
+        "type": "object"
+      },
+      "ModelEvaluationArtifactContent": {
+        "additionalProperties": false,
+        "description": "Reproducible evaluation metadata for a bounded scientific model task.",
+        "properties": {
+          "algorithm": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Algorithm",
+            "type": "string"
+          },
+          "algorithm_version": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Algorithm Version",
+            "type": "string"
+          },
+          "baseline_metrics": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificMetric"
+            },
+            "title": "Baseline Metrics",
+            "type": "array"
+          },
+          "dataset_artifact_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Dataset Artifact Version Id",
+            "type": "string"
+          },
+          "diagnostic_visualization_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Diagnostic Visualization Ids",
+            "type": "array"
+          },
+          "evaluation_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Evaluation Id",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "feature_fields": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Feature Fields",
+            "type": "array"
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "kind": {
+            "const": "model_evaluation",
+            "default": "model_evaluation",
+            "title": "Kind",
+            "type": "string"
+          },
+          "limitations": {
+            "default": [],
+            "items": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/ScientificMetric"
+            },
+            "minItems": 1,
+            "title": "Metrics",
+            "type": "array"
+          },
+          "model_binary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelBinaryReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Output Hash",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scientific_evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificEvidence"
+            },
+            "title": "Scientific Evidence",
+            "type": "array"
+          },
+          "skill_execution": {
+            "$ref": "#/components/schemas/ScientificSkillExecution"
+          },
+          "source_snapshot_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Source Snapshot Ids",
+            "type": "array"
+          },
+          "split": {
+            "$ref": "#/components/schemas/ModelSplitReference"
+          },
+          "target_field": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Target Field",
+            "type": "string"
+          },
+          "task_kind": {
+            "$ref": "#/components/schemas/ModelTaskKind"
+          },
+          "title": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "evaluation_id",
+          "title",
+          "task_kind",
+          "algorithm",
+          "algorithm_version",
+          "dataset_artifact_version_id",
+          "feature_fields",
+          "target_field",
+          "split",
+          "metrics",
+          "skill_execution",
+          "source_snapshot_ids",
+          "evidence_ids",
+          "input_hash",
+          "output_hash"
+        ],
+        "title": "ModelEvaluationArtifactContent",
+        "type": "object"
+      },
+      "ModelSplitReference": {
+        "additionalProperties": false,
+        "properties": {
+          "random_seed": {
+            "anyOf": [
+              {
+                "maximum": 4294967295.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Random Seed"
+          },
+          "strategy": {
+            "enum": [
+              "holdout",
+              "stratified_holdout",
+              "time_ordered"
+            ],
+            "title": "Strategy",
+            "type": "string"
+          },
+          "test_fraction": {
+            "exclusiveMaximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Test Fraction",
+            "type": "number"
+          },
+          "train_fraction": {
+            "exclusiveMaximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Train Fraction",
+            "type": "number"
+          },
+          "validation_fraction": {
+            "exclusiveMaximum": 1.0,
+            "minimum": 0.0,
+            "title": "Validation Fraction",
+            "type": "number"
+          }
+        },
+        "required": [
+          "strategy",
+          "train_fraction",
+          "validation_fraction",
+          "test_fraction"
+        ],
+        "title": "ModelSplitReference",
+        "type": "object"
+      },
+      "ModelTaskKind": {
+        "enum": [
+          "classification",
+          "regression",
+          "forecast",
+          "image_classification"
+        ],
+        "title": "ModelTaskKind",
+        "type": "string"
+      },
       "NormalizedPaperQuery": {
         "additionalProperties": false,
         "properties": {
@@ -8268,18 +9002,17 @@
         "additionalProperties": false,
         "description": "Publisher-ready PaperSummary Pipeline content used directly by the core Artifact discriminator.",
         "properties": {
+          "background": {
+            "$ref": "#/components/schemas/PaperSummarySection"
+          },
           "benchmark": {
             "$ref": "#/components/schemas/PaperBenchmarkReference"
           },
           "dataset": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PaperSummaryStatement"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/PaperSummarySection"
+          },
+          "discussion": {
+            "$ref": "#/components/schemas/PaperSummarySection"
           },
           "evidence": {
             "items": {
@@ -8296,19 +9029,8 @@
             "title": "Evidence Ids",
             "type": "array"
           },
-          "findings": {
-            "items": {
-              "$ref": "#/components/schemas/PaperSummaryStatement"
-            },
-            "title": "Findings",
-            "type": "array"
-          },
-          "future_work": {
-            "items": {
-              "$ref": "#/components/schemas/PaperSummaryStatement"
-            },
-            "title": "Future Work",
-            "type": "array"
+          "experiments": {
+            "$ref": "#/components/schemas/PaperSummarySection"
           },
           "input_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
@@ -8324,21 +9046,10 @@
             "type": "string"
           },
           "limitations": {
-            "items": {
-              "$ref": "#/components/schemas/PaperSummaryStatement"
-            },
-            "title": "Limitations",
-            "type": "array"
+            "$ref": "#/components/schemas/PaperSummarySection"
           },
-          "method": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PaperSummaryStatement"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "methodology": {
+            "$ref": "#/components/schemas/PaperSummarySection"
           },
           "output_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
@@ -8353,18 +9064,11 @@
           "producer": {
             "$ref": "#/components/schemas/PaperSummaryProducerExecution"
           },
-          "research_goal": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PaperSummaryStatement"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "research_questions": {
+            "$ref": "#/components/schemas/PaperSummarySection"
           },
           "schema_version": {
-            "const": "1.0.0",
+            "const": "2.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -8388,12 +9092,13 @@
           "paper_id",
           "benchmark",
           "input_versions",
-          "research_goal",
-          "method",
+          "background",
+          "methodology",
           "dataset",
-          "findings",
+          "experiments",
+          "discussion",
           "limitations",
-          "future_work",
+          "research_questions",
           "evidence_ids",
           "evidence",
           "source_conflicts",
@@ -8662,6 +9367,23 @@
         ],
         "title": "PaperSummaryInputVersions",
         "type": "object"
+      },
+      "PaperSummaryItemKind": {
+        "enum": [
+          "narrative",
+          "objective",
+          "workflow_step",
+          "formula",
+          "dataset",
+          "experiment",
+          "result",
+          "contribution",
+          "implication",
+          "limitation",
+          "research_question"
+        ],
+        "title": "PaperSummaryItemKind",
+        "type": "string"
       },
       "PaperSummaryPaperMetadata": {
         "additionalProperties": false,
@@ -8974,6 +9696,51 @@
         "title": "PaperSummaryRead",
         "type": "object"
       },
+      "PaperSummarySection": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PaperSummaryStatement"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperSummaryStatement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "section_kind": {
+            "$ref": "#/components/schemas/PaperSummarySectionKind"
+          }
+        },
+        "required": [
+          "section_kind",
+          "overview",
+          "items"
+        ],
+        "title": "PaperSummarySection",
+        "type": "object"
+      },
+      "PaperSummarySectionKind": {
+        "enum": [
+          "background",
+          "methodology",
+          "dataset",
+          "experiments",
+          "discussion",
+          "limitations",
+          "research_questions"
+        ],
+        "title": "PaperSummarySectionKind",
+        "type": "string"
+      },
       "PaperSummarySourceConflict": {
         "additionalProperties": false,
         "properties": {
@@ -9066,6 +9833,9 @@
             "title": "Evidence Ids",
             "type": "array"
           },
+          "item_kind": {
+            "$ref": "#/components/schemas/PaperSummaryItemKind"
+          },
           "statement_id": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
             "title": "Statement Id",
@@ -9088,6 +9858,7 @@
         },
         "required": [
           "statement_id",
+          "item_kind",
           "text",
           "evidence_ids",
           "status",
@@ -10238,6 +11009,14 @@
             "title": "Research Goal",
             "type": "string"
           },
+          "scientific_tasks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificTaskInput"
+            },
+            "title": "Scientific Tasks",
+            "type": "array"
+          },
           "source_scope": {
             "$ref": "#/components/schemas/SourceScope"
           },
@@ -10434,6 +11213,14 @@
             "minLength": 4,
             "title": "Research Goal",
             "type": "string"
+          },
+          "scientific_tasks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificTaskInput"
+            },
+            "title": "Scientific Tasks",
+            "type": "array"
           },
           "source_scope": {
             "$ref": "#/components/schemas/SourceScope"
@@ -10708,6 +11495,13 @@
             "title": "Requested Fields",
             "type": "array"
           },
+          "scientific_skills": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchCatalogOption"
+            },
+            "title": "Scientific Skills",
+            "type": "array"
+          },
           "target_objects": {
             "items": {
               "$ref": "#/components/schemas/ResearchCatalogOption"
@@ -10722,6 +11516,7 @@
           "target_objects",
           "requested_fields",
           "allowed_sources",
+          "scientific_skills",
           "output_requirements"
         ],
         "title": "ResearchPlanningCatalog",
@@ -11382,6 +12177,10 @@
           "planning",
           "fetching_data",
           "cleaning_data",
+          "acquiring_observations",
+          "analyzing_data",
+          "training_models",
+          "building_visualizations",
           "searching_papers",
           "summarizing_papers",
           "reasoning_literature",
@@ -11499,6 +12298,525 @@
         ],
         "title": "RunStepStatus",
         "type": "string"
+      },
+      "ScientificArtifactRead": {
+        "additionalProperties": false,
+        "description": "One verified scientific payload pinned to its immutable publication.",
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "artifact_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Version Id",
+            "type": "string"
+          },
+          "content": {
+            "discriminator": {
+              "mapping": {
+                "analysis_report": "#/components/schemas/AnalysisReportArtifactContent",
+                "model_evaluation": "#/components/schemas/ModelEvaluationArtifactContent",
+                "visualization": "#/components/schemas/VisualizationArtifactContent"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisReportArtifactContent"
+              },
+              {
+                "$ref": "#/components/schemas/VisualizationArtifactContent"
+              },
+              {
+                "$ref": "#/components/schemas/ModelEvaluationArtifactContent"
+              }
+            ],
+            "title": "Content"
+          },
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceDetail"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "producer_execution": {
+            "$ref": "#/components/schemas/ProducerExecutionDetail"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "source_mode": {
+            "$ref": "#/components/schemas/app__schemas__core__SourceMode"
+          },
+          "source_snapshots": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSnapshotDetail"
+            },
+            "title": "Source Snapshots",
+            "type": "array"
+          },
+          "supersedes_version_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Version Id"
+          },
+          "version_number": {
+            "minimum": 1.0,
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artifact_version_id",
+          "artifact_id",
+          "project_id",
+          "version_number",
+          "supersedes_version_id",
+          "source_mode",
+          "content_hash",
+          "input_hash",
+          "created_at",
+          "content",
+          "producer_execution",
+          "source_snapshots",
+          "evidence"
+        ],
+        "title": "ScientificArtifactRead",
+        "type": "object"
+      },
+      "ScientificEvidence": {
+        "additionalProperties": false,
+        "description": "Evidence materialized with a newly published scientific ArtifactVersion.",
+        "properties": {
+          "confidence": {
+            "default": 1.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "evidence_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "evidence_type": {
+            "enum": [
+              "service_response",
+              "input_snapshot",
+              "computation"
+            ],
+            "title": "Evidence Type",
+            "type": "string"
+          },
+          "extraction_method": {
+            "const": "registered_scientific_skill",
+            "default": "registered_scientific_skill",
+            "title": "Extraction Method",
+            "type": "string"
+          },
+          "locator": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Locator",
+            "type": "object"
+          },
+          "quote_or_value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Snapshot Id",
+            "type": "string"
+          },
+          "target_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_type": {
+            "enum": [
+              "result_block",
+              "metric",
+              "visualization",
+              "evaluation"
+            ],
+            "title": "Target Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "target_type",
+          "target_id",
+          "source_snapshot_id",
+          "evidence_type",
+          "locator"
+        ],
+        "title": "ScientificEvidence",
+        "type": "object"
+      },
+      "ScientificFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "finding_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Finding Id",
+            "type": "string"
+          },
+          "metric_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Metric Ids",
+            "type": "array"
+          },
+          "statement": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Statement",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ScientificSupportStatus"
+          },
+          "title": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "finding_id",
+          "title",
+          "statement",
+          "status",
+          "evidence_ids"
+        ],
+        "title": "ScientificFinding",
+        "type": "object"
+      },
+      "ScientificMetric": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "label": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "metric_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Metric Id",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "metric_id",
+          "label",
+          "value"
+        ],
+        "title": "ScientificMetric",
+        "type": "object"
+      },
+      "ScientificResultBlock": {
+        "additionalProperties": false,
+        "description": "Bounded structured output retained for inspection and downstream reuse.",
+        "properties": {
+          "block_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Block Id",
+            "type": "string"
+          },
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "label": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "representation": {
+            "enum": [
+              "record",
+              "table",
+              "catalog",
+              "statistics",
+              "timeseries",
+              "matrix"
+            ],
+            "title": "Representation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "block_id",
+          "label",
+          "representation",
+          "payload",
+          "content_hash"
+        ],
+        "title": "ScientificResultBlock",
+        "type": "object"
+      },
+      "ScientificSkillExecution": {
+        "additionalProperties": false,
+        "properties": {
+          "duration_ms": {
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "execution_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Execution Id",
+            "type": "string"
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "output_hash": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Hash"
+          },
+          "skill_id": {
+            "$ref": "#/components/schemas/ScientificSkillId"
+          },
+          "skill_revision": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Skill Revision",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ScientificSkillStatus"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "execution_id",
+          "skill_id",
+          "skill_revision",
+          "status",
+          "input_hash",
+          "duration_ms"
+        ],
+        "title": "ScientificSkillExecution",
+        "type": "object"
+      },
+      "ScientificSkillId": {
+        "enum": [
+          "catalog_crossmatch",
+          "data_profile",
+          "statistical_analysis",
+          "correlation_analysis",
+          "chart_visualization",
+          "simbad_lookup",
+          "skyview_fits",
+          "ephemeris",
+          "celestial_events",
+          "fits_image_analysis",
+          "tabular_machine_learning",
+          "time_series_forecast",
+          "image_classification",
+          "wwt_scene"
+        ],
+        "title": "ScientificSkillId",
+        "type": "string"
+      },
+      "ScientificSkillStatus": {
+        "enum": [
+          "completed",
+          "partial",
+          "unsupported",
+          "failed"
+        ],
+        "title": "ScientificSkillStatus",
+        "type": "string"
+      },
+      "ScientificSupportStatus": {
+        "enum": [
+          "supported",
+          "partial",
+          "unresolved",
+          "conflicted"
+        ],
+        "title": "ScientificSupportStatus",
+        "type": "string"
+      },
+      "ScientificTaskInput": {
+        "additionalProperties": false,
+        "description": "One bounded invocation of a registered scientific skill.",
+        "properties": {
+          "input_refs": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Input Refs",
+            "type": "array"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "propertyNames": {
+              "maxLength": 128,
+              "minLength": 1
+            },
+            "title": "Parameters",
+            "type": "object"
+          },
+          "skill_id": {
+            "$ref": "#/components/schemas/ScientificSkillId"
+          },
+          "task_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "skill_id"
+        ],
+        "title": "ScientificTaskInput",
+        "type": "object"
       },
       "SelectionStatus": {
         "enum": [
@@ -13414,6 +14732,125 @@
         "title": "UrlResearchInputRequest",
         "type": "object"
       },
+      "VisualizationArtifactContent": {
+        "additionalProperties": false,
+        "description": "Declarative visualization; never executable code or an arbitrary URL.",
+        "properties": {
+          "description": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "kind": {
+            "const": "visualization",
+            "default": "visualization",
+            "title": "Kind",
+            "type": "string"
+          },
+          "output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Output Hash",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scientific_evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificEvidence"
+            },
+            "title": "Scientific Evidence",
+            "type": "array"
+          },
+          "skill_executions": {
+            "items": {
+              "$ref": "#/components/schemas/ScientificSkillExecution"
+            },
+            "minItems": 1,
+            "title": "Skill Executions",
+            "type": "array"
+          },
+          "source_snapshot_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Source Snapshot Ids",
+            "type": "array"
+          },
+          "spec": {
+            "discriminator": {
+              "mapping": {
+                "chart": "#/components/schemas/ChartVisualizationSpec",
+                "fits_image": "#/components/schemas/FitsImageVisualizationSpec",
+                "model_diagnostic": "#/components/schemas/ModelDiagnosticVisualizationSpec",
+                "wwt_scene": "#/components/schemas/WwtSceneVisualizationSpec"
+              },
+              "propertyName": "mode"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChartVisualizationSpec"
+              },
+              {
+                "$ref": "#/components/schemas/FitsImageVisualizationSpec"
+              },
+              {
+                "$ref": "#/components/schemas/WwtSceneVisualizationSpec"
+              },
+              {
+                "$ref": "#/components/schemas/ModelDiagnosticVisualizationSpec"
+              }
+            ],
+            "title": "Spec"
+          },
+          "title": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "visualization_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Visualization Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "visualization_id",
+          "title",
+          "description",
+          "spec",
+          "skill_executions",
+          "source_snapshot_ids",
+          "evidence_ids",
+          "input_hash",
+          "output_hash"
+        ],
+        "title": "VisualizationArtifactContent",
+        "type": "object"
+      },
       "WorkspaceObjectRef": {
         "additionalProperties": false,
         "description": "Stable reference to an object shown in the private workspace.",
@@ -13659,6 +15096,224 @@
           "layout_preset"
         ],
         "title": "WorkspaceSnapshotInput",
+        "type": "object"
+      },
+      "WwtAnnotation": {
+        "additionalProperties": false,
+        "properties": {
+          "annotation_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Annotation Id",
+            "type": "string"
+          },
+          "color_token": {
+            "default": "brand",
+            "enum": [
+              "brand",
+              "information",
+              "success",
+              "warning",
+              "error",
+              "neutral"
+            ],
+            "title": "Color Token",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "circle",
+              "line",
+              "label"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/WwtCoordinate"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Points",
+            "type": "array"
+          },
+          "radius_degrees": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radius Degrees"
+          }
+        },
+        "required": [
+          "annotation_id",
+          "kind",
+          "points"
+        ],
+        "title": "WwtAnnotation",
+        "type": "object"
+      },
+      "WwtCoordinate": {
+        "additionalProperties": false,
+        "properties": {
+          "dec_degrees": {
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Dec Degrees",
+            "type": "number"
+          },
+          "ra_hours": {
+            "exclusiveMaximum": 24.0,
+            "minimum": 0.0,
+            "title": "Ra Hours",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ra_hours",
+          "dec_degrees"
+        ],
+        "title": "WwtCoordinate",
+        "type": "object"
+      },
+      "WwtFitsLayer": {
+        "additionalProperties": false,
+        "properties": {
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "content_ref": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Content Ref",
+            "type": "string"
+          },
+          "layer_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Layer Id",
+            "type": "string"
+          },
+          "opacity": {
+            "default": 1.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Opacity",
+            "type": "number"
+          },
+          "source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "layer_id",
+          "source_snapshot_id",
+          "content_ref",
+          "content_hash"
+        ],
+        "title": "WwtFitsLayer",
+        "type": "object"
+      },
+      "WwtSceneVisualizationSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "annotations": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/WwtAnnotation"
+            },
+            "title": "Annotations",
+            "type": "array"
+          },
+          "background": {
+            "default": "digitized_sky_survey",
+            "enum": [
+              "digitized_sky_survey",
+              "gaia",
+              "wise",
+              "solar_system"
+            ],
+            "title": "Background",
+            "type": "string"
+          },
+          "center": {
+            "$ref": "#/components/schemas/WwtCoordinate"
+          },
+          "coordinate_grid": {
+            "default": "equatorial",
+            "enum": [
+              "none",
+              "equatorial",
+              "galactic",
+              "ecliptic",
+              "altaz"
+            ],
+            "title": "Coordinate Grid",
+            "type": "string"
+          },
+          "field_of_view_degrees": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 180.0,
+            "title": "Field Of View Degrees",
+            "type": "number"
+          },
+          "fits_layers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/WwtFitsLayer"
+            },
+            "title": "Fits Layers",
+            "type": "array"
+          },
+          "mode": {
+            "const": "wwt_scene",
+            "default": "wwt_scene",
+            "title": "Mode",
+            "type": "string"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          }
+        },
+        "required": [
+          "center",
+          "field_of_view_degrees"
+        ],
+        "title": "WwtSceneVisualizationSpec",
         "type": "object"
       },
       "app__schemas__core__SourceMode": {
@@ -16329,6 +17984,257 @@
           }
         },
         "summary": "Get Reasoning Trace"
+      }
+    },
+    "/api/artifact-versions/{version_id}/scientific": {
+      "get": {
+        "operationId": "getScientificArtifact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ScientificArtifactRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get Scientific Artifact"
+      }
+    },
+    "/api/artifact-versions/{version_id}/scientific/content/{content_hash}": {
+      "get": {
+        "operationId": "getScientificArtifactContent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "content_hash",
+            "required": true,
+            "schema": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "title": "Content Hash",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get Scientific Artifact Content"
       }
     },
     "/api/artifact-versions/{version_id}/source-collection": {

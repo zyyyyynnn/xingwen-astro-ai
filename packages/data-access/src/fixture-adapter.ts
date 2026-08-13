@@ -45,6 +45,7 @@ import {
   mapResearchRun,
   mapRunEvent,
 } from "./mapping";
+import { mapScientificArtifactRead } from "./scientific-artifact-repository";
 import { computeContractContentHash } from "./contract-hash";
 import { assemblePaperAcquisitionReview } from "./paper-acquisition-repository";
 import { assemblePaperSummaryReview } from "./paper-summary-repository";
@@ -60,6 +61,7 @@ import type {
   RepositoryProvenance,
   RunEventRecovery,
   RunRepository,
+  ScientificArtifactRepository,
   UpdateResearchProjectInput,
   ShareRepository,
   UpdateResearchContractDraftInput,
@@ -80,6 +82,11 @@ function validateBundleSemantics(bundle: FixtureBundle): void {
     throw new FixtureSemanticError(
       "Fixture bundle must carry a paperSummaries array of rich immutable " +
         "paper summary entries.",
+    );
+  }
+  if (!Array.isArray(bundle.data.scientificArtifacts)) {
+    throw new FixtureSemanticError(
+      "Fixture bundle must carry a scientificArtifacts array of rich immutable entries.",
     );
   }
   if (bundle.executionMode !== "demo_replay") {
@@ -191,6 +198,38 @@ function validateBundleSemantics(bundle: FixtureBundle): void {
       );
     }
   }
+  for (const entry of bundle.data.scientificArtifacts) {
+    const { version, read } = entry;
+    if (version === undefined || version === null) {
+      throw new FixtureSemanticError(
+        `Fixture scientific read ${read.artifact_version_id} must carry its full immutable ArtifactVersion detail`,
+      );
+    }
+    if (bundle.data.artifactVersions.some((item) => item.id === version.id)) {
+      throw new FixtureSemanticError(
+        `Scientific version ${version.id} must have one rich immutable fixture representation`,
+      );
+    }
+    if (
+      version.id !== read.artifact_version_id ||
+      version.artifact_id !== read.artifact_id ||
+      version.project_id !== read.project_id ||
+      version.content_hash !== read.content_hash ||
+      version.input_hash !== read.input_hash ||
+      version.source_mode !== read.source_mode ||
+      version.created_at !== read.created_at ||
+      JSON.stringify(version.content) !== JSON.stringify(read.content)
+    ) {
+      throw new FixtureSemanticError(
+        `Scientific version ${version.id} identity must match its dedicated read`,
+      );
+    }
+    if (read.source_mode !== "fixture") {
+      throw new FixtureSemanticError(
+        `Fixture scientific read ${read.artifact_version_id} must have source_mode "fixture"`,
+      );
+    }
+  }
 }
 
 function validateBundlePayloads(bundle: FixtureBundle): void {
@@ -209,6 +248,7 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
       payloads: [
         ...bundle.data.paperAcquisitions.map((item) => item.version),
         ...bundle.data.paperSummaries.map((item) => item.version),
+        ...bundle.data.scientificArtifacts.map((item) => item.version),
       ],
     },
     { model: "ResearchArtifact", payloads: bundle.data.artifacts },
@@ -225,6 +265,10 @@ function validateBundlePayloads(bundle: FixtureBundle): void {
     {
       model: "PaperSummaryRead",
       payloads: bundle.data.paperSummaries.map((item) => item.summary),
+    },
+    {
+      model: "ScientificArtifactRead",
+      payloads: bundle.data.scientificArtifacts.map((item) => item.read),
     },
   ];
   for (const { model, payloads } of entries) {
@@ -281,6 +325,7 @@ export interface FixtureRepositorySet {
   readonly artifacts: ArtifactReadRepository;
   readonly paperAcquisition: PaperAcquisitionRepository;
   readonly paperSummary: PaperSummaryRepository;
+  readonly scientificArtifacts: ScientificArtifactRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
   readonly provenance: RepositoryProvenance;
@@ -365,6 +410,9 @@ export function createFixtureRepositories(
       mapArtifactVersionMetadata(item.version),
     ),
     ...bundle.data.paperSummaries.map((item) =>
+      mapArtifactVersionMetadata(item.version),
+    ),
+    ...bundle.data.scientificArtifacts.map((item) =>
       mapArtifactVersionMetadata(item.version),
     ),
   ]);
@@ -959,6 +1007,38 @@ export function createFixtureRepositories(
         // Identical assembly path to the HTTP adapter, so both return the
         // exact same domain shape for the same contract payloads.
         return assemblePaperSummaryReview(entry.summary);
+      },
+    },
+    scientificArtifacts: {
+      getReview: async (artifactVersionId) => {
+        const entry = bundle.data.scientificArtifacts.find(
+          (item) => item.read.artifact_version_id === artifactVersionId,
+        );
+        if (!entry) {
+          throw new NotFoundError(
+            `Scientific Artifact ${artifactVersionId} not found in Demo Replay`,
+            "ARTIFACT_VERSION_NOT_FOUND",
+          );
+        }
+        return mapScientificArtifactRead(entry.read);
+      },
+      getContent: async (artifactVersionId, contentHash) => {
+        const entry = bundle.data.scientificArtifacts.find(
+          (item) => item.read.artifact_version_id === artifactVersionId,
+        );
+        const blob = entry?.contentBlobs.find(
+          (item) => item.content_hash === contentHash,
+        );
+        if (!blob) {
+          throw new NotFoundError(
+            `Scientific Artifact content ${artifactVersionId}/${contentHash} not found in Demo Replay`,
+            "SCIENTIFIC_CONTENT_NOT_FOUND",
+          );
+        }
+        const bytes = Uint8Array.from(atob(blob.bytes_base64), (value) =>
+          value.charCodeAt(0),
+        );
+        return bytes.buffer;
       },
     },
     workspaces: {

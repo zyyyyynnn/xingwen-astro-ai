@@ -41,6 +41,7 @@ const CONTRACT_ID = "rc_01JEXAMPLE" as never;
 const ARTIFACT_ID = "art_graph_01" as never;
 const VERSION_ID = "artv_graph_01" as never;
 const PAPER_SUMMARY_VERSION_ID = "artv_papsum_01" as never;
+const SCIENTIFIC_VERSION_ID = "artv_scientific_analysis" as never;
 const EVIDENCE_ID = "evd_01" as never;
 
 it("projects.getById returns the same domain entity", async () => {
@@ -190,6 +191,15 @@ it("paperSummary.getSummary returns the same paper_summary domain entity", async
   expect(httpSummary).toEqual(fixtureSummary);
 });
 
+it("scientificArtifacts.getReview returns the same scientific domain entity", async () => {
+  const httpRepos = setupHttpRepos();
+  const [fixtureArtifact, httpArtifact] = await Promise.all([
+    fixtureRepos.scientificArtifacts.getReview(SCIENTIFIC_VERSION_ID),
+    httpRepos.scientificArtifacts.getReview(SCIENTIFIC_VERSION_ID),
+  ]);
+  expect(httpArtifact).toEqual(fixtureArtifact);
+});
+
 /**
  * PR-1 Fix 4 — explicit contentHash parity regression.
  *
@@ -207,7 +217,7 @@ it("contract contentHash is a real canonical hash shared by Fixture and HTTP", a
     httpRepos.contracts.getContractById(CONTRACT_ID),
   ]);
   const expectedHash =
-    "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986";
+    "sha256:1959866e3adcb3ec6ff21072543c7672562010be38e3e1322d1c227dff610f12";
   expect(fixtureContract!.contentHash).toBe(expectedHash);
   expect(httpContract!.contentHash).toBe(expectedHash);
   expect(httpContract!.contentHash).toBe(fixtureContract!.contentHash);

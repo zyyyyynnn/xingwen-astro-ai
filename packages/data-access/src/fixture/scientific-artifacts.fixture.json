@@ -1,0 +1,1006 @@
+{
+  "$generated": {
+    "tool": "services.scientific_skills.demo_fixture",
+    "command": "uv run --project apps/api python -m services.scientific_skills.demo_fixture",
+    "scenario_id": "exoplanet_host_star.scientific_artifacts",
+    "provenance_note": "Deterministic Demo Replay generated through current scientific publication and read contracts; never live data."
+  },
+  "entries": [
+    {
+      "version": {
+        "id": "artv_scientific_analysis",
+        "artifact_id": "art_scientific_analysis",
+        "project_id": "proj_01JEXAMPLE",
+        "created_by_run_id": "run_01JEXAMPLE",
+        "version_number": 1,
+        "schema_version": "1.0.0",
+        "content": {
+          "kind": "analysis_report",
+          "schema_version": "1.0.0",
+          "report_id": "analysis.host_star_profile",
+          "title": "宿主星样本数据剖析",
+          "summary": "冻结样本包含 3 个候选目标，标识符与有效温度字段均完整。",
+          "skill_executions": [
+            {
+              "execution_id": "skill.profile",
+              "skill_id": "data_profile",
+              "skill_revision": "1.0.0",
+              "status": "completed",
+              "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "output_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "duration_ms": 18,
+              "warnings": []
+            }
+          ],
+          "result_blocks": [
+            {
+              "block_id": "result.host_star_rows",
+              "label": "宿主星参数预览",
+              "representation": "table",
+              "payload": {
+                "rows": [
+                  {
+                    "toi_id": "TOI-1234.01",
+                    "effective_temperature_k": 5800
+                  },
+                  {
+                    "toi_id": "TOI-5678.01",
+                    "effective_temperature_k": 5120
+                  },
+                  {
+                    "toi_id": "TOI-9012.01",
+                    "effective_temperature_k": 6240
+                  }
+                ]
+              },
+              "content_hash": "sha256:f00248cf19a588a5e4c626b739e11d942ec895183fdf6ed819864a636f6c6604",
+              "evidence_ids": []
+            }
+          ],
+          "metrics": [
+            {
+              "metric_id": "metric.row_count",
+              "label": "样本量",
+              "value": 3,
+              "unit": "rows",
+              "evidence_ids": []
+            },
+            {
+              "metric_id": "metric.temperature_mean",
+              "label": "平均有效温度",
+              "value": 5720,
+              "unit": "K",
+              "evidence_ids": []
+            }
+          ],
+          "findings": [
+            {
+              "finding_id": "finding.coverage",
+              "title": "字段覆盖完整",
+              "statement": "三个 Demo Replay 目标均具有 TOI 标识符与有效温度。",
+              "status": "unresolved",
+              "evidence_ids": [],
+              "metric_ids": ["metric.row_count"]
+            }
+          ],
+          "limitations": ["Demo Replay 仅用于展示，不代表实时目录查询结果。"],
+          "human_required": ["正式分析前需确认目标筛选阈值。"],
+          "related_artifact_version_ids": ["artv_dataset_01"],
+          "scientific_evidence": [],
+          "source_snapshot_ids": [],
+          "evidence_ids": [],
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:cf45e76a0b20181ef71e5acd44bfb5063be9318f58094ae37ffad08dd46837c5"
+        },
+        "content_hash": "sha256:fd4c9a830c93c57f0c1b7611bee811dece0c99eade1e674d820f36372b6bcb55",
+        "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "source_mode": "fixture",
+        "producer": {
+          "type": "algorithm",
+          "name": "scientific_artifact_assembler",
+          "version": "1.0.0",
+          "model_provider": null,
+          "model_name": null,
+          "prompt_name": null,
+          "prompt_version": null,
+          "prompt_hash": null,
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "source_snapshot_ids": [],
+        "evidence_ids": [],
+        "supersedes_version_id": null,
+        "created_at": "2026-07-21T08:23:00Z",
+        "producer_execution": {
+          "id": "pexec_scientific_analysis",
+          "run_id": "run_01JEXAMPLE",
+          "step_key": "analyzing_data",
+          "step_attempt_id": "attempt_scientific_analysis",
+          "producer": {
+            "type": "algorithm",
+            "name": "scientific_artifact_assembler",
+            "version": "1.0.0",
+            "model_provider": null,
+            "model_name": null,
+            "prompt_name": null,
+            "prompt_version": null,
+            "prompt_hash": null,
+            "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          "parameters": {},
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:fd4c9a830c93c57f0c1b7611bee811dece0c99eade1e674d820f36372b6bcb55",
+          "status": "completed",
+          "started_at": "2026-07-21T08:23:00Z",
+          "finished_at": "2026-07-21T08:23:00Z",
+          "token_usage": null,
+          "latency_ms": 18,
+          "error_code": null
+        },
+        "source_snapshots": [],
+        "evidence": []
+      },
+      "read": {
+        "artifact_version_id": "artv_scientific_analysis",
+        "artifact_id": "art_scientific_analysis",
+        "project_id": "proj_01JEXAMPLE",
+        "version_number": 1,
+        "supersedes_version_id": null,
+        "source_mode": "fixture",
+        "content_hash": "sha256:fd4c9a830c93c57f0c1b7611bee811dece0c99eade1e674d820f36372b6bcb55",
+        "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "created_at": "2026-07-21T08:23:00Z",
+        "content": {
+          "kind": "analysis_report",
+          "schema_version": "1.0.0",
+          "report_id": "analysis.host_star_profile",
+          "title": "宿主星样本数据剖析",
+          "summary": "冻结样本包含 3 个候选目标，标识符与有效温度字段均完整。",
+          "skill_executions": [
+            {
+              "execution_id": "skill.profile",
+              "skill_id": "data_profile",
+              "skill_revision": "1.0.0",
+              "status": "completed",
+              "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "output_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "duration_ms": 18,
+              "warnings": []
+            }
+          ],
+          "result_blocks": [
+            {
+              "block_id": "result.host_star_rows",
+              "label": "宿主星参数预览",
+              "representation": "table",
+              "payload": {
+                "rows": [
+                  {
+                    "toi_id": "TOI-1234.01",
+                    "effective_temperature_k": 5800
+                  },
+                  {
+                    "toi_id": "TOI-5678.01",
+                    "effective_temperature_k": 5120
+                  },
+                  {
+                    "toi_id": "TOI-9012.01",
+                    "effective_temperature_k": 6240
+                  }
+                ]
+              },
+              "content_hash": "sha256:f00248cf19a588a5e4c626b739e11d942ec895183fdf6ed819864a636f6c6604",
+              "evidence_ids": []
+            }
+          ],
+          "metrics": [
+            {
+              "metric_id": "metric.row_count",
+              "label": "样本量",
+              "value": 3,
+              "unit": "rows",
+              "evidence_ids": []
+            },
+            {
+              "metric_id": "metric.temperature_mean",
+              "label": "平均有效温度",
+              "value": 5720,
+              "unit": "K",
+              "evidence_ids": []
+            }
+          ],
+          "findings": [
+            {
+              "finding_id": "finding.coverage",
+              "title": "字段覆盖完整",
+              "statement": "三个 Demo Replay 目标均具有 TOI 标识符与有效温度。",
+              "status": "unresolved",
+              "evidence_ids": [],
+              "metric_ids": ["metric.row_count"]
+            }
+          ],
+          "limitations": ["Demo Replay 仅用于展示，不代表实时目录查询结果。"],
+          "human_required": ["正式分析前需确认目标筛选阈值。"],
+          "related_artifact_version_ids": ["artv_dataset_01"],
+          "scientific_evidence": [],
+          "source_snapshot_ids": [],
+          "evidence_ids": [],
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:cf45e76a0b20181ef71e5acd44bfb5063be9318f58094ae37ffad08dd46837c5"
+        },
+        "producer_execution": {
+          "id": "pexec_scientific_analysis",
+          "run_id": "run_01JEXAMPLE",
+          "step_key": "analyzing_data",
+          "step_attempt_id": "attempt_scientific_analysis",
+          "producer": {
+            "type": "algorithm",
+            "name": "scientific_artifact_assembler",
+            "version": "1.0.0",
+            "model_provider": null,
+            "model_name": null,
+            "prompt_name": null,
+            "prompt_version": null,
+            "prompt_hash": null,
+            "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          "parameters": {},
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:fd4c9a830c93c57f0c1b7611bee811dece0c99eade1e674d820f36372b6bcb55",
+          "status": "completed",
+          "started_at": "2026-07-21T08:23:00Z",
+          "finished_at": "2026-07-21T08:23:00Z",
+          "token_usage": null,
+          "latency_ms": 18,
+          "error_code": null
+        },
+        "source_snapshots": [],
+        "evidence": []
+      },
+      "content_blobs": []
+    },
+    {
+      "version": {
+        "id": "artv_scientific_chart",
+        "artifact_id": "art_scientific_chart",
+        "project_id": "proj_01JEXAMPLE",
+        "created_by_run_id": "run_01JEXAMPLE",
+        "version_number": 1,
+        "schema_version": "1.0.0",
+        "content": {
+          "kind": "visualization",
+          "schema_version": "1.0.0",
+          "visualization_id": "visualization.temperature_radius",
+          "title": "宿主星温度—半径关系",
+          "description": "冻结 Demo Replay 样本的声明式散点与趋势线。",
+          "spec": {
+            "mode": "chart",
+            "dataset_artifact_version_id": "artv_dataset_01",
+            "x_axis": {
+              "field": "star.effective_temperature",
+              "label": "有效温度",
+              "unit": "K",
+              "scale": "linear"
+            },
+            "y_axis": {
+              "field": "star.radius",
+              "label": "恒星半径",
+              "unit": "R_sun",
+              "scale": "linear"
+            },
+            "series": [
+              {
+                "series_id": "series.host_stars",
+                "label": "宿主星",
+                "x_field": "star.effective_temperature",
+                "y_field": "star.radius",
+                "mark": "point",
+                "color_token": "brand",
+                "points": [
+                  {
+                    "x": 5120,
+                    "y": 0.82
+                  },
+                  {
+                    "x": 5800,
+                    "y": 1.03
+                  },
+                  {
+                    "x": 6240,
+                    "y": 1.26
+                  }
+                ]
+              },
+              {
+                "series_id": "series.trend",
+                "label": "趋势",
+                "x_field": "star.effective_temperature",
+                "y_field": "star.radius",
+                "mark": "line",
+                "color_token": "information",
+                "points": [
+                  {
+                    "x": 5120,
+                    "y": 0.84
+                  },
+                  {
+                    "x": 5800,
+                    "y": 1.02
+                  },
+                  {
+                    "x": 6240,
+                    "y": 1.24
+                  }
+                ]
+              }
+            ]
+          },
+          "skill_executions": [
+            {
+              "execution_id": "skill.chart",
+              "skill_id": "chart_visualization",
+              "skill_revision": "1.0.0",
+              "status": "completed",
+              "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "output_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "duration_ms": 18,
+              "warnings": []
+            }
+          ],
+          "scientific_evidence": [],
+          "source_snapshot_ids": [],
+          "evidence_ids": [],
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:f7a1bb9a9e329bfc0702cecb1cf03f15361dec30ff9f195001e070b71a78bd39"
+        },
+        "content_hash": "sha256:81e121d9d3707b42383b85aeba92fda4f63c601e8cdabf2adbb90bc8eb066a0b",
+        "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "source_mode": "fixture",
+        "producer": {
+          "type": "algorithm",
+          "name": "scientific_artifact_assembler",
+          "version": "1.0.0",
+          "model_provider": null,
+          "model_name": null,
+          "prompt_name": null,
+          "prompt_version": null,
+          "prompt_hash": null,
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "source_snapshot_ids": [],
+        "evidence_ids": [],
+        "supersedes_version_id": null,
+        "created_at": "2026-07-21T08:23:00Z",
+        "producer_execution": {
+          "id": "pexec_scientific_chart",
+          "run_id": "run_01JEXAMPLE",
+          "step_key": "building_visualizations",
+          "step_attempt_id": "attempt_scientific_chart",
+          "producer": {
+            "type": "algorithm",
+            "name": "scientific_artifact_assembler",
+            "version": "1.0.0",
+            "model_provider": null,
+            "model_name": null,
+            "prompt_name": null,
+            "prompt_version": null,
+            "prompt_hash": null,
+            "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          "parameters": {},
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:81e121d9d3707b42383b85aeba92fda4f63c601e8cdabf2adbb90bc8eb066a0b",
+          "status": "completed",
+          "started_at": "2026-07-21T08:23:00Z",
+          "finished_at": "2026-07-21T08:23:00Z",
+          "token_usage": null,
+          "latency_ms": 18,
+          "error_code": null
+        },
+        "source_snapshots": [],
+        "evidence": []
+      },
+      "read": {
+        "artifact_version_id": "artv_scientific_chart",
+        "artifact_id": "art_scientific_chart",
+        "project_id": "proj_01JEXAMPLE",
+        "version_number": 1,
+        "supersedes_version_id": null,
+        "source_mode": "fixture",
+        "content_hash": "sha256:81e121d9d3707b42383b85aeba92fda4f63c601e8cdabf2adbb90bc8eb066a0b",
+        "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "created_at": "2026-07-21T08:23:00Z",
+        "content": {
+          "kind": "visualization",
+          "schema_version": "1.0.0",
+          "visualization_id": "visualization.temperature_radius",
+          "title": "宿主星温度—半径关系",
+          "description": "冻结 Demo Replay 样本的声明式散点与趋势线。",
+          "spec": {
+            "mode": "chart",
+            "dataset_artifact_version_id": "artv_dataset_01",
+            "x_axis": {
+              "field": "star.effective_temperature",
+              "label": "有效温度",
+              "unit": "K",
+              "scale": "linear"
+            },
+            "y_axis": {
+              "field": "star.radius",
+              "label": "恒星半径",
+              "unit": "R_sun",
+              "scale": "linear"
+            },
+            "series": [
+              {
+                "series_id": "series.host_stars",
+                "label": "宿主星",
+                "x_field": "star.effective_temperature",
+                "y_field": "star.radius",
+                "mark": "point",
+                "color_token": "brand",
+                "points": [
+                  {
+                    "x": 5120,
+                    "y": 0.82
+                  },
+                  {
+                    "x": 5800,
+                    "y": 1.03
+                  },
+                  {
+                    "x": 6240,
+                    "y": 1.26
+                  }
+                ]
+              },
+              {
+                "series_id": "series.trend",
+                "label": "趋势",
+                "x_field": "star.effective_temperature",
+                "y_field": "star.radius",
+                "mark": "line",
+                "color_token": "information",
+                "points": [
+                  {
+                    "x": 5120,
+                    "y": 0.84
+                  },
+                  {
+                    "x": 5800,
+                    "y": 1.02
+                  },
+                  {
+                    "x": 6240,
+                    "y": 1.24
+                  }
+                ]
+              }
+            ]
+          },
+          "skill_executions": [
+            {
+              "execution_id": "skill.chart",
+              "skill_id": "chart_visualization",
+              "skill_revision": "1.0.0",
+              "status": "completed",
+              "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "output_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "duration_ms": 18,
+              "warnings": []
+            }
+          ],
+          "scientific_evidence": [],
+          "source_snapshot_ids": [],
+          "evidence_ids": [],
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:f7a1bb9a9e329bfc0702cecb1cf03f15361dec30ff9f195001e070b71a78bd39"
+        },
+        "producer_execution": {
+          "id": "pexec_scientific_chart",
+          "run_id": "run_01JEXAMPLE",
+          "step_key": "building_visualizations",
+          "step_attempt_id": "attempt_scientific_chart",
+          "producer": {
+            "type": "algorithm",
+            "name": "scientific_artifact_assembler",
+            "version": "1.0.0",
+            "model_provider": null,
+            "model_name": null,
+            "prompt_name": null,
+            "prompt_version": null,
+            "prompt_hash": null,
+            "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          "parameters": {},
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:81e121d9d3707b42383b85aeba92fda4f63c601e8cdabf2adbb90bc8eb066a0b",
+          "status": "completed",
+          "started_at": "2026-07-21T08:23:00Z",
+          "finished_at": "2026-07-21T08:23:00Z",
+          "token_usage": null,
+          "latency_ms": 18,
+          "error_code": null
+        },
+        "source_snapshots": [],
+        "evidence": []
+      },
+      "content_blobs": []
+    },
+    {
+      "version": {
+        "id": "artv_scientific_model",
+        "artifact_id": "art_scientific_model",
+        "project_id": "proj_01JEXAMPLE",
+        "created_by_run_id": "run_01JEXAMPLE",
+        "version_number": 1,
+        "schema_version": "1.0.0",
+        "content": {
+          "kind": "model_evaluation",
+          "schema_version": "1.0.0",
+          "evaluation_id": "evaluation.host_star_classifier",
+          "title": "宿主星候选分类评估",
+          "task_kind": "classification",
+          "algorithm": "random_forest",
+          "algorithm_version": "scikit-learn:1.9",
+          "dataset_artifact_version_id": "artv_dataset_01",
+          "feature_fields": [
+            "star.effective_temperature",
+            "star.radius",
+            "star.mass"
+          ],
+          "target_field": "planet.disposition",
+          "split": {
+            "strategy": "stratified_holdout",
+            "random_seed": 42,
+            "train_fraction": 0.7,
+            "validation_fraction": 0.1,
+            "test_fraction": 0.2
+          },
+          "metrics": [
+            {
+              "metric_id": "metric.macro_f1",
+              "label": "Macro F1",
+              "value": 0.84,
+              "unit": null,
+              "evidence_ids": []
+            },
+            {
+              "metric_id": "metric.roc_auc",
+              "label": "ROC AUC",
+              "value": 0.9,
+              "unit": null,
+              "evidence_ids": []
+            }
+          ],
+          "baseline_metrics": [
+            {
+              "metric_id": "metric.baseline_macro_f1",
+              "label": "Macro F1",
+              "value": 0.62,
+              "unit": null,
+              "evidence_ids": []
+            }
+          ],
+          "skill_execution": {
+            "execution_id": "skill.host_star_classifier",
+            "skill_id": "tabular_machine_learning",
+            "skill_revision": "1.0.0",
+            "status": "completed",
+            "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "output_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "duration_ms": 18,
+            "warnings": []
+          },
+          "model_binary": null,
+          "diagnostic_visualization_ids": [],
+          "limitations": ["样本为确定性 Demo Replay 数据，指标不得外推。"],
+          "scientific_evidence": [],
+          "source_snapshot_ids": [],
+          "evidence_ids": [],
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:9d488787f6f11dde70533e368f1376694608ab4de1edd97309c82f8a166601dd"
+        },
+        "content_hash": "sha256:a3ad0c8c32912b8f591dbf2fb6b274ac94264e705ff84cbd6cf685eb299236a1",
+        "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "source_mode": "fixture",
+        "producer": {
+          "type": "algorithm",
+          "name": "scientific_artifact_assembler",
+          "version": "1.0.0",
+          "model_provider": null,
+          "model_name": null,
+          "prompt_name": null,
+          "prompt_version": null,
+          "prompt_hash": null,
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "source_snapshot_ids": [],
+        "evidence_ids": [],
+        "supersedes_version_id": null,
+        "created_at": "2026-07-21T08:23:00Z",
+        "producer_execution": {
+          "id": "pexec_scientific_model",
+          "run_id": "run_01JEXAMPLE",
+          "step_key": "training_models",
+          "step_attempt_id": "attempt_scientific_model",
+          "producer": {
+            "type": "algorithm",
+            "name": "scientific_artifact_assembler",
+            "version": "1.0.0",
+            "model_provider": null,
+            "model_name": null,
+            "prompt_name": null,
+            "prompt_version": null,
+            "prompt_hash": null,
+            "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          "parameters": {},
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:a3ad0c8c32912b8f591dbf2fb6b274ac94264e705ff84cbd6cf685eb299236a1",
+          "status": "completed",
+          "started_at": "2026-07-21T08:23:00Z",
+          "finished_at": "2026-07-21T08:23:00Z",
+          "token_usage": null,
+          "latency_ms": 18,
+          "error_code": null
+        },
+        "source_snapshots": [],
+        "evidence": []
+      },
+      "read": {
+        "artifact_version_id": "artv_scientific_model",
+        "artifact_id": "art_scientific_model",
+        "project_id": "proj_01JEXAMPLE",
+        "version_number": 1,
+        "supersedes_version_id": null,
+        "source_mode": "fixture",
+        "content_hash": "sha256:a3ad0c8c32912b8f591dbf2fb6b274ac94264e705ff84cbd6cf685eb299236a1",
+        "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "created_at": "2026-07-21T08:23:00Z",
+        "content": {
+          "kind": "model_evaluation",
+          "schema_version": "1.0.0",
+          "evaluation_id": "evaluation.host_star_classifier",
+          "title": "宿主星候选分类评估",
+          "task_kind": "classification",
+          "algorithm": "random_forest",
+          "algorithm_version": "scikit-learn:1.9",
+          "dataset_artifact_version_id": "artv_dataset_01",
+          "feature_fields": [
+            "star.effective_temperature",
+            "star.radius",
+            "star.mass"
+          ],
+          "target_field": "planet.disposition",
+          "split": {
+            "strategy": "stratified_holdout",
+            "random_seed": 42,
+            "train_fraction": 0.7,
+            "validation_fraction": 0.1,
+            "test_fraction": 0.2
+          },
+          "metrics": [
+            {
+              "metric_id": "metric.macro_f1",
+              "label": "Macro F1",
+              "value": 0.84,
+              "unit": null,
+              "evidence_ids": []
+            },
+            {
+              "metric_id": "metric.roc_auc",
+              "label": "ROC AUC",
+              "value": 0.9,
+              "unit": null,
+              "evidence_ids": []
+            }
+          ],
+          "baseline_metrics": [
+            {
+              "metric_id": "metric.baseline_macro_f1",
+              "label": "Macro F1",
+              "value": 0.62,
+              "unit": null,
+              "evidence_ids": []
+            }
+          ],
+          "skill_execution": {
+            "execution_id": "skill.host_star_classifier",
+            "skill_id": "tabular_machine_learning",
+            "skill_revision": "1.0.0",
+            "status": "completed",
+            "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "output_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "duration_ms": 18,
+            "warnings": []
+          },
+          "model_binary": null,
+          "diagnostic_visualization_ids": [],
+          "limitations": ["样本为确定性 Demo Replay 数据，指标不得外推。"],
+          "scientific_evidence": [],
+          "source_snapshot_ids": [],
+          "evidence_ids": [],
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:9d488787f6f11dde70533e368f1376694608ab4de1edd97309c82f8a166601dd"
+        },
+        "producer_execution": {
+          "id": "pexec_scientific_model",
+          "run_id": "run_01JEXAMPLE",
+          "step_key": "training_models",
+          "step_attempt_id": "attempt_scientific_model",
+          "producer": {
+            "type": "algorithm",
+            "name": "scientific_artifact_assembler",
+            "version": "1.0.0",
+            "model_provider": null,
+            "model_name": null,
+            "prompt_name": null,
+            "prompt_version": null,
+            "prompt_hash": null,
+            "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          "parameters": {},
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:a3ad0c8c32912b8f591dbf2fb6b274ac94264e705ff84cbd6cf685eb299236a1",
+          "status": "completed",
+          "started_at": "2026-07-21T08:23:00Z",
+          "finished_at": "2026-07-21T08:23:00Z",
+          "token_usage": null,
+          "latency_ms": 18,
+          "error_code": null
+        },
+        "source_snapshots": [],
+        "evidence": []
+      },
+      "content_blobs": []
+    },
+    {
+      "version": {
+        "id": "artv_scientific_wwt",
+        "artifact_id": "art_scientific_wwt",
+        "project_id": "proj_01JEXAMPLE",
+        "created_by_run_id": "run_01JEXAMPLE",
+        "version_number": 1,
+        "schema_version": "1.0.0",
+        "content": {
+          "kind": "visualization",
+          "schema_version": "1.0.0",
+          "visualization_id": "visualization.target_field",
+          "title": "TOI 候选目标天区",
+          "description": "WWT 数字巡天背景上的目标位置与比较路径。",
+          "spec": {
+            "mode": "wwt_scene",
+            "center": {
+              "ra_hours": 10.25,
+              "dec_degrees": -12.4
+            },
+            "field_of_view_degrees": 4.0,
+            "observed_at": null,
+            "background": "digitized_sky_survey",
+            "coordinate_grid": "equatorial",
+            "fits_layers": [],
+            "annotations": [
+              {
+                "annotation_id": "annotation.target",
+                "kind": "circle",
+                "points": [
+                  {
+                    "ra_hours": 10.25,
+                    "dec_degrees": -12.4
+                  }
+                ],
+                "label": "TOI-1234.01",
+                "color_token": "brand",
+                "radius_degrees": 0.08
+              },
+              {
+                "annotation_id": "annotation.comparison_path",
+                "kind": "line",
+                "points": [
+                  {
+                    "ra_hours": 10.18,
+                    "dec_degrees": -12.6
+                  },
+                  {
+                    "ra_hours": 10.25,
+                    "dec_degrees": -12.4
+                  },
+                  {
+                    "ra_hours": 10.34,
+                    "dec_degrees": -12.15
+                  }
+                ],
+                "label": "比较星路径",
+                "color_token": "information",
+                "radius_degrees": null
+              }
+            ]
+          },
+          "skill_executions": [
+            {
+              "execution_id": "skill.wwt",
+              "skill_id": "wwt_scene",
+              "skill_revision": "1.0.0",
+              "status": "completed",
+              "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "output_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "duration_ms": 18,
+              "warnings": []
+            }
+          ],
+          "scientific_evidence": [],
+          "source_snapshot_ids": [],
+          "evidence_ids": [],
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:1e50d8a6430a274d5c85da89e6ba51af8a5288b275806eaf393170a947fa4a01"
+        },
+        "content_hash": "sha256:bc5fecdd60c0fef6cacb95fd3ae8f3fb2bc6254608bd3c3803ab4a717af29d12",
+        "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "source_mode": "fixture",
+        "producer": {
+          "type": "algorithm",
+          "name": "scientific_artifact_assembler",
+          "version": "1.0.0",
+          "model_provider": null,
+          "model_name": null,
+          "prompt_name": null,
+          "prompt_version": null,
+          "prompt_hash": null,
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "source_snapshot_ids": [],
+        "evidence_ids": [],
+        "supersedes_version_id": null,
+        "created_at": "2026-07-21T08:23:00Z",
+        "producer_execution": {
+          "id": "pexec_scientific_wwt",
+          "run_id": "run_01JEXAMPLE",
+          "step_key": "building_visualizations",
+          "step_attempt_id": "attempt_scientific_wwt",
+          "producer": {
+            "type": "algorithm",
+            "name": "scientific_artifact_assembler",
+            "version": "1.0.0",
+            "model_provider": null,
+            "model_name": null,
+            "prompt_name": null,
+            "prompt_version": null,
+            "prompt_hash": null,
+            "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          "parameters": {},
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:bc5fecdd60c0fef6cacb95fd3ae8f3fb2bc6254608bd3c3803ab4a717af29d12",
+          "status": "completed",
+          "started_at": "2026-07-21T08:23:00Z",
+          "finished_at": "2026-07-21T08:23:00Z",
+          "token_usage": null,
+          "latency_ms": 18,
+          "error_code": null
+        },
+        "source_snapshots": [],
+        "evidence": []
+      },
+      "read": {
+        "artifact_version_id": "artv_scientific_wwt",
+        "artifact_id": "art_scientific_wwt",
+        "project_id": "proj_01JEXAMPLE",
+        "version_number": 1,
+        "supersedes_version_id": null,
+        "source_mode": "fixture",
+        "content_hash": "sha256:bc5fecdd60c0fef6cacb95fd3ae8f3fb2bc6254608bd3c3803ab4a717af29d12",
+        "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "created_at": "2026-07-21T08:23:00Z",
+        "content": {
+          "kind": "visualization",
+          "schema_version": "1.0.0",
+          "visualization_id": "visualization.target_field",
+          "title": "TOI 候选目标天区",
+          "description": "WWT 数字巡天背景上的目标位置与比较路径。",
+          "spec": {
+            "mode": "wwt_scene",
+            "center": {
+              "ra_hours": 10.25,
+              "dec_degrees": -12.4
+            },
+            "field_of_view_degrees": 4.0,
+            "observed_at": null,
+            "background": "digitized_sky_survey",
+            "coordinate_grid": "equatorial",
+            "fits_layers": [],
+            "annotations": [
+              {
+                "annotation_id": "annotation.target",
+                "kind": "circle",
+                "points": [
+                  {
+                    "ra_hours": 10.25,
+                    "dec_degrees": -12.4
+                  }
+                ],
+                "label": "TOI-1234.01",
+                "color_token": "brand",
+                "radius_degrees": 0.08
+              },
+              {
+                "annotation_id": "annotation.comparison_path",
+                "kind": "line",
+                "points": [
+                  {
+                    "ra_hours": 10.18,
+                    "dec_degrees": -12.6
+                  },
+                  {
+                    "ra_hours": 10.25,
+                    "dec_degrees": -12.4
+                  },
+                  {
+                    "ra_hours": 10.34,
+                    "dec_degrees": -12.15
+                  }
+                ],
+                "label": "比较星路径",
+                "color_token": "information",
+                "radius_degrees": null
+              }
+            ]
+          },
+          "skill_executions": [
+            {
+              "execution_id": "skill.wwt",
+              "skill_id": "wwt_scene",
+              "skill_revision": "1.0.0",
+              "status": "completed",
+              "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "output_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "duration_ms": 18,
+              "warnings": []
+            }
+          ],
+          "scientific_evidence": [],
+          "source_snapshot_ids": [],
+          "evidence_ids": [],
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:1e50d8a6430a274d5c85da89e6ba51af8a5288b275806eaf393170a947fa4a01"
+        },
+        "producer_execution": {
+          "id": "pexec_scientific_wwt",
+          "run_id": "run_01JEXAMPLE",
+          "step_key": "building_visualizations",
+          "step_attempt_id": "attempt_scientific_wwt",
+          "producer": {
+            "type": "algorithm",
+            "name": "scientific_artifact_assembler",
+            "version": "1.0.0",
+            "model_provider": null,
+            "model_name": null,
+            "prompt_name": null,
+            "prompt_version": null,
+            "prompt_hash": null,
+            "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          "parameters": {},
+          "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "output_hash": "sha256:bc5fecdd60c0fef6cacb95fd3ae8f3fb2bc6254608bd3c3803ab4a717af29d12",
+          "status": "completed",
+          "started_at": "2026-07-21T08:23:00Z",
+          "finished_at": "2026-07-21T08:23:00Z",
+          "token_usage": null,
+          "latency_ms": 18,
+          "error_code": null
+        },
+        "source_snapshots": [],
+        "evidence": []
+      },
+      "content_blobs": []
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import type {
   DomainEntityId,
   ExecutionMode,
   ResearchGoal,
+  ResearchContractInput,
   ResearchPlanningCatalog,
   ResearchThreadAssistantPayload,
   ResearchThreadQuestionPayload,
@@ -129,6 +130,7 @@ export interface ContractInputViewModel {
     readonly sourceIds: readonly DomainEntityId[];
     readonly maxCandidates: number;
   };
+  readonly scientificTasks: ResearchContractInput["scientificTasks"];
   readonly outputRequirements: readonly ArtifactKind[];
   readonly evidenceRequirements: {
     readonly requireLocator: boolean;
@@ -258,11 +260,20 @@ export interface ReasoningTraceLocatorViewModel {
   readonly stepKey: DomainEntityId;
 }
 
+export interface ScientificComputationLocatorViewModel {
+  readonly kind: "scientific_computation";
+  readonly taskId: DomainEntityId;
+  readonly skillId: DomainEntityId;
+  readonly outputHash: string;
+  readonly upstreamEvidenceIds: readonly DomainEntityId[];
+}
+
 export type EvidenceLocatorViewModel =
   | DatabaseCellLocatorViewModel
   | PaperTextLocatorViewModel
   | ModelExtractionLocatorViewModel
-  | ReasoningTraceLocatorViewModel;
+  | ReasoningTraceLocatorViewModel
+  | ScientificComputationLocatorViewModel;
 
 export interface EvidenceViewModel {
   readonly id: DomainEntityId;

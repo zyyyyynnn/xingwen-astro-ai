@@ -55,8 +55,19 @@ from app.workflow.publisher import (
     StalePublicationError,
     admit_artifact_candidate,
 )
-from app.schemas.core import ArtifactKind, ExportArtifactContent
+from app.schemas.core import (
+    ArtifactKind,
+    ExportArtifactContent,
+    ResearchContractInput,
+    compute_research_contract_content_hash,
+)
+from app.schemas.scientific_skills import VisualizationArtifactContent
+from app.services.artifacts import ArtifactReadService
+from app.services.scientific_artifacts import ScientificArtifactReadService
+from app.workflow.scientific_publication import ScientificStepPublisher
 from app.workflow.store import PersistentWorkflowStore, RunStepDefinition
+from services.scientific_skills.demo_fixture import build_scientific_fixture_document
+from services.scientific_skills.execution import ScientificStepOutput
 
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
@@ -117,6 +128,8 @@ def _steps() -> tuple[RunStepDefinition, ...]:
 
 def _seed_project(
     factory: Callable[[], Session],
+    *,
+    contract_input: ResearchContractInput | None = None,
 ) -> tuple[ResearchProjectModel, ResearchContractModel]:
     project = build_research_project(
         project_id=uuid4(),
@@ -124,12 +137,20 @@ def _seed_project(
         name="Atomic Publisher integration",
         case_key="exoplanet_host_star",
     )
-    draft = build_contract_draft(project)
+    contract_content = (
+        contract_input.model_dump(mode="json") if contract_input is not None else None
+    )
+    draft = build_contract_draft(project, content=contract_content)
     contract = build_research_contract(
         project,
         draft,
         contract_id=uuid4(),
-        content_hash=HASH_A,
+        content_hash=(
+            compute_research_contract_content_hash(contract_input)
+            if contract_input is not None
+            else HASH_A
+        ),
+        content=contract_content,
     )
     with factory() as session, session.begin():
         persist_authoring_models(
@@ -1086,3 +1107,169 @@ def test_last_step_atomically_completes_run_and_releases_lease(
             )
         )
         assert completed is not None and completed.progress == 100
+
+
+def test_scientific_step_publishes_and_reads_one_current_artifact_closure(
+    postgres_engine: Engine,
+) -> None:
+    factory = session_factory(postgres_engine)
+    contract = ResearchContractInput.model_validate(
+        {
+            "research_goal": "Render a bounded WorldWide Telescope scene",
+            "target_objects": ["host_star"],
+            "data_requirements": {},
+            "requested_fields": ["star.ra", "star.dec"],
+            "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+            "paper_search_scope": {},
+            "scientific_tasks": [
+                {
+                    "task_id": "task.wwt",
+                    "skill_id": "wwt_scene",
+                    "parameters": {"ra_hours": 10.25, "dec_degrees": -12.4},
+                    "input_refs": [],
+                }
+            ],
+            "output_requirements": ["visualization"],
+            "evidence_requirements": {},
+            "quality_constraints": {},
+        }
+    )
+    project, persisted_contract = _seed_project(factory, contract_input=contract)
+    workflow = PersistentWorkflowStore(factory)
+    snapshot = workflow.create_run(
+        project_id=project.id,
+        contract_id=persisted_contract.id,
+        execution_mode="demo_replay",
+        idempotency_key=f"scientific-run-{uuid4()}",
+        request_hash="sha256:" + "9" * 64,
+        steps=(
+            RunStepDefinition(
+                key="planning",
+                label="Planning",
+                enter_status="planning",
+                success_status="building_visualizations",
+                max_attempts=2,
+            ),
+            RunStepDefinition(
+                key="building_visualizations",
+                label="Building scientific visualizations",
+                enter_status="building_visualizations",
+                success_status="completed",
+                max_attempts=2,
+            ),
+        ),
+    )
+    lease = workflow.acquire_lease(
+        snapshot.id,
+        owner="scientific-publisher-test",
+        lease_duration=timedelta(minutes=5),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
+    )
+    planning_attempt = workflow.begin_step(
+        snapshot.id,
+        step_key="planning",
+        attempt_idempotency_key=f"planning-attempt-{uuid4()}",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="queued",
+        expected_revision=lease.revision,
+        public_message="Planning scientific work",
+    )
+    planning_artifact = _create_artifact(
+        factory,
+        project_id=project.id,
+        logical_key=f"scientific-plan-{uuid4()}",
+    )
+    reference_version_id = _seed_reference_version(factory=factory, project=project)
+    planning_candidate = _admit(reference_version_id=reference_version_id)
+    ledger = ProducerExecutionStore(factory)
+    planning_execution = ledger.start_producer_execution(
+        ProducerExecutionRequest(
+            run_id=snapshot.id,
+            step_key="planning",
+            attempt_id=planning_attempt.attempt_id,
+            idempotency_key=f"scientific-planning-{uuid4()}",
+            producer_type="pipeline",
+            producer_name="fixture-planner",
+            producer_version="1.0.0",
+            input_hash="sha256:" + "8" * 64,
+            parameters={"mode": "fixture"},
+        ),
+        token=lease.token,
+        generation=lease.generation,
+        expected_status=planning_attempt.run_status,
+        expected_revision=planning_attempt.run_revision,
+    )
+    ledger.finish_producer_execution(
+        planning_execution.id,
+        status="completed",
+        output_hash=planning_candidate.content_hash,
+        latency_ms=1,
+    )
+    planning_result = ArtifactPublisher(factory).publish_step_outputs(
+        snapshot.id,
+        step_key="planning",
+        attempt_id=planning_attempt.attempt_id,
+        token=lease.token,
+        generation=lease.generation,
+        expected_status=planning_attempt.run_status,
+        expected_revision=planning_attempt.run_revision,
+        publications=(
+            ArtifactPublication(
+                artifact_id=planning_artifact.id,
+                publication_key=f"scientific-planning-publication-{uuid4()}",
+                producer_execution_id=planning_execution.id,
+                candidate=planning_candidate,
+                source_mode="fixture",
+            ),
+        ),
+        public_message="Scientific planning completed",
+    )
+    attempt = workflow.begin_step(
+        snapshot.id,
+        step_key="building_visualizations",
+        attempt_idempotency_key=f"scientific-attempt-{uuid4()}",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status=planning_result.status,
+        expected_revision=planning_result.revision,
+        public_message="Building scientific visualizations",
+    )
+    fixture_entry = next(
+        item
+        for item in build_scientific_fixture_document()["entries"]
+        if item["read"]["content"].get("spec", {}).get("mode") == "wwt_scene"
+    )
+    candidate = VisualizationArtifactContent.model_validate(
+        fixture_entry["read"]["content"]
+    )
+    published = ScientificStepPublisher(factory).publish(
+        attempt=attempt,
+        lease=lease,
+        step_key="building_visualizations",
+        contract=contract,
+        output=ScientificStepOutput(outcomes=(), artifact_candidates=(candidate,)),
+        source_mode="fixture",
+        public_message="Scientific visualization published",
+    )
+
+    assert published.status == "completed"
+    assert len(published.versions) == 1
+    read = ScientificArtifactReadService(
+        ArtifactReadService(factory)
+    ).get_scientific_artifact(
+        version_id=str(published.versions[0].id),
+        session_id=project.session_id,
+    )
+    assert read.content == candidate
+    assert read.producer_execution.producer.name == "scientific_artifact_assembler"
+    with factory() as session:
+        assert (
+            session.scalar(
+                select(func.count(ArtifactVersionModel.id)).where(
+                    ArtifactVersionModel.id == published.versions[0].id
+                )
+            )
+            == 1
+        )

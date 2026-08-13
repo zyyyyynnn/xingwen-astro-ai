@@ -35,6 +35,7 @@ export type {
   ProducerReferenceViewModel,
   ProjectViewModel,
   ReasoningTraceLocatorViewModel,
+  ScientificComputationLocatorViewModel,
   ResearchArtifactViewModel,
   ResearchContractDraftViewModel,
   ResearchContractViewModel,

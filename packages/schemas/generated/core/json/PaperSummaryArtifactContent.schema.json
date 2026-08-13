@@ -248,6 +248,23 @@
       "title": "PaperSummaryInputVersions",
       "type": "object"
     },
+    "PaperSummaryItemKind": {
+      "enum": [
+        "narrative",
+        "objective",
+        "workflow_step",
+        "formula",
+        "dataset",
+        "experiment",
+        "result",
+        "contribution",
+        "implication",
+        "limitation",
+        "research_question"
+      ],
+      "title": "PaperSummaryItemKind",
+      "type": "string"
+    },
     "PaperSummaryProducerExecution": {
       "additionalProperties": false,
       "properties": {
@@ -408,6 +425,51 @@
       "title": "PaperSummaryProducerExecution",
       "type": "object"
     },
+    "PaperSummarySection": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/PaperSummaryStatement"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "overview": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaperSummaryStatement"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "section_kind": {
+          "$ref": "#/$defs/PaperSummarySectionKind"
+        }
+      },
+      "required": [
+        "section_kind",
+        "overview",
+        "items"
+      ],
+      "title": "PaperSummarySection",
+      "type": "object"
+    },
+    "PaperSummarySectionKind": {
+      "enum": [
+        "background",
+        "methodology",
+        "dataset",
+        "experiments",
+        "discussion",
+        "limitations",
+        "research_questions"
+      ],
+      "title": "PaperSummarySectionKind",
+      "type": "string"
+    },
     "PaperSummarySourceConflict": {
       "additionalProperties": false,
       "properties": {
@@ -500,6 +562,9 @@
           "title": "Evidence Ids",
           "type": "array"
         },
+        "item_kind": {
+          "$ref": "#/$defs/PaperSummaryItemKind"
+        },
         "statement_id": {
           "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
           "title": "Statement Id",
@@ -522,6 +587,7 @@
       },
       "required": [
         "statement_id",
+        "item_kind",
         "text",
         "evidence_ids",
         "status",
@@ -543,18 +609,17 @@
   "additionalProperties": false,
   "description": "Publisher-ready PaperSummary Pipeline content used directly by the core Artifact discriminator.",
   "properties": {
+    "background": {
+      "$ref": "#/$defs/PaperSummarySection"
+    },
     "benchmark": {
       "$ref": "#/$defs/PaperBenchmarkReference"
     },
     "dataset": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/PaperSummaryStatement"
-        },
-        {
-          "type": "null"
-        }
-      ]
+      "$ref": "#/$defs/PaperSummarySection"
+    },
+    "discussion": {
+      "$ref": "#/$defs/PaperSummarySection"
     },
     "evidence": {
       "items": {
@@ -571,19 +636,8 @@
       "title": "Evidence Ids",
       "type": "array"
     },
-    "findings": {
-      "items": {
-        "$ref": "#/$defs/PaperSummaryStatement"
-      },
-      "title": "Findings",
-      "type": "array"
-    },
-    "future_work": {
-      "items": {
-        "$ref": "#/$defs/PaperSummaryStatement"
-      },
-      "title": "Future Work",
-      "type": "array"
+    "experiments": {
+      "$ref": "#/$defs/PaperSummarySection"
     },
     "input_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
@@ -599,21 +653,10 @@
       "type": "string"
     },
     "limitations": {
-      "items": {
-        "$ref": "#/$defs/PaperSummaryStatement"
-      },
-      "title": "Limitations",
-      "type": "array"
+      "$ref": "#/$defs/PaperSummarySection"
     },
-    "method": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/PaperSummaryStatement"
-        },
-        {
-          "type": "null"
-        }
-      ]
+    "methodology": {
+      "$ref": "#/$defs/PaperSummarySection"
     },
     "output_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
@@ -628,18 +671,11 @@
     "producer": {
       "$ref": "#/$defs/PaperSummaryProducerExecution"
     },
-    "research_goal": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/PaperSummaryStatement"
-        },
-        {
-          "type": "null"
-        }
-      ]
+    "research_questions": {
+      "$ref": "#/$defs/PaperSummarySection"
     },
     "schema_version": {
-      "const": "1.0.0",
+      "const": "2.0.0",
       "title": "Schema Version",
       "type": "string"
     },
@@ -663,12 +699,13 @@
     "paper_id",
     "benchmark",
     "input_versions",
-    "research_goal",
-    "method",
+    "background",
+    "methodology",
     "dataset",
-    "findings",
+    "experiments",
+    "discussion",
     "limitations",
-    "future_work",
+    "research_questions",
     "evidence_ids",
     "evidence",
     "source_conflicts",

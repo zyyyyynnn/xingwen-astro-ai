@@ -24,6 +24,7 @@ const CONTRACT = {
     sourceIds: [],
     maxCandidates: 10,
   },
+  scientificTasks: [],
   outputRequirements: ["dataset", "graph"],
   evidenceRequirements: {
     requireLocator: true,
@@ -78,6 +79,14 @@ const CATALOG = {
       label: "NASA 系外行星档案",
       description: "",
       group: null,
+    },
+  ],
+  scientificSkills: [
+    {
+      value: "data_profile",
+      label: "数据概况",
+      description: "生成数据字段统计。",
+      group: "common",
     },
   ],
   outputRequirements: [

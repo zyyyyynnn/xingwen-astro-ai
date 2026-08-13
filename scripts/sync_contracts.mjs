@@ -22,7 +22,9 @@ import {
   copyFileSync,
   cpSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -119,8 +121,19 @@ async function vendorJsonSchemas() {
   const jsonTargetDir = resolve(targetDir, "json");
   mkdirSync(jsonTargetDir, { recursive: true });
 
-  // Copy all .schema.json files.
+  // Keep the vendored directory an exact mirror so removed contracts cannot
+  // survive as orphaned frontend validators.
   const sourceJsonDir = resolve(sourceDir, "json");
+  const sourceFiles = new Set(
+    readdirSync(sourceJsonDir).filter((name) => name.endsWith(".schema.json")),
+  );
+  for (const name of readdirSync(jsonTargetDir)) {
+    if (name.endsWith(".schema.json") && !sourceFiles.has(name)) {
+      unlinkSync(resolve(jsonTargetDir, name));
+    }
+  }
+
+  // Copy all current .schema.json files.
   cpSync(sourceJsonDir, jsonTargetDir, {
     recursive: true,
     filter: (src) => src.endsWith(".schema.json") || src === sourceJsonDir,

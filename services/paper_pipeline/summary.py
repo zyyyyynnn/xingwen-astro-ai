@@ -22,6 +22,8 @@ from app.schemas.paper_summary import (
     PaperSummaryInputVersions,
     PaperSummaryModelOutput,
     PaperSummaryProducerExecution,
+    PaperSummarySection,
+    PaperSummarySectionCandidate,
     PaperSummarySourceConflict,
     PaperSummarySourceSnapshotReference,
     PaperSummaryStatement,
@@ -83,7 +85,9 @@ class PaperSummaryPipeline:
     ) -> PaperSummaryAdmissionResult:
         prompt = self.prompt_registry.get("paper_summary")
         if paper_id not in paper_collection.selected_paper_ids:
-            raise ValueError("PaperSummary input paper must be selected by PaperCollection")
+            raise ValueError(
+                "PaperSummary input paper must be selected by PaperCollection"
+            )
         safe_parameters = _validate_parameters(parameters)
         parameter_hash = compute_canonical_payload_hash(
             {
@@ -180,7 +184,9 @@ class PaperSummaryPipeline:
     def _now(self) -> datetime:
         value = self.clock()
         if value.tzinfo is None:
-            raise ValueError("summary pipeline clock must return timezone-aware datetime")
+            raise ValueError(
+                "summary pipeline clock must return timezone-aware datetime"
+            )
         return value
 
 
@@ -272,26 +278,49 @@ def _admit_evidence(
             validation_code = "evidence.supported"
         return PaperSummaryStatement(
             statement_id=statement.statement_id,
+            item_kind=statement.item_kind,
             text=statement.text,
             evidence_ids=retained_ids,
             status=status,
             validation_code=validation_code,
         )
 
-    research_goal = admit_statement(model_output.research_goal)
-    method = admit_statement(model_output.method)
-    dataset = admit_statement(model_output.dataset)
-    findings = tuple(admit_statement(item) for item in model_output.findings)
-    limitations = tuple(admit_statement(item) for item in model_output.limitations)
-    future_work = tuple(admit_statement(item) for item in model_output.future_work)
-    typed_findings = tuple(item for item in findings if item is not None)
-    typed_limitations = tuple(item for item in limitations if item is not None)
-    typed_future_work = tuple(item for item in future_work if item is not None)
+    def admit_section(section: PaperSummarySectionCandidate) -> PaperSummarySection:
+        overview = admit_statement(section.overview)
+        items = tuple(admit_statement(item) for item in section.items)
+        return PaperSummarySection(
+            section_kind=section.section_kind,
+            overview=overview,
+            items=tuple(item for item in items if item is not None),
+        )
+
+    background = admit_section(model_output.background)
+    methodology = admit_section(model_output.methodology)
+    dataset = admit_section(model_output.dataset)
+    experiments = admit_section(model_output.experiments)
+    discussion = admit_section(model_output.discussion)
+    limitations = admit_section(model_output.limitations)
+    research_questions = admit_section(model_output.research_questions)
+    sections = (
+        background,
+        methodology,
+        dataset,
+        experiments,
+        discussion,
+        limitations,
+        research_questions,
+    )
     all_statements = tuple(
-        item for item in (research_goal, method, dataset) if item is not None
-    ) + typed_findings + typed_limitations + typed_future_work
+        statement for section in sections for statement in section.statements()
+    )
     evidence_ids = tuple(
-        sorted({evidence_id for item in all_statements for evidence_id in item.evidence_ids})
+        sorted(
+            {
+                evidence_id
+                for item in all_statements
+                for evidence_id in item.evidence_ids
+            }
+        )
     )
     evidence = tuple(retained_evidence[item] for item in sorted(evidence_ids))
     conflicts = tuple(source_conflicts[item] for item in sorted(source_conflicts))
@@ -306,17 +335,18 @@ def _admit_evidence(
     )
     payload = {
         "kind": "paper_summary",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "summary_id": summary_id,
         "paper_id": paper_id,
         "benchmark": paper_collection.benchmark.model_dump(mode="json"),
         "input_versions": input_versions.model_dump(mode="json"),
-        "research_goal": _dump_optional(research_goal),
-        "method": _dump_optional(method),
-        "dataset": _dump_optional(dataset),
-        "findings": [item.model_dump(mode="json") for item in typed_findings],
-        "limitations": [item.model_dump(mode="json") for item in typed_limitations],
-        "future_work": [item.model_dump(mode="json") for item in typed_future_work],
+        "background": background.model_dump(mode="json"),
+        "methodology": methodology.model_dump(mode="json"),
+        "dataset": dataset.model_dump(mode="json"),
+        "experiments": experiments.model_dump(mode="json"),
+        "discussion": discussion.model_dump(mode="json"),
+        "limitations": limitations.model_dump(mode="json"),
+        "research_questions": research_questions.model_dump(mode="json"),
         "evidence_ids": evidence_ids,
         "evidence": [item.model_dump(mode="json") for item in evidence],
         "source_conflicts": [item.model_dump(mode="json") for item in conflicts],
@@ -452,9 +482,8 @@ def _validate_parameters(
     result: dict[str, ParameterValue] = {}
     for key, value in parameters.items():
         normalized_key = key.casefold()
-        if (
-            not _SAFE_PARAMETER_KEY.fullmatch(key)
-            or any(fragment in normalized_key for fragment in _FORBIDDEN_PARAMETER_FRAGMENTS)
+        if not _SAFE_PARAMETER_KEY.fullmatch(key) or any(
+            fragment in normalized_key for fragment in _FORBIDDEN_PARAMETER_FRAGMENTS
         ):
             raise ValueError("model parameters contain forbidden or invalid keys")
         if isinstance(value, str) and len(value) > 256:

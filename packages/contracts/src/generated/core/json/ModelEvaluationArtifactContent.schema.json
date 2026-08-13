@@ -1,0 +1,517 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "ModelBinaryReference": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "content_ref": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Content Ref",
+          "type": "string"
+        },
+        "media_type": {
+          "enum": [
+            "application/onnx",
+            "application/vnd.sklearn",
+            "application/octet-stream"
+          ],
+          "title": "Media Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content_ref",
+        "content_hash",
+        "media_type"
+      ],
+      "title": "ModelBinaryReference",
+      "type": "object"
+    },
+    "ModelSplitReference": {
+      "additionalProperties": false,
+      "properties": {
+        "random_seed": {
+          "anyOf": [
+            {
+              "maximum": 4294967295,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Random Seed"
+        },
+        "strategy": {
+          "enum": [
+            "holdout",
+            "stratified_holdout",
+            "time_ordered"
+          ],
+          "title": "Strategy",
+          "type": "string"
+        },
+        "test_fraction": {
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "title": "Test Fraction",
+          "type": "number"
+        },
+        "train_fraction": {
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "title": "Train Fraction",
+          "type": "number"
+        },
+        "validation_fraction": {
+          "exclusiveMaximum": 1,
+          "minimum": 0,
+          "title": "Validation Fraction",
+          "type": "number"
+        }
+      },
+      "required": [
+        "strategy",
+        "train_fraction",
+        "validation_fraction",
+        "test_fraction"
+      ],
+      "title": "ModelSplitReference",
+      "type": "object"
+    },
+    "ModelTaskKind": {
+      "enum": [
+        "classification",
+        "regression",
+        "forecast",
+        "image_classification"
+      ],
+      "title": "ModelTaskKind",
+      "type": "string"
+    },
+    "ScientificEvidence": {
+      "additionalProperties": false,
+      "description": "Evidence materialized with a newly published scientific ArtifactVersion.",
+      "properties": {
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "evidence_type": {
+          "enum": [
+            "service_response",
+            "input_snapshot",
+            "computation"
+          ],
+          "title": "Evidence Type",
+          "type": "string"
+        },
+        "extraction_method": {
+          "const": "registered_scientific_skill",
+          "default": "registered_scientific_skill",
+          "title": "Extraction Method",
+          "type": "string"
+        },
+        "locator": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Locator",
+          "type": "object"
+        },
+        "quote_or_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_type": {
+          "enum": [
+            "result_block",
+            "metric",
+            "visualization",
+            "evaluation"
+          ],
+          "title": "Target Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "target_type",
+        "target_id",
+        "source_snapshot_id",
+        "evidence_type",
+        "locator"
+      ],
+      "title": "ScientificEvidence",
+      "type": "object"
+    },
+    "ScientificMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "metric_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Metric Id",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "metric_id",
+        "label",
+        "value"
+      ],
+      "title": "ScientificMetric",
+      "type": "object"
+    },
+    "ScientificSkillExecution": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "execution_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Execution Id",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Hash"
+        },
+        "skill_id": {
+          "$ref": "#/$defs/ScientificSkillId"
+        },
+        "skill_revision": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Skill Revision",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ScientificSkillStatus"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "execution_id",
+        "skill_id",
+        "skill_revision",
+        "status",
+        "input_hash",
+        "duration_ms"
+      ],
+      "title": "ScientificSkillExecution",
+      "type": "object"
+    },
+    "ScientificSkillId": {
+      "enum": [
+        "catalog_crossmatch",
+        "data_profile",
+        "statistical_analysis",
+        "correlation_analysis",
+        "chart_visualization",
+        "simbad_lookup",
+        "skyview_fits",
+        "ephemeris",
+        "celestial_events",
+        "fits_image_analysis",
+        "tabular_machine_learning",
+        "time_series_forecast",
+        "image_classification",
+        "wwt_scene"
+      ],
+      "title": "ScientificSkillId",
+      "type": "string"
+    },
+    "ScientificSkillStatus": {
+      "enum": [
+        "completed",
+        "partial",
+        "unsupported",
+        "failed"
+      ],
+      "title": "ScientificSkillStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Reproducible evaluation metadata for a bounded scientific model task.",
+  "properties": {
+    "algorithm": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Algorithm",
+      "type": "string"
+    },
+    "algorithm_version": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Algorithm Version",
+      "type": "string"
+    },
+    "baseline_metrics": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ScientificMetric"
+      },
+      "title": "Baseline Metrics",
+      "type": "array"
+    },
+    "dataset_artifact_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Dataset Artifact Version Id",
+      "type": "string"
+    },
+    "diagnostic_visualization_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Diagnostic Visualization Ids",
+      "type": "array"
+    },
+    "evaluation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Evaluation Id",
+      "type": "string"
+    },
+    "evidence_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "feature_fields": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Feature Fields",
+      "type": "array"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "kind": {
+      "const": "model_evaluation",
+      "default": "model_evaluation",
+      "title": "Kind",
+      "type": "string"
+    },
+    "limitations": {
+      "default": [],
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "metrics": {
+      "items": {
+        "$ref": "#/$defs/ScientificMetric"
+      },
+      "minItems": 1,
+      "title": "Metrics",
+      "type": "array"
+    },
+    "model_binary": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModelBinaryReference"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "scientific_evidence": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ScientificEvidence"
+      },
+      "title": "Scientific Evidence",
+      "type": "array"
+    },
+    "skill_execution": {
+      "$ref": "#/$defs/ScientificSkillExecution"
+    },
+    "source_snapshot_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Source Snapshot Ids",
+      "type": "array"
+    },
+    "split": {
+      "$ref": "#/$defs/ModelSplitReference"
+    },
+    "target_field": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Target Field",
+      "type": "string"
+    },
+    "task_kind": {
+      "$ref": "#/$defs/ModelTaskKind"
+    },
+    "title": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "evaluation_id",
+    "title",
+    "task_kind",
+    "algorithm",
+    "algorithm_version",
+    "dataset_artifact_version_id",
+    "feature_fields",
+    "target_field",
+    "split",
+    "metrics",
+    "skill_execution",
+    "source_snapshot_ids",
+    "evidence_ids",
+    "input_hash",
+    "output_hash"
+  ],
+  "title": "ModelEvaluationArtifactContent",
+  "type": "object"
+}

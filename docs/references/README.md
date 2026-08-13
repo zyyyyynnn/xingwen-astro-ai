@@ -8,14 +8,15 @@
 docs/references/
 ├─ README.md
 ├─ 赛题要求.md
+├─ INTEGRATION_TRACEABILITY.md
 ├─ autoastro/           derived summary + selected code
-├─ mavis/               derived summary（含许可裁决与项目边界）
+├─ mavis/               derived summary（含安全审计与项目边界）
 └─ inosum/              derived summary + selected code
 ```
 
 ## 使用原则
 
-- 先理解思路和约束，再根据当前领域模型重新设计；不得机械复制接口或目录。
+- 优先直接复用质量合格的源码或官方稳定 package；接口、目录与状态所有权仍按当前领域模型定向改造。
 - 参考代码的模型、依赖、许可、安全和数据来源必须独立审查。
 - 第三方示例中的 Prompt、工具调用、错误处理和缓存策略不能直接视为适合本项目。
 - 任何涉及模型迁移的改动必须经过 Model Policy、Prompt Registry、Schema 和 Evidence 验证。
@@ -30,7 +31,7 @@ docs/references/
 | mavis     | 天文工具封装、可视化与交互模式     | Frontend Architecture、Workspace UX、Graph Pipeline |
 | InnoSum   | 论文章节识别、结构化摘要和质量评估 | Model Policy、Prompt Registry、Reasoning Protocol |
 
-“可研究方向”不表示已采用或已实现。
+当前采用状态与逐项代码落点见 [Reference Integration Traceability](INTEGRATION_TRACEABILITY.md)；表中未列出的参考结果不得被推断为当前能力。
 
 ## 赛题要求
 

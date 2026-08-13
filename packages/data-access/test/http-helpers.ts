@@ -63,6 +63,9 @@ const ALL_VERSION_DTOS = [
     (item) => item.version,
   ),
   ...exoplanetHostStarFixture.data.paperSummaries.map((item) => item.version),
+  ...exoplanetHostStarFixture.data.scientificArtifacts.map(
+    (item) => item.version,
+  ),
 ];
 type VersionDto = (typeof ALL_VERSION_DTOS)[number];
 
@@ -490,6 +493,25 @@ export const defaultHandlers = [
         );
       }
       return HttpResponse.json(envelope(paperSummaryReadFixture));
+    },
+  ),
+  http.get(
+    `${BASE_URL}/api/artifact-versions/:versionId/scientific`,
+    ({ params }) => {
+      const entry = exoplanetHostStarFixture.data.scientificArtifacts.find(
+        (item) => item.read.artifact_version_id === params.versionId,
+      );
+      if (!entry) {
+        return HttpResponse.json(
+          problem(
+            404,
+            "ARTIFACT_VERSION_NOT_FOUND",
+            "Artifact version not found",
+          ),
+          { status: 404 },
+        );
+      }
+      return HttpResponse.json(envelope(entry.read));
     },
   ),
   http.get(`${BASE_URL}/api/evidence/:evidenceId`, ({ params }) => {

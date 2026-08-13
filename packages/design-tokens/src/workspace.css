@@ -48,7 +48,7 @@
   --workspace-panel-min-ratio: 62;
   --workspace-panel-max-ratio: 78;
   --workspace-panel-keyboard-step: 2;
-  --workspace-inspector-floating-inline-size: 18rem;
+  --workspace-inspector-floating-inline-size: 26rem;
   --workspace-inspector-floating-track-inline-size: calc(
     var(--workspace-inspector-floating-inline-size) + var(--space-8)
   );

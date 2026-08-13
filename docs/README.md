@@ -21,6 +21,7 @@
 | 科学文档解析契约 | [Scientific Document Parsing Contract](architecture/SCIENTIFIC_DOCUMENT_PARSING_CONTRACT.md) | Scientific Document Parsing、Parser Port、Golden Set、Benchmark 与上游采用边界 |
 | 领域实体与不变量 | [Data Model](architecture/DATA_MODEL.md) | 核心实体、实体关系、所有权与领域语义 |
 | 运行状态与并发控制 | [Workflow Design](architecture/WORKFLOW_DESIGN.md) | Run 状态机、Step、Attempt、lease、重试与并发控制 |
+| 受控科学技能与分析产物 | [Bounded Scientific Skills](architecture/SCIENTIFIC_SKILLS.md) | 天文科学技能、分析/可视化/模型产物、资源预算与工具调用边界 |
 | 产物与来源版本 | [Data Versioning](architecture/DATA_VERSIONING.md) | ArtifactVersion、SourceSnapshot、ProducerExecution、CacheRecord、修订、分享与哈希规则 |
 | 模型准入与降级 | [Model Policy](ai/MODEL_POLICY.md) | 模型调用准入、记录、降级与评测 |
 | Prompt 管理 | [Prompt Registry](ai/PROMPT_REGISTRY.md) | Prompt 当前定义、Registry、内容固定与运行引用 |

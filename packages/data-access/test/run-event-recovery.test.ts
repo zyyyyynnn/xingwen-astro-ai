@@ -41,7 +41,7 @@ const RUN_ID = "run_01JEXAMPLE" as never;
 it("listEvents aggregates all pages and preserves sequence order", async () => {
   const repos = setupRepos();
   const events = await repos.runs.listEvents(RUN_ID);
-  expect(events).toHaveLength(9);
+  expect(events).toHaveLength(12);
   for (let i = 0; i < events.length; i++) {
     expect(events[i]!.sequence).toBe(i + 1);
   }
@@ -88,8 +88,8 @@ it("listEvents propagates NotFoundError when the run is missing", async () => {
 it("recoverEvents drains events up to the authoritative latest sequence", async () => {
   const repos = setupRepos();
   const result = await repos.runs.recoverEvents(RUN_ID);
-  expect(result.latestSequence).toBe(9);
-  expect(result.events).toHaveLength(9);
+  expect(result.latestSequence).toBe(12);
+  expect(result.events).toHaveLength(12);
   for (let i = 0; i < result.events.length; i++) {
     expect(result.events[i]!.sequence).toBe(i + 1);
   }
@@ -98,13 +98,15 @@ it("recoverEvents drains events up to the authoritative latest sequence", async 
 it("recoverEvents resumes from a given cursor", async () => {
   const repos = setupRepos();
   const result = await repos.runs.recoverEvents(RUN_ID, "5");
-  expect(result.latestSequence).toBe(9);
-  expect(result.events.map((e) => e.sequence)).toEqual([6, 7, 8, 9]);
+  expect(result.latestSequence).toBe(12);
+  expect(result.events.map((e) => e.sequence)).toEqual([
+    6, 7, 8, 9, 10, 11, 12,
+  ]);
 });
 
 it("recoverEvents excludes events beyond the snapshot sequence", async () => {
   const repos = setupRepos();
-  // The snapshot only knows about events 1-3, though the stream holds 9.
+  // The snapshot only knows about events 1-3, though the stream holds 12.
   httpServer.use(
     http.get(`${TEST_BASE_URL}/api/runs/:runId`, () =>
       HttpResponse.json({

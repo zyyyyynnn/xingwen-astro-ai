@@ -31,6 +31,7 @@ from app.schemas.paper_summary import (
     PaperSummaryEvidence,
     PaperSummaryEvidenceLocator,
     PaperSummaryInputVersions,
+    PaperSummaryItemKind,
     PaperSummaryProducerExecution,
     PaperSummarySourceSnapshotReference,
     PaperSummaryStatement,
@@ -157,6 +158,7 @@ def _summary(
     )
     statement = PaperSummaryStatement(
         statement_id=statement_id,
+        item_kind=PaperSummaryItemKind.workflow_step,
         text="The mission uses transit photometry of bright and nearby stars.",
         evidence_ids=(evidence_id,),
         status=evidence_status,
@@ -174,7 +176,7 @@ def _summary(
         producer_version="1.0.0",
         model_name="qwen.fixture.1",
         prompt_name="paper_summary",
-        prompt_version="2.0.0",
+        prompt_version="3.0.0",
         prompt_hash=PromptRegistry().get("paper_summary").content_hash,
         parameters_version="1.0.0",
         parameters_hash=compute_canonical_payload_hash(SAFE_PARAMETERS),
@@ -189,7 +191,7 @@ def _summary(
     )
     payload = {
         "kind": "paper_summary",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "summary_id": summary_id,
         "paper_id": paper_id,
         "benchmark": PaperBenchmarkReference(
@@ -201,12 +203,41 @@ def _summary(
             scenario_id="search.tess_mission_and_catalogs",
         ).model_dump(mode="json"),
         "input_versions": input_versions.model_dump(mode="json"),
-        "research_goal": None,
-        "method": statement.model_dump(mode="json"),
-        "dataset": None,
-        "findings": [],
-        "limitations": [],
-        "future_work": [],
+        "background": {
+            "section_kind": "background",
+            "overview": None,
+            "items": [],
+        },
+        "methodology": {
+            "section_kind": "methodology",
+            "overview": None,
+            "items": [statement.model_dump(mode="json")],
+        },
+        "dataset": {
+            "section_kind": "dataset",
+            "overview": None,
+            "items": [],
+        },
+        "experiments": {
+            "section_kind": "experiments",
+            "overview": None,
+            "items": [],
+        },
+        "discussion": {
+            "section_kind": "discussion",
+            "overview": None,
+            "items": [],
+        },
+        "limitations": {
+            "section_kind": "limitations",
+            "overview": None,
+            "items": [],
+        },
+        "research_questions": {
+            "section_kind": "research_questions",
+            "overview": None,
+            "items": [],
+        },
         "evidence_ids": [evidence_id],
         "evidence": [evidence.model_dump(mode="json")],
         "source_conflicts": [],
@@ -225,7 +256,7 @@ def _summary(
 def _versions(
     summary: PaperSummaryArtifactContent | None = None,
     *,
-    schema_version: str = "1.0.0",
+    schema_version: str = "2.0.0",
 ) -> dict[str, PaperSummaryArtifactVersionInput]:
     content = summary or _summary()
     return {
@@ -502,7 +533,7 @@ def test_unknown_input_artifact_version_is_stably_rejected() -> None:
 
 
 def test_unsupported_input_schema_version_is_stably_rejected() -> None:
-    result = _admit(_response(), versions=_versions(schema_version="2.0.0"))
+    result = _admit(_response(), versions=_versions(schema_version="1.0.0"))
 
     assert result.records[0].rejection_reason is (
         LiteratureClaimRejectionReason.input_schema_version_unsupported
@@ -574,7 +605,7 @@ def test_summary_version_repository_ownership_mismatch_is_rejected() -> None:
     versions = {
         SUMMARY_VERSION_ID: PaperSummaryArtifactVersionInput(
             artifact_version_id="artifact_version.paper_summary.other",
-            schema_version="1.0.0",
+            schema_version="2.0.0",
             content=summary,
         )
     }
@@ -936,7 +967,7 @@ def test_intermediate_model_output_cannot_bypass_publisher() -> None:
         with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
             admit_artifact_candidate(
                 candidate,
-                schema_version="1.0.0",
+                schema_version="2.0.0",
                 source_snapshot_ids=(SNAPSHOT_ID,),
                 evidence_ids=(EVIDENCE_ID,),
                 evidence_validator=lambda _: None,

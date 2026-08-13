@@ -25,6 +25,7 @@ import type {
   ProducerReferenceViewModel,
   ProjectViewModel,
   ReasoningTraceLocatorViewModel,
+  ScientificComputationLocatorViewModel,
   ResearchArtifactViewModel,
   ResearchContractDraftViewModel,
   ResearchContractViewModel,
@@ -54,6 +55,12 @@ function toContractInputViewModel(
       sourceIds: [...input.paperSearchScope.sourceIds],
       maxCandidates: input.paperSearchScope.maxCandidates,
     },
+    scientificTasks: input.scientificTasks.map((task) => ({
+      taskId: task.taskId,
+      skillId: task.skillId,
+      parameters: { ...task.parameters },
+      inputRefs: [...task.inputRefs],
+    })),
     outputRequirements: [...input.outputRequirements],
     evidenceRequirements: {
       requireLocator: input.evidenceRequirements.requireLocator,
@@ -299,6 +306,16 @@ function toEvidenceLocatorViewModel(
         kind: locator.kind,
         relationId: locator.relationId,
         stepKey: locator.stepKey,
+      };
+      return result;
+    }
+    case "scientific_computation": {
+      const result: ScientificComputationLocatorViewModel = {
+        kind: locator.kind,
+        taskId: locator.taskId,
+        skillId: locator.skillId,
+        outputHash: locator.outputHash,
+        upstreamEvidenceIds: [...locator.upstreamEvidenceIds],
       };
       return result;
     }

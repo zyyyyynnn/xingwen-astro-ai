@@ -375,6 +375,14 @@ describe("Workspace routes", () => {
           group: null,
         },
       ],
+      scientificSkills: [
+        {
+          value: "data_profile",
+          label: "数据概况",
+          description: "生成有界字段统计与完整性分析。",
+          group: "common",
+        },
+      ],
       outputRequirements: [
         {
           value: "dataset",

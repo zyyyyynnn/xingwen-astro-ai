@@ -15,10 +15,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-database_url = os.getenv("DATABASE_URL")
+database_url = config.get_main_option("sqlalchemy.url") or os.getenv("DATABASE_URL")
 if database_url:
     config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
-elif not config.get_main_option("sqlalchemy.url"):
+else:
     raise RuntimeError("DATABASE_URL is required for Alembic migrations")
 
 target_metadata = Base.metadata
@@ -43,7 +43,9 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+        context.configure(
+            connection=connection, target_metadata=target_metadata, compare_type=True
+        )
         with context.begin_transaction():
             context.run_migrations()
 

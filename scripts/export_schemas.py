@@ -49,7 +49,9 @@ def discover_models() -> dict[str, tuple[Any, str]]:
         if module_info.name.startswith("_"):
             continue
 
-        module = importlib.import_module(f"{schema_package.__name__}.{module_info.name}")
+        module = importlib.import_module(
+            f"{schema_package.__name__}.{module_info.name}"
+        )
         for name, candidate in inspect.getmembers(module, inspect.isclass):
             if candidate is BaseModel or not issubclass(candidate, BaseModel):
                 continue
@@ -91,12 +93,15 @@ def render_contracts(
             schema = model.model_json_schema()
         else:
             schema = TypeAdapter(model).json_schema()
-        rendered_schema = json.dumps(
-            schema,
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        ) + "\n"
+        rendered_schema = (
+            json.dumps(
+                schema,
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        )
         rendered[relative_path] = rendered_schema
         model_entry = {
             "name": name,
@@ -105,21 +110,29 @@ def render_contracts(
         }
         if manifest_content_hashes:
             model_entry["content_hash"] = (
-                "sha256:"
-                + hashlib.sha256(rendered_schema.encode("utf-8")).hexdigest()
+                "sha256:" + hashlib.sha256(rendered_schema.encode("utf-8")).hexdigest()
             )
         manifest["models"].append(model_entry)
 
-    rendered["manifest.json"] = json.dumps(
-        manifest,
-        ensure_ascii=False,
-        indent=2,
-        sort_keys=True,
-    ) + "\n"
+    rendered["manifest.json"] = (
+        json.dumps(
+            manifest,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
     return rendered
 
 
 def write_contracts(output_dir: Path, rendered: dict[str, str]) -> None:
+    expected_paths = {output_dir / path for path in rendered}
+    json_dir = output_dir / "json"
+    if json_dir.exists():
+        for existing in json_dir.glob("*.schema.json"):
+            if existing not in expected_paths:
+                existing.unlink()
     for relative_path, content in rendered.items():
         target = output_dir / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)

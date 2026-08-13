@@ -22,6 +22,7 @@ export type {
   CreateResearchRunInput,
   PaperAcquisitionRepository,
   PaperSummaryRepository,
+  ScientificArtifactRepository,
   ProjectRepository,
   ResearchCatalogRepository,
   ResearchThreadRepository,
@@ -37,6 +38,11 @@ export type {
   UpdateResearchContractDraftInput,
   WorkspaceSnapshotRepository,
 } from "./ports";
+
+export {
+  createScientificArtifactRepository,
+  mapScientificArtifactRead,
+} from "./scientific-artifact-repository";
 
 export {
   ConflictError,

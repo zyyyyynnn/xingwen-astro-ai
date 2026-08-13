@@ -49,6 +49,7 @@ from app.schemas.core import (
     ResearchProject,
     ResearchPlanningCatalog,
     ResearchCatalogOption,
+    ScientificSkillId,
     ResearchRun,
     ResearchThreadEntry,
     ResearchThreadEntryKind,
@@ -1537,6 +1538,21 @@ _TARGET_PRESENTATION = {
 
 _OUTPUT_PRESENTATION = {
     ArtifactKind.dataset: ("结构化数据", "汇总研究对象与关键字段。", "common"),
+    ArtifactKind.analysis_report: (
+        "科学分析报告",
+        "汇总受控科学技能产生的指标、发现、局限与证据。",
+        "common",
+    ),
+    ArtifactKind.visualization: (
+        "科学可视化",
+        "生成可复现图表、FITS 图像、模型诊断或 WWT 天图。",
+        "common",
+    ),
+    ArtifactKind.model_evaluation: (
+        "模型评估",
+        "保存机器学习、时间序列或图像分类的可复现评估。",
+        "advanced",
+    ),
     ArtifactKind.paper_collection: ("文献候选", "保存候选文献与检索范围。", "common"),
     ArtifactKind.paper_summary: ("文献总结", "归纳与研究问题相关的证据。", "common"),
     ArtifactKind.graph: ("证据图谱", "呈现对象、主张与证据关系。", "common"),
@@ -1566,6 +1582,79 @@ _OUTPUT_PRESENTATION = {
         "advanced",
     ),
     ArtifactKind.export: ("导出结果", "生成可下载的研究结果包。", "advanced"),
+}
+
+_SCIENTIFIC_SKILL_PRESENTATION = {
+    ScientificSkillId.catalog_crossmatch: (
+        "天体目录交叉匹配",
+        "按受控坐标与标识规则对齐批准的天体目录。",
+        "common",
+    ),
+    ScientificSkillId.data_profile: (
+        "数据画像",
+        "计算字段类型、完整性、分布与重复情况。",
+        "common",
+    ),
+    ScientificSkillId.statistical_analysis: (
+        "统计分析",
+        "执行描述统计与预先批准的统计检验。",
+        "common",
+    ),
+    ScientificSkillId.correlation_analysis: (
+        "关系分析",
+        "计算变量关系并生成可核验的关系结果。",
+        "common",
+    ),
+    ScientificSkillId.chart_visualization: (
+        "科学图表",
+        "将批准字段投影为声明式图表，不执行生成代码。",
+        "common",
+    ),
+    ScientificSkillId.simbad_lookup: (
+        "Simbad 对象查询",
+        "查询天体身份、坐标与公开对象属性。",
+        "common",
+    ),
+    ScientificSkillId.skyview_fits: (
+        "SkyView FITS 获取",
+        "按受控 survey、坐标与视场获取 FITS 观测。",
+        "common",
+    ),
+    ScientificSkillId.ephemeris: (
+        "星历计算",
+        "计算批准天体在指定时间和观测位置的星历。",
+        "common",
+    ),
+    ScientificSkillId.celestial_events: (
+        "天象计算",
+        "计算合、冲、食与最大距角等受支持天象。",
+        "advanced",
+    ),
+    ScientificSkillId.fits_image_analysis: (
+        "FITS 图像分析",
+        "对受控 FITS 图像执行背景估计、质心、源检测、分割或孔径测光。",
+        "advanced",
+    ),
+    ScientificSkillId.tabular_machine_learning: (
+        "表格机器学习",
+        "执行受限分类或回归并生成模型评估。",
+        "advanced",
+    ),
+    ScientificSkillId.time_series_forecast: (
+        "时间序列建模",
+        "执行受限时间序列拟合、预测与诊断。",
+        "advanced",
+    ),
+    ScientificSkillId.image_classification: (
+        "天文图像分类",
+        "使用批准的模型配置训练或评估图像分类任务。",
+        "advanced",
+    ),
+    ScientificSkillId.wwt_scene: (
+        "WWT 交互天图",
+        "生成受控中心、视场、时间、FITS 图层与标注场景。",
+        "common",
+    ),
 }
 
 
@@ -1608,6 +1697,15 @@ def _research_planning_catalog(
                 description="当前研究案例批准使用的公开数据来源。",
             )
             for source_id in case.allowed_source_ids
+        ),
+        scientific_skills=tuple(
+            ResearchCatalogOption(
+                value=skill.value,
+                label=_SCIENTIFIC_SKILL_PRESENTATION[skill][0],
+                description=_SCIENTIFIC_SKILL_PRESENTATION[skill][1],
+                group=_SCIENTIFIC_SKILL_PRESENTATION[skill][2],
+            )
+            for skill in ScientificSkillId
         ),
         output_requirements=tuple(
             ResearchCatalogOption(

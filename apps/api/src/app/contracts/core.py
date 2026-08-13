@@ -66,6 +66,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionRead,
 )
 from app.schemas.paper_summary_api import PaperSummaryRead
+from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.schemas.research_input import (
     BindResearchInputRequest,
     CreateResearchInputMultipartRequest,
@@ -429,6 +430,41 @@ def create_contract_app() -> FastAPI:
     )
     def get_paper_summary(version_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
         _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/scientific",
+        operation_id="getScientificArtifact",
+        response_model=Envelope[ScientificArtifactRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_scientific_artifact(
+        version_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = version_id
+        return _contract_only()
+
+    @app.get(
+        "/api/artifact-versions/{version_id}/scientific/content/{content_hash}",
+        operation_id="getScientificArtifactContent",
+        response_class=Response,
+        response_model=None,
+        responses={
+            **PROBLEM_RESPONSES,
+            200: {
+                "content": {
+                    "application/octet-stream": {
+                        "schema": {"type": "string", "format": "binary"}
+                    }
+                }
+            },
+        },
+    )
+    def get_scientific_artifact_content(
+        version_id: Annotated[str, Path(min_length=1)],
+        content_hash: Annotated[str, Path(pattern=r"^sha256:[0-9a-f]{64}$")],
+    ) -> Response:
+        _ = (version_id, content_hash)
         return _contract_only()
 
     @app.get(

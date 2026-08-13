@@ -36,6 +36,7 @@ import {
   paperSummaryArtifactVersionFixture,
   paperSummaryReadFixture,
 } from "./paper-summary";
+import { scientificArtifactFixtures } from "./scientific-artifacts";
 
 const T0 = "2026-07-21T08:00:00Z";
 const T1 = "2026-07-21T08:05:00Z";
@@ -65,7 +66,52 @@ const contractInput: ResearchContractInputDto = {
     source_ids: ["nasa_exoplanet_archive"],
     max_candidates: 5,
   },
-  output_requirements: ["dataset", "graph"],
+  scientific_tasks: [
+    {
+      task_id: "task.host_star_profile",
+      skill_id: "data_profile",
+      parameters: {},
+      input_refs: ["artv_dataset_01"],
+    },
+    {
+      task_id: "task.host_star_classifier",
+      skill_id: "tabular_machine_learning",
+      parameters: {
+        target_field: "planet.disposition",
+        feature_fields: [
+          "star.effective_temperature",
+          "star.radius",
+          "star.mass",
+        ],
+      },
+      input_refs: ["artv_dataset_01"],
+    },
+    {
+      task_id: "task.temperature_radius_chart",
+      skill_id: "chart_visualization",
+      parameters: {
+        x_field: "star.effective_temperature",
+        y_fields: ["star.radius"],
+      },
+      input_refs: ["artv_dataset_01"],
+    },
+    {
+      task_id: "task.target_field_wwt",
+      skill_id: "wwt_scene",
+      parameters: {
+        center: { ra_hours: 10.25, dec_degrees: -12.4 },
+        field_of_view_degrees: 4,
+      },
+      input_refs: [],
+    },
+  ],
+  output_requirements: [
+    "dataset",
+    "analysis_report",
+    "model_evaluation",
+    "visualization",
+    "graph",
+  ],
   evidence_requirements: {
     require_locator: true,
     require_source_snapshot: true,
@@ -125,7 +171,7 @@ const contract: ResearchContractDto = {
   created_from_draft_id: "rcd_01JEXAMPLE",
   created_at: T2,
   content_hash:
-    "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986",
+    "sha256:1959866e3adcb3ec6ff21072543c7672562010be38e3e1322d1c227dff610f12",
 };
 
 const run: ResearchRunDto = {
@@ -143,7 +189,7 @@ const run: ResearchRunDto = {
   finished_at: T9,
   created_at: T3,
   updated_at: T9,
-  latest_event_sequence: 9,
+  latest_event_sequence: 12,
   failure_code: null,
   failure_summary: null,
 };
@@ -192,46 +238,76 @@ const runEvents: readonly RunEventDto[] = [
   {
     run_id: "run_01JEXAMPLE",
     sequence: 5,
+    event_type: "run.analyzing_data",
+    step_key: "analyzing_data",
+    progress: 35,
+    public_message: "Analyzing the frozen host-star sample",
+    artifact_version_ids: ["artv_scientific_analysis"],
+    occurred_at: T6,
+  },
+  {
+    run_id: "run_01JEXAMPLE",
+    sequence: 6,
+    event_type: "run.training_models",
+    step_key: "training_models",
+    progress: 45,
+    public_message: "Evaluating the registered host-star classifier",
+    artifact_version_ids: ["artv_scientific_model"],
+    occurred_at: T6,
+  },
+  {
+    run_id: "run_01JEXAMPLE",
+    sequence: 7,
+    event_type: "run.building_visualizations",
+    step_key: "building_visualizations",
+    progress: 55,
+    public_message: "Building declarative charts and the WWT scene",
+    artifact_version_ids: ["artv_scientific_chart", "artv_scientific_wwt"],
+    occurred_at: T6,
+  },
+  {
+    run_id: "run_01JEXAMPLE",
+    sequence: 8,
     event_type: "run.searching_papers",
     step_key: "searching_papers",
-    progress: 40,
+    progress: 65,
     public_message: "Searching literature for exoplanet host-star studies",
     artifact_version_ids: ["artv_papcol_01"],
     occurred_at: T7,
   },
   {
     run_id: "run_01JEXAMPLE",
-    sequence: 6,
+    sequence: 9,
     event_type: "run.summarizing_papers",
     step_key: "summarizing_papers",
-    progress: 55,
+    progress: 75,
     public_message: "Summarising retrieved papers",
     artifact_version_ids: ["artv_papsum_01"],
     occurred_at: T7,
   },
   {
     run_id: "run_01JEXAMPLE",
-    sequence: 7,
+    sequence: 10,
     event_type: "run.reasoning_literature",
     step_key: "reasoning_literature",
-    progress: 70,
+    progress: 85,
     public_message: "Extracting claims, relations and reasoning traces",
     artifact_version_ids: ["artv_claims_01", "artv_rels_01", "artv_traces_01"],
     occurred_at: T8,
   },
   {
     run_id: "run_01JEXAMPLE",
-    sequence: 8,
+    sequence: 11,
     event_type: "run.building_graph",
     step_key: "building_graph",
-    progress: 90,
+    progress: 95,
     public_message: "Building evidence graph",
     artifact_version_ids: ["artv_graph_01"],
     occurred_at: T8,
   },
   {
     run_id: "run_01JEXAMPLE",
-    sequence: 9,
+    sequence: 12,
     event_type: "run.completed",
     step_key: null,
     progress: 100,
@@ -332,6 +408,42 @@ const artifacts: readonly ResearchArtifactDto[] = [
     logical_key: "graph.primary",
     created_at: T8,
     latest_version_id: "artv_graph_01",
+  },
+  {
+    id: "art_scientific_analysis",
+    project_id: "proj_01JEXAMPLE",
+    kind: "analysis_report",
+    title: "Host-star sample analysis",
+    logical_key: "analysis.host_star_profile",
+    created_at: T6,
+    latest_version_id: "artv_scientific_analysis",
+  },
+  {
+    id: "art_scientific_chart",
+    project_id: "proj_01JEXAMPLE",
+    kind: "visualization",
+    title: "Temperature-radius chart",
+    logical_key: "visualization.temperature_radius",
+    created_at: T6,
+    latest_version_id: "artv_scientific_chart",
+  },
+  {
+    id: "art_scientific_model",
+    project_id: "proj_01JEXAMPLE",
+    kind: "model_evaluation",
+    title: "Host-star classifier evaluation",
+    logical_key: "model.host_star_classifier",
+    created_at: T6,
+    latest_version_id: "artv_scientific_model",
+  },
+  {
+    id: "art_scientific_wwt",
+    project_id: "proj_01JEXAMPLE",
+    kind: "visualization",
+    title: "WWT target field",
+    logical_key: "visualization.target_field",
+    created_at: T6,
+    latest_version_id: "artv_scientific_wwt",
   },
 ];
 
@@ -589,6 +701,7 @@ export const exoplanetHostStarFixture: FixtureBundle = {
         summary: paperSummaryReadFixture,
       },
     ],
+    scientificArtifacts: scientificArtifactFixtures,
     evidence,
   },
 };

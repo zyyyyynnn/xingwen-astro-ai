@@ -85,9 +85,7 @@ def test_artifact_version_identity_is_consistent_with_the_summary(
     read = committed_document["read"]
     assert version["content"] == read["summary"]
     assert version["content_hash"] == read["content_hash"]
-    assert version["content_hash"] == compute_canonical_payload_hash(
-        version["content"]
-    )
+    assert version["content_hash"] == compute_canonical_payload_hash(version["content"])
     assert version["input_hash"] == read["summary"]["input_hash"]
     assert version["schema_version"] == read["summary"]["schema_version"]
     producer = version["producer"]
@@ -96,10 +94,7 @@ def test_artifact_version_identity_is_consistent_with_the_summary(
     assert producer["version"] == read["summary"]["producer"]["producer_version"]
     assert producer["model_name"] == read["summary"]["producer"]["model_name"]
     assert producer["prompt_hash"] == read["summary"]["producer"]["prompt_hash"]
-    assert (
-        producer["parameters_hash"]
-        == read["summary"]["producer"]["parameters_hash"]
-    )
+    assert producer["parameters_hash"] == read["summary"]["producer"]["parameters_hash"]
     runtime = read["producer_execution"]
     assert runtime["step_key"] == read["summary"]["producer"]["step_key"]
     assert runtime["input_hash"] == read["summary"]["input_hash"]
@@ -115,14 +110,14 @@ def test_fixture_exercises_all_three_support_statuses(
     )
     statuses = {statement.status.value for statement in summary.statements()}
     assert statuses == {"supported", "unsupported", "unverifiable"}
-    # The supported finding is verified against real paper_metadata.
-    finding = summary.findings[0]
-    assert finding.status.value == "supported"
+    # The supported experiment result is verified against real paper_metadata.
+    experiment_result = summary.experiments.items[0]
+    assert experiment_result.status.value == "supported"
     evidence_by_id = {item.evidence_id: item for item in summary.evidence}
     assert all(
         evidence_by_id[item].locator.kind == "paper_metadata"
         and evidence_by_id[item].status.value == "supported"
-        for item in finding.evidence_ids
+        for item in experiment_result.evidence_ids
     )
     # The unsupported statement carries no Evidence at all.
     unsupported = next(
@@ -170,7 +165,9 @@ class _Artifacts:
             )
         return version
 
-    def get_artifact(self, *, artifact_id: str, session_id: str) -> ResearchArtifactDetail:
+    def get_artifact(
+        self, *, artifact_id: str, session_id: str
+    ) -> ResearchArtifactDetail:
         entry = self._kinds.get(artifact_id) if session_id == "owner" else None
         if entry is None:
             raise SecurityProblem(
@@ -203,8 +200,8 @@ def test_committed_read_survives_the_real_paper_summary_api_service_path(
 
     service = PaperSummaryReadService(_Artifacts(summary_version, collection_version))
     read = service.get_summary(version_id=summary_version.id, session_id="owner")
-    assert read.model_dump(mode="json", exclude_none=False) == (
-        committed_document["read"]
+    assert (
+        read.model_dump(mode="json", exclude_none=False) == (committed_document["read"])
     )
 
 
@@ -212,9 +209,7 @@ def test_service_rejects_tampered_version_content_hash(
     summary_version: ArtifactVersionDetail,
     collection_version: ArtifactVersionDetail,
 ) -> None:
-    tampered = summary_version.model_copy(
-        update={"content_hash": "sha256:" + "0" * 64}
-    )
+    tampered = summary_version.model_copy(update={"content_hash": "sha256:" + "0" * 64})
     service = PaperSummaryReadService(_Artifacts(tampered, collection_version))
     with pytest.raises(SecurityProblem) as excinfo:
         service.get_summary(version_id=tampered.id, session_id="owner")
@@ -249,8 +244,8 @@ def test_supported_status_without_evidence_fails_validation(
     committed_document: dict[str, Any],
 ) -> None:
     payload = _summary_payload(committed_document)
-    assert payload["limitations"][0]["evidence_ids"] == []
-    payload["limitations"][0]["status"] = "supported"
+    assert payload["limitations"]["items"][0]["evidence_ids"] == []
+    payload["limitations"]["items"][0]["status"] = "supported"
     with pytest.raises(ValidationError, match="requires Evidence"):
         PaperSummaryArtifactContent.model_validate(payload)
 
@@ -259,7 +254,7 @@ def test_broken_statement_evidence_link_fails_validation(
     committed_document: dict[str, Any],
 ) -> None:
     payload = _summary_payload(committed_document)
-    referenced = payload["research_goal"]["evidence_ids"][0]
+    referenced = payload["background"]["overview"]["evidence_ids"][0]
     payload["evidence"] = [
         item for item in payload["evidence"] if item["evidence_id"] != referenced
     ]

@@ -10,11 +10,13 @@
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
+import analysisReportArtifactContentSchema from "./generated/core/json/AnalysisReportArtifactContent.schema.json";
 import artifactVersionSchema from "./generated/core/json/ArtifactVersion.schema.json";
 import artifactVersionDetailSchema from "./generated/core/json/ArtifactVersionDetail.schema.json";
 import evidenceReadSchema from "./generated/core/json/EvidenceRead.schema.json";
 import manifest from "./generated/core/manifest.json";
 import modelExecutionRecordSchema from "./generated/core/json/ModelExecutionRecord.schema.json";
+import modelEvaluationArtifactContentSchema from "./generated/core/json/ModelEvaluationArtifactContent.schema.json";
 import researchPlanningCatalogSchema from "./generated/core/json/ResearchPlanningCatalog.schema.json";
 import paperCollectionCandidateReadSchema from "./generated/core/json/PaperCollectionCandidateRead.schema.json";
 import paperCollectionReadSchema from "./generated/core/json/PaperCollectionRead.schema.json";
@@ -33,8 +35,10 @@ import runStepReadSchema from "./generated/core/json/RunStepRead.schema.json";
 import sessionCreatedSchema from "./generated/core/json/SessionCreated.schema.json";
 import shareSnapshotSchema from "./generated/core/json/ShareSnapshot.schema.json";
 import shareSnapshotCreatedSchema from "./generated/core/json/ShareSnapshotCreated.schema.json";
+import scientificArtifactReadSchema from "./generated/core/json/ScientificArtifactRead.schema.json";
 import sourceSnapshotDetailSchema from "./generated/core/json/SourceSnapshotDetail.schema.json";
 import workspaceSnapshotSchema from "./generated/core/json/WorkspaceSnapshot.schema.json";
+import visualizationArtifactContentSchema from "./generated/core/json/VisualizationArtifactContent.schema.json";
 
 /** Schema version from the Core Domain and Transport Contract generation manifest. */
 export const CONTRACT_SCHEMA_VERSION: number = manifest.schema_version;
@@ -68,6 +72,10 @@ export const CORE_MODEL_NAMES = [
   "ShareSnapshot",
   "ShareSnapshotCreated",
   "PublicShareSnapshot",
+  "AnalysisReportArtifactContent",
+  "VisualizationArtifactContent",
+  "ModelEvaluationArtifactContent",
+  "ScientificArtifactRead",
 ] as const;
 export type CoreModelName = (typeof CORE_MODEL_NAMES)[number];
 
@@ -117,6 +125,10 @@ const schemas: SchemaMap = {
   ShareSnapshot: shareSnapshotSchema,
   ShareSnapshotCreated: shareSnapshotCreatedSchema,
   PublicShareSnapshot: publicShareSnapshotSchema,
+  AnalysisReportArtifactContent: analysisReportArtifactContentSchema,
+  VisualizationArtifactContent: visualizationArtifactContentSchema,
+  ModelEvaluationArtifactContent: modelEvaluationArtifactContentSchema,
+  ScientificArtifactRead: scientificArtifactReadSchema,
 };
 
 /** A compiled ajv validator function with its errors property. */

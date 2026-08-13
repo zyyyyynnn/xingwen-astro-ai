@@ -25,6 +25,9 @@ export const EVIDENCE_TYPES = [
   "reasoning_trace",
   "user_feedback",
   "cache_record",
+  "service_response",
+  "input_snapshot",
+  "computation",
 ] as const;
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
 
@@ -44,6 +47,10 @@ export const EVIDENCE_TARGET_TYPES = [
   "reasoning_trace",
   "graph_edge",
   "crossmatch",
+  "result_block",
+  "metric",
+  "visualization",
+  "evaluation",
 ] as const;
 export type EvidenceTargetType = (typeof EVIDENCE_TARGET_TYPES)[number];
 
@@ -63,6 +70,7 @@ export const LOCATOR_KINDS = [
   "paper_text",
   "model_extraction",
   "reasoning_trace",
+  "scientific_computation",
 ] as const;
 export type LocatorKind = (typeof LOCATOR_KINDS)[number];
 
@@ -94,11 +102,20 @@ export interface ReasoningTraceLocator {
   readonly stepKey: DomainEntityId;
 }
 
+export interface ScientificComputationLocator {
+  readonly kind: "scientific_computation";
+  readonly taskId: DomainEntityId;
+  readonly skillId: DomainEntityId;
+  readonly outputHash: string;
+  readonly upstreamEvidenceIds: readonly DomainEntityId[];
+}
+
 export type EvidenceLocator =
   | DatabaseCellLocator
   | PaperTextLocator
   | ModelExtractionLocator
-  | ReasoningTraceLocator;
+  | ReasoningTraceLocator
+  | ScientificComputationLocator;
 
 export interface Evidence {
   readonly id: DomainEntityId;

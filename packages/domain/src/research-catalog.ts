@@ -1,4 +1,4 @@
-import type { ArtifactKind } from "./enums";
+import type { ArtifactKind, ScientificSkillId } from "./enums";
 import type { DomainEntityId } from "./identifiers";
 import type { CaseKey } from "./value-types";
 
@@ -15,5 +15,6 @@ export interface ResearchPlanningCatalog {
   readonly targetObjects: readonly ResearchCatalogOption<DomainEntityId>[];
   readonly requestedFields: readonly ResearchCatalogOption<DomainEntityId>[];
   readonly allowedSources: readonly ResearchCatalogOption<DomainEntityId>[];
+  readonly scientificSkills: readonly ResearchCatalogOption<ScientificSkillId>[];
   readonly outputRequirements: readonly ResearchCatalogOption<ArtifactKind>[];
 }

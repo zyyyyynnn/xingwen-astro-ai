@@ -13,6 +13,7 @@ import type {
   PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
   PaperCollectionRead as PaperCollectionReadDto,
   PaperSummaryRead as PaperSummaryReadDto,
+  ScientificArtifactRead as ScientificArtifactReadDto,
   ResearchArtifactDto,
   ResearchContractDto,
   ResearchContractDraftDto,
@@ -40,6 +41,18 @@ export interface FixturePaperSummary {
   readonly summary: PaperSummaryReadDto;
 }
 
+export interface FixtureScientificContentBlob {
+  readonly content_hash: string;
+  readonly bytes_base64: string;
+}
+
+/** One canonical scientific read with its immutable generic version. */
+export interface FixtureScientificArtifact {
+  readonly version: ArtifactVersionDetailDto;
+  readonly read: ScientificArtifactReadDto;
+  readonly contentBlobs: readonly FixtureScientificContentBlob[];
+}
+
 export interface FixtureBundleData {
   readonly projects: readonly ResearchProjectDto[];
   readonly contractDrafts: readonly ResearchContractDraftDto[];
@@ -52,6 +65,8 @@ export interface FixtureBundleData {
   readonly paperAcquisitions: readonly FixturePaperAcquisition[];
   /** Rich paper summary reads keyed by their artifact_version_id. */
   readonly paperSummaries: readonly FixturePaperSummary[];
+  /** Scientific analysis, visualization, and model reads for Demo Replay. */
+  readonly scientificArtifacts: readonly FixtureScientificArtifact[];
   /**
    * Evidence is a frontend domain entity without a standalone transport
    * schema, so fixture evidence is provided directly in domain (camelCase)

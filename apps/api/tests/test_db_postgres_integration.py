@@ -114,6 +114,19 @@ def test_upgrade_schema_matches_reviewed_metadata(postgres_engine: Engine) -> No
         assert compare_metadata(MigrationContext.configure(connection), Base.metadata) == []
 
 
+def test_explicit_alembic_url_wins_over_ambient_database_url(
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert TEST_DATABASE_URL is not None
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+psycopg://invalid:invalid@127.0.0.1:1/not_a_database",
+    )
+
+    command.current(_alembic_config(TEST_DATABASE_URL))
+
+
 def test_repository_create_read_unique_conflict_and_rollback(postgres_engine: Engine) -> None:
     run, step = _seed_run(postgres_engine)
     factory = session_factory(postgres_engine)

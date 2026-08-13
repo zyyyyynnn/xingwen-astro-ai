@@ -32,11 +32,19 @@ def canonical_artifact_content_model(kind: object) -> type[BaseModel] | None:
     from app.schemas.literature_relation import LiteratureRelationsCandidate
     from app.schemas.paper_collection import PaperCollection
     from app.schemas.paper_summary import PaperSummaryArtifactContent
+    from app.schemas.scientific_skills import (
+        AnalysisReportArtifactContent,
+        ModelEvaluationArtifactContent,
+        VisualizationArtifactContent,
+    )
 
     canonical_types: dict[str, type[BaseModel]] = {
         "dataset": DatasetArtifactCandidate,
         "field_dictionary": FieldDictionaryArtifactCandidate,
         "source_collection": SourceCollectionArtifactCandidate,
+        "analysis_report": AnalysisReportArtifactContent,
+        "visualization": VisualizationArtifactContent,
+        "model_evaluation": ModelEvaluationArtifactContent,
         "paper_collection": PaperCollection,
         "paper_summary": PaperSummaryArtifactContent,
         "literature_claims": LiteratureClaimsCandidate,

@@ -19,12 +19,44 @@ export type AlignmentStatus =
   "accepted" | "review_required" | "rejected" | "conflict" | "unmatched" | "inconclusive";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificSupportStatus".
+ */
+export type ScientificSupportStatus = "supported" | "partial" | "unresolved" | "conflicted";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificSkillId".
+ */
+export type ScientificSkillId =
+  | "catalog_crossmatch"
+  | "data_profile"
+  | "statistical_analysis"
+  | "correlation_analysis"
+  | "chart_visualization"
+  | "simbad_lookup"
+  | "skyview_fits"
+  | "ephemeris"
+  | "celestial_events"
+  | "fits_image_analysis"
+  | "tabular_machine_learning"
+  | "time_series_forecast"
+  | "image_classification"
+  | "wwt_scene";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificSkillStatus".
+ */
+export type ScientificSkillStatus = "completed" | "partial" | "unsupported" | "failed";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ArtifactKind".
  */
 export type ArtifactKind =
   | "dataset"
   | "field_dictionary"
   | "source_collection"
+  | "analysis_report"
+  | "visualization"
+  | "model_evaluation"
   | "paper_collection"
   | "paper_summary"
   | "literature_claims"
@@ -239,6 +271,10 @@ export type RunStatus =
   | "planning"
   | "fetching_data"
   | "cleaning_data"
+  | "acquiring_observations"
+  | "analyzing_data"
+  | "training_models"
+  | "building_visualizations"
   | "searching_papers"
   | "summarizing_papers"
   | "reasoning_literature"
@@ -519,9 +555,37 @@ export type App_Schemas_Enums__SourceMode = "fixture" | "live" | "cached";
 export type PaperSourceExecutionStatus = "completed" | "failed";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryItemKind".
+ */
+export type PaperSummaryItemKind =
+  | "narrative"
+  | "objective"
+  | "workflow_step"
+  | "formula"
+  | "dataset"
+  | "experiment"
+  | "result"
+  | "contribution"
+  | "implication"
+  | "limitation"
+  | "research_question";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PaperSummarySupportStatus".
  */
 export type PaperSummarySupportStatus = "supported" | "unsupported" | "unverifiable";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummarySectionKind".
+ */
+export type PaperSummarySectionKind =
+  | "background"
+  | "methodology"
+  | "dataset"
+  | "experiments"
+  | "discussion"
+  | "limitations"
+  | "research_questions";
 export type ContractDraftStatus1 = "draft" | "confirmed" | "expired";
 /**
  * Stable lifecycle states for a controlled research input.
@@ -542,6 +606,11 @@ export type SessionStatus = "active" | "expired" | "revoked";
  */
 export type PlannerOutcomeKind =
   "clarification_required" | "draft_ready" | "partial" | "unsupported" | "refused";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelTaskKind".
+ */
+export type ModelTaskKind = "classification" | "regression" | "forecast" | "image_classification";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "GraphEdgeType".
@@ -602,6 +671,112 @@ export type PlannerOutcome =
   | PlannerRefused;
 
 /**
+ * Evidence-backed result of one or more bounded analysis skills.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "AnalysisReportArtifactContent".
+ */
+export interface AnalysisReportArtifactContent {
+  evidence_ids: string[];
+  findings?: ScientificFinding[];
+  human_required?: string[];
+  input_hash: string;
+  kind?: "analysis_report";
+  limitations?: string[];
+  metrics?: ScientificMetric[];
+  output_hash: string;
+  related_artifact_version_ids?: string[];
+  report_id: string;
+  /**
+   * @minItems 1
+   */
+  result_blocks: [ScientificResultBlock, ...ScientificResultBlock[]];
+  schema_version?: "1.0.0";
+  scientific_evidence?: ScientificEvidence[];
+  /**
+   * @minItems 1
+   */
+  skill_executions: [ScientificSkillExecution, ...ScientificSkillExecution[]];
+  source_snapshot_ids: string[];
+  summary: string;
+  title: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificFinding".
+ */
+export interface ScientificFinding {
+  evidence_ids: string[];
+  finding_id: string;
+  metric_ids?: string[];
+  statement: string;
+  status: ScientificSupportStatus;
+  title: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificMetric".
+ */
+export interface ScientificMetric {
+  evidence_ids?: string[];
+  label: string;
+  metric_id: string;
+  unit?: string | null;
+  value: number | string;
+}
+/**
+ * Bounded structured output retained for inspection and downstream reuse.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificResultBlock".
+ */
+export interface ScientificResultBlock {
+  block_id: string;
+  content_hash: string;
+  evidence_ids?: string[];
+  label: string;
+  payload: JsonValue;
+  representation: "record" | "table" | "catalog" | "statistics" | "timeseries" | "matrix";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "JsonValue".
+ */
+export type JsonValue = unknown;
+/**
+ * Evidence materialized with a newly published scientific ArtifactVersion.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificEvidence".
+ */
+export interface ScientificEvidence {
+  confidence?: number;
+  evidence_id: string;
+  evidence_type: "service_response" | "input_snapshot" | "computation";
+  extraction_method?: "registered_scientific_skill";
+  locator: {
+    [k: string]: JsonValue;
+  };
+  quote_or_value?: JsonValue | null;
+  source_snapshot_id: string;
+  target_id: string;
+  target_type: "result_block" | "metric" | "visualization" | "evaluation";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificSkillExecution".
+ */
+export interface ScientificSkillExecution {
+  duration_ms: number;
+  execution_id: string;
+  input_hash: string;
+  output_hash?: string | null;
+  skill_id: ScientificSkillId;
+  skill_revision: string;
+  status: ScientificSkillStatus;
+  warnings?: string[];
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ArtifactExportRead".
  */
@@ -644,11 +819,6 @@ export interface ArtifactVersionDetail {
   supersedes_version_id?: string | null;
   version_number: number;
 }
-/**
- * This interface was referenced by `CoreContract`'s JSON-Schema
- * via the `definition` "JsonValue".
- */
-export type JsonValue = unknown;
 /**
  * Evidence bound to one immutable version and source snapshot.
  *
@@ -829,6 +999,57 @@ export interface CanonicalRowIdentity {
    */
   member_entities: [CanonicalEntityIdentity, ...CanonicalEntityIdentity[]];
   record_type: "paired" | "unpaired" | "conflict_group";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ChartAxis".
+ */
+export interface ChartAxis {
+  field: string;
+  label: string;
+  scale?: "linear" | "log" | "time" | "category";
+  unit?: string | null;
+}
+/**
+ * One bounded, publication-owned datum for a declarative chart.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ChartPoint".
+ */
+export interface ChartPoint {
+  x: number | string;
+  y: number | string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ChartSeries".
+ */
+export interface ChartSeries {
+  color_token?: "brand" | "information" | "success" | "warning" | "error" | "neutral";
+  label: string;
+  mark: "line" | "point" | "bar" | "area";
+  /**
+   * @minItems 1
+   * @maxItems 2000
+   */
+  points: [ChartPoint, ...ChartPoint[]];
+  series_id: string;
+  x_field: string;
+  y_field: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ChartVisualizationSpec".
+ */
+export interface ChartVisualizationSpec {
+  dataset_artifact_version_id: string;
+  mode?: "chart";
+  /**
+   * @minItems 1
+   */
+  series: [ChartSeries, ...ChartSeries[]];
+  x_axis: ChartAxis;
+  y_axis: ChartAxis;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1754,6 +1975,7 @@ export interface ResearchContractInput {
    */
   requested_fields: [string, ...string[]];
   research_goal: string;
+  scientific_tasks?: ScientificTaskInput[];
   source_scope: SourceScope;
   /**
    * @minItems 1
@@ -1794,6 +2016,20 @@ export interface PaperSearchScope {
 export interface QualityConstraints {
   source_completeness_min?: number;
   unit_consistency_min?: number;
+}
+/**
+ * One bounded invocation of a registered scientific skill.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificTaskInput".
+ */
+export interface ScientificTaskInput {
+  input_refs?: string[];
+  parameters?: {
+    [k: string]: JsonValue;
+  };
+  skill_id: ScientificSkillId;
+  task_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3040,24 +3276,34 @@ export interface PaperSummaryPaperMetadata {
  * via the `definition` "PaperSummaryArtifactContent".
  */
 export interface PaperSummaryArtifactContent {
+  background: PaperSummarySection;
   benchmark: PaperBenchmarkReference;
-  dataset: PaperSummaryStatement | null;
+  dataset: PaperSummarySection;
+  discussion: PaperSummarySection;
   evidence: PaperSummaryEvidence[];
   evidence_ids: string[];
-  findings: PaperSummaryStatement[];
-  future_work: PaperSummaryStatement[];
+  experiments: PaperSummarySection;
   input_hash: string;
   input_versions: PaperSummaryInputVersions;
   kind: "paper_summary";
-  limitations: PaperSummaryStatement[];
-  method: PaperSummaryStatement | null;
+  limitations: PaperSummarySection;
+  methodology: PaperSummarySection;
   output_hash: string;
   paper_id: string;
   producer: PaperSummaryProducerExecution;
-  research_goal: PaperSummaryStatement | null;
-  schema_version: "1.0.0";
+  research_questions: PaperSummarySection;
+  schema_version: "2.0.0";
   source_conflicts: PaperSummarySourceConflict[];
   summary_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummarySection".
+ */
+export interface PaperSummarySection {
+  items: PaperSummaryStatement[];
+  overview: PaperSummaryStatement | null;
+  section_kind: PaperSummarySectionKind;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3065,6 +3311,7 @@ export interface PaperSummaryArtifactContent {
  */
 export interface PaperSummaryStatement {
   evidence_ids: string[];
+  item_kind: PaperSummaryItemKind;
   statement_id: string;
   status: PaperSummarySupportStatus;
   text: string;
@@ -3295,6 +3542,7 @@ export interface ResearchContract {
    */
   requested_fields: [string, ...string[]];
   research_goal: string;
+  scientific_tasks?: ScientificTaskInput[];
   source_scope: SourceScope;
   /**
    * @minItems 1
@@ -3361,6 +3609,7 @@ export interface ResearchPlanningCatalog {
   output_requirements: ResearchCatalogOption[];
   project_id: string;
   requested_fields: ResearchCatalogOption[];
+  scientific_skills: ResearchCatalogOption[];
   target_objects: ResearchCatalogOption[];
 }
 /**
@@ -3463,6 +3712,196 @@ export interface ResearchTurnResult {
   entries: ResearchThreadEntry[];
   model_execution_id: string;
   outcome: PlannerOutcomeKind;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_ScientificArtifactRead_".
+ */
+export interface Envelope_ScientificArtifactRead_ {
+  data: ScientificArtifactRead;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * One verified scientific payload pinned to its immutable publication.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ScientificArtifactRead".
+ */
+export interface ScientificArtifactRead {
+  artifact_id: string;
+  artifact_version_id: string;
+  content:
+    AnalysisReportArtifactContent | VisualizationArtifactContent | ModelEvaluationArtifactContent;
+  content_hash: string;
+  created_at: string;
+  evidence: EvidenceDetail[];
+  input_hash: string;
+  producer_execution: ProducerExecutionDetail;
+  project_id: string;
+  source_mode: App_Schemas_Core__SourceMode;
+  source_snapshots: SourceSnapshotDetail[];
+  supersedes_version_id: string | null;
+  version_number: number;
+}
+/**
+ * Declarative visualization; never executable code or an arbitrary URL.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "VisualizationArtifactContent".
+ */
+export interface VisualizationArtifactContent {
+  description: string;
+  evidence_ids: string[];
+  input_hash: string;
+  kind?: "visualization";
+  output_hash: string;
+  schema_version?: "1.0.0";
+  scientific_evidence?: ScientificEvidence[];
+  /**
+   * @minItems 1
+   */
+  skill_executions: [ScientificSkillExecution, ...ScientificSkillExecution[]];
+  source_snapshot_ids: string[];
+  spec:
+    | ChartVisualizationSpec
+    | FitsImageVisualizationSpec
+    | WwtSceneVisualizationSpec
+    | ModelDiagnosticVisualizationSpec;
+  title: string;
+  visualization_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "FitsImageVisualizationSpec".
+ */
+export interface FitsImageVisualizationSpec {
+  color_map?: "gray" | "viridis" | "magma" | "inferno";
+  content_hash: string;
+  content_ref: string;
+  mode?: "fits_image";
+  source_snapshot_id: string;
+  stretch?: "linear" | "sqrt" | "log" | "power" | "histogram_equalization";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtSceneVisualizationSpec".
+ */
+export interface WwtSceneVisualizationSpec {
+  annotations?: WwtAnnotation[];
+  background?: "digitized_sky_survey" | "gaia" | "wise" | "solar_system";
+  center: WwtCoordinate;
+  coordinate_grid?: "none" | "equatorial" | "galactic" | "ecliptic" | "altaz";
+  field_of_view_degrees: number;
+  fits_layers?: WwtFitsLayer[];
+  mode?: "wwt_scene";
+  observed_at?: string | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtAnnotation".
+ */
+export interface WwtAnnotation {
+  annotation_id: string;
+  color_token?: "brand" | "information" | "success" | "warning" | "error" | "neutral";
+  kind: "circle" | "line" | "label";
+  label?: string | null;
+  /**
+   * @minItems 1
+   * @maxItems 1000
+   */
+  points: [WwtCoordinate, ...WwtCoordinate[]];
+  radius_degrees?: number | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtCoordinate".
+ */
+export interface WwtCoordinate {
+  dec_degrees: number;
+  ra_hours: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtFitsLayer".
+ */
+export interface WwtFitsLayer {
+  content_hash: string;
+  content_ref: string;
+  layer_id: string;
+  opacity?: number;
+  source_snapshot_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelDiagnosticVisualizationSpec".
+ */
+export interface ModelDiagnosticVisualizationSpec {
+  diagnostic:
+    | "confusion_matrix"
+    | "roc_curve"
+    | "precision_recall"
+    | "residuals"
+    | "forecast"
+    | "feature_importance";
+  mode?: "model_diagnostic";
+  model_evaluation_artifact_version_id: string;
+}
+/**
+ * Reproducible evaluation metadata for a bounded scientific model task.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelEvaluationArtifactContent".
+ */
+export interface ModelEvaluationArtifactContent {
+  algorithm: string;
+  algorithm_version: string;
+  baseline_metrics?: ScientificMetric[];
+  dataset_artifact_version_id: string;
+  diagnostic_visualization_ids?: string[];
+  evaluation_id: string;
+  evidence_ids: string[];
+  /**
+   * @minItems 1
+   */
+  feature_fields: [string, ...string[]];
+  input_hash: string;
+  kind?: "model_evaluation";
+  limitations?: string[];
+  /**
+   * @minItems 1
+   */
+  metrics: [ScientificMetric, ...ScientificMetric[]];
+  model_binary?: ModelBinaryReference | null;
+  output_hash: string;
+  schema_version?: "1.0.0";
+  scientific_evidence?: ScientificEvidence[];
+  skill_execution: ScientificSkillExecution;
+  source_snapshot_ids: string[];
+  split: ModelSplitReference;
+  target_field: string;
+  task_kind: ModelTaskKind;
+  title: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelBinaryReference".
+ */
+export interface ModelBinaryReference {
+  content_hash: string;
+  content_ref: string;
+  media_type: "application/onnx" | "application/vnd.sklearn" | "application/octet-stream";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelSplitReference".
+ */
+export interface ModelSplitReference {
+  random_seed?: number | null;
+  strategy: "holdout" | "stratified_holdout" | "time_ordered";
+  test_fraction: number;
+  train_fraction: number;
+  validation_fraction: number;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

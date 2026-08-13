@@ -1070,6 +1070,12 @@ class ArtifactPublisher:
                     project_id=run.project_id,
                 )
                 _require_unused_data_evidence_ids(session, output.candidate)
+                _validate_scientific_provenance_inputs(
+                    session,
+                    output.candidate,
+                    project_id=run.project_id,
+                )
+                _require_unused_scientific_evidence_ids(session, output.candidate)
                 version_id = uuid4()
                 version = ArtifactVersionModel(
                     id=version_id,
@@ -1102,6 +1108,7 @@ class ArtifactPublisher:
                 _materialize_literature_evidence(session, version, output.candidate)
                 _materialize_graph_evidence(session, version, output.candidate)
                 _materialize_data_evidence(session, version, output.candidate)
+                _materialize_scientific_evidence(session, version, output.candidate)
                 if output.candidate.content.get("kind") == "dataset":
                     for row in output.candidate.content.get("rows", []):
                         if isinstance(row, dict) and isinstance(row.get("row_id"), str):
@@ -1232,6 +1239,9 @@ class ArtifactPublisher:
             )
             _validate_materialized_graph_provenance(session, version, output.candidate)
             _validate_materialized_data_provenance(session, version, output.candidate)
+            _validate_materialized_scientific_provenance(
+                session, version, output.candidate
+            )
             versions.append(version)
         completed_event = session.scalar(
             select(RunEventModel)
@@ -1913,8 +1923,7 @@ def _data_publication_references(
                 )
             crossmatch_identity[evidence_id] = identity
     crossmatch_evidence = {
-        item.evidence_id: item
-        for item in getattr(candidate, "crossmatch_evidence", ())
+        item.evidence_id: item for item in getattr(candidate, "crossmatch_evidence", ())
     }
 
     candidate_evidence_ids = set(transformations) | set(crossmatch_evidence)
@@ -2046,9 +2055,7 @@ def _data_publication_references(
                 ),
                 extraction_method=extraction_method,
                 confidence=(
-                    str(evidence.confidence)
-                    if transformation is None
-                    else "1.0"
+                    str(evidence.confidence) if transformation is None else "1.0"
                 ),
             )
         )
@@ -2434,6 +2441,179 @@ def _validate_materialized_data_provenance(
         ):
             raise PublicationConflictError(
                 "The idempotent Data Artifact publication provenance differs from admission"
+            )
+
+
+_SCIENTIFIC_ARTIFACT_KINDS = frozenset(
+    {"analysis_report", "visualization", "model_evaluation"}
+)
+
+
+def _scientific_evidence_payloads(
+    candidate: AdmittedArtifactCandidate,
+) -> tuple[dict[str, object], ...]:
+    content = candidate.content
+    if content.get("kind") not in _SCIENTIFIC_ARTIFACT_KINDS:
+        return ()
+    raw = content.get("scientific_evidence", [])
+    if not isinstance(raw, list) or any(not isinstance(item, dict) for item in raw):
+        raise PublicationAdmissionError(
+            "Scientific Artifact Evidence registry must be an object list"
+        )
+    return tuple(dict(item) for item in raw)
+
+
+def _validate_scientific_provenance_inputs(
+    session: Session,
+    candidate: AdmittedArtifactCandidate,
+    *,
+    project_id: UUID,
+) -> None:
+    if candidate.content.get("kind") not in _SCIENTIFIC_ARTIFACT_KINDS:
+        return
+    try:
+        snapshot_ids = tuple(UUID(item) for item in candidate.source_snapshot_ids)
+        evidence_ids = tuple(UUID(item) for item in candidate.evidence_ids)
+        new_evidence_ids = tuple(
+            UUID(str(item["evidence_id"]))
+            for item in _scientific_evidence_payloads(candidate)
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise PublicationAdmissionError(
+            "Scientific provenance ids must use persisted UUID identities"
+        ) from exc
+    snapshots = set(
+        session.scalars(
+            select(SourceSnapshotModel.id).where(
+                SourceSnapshotModel.id.in_(snapshot_ids),
+                SourceSnapshotModel.project_id == project_id,
+            )
+        )
+    )
+    if snapshots != set(snapshot_ids):
+        raise PublicationAdmissionError(
+            "Scientific Artifact SourceSnapshots must exist in the Run Project"
+        )
+    upstream_ids = set(evidence_ids) - set(new_evidence_ids)
+    upstream = set(
+        session.scalars(
+            select(EvidenceModel.id).where(
+                EvidenceModel.id.in_(upstream_ids),
+                EvidenceModel.project_id == project_id,
+            )
+        )
+    )
+    if upstream != upstream_ids:
+        raise PublicationAdmissionError(
+            "Scientific Artifact upstream Evidence must exist in the Run Project"
+        )
+    for item in _scientific_evidence_payloads(candidate):
+        try:
+            source_id = UUID(str(item["source_snapshot_id"]))
+        except (KeyError, ValueError) as exc:
+            raise PublicationAdmissionError(
+                "Scientific Evidence has an invalid SourceSnapshot"
+            ) from exc
+        if source_id not in snapshots:
+            raise PublicationAdmissionError(
+                "Scientific Evidence SourceSnapshot is not declared by the Artifact"
+            )
+
+
+def _require_unused_scientific_evidence_ids(
+    session: Session, candidate: AdmittedArtifactCandidate
+) -> None:
+    payloads = _scientific_evidence_payloads(candidate)
+    if not payloads:
+        return
+    ids = tuple(UUID(str(item["evidence_id"])) for item in payloads)
+    if len(ids) != len(set(ids)):
+        raise PublicationAdmissionError("Scientific Evidence ids must be unique")
+    existing = tuple(
+        session.scalars(select(EvidenceModel.id).where(EvidenceModel.id.in_(ids)))
+    )
+    if existing:
+        raise PublicationConflictError(
+            "A scientific Evidence id is already bound to another publication"
+        )
+
+
+def _materialize_scientific_evidence(
+    session: Session,
+    version: ArtifactVersionModel,
+    candidate: AdmittedArtifactCandidate,
+) -> None:
+    for item in _scientific_evidence_payloads(candidate):
+        session.add(
+            EvidenceModel(
+                id=UUID(str(item["evidence_id"])),
+                project_id=version.project_id,
+                artifact_version_id=version.id,
+                target_type=str(item["target_type"]),
+                target_id=str(item["target_id"]),
+                evidence_type=str(item["evidence_type"]),
+                source_snapshot_id=UUID(str(item["source_snapshot_id"])),
+                paper_id=None,
+                locator=dict(item["locator"]),
+                quote_or_value=item.get("quote_or_value"),
+                extraction_method=str(item["extraction_method"]),
+                confidence=float(item["confidence"]),
+                is_restricted=False,
+            )
+        )
+
+
+def _validate_materialized_scientific_provenance(
+    session: Session,
+    version: ArtifactVersionModel,
+    candidate: AdmittedArtifactCandidate,
+) -> None:
+    payloads = _scientific_evidence_payloads(candidate)
+    if candidate.content.get("kind") not in _SCIENTIFIC_ARTIFACT_KINDS:
+        return
+    try:
+        _validate_scientific_provenance_inputs(
+            session,
+            candidate,
+            project_id=version.project_id,
+        )
+    except PublicationAdmissionError as exc:
+        raise PublicationConflictError(
+            "The idempotent scientific publication provenance has drifted"
+        ) from exc
+    if not payloads:
+        return
+    ids = tuple(UUID(str(item["evidence_id"])) for item in payloads)
+    rows = tuple(
+        session.scalars(
+            select(EvidenceModel).where(
+                EvidenceModel.id.in_(ids),
+                EvidenceModel.project_id == version.project_id,
+                EvidenceModel.artifact_version_id == version.id,
+            )
+        )
+    )
+    by_id = {row.id: row for row in rows}
+    if set(by_id) != set(ids):
+        raise PublicationConflictError(
+            "The idempotent scientific publication has a non-exact Evidence registry"
+        )
+    for item in payloads:
+        row = by_id[UUID(str(item["evidence_id"]))]
+        if (
+            row.target_type != item["target_type"]
+            or row.target_id != item["target_id"]
+            or row.evidence_type != item["evidence_type"]
+            or row.source_snapshot_id != UUID(str(item["source_snapshot_id"]))
+            or row.paper_id is not None
+            or row.locator != item["locator"]
+            or row.quote_or_value != item.get("quote_or_value")
+            or row.extraction_method != item["extraction_method"]
+            or row.confidence != float(item["confidence"])
+            or row.is_restricted
+        ):
+            raise PublicationConflictError(
+                "The idempotent scientific publication Evidence differs from admission"
             )
 
 

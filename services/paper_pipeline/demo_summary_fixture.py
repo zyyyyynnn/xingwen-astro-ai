@@ -105,7 +105,11 @@ def build_demo_evidence_candidates(
     accessible excerpt, so the pipeline must classify it unverifiable.
     """
 
-    if candidate.raw.url is None or candidate.raw.year is None or candidate.raw.doi is None:
+    if (
+        candidate.raw.url is None
+        or candidate.raw.year is None
+        or candidate.raw.doi is None
+    ):
         raise ValueError("demo summary candidate must carry url, year and doi")
     anchor = {
         "paper_id": candidate.canonical_paper_id,
@@ -169,48 +173,89 @@ def build_demo_model_response(candidate: PaperCollectionCandidate) -> str:
     """Deterministic PaperSummaryModelOutput JSON for the selected paper."""
 
     payload = {
-        "research_goal": {
-            "statement_id": "stmt.research_goal",
-            "text": (
-                f"The paper delivers {candidate.raw.title} to prioritize "
-                "TESS targets."
-            ),
-            "evidence_ids": ["ev.goal_title"],
+        "background": {
+            "section_kind": "background",
+            "overview": {
+                "statement_id": "stmt.background",
+                "item_kind": "objective",
+                "text": (
+                    f"The paper delivers {candidate.raw.title} to prioritize "
+                    "TESS targets."
+                ),
+                "evidence_ids": ["ev.goal_title"],
+            },
+            "items": [],
         },
-        "method": {
-            "statement_id": "stmt.method",
-            "text": (
-                "The catalog compiles stellar parameters from photometric "
-                "catalogs and parallax measurements."
-            ),
-            "evidence_ids": ["ev.method_text"],
+        "methodology": {
+            "section_kind": "methodology",
+            "overview": None,
+            "items": [
+                {
+                    "statement_id": "stmt.methodology.workflow",
+                    "item_kind": "workflow_step",
+                    "text": (
+                        "The catalog compiles stellar parameters from photometric "
+                        "catalogs and parallax measurements."
+                    ),
+                    "evidence_ids": ["ev.method_text"],
+                }
+            ],
         },
         "dataset": {
-            "statement_id": "stmt.dataset",
-            "text": f"The catalog release analyzed here dates to {candidate.raw.year}.",
-            "evidence_ids": ["ev.dataset_year"],
+            "section_kind": "dataset",
+            "overview": None,
+            "items": [
+                {
+                    "statement_id": "stmt.dataset",
+                    "item_kind": "dataset",
+                    "text": (
+                        "The catalog release analyzed here dates to "
+                        f"{candidate.raw.year}."
+                    ),
+                    "evidence_ids": ["ev.dataset_year"],
+                }
+            ],
         },
-        "findings": [
-            {
-                "statement_id": "stmt.finding_doi",
-                "text": (
-                    "The published catalog is registered under DOI "
-                    f"{candidate.raw.doi}."
-                ),
-                "evidence_ids": ["ev.finding_doi"],
-            }
-        ],
-        "limitations": [
-            {
-                "statement_id": "stmt.limitation_unsupported",
-                "text": (
-                    "The catalog is claimed to be complete for all dwarf "
-                    "stars, without any cited evidence."
-                ),
-                "evidence_ids": [],
-            }
-        ],
-        "future_work": [],
+        "experiments": {
+            "section_kind": "experiments",
+            "overview": None,
+            "items": [
+                {
+                    "statement_id": "stmt.experiments.result_doi",
+                    "item_kind": "result",
+                    "text": (
+                        "The published catalog is registered under DOI "
+                        f"{candidate.raw.doi}."
+                    ),
+                    "evidence_ids": ["ev.finding_doi"],
+                }
+            ],
+        },
+        "discussion": {
+            "section_kind": "discussion",
+            "overview": None,
+            "items": [],
+        },
+        "limitations": {
+            "section_kind": "limitations",
+            "overview": None,
+            "items": [
+                {
+                    "statement_id": "stmt.limitations.unsupported",
+                    "item_kind": "limitation",
+                    "text": (
+                        "The catalog is claimed to be complete for all dwarf "
+                        "stars, without any cited evidence."
+                    ),
+                    "evidence_ids": [],
+                }
+            ],
+        },
+        "research_questions": {
+            "section_kind": "research_questions",
+            "overview": None,
+            "items": [],
+        },
         "evidence_ids": [
             "ev.dataset_year",
             "ev.finding_doi",

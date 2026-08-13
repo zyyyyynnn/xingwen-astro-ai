@@ -34,6 +34,7 @@ import type {
   ResearchTurn,
   RunStepSnapshot,
   RunEvent,
+  ScientificArtifactReview,
   ShareSnapshot,
   ShareSnapshotCreated,
   WorkspaceSnapshot,
@@ -208,6 +209,17 @@ export interface PaperSummaryRepository {
   getSummary(artifactVersionId: DomainEntityId): Promise<PaperSummaryReview>;
 }
 
+/** Deep read and immutable binary boundary for scientific Artifacts. */
+export interface ScientificArtifactRepository {
+  getReview(
+    artifactVersionId: DomainEntityId,
+  ): Promise<ScientificArtifactReview>;
+  getContent(
+    artifactVersionId: DomainEntityId,
+    contentHash: string,
+  ): Promise<ArrayBuffer>;
+}
+
 export interface WorkspaceSnapshotRepository {
   getByProjectId(projectId: DomainEntityId): Promise<WorkspaceSnapshot | null>;
   save(
@@ -241,6 +253,7 @@ export interface RepositorySet {
   readonly artifacts: ArtifactReadRepository;
   readonly paperAcquisition: PaperAcquisitionRepository;
   readonly paperSummary: PaperSummaryRepository;
+  readonly scientificArtifacts: ScientificArtifactRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
 }

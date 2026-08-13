@@ -40,6 +40,10 @@ export const RUN_STATUSES = [
   "planning",
   "fetching_data",
   "cleaning_data",
+  "acquiring_observations",
+  "analyzing_data",
+  "training_models",
+  "building_visualizations",
   "searching_papers",
   "summarizing_papers",
   "reasoning_literature",
@@ -72,6 +76,9 @@ export const ARTIFACT_KINDS = [
   "dataset",
   "field_dictionary",
   "source_collection",
+  "analysis_report",
+  "visualization",
+  "model_evaluation",
   "paper_collection",
   "paper_summary",
   "literature_claims",
@@ -81,6 +88,33 @@ export const ARTIFACT_KINDS = [
   "export",
 ] as const;
 export type ArtifactKind = (typeof ARTIFACT_KINDS)[number];
+
+export const SCIENTIFIC_SKILL_IDS = [
+  "catalog_crossmatch",
+  "data_profile",
+  "statistical_analysis",
+  "correlation_analysis",
+  "chart_visualization",
+  "simbad_lookup",
+  "skyview_fits",
+  "ephemeris",
+  "celestial_events",
+  "fits_image_analysis",
+  "tabular_machine_learning",
+  "time_series_forecast",
+  "image_classification",
+  "wwt_scene",
+] as const;
+export type ScientificSkillId = (typeof SCIENTIFIC_SKILL_IDS)[number];
+
+export function isScientificSkillId(
+  value: unknown,
+): value is ScientificSkillId {
+  return (
+    typeof value === "string" &&
+    (SCIENTIFIC_SKILL_IDS as readonly string[]).includes(value)
+  );
+}
 
 export function isArtifactKind(value: unknown): value is ArtifactKind {
   return (

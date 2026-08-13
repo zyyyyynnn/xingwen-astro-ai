@@ -34,8 +34,13 @@ def evaluate_paper_summaries(
     }
     for summary_id in human_review_sample_ids:
         summary = benchmark_summaries.get(summary_id)
-        if summary is None or summary.review_status is not BenchmarkReviewStatus.approved:
-            raise ValueError("human review samples must reference approved Paper Acquisition Benchmark summaries")
+        if (
+            summary is None
+            or summary.review_status is not BenchmarkReviewStatus.approved
+        ):
+            raise ValueError(
+                "human review samples must reference approved Paper Acquisition Benchmark summaries"
+            )
 
     producer = cases[0].admission.producer
     producer_signature = (
@@ -54,7 +59,9 @@ def evaluate_paper_summaries(
     unsupported_blocked_count = 0
     for case in cases:
         if case.benchmark_summary_id not in benchmark_summaries:
-            raise ValueError("evaluation case must reference a Paper Acquisition Benchmark PaperSummary")
+            raise ValueError(
+                "evaluation case must reference a Paper Acquisition Benchmark PaperSummary"
+            )
         candidate_producer = case.admission.producer
         if (
             candidate_producer.prompt_name,
@@ -64,11 +71,17 @@ def evaluate_paper_summaries(
             candidate_producer.parameters_version,
             candidate_producer.parameters_hash,
         ) != producer_signature:
-            raise ValueError("one benchmark report requires one Prompt/model/parameter version")
+            raise ValueError(
+                "one benchmark report requires one Prompt/model/parameter version"
+            )
         summary = case.admission.summary
         schema_valid = summary is not None
         schema_valid_count += int(schema_valid)
-        core_statements = () if summary is None else summary.findings + summary.limitations
+        core_statements = (
+            ()
+            if summary is None
+            else summary.experiments.statements() + summary.limitations.statements()
+        )
         core_by_id = {item.statement_id: item for item in core_statements}
         if len(core_by_id) != len(core_statements):
             raise ValueError("benchmark Summary contains duplicate core statement ids")
@@ -84,7 +97,9 @@ def evaluate_paper_summaries(
             unsupported_expected_count += len(case.unsupported_statement_ids)
             unknown = set(case.unsupported_statement_ids) - set(core_by_id)
             if unknown:
-                raise ValueError("unsupported target must identify a finding or limitation")
+                raise ValueError(
+                    "unsupported target must identify an experiment result or limitation"
+                )
             blocked_targets = tuple(
                 item
                 for item in case.unsupported_statement_ids
@@ -123,7 +138,9 @@ def evaluate_paper_summaries(
             "model_name": producer.model_name,
             "parameters_version": producer.parameters_version,
             "parameters_hash": producer.parameters_hash,
-            "cases": [item.model_dump(mode="json", exclude_none=True) for item in case_results],
+            "cases": [
+                item.model_dump(mode="json", exclude_none=True) for item in case_results
+            ],
             "human_review_sample_ids": human_review_sample_ids,
         }
     )
@@ -159,7 +176,9 @@ def evaluate_paper_summaries(
         "model_name": producer.model_name,
         "parameters_version": producer.parameters_version,
         "parameters_hash": producer.parameters_hash,
-        "cases": [item.model_dump(mode="json", exclude_none=True) for item in case_results],
+        "cases": [
+            item.model_dump(mode="json", exclude_none=True) for item in case_results
+        ],
         "schema_items_valid": schema_metric.numerator,
         "schema_items_total": schema_metric.denominator,
         "schema_pass_rate": schema_metric.value,

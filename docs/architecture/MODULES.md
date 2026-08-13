@@ -17,6 +17,7 @@ Experience (Site / Workspace)
   -> API Application Service
   -> ResearchRun Workflow
   -> Step Adapter
+  -> Scientific Skill Registry
   -> Scientific Pipeline
   -> Publisher
   -> ArtifactVersion / Evidence / SourceSnapshot
@@ -53,7 +54,7 @@ transport、session、query/cache、polling、server state 或 renderer 生命�
 
 ### 2.2 API、Application 与 Workflow
 
-- **职责**：提供统一无版本 `/api/*` 接口，管理 Session、Project、Contract、Run 状态机与 Event 读取；Workflow 拥有并发锁、幂等、StepAttempt 重试、取消与发布事务，并为 CacheSelector、RevisionPlan 保留唯一目标编排边界；通过 Persistent Workflow Executor 连接 Step Adapter。HTTP 只暴露有真实执行闭环的命令。
+- **职责**：提供统一无版本 `/api/*` 接口，管理 Session、Project、Contract、Run 状态机与 Event 读取；Workflow 拥有并发锁、幂等、StepAttempt 重试、取消与发布事务，并为 CacheSelector、RevisionPlan 保留唯一目标编排边界。Persistent Workflow Executor 是调用既有 Pipeline 与 Scientific Step Adapter 的唯一调度方；HTTP 只暴露有真实执行闭环的命令。
 - **不负责**：具体清洗算法、文献检索策略、图谱布局算法。
 
 ### 2.3 数据 Pipeline
@@ -66,12 +67,19 @@ transport、session、query/cache、polling、server state 或 renderer 生命�
 - **职责**：执行论文检索与去重、结构化文献总结 (PaperSummary)、Claim 抽取、有向 Relation 识别、ReasoningTrace 构建与 Graph 生成，并绑定 Evidence。
 - **不负责**：绕过来源许可、记录模型私有 chain-of-thought、为视觉效果制造假节点/边。
 
-### 2.5 基线与工具链 (Infra & Tooling)
+### 2.5 Scientific Skill Registry
+
+- **职责**：以单一 typed interface 执行 Contract 和当前 RunStep 已授权的数据分析、天体服务、FITS/科学图像、科学建模与可视化技能；统一参数验证、资源预算、provenance 与失败分类。
+- **不负责**：生成或修改 RunPlan、直接发布 ArtifactVersion、选择 scientific winner、执行模型生成的任意代码或持有第二套 Agent 状态。
+
+具体技能与产物契约见 [Bounded Scientific Skills](SCIENTIFIC_SKILLS.md)。
+
+### 2.6 基线与工具链 (Infra & Tooling)
 
 - **职责**：管理 Docker Compose、CI 自动化、单根 pnpm-lock、Schema 导出工具与部署脚手架。
 - **不负责**：替代业务模块实现逻辑。
 
-### 2.6 Publisher 与版本边界
+### 2.7 Publisher 与版本边界
 
 - **Publisher**：接收已经通过 Schema、Evidence、质量和 ownership admission 的 typed
   candidate，在一个事务内创建不可变 ArtifactVersion 及其 Evidence/SourceSnapshot

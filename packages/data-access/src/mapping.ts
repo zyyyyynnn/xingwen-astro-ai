@@ -27,6 +27,7 @@ import type {
   ResearchProject,
   ResearchPlanningCatalog,
   ResearchRun,
+  ScientificSkillId,
   ResearchThreadEntry,
   ResearchThreadAssistantPayload,
   ResearchThreadPublicOutcome,
@@ -120,6 +121,12 @@ function mapContractInput(
       allowedSources: mapIds(dto.source_scope.allowed_sources),
     },
     paperSearchScope: mapPaperSearchScope(dto.paper_search_scope),
+    scientificTasks: (dto.scientific_tasks ?? []).map((task) => ({
+      taskId: mapId(task.task_id),
+      skillId: task.skill_id as ScientificSkillId,
+      parameters: { ...(task.parameters ?? {}) },
+      inputRefs: mapIds(task.input_refs),
+    })),
     outputRequirements: [
       ...(dto.output_requirements ?? []),
     ] as readonly ArtifactKind[],
@@ -191,6 +198,7 @@ export function mapResearchPlanningCatalog(
     targetObjects: mapOptions<DomainEntityId>(dto.target_objects),
     requestedFields: mapOptions<DomainEntityId>(dto.requested_fields),
     allowedSources: mapOptions<DomainEntityId>(dto.allowed_sources),
+    scientificSkills: mapOptions<ScientificSkillId>(dto.scientific_skills),
     outputRequirements: mapOptions<ArtifactKind>(dto.output_requirements),
   };
 }
@@ -742,6 +750,18 @@ function mapEvidenceLocator(raw: unknown): EvidenceLocator | null {
         relationId: mapId(readString(record, "relation_id")),
         stepKey: mapId(readString(record, "step_key")),
       };
+    case "scientific_computation":
+      return {
+        kind: "scientific_computation",
+        taskId: mapId(readString(record, "task_id")),
+        skillId: mapId(readString(record, "skill_id")),
+        outputHash: readString(record, "output_hash"),
+        upstreamEvidenceIds: Array.isArray(record.upstream_evidence_ids)
+          ? record.upstream_evidence_ids
+              .filter((item): item is string => typeof item === "string")
+              .map(mapId)
+          : [],
+      };
     default:
       return null;
   }
@@ -823,6 +843,12 @@ export function mapDomainContractInputToDto(
       source_ids: [...input.paperSearchScope.sourceIds],
       max_candidates: input.paperSearchScope.maxCandidates,
     },
+    scientific_tasks: input.scientificTasks.map((task) => ({
+      task_id: task.taskId,
+      skill_id: task.skillId,
+      parameters: { ...task.parameters },
+      input_refs: [...task.inputRefs],
+    })),
     output_requirements: [...input.outputRequirements] as unknown as [
       ArtifactKind,
       ...ArtifactKind[],

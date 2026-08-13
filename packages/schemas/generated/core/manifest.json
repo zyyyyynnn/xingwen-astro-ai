@@ -2,6 +2,11 @@
   "authoring_source": "apps/api/src/app/schemas",
   "models": [
     {
+      "module": "app.schemas.scientific_skills",
+      "name": "AnalysisReportArtifactContent",
+      "path": "json/AnalysisReportArtifactContent.schema.json"
+    },
+    {
       "module": "app.schemas.data_artifact_api",
       "name": "ArtifactExportRead",
       "path": "json/ArtifactExportRead.schema.json"
@@ -95,6 +100,11 @@
       "module": "app.schemas.literature_artifact_api",
       "name": "LiteratureRelationRead",
       "path": "json/LiteratureRelationRead.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_skills",
+      "name": "ModelEvaluationArtifactContent",
+      "path": "json/ModelEvaluationArtifactContent.schema.json"
     },
     {
       "module": "app.schemas.core",
@@ -237,6 +247,11 @@
       "path": "json/RunStepRead.schema.json"
     },
     {
+      "module": "app.schemas.scientific_artifact_api",
+      "name": "ScientificArtifactRead",
+      "path": "json/ScientificArtifactRead.schema.json"
+    },
+    {
       "module": "app.schemas.core",
       "name": "SessionCreated",
       "path": "json/SessionCreated.schema.json"
@@ -265,6 +280,11 @@
       "module": "app.schemas.core",
       "name": "UpdateResearchProjectRequest",
       "path": "json/UpdateResearchProjectRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.scientific_skills",
+      "name": "VisualizationArtifactContent",
+      "path": "json/VisualizationArtifactContent.schema.json"
     },
     {
       "module": "app.schemas.core",

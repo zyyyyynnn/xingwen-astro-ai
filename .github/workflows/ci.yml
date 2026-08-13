@@ -244,6 +244,10 @@ jobs:
             --include ArtifactVersionDetail \
             --include PaperSummaryArtifactContent \
             --include PaperSummaryRead \
+            --include AnalysisReportArtifactContent \
+            --include VisualizationArtifactContent \
+            --include ModelEvaluationArtifactContent \
+            --include ScientificArtifactRead \
             --include PaperCollectionRead \
             --include PaperCollectionCandidateRead \
             --include DataArtifactReadBase \

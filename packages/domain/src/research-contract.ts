@@ -7,7 +7,12 @@
  * `ResearchContractInput` in the Pydantic `/api` authoring source.
  */
 
-import type { ArtifactKind, ContractDraftStatus, UnitPolicy } from "./enums";
+import type {
+  ArtifactKind,
+  ContractDraftStatus,
+  ScientificSkillId,
+  UnitPolicy,
+} from "./enums";
 import type { DomainEntityId } from "./identifiers";
 import type {
   ContentHash,
@@ -43,6 +48,13 @@ export interface QualityConstraints {
   readonly unitConsistencyMin: number;
 }
 
+export interface ScientificTaskInput {
+  readonly taskId: DomainEntityId;
+  readonly skillId: ScientificSkillId;
+  readonly parameters: Readonly<Record<string, unknown>>;
+  readonly inputRefs: readonly DomainEntityId[];
+}
+
 export interface ResearchContractInput {
   readonly researchGoal: ResearchGoal;
   readonly targetObjects: readonly DomainEntityId[];
@@ -50,6 +62,7 @@ export interface ResearchContractInput {
   readonly requestedFields: readonly DomainEntityId[];
   readonly sourceScope: SourceScope;
   readonly paperSearchScope: PaperSearchScope;
+  readonly scientificTasks: readonly ScientificTaskInput[];
   readonly outputRequirements: readonly ArtifactKind[];
   readonly evidenceRequirements: EvidenceRequirements;
   readonly qualityConstraints: QualityConstraints;
@@ -72,6 +85,17 @@ export function validateContractInputInvariants(
   }
   if (input.requestedFields.length !== new Set(input.requestedFields).size) {
     violations.push("requested_fields must not contain duplicates");
+  }
+  const scientificTaskIds = input.scientificTasks.map((task) => task.taskId);
+  if (scientificTaskIds.length !== new Set(scientificTaskIds).size) {
+    violations.push("scientific_tasks must use unique task_id values");
+  }
+  if (
+    input.scientificTasks.some(
+      (task) => task.inputRefs.length !== new Set(task.inputRefs).size,
+    )
+  ) {
+    violations.push("scientific task input_refs must not contain duplicates");
   }
   if (
     input.outputRequirements.length !== new Set(input.outputRequirements).size

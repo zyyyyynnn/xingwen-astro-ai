@@ -16,8 +16,8 @@
     "version_number": 1,
     "supersedes_version_id": null,
     "source_mode": "fixture",
-    "content_hash": "sha256:c41d513c8d749ce0a0acce5d1b2ed29bb4f35b77dfc26e79e231a048625f6b4e",
-    "input_hash": "sha256:f8797cbc0287a95ed5e981bd2dd7b152938e8fbad58e3e22d477f0e88e59c1c0",
+    "content_hash": "sha256:440dd5c7bf83eb0e52d8e635a7069c424cedb9e5ed6597a40ce056ece439c659",
+    "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -27,8 +27,8 @@
     },
     "summary": {
       "kind": "paper_summary",
-      "schema_version": "1.0.0",
-      "summary_id": "summary.df4f27a4045880ec988f562b",
+      "schema_version": "2.0.0",
+      "summary_id": "summary.904df946d294bf1e92f5e687",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "benchmark": {
         "benchmark_id": "exoplanet_host_star.paper_reasoning",
@@ -51,46 +51,84 @@
           }
         ]
       },
-      "research_goal": {
-        "statement_id": "stmt.research_goal",
-        "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
-        "evidence_ids": ["ev.goal_title"],
-        "status": "supported",
-        "validation_code": "evidence.supported"
-      },
-      "method": {
-        "statement_id": "stmt.method",
-        "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
-        "evidence_ids": ["ev.method_text"],
-        "status": "unverifiable",
-        "validation_code": "evidence.unverifiable"
-      },
-      "dataset": {
-        "statement_id": "stmt.dataset",
-        "text": "The catalog release analyzed here dates to 2019.",
-        "evidence_ids": ["ev.dataset_year"],
-        "status": "supported",
-        "validation_code": "evidence.supported"
-      },
-      "findings": [
-        {
-          "statement_id": "stmt.finding_doi",
-          "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
-          "evidence_ids": ["ev.finding_doi"],
+      "background": {
+        "section_kind": "background",
+        "overview": {
+          "statement_id": "stmt.background",
+          "item_kind": "objective",
+          "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
+          "evidence_ids": ["ev.goal_title"],
           "status": "supported",
           "validation_code": "evidence.supported"
-        }
-      ],
-      "limitations": [
-        {
-          "statement_id": "stmt.limitation_unsupported",
-          "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
-          "evidence_ids": [],
-          "status": "unsupported",
-          "validation_code": "evidence.not_provided"
-        }
-      ],
-      "future_work": [],
+        },
+        "items": []
+      },
+      "methodology": {
+        "section_kind": "methodology",
+        "overview": null,
+        "items": [
+          {
+            "statement_id": "stmt.methodology.workflow",
+            "item_kind": "workflow_step",
+            "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
+            "evidence_ids": ["ev.method_text"],
+            "status": "unverifiable",
+            "validation_code": "evidence.unverifiable"
+          }
+        ]
+      },
+      "dataset": {
+        "section_kind": "dataset",
+        "overview": null,
+        "items": [
+          {
+            "statement_id": "stmt.dataset",
+            "item_kind": "dataset",
+            "text": "The catalog release analyzed here dates to 2019.",
+            "evidence_ids": ["ev.dataset_year"],
+            "status": "supported",
+            "validation_code": "evidence.supported"
+          }
+        ]
+      },
+      "experiments": {
+        "section_kind": "experiments",
+        "overview": null,
+        "items": [
+          {
+            "statement_id": "stmt.experiments.result_doi",
+            "item_kind": "result",
+            "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
+            "evidence_ids": ["ev.finding_doi"],
+            "status": "supported",
+            "validation_code": "evidence.supported"
+          }
+        ]
+      },
+      "discussion": {
+        "section_kind": "discussion",
+        "overview": null,
+        "items": []
+      },
+      "limitations": {
+        "section_kind": "limitations",
+        "overview": null,
+        "items": [
+          {
+            "statement_id": "stmt.limitations.unsupported",
+            "item_kind": "limitation",
+            "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+            "evidence_ids": [],
+            "status": "unsupported",
+            "validation_code": "evidence.not_provided"
+          }
+        ]
+      },
+      "research_questions": {
+        "section_kind": "research_questions",
+        "overview": null,
+        "items": []
+      },
       "evidence_ids": [
         "ev.dataset_year",
         "ev.finding_doi",
@@ -185,7 +223,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.f8797cbc0287a95ed5e981bd",
+        "execution_id": "execution.2b9e110e9cd0405121a4d742",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -193,8 +231,8 @@
         "producer_version": "1.0.0",
         "model_name": "fixture-model",
         "prompt_name": "paper_summary",
-        "prompt_version": "2.0.0",
-        "prompt_hash": "sha256:b7b1024ef42bdeadb2fa2f48b401f882321f7c1ca25b92b07446258e8bb4f4d4",
+        "prompt_version": "3.0.0",
+        "prompt_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
         "parameters_version": "1.0.0",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
@@ -210,17 +248,17 @@
             }
           ]
         },
-        "input_hash": "sha256:f8797cbc0287a95ed5e981bd2dd7b152938e8fbad58e3e22d477f0e88e59c1c0",
-        "model_response_hash": "sha256:55298827faa717234747414f5c3fd53bf7b9e2fa0967b3f186600571d4223c39",
-        "output_hash": "sha256:805dce5e59498382e1a942f5dbe5aef3326bea2e7cf46512c3fa94fd0e3d4b1a",
+        "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
+        "model_response_hash": "sha256:361efa12caa5cff7c11418eec7724ed8530a9d0c5151da7002009afef39f04b7",
+        "output_hash": "sha256:1ba7c9f0b95051294f2676a7bb94e6dc44a13061a89d738f29fb2bf3551844c3",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:f8797cbc0287a95ed5e981bd2dd7b152938e8fbad58e3e22d477f0e88e59c1c0",
-      "output_hash": "sha256:805dce5e59498382e1a942f5dbe5aef3326bea2e7cf46512c3fa94fd0e3d4b1a"
+      "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
+      "output_hash": "sha256:1ba7c9f0b95051294f2676a7bb94e6dc44a13061a89d738f29fb2bf3551844c3"
     },
     "cache_audits": [],
     "producer_execution": {
@@ -235,8 +273,8 @@
         "model_provider": null,
         "model_name": "fixture-model",
         "prompt_name": "paper_summary",
-        "prompt_version": "2.0.0",
-        "prompt_hash": "sha256:b7b1024ef42bdeadb2fa2f48b401f882321f7c1ca25b92b07446258e8bb4f4d4",
+        "prompt_version": "3.0.0",
+        "prompt_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
       },
       "parameters": {
@@ -244,8 +282,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:f8797cbc0287a95ed5e981bd2dd7b152938e8fbad58e3e22d477f0e88e59c1c0",
-      "output_hash": "sha256:c41d513c8d749ce0a0acce5d1b2ed29bb4f35b77dfc26e79e231a048625f6b4e",
+      "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
+      "output_hash": "sha256:440dd5c7bf83eb0e52d8e635a7069c424cedb9e5ed6597a40ce056ece439c659",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -297,7 +335,7 @@
         "id": "evd_papsum_02",
         "artifact_version_id": "artv_papsum_01",
         "target_type": "paper_summary",
-        "target_id": "stmt.finding_doi",
+        "target_id": "stmt.experiments.result_doi",
         "evidence_type": "paper_metadata",
         "source_snapshot_id": "snap_papsum_crossref_01",
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -317,7 +355,7 @@
         "id": "evd_papsum_03",
         "artifact_version_id": "artv_papsum_01",
         "target_type": "paper_summary",
-        "target_id": "stmt.research_goal",
+        "target_id": "stmt.background",
         "evidence_type": "paper_metadata",
         "source_snapshot_id": "snap_papsum_crossref_01",
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -337,7 +375,7 @@
         "id": "evd_papsum_04",
         "artifact_version_id": "artv_papsum_01",
         "target_type": "paper_summary",
-        "target_id": "stmt.method",
+        "target_id": "stmt.methodology.workflow",
         "evidence_type": "paper_text",
         "source_snapshot_id": "snap_papsum_crossref_01",
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -362,11 +400,11 @@
     "project_id": "proj_01JEXAMPLE",
     "created_by_run_id": "run_01JEXAMPLE",
     "version_number": 1,
-    "schema_version": "1.0.0",
+    "schema_version": "2.0.0",
     "content": {
       "kind": "paper_summary",
-      "schema_version": "1.0.0",
-      "summary_id": "summary.df4f27a4045880ec988f562b",
+      "schema_version": "2.0.0",
+      "summary_id": "summary.904df946d294bf1e92f5e687",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
       "benchmark": {
         "benchmark_id": "exoplanet_host_star.paper_reasoning",
@@ -389,46 +427,84 @@
           }
         ]
       },
-      "research_goal": {
-        "statement_id": "stmt.research_goal",
-        "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
-        "evidence_ids": ["ev.goal_title"],
-        "status": "supported",
-        "validation_code": "evidence.supported"
-      },
-      "method": {
-        "statement_id": "stmt.method",
-        "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
-        "evidence_ids": ["ev.method_text"],
-        "status": "unverifiable",
-        "validation_code": "evidence.unverifiable"
-      },
-      "dataset": {
-        "statement_id": "stmt.dataset",
-        "text": "The catalog release analyzed here dates to 2019.",
-        "evidence_ids": ["ev.dataset_year"],
-        "status": "supported",
-        "validation_code": "evidence.supported"
-      },
-      "findings": [
-        {
-          "statement_id": "stmt.finding_doi",
-          "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
-          "evidence_ids": ["ev.finding_doi"],
+      "background": {
+        "section_kind": "background",
+        "overview": {
+          "statement_id": "stmt.background",
+          "item_kind": "objective",
+          "text": "The paper delivers The Revised TESS Input Catalog and Candidate Target List to prioritize TESS targets.",
+          "evidence_ids": ["ev.goal_title"],
           "status": "supported",
           "validation_code": "evidence.supported"
-        }
-      ],
-      "limitations": [
-        {
-          "statement_id": "stmt.limitation_unsupported",
-          "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
-          "evidence_ids": [],
-          "status": "unsupported",
-          "validation_code": "evidence.not_provided"
-        }
-      ],
-      "future_work": [],
+        },
+        "items": []
+      },
+      "methodology": {
+        "section_kind": "methodology",
+        "overview": null,
+        "items": [
+          {
+            "statement_id": "stmt.methodology.workflow",
+            "item_kind": "workflow_step",
+            "text": "The catalog compiles stellar parameters from photometric catalogs and parallax measurements.",
+            "evidence_ids": ["ev.method_text"],
+            "status": "unverifiable",
+            "validation_code": "evidence.unverifiable"
+          }
+        ]
+      },
+      "dataset": {
+        "section_kind": "dataset",
+        "overview": null,
+        "items": [
+          {
+            "statement_id": "stmt.dataset",
+            "item_kind": "dataset",
+            "text": "The catalog release analyzed here dates to 2019.",
+            "evidence_ids": ["ev.dataset_year"],
+            "status": "supported",
+            "validation_code": "evidence.supported"
+          }
+        ]
+      },
+      "experiments": {
+        "section_kind": "experiments",
+        "overview": null,
+        "items": [
+          {
+            "statement_id": "stmt.experiments.result_doi",
+            "item_kind": "result",
+            "text": "The published catalog is registered under DOI 10.3847/1538-3881/ab3467.",
+            "evidence_ids": ["ev.finding_doi"],
+            "status": "supported",
+            "validation_code": "evidence.supported"
+          }
+        ]
+      },
+      "discussion": {
+        "section_kind": "discussion",
+        "overview": null,
+        "items": []
+      },
+      "limitations": {
+        "section_kind": "limitations",
+        "overview": null,
+        "items": [
+          {
+            "statement_id": "stmt.limitations.unsupported",
+            "item_kind": "limitation",
+            "text": "The catalog is claimed to be complete for all dwarf stars, without any cited evidence.",
+            "evidence_ids": [],
+            "status": "unsupported",
+            "validation_code": "evidence.not_provided"
+          }
+        ]
+      },
+      "research_questions": {
+        "section_kind": "research_questions",
+        "overview": null,
+        "items": []
+      },
       "evidence_ids": [
         "ev.dataset_year",
         "ev.finding_doi",
@@ -523,7 +599,7 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.f8797cbc0287a95ed5e981bd",
+        "execution_id": "execution.2b9e110e9cd0405121a4d742",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
@@ -531,8 +607,8 @@
         "producer_version": "1.0.0",
         "model_name": "fixture-model",
         "prompt_name": "paper_summary",
-        "prompt_version": "2.0.0",
-        "prompt_hash": "sha256:b7b1024ef42bdeadb2fa2f48b401f882321f7c1ca25b92b07446258e8bb4f4d4",
+        "prompt_version": "3.0.0",
+        "prompt_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
         "parameters_version": "1.0.0",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
@@ -548,20 +624,20 @@
             }
           ]
         },
-        "input_hash": "sha256:f8797cbc0287a95ed5e981bd2dd7b152938e8fbad58e3e22d477f0e88e59c1c0",
-        "model_response_hash": "sha256:55298827faa717234747414f5c3fd53bf7b9e2fa0967b3f186600571d4223c39",
-        "output_hash": "sha256:805dce5e59498382e1a942f5dbe5aef3326bea2e7cf46512c3fa94fd0e3d4b1a",
+        "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
+        "model_response_hash": "sha256:361efa12caa5cff7c11418eec7724ed8530a9d0c5151da7002009afef39f04b7",
+        "output_hash": "sha256:1ba7c9f0b95051294f2676a7bb94e6dc44a13061a89d738f29fb2bf3551844c3",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:f8797cbc0287a95ed5e981bd2dd7b152938e8fbad58e3e22d477f0e88e59c1c0",
-      "output_hash": "sha256:805dce5e59498382e1a942f5dbe5aef3326bea2e7cf46512c3fa94fd0e3d4b1a"
+      "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
+      "output_hash": "sha256:1ba7c9f0b95051294f2676a7bb94e6dc44a13061a89d738f29fb2bf3551844c3"
     },
-    "content_hash": "sha256:c41d513c8d749ce0a0acce5d1b2ed29bb4f35b77dfc26e79e231a048625f6b4e",
-    "input_hash": "sha256:f8797cbc0287a95ed5e981bd2dd7b152938e8fbad58e3e22d477f0e88e59c1c0",
+    "content_hash": "sha256:440dd5c7bf83eb0e52d8e635a7069c424cedb9e5ed6597a40ce056ece439c659",
+    "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
     "source_mode": "fixture",
     "producer": {
       "type": "model",
@@ -570,8 +646,8 @@
       "model_provider": null,
       "model_name": "fixture-model",
       "prompt_name": "paper_summary",
-      "prompt_version": "2.0.0",
-      "prompt_hash": "sha256:b7b1024ef42bdeadb2fa2f48b401f882321f7c1ca25b92b07446258e8bb4f4d4",
+      "prompt_version": "3.0.0",
+      "prompt_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
     },
     "source_snapshot_ids": ["snap_papsum_crossref_01"],
@@ -595,8 +671,8 @@
         "model_provider": null,
         "model_name": "fixture-model",
         "prompt_name": "paper_summary",
-        "prompt_version": "2.0.0",
-        "prompt_hash": "sha256:b7b1024ef42bdeadb2fa2f48b401f882321f7c1ca25b92b07446258e8bb4f4d4",
+        "prompt_version": "3.0.0",
+        "prompt_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
       },
       "parameters": {
@@ -604,8 +680,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:f8797cbc0287a95ed5e981bd2dd7b152938e8fbad58e3e22d477f0e88e59c1c0",
-      "output_hash": "sha256:c41d513c8d749ce0a0acce5d1b2ed29bb4f35b77dfc26e79e231a048625f6b4e",
+      "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
+      "output_hash": "sha256:440dd5c7bf83eb0e52d8e635a7069c424cedb9e5ed6597a40ce056ece439c659",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -657,7 +733,7 @@
         "id": "evd_papsum_02",
         "artifact_version_id": "artv_papsum_01",
         "target_type": "paper_summary",
-        "target_id": "stmt.finding_doi",
+        "target_id": "stmt.experiments.result_doi",
         "evidence_type": "paper_metadata",
         "source_snapshot_id": "snap_papsum_crossref_01",
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -677,7 +753,7 @@
         "id": "evd_papsum_03",
         "artifact_version_id": "artv_papsum_01",
         "target_type": "paper_summary",
-        "target_id": "stmt.research_goal",
+        "target_id": "stmt.background",
         "evidence_type": "paper_metadata",
         "source_snapshot_id": "snap_papsum_crossref_01",
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -697,7 +773,7 @@
         "id": "evd_papsum_04",
         "artifact_version_id": "artv_papsum_01",
         "target_type": "paper_summary",
-        "target_id": "stmt.method",
+        "target_id": "stmt.methodology.workflow",
         "evidence_type": "paper_text",
         "source_snapshot_id": "snap_papsum_crossref_01",
         "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",

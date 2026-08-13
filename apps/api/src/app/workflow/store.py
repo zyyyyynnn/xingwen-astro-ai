@@ -29,6 +29,10 @@ RUN_STEP_STATUS_ORDER = (
     "planning",
     "fetching_data",
     "cleaning_data",
+    "acquiring_observations",
+    "analyzing_data",
+    "training_models",
+    "building_visualizations",
     "searching_papers",
     "summarizing_papers",
     "reasoning_literature",
@@ -226,7 +230,9 @@ class PersistentWorkflowStore:
                     )
                 )
                 if existing is None:  # pragma: no cover - database invariant safeguard
-                    raise WorkflowConflictError("idempotent Run creation lost its winner")
+                    raise WorkflowConflictError(
+                        "idempotent Run creation lost its winner"
+                    )
                 if existing.request_hash != request_hash:
                     raise WorkflowConflictError(
                         "idempotency key was already used with a different request"
@@ -270,8 +276,12 @@ class PersistentWorkflowStore:
                     )
                     .values(steps_frozen_at=func.clock_timestamp())
                 )
-                if frozen.rowcount != 1:  # pragma: no cover - transaction invariant safeguard
-                    raise WorkflowConflictError("RunStep collection could not be frozen")
+                if (
+                    frozen.rowcount != 1
+                ):  # pragma: no cover - transaction invariant safeguard
+                    raise WorkflowConflictError(
+                        "RunStep collection could not be frozen"
+                    )
         return self.load_snapshot(run_id)
 
     def acquire_lease(
@@ -446,7 +456,9 @@ class PersistentWorkflowStore:
             if attempt_number > step.max_attempts:
                 raise RetryBudgetExhaustedError("step retry budget is exhausted")
             required_run_status = (
-                "queued" if step.position == 0 and attempt_number == 1 else step.enter_status
+                "queued"
+                if step.position == 0 and attempt_number == 1
+                else step.enter_status
             )
             if expected_status != required_run_status:
                 raise WorkflowConflictError(
@@ -870,11 +882,18 @@ class PersistentWorkflowStore:
             raise ValueError("max_attempts must be positive")
         if steps[0].enter_status != "planning":
             raise ValueError("frozen run step chain must start at 'planning'")
-        order = {status: position for position, status in enumerate(RUN_STEP_STATUS_ORDER)}
+        order = {
+            status: position for position, status in enumerate(RUN_STEP_STATUS_ORDER)
+        }
         for position, step in enumerate(steps):
             if step.key != step.enter_status or step.enter_status not in order:
-                raise ValueError("run step key must identify a declared workflow status")
-            if position > 0 and order[step.enter_status] <= order[steps[position - 1].enter_status]:
+                raise ValueError(
+                    "run step key must identify a declared workflow status"
+                )
+            if (
+                position > 0
+                and order[step.enter_status] <= order[steps[position - 1].enter_status]
+            ):
                 raise ValueError(
                     "run step statuses must follow canonical order without duplication"
                 )

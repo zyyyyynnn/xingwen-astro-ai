@@ -1,7 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 import { EntityNotFoundError } from "@xingwen/data-access/errors";
 import type { RepositorySet } from "@xingwen/data-access/ports";
-import type { DomainEntityId } from "@xingwen/domain";
+import type {
+  DomainEntityId,
+  ResearchArtifact,
+  ScientificArtifactReview,
+} from "@xingwen/domain";
 import type {
   ActivityPresentationEvent,
   ProjectViewModel,
@@ -19,7 +23,13 @@ import { workspaceQueryKeys } from "./query-keys";
 interface WorkspaceQueriesDependencies {
   readonly repositories: Pick<
     RepositorySet,
-    "projects" | "researchCatalog" | "contracts" | "runs" | "researchThread"
+    | "projects"
+    | "researchCatalog"
+    | "contracts"
+    | "runs"
+    | "researchThread"
+    | "artifacts"
+    | "scientificArtifacts"
   >;
   readonly researchAdapter: ResearchAdapter;
 }
@@ -160,6 +170,24 @@ export function createWorkspaceQueries({
           (await repositories.runs.listSteps(runId)).map(
             researchAdapter.toRunStepViewModel,
           ),
+      }),
+    runArtifacts: (projectId: DomainEntityId, runId: DomainEntityId) =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.runArtifacts(projectId, runId),
+        queryFn: async (): Promise<readonly ResearchArtifact[]> =>
+          repositories.artifacts.listByRun(runId),
+      }),
+    scientificArtifact: (
+      projectId: DomainEntityId,
+      artifactVersionId: DomainEntityId,
+    ) =>
+      queryOptions({
+        queryKey: workspaceQueryKeys.scientificArtifact(
+          projectId,
+          artifactVersionId,
+        ),
+        queryFn: async (): Promise<ScientificArtifactReview> =>
+          repositories.scientificArtifacts.getReview(artifactVersionId),
       }),
   });
 }

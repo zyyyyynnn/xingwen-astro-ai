@@ -5,6 +5,9 @@ The Workspace transient-notification adapter is derived from the shadcn/ui
 
 - shadcn/ui: https://github.com/shadcn-ui/ui, MIT License
 - Sonner: https://github.com/emilkowalski/sonner, MIT License
+- WorldWide Telescope engine 7.39.0: https://github.com/WorldWideTelescope/wwt-webgl-engine, MIT License
+- WorldWide Telescope engine-helpers 0.18.0: https://github.com/WorldWideTelescope/wwt-webgl-engine, MIT License
+- WorldWide Telescope engine-types 0.9.0: https://github.com/WorldWideTelescope/wwt-webgl-engine, MIT License
 
 ## MIT License
 

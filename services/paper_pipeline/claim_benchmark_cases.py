@@ -29,6 +29,7 @@ from app.schemas.paper_summary import (
     PaperSummaryEvidence,
     PaperSummaryEvidenceLocator,
     PaperSummaryInputVersions,
+    PaperSummaryItemKind,
     PaperSummaryProducerExecution,
     PaperSummarySourceSnapshotReference,
     PaperSummaryStatement,
@@ -72,7 +73,9 @@ def build_frozen_claim_benchmark_cases(
         )
     )
     if not approved:
-        raise ValueError("frozen Paper Acquisition Benchmark package has no approved Claim labels")
+        raise ValueError(
+            "frozen Paper Acquisition Benchmark package has no approved Claim labels"
+        )
 
     scientific: list[LiteratureClaimBenchmarkEvaluationCase] = []
     accepted_by_claim_id: dict[str, LiteratureClaimAdmissionResult] = {}
@@ -143,9 +146,7 @@ def build_frozen_claim_benchmark_cases(
             model_response=fixture["response"],
             expected_stage=LiteratureClaimFailureStage.duplicate,
             expected_reason=LiteratureClaimRejectionReason.duplicate_claim,
-            existing_claim_fingerprints=frozenset(
-                {accepted.records[0].fingerprint}
-            ),
+            existing_claim_fingerprints=frozenset({accepted.records[0].fingerprint}),
         ),
     )
     return tuple(sorted((*scientific, *negatives), key=lambda item: item.case_id))
@@ -172,9 +173,7 @@ def _negative_case(
     return LiteratureClaimBenchmarkEvaluationCase(
         case_id=case_id,
         case_kind=LiteratureClaimBenchmarkCaseKind.rejection_case,
-        record_claim_id=(
-            admission.records[0].claim_id if admission.records else None
-        ),
+        record_claim_id=(admission.records[0].claim_id if admission.records else None),
         expected_failure_stage=expected_stage,
         expected_rejection_reason=expected_reason,
         admission=admission,
@@ -187,7 +186,9 @@ def _build_claim_fixture(
 ) -> dict[str, Any]:
     evidence_by_id = {item.evidence_id: item for item in benchmark.evidence}
     evidence = tuple(evidence_by_id[item] for item in claim.evidence_ids)
-    statement_id = f"summary_statement.literature_claim.{claim.claim_id.removeprefix('claim.')}"
+    statement_id = (
+        f"summary_statement.literature_claim.{claim.claim_id.removeprefix('claim.')}"
+    )
     summary = _build_summary(benchmark, claim, statement_id, evidence)
     version_id = (
         "artifact_version.literature_claim_benchmark."
@@ -270,7 +271,9 @@ def _build_summary(
                 validation_code="evidence.supported",
             )
         )
-    ordered_snapshots = tuple(sorted(snapshots, key=lambda item: item.source_snapshot_id))
+    ordered_snapshots = tuple(
+        sorted(snapshots, key=lambda item: item.source_snapshot_id)
+    )
     ordered_evidence = tuple(sorted(evidence, key=lambda item: item.evidence_id))
     input_versions = PaperSummaryInputVersions(
         paper_collection_version_id=(
@@ -323,6 +326,7 @@ def _build_summary(
     )
     statement = PaperSummaryStatement(
         statement_id=statement_id,
+        item_kind=_item_kind_for_claim(claim.claim_type),
         text=claim.text,
         evidence_ids=tuple(sorted(claim.evidence_ids)),
         status=PaperSummarySupportStatus.supported,
@@ -331,7 +335,7 @@ def _build_summary(
     statement_fields = _statement_fields(claim.claim_type, statement)
     payload = {
         "kind": "paper_summary",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "summary_id": claim.summary_id,
         "paper_id": claim.paper_id,
         "benchmark": PaperBenchmarkReference(
@@ -364,27 +368,46 @@ def _statement_fields(
     statement: PaperSummaryStatement,
 ) -> dict[str, object]:
     fields: dict[str, object] = {
-        "research_goal": None,
-        "method": None,
-        "dataset": None,
-        "findings": [],
-        "limitations": [],
-        "future_work": [],
+        field_name: {
+            "section_kind": field_name,
+            "overview": None,
+            "items": [],
+        }
+        for field_name in (
+            "background",
+            "methodology",
+            "dataset",
+            "experiments",
+            "discussion",
+            "limitations",
+            "research_questions",
+        )
     }
     dumped = statement.model_dump(mode="json")
     if claim_type is ClaimType.goal:
-        fields["research_goal"] = dumped
+        fields["background"]["overview"] = dumped  # type: ignore[index]
     elif claim_type is ClaimType.method:
-        fields["method"] = dumped
+        fields["methodology"]["items"] = [dumped]  # type: ignore[index]
     elif claim_type is ClaimType.dataset:
-        fields["dataset"] = dumped
+        fields["dataset"]["items"] = [dumped]  # type: ignore[index]
     elif claim_type is ClaimType.limitation:
-        fields["limitations"] = [dumped]
+        fields["limitations"]["items"] = [dumped]  # type: ignore[index]
     elif claim_type is ClaimType.future_work:
-        fields["future_work"] = [dumped]
+        fields["research_questions"]["items"] = [dumped]  # type: ignore[index]
     else:
-        fields["findings"] = [dumped]
+        fields["experiments"]["items"] = [dumped]  # type: ignore[index]
     return fields
+
+
+def _item_kind_for_claim(claim_type: ClaimType) -> PaperSummaryItemKind:
+    return {
+        ClaimType.goal: PaperSummaryItemKind.objective,
+        ClaimType.method: PaperSummaryItemKind.workflow_step,
+        ClaimType.dataset: PaperSummaryItemKind.dataset,
+        ClaimType.finding: PaperSummaryItemKind.result,
+        ClaimType.limitation: PaperSummaryItemKind.limitation,
+        ClaimType.future_work: PaperSummaryItemKind.research_question,
+    }[claim_type]
 
 
 def _response(claim_payload: dict[str, object]) -> str:

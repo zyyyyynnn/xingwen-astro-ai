@@ -18,6 +18,7 @@ import type { HttpAdapterConfig } from "./http-client";
 import { createArtifactRepository } from "./artifact-repository";
 import { createPaperAcquisitionRepository } from "./paper-acquisition-repository";
 import { createPaperSummaryRepository } from "./paper-summary-repository";
+import { createScientificArtifactRepository } from "./scientific-artifact-repository";
 import type { RepositorySet } from "./ports";
 import { createResearchRepositories } from "./research-repositories";
 import { createSnapshotShareRepositories } from "./snapshot-share-repositories";
@@ -44,6 +45,7 @@ export function createHttpRepositories(
   const artifacts = createArtifactRepository(http);
   const paperAcquisition = createPaperAcquisitionRepository(http);
   const paperSummary = createPaperSummaryRepository(http);
+  const scientificArtifacts = createScientificArtifactRepository(http);
   const { workspaces, shares } = createSnapshotShareRepositories(http);
   return {
     projects,
@@ -54,6 +56,7 @@ export function createHttpRepositories(
     artifacts,
     paperAcquisition,
     paperSummary,
+    scientificArtifacts,
     workspaces,
     shares,
   };

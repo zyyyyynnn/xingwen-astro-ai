@@ -19,7 +19,7 @@ const RUN_ID = "run_01JEXAMPLE" as never;
 // `rcd_01JTOUR` carries the same input as the pre-seeded contract
 // `rc_01JEXAMPLE`, so confirming it must reproduce this exact hash.
 const EXPECTED_CONTRACT_HASH =
-  "sha256:d43c90e165cbe6b068f2c95247703ff5bfed6e371a4826831afa17ee733b9986";
+  "sha256:1959866e3adcb3ec6ff21072543c7672562010be38e3e1322d1c227dff610f12";
 const ALL_ZERO_HASH = "sha256:" + "0".repeat(64);
 
 describe("Fixture adapter — provenance and semantics", () => {
@@ -57,7 +57,7 @@ describe("Fixture adapter — reads map DTO to domain", () => {
     const run = await repos.runs.getById(RUN_ID);
     expect(run!.executionMode).toBe("demo_replay");
     const events = await repos.runs.listEvents(RUN_ID);
-    expect(events).toHaveLength(9);
+    expect(events).toHaveLength(12);
     for (let i = 1; i < events.length; i++) {
       expect(events[i]!.sequence).toBe(events[i - 1]!.sequence + 1);
     }
@@ -65,13 +65,13 @@ describe("Fixture adapter — reads map DTO to domain", () => {
 
   it("recovers events capped to the latest sequence", async () => {
     const recovery = await repos.runs.recoverEvents(RUN_ID);
-    expect(recovery.latestSequence).toBe(9);
-    expect(recovery.events).toHaveLength(9);
+    expect(recovery.latestSequence).toBe(12);
+    expect(recovery.events).toHaveLength(12);
   });
 
   it("lists artifacts produced by a run and reads detail projections", async () => {
     const artifacts = await repos.artifacts.listByRun(RUN_ID);
-    expect(artifacts).toHaveLength(9);
+    expect(artifacts).toHaveLength(13);
     const artifact = await repos.artifacts.getArtifact("art_graph_01" as never);
     expect(artifact!.kind).toBe("graph");
     const version = await repos.artifacts.getVersion(
@@ -106,6 +106,18 @@ describe("Fixture adapter — reads map DTO to domain", () => {
     expect(version).not.toBeNull();
     expect(version!.contentHash).toBe(acquisition.collection.content_hash);
     expect(version).not.toHaveProperty("content");
+  });
+
+  it("reads generated scientific artifacts through the shared HTTP mapping", async () => {
+    const review = await repos.scientificArtifacts.getReview(
+      "artv_scientific_chart" as never,
+    );
+    expect(review.content.kind).toBe("visualization");
+    if (review.content.kind !== "visualization") return;
+    expect(review.content.spec.mode).toBe("chart");
+    if (review.content.spec.mode !== "chart") return;
+    expect(review.content.spec.series).toHaveLength(2);
+    expect(review.content.spec.series[0]?.points).toHaveLength(3);
   });
 
   it("classifies a missing paper collection version like the HTTP adapter", async () => {

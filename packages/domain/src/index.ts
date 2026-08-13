@@ -31,6 +31,7 @@ export {
   EXECUTION_MODES,
   EXPORT_FORMATS,
   RUN_STATUSES,
+  SCIENTIFIC_SKILL_IDS,
   SESSION_STATUSES,
   SOURCE_MODES,
   UNIT_POLICIES,
@@ -43,6 +44,7 @@ export type {
   ExecutionMode,
   ExportFormat,
   RunStatus,
+  ScientificSkillId,
   SessionStatus,
   SourceMode,
   UnitPolicy,
@@ -51,6 +53,7 @@ export {
   isArtifactKind,
   isExecutionMode,
   isRunStatus,
+  isScientificSkillId,
   isSourceMode,
   isTerminalRunStatus,
 } from "./enums";
@@ -63,6 +66,7 @@ export type {
   ResearchContract,
   ResearchContractDraft,
   ResearchContractInput,
+  ScientificTaskInput,
   SourceScope,
 } from "./research-contract";
 export { validateContractInputInvariants } from "./research-contract";
@@ -114,6 +118,7 @@ export type {
   ModelExtractionLocator,
   PaperTextLocator,
   ReasoningTraceLocator,
+  ScientificComputationLocator,
 } from "./evidence";
 export {
   EVIDENCE_TARGET_TYPES,
@@ -161,13 +166,46 @@ export type {
   PaperSummaryProducerReview,
   PaperSummaryPaperReview,
   PaperSummaryReview,
+  PaperSummaryItemKind,
+  PaperSummarySectionKind,
+  PaperSummarySectionReview,
   PaperSummarySnapshotVersionReview,
   PaperSummarySourceConflictReview,
   PaperSummaryStatementReview,
   PaperSummarySupportStatus,
   PaperSummaryTextLocator,
 } from "./paper-summary";
-export { PAPER_SUMMARY_SUPPORT_STATUSES } from "./paper-summary";
+
+export type {
+  AnalysisReportReviewContent,
+  ChartAxisReview,
+  ChartPointReview,
+  ChartSeriesReview,
+  ChartVisualizationReview,
+  FitsImageVisualizationReview,
+  ModelDiagnosticVisualizationReview,
+  ModelEvaluationReviewContent,
+  ModelSplitReview,
+  ScientificArtifactReview,
+  ScientificArtifactReviewContent,
+  ScientificFindingReview,
+  ScientificMetricReview,
+  ScientificResultBlockReview,
+  ScientificSkillExecutionReview,
+  ScientificSkillStatus,
+  ScientificSupportStatus,
+  ScientificVisualizationSpecReview,
+  VisualizationReviewContent,
+  WwtAnnotationReview,
+  WwtCoordinateReview,
+  WwtFitsLayerReview,
+  WwtSceneVisualizationReview,
+} from "./scientific-artifact";
+export {
+  PAPER_SUMMARY_ITEM_KINDS,
+  PAPER_SUMMARY_SECTION_KINDS,
+  PAPER_SUMMARY_SUPPORT_STATUSES,
+} from "./paper-summary";
 
 export type {
   ShareSnapshot,

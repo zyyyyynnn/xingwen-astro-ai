@@ -334,7 +334,8 @@ def upgrade() -> None:
             name="ck_research_runs_execution_mode",
         ),
         sa.CheckConstraint(
-            "status IN ('queued','planning','fetching_data','cleaning_data','searching_papers',"
+            "status IN ('queued','planning','fetching_data','cleaning_data','acquiring_observations',"
+            "'analyzing_data','training_models','building_visualizations','searching_papers',"
             "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input',"
             "'completed','failed','cancelled')",
             name="ck_research_runs_status",
@@ -426,12 +427,14 @@ def upgrade() -> None:
             "max_attempts >= 1", name="ck_run_steps_max_attempts_positive"
         ),
         sa.CheckConstraint(
-            "enter_status IN ('planning','fetching_data','cleaning_data','searching_papers',"
+            "enter_status IN ('planning','fetching_data','cleaning_data','acquiring_observations',"
+            "'analyzing_data','training_models','building_visualizations','searching_papers',"
             "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input')",
             name="ck_run_steps_enter_status",
         ),
         sa.CheckConstraint(
-            "success_status IN ('planning','fetching_data','cleaning_data','searching_papers',"
+            "success_status IN ('planning','fetching_data','cleaning_data','acquiring_observations',"
+            "'analyzing_data','training_models','building_visualizations','searching_papers',"
             "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input',"
             "'completed')",
             name="ck_run_steps_success_status",
@@ -1269,7 +1272,9 @@ def downgrade() -> None:
         "DROP TRIGGER IF EXISTS trg_document_parse_locators_immutable "
         "ON document_parse_locators"
     )
-    op.execute("DROP TRIGGER IF EXISTS trg_document_parses_immutable ON document_parses")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_document_parses_immutable ON document_parses"
+    )
     op.execute("DROP FUNCTION IF EXISTS reject_document_parse_update()")
     op.drop_index(
         "ix_document_parse_locators_snapshot", table_name="document_parse_locators"
@@ -1337,9 +1342,7 @@ def downgrade() -> None:
         table_name="research_thread_entries",
     )
     op.drop_table("research_thread_entries")
-    op.drop_index(
-        "uq_model_execution_active_project", table_name="model_executions"
-    )
+    op.drop_index("uq_model_execution_active_project", table_name="model_executions")
     op.drop_table("model_executions")
     op.drop_table("research_contracts")
     op.drop_index(

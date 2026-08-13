@@ -67,10 +67,12 @@ MVP 固定主案例为 **系外行星候选体与宿主恒星参数整合**。�
 - **Research Contract**：自然语言生成 Draft、结构化编辑、确认后不可变。
 - **项目与运行**：多 Project、多个可并行 Run、明确状态和恢复。
 - **数据整合**：多源查询、实体对齐、字段/单位统一、质量和导出。
+- **受控科学分析**：数据画像、统计分析、天体目录与星历工具、FITS/科学图像分析、可复现可视化和受资源约束的科学建模。
 - **论文获取**：自动检索、去重、排序、来源和选择依据。
 - **文献总结**：结构化 Summary、Evidence 和明确版本。
 - **跨文献推理**：Claim、候选/最终 Relation、Trace、条件与 Evidence。
 - **学术图谱**：所有边绑定 Evidence 的证据图谱。
+- **科学分析产物**：AnalysisReport、Visualization 与 ModelEvaluation 均绑定输入版本、Producer、Evidence、局限和可复现参数。
 - **科研工作台**：成熟 Agent 骨架、导航、Agent Activity、Artifact Workspace、Inspector 与 Composer。
 - **分享与导出**：只读快照、CSV、JSON 和溯源报告。
 - **反馈修订**：对象级 UserFeedback、可确认 RevisionPlan 与追加式 ArtifactVersion。
@@ -78,7 +80,8 @@ MVP 固定主案例为 **系外行星候选体与宿主恒星参数整合**。�
 ## 8. 非目标
 
 - 泛聊天助手或无边界 AI Scientist；
-- 任意天文方向自动处理；
+- 未注册、未授权或没有资源边界的任意天文自动处理；
+- 执行模型生成的任意代码、脚本或 notebook；
 - 全网无限制论文爬取或付费全文绕过；
 - 任意 PDF、表格或图像的全自动高精度解析；
 - 无 Evidence 的科学发现；

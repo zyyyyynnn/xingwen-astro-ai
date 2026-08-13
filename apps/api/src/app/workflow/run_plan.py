@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.schemas.core import ArtifactKind, ResearchContractInput
+from app.schemas.core import ArtifactKind, ResearchContractInput, ScientificSkillId
 from app.workflow.store import RUN_STEP_STATUS_ORDER, RunStepDefinition
 
 
@@ -21,6 +21,10 @@ _STEP_LABELS = {
     "planning": "Planning",
     "fetching_data": "Fetching data",
     "cleaning_data": "Cleaning data",
+    "acquiring_observations": "Acquiring astronomical observations",
+    "analyzing_data": "Analyzing scientific data",
+    "training_models": "Training scientific models",
+    "building_visualizations": "Building scientific visualizations",
     "searching_papers": "Searching papers",
     "summarizing_papers": "Summarizing papers",
     "reasoning_literature": "Reasoning over literature",
@@ -41,11 +45,55 @@ _LITERATURE_OUTPUTS = frozenset(
         ArtifactKind.reasoning_traces,
     }
 )
+_DATA_ANALYSIS_SKILLS = frozenset(
+    {
+        ScientificSkillId.catalog_crossmatch,
+        ScientificSkillId.data_profile,
+        ScientificSkillId.statistical_analysis,
+        ScientificSkillId.correlation_analysis,
+        ScientificSkillId.tabular_machine_learning,
+        ScientificSkillId.time_series_forecast,
+        ScientificSkillId.image_classification,
+    }
+)
+_OBSERVATION_SKILLS = frozenset(
+    {
+        ScientificSkillId.simbad_lookup,
+        ScientificSkillId.skyview_fits,
+        ScientificSkillId.ephemeris,
+        ScientificSkillId.celestial_events,
+    }
+)
+_ANALYSIS_SKILLS = frozenset(
+    {
+        ScientificSkillId.catalog_crossmatch,
+        ScientificSkillId.data_profile,
+        ScientificSkillId.statistical_analysis,
+        ScientificSkillId.correlation_analysis,
+        ScientificSkillId.fits_image_analysis,
+    }
+)
+_MODEL_SKILLS = frozenset(
+    {
+        ScientificSkillId.tabular_machine_learning,
+        ScientificSkillId.time_series_forecast,
+        ScientificSkillId.image_classification,
+    }
+)
+_VISUALIZATION_SKILLS = frozenset(
+    {
+        ScientificSkillId.chart_visualization,
+        ScientificSkillId.wwt_scene,
+    }
+)
 SUPPORTED_RUN_OUTPUTS = frozenset(
     {
         ArtifactKind.dataset,
         ArtifactKind.field_dictionary,
         ArtifactKind.source_collection,
+        ArtifactKind.analysis_report,
+        ArtifactKind.visualization,
+        ArtifactKind.model_evaluation,
         ArtifactKind.paper_collection,
         ArtifactKind.paper_summary,
         ArtifactKind.literature_claims,
@@ -62,13 +110,22 @@ def compile_run_plan(
     """Freeze the smallest ordered prerequisite closure for requested outputs."""
 
     outputs = frozenset(contract.output_requirements)
+    skills = frozenset(task.skill_id for task in contract.scientific_tasks)
     unsupported = outputs - SUPPORTED_RUN_OUTPUTS
     if unsupported:
         raise UnsupportedRunPlanError(unsupported)
 
     required = {"planning"}
-    if outputs & _DATA_OUTPUTS:
+    if outputs & _DATA_OUTPUTS or skills & _DATA_ANALYSIS_SKILLS:
         required.update(("fetching_data", "cleaning_data"))
+    if skills & _OBSERVATION_SKILLS:
+        required.add("acquiring_observations")
+    if skills & _ANALYSIS_SKILLS:
+        required.add("analyzing_data")
+    if ArtifactKind.model_evaluation in outputs or skills & _MODEL_SKILLS:
+        required.add("training_models")
+    if skills & _VISUALIZATION_SKILLS:
+        required.add("building_visualizations")
     if ArtifactKind.paper_collection in outputs:
         required.add("searching_papers")
     if (
@@ -89,9 +146,7 @@ def compile_run_plan(
             label=_STEP_LABELS[step],
             enter_status=step,
             success_status=(
-                ordered[position + 1]
-                if position + 1 < len(ordered)
-                else "completed"
+                ordered[position + 1] if position + 1 < len(ordered) else "completed"
             ),
         )
         for position, step in enumerate(ordered)

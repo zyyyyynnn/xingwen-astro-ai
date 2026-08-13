@@ -29,6 +29,17 @@ export const workspaceQueryKeys = Object.freeze({
     [...workspaceQueryKeys.run(projectId, runId), "events"] as const,
   runSteps: (projectId: DomainEntityId, runId: DomainEntityId) =>
     [...workspaceQueryKeys.run(projectId, runId), "steps"] as const,
+  runArtifacts: (projectId: DomainEntityId, runId: DomainEntityId) =>
+    [...workspaceQueryKeys.run(projectId, runId), "artifacts"] as const,
+  scientificArtifact: (
+    projectId: DomainEntityId,
+    artifactVersionId: DomainEntityId,
+  ) =>
+    [
+      ...workspaceQueryKeys.projectScope(projectId),
+      "scientific-artifact",
+      artifactVersionId,
+    ] as const,
 });
 
 export function isPrivateWorkspaceQuery(queryKey: readonly unknown[]): boolean {

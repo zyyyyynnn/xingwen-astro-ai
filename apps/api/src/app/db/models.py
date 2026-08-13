@@ -108,9 +108,7 @@ class ModelExecutionModel(TimestampMixin, Base):
     idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     lease_token: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
-    lease_expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
@@ -342,7 +340,8 @@ class ResearchRunModel(TimestampMixin, Base):
             "execution_mode IN ('demo_replay', 'live')", name="execution_mode"
         ),
         CheckConstraint(
-            "status IN ('queued','planning','fetching_data','cleaning_data','searching_papers',"
+            "status IN ('queued','planning','fetching_data','cleaning_data','acquiring_observations',"
+            "'analyzing_data','training_models','building_visualizations','searching_papers',"
             "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input',"
             "'completed','failed','cancelled')",
             name="status",
@@ -410,12 +409,14 @@ class RunStepModel(TimestampMixin, Base):
         CheckConstraint("position >= 0", name="position_nonnegative"),
         CheckConstraint("max_attempts >= 1", name="max_attempts_positive"),
         CheckConstraint(
-            "enter_status IN ('planning','fetching_data','cleaning_data','searching_papers',"
+            "enter_status IN ('planning','fetching_data','cleaning_data','acquiring_observations',"
+            "'analyzing_data','training_models','building_visualizations','searching_papers',"
             "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input')",
             name="enter_status",
         ),
         CheckConstraint(
-            "success_status IN ('planning','fetching_data','cleaning_data','searching_papers',"
+            "success_status IN ('planning','fetching_data','cleaning_data','acquiring_observations',"
+            "'analyzing_data','training_models','building_visualizations','searching_papers',"
             "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input',"
             "'completed')",
             name="success_status",
@@ -1018,6 +1019,8 @@ class ResearchInputIdempotencyModel(Base):
             "input_id",
         ),
     )
+
+
 class DocumentParseModel(Base):
     """Immutable internal persistence record for a Canonical document parse.
 
@@ -1029,15 +1032,27 @@ class DocumentParseModel(Base):
 
     __tablename__ = "document_parses"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
-    project_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
     )
-    research_input_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
-    source_snapshot_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
-    created_by_run_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    research_input_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
+    source_snapshot_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
+    created_by_run_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
     run_step_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
-    producer_execution_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    producer_execution_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
     candidate_parse_id: Mapped[str] = mapped_column(String(256), nullable=False)
     identity_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     schema_version: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -1058,9 +1073,13 @@ class DocumentParseModel(Base):
     visual_model_revision: Mapped[str | None] = mapped_column(String(256))
     config_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     overall_quality: Mapped[str] = mapped_column(String(32), nullable=False)
-    candidate_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    candidate_created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     __table_args__ = (
@@ -1071,7 +1090,9 @@ class DocumentParseModel(Base):
             "source_snapshot_id",
             name="uq_document_parse_id_project_snapshot",
         ),
-        UniqueConstraint("project_id", "identity_hash", name="uq_document_parse_identity"),
+        UniqueConstraint(
+            "project_id", "identity_hash", name="uq_document_parse_identity"
+        ),
         ForeignKeyConstraint(
             ["research_input_id", "project_id"],
             ["research_inputs.id", "research_inputs.project_id"],
@@ -1127,16 +1148,26 @@ class DocumentParseLocatorModel(Base):
 
     __tablename__ = "document_parse_locators"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
-    project_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
     )
-    document_parse_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
-    source_snapshot_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    document_parse_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
+    source_snapshot_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
     locator_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     locator: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     __table_args__ = (

@@ -102,6 +102,13 @@ export class HttpClient {
     return body.data;
   }
 
+  /** Authenticated immutable binary GET used by content-addressed Artifact data. */
+  async getArrayBuffer(path: string): Promise<ArrayBuffer> {
+    const response = await this.rawRequest("GET", path);
+    if (!response.ok) await this.throwFromResponse(response);
+    return response.arrayBuffer();
+  }
+
   /**
    * Collection GET aggregating every page in ascending order. The cursor is
    * applied against the *base* path each iteration (never accumulated), and a

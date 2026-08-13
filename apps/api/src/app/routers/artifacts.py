@@ -47,6 +47,7 @@ from app.schemas.paper_collection_api import (
     PaperCollectionRead,
 )
 from app.schemas.paper_summary_api import PaperSummaryRead
+from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
@@ -54,6 +55,7 @@ from app.services.graph_artifacts import GraphArtifactReadService
 from app.services.literature_artifacts import LiteratureArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.paper_summaries import PaperSummaryReadService
+from app.services.scientific_artifacts import ScientificArtifactReadService
 
 router = APIRouter(prefix="/api", tags=["artifacts"])
 
@@ -80,6 +82,12 @@ def _paper_service(request: Request) -> PaperCollectionReadService:
 
 def _summary_service(request: Request) -> PaperSummaryReadService:
     return PaperSummaryReadService(_service(request))
+
+
+def _scientific_service(request: Request) -> ScientificArtifactReadService:
+    return ScientificArtifactReadService(
+        _service(request), request.app.state.content_storage
+    )
 
 
 def _data_service(request: Request) -> DataArtifactReadService:
@@ -215,6 +223,56 @@ def get_paper_summary(
     _no_store(response)
     path = f"/api/artifact-versions/{version_id}/paper-summary"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/scientific",
+    operation_id="getScientificArtifact",
+    response_model=Envelope[ScientificArtifactRead],
+)
+def get_scientific_artifact(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[ScientificArtifactRead]:
+    data = _scientific_service(request).get_scientific_artifact(
+        version_id=version_id,
+        session_id=_session_id(request),
+    )
+    _no_store(response)
+    path = f"/api/artifact-versions/{version_id}/scientific"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/artifact-versions/{version_id}/scientific/content/{content_hash}",
+    operation_id="getScientificArtifactContent",
+    response_class=RawResponse,
+    responses={
+        200: {
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            }
+        }
+    },
+)
+async def get_scientific_artifact_content(
+    version_id: Annotated[str, Path(min_length=1)],
+    content_hash: Annotated[str, Path(pattern=r"^sha256:[0-9a-f]{64}$")],
+    request: Request,
+) -> RawResponse:
+    content, media_type = await _scientific_service(request).get_content(
+        version_id=version_id,
+        content_hash=content_hash,
+        session_id=_session_id(request),
+    )
+    return RawResponse(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "private, immutable, max-age=31536000"},
+    )
 
 
 @router.get(

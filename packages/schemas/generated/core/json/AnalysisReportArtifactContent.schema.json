@@ -1,0 +1,514 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "ScientificEvidence": {
+      "additionalProperties": false,
+      "description": "Evidence materialized with a newly published scientific ArtifactVersion.",
+      "properties": {
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "evidence_type": {
+          "enum": [
+            "service_response",
+            "input_snapshot",
+            "computation"
+          ],
+          "title": "Evidence Type",
+          "type": "string"
+        },
+        "extraction_method": {
+          "const": "registered_scientific_skill",
+          "default": "registered_scientific_skill",
+          "title": "Extraction Method",
+          "type": "string"
+        },
+        "locator": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Locator",
+          "type": "object"
+        },
+        "quote_or_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_type": {
+          "enum": [
+            "result_block",
+            "metric",
+            "visualization",
+            "evaluation"
+          ],
+          "title": "Target Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "target_type",
+        "target_id",
+        "source_snapshot_id",
+        "evidence_type",
+        "locator"
+      ],
+      "title": "ScientificEvidence",
+      "type": "object"
+    },
+    "ScientificFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "finding_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "metric_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Metric Ids",
+          "type": "array"
+        },
+        "statement": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ScientificSupportStatus"
+        },
+        "title": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "title",
+        "statement",
+        "status",
+        "evidence_ids"
+      ],
+      "title": "ScientificFinding",
+      "type": "object"
+    },
+    "ScientificMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "metric_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Metric Id",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "metric_id",
+        "label",
+        "value"
+      ],
+      "title": "ScientificMetric",
+      "type": "object"
+    },
+    "ScientificResultBlock": {
+      "additionalProperties": false,
+      "description": "Bounded structured output retained for inspection and downstream reuse.",
+      "properties": {
+        "block_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Block Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "representation": {
+          "enum": [
+            "record",
+            "table",
+            "catalog",
+            "statistics",
+            "timeseries",
+            "matrix"
+          ],
+          "title": "Representation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "block_id",
+        "label",
+        "representation",
+        "payload",
+        "content_hash"
+      ],
+      "title": "ScientificResultBlock",
+      "type": "object"
+    },
+    "ScientificSkillExecution": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "execution_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Execution Id",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Hash"
+        },
+        "skill_id": {
+          "$ref": "#/$defs/ScientificSkillId"
+        },
+        "skill_revision": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Skill Revision",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ScientificSkillStatus"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "execution_id",
+        "skill_id",
+        "skill_revision",
+        "status",
+        "input_hash",
+        "duration_ms"
+      ],
+      "title": "ScientificSkillExecution",
+      "type": "object"
+    },
+    "ScientificSkillId": {
+      "enum": [
+        "catalog_crossmatch",
+        "data_profile",
+        "statistical_analysis",
+        "correlation_analysis",
+        "chart_visualization",
+        "simbad_lookup",
+        "skyview_fits",
+        "ephemeris",
+        "celestial_events",
+        "fits_image_analysis",
+        "tabular_machine_learning",
+        "time_series_forecast",
+        "image_classification",
+        "wwt_scene"
+      ],
+      "title": "ScientificSkillId",
+      "type": "string"
+    },
+    "ScientificSkillStatus": {
+      "enum": [
+        "completed",
+        "partial",
+        "unsupported",
+        "failed"
+      ],
+      "title": "ScientificSkillStatus",
+      "type": "string"
+    },
+    "ScientificSupportStatus": {
+      "enum": [
+        "supported",
+        "partial",
+        "unresolved",
+        "conflicted"
+      ],
+      "title": "ScientificSupportStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Evidence-backed result of one or more bounded analysis skills.",
+  "properties": {
+    "evidence_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "findings": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ScientificFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "human_required": {
+      "default": [],
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Human Required",
+      "type": "array"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "kind": {
+      "const": "analysis_report",
+      "default": "analysis_report",
+      "title": "Kind",
+      "type": "string"
+    },
+    "limitations": {
+      "default": [],
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "metrics": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ScientificMetric"
+      },
+      "title": "Metrics",
+      "type": "array"
+    },
+    "output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "related_artifact_version_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Related Artifact Version Ids",
+      "type": "array"
+    },
+    "report_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Report Id",
+      "type": "string"
+    },
+    "result_blocks": {
+      "items": {
+        "$ref": "#/$defs/ScientificResultBlock"
+      },
+      "minItems": 1,
+      "title": "Result Blocks",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "scientific_evidence": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ScientificEvidence"
+      },
+      "title": "Scientific Evidence",
+      "type": "array"
+    },
+    "skill_executions": {
+      "items": {
+        "$ref": "#/$defs/ScientificSkillExecution"
+      },
+      "minItems": 1,
+      "title": "Skill Executions",
+      "type": "array"
+    },
+    "source_snapshot_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Source Snapshot Ids",
+      "type": "array"
+    },
+    "summary": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "report_id",
+    "title",
+    "summary",
+    "skill_executions",
+    "result_blocks",
+    "source_snapshot_ids",
+    "evidence_ids",
+    "input_hash",
+    "output_hash"
+  ],
+  "title": "AnalysisReportArtifactContent",
+  "type": "object"
+}

@@ -2,8 +2,7 @@
  * Paper summary review domain model (Literature Summary Workspace).
  *
  * A read-only projection of the PaperSummary API `PaperSummaryRead` transport contract into
- * the frontend domain: structured summary statements (goal, method, dataset,
- * findings, limitations, future work), per-item evidence with locators and
+ * the frontend domain: seven structured research sections, per-item evidence with locators and
  * support status, source-version conflicts, the model/prompt provenance and the
  * persisted SourceSnapshots. It carries no DOM, React or transport dependency.
  *
@@ -37,6 +36,33 @@ export const PAPER_SUMMARY_SUPPORT_STATUSES = [
 export type PaperSummarySupportStatus =
   (typeof PAPER_SUMMARY_SUPPORT_STATUSES)[number];
 
+export const PAPER_SUMMARY_SECTION_KINDS = [
+  "background",
+  "methodology",
+  "dataset",
+  "experiments",
+  "discussion",
+  "limitations",
+  "research_questions",
+] as const;
+export type PaperSummarySectionKind =
+  (typeof PAPER_SUMMARY_SECTION_KINDS)[number];
+
+export const PAPER_SUMMARY_ITEM_KINDS = [
+  "narrative",
+  "objective",
+  "workflow_step",
+  "formula",
+  "dataset",
+  "experiment",
+  "result",
+  "contribution",
+  "implication",
+  "limitation",
+  "research_question",
+] as const;
+export type PaperSummaryItemKind = (typeof PAPER_SUMMARY_ITEM_KINDS)[number];
+
 /** Evidence locator for a short in-text quote inside a paper. */
 export interface PaperSummaryTextLocator {
   readonly kind: "paper_text";
@@ -59,10 +85,18 @@ export type PaperSummaryEvidenceLocator =
 /** One structured summary statement bound to its supporting evidence ids. */
 export interface PaperSummaryStatementReview {
   readonly statementId: DomainEntityId;
+  readonly itemKind: PaperSummaryItemKind;
   readonly text: string;
   readonly status: PaperSummarySupportStatus;
   readonly evidenceIds: readonly DomainEntityId[];
   readonly validationCode: DomainEntityId;
+}
+
+/** One of the seven evidence-backed sections in the current summary contract. */
+export interface PaperSummarySectionReview {
+  readonly sectionKind: PaperSummarySectionKind;
+  readonly overview: PaperSummaryStatementReview | null;
+  readonly items: readonly PaperSummaryStatementReview[];
 }
 
 /** One admitted summary evidence record with its locator and support status. */
@@ -167,12 +201,13 @@ export interface PaperSummaryReview {
   readonly schemaVersion: SemanticVersion;
   readonly benchmark: PaperBenchmarkReview;
   readonly inputVersions: PaperSummaryInputVersionsReview;
-  readonly researchGoal: PaperSummaryStatementReview | null;
-  readonly method: PaperSummaryStatementReview | null;
-  readonly dataset: PaperSummaryStatementReview | null;
-  readonly findings: readonly PaperSummaryStatementReview[];
-  readonly limitations: readonly PaperSummaryStatementReview[];
-  readonly futureWork: readonly PaperSummaryStatementReview[];
+  readonly background: PaperSummarySectionReview;
+  readonly methodology: PaperSummarySectionReview;
+  readonly dataset: PaperSummarySectionReview;
+  readonly experiments: PaperSummarySectionReview;
+  readonly discussion: PaperSummarySectionReview;
+  readonly limitations: PaperSummarySectionReview;
+  readonly researchQuestions: PaperSummarySectionReview;
   readonly summaryEvidence: readonly PaperSummaryEvidenceReview[];
   readonly sourceConflicts: readonly PaperSummarySourceConflictReview[];
   readonly producer: PaperSummaryProducerReview;

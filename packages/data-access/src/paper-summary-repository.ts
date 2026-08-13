@@ -21,6 +21,7 @@ import type {
   PaperSummaryInputVersions as PaperSummaryInputVersionsDto,
   PaperSummaryProducerExecution as PaperSummaryProducerExecutionDto,
   PaperSummaryRead as PaperSummaryReadDto,
+  PaperSummarySection as PaperSummarySectionDto,
   PaperSummarySourceConflict as PaperSummarySourceConflictDto,
   PaperSummaryStatement as PaperSummaryStatementDto,
 } from "@xingwen/contracts";
@@ -32,6 +33,7 @@ import type {
   PaperSummaryInputVersionsReview,
   PaperSummaryProducerReview,
   PaperSummaryReview,
+  PaperSummarySectionReview,
   PaperSummarySourceConflictReview,
   PaperSummaryStatementReview,
   PaperSummaryCacheAuditReview,
@@ -59,10 +61,19 @@ function mapStatement(
 ): PaperSummaryStatementReview {
   return {
     statementId: mapId(dto.statement_id),
+    itemKind: dto.item_kind,
     text: dto.text,
     status: dto.status,
     evidenceIds: dto.evidence_ids.map(mapId),
     validationCode: mapId(dto.validation_code),
+  };
+}
+
+function mapSection(dto: PaperSummarySectionDto): PaperSummarySectionReview {
+  return {
+    sectionKind: dto.section_kind,
+    overview: mapStatementOrNull(dto.overview),
+    items: dto.items.map(mapStatement),
   };
 }
 
@@ -263,12 +274,13 @@ export function assemblePaperSummaryReview(
       contentHash: summary.benchmark.content_hash as ContentHash,
     },
     inputVersions: mapInputVersions(summary.input_versions),
-    researchGoal: mapStatementOrNull(summary.research_goal),
-    method: mapStatementOrNull(summary.method),
-    dataset: mapStatementOrNull(summary.dataset),
-    findings: summary.findings.map(mapStatement),
-    limitations: summary.limitations.map(mapStatement),
-    futureWork: summary.future_work.map(mapStatement),
+    background: mapSection(summary.background),
+    methodology: mapSection(summary.methodology),
+    dataset: mapSection(summary.dataset),
+    experiments: mapSection(summary.experiments),
+    discussion: mapSection(summary.discussion),
+    limitations: mapSection(summary.limitations),
+    researchQuestions: mapSection(summary.research_questions),
     summaryEvidence: summary.evidence.map(mapSummaryEvidence),
     sourceConflicts: summary.source_conflicts.map(mapSourceConflict),
     producer: mapProducer(summary.producer),

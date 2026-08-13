@@ -10,6 +10,7 @@ import {
   validateContractInputInvariants,
   type ArtifactKind,
   type ResearchContractInput,
+  type ScientificTaskInput,
 } from "@xingwen/domain";
 import type { ResearchContractDraftViewModel } from "@xingwen/research-adapter";
 import type { ResearchPlanningCatalog } from "@xingwen/domain";
@@ -75,6 +76,7 @@ interface ContractFormState {
   readonly yearTo: string;
   readonly sourceIds: readonly string[];
   readonly maxCandidates: string;
+  readonly scientificTasks: readonly ScientificTaskInput[];
   readonly outputRequirements: readonly ArtifactKind[];
   readonly requireLocator: boolean;
   readonly requireSourceSnapshot: boolean;
@@ -365,6 +367,12 @@ function formFromDraft(
     yearTo: draft.contract.paperSearchScope.yearTo?.toString() ?? "",
     sourceIds: [...draft.contract.paperSearchScope.sourceIds],
     maxCandidates: draft.contract.paperSearchScope.maxCandidates.toString(),
+    scientificTasks: draft.contract.scientificTasks.map((task) => ({
+      taskId: task.taskId,
+      skillId: task.skillId,
+      parameters: { ...task.parameters },
+      inputRefs: [...task.inputRefs],
+    })),
     outputRequirements: normalizeOutputOrder(draft.contract.outputRequirements),
     requireLocator: draft.contract.evidenceRequirements.requireLocator,
     requireSourceSnapshot:
@@ -535,6 +543,7 @@ function parseContract(form: ContractFormState): {
       sourceIds,
       maxCandidates,
     },
+    scientificTasks: form.scientificTasks,
     outputRequirements: form.outputRequirements,
     evidenceRequirements: {
       requireLocator: form.requireLocator,
@@ -859,6 +868,27 @@ function ResearchContractFormSurface({
                   <h3>成果要求</h3>
                   <p>选择本次研究需要交付的成果，可多选。</p>
                 </div>
+                {form.scientificTasks.length > 0 ? (
+                  <FieldSet className="research-contract-form__scientific-tasks">
+                    <FieldLegend>已规划科学任务</FieldLegend>
+                    <p>
+                      任务参数由规划器冻结；修改研究目标后会生成新的协议草稿。
+                    </p>
+                    <ol>
+                      {form.scientificTasks.map((task) => {
+                        const option = catalog.scientificSkills.find(
+                          (item) => item.value === task.skillId,
+                        );
+                        return (
+                          <li key={task.taskId}>
+                            <strong>{option?.label ?? task.skillId}</strong>
+                            <span>{option?.description ?? task.taskId}</span>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </FieldSet>
+                ) : null}
                 <FieldSet className="research-contract-form__output-group">
                   <FieldLegend className="research-contract-form__output-group-title">
                     常用成果

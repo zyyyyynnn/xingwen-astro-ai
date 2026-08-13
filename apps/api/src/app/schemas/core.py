@@ -66,6 +66,10 @@ class RunStatus(StrEnum):
     planning = "planning"
     fetching_data = "fetching_data"
     cleaning_data = "cleaning_data"
+    acquiring_observations = "acquiring_observations"
+    analyzing_data = "analyzing_data"
+    training_models = "training_models"
+    building_visualizations = "building_visualizations"
     searching_papers = "searching_papers"
     summarizing_papers = "summarizing_papers"
     reasoning_literature = "reasoning_literature"
@@ -80,6 +84,9 @@ class ArtifactKind(StrEnum):
     dataset = "dataset"
     field_dictionary = "field_dictionary"
     source_collection = "source_collection"
+    analysis_report = "analysis_report"
+    visualization = "visualization"
+    model_evaluation = "model_evaluation"
     paper_collection = "paper_collection"
     paper_summary = "paper_summary"
     literature_claims = "literature_claims"
@@ -87,6 +94,51 @@ class ArtifactKind(StrEnum):
     reasoning_traces = "reasoning_traces"
     graph = "graph"
     export = "export"
+
+
+class ScientificSkillId(StrEnum):
+    catalog_crossmatch = "catalog_crossmatch"
+    data_profile = "data_profile"
+    statistical_analysis = "statistical_analysis"
+    correlation_analysis = "correlation_analysis"
+    chart_visualization = "chart_visualization"
+    simbad_lookup = "simbad_lookup"
+    skyview_fits = "skyview_fits"
+    ephemeris = "ephemeris"
+    celestial_events = "celestial_events"
+    fits_image_analysis = "fits_image_analysis"
+    tabular_machine_learning = "tabular_machine_learning"
+    time_series_forecast = "time_series_forecast"
+    image_classification = "image_classification"
+    wwt_scene = "wwt_scene"
+
+
+_ANALYSIS_SKILLS = frozenset(
+    {
+        ScientificSkillId.catalog_crossmatch,
+        ScientificSkillId.data_profile,
+        ScientificSkillId.statistical_analysis,
+        ScientificSkillId.correlation_analysis,
+        ScientificSkillId.simbad_lookup,
+        ScientificSkillId.ephemeris,
+        ScientificSkillId.celestial_events,
+        ScientificSkillId.fits_image_analysis,
+    }
+)
+_VISUALIZATION_SKILLS = frozenset(
+    {
+        ScientificSkillId.chart_visualization,
+        ScientificSkillId.skyview_fits,
+        ScientificSkillId.wwt_scene,
+    }
+)
+_MODEL_EVALUATION_SKILLS = frozenset(
+    {
+        ScientificSkillId.tabular_machine_learning,
+        ScientificSkillId.time_series_forecast,
+        ScientificSkillId.image_classification,
+    }
+)
 
 
 class ContractDraftStatus(StrEnum):
@@ -177,6 +229,25 @@ class QualityConstraints(BaseModel):
     unit_consistency_min: float = Field(default=1.0, ge=0, le=1)
 
 
+class ScientificTaskInput(BaseModel):
+    """One bounded invocation of a registered scientific skill."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    task_id: Identifier
+    skill_id: ScientificSkillId
+    parameters: dict[Identifier, JsonValue] = Field(default_factory=dict)
+    input_refs: tuple[Identifier, ...] = ()
+
+    @model_validator(mode="after")
+    def require_bounded_unique_inputs(self) -> ScientificTaskInput:
+        if len(self.parameters) > 64:
+            raise ValueError("parameters must contain at most 64 entries")
+        if len(self.input_refs) != len(set(self.input_refs)):
+            raise ValueError("input_refs must not contain duplicates")
+        return self
+
+
 class ResearchContractInput(BaseModel):
     """Shared scientific payload for an editable draft and immutable contract."""
 
@@ -188,16 +259,53 @@ class ResearchContractInput(BaseModel):
     requested_fields: tuple[Identifier, ...] = Field(min_length=1)
     source_scope: SourceScope
     paper_search_scope: PaperSearchScope
+    scientific_tasks: tuple[ScientificTaskInput, ...] = ()
     output_requirements: tuple[ArtifactKind, ...] = Field(min_length=1)
     evidence_requirements: EvidenceRequirements
     quality_constraints: QualityConstraints
 
     @model_validator(mode="after")
     def require_unique_contract_values(self) -> ResearchContractInput:
-        for field_name in ("target_objects", "requested_fields", "output_requirements"):
+        for field_name in (
+            "target_objects",
+            "requested_fields",
+            "output_requirements",
+        ):
             values = getattr(self, field_name)
             if len(values) != len(set(values)):
                 raise ValueError(f"{field_name} must not contain duplicates")
+        task_ids = tuple(task.task_id for task in self.scientific_tasks)
+        if len(task_ids) != len(set(task_ids)):
+            raise ValueError("scientific_tasks must use unique task_id values")
+        selected_skills = frozenset(task.skill_id for task in self.scientific_tasks)
+        selected_outputs = frozenset(self.output_requirements)
+        required_capabilities = (
+            (ArtifactKind.analysis_report, _ANALYSIS_SKILLS),
+            (ArtifactKind.visualization, _VISUALIZATION_SKILLS),
+            (ArtifactKind.model_evaluation, _MODEL_EVALUATION_SKILLS),
+        )
+        for artifact_kind, capable_skills in required_capabilities:
+            if (
+                artifact_kind in selected_outputs
+                and not selected_skills & capable_skills
+            ):
+                raise ValueError(
+                    f"{artifact_kind.value} requires an explicitly authorized scientific skill"
+                )
+        for task in self.scientific_tasks:
+            produced_kind = (
+                ArtifactKind.model_evaluation
+                if task.skill_id in _MODEL_EVALUATION_SKILLS
+                else (
+                    ArtifactKind.visualization
+                    if task.skill_id in _VISUALIZATION_SKILLS
+                    else ArtifactKind.analysis_report
+                )
+            )
+            if produced_kind not in selected_outputs:
+                raise ValueError(
+                    f"scientific task {task.task_id} requires {produced_kind.value} output"
+                )
         return self
 
 
@@ -398,6 +506,7 @@ class ResearchPlanningCatalog(BaseModel):
     target_objects: tuple[ResearchCatalogOption, ...]
     requested_fields: tuple[ResearchCatalogOption, ...]
     allowed_sources: tuple[ResearchCatalogOption, ...]
+    scientific_skills: tuple[ResearchCatalogOption, ...]
     output_requirements: tuple[ResearchCatalogOption, ...]
 
 
@@ -517,6 +626,7 @@ def project_research_contract_input(
     input_payload = {
         field_name: payload[field_name]
         for field_name in ResearchContractInput.model_fields
+        if field_name in payload
     }
     return ResearchContractInput.model_validate(input_payload)
 

@@ -1,0 +1,817 @@
+{
+  "$defs": {
+    "ChartAxis": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Field",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "scale": {
+          "default": "linear",
+          "enum": [
+            "linear",
+            "log",
+            "time",
+            "category"
+          ],
+          "title": "Scale",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "field",
+        "label"
+      ],
+      "title": "ChartAxis",
+      "type": "object"
+    },
+    "ChartPoint": {
+      "additionalProperties": false,
+      "description": "One bounded, publication-owned datum for a declarative chart.",
+      "properties": {
+        "x": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            }
+          ],
+          "title": "X"
+        },
+        "y": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            }
+          ],
+          "title": "Y"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "ChartPoint",
+      "type": "object"
+    },
+    "ChartSeries": {
+      "additionalProperties": false,
+      "properties": {
+        "color_token": {
+          "default": "brand",
+          "enum": [
+            "brand",
+            "information",
+            "success",
+            "warning",
+            "error",
+            "neutral"
+          ],
+          "title": "Color Token",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "mark": {
+          "enum": [
+            "line",
+            "point",
+            "bar",
+            "area"
+          ],
+          "title": "Mark",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/ChartPoint"
+          },
+          "maxItems": 2000,
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        },
+        "series_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Series Id",
+          "type": "string"
+        },
+        "x_field": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "X Field",
+          "type": "string"
+        },
+        "y_field": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Y Field",
+          "type": "string"
+        }
+      },
+      "required": [
+        "series_id",
+        "label",
+        "x_field",
+        "y_field",
+        "mark",
+        "points"
+      ],
+      "title": "ChartSeries",
+      "type": "object"
+    },
+    "ChartVisualizationSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset_artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Dataset Artifact Version Id",
+          "type": "string"
+        },
+        "mode": {
+          "const": "chart",
+          "default": "chart",
+          "title": "Mode",
+          "type": "string"
+        },
+        "series": {
+          "items": {
+            "$ref": "#/$defs/ChartSeries"
+          },
+          "minItems": 1,
+          "title": "Series",
+          "type": "array"
+        },
+        "x_axis": {
+          "$ref": "#/$defs/ChartAxis"
+        },
+        "y_axis": {
+          "$ref": "#/$defs/ChartAxis"
+        }
+      },
+      "required": [
+        "dataset_artifact_version_id",
+        "x_axis",
+        "y_axis",
+        "series"
+      ],
+      "title": "ChartVisualizationSpec",
+      "type": "object"
+    },
+    "FitsImageVisualizationSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "color_map": {
+          "default": "gray",
+          "enum": [
+            "gray",
+            "viridis",
+            "magma",
+            "inferno"
+          ],
+          "title": "Color Map",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "content_ref": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Content Ref",
+          "type": "string"
+        },
+        "mode": {
+          "const": "fits_image",
+          "default": "fits_image",
+          "title": "Mode",
+          "type": "string"
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "stretch": {
+          "default": "sqrt",
+          "enum": [
+            "linear",
+            "sqrt",
+            "log",
+            "power",
+            "histogram_equalization"
+          ],
+          "title": "Stretch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_snapshot_id",
+        "content_ref",
+        "content_hash"
+      ],
+      "title": "FitsImageVisualizationSpec",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "ModelDiagnosticVisualizationSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "diagnostic": {
+          "enum": [
+            "confusion_matrix",
+            "roc_curve",
+            "precision_recall",
+            "residuals",
+            "forecast",
+            "feature_importance"
+          ],
+          "title": "Diagnostic",
+          "type": "string"
+        },
+        "mode": {
+          "const": "model_diagnostic",
+          "default": "model_diagnostic",
+          "title": "Mode",
+          "type": "string"
+        },
+        "model_evaluation_artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model Evaluation Artifact Version Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model_evaluation_artifact_version_id",
+        "diagnostic"
+      ],
+      "title": "ModelDiagnosticVisualizationSpec",
+      "type": "object"
+    },
+    "ScientificEvidence": {
+      "additionalProperties": false,
+      "description": "Evidence materialized with a newly published scientific ArtifactVersion.",
+      "properties": {
+        "confidence": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "evidence_type": {
+          "enum": [
+            "service_response",
+            "input_snapshot",
+            "computation"
+          ],
+          "title": "Evidence Type",
+          "type": "string"
+        },
+        "extraction_method": {
+          "const": "registered_scientific_skill",
+          "default": "registered_scientific_skill",
+          "title": "Extraction Method",
+          "type": "string"
+        },
+        "locator": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Locator",
+          "type": "object"
+        },
+        "quote_or_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_type": {
+          "enum": [
+            "result_block",
+            "metric",
+            "visualization",
+            "evaluation"
+          ],
+          "title": "Target Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "target_type",
+        "target_id",
+        "source_snapshot_id",
+        "evidence_type",
+        "locator"
+      ],
+      "title": "ScientificEvidence",
+      "type": "object"
+    },
+    "ScientificSkillExecution": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "execution_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Execution Id",
+          "type": "string"
+        },
+        "input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "output_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Hash"
+        },
+        "skill_id": {
+          "$ref": "#/$defs/ScientificSkillId"
+        },
+        "skill_revision": {
+          "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+          "title": "Skill Revision",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ScientificSkillStatus"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "execution_id",
+        "skill_id",
+        "skill_revision",
+        "status",
+        "input_hash",
+        "duration_ms"
+      ],
+      "title": "ScientificSkillExecution",
+      "type": "object"
+    },
+    "ScientificSkillId": {
+      "enum": [
+        "catalog_crossmatch",
+        "data_profile",
+        "statistical_analysis",
+        "correlation_analysis",
+        "chart_visualization",
+        "simbad_lookup",
+        "skyview_fits",
+        "ephemeris",
+        "celestial_events",
+        "fits_image_analysis",
+        "tabular_machine_learning",
+        "time_series_forecast",
+        "image_classification",
+        "wwt_scene"
+      ],
+      "title": "ScientificSkillId",
+      "type": "string"
+    },
+    "ScientificSkillStatus": {
+      "enum": [
+        "completed",
+        "partial",
+        "unsupported",
+        "failed"
+      ],
+      "title": "ScientificSkillStatus",
+      "type": "string"
+    },
+    "WwtAnnotation": {
+      "additionalProperties": false,
+      "properties": {
+        "annotation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Annotation Id",
+          "type": "string"
+        },
+        "color_token": {
+          "default": "brand",
+          "enum": [
+            "brand",
+            "information",
+            "success",
+            "warning",
+            "error",
+            "neutral"
+          ],
+          "title": "Color Token",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "circle",
+            "line",
+            "label"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/WwtCoordinate"
+          },
+          "maxItems": 1000,
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        },
+        "radius_degrees": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 180,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Radius Degrees"
+        }
+      },
+      "required": [
+        "annotation_id",
+        "kind",
+        "points"
+      ],
+      "title": "WwtAnnotation",
+      "type": "object"
+    },
+    "WwtCoordinate": {
+      "additionalProperties": false,
+      "properties": {
+        "dec_degrees": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Dec Degrees",
+          "type": "number"
+        },
+        "ra_hours": {
+          "exclusiveMaximum": 24,
+          "minimum": 0,
+          "title": "Ra Hours",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ra_hours",
+        "dec_degrees"
+      ],
+      "title": "WwtCoordinate",
+      "type": "object"
+    },
+    "WwtFitsLayer": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "content_ref": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Content Ref",
+          "type": "string"
+        },
+        "layer_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "opacity": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "layer_id",
+        "source_snapshot_id",
+        "content_ref",
+        "content_hash"
+      ],
+      "title": "WwtFitsLayer",
+      "type": "object"
+    },
+    "WwtSceneVisualizationSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WwtAnnotation"
+          },
+          "title": "Annotations",
+          "type": "array"
+        },
+        "background": {
+          "default": "digitized_sky_survey",
+          "enum": [
+            "digitized_sky_survey",
+            "gaia",
+            "wise",
+            "solar_system"
+          ],
+          "title": "Background",
+          "type": "string"
+        },
+        "center": {
+          "$ref": "#/$defs/WwtCoordinate"
+        },
+        "coordinate_grid": {
+          "default": "equatorial",
+          "enum": [
+            "none",
+            "equatorial",
+            "galactic",
+            "ecliptic",
+            "altaz"
+          ],
+          "title": "Coordinate Grid",
+          "type": "string"
+        },
+        "field_of_view_degrees": {
+          "exclusiveMinimum": 0,
+          "maximum": 180,
+          "title": "Field Of View Degrees",
+          "type": "number"
+        },
+        "fits_layers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WwtFitsLayer"
+          },
+          "title": "Fits Layers",
+          "type": "array"
+        },
+        "mode": {
+          "const": "wwt_scene",
+          "default": "wwt_scene",
+          "title": "Mode",
+          "type": "string"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed At"
+        }
+      },
+      "required": [
+        "center",
+        "field_of_view_degrees"
+      ],
+      "title": "WwtSceneVisualizationSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Declarative visualization; never executable code or an arbitrary URL.",
+  "properties": {
+    "description": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "evidence_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "input_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Input Hash",
+      "type": "string"
+    },
+    "kind": {
+      "const": "visualization",
+      "default": "visualization",
+      "title": "Kind",
+      "type": "string"
+    },
+    "output_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Output Hash",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "scientific_evidence": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ScientificEvidence"
+      },
+      "title": "Scientific Evidence",
+      "type": "array"
+    },
+    "skill_executions": {
+      "items": {
+        "$ref": "#/$defs/ScientificSkillExecution"
+      },
+      "minItems": 1,
+      "title": "Skill Executions",
+      "type": "array"
+    },
+    "source_snapshot_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Source Snapshot Ids",
+      "type": "array"
+    },
+    "spec": {
+      "discriminator": {
+        "mapping": {
+          "chart": "#/$defs/ChartVisualizationSpec",
+          "fits_image": "#/$defs/FitsImageVisualizationSpec",
+          "model_diagnostic": "#/$defs/ModelDiagnosticVisualizationSpec",
+          "wwt_scene": "#/$defs/WwtSceneVisualizationSpec"
+        },
+        "propertyName": "mode"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ChartVisualizationSpec"
+        },
+        {
+          "$ref": "#/$defs/FitsImageVisualizationSpec"
+        },
+        {
+          "$ref": "#/$defs/WwtSceneVisualizationSpec"
+        },
+        {
+          "$ref": "#/$defs/ModelDiagnosticVisualizationSpec"
+        }
+      ],
+      "title": "Spec"
+    },
+    "title": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "visualization_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Visualization Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "visualization_id",
+    "title",
+    "description",
+    "spec",
+    "skill_executions",
+    "source_snapshot_ids",
+    "evidence_ids",
+    "input_hash",
+    "output_hash"
+  ],
+  "title": "VisualizationArtifactContent",
+  "type": "object"
+}

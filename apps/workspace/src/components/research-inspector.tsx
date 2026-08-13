@@ -12,6 +12,7 @@ import {
   ChevronDown,
   FileSearch,
   ListChecks,
+  Telescope,
   type LucideIcon,
 } from "@xingwen/ui/icons";
 import { ResearchPlanStatusIcon } from "./research-plan";
@@ -21,13 +22,15 @@ interface ResearchInspectorProps {
   readonly draft: ResearchContractDraftViewModel | null;
   readonly contract: ResearchContractViewModel | null;
   readonly presentation: ResearchPresentation;
+  readonly artifactPanel: React.ReactNode;
+  readonly artifactStatus: string;
 }
 
 interface InspectorDisclosureProps {
   readonly title: string;
   readonly status?: string;
   readonly icon: LucideIcon;
-  readonly kind: "protocol" | "plan";
+  readonly kind: "protocol" | "plan" | "artifacts";
   readonly children: React.ReactNode;
 }
 
@@ -80,6 +83,8 @@ export function ResearchInspector({
   draft,
   contract,
   presentation,
+  artifactPanel,
+  artifactStatus,
 }: ResearchInspectorProps) {
   return (
     <section className="research-inspector" aria-label="研究概览">
@@ -111,6 +116,14 @@ export function ResearchInspector({
             </li>
           ))}
         </ol>
+      </InspectorDisclosure>
+      <InspectorDisclosure
+        title="科学制品"
+        status={artifactStatus}
+        icon={Telescope}
+        kind="artifacts"
+      >
+        {artifactPanel}
       </InspectorDisclosure>
     </section>
   );
