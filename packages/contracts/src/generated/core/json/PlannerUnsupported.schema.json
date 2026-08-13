@@ -1,0 +1,42 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "assistant_message": {
+      "minLength": 1,
+      "title": "Assistant Message",
+      "type": "string"
+    },
+    "outcome": {
+      "const": "unsupported",
+      "title": "Outcome",
+      "type": "string"
+    },
+    "public_analysis": {
+      "minLength": 1,
+      "title": "Public Analysis",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "outcome",
+    "public_analysis",
+    "assistant_message",
+    "reason"
+  ],
+  "title": "PlannerUnsupported",
+  "type": "object"
+}

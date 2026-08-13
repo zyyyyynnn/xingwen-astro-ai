@@ -85,6 +85,7 @@ jobs:
           --health-retries 10
     env:
       TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/xingwen_test_db
+      PYTHONPATH: ${{ github.workspace }}/apps/api/src:${{ github.workspace }}
     defaults:
       run:
         working-directory: apps/api
@@ -218,10 +219,25 @@ jobs:
           uv run python ../../scripts/export_schemas.py \
             --output ../../packages/schemas/generated/core \
             --include ResearchProject \
+            --include UpdateResearchProjectRequest \
+            --include ResearchCatalogOption \
+            --include ResearchPlanningCatalog \
+            --include ModelExecutionRecord \
+            --include PlannerClarificationRequired \
+            --include PlannerDraftReady \
+            --include PlannerPartial \
+            --include PlannerUnsupported \
+            --include PlannerRefused \
+            --include PlannerOutcome \
+            --include ResearchThreadEntry \
+            --include ResearchThreadSummary \
+            --include ResearchTurnRequest \
+            --include ResearchTurnResult \
             --include ResearchContractDraft \
             --include ResearchContract \
             --include ResearchRun \
             --include RunEvent \
+            --include RunStepRead \
             --include ResearchArtifact \
             --include ArtifactVersion \
             --include ResearchArtifactDetail \

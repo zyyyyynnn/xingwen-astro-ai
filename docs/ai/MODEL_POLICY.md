@@ -12,16 +12,18 @@
 
 当前使用模型候选的文献 Pipeline 包括 PaperSummary、LiteratureClaim 与 LiteratureRelation。每条 Pipeline 独立验证输入 ArtifactVersion、Prompt identity、输出 Schema、Evidence locator、状态计数与 canonical output hash。
 
-## 2. ProducerExecution
+## 2. Pre-run ModelExecutionRecord 与 ProducerExecution
 
-模型执行记录使用 ProducerExecution 保存：
+Research assistant 的分析发生在 Run 之前，必须使用独立的 `ModelExecutionRecord`。它记录 provider、固定 model 与 revision、Prompt name/version/hash、安全规范化后的 Prompt/input/output/parameters snapshot 及其 hash、状态、token usage、latency、provider request id、error code 与时间边界。它不等同于 Run 内 Pipeline 的 ProducerExecution，也不能替代后者。
+
+Run 内模型 Pipeline 使用 ProducerExecution 保存：
 
 - `producer_type=model`、producer/model identity；
 - `prompt_name`、`prompt_version`、`prompt_hash`；
 - `parameters_hash`、`input_hash`、`output_hash`；
 - 状态、错误码、token usage 与 latency。
 
-记录不得包含 API key、认证头、受限全文、原始响应或私有 chain-of-thought。ReasoningTrace 只保存可审查的依据、假设、限制、Evidence 与 Claim/Relation 引用。
+两类记录均不得包含 API key、认证头、受限全文、原始 provider body 或私有 chain-of-thought。ModelExecutionRecord 的 output snapshot 只能保存通过 Pydantic 与领域校验的公开 outcome；ReasoningTrace 只保存可审查的依据、假设、限制、Evidence 与 Claim/Relation 引用。失败记录必须保存失败发生前已经获得的安全 hash、token、latency 与 provider request id，不得因失败丢失调用证据。
 
 ## 3. 失败关闭
 
@@ -37,7 +39,7 @@
 
 ModelExecutionPort 是 provider-neutral 的模型执行边界，拥有 typed request、Prompt identity、参数、超时、token usage、provider request identity 与原始失败分类。Provider Adapter 只负责调用与传输映射，不能决定 Artifact 准入或推进 Run。
 
-调用方必须先存在可验证的 Adapter 与 ProducerExecution writer 才能执行该 Port。没有实现绑定时必须拒绝调用；不得生成模拟模型响应、成功状态、ArtifactVersion 或比赛调用证明。
+调用方必须先存在可验证的 Adapter 与对应 execution writer 才能执行该 Port。Research assistant 在没有 provider credentials 时必须以 `MODEL_RUNTIME_UNAVAILABLE` 失败；不得生成模板响应、模拟模型响应、成功状态、ArtifactVersion 或比赛调用证明。CI 可以注入明确的 fake port，但 fake provenance 必须标记为测试。
 
 ## 6. CacheSelector 协作
 

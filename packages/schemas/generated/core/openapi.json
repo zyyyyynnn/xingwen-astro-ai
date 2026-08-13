@@ -858,6 +858,35 @@
         "title": "CollectionEnvelope[ResearchProject]",
         "type": "object"
       },
+      "CollectionEnvelope_ResearchThreadEntry_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchThreadEntry"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "page": {
+            "$ref": "#/components/schemas/CursorPage"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links",
+          "page"
+        ],
+        "title": "CollectionEnvelope[ResearchThreadEntry]",
+        "type": "object"
+      },
       "CollectionEnvelope_RunEvent_": {
         "additionalProperties": false,
         "properties": {
@@ -885,6 +914,35 @@
           "page"
         ],
         "title": "CollectionEnvelope[RunEvent]",
+        "type": "object"
+      },
+      "CollectionEnvelope_RunStepRead_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/RunStepRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "page": {
+            "$ref": "#/components/schemas/CursorPage"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links",
+          "page"
+        ],
+        "title": "CollectionEnvelope[RunStepRead]",
         "type": "object"
       },
       "CollectionEnvelope_ShareSnapshot_": {
@@ -2711,6 +2769,27 @@
         "title": "Envelope[ResearchInputRef]",
         "type": "object"
       },
+      "Envelope_ResearchPlanningCatalog_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ResearchPlanningCatalog"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[ResearchPlanningCatalog]",
+        "type": "object"
+      },
       "Envelope_ResearchProject_": {
         "additionalProperties": false,
         "properties": {
@@ -2772,6 +2851,27 @@
           "links"
         ],
         "title": "Envelope[ResearchSession]",
+        "type": "object"
+      },
+      "Envelope_ResearchTurnResult_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ResearchTurnResult"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[ResearchTurnResult]",
         "type": "object"
       },
       "Envelope_SessionCreated_": {
@@ -9005,6 +9105,17 @@
         "title": "PaperSummarySupportStatus",
         "type": "string"
       },
+      "PlannerOutcomeKind": {
+        "enum": [
+          "clarification_required",
+          "draft_ready",
+          "partial",
+          "unsupported",
+          "refused"
+        ],
+        "title": "PlannerOutcomeKind",
+        "type": "string"
+      },
       "ProblemDetails": {
         "additionalProperties": false,
         "properties": {
@@ -9981,6 +10092,49 @@
         "title": "ResearchArtifactDetail",
         "type": "object"
       },
+      "ResearchCatalogOption": {
+        "additionalProperties": false,
+        "description": "One manifest-backed choice rendered by the Contract authoring UI.",
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "enum": [
+                  "common",
+                  "advanced"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "ResearchCatalogOption",
+        "type": "object"
+      },
       "ResearchContract": {
         "additionalProperties": false,
         "examples": [
@@ -10517,6 +10671,62 @@
         "title": "ResearchInputType",
         "type": "string"
       },
+      "ResearchPlanningCatalog": {
+        "additionalProperties": false,
+        "description": "Project-scoped planning choices derived from current Authorities.",
+        "properties": {
+          "allowed_sources": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchCatalogOption"
+            },
+            "title": "Allowed Sources",
+            "type": "array"
+          },
+          "case_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Case Key",
+            "type": "string"
+          },
+          "output_requirements": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchCatalogOption"
+            },
+            "title": "Output Requirements",
+            "type": "array"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "requested_fields": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchCatalogOption"
+            },
+            "title": "Requested Fields",
+            "type": "array"
+          },
+          "target_objects": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchCatalogOption"
+            },
+            "title": "Target Objects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "case_key",
+          "target_objects",
+          "requested_fields",
+          "allowed_sources",
+          "output_requirements"
+        ],
+        "title": "ResearchPlanningCatalog",
+        "type": "object"
+      },
       "ResearchProject": {
         "additionalProperties": false,
         "examples": [
@@ -10528,6 +10738,10 @@
             "name": "Exoplanet host-star integration",
             "revision": 1,
             "session_id": "sess_01JEXAMPLE",
+            "thread_summary": {
+              "has_thread_entries": false,
+              "has_unanswered_clarification": false
+            },
             "updated_at": "2026-07-21T08:00:00Z"
           }
         ],
@@ -10544,6 +10758,19 @@
               }
             ],
             "title": "Active Contract Id"
+          },
+          "active_draft_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Draft Id"
           },
           "case_key": {
             "const": "exoplanet_host_star",
@@ -10566,6 +10793,17 @@
             "title": "Id",
             "type": "string"
           },
+          "latest_run_failure_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Run Failure Summary"
+          },
           "latest_run_id": {
             "anyOf": [
               {
@@ -10578,6 +10816,16 @@
               }
             ],
             "title": "Latest Run Id"
+          },
+          "latest_run_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "minLength": 1,
@@ -10595,6 +10843,9 @@
             "title": "Session Id",
             "type": "string"
           },
+          "thread_summary": {
+            "$ref": "#/components/schemas/ResearchThreadSummary"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -10606,6 +10857,7 @@
           "session_id",
           "name",
           "case_key",
+          "thread_summary",
           "created_at",
           "updated_at",
           "revision"
@@ -10801,6 +11053,199 @@
         "title": "ResearchSession",
         "type": "object"
       },
+      "ResearchThreadEntry": {
+        "additionalProperties": false,
+        "description": "Public, Project-owned entry in the primary Research Thread.",
+        "properties": {
+          "actor": {
+            "enum": [
+              "user",
+              "assistant",
+              "system"
+            ],
+            "title": "Actor",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ResearchThreadEntryKind"
+          },
+          "model_execution_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Execution Id"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "public_content": {
+            "title": "Public Content",
+            "type": "string"
+          },
+          "sequence": {
+            "minimum": 1.0,
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "structured_payload": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Structured Payload",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "sequence",
+          "kind",
+          "actor",
+          "public_content",
+          "created_at"
+        ],
+        "title": "ResearchThreadEntry",
+        "type": "object"
+      },
+      "ResearchThreadEntryKind": {
+        "enum": [
+          "user_message",
+          "assistant_message",
+          "assistant_analysis",
+          "clarification_question",
+          "clarification_answer"
+        ],
+        "title": "ResearchThreadEntryKind",
+        "type": "string"
+      },
+      "ResearchThreadSummary": {
+        "additionalProperties": false,
+        "description": "Bounded server-derived Thread facts used by Project navigation reads.",
+        "properties": {
+          "has_thread_entries": {
+            "title": "Has Thread Entries",
+            "type": "boolean"
+          },
+          "has_unanswered_clarification": {
+            "title": "Has Unanswered Clarification",
+            "type": "boolean"
+          },
+          "latest_thread_actor": {
+            "anyOf": [
+              {
+                "enum": [
+                  "user",
+                  "assistant",
+                  "system"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Thread Actor"
+          }
+        },
+        "required": [
+          "has_thread_entries",
+          "latest_thread_actor",
+          "has_unanswered_clarification"
+        ],
+        "title": "ResearchThreadSummary",
+        "type": "object"
+      },
+      "ResearchTurnRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_to_question_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer To Question Id"
+          },
+          "message": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ResearchTurnRequest",
+        "type": "object"
+      },
+      "ResearchTurnResult": {
+        "additionalProperties": false,
+        "properties": {
+          "active_draft_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Draft Id"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchThreadEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "model_execution_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Model Execution Id",
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/PlannerOutcomeKind"
+          }
+        },
+        "required": [
+          "outcome",
+          "entries",
+          "model_execution_id"
+        ],
+        "title": "ResearchTurnResult",
+        "type": "object"
+      },
       "ResponseLinks": {
         "additionalProperties": false,
         "properties": {
@@ -10947,6 +11392,112 @@
           "cancelled"
         ],
         "title": "RunStatus",
+        "type": "string"
+      },
+      "RunStepRead": {
+        "additionalProperties": false,
+        "properties": {
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "position": {
+            "minimum": 0.0,
+            "title": "Position",
+            "type": "integer"
+          },
+          "progress": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress",
+            "type": "integer"
+          },
+          "public_message": {
+            "title": "Public Message",
+            "type": "string"
+          },
+          "run_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Run Id",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStepStatus"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "position",
+          "key",
+          "label",
+          "status",
+          "progress",
+          "public_message"
+        ],
+        "title": "RunStepRead",
+        "type": "object"
+      },
+      "RunStepStatus": {
+        "enum": [
+          "pending",
+          "running",
+          "waiting",
+          "completed",
+          "failed",
+          "cancelled",
+          "skipped"
+        ],
+        "title": "RunStepStatus",
         "type": "string"
       },
       "SelectionStatus": {
@@ -12777,6 +13328,22 @@
           }
         },
         "title": "UpdateResearchContractDraftRequest",
+        "type": "object"
+      },
+      "UpdateResearchProjectRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "UpdateResearchProjectRequest",
         "type": "object"
       },
       "UpstreamFailureClass": {
@@ -17003,6 +17570,127 @@
       }
     },
     "/api/projects/{project_id}": {
+      "delete": {
+        "operationId": "deleteResearchProject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "If-Match",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Delete Research Project"
+      },
       "get": {
         "operationId": "getResearchProject",
         "parameters": [
@@ -17120,6 +17808,144 @@
           }
         },
         "summary": "Get Research Project"
+      },
+      "patch": {
+        "operationId": "updateResearchProject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "If-Match",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateResearchProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ResearchProject_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Update Research Project"
       }
     },
     "/api/projects/{project_id}/contract-drafts": {
@@ -17401,6 +18227,412 @@
           }
         },
         "summary": "Confirm Research Contract"
+      }
+    },
+    "/api/projects/{project_id}/research-catalog": {
+      "get": {
+        "operationId": "getResearchPlanningCatalog",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ResearchPlanningCatalog_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get Research Planning Catalog"
+      }
+    },
+    "/api/projects/{project_id}/research-turns": {
+      "get": {
+        "operationId": "listResearchTurns",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionEnvelope_ResearchThreadEntry_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List Research Turns"
+      },
+      "post": {
+        "operationId": "submitResearchTurn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchTurnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ResearchTurnResult_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Submit Research Turn"
       }
     },
     "/api/projects/{project_id}/runs": {
@@ -19476,6 +20708,126 @@
           }
         },
         "summary": "List Run Events"
+      }
+    },
+    "/api/runs/{run_id}/steps": {
+      "get": {
+        "operationId": "listRunSteps",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionEnvelope_RunStepRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List Run Steps"
       }
     },
     "/api/sessions": {

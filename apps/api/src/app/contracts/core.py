@@ -31,13 +31,19 @@ from app.schemas.core import (
     ResearchContract,
     ResearchContractDraft,
     ResearchProject,
+    ResearchPlanningCatalog,
     ResearchRun,
     ResearchSession,
+    ResearchThreadEntry,
+    ResearchTurnRequest,
+    ResearchTurnResult,
+    RunStepRead,
     RunEvent,
     SessionCreated,
     ShareSnapshot,
     ShareSnapshotCreated,
     SourceSnapshotDetail,
+    UpdateResearchProjectRequest,
     UpdateResearchContractDraftRequest,
     WorkspaceSnapshot,
     WorkspaceSnapshotInput,
@@ -175,6 +181,74 @@ def create_contract_app() -> FastAPI:
         _ = project_id
         return _contract_only()
 
+    @app.get(
+        "/api/projects/{project_id}/research-catalog",
+        operation_id="getResearchPlanningCatalog",
+        response_model=Envelope[ResearchPlanningCatalog],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_research_planning_catalog(
+        project_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = project_id
+        return _contract_only()
+
+    @app.patch(
+        "/api/projects/{project_id}",
+        operation_id="updateResearchProject",
+        response_model=Envelope[ResearchProject],
+        responses=PROBLEM_RESPONSES,
+    )
+    def update_research_project(
+        project_id: Annotated[str, Path(min_length=1)],
+        request: UpdateResearchProjectRequest,
+        if_match: Annotated[str, Header(alias="If-Match", min_length=1)],
+    ) -> NoReturn:
+        _ = (project_id, request, if_match)
+        return _contract_only()
+
+    @app.delete(
+        "/api/projects/{project_id}",
+        operation_id="deleteResearchProject",
+        status_code=204,
+        response_model=None,
+        responses=PROBLEM_RESPONSES,
+    )
+    def delete_research_project(
+        project_id: Annotated[str, Path(min_length=1)],
+        if_match: Annotated[str, Header(alias="If-Match", min_length=1)],
+    ) -> NoReturn:
+        _ = (project_id, if_match)
+        return _contract_only()
+
+    @app.get(
+        "/api/projects/{project_id}/research-turns",
+        operation_id="listResearchTurns",
+        response_model=CollectionEnvelope[ResearchThreadEntry],
+        responses=PROBLEM_RESPONSES,
+    )
+    def list_research_turns(
+        project_id: Annotated[str, Path(min_length=1)],
+        cursor: Annotated[str | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> NoReturn:
+        _ = (project_id, cursor, limit)
+        return _contract_only()
+
+    @app.post(
+        "/api/projects/{project_id}/research-turns",
+        operation_id="submitResearchTurn",
+        response_model=Envelope[ResearchTurnResult],
+        responses=PROBLEM_RESPONSES,
+    )
+    def submit_research_turn(
+        project_id: Annotated[str, Path(min_length=1)],
+        request: ResearchTurnRequest,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+    ) -> NoReturn:
+        _ = (project_id, request, idempotency_key)
+        return _contract_only()
+
     @app.post(
         "/api/projects/{project_id}/contract-drafts",
         operation_id="createResearchContractDraft",
@@ -254,6 +328,16 @@ def create_contract_app() -> FastAPI:
         responses=PROBLEM_RESPONSES,
     )
     def get_research_run(run_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
+        _ = run_id
+        return _contract_only()
+
+    @app.get(
+        "/api/runs/{run_id}/steps",
+        operation_id="listRunSteps",
+        response_model=CollectionEnvelope[RunStepRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def list_run_steps(run_id: Annotated[str, Path(min_length=1)]) -> NoReturn:
         _ = run_id
         return _contract_only()
 

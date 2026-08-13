@@ -22,7 +22,9 @@ import type {
   ResearchContractDraft,
   ResearchProject,
   ResearchRun,
+  ResearchThreadEntry,
   RunEvent,
+  RunStepSnapshot,
   ShareSnapshot,
   WorkspaceSnapshot,
   ContentHash,
@@ -53,9 +55,12 @@ import type {
   PaperAcquisitionRepository,
   PaperSummaryRepository,
   ProjectRepository,
+  ResearchCatalogRepository,
+  ResearchThreadRepository,
   RepositoryProvenance,
   RunEventRecovery,
   RunRepository,
+  UpdateResearchProjectInput,
   ShareRepository,
   UpdateResearchContractDraftInput,
   WorkspaceSnapshotRepository,
@@ -251,6 +256,10 @@ class MemoryStore<T extends { readonly id: DomainEntityId }> {
     this.entities.set(entity.id, entity);
   }
 
+  remove(id: DomainEntityId): void {
+    this.entities.delete(id);
+  }
+
   filter(predicate: (entity: T) => boolean): readonly T[] {
     return [...this.entities.values()].filter(predicate);
   }
@@ -265,8 +274,10 @@ interface ShareRecord {
 
 export interface FixtureRepositorySet {
   readonly projects: ProjectRepository;
+  readonly researchCatalog: ResearchCatalogRepository;
   readonly contracts: ContractRepository;
   readonly runs: RunRepository;
+  readonly researchThread: ResearchThreadRepository;
   readonly artifacts: ArtifactReadRepository;
   readonly paperAcquisition: PaperAcquisitionRepository;
   readonly paperSummary: PaperSummaryRepository;
@@ -339,6 +350,7 @@ export function createFixtureRepositories(
   const drafts = new MemoryStore(
     bundle.data.contractDrafts.map((dto) => mapResearchContractDraft(dto)),
   );
+  const threadEntries = new MemoryStore<ResearchThreadEntry>([]);
   const runs = new MemoryStore(
     bundle.data.runs.map((dto) => mapResearchRun(dto)),
   );
@@ -557,8 +569,14 @@ export function createFixtureRepositories(
           name: input.name,
           description: input.description ?? "",
           caseKey: input.caseKey,
+          activeDraftId: null,
           activeContractId: null,
           latestRunId: null,
+          threadSummary: {
+            hasThreadEntries: false,
+            latestThreadActor: null,
+            hasUnansweredClarification: false,
+          },
           createdAt: now,
           updatedAt: now,
           revision: 1,
@@ -569,6 +587,101 @@ export function createFixtureRepositories(
           project,
         });
         return project;
+      },
+      update: async (
+        id,
+        input: UpdateResearchProjectInput,
+        expectedRevision,
+      ) => {
+        const project = projects.get(id);
+        if (project === null) {
+          throw new NotFoundError(
+            `Project ${id} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
+        if (project.revision !== expectedRevision) {
+          throw new ConflictError(
+            "Project revision conflict",
+            "VERSION_CONFLICT",
+          );
+        }
+        const updated = {
+          ...project,
+          name: input.name,
+          revision: project.revision + 1,
+          updatedAt: clock(),
+        };
+        projects.upsert(updated);
+        return updated;
+      },
+      delete: async (id, expectedRevision) => {
+        const project = projects.get(id);
+        if (project === null) return;
+        if (project.revision !== expectedRevision) {
+          throw new ConflictError(
+            "Project revision conflict",
+            "VERSION_CONFLICT",
+          );
+        }
+        projects.remove(id);
+        for (const entry of threadEntries.filter(
+          (item) => item.projectId === id,
+        )) {
+          threadEntries.remove(entry.id);
+        }
+      },
+    },
+    researchCatalog: {
+      getForProject: async (projectId) => {
+        if (projects.get(projectId) === null) {
+          throw new NotFoundError(
+            `Project ${projectId} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
+        throw new FixtureSemanticError(
+          "Demo Replay fixtures do not author production Research Contracts; use the HTTP catalog.",
+        );
+      },
+    },
+    researchThread: {
+      list: async (projectId, cursor = null) => {
+        if (projects.get(projectId) === null) {
+          throw new NotFoundError(
+            `Project ${projectId} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
+        const after = cursor === null ? 0 : Number(cursor);
+        const ordered = [
+          ...threadEntries.filter((entry) => entry.projectId === projectId),
+        ].sort((a, b) => a.sequence - b.sequence);
+        const items = ordered
+          .filter((entry) => entry.sequence > after)
+          .slice(0, 100);
+        const hasMore = ordered.some(
+          (entry) =>
+            entry.sequence > (items[items.length - 1]?.sequence ?? after),
+        );
+        return {
+          items,
+          nextCursor:
+            hasMore && items.length > 0
+              ? String(items[items.length - 1]!.sequence)
+              : null,
+        };
+      },
+      submit: async (projectId) => {
+        if (projects.get(projectId) === null) {
+          throw new NotFoundError(
+            `Project ${projectId} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
+        throw new FixtureSemanticError(
+          "Demo Replay fixtures cannot execute the production research assistant; use the HTTP runtime with a configured model provider.",
+        );
       },
     },
     contracts: {
@@ -610,6 +723,10 @@ export function createFixtureRepositories(
           ).toISOString() as UtcIsoTimestamp,
         };
         drafts.upsert(draft);
+        const project = projects.get(projectId);
+        if (project !== null) {
+          projects.upsert({ ...project, activeDraftId: draft.id });
+        }
         draftsByIdempotencyKey.set(replayKey, {
           request: requestHash,
           draft,
@@ -691,7 +808,11 @@ export function createFixtureRepositories(
         drafts.upsert({ ...draft, status: "confirmed", updatedAt: now });
         const project = projects.get(projectId);
         if (project !== null) {
-          projects.upsert({ ...project, activeContractId: contract.id });
+          projects.upsert({
+            ...project,
+            activeDraftId: null,
+            activeContractId: contract.id,
+          });
         }
         return contract;
       },
@@ -742,6 +863,10 @@ export function createFixtureRepositories(
           failureSummary: null,
         };
         runs.upsert(run);
+        const project = projects.get(input.projectId);
+        if (project !== null) {
+          projects.upsert({ ...project, latestRunId: run.id });
+        }
         runEvents.set(id, [
           {
             runId: id,
@@ -777,6 +902,12 @@ export function createFixtureRepositories(
           (e) => e.sequence > after && e.sequence <= latestSequence,
         );
         return { events, nextCursor: null, latestSequence };
+      },
+      listSteps: async (runId): Promise<readonly RunStepSnapshot[]> => {
+        if (runs.get(runId) === null) {
+          throw new NotFoundError(`Run ${runId} not found`, "RUN_NOT_FOUND");
+        }
+        return [];
       },
     },
     artifacts: {

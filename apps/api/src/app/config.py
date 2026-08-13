@@ -11,6 +11,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _MIME_PATTERN = re.compile(r"^[a-zA-Z0-9!#$&^_\-\.\+]+/[a-zA-Z0-9!#$&^_\-\.\+]+$")
 
 
+def _settings_env_files() -> tuple[Path, ...]:
+    """Load the repository dotenv regardless of the API process cwd."""
+
+    current = Path(".env")
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "package.json").is_file() and (parent / "apps" / "api").is_dir():
+            repository_env = parent / ".env"
+            return (
+                (repository_env, current) if repository_env != current else (current,)
+            )
+    return (current,)
+
+
 def _parse_csv_list(value: Any) -> list[str]:  # noqa: ANN401
     if value is None:
         return []
@@ -25,10 +38,12 @@ class Settings(BaseSettings):
     """Configuration consumed by the current API runtime only."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_settings_env_files(),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=True,
+        env_ignore_empty=True,
+        populate_by_name=True,
     )
 
     APP_ENV: str = "development"
@@ -51,6 +66,17 @@ class Settings(BaseSettings):
 
     DATABASE_URL: SecretStr | None = None
     POSTGRES_PASSWORD: SecretStr | None = None
+
+    # Qwen is the sole Research Assistant provider. The family and exact
+    # snapshot are recorded separately so provenance remains stable while the
+    # provider request always targets an immutable model identity.
+    DASHSCOPE_API_KEY: SecretStr | None = None
+    DASHSCOPE_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    DASHSCOPE_MODEL: str = "qwen3.7-plus"
+    DASHSCOPE_MODEL_REVISION: str = "qwen3.7-plus-2026-05-26"
+    DASHSCOPE_TIMEOUT_SECONDS: float = Field(default=45.0, gt=0)
+    DASHSCOPE_MAX_RETRIES: int = Field(default=2, ge=0, le=4)
+    MODEL_EXECUTION_LEASE_GRACE_SECONDS: float = Field(default=30.0, gt=0)
 
     # Research Input ingestion. The content-addressed local store is the
     # reference boundary; uploads are capped, MIME-sniffed and never executed.
@@ -103,6 +129,17 @@ class Settings(BaseSettings):
                 normalized.append(lowered)
         return normalized
 
+    @field_validator("DASHSCOPE_API_KEY", mode="before")
+    @classmethod
+    def _normalize_dashscope_api_key(cls, value: Any) -> str | None:  # noqa: ANN401
+        if value is None:
+            return None
+        raw = value.get_secret_value() if isinstance(value, SecretStr) else str(value)
+        normalized = raw.strip()
+        if normalized.lower() in {"", "replace_me", "change_me", "placeholder"}:
+            return None
+        return normalized
+
     @field_validator("URL_FETCH_ALLOWED_PROTOCOLS", mode="before")
     @classmethod
     def _validate_protocols(cls, value: Any) -> tuple[str, ...]:  # noqa: ANN401
@@ -137,6 +174,17 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> Settings:
+        if (
+            self._secret_value(self.DASHSCOPE_API_KEY)
+            and not self.DASHSCOPE_MODEL_REVISION.strip()
+        ):
+            raise ValueError(
+                "DASHSCOPE_MODEL_REVISION must be configured when DASHSCOPE_API_KEY is set"
+            )
+        if not self.DASHSCOPE_MODEL_REVISION.startswith(f"{self.DASHSCOPE_MODEL}-"):
+            raise ValueError(
+                "DASHSCOPE_MODEL_REVISION must be an immutable snapshot of DASHSCOPE_MODEL"
+            )
         if self.URL_FETCH_MAX_RESPONSE_BYTES > self.RESEARCH_INPUT_MAX_SIZE_BYTES:
             raise ValueError(
                 "URL_FETCH_MAX_RESPONSE_BYTES must not exceed RESEARCH_INPUT_MAX_SIZE_BYTES"
@@ -182,7 +230,9 @@ class Settings(BaseSettings):
             protocol.strip().lower() for protocol in self.URL_FETCH_ALLOWED_PROTOCOLS
         }
         if allowed_protocols - {"https"}:
-            errors.append("URL_FETCH_ALLOWED_PROTOCOLS must be https-only in production")
+            errors.append(
+                "URL_FETCH_ALLOWED_PROTOCOLS must be https-only in production"
+            )
         if not self.RESEARCH_INPUT_ALLOWED_MIME_TYPES:
             errors.append("RESEARCH_INPUT_ALLOWED_MIME_TYPES must not be empty")
 
@@ -193,6 +243,18 @@ class Settings(BaseSettings):
     @staticmethod
     def _secret_value(value: SecretStr | None) -> str:
         return value.get_secret_value().strip() if value is not None else ""
+
+    @property
+    def research_assistant_ready(self) -> bool:
+        return bool(self._secret_value(self.DASHSCOPE_API_KEY))
+
+    @property
+    def cors_origin_regex(self) -> str | None:
+        """Allow Vite's selected loopback port outside production only."""
+
+        if self.APP_ENV.lower() in {"development", "test", "integration"}:
+            return r"^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?$"
+        return None
 
 
 settings = Settings()

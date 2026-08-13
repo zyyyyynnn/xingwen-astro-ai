@@ -10,9 +10,7 @@
       "Workspace shell and desktop layout",
       "ConversationMain split-panel composition and panel visibility",
       "Sidebar navigation and command menu",
-      "Composer states, resize, send, cancel, retry, loading, and error feedback",
-      "Activity/context tabs and split-panel mechanics",
-      "Agent Activity grouping, progressive public event presentation, disclosure, and scroll anchoring",
+      "Research Thread and Research Inspector split-panel mechanics",
       "Public reasoning disclosure interaction"
     ],
     "excluded_surfaces": [
@@ -33,16 +31,16 @@
   "component_mapping": {
     "preserve_mechanics": [
       "Single Shell and desktop rails",
-      "Composer execution feedback and resize behavior",
+      "Research Thread/Inspector split-panel resize and visibility",
       "Command overlay focus and keyboard behavior",
-      "Tabs, split-panel sizing, keyboard control, and persistence",
-      "Agent Activity event grouping, status progression, disclosure, and scroll anchoring",
+      "Research Thread/Inspector split-panel sizing, keyboard control, and persistence",
       "Loading, empty, running, error, cancel, retry, and recovery states",
       "Disclosure interaction without model-private reasoning semantics"
     ],
     "replace_domain_only": [
       "Visible Xingwen labels and disconnected Agent state copy",
-      "Coding-only tab content removed from the retained panel frame"
+      "Persisted Thread entries, Contract/Run projections, and Inspector cards",
+      "Legacy Activity/Context tab content removed from the retained panel frame"
     ]
   },
   "runtime_boundary": {

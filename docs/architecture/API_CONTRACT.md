@@ -71,20 +71,36 @@
 ## 5. 核心资源结构与流向
 
 ```text
-Session -> Project -> ContractDraft / Contract -> Run -> RunEvent
+Session -> Project -> ResearchThreadEntry -> ContractDraft / Contract -> Run -> RunStep / RunEvent
+                         -> ModelExecutionRecord (pre-run assistant analysis only)
                                                       -> ArtifactVersion -> Evidence -> SourceSnapshot
 Project -> WorkspaceSnapshot
 Project -> ShareSnapshot -> ArtifactVersion
 Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 ```
 
-- **Project**：表示持续研究上下文。
+- **Project**：表示持续研究上下文，并通过 `active_draft_id` 指向当前待审 Draft；不得用 latest Draft 推断当前状态。
+- **ResearchThreadEntry**：Project-owned、按 Project 严格递增 `sequence` 的公开研究记录。它承载用户消息、助手公开分析、澄清问题/回答、Contract、Plan 与 Run Record 的投影，不复制 Contract、Run 或 Artifact 事实。
+- **ModelExecutionRecord**：Research assistant 的 pre-run 执行 provenance。保存 provider/model/prompt identity、安全规范化 Prompt/input/validated output/parameters snapshot 及 hash、status/token/latency/request identity/error；内部持有执行租约以回收进程中断遗留的活跃记录，但不公开完整数据库 snapshot；不保存 raw provider body、凭据或私有推理。
 - **Contract**：固定研究目标、字段与质量约束（确认后不可变）。
 - **Run**：表示一次具体执行，管理进度与事件。
 - **ArtifactVersion**：不可变的科研产物快照，绑定 Evidence 与 SourceSnapshot。
 - **WorkspaceSnapshot**：工作台私有恢复布局状态。
 - **ShareSnapshot**：冻结的公开只读投影。
 - **ResearchInput**：受控输入边界（URL / PDF / CSV / JSON / 图片 / 文本）的不可变引用与溯源；二进制内容与全文永不进入公开 DTO。
+
+## 6. Research Turn
+
+- `GET /api/projects/{project_id}/research-turns?cursor=...&limit=...` 按 Thread `sequence` 稳定分页，返回 Project-owned entries；cursor 使用 HMAC 签名并绑定 Project、集合与排序锚点。
+- `GET /api/projects/{project_id}/research-catalog` 返回由当前 Case/Field Manifest 与 ArtifactKind Authority 生成的 Contract authoring 目录；前端不得复制目录。
+- `POST /api/projects/{project_id}/research-turns` 接受 `message` 与可选 `answer_to_question_id`，必须带 `Idempotency-Key`；一次请求只能创建一个用户消息和一个真实助手 outcome。
+- 同一 Project 同时只允许一个 active Research assistant execution；并发显式发送返回 `409 RESEARCH_ASSISTANT_BUSY`，不创建第二个 Thread entry。相同文本的两次显式发送使用不同 action identity，形成两个独立 Turn。
+- response 返回新增 entries、`clarification_required | draft_ready | partial | unsupported | refused` outcome 与 active draft reference；不得返回 raw provider response、private reasoning 或假运行事件。
+- 缺少 provider credentials、超时、限流、5xx 或无法解析/验证模型输出时，持久化失败 provenance 并返回稳定的 `MODEL_RUNTIME_UNAVAILABLE` 或对应公开错误；禁止模板或 fixture 冒充成功。
+- `PATCH /api/projects/{project_id}` 使用 `If-Match` 更新名称；`DELETE` 使用 `If-Match` 永久删除 Project 及其 owned Thread/Execution/Draft/Run 数据，成功返回 `204`。
+- `GET /api/runs/{run_id}/steps` 只读取 RunStep 权威状态；前端不得根据事件数量或百分比合成进度。
+- Project list/read 携带由服务端批量计算的最小 `thread_summary`（是否有消息、最新 actor、是否存在未回答澄清）；它只用于非当前 Project 导航状态，不能持久化或复制 workflow/presentation state。当前 Project 仍以完整 Research Thread 为事实源，并由唯一 presentation mapper 得出同一状态。
+- `POST /api/projects/{project_id}/runs` 从 confirmed Contract 的 requested outputs 确定性冻结最小依赖闭包；未映射产物返回 `409 RUN_PLAN_UNSUPPORTED_OUTPUT`，不得生成虚假 Step。
 
 ## 6. Research Input 摄取契约
 

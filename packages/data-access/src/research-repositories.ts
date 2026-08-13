@@ -10,12 +10,16 @@ import type {
   CreateResearchContractDraftRequest,
   CreateResearchProjectRequest,
   CreateRunRequest,
+  ResearchTurnRequest,
+  UpdateResearchProjectRequest,
   UpdateResearchContractDraftRequest,
 } from "@xingwen/contracts";
 import type {
   ResearchContract,
   ResearchContractDraft,
   ResearchRun,
+  ResearchTurn,
+  RunStepSnapshot,
   RunEvent,
 } from "@xingwen/domain";
 
@@ -31,7 +35,11 @@ import {
   mapResearchContract,
   mapResearchContractDraft,
   mapResearchProject,
+  mapResearchPlanningCatalog,
   mapResearchRun,
+  mapResearchThreadEntry,
+  mapResearchTurn,
+  mapRunStep,
   mapRunEvent,
 } from "./mapping";
 import type {
@@ -40,9 +48,14 @@ import type {
   CreateResearchProjectInput,
   CreateResearchRunInput,
   ProjectRepository,
+  ResearchCatalogRepository,
   ResearchProjectPage,
+  ResearchThreadPage,
+  ResearchThreadRepository,
   RunEventRecovery,
   RunRepository,
+  SubmitResearchTurnInput,
+  UpdateResearchProjectInput,
   UpdateResearchContractDraftInput,
 } from "./ports";
 
@@ -51,8 +64,10 @@ const PROJECT_PAGE_LIMIT = 20;
 
 interface ResearchRepositories {
   readonly projects: ProjectRepository;
+  readonly researchCatalog: ResearchCatalogRepository;
   readonly contracts: ContractRepository;
   readonly runs: RunRepository;
+  readonly researchThread: ResearchThreadRepository;
 }
 
 export function createResearchRepositories(
@@ -88,6 +103,64 @@ export function createResearchRepositories(
         "Idempotency-Key": input.idempotencyKey,
       });
       return validateAndMap("ResearchProject", payload, mapResearchProject);
+    },
+    async update(id, input: UpdateResearchProjectInput, expectedRevision) {
+      const body: UpdateResearchProjectRequest = { name: input.name };
+      const payload = await http.patch<unknown>(
+        `/api/projects/${seg(id)}`,
+        body,
+        { "If-Match": String(expectedRevision) },
+      );
+      return validateAndMap("ResearchProject", payload, mapResearchProject);
+    },
+    async delete(id, expectedRevision) {
+      await http.delete(`/api/projects/${seg(id)}`, {
+        "If-Match": String(expectedRevision),
+      });
+    },
+  };
+
+  const researchCatalog: ResearchCatalogRepository = {
+    async getForProject(projectId) {
+      const payload = await http.getRequired<unknown>(
+        `/api/projects/${seg(projectId)}/research-catalog`,
+      );
+      return validateAndMap(
+        "ResearchPlanningCatalog",
+        payload,
+        mapResearchPlanningCatalog,
+      );
+    },
+  };
+
+  const researchThread: ResearchThreadRepository = {
+    async list(projectId, cursor = null): Promise<ResearchThreadPage> {
+      const params = ["limit=100"];
+      if (cursor) params.push(`cursor=${encodeURIComponent(cursor)}`);
+      const env = await http.getPage<unknown>(
+        `/api/projects/${seg(projectId)}/research-turns?${params.join("&")}`,
+      );
+      return {
+        items: env.data.map((entry) =>
+          validateAndMap("ResearchThreadEntry", entry, mapResearchThreadEntry),
+        ),
+        nextCursor: env.page?.has_more ? (env.page?.next_cursor ?? null) : null,
+      };
+    },
+    async submit(
+      projectId,
+      input: SubmitResearchTurnInput,
+    ): Promise<ResearchTurn> {
+      const body: ResearchTurnRequest = {
+        message: input.message,
+        answer_to_question_id: input.answerToQuestionId,
+      };
+      const payload = await http.post<unknown>(
+        `/api/projects/${seg(projectId)}/research-turns`,
+        body,
+        { "Idempotency-Key": input.idempotencyKey },
+      );
+      return validateAndMap("ResearchTurnResult", payload, mapResearchTurn);
     },
   };
 
@@ -247,7 +320,15 @@ export function createResearchRepositories(
       }
       return { events: aggregated, nextCursor: cursor, latestSequence };
     },
+    async listSteps(runId): Promise<readonly RunStepSnapshot[]> {
+      const payloads = await http.list<unknown>(
+        `/api/runs/${seg(runId)}/steps`,
+      );
+      return payloads.map((payload) =>
+        validateAndMap("RunStepRead", payload, mapRunStep),
+      );
+    },
   };
 
-  return { projects, contracts, runs };
+  return { projects, researchCatalog, contracts, runs, researchThread };
 }

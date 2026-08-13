@@ -38,20 +38,27 @@ def _uuid() -> UUID:
 
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
 
 class ResearchProjectModel(TimestampMixin, Base):
     __tablename__ = "research_projects"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     session_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     case_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    active_draft_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -66,12 +73,130 @@ class ResearchProjectModel(TimestampMixin, Base):
     )
 
 
+class ModelExecutionModel(TimestampMixin, Base):
+    """Provider-neutral, pre-run assistant execution provenance."""
+
+    __tablename__ = "model_executions"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(String(128), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_revision: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    prompt_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
+    input_hash: Mapped[str | None] = mapped_column(String(71))
+    input_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    output_hash: Mapped[str | None] = mapped_column(String(71))
+    output_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    parameters_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    parameters_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    token_usage: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    provider_request_id: Mapped[str | None] = mapped_column(String(256))
+    error_code: Mapped[str | None] = mapped_column(String(128))
+    error_summary: Mapped[str | None] = mapped_column(Text)
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    lease_token: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint("id", "project_id", name="uq_model_execution_id_project"),
+        UniqueConstraint(
+            "project_id",
+            "idempotency_key",
+            name="uq_model_execution_project_idempotency",
+        ),
+        Index(
+            "uq_model_execution_active_project",
+            "project_id",
+            unique=True,
+            postgresql_where=text("status IN ('pending','running')"),
+        ),
+        CheckConstraint(
+            "status IN ('pending','running','succeeded','failed')",
+            name="model_execution_status",
+        ),
+        CheckConstraint(
+            "latency_ms IS NULL OR latency_ms >= 0",
+            name="model_execution_latency_nonnegative",
+        ),
+        CheckConstraint(
+            "status NOT IN ('pending','running') OR "
+            "(lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)",
+            name="model_execution_active_lease",
+        ),
+    )
+
+
+class ResearchThreadEntryModel(TimestampMixin, Base):
+    """The Project-owned, strictly ordered public Research Thread."""
+
+    __tablename__ = "research_thread_entries"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor: Mapped[str] = mapped_column(String(32), nullable=False)
+    public_content: Mapped[str] = mapped_column(Text, nullable=False)
+    structured_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict
+    )
+    model_execution_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("model_executions.id", ondelete="CASCADE")
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "id", "project_id", name="uq_research_thread_entry_id_project"
+        ),
+        UniqueConstraint(
+            "project_id", "sequence", name="uq_research_thread_entry_project_sequence"
+        ),
+        CheckConstraint("sequence >= 1", name="thread_entry_sequence_positive"),
+        CheckConstraint(
+            "kind IN ('user_message','assistant_message','assistant_analysis',"
+            "'clarification_question','clarification_answer')",
+            name="thread_entry_kind",
+        ),
+        CheckConstraint(
+            "actor IN ('user','assistant','system')",
+            name="thread_entry_actor",
+        ),
+        Index("ix_research_thread_entries_project_sequence", "project_id", "sequence"),
+    )
+
+
 class ResearchContractModel(TimestampMixin, Base):
     __tablename__ = "research_contracts"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     project_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
@@ -85,7 +210,9 @@ class ResearchContractModel(TimestampMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("id", "project_id", name="uq_research_contract_id_project"),
-        UniqueConstraint("project_id", "version", name="uq_research_contract_project_version"),
+        UniqueConstraint(
+            "project_id", "version", name="uq_research_contract_project_version"
+        ),
         UniqueConstraint(
             "project_id", "idempotency_key", name="uq_research_contract_idempotency"
         ),
@@ -107,7 +234,9 @@ class ResearchContractDraftModel(TimestampMixin, Base):
 
     __tablename__ = "research_contract_drafts"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     session_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -116,14 +245,20 @@ class ResearchContractDraftModel(TimestampMixin, Base):
     contract: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     warnings: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("id", "project_id", name="uq_research_contract_draft_id_project"),
+        UniqueConstraint(
+            "id", "project_id", name="uq_research_contract_draft_id_project"
+        ),
         CheckConstraint("version >= 1", name="version_positive"),
         CheckConstraint(
             "status IN ('draft','confirmed','expired')", name="draft_status"
@@ -145,24 +280,36 @@ class ResearchContractDraftModel(TimestampMixin, Base):
 class ResearchRunModel(TimestampMixin, Base):
     __tablename__ = "research_runs"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     project_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
     contract_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     execution_mode: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
     progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     parent_run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
-    derivation_kind: Mapped[str] = mapped_column(String(32), nullable=False, default="original")
+    derivation_kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="original"
+    )
     retry_from_step: Mapped[str | None] = mapped_column(String(128))
-    cache_policy: Mapped[str] = mapped_column(String(64), nullable=False, default="disabled")
+    cache_policy: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="disabled"
+    )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
-    latest_event_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    latest_event_sequence: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0
+    )
     failure_code: Mapped[str | None] = mapped_column(String(128))
     failure_summary: Mapped[str | None] = mapped_column(Text)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -176,7 +323,9 @@ class ResearchRunModel(TimestampMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("id", "project_id", name="uq_research_run_id_project"),
-        UniqueConstraint("project_id", "idempotency_key", name="uq_research_run_idempotency"),
+        UniqueConstraint(
+            "project_id", "idempotency_key", name="uq_research_run_idempotency"
+        ),
         ForeignKeyConstraint(
             ["contract_id", "project_id"],
             ["research_contracts.id", "research_contracts.project_id"],
@@ -189,7 +338,9 @@ class ResearchRunModel(TimestampMixin, Base):
             name="fk_research_runs_parent_project",
             ondelete="RESTRICT",
         ),
-        CheckConstraint("execution_mode IN ('demo_replay', 'live')", name="execution_mode"),
+        CheckConstraint(
+            "execution_mode IN ('demo_replay', 'live')", name="execution_mode"
+        ),
         CheckConstraint(
             "status IN ('queued','planning','fetching_data','cleaning_data','searching_papers',"
             "'summarizing_papers','reasoning_literature','building_graph','waiting_for_input',"
@@ -199,7 +350,9 @@ class ResearchRunModel(TimestampMixin, Base):
         CheckConstraint("progress BETWEEN 0 AND 100", name="progress_range"),
         CheckConstraint("revision >= 1", name="revision_positive"),
         CheckConstraint("lease_generation >= 0", name="lease_generation_nonnegative"),
-        CheckConstraint("latest_event_sequence >= 0", name="event_sequence_nonnegative"),
+        CheckConstraint(
+            "latest_event_sequence >= 0", name="event_sequence_nonnegative"
+        ),
         CheckConstraint(
             "(lease_token IS NULL AND lease_owner IS NULL AND lease_expires_at IS NULL) OR "
             "(lease_token IS NOT NULL AND lease_owner IS NOT NULL AND lease_expires_at IS NOT NULL)",
@@ -228,9 +381,13 @@ class ResearchRunModel(TimestampMixin, Base):
 class RunStepModel(TimestampMixin, Base):
     __tablename__ = "run_steps"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     run_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("research_runs.id", ondelete="CASCADE"),
+        nullable=False,
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     key: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -264,16 +421,6 @@ class RunStepModel(TimestampMixin, Base):
             name="success_status",
         ),
         CheckConstraint(
-            "(enter_status = 'planning' AND success_status = 'fetching_data') OR "
-            "(enter_status = 'fetching_data' AND success_status = 'cleaning_data') OR "
-            "(enter_status = 'cleaning_data' AND success_status = 'searching_papers') OR "
-            "(enter_status = 'searching_papers' AND success_status = 'summarizing_papers') OR "
-            "(enter_status = 'summarizing_papers' AND success_status = 'reasoning_literature') OR "
-            "(enter_status = 'reasoning_literature' AND success_status = 'building_graph') OR "
-            "(enter_status = 'building_graph' AND success_status = 'completed')",
-            name="canonical_transition",
-        ),
-        CheckConstraint(
             "status IN ('pending','running','waiting','completed','failed','cancelled','skipped')",
             name="status",
         ),
@@ -284,15 +431,21 @@ class RunStepModel(TimestampMixin, Base):
 class StepAttemptModel(TimestampMixin, Base):
     __tablename__ = "step_attempts"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     run_step_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("run_steps.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("run_steps.id", ondelete="CASCADE"),
+        nullable=False,
     )
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="running")
     started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error_class: Mapped[str | None] = mapped_column(String(128))
@@ -302,8 +455,12 @@ class StepAttemptModel(TimestampMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("id", "run_step_id", name="uq_step_attempt_id_step"),
-        UniqueConstraint("run_step_id", "attempt_number", name="uq_step_attempt_number"),
-        UniqueConstraint("run_step_id", "idempotency_key", name="uq_step_attempt_idempotency"),
+        UniqueConstraint(
+            "run_step_id", "attempt_number", name="uq_step_attempt_number"
+        ),
+        UniqueConstraint(
+            "run_step_id", "idempotency_key", name="uq_step_attempt_idempotency"
+        ),
         CheckConstraint("attempt_number >= 1", name="attempt_number_positive"),
         CheckConstraint(
             "status IN ('running','completed','failed','cancelled')", name="status"
@@ -314,24 +471,34 @@ class StepAttemptModel(TimestampMixin, Base):
 class RunEventModel(Base):
     __tablename__ = "run_events"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     run_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("research_runs.id", ondelete="CASCADE"),
+        nullable=False,
     )
     sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
     event_type: Mapped[str] = mapped_column(String(128), nullable=False)
     step_key: Mapped[str | None] = mapped_column(String(128))
     progress: Mapped[int | None] = mapped_column(Integer)
     public_message: Mapped[str] = mapped_column(Text, nullable=False)
-    artifact_version_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    artifact_version_ids: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
     occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     __table_args__ = (
         UniqueConstraint("run_id", "sequence", name="uq_run_event_sequence"),
         CheckConstraint("sequence >= 1", name="sequence_positive"),
-        CheckConstraint("progress IS NULL OR progress BETWEEN 0 AND 100", name="progress_range"),
+        CheckConstraint(
+            "progress IS NULL OR progress BETWEEN 0 AND 100", name="progress_range"
+        ),
         Index("ix_run_events_run_occurred", "run_id", "occurred_at"),
     )
 
@@ -339,9 +506,13 @@ class RunEventModel(Base):
 class ResearchArtifactModel(TimestampMixin, Base):
     __tablename__ = "research_artifacts"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     project_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
     kind: Mapped[str] = mapped_column(String(64), nullable=False)
     title: Mapped[str] = mapped_column(String(240), nullable=False)
@@ -350,7 +521,9 @@ class ResearchArtifactModel(TimestampMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("id", "project_id", name="uq_research_artifact_id_project"),
-        UniqueConstraint("project_id", "logical_key", name="uq_artifact_project_logical_key"),
+        UniqueConstraint(
+            "project_id", "logical_key", name="uq_artifact_project_logical_key"
+        ),
         ForeignKeyConstraint(
             ["latest_version_id", "id"],
             ["artifact_versions.id", "artifact_versions.artifact_id"],
@@ -364,9 +537,13 @@ class ResearchArtifactModel(TimestampMixin, Base):
 class ProducerExecutionModel(TimestampMixin, Base):
     __tablename__ = "producer_executions"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     run_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("research_runs.id", ondelete="CASCADE"),
+        nullable=False,
     )
     run_step_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     step_attempt_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
@@ -388,7 +565,9 @@ class ProducerExecutionModel(TimestampMixin, Base):
     input_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     output_hash: Mapped[str | None] = mapped_column(String(71))
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     token_usage: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     latency_ms: Mapped[int | None] = mapped_column(Integer)
@@ -396,7 +575,9 @@ class ProducerExecutionModel(TimestampMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("id", "run_step_id", name="uq_producer_execution_id_step"),
-        UniqueConstraint("run_step_id", "idempotency_key", name="uq_producer_execution_idempotency"),
+        UniqueConstraint(
+            "run_step_id", "idempotency_key", name="uq_producer_execution_idempotency"
+        ),
         ForeignKeyConstraint(
             ["run_step_id", "run_id"],
             ["run_steps.id", "run_steps.run_id"],
@@ -410,28 +591,40 @@ class ProducerExecutionModel(TimestampMixin, Base):
             ondelete="CASCADE",
         ),
         Index("ix_producer_executions_step_attempt_id", "step_attempt_id"),
-        CheckConstraint("producer_type IN ('pipeline','model','algorithm')", name="producer_type"),
+        CheckConstraint(
+            "producer_type IN ('pipeline','model','algorithm')", name="producer_type"
+        ),
         CheckConstraint(
             "status IN ('running','completed','failed','rejected','cancelled')",
             name="status",
         ),
         CheckConstraint("lease_generation >= 0", name="lease_generation_nonnegative"),
-        CheckConstraint("latency_ms IS NULL OR latency_ms >= 0", name="latency_nonnegative"),
+        CheckConstraint(
+            "latency_ms IS NULL OR latency_ms >= 0", name="latency_nonnegative"
+        ),
     )
 
 
 class ArtifactVersionModel(TimestampMixin, Base):
     __tablename__ = "artifact_versions"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     artifact_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     project_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    created_by_run_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    created_by_run_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
     run_step_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     step_attempt_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
-    producer_execution_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    producer_execution_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
     publication_key: Mapped[str] = mapped_column(String(200), nullable=False)
     schema_version: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -440,17 +633,27 @@ class ArtifactVersionModel(TimestampMixin, Base):
     input_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     source_mode: Mapped[str] = mapped_column(String(16), nullable=False)
     producer: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    source_snapshot_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    source_snapshot_ids: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
     evidence_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
-    quality_projection: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-    quality_projection_hash: Mapped[str | None] = mapped_column(String(71), nullable=True)
+    quality_projection: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB, nullable=True
+    )
+    quality_projection_hash: Mapped[str | None] = mapped_column(
+        String(71), nullable=True
+    )
     supersedes_version_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
 
     __table_args__ = (
         UniqueConstraint("id", "artifact_id", name="uq_artifact_version_id_artifact"),
         UniqueConstraint("id", "project_id", name="uq_artifact_version_id_project"),
-        UniqueConstraint("artifact_id", "version_number", name="uq_artifact_version_number"),
-        UniqueConstraint("artifact_id", "publication_key", name="uq_artifact_publication_key"),
+        UniqueConstraint(
+            "artifact_id", "version_number", name="uq_artifact_version_number"
+        ),
+        UniqueConstraint(
+            "artifact_id", "publication_key", name="uq_artifact_publication_key"
+        ),
         ForeignKeyConstraint(
             ["artifact_id", "project_id"],
             ["research_artifacts.id", "research_artifacts.project_id"],
@@ -492,7 +695,9 @@ class ArtifactVersionModel(TimestampMixin, Base):
         Index("ix_artifact_versions_step_attempt_id", "step_attempt_id"),
         Index("ix_artifact_versions_producer_execution_id", "producer_execution_id"),
         CheckConstraint("version_number >= 1", name="version_positive"),
-        CheckConstraint("source_mode IN ('fixture','live','cached')", name="source_mode"),
+        CheckConstraint(
+            "source_mode IN ('fixture','live','cached')", name="source_mode"
+        ),
     )
 
 
@@ -527,13 +732,19 @@ class DatasetRowProjectionModel(Base):
 class SourceSnapshotModel(Base):
     __tablename__ = "source_snapshots"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     project_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
     source_id: Mapped[str] = mapped_column(String(128), nullable=False)
     source_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    retrieved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     query: Mapped[Any] = mapped_column(JSONB, nullable=False)
     query_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     source_version_or_etag: Mapped[str | None] = mapped_column(String(256))
@@ -553,15 +764,23 @@ class SourceSnapshotModel(Base):
 class EvidenceModel(TimestampMixin, Base):
     __tablename__ = "evidence"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
-    project_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
     )
-    artifact_version_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    artifact_version_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
     target_type: Mapped[str] = mapped_column(String(64), nullable=False)
     target_id: Mapped[str] = mapped_column(String(128), nullable=False)
     evidence_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    source_snapshot_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    source_snapshot_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
     paper_id: Mapped[str | None] = mapped_column(String(128))
     locator: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     quote_or_value: Mapped[Any | None] = mapped_column(JSONB)
@@ -603,10 +822,14 @@ class ResearchInputModel(Base):
 
     __tablename__ = "research_inputs"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=_uuid)
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
     session_id: Mapped[str] = mapped_column(String(128), nullable=False)
     project_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
     type: Mapped[str] = mapped_column(String(16), nullable=False)
     source_type: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -616,14 +839,19 @@ class ResearchInputModel(Base):
     source_snapshot_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     __table_args__ = (
         UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
         ForeignKeyConstraint(
             ["project_id", "content_hash"],
-            ["research_input_contents.project_id", "research_input_contents.content_hash"],
+            [
+                "research_input_contents.project_id",
+                "research_input_contents.content_hash",
+            ],
             name="fk_research_input_content",
             ondelete="RESTRICT",
         ),
@@ -663,16 +891,22 @@ class ResearchInputContentModel(Base):
         nullable=False,
         primary_key=True,
     )
-    content_hash: Mapped[str] = mapped_column(String(71), nullable=False, primary_key=True)
+    content_hash: Mapped[str] = mapped_column(
+        String(71), nullable=False, primary_key=True
+    )
     storage_ref: Mapped[str] = mapped_column(String(160), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(127), nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     __table_args__ = (
-        CheckConstraint("size_bytes >= 0", name="ck_research_input_content_size_nonneg"),
+        CheckConstraint(
+            "size_bytes >= 0", name="ck_research_input_content_size_nonneg"
+        ),
     )
 
 
@@ -686,14 +920,18 @@ class ResearchInputBindingModel(Base):
         primary_key=True,
     )
     project_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("research_projects.id", ondelete="CASCADE"), nullable=False
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
     )
     contract_draft_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
     )
     run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     bound_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
     __table_args__ = (
@@ -747,7 +985,9 @@ class ResearchInputIdempotencyModel(Base):
     lease_token: Mapped[str | None] = mapped_column(String(64))
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

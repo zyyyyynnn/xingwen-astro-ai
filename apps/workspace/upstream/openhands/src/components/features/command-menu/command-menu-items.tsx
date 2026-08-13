@@ -2,7 +2,7 @@ import type React from "react";
 import { PanelLeft, Plus } from "@xingwen/ui/icons";
 
 export type CommandMenuGroupId = "workspace" | "view";
-export type CommandMenuItemId = "new-task" | "toggle-sidebar";
+export type CommandMenuItemId = "new-research" | "toggle-sidebar";
 
 export interface CommandMenuItemDefinition {
   readonly id: CommandMenuItemId;
@@ -25,22 +25,22 @@ export const COMMAND_MENU_GROUP_ORDER: CommandMenuGroupId[] = [
 ];
 
 export function createCommandMenuItems({
-  newTask,
+  newResearch,
   toggleSidebar,
 }: {
-  readonly newTask?: () => void;
+  readonly newResearch?: () => void;
   readonly toggleSidebar: () => void;
 }): CommandMenuItemDefinition[] {
   const items: CommandMenuItemDefinition[] = [];
-  if (newTask) {
+  if (newResearch) {
     items.push({
-      id: "new-task",
+      id: "new-research",
       group: "workspace",
-      title: "新建任务",
-      description: "聚焦 Agent 指令输入区",
-      keywords: "任务 指令 输入",
+      title: "新建研究项目",
+      description: "在当前工作台创建并进入新研究",
+      keywords: "新建 研究 项目",
       icon: <Plus className="size-[var(--oh-icon-size-md)]" />,
-      perform: newTask,
+      perform: newResearch,
     });
   }
   items.push({

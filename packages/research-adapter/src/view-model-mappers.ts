@@ -9,6 +9,9 @@ import {
   type ResearchContractInput,
   type ResearchProject,
   type ResearchRun,
+  type ResearchThreadEntry,
+  type ResearchTurn,
+  type RunStepSnapshot,
 } from "@xingwen/domain";
 
 import type {
@@ -26,6 +29,9 @@ import type {
   ResearchContractDraftViewModel,
   ResearchContractViewModel,
   ResearchRunViewModel,
+  ResearchThreadEntryViewModel,
+  ResearchTurnViewModel,
+  RunStepViewModel,
 } from "./view-model";
 
 function toContractInputViewModel(
@@ -67,11 +73,75 @@ export function toProjectViewModel(project: ResearchProject): ProjectViewModel {
     name: project.name,
     description: project.description,
     caseKey: project.caseKey,
+    activeDraftId: project.activeDraftId,
     activeContractId: project.activeContractId,
     latestRunId: project.latestRunId,
+    latestRunStatus: project.latestRunStatus ?? null,
+    latestRunFailureSummary: project.latestRunFailureSummary ?? null,
+    threadSummary: project.threadSummary,
     revision: project.revision,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
+  };
+}
+
+export function toResearchThreadEntryViewModel(
+  entry: ResearchThreadEntry,
+): ResearchThreadEntryViewModel {
+  return {
+    id: entry.id,
+    projectId: entry.projectId,
+    sequence: entry.sequence,
+    kind: entry.kind,
+    actor: entry.actor,
+    publicContent: entry.publicContent,
+    structuredPayload:
+      entry.kind === "clarification_question"
+        ? {
+            ...entry.structuredPayload,
+            warnings: [...entry.structuredPayload.warnings],
+            missingInformation: [...entry.structuredPayload.missingInformation],
+            options: [...entry.structuredPayload.options],
+          }
+        : entry.kind === "assistant_analysis" ||
+            entry.kind === "assistant_message"
+          ? {
+              ...entry.structuredPayload,
+              warnings: [...entry.structuredPayload.warnings],
+              missingInformation: [
+                ...entry.structuredPayload.missingInformation,
+              ],
+            }
+          : { ...entry.structuredPayload },
+    modelExecutionId: entry.modelExecutionId,
+    createdAt: entry.createdAt,
+  } as ResearchThreadEntryViewModel;
+}
+
+export function toResearchTurnViewModel(
+  turn: ResearchTurn,
+): ResearchTurnViewModel {
+  return {
+    outcome: turn.outcome,
+    entries: turn.entries.map(toResearchThreadEntryViewModel),
+    activeDraftId: turn.activeDraftId,
+    modelExecutionId: turn.modelExecutionId,
+  };
+}
+
+export function toRunStepViewModel(step: RunStepSnapshot): RunStepViewModel {
+  return {
+    id: step.id,
+    runId: step.runId,
+    position: step.position,
+    key: step.key,
+    label: step.label,
+    status: step.status,
+    progress: step.progress,
+    publicMessage: step.publicMessage,
+    startedAt: step.startedAt,
+    finishedAt: step.finishedAt,
+    failureCode: step.failureCode,
   };
 }
 

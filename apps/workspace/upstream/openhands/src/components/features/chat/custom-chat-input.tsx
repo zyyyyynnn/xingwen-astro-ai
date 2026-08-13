@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type ReactNode } from "react";
 
 import { useGripResize } from "../../../hooks/chat/use-grip-resize";
 
@@ -7,22 +7,23 @@ import { ChatInputGrip } from "./components/chat-input-grip";
 
 interface CustomChatInputProps {
   readonly disabled?: boolean;
-  readonly running?: boolean;
-  readonly onSubmit: (message: string) => void;
-  readonly onCancel: () => void;
-  readonly onFocus?: () => void;
-  readonly onBlur?: () => void;
+  readonly submitting?: boolean;
+  readonly value: string;
+  readonly placeholder: string;
+  readonly leadingActions: ReactNode;
+  readonly onValueChange: (value: string) => void;
+  readonly onSubmit: (message: string) => Promise<void>;
 }
 
 export function CustomChatInput({
   disabled = false,
-  running = false,
+  submitting = false,
+  value,
+  placeholder,
+  leadingActions,
+  onValueChange,
   onSubmit,
-  onCancel,
-  onFocus,
-  onBlur,
 }: CustomChatInputProps) {
-  const [canSubmit, setCanSubmit] = React.useState(false);
   const chatInputRef = React.useRef<HTMLDivElement>(null);
   const chatContainerRef = React.useRef<HTMLDivElement>(null);
   const {
@@ -40,29 +41,28 @@ export function CustomChatInput({
     resetHeight,
   } = useGripResize(chatInputRef, chatContainerRef);
 
-  const syncCanSubmit = React.useCallback(() => {
-    setCanSubmit(Boolean(chatInputRef.current?.textContent?.trim()));
-  }, []);
+  React.useLayoutEffect(() => {
+    const input = chatInputRef.current;
+    if (input && input.textContent !== value) input.textContent = value;
+  }, [value]);
 
-  const handleSubmit = React.useCallback(() => {
+  const syncValue = React.useCallback(() => {
+    onValueChange(chatInputRef.current?.textContent ?? "");
+    resizeToContent();
+  }, [onValueChange, resizeToContent]);
+
+  const handleSubmit = React.useCallback(async () => {
     const message = chatInputRef.current?.textContent?.trim() ?? "";
-    if (!message || disabled || running) return;
-    onSubmit(message);
-    if (chatInputRef.current) chatInputRef.current.textContent = "";
-    setCanSubmit(false);
-    resetHeight();
-  }, [disabled, onSubmit, resetHeight, running]);
-
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing
-    ) {
-      event.preventDefault();
-      handleSubmit();
+    if (!message || disabled || submitting) return;
+    try {
+      await onSubmit(message);
+      onValueChange("");
+      if (chatInputRef.current) chatInputRef.current.textContent = "";
+      resetHeight();
+    } catch {
+      chatInputRef.current?.focus();
     }
-  };
+  }, [disabled, onSubmit, onValueChange, resetHeight, submitting]);
 
   const handlePaste = (event: React.ClipboardEvent) => {
     const text = event.clipboardData.getData("text/plain");
@@ -70,7 +70,6 @@ export function CustomChatInput({
     event.preventDefault();
     const input = chatInputRef.current;
     if (!input) return;
-
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
       input.append(document.createTextNode(text));
@@ -86,16 +85,8 @@ export function CustomChatInput({
         selection.addRange(range);
       }
     }
-    requestAnimationFrame(() => {
-      syncCanSubmit();
-      resizeToContent();
-    });
+    requestAnimationFrame(syncValue);
   };
-
-  const handleInput = React.useCallback(() => {
-    syncCanSubmit();
-    resizeToContent();
-  }, [resizeToContent, syncCanSubmit]);
 
   return (
     <div
@@ -116,16 +107,24 @@ export function CustomChatInput({
       <ChatInputContainer
         chatContainerRef={chatContainerRef}
         disabled={disabled}
-        canSubmit={canSubmit}
-        running={running}
+        canSubmit={value.trim().length > 0}
+        submitting={submitting}
         chatInputRef={chatInputRef}
-        handleSubmit={handleSubmit}
-        handleCancel={onCancel}
-        onInput={handleInput}
+        placeholder={placeholder}
+        leadingActions={leadingActions}
+        handleSubmit={() => void handleSubmit()}
+        onInput={syncValue}
         onPaste={handlePaste}
-        onKeyDown={handleKeyDown}
-        onFocus={onFocus}
-        onBlur={onBlur}
+        onKeyDown={(event) => {
+          if (
+            event.key === "Enter" &&
+            !event.shiftKey &&
+            !event.nativeEvent.isComposing
+          ) {
+            event.preventDefault();
+            void handleSubmit();
+          }
+        }}
       />
     </div>
   );

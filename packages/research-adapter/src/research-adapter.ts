@@ -16,6 +16,9 @@ import {
   toEvidenceViewModel,
   toProjectViewModel,
   toRunViewModel,
+  toResearchThreadEntryViewModel,
+  toResearchTurnViewModel,
+  toRunStepViewModel,
 } from "./view-model-mappers";
 import type { ActivityPresentationEvent } from "./activity";
 import type { PublicApplicationError } from "./public-error";
@@ -27,6 +30,9 @@ import type {
   ResearchContractDraftViewModel,
   ResearchContractViewModel,
   ResearchRunViewModel,
+  ResearchThreadEntryViewModel,
+  ResearchTurnViewModel,
+  RunStepViewModel,
 } from "./view-model";
 import type {
   ArtifactVersionMetadata,
@@ -36,6 +42,9 @@ import type {
   ResearchContractDraft,
   ResearchProject,
   ResearchRun,
+  ResearchThreadEntry,
+  ResearchTurn,
+  RunStepSnapshot,
 } from "@xingwen/domain";
 
 export interface ResearchAdapter {
@@ -45,6 +54,11 @@ export interface ResearchAdapter {
   ): ResearchContractDraftViewModel;
   toContractViewModel(contract: ResearchContract): ResearchContractViewModel;
   toRunViewModel(run: ResearchRun): ResearchRunViewModel;
+  toResearchThreadEntryViewModel(
+    entry: ResearchThreadEntry,
+  ): ResearchThreadEntryViewModel;
+  toResearchTurnViewModel(turn: ResearchTurn): ResearchTurnViewModel;
+  toRunStepViewModel(step: RunStepSnapshot): RunStepViewModel;
   toArtifactViewModel(artifact: ResearchArtifact): ResearchArtifactViewModel;
   toArtifactVersionViewModel(
     version: ArtifactVersionMetadata,
@@ -63,6 +77,9 @@ export const researchAdapter: ResearchAdapter = Object.freeze({
   toContractDraftViewModel,
   toContractViewModel,
   toRunViewModel,
+  toResearchThreadEntryViewModel,
+  toResearchTurnViewModel,
+  toRunStepViewModel,
   toArtifactViewModel,
   toArtifactVersionViewModel,
   toEvidenceViewModel,

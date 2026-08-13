@@ -222,8 +222,8 @@ export class HttpClient {
   }
 
   /** DELETE; returns true on 204 or 404 (idempotent). */
-  async delete(path: string): Promise<boolean> {
-    const response = await this.rawRequest("DELETE", path);
+  async delete(path: string, headers?: HeadersInit): Promise<boolean> {
+    const response = await this.rawRequest("DELETE", path, undefined, headers);
     if (response.status === 204 || response.status === 404) return true;
     if (!response.ok) {
       await this.throwFromResponse(response);

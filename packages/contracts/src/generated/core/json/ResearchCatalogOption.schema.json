@@ -1,0 +1,44 @@
+{
+  "additionalProperties": false,
+  "description": "One manifest-backed choice rendered by the Contract authoring UI.",
+  "properties": {
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "group": {
+      "anyOf": [
+        {
+          "enum": [
+            "common",
+            "advanced"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Group"
+    },
+    "label": {
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "value": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Value",
+      "type": "string"
+    }
+  },
+  "required": [
+    "value",
+    "label"
+  ],
+  "title": "ResearchCatalogOption",
+  "type": "object"
+}

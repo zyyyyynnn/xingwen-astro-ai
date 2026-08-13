@@ -63,9 +63,13 @@ def test_models_compile_to_postgresql_uuid_jsonb_and_timestamptz() -> None:
     assert "lease_generation" in run_sql
     assert "lease_expires_at" in run_sql
     assert "steps_frozen_at" in run_sql
-    assert "ck_run_steps_canonical_transition" in str(
+    step_sql = str(
         CreateTable(Base.metadata.tables["run_steps"]).compile(dialect=dialect)
     )
+    assert "ck_run_steps_enter_status" in step_sql
+    assert "ck_run_steps_success_status" in step_sql
+    assert "ck_run_steps_status" in step_sql
+    assert "ck_run_steps_canonical_transition" not in step_sql
 
 
 def test_every_stable_text_state_has_a_database_check_constraint() -> None:

@@ -1,4 +1,5 @@
 import { RouterProvider } from "@tanstack/react-router";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -12,10 +13,13 @@ if (!rootElement) {
   throw new Error("Workspace root element is missing.");
 }
 
-const router = createAppRouter(createWorkspaceRuntime());
+const runtime = createWorkspaceRuntime();
+const router = createAppRouter(runtime);
 
 createRoot(rootElement).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <QueryClientProvider client={runtime.queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   </StrictMode>,
 );

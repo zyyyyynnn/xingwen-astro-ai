@@ -9,8 +9,11 @@ catalog including adaptation details and production consumers.
 ## shadcn/ui
 
 - **Repository**: https://github.com/shadcn-ui/ui
-- **Revision**: `shadcn-ui@0.9.4` (`729b9ec8cacfae0bc31958c1a8e425d0a21be54e`)
-- **Adopted components**: Button
+- **Revisions**: `shadcn-ui@0.9.4` (`729b9ec8cacfae0bc31958c1a8e425d0a21be54e`)
+  and `shadcn-cli@4.16.2` (`efac5987074af84ece57c367c6dd83387b967022`)
+- **Adopted components**: Alert, Alert Dialog, Button, Checkbox, Collapsible,
+  Command, Dialog, Dropdown Menu, Field, Input, Popover, Scroll Area, Skeleton,
+  Sonner, Tabs, Textarea
 
 ### MIT License
 

@@ -17,6 +17,11 @@ const validProject = {
   session_id: "sess_test",
   name: "Test project",
   case_key: "exoplanet_host_star",
+  thread_summary: {
+    has_thread_entries: false,
+    latest_thread_actor: null,
+    has_unanswered_clarification: false,
+  },
   created_at: "2026-07-21T08:00:00Z",
   updated_at: "2026-07-21T08:00:00Z",
   revision: 1,
@@ -125,8 +130,13 @@ describe("contract validation — isDto type guard", () => {
 
 describe("contract — schema metadata", () => {
   it("exposes core and generic provenance read model names", () => {
-    expect(CORE_MODEL_NAMES).toHaveLength(19);
+    expect(CORE_MODEL_NAMES).toHaveLength(24);
     expect(CORE_MODEL_NAMES).toContain("ResearchProject");
+    expect(CORE_MODEL_NAMES).toContain("ResearchThreadEntry");
+    expect(CORE_MODEL_NAMES).toContain("ResearchTurnResult");
+    expect(CORE_MODEL_NAMES).toContain("RunStepRead");
+    expect(CORE_MODEL_NAMES).toContain("ModelExecutionRecord");
+    expect(CORE_MODEL_NAMES).toContain("ResearchPlanningCatalog");
     expect(CORE_MODEL_NAMES).toContain("ArtifactVersion");
     expect(CORE_MODEL_NAMES).toContain("EvidenceRead");
     expect(CORE_MODEL_NAMES).toContain("SourceSnapshotDetail");

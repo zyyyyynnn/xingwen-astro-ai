@@ -21,7 +21,7 @@ export type {
 export { CASE_KEY, CONTRACT_VERSION } from "./value-types";
 
 export type { DomainEntityId } from "./identifiers";
-export { asEntityId } from "./identifiers";
+export { asEntityId, parseEntityId } from "./identifiers";
 
 export {
   ARTIFACT_KINDS,
@@ -67,10 +67,33 @@ export type {
 } from "./research-contract";
 export { validateContractInputInvariants } from "./research-contract";
 
-export type { ResearchProject } from "./project";
+export type { ResearchProject, ResearchThreadSummary } from "./project";
+
+export type {
+  ResearchCatalogOption,
+  ResearchPlanningCatalog,
+} from "./research-catalog";
+
+export type {
+  ResearchThreadActor,
+  ResearchThreadEntry,
+  ResearchThreadEntryKind,
+  ResearchThreadAssistantPayload,
+  ResearchThreadPublicOutcome,
+  ResearchThreadQuestionPayload,
+  ResearchThreadUserPayload,
+  ResearchTurn,
+  ResearchTurnOutcome,
+} from "./research-thread";
+
+export type {
+  ModelExecutionRecord,
+  ModelExecutionStatus,
+} from "./model-execution";
 
 export type { RunEvent, ResearchRun } from "./run";
 export { validateRunInvariants } from "./run";
+export type { RunStepSnapshot, RunStepStatus } from "./run-step";
 
 export type {
   ArtifactVersion,

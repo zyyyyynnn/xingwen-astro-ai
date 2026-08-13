@@ -1,20 +1,20 @@
-interface SpinnerProps {
-  className?: string;
-  label?: string;
-}
+import type { ComponentProps } from "react";
 
-export function Spinner({ className, label = "加载中" }: SpinnerProps) {
-  const combined = ["xw-spinner", className].filter(Boolean).join(" ");
+import { cn } from "#utils";
+
+import { LoaderCircle } from "./icons";
+
+export function Spinner({
+  className,
+  ...props
+}: ComponentProps<typeof LoaderCircle>) {
   return (
-    <span
+    <LoaderCircle
       data-slot="spinner"
-      className={combined}
       role="status"
-      aria-live="polite"
-      aria-label={label}
-    >
-      <span className="xw-spinner__dot" aria-hidden="true" />
-      <span className="xw-spinner__label">{label}</span>
-    </span>
+      aria-label="加载中"
+      className={cn("xw-spinner", className)}
+      {...props}
+    />
   );
 }

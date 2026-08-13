@@ -223,7 +223,7 @@ def test_invalid_transition_chain_is_rejected_before_database_write(
 ) -> None:
     store, project, contract = _seed_project(postgres_engine)
 
-    with pytest.raises(ValueError, match="not declared by WORKFLOW_DESIGN.md"):
+    with pytest.raises(ValueError, match="must follow canonical order"):
         store.create_run(
             project_id=project.id,
             contract_id=contract.id,
@@ -235,6 +235,18 @@ def test_invalid_transition_chain_is_rejected_before_database_write(
                     key="planning",
                     label="Planning",
                     enter_status="planning",
+                    success_status="cleaning_data",
+                ),
+                RunStepDefinition(
+                    key="cleaning_data",
+                    label="Cleaning data",
+                    enter_status="cleaning_data",
+                    success_status="fetching_data",
+                ),
+                RunStepDefinition(
+                    key="fetching_data",
+                    label="Fetching data",
+                    enter_status="fetching_data",
                     success_status="completed",
                 ),
             ),

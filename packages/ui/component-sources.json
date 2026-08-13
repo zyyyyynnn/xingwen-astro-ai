@@ -1,6 +1,36 @@
 {
   "components": [
     {
+      "name": "Alert",
+      "local_path": "packages/ui/src/alert.tsx",
+      "source": "@shadcn/alert",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-ui@0.9.4",
+      "upstream_commit": "729b9ec8cacfae0bc31958c1a8e425d0a21be54e",
+      "registry_item": "alert",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Uses clsx composition with semantic neutral and destructive feedback tokens.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-form.tsx"
+      ]
+    },
+    {
+      "name": "AlertDialog",
+      "local_path": "packages/ui/src/alert-dialog.tsx",
+      "source": "@shadcn/alert-dialog",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "alert-dialog",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix confirmation, focus and portal mechanics with clsx composition, Chinese controls and semantic surfaces.",
+      "production_consumers": [
+        "apps/workspace/src/components/project-action-dialogs.tsx"
+      ]
+    },
+    {
       "name": "Button",
       "local_path": "packages/ui/src/button.tsx",
       "source": "@shadcn/button",
@@ -10,10 +40,246 @@
       "registry_item": "button",
       "license": "MIT",
       "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
-      "adaptation": "Uses native button semantics, Xingwen semantic tokens, and clsx-based class composition; Radix Slot/asChild and class-variance-authority are omitted because there is no production consumer requiring them.",
+      "adaptation": "Uses native button semantics, clsx composition and Xingwen semantic variants without an unused Slot dependency.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-form.tsx"
+      ]
+    },
+    {
+      "name": "Badge",
+      "local_path": "packages/ui/src/badge.tsx",
+      "source": "@shadcn/badge",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "badge",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains the registry badge slot and variant contract with clsx composition and semantic Xingwen status tokens, without unused Slot or CVA dependencies.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-review-dialog.tsx"
+      ]
+    },
+    {
+      "name": "Checkbox",
+      "local_path": "packages/ui/src/checkbox.tsx",
+      "source": "@shadcn/checkbox",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "checkbox",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix checked and keyboard mechanics with clsx composition, the shared icon gateway and semantic focus styles.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-form.tsx"
+      ]
+    },
+    {
+      "name": "Collapsible",
+      "local_path": "packages/ui/src/collapsible.tsx",
+      "source": "@shadcn/collapsible",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "collapsible",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Preserves Radix disclosure state and keyboard behavior with clsx composition as the shared process-narrative primitive.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-form.tsx"
+      ]
+    },
+    {
+      "name": "Command",
+      "local_path": "packages/ui/src/command.tsx",
+      "source": "@shadcn/command",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "command",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains cmdk search, filtering and keyboard selection with clsx composition while mapping visual styling to semantic tokens.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-form.tsx"
+      ]
+    },
+    {
+      "name": "Dialog",
+      "local_path": "packages/ui/src/dialog.tsx",
+      "source": "@shadcn/dialog",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-ui@0.9.4",
+      "upstream_commit": "729b9ec8cacfae0bc31958c1a8e425d0a21be54e",
+      "registry_item": "dialog",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix dialog focus, escape and portal mechanics with clsx composition, Chinese controls and semantic motion.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-review-dialog.tsx"
+      ]
+    },
+    {
+      "name": "DropdownMenu",
+      "local_path": "packages/ui/src/dropdown-menu.tsx",
+      "source": "@shadcn/dropdown-menu",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "dropdown-menu",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix menu focus, grouping and portal mechanics with clsx composition and the shared icon gateway.",
+      "production_consumers": [
+        "apps/workspace/upstream/openhands/src/components/features/sidebar/sidebar-rail-body.tsx"
+      ]
+    },
+    {
+      "name": "Field",
+      "local_path": "packages/ui/src/field.tsx",
+      "source": "@shadcn/field",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-ui@0.9.4",
+      "upstream_commit": "729b9ec8cacfae0bc31958c1a8e425d0a21be54e",
+      "registry_item": "field",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Preserves accessible field composition with clsx composition and semantic validation states.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-form.tsx"
+      ]
+    },
+    {
+      "name": "Input",
+      "local_path": "packages/ui/src/input.tsx",
+      "source": "@shadcn/input",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-ui@0.9.4",
+      "upstream_commit": "729b9ec8cacfae0bc31958c1a8e425d0a21be54e",
+      "registry_item": "input",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Uses clsx composition with semantic input, focus, validation and disabled-state tokens.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-form.tsx"
+      ]
+    },
+    {
+      "name": "Popover",
+      "local_path": "packages/ui/src/popover.tsx",
+      "source": "@shadcn/popover",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "popover",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix anchoring, collision and focus mechanics with clsx composition and semantic floating surfaces.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-form.tsx"
+      ]
+    },
+    {
+      "name": "ScrollArea",
+      "local_path": "packages/ui/src/scroll-area.tsx",
+      "source": "@shadcn/scroll-area",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "scroll-area",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix viewport and scrollbar mechanics with clsx composition and semantic focus, track and thumb styling.",
+      "production_consumers": [
+        "apps/workspace/upstream/openhands/src/components/features/conversation/conversation-main/conversation-main.tsx"
+      ]
+    },
+    {
+      "name": "Separator",
+      "local_path": "packages/ui/src/separator.tsx",
+      "source": "@shadcn/separator",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "separator",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix orientation and decorative semantics with clsx composition and the shared semantic border token.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-review-dialog.tsx"
+      ]
+    },
+    {
+      "name": "Skeleton",
+      "local_path": "packages/ui/src/skeleton.tsx",
+      "source": "@shadcn/skeleton",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-ui@0.9.4",
+      "upstream_commit": "729b9ec8cacfae0bc31958c1a8e425d0a21be54e",
+      "registry_item": "skeleton",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Uses clsx composition and reduced-motion-safe semantic loading tokens.",
+      "production_consumers": ["apps/workspace/src/workspace-host.tsx"]
+    },
+    {
+      "name": "Spinner",
+      "local_path": "packages/ui/src/spinner.tsx",
+      "source": "@shadcn/spinner",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "spinner",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Uses the registry status-icon contract with the shared Lucide gateway, clsx composition, semantic color and reduced-motion-safe animation.",
       "production_consumers": [
         "apps/workspace/src/router.tsx",
         "apps/workspace/src/share-page.tsx"
+      ]
+    },
+    {
+      "name": "Toaster",
+      "local_path": "packages/ui/src/sonner.tsx",
+      "source": "@shadcn/sonner",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "sonner",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Sonner's accessible toast lifecycle and interaction mechanics with clsx composition, the shared icon gateway and semantic surface tokens without a framework-specific theme provider.",
+      "production_consumers": ["apps/workspace/src/workspace-host.tsx"]
+    },
+    {
+      "name": "Tabs",
+      "local_path": "packages/ui/src/tabs.tsx",
+      "source": "@shadcn/tabs",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-cli@4.16.2",
+      "upstream_commit": "efac5987074af84ece57c367c6dd83387b967022",
+      "registry_item": "tabs",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Retains Radix roving focus and orientation mechanics with clsx composition and a section-navigation visual treatment.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-form.tsx"
+      ]
+    },
+    {
+      "name": "Textarea",
+      "local_path": "packages/ui/src/textarea.tsx",
+      "source": "@shadcn/textarea",
+      "upstream_repository": "https://github.com/shadcn-ui/ui",
+      "upstream_revision": "shadcn-ui@0.9.4",
+      "upstream_commit": "729b9ec8cacfae0bc31958c1a8e425d0a21be54e",
+      "registry_item": "textarea",
+      "license": "MIT",
+      "notice": "packages/ui/THIRD_PARTY_NOTICES.md",
+      "adaptation": "Uses clsx composition with semantic multiline input, focus, validation and disabled-state tokens.",
+      "production_consumers": [
+        "apps/workspace/src/components/research-contract-form.tsx"
       ]
     }
   ]

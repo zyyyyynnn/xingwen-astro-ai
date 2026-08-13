@@ -9,7 +9,7 @@ import { cn } from "#utils";
  * button and anchor controls.
  * See ../component-sources.json for the reviewed source and consumers.
  */
-export type ButtonVariant = "primary" | "secondary" | "ghost";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
 export type ButtonSize = "default" | "small" | "icon";
 
 type NativeButtonProps = Omit<

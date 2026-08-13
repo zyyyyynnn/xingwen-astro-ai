@@ -1,66 +1,47 @@
-import type { DomainEntityId } from "@xingwen/domain";
 import { researchAdapter } from "@xingwen/research-adapter";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createWorkspaceRuntime } from "./runtime";
 
-function entityId(value: string): DomainEntityId {
-  return value as DomainEntityId;
-}
-
 describe("createWorkspaceRuntime", () => {
-  it("uses the frozen fixture adapter when no API origin is configured", () => {
-    const runtime = createWorkspaceRuntime({ apiBaseUrl: undefined });
-
-    expect(runtime.adapterKind).toBe("fixture");
-    expect(runtime.researchAdapter).toBe(researchAdapter);
-    expect(runtime.workspaceController.getState()).toMatchObject({
-      status: "idle",
-    });
+  it("fails explicitly when the production API origin is missing", () => {
+    expect(() => createWorkspaceRuntime({ apiBaseUrl: undefined })).toThrow(
+      /VITE_API_BASE_URL is required/u,
+    );
+    expect(() => createWorkspaceRuntime({ apiBaseUrl: "" })).toThrow(
+      /VITE_API_BASE_URL is required/u,
+    );
   });
 
-  it("uses the HTTP adapter only for a valid API origin", () => {
+  it("creates the single HTTP Workspace application boundary", () => {
     const runtime = createWorkspaceRuntime({
       apiBaseUrl: "https://api.example.test",
+      siteUrl: "https://www.example.test",
+      fetchImpl: vi.fn(),
     });
 
-    expect(runtime.adapterKind).toBe("http");
+    expect(runtime.siteUrl).toBe("https://www.example.test");
     expect(runtime.researchAdapter).toBe(researchAdapter);
-    if (runtime.adapterKind === "http") {
-      expect(runtime.session.getCurrent()).toBeNull();
-    }
+    expect(runtime.session.getCurrent()).toBeNull();
+    expect(runtime.application.sessionGate.getSnapshot().status).toBe(
+      "checking",
+    );
+    expect("adapterKind" in runtime).toBe(false);
+    expect("provenance" in runtime.repositories).toBe(false);
   });
 
-  it("rejects a versioned API path instead of silently falling back to Fixture", () => {
+  it("rejects versioned paths instead of selecting another adapter", () => {
     expect(() =>
-      createWorkspaceRuntime({
-        apiBaseUrl: "https://api.example.test/base/path",
-      }),
+      createWorkspaceRuntime({ apiBaseUrl: "https://api.example.test/api" }),
     ).toThrow(/origin/u);
   });
 
-  it("wires the real Fixture Repository Set and Workspace Controller", async () => {
-    const runtime = createWorkspaceRuntime({ apiBaseUrl: undefined });
-    if (runtime.adapterKind !== "fixture") {
-      throw new Error("Expected Fixture runtime.");
-    }
-
-    const project = await runtime.repositories.projects.getById(
-      entityId("proj_01JEXAMPLE"),
-    );
-    expect(project).not.toBeNull();
-    if (project === null) {
-      throw new Error("Expected the fixture project.");
-    }
-    const viewModel = runtime.researchAdapter.toProjectViewModel(project);
-    expect(viewModel).toMatchObject({
-      id: entityId("proj_01JEXAMPLE"),
-      caseKey: "exoplanet_host_star",
-    });
-    expect("sessionId" in viewModel).toBe(false);
-    await runtime.workspaceController.load(entityId("proj_01JEXAMPLE"));
-    expect(runtime.workspaceController.getState()).toMatchObject({
-      status: "draft",
-    });
+  it("rejects a Site URL with path state", () => {
+    expect(() =>
+      createWorkspaceRuntime({
+        apiBaseUrl: "https://api.example.test",
+        siteUrl: "https://www.example.test/home",
+      }),
+    ).toThrow(/VITE_SITE_URL must be an HTTP Site origin/u);
   });
 });

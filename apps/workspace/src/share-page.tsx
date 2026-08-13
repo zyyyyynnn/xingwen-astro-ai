@@ -43,7 +43,12 @@ export function SharePage({ shareToken }: SharePageProps) {
     <main className="public-share-page" aria-busy={inFlight} aria-live="polite">
       <h1>共享结果当前不可用</h1>
       <p>该链接可能无效、已撤销或已过期。</p>
-      {inFlight ? <Spinner label="正在重新载入共享结果" /> : null}
+      {inFlight ? (
+        <div className="route-loading" role="status">
+          <Spinner aria-hidden="true" />
+          <span>正在重新载入共享结果</span>
+        </div>
+      ) : null}
       <div className="action-row">
         <Button variant="secondary" onClick={retry} disabled={inFlight}>
           重试

@@ -1,0 +1,37 @@
+{
+  "additionalProperties": false,
+  "description": "Bounded server-derived Thread facts used by Project navigation reads.",
+  "properties": {
+    "has_thread_entries": {
+      "title": "Has Thread Entries",
+      "type": "boolean"
+    },
+    "has_unanswered_clarification": {
+      "title": "Has Unanswered Clarification",
+      "type": "boolean"
+    },
+    "latest_thread_actor": {
+      "anyOf": [
+        {
+          "enum": [
+            "user",
+            "assistant",
+            "system"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Latest Thread Actor"
+    }
+  },
+  "required": [
+    "has_thread_entries",
+    "latest_thread_actor",
+    "has_unanswered_clarification"
+  ],
+  "title": "ResearchThreadSummary",
+  "type": "object"
+}

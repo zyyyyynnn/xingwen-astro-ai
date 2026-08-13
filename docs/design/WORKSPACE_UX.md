@@ -18,7 +18,8 @@ Workspace 支持用户在同一研究上下文中完成：
 
 ```text
 提出研究意图
-→ 确认研究协议
+→ 真实助手分析并澄清
+→ 审查并确认研究协议
 → 观察 Agent 执行
 → 审查科研产物
 → 核验证据与来源
@@ -32,11 +33,11 @@ Workspace 支持用户在同一研究上下文中完成：
 
 | 工作面              | 职责                                                   |
 | ------------------- | ------------------------------------------------------ |
-| Research Navigation | 新建、选择、固定、分组和恢复 Project / Run             |
-| Agent Activity      | 展示用户指令、Agent 计划、执行事件、审批、错误和交付物 |
+| Research Navigation | 新建、选择、固定、分组和恢复 Project / Research Thread |
+| Research Thread     | 展示用户消息、公开分析、澄清、Contract、Plan 与 Run Record |
 | Artifact Workspace  | 阅读、比较和审查科研产物                               |
-| Context Inspector   | 核验当前对象的 Evidence、Source、Version 与执行详情    |
-| Research Composer   | 提交研究指令、修订请求、范围变化和人类决策             |
+| Research Inspector  | 以浮动或停靠方式核验当前对象的 Evidence、Source、Version 与执行详情 |
+| Research Composer   | 提交研究消息、澄清回答、Contract 确认和人类决策        |
 
 任一正式 Workspace 状态不得退化为只含静态内容的页面。
 
@@ -61,20 +62,28 @@ Workspace 支持用户在同一研究上下文中完成：
 
 导航不显示原始内部 ID，不使用大面积卡片替代列表结构。
 
-## 4. Agent Activity
+## 4. Research Thread
 
-Agent Activity 以可理解的研究事件组织，不直接呈现原始日志。
+Research Thread 是唯一的主研究工作面。它以严格的 Project-owned sequence 展示可理解的
+用户消息、助手公开分析、澄清问题/回答、Contract Draft、Plan、Run Step 与 Run Record，
+不直接呈现原始日志。Thread entry 由后端持久化，刷新后仍以服务端顺序为准。
 
-界面保留 OpenHands 的事件列表、连续工具/进度分组、可展开详情、运行中/完成/错误状态与滚动跟随机制。运行时只提供公开可审计事件；没有运行服务或事件时显示空状态，不生成演示数据。
+界面可以复用 OpenHands 的事件列表、连续事件分组、可展开详情、运行中/完成/错误状态与滚动跟随机制，但这些只是交互机制，不构成第二套事实模型。运行时只提供公开可审计事件；没有运行服务或事件时显示空状态，不生成演示数据。
 
 事件类别：
 
 ```text
 User Instruction
-Agent Plan
+Assistant Analysis
+Clarification Question
+Clarification Answer
+Contract Draft
+Contract Confirmed
+Research Plan
 Research Step
 Tool Execution
 Human Checkpoint
+Run Record
 Artifact Produced
 Evidence Added
 Conflict Detected
@@ -100,7 +109,7 @@ Tool 与 Deliverable 分离：
 - Tool 表示执行过程；
 - Deliverable 表示可审查结果；
 - Artifact 事件打开 Artifact Workspace；
-- Evidence 事件打开 Context Inspector；
+- Evidence、Plan、Run Record 事件打开 Research Inspector；
 - Checkpoint 阻塞后续执行并要求用户决策。
 
 ## 5. Artifact Workspace
@@ -162,9 +171,15 @@ Completed 状态不得隐藏既有产物、Evidence 与运行记录；新的研�
 
 ## 8. 页面状态
 
-### Empty
+### No Project
 
-展示研究意图入口、可用输入、最近项目和真实数据边界。不得使用虚构 Project 填充空状态。
+只显示创建第一个 Project 的入口；没有 Project 时不显示 Inspector 或 Composer。
+
+### Empty Thread
+
+Project 创建后但 Thread 为空时，在中央显示研究意图入口。首条消息持久化后，Composer
+移动到底部并不再回到中央；该转换由 Thread 服务端事实驱动，不使用本地 `lastIntent`、
+布尔启发式或 remount key。
 
 ### Draft
 
@@ -180,7 +195,7 @@ Completed 状态不得隐藏既有产物、Evidence 与运行记录；新的研�
 
 ### Completed
 
-保留完整 Agent Activity，并突出最终 Artifact、关键 Evidence、冲突、局限、未解决问题与推荐下一步。
+保留完整 Research Thread，并突出最终 Artifact、关键 Evidence、冲突、局限、未解决问题与推荐下一步。
 
 主要动作：
 
@@ -267,6 +282,7 @@ Workspace 当前仅支持宽度不低于 1024px 的桌面窗口；`<1024px` 只�
 - 失效功能提示占据主操作区；
 - 假 Project、假 Run、假 Evidence；
 - 原始模型思维过程。
+- Activity / Context 双 Tab 作为产品主模型；二者如需保留只能作为内部交互机制或 Inspector 的局部表现。
 
 ## 14. 验收边界
 

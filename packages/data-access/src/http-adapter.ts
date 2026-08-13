@@ -39,13 +39,16 @@ export function createHttpRepositories(
   config: HttpAdapterConfig,
 ): HttpRepositorySet {
   const http = new HttpClient(config);
-  const { projects, contracts, runs } = createResearchRepositories(http);
+  const { projects, researchCatalog, contracts, runs, researchThread } =
+    createResearchRepositories(http);
   const artifacts = createArtifactRepository(http);
   const paperAcquisition = createPaperAcquisitionRepository(http);
   const paperSummary = createPaperSummaryRepository(http);
   const { workspaces, shares } = createSnapshotShareRepositories(http);
   return {
     projects,
+    researchCatalog,
+    researchThread,
     contracts,
     runs,
     artifacts,

@@ -90,6 +90,31 @@ def test_security_problem_responses_preserve_cors_headers() -> None:
     assert csrf_failure.headers["cache-control"] == "no-store"
 
 
+def test_development_cors_accepts_vite_loopback_ports_only() -> None:
+    client = TestClient(create_app(), base_url="https://testserver")
+    path = "/api/projects/00000000-0000-0000-0000-000000000000/research-thread"
+    preflight_headers = {
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": ("content-type,idempotency-key,x-csrf-token"),
+    }
+
+    allowed_origin = "http://127.0.0.1:5174"
+    allowed = client.options(
+        path,
+        headers={**preflight_headers, "Origin": allowed_origin},
+    )
+    assert allowed.status_code == 200
+    assert allowed.headers["access-control-allow-origin"] == allowed_origin
+    assert allowed.headers["access-control-allow-credentials"] == "true"
+
+    rejected = client.options(
+        path,
+        headers={**preflight_headers, "Origin": "https://example.test"},
+    )
+    assert rejected.status_code == 400
+    assert "access-control-allow-origin" not in rejected.headers
+
+
 def test_missing_and_expired_sessions_use_same_public_401() -> None:
     client = TestClient(create_app(), base_url="https://testserver")
     missing = client.get("/api/sessions/current")

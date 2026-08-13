@@ -14,10 +14,14 @@ import artifactVersionSchema from "./generated/core/json/ArtifactVersion.schema.
 import artifactVersionDetailSchema from "./generated/core/json/ArtifactVersionDetail.schema.json";
 import evidenceReadSchema from "./generated/core/json/EvidenceRead.schema.json";
 import manifest from "./generated/core/manifest.json";
+import modelExecutionRecordSchema from "./generated/core/json/ModelExecutionRecord.schema.json";
+import researchPlanningCatalogSchema from "./generated/core/json/ResearchPlanningCatalog.schema.json";
 import paperCollectionCandidateReadSchema from "./generated/core/json/PaperCollectionCandidateRead.schema.json";
 import paperCollectionReadSchema from "./generated/core/json/PaperCollectionRead.schema.json";
 import paperSummaryReadSchema from "./generated/core/json/PaperSummaryRead.schema.json";
 import publicShareSnapshotSchema from "./generated/core/json/PublicShareSnapshot.schema.json";
+import researchThreadEntrySchema from "./generated/core/json/ResearchThreadEntry.schema.json";
+import researchTurnResultSchema from "./generated/core/json/ResearchTurnResult.schema.json";
 import researchArtifactSchema from "./generated/core/json/ResearchArtifact.schema.json";
 import researchArtifactDetailSchema from "./generated/core/json/ResearchArtifactDetail.schema.json";
 import researchContractDraftSchema from "./generated/core/json/ResearchContractDraft.schema.json";
@@ -25,6 +29,7 @@ import researchContractSchema from "./generated/core/json/ResearchContract.schem
 import researchProjectSchema from "./generated/core/json/ResearchProject.schema.json";
 import researchRunSchema from "./generated/core/json/ResearchRun.schema.json";
 import runEventSchema from "./generated/core/json/RunEvent.schema.json";
+import runStepReadSchema from "./generated/core/json/RunStepRead.schema.json";
 import sessionCreatedSchema from "./generated/core/json/SessionCreated.schema.json";
 import shareSnapshotSchema from "./generated/core/json/ShareSnapshot.schema.json";
 import shareSnapshotCreatedSchema from "./generated/core/json/ShareSnapshotCreated.schema.json";
@@ -44,6 +49,11 @@ export const CORE_MODEL_NAMES = [
   "ResearchContract",
   "ResearchRun",
   "RunEvent",
+  "ResearchThreadEntry",
+  "ResearchTurnResult",
+  "RunStepRead",
+  "ModelExecutionRecord",
+  "ResearchPlanningCatalog",
   "ArtifactVersion",
   "ResearchArtifact",
   "ResearchArtifactDetail",
@@ -88,6 +98,11 @@ const schemas: SchemaMap = {
   ResearchContract: researchContractSchema,
   ResearchRun: researchRunSchema,
   RunEvent: runEventSchema,
+  ResearchThreadEntry: researchThreadEntrySchema,
+  ResearchTurnResult: researchTurnResultSchema,
+  RunStepRead: runStepReadSchema,
+  ModelExecutionRecord: modelExecutionRecordSchema,
+  ResearchPlanningCatalog: researchPlanningCatalogSchema,
   ArtifactVersion: artifactVersionSchema,
   ResearchArtifact: researchArtifactSchema,
   ResearchArtifactDetail: researchArtifactDetailSchema,
@@ -198,6 +213,12 @@ export type {
   ResearchContractDraft as ResearchContractDraftDto,
   ResearchProject as ResearchProjectDto,
   ResearchRun as ResearchRunDto,
+  ResearchThreadEntry as ResearchThreadEntryDto,
+  ResearchTurnRequest as ResearchTurnRequestDto,
+  ResearchTurnResult as ResearchTurnResultDto,
+  RunStepRead as RunStepReadDto,
+  UpdateResearchProjectRequest as UpdateResearchProjectRequestDto,
+  ModelExecutionRecord as ModelExecutionRecordDto,
   RunEvent as RunEventDto,
   SourceSnapshotDetail as SourceSnapshotDetailDto,
 } from "./generated/core/dto";

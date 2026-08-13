@@ -1,15 +1,11 @@
 import { CommandMenu } from "../components/features/command-menu/command-menu";
 import { Sidebar } from "../components/features/sidebar/sidebar";
-import type { AgentWorkspaceRuntime } from "../root";
+import type { ResearchWorkspaceRuntime } from "../root";
 
 import { ConversationView } from "./conversation";
 
 interface MainAppProps {
-  readonly runtime: AgentWorkspaceRuntime;
-}
-
-function focusComposer() {
-  document.querySelector<HTMLElement>("[data-testid='chat-input']")?.focus();
+  readonly runtime: ResearchWorkspaceRuntime;
 }
 
 export default function MainApp({ runtime }: MainAppProps) {
@@ -19,16 +15,18 @@ export default function MainApp({ runtime }: MainAppProps) {
       className="flex h-dvh min-w-[var(--oh-min-inline-size)] overflow-hidden bg-[var(--oh-canvas)] text-[var(--oh-text)]"
     >
       <Sidebar
-        onNewTask={focusComposer}
-        canStartTask={runtime.availability === "ready"}
+        projects={runtime.navigation.projects}
+        onOpenProject={runtime.navigation.onOpenProject}
+        onNewResearch={runtime.navigation.onNewResearch}
+        onReturnHome={runtime.navigation.onReturnHome}
+        onToggleProjectPinned={runtime.navigation.onToggleProjectPinned}
+        onRequestProjectRename={runtime.navigation.onRequestProjectRename}
+        onRequestProjectDelete={runtime.navigation.onRequestProjectDelete}
       />
       <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
         <ConversationView runtime={runtime} />
       </main>
-      <CommandMenu
-        onNewTask={focusComposer}
-        canStartTask={runtime.availability === "ready"}
-      />
+      <CommandMenu onNewResearch={runtime.navigation.onNewResearch} />
     </div>
   );
 }

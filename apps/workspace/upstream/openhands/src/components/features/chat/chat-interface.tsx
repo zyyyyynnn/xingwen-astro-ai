@@ -1,122 +1,113 @@
 import React from "react";
-import { MessageSquareText } from "@xingwen/ui/icons";
+import { Button } from "@xingwen/ui";
+import { FileSearch } from "@xingwen/ui/icons";
 
-import type { AgentWorkspaceRuntime } from "../../../root";
-
-import { ChatMessagesSkeleton } from "./chat-messages-skeleton";
-import { ErrorMessageBanner } from "./error-message-banner";
+import type { ResearchWorkspaceRuntime } from "../../../root";
+import { useScrollToBottom } from "../../../hooks/use-scroll-to-bottom";
+import { ScrollToBottomButton } from "../../shared/buttons/scroll-to-bottom-button";
 import { InteractiveChatBox } from "./interactive-chat-box";
 
 interface ChatInterfaceProps {
-  readonly runtime: AgentWorkspaceRuntime;
+  readonly runtime: ResearchWorkspaceRuntime;
 }
 
-type ExecutionPhase = "idle" | "running" | "error";
-
 export function ChatInterface({ runtime }: ChatInterfaceProps) {
-  const [phase, setPhase] = React.useState<ExecutionPhase>("idle");
-  const [error, setError] = React.useState<string | null>(null);
-  const [notice, setNotice] = React.useState<string | null>(null);
-  const [lastCommand, setLastCommand] = React.useState<string | null>(null);
-  const abortRef = React.useRef<AbortController | null>(null);
+  const composer = runtime.composer;
+  const hasStartedConversation = composer?.hasStartedConversation ?? false;
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const endRef = React.useRef<HTMLDivElement>(null);
+  const { autoScroll, hitBottom, onChatBodyScroll, scrollDomToBottom } =
+    useScrollToBottom(scrollRef);
 
-  React.useEffect(
-    () => () => {
-      abortRef.current?.abort();
-    },
-    [],
-  );
+  React.useLayoutEffect(() => {
+    if (autoScroll) {
+      endRef.current?.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [autoScroll, runtime.threadPanel, composer?.submitting]);
 
-  const execute = React.useCallback(
-    async (command: string) => {
-      if (runtime.availability !== "ready") return;
-
-      const controller = new AbortController();
-      abortRef.current?.abort();
-      abortRef.current = controller;
-      setLastCommand(command);
-      setError(null);
-      setNotice(null);
-      setPhase("running");
-
-      try {
-        await runtime.execute(command, controller.signal);
-        if (!controller.signal.aborted) {
-          setPhase("idle");
-          setNotice("任务已结束");
-        }
-      } catch (reason) {
-        if (controller.signal.aborted) return;
-        setError(reason instanceof Error ? reason.message : "Agent 运行失败");
-        setPhase("error");
-      } finally {
-        if (abortRef.current === controller) abortRef.current = null;
-      }
-    },
-    [runtime],
-  );
-
-  const cancel = () => {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setPhase("idle");
-    setNotice("任务已取消");
-  };
+  if (runtime.activation) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col bg-[var(--oh-canvas)]">
+        <div className="flex min-h-full items-center justify-center px-[var(--oh-space-8)] py-[var(--oh-space-8)] text-center">
+          <section
+            className="max-w-md"
+            aria-labelledby="workspace-activation-title"
+          >
+            <FileSearch
+              className="mx-auto size-7 text-[var(--oh-text-dim)]"
+              aria-hidden="true"
+            />
+            <h2
+              id="workspace-activation-title"
+              className="oh-font-serif mt-[var(--oh-space-4)] text-[length:var(--oh-font-size-heading)] leading-[var(--oh-line-height-heading)] font-medium text-[var(--oh-text)]"
+            >
+              {runtime.activation.title}
+            </h2>
+            <p className="mx-auto mt-[var(--oh-space-2)] max-w-[60ch] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]">
+              {runtime.activation.description}
+            </p>
+            <Button
+              className="mt-[var(--oh-space-5)]"
+              onClick={runtime.activation.onAction}
+            >
+              {runtime.activation.actionLabel}
+            </Button>
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-[var(--oh-canvas)]">
+    <div
+      className={`relative flex h-full min-h-0 flex-col ${hasStartedConversation ? "" : "justify-center"}`}
+      data-testid="chat-interface"
+    >
       <div
-        className="min-h-0 flex-1 overflow-y-auto"
+        ref={scrollRef}
+        data-testid="chat-scroll-container"
+        className={
+          hasStartedConversation
+            ? "custom-scrollbar-always min-h-0 grow overflow-x-hidden overflow-y-auto"
+            : "shrink-0 overflow-visible"
+        }
         aria-live="polite"
-        aria-busy={phase === "running"}
+        aria-busy={composer?.submitting ?? false}
+        onScroll={(event) => onChatBodyScroll(event.currentTarget)}
       >
-        {phase === "idle" && !notice ? (
-          <div className="flex min-h-full items-center justify-center px-[var(--oh-space-8)] py-[var(--oh-space-8)] text-center">
-            <div className="max-w-sm">
-              <MessageSquareText
-                className="mx-auto size-7 text-[var(--oh-text-dim)]"
-                aria-hidden="true"
+        <div
+          className={`flex flex-col px-4 md:px-8 ${hasStartedConversation ? "min-h-full pb-8 pt-4" : ""}`}
+        >
+          {runtime.threadPanel}
+          <div ref={endRef} aria-hidden="true" />
+        </div>
+      </div>
+      {composer ? (
+        <div
+          className={`relative shrink-0 px-4 md:px-8 ${hasStartedConversation ? "pb-4" : ""}`}
+        >
+          <div className="relative mx-auto flex w-full max-w-[var(--oh-content-max-inline-size)] flex-col gap-[var(--oh-space-2)]">
+            {hasStartedConversation && !hitBottom ? (
+              <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2">
+                <ScrollToBottomButton onClick={scrollDomToBottom} />
+              </div>
+            ) : null}
+            {composer.beforeInput}
+            <div className="relative">
+              <InteractiveChatBox
+                value={composer.value}
+                disabled={false}
+                submitting={composer.submitting}
+                placeholder={composer.placeholder}
+                leadingActions={composer.leadingActions}
+                hasStartedConversation={composer.hasStartedConversation}
+                onValueChange={composer.onValueChange}
+                onSubmit={composer.onSubmit}
               />
-              <h2 className="oh-font-serif mt-[var(--oh-space-4)] text-[length:var(--oh-font-size-heading)] leading-[var(--oh-line-height-heading)] font-medium text-[var(--oh-text)]">
-                从一条明确指令开始
-              </h2>
-              <p className="mt-[var(--oh-space-2)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]">
-                连接 Agent 运行服务后，可在下方描述任务。
-              </p>
             </div>
           </div>
-        ) : null}
-
-        {phase === "running" ? <ChatMessagesSkeleton /> : null}
-        {error ? (
-          <ErrorMessageBanner
-            message={error}
-            onRetry={() => {
-              if (lastCommand) void execute(lastCommand);
-            }}
-            onDismiss={() => {
-              setError(null);
-              setPhase("idle");
-            }}
-            isRetrying={phase === "running"}
-          />
-        ) : null}
-        {notice ? (
-          <p
-            className="px-[var(--oh-space-4)] py-[var(--oh-space-3)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] text-[var(--oh-muted)]"
-            role="status"
-          >
-            {notice}
-          </p>
-        ) : null}
-      </div>
-
-      <InteractiveChatBox
-        disabled={runtime.availability !== "ready"}
-        running={phase === "running"}
-        onSubmit={(command) => void execute(command)}
-        onCancel={cancel}
-      />
+        </div>
+      ) : null}
     </div>
   );
 }

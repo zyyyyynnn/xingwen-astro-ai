@@ -14,6 +14,7 @@ title Xingwen Preflight
 set "ROOT=%~dp0"
 if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
 set "API_DIR=%ROOT%\apps\api"
+set "PYTHONPATH=%ROOT%"
 set "COMPOSE_PROJECT_NAME=xingwen-astro-ai-dev"
 set "API_URL=http://127.0.0.1:8000"
 set "API_HEALTH_URL=%API_URL%/api/health"
@@ -64,6 +65,10 @@ if not exist "%ROOT%\.env" (
   copy /Y "%ROOT%\.env.example" "%ROOT%\.env" >nul || goto :abort
 )
 
+if not defined DASHSCOPE_API_KEY (
+  for /f "usebackq delims=" %%K in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "[Environment]::GetEnvironmentVariable('DASHSCOPE_API_KEY','User')"`) do set "DASHSCOPE_API_KEY=%%K"
+)
+
 set "POSTGRES_DB=xingwen_astro_ai"
 set "POSTGRES_USER=postgres"
 set "POSTGRES_PASSWORD=postgres"
@@ -103,12 +108,16 @@ set "MIGRATION_RESULT=%ERRORLEVEL%"
 popd
 if not "%MIGRATION_RESULT%"=="0" goto :abort
 
+echo [INFO] Preflight: validating the real API import path...
+uv run --project "%API_DIR%" python -c "from app.config import settings; from app.main import app; assert settings.research_assistant_ready, 'DASHSCOPE_API_KEY is not configured'; print(app.title)" >nul 2>&1 || goto :abort
+
 echo [INFO] Starting backend window...
 start "Xingwen Backend" cmd /k "cd /d "%API_DIR%" && set "DATABASE_URL=%LOCAL_DATABASE_URL%" && uv run --project "%API_DIR%" uvicorn app.main:app --app-dir "%API_DIR%\src" --reload --host 127.0.0.1 --port 8000"
 call :wait_for_url "%API_HEALTH_URL%" 120 Backend || goto :diagnose
+call :require_research_assistant "%API_HEALTH_URL%" || goto :diagnose
 
 echo [INFO] Starting frontend window...
-start "Xingwen Frontend" cmd /k "cd /d "%ROOT%" && set "VITE_API_BASE_URL=%API_URL%" && set "PUBLIC_WORKSPACE_URL=%WORKSPACE_URL%" && pnpm dev"
+start "Xingwen Frontend" cmd /k "cd /d "%ROOT%" && set "VITE_API_BASE_URL=%API_URL%" && set "VITE_SITE_URL=%SITE_URL%" && set "PUBLIC_WORKSPACE_URL=%WORKSPACE_URL%" && pnpm dev"
 call :wait_for_url "%SITE_URL%" 120 Site || goto :diagnose
 call :wait_for_url "%WORKSPACE_URL%" 120 Workspace || goto :diagnose
 
@@ -156,6 +165,16 @@ if errorlevel 1 (
   exit /b 1
 )
 echo [OK] %~3 is reachable.
+exit /b 0
+
+:require_research_assistant
+echo [INFO] Verifying the real Qwen Research Assistant runtime...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$health = Invoke-RestMethod -Uri '%~1' -TimeoutSec 5; if ($health.research_assistant.status -ne 'ready') { exit 1 }"
+if errorlevel 1 (
+  echo [ERROR] Research Assistant is not ready. Configure DASHSCOPE_API_KEY and restart.
+  exit /b 1
+)
+echo [OK] Research Assistant is ready.
 exit /b 0
 
 :diagnose

@@ -1,18 +1,13 @@
 import React from "react";
-import { buttonClassName } from "@xingwen/ui";
-import { PanelRightClose, PanelRightOpen } from "@xingwen/ui/icons";
+import { ScrollArea, buttonClassName } from "@xingwen/ui";
+import { Layers3, PanelRightClose, PanelRightOpen } from "@xingwen/ui/icons";
 
-import { ActivitySurface } from "../../../conversation-events/chat/messages";
 import { ChatInterfaceWrapper } from "./chat-interface-wrapper";
 import { ConversationNameWithStatus } from "../conversation-name-with-status";
-import { ConversationTabs } from "../conversation-tabs/conversation-tabs";
-import { TabContentArea } from "../conversation-tabs/conversation-tab-content/tab-content-area";
 import { ResizeHandle } from "../../../ui/resize-handle";
 import { useResizablePanels } from "../../../../hooks/use-resizable-panels";
-import type { AgentWorkspaceRuntime } from "../../../../root";
+import type { ResearchWorkspaceRuntime } from "../../../../root";
 import { cn } from "../../../../utils/utils";
-
-type WorkspacePanel = "activity" | "context";
 
 interface WorkspacePanelLayout {
   readonly defaultLeftWidth: number;
@@ -58,7 +53,7 @@ function readWorkspacePanelLayout(): WorkspacePanelLayout {
 }
 
 interface ConversationMainProps {
-  readonly runtime: AgentWorkspaceRuntime;
+  readonly runtime: ResearchWorkspaceRuntime;
 }
 
 /**
@@ -68,9 +63,32 @@ interface ConversationMainProps {
  * the thin runtime seam.
  */
 export function ConversationMain({ runtime }: ConversationMainProps) {
-  const [isRightPanelShown, setIsRightPanelShown] = React.useState(true);
-  const [activePanel, setActivePanel] =
-    React.useState<WorkspacePanel>("activity");
+  return <ConversationMainSurface runtime={runtime} />;
+}
+
+function ConversationMainSurface({ runtime }: ConversationMainProps) {
+  const hasInspector = runtime.inspectorPanel !== null;
+  const [storedInspector, setStoredInspector] = React.useState<{
+    readonly available: boolean;
+    readonly mode: "floating" | "docked";
+    readonly visible: boolean;
+  }>({
+    available: hasInspector,
+    mode: "floating",
+    visible: hasInspector,
+  });
+  const inspector =
+    storedInspector.available === hasInspector
+      ? storedInspector
+      : {
+          available: hasInspector,
+          mode: "floating" as const,
+          visible: hasInspector,
+        };
+  const inspectorMode = inspector.mode;
+  const inspectorVisible = inspector.visible;
+  const isFloating = inspectorVisible && inspectorMode === "floating";
+  const isDocked = inspectorVisible && inspectorMode === "docked";
   const panelLayout = readWorkspacePanelLayout();
   const {
     leftWidth,
@@ -86,73 +104,113 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
     storageKey: "xingwen-agent-panel-width",
   });
 
-  const toggleRightPanel = React.useCallback(() => {
-    setIsRightPanelShown((shown) => !shown);
-  }, []);
-  const RightPanelToggleIcon = isRightPanelShown
-    ? PanelRightClose
-    : PanelRightOpen;
-  const contextSurface = (
-    <div className="h-full overflow-y-auto p-[var(--oh-space-6)]">
-      <div className="oh-empty-state">
-        <p className="text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)] font-semibold">
-          暂无上下文
-        </p>
-        <p>当前任务没有可展示的工作区上下文。</p>
+  const toggleInspector = (nextMode: "floating" | "docked") => {
+    if (!hasInspector) return;
+    if (inspectorMode === nextMode) {
+      setStoredInspector({
+        available: hasInspector,
+        mode: nextMode,
+        visible: !inspectorVisible,
+      });
+      return;
+    }
+    setStoredInspector({
+      available: hasInspector,
+      mode: nextMode,
+      visible: true,
+    });
+  };
+
+  const inspectorBody = (
+    <ScrollArea className="min-h-0 flex-1">
+      <div className="px-[var(--oh-space-5)] pb-[var(--oh-space-5)]">
+        {runtime.inspectorPanel}
       </div>
-    </div>
+    </ScrollArea>
   );
 
   return (
     <section
       className="relative flex h-full min-h-0 flex-col"
-      aria-label="Agent 工作区"
+      aria-label="研究工作区"
       data-testid="conversation-main"
     >
-      <button
-        type="button"
-        className={buttonClassName({
-          variant: "ghost",
-          size: "icon",
-          className:
-            "absolute right-[var(--oh-header-control-inset-inline)] top-[var(--oh-header-control-inset-block)] z-[var(--oh-layer-header-toggle)]",
-        })}
-        aria-label={isRightPanelShown ? "收起活动面板" : "展开活动面板"}
-        aria-controls="workspace-activity-panel"
-        aria-expanded={isRightPanelShown}
-        onClick={toggleRightPanel}
+      <header
+        className="flex h-[var(--oh-header-block-size)] shrink-0 items-center gap-[var(--oh-space-3)] border-b border-[var(--oh-border)] px-[var(--oh-header-inline-padding)] py-0"
+        data-testid="workspace-topbar"
       >
-        <RightPanelToggleIcon
-          className="size-[var(--oh-icon-size-md)]"
-          aria-hidden="true"
-        />
-      </button>
+        <div className="flex min-w-0 flex-1 items-center">
+          <ConversationNameWithStatus runtime={runtime} />
+        </div>
+        <div className="flex shrink-0 items-center gap-[var(--oh-space-1)]">
+          <button
+            type="button"
+            className={buttonClassName({
+              variant: "ghost",
+              size: "icon",
+              className: isFloating
+                ? "bg-[var(--oh-surface-raised)] text-[var(--oh-text)]"
+                : undefined,
+            })}
+            aria-label={isFloating ? "收起悬浮概览" : "展示悬浮概览"}
+            aria-controls={
+              hasInspector ? "research-inspector-panel" : undefined
+            }
+            aria-pressed={isFloating}
+            disabled={!hasInspector}
+            onClick={() => toggleInspector("floating")}
+          >
+            <Layers3
+              className="size-[var(--oh-icon-size-md)]"
+              aria-hidden="true"
+            />
+          </button>
+          <button
+            type="button"
+            className={buttonClassName({
+              variant: "ghost",
+              size: "icon",
+              className: isDocked
+                ? "bg-[var(--oh-surface-raised)] text-[var(--oh-text)]"
+                : undefined,
+            })}
+            aria-label={isDocked ? "收起右侧栏" : "展开右侧栏"}
+            aria-controls={
+              hasInspector ? "research-inspector-panel" : undefined
+            }
+            aria-pressed={isDocked}
+            disabled={!hasInspector}
+            onClick={() => toggleInspector("docked")}
+          >
+            {isDocked ? (
+              <PanelRightClose
+                className="size-[var(--oh-icon-size-md)]"
+                aria-hidden="true"
+              />
+            ) : (
+              <PanelRightOpen
+                className="size-[var(--oh-icon-size-md)]"
+                aria-hidden="true"
+              />
+            )}
+          </button>
+        </div>
+      </header>
 
       <div
         ref={containerRef}
         className="relative flex min-h-0 flex-1 overflow-hidden [container-type:inline-size]"
       >
         <div
-          className={cn(
-            "flex min-w-0 flex-col overflow-hidden bg-[var(--oh-surface)]",
-            isDragging
-              ? "transition-none"
-              : "transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
-          )}
-          aria-labelledby="agent-task-heading"
-          style={{ width: isRightPanelShown ? `${leftWidth}%` : "100%" }}
+          className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--oh-surface)]"
+          aria-labelledby="research-project-heading"
+          data-workspace-main-column=""
+          data-testid="workspace-main-track"
         >
-          <header className="flex h-[var(--oh-header-block-size)] shrink-0 items-center gap-[var(--oh-space-3)] border-b border-[var(--oh-border)] py-0 pl-[var(--oh-header-inline-padding)] pr-[var(--oh-header-control-reserve-inline)]">
-            <div className="flex min-w-0 flex-1 items-center">
-              <ConversationNameWithStatus runtime={runtime} />
-            </div>
-          </header>
-          <div className="flex min-h-0 flex-1 flex-col">
-            <ChatInterfaceWrapper runtime={runtime} />
-          </div>
+          <ChatInterfaceWrapper runtime={runtime} />
         </div>
 
-        {isRightPanelShown ? (
+        {isDocked ? (
           <ResizeHandle
             value={leftWidth}
             min={minLeftWidth}
@@ -163,39 +221,58 @@ export function ConversationMain({ runtime }: ConversationMainProps) {
           />
         ) : null}
 
-        <aside
-          id="workspace-activity-panel"
+        <div
           className={cn(
-            "relative min-w-0 shrink-0 overflow-hidden border-l border-[var(--oh-border)] bg-[var(--oh-surface-muted)]",
-            isDragging
-              ? "transition-none"
-              : "transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
-            !isRightPanelShown && "pointer-events-none",
+            "relative h-full shrink-0 transition-[width] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)] motion-reduce:transition-none",
+            isFloating ? "overflow-visible" : "overflow-hidden",
+            isDragging && "transition-none",
           )}
-          aria-label="活动面板"
-          aria-hidden={!isRightPanelShown}
-          inert={!isRightPanelShown}
-          style={{ width: isRightPanelShown ? `${rightWidth}%` : "0%" }}
+          data-testid="floating-inspector-safe-track"
+          style={{
+            width: isFloating
+              ? "min(var(--oh-inspector-floating-track-inline-size), 40cqw)"
+              : isDocked
+                ? `${rightWidth}%`
+                : "0px",
+          }}
         >
-          <div
-            className="absolute inset-y-0 right-0 flex min-w-0 flex-col"
-            style={{ width: `${rightWidth}cqw` }}
-          >
-            <div className="flex h-[var(--oh-header-block-size)] shrink-0 items-center border-b border-[var(--oh-border)] pr-[var(--oh-header-control-reserve-inline)]">
-              <ConversationTabs
-                activeTab={activePanel}
-                onSelect={setActivePanel}
-              />
-            </div>
-            <TabContentArea activeTab={activePanel}>
-              {activePanel === "activity" ? (
-                <ActivitySurface events={runtime.activityEvents} />
-              ) : (
-                contextSurface
+          {hasInspector ? (
+            <aside
+              id="research-inspector-panel"
+              className={cn(
+                "absolute z-[var(--oh-layer-header-toggle)] flex min-h-0 min-w-0 flex-col overflow-hidden motion-reduce:transition-none",
+                inspectorMode === "floating"
+                  ? "bottom-[var(--oh-space-4)] right-[var(--oh-space-4)] top-[var(--oh-space-3)] origin-top-right rounded-[var(--oh-radius-lg)] bg-[var(--oh-surface)] shadow-[var(--oh-shadow-float)] transition-[width,opacity,transform,visibility] duration-[var(--oh-motion-panel)] ease-[var(--oh-ease-panel)]"
+                  : "bottom-0 right-0 top-0 border-l border-[var(--oh-border)] bg-[var(--oh-surface-muted)]",
+                inspectorMode === "floating" &&
+                  (inspectorVisible
+                    ? "visible translate-x-0 scale-100 opacity-100"
+                    : "invisible translate-x-[var(--oh-space-2)] scale-[0.98] opacity-0"),
+                inspectorMode === "docked" && "visible",
+                isDragging && "transition-none",
               )}
-            </TabContentArea>
-          </div>
-        </aside>
+              style={{
+                width:
+                  inspectorMode === "floating"
+                    ? inspectorVisible
+                      ? "min(var(--oh-inspector-floating-inline-size), calc(100% - var(--oh-space-8)))"
+                      : "0px"
+                    : `${rightWidth}cqw`,
+              }}
+              aria-label={isDocked ? "右侧研究栏" : "悬浮研究概览"}
+              aria-hidden={!inspectorVisible}
+              inert={!inspectorVisible}
+              data-inspector-mode={inspectorMode}
+            >
+              <div className="flex shrink-0 items-center px-[var(--oh-space-5)] pb-[var(--oh-space-2)] pt-[var(--oh-space-4)]">
+                <h2 className="text-[length:var(--oh-font-size-body)] font-medium text-[var(--oh-text)]">
+                  研究概览
+                </h2>
+              </div>
+              {inspectorBody}
+            </aside>
+          ) : null}
+        </div>
       </div>
     </section>
   );

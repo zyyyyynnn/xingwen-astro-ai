@@ -85,6 +85,11 @@ const project: ResearchProjectDto = {
   case_key: "exoplanet_host_star",
   active_contract_id: "rc_01JEXAMPLE",
   latest_run_id: "run_01JEXAMPLE",
+  thread_summary: {
+    has_thread_entries: true,
+    latest_thread_actor: "assistant",
+    has_unanswered_clarification: false,
+  },
   created_at: T0,
   updated_at: T2,
   revision: 1,

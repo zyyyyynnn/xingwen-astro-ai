@@ -31,6 +31,7 @@ Experience
   -> Repository Port
   -> Fixture / HTTP Adapter
   -> API Application Service
+  -> Research Assistant / ModelExecutionPort
   -> Workflow / Step Adapter
   -> Scientific Pipeline
   -> Publisher
@@ -38,8 +39,8 @@ Experience
 
 Frontend Application Boundary
   -> Workspace Host / Router / Query Provider / Session Gate
-  -> OpenHands-derived Shell / Navigation / Activity / Composer
-  -> Research Presentation / Artifact Renderer Registry / Evidence Inspector
+  -> OpenHands-derived mechanics / Research Navigation / Thread / Composer
+  -> Research Presentation / Artifact Renderer Registry / floating Inspector
 
 Research Adapter
   -> Domain -> UI ViewModel
@@ -86,7 +87,7 @@ Research Adapter
 
 用户可见推理必须显式、可核验且与 Evidence 关联。`ReasoningTrace` 是公开可审计的推导记录，不等于模型私有 chain-of-thought；具体领域语义见 `docs/ai/REASONING_PROTOCOL.md`。
 
-Activity 采用 OpenHands 的事件列表、连续事件分组、可展开事件组、渐进状态展示与滚动锚定机制；OpenHands Activity 仅消费 domain-neutral presentation event，Research Adapter 负责将 Project、Run、Artifact、Evidence 等领域语义映射到该 presentation contract；运行时只注入公开 Activity Event，空状态不生成测试或演示事件。
+Research Thread 可以采用 OpenHands 的事件列表、连续事件分组、可展开事件组、渐进状态展示与滚动锚定机制；这些是交互 mechanics，不是第二套产品事实模型。Research Adapter 负责将 Project、Thread entry、Run、Artifact、Evidence 等领域语义映射到公开 presentation contract；运行时只注入服务端持久化的公开内容，空状态不生成测试或演示事件。
 
 ### 3.3 共享 UI、shadcn 与图标治理
 
@@ -130,22 +131,27 @@ Artifact / Evidence Renderer
 - 共享包 (Shared Packages) 不得反向依赖 App。
 - `@xingwen/domain` 不依赖 React、DOM、HTTP 或上游 UI 组件。
 - 前端页面不得直接调用 `fetch` 或直接解析后端原始 Transport DTO。
+- Contract authoring 的对象、字段、来源与成果选项必须读取服务端 Manifest-backed Research Catalog，经 Repository 映射为 Domain；App 不保存第二份目录常量。
 - 依赖只能经由 Package 的公开 `exports` 导入，不得以深层私有路径或 `@ts-expect-error` 绕过。
+- `@xingwen/ui` 只接纳组件级交互依赖；Radix、shadcn Command 所需的 `cmdk`
+  与 shadcn Toast 所需的 `sonner` 属于允许的 UI primitive，不得在 App 内重写其焦点、
+  筛选、键盘选择或通知生命周期。`tslib` 仅作为这些已采用组件的运行时辅助依赖。
 - 禁止 `any`、不安全类型断言和以类型逃逸掩盖 DTO 校验；Runtime DTO 必须先验证再映射。
 - Artifact Renderer Registry 必须对每个受支持 `ArtifactKind` 穷举注册；未知/不支持类型
   必须进入明确的 unsupported/error renderer，不得静默当作通用文本。
 
 ## 5. 状态所有权
 
-| 状态类型                          | 权威来源                         |
-| --------------------------------- | -------------------------------- |
-| Project / Run / Artifact 路由     | Router                           |
-| Server state、缓存与 Mutation     | Query Layer (经 Repository Port) |
-| Run / Artifact / Evidence 事实    | Domain / Repository              |
-| 交互机械与输入草稿                | Workspace Controller / Presentation Boundary |
-| Workspace 布局与恢复              | Workspace Controller             |
-| 组件内部交互状态 (Hover / Active) | Local Component State            |
-| Share / Export 版本               | Server / ShareSnapshot           |
+| 状态类型                                           | 权威来源                                     |
+| -------------------------------------------------- | -------------------------------------------- |
+| Project / Thread / Run / Artifact 路由             | Router                                       |
+| Server state、缓存与 Mutation                      | Query Layer (经 Repository Port)             |
+| Thread / Contract / Run / Artifact / Evidence 事实 | Domain / Repository                          |
+| Research assistant outcome                         | API ModelExecution + Thread entries          |
+| 交互机械与输入草稿                                 | Workspace Controller / Presentation Boundary |
+| Workspace 布局与恢复                               | Workspace Controller                         |
+| 组件内部交互状态 (Hover / Active)                  | Local Component State                        |
+| Share / Export 版本                                | Server / ShareSnapshot                       |
 
 同一事实在前端不得由多个全局 Store 重复持有。
 
@@ -160,6 +166,10 @@ Transport DTO -> Contract Validation -> Domain Mapping -> Repository Port -> Res
   执行器或事件存储；它不创建科研事实或推进服务端状态机。
 - Session Gate 负责私有会话边界；Query Layer 负责 server state、快照优先读取、分页、
   polling/backoff 与 mutation invalidation；页面不得自行复制这些职责。
+- `/workspace` 的首次使用、项目创建和已有项目恢复必须留在同一 Workspace Shell 内；
+  不得为项目选择或创建建立第二套独立门户页面。
+- “返回首页”只进行导航，不撤销当前 Session；需要撤销 Session 的安全动作必须是显式、独立的会话操作，并清除私有 Query 缓存；
+  只有真实的 Session 失效或私有边界拒绝才进入安全的会话重建状态页。
 - Evidence Inspector 是跨 Artifact 的共享 presentation contract，页面 renderer 只
   提供类型化内容与 locator；未知类型明确渲染失败。
 

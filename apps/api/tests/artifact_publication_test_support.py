@@ -21,12 +21,13 @@ from app.schemas.core import (
     compute_research_contract_content_hash,
 )
 from app.schemas.manifest import load_manifest_bundle
-from app.services.research import CANONICAL_RUN_STEPS, ResearchApplicationService
+from app.services.research import ResearchApplicationService
 from app.test_support.bootstrap import (
     bootstrap_fixture_artifacts,
     build_fixture_dataset_publication,
 )
 from app.workflow.publisher import AdmittedArtifactCandidate
+from app.workflow.run_plan import compile_run_plan
 from app.workflow.store import PersistentWorkflowStore
 from authoring_test_support import build_contract_draft, build_research_contract
 
@@ -82,7 +83,7 @@ def publish_reference_dataset(
         execution_mode="demo_replay",
         idempotency_key=f"reference-dataset-run-{uuid4()}",
         request_hash="sha256:" + "d" * 64,
-        steps=CANONICAL_RUN_STEPS,
+        steps=compile_run_plan(contract_input),
     )
     manifest_root = (
         Path(__file__).resolve().parents[3]

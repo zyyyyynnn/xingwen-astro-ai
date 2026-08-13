@@ -1,25 +1,38 @@
+import type { ReactNode } from "react";
+
 import { CustomChatInput } from "./custom-chat-input";
 
 interface InteractiveChatBoxProps {
+  readonly value: string;
   readonly disabled: boolean;
-  readonly running: boolean;
-  readonly onSubmit: (message: string) => void;
-  readonly onCancel: () => void;
+  readonly submitting: boolean;
+  readonly placeholder: string;
+  readonly leadingActions: ReactNode;
+  readonly hasStartedConversation: boolean;
+  readonly onValueChange: (value: string) => void;
+  readonly onSubmit: (message: string) => Promise<void>;
 }
 
+/** OpenHands InteractiveChatBox with research-domain actions injected. */
 export function InteractiveChatBox({
+  value,
   disabled,
-  running,
+  submitting,
+  placeholder,
+  leadingActions,
+  onValueChange,
   onSubmit,
-  onCancel,
 }: InteractiveChatBoxProps) {
   return (
-    <div className="shrink-0 px-[var(--oh-space-5)] pb-[var(--oh-space-5)] pt-[var(--oh-space-4)]">
+    <div data-testid="interactive-chat-box">
       <CustomChatInput
+        value={value}
         disabled={disabled}
-        running={running}
+        submitting={submitting}
+        placeholder={placeholder}
+        leadingActions={leadingActions}
+        onValueChange={onValueChange}
         onSubmit={onSubmit}
-        onCancel={onCancel}
       />
     </div>
   );

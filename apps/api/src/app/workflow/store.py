@@ -25,15 +25,15 @@ from app.db.models import (
 
 TERMINAL_RUN_STATUSES = frozenset({"completed", "failed", "cancelled"})
 INCOMPLETE_STEP_STATUSES = frozenset({"pending", "running", "waiting"})
-CANONICAL_STEP_TRANSITIONS = {
-    "planning": "fetching_data",
-    "fetching_data": "cleaning_data",
-    "cleaning_data": "searching_papers",
-    "searching_papers": "summarizing_papers",
-    "summarizing_papers": "reasoning_literature",
-    "reasoning_literature": "building_graph",
-    "building_graph": "completed",
-}
+RUN_STEP_STATUS_ORDER = (
+    "planning",
+    "fetching_data",
+    "cleaning_data",
+    "searching_papers",
+    "summarizing_papers",
+    "reasoning_literature",
+    "building_graph",
+)
 
 
 class WorkflowStoreError(RuntimeError):
@@ -868,22 +868,26 @@ class PersistentWorkflowStore:
             raise ValueError("run step keys must be nonempty and unique")
         if any(step.max_attempts < 1 for step in steps):
             raise ValueError("max_attempts must be positive")
-        expected_enter_status = "planning"
-        for step in steps:
-            if step.enter_status != expected_enter_status:
+        if steps[0].enter_status != "planning":
+            raise ValueError("frozen run step chain must start at 'planning'")
+        order = {status: position for position, status in enumerate(RUN_STEP_STATUS_ORDER)}
+        for position, step in enumerate(steps):
+            if step.key != step.enter_status or step.enter_status not in order:
+                raise ValueError("run step key must identify a declared workflow status")
+            if position > 0 and order[step.enter_status] <= order[steps[position - 1].enter_status]:
                 raise ValueError(
-                    "run step transition chain is not contiguous: "
-                    f"expected {expected_enter_status!r}, got {step.enter_status!r}"
+                    "run step statuses must follow canonical order without duplication"
                 )
-            expected_success_status = CANONICAL_STEP_TRANSITIONS.get(step.enter_status)
+            expected_success_status = (
+                steps[position + 1].enter_status
+                if position + 1 < len(steps)
+                else "completed"
+            )
             if step.success_status != expected_success_status:
                 raise ValueError(
-                    "run step transition is not declared by WORKFLOW_DESIGN.md: "
+                    "run step transition does not match the frozen plan: "
                     f"{step.enter_status!r} -> {step.success_status!r}"
                 )
-            expected_enter_status = step.success_status
-        if expected_enter_status != "completed":
-            raise ValueError("frozen run step chain must terminate at 'completed'")
 
     @staticmethod
     def _lock_run(session: Session, run_id: UUID) -> ResearchRunModel:

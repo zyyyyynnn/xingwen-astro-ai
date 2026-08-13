@@ -266,6 +266,8 @@ describe("workspace semantic geometry tokens", () => {
       "--workspace-panel-min-ratio",
       "--workspace-panel-max-ratio",
       "--workspace-panel-keyboard-step",
+      "--workspace-inspector-floating-inline-size",
+      "--workspace-inspector-floating-track-inline-size",
       "--workspace-command-menu-max-inline-size",
       "--workspace-command-menu-max-block-size",
       "--workspace-command-menu-viewport-offset",

@@ -10,6 +10,8 @@
 
 ```text
 ResearchSession (1) -- (*) ResearchProject
+ResearchProject (1) -- (*) ResearchThreadEntry
+ResearchProject (1) -- (*) ModelExecutionRecord
 ResearchProject (1) -- (*) ResearchContractDraft
 ResearchContractDraft (1) -- (0..1) ResearchContract
 ResearchProject (1) -- (*) ResearchContract
@@ -36,6 +38,9 @@ ShareSnapshot (*) -- (*) ArtifactVersion
 
 - ResearchSession 是匿名访问者的服务端隔离与配额边界。
 - ResearchProject 是持续研究上下文，`description` 始终为非空字符串，未填写时保存 `""`。
+- ResearchProject 的 `active_draft_id` 只能指向同一 Project、状态为 editable 的当前 Draft；它是当前审查对象的唯一指针，不能以 `latest` 查询替代。
+- ResearchThreadEntry 属于 Project，使用 `(project_id, sequence)` 唯一约束保证严格顺序；`kind`、`actor`、`public_content` 与 `structured_payload` 只保存公开内容。Contract、Run、Artifact 卡片必须读取真实实体后投影，不能在 Thread 中复制第二份事实。
+- ModelExecutionRecord 属于 Project，是 pre-run Research assistant 的执行审计记录，与 Run 的 ProducerExecution 分离；它固定 Registry Prompt、规范化 input/parameters、通过验证的公开 output snapshot 与对应 hash。同一 Project 同时最多存在一个 `pending | running` ModelExecution；provider 调用期间不持有 Project 行锁，由短事务检查与数据库部分唯一索引共同强制。活跃记录必须持有 token + expiry 执行租约，租期覆盖每次 provider timeout、全部传输尝试、SDK 可接受的最坏 `Retry-After` 等待与持久化余量；重试次数必须有配置上限。过期记录由下一次 Project 写入在行锁内标记失败，迟到 worker 只有仍持有原租约且租约未过期时才能提交成功或失败终态。不得存储 API secret、认证头、raw provider body 或私有 chain-of-thought。
 - ResearchContractDraft 是 Project-owned editable entity，使用 `(id, project_id)` 与 `(project_id, session_id)` composite identity 保证属主一致。
 - ResearchContract 从一个 Draft 确认产生；`created_from_draft_id + project_id` composite lineage 强制 Draft 与 Contract 属于同一 Project。一个 Draft 最多产生一个 Contract。
 - Contract 确认后不可变，包含研究目标、目标对象、请求字段、来源范围、Evidence 与质量约束。
@@ -43,7 +48,7 @@ ShareSnapshot (*) -- (*) ArtifactVersion
 ## 3. Run 与执行记录
 
 - ResearchRun 绑定同一 Project 下的 Contract；派生 Run 通过同 Project 的 `parent_run_id` 与 `derivation_kind` 表达 retry、revision 或 fork。
-- RunStep 保存 canonical step、顺序、状态与进度；StepAttempt 保存真实尝试、错误与上游请求 identity。
+- RunStep 保存从 confirmed Contract 确定性投影并在 Run 创建时冻结的 canonical step、顺序、状态与进度；StepAttempt 保存真实尝试、错误与上游请求 identity。Executor 不维护第二份 Plan。
 - RunEvent 是单调序列的通知记录，Run 快照才是状态事实源。
 - HTTP Run authoring 只创建 original、cache-disabled Run；未暴露的派生字段不得被静默消费。
 
@@ -80,4 +85,7 @@ WorkspaceSnapshot 保存私有布局与选中对象，使用乐观锁更新。Sh
 4. `execution_mode` 与 `source_mode` 分离；Fixture、Live 与 Cached provenance 不得互相伪装。
 5. 公开 API 不返回凭据、受限全文、原始模型响应或私有 chain-of-thought。
 6. Evidence Graph 的 frozen input versions、Graph-owned Evidence 与 literature relation projection 必须在读取边界保持同 Project、同 Version、同 producer/hash closure；任何漂移 fail closed。
-7. DocumentParse 与其 locator 创建后不可更新；相同 Project 与相同逻辑身份只能有一个权威 parse，读取时必须校验 payload 与冻结 metadata。
+7. Thread sequence 在同一 Project 内严格递增且刷新可重放；跨 Project 的 entry、Draft、Execution、Run 读取统一 fail closed。
+8. `ModelExecutionRecord` 的状态、错误、safe snapshots 与 timing 必须反映实际 provider 调用；失败前已获得的 output hash、token、latency 与 request identity 不得丢失；无 credentials 时不得生成 succeeded 记录。
+9. Provider 成功不等于 Turn 成功；最终 Draft/Thread 持久化必须与 ModelExecution 终态同一事务提交。该事务失败时必须释放 Project 的活跃执行槽，进程中断遗留的活跃记录必须经租约过期回收，不能永久阻塞后续 Turn。
+10. DocumentParse 与其 locator 创建后不可更新；相同 Project 与相同逻辑身份只能有一个权威 parse，读取时必须校验 payload 与冻结 metadata。

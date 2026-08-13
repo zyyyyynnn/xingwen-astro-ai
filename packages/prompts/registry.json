@@ -18,6 +18,12 @@
       "path": "paper_summary/prompt.md",
       "content_hash": "sha256:b7b1024ef42bdeadb2fa2f48b401f882321f7c1ca25b92b07446258e8bb4f4d4",
       "output_models": ["PaperSummaryModelOutput"]
+    },
+    "research_contract_planner": {
+      "version": "1.1.2",
+      "path": "research_contract_planner/prompt.md",
+      "content_hash": "sha256:54409f6224a07bb26f3b51e2296353401da76d4a80ad5b206fcc9e074a7a779d",
+      "output_models": ["PlannerOutcome"]
     }
   }
 }

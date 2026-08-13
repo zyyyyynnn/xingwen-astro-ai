@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import pytest
 from pydantic import ValidationError
@@ -16,6 +17,32 @@ def test_development_allows_local_defaults() -> None:
     assert settings.APP_ENV == "development"
     assert settings.DEBUG is True
     assert settings.SESSION_COOKIE_SECURE is False
+    assert settings.cors_origin_regex is not None
+    assert re.fullmatch(settings.cors_origin_regex, "http://127.0.0.1:5174")
+    assert re.fullmatch(settings.cors_origin_regex, "http://localhost:4173")
+    assert not re.fullmatch(settings.cors_origin_regex, "https://example.test")
+
+
+def test_dashscope_credentials_use_the_platform_environment_name() -> None:
+    settings = Settings(_env_file=None, DASHSCOPE_API_KEY="test-key")
+
+    assert settings.DASHSCOPE_API_KEY is not None
+    assert settings.DASHSCOPE_API_KEY.get_secret_value() == "test-key"
+    assert settings.DASHSCOPE_MODEL == "qwen3.7-plus"
+    assert settings.DASHSCOPE_MODEL_REVISION == "qwen3.7-plus-2026-05-26"
+    assert settings.DASHSCOPE_MAX_RETRIES == 2
+    assert settings.MODEL_EXECUTION_LEASE_GRACE_SECONDS == 30.0
+
+
+def test_dashscope_placeholder_credentials_fail_closed() -> None:
+    settings = Settings(_env_file=None, DASHSCOPE_API_KEY="replace_me")
+
+    assert settings.DASHSCOPE_API_KEY is None
+
+
+def test_dashscope_retry_budget_is_bounded() -> None:
+    with pytest.raises(ValidationError, match="DASHSCOPE_MAX_RETRIES"):
+        Settings(_env_file=None, DASHSCOPE_MAX_RETRIES=5)
 
 
 def test_production_accepts_managed_database_url_without_postgres_password() -> None:
@@ -30,6 +57,7 @@ def test_production_accepts_managed_database_url_without_postgres_password() -> 
     )
 
     assert settings.APP_ENV == "production"
+    assert settings.cors_origin_regex is None
 
 
 def test_production_rejects_local_defaults_and_wildcard_cors() -> None:
@@ -39,8 +67,7 @@ def test_production_rejects_local_defaults_and_wildcard_cors() -> None:
             APP_ENV="production",
             DEBUG=True,
             DATABASE_URL=(
-                "postgresql+psycopg://postgres:postgres@postgres:5432/"
-                "xingwen_astro_ai"
+                "postgresql+psycopg://postgres:postgres@postgres:5432/xingwen_astro_ai"
             ),
             POSTGRES_PASSWORD="postgres",
             CORS_ORIGINS="*",

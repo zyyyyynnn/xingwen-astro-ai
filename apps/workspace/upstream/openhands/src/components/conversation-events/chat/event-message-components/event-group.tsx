@@ -1,9 +1,13 @@
 import React from "react";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@xingwen/ui";
+import {
   AlertCircle,
   Check,
   ChevronDown,
-  ChevronUp,
   LoaderCircle,
 } from "@xingwen/ui/icons";
 
@@ -15,18 +19,13 @@ interface EventGroupProps {
   readonly children: React.ReactNode;
 }
 
-/** OpenHands event-group disclosure mechanics adapted to public activity data. */
+/** OpenHands collapsible action-run group adapted to public research events. */
 export function EventGroup({
   events,
   isFinalized = false,
   children,
 }: EventGroupProps) {
-  const [expanded, setExpanded] = React.useState(false);
-  const contentId = React.useId();
-  const buttonId = `${contentId}-toggle`;
-
   if (events.length === 0) return null;
-
   const pendingCount = events.filter(
     (event) => event.status === "pending" || event.status === "running",
   ).length;
@@ -39,78 +38,44 @@ export function EventGroup({
   const countSummary = isRunning
     ? `进行中 ${completedCount}/${events.length}`
     : errorCount > 0
-      ? `错误 ${errorCount}/${events.length}`
+      ? `需要处理 ${errorCount}/${events.length}`
       : `${events.length} 项已完成`;
-  const Chevron = expanded ? ChevronUp : ChevronDown;
-
   return (
-    <div
-      className="my-[var(--oh-space-1)] w-full py-[var(--oh-space-1)] text-[length:var(--oh-font-size-body)] leading-[var(--oh-line-height-body)]"
-      data-testid="event-group"
-    >
-      <button
-        id={buttonId}
-        type="button"
-        onClick={() => setExpanded((current) => !current)}
-        aria-controls={contentId}
-        aria-expanded={expanded}
-        aria-label={expanded ? "收起活动组" : "展开活动组"}
-        data-testid="event-group-toggle"
-        className="flex w-full cursor-pointer items-center justify-between gap-[var(--oh-space-2)] text-left"
-      >
-        {isFinalized ? (
-          <span className="flex min-w-0 items-center gap-[var(--oh-space-2)] font-normal text-[var(--oh-muted)]">
-            <Chevron
-              className="size-[var(--oh-icon-size-md)] shrink-0"
-              aria-hidden="true"
-            />
-            <span className="truncate">{countSummary}</span>
-          </span>
-        ) : (
-          <>
-            <span className="flex min-w-0 items-center gap-[var(--oh-space-2)] font-normal text-[var(--oh-muted)]">
-              <Chevron
-                className="size-[var(--oh-icon-size-md)] shrink-0"
-                aria-hidden="true"
-              />
-              <span className="truncate">
-                {latestEvent?.title ?? countSummary}
-              </span>
-            </span>
-            <span className="flex shrink-0 items-center font-normal text-[var(--oh-muted)]">
-              <span className="truncate">{countSummary}</span>
-              {isRunning ? (
-                <LoaderCircle
-                  data-testid="spinner-icon"
-                  className="ml-[var(--oh-space-2)] size-[var(--oh-icon-size-md)] animate-spin motion-reduce:animate-none"
-                  aria-hidden="true"
-                />
-              ) : errorCount > 0 ? (
-                <AlertCircle
-                  className="ml-[var(--oh-space-2)] size-[var(--oh-icon-size-md)]"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Check
-                  className="ml-[var(--oh-space-2)] size-[var(--oh-icon-size-md)]"
-                  aria-hidden="true"
-                />
-              )}
-            </span>
-          </>
-        )}
-      </button>
-      {expanded ? (
-        <div
-          id={contentId}
-          role="region"
-          aria-labelledby={buttonId}
-          className="mt-[var(--oh-space-2)] flex flex-col"
-          data-testid="event-group-content"
+    <Collapsible className="oh-narrative-node" data-testid="event-group">
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          data-testid="event-group-toggle"
+          className="oh-narrative-row oh-narrative-trigger"
         >
-          {children}
-        </div>
-      ) : null}
-    </div>
+          <ChevronDown className="oh-narrative-chevron" aria-hidden="true" />
+          <span className="oh-narrative-title flex items-center gap-[var(--oh-space-2)]">
+            <span className="truncate">
+              {isFinalized
+                ? countSummary
+                : (latestEvent?.title ?? countSummary)}
+            </span>
+            {!isFinalized ? (
+              <span className="shrink-0 text-xs">{countSummary}</span>
+            ) : null}
+          </span>
+          {!isFinalized ? (
+            isRunning ? (
+              <LoaderCircle className="oh-narrative-icon animate-spin motion-reduce:animate-none" />
+            ) : errorCount > 0 ? (
+              <AlertCircle className="oh-narrative-icon" />
+            ) : (
+              <Check className="oh-narrative-icon" />
+            )
+          ) : null}
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent
+        className="oh-narrative-content flex flex-col"
+        data-testid="event-group-content"
+      >
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
