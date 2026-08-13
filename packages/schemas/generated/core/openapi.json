@@ -10738,6 +10738,10 @@
             "name": "Exoplanet host-star integration",
             "revision": 1,
             "session_id": "sess_01JEXAMPLE",
+            "thread_summary": {
+              "has_thread_entries": false,
+              "has_unanswered_clarification": false
+            },
             "updated_at": "2026-07-21T08:00:00Z"
           }
         ],
@@ -10839,6 +10843,9 @@
             "title": "Session Id",
             "type": "string"
           },
+          "thread_summary": {
+            "$ref": "#/components/schemas/ResearchThreadSummary"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -10850,6 +10857,7 @@
           "session_id",
           "name",
           "case_key",
+          "thread_summary",
           "created_at",
           "updated_at",
           "revision"
@@ -11130,6 +11138,43 @@
         ],
         "title": "ResearchThreadEntryKind",
         "type": "string"
+      },
+      "ResearchThreadSummary": {
+        "additionalProperties": false,
+        "description": "Bounded server-derived Thread facts used by Project navigation reads.",
+        "properties": {
+          "has_thread_entries": {
+            "title": "Has Thread Entries",
+            "type": "boolean"
+          },
+          "has_unanswered_clarification": {
+            "title": "Has Unanswered Clarification",
+            "type": "boolean"
+          },
+          "latest_thread_actor": {
+            "anyOf": [
+              {
+                "enum": [
+                  "user",
+                  "assistant",
+                  "system"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Thread Actor"
+          }
+        },
+        "required": [
+          "has_thread_entries",
+          "latest_thread_actor",
+          "has_unanswered_clarification"
+        ],
+        "title": "ResearchThreadSummary",
+        "type": "object"
       },
       "ResearchTurnRequest": {
         "additionalProperties": false,

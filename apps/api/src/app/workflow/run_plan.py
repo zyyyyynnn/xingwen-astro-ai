@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.schemas.core import ArtifactKind, ResearchContractInput
-from app.workflow.store import RunStepDefinition
+from app.workflow.store import RUN_STEP_STATUS_ORDER, RunStepDefinition
 
 
 class UnsupportedRunPlanError(ValueError):
@@ -16,16 +16,6 @@ class UnsupportedRunPlanError(ValueError):
             + ", ".join(sorted(item.value for item in outputs))
         )
 
-
-_STEP_ORDER = (
-    "planning",
-    "fetching_data",
-    "cleaning_data",
-    "searching_papers",
-    "summarizing_papers",
-    "reasoning_literature",
-    "building_graph",
-)
 
 _STEP_LABELS = {
     "planning": "Planning",
@@ -51,7 +41,19 @@ _LITERATURE_OUTPUTS = frozenset(
         ArtifactKind.reasoning_traces,
     }
 )
-EXECUTABLE_OUTPUTS = frozenset(ArtifactKind) - {ArtifactKind.export}
+SUPPORTED_RUN_OUTPUTS = frozenset(
+    {
+        ArtifactKind.dataset,
+        ArtifactKind.field_dictionary,
+        ArtifactKind.source_collection,
+        ArtifactKind.paper_collection,
+        ArtifactKind.paper_summary,
+        ArtifactKind.literature_claims,
+        ArtifactKind.literature_relations,
+        ArtifactKind.reasoning_traces,
+        ArtifactKind.graph,
+    }
+)
 
 
 def compile_run_plan(
@@ -60,7 +62,7 @@ def compile_run_plan(
     """Freeze the smallest ordered prerequisite closure for requested outputs."""
 
     outputs = frozenset(contract.output_requirements)
-    unsupported = outputs - EXECUTABLE_OUTPUTS
+    unsupported = outputs - SUPPORTED_RUN_OUTPUTS
     if unsupported:
         raise UnsupportedRunPlanError(unsupported)
 
@@ -80,7 +82,7 @@ def compile_run_plan(
     if ArtifactKind.graph in outputs:
         required.add("building_graph")
 
-    ordered = tuple(step for step in _STEP_ORDER if step in required)
+    ordered = tuple(step for step in RUN_STEP_STATUS_ORDER if step in required)
     return tuple(
         RunStepDefinition(
             key=step,

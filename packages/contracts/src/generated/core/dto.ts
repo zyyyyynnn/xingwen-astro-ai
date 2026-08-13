@@ -1584,7 +1584,19 @@ export interface ResearchProject {
   name: string;
   revision: number;
   session_id: string;
+  thread_summary: ResearchThreadSummary;
   updated_at: string;
+}
+/**
+ * Bounded server-derived Thread facts used by Project navigation reads.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResearchThreadSummary".
+ */
+export interface ResearchThreadSummary {
+  has_thread_entries: boolean;
+  has_unanswered_clarification: boolean;
+  latest_thread_actor: ("user" | "assistant" | "system") | null;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

@@ -99,6 +99,7 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - 缺少 provider credentials、超时、限流、5xx 或无法解析/验证模型输出时，持久化失败 provenance 并返回稳定的 `MODEL_RUNTIME_UNAVAILABLE` 或对应公开错误；禁止模板或 fixture 冒充成功。
 - `PATCH /api/projects/{project_id}` 使用 `If-Match` 更新名称；`DELETE` 使用 `If-Match` 永久删除 Project 及其 owned Thread/Execution/Draft/Run 数据，成功返回 `204`。
 - `GET /api/runs/{run_id}/steps` 只读取 RunStep 权威状态；前端不得根据事件数量或百分比合成进度。
+- Project list/read 携带由服务端批量计算的最小 `thread_summary`（是否有消息、最新 actor、是否存在未回答澄清）；它只用于非当前 Project 导航状态，不能持久化或复制 workflow/presentation state。当前 Project 仍以完整 Research Thread 为事实源，并由唯一 presentation mapper 得出同一状态。
 - `POST /api/projects/{project_id}/runs` 从 confirmed Contract 的 requested outputs 确定性冻结最小依赖闭包；未映射产物返回 `409 RUN_PLAN_UNSUPPORTED_OUTPUT`，不得生成虚假 Step。
 
 ## 6. Research Input 摄取契约

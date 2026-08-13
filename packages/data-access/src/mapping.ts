@@ -161,6 +161,12 @@ export function mapResearchProject(dto: ResearchProjectDto): ResearchProject {
     latestRunId: (dto.latest_run_id ?? null) as DomainEntityId | null,
     latestRunStatus: dto.latest_run_status ?? null,
     latestRunFailureSummary: dto.latest_run_failure_summary ?? null,
+    threadSummary: {
+      hasThreadEntries: dto.thread_summary.has_thread_entries,
+      latestThreadActor: dto.thread_summary.latest_thread_actor,
+      hasUnansweredClarification:
+        dto.thread_summary.has_unanswered_clarification,
+    },
     createdAt: dto.created_at as UtcIsoTimestamp,
     updatedAt: dto.updated_at as UtcIsoTimestamp,
     revision: dto.revision,

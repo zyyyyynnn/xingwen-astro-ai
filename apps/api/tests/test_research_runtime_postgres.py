@@ -32,6 +32,7 @@ from app.db.models import (
     ResearchContractDraftModel,
     ModelExecutionModel,
     ResearchProjectModel,
+    RunStepModel,
 )
 from app.db.session import create_engine_from_url, session_factory
 from authoring_test_support import (
@@ -1066,6 +1067,137 @@ def test_public_authoring_chain_creates_project_and_draft(
     assert run.status_code == 201, run.text
 
 
+@pytest.mark.parametrize(
+    ("output", "expected_steps"),
+    [
+        ("dataset", ("planning", "fetching_data", "cleaning_data")),
+        ("paper_collection", ("planning", "searching_papers")),
+        (
+            "paper_summary",
+            ("planning", "searching_papers", "summarizing_papers"),
+        ),
+        (
+            "graph",
+            (
+                "planning",
+                "searching_papers",
+                "summarizing_papers",
+                "reasoning_literature",
+                "building_graph",
+            ),
+        ),
+    ],
+)
+def test_contract_driven_run_plan_persists_only_the_required_steps(
+    runtime: dict[str, object],
+    output: str,
+    expected_steps: tuple[str, ...],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+    suffix = output.replace("_", "-")
+    project = client.post(
+        "/api/projects",
+        headers={**csrf, "Idempotency-Key": f"run-plan-project-{suffix}"},
+        json={"name": f"Run plan {output}", "case_key": "exoplanet_host_star"},
+    )
+    assert project.status_code == 201, project.text
+    project_id = project.json()["data"]["id"]
+    contract_input = _contract_input()
+    contract_input["output_requirements"] = [output]
+    draft = client.post(
+        f"/api/projects/{project_id}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": f"run-plan-draft-{suffix}"},
+        json={"intent": f"Produce {output}", "contract": contract_input},
+    )
+    assert draft.status_code == 201, draft.text
+    confirmed = client.post(
+        f"/api/projects/{project_id}/contracts",
+        headers={**csrf, "Idempotency-Key": f"run-plan-contract-{suffix}"},
+        json={
+            "draft_id": draft.json()["data"]["id"],
+            "expected_draft_version": 1,
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+    created = client.post(
+        f"/api/projects/{project_id}/runs",
+        headers={**csrf, "Idempotency-Key": f"run-plan-run-{suffix}"},
+        json={
+            "contract_id": confirmed.json()["data"]["id"],
+            "execution_mode": "live",
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    steps = client.get(f"/api/runs/{created.json()['data']['id']}/steps")
+    assert steps.status_code == 200, steps.text
+    persisted = steps.json()["data"]
+    assert tuple(item["key"] for item in persisted) == expected_steps
+    assert tuple(item["position"] for item in persisted) == tuple(
+        range(len(expected_steps))
+    )
+    factory = runtime["factory"]
+    with factory() as session:  # type: ignore[operator]
+        stored_steps = tuple(
+            session.scalars(
+                select(RunStepModel)
+                .where(RunStepModel.run_id == UUID(created.json()["data"]["id"]))
+                .order_by(RunStepModel.position.asc())
+            )
+        )
+    assert tuple(step.enter_status for step in stored_steps) == expected_steps
+    assert tuple(step.success_status for step in stored_steps) == (
+        *expected_steps[1:],
+        "completed",
+    )
+
+
+def test_contract_driven_run_plan_rejects_unsupported_output_without_a_run(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+    project = client.post(
+        "/api/projects",
+        headers={**csrf, "Idempotency-Key": "unsupported-output-project"},
+        json={"name": "Unsupported output", "case_key": "exoplanet_host_star"},
+    )
+    assert project.status_code == 201, project.text
+    project_id = project.json()["data"]["id"]
+    contract_input = _contract_input()
+    contract_input["output_requirements"] = ["export"]
+    draft = client.post(
+        f"/api/projects/{project_id}/contract-drafts",
+        headers={**csrf, "Idempotency-Key": "unsupported-output-draft"},
+        json={"intent": "Produce an unsupported export", "contract": contract_input},
+    )
+    assert draft.status_code == 201, draft.text
+    confirmed = client.post(
+        f"/api/projects/{project_id}/contracts",
+        headers={**csrf, "Idempotency-Key": "unsupported-output-contract"},
+        json={
+            "draft_id": draft.json()["data"]["id"],
+            "expected_draft_version": 1,
+        },
+    )
+    assert confirmed.status_code == 201, confirmed.text
+
+    rejected = client.post(
+        f"/api/projects/{project_id}/runs",
+        headers={**csrf, "Idempotency-Key": "unsupported-output-run"},
+        json={
+            "contract_id": confirmed.json()["data"]["id"],
+            "execution_mode": "live",
+        },
+    )
+    assert rejected.status_code == 409, rejected.text
+    assert rejected.json()["code"] == "RUN_PLAN_UNSUPPORTED_OUTPUT"
+    assert client.get(f"/api/projects/{project_id}").json()["data"][
+        "latest_run_id"
+    ] is None
+
+
 def test_create_draft_hides_missing_and_cross_session_projects(
     runtime: dict[str, object],
 ) -> None:
@@ -1206,6 +1338,51 @@ def test_list_projects_is_session_scoped_with_stable_cursor(
         )
         assert foreign.status_code == 400
         assert foreign.json()["code"] == "INVALID_CURSOR"
+
+
+def test_project_reads_include_a_batchable_thread_summary(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+    project_id = runtime["project_id"]
+    question_turn = client.post(
+        f"/api/projects/{project_id}/research-turns",
+        headers={**csrf, "Idempotency-Key": "project-summary-question"},
+        json={"message": "Clarify the original stellar study"},
+    )
+    assert question_turn.status_code == 200, question_turn.text
+    assert question_turn.json()["data"]["outcome"] == "clarification_required"
+
+    other = client.post(
+        "/api/projects",
+        headers={**csrf, "Idempotency-Key": "project-summary-other"},
+        json={"name": "Other project", "case_key": "exoplanet_host_star"},
+    )
+    assert other.status_code == 201, other.text
+
+    listing = client.get("/api/projects", params={"limit": 100})
+    assert listing.status_code == 200, listing.text
+    listed_project = next(
+        item for item in listing.json()["data"] if item["id"] == project_id
+    )
+    assert listed_project["thread_summary"] == {
+        "has_thread_entries": True,
+        "latest_thread_actor": "assistant",
+        "has_unanswered_clarification": True,
+    }
+    assert client.get(f"/api/projects/{project_id}").json()["data"][
+        "thread_summary"
+    ] == listed_project["thread_summary"]
+
+    other_project = next(
+        item for item in listing.json()["data"] if item["id"] == other.json()["data"]["id"]
+    )
+    assert other_project["thread_summary"] == {
+        "has_thread_entries": False,
+        "latest_thread_actor": None,
+        "has_unanswered_clarification": False,
+    }
 
 
 def test_public_authoring_writes_require_session_and_csrf(

@@ -2,8 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from app.schemas.core import ResearchContractInput
-from app.workflow.run_plan import UnsupportedRunPlanError, compile_run_plan
+from app.schemas.core import ArtifactKind, ResearchContractInput
+from app.workflow.run_plan import (
+    SUPPORTED_RUN_OUTPUTS,
+    UnsupportedRunPlanError,
+    compile_run_plan,
+)
+from app.workflow.store import RUN_STEP_STATUS_ORDER
 
 
 def contract_for(*outputs: str) -> ResearchContractInput:
@@ -79,3 +84,26 @@ def test_compile_run_plan_includes_data_closure_only_when_requested() -> None:
 def test_compile_run_plan_fails_closed_for_an_unmapped_output() -> None:
     with pytest.raises(UnsupportedRunPlanError, match="export"):
         compile_run_plan(contract_for("export"))
+
+
+def test_supported_run_outputs_are_an_explicit_fail_closed_allowlist() -> None:
+    assert SUPPORTED_RUN_OUTPUTS == frozenset(
+        {
+            ArtifactKind.dataset,
+            ArtifactKind.field_dictionary,
+            ArtifactKind.source_collection,
+            ArtifactKind.paper_collection,
+            ArtifactKind.paper_summary,
+            ArtifactKind.literature_claims,
+            ArtifactKind.literature_relations,
+            ArtifactKind.reasoning_traces,
+            ArtifactKind.graph,
+        }
+    )
+
+
+def test_compiled_run_plan_uses_the_workflow_store_step_order_authority() -> None:
+    plan = compile_run_plan(contract_for("dataset", "graph"))
+    positions = tuple(RUN_STEP_STATUS_ORDER.index(step.key) for step in plan)
+
+    assert positions == tuple(sorted(positions))

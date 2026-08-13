@@ -18,9 +18,9 @@ import json
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.contracts.manifest_policy import (
     validate_contract_against_manifest,
@@ -52,6 +52,7 @@ from app.schemas.core import (
     ResearchRun,
     ResearchThreadEntry,
     ResearchThreadEntryKind,
+    ResearchThreadSummary,
     ResearchTurnRequest,
     ResearchTurnResult,
     RunStepRead,
@@ -147,8 +148,18 @@ class ResearchApplicationService:
                 if selected and has_more
                 else None
             )
+            thread_summaries = self._thread_summaries(
+                session, tuple(row.id for row in selected)
+            )
             return (
-                tuple(self._project_read(session, row) for row in selected),
+                tuple(
+                    self._project_read(
+                        session,
+                        row,
+                        thread_summary=thread_summaries[row.id],
+                    )
+                    for row in selected
+                ),
                 next_cursor,
                 has_more,
             )
@@ -925,6 +936,8 @@ class ResearchApplicationService:
         self,
         session: Session,
         project: ResearchProjectModel,
+        *,
+        thread_summary: ResearchThreadSummary | None = None,
     ) -> ResearchProject:
         active_contract_id = session.scalar(
             select(ResearchContractModel.id)
@@ -945,7 +958,84 @@ class ResearchApplicationService:
             project,
             active_contract_id=active_contract_id,
             latest_run=latest_run,
+            thread_summary=(
+                thread_summary
+                if thread_summary is not None
+                else self._thread_summaries(session, (project.id,))[project.id]
+            ),
         )
+
+    def _thread_summaries(
+        self,
+        session: Session,
+        project_ids: tuple[UUID, ...],
+    ) -> dict[UUID, ResearchThreadSummary]:
+        summaries = {
+            project_id: ResearchThreadSummary(
+                has_thread_entries=False,
+                latest_thread_actor=None,
+                has_unanswered_clarification=False,
+            )
+            for project_id in project_ids
+        }
+        if not project_ids:
+            return summaries
+
+        latest = (
+            select(
+                ResearchThreadEntryModel.project_id.label("project_id"),
+                ResearchThreadEntryModel.actor.label("actor"),
+                func.row_number()
+                .over(
+                    partition_by=ResearchThreadEntryModel.project_id,
+                    order_by=ResearchThreadEntryModel.sequence.desc(),
+                )
+                .label("row_number"),
+            )
+            .where(ResearchThreadEntryModel.project_id.in_(project_ids))
+            .subquery()
+        )
+        question = aliased(ResearchThreadEntryModel)
+        answer = aliased(ResearchThreadEntryModel)
+        matching_answer = exists(
+            select(answer.id).where(
+                answer.project_id == question.project_id,
+                answer.kind == ResearchThreadEntryKind.clarification_answer.value,
+                answer.structured_payload["answer_to_question_id"].astext
+                == question.structured_payload["question_id"].astext,
+            )
+        )
+        unanswered = (
+            select(question.project_id.label("project_id"))
+            .where(
+                question.project_id.in_(project_ids),
+                question.kind == ResearchThreadEntryKind.clarification_question.value,
+                ~matching_answer,
+            )
+            .distinct()
+            .subquery()
+        )
+        rows = session.execute(
+            select(
+                latest.c.project_id,
+                latest.c.actor,
+                unanswered.c.project_id.is_not(None).label(
+                    "has_unanswered_clarification"
+                ),
+            )
+            .outerjoin(
+                unanswered,
+                unanswered.c.project_id == latest.c.project_id,
+            )
+            .where(latest.c.row_number == 1)
+        )
+        for project_id, actor, has_unanswered_clarification in rows:
+            summaries[project_id] = ResearchThreadSummary(
+                has_thread_entries=True,
+                latest_thread_actor=actor,
+                has_unanswered_clarification=has_unanswered_clarification,
+            )
+        return summaries
 
     def _load_owned_run(
         self,
@@ -1317,6 +1407,7 @@ def _project(
     *,
     active_contract_id: UUID | None,
     latest_run: ResearchRunModel | None,
+    thread_summary: ResearchThreadSummary,
 ) -> ResearchProject:
     return ResearchProject(
         id=str(row.id),
@@ -1329,6 +1420,7 @@ def _project(
         latest_run_id=str(latest_run.id) if latest_run else None,
         latest_run_status=latest_run.status if latest_run else None,
         latest_run_failure_summary=latest_run.failure_summary if latest_run else None,
+        thread_summary=thread_summary,
         created_at=_utc(row.created_at),
         updated_at=_utc(row.updated_at),
         revision=row.revision,

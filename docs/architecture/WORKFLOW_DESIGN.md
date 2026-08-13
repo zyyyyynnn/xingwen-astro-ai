@@ -40,7 +40,8 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 
 - `planning` 始终是首 Step；其后只冻结 Contract 产物闭包需要的 canonical steps，并保持 canonical 相对顺序。每个 Step 的 `success_status` 必须精确指向冻结 Plan 的下一 Step，末 Step 指向 `completed`。
 - `dataset | field_dictionary | source_collection` 引入 `fetching_data -> cleaning_data`；`paper_collection` 引入 `searching_papers`；`paper_summary` 追加 `summarizing_papers`；Literature Claim/Relation/ReasoningTrace 追加完整文献检索、总结与 `reasoning_literature` 闭包；`graph` 追加完整文献闭包与 `building_graph`，仅当 Contract 同时请求数据产物时才包含数据闭包。
-- 尚无可执行 RunStep 映射的 requested output 必须在 Run 创建时 fail closed；不得冻结虚假 Todo。前序 Step 未完成时不得启动后序 Step。
+- 可执行 requested output 由 `SUPPORTED_RUN_OUTPUTS` 显式 allowlist 声明；新增 ArtifactKind 在获得明确 RunPlan mapping 前必须 fail closed，且不得创建 Run。不得使用枚举全集减例外的方式自动授予执行能力。
+- RunStep 数据库约束只守住 status domain、唯一性与 position 等局部不变量；Contract-driven 子集链的冻结顺序与 next-step transition 由 Workflow Store 按唯一 `RUN_STEP_STATUS_ORDER` 验证，不在数据库枚举所有 transition pair。前序 Step 未完成时不得启动后序 Step。
 - StepAttempt 使用递增 `attempt_number`、稳定 idempotency key、错误分类与 retryable 标记记录实际尝试。
 - 外部超时、限流或临时网络故障可在该 Step 的 `max_attempts` 内重试；Schema、权限与状态冲突等确定性失败不得重试。
 - Candidate 未通过 Schema、Evidence、质量或领域准入时不得发布 ArtifactVersion。

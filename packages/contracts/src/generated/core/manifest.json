@@ -213,6 +213,11 @@
     },
     {
       "module": "app.schemas.core",
+      "name": "ResearchThreadSummary",
+      "path": "json/ResearchThreadSummary.schema.json"
+    },
+    {
+      "module": "app.schemas.core",
       "name": "ResearchTurnRequest",
       "path": "json/ResearchTurnRequest.schema.json"
     },

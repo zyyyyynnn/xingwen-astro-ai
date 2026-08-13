@@ -10,7 +10,7 @@ import pytest
 from openai import APIStatusError, OpenAI
 
 import app.services.model_execution as model_execution_module
-from app.schemas.core import ArtifactKind
+from app.schemas.core import ArtifactKind, ResearchProject
 from app.schemas.manifest import load_manifest_bundle
 from app.services.model_execution import (
     ModelExecutionError,
@@ -50,6 +50,26 @@ def _load_case_manifests():
     return load_manifest_bundle(
         _MANIFEST_ROOT / "case-manifest.json",
         _MANIFEST_ROOT / "field-manifest.json",
+    )
+
+
+def research_project() -> ResearchProject:
+    return ResearchProject.model_validate(
+        {
+            "id": "proj_1",
+            "session_id": "sess_1",
+            "name": "Research",
+            "description": "",
+            "case_key": "exoplanet_host_star",
+            "thread_summary": {
+                "has_thread_entries": False,
+                "latest_thread_actor": None,
+                "has_unanswered_clarification": False,
+            },
+            "created_at": "2026-07-21T08:00:00Z",
+            "updated_at": "2026-07-21T08:00:00Z",
+            "revision": 1,
+        }
     )
 
 
@@ -228,22 +248,9 @@ def test_planner_rejects_untyped_model_payload() -> None:
         model_revision="qwen3.7-plus-2026-05-26",
         manifests=_load_case_manifests(),
     )
-    project = {
-        "id": "proj_1",
-        "session_id": "sess_1",
-        "name": "Research",
-        "description": "",
-        "case_key": "exoplanet_host_star",
-        "created_at": "2026-07-21T08:00:00Z",
-        "updated_at": "2026-07-21T08:00:00Z",
-        "revision": 1,
-    }
-
-    from app.schemas.core import ResearchProject
-
     with pytest.raises(ModelExecutionError) as captured:
         planner.plan(
-            project=ResearchProject.model_validate(project),
+            project=research_project(),
             entries=(),
             message="Compare host stars",
             answer_to_question_id=None,
@@ -287,22 +294,9 @@ def test_planner_rejects_typed_draft_outside_manifest_catalog() -> None:
         model_revision="qwen3.7-plus-2026-05-26",
         manifests=_load_case_manifests(),
     )
-    from app.schemas.core import ResearchProject
-
     with pytest.raises(ModelExecutionError) as captured:
         planner.plan(
-            project=ResearchProject.model_validate(
-                {
-                    "id": "proj_1",
-                    "session_id": "sess_1",
-                    "name": "Research",
-                    "description": "",
-                    "case_key": "exoplanet_host_star",
-                    "created_at": "2026-07-21T08:00:00Z",
-                    "updated_at": "2026-07-21T08:00:00Z",
-                    "revision": 1,
-                }
-            ),
+            project=research_project(),
             entries=(),
             message="Compare host stars",
             answer_to_question_id=None,
@@ -323,22 +317,8 @@ def test_planner_uses_the_registered_prompt_and_identified_output_contract() -> 
         model_revision="qwen3.7-plus-2026-05-26",
         manifests=_load_case_manifests(),
     )
-    from app.schemas.core import ResearchProject
-
-    project = ResearchProject.model_validate(
-        {
-            "id": "proj_1",
-            "session_id": "sess_1",
-            "name": "Research",
-            "description": "",
-            "case_key": "exoplanet_host_star",
-            "created_at": "2026-07-21T08:00:00Z",
-            "updated_at": "2026-07-21T08:00:00Z",
-            "revision": 1,
-        }
-    )
     request_value = planner.prepare_request(
-        project=project,
+        project=research_project(),
         entries=(),
         message="Compare host stars",
         answer_to_question_id=None,

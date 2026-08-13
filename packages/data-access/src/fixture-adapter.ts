@@ -572,6 +572,11 @@ export function createFixtureRepositories(
           activeDraftId: null,
           activeContractId: null,
           latestRunId: null,
+          threadSummary: {
+            hasThreadEntries: false,
+            latestThreadActor: null,
+            hasUnansweredClarification: false,
+          },
           createdAt: now,
           updatedAt: now,
           revision: 1,

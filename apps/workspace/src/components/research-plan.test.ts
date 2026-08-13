@@ -13,6 +13,11 @@ const project = {
   activeContractId: null,
   latestRunId: null,
   latestRunStatus: null,
+  threadSummary: {
+    hasThreadEntries: false,
+    latestThreadActor: null,
+    hasUnansweredClarification: false,
+  },
 } as unknown as ProjectViewModel;
 
 function step(
@@ -116,5 +121,33 @@ describe("deriveResearchPresentation", () => {
     expect(presentation.state).toBe("assistant_processing");
     expect(presentation.statusLabel).toBe("研究助手处理中");
     expect(presentation.planItems[0]?.status).toBe("running");
+  });
+
+  it("preserves a non-current Project clarification state from its server summary", () => {
+    const projectA = {
+      ...project,
+      id: "project-a",
+      threadSummary: {
+        hasThreadEntries: true,
+        latestThreadActor: "assistant",
+        hasUnansweredClarification: true,
+      },
+    } as unknown as ProjectViewModel;
+    const question = {
+      id: "question-a",
+      actor: "assistant",
+      kind: "clarification_question",
+      structuredPayload: { questionId: "question-a" },
+    } as unknown as ResearchThreadEntryViewModel;
+
+    const nonCurrent = deriveResearchPresentation({ project: projectA });
+    const current = deriveResearchPresentation({
+      project: projectA,
+      entries: [question],
+    });
+
+    expect(nonCurrent.statusLabel).toBe("等待你的回答");
+    expect(nonCurrent.state).toBe(current.state);
+    expect(nonCurrent.statusLabel).toBe(current.statusLabel);
   });
 });

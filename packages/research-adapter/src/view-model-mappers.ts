@@ -78,6 +78,7 @@ export function toProjectViewModel(project: ResearchProject): ProjectViewModel {
     latestRunId: project.latestRunId,
     latestRunStatus: project.latestRunStatus ?? null,
     latestRunFailureSummary: project.latestRunFailureSummary ?? null,
+    threadSummary: project.threadSummary,
     revision: project.revision,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,

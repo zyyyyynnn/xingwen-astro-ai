@@ -421,16 +421,6 @@ class RunStepModel(TimestampMixin, Base):
             name="success_status",
         ),
         CheckConstraint(
-            "(enter_status = 'planning' AND success_status = 'fetching_data') OR "
-            "(enter_status = 'fetching_data' AND success_status = 'cleaning_data') OR "
-            "(enter_status = 'cleaning_data' AND success_status = 'searching_papers') OR "
-            "(enter_status = 'searching_papers' AND success_status = 'summarizing_papers') OR "
-            "(enter_status = 'summarizing_papers' AND success_status = 'reasoning_literature') OR "
-            "(enter_status = 'reasoning_literature' AND success_status = 'building_graph') OR "
-            "(enter_status = 'building_graph' AND success_status = 'completed')",
-            name="canonical_transition",
-        ),
-        CheckConstraint(
             "status IN ('pending','running','waiting','completed','failed','cancelled','skipped')",
             name="status",
         ),

@@ -35,7 +35,7 @@ uv run python ../../scripts/export_schemas.py --output ../../.artifacts/schemas 
 
 ```powershell
 Set-Location apps/api
-uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/core --include ResearchProject --include ResearchContractDraft --include ResearchContract --include ResearchRun --include RunEvent --include ResearchArtifact --include ArtifactVersion --include ResearchArtifactDetail --include ArtifactVersionDetail --include PaperSummaryArtifactContent --include PaperCollectionRead --include PaperCollectionCandidateRead --include GraphArtifactRead --include GraphNodeRead --include GraphEdgeRead --include GraphEvidenceUseRead --include EvidenceRead --include SourceSnapshotDetail --check
+uv run python ../../scripts/export_schemas.py --output ../../packages/schemas/generated/core --include ResearchProject --include ResearchThreadSummary --include ResearchContractDraft --include ResearchContract --include ResearchRun --include RunEvent --include ResearchArtifact --include ArtifactVersion --include ResearchArtifactDetail --include ArtifactVersionDetail --include PaperSummaryArtifactContent --include PaperCollectionRead --include PaperCollectionCandidateRead --include GraphArtifactRead --include GraphNodeRead --include GraphEdgeRead --include GraphEvidenceUseRead --include EvidenceRead --include SourceSnapshotDetail --check
 uv run python ../../scripts/export_openapi.py --output ../../packages/schemas/generated/core/openapi.json --check
 ```
 

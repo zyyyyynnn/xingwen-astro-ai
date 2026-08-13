@@ -11,6 +11,7 @@ import type {
   ResearchPlanningCatalog,
   ResearchThreadAssistantPayload,
   ResearchThreadQuestionPayload,
+  ResearchThreadSummary,
   ResearchThreadUserPayload,
   RunStatus,
   SemanticVersion,
@@ -31,6 +32,7 @@ export interface ProjectViewModel {
   readonly latestRunId: DomainEntityId | null;
   readonly latestRunStatus: RunStatus | null;
   readonly latestRunFailureSummary: string | null;
+  readonly threadSummary: ResearchThreadSummary;
   readonly revision: number;
   readonly createdAt: UtcIsoTimestamp;
   readonly updatedAt: UtcIsoTimestamp;

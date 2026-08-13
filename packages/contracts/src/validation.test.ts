@@ -17,6 +17,11 @@ const validProject = {
   session_id: "sess_test",
   name: "Test project",
   case_key: "exoplanet_host_star",
+  thread_summary: {
+    has_thread_entries: false,
+    latest_thread_actor: null,
+    has_unanswered_clarification: false,
+  },
   created_at: "2026-07-21T08:00:00Z",
   updated_at: "2026-07-21T08:00:00Z",
   revision: 1,

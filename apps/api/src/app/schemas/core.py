@@ -201,6 +201,16 @@ class ResearchContractInput(BaseModel):
         return self
 
 
+class ResearchThreadSummary(BaseModel):
+    """Bounded server-derived Thread facts used by Project navigation reads."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    has_thread_entries: bool
+    latest_thread_actor: Literal["user", "assistant", "system"] | None
+    has_unanswered_clarification: bool
+
+
 class ResearchProject(BaseModel):
     model_config = ConfigDict(
         **CORE_MODEL_CONFIG,
@@ -213,6 +223,11 @@ class ResearchProject(BaseModel):
                     "description": "Evidence-bound integration for the frozen main case",
                     "case_key": "exoplanet_host_star",
                     "active_draft_id": None,
+                    "thread_summary": {
+                        "has_thread_entries": False,
+                        "latest_thread_actor": None,
+                        "has_unanswered_clarification": False,
+                    },
                     "created_at": "2026-07-21T08:00:00Z",
                     "updated_at": "2026-07-21T08:00:00Z",
                     "revision": 1,
@@ -231,6 +246,7 @@ class ResearchProject(BaseModel):
     latest_run_id: Identifier | None = None
     latest_run_status: RunStatus | None = None
     latest_run_failure_summary: str | None = None
+    thread_summary: ResearchThreadSummary
     created_at: UtcDateTime
     updated_at: UtcDateTime
     revision: int = Field(ge=1)

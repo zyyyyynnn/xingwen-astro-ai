@@ -8,6 +8,13 @@ import type { CaseKey } from "./value-types";
 import type { DomainEntityId } from "./identifiers";
 import type { UtcIsoTimestamp } from "./value-types";
 import type { RunStatus } from "./enums";
+import type { ResearchThreadActor } from "./research-thread";
+
+export interface ResearchThreadSummary {
+  readonly hasThreadEntries: boolean;
+  readonly latestThreadActor: ResearchThreadActor | null;
+  readonly hasUnansweredClarification: boolean;
+}
 
 export interface ResearchProject {
   readonly id: DomainEntityId;
@@ -20,6 +27,7 @@ export interface ResearchProject {
   readonly latestRunId: DomainEntityId | null;
   readonly latestRunStatus?: RunStatus | null;
   readonly latestRunFailureSummary?: string | null;
+  readonly threadSummary: ResearchThreadSummary;
   readonly createdAt: UtcIsoTimestamp;
   readonly updatedAt: UtcIsoTimestamp;
   readonly revision: number;

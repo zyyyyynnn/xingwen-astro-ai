@@ -96,14 +96,18 @@ function latestUnansweredQuestion(
 
 function deriveState({
   project,
-  entries = [],
+  entries,
   draft = null,
   contract = null,
   run = null,
   pendingActionId = null,
 }: ResearchPresentationFacts): ResearchPresentationState {
   if (pendingActionId !== null) return "assistant_processing";
-  if (latestUnansweredQuestion(entries) !== null) {
+  const hasUnansweredClarification =
+    entries === undefined
+      ? project.threadSummary.hasUnansweredClarification
+      : latestUnansweredQuestion(entries) !== null;
+  if (hasUnansweredClarification) {
     return "awaiting_clarification";
   }
 
@@ -114,7 +118,11 @@ function deriveState({
     return "contract_confirmed";
   }
   if (draft !== null || project.activeDraftId !== null) return "draft_ready";
-  if (entries.at(-1)?.actor === "user") return "assistant_processing";
+  const latestThreadActor =
+    entries === undefined
+      ? project.threadSummary.latestThreadActor
+      : entries.at(-1)?.actor;
+  if (latestThreadActor === "user") return "assistant_processing";
   return "empty";
 }
 

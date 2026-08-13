@@ -230,6 +230,7 @@ jobs:
             --include PlannerRefused \
             --include PlannerOutcome \
             --include ResearchThreadEntry \
+            --include ResearchThreadSummary \
             --include ResearchTurnRequest \
             --include ResearchTurnResult \
             --include ResearchContractDraft \

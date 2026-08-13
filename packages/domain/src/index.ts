@@ -67,7 +67,7 @@ export type {
 } from "./research-contract";
 export { validateContractInputInvariants } from "./research-contract";
 
-export type { ResearchProject } from "./project";
+export type { ResearchProject, ResearchThreadSummary } from "./project";
 
 export type {
   ResearchCatalogOption,

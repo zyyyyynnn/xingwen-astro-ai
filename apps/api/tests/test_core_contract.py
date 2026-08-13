@@ -60,6 +60,11 @@ def core_examples() -> dict[type[object], dict[str, object]]:
             "session_id": "sess_01J",
             "name": "Exoplanet host-star integration",
             "case_key": "exoplanet_host_star",
+            "thread_summary": {
+                "has_thread_entries": False,
+                "latest_thread_actor": None,
+                "has_unanswered_clarification": False,
+            },
             "created_at": NOW,
             "updated_at": NOW,
             "revision": 1,
