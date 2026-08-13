@@ -1159,6 +1159,64 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "paper_candidate_input_idempotency",
+        sa.Column("session_id", sa.String(128), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("idempotency_key", sa.String(200), nullable=False),
+        sa.Column("request_hash", sa.String(71), nullable=False),
+        sa.Column("binding_id", _uuid(), nullable=True),
+        sa.Column("status", sa.String(16), nullable=False),
+        sa.Column("lease_token", sa.String(64), nullable=True),
+        sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["binding_id", "project_id"],
+            [
+                "paper_candidate_input_bindings.id",
+                "paper_candidate_input_bindings.project_id",
+            ],
+            name="fk_paper_candidate_input_idempotency_binding_project",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint(
+            "session_id",
+            "project_id",
+            "idempotency_key",
+            name="pk_paper_candidate_input_idempotency",
+        ),
+        sa.CheckConstraint(
+            "status IN ('pending','completed')",
+            name="ck_paper_candidate_input_idempotency_status",
+        ),
+        sa.CheckConstraint(
+            "(status = 'pending' AND binding_id IS NULL"
+            " AND lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)"
+            " OR (status = 'completed' AND binding_id IS NOT NULL"
+            " AND lease_token IS NULL AND lease_expires_at IS NULL)",
+            name="ck_paper_candidate_input_idempotency_status_lease",
+        ),
+    )
+    op.create_index(
+        "ix_paper_candidate_input_idempotency_binding",
+        "paper_candidate_input_idempotency",
+        ["binding_id"],
+    )
+
+    op.create_table(
         "document_parses",
         sa.Column("id", _uuid(), nullable=False),
         sa.Column("project_id", _uuid(), nullable=False),
@@ -1404,6 +1462,8 @@ def downgrade() -> None:
     op.drop_index("ix_document_parses_snapshot", table_name="document_parses")
     op.drop_index("ix_document_parses_input", table_name="document_parses")
     op.drop_table("document_parses")
+    op.execute("DROP INDEX IF EXISTS ix_paper_candidate_input_idempotency_binding")
+    op.execute("DROP TABLE IF EXISTS paper_candidate_input_idempotency")
     op.execute(
         "DROP TRIGGER IF EXISTS trg_paper_candidate_input_bindings_immutable "
         "ON paper_candidate_input_bindings"

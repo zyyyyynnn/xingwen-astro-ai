@@ -229,7 +229,9 @@ def create_app() -> FastAPI:
             ),
             ingestion=app.state.research_input_ingestion,
             research_inputs=app.state.research_input_store,
-            repository=PaperCandidateInputRepository(database_session_factory),
+            repository=PaperCandidateInputRepository(
+                database_session_factory, lease_ttl=lease_ttl
+            ),
         )
 
     app.add_middleware(

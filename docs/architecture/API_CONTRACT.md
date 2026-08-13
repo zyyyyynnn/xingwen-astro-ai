@@ -101,7 +101,10 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
   不声明 access evidence、ResearchInput 或全文。Fixture、recorded、cached candidate
   只能走 metadata-only，synthetic candidate 不能创建输入。响应绑定是不可变的，返回
   `accepted` 或 `metadata_only` outcome；幂等重放以 `reused=true` 表示并返回相同绑定，
-  不使用第三种持久化 outcome。任何未证明访问、paywall、受限/部分元数据、非法 URL、
+  不使用第三种持久化 outcome。服务端必须在 URL fetch、CAS 或 ResearchInput 创建前原子
+  预留 Project-scoped bridge `Idempotency-Key`；不同请求复用同一 key 必须在副作用前冲突，
+  相同并发请求最多只有一个 lease owner 执行摄取，完成 binding 时原子关闭 reservation。
+  任何未证明访问、paywall、受限/部分元数据、非法 URL、
   SSRF、redirect、MIME、大小、超时或上游失败均 fail closed，且不执行 parser。
 
 ## 6. Research Turn

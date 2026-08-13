@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
+import secrets
+from collections.abc import Callable
 from dataclasses import dataclass, replace
-from typing import Callable
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models import (
     ArtifactVersionModel,
     EvidenceModel,
     PaperCandidateInputBindingModel,
+    PaperCandidateInputIdempotencyModel,
     ResearchInputModel,
     ResearchProjectModel,
     SourceSnapshotModel,
@@ -45,6 +49,7 @@ _PRODUCER_VERSION = "1.0.0"
 _URL_ACCESS_KINDS = frozenset(
     {"publisher_open_access", "repository_open_access", "author_provided"}
 )
+_DEFAULT_LEASE_TTL = timedelta(seconds=300)
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,15 +123,6 @@ class PaperCandidateInputService:
                 "request": request_payload,
             }
         )
-        existing = self._repository.by_idempotency_key(
-            session_id=command.session_id,
-            project_id=collection.project_id,
-            idempotency_key=command.idempotency_key,
-            request_hash=request_hash,
-        )
-        if existing is not None:
-            return self._project(existing, command.session_id, reused=True)
-
         normalized_evidence = _normalized_access_evidence(
             command.request,
             canonical_paper_id=candidate.candidate.canonical_paper_id,
@@ -167,11 +163,29 @@ class PaperCandidateInputService:
                 ),
             }
         )
-        input_record = await self._resolve_input(
-            command,
+        reservation = self._repository.reserve(
+            session_id=command.session_id,
             project_id=collection.project_id,
-            identity_hash=identity_hash,
+            idempotency_key=command.idempotency_key,
+            request_hash=request_hash,
         )
+        if reservation.replayed is not None:
+            return self._project(reservation.replayed, command.session_id, reused=True)
+        assert reservation.lease_token is not None
+        try:
+            input_record = await self._resolve_input(
+                command,
+                project_id=collection.project_id,
+                identity_hash=identity_hash,
+            )
+        except Exception:
+            self._repository.release(
+                session_id=command.session_id,
+                project_id=collection.project_id,
+                idempotency_key=command.idempotency_key,
+                lease_token=reservation.lease_token,
+            )
+            raise
         row = self._repository.persist(
             session_id=command.session_id,
             project_id=collection.project_id,
@@ -185,6 +199,7 @@ class PaperCandidateInputService:
             identity_hash=identity_hash,
             request_hash=request_hash,
             idempotency_key=command.idempotency_key,
+            lease_token=reservation.lease_token,
         )
         return self._project(row, command.session_id, reused=row.reused)
 
@@ -285,38 +300,124 @@ class _BindingRecord:
     reused: bool = False
 
 
-class PaperCandidateInputRepository:
-    def __init__(self, factory: Callable[[], Session]) -> None:
-        self._factory = factory
+@dataclass(frozen=True, slots=True)
+class _BridgeReservation:
+    replayed: _BindingRecord | None
+    lease_token: str | None
 
-    def by_idempotency_key(
+
+class PaperCandidateInputRepository:
+    def __init__(
+        self,
+        factory: Callable[[], Session],
+        *,
+        clock: Callable[[], datetime] | None = None,
+        lease_ttl: timedelta = _DEFAULT_LEASE_TTL,
+    ) -> None:
+        self._factory = factory
+        self._clock = clock or (lambda: datetime.now(UTC))
+        self._lease_ttl = lease_ttl
+
+    def reserve(
         self,
         *,
         session_id: str,
         project_id: str,
         idempotency_key: str,
         request_hash: str,
-    ) -> _BindingRecord | None:
-        with self._factory() as session:
-            project = session.get(ResearchProjectModel, _uuid(project_id))
+    ) -> _BridgeReservation:
+        project_uuid = _uuid(project_id)
+        now = self._clock()
+        with self._factory() as session, session.begin():
+            project = session.get(ResearchProjectModel, project_uuid)
             if project is None or project.session_id != session_id:
                 raise _not_found()
-            row = session.scalar(
-                select(PaperCandidateInputBindingModel).where(
-                    PaperCandidateInputBindingModel.project_id == project.id,
-                    PaperCandidateInputBindingModel.idempotency_key == idempotency_key,
+            existing = session.get(
+                PaperCandidateInputIdempotencyModel,
+                (session_id, project_uuid, idempotency_key),
+                with_for_update=True,
+            )
+            if existing is not None:
+                return self._reservation_from_row(
+                    session, existing, request_hash=request_hash, now=now
+                )
+            token = secrets.token_urlsafe(24)
+            session.add(
+                PaperCandidateInputIdempotencyModel(
+                    session_id=session_id,
+                    project_id=project_uuid,
+                    idempotency_key=idempotency_key,
+                    request_hash=request_hash,
+                    binding_id=None,
+                    status="pending",
+                    lease_token=token,
+                    lease_expires_at=now + self._lease_ttl,
+                    created_at=now,
+                    updated_at=now,
                 )
             )
-            if row is None:
-                return None
-            if row.request_hash != request_hash:
-                raise _problem(
-                    409,
-                    "IDEMPOTENCY_CONFLICT",
-                    "Idempotency key conflict",
-                    "The Idempotency-Key was already used for another bridge request",
-                )
-            return _record(row)
+            try:
+                session.flush()
+            except IntegrityError:
+                session.rollback()
+            else:
+                return _BridgeReservation(replayed=None, lease_token=token)
+
+        with self._factory() as session, session.begin():
+            winner = session.get(
+                PaperCandidateInputIdempotencyModel,
+                (session_id, project_uuid, idempotency_key),
+                with_for_update=True,
+            )
+            if winner is None:
+                raise _integrity_problem()
+            return self._reservation_from_row(
+                session, winner, request_hash=request_hash, now=now
+            )
+
+    def release(
+        self,
+        *,
+        session_id: str,
+        project_id: str,
+        idempotency_key: str,
+        lease_token: str,
+    ) -> None:
+        with self._factory() as session, session.begin():
+            row = session.get(
+                PaperCandidateInputIdempotencyModel,
+                (session_id, _uuid(project_id), idempotency_key),
+                with_for_update=True,
+            )
+            if (
+                row is not None
+                and row.status == "pending"
+                and row.lease_token == lease_token
+            ):
+                session.delete(row)
+
+    def _reservation_from_row(
+        self,
+        session: Session,
+        row: PaperCandidateInputIdempotencyModel,
+        *,
+        request_hash: str,
+        now: datetime,
+    ) -> _BridgeReservation:
+        if row.request_hash != request_hash:
+            raise _idempotency_conflict()
+        if row.status == "completed" and row.binding_id is not None:
+            binding = session.get(PaperCandidateInputBindingModel, row.binding_id)
+            if binding is None or binding.project_id != row.project_id:
+                raise _integrity_problem()
+            return _BridgeReservation(replayed=_record(binding), lease_token=None)
+        if row.lease_expires_at is not None and row.lease_expires_at > now:
+            raise _idempotency_in_progress()
+        token = secrets.token_urlsafe(24)
+        row.lease_token = token
+        row.lease_expires_at = now + self._lease_ttl
+        row.updated_at = now
+        return _BridgeReservation(replayed=None, lease_token=token)
 
     def persist(
         self,
@@ -333,6 +434,7 @@ class PaperCandidateInputRepository:
         identity_hash: str,
         request_hash: str,
         idempotency_key: str,
+        lease_token: str,
     ) -> _BindingRecord:
         with self._factory() as session, session.begin():
             project_uuid = _uuid(project_id)
@@ -346,6 +448,20 @@ class PaperCandidateInputRepository:
                 or version.project_id != project_uuid
             ):
                 raise _not_found()
+            reservation = session.get(
+                PaperCandidateInputIdempotencyModel,
+                (session_id, project_uuid, idempotency_key),
+                with_for_update=True,
+            )
+            if (
+                reservation is None
+                or reservation.status != "pending"
+                or reservation.request_hash != request_hash
+                or reservation.lease_token != lease_token
+                or reservation.lease_expires_at is None
+                or reservation.lease_expires_at <= self._clock()
+            ):
+                raise _idempotency_reservation_lost()
             snapshot_uuid = _uuid(candidate.source_snapshot.id)
             snapshot = session.get(SourceSnapshotModel, snapshot_uuid)
             if snapshot is None or snapshot.project_id != project_uuid:
@@ -445,6 +561,11 @@ class PaperCandidateInputRepository:
                     )
                 winner = by_key
             _require_same_binding(winner, values)
+            reservation.status = "completed"
+            reservation.binding_id = winner.id
+            reservation.lease_token = None
+            reservation.lease_expires_at = None
+            reservation.updated_at = self._clock()
             return replace(_record(winner), reused=winner.id != values["id"])
 
 
@@ -611,6 +732,33 @@ def _access_resource_problem() -> SecurityProblem:
         "PAPER_ACCESS_RESOURCE_MISMATCH",
         "Paper access resource mismatch",
         "Access evidence does not bind the selected paper to the requested resource",
+    )
+
+
+def _idempotency_conflict() -> SecurityProblem:
+    return _problem(
+        409,
+        "IDEMPOTENCY_CONFLICT",
+        "Idempotency key conflict",
+        "The Idempotency-Key was already used for another bridge request",
+    )
+
+
+def _idempotency_in_progress() -> SecurityProblem:
+    return _problem(
+        409,
+        "IDEMPOTENCY_IN_PROGRESS",
+        "Idempotent request is in progress",
+        "A matching PaperCandidate input request is still being processed",
+    )
+
+
+def _idempotency_reservation_lost() -> SecurityProblem:
+    return _problem(
+        409,
+        "IDEMPOTENCY_RESERVATION_LOST",
+        "Idempotency reservation lost",
+        "The PaperCandidate input reservation expired or was reclaimed",
     )
 
 

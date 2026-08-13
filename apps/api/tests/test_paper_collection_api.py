@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import hashlib
 import os
+import threading
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -24,11 +26,10 @@ from app.db.models import (
     ArtifactVersionModel,
     EvidenceModel,
     PaperCandidateInputBindingModel,
+    PaperCandidateInputIdempotencyModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
-    ResearchContractModel,
     ResearchInputModel,
-    ResearchProjectModel,
     ResearchRunModel,
     RunStepModel,
     SourceSnapshotModel,
@@ -51,6 +52,10 @@ from app.schemas.paper_collection import (
     PaperSourcePage,
     compute_paper_collection_output_hash,
 )
+from app.schemas.paper_collection_api import (
+    OpenAccessPaperCandidateInputRequest,
+    PaperCandidateAccessEvidence,
+)
 from app.schemas.core import (
     ArtifactVersionDetail,
     EvidenceDetail,
@@ -63,9 +68,11 @@ from app.security import SecurityProblem
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.artifacts import ArtifactReadService
 from app.services.paper_candidate_inputs import (
+    CreatePaperCandidateInputCommand,
     _access_url_resource_hash,
 )
 from app.services.url_fetcher import UrlFetchConfig, UrlFetchResult
+from app.services.url_fetcher import UrlFetchError
 from services.paper_pipeline.benchmark_runner import PaperCollectionBenchmarkRunner
 from services.paper_pipeline.sources.base import (
     RawSourceRecord,
@@ -180,6 +187,17 @@ def _failed_collection(classification: UpstreamFailureClass) -> PaperCollection:
 def _unsafe_collection() -> PaperCollection:
     payload = _collection().model_dump(mode="json", exclude_none=True)
     payload["candidates"][0]["title"] = "<script>alert(1)</script>"
+    output_hash = compute_paper_collection_output_hash(payload)
+    payload["output_hash"] = output_hash
+    payload["producer"]["output_hash"] = output_hash
+    return PaperCollection.model_validate(payload)
+
+
+def _synthetic_live_collection() -> PaperCollection:
+    payload = _collection(
+        source_mode=SourceMode.live, data_level=PaperDataLevel.live_result
+    ).model_dump(mode="json", exclude_none=True)
+    payload["candidates"][0]["raw"]["synthetic_note"] = "synthetic test record"
     output_hash = compute_paper_collection_output_hash(payload)
     payload["output_hash"] = output_hash
     payload["producer"]["output_hash"] = output_hash
@@ -888,6 +906,414 @@ def test_paper_candidate_bridge_metadata_only_has_no_input_or_fetch(
         with factory() as session:
             assert session.query(PaperCandidateInputBindingModel).count() == 1
             assert session.query(ResearchInputModel).count() == 0
+    finally:
+        engine.dispose()
+        command.downgrade(config, "base")
+        command.upgrade(config, "head")
+
+
+@pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
+@pytest.mark.parametrize(
+    ("failure", "expected_status", "expected_code"),
+    [
+        (
+            UrlFetchError(code="URL_FETCH_BLOCKED", detail="redirect denied"),
+            422,
+            "URL_FETCH_BLOCKED",
+        ),
+        (
+            UrlFetchError(code="URL_FETCH_TOO_LARGE", detail="response too large"),
+            502,
+            "URL_FETCH_TOO_LARGE",
+        ),
+        (
+            UrlFetchError(code="URL_FETCH_FAILED", detail="upstream timeout"),
+            502,
+            "URL_FETCH_FAILED",
+        ),
+        (None, 415, "RESEARCH_INPUT_MIME_REJECTED"),
+    ],
+)
+def test_paper_candidate_bridge_fetch_failures_leave_no_persistence(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    failure: UrlFetchError | None,
+    expected_status: int,
+    expected_code: str,
+) -> None:
+    assert TEST_DATABASE_URL is not None
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
+    config = _alembic_config(TEST_DATABASE_URL)
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
+    engine = create_engine_from_url(TEST_DATABASE_URL)
+    factory = session_factory(engine)
+    collection = _collection(
+        source_mode=SourceMode.live, data_level=PaperDataLevel.live_result
+    )
+    project_id = uuid4()
+    ids = tuple(uuid4() for _ in range(7))
+    app = create_app()
+    owner, credential, csrf_token = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
+    app.state.artifact_read_service = ArtifactReadService(factory)
+    with factory() as session, session.begin():
+        _seed_published_collection(
+            session,
+            collection=collection,
+            admitted_content=canonical_artifact_content_payload(collection),
+            admitted_hash=compute_canonical_payload_hash(
+                canonical_artifact_content_payload(collection)
+            ),
+            owner_id=owner.id,
+            project_id=project_id,
+            contract_id=ids[0],
+            run_id=UUID(RUN_ID),
+            step_id=ids[1],
+            attempt_id=ids[2],
+            producer_id=ids[3],
+            artifact_id=ids[4],
+            version_id=ids[5],
+            snapshot_id=ids[6],
+            evidence_ids=tuple(uuid4() for _ in collection.candidates),
+        )
+
+    selected = next(item for item in collection.candidates if item.selected)
+    access_url = "https://repository.example/failure.pdf"
+    fetch_calls: list[str] = []
+
+    async def failing_fetch(url: str, fetch_config: UrlFetchConfig) -> UrlFetchResult:
+        del fetch_config
+        fetch_calls.append(url)
+        if failure is not None:
+            raise failure
+        content = b"not a pdf"
+        content_hash = "sha256:" + hashlib.sha256(content).hexdigest()
+        return UrlFetchResult(
+            content_hash=content_hash,
+            content_bytes=content,
+            mime_type="application/pdf",
+            status_code=200,
+            final_url=url,
+            source_snapshot=SourceSnapshotRecord(
+                snapshot_id="snapshot.invalid-mime",
+                source_id="repository.example",
+                source_type="url_fetch",
+                retrieved_at=NOW,
+                query=url,
+                query_hash=compute_canonical_payload_hash(url),
+                content_hash=content_hash,
+                license_note="Open access resource",
+                request_metadata={"status_code": 200},
+            ),
+        )
+
+    app.state.research_input_ingestion._url_fetcher = failing_fetch
+    payload = {
+        "mode": "open_access_url",
+        "access_url": access_url,
+        "filename": "paper.pdf",
+        "access_evidence": {
+            "kind": "repository_open_access",
+            "license": "CC-BY-4.0",
+            "evidence_url": "https://repository.example/license",
+            "canonical_paper_id": selected.canonical_paper_id,
+            "resource_type": "access_url",
+            "resource_identity_hash": _access_url_resource_hash(access_url),
+        },
+    }
+    try:
+        with TestClient(app) as client:
+            client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api")
+            response = client.post(
+                f"/api/artifact-versions/{ids[5]}/paper-candidates/{selected.candidate_id}/research-input",
+                json=payload,
+                headers={
+                    "X-CSRF-Token": csrf_token,
+                    "Idempotency-Key": f"failure-{expected_code}",
+                },
+            )
+            assert response.status_code == expected_status
+            assert response.json()["code"] == expected_code
+            assert fetch_calls == [access_url]
+        with factory() as session:
+            assert session.query(PaperCandidateInputBindingModel).count() == 0
+            assert session.query(ResearchInputModel).count() == 0
+            assert session.query(PaperCandidateInputIdempotencyModel).count() == 0
+    finally:
+        engine.dispose()
+        command.downgrade(config, "base")
+        command.upgrade(config, "head")
+
+
+@pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
+def test_paper_candidate_bridge_concurrent_idempotency_precedes_fetch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    assert TEST_DATABASE_URL is not None
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
+    config = _alembic_config(TEST_DATABASE_URL)
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
+    engine = create_engine_from_url(TEST_DATABASE_URL)
+    factory = session_factory(engine)
+    collection = _collection(
+        source_mode=SourceMode.live, data_level=PaperDataLevel.live_result
+    )
+    project_id = uuid4()
+    ids = tuple(uuid4() for _ in range(7))
+    app = create_app()
+    owner, _, _ = app.state.session_service.create(now=datetime.now(UTC))
+    app.state.artifact_read_service = ArtifactReadService(factory)
+    with factory() as session, session.begin():
+        _seed_published_collection(
+            session,
+            collection=collection,
+            admitted_content=canonical_artifact_content_payload(collection),
+            admitted_hash=compute_canonical_payload_hash(
+                canonical_artifact_content_payload(collection)
+            ),
+            owner_id=owner.id,
+            project_id=project_id,
+            contract_id=ids[0],
+            run_id=UUID(RUN_ID),
+            step_id=ids[1],
+            attempt_id=ids[2],
+            producer_id=ids[3],
+            artifact_id=ids[4],
+            version_id=ids[5],
+            snapshot_id=ids[6],
+            evidence_ids=tuple(uuid4() for _ in collection.candidates),
+        )
+    selected = next(item for item in collection.candidates if item.selected)
+    fetch_started = threading.Event()
+    allow_fetch = threading.Event()
+    fetch_calls: list[str] = []
+    fetch_lock = threading.Lock()
+
+    async def controlled_fetch(
+        url: str, fetch_config: UrlFetchConfig
+    ) -> UrlFetchResult:
+        del fetch_config
+        with fetch_lock:
+            fetch_calls.append(url)
+        fetch_started.set()
+        await asyncio.to_thread(allow_fetch.wait, 5)
+        content = f"content:{url}".encode()
+        content_hash = "sha256:" + hashlib.sha256(content).hexdigest()
+        return UrlFetchResult(
+            content_hash=content_hash,
+            content_bytes=content,
+            mime_type="text/plain",
+            status_code=200,
+            final_url=url,
+            source_snapshot=SourceSnapshotRecord(
+                snapshot_id=f"snapshot.{hashlib.sha256(url.encode()).hexdigest()[:16]}",
+                source_id="repository.example",
+                source_type="url_fetch",
+                retrieved_at=NOW,
+                query=url,
+                query_hash=compute_canonical_payload_hash(url),
+                content_hash=content_hash,
+                license_note="Open access resource",
+                request_metadata={"status_code": 200},
+            ),
+        )
+
+    app.state.research_input_ingestion._url_fetcher = controlled_fetch
+
+    def request_for(url: str) -> OpenAccessPaperCandidateInputRequest:
+        return OpenAccessPaperCandidateInputRequest(
+            mode="open_access_url",
+            access_url=url,
+            filename="paper.txt",
+            access_evidence=PaperCandidateAccessEvidence(
+                kind="repository_open_access",
+                license="CC-BY-4.0",
+                evidence_url="https://repository.example/license",
+                canonical_paper_id=selected.canonical_paper_id,
+                resource_type="access_url",
+                resource_identity_hash=_access_url_resource_hash(url),
+            ),
+        )
+
+    def invoke(url: str) -> object:
+        try:
+            return asyncio.run(
+                app.state.paper_candidate_input_service.create(
+                    CreatePaperCandidateInputCommand(
+                        session_id=owner.id,
+                        paper_collection_version_id=str(ids[5]),
+                        candidate_id=selected.candidate_id,
+                        idempotency_key="concurrent-bridge-key",
+                        request=request_for(url),
+                    )
+                )
+            )
+        except SecurityProblem as exc:
+            return exc
+
+    try:
+        first_result: list[object] = []
+        first = threading.Thread(
+            target=lambda: first_result.append(
+                invoke("https://repository.example/a.txt")
+            )
+        )
+        first.start()
+        assert fetch_started.wait(timeout=5)
+        divergent = invoke("https://repository.example/b.txt")
+        identical = invoke("https://repository.example/a.txt")
+        assert isinstance(divergent, SecurityProblem)
+        assert divergent.code == "IDEMPOTENCY_CONFLICT"
+        assert isinstance(identical, SecurityProblem)
+        assert identical.code == "IDEMPOTENCY_IN_PROGRESS"
+        assert fetch_calls == ["https://repository.example/a.txt"]
+        allow_fetch.set()
+        first.join(timeout=10)
+        assert not first.is_alive()
+        assert len(first_result) == 1
+        assert not isinstance(first_result[0], SecurityProblem)
+
+        replay = invoke("https://repository.example/a.txt")
+        assert not isinstance(replay, SecurityProblem)
+        assert replay.reused is True
+        assert replay.id == first_result[0].id
+        assert fetch_calls == ["https://repository.example/a.txt"]
+        with factory() as session:
+            assert session.query(PaperCandidateInputBindingModel).count() == 1
+            assert session.query(ResearchInputModel).count() == 1
+            reservation = session.query(PaperCandidateInputIdempotencyModel).one()
+            assert reservation.status == "completed"
+            assert reservation.binding_id == UUID(replay.id)
+    finally:
+        allow_fetch.set()
+        engine.dispose()
+        command.downgrade(config, "base")
+        command.upgrade(config, "head")
+
+
+@pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
+@pytest.mark.parametrize(
+    ("case", "expected_status", "expected_code"),
+    [
+        ("unauthorized", 404, "ARTIFACT_VERSION_NOT_FOUND"),
+        ("unselected", 409, "PAPER_CANDIDATE_NOT_SELECTED"),
+        ("non_live", 409, "PAPER_SOURCE_MODE_NOT_LIVE"),
+        ("synthetic", 409, "PAPER_CANDIDATE_SYNTHETIC"),
+    ],
+)
+def test_paper_candidate_bridge_rejects_before_outbound_io(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    case: str,
+    expected_status: int,
+    expected_code: str,
+) -> None:
+    assert TEST_DATABASE_URL is not None
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
+    config = _alembic_config(TEST_DATABASE_URL)
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
+    engine = create_engine_from_url(TEST_DATABASE_URL)
+    factory = session_factory(engine)
+    collection = (
+        _collection(source_mode=SourceMode.fixture, data_level=PaperDataLevel.fixture)
+        if case == "non_live"
+        else _synthetic_live_collection()
+        if case == "synthetic"
+        else _collection(
+            source_mode=SourceMode.live, data_level=PaperDataLevel.live_result
+        )
+    )
+    project_id = uuid4()
+    ids = tuple(uuid4() for _ in range(7))
+    app = create_app()
+    owner, credential, csrf_token = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
+    other_owner, other_credential, other_csrf = app.state.session_service.create(
+        now=datetime.now(UTC)
+    )
+    app.state.artifact_read_service = ArtifactReadService(factory)
+    with factory() as session, session.begin():
+        _seed_published_collection(
+            session,
+            collection=collection,
+            admitted_content=canonical_artifact_content_payload(collection),
+            admitted_hash=compute_canonical_payload_hash(
+                canonical_artifact_content_payload(collection)
+            ),
+            owner_id=owner.id,
+            project_id=project_id,
+            contract_id=ids[0],
+            run_id=UUID(RUN_ID),
+            step_id=ids[1],
+            attempt_id=ids[2],
+            producer_id=ids[3],
+            artifact_id=ids[4],
+            version_id=ids[5],
+            snapshot_id=ids[6],
+            evidence_ids=tuple(uuid4() for _ in collection.candidates),
+        )
+    candidate = (
+        next(item for item in collection.candidates if not item.selected)
+        if case == "unselected"
+        else collection.candidates[0]
+    )
+    access_url = "https://repository.example/rejected.pdf"
+    fetch_calls: list[str] = []
+
+    async def should_not_fetch(
+        url: str, fetch_config: UrlFetchConfig
+    ) -> UrlFetchResult:
+        del fetch_config
+        fetch_calls.append(url)
+        raise AssertionError("rejected bridge must not fetch")
+
+    app.state.research_input_ingestion._url_fetcher = should_not_fetch
+    payload = {
+        "mode": "open_access_url",
+        "access_url": access_url,
+        "filename": "paper.pdf",
+        "access_evidence": {
+            "kind": "repository_open_access",
+            "license": "CC-BY-4.0",
+            "evidence_url": "https://repository.example/license",
+            "canonical_paper_id": candidate.canonical_paper_id,
+            "resource_type": "access_url",
+            "resource_identity_hash": _access_url_resource_hash(access_url),
+        },
+    }
+    try:
+        with TestClient(app) as client:
+            if case == "unauthorized":
+                assert other_owner.id != owner.id
+                client.cookies.set(
+                    settings.SESSION_COOKIE_NAME, other_credential, path="/api"
+                )
+                csrf = other_csrf
+            else:
+                client.cookies.set(
+                    settings.SESSION_COOKIE_NAME, credential, path="/api"
+                )
+                csrf = csrf_token
+            response = client.post(
+                f"/api/artifact-versions/{ids[5]}/paper-candidates/{candidate.candidate_id}/research-input",
+                json=payload,
+                headers={"X-CSRF-Token": csrf, "Idempotency-Key": f"rejected-{case}"},
+            )
+            assert response.status_code == expected_status
+            assert response.json()["code"] == expected_code
+            assert fetch_calls == []
+        with factory() as session:
+            assert session.query(PaperCandidateInputBindingModel).count() == 0
+            assert session.query(ResearchInputModel).count() == 0
+            assert session.query(PaperCandidateInputIdempotencyModel).count() == 0
     finally:
         engine.dispose()
         command.downgrade(config, "base")

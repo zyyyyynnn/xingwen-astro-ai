@@ -1139,6 +1139,59 @@ class PaperCandidateInputBindingModel(Base):
     )
 
 
+class PaperCandidateInputIdempotencyModel(Base):
+    """Lease-bound request identity for the PaperCandidate input bridge."""
+
+    __tablename__ = "paper_candidate_input_idempotency"
+
+    session_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    binding_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    lease_token: Mapped[str | None] = mapped_column(String(64))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["binding_id", "project_id"],
+            [
+                "paper_candidate_input_bindings.id",
+                "paper_candidate_input_bindings.project_id",
+            ],
+            name="fk_paper_candidate_input_idempotency_binding_project",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "status IN ('pending','completed')",
+            name="paper_candidate_input_idempotency_status",
+        ),
+        CheckConstraint(
+            "(status = 'pending' AND binding_id IS NULL"
+            " AND lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)"
+            " OR (status = 'completed' AND binding_id IS NOT NULL"
+            " AND lease_token IS NULL AND lease_expires_at IS NULL)",
+            name="paper_candidate_input_idempotency_status_lease",
+        ),
+        Index("ix_paper_candidate_input_idempotency_binding", "binding_id"),
+    )
+
+
 class DocumentParseModel(Base):
     """Immutable internal persistence record for a Canonical document parse.
 
