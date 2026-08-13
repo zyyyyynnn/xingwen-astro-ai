@@ -1037,6 +1037,128 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "paper_candidate_input_bindings",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("paper_collection_version_id", _uuid(), nullable=False),
+        sa.Column("candidate_id", sa.String(256), nullable=False),
+        sa.Column("canonical_paper_id", sa.String(256), nullable=False),
+        sa.Column("candidate_source_snapshot_id", _uuid(), nullable=False),
+        sa.Column("candidate_evidence_id", _uuid(), nullable=False),
+        sa.Column("mode", sa.String(32), nullable=False),
+        sa.Column("outcome", sa.String(32), nullable=False),
+        sa.Column("source_collection_status", sa.String(32), nullable=False),
+        sa.Column("metadata_reason", sa.String(64), nullable=True),
+        sa.Column("access_evidence", _jsonb(), nullable=True),
+        sa.Column("access_evidence_hash", sa.String(71), nullable=True),
+        sa.Column("research_input_id", _uuid(), nullable=True),
+        sa.Column("research_input_content_hash", sa.String(71), nullable=True),
+        sa.Column("identity_hash", sa.String(71), nullable=False),
+        sa.Column("request_hash", sa.String(71), nullable=False),
+        sa.Column("idempotency_key", sa.String(200), nullable=False),
+        sa.Column("producer_name", sa.String(128), nullable=False),
+        sa.Column("producer_version", sa.String(64), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "mode IN ('open_access_url','existing_research_input','metadata_only')",
+            name="ck_paper_candidate_input_bindings_mode",
+        ),
+        sa.CheckConstraint(
+            "outcome IN ('accepted','metadata_only')",
+            name="ck_paper_candidate_input_bindings_outcome",
+        ),
+        sa.CheckConstraint(
+            "source_collection_status IN ('completed','partial')",
+            name="ck_paper_candidate_input_bindings_source_collection_status",
+        ),
+        sa.CheckConstraint(
+            "(outcome = 'accepted' AND mode <> 'metadata_only'"
+            " AND metadata_reason IS NULL"
+            " AND access_evidence IS NOT NULL AND access_evidence_hash IS NOT NULL"
+            " AND research_input_id IS NOT NULL"
+            " AND research_input_content_hash IS NOT NULL)"
+            " OR (outcome = 'metadata_only' AND mode = 'metadata_only'"
+            " AND metadata_reason IS NOT NULL"
+            " AND access_evidence IS NULL AND access_evidence_hash IS NULL"
+            " AND research_input_id IS NULL"
+            " AND research_input_content_hash IS NULL)",
+            name="ck_paper_candidate_input_bindings_outcome_shape",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"], ["research_projects.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["paper_collection_version_id", "project_id"],
+            ["artifact_versions.id", "artifact_versions.project_id"],
+            name="fk_paper_candidate_input_binding_version_project",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["candidate_source_snapshot_id", "project_id"],
+            ["source_snapshots.id", "source_snapshots.project_id"],
+            name="fk_paper_candidate_input_binding_snapshot_project",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["candidate_evidence_id", "project_id"],
+            ["evidence.id", "evidence.project_id"],
+            name="fk_paper_candidate_input_binding_evidence_project",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["research_input_id", "project_id"],
+            ["research_inputs.id", "research_inputs.project_id"],
+            name="fk_paper_candidate_input_binding_input_project",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_paper_candidate_input_bindings"),
+        sa.UniqueConstraint(
+            "id",
+            "project_id",
+            name="uq_paper_candidate_input_binding_id_project",
+        ),
+        sa.UniqueConstraint(
+            "project_id",
+            "identity_hash",
+            name="uq_paper_candidate_input_binding_identity",
+        ),
+        sa.UniqueConstraint(
+            "project_id",
+            "idempotency_key",
+            name="uq_paper_candidate_input_binding_idempotency",
+        ),
+    )
+    op.create_index(
+        "ix_paper_candidate_input_bindings_candidate",
+        "paper_candidate_input_bindings",
+        ["project_id", "paper_collection_version_id", "candidate_id"],
+    )
+    op.create_index(
+        "ix_paper_candidate_input_bindings_input",
+        "paper_candidate_input_bindings",
+        ["research_input_id"],
+    )
+    op.execute(
+        """
+        CREATE FUNCTION reject_paper_candidate_input_binding_update()
+        RETURNS trigger AS $$
+        BEGIN
+          RAISE EXCEPTION 'paper candidate input bindings are immutable';
+        END;
+        $$ LANGUAGE plpgsql;
+
+        CREATE TRIGGER trg_paper_candidate_input_bindings_immutable
+        BEFORE UPDATE ON paper_candidate_input_bindings
+        FOR EACH ROW EXECUTE FUNCTION reject_paper_candidate_input_binding_update();
+        """
+    )
+
+    op.create_table(
         "document_parses",
         sa.Column("id", _uuid(), nullable=False),
         sa.Column("project_id", _uuid(), nullable=False),
@@ -1282,6 +1404,20 @@ def downgrade() -> None:
     op.drop_index("ix_document_parses_snapshot", table_name="document_parses")
     op.drop_index("ix_document_parses_input", table_name="document_parses")
     op.drop_table("document_parses")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_paper_candidate_input_bindings_immutable "
+        "ON paper_candidate_input_bindings"
+    )
+    op.execute("DROP FUNCTION IF EXISTS reject_paper_candidate_input_binding_update()")
+    op.drop_index(
+        "ix_paper_candidate_input_bindings_input",
+        table_name="paper_candidate_input_bindings",
+    )
+    op.drop_index(
+        "ix_paper_candidate_input_bindings_candidate",
+        table_name="paper_candidate_input_bindings",
+    )
+    op.drop_table("paper_candidate_input_bindings")
     op.drop_table("research_input_bindings")
     op.drop_index(
         "ix_research_input_idempotency_input",

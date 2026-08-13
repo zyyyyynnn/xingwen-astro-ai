@@ -1018,6 +1018,125 @@ class ResearchInputIdempotencyModel(Base):
             "input_id",
         ),
     )
+
+
+class PaperCandidateInputBindingModel(Base):
+    """Immutable provenance bridge from a selected paper to a ResearchInput."""
+
+    __tablename__ = "paper_candidate_input_bindings"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    paper_collection_version_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
+    candidate_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    canonical_paper_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    candidate_source_snapshot_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
+    candidate_evidence_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
+    mode: Mapped[str] = mapped_column(String(32), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_collection_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    metadata_reason: Mapped[str | None] = mapped_column(String(64))
+    access_evidence: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    access_evidence_hash: Mapped[str | None] = mapped_column(String(71))
+    research_input_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    research_input_content_hash: Mapped[str | None] = mapped_column(String(71))
+    identity_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    producer_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    producer_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "id", "project_id", name="uq_paper_candidate_input_binding_id_project"
+        ),
+        UniqueConstraint(
+            "project_id",
+            "identity_hash",
+            name="uq_paper_candidate_input_binding_identity",
+        ),
+        UniqueConstraint(
+            "project_id",
+            "idempotency_key",
+            name="uq_paper_candidate_input_binding_idempotency",
+        ),
+        ForeignKeyConstraint(
+            ["paper_collection_version_id", "project_id"],
+            ["artifact_versions.id", "artifact_versions.project_id"],
+            name="fk_paper_candidate_input_binding_version_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["candidate_source_snapshot_id", "project_id"],
+            ["source_snapshots.id", "source_snapshots.project_id"],
+            name="fk_paper_candidate_input_binding_snapshot_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["candidate_evidence_id", "project_id"],
+            ["evidence.id", "evidence.project_id"],
+            name="fk_paper_candidate_input_binding_evidence_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["research_input_id", "project_id"],
+            ["research_inputs.id", "research_inputs.project_id"],
+            name="fk_paper_candidate_input_binding_input_project",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "mode IN ('open_access_url','existing_research_input','metadata_only')",
+            name="mode",
+        ),
+        CheckConstraint(
+            "outcome IN ('accepted','metadata_only')", name="outcome"
+        ),
+        CheckConstraint(
+            "source_collection_status IN ('completed','partial')",
+            name="source_collection_status",
+        ),
+        CheckConstraint(
+            "(outcome = 'accepted' AND mode <> 'metadata_only'"
+            " AND metadata_reason IS NULL"
+            " AND access_evidence IS NOT NULL AND access_evidence_hash IS NOT NULL"
+            " AND research_input_id IS NOT NULL"
+            " AND research_input_content_hash IS NOT NULL)"
+            " OR (outcome = 'metadata_only' AND mode = 'metadata_only'"
+            " AND metadata_reason IS NOT NULL"
+            " AND access_evidence IS NULL AND access_evidence_hash IS NULL"
+            " AND research_input_id IS NULL"
+            " AND research_input_content_hash IS NULL)",
+            name="outcome_shape",
+        ),
+        Index(
+            "ix_paper_candidate_input_bindings_candidate",
+            "project_id",
+            "paper_collection_version_id",
+            "candidate_id",
+        ),
+        Index(
+            "ix_paper_candidate_input_bindings_input", "research_input_id"
+        ),
+    )
+
+
 class DocumentParseModel(Base):
     """Immutable internal persistence record for a Canonical document parse.
 

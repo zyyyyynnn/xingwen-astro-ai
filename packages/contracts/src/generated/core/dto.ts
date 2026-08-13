@@ -477,6 +477,23 @@ export type GraphNodeType =
   | "evidence";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperAccessEvidenceKind".
+ */
+export type PaperAccessEvidenceKind =
+  "publisher_open_access" | "repository_open_access" | "author_provided" | "user_provided";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCandidateMetadataReason".
+ */
+export type PaperCandidateMetadataReason =
+  | "access_not_proven"
+  | "metadata_url_only"
+  | "paywalled"
+  | "restricted_full_text"
+  | "partial_metadata"
+  | "unsupported_access";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ProducerExecutionStatus".
  */
 export type ProducerExecutionStatus = "completed" | "failed";
@@ -2710,6 +2727,54 @@ export interface Envelope_LiteratureRelationRead_ {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_PaperCandidateInputBinding_".
+ */
+export interface Envelope_PaperCandidateInputBinding_ {
+  data: PaperCandidateInputBinding;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * Immutable bridge from one selected candidate to a controlled input.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCandidateInputBinding".
+ */
+export interface PaperCandidateInputBinding {
+  access_evidence?: PaperCandidateAccessEvidence | null;
+  access_evidence_hash?: string | null;
+  /**
+   * @minItems 1
+   */
+  candidate_evidence_ids: [string, ...string[]];
+  candidate_id: string;
+  candidate_source_snapshot_id: string;
+  canonical_paper_id: string;
+  created_at: string;
+  id: string;
+  metadata_reason?: PaperCandidateMetadataReason | null;
+  mode: "open_access_url" | "existing_research_input" | "metadata_only";
+  outcome: "accepted" | "metadata_only";
+  paper_collection_version_id: string;
+  parse_status?: "not_started";
+  project_id: string;
+  research_input?: ResearchInputRef | null;
+  reused?: boolean;
+  source_collection_status: "completed" | "partial";
+}
+/**
+ * Bounded lawful-access assertion retained without restricted content.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperCandidateAccessEvidence".
+ */
+export interface PaperCandidateAccessEvidence {
+  evidence_url: string;
+  kind: PaperAccessEvidenceKind;
+  license: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_PaperCollectionRead_".
  */
 export interface Envelope_PaperCollectionRead_ {
@@ -3671,6 +3736,33 @@ export interface WorkspacePanelSlot {
   evidence_id?: string | null;
   panel_type: "atlas" | "observatory";
   slot_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ExistingPaperCandidateInputRequest".
+ */
+export interface ExistingPaperCandidateInputRequest {
+  access_evidence: PaperCandidateAccessEvidence;
+  mode: "existing_research_input";
+  research_input_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "MetadataOnlyPaperCandidateInputRequest".
+ */
+export interface MetadataOnlyPaperCandidateInputRequest {
+  mode: "metadata_only";
+  reason: PaperCandidateMetadataReason;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "OpenAccessPaperCandidateInputRequest".
+ */
+export interface OpenAccessPaperCandidateInputRequest {
+  access_evidence: PaperCandidateAccessEvidence;
+  access_url: string;
+  filename?: string | null;
+  mode: "open_access_url";
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

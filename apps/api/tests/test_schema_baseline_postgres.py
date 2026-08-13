@@ -23,6 +23,7 @@ EXPECTED_TABLES = frozenset(
         "document_parses",
         "evidence",
         "model_executions",
+        "paper_candidate_input_bindings",
         "producer_executions",
         "research_artifacts",
         "research_contract_drafts",
