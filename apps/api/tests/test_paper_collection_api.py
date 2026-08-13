@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+import hashlib
 import os
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -11,17 +12,22 @@ from uuid import UUID, uuid4
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from pydantic import ValidationError
 import pytest
 from sqlalchemy.orm import Session
+from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError, ProgrammingError
 
 from app.config import settings
 from app.db.models import (
     ArtifactVersionModel,
     EvidenceModel,
+    PaperCandidateInputBindingModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
     ResearchContractModel,
+    ResearchInputModel,
     ResearchProjectModel,
     ResearchRunModel,
     RunStepModel,
@@ -56,6 +62,10 @@ from app.schemas.core import (
 from app.security import SecurityProblem
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.artifacts import ArtifactReadService
+from app.services.paper_candidate_inputs import (
+    _access_url_resource_hash,
+)
+from app.services.url_fetcher import UrlFetchConfig, UrlFetchResult
 from services.paper_pipeline.benchmark_runner import PaperCollectionBenchmarkRunner
 from services.paper_pipeline.sources.base import (
     RawSourceRecord,
@@ -128,15 +138,20 @@ class _FixtureAdapter:
         )
 
 
-def _collection(count: int = 3) -> PaperCollection:
+def _collection(
+    count: int = 3,
+    *,
+    source_mode: SourceMode = SourceMode.fixture,
+    data_level: PaperDataLevel = PaperDataLevel.fixture,
+) -> PaperCollection:
     return PaperCollectionBenchmarkRunner(
         adapter=_FixtureAdapter(count), clock=lambda: NOW
     ).run(
         scenario_id="search.tess_mission_and_catalogs",
         page_size=20,
         selection_limit=2,
-        source_mode=SourceMode.fixture,
-        data_level=PaperDataLevel.fixture,
+        source_mode=source_mode,
+        data_level=data_level,
         run_id=RUN_ID,
     )
 
@@ -572,6 +587,313 @@ def test_postgres_published_collection_reads_with_ownership_and_redaction() -> N
         command.upgrade(config, "head")
 
 
+@pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
+def test_postgres_paper_candidate_bridge_accepts_replays_and_shares_rate_limit(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Exercise the real HTTP bridge, persistent ResearchInput and binding row."""
+
+    assert TEST_DATABASE_URL is not None
+    assert "test" in TEST_DATABASE_URL.rsplit("/", 1)[-1].lower(), (
+        "refusing non-test database"
+    )
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
+    config = _alembic_config(TEST_DATABASE_URL)
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
+    engine = create_engine_from_url(TEST_DATABASE_URL)
+    factory = session_factory(engine)
+    collection = _collection(
+        source_mode=SourceMode.live, data_level=PaperDataLevel.live_result
+    )
+    project_id = uuid4()
+    contract_id = uuid4()
+    run_id = UUID(RUN_ID)
+    step_id, attempt_id, producer_id = uuid4(), uuid4(), uuid4()
+    artifact_id, version_id, snapshot_id = uuid4(), uuid4(), uuid4()
+    evidence_ids = tuple(uuid4() for _ in collection.candidates)
+    content_payload = canonical_artifact_content_payload(collection)
+    content_hash = compute_canonical_payload_hash(content_payload)
+    app = create_app()
+    owner, credential, csrf_token = app.state.session_service.create(now=datetime.now(UTC))
+    app.state.artifact_read_service = ArtifactReadService(factory)
+    with factory() as session, session.begin():
+        _seed_published_collection(
+            session,
+            collection=collection,
+            admitted_content=content_payload,
+            admitted_hash=content_hash,
+            owner_id=owner.id,
+            project_id=project_id,
+            contract_id=contract_id,
+            run_id=run_id,
+            step_id=step_id,
+            attempt_id=attempt_id,
+            producer_id=producer_id,
+            artifact_id=artifact_id,
+            version_id=version_id,
+            snapshot_id=snapshot_id,
+            evidence_ids=evidence_ids,
+        )
+
+    selected = next(candidate for candidate in collection.candidates if candidate.selected)
+    access_url = "https://repository.example/paper.csv"
+    fetched_content = b"title,year\nTESS,2020\n"
+    fetched_hash = "sha256:" + hashlib.sha256(fetched_content).hexdigest()
+    fetch_calls: list[str] = []
+
+    async def fake_fetch(url: str, config: UrlFetchConfig) -> UrlFetchResult:
+        del config
+        fetch_calls.append(url)
+        return UrlFetchResult(
+            content_hash=fetched_hash,
+            content_bytes=fetched_content,
+            mime_type="text/csv",
+            status_code=200,
+            final_url=url,
+            source_snapshot=SourceSnapshotRecord(
+                snapshot_id="snapshot.paper-input-fetch",
+                source_id="repository.example",
+                source_type="url_fetch",
+                retrieved_at=NOW,
+                query=url,
+                query_hash=compute_canonical_payload_hash(url),
+                content_hash=fetched_hash,
+                license_note="Open access resource",
+                request_metadata={"status_code": 200},
+            ),
+        )
+
+    app.state.research_input_ingestion._url_fetcher = fake_fetch
+    # Invalid open-access requests are rejected by the bridge service after
+    # the shared limiter is consumed, so they still count toward the quota.
+    app.state.research_input_rate_limiter.limit = 5
+    evidence = {
+        "kind": "repository_open_access",
+        "license": "CC-BY-4.0",
+        "evidence_url": "https://repository.example/license",
+        "canonical_paper_id": selected.canonical_paper_id,
+        "resource_type": "access_url",
+        "resource_identity_hash": _access_url_resource_hash(access_url),
+    }
+    request = {
+        "mode": "open_access_url",
+        "access_url": access_url,
+        "access_evidence": evidence,
+        "filename": "paper.csv",
+    }
+    headers = {
+        "X-CSRF-Token": csrf_token,
+        "Idempotency-Key": "paper-bridge-create-1",
+    }
+    try:
+        with TestClient(app) as client:
+            client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api")
+            cross_wired = {
+                **request,
+                "access_evidence": {
+                    **evidence,
+                    "resource_identity_hash": _access_url_resource_hash(
+                        "https://repository.example/other-paper.csv"
+                    ),
+                },
+            }
+            cross_wire_response = client.post(
+                f"/api/artifact-versions/{version_id}/paper-candidates/{selected.candidate_id}/research-input",
+                json=cross_wired,
+                headers={**headers, "Idempotency-Key": "paper-bridge-cross-wire-url"},
+            )
+            assert cross_wire_response.status_code == 422
+            assert cross_wire_response.json()["code"] == "PAPER_ACCESS_RESOURCE_MISMATCH"
+            assert fetch_calls == []
+
+            ordinary = client.post(
+                "/api/research-inputs",
+                json={
+                    "project_id": str(project_id),
+                    "type": "text",
+                    "text_content": "quota probe",
+                },
+                headers={**headers, "Idempotency-Key": "ordinary-quota-probe"},
+            )
+            assert ordinary.status_code == 201
+            ordinary_input = ordinary.json()["data"]
+
+            first = client.post(
+                f"/api/artifact-versions/{version_id}/paper-candidates/{selected.candidate_id}/research-input",
+                json=request,
+                headers=headers,
+            )
+            assert first.status_code == 201
+            assert first.json()["data"]["outcome"] == "accepted"
+            assert first.json()["data"]["research_input"]["content_hash"] == fetched_hash
+            assert fetch_calls == [access_url]
+
+            replay = client.post(
+                f"/api/artifact-versions/{version_id}/paper-candidates/{selected.candidate_id}/research-input",
+                json=request,
+                headers=headers,
+            )
+            assert replay.status_code == 200
+            assert replay.json()["data"]["reused"] is True
+            assert replay.json()["data"]["id"] == first.json()["data"]["id"]
+            assert fetch_calls == [access_url]
+
+            existing_request = {
+                "mode": "existing_research_input",
+                "research_input_id": ordinary_input["id"],
+                "access_evidence": {
+                    "kind": "author_provided",
+                    "license": "author permission",
+                    "evidence_url": "https://repository.example/permission",
+                    "canonical_paper_id": selected.canonical_paper_id,
+                    "resource_type": "research_input",
+                    "resource_identity_hash": compute_canonical_payload_hash(
+                        {
+                            "resource_type": "research_input",
+                            "research_input_id": ordinary_input["id"],
+                            "content_hash": ordinary_input["content_hash"],
+                        }
+                    ),
+                },
+            }
+            existing = client.post(
+                f"/api/artifact-versions/{version_id}/paper-candidates/{selected.candidate_id}/research-input",
+                json=existing_request,
+                headers={**headers, "Idempotency-Key": "paper-bridge-existing-1"},
+            )
+            assert existing.status_code == 201
+            assert existing.json()["data"]["mode"] == "existing_research_input"
+            assert existing.json()["data"]["research_input"]["id"] == ordinary_input["id"]
+
+            cross_wired_existing = {
+                **existing_request,
+                "access_evidence": {
+                    **existing_request["access_evidence"],
+                    "resource_identity_hash": compute_canonical_payload_hash(
+                        {
+                            "resource_type": "research_input",
+                            "research_input_id": ordinary_input["id"],
+                            "content_hash": "sha256:" + "f" * 64,
+                        }
+                    ),
+                },
+            }
+            cross_wire_existing_response = client.post(
+                f"/api/artifact-versions/{version_id}/paper-candidates/{selected.candidate_id}/research-input",
+                json=cross_wired_existing,
+                headers={**headers, "Idempotency-Key": "paper-bridge-cross-wire-input"},
+            )
+            assert cross_wire_existing_response.status_code == 422
+
+            quota_warmup = client.post(
+                f"/api/artifact-versions/{version_id}/paper-candidates/{selected.candidate_id}/research-input",
+                json=request,
+                headers={**headers, "Idempotency-Key": "paper-bridge-create-3"},
+            )
+            assert quota_warmup.status_code == 200
+            assert quota_warmup.json()["data"]["reused"] is True
+
+            blocked = client.post(
+                f"/api/artifact-versions/{version_id}/paper-candidates/{selected.candidate_id}/research-input",
+                json=request,
+                headers={**headers, "Idempotency-Key": "paper-bridge-create-2"},
+            )
+            assert blocked.status_code == 429
+            assert blocked.json()["code"] == "RATE_LIMITED"
+            assert fetch_calls == [access_url]
+
+        with factory() as session:
+            binding_count = session.query(PaperCandidateInputBindingModel).count()
+            assert binding_count == 2
+            input_count = session.query(ResearchInputModel).count()
+            assert input_count == 2  # ordinary quota probe + accepted bridge
+            binding = session.query(PaperCandidateInputBindingModel).first()
+            assert binding is not None
+            with pytest.raises((IntegrityError, ProgrammingError)):
+                session.execute(
+                    update(PaperCandidateInputBindingModel)
+                    .where(PaperCandidateInputBindingModel.id == binding.id)
+                    .values(candidate_id="tampered")
+                )
+                session.flush()
+    finally:
+        engine.dispose()
+        command.downgrade(config, "base")
+        command.upgrade(config, "head")
+
+
+@pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
+def test_paper_candidate_bridge_metadata_only_has_no_input_or_fetch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Metadata-only remains a durable provenance decision without side effects."""
+
+    assert TEST_DATABASE_URL is not None
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
+    config = _alembic_config(TEST_DATABASE_URL)
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
+    engine = create_engine_from_url(TEST_DATABASE_URL)
+    factory = session_factory(engine)
+    collection = _collection(source_mode=SourceMode.fixture, data_level=PaperDataLevel.fixture)
+    project_id = uuid4()
+    ids = (uuid4(), uuid4(), uuid4(), uuid4(), uuid4(), uuid4(), uuid4(), uuid4())
+    app = create_app()
+    owner, credential, csrf_token = app.state.session_service.create(now=datetime.now(UTC))
+    app.state.artifact_read_service = ArtifactReadService(factory)
+    with factory() as session, session.begin():
+        _seed_published_collection(
+            session,
+            collection=collection,
+            admitted_content=canonical_artifact_content_payload(collection),
+            admitted_hash=compute_canonical_payload_hash(
+                canonical_artifact_content_payload(collection)
+            ),
+            owner_id=owner.id,
+            project_id=project_id,
+            contract_id=ids[0],
+            run_id=UUID(RUN_ID),
+            step_id=ids[1],
+            attempt_id=ids[2],
+            producer_id=ids[3],
+            artifact_id=ids[4],
+            version_id=ids[5],
+            snapshot_id=ids[6],
+            evidence_ids=tuple(uuid4() for _ in collection.candidates),
+        )
+    fetch_calls: list[str] = []
+
+    async def should_not_fetch(url: str, config: UrlFetchConfig) -> UrlFetchResult:
+        del config
+        fetch_calls.append(url)
+        raise AssertionError("metadata-only bridge must not fetch")
+
+    app.state.research_input_ingestion._url_fetcher = should_not_fetch
+    try:
+        with TestClient(app) as client:
+            client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api")
+            response = client.post(
+                f"/api/artifact-versions/{ids[5]}/paper-candidates/"
+                f"{collection.candidates[0].candidate_id}/research-input",
+                json={"mode": "metadata_only", "reason": "metadata_url_only"},
+                headers={"X-CSRF-Token": csrf_token, "Idempotency-Key": "metadata-only-1"},
+            )
+            assert response.status_code == 201
+            assert response.json()["data"]["outcome"] == "metadata_only"
+            assert response.json()["data"]["research_input"] is None
+            assert fetch_calls == []
+        with factory() as session:
+            assert session.query(PaperCandidateInputBindingModel).count() == 1
+            assert session.query(ResearchInputModel).count() == 0
+    finally:
+        engine.dispose()
+        command.downgrade(config, "base")
+        command.upgrade(config, "head")
+
+
 def _seed_published_collection(
     session: Session,
     *,
@@ -610,7 +932,10 @@ def _seed_published_collection(
         id=run_id,
         project_id=project_id,
         contract_id=contract_id,
-        execution_mode="demo_replay",
+        execution_mode=(
+            "live" if collection.source_executions[0].source_mode is SourceMode.live
+            else "demo_replay"
+        ),
         status="completed",
         progress=100,
         latest_event_sequence=1,
@@ -701,7 +1026,7 @@ def _seed_published_collection(
         content=admitted_content,
         content_hash=admitted_hash,
         input_hash=collection.input_hash,
-        source_mode="fixture",
+        source_mode=collection.source_executions[0].source_mode.value,
         producer={
             "type": "algorithm",
             "name": collection.producer.producer_name,

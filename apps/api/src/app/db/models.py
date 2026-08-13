@@ -1048,7 +1048,9 @@ class PaperCandidateInputBindingModel(Base):
     outcome: Mapped[str] = mapped_column(String(32), nullable=False)
     source_collection_status: Mapped[str] = mapped_column(String(32), nullable=False)
     metadata_reason: Mapped[str | None] = mapped_column(String(64))
-    access_evidence: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    access_evidence: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True)
+    )
     access_evidence_hash: Mapped[str | None] = mapped_column(String(71))
     research_input_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     research_input_content_hash: Mapped[str | None] = mapped_column(String(71))

@@ -44,6 +44,7 @@ from app.schemas.literature_claim import LiteratureClaimStatus
 from app.schemas.literature_relation import LiteratureRelationStatus
 from app.schemas.paper_collection_api import (
     CreatePaperCandidateInputRequest,
+    OpenAccessPaperCandidateInputRequest,
     PaperCandidateInputBinding,
     PaperCollectionCandidateRead,
     PaperCollectionRead,
@@ -550,6 +551,10 @@ async def create_paper_candidate_research_input(
     csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
 ) -> Envelope[PaperCandidateInputBinding]:
     _ = csrf_token
+    rate_limit = None
+    limiter = request.app.state.research_input_rate_limiter
+    if isinstance(payload, OpenAccessPaperCandidateInputRequest):
+        rate_limit = limiter.consume(_session_id(request))
     result = await _paper_input_service(request).create(
         CreatePaperCandidateInputCommand(
             session_id=_session_id(request),
@@ -562,6 +567,11 @@ async def create_paper_candidate_research_input(
     if result.reused:
         response.status_code = 200
     _no_store(response)
+    if rate_limit is not None:
+        remaining, reset_seconds = rate_limit
+        response.headers["RateLimit-Limit"] = str(limiter.limit)
+        response.headers["RateLimit-Remaining"] = str(remaining)
+        response.headers["RateLimit-Reset"] = str(reset_seconds)
     path = (
         f"/api/artifact-versions/{version_id}/paper-candidates/"
         f"{candidate_id}/research-input"

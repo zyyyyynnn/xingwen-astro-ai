@@ -80,6 +80,9 @@ class PaperCandidateAccessEvidence(BaseModel):
     kind: PaperAccessEvidenceKind
     license: Annotated[str, Field(min_length=1, max_length=256)]
     evidence_url: Annotated[str, Field(min_length=1, max_length=2048)]
+    canonical_paper_id: Identifier
+    resource_type: Literal["access_url", "research_input"]
+    resource_identity_hash: ContentHash
 
 
 class OpenAccessPaperCandidateInputRequest(BaseModel):

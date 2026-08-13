@@ -7277,6 +7277,12 @@
         "additionalProperties": false,
         "description": "Bounded lawful-access assertion retained without restricted content.",
         "properties": {
+          "canonical_paper_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Canonical Paper Id",
+            "type": "string"
+          },
           "evidence_url": {
             "maxLength": 2048,
             "minLength": 1,
@@ -7291,12 +7297,28 @@
             "minLength": 1,
             "title": "License",
             "type": "string"
+          },
+          "resource_identity_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Resource Identity Hash",
+            "type": "string"
+          },
+          "resource_type": {
+            "enum": [
+              "access_url",
+              "research_input"
+            ],
+            "title": "Resource Type",
+            "type": "string"
           }
         },
         "required": [
           "kind",
           "license",
-          "evidence_url"
+          "evidence_url",
+          "canonical_paper_id",
+          "resource_type",
+          "resource_identity_hash"
         ],
         "title": "PaperCandidateAccessEvidence",
         "type": "object"

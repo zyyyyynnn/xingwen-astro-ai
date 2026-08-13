@@ -2769,9 +2769,12 @@ export interface PaperCandidateInputBinding {
  * via the `definition` "PaperCandidateAccessEvidence".
  */
 export interface PaperCandidateAccessEvidence {
+  canonical_paper_id: string;
   evidence_url: string;
   kind: PaperAccessEvidenceKind;
   license: string;
+  resource_identity_hash: string;
+  resource_type: "access_url" | "research_input";
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema

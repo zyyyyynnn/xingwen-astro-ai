@@ -127,7 +127,10 @@ class PaperCandidateInputService:
         if existing is not None:
             return self._project(existing, command.session_id, reused=True)
 
-        normalized_evidence = _normalized_access_evidence(command.request)
+        normalized_evidence = _normalized_access_evidence(
+            command.request,
+            canonical_paper_id=candidate.candidate.canonical_paper_id,
+        )
         access_evidence_hash = (
             compute_canonical_payload_hash(
                 normalized_evidence.model_dump(mode="json")
@@ -202,6 +205,9 @@ class PaperCandidateInputService:
             )
             if record is None or record.project_id != project_id:
                 raise _not_found()
+            expected_resource_hash = _research_input_resource_hash(record)
+            if request.access_evidence.resource_identity_hash != expected_resource_hash:
+                raise _access_resource_problem()
             return record
         return await self._ingestion.create(
             ResearchInputIngestionCommand(
@@ -444,6 +450,8 @@ class PaperCandidateInputRepository:
 
 def _normalized_access_evidence(
     request: CreatePaperCandidateInputRequest,
+    *,
+    canonical_paper_id: str,
 ) -> PaperCandidateAccessEvidence | None:
     if isinstance(request, MetadataOnlyPaperCandidateInputRequest):
         return None
@@ -458,8 +466,52 @@ def _normalized_access_evidence(
             "An open-access URL requires publisher, repository, or author access evidence",
         )
     evidence = request.access_evidence
+    if evidence.canonical_paper_id != canonical_paper_id:
+        raise _access_resource_problem()
+    if isinstance(request, OpenAccessPaperCandidateInputRequest):
+        if (
+            evidence.resource_type != "access_url"
+            or evidence.resource_identity_hash
+            != _access_url_resource_hash(request.access_url)
+        ):
+            raise _access_resource_problem()
+    elif evidence.resource_type != "research_input":
+        raise _access_resource_problem()
     evidence_url = _safe_https_url(evidence.evidence_url)
     return evidence.model_copy(update={"evidence_url": evidence_url})
+
+
+def _access_url_resource_hash(value: str) -> str:
+    try:
+        parsed = urlsplit(value)
+        host = parsed.hostname
+        if not host or parsed.username is not None or parsed.password is not None:
+            raise ValueError
+        port = f":{parsed.port}" if parsed.port is not None else ""
+        normalized = urlunsplit(
+            (
+                parsed.scheme.casefold(),
+                f"{host.casefold()}{port}",
+                parsed.path,
+                parsed.query,
+                "",
+            )
+        )
+    except ValueError as exc:
+        raise _access_resource_problem() from exc
+    return compute_canonical_payload_hash(
+        {"resource_type": "access_url", "url": normalized}
+    )
+
+
+def _research_input_resource_hash(record: ResearchInputRecord) -> str:
+    return compute_canonical_payload_hash(
+        {
+            "resource_type": "research_input",
+            "research_input_id": record.id,
+            "content_hash": record.content_hash,
+        }
+    )
 
 
 def _safe_https_url(value: str) -> str:
@@ -550,6 +602,15 @@ def _integrity_problem() -> SecurityProblem:
         "PAPER_CANDIDATE_INPUT_INTEGRITY_CONFLICT",
         "Paper candidate input integrity conflict",
         "The immutable PaperCandidate input provenance is inconsistent",
+    )
+
+
+def _access_resource_problem() -> SecurityProblem:
+    return _problem(
+        422,
+        "PAPER_ACCESS_RESOURCE_MISMATCH",
+        "Paper access resource mismatch",
+        "Access evidence does not bind the selected paper to the requested resource",
     )
 
 
