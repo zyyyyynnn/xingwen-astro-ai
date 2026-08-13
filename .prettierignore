@@ -6,3 +6,4 @@
 packages/schemas/generated/
 packages/contracts/src/generated/
 apps/workspace/upstream/openhands/src/
+pnpm-lock.yaml
