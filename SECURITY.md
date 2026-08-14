@@ -27,6 +27,7 @@
 ## 3. 匿名 Session 与授权
 
 - Session 使用服务端签发的高熵标识与明确过期时间。
+- Session 的 credential 与 CSRF token 只以不可逆 hash 持久化；PostgreSQL 行锁原子轮换有界 CSRF hash 集并递增内部 security version，使重启、多实例与并行标签页共享同一撤销/过期事实。
 - Cookie 配置 `Secure`、`HttpOnly` 与合适的 `SameSite`。
 - 所有 Project、Run、Artifact、Version、Feedback、Export 和 Share 操作由服务端校验 ownership。
 - 跨会话或不存在的私有资源均返回不泄露存在性的 `404` 响应。
@@ -37,6 +38,7 @@
 - 分享默认只读、最小范围、可撤销、可过期；Share token 服务端仅保存不可逆 hash。
 - 原 token 只在创建时返回一次，不写入日志、Referer 或 Project 聚合。
 - 分享响应严格过滤会话信息、内部错误、受限全文与敏感来源字段。
+- Share 持久化创建时已脱敏的 ArtifactVersion/Evidence/SourceSnapshot identity 投影；公开读取不回查动态 latest，也不因进程重启改变冻结内容。
 - 无效、撤销和过期 token 不泄露底层资源存在性。
 
 ## 5. 外部来源与网络安全
@@ -70,6 +72,7 @@
 - Fixture 或录制响应不得伪造为真实 Run、ArtifactVersion 或 SourceSnapshot。
 - CacheRecord 必须闭合真实 origin Run、ArtifactVersion、SourceSnapshot、Contract/input hash 与 producer identity；Fixture 不得进入 CacheSelector。
 - ArtifactVersion 采用追加写入，不原地覆盖或删除正常历史。
+- 达到保留期的撤销/过期 Share 可以清理；Session 仅在达到保留期且没有 Project 引用时删除，cleanup 不级联删除科研 Project、Run 或 Artifact 历史。
 - UserFeedback 与 RevisionPlan 只能生成新的派生 Run 和 ArtifactVersion，不得原地改写已发布内容或其 Evidence。
 - 涉及密钥泄露或法定要求时执行彻底清理。
 

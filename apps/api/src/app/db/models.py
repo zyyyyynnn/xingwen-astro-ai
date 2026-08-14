@@ -44,6 +44,42 @@ class TimestampMixin:
     )
 
 
+class ResearchSessionModel(TimestampMixin, Base):
+    __tablename__ = "research_sessions"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    credential_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True
+    )
+    csrf_hashes: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    security_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    quota: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('active','revoked')", name="research_session_status"
+        ),
+        CheckConstraint(
+            "security_version >= 1", name="research_session_security_version_positive"
+        ),
+        CheckConstraint(
+            "(status = 'active' AND revoked_at IS NULL) OR "
+            "(status = 'revoked' AND revoked_at IS NOT NULL AND csrf_hashes = '[]'::jsonb)",
+            name="research_session_revocation_shape",
+        ),
+        Index("ix_research_sessions_expires_at", "expires_at"),
+        Index("ix_research_sessions_status_updated", "status", "updated_at"),
+    )
+
+
 class ResearchProjectModel(TimestampMixin, Base):
     __tablename__ = "research_projects"
 
@@ -70,6 +106,75 @@ class ResearchProjectModel(TimestampMixin, Base):
         UniqueConstraint(
             "session_id", "idempotency_key", name="uq_research_project_idempotency"
         ),
+    )
+
+
+class WorkspaceSnapshotModel(Base):
+    __tablename__ = "workspace_snapshots"
+
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    owner_session_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["project_id", "owner_session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_workspace_snapshot_project_owner",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("revision >= 1", name="workspace_snapshot_revision_positive"),
+    )
+
+
+class ShareSnapshotModel(Base):
+    __tablename__ = "share_snapshots"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    owner_session_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    artifact_version_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    evidence_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    redaction_policy: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    artifact_versions: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    evidence: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["project_id", "owner_session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_share_snapshot_project_owner",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "status IN ('active','revoked')", name="share_snapshot_status"
+        ),
+        CheckConstraint(
+            "(status = 'active' AND revoked_at IS NULL) OR "
+            "(status = 'revoked' AND revoked_at IS NOT NULL)",
+            name="share_snapshot_revocation_shape",
+        ),
+        CheckConstraint(
+            "jsonb_array_length(artifact_version_ids) >= 1",
+            name="share_snapshot_has_artifact_version",
+        ),
+        Index(
+            "ix_share_snapshots_owner_created",
+            "owner_session_id",
+            "project_id",
+            "created_at",
+            "id",
+        ),
+        Index("ix_share_snapshots_retention", "status", "expires_at", "revoked_at"),
     )
 
 

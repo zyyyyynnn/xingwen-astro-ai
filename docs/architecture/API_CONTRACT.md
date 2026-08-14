@@ -25,7 +25,7 @@
 
 ## 3. 会话、安全与授权
 
-- **匿名 Session**：服务端自动签发高熵标识与 Cookie（`Secure`、`HttpOnly`、`SameSite`）。
+- **匿名 Session**：服务端自动签发高熵标识与 Cookie（`Secure`、`HttpOnly`、`SameSite`）；服务端持久化 hash、expiry、revocation 与 security version，resume 原子轮换有界 CSRF token 集并支持重启/多实例恢复。
 - **Ownership 校验**：所有 Project、Run、ArtifactVersion、WorkspaceSnapshot 与 ShareSnapshot 在服务端强制校验 Session ownership。
 - **只读分享**：
   - ShareSnapshot 锁定不可变 ArtifactVersion 与可公开 Evidence 范围。
@@ -85,8 +85,8 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - **Contract**：固定研究目标、字段与质量约束（确认后不可变）。
 - **Run**：表示一次具体执行，管理进度与事件。
 - **ArtifactVersion**：不可变的科研产物快照，绑定 Evidence 与 SourceSnapshot。
-- **WorkspaceSnapshot**：工作台私有恢复布局状态。
-- **ShareSnapshot**：冻结的公开只读投影。
+- **WorkspaceSnapshot**：持久化工作台私有恢复布局状态，使用 Project ownership 与 revision 乐观锁。
+- **ShareSnapshot**：持久化创建时冻结的公开只读投影；公开读取只依赖冻结内容与 token hash，不跟随动态 latest。
 - **ResearchInput**：受控输入边界（URL / PDF / CSV / JSON / 图片 / 文本）的不可变引用与溯源；二进制内容与全文永不进入公开 DTO。
 
 - **PaperCandidate 到 ResearchInput**：选中的 PaperCollection candidate 通过

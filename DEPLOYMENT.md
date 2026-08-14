@@ -32,6 +32,7 @@ FastAPI Backend -> Model Provider / Data Sources / Paper Sources
 
 - **Browser-visible**：仅包含 API 公开 origin、公开配置与 `VITE_` / `PUBLIC_` 变量，均视为公开信息。
 - **Backend-only**：包含数据库连接、模型 API Key、Session/Share 散列密钥与限流配置。
+- Session、WorkspaceSnapshot 与 ShareSnapshot 使用同一 PostgreSQL schema；所有 API 实例必须连接同一数据库。`SESSION_RETENTION_SECONDS` 与 `SHARE_RETENTION_SECONDS` 控制写入时的有界清理，不得通过清理级联删除科研历史。
 - 生产环境严禁使用 DEBUG 模式、默认数据库密码、占位密钥或通配 CORS。
 
 ## 4. 数据库迁移

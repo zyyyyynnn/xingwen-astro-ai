@@ -35,14 +35,20 @@ EXPECTED_TABLES = frozenset(
         "research_inputs",
         "research_projects",
         "research_runs",
+        "research_sessions",
         "research_thread_entries",
         "run_events",
         "run_steps",
         "source_snapshots",
         "step_attempts",
+        "share_snapshots",
+        "workspace_snapshots",
     }
 )
 CURRENT_REQUIRED_COLUMNS = {
+    "research_sessions": frozenset(
+        {"credential_hash", "csrf_hashes", "security_version", "quota"}
+    ),
     "research_projects": frozenset({"description", "idempotency_key", "request_hash"}),
     "research_contract_drafts": frozenset({"idempotency_key", "request_hash"}),
     "research_contracts": frozenset(
@@ -58,6 +64,19 @@ CURRENT_REQUIRED_COLUMNS = {
             "prompt_snapshot",
             "input_snapshot",
             "parameters_snapshot",
+        }
+    ),
+    "workspace_snapshots": frozenset(
+        {"owner_session_id", "payload", "revision", "updated_at"}
+    ),
+    "share_snapshots": frozenset(
+        {
+            "owner_session_id",
+            "token_hash",
+            "artifact_version_ids",
+            "evidence_ids",
+            "artifact_versions",
+            "evidence",
         }
     ),
 }

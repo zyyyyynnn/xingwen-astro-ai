@@ -8,12 +8,17 @@ import json
 import logging
 import re
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from threading import RLock
-from typing import Any
+from typing import Any, Protocol
+
+from sqlalchemy import delete, or_, select
+from sqlalchemy.orm import Session
 
 from app import api_surface
+from app.db.models import ResearchProjectModel, ResearchSessionModel
 from app.schemas.core import SessionQuota, SessionStatus
 
 
@@ -32,6 +37,7 @@ class SessionRecord:
     created_at: datetime
     expires_at: datetime
     quota: SessionQuota
+    security_version: int = 1
 
 
 class SecurityProblem(Exception):
@@ -50,6 +56,20 @@ class SecurityProblem(Exception):
         self.title = title
         self.detail = detail
         self.headers = headers or {}
+
+
+class SessionStore(Protocol):
+    def put(self, record: SessionRecord) -> None: ...
+
+    def get(self, credential_hash: str) -> SessionRecord | None: ...
+
+    def resume(
+        self, credential_hash: str, csrf_hash: str, *, now: datetime
+    ) -> SessionRecord | None: ...
+
+    def revoke(
+        self, credential_hash: str, *, now: datetime
+    ) -> SessionRecord | None: ...
 
 
 class InMemorySessionStore:
@@ -93,11 +113,14 @@ class InMemorySessionStore:
                 created_at=record.created_at,
                 expires_at=record.expires_at,
                 quota=record.quota,
+                security_version=record.security_version + 1,
             )
             self._records[credential_hash] = resumed
             return resumed
 
-    def revoke(self, credential_hash: str) -> SessionRecord | None:
+    def revoke(
+        self, credential_hash: str, *, now: datetime
+    ) -> SessionRecord | None:
         with self._lock:
             record = self._records.get(credential_hash)
             if record is None:
@@ -110,13 +133,134 @@ class InMemorySessionStore:
                 created_at=record.created_at,
                 expires_at=record.expires_at,
                 quota=record.quota,
+                security_version=record.security_version + 1,
             )
             self._records[credential_hash] = revoked
             return revoked
 
 
+class PersistentSessionStore:
+    """PostgreSQL session store shared by every API process."""
+
+    def __init__(
+        self,
+        factory: Callable[[], Session],
+        *,
+        retention: timedelta | None = None,
+    ) -> None:
+        self._factory = factory
+        self._retention = retention
+
+    def put(self, record: SessionRecord) -> None:
+        with self._factory() as session, session.begin():
+            session.add(
+                ResearchSessionModel(
+                    id=record.id,
+                    credential_hash=record.credential_hash,
+                    csrf_hashes=list(record.csrf_hashes),
+                    status=record.status.value,
+                    created_at=record.created_at,
+                    expires_at=record.expires_at,
+                    revoked_at=None,
+                    security_version=record.security_version,
+                    quota=record.quota.model_dump(mode="json"),
+                    updated_at=record.created_at,
+                )
+            )
+            session.flush()
+            if self._retention is not None:
+                self._cleanup(
+                    session,
+                    now=record.created_at,
+                    retention=self._retention,
+                )
+
+    def get(self, credential_hash: str) -> SessionRecord | None:
+        with self._factory() as session:
+            row = session.scalar(
+                select(ResearchSessionModel).where(
+                    ResearchSessionModel.credential_hash == credential_hash
+                )
+            )
+            return _session_record(row) if row is not None else None
+
+    def resume(
+        self,
+        credential_hash: str,
+        csrf_hash: str,
+        *,
+        now: datetime,
+    ) -> SessionRecord | None:
+        with self._factory() as session, session.begin():
+            row = session.scalar(
+                select(ResearchSessionModel)
+                .where(ResearchSessionModel.credential_hash == credential_hash)
+                .with_for_update()
+            )
+            if row is None or row.status != "active" or _utc(row.expires_at) <= now:
+                return None
+            hashes = tuple(str(item) for item in row.csrf_hashes)
+            row.csrf_hashes = list(
+                (*hashes, csrf_hash)[-_MAX_CONCURRENT_CSRF_TOKENS:]
+            )
+            row.security_version += 1
+            row.updated_at = now
+            session.flush()
+            return _session_record(row)
+
+    def revoke(
+        self, credential_hash: str, *, now: datetime
+    ) -> SessionRecord | None:
+        with self._factory() as session, session.begin():
+            row = session.scalar(
+                select(ResearchSessionModel)
+                .where(ResearchSessionModel.credential_hash == credential_hash)
+                .with_for_update()
+            )
+            if row is None:
+                return None
+            if row.status != "revoked":
+                row.status = "revoked"
+                row.csrf_hashes = []
+                row.revoked_at = now
+                row.security_version += 1
+                row.updated_at = now
+                session.flush()
+            return _session_record(row)
+
+    def cleanup(self, *, now: datetime, retention: timedelta) -> int:
+        """Delete old unreferenced sessions without deleting owned research history."""
+
+        with self._factory() as session, session.begin():
+            return self._cleanup(session, now=now, retention=retention)
+
+    @staticmethod
+    def _cleanup(
+        session: Session, *, now: datetime, retention: timedelta
+    ) -> int:
+        cutoff = now - retention
+        referenced_project = (
+            select(ResearchProjectModel.id)
+            .where(ResearchProjectModel.session_id == ResearchSessionModel.id)
+            .exists()
+        )
+        result = session.execute(
+            delete(ResearchSessionModel).where(
+                ~referenced_project,
+                or_(
+                    ResearchSessionModel.expires_at <= cutoff,
+                    (
+                        (ResearchSessionModel.status == "revoked")
+                        & (ResearchSessionModel.updated_at <= cutoff)
+                    ),
+                ),
+            )
+        )
+        return int(result.rowcount or 0)
+
+
 class SessionService:
-    def __init__(self, store: InMemorySessionStore, *, ttl_seconds: int) -> None:
+    def __init__(self, store: SessionStore, *, ttl_seconds: int) -> None:
         self.store = store
         self.ttl_seconds = ttl_seconds
 
@@ -132,6 +276,7 @@ class SessionService:
             created_at=current,
             expires_at=current + timedelta(seconds=self.ttl_seconds),
             quota=SessionQuota(),
+            security_version=1,
         )
         self.store.put(record)
         return record, credential, csrf_token
@@ -184,8 +329,10 @@ class SessionService:
                 detail="A valid CSRF token is required for this request",
             )
 
-    def revoke(self, credential: str) -> None:
-        self.store.revoke(_hash_secret(credential))
+    def revoke(self, credential: str, *, now: datetime | None = None) -> None:
+        self.store.revoke(
+            _hash_secret(credential), now=now or datetime.now(UTC)
+        )
 
 
 class OwnershipPolicy:
@@ -326,6 +473,23 @@ def canonical_request_hash(payload: Any) -> str:
         payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _session_record(row: ResearchSessionModel) -> SessionRecord:
+    return SessionRecord(
+        id=row.id,
+        credential_hash=row.credential_hash,
+        csrf_hashes=tuple(str(item) for item in row.csrf_hashes),
+        status=SessionStatus(row.status),
+        created_at=_utc(row.created_at),
+        expires_at=_utc(row.expires_at),
+        quota=SessionQuota.model_validate(row.quota),
+        security_version=row.security_version,
+    )
+
+
+def _utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 def session_required() -> SecurityProblem:

@@ -40,6 +40,8 @@ Copy-Item .env.example .env
 | `VITE_SITE_URL`             | `http://localhost:4321`               | Workspace “退出系统”返回的 Brand Site origin                |
 | `SESSION_COOKIE_SECURE`     | `false`                               | 本地 HTTP 设为 false，生产部署必须显式为 true               |
 | `SESSION_TTL_SECONDS`       | `86400`                               | 匿名 Session 有效期                                         |
+| `SESSION_RETENTION_SECONDS` | `2592000`                             | 无 Project 引用的过期/撤销 Session 保留期                   |
+| `SHARE_RETENTION_SECONDS`   | `2592000`                             | 过期/撤销 ShareSnapshot 保留期                              |
 | `CURSOR_SIGNING_KEY`        | `development-only-cursor-signing-key` | 不透明分页 cursor HMAC 密钥                                 |
 | `DATABASE_URL`              | Docker Compose PostgreSQL URL         | ResearchRun、Artifact、Evidence 与 ResearchInput 的权威存储 |
 | `RESEARCH_INPUT_UPLOAD_DIR` | `.data/research-inputs`               | ResearchInput 内容寻址存储目录                              |

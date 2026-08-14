@@ -6,10 +6,20 @@ import base64
 import hashlib
 import hmac
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from threading import RLock
+from uuid import UUID
 
+from sqlalchemy import and_, delete, or_, select
+from sqlalchemy.orm import Session
+
+from app.db.models import (
+    ResearchProjectModel,
+    ShareSnapshotModel,
+    WorkspaceSnapshotModel,
+)
 from app.schemas.core import (
     CreateShareSnapshotRequest,
     PublicArtifactVersion,
@@ -402,6 +412,299 @@ class InMemorySnapshotStore:
         raise _invalid_cursor()
 
 
+class PersistentSnapshotStore(InMemorySnapshotStore):
+    """PostgreSQL-backed workspace and immutable share snapshot adapter."""
+
+    def __init__(
+        self,
+        factory: Callable[[], Session],
+        authority: ResourceAuthority,
+        *,
+        retention: timedelta | None = None,
+    ) -> None:
+        super().__init__(authority)
+        self._factory = factory
+        self._retention = retention
+
+    def get_workspace(self, *, project_id: str, session_id: str) -> WorkspaceSnapshot:
+        project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
+        with self._factory() as session:
+            self._require_project_row(
+                session,
+                project_id=project_uuid,
+                session_id=session_id,
+                lock=False,
+            )
+            row = session.get(WorkspaceSnapshotModel, project_uuid)
+            if row is None or not hmac.compare_digest(
+                row.owner_session_id, session_id
+            ):
+                raise _not_found("WORKSPACE_SNAPSHOT_NOT_FOUND")
+            return _workspace_snapshot(row)
+
+    def save_workspace(
+        self,
+        *,
+        project_id: str,
+        session_id: str,
+        expected_revision: int,
+        payload: WorkspaceSnapshotInput,
+        now: datetime,
+    ) -> WorkspaceSnapshot:
+        project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
+        self._validate_workspace_references(project_id=project_id, payload=payload)
+        payload_json = payload.model_dump(mode="json")
+        with self._factory() as session, session.begin():
+            self._require_project_row(
+                session,
+                project_id=project_uuid,
+                session_id=session_id,
+                lock=True,
+            )
+            row = session.get(
+                WorkspaceSnapshotModel, project_uuid, with_for_update=True
+            )
+            if row is not None and row.payload == payload_json:
+                return _workspace_snapshot(row)
+            current_revision = row.revision if row is not None else 0
+            require_revision(expected=expected_revision, current=current_revision)
+            if row is None:
+                row = WorkspaceSnapshotModel(
+                    project_id=project_uuid,
+                    owner_session_id=session_id,
+                    id=_new_id("ws"),
+                    payload=payload_json,
+                    revision=1,
+                    updated_at=now,
+                )
+                session.add(row)
+            else:
+                row.payload = payload_json
+                row.revision += 1
+                row.updated_at = now
+            session.flush()
+            return _workspace_snapshot(row)
+
+    def create_share(
+        self,
+        *,
+        project_id: str,
+        session_id: str,
+        request: CreateShareSnapshotRequest,
+        now: datetime,
+    ) -> ShareSnapshotCreated:
+        project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
+        if request.expires_at <= now:
+            raise SecurityProblem(
+                status=422,
+                code="SHARE_EXPIRY_INVALID",
+                title="Invalid share expiry",
+                detail="Share expiry must be in the future",
+            )
+        versions = self._share_versions(project_id, request.artifact_version_ids)
+        evidence = self._share_evidence(
+            project_id,
+            request.evidence_ids,
+            allowed_version_ids=set(request.artifact_version_ids),
+        )
+        raw_token = secrets.token_urlsafe(SHARE_TOKEN_BYTES)
+        row = ShareSnapshotModel(
+            id=_new_id("share"),
+            project_id=project_uuid,
+            owner_session_id=session_id,
+            token_hash=_hash_token(raw_token),
+            title=request.title,
+            artifact_version_ids=list(request.artifact_version_ids),
+            evidence_ids=list(request.evidence_ids),
+            redaction_policy=request.redaction_policy.value,
+            status="active",
+            artifact_versions=[item.model_dump(mode="json") for item in versions],
+            evidence=[item.model_dump(mode="json") for item in evidence],
+            created_at=now,
+            expires_at=request.expires_at,
+            revoked_at=None,
+        )
+        with self._factory() as session, session.begin():
+            self._require_project_row(
+                session,
+                project_id=project_uuid,
+                session_id=session_id,
+                lock=True,
+            )
+            session.add(row)
+            session.flush()
+            if self._retention is not None:
+                self._cleanup(session, now=now, retention=self._retention)
+        snapshot = _share_snapshot(row, now=now)
+        return ShareSnapshotCreated(
+            **snapshot.model_dump(),
+            share_token=raw_token,
+            share_url=f"/api/public/shares/{raw_token}",
+        )
+
+    def list_shares(
+        self,
+        *,
+        project_id: str,
+        session_id: str,
+        cursor: str | None,
+        limit: int,
+        now: datetime,
+    ) -> tuple[tuple[ShareSnapshot, ...], str | None, bool]:
+        project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
+        with self._factory() as session:
+            self._require_project_row(
+                session,
+                project_id=project_uuid,
+                session_id=session_id,
+                lock=False,
+            )
+            statement = select(ShareSnapshotModel).where(
+                ShareSnapshotModel.project_id == project_uuid,
+                ShareSnapshotModel.owner_session_id == session_id,
+            )
+            if cursor is not None:
+                anchor_id = _decode_cursor(cursor)
+                anchor = session.get(ShareSnapshotModel, anchor_id)
+                if (
+                    anchor is None
+                    or anchor.project_id != project_uuid
+                    or not hmac.compare_digest(anchor.owner_session_id, session_id)
+                ):
+                    raise _invalid_cursor()
+                statement = statement.where(
+                    or_(
+                        ShareSnapshotModel.created_at < anchor.created_at,
+                        and_(
+                            ShareSnapshotModel.created_at == anchor.created_at,
+                            ShareSnapshotModel.id < anchor.id,
+                        ),
+                    )
+                )
+            rows = tuple(
+                session.scalars(
+                    statement.order_by(
+                        ShareSnapshotModel.created_at.desc(),
+                        ShareSnapshotModel.id.desc(),
+                    ).limit(limit + 1)
+                )
+            )
+        has_more = len(rows) > limit
+        selected = rows[:limit]
+        next_cursor = (
+            _encode_cursor(selected[-1].id) if selected and has_more else None
+        )
+        return (
+            tuple(_share_snapshot(row, now=now) for row in selected),
+            next_cursor,
+            has_more,
+        )
+
+    def revoke_share(
+        self,
+        *,
+        project_id: str,
+        share_id: str,
+        session_id: str,
+        now: datetime,
+    ) -> None:
+        project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
+        with self._factory() as session, session.begin():
+            self._require_project_row(
+                session,
+                project_id=project_uuid,
+                session_id=session_id,
+                lock=True,
+            )
+            row = session.get(ShareSnapshotModel, share_id, with_for_update=True)
+            if (
+                row is None
+                or row.project_id != project_uuid
+                or not hmac.compare_digest(row.owner_session_id, session_id)
+            ):
+                raise _not_found("SHARE_NOT_FOUND")
+            if row.status != "revoked":
+                row.status = "revoked"
+                row.revoked_at = now
+
+    def resolve_public_share(
+        self, *, raw_token: str, now: datetime
+    ) -> PublicShareSnapshot:
+        token_hash = _hash_token(raw_token)
+        with self._factory() as session:
+            row = session.scalar(
+                select(ShareSnapshotModel).where(
+                    ShareSnapshotModel.token_hash == token_hash
+                )
+            )
+            if row is None or not hmac.compare_digest(row.token_hash, token_hash):
+                raise _not_found("SHARE_NOT_FOUND")
+            snapshot = _share_snapshot(row, now=now)
+            if snapshot.status is not ShareStatus.active:
+                raise _not_found("SHARE_NOT_FOUND")
+            return PublicShareSnapshot(
+                id=row.id,
+                title=row.title,
+                artifact_versions=tuple(
+                    PublicArtifactVersion.model_validate(item)
+                    for item in row.artifact_versions
+                ),
+                evidence=tuple(
+                    PublicEvidence.model_validate(item) for item in row.evidence
+                ),
+                redaction_policy=row.redaction_policy,
+                created_at=_utc(row.created_at),
+                expires_at=_utc(row.expires_at),
+            )
+
+    def token_hash_for_testing(self, share_id: str) -> str:
+        with self._factory() as session:
+            row = session.get(ShareSnapshotModel, share_id)
+            if row is None:
+                raise KeyError(share_id)
+            return row.token_hash
+
+    def cleanup(self, *, now: datetime, retention: timedelta) -> int:
+        with self._factory() as session, session.begin():
+            return self._cleanup(session, now=now, retention=retention)
+
+    @staticmethod
+    def _cleanup(
+        session: Session, *, now: datetime, retention: timedelta
+    ) -> int:
+        cutoff = now - retention
+        result = session.execute(
+            delete(ShareSnapshotModel).where(
+                or_(
+                    ShareSnapshotModel.expires_at <= cutoff,
+                    (
+                        (ShareSnapshotModel.status == "revoked")
+                        & (ShareSnapshotModel.revoked_at <= cutoff)
+                    ),
+                )
+            )
+        )
+        return int(result.rowcount or 0)
+
+    @staticmethod
+    def _require_project_row(
+        session: Session,
+        *,
+        project_id: UUID,
+        session_id: str,
+        lock: bool,
+    ) -> ResearchProjectModel:
+        row = session.get(ResearchProjectModel, project_id, with_for_update=lock)
+        if row is None:
+            raise _not_found("PROJECT_NOT_FOUND")
+        OwnershipPolicy.require_owner(
+            owner_session_id=row.session_id,
+            current_session_id=session_id,
+            code="PROJECT_NOT_FOUND",
+        )
+        return row
+
+
 class SnapshotService:
     """Application service used by runtime routers and replaceable persistence adapters."""
 
@@ -481,6 +784,50 @@ class SnapshotService:
         return self.store.resolve_public_share(
             raw_token=raw_token, now=now or datetime.now(UTC)
         )
+
+
+def _workspace_snapshot(row: WorkspaceSnapshotModel) -> WorkspaceSnapshot:
+    return WorkspaceSnapshot.model_validate(
+        {
+            **row.payload,
+            "id": row.id,
+            "project_id": str(row.project_id),
+            "revision": row.revision,
+            "updated_at": _utc(row.updated_at),
+        }
+    )
+
+
+def _share_snapshot(row: ShareSnapshotModel, *, now: datetime) -> ShareSnapshot:
+    if row.revoked_at is not None or row.status == "revoked":
+        status = ShareStatus.revoked
+    elif _utc(row.expires_at) <= now:
+        status = ShareStatus.expired
+    else:
+        status = ShareStatus.active
+    return ShareSnapshot(
+        id=row.id,
+        project_id=str(row.project_id),
+        title=row.title,
+        artifact_version_ids=tuple(str(item) for item in row.artifact_version_ids),
+        evidence_ids=tuple(str(item) for item in row.evidence_ids),
+        redaction_policy=row.redaction_policy,
+        status=status,
+        created_at=_utc(row.created_at),
+        expires_at=_utc(row.expires_at),
+        revoked_at=_utc(row.revoked_at) if row.revoked_at is not None else None,
+    )
+
+
+def _uuid_or_not_found(value: str, code: str) -> UUID:
+    try:
+        return UUID(value)
+    except (AttributeError, TypeError, ValueError):
+        raise _not_found(code) from None
+
+
+def _utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 def _new_id(prefix: str) -> str:
