@@ -36,7 +36,7 @@ ShareSnapshot (*) -- (*) ArtifactVersion
 
 ## 2. Project、Draft 与 Contract
 
-- ResearchSession 是匿名访问者的服务端隔离与配额边界。
+- ResearchSession 是匿名访问者的服务端隔离与配额边界。PostgreSQL 只保存 credential/CSRF hash、status、expiry、quota 与单调 security version；resume、rotation 与 revoke 在行锁事务内原子提交。
 - ResearchProject 是持续研究上下文，`description` 始终为非空字符串，未填写时保存 `""`。
 - ResearchProject 的 `active_draft_id` 只能指向同一 Project、状态为 editable 的当前 Draft；它是当前审查对象的唯一指针，不能以 `latest` 查询替代。
 - ResearchThreadEntry 属于 Project，使用 `(project_id, sequence)` 唯一约束保证严格顺序；`kind`、`actor`、`public_content` 与 `structured_payload` 只保存公开内容。Contract、Run、Artifact 卡片必须读取真实实体后投影，不能在 Thread 中复制第二份事实。
@@ -75,7 +75,9 @@ ShareSnapshot (*) -- (*) ArtifactVersion
 
 ## 6. Workspace 与 Share
 
-WorkspaceSnapshot 保存私有布局与选中对象，使用乐观锁更新。ShareSnapshot 冻结具体 ArtifactVersion 和 Evidence 范围，服务端只保存 token hash。
+WorkspaceSnapshot 保存私有布局与选中对象，通过 `(project_id, owner_session_id)` 外键闭合 ownership，并使用乐观锁更新。ShareSnapshot 通过同一复合 ownership 外键冻结具体 ArtifactVersion、Evidence 与 SourceSnapshot identity 的已脱敏公开投影，服务端只保存 token hash；重启后的公开读取不重新投影动态资源。
+
+Session retention 只删除达到保留期且没有 ResearchProject 引用的记录；Share retention 可删除达到保留期的撤销/过期分享。两者均不级联删除正常科研历史。
 
 ## 7. 核心不变量
 

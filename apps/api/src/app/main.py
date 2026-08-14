@@ -34,6 +34,7 @@ from app.schemas.manifest import ManifestBundle, load_manifest_bundle
 from app.security import (
     InMemoryRateLimiter,
     InMemorySessionStore,
+    PersistentSessionStore,
     SecurityProblem,
     SessionService,
     install_share_token_access_log_filter,
@@ -50,7 +51,7 @@ from app.services.resource_authority import (
     PersistentResourceAuthority,
     ResourceAuthority,
 )
-from app.services.snapshots import InMemorySnapshotStore, SnapshotService
+from app.services.snapshots import PersistentSnapshotStore, SnapshotService
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.store import PersistentWorkflowStore
 
@@ -134,17 +135,6 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
     )
 
-    session_service = SessionService(
-        InMemorySessionStore(), ttl_seconds=settings.SESSION_TTL_SECONDS
-    )
-    app.state.session_service = session_service
-    app.state.session_rate_limiter = InMemoryRateLimiter(
-        limit=settings.SESSION_CREATE_RATE_LIMIT
-    )
-    app.state.share_rate_limiter = InMemoryRateLimiter(
-        limit=settings.SHARE_CREATE_RATE_LIMIT
-    )
-
     app.state.workflow_store = None
     app.state.workflow_executor = None
     app.state.artifact_read_service = None
@@ -155,10 +145,33 @@ def create_app() -> FastAPI:
     app.state.db_session_factory = None
     _, database_session_factory, resource_authority = _configure_database_runtime(app)
 
+    if database_session_factory is not None:
+        session_store = PersistentSessionStore(
+            database_session_factory,
+            retention=timedelta(seconds=settings.SESSION_RETENTION_SECONDS),
+        )
+    else:
+        session_store = InMemorySessionStore()
+    session_service = SessionService(
+        session_store, ttl_seconds=settings.SESSION_TTL_SECONDS
+    )
+    app.state.session_store = session_store
+    app.state.session_service = session_service
+    app.state.session_rate_limiter = InMemoryRateLimiter(
+        limit=settings.SESSION_CREATE_RATE_LIMIT
+    )
+    app.state.share_rate_limiter = InMemoryRateLimiter(
+        limit=settings.SHARE_CREATE_RATE_LIMIT
+    )
+
     app.state.snapshot_store = None
     app.state.snapshot_service = None
-    if resource_authority is not None:
-        snapshot_store = InMemorySnapshotStore(resource_authority)
+    if resource_authority is not None and database_session_factory is not None:
+        snapshot_store = PersistentSnapshotStore(
+            database_session_factory,
+            resource_authority,
+            retention=timedelta(seconds=settings.SHARE_RETENTION_SECONDS),
+        )
         app.state.snapshot_store = snapshot_store
         app.state.snapshot_service = SnapshotService(snapshot_store)
 

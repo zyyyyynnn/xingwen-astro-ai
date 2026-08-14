@@ -54,7 +54,7 @@ SourceSnapshot 记录来源身份、查询与内容哈希、抓取时间、许�
 
 ## 6. 分享冻结
 
-ShareSnapshot 固定 `artifact_version_ids` 与允许公开的 `evidence_ids`。Artifact 的 latest 指针变化不会改变已创建分享；Share token 只保存 hash，公开读取不授予写权限。
+ShareSnapshot 固定 `artifact_version_ids`、允许公开的 `evidence_ids` 以及创建时已脱敏的 ArtifactVersion/Evidence/SourceSnapshot identity 投影。Artifact 的 latest 指针变化或 API 进程重启不会改变已创建分享；Share token 只保存 hash，公开读取不授予写权限。撤销或过期达到保留期后可清理分享记录，但不得修改被引用的 ArtifactVersion、Evidence 或 SourceSnapshot。
 
 ## 7. 修订与缓存目标契约
 

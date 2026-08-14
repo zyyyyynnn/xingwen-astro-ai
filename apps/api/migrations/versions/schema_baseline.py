@@ -28,6 +28,56 @@ def _jsonb() -> postgresql.JSONB:
 
 def upgrade() -> None:
     op.create_table(
+        "research_sessions",
+        sa.Column("id", sa.String(128), nullable=False),
+        sa.Column("credential_hash", sa.String(64), nullable=False),
+        sa.Column("csrf_hashes", _jsonb(), nullable=False),
+        sa.Column("status", sa.String(16), nullable=False),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("security_version", sa.Integer(), nullable=False),
+        sa.Column("quota", _jsonb(), nullable=False),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "status IN ('active','revoked')",
+            name="ck_research_sessions_research_session_status",
+        ),
+        sa.CheckConstraint(
+            "security_version >= 1",
+            name="ck_research_sessions_research_session_security_version_positive",
+        ),
+        sa.CheckConstraint(
+            "(status = 'active' AND revoked_at IS NULL) OR "
+            "(status = 'revoked' AND revoked_at IS NOT NULL "
+            "AND csrf_hashes = '[]'::jsonb)",
+            name="ck_research_sessions_research_session_revocation_shape",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_research_sessions"),
+        sa.UniqueConstraint(
+            "credential_hash", name="uq_research_sessions_credential_hash"
+        ),
+    )
+    op.create_index(
+        "ix_research_sessions_expires_at", "research_sessions", ["expires_at"]
+    )
+    op.create_index(
+        "ix_research_sessions_status_updated",
+        "research_sessions",
+        ["status", "updated_at"],
+    )
+
+    op.create_table(
         "research_projects",
         sa.Column("id", _uuid(), nullable=False),
         sa.Column("session_id", sa.String(128), nullable=False),
@@ -65,6 +115,79 @@ def upgrade() -> None:
     )
     op.create_index(
         "ix_research_projects_session_id", "research_projects", ["session_id"]
+    )
+
+    op.create_table(
+        "workspace_snapshots",
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("owner_session_id", sa.String(128), nullable=False),
+        sa.Column("id", sa.String(128), nullable=False),
+        sa.Column("payload", _jsonb(), nullable=False),
+        sa.Column("revision", sa.Integer(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.CheckConstraint(
+            "revision >= 1",
+            name="ck_workspace_snapshots_workspace_snapshot_revision_positive",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id", "owner_session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_workspace_snapshot_project_owner",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("project_id", name="pk_workspace_snapshots"),
+        sa.UniqueConstraint("id", name="uq_workspace_snapshots_id"),
+    )
+
+    op.create_table(
+        "share_snapshots",
+        sa.Column("id", sa.String(128), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("owner_session_id", sa.String(128), nullable=False),
+        sa.Column("token_hash", sa.String(64), nullable=False),
+        sa.Column("title", sa.String(200), nullable=False),
+        sa.Column("artifact_version_ids", _jsonb(), nullable=False),
+        sa.Column("evidence_ids", _jsonb(), nullable=False),
+        sa.Column("redaction_policy", sa.String(64), nullable=False),
+        sa.Column("status", sa.String(16), nullable=False),
+        sa.Column("artifact_versions", _jsonb(), nullable=False),
+        sa.Column("evidence", _jsonb(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+        sa.CheckConstraint(
+            "status IN ('active','revoked')",
+            name="ck_share_snapshots_share_snapshot_status",
+        ),
+        sa.CheckConstraint(
+            "(status = 'active' AND revoked_at IS NULL) OR "
+            "(status = 'revoked' AND revoked_at IS NOT NULL)",
+            name="ck_share_snapshots_share_snapshot_revocation_shape",
+        ),
+        sa.CheckConstraint(
+            "jsonb_array_length(artifact_version_ids) >= 1",
+            name="ck_share_snapshots_share_snapshot_has_artifact_version",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id", "owner_session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_share_snapshot_project_owner",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_share_snapshots"),
+        sa.UniqueConstraint(
+            "token_hash", name="uq_share_snapshots_token_hash"
+        ),
+    )
+    op.create_index(
+        "ix_share_snapshots_owner_created",
+        "share_snapshots",
+        ["owner_session_id", "project_id", "created_at", "id"],
+    )
+    op.create_index(
+        "ix_share_snapshots_retention",
+        "share_snapshots",
+        ["status", "expires_at", "revoked_at"],
     )
 
     op.create_table(
@@ -1544,4 +1667,11 @@ def downgrade() -> None:
     )
     op.drop_table("research_contract_drafts")
     op.drop_index("ix_research_projects_session_id", table_name="research_projects")
+    op.drop_index("ix_share_snapshots_retention", table_name="share_snapshots")
+    op.drop_index("ix_share_snapshots_owner_created", table_name="share_snapshots")
+    op.drop_table("share_snapshots")
+    op.drop_table("workspace_snapshots")
     op.drop_table("research_projects")
+    op.drop_index("ix_research_sessions_status_updated", table_name="research_sessions")
+    op.drop_index("ix_research_sessions_expires_at", table_name="research_sessions")
+    op.drop_table("research_sessions")
