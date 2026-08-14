@@ -24,6 +24,10 @@ ResearchProject (1) -- (*) ResearchArtifact -- (*) ArtifactVersion
 ResearchRun (1) -- (*) ArtifactVersion
 ArtifactVersion (1) -- (*) Evidence
 SourceSnapshot (1) -- (*) Evidence
+ResearchProject (1) -- (*) CacheRecord
+completed Live ResearchRun (1) -- (*) CacheRecord
+live ArtifactVersion (1) -- (*) CacheRecord
+failed RunStep (1) -- (*) CacheSelectionAudit -- (0..1) CacheRecord
 ResearchProject (1) -- (*) ResearchInput
 ResearchInput (1) -- (*) DocumentParse -- (*) DocumentParseLocator
 SourceSnapshot (1) -- (*) DocumentParse
@@ -32,7 +36,7 @@ ResearchProject (1) -- (*) ShareSnapshot
 ShareSnapshot (*) -- (*) ArtifactVersion
 ```
 
-`UserFeedback`、`RevisionPlan` 与 `CacheRecord` 的关系属于目标契约；当前运行时不创建这些对象。
+`UserFeedback` 与 `RevisionPlan` 的关系仍属于目标契约；当前运行时不创建这些对象。
 
 ## 2. Project、Draft 与 Contract
 
@@ -50,9 +54,11 @@ ShareSnapshot (*) -- (*) ArtifactVersion
 - ResearchRun 绑定同一 Project 下的 Contract；派生 Run 通过同 Project 的 `parent_run_id` 与 `derivation_kind` 表达 retry、revision 或 fork。
 - RunStep 保存从 confirmed Contract 确定性投影并在 Run 创建时冻结的 canonical step、顺序、状态与进度；StepAttempt 保存真实尝试、错误与上游请求 identity。Executor 不维护第二份 Plan。
 - RunEvent 是单调序列的通知记录，Run 快照才是状态事实源。
+- CacheRecord 是不可变的 Project-owned 复用资格快照，只能从 completed Live Run 的 `source_mode=live` ArtifactVersion 物化；它固定 origin Run/ArtifactVersion、Contract/input、producer/Prompt、SourceSnapshot identity hash、Evidence、质量约束与有效期 identity。
+- CacheSelectionAudit 绑定 failed RunStep、明确的 failed ProducerExecution 与本次 recoverable failure。命中时再绑定同 Project 的 CacheRecord/origin Run/origin ArtifactVersion；拒绝时这些 origin 字段必须为空。审计与对应 `cache.selected | cache.rejected` Event 使用同一个持久化 sequence，且均不可原地更新。
 - HTTP Run authoring 只创建 original、cache-disabled Run；未暴露的派生字段不得被静默消费。
 
-目标修订与缓存契约：UserFeedback 固定目标 ArtifactVersion 与对象定位；RevisionPlan 固定受影响产物闭包，确认后才能创建 revision Run。CacheRecord 固定可复用的历史 Run、ArtifactVersion、SourceSnapshot 与匹配 identity；CacheSelector 只返回通过 Contract 与 Evidence 校验的记录。它们在对应执行闭环实现前不得被描述为当前数据库或运行时对象。
+目标修订契约：UserFeedback 固定目标 ArtifactVersion 与对象定位；RevisionPlan 固定受影响产物闭包，确认后才能创建 revision Run。它们在对应执行闭环实现前不得被描述为当前数据库或运行时对象。
 
 ## 4. Artifact、Evidence 与来源
 

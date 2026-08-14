@@ -246,7 +246,12 @@ class CrossrefAdapter:
             source_id=self.source_id,
             source_type="paper_metadata",
             retrieved_at=pages[0].retrieved_at if pages else self.clock(),
-            query=query.normalized_query_string,
+            query=json.dumps(
+                query.model_dump(mode="json"),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
             query_hash=query.query_hash,
             source_version_or_etag=",".join(sorted(set(etags))) or None,
             content_hash=snapshot_content_hash,

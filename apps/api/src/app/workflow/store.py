@@ -190,8 +190,11 @@ class PersistentWorkflowStore:
         idempotency_key: str,
         request_hash: str,
         steps: Sequence[RunStepDefinition],
+        cache_policy: str = "disabled",
     ) -> RunSnapshot:
         self._validate_step_definitions(steps)
+        if cache_policy not in {"disabled", "fallback_on_recoverable_failure"}:
+            raise ValueError("cache_policy is not supported")
         run_id: UUID
         with self._factory() as session, session.begin():
             candidate_run_id = uuid4()
@@ -207,7 +210,7 @@ class PersistentWorkflowStore:
                     parent_run_id=None,
                     derivation_kind="original",
                     retry_from_step=None,
-                    cache_policy="disabled",
+                    cache_policy=cache_policy,
                     latest_event_sequence=1,
                     revision=1,
                     lease_generation=0,
@@ -227,7 +230,12 @@ class PersistentWorkflowStore:
                 )
                 if existing is None:  # pragma: no cover - database invariant safeguard
                     raise WorkflowConflictError("idempotent Run creation lost its winner")
-                if existing.request_hash != request_hash:
+                if (
+                    existing.request_hash != request_hash
+                    or existing.execution_mode != execution_mode
+                    or existing.contract_id != contract_id
+                    or existing.cache_policy != cache_policy
+                ):
                     raise WorkflowConflictError(
                         "idempotency key was already used with a different request"
                     )
