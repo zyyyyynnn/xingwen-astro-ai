@@ -1,0 +1,337 @@
+{
+  "$defs": {
+    "PaperAccessEvidenceKind": {
+      "enum": [
+        "publisher_open_access",
+        "repository_open_access",
+        "author_provided",
+        "user_provided"
+      ],
+      "title": "PaperAccessEvidenceKind",
+      "type": "string"
+    },
+    "PaperCandidateAccessEvidence": {
+      "additionalProperties": false,
+      "description": "Bounded lawful-access assertion retained without restricted content.",
+      "properties": {
+        "canonical_paper_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Canonical Paper Id",
+          "type": "string"
+        },
+        "evidence_url": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Evidence Url",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/PaperAccessEvidenceKind"
+        },
+        "license": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "License",
+          "type": "string"
+        },
+        "resource_identity_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Resource Identity Hash",
+          "type": "string"
+        },
+        "resource_type": {
+          "enum": [
+            "access_url",
+            "research_input"
+          ],
+          "title": "Resource Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "license",
+        "evidence_url",
+        "canonical_paper_id",
+        "resource_type",
+        "resource_identity_hash"
+      ],
+      "title": "PaperCandidateAccessEvidence",
+      "type": "object"
+    },
+    "PaperCandidateMetadataReason": {
+      "enum": [
+        "access_not_proven",
+        "metadata_url_only",
+        "paywalled",
+        "restricted_full_text",
+        "partial_metadata",
+        "unsupported_access"
+      ],
+      "title": "PaperCandidateMetadataReason",
+      "type": "string"
+    },
+    "ResearchInputRef": {
+      "additionalProperties": false,
+      "description": "Immutable reference to one ingested input; never carries binary content.",
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "filename": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Filename"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "mime_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mime Type"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "source_snapshot_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Snapshot Id"
+        },
+        "source_type": {
+          "minLength": 1,
+          "title": "Source Type",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ResearchInputStatus",
+          "default": "accepted"
+        },
+        "type": {
+          "$ref": "#/$defs/ResearchInputType"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "source_type",
+        "content_hash",
+        "size_bytes",
+        "created_at"
+      ],
+      "title": "ResearchInputRef",
+      "type": "object"
+    },
+    "ResearchInputStatus": {
+      "description": "Stable lifecycle states for a controlled research input.\n\nThe ingestion writer produces ``accepted`` only. The other states preserve\nthe domain distinction between unsupported processing and failed ingestion;\nthey must be recorded only by a writer that has observed that outcome.",
+      "enum": [
+        "accepted",
+        "unsupported_processing",
+        "failed_ingestion"
+      ],
+      "title": "ResearchInputStatus",
+      "type": "string"
+    },
+    "ResearchInputType": {
+      "enum": [
+        "url",
+        "pdf",
+        "csv",
+        "json",
+        "image",
+        "text"
+      ],
+      "title": "ResearchInputType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Immutable bridge from one selected candidate to a controlled input.",
+  "properties": {
+    "access_evidence": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PaperCandidateAccessEvidence"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "access_evidence_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Access Evidence Hash"
+    },
+    "candidate_evidence_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Candidate Evidence Ids",
+      "type": "array"
+    },
+    "candidate_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "candidate_source_snapshot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Candidate Source Snapshot Id",
+      "type": "string"
+    },
+    "canonical_paper_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Canonical Paper Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "metadata_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PaperCandidateMetadataReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "mode": {
+      "enum": [
+        "open_access_url",
+        "existing_research_input",
+        "metadata_only"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "outcome": {
+      "enum": [
+        "accepted",
+        "metadata_only"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "paper_collection_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Paper Collection Version Id",
+      "type": "string"
+    },
+    "parse_status": {
+      "const": "not_started",
+      "default": "not_started",
+      "title": "Parse Status",
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "research_input": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResearchInputRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "reused": {
+      "default": false,
+      "title": "Reused",
+      "type": "boolean"
+    },
+    "source_collection_status": {
+      "enum": [
+        "completed",
+        "partial"
+      ],
+      "title": "Source Collection Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "project_id",
+    "paper_collection_version_id",
+    "candidate_id",
+    "canonical_paper_id",
+    "candidate_source_snapshot_id",
+    "candidate_evidence_ids",
+    "mode",
+    "outcome",
+    "source_collection_status",
+    "created_at"
+  ],
+  "title": "PaperCandidateInputBinding",
+  "type": "object"
+}

@@ -103,6 +103,11 @@
     },
     {
       "module": "app.schemas.paper_collection_api",
+      "name": "PaperCandidateInputBinding",
+      "path": "json/PaperCandidateInputBinding.schema.json"
+    },
+    {
+      "module": "app.schemas.paper_collection_api",
       "name": "PaperCollectionCandidateRead",
       "path": "json/PaperCollectionCandidateRead.schema.json"
     },

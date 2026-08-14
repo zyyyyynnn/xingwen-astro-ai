@@ -126,6 +126,46 @@ class PaperCollectionReadService:
             )
         return tuple(result), next_cursor, has_more
 
+    def get_candidate(
+        self, *, version_id: str, candidate_id: str, session_id: str
+    ) -> PaperCollectionCandidateRead:
+        detail = self.get_collection(version_id=version_id, session_id=session_id)
+        candidate = next(
+            (
+                item
+                for item in detail.collection.candidates
+                if item.candidate_id == candidate_id
+            ),
+            None,
+        )
+        if candidate is None:
+            raise _problem(
+                404,
+                "PAPER_CANDIDATE_NOT_FOUND",
+                "Paper candidate not found",
+                "The PaperCandidate does not belong to this PaperCollection",
+            )
+        groups = {
+            item.duplicate_group_id: item for item in detail.collection.duplicate_groups
+        }
+        snapshot = _snapshot_projection_map(detail).get(candidate.raw.source_snapshot_id)
+        evidence = tuple(
+            item
+            for item in detail.evidence
+            if item.target_id in {candidate.candidate_id, candidate.canonical_paper_id}
+            and snapshot is not None
+            and item.source_snapshot_id == snapshot.id
+        )
+        group = groups.get(candidate.duplicate_group_id)
+        if group is None or snapshot is None or not evidence:
+            raise _provenance_problem()
+        return PaperCollectionCandidateRead(
+            candidate=candidate,
+            duplicate_group=group,
+            source_snapshot=snapshot,
+            evidence=evidence,
+        )
+
     @staticmethod
     def _validated_collection(version: ArtifactVersionDetail) -> PaperCollection:
         try:

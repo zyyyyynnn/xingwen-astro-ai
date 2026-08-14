@@ -89,6 +89,24 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - **ShareSnapshot**：冻结的公开只读投影。
 - **ResearchInput**：受控输入边界（URL / PDF / CSV / JSON / 图片 / 文本）的不可变引用与溯源；二进制内容与全文永不进入公开 DTO。
 
+- **PaperCandidate 到 ResearchInput**：选中的 PaperCollection candidate 通过
+  `POST /api/artifact-versions/{version_id}/paper-candidates/{candidate_id}/research-input`
+  桥接到既有 ResearchInput 摄取边界。请求必须带 `Idempotency-Key` 与
+  `X-CSRF-Token`，且只能选择 `selected=true` 的 candidate。`mode=open_access_url`
+  要求无凭据 HTTPS `access_url` 以及 `publisher_open_access`、
+  `repository_open_access` 或 `author_provided` 的显式 access evidence；URL 下载仍
+  复用 ResearchInput 的 allowlist、SSRF、重定向、大小、MIME、哈希、CAS、ownership
+  与幂等规则。`mode=existing_research_input` 只引用同一 Session/Project 已拥有的
+  ResearchInput，并保留其 content hash；`mode=metadata_only` 必须给出稳定 reason，
+  不声明 access evidence、ResearchInput 或全文。Fixture、recorded、cached candidate
+  只能走 metadata-only，synthetic candidate 不能创建输入。响应绑定是不可变的，返回
+  `accepted` 或 `metadata_only` outcome；幂等重放以 `reused=true` 表示并返回相同绑定，
+  不使用第三种持久化 outcome。服务端必须在 URL fetch、CAS 或 ResearchInput 创建前原子
+  预留 Project-scoped bridge `Idempotency-Key`；不同请求复用同一 key 必须在副作用前冲突，
+  相同并发请求最多只有一个 lease owner 执行摄取，完成 binding 时原子关闭 reservation。
+  任何未证明访问、paywall、受限/部分元数据、非法 URL、
+  SSRF、redirect、MIME、大小、超时或上游失败均 fail closed，且不执行 parser。
+
 ## 6. Research Turn
 
 - `GET /api/projects/{project_id}/research-turns?cursor=...&limit=...` 按 Thread `sequence` 稳定分页，返回 Project-owned entries；cursor 使用 HMAC 签名并绑定 Project、集合与排序锚点。

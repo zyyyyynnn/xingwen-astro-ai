@@ -2601,6 +2601,27 @@
         "title": "Envelope[LiteratureRelationRead]",
         "type": "object"
       },
+      "Envelope_PaperCandidateInputBinding_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PaperCandidateInputBinding"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[PaperCandidateInputBinding]",
+        "type": "object"
+      },
       "Envelope_PaperCollectionRead_": {
         "additionalProperties": false,
         "properties": {
@@ -3292,6 +3313,32 @@
         ],
         "title": "ExecutionMode",
         "type": "string"
+      },
+      "ExistingPaperCandidateInputRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "access_evidence": {
+            "$ref": "#/components/schemas/PaperCandidateAccessEvidence"
+          },
+          "mode": {
+            "const": "existing_research_input",
+            "title": "Mode",
+            "type": "string"
+          },
+          "research_input_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Research Input Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "research_input_id",
+          "access_evidence"
+        ],
+        "title": "ExistingPaperCandidateInputRequest",
+        "type": "object"
       },
       "FieldConflictRecord": {
         "additionalProperties": false,
@@ -6931,6 +6978,25 @@
         "title": "MatchDecision",
         "type": "string"
       },
+      "MetadataOnlyPaperCandidateInputRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "const": "metadata_only",
+            "title": "Mode",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/PaperCandidateMetadataReason"
+          }
+        },
+        "required": [
+          "mode",
+          "reason"
+        ],
+        "title": "MetadataOnlyPaperCandidateInputRequest",
+        "type": "object"
+      },
       "NormalizedPaperQuery": {
         "additionalProperties": false,
         "properties": {
@@ -7113,6 +7179,55 @@
         "title": "ObservatoryWorkspaceState",
         "type": "object"
       },
+      "OpenAccessPaperCandidateInputRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "access_evidence": {
+            "$ref": "#/components/schemas/PaperCandidateAccessEvidence"
+          },
+          "access_url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Access Url",
+            "type": "string"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "mode": {
+            "const": "open_access_url",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "access_url",
+          "access_evidence"
+        ],
+        "title": "OpenAccessPaperCandidateInputRequest",
+        "type": "object"
+      },
+      "PaperAccessEvidenceKind": {
+        "enum": [
+          "publisher_open_access",
+          "repository_open_access",
+          "author_provided",
+          "user_provided"
+        ],
+        "title": "PaperAccessEvidenceKind",
+        "type": "string"
+      },
       "PaperBenchmarkReference": {
         "additionalProperties": false,
         "properties": {
@@ -7158,6 +7273,56 @@
         "title": "PaperBenchmarkReference",
         "type": "object"
       },
+      "PaperCandidateAccessEvidence": {
+        "additionalProperties": false,
+        "description": "Bounded lawful-access assertion retained without restricted content.",
+        "properties": {
+          "canonical_paper_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Canonical Paper Id",
+            "type": "string"
+          },
+          "evidence_url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Evidence Url",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PaperAccessEvidenceKind"
+          },
+          "license": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "License",
+            "type": "string"
+          },
+          "resource_identity_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Resource Identity Hash",
+            "type": "string"
+          },
+          "resource_type": {
+            "enum": [
+              "access_url",
+              "research_input"
+            ],
+            "title": "Resource Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "license",
+          "evidence_url",
+          "canonical_paper_id",
+          "resource_type",
+          "resource_identity_hash"
+        ],
+        "title": "PaperCandidateAccessEvidence",
+        "type": "object"
+      },
       "PaperCandidateConflict": {
         "additionalProperties": false,
         "properties": {
@@ -7199,6 +7364,168 @@
         ],
         "title": "PaperCandidateConflict",
         "type": "object"
+      },
+      "PaperCandidateInputBinding": {
+        "additionalProperties": false,
+        "description": "Immutable bridge from one selected candidate to a controlled input.",
+        "properties": {
+          "access_evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperCandidateAccessEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "access_evidence_hash": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Evidence Hash"
+          },
+          "candidate_evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Candidate Evidence Ids",
+            "type": "array"
+          },
+          "candidate_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "candidate_source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Candidate Source Snapshot Id",
+            "type": "string"
+          },
+          "canonical_paper_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Canonical Paper Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperCandidateMetadataReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "enum": [
+              "open_access_url",
+              "existing_research_input",
+              "metadata_only"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "accepted",
+              "metadata_only"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "paper_collection_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Paper Collection Version Id",
+            "type": "string"
+          },
+          "parse_status": {
+            "const": "not_started",
+            "default": "not_started",
+            "title": "Parse Status",
+            "type": "string"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "research_input": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchInputRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reused": {
+            "default": false,
+            "title": "Reused",
+            "type": "boolean"
+          },
+          "source_collection_status": {
+            "enum": [
+              "completed",
+              "partial"
+            ],
+            "title": "Source Collection Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "paper_collection_version_id",
+          "candidate_id",
+          "canonical_paper_id",
+          "candidate_source_snapshot_id",
+          "candidate_evidence_ids",
+          "mode",
+          "outcome",
+          "source_collection_status",
+          "created_at"
+        ],
+        "title": "PaperCandidateInputBinding",
+        "type": "object"
+      },
+      "PaperCandidateMetadataReason": {
+        "enum": [
+          "access_not_proven",
+          "metadata_url_only",
+          "paywalled",
+          "restricted_full_text",
+          "partial_metadata",
+          "unsupported_access"
+        ],
+        "title": "PaperCandidateMetadataReason",
+        "type": "string"
       },
       "PaperCollection": {
         "additionalProperties": false,
@@ -15795,6 +16122,195 @@
           }
         },
         "summary": "List Paper Collection Candidates"
+      }
+    },
+    "/api/artifact-versions/{version_id}/paper-candidates/{candidate_id}/research-input": {
+      "post": {
+        "operationId": "createPaperCandidateResearchInput",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "candidate_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Candidate Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "existing_research_input": "#/components/schemas/ExistingPaperCandidateInputRequest",
+                    "metadata_only": "#/components/schemas/MetadataOnlyPaperCandidateInputRequest",
+                    "open_access_url": "#/components/schemas/OpenAccessPaperCandidateInputRequest"
+                  },
+                  "propertyName": "mode"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/OpenAccessPaperCandidateInputRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ExistingPaperCandidateInputRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MetadataOnlyPaperCandidateInputRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PaperCandidateInputBinding_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Create Paper Candidate Research Input"
       }
     },
     "/api/artifact-versions/{version_id}/paper-collection": {

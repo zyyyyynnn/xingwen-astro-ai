@@ -43,6 +43,9 @@ from app.schemas.literature_artifact_api import (
 from app.schemas.literature_claim import LiteratureClaimStatus
 from app.schemas.literature_relation import LiteratureRelationStatus
 from app.schemas.paper_collection_api import (
+    CreatePaperCandidateInputRequest,
+    OpenAccessPaperCandidateInputRequest,
+    PaperCandidateInputBinding,
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
@@ -53,6 +56,10 @@ from app.services.data_artifacts import DataArtifactReadService
 from app.services.graph_artifacts import GraphArtifactReadService
 from app.services.literature_artifacts import LiteratureArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
+from app.services.paper_candidate_inputs import (
+    CreatePaperCandidateInputCommand,
+    PaperCandidateInputService,
+)
 from app.services.paper_summaries import PaperSummaryReadService
 
 router = APIRouter(prefix="/api", tags=["artifacts"])
@@ -76,6 +83,18 @@ def _session_id(request: Request) -> str:
 
 def _paper_service(request: Request) -> PaperCollectionReadService:
     return PaperCollectionReadService(_service(request))
+
+
+def _paper_input_service(request: Request) -> PaperCandidateInputService:
+    service = request.app.state.paper_candidate_input_service
+    if service is None:
+        raise SecurityProblem(
+            status=503,
+            code="PAPER_CANDIDATE_INPUT_RUNTIME_UNAVAILABLE",
+            title="Paper candidate input runtime unavailable",
+            detail="The persistent PaperCandidate input bridge is not configured",
+        )
+    return service
 
 
 def _summary_service(request: Request) -> PaperSummaryReadService:
@@ -514,6 +533,50 @@ def list_paper_collection_candidates(
         meta=_meta(request),
         links=ResponseLinks(self=path),
     )
+
+
+@router.post(
+    "/artifact-versions/{version_id}/paper-candidates/{candidate_id}/research-input",
+    operation_id="createPaperCandidateResearchInput",
+    response_model=Envelope[PaperCandidateInputBinding],
+    status_code=201,
+)
+async def create_paper_candidate_research_input(
+    version_id: Annotated[str, Path(min_length=1)],
+    candidate_id: Annotated[str, Path(min_length=1)],
+    payload: CreatePaperCandidateInputRequest,
+    request: Request,
+    response: Response,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+    csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+) -> Envelope[PaperCandidateInputBinding]:
+    _ = csrf_token
+    rate_limit = None
+    limiter = request.app.state.research_input_rate_limiter
+    if isinstance(payload, OpenAccessPaperCandidateInputRequest):
+        rate_limit = limiter.consume(_session_id(request))
+    result = await _paper_input_service(request).create(
+        CreatePaperCandidateInputCommand(
+            session_id=_session_id(request),
+            paper_collection_version_id=version_id,
+            candidate_id=candidate_id,
+            idempotency_key=idempotency_key,
+            request=payload,
+        )
+    )
+    if result.reused:
+        response.status_code = 200
+    _no_store(response)
+    if rate_limit is not None:
+        remaining, reset_seconds = rate_limit
+        response.headers["RateLimit-Limit"] = str(limiter.limit)
+        response.headers["RateLimit-Remaining"] = str(remaining)
+        response.headers["RateLimit-Reset"] = str(reset_seconds)
+    path = (
+        f"/api/artifact-versions/{version_id}/paper-candidates/"
+        f"{candidate_id}/research-input"
+    )
+    return Envelope(data=result, meta=_meta(request), links=ResponseLinks(self=path))
 
 
 @router.get(

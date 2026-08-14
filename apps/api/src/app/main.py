@@ -166,6 +166,7 @@ def create_app() -> FastAPI:
     app.state.content_storage = None
     app.state.research_input_idempotency = None
     app.state.research_input_ingestion = None
+    app.state.paper_candidate_input_service = None
     app.state.research_input_rate_limiter = InMemoryRateLimiter(
         limit=settings.RESEARCH_INPUT_RATE_LIMIT
     )
@@ -215,6 +216,23 @@ def create_app() -> FastAPI:
             max_response_bytes=settings.URL_FETCH_MAX_RESPONSE_BYTES,
         ),
     )
+    if database_session_factory is not None and app.state.artifact_read_service is not None:
+        from app.services.paper_candidate_inputs import (
+            PaperCandidateInputRepository,
+            PaperCandidateInputService,
+        )
+        from app.services.paper_collections import PaperCollectionReadService
+
+        app.state.paper_candidate_input_service = PaperCandidateInputService(
+            paper_collections=PaperCollectionReadService(
+                app.state.artifact_read_service
+            ),
+            ingestion=app.state.research_input_ingestion,
+            research_inputs=app.state.research_input_store,
+            repository=PaperCandidateInputRepository(
+                database_session_factory, lease_ttl=lease_ttl
+            ),
+        )
 
     app.add_middleware(
         SecurityMiddleware,

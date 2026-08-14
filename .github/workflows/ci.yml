@@ -246,6 +246,7 @@ jobs:
             --include PaperSummaryRead \
             --include PaperCollectionRead \
             --include PaperCollectionCandidateRead \
+            --include PaperCandidateInputBinding \
             --include DataArtifactReadBase \
             --include DatasetArtifactRead \
             --include FieldDictionaryArtifactRead \

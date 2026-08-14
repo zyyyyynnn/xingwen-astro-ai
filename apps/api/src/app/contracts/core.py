@@ -62,6 +62,8 @@ from app.schemas.literature_artifact_api import (
 from app.schemas.literature_claim import LiteratureClaimStatus
 from app.schemas.literature_relation import LiteratureRelationStatus
 from app.schemas.paper_collection_api import (
+    CreatePaperCandidateInputRequest,
+    PaperCandidateInputBinding,
     PaperCollectionCandidateRead,
     PaperCollectionRead,
 )
@@ -596,6 +598,23 @@ def create_contract_app() -> FastAPI:
         limit: Annotated[int, Query(ge=1, le=100)] = 20,
     ) -> NoReturn:
         _ = (version_id, cursor, limit)
+        return _contract_only()
+
+    @app.post(
+        "/api/artifact-versions/{version_id}/paper-candidates/{candidate_id}/research-input",
+        operation_id="createPaperCandidateResearchInput",
+        response_model=Envelope[PaperCandidateInputBinding],
+        status_code=201,
+        responses=RESEARCH_INPUT_PROBLEM_RESPONSES,
+    )
+    def create_paper_candidate_research_input(
+        version_id: Annotated[str, Path(min_length=1)],
+        candidate_id: Annotated[str, Path(min_length=1)],
+        request: CreatePaperCandidateInputRequest,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> NoReturn:
+        _ = (version_id, candidate_id, request, idempotency_key, csrf_token)
         return _contract_only()
 
     @app.get(
