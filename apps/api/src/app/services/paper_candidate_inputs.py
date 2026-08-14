@@ -458,8 +458,6 @@ class PaperCandidateInputRepository:
                 or reservation.status != "pending"
                 or reservation.request_hash != request_hash
                 or reservation.lease_token != lease_token
-                or reservation.lease_expires_at is None
-                or reservation.lease_expires_at <= self._clock()
             ):
                 raise _idempotency_reservation_lost()
             snapshot_uuid = _uuid(candidate.source_snapshot.id)

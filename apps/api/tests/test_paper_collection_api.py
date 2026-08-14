@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import replace
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 import hashlib
 import os
@@ -13,6 +15,7 @@ from uuid import UUID, uuid4
 
 from alembic import command
 from alembic.config import Config
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from pydantic import ValidationError
@@ -90,6 +93,141 @@ RUN_ID = "a0000000-0000-0000-0000-000000000104"
 SNAPSHOT_ID = "a0000000-0000-0000-0000-000000000105"
 SNAPSHOT_RECORD_ID = "snapshot.crossref.paper_collection_api"
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
+
+
+@dataclass(slots=True)
+class _MutableClock:
+    now: datetime
+
+    def __call__(self) -> datetime:
+        return self.now
+
+
+@dataclass(frozen=True, slots=True)
+class _BridgeLeaseContext:
+    app: FastAPI
+    factory: Callable[[], Session]
+    owner_id: str
+    version_id: str
+    candidate_id: str
+    canonical_paper_id: str
+
+
+@contextmanager
+def _bridge_lease_context(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> Iterator[_BridgeLeaseContext]:
+    assert TEST_DATABASE_URL is not None
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(TEST_DATABASE_URL))
+    monkeypatch.setattr(settings, "RESEARCH_INPUT_UPLOAD_DIR", tmp_path / "inputs")
+    config = _alembic_config(TEST_DATABASE_URL)
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
+    engine = create_engine_from_url(TEST_DATABASE_URL)
+    factory = session_factory(engine)
+    collection = _collection(
+        source_mode=SourceMode.live, data_level=PaperDataLevel.live_result
+    )
+    project_id = uuid4()
+    ids = tuple(uuid4() for _ in range(7))
+    app = create_app()
+    owner, _, _ = app.state.session_service.create(now=datetime.now(UTC))
+    app.state.artifact_read_service = ArtifactReadService(factory)
+    with factory() as session, session.begin():
+        _seed_published_collection(
+            session,
+            collection=collection,
+            admitted_content=canonical_artifact_content_payload(collection),
+            admitted_hash=compute_canonical_payload_hash(
+                canonical_artifact_content_payload(collection)
+            ),
+            owner_id=owner.id,
+            project_id=project_id,
+            contract_id=ids[0],
+            run_id=UUID(RUN_ID),
+            step_id=ids[1],
+            attempt_id=ids[2],
+            producer_id=ids[3],
+            artifact_id=ids[4],
+            version_id=ids[5],
+            snapshot_id=ids[6],
+            evidence_ids=tuple(uuid4() for _ in collection.candidates),
+        )
+    selected = next(item for item in collection.candidates if item.selected)
+    try:
+        yield _BridgeLeaseContext(
+            app=app,
+            factory=factory,
+            owner_id=owner.id,
+            version_id=str(ids[5]),
+            candidate_id=selected.candidate_id,
+            canonical_paper_id=selected.canonical_paper_id,
+        )
+    finally:
+        engine.dispose()
+        command.downgrade(config, "base")
+        command.upgrade(config, "head")
+
+
+def _bridge_request(
+    context: _BridgeLeaseContext, url: str
+) -> OpenAccessPaperCandidateInputRequest:
+    return OpenAccessPaperCandidateInputRequest(
+        mode="open_access_url",
+        access_url=url,
+        filename="paper.txt",
+        access_evidence=PaperCandidateAccessEvidence(
+            kind="repository_open_access",
+            license="CC-BY-4.0",
+            evidence_url="https://repository.example/license",
+            canonical_paper_id=context.canonical_paper_id,
+            resource_type="access_url",
+            resource_identity_hash=_access_url_resource_hash(url),
+        ),
+    )
+
+
+async def _bridge_fetch(url: str, config: UrlFetchConfig) -> UrlFetchResult:
+    del config
+    content = f"content:{url}".encode()
+    content_hash = "sha256:" + hashlib.sha256(content).hexdigest()
+    return UrlFetchResult(
+        content_hash=content_hash,
+        content_bytes=content,
+        mime_type="text/plain",
+        status_code=200,
+        final_url=url,
+        source_snapshot=SourceSnapshotRecord(
+            snapshot_id=f"snapshot.{hashlib.sha256(url.encode()).hexdigest()[:16]}",
+            source_id="repository.example",
+            source_type="url_fetch",
+            retrieved_at=NOW,
+            query=url,
+            query_hash=compute_canonical_payload_hash(url),
+            content_hash=content_hash,
+            license_note="Open access resource",
+            request_metadata={"status_code": 200},
+        ),
+    )
+
+
+def _invoke_bridge(
+    context: _BridgeLeaseContext, *, idempotency_key: str, url: str
+) -> object:
+    try:
+        return asyncio.run(
+            context.app.state.paper_candidate_input_service.create(
+                CreatePaperCandidateInputCommand(
+                    session_id=context.owner_id,
+                    paper_collection_version_id=context.version_id,
+                    candidate_id=context.candidate_id,
+                    idempotency_key=idempotency_key,
+                    request=_bridge_request(context, url),
+                )
+            )
+        )
+    except SecurityProblem as exc:
+        return exc
 
 
 class _FixtureAdapter:
@@ -1046,6 +1184,116 @@ def test_paper_candidate_bridge_fetch_failures_leave_no_persistence(
         engine.dispose()
         command.downgrade(config, "base")
         command.upgrade(config, "head")
+
+
+@pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
+def test_paper_candidate_bridge_owner_completes_after_lease_expiry_without_reclaim(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    with _bridge_lease_context(monkeypatch, tmp_path) as context:
+        repository = context.app.state.paper_candidate_input_service._repository
+        clock = _MutableClock(NOW)
+        ttl = timedelta(seconds=1)
+        repository._clock = clock
+        repository._lease_ttl = ttl
+        context.app.state.research_input_ingestion._url_fetcher = _bridge_fetch
+        original_persist = repository.persist
+        completion_observed = False
+
+        def persist_after_expiry(*args: object, **kwargs: object) -> object:
+            nonlocal completion_observed
+            with context.factory() as session:
+                assert session.query(ResearchInputModel).count() == 1
+                assert session.query(PaperCandidateInputBindingModel).count() == 0
+            completion_observed = True
+            clock.now += ttl + timedelta(seconds=1)
+            return original_persist(*args, **kwargs)  # type: ignore[arg-type]
+
+        repository.persist = persist_after_expiry
+        result = _invoke_bridge(
+            context,
+            idempotency_key="expired-without-reclaim",
+            url="https://repository.example/slow.txt",
+        )
+
+        assert completion_observed is True
+        assert not isinstance(result, SecurityProblem)
+        with context.factory() as session:
+            assert session.query(ResearchInputModel).count() == 1
+            assert session.query(PaperCandidateInputBindingModel).count() == 1
+            reservation = session.query(PaperCandidateInputIdempotencyModel).one()
+            assert reservation.status == "completed"
+            assert reservation.lease_token is None
+            assert reservation.lease_expires_at is None
+
+
+@pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
+def test_paper_candidate_bridge_reclaim_invalidates_old_worker_token(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    with _bridge_lease_context(monkeypatch, tmp_path) as context:
+        repository = context.app.state.paper_candidate_input_service._repository
+        clock = _MutableClock(NOW)
+        ttl = timedelta(seconds=1)
+        repository._clock = clock
+        repository._lease_ttl = ttl
+        context.app.state.research_input_ingestion._url_fetcher = _bridge_fetch
+        original_persist = repository.persist
+        old_at_completion = threading.Event()
+        allow_old_completion = threading.Event()
+        completion_tokens: list[str] = []
+
+        def persist_with_old_worker_paused(
+            *args: object, **kwargs: object
+        ) -> object:
+            lease_token = str(kwargs["lease_token"])
+            completion_tokens.append(lease_token)
+            if len(completion_tokens) == 1:
+                with context.factory() as session:
+                    assert session.query(ResearchInputModel).count() == 1
+                    assert session.query(PaperCandidateInputBindingModel).count() == 0
+                old_at_completion.set()
+                assert allow_old_completion.wait(timeout=10)
+            return original_persist(*args, **kwargs)  # type: ignore[arg-type]
+
+        repository.persist = persist_with_old_worker_paused
+        first_result: list[object] = []
+        first = threading.Thread(
+            target=lambda: first_result.append(
+                _invoke_bridge(
+                    context,
+                    idempotency_key="reclaimed-bridge",
+                    url="https://repository.example/reclaimed.txt",
+                )
+            )
+        )
+        first.start()
+        try:
+            assert old_at_completion.wait(timeout=10)
+            clock.now += ttl + timedelta(seconds=1)
+            reclaimed = _invoke_bridge(
+                context,
+                idempotency_key="reclaimed-bridge",
+                url="https://repository.example/reclaimed.txt",
+            )
+            assert not isinstance(reclaimed, SecurityProblem)
+            assert len(completion_tokens) == 2
+            assert completion_tokens[1] != completion_tokens[0]
+        finally:
+            allow_old_completion.set()
+            first.join(timeout=10)
+
+        assert not first.is_alive()
+        assert len(first_result) == 1
+        assert isinstance(first_result[0], SecurityProblem)
+        assert first_result[0].code == "IDEMPOTENCY_RESERVATION_LOST"
+        with context.factory() as session:
+            assert session.query(ResearchInputModel).count() == 1
+            assert session.query(PaperCandidateInputBindingModel).count() == 1
+            reservation = session.query(PaperCandidateInputIdempotencyModel).one()
+            assert reservation.status == "completed"
+            assert reservation.lease_token is None
+            assert reservation.binding_id is not None
 
 
 @pytest.mark.skipif(not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured")
