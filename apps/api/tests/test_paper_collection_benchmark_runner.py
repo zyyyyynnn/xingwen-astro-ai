@@ -19,6 +19,7 @@ from app.schemas.enums import (
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.paper_benchmark import BenchmarkSearchScenario
 from app.schemas.paper_collection import (
+    NormalizedPaperQuery,
     PaperCollection,
     PaperCollectionPayload,
     PaperSourcePage,
@@ -282,8 +283,9 @@ def test_crossref_pagination_merges_pages_and_records_metadata() -> None:
     second = _response([_item("10.1/three", "Three", 2017)], total=3)
     transport = FakeTransport([first, second])
     delays: list[float] = []
+    query = _query(page_size=2)
     result = _adapter(transport, sleeper=delays.append).search(
-        _query(page_size=2),
+        query,
         source_mode=SourceMode.fixture,
         data_level=PaperDataLevel.recorded_response,
     )
@@ -291,6 +293,7 @@ def test_crossref_pagination_merges_pages_and_records_metadata() -> None:
     assert len(result.records) == 3
     assert [page.returned_rows for page in result.pages] == [2, 1]
     assert delays == [0.2]
+    assert NormalizedPaperQuery.model_validate_json(result.snapshot.query) == query
     assert result.snapshot.request_metadata["pagination_strategy"] == "offset"
     assert "authorization" not in json.dumps(
         result.snapshot.request_metadata

@@ -35,6 +35,9 @@ from app.schemas.core import (
     compute_research_contract_content_hash,
 )
 from app.schemas.data_quality import DataQualityProjection
+from app.schemas.source_snapshot_identity import (
+    source_snapshot_query_identity_is_valid,
+)
 
 
 class CacheError(RuntimeError):
@@ -719,7 +722,11 @@ def _validate_origin(
             "CacheRecord requires a closed non-empty SourceSnapshot set"
         )
     if any(
-        snapshot.query_hash != compute_canonical_payload_hash(snapshot.query)
+        not source_snapshot_query_identity_is_valid(
+            source_id=snapshot.source_id,
+            query=snapshot.query,
+            query_hash=snapshot.query_hash,
+        )
         for snapshot in snapshots
     ):
         raise CacheRecordAdmissionError(

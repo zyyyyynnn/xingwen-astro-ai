@@ -99,7 +99,7 @@ ranking 只使用已声明、可解释的 deterministic features。最终排序�
 | `cached` | `real_run_cache` | 必须引用真实历史 Run/ArtifactVersion |
 | `fixture` | `fixture`、`recorded_response`、`benchmark`、`manual_review` | 不表述为 Live/Cached |
 
-每次成功 source execution 产生完整 SourceSnapshot。失败 execution 不伪造 Snapshot，但仍记录 query/request hash、分页策略、时间、retry 与 error classification。
+每次成功 source execution 产生完整 SourceSnapshot。Crossref Snapshot 的 `query` 保存完整、稳定序列化的 `NormalizedPaperQuery`，使读取边界可通过同一 typed contract 重新计算 `query_hash`；只保存展示查询文本不足以证明 query identity。失败 execution 不伪造 Snapshot，但仍记录 query/request hash、分页策略、时间、retry 与 error classification。
 
 `input_hash`、`output_hash` 与 ProducerExecution hash 必须覆盖影响 scientific/selection 内容的固定输入与规则；wall-clock latency 不进入 content identity。
 

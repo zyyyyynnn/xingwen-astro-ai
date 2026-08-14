@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+import json
 import os
 from pathlib import Path
 from threading import Barrier
@@ -38,12 +39,18 @@ from app.schemas.core import (
     compute_research_contract_content_hash,
 )
 from app.schemas.data_quality import DataQualityProjection
+from app.schemas.paper_collection import NormalizedPaperQuery
+from app.schemas.source_acquisition import NormalizedDataSourceQuery
 from app.workflow.cache import (
     CacheRecordAdmissionError,
     CacheRecordStore,
     CacheSelectionNotAllowedError,
     CacheSelector,
 )
+from services.data_pipeline.manifest import load_frozen_manifest_bundle
+from services.data_pipeline.query import normalize_toi_query
+from services.paper_pipeline.benchmark import load_frozen_benchmark
+from services.paper_pipeline.query import normalize_benchmark_query
 
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
@@ -65,6 +72,11 @@ ARTIFACT_KINDS = (
     "reasoning_traces",
     "graph",
 )
+DATA_ARTIFACT_KINDS = frozenset(
+    {"dataset", "field_dictionary", "source_collection"}
+)
+NASA_TOI_SOURCE_ID = "nasa_exoplanet_archive.toi"
+CROSSREF_SOURCE_ID = "crossref"
 
 
 def _alembic_config(url: str) -> Config:
@@ -94,7 +106,7 @@ def _contract_input(
     artifact_kind: str,
     *,
     research_goal: str = "Reuse a strictly matching historical astronomy result",
-    allowed_sources: tuple[str, ...] = ("nasa_exoplanet_archive",),
+    allowed_sources: tuple[str, ...] | None = None,
     evidence_minimum: float = 1.0,
     completeness_minimum: float = 1.0,
 ) -> ResearchContractInput:
@@ -104,7 +116,11 @@ def _contract_input(
             "target_objects": ["host_star"],
             "data_requirements": {"unit_policy": "canonical"},
             "requested_fields": ["star.mass"],
-            "source_scope": {"allowed_sources": list(allowed_sources)},
+            "source_scope": {
+                "allowed_sources": list(
+                    allowed_sources or (_source_id_for_artifact_kind(artifact_kind),)
+                )
+            },
             "paper_search_scope": {"max_candidates": 20},
             "output_requirements": [artifact_kind],
             "evidence_requirements": {
@@ -117,6 +133,67 @@ def _contract_input(
                 "unit_consistency_min": 1.0,
             },
         }
+    )
+
+
+def _source_id_for_artifact_kind(artifact_kind: str) -> str:
+    if artifact_kind in DATA_ARTIFACT_KINDS:
+        return NASA_TOI_SOURCE_ID
+    return CROSSREF_SOURCE_ID
+
+
+def _normalized_data_query() -> NormalizedDataSourceQuery:
+    return normalize_toi_query(
+        load_frozen_manifest_bundle(),
+        page_size=100,
+        max_pages=1,
+        record_limit=100,
+    )
+
+
+def _normalized_paper_query() -> NormalizedPaperQuery:
+    return normalize_benchmark_query(
+        load_frozen_benchmark().search_scenarios[0],
+        source_ids=(CROSSREF_SOURCE_ID,),
+        page_size=20,
+    )
+
+
+def _source_snapshot_values(artifact_kind: str) -> dict[str, object]:
+    query = (
+        _normalized_data_query()
+        if artifact_kind in DATA_ARTIFACT_KINDS
+        else _normalized_paper_query()
+    )
+    return {
+        "source_id": _source_id_for_artifact_kind(artifact_kind),
+        "source_type": (
+            "astronomical_catalog_metadata"
+            if artifact_kind in DATA_ARTIFACT_KINDS
+            else "paper_metadata"
+        ),
+        "query": json.dumps(
+            query.model_dump(mode="json"),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        "query_hash": query.query_hash,
+    }
+
+
+def _corrupt_source_query(snapshot: SourceSnapshotModel) -> None:
+    assert isinstance(snapshot.query, str)
+    payload = json.loads(snapshot.query)
+    if snapshot.source_id == NASA_TOI_SOURCE_ID:
+        payload["source_table"] = "ps"
+    else:
+        payload["year_to"] = 2025
+    snapshot.query = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
     )
 
 
@@ -374,19 +451,16 @@ def _seed_case(
         content = {"kind": artifact_kind}
         content_hash = compute_canonical_payload_hash(content)
         origin_producer.output_hash = content_hash
-        snapshot_query = {"target": "host_star"}
+        snapshot_values = _source_snapshot_values(artifact_kind)
         snapshot = SourceSnapshotModel(
             id=uuid4(),
             project_id=project.id,
-            source_id="nasa_exoplanet_archive",
-            source_type="api",
             retrieved_at=datetime.now(UTC),
-            query=snapshot_query,
-            query_hash=compute_canonical_payload_hash(snapshot_query),
             source_version_or_etag="test-etag",
             content_hash=HASH_B,
             license_note="public test source",
             request_metadata={"source_mode": "live"},
+            **snapshot_values,
         )
         evidence_id = uuid4()
         artifact = ResearchArtifactModel(
@@ -514,6 +588,38 @@ def test_selector_hits_all_governed_artifact_families_without_republishing(
         assert record.project_id == project_id
 
 
+@pytest.mark.parametrize("artifact_kind", ("dataset", "paper_collection"))
+def test_production_query_identities_register_and_select(
+    postgres_engine: Engine, artifact_kind: str
+) -> None:
+    _, failed_run_id, _, version_id, producer_id = _seed_case(
+        postgres_engine, artifact_kind
+    )
+    factory = session_factory(postgres_engine)
+    with factory() as session:
+        version = session.get(ArtifactVersionModel, version_id)
+        assert version is not None
+        snapshot = session.get(
+            SourceSnapshotModel, UUID(version.source_snapshot_ids[0])
+        )
+        assert snapshot is not None
+        assert snapshot.source_id == _source_id_for_artifact_kind(artifact_kind)
+        assert snapshot.query_hash != compute_canonical_payload_hash(snapshot.query)
+
+    CacheRecordStore(factory).register(
+        version_id, expires_at=datetime.now(UTC) + timedelta(days=1)
+    )
+    result = CacheSelector(factory).select_for_failed_run(
+        failed_run_id,
+        step_key="planning",
+        artifact_kind=artifact_kind,
+        failed_producer_execution_id=producer_id,
+    )
+
+    assert result.outcome == "selected"
+    assert result.reason == "CACHE_SELECTED"
+
+
 @pytest.mark.parametrize(
     ("mutation", "expected_reason"),
     (
@@ -535,7 +641,9 @@ def test_selector_records_stable_strict_mismatch_reasons(
             kind, research_goal="A materially different current research objective"
         )
     elif mutation == "source":
-        current_contract = _contract_input(kind, allowed_sources=("crossref",))
+        current_contract = _contract_input(
+            kind, allowed_sources=(NASA_TOI_SOURCE_ID,)
+        )
     elif mutation == "quality":
         current_contract = _contract_input(kind, completeness_minimum=0.75)
     elif mutation == "evidence":
@@ -669,23 +777,30 @@ def test_cache_record_admission_rejects_quality_projection_not_bound_to_version(
         )
 
 
-@pytest.mark.parametrize("corruption", ("artifact_content", "source_query"))
+@pytest.mark.parametrize(
+    ("artifact_kind", "corruption"),
+    (
+        ("paper_summary", "artifact_content"),
+        ("dataset", "source_query"),
+        ("paper_summary", "source_query"),
+    ),
+)
 def test_cache_record_admission_rejects_noncanonical_origin_identity(
-    postgres_engine: Engine, corruption: str
+    postgres_engine: Engine, artifact_kind: str, corruption: str
 ) -> None:
-    _, _, _, version_id, _ = _seed_case(postgres_engine, "paper_summary")
+    _, _, _, version_id, _ = _seed_case(postgres_engine, artifact_kind)
     factory = session_factory(postgres_engine)
     with factory() as session, session.begin():
         version = session.get(ArtifactVersionModel, version_id)
         assert version is not None
         if corruption == "artifact_content":
-            version.content = {"kind": "paper_summary", "corrupted": True}
+            version.content = {"kind": artifact_kind, "corrupted": True}
         else:
             snapshot = session.get(
                 SourceSnapshotModel, UUID(version.source_snapshot_ids[0])
             )
             assert snapshot is not None
-            snapshot.query = {"target": "different_host_star"}
+            _corrupt_source_query(snapshot)
 
     with pytest.raises(CacheRecordAdmissionError, match="hash is invalid"):
         CacheRecordStore(factory).register(
@@ -804,12 +919,19 @@ def test_selector_revalidates_origin_provenance_before_hit(
     assert result.reason == "CACHE_PROVENANCE_INVALID"
 
 
-@pytest.mark.parametrize("corruption", ("artifact_content", "source_query"))
+@pytest.mark.parametrize(
+    ("artifact_kind", "corruption"),
+    (
+        ("reasoning_traces", "artifact_content"),
+        ("dataset", "source_query"),
+        ("reasoning_traces", "source_query"),
+    ),
+)
 def test_selector_rejects_noncanonical_origin_identity_after_registration(
-    postgres_engine: Engine, corruption: str
+    postgres_engine: Engine, artifact_kind: str, corruption: str
 ) -> None:
     _, failed_run_id, _, version_id, producer_id = _seed_case(
-        postgres_engine, "reasoning_traces"
+        postgres_engine, artifact_kind
     )
     factory = session_factory(postgres_engine)
     CacheRecordStore(factory).register(
@@ -819,18 +941,18 @@ def test_selector_rejects_noncanonical_origin_identity_after_registration(
         version = session.get(ArtifactVersionModel, version_id)
         assert version is not None
         if corruption == "artifact_content":
-            version.content = {"kind": "reasoning_traces", "corrupted": True}
+            version.content = {"kind": artifact_kind, "corrupted": True}
         else:
             snapshot = session.get(
                 SourceSnapshotModel, UUID(version.source_snapshot_ids[0])
             )
             assert snapshot is not None
-            snapshot.query = {"target": "different_host_star"}
+            _corrupt_source_query(snapshot)
 
     result = CacheSelector(factory).select_for_failed_run(
         failed_run_id,
         step_key="planning",
-        artifact_kind="reasoning_traces",
+        artifact_kind=artifact_kind,
         failed_producer_execution_id=producer_id,
     )
 
