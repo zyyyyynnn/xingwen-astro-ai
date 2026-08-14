@@ -760,6 +760,12 @@ class ArtifactVersionModel(TimestampMixin, Base):
             name="uq_artifact_version_id_artifact_project",
         ),
         UniqueConstraint(
+            "id",
+            "created_by_run_id",
+            "project_id",
+            name="uq_artifact_version_id_run_project",
+        ),
+        UniqueConstraint(
             "artifact_id", "version_number", name="uq_artifact_version_number"
         ),
         UniqueConstraint(
@@ -1167,6 +1173,179 @@ class EvidenceModel(TimestampMixin, Base):
         CheckConstraint("confidence BETWEEN 0 AND 1", name="confidence_range"),
         Index("ix_evidence_artifact_version_id", "artifact_version_id"),
         Index("ix_evidence_source_snapshot_id", "source_snapshot_id"),
+    )
+
+
+class CacheRecordModel(Base):
+    """Immutable eligibility snapshot for one reusable live ArtifactVersion."""
+
+    __tablename__ = "cache_records"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    origin_run_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    origin_artifact_version_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
+    artifact_kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    contract_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    input_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    producer_identity: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    producer_identity_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    source_scope_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    evidence_requirements_hash: Mapped[str] = mapped_column(
+        String(71), nullable=False
+    )
+    quality_constraints_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    source_snapshot_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    source_snapshot_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    evidence_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    evidence_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    quality_projection_hash: Mapped[str | None] = mapped_column(String(71))
+    valid_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    record_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("id", "project_id", name="uq_cache_record_id_project"),
+        UniqueConstraint(
+            "id",
+            "origin_run_id",
+            "origin_artifact_version_id",
+            "project_id",
+            name="uq_cache_record_origin_closure",
+        ),
+        UniqueConstraint(
+            "project_id", "record_hash", name="uq_cache_record_project_hash"
+        ),
+        ForeignKeyConstraint(
+            ["origin_run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_cache_records_origin_run_project",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["origin_artifact_version_id", "origin_run_id", "project_id"],
+            [
+                "artifact_versions.id",
+                "artifact_versions.created_by_run_id",
+                "artifact_versions.project_id",
+            ],
+            name="fk_cache_records_origin_version_run_project",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("expires_at > valid_from", name="validity_window"),
+        Index(
+            "ix_cache_records_selector",
+            "project_id",
+            "artifact_kind",
+            "contract_hash",
+            "input_hash",
+            "expires_at",
+        ),
+        Index(
+            "ix_cache_records_origin_version", "origin_artifact_version_id"
+        ),
+    )
+
+
+class CacheSelectionAuditModel(Base):
+    """One idempotent CacheSelector decision for a failed RunStep."""
+
+    __tablename__ = "cache_selection_audits"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    run_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    run_step_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    failed_producer_execution_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    selector_identity_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False)
+    reason: Mapped[str] = mapped_column(String(128), nullable=False)
+    cache_record_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    origin_run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    origin_artifact_version_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True)
+    )
+    live_failure_class: Mapped[str] = mapped_column(String(128), nullable=False)
+    live_failure_code: Mapped[str] = mapped_column(String(128), nullable=False)
+    event_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("run_step_id", "request_hash", name="uq_cache_audit_request"),
+        ForeignKeyConstraint(
+            ["run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_cache_audits_run_project",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["run_step_id", "run_id"],
+            ["run_steps.id", "run_steps.run_id"],
+            name="fk_cache_audits_step_run",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["run_id", "event_sequence"],
+            ["run_events.run_id", "run_events.sequence"],
+            name="fk_cache_audits_event_sequence",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["failed_producer_execution_id", "run_step_id"],
+            ["producer_executions.id", "producer_executions.run_step_id"],
+            name="fk_cache_audits_failed_producer_step",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            [
+                "cache_record_id",
+                "origin_run_id",
+                "origin_artifact_version_id",
+                "project_id",
+            ],
+            [
+                "cache_records.id",
+                "cache_records.origin_run_id",
+                "cache_records.origin_artifact_version_id",
+                "cache_records.project_id",
+            ],
+            name="fk_cache_audits_record_origin_closure",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("outcome IN ('selected','rejected')", name="outcome"),
+        CheckConstraint("event_sequence >= 1", name="event_sequence_positive"),
+        CheckConstraint(
+            "(outcome = 'selected' AND reason = 'CACHE_SELECTED' "
+            "AND cache_record_id IS NOT NULL AND origin_run_id IS NOT NULL "
+            "AND origin_artifact_version_id IS NOT NULL) OR "
+            "(outcome = 'rejected' AND reason <> 'CACHE_SELECTED' "
+            "AND cache_record_id IS NULL AND origin_run_id IS NULL "
+            "AND origin_artifact_version_id IS NULL)",
+            name="decision_shape",
+        ),
+        Index("ix_cache_audits_run_created", "run_id", "created_at"),
     )
 
 

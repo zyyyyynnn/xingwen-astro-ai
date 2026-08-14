@@ -18,6 +18,8 @@ EXPECTED_TABLES = frozenset(
     {
         "alembic_version",
         "artifact_versions",
+        "cache_records",
+        "cache_selection_audits",
         "dataset_row_projections",
         "document_parse_locators",
         "document_parses",
@@ -104,6 +106,32 @@ CURRENT_REQUIRED_COLUMNS = {
     ),
     "revision_plan_confirmations": frozenset(
         {"owner_session_id", "run_id", "idempotency_key", "request_hash"}
+    ),
+    "cache_records": frozenset(
+        {
+            "origin_run_id",
+            "origin_artifact_version_id",
+            "contract_hash",
+            "input_hash",
+            "producer_identity_hash",
+            "source_snapshot_ids",
+            "source_snapshot_hash",
+            "evidence_ids",
+            "expires_at",
+        }
+    ),
+    "cache_selection_audits": frozenset(
+        {
+            "run_id",
+            "run_step_id",
+            "failed_producer_execution_id",
+            "request_hash",
+            "outcome",
+            "reason",
+            "live_failure_class",
+            "live_failure_code",
+            "event_sequence",
+        }
     ),
 }
 

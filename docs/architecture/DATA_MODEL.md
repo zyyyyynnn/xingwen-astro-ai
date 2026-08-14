@@ -24,6 +24,10 @@ ResearchProject (1) -- (*) ResearchArtifact -- (*) ArtifactVersion
 ResearchRun (1) -- (*) ArtifactVersion
 ArtifactVersion (1) -- (*) Evidence
 SourceSnapshot (1) -- (*) Evidence
+ResearchProject (1) -- (*) CacheRecord
+completed Live ResearchRun (1) -- (*) CacheRecord
+live ArtifactVersion (1) -- (*) CacheRecord
+failed RunStep (1) -- (*) CacheSelectionAudit -- (0..1) CacheRecord
 ResearchProject (1) -- (*) ResearchInput
 ResearchInput (1) -- (*) DocumentParse -- (*) DocumentParseLocator
 SourceSnapshot (1) -- (*) DocumentParse
@@ -34,7 +38,7 @@ ArtifactVersion (1) -- (*) UserFeedback
 UserFeedback (*) -- (*) RevisionPlan -- (0..1) RevisionPlanConfirmation -- (1) ResearchRun
 ```
 
-`UserFeedback`、`RevisionPlan` 与 `RevisionPlanConfirmation` 是当前 PostgreSQL 运行时对象；`CacheRecord` 仍属于目标契约，当前运行时不创建。
+`CacheRecord`、`CacheSelectionAudit`、`UserFeedback`、`RevisionPlan` 与 `RevisionPlanConfirmation` 均为当前 PostgreSQL 运行时对象。
 
 ## 2. Project、Draft 与 Contract
 
@@ -56,7 +60,8 @@ UserFeedback (*) -- (*) RevisionPlan -- (0..1) RevisionPlanConfirmation -- (1) R
 
 UserFeedback 固定当前 ArtifactVersion 与对象定位；RevisionPlan 固定同一 completed parent Run、Feedback、parent revision、全部 latest ArtifactVersion、受影响产物闭包、复用版本与 canonical steps。不可变 Confirmation 一对一绑定 Plan 和 revision Run，二者在同一事务创建。
 
-目标缓存契约：CacheRecord 固定可复用的历史 Run、ArtifactVersion、SourceSnapshot 与匹配 identity；CacheSelector 只返回通过 Contract 与 Evidence 校验的记录。在对应执行闭环实现前不得被描述为当前数据库或运行时对象。
+- CacheRecord 是不可变的 Project-owned 复用资格快照，只能从 completed Live Run 的 `source_mode=live` ArtifactVersion 物化；它固定 origin Run/ArtifactVersion、Contract/input、producer/Prompt、SourceSnapshot identity hash、Evidence、质量约束与有效期 identity。
+- CacheSelectionAudit 绑定 failed RunStep、明确的 failed ProducerExecution 与本次 recoverable failure。命中时再绑定同 Project 的 CacheRecord/origin Run/origin ArtifactVersion；拒绝时这些 origin 字段必须为空。审计与对应 `cache.selected | cache.rejected` Event 使用同一个持久化 sequence，且均不可原地更新。
 
 ## 4. Artifact、Evidence 与来源
 

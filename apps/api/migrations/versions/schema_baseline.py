@@ -856,6 +856,12 @@ def upgrade() -> None:
             name="uq_artifact_version_id_artifact_project",
         ),
         sa.UniqueConstraint(
+            "id",
+            "created_by_run_id",
+            "project_id",
+            name="uq_artifact_version_id_run_project",
+        ),
+        sa.UniqueConstraint(
             "artifact_id", "version_number", name="uq_artifact_version_number"
         ),
         sa.UniqueConstraint(
@@ -1243,6 +1249,174 @@ def upgrade() -> None:
     )
     op.create_index(
         "ix_evidence_source_snapshot_id", "evidence", ["source_snapshot_id"]
+    )
+
+    op.create_table(
+        "cache_records",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("origin_run_id", _uuid(), nullable=False),
+        sa.Column("origin_artifact_version_id", _uuid(), nullable=False),
+        sa.Column("artifact_kind", sa.String(64), nullable=False),
+        sa.Column("contract_hash", sa.String(71), nullable=False),
+        sa.Column("input_hash", sa.String(71), nullable=False),
+        sa.Column("producer_identity", _jsonb(), nullable=False),
+        sa.Column("producer_identity_hash", sa.String(71), nullable=False),
+        sa.Column("source_scope_hash", sa.String(71), nullable=False),
+        sa.Column("evidence_requirements_hash", sa.String(71), nullable=False),
+        sa.Column("quality_constraints_hash", sa.String(71), nullable=False),
+        sa.Column("source_snapshot_ids", _jsonb(), nullable=False),
+        sa.Column("source_snapshot_hash", sa.String(71), nullable=False),
+        sa.Column("evidence_ids", _jsonb(), nullable=False),
+        sa.Column("evidence_hash", sa.String(71), nullable=False),
+        sa.Column("quality_projection_hash", sa.String(71), nullable=True),
+        sa.Column("valid_from", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("record_hash", sa.String(71), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "expires_at > valid_from", name="ck_cache_records_validity_window"
+        ),
+        sa.ForeignKeyConstraint(
+            ["origin_run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_cache_records_origin_run_project",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["origin_artifact_version_id", "origin_run_id", "project_id"],
+            [
+                "artifact_versions.id",
+                "artifact_versions.created_by_run_id",
+                "artifact_versions.project_id",
+            ],
+            name="fk_cache_records_origin_version_run_project",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_cache_records"),
+        sa.UniqueConstraint("id", "project_id", name="uq_cache_record_id_project"),
+        sa.UniqueConstraint(
+            "id",
+            "origin_run_id",
+            "origin_artifact_version_id",
+            "project_id",
+            name="uq_cache_record_origin_closure",
+        ),
+        sa.UniqueConstraint(
+            "project_id", "record_hash", name="uq_cache_record_project_hash"
+        ),
+    )
+    op.create_index(
+        "ix_cache_records_selector",
+        "cache_records",
+        [
+            "project_id",
+            "artifact_kind",
+            "contract_hash",
+            "input_hash",
+            "expires_at",
+        ],
+    )
+    op.create_index(
+        "ix_cache_records_origin_version",
+        "cache_records",
+        ["origin_artifact_version_id"],
+    )
+
+    op.create_table(
+        "cache_selection_audits",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("run_id", _uuid(), nullable=False),
+        sa.Column("run_step_id", _uuid(), nullable=False),
+        sa.Column("failed_producer_execution_id", _uuid(), nullable=False),
+        sa.Column("request_hash", sa.String(71), nullable=False),
+        sa.Column("selector_identity_hash", sa.String(71), nullable=False),
+        sa.Column("outcome", sa.String(16), nullable=False),
+        sa.Column("reason", sa.String(128), nullable=False),
+        sa.Column("cache_record_id", _uuid(), nullable=True),
+        sa.Column("origin_run_id", _uuid(), nullable=True),
+        sa.Column("origin_artifact_version_id", _uuid(), nullable=True),
+        sa.Column("live_failure_class", sa.String(128), nullable=False),
+        sa.Column("live_failure_code", sa.String(128), nullable=False),
+        sa.Column("event_sequence", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "outcome IN ('selected','rejected')",
+            name="ck_cache_selection_audits_outcome",
+        ),
+        sa.CheckConstraint(
+            "event_sequence >= 1",
+            name="ck_cache_selection_audits_event_sequence_positive",
+        ),
+        sa.CheckConstraint(
+            "(outcome = 'selected' AND reason = 'CACHE_SELECTED' "
+            "AND cache_record_id IS NOT NULL AND origin_run_id IS NOT NULL "
+            "AND origin_artifact_version_id IS NOT NULL) OR "
+            "(outcome = 'rejected' AND reason <> 'CACHE_SELECTED' "
+            "AND cache_record_id IS NULL AND origin_run_id IS NULL "
+            "AND origin_artifact_version_id IS NULL)",
+            name="ck_cache_selection_audits_decision_shape",
+        ),
+        sa.ForeignKeyConstraint(
+            ["run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_cache_audits_run_project",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["run_step_id", "run_id"],
+            ["run_steps.id", "run_steps.run_id"],
+            name="fk_cache_audits_step_run",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["run_id", "event_sequence"],
+            ["run_events.run_id", "run_events.sequence"],
+            name="fk_cache_audits_event_sequence",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["failed_producer_execution_id", "run_step_id"],
+            ["producer_executions.id", "producer_executions.run_step_id"],
+            name="fk_cache_audits_failed_producer_step",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            [
+                "cache_record_id",
+                "origin_run_id",
+                "origin_artifact_version_id",
+                "project_id",
+            ],
+            [
+                "cache_records.id",
+                "cache_records.origin_run_id",
+                "cache_records.origin_artifact_version_id",
+                "cache_records.project_id",
+            ],
+            name="fk_cache_audits_record_origin_closure",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_cache_selection_audits"),
+        sa.UniqueConstraint(
+            "run_step_id", "request_hash", name="uq_cache_audit_request"
+        ),
+    )
+    op.create_index(
+        "ix_cache_audits_run_created",
+        "cache_selection_audits",
+        ["run_id", "created_at"],
     )
 
     op.create_table(
@@ -1782,6 +1956,24 @@ def upgrade() -> None:
 
     op.execute(
         """
+        CREATE FUNCTION reject_cache_record_update() RETURNS trigger AS $$
+        BEGIN
+          RAISE EXCEPTION 'cache records are immutable';
+        END;
+        $$ LANGUAGE plpgsql;
+
+        CREATE TRIGGER trg_cache_records_immutable
+        BEFORE UPDATE ON cache_records
+        FOR EACH ROW EXECUTE FUNCTION reject_cache_record_update();
+
+        CREATE TRIGGER trg_cache_selection_audits_immutable
+        BEFORE UPDATE ON cache_selection_audits
+        FOR EACH ROW EXECUTE FUNCTION reject_cache_record_update();
+        """
+    )
+
+    op.execute(
+        """
         CREATE FUNCTION enforce_frozen_run_steps() RETURNS trigger AS $$
         DECLARE
             frozen_at timestamptz;
@@ -1876,6 +2068,9 @@ def downgrade() -> None:
     op.drop_index("ix_research_inputs_session_project", table_name="research_inputs")
     op.drop_table("research_inputs")
     op.drop_table("research_input_contents")
+    op.execute("DROP TABLE IF EXISTS cache_selection_audits")
+    op.execute("DROP TABLE IF EXISTS cache_records")
+    op.execute("DROP FUNCTION IF EXISTS reject_cache_record_update()")
     op.drop_index("ix_evidence_source_snapshot_id", table_name="evidence")
     op.drop_index("ix_evidence_artifact_version_id", table_name="evidence")
     op.drop_table("evidence")

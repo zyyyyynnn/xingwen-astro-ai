@@ -56,7 +56,7 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 
 ## 5. 派生 Run 与修订
 
-派生关系是稳定运行时契约；当前 HTTP authoring 支持 original Run 与由已确认 RevisionPlan 创建的 revision Run。尚未接入的 retry、fork 与 cache writer 不得伪造对应记录。
+派生关系是稳定运行时契约；当前 HTTP authoring 支持 original Run 与由已确认 RevisionPlan 创建的 revision Run，CacheSelector 是内部失败回退能力。尚未接入的 retry、fork、自动 cache fallback 与 cached publication writer 不得伪造对应记录。
 
 - `parent_run_id` 固定派生来源；`derivation_kind` 只允许 `original | retry | revision | fork`。
 - `retry_from_step` 只对 retry Run 有效；Executor 不能从该 Step 恢复时必须拒绝创建，不得从首 Step 静默重跑。
@@ -66,9 +66,13 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 
 ## 6. CacheSelector 与取消
 
-目标 CacheSelector 负责从真实历史 Run 中选择满足 Contract、input hash、producer identity 与 Evidence 约束的 CacheRecord。只有选择成功并绑定 origin Run/ArtifactVersion 时才能写入 `source_mode=cached`；Fixture 不得进入选择结果。
+CacheRecordStore 只从 completed Live Run 的已发布 `source_mode=live` ArtifactVersion 注册不可变候选，并重新闭合 Contract、input、producer/Prompt、SourceSnapshot identity hash、Evidence、数据质量投影与 UTC validity window。Fixture、cached/recorded、未完成 origin、无 SourceSnapshot/Evidence 或越出 Contract source scope 的候选不得注册。
 
-`cache_policy=disabled` 禁止选择缓存；`fallback_on_recoverable_failure` 只允许在 Live 调用发生可恢复失败后运行 CacheSelector，选择失败时保留原失败事实。
+`cache_policy=disabled` 禁止选择缓存；`fallback_on_recoverable_failure` 只允许在 Run、RunStep 与 Attempt 已持久化 failed，Attempt 明确 `retryable=true`，且调用方提供属于该 Attempt 的 failed ProducerExecution identity 后运行 CacheSelector。Schema、权限、非法状态、非 recoverable failure 或伪造 ProducerExecution 在查询候选前 fail closed。
+
+Selector 在 failed Run 行锁事务中逐项匹配 artifact kind、Contract/input hash、producer/Prompt、来源范围、质量约束、Evidence 要求、有效期及当前 provenance closure。命中只引用 CacheRecord 的 origin Run/ArtifactVersion；拒绝保存稳定原因。两者都保留原 `run.failed`，追加 `cache.selected | cache.rejected` Event 与不可变 CacheSelectionAudit，不改变 failed/origin Run 状态，不发布 ArtifactVersion。`(run_step_id, request_hash)` 唯一约束与 Run 行锁保证并发 replay 不重复审计或发布。
+
+CacheSelector 是当前 PostgreSQL Application/Workflow 内部能力，但当前 HTTP authoring 与 Executor 自动 fallback 尚未暴露；将选择结果发布为 `source_mode=cached` 仍必须经过未来显式接入的 Publisher 路径，不能由 Selector 建立第二发布边界。
 
 取消必须以条件写入将 Run、未完成 Step 与运行中的 Attempt 一致推进为 `cancelled`，追加单调 Event，并拒绝取消后的晚到产物。重复取消终态 Run 保持幂等。
 

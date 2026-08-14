@@ -190,6 +190,7 @@ class PersistentWorkflowStore:
         idempotency_key: str,
         request_hash: str,
         steps: Sequence[RunStepDefinition],
+        cache_policy: str = "disabled",
     ) -> RunSnapshot:
         with self._factory() as session, session.begin():
             run_id = self.create_run_in_session(
@@ -200,6 +201,7 @@ class PersistentWorkflowStore:
                 idempotency_key=idempotency_key,
                 request_hash=request_hash,
                 steps=steps,
+                cache_policy=cache_policy,
             )
         return self.load_snapshot(run_id)
 
@@ -222,6 +224,8 @@ class PersistentWorkflowStore:
         """Create one frozen Run aggregate inside an existing transaction."""
 
         self._validate_step_definitions(steps)
+        if cache_policy not in {"disabled", "fallback_on_recoverable_failure"}:
+            raise ValueError("cache_policy is not supported")
         candidate_run_id = uuid4()
         inserted_run_id = session.scalar(
             pg_insert(ResearchRunModel)
@@ -255,7 +259,15 @@ class PersistentWorkflowStore:
             )
             if existing is None:  # pragma: no cover - database invariant safeguard
                 raise WorkflowConflictError("idempotent Run creation lost its winner")
-            if existing.request_hash != request_hash:
+            if (
+                existing.request_hash != request_hash
+                or existing.execution_mode != execution_mode
+                or existing.contract_id != contract_id
+                or existing.parent_run_id != parent_run_id
+                or existing.derivation_kind != derivation_kind
+                or existing.retry_from_step != retry_from_step
+                or existing.cache_policy != cache_policy
+            ):
                 raise WorkflowConflictError(
                     "idempotency key was already used with a different request"
                 )

@@ -1,5 +1,15 @@
 """Authoritative ResearchRun workflow, lease, attempt, event, and publication ports."""
 
+from .cache import (
+    CacheRecordAdmissionError,
+    CacheRecordSnapshot,
+    CacheRecordStore,
+    CacheRejectionReason,
+    CacheSelectionNotAllowedError,
+    CacheSelectionResult,
+    CacheSelector,
+)
+
 from .persistent_executor import (
     FailureDecision,
     PersistentWorkflowExecutionError,
@@ -37,6 +47,13 @@ __all__ = [
     "ArtifactPublication",
     "ArtifactPublisher",
     "AttemptHandle",
+    "CacheRecordAdmissionError",
+    "CacheRecordSnapshot",
+    "CacheRecordStore",
+    "CacheRejectionReason",
+    "CacheSelectionNotAllowedError",
+    "CacheSelectionResult",
+    "CacheSelector",
     "FailureDecision",
     "LeaseGrant",
     "PersistentWorkflowExecutionError",
