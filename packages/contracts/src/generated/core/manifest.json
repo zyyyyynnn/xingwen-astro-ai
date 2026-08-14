@@ -22,6 +22,11 @@
       "path": "json/BindResearchInputRequest.schema.json"
     },
     {
+      "module": "app.schemas.revision",
+      "name": "ConfirmRevisionPlanRequest",
+      "path": "json/ConfirmRevisionPlanRequest.schema.json"
+    },
+    {
       "module": "app.schemas.data_artifact_api",
       "name": "CreateArtifactExportRequest",
       "path": "json/CreateArtifactExportRequest.schema.json"
@@ -35,6 +40,16 @@
       "module": "app.schemas.research_input",
       "name": "CreateResearchInputRequest",
       "path": "json/CreateResearchInputRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.revision",
+      "name": "CreateRevisionPlanRequest",
+      "path": "json/CreateRevisionPlanRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.revision",
+      "name": "CreateUserFeedbackRequest",
+      "path": "json/CreateUserFeedbackRequest.schema.json"
     },
     {
       "module": "app.schemas.data_artifact_api",
@@ -232,6 +247,21 @@
       "path": "json/ResearchTurnResult.schema.json"
     },
     {
+      "module": "app.schemas.revision",
+      "name": "RevisionConflict",
+      "path": "json/RevisionConflict.schema.json"
+    },
+    {
+      "module": "app.schemas.revision",
+      "name": "RevisionPlan",
+      "path": "json/RevisionPlan.schema.json"
+    },
+    {
+      "module": "app.schemas.revision",
+      "name": "RevisionVersionDecision",
+      "path": "json/RevisionVersionDecision.schema.json"
+    },
+    {
       "module": "app.schemas.core",
       "name": "RunEvent",
       "path": "json/RunEvent.schema.json"
@@ -270,6 +300,11 @@
       "module": "app.schemas.core",
       "name": "UpdateResearchProjectRequest",
       "path": "json/UpdateResearchProjectRequest.schema.json"
+    },
+    {
+      "module": "app.schemas.revision",
+      "name": "UserFeedback",
+      "path": "json/UserFeedback.schema.json"
     },
     {
       "module": "app.schemas.core",

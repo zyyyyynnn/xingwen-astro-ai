@@ -1,0 +1,77 @@
+{
+  "$defs": {
+    "ArtifactKind": {
+      "enum": [
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+        "paper_collection",
+        "paper_summary",
+        "literature_claims",
+        "literature_relations",
+        "reasoning_traces",
+        "graph",
+        "export"
+      ],
+      "title": "ArtifactKind",
+      "type": "string"
+    },
+    "RevisionDecision": {
+      "enum": [
+        "recompute",
+        "reuse"
+      ],
+      "title": "RevisionDecision",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Artifact Id",
+      "type": "string"
+    },
+    "artifact_kind": {
+      "$ref": "#/$defs/ArtifactKind"
+    },
+    "artifact_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Artifact Version Id",
+      "type": "string"
+    },
+    "decision": {
+      "$ref": "#/$defs/RevisionDecision"
+    },
+    "step_key": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Step Key"
+    },
+    "version_number": {
+      "minimum": 1,
+      "title": "Version Number",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "artifact_version_id",
+    "artifact_id",
+    "artifact_kind",
+    "version_number",
+    "decision"
+  ],
+  "title": "RevisionVersionDecision",
+  "type": "object"
+}

@@ -75,6 +75,13 @@ from app.schemas.research_input import (
     ResearchInputDetail,
     ResearchInputRef,
 )
+from app.schemas.revision import (
+    ConfirmRevisionPlanRequest,
+    CreateRevisionPlanRequest,
+    CreateUserFeedbackRequest,
+    RevisionPlan,
+    UserFeedback,
+)
 
 PROBLEM_RESPONSES = {
     400: {"model": ProblemDetails},
@@ -811,6 +818,84 @@ def create_contract_app() -> FastAPI:
         csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
     ) -> NoReturn:
         _ = (input_id, request, csrf_token)
+        return _contract_only()
+
+    @app.post(
+        "/api/artifact-versions/{version_id}/feedback",
+        operation_id="createUserFeedback",
+        response_model=Envelope[UserFeedback],
+        status_code=201,
+        responses=PROBLEM_RESPONSES,
+    )
+    def create_user_feedback(
+        version_id: Annotated[str, Path(min_length=1)],
+        request: CreateUserFeedbackRequest,
+        idempotency_key: Annotated[
+            str, Header(alias="Idempotency-Key", min_length=1, max_length=200)
+        ],
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> NoReturn:
+        _ = (version_id, request, idempotency_key, csrf_token)
+        return _contract_only()
+
+    @app.get(
+        "/api/feedback/{feedback_id}",
+        operation_id="getUserFeedback",
+        response_model=Envelope[UserFeedback],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_user_feedback(
+        feedback_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = feedback_id
+        return _contract_only()
+
+    @app.post(
+        "/api/projects/{project_id}/revision-plans",
+        operation_id="createRevisionPlan",
+        response_model=Envelope[RevisionPlan],
+        status_code=201,
+        responses=PROBLEM_RESPONSES,
+    )
+    def create_revision_plan(
+        project_id: Annotated[str, Path(min_length=1)],
+        request: CreateRevisionPlanRequest,
+        idempotency_key: Annotated[
+            str, Header(alias="Idempotency-Key", min_length=1, max_length=200)
+        ],
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> NoReturn:
+        _ = (project_id, request, idempotency_key, csrf_token)
+        return _contract_only()
+
+    @app.get(
+        "/api/revision-plans/{plan_id}",
+        operation_id="getRevisionPlan",
+        response_model=Envelope[RevisionPlan],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_revision_plan(
+        plan_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = plan_id
+        return _contract_only()
+
+    @app.post(
+        "/api/revision-plans/{plan_id}/confirm",
+        operation_id="confirmRevisionPlan",
+        response_model=Envelope[ResearchRun],
+        status_code=201,
+        responses=PROBLEM_RESPONSES,
+    )
+    def confirm_revision_plan(
+        plan_id: Annotated[str, Path(min_length=1)],
+        request: ConfirmRevisionPlanRequest,
+        idempotency_key: Annotated[
+            str, Header(alias="Idempotency-Key", min_length=1, max_length=200)
+        ],
+        csrf_token: Annotated[str, Header(alias="X-CSRF-Token", min_length=1)],
+    ) -> NoReturn:
+        _ = (plan_id, request, idempotency_key, csrf_token)
         return _contract_only()
 
     generated_openapi = app.openapi

@@ -53,7 +53,7 @@ transport、session、query/cache、polling、server state 或 renderer 生命�
 
 ### 2.2 API、Application 与 Workflow
 
-- **职责**：提供统一无版本 `/api/*` 接口，管理 Session、Project、Contract、Run 状态机与 Event 读取；Workflow 拥有并发锁、幂等、StepAttempt 重试、取消与发布事务，提供内部 CacheRecord/CacheSelector 失败回退审计，并为 RevisionPlan 保留唯一目标编排边界；通过 Persistent Workflow Executor 连接 Step Adapter。HTTP 只暴露有真实执行闭环的命令。
+- **职责**：提供统一无版本 `/api/*` 接口，管理 Session、Project、Contract、Feedback、RevisionPlan、Run 状态机与 Event 读取；Workflow 拥有并发锁、幂等、StepAttempt 重试、取消与发布事务，RevisionPlan 确认复用唯一 Run writer，并提供内部 CacheRecord/CacheSelector 失败回退审计；通过 Persistent Workflow Executor 连接 Step Adapter。HTTP 只暴露有真实执行闭环的命令。
 - **不负责**：具体清洗算法、文献检索策略、图谱布局算法。
 
 ### 2.3 数据 Pipeline

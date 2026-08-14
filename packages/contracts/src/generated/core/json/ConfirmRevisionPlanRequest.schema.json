@@ -1,0 +1,15 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "expected_plan_version": {
+      "minimum": 1,
+      "title": "Expected Plan Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "expected_plan_version"
+  ],
+  "title": "ConfirmRevisionPlanRequest",
+  "type": "object"
+}

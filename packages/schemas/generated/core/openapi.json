@@ -1018,6 +1018,21 @@
         "title": "ConfirmResearchContractRequest",
         "type": "object"
       },
+      "ConfirmRevisionPlanRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_plan_version": {
+            "minimum": 1.0,
+            "title": "Expected Plan Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_plan_version"
+        ],
+        "title": "ConfirmRevisionPlanRequest",
+        "type": "object"
+      },
       "ConflictResolutionStrategy": {
         "description": "The only Case and Field Manifest selection declaration approved for this case.",
         "enum": [
@@ -1164,6 +1179,33 @@
         "title": "CreateResearchProjectRequest",
         "type": "object"
       },
+      "CreateRevisionPlanRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_parent_run_revision": {
+            "minimum": 1.0,
+            "title": "Expected Parent Run Revision",
+            "type": "integer"
+          },
+          "feedback_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Feedback Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "feedback_ids",
+          "expected_parent_run_revision"
+        ],
+        "title": "CreateRevisionPlanRequest",
+        "type": "object"
+      },
       "CreateRunRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1233,6 +1275,57 @@
           "expires_at"
         ],
         "title": "CreateShareSnapshotRequest",
+        "type": "object"
+      },
+      "CreateUserFeedbackRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/FeedbackCategory"
+          },
+          "expected_version_number": {
+            "minimum": 1.0,
+            "title": "Expected Version Number",
+            "type": "integer"
+          },
+          "requested_change": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Requested Change",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "target_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_locator": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Target Locator",
+            "type": "object"
+          },
+          "target_type": {
+            "$ref": "#/components/schemas/FeedbackTargetType"
+          }
+        },
+        "required": [
+          "expected_version_number",
+          "target_type",
+          "target_id",
+          "category",
+          "summary",
+          "requested_change"
+        ],
+        "title": "CreateUserFeedbackRequest",
         "type": "object"
       },
       "CrossmatchCondition": {
@@ -2895,6 +2988,27 @@
         "title": "Envelope[ResearchTurnResult]",
         "type": "object"
       },
+      "Envelope_RevisionPlan_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RevisionPlan"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[RevisionPlan]",
+        "type": "object"
+      },
       "Envelope_SessionCreated_": {
         "additionalProperties": false,
         "properties": {
@@ -2977,6 +3091,27 @@
           "links"
         ],
         "title": "Envelope[SourceSnapshotDetail]",
+        "type": "object"
+      },
+      "Envelope_UserFeedback_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UserFeedback"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[UserFeedback]",
         "type": "object"
       },
       "Envelope_WorkspaceSnapshot_": {
@@ -3339,6 +3474,34 @@
         ],
         "title": "ExistingPaperCandidateInputRequest",
         "type": "object"
+      },
+      "FeedbackCategory": {
+        "enum": [
+          "correction",
+          "omission",
+          "evidence",
+          "quality",
+          "interpretation"
+        ],
+        "title": "FeedbackCategory",
+        "type": "string"
+      },
+      "FeedbackTargetType": {
+        "enum": [
+          "artifact",
+          "artifact_version",
+          "dataset_field",
+          "dataset_row",
+          "paper",
+          "paper_summary",
+          "claim",
+          "relation",
+          "trace",
+          "graph_node",
+          "graph_edge"
+        ],
+        "title": "FeedbackTargetType",
+        "type": "string"
       },
       "FieldConflictRecord": {
         "additionalProperties": false,
@@ -11201,10 +11364,13 @@
             "created_at": "2026-07-21T08:00:00Z",
             "derivation_kind": "original",
             "execution_mode": "live",
+            "feedback_ids": [],
             "id": "run_01JEXAMPLE",
             "latest_event_sequence": 0,
             "progress": 0,
             "project_id": "proj_01JEXAMPLE",
+            "recompute_steps": [],
+            "reused_artifact_version_ids": [],
             "status": "queued",
             "updated_at": "2026-07-21T08:00:00Z"
           }
@@ -11251,6 +11417,16 @@
               }
             ],
             "title": "Failure Summary"
+          },
+          "feedback_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Feedback Ids",
+            "type": "array"
           },
           "finished_at": {
             "anyOf": [
@@ -11301,6 +11477,16 @@
             "title": "Project Id",
             "type": "string"
           },
+          "recompute_steps": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Recompute Steps",
+            "type": "array"
+          },
           "retry_from_step": {
             "anyOf": [
               {
@@ -11313,6 +11499,29 @@
               }
             ],
             "title": "Retry From Step"
+          },
+          "reused_artifact_version_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Reused Artifact Version Ids",
+            "type": "array"
+          },
+          "revision_plan_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Plan Id"
           },
           "started_at": {
             "anyOf": [
@@ -11614,6 +11823,252 @@
           "generated_at"
         ],
         "title": "ResponseMeta",
+        "type": "object"
+      },
+      "RevisionConflict": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_version_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Version Id"
+          },
+          "code": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "detail"
+        ],
+        "title": "RevisionConflict",
+        "type": "object"
+      },
+      "RevisionDecision": {
+        "enum": [
+          "recompute",
+          "reuse"
+        ],
+        "title": "RevisionDecision",
+        "type": "string"
+      },
+      "RevisionPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "affected_artifact_version_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Affected Artifact Version Ids",
+            "type": "array"
+          },
+          "baseline_artifact_version_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Baseline Artifact Version Ids",
+            "type": "array"
+          },
+          "confirmed_run_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed Run Id"
+          },
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionConflict"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "contract_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "feedback_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Feedback Ids",
+            "type": "array"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "parent_run_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Parent Run Id",
+            "type": "string"
+          },
+          "parent_run_revision": {
+            "minimum": 1.0,
+            "title": "Parent Run Revision",
+            "type": "integer"
+          },
+          "plan_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Plan Hash",
+            "type": "string"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "recompute_steps": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Recompute Steps",
+            "type": "array"
+          },
+          "reusable_artifact_version_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Reusable Artifact Version Ids",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RevisionPlanStatus"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          },
+          "version_decisions": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionVersionDecision"
+            },
+            "title": "Version Decisions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "parent_run_id",
+          "parent_run_revision",
+          "contract_id",
+          "version",
+          "status",
+          "feedback_ids",
+          "baseline_artifact_version_ids",
+          "affected_artifact_version_ids",
+          "reusable_artifact_version_ids",
+          "recompute_steps",
+          "version_decisions",
+          "conflicts",
+          "plan_hash",
+          "created_at"
+        ],
+        "title": "RevisionPlan",
+        "type": "object"
+      },
+      "RevisionPlanStatus": {
+        "enum": [
+          "proposed",
+          "confirmed"
+        ],
+        "title": "RevisionPlanStatus",
+        "type": "string"
+      },
+      "RevisionVersionDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "artifact_kind": {
+            "$ref": "#/components/schemas/ArtifactKind"
+          },
+          "artifact_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Version Id",
+            "type": "string"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/RevisionDecision"
+          },
+          "step_key": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Key"
+          },
+          "version_number": {
+            "minimum": 1.0,
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artifact_version_id",
+          "artifact_id",
+          "artifact_kind",
+          "version_number",
+          "decision"
+        ],
+        "title": "RevisionVersionDecision",
         "type": "object"
       },
       "RunEvent": {
@@ -13741,6 +14196,104 @@
         "title": "UrlResearchInputRequest",
         "type": "object"
       },
+      "UserFeedback": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "baseline_artifact_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Baseline Artifact Version Id",
+            "type": "string"
+          },
+          "baseline_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Baseline Content Hash",
+            "type": "string"
+          },
+          "baseline_version_number": {
+            "minimum": 1.0,
+            "title": "Baseline Version Number",
+            "type": "integer"
+          },
+          "category": {
+            "$ref": "#/components/schemas/FeedbackCategory"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "feedback_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Feedback Hash",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "project_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "requested_change": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Requested Change",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "target_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_locator": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Target Locator",
+            "type": "object"
+          },
+          "target_type": {
+            "$ref": "#/components/schemas/FeedbackTargetType"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "artifact_id",
+          "baseline_artifact_version_id",
+          "baseline_version_number",
+          "baseline_content_hash",
+          "target_type",
+          "target_id",
+          "target_locator",
+          "category",
+          "summary",
+          "requested_change",
+          "feedback_hash",
+          "created_at"
+        ],
+        "title": "UserFeedback",
+        "type": "object"
+      },
       "WorkspaceObjectRef": {
         "additionalProperties": false,
         "description": "Stable reference to an object shown in the private workspace.",
@@ -14542,6 +15095,157 @@
           }
         },
         "summary": "Create Artifact Export"
+      }
+    },
+    "/api/artifact-versions/{version_id}/feedback": {
+      "post": {
+        "operationId": "createUserFeedback",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserFeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UserFeedback_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Create User Feedback"
       }
     },
     "/api/artifact-versions/{version_id}/field-dictionary": {
@@ -17818,6 +18522,126 @@
         "summary": "Download Artifact Export"
       }
     },
+    "/api/feedback/{feedback_id}": {
+      "get": {
+        "operationId": "getUserFeedback",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UserFeedback_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get User Feedback"
+      }
+    },
     "/api/projects": {
       "get": {
         "description": "Lists only the projects owned by the current anonymous session.",
@@ -19149,6 +19973,157 @@
           }
         },
         "summary": "Submit Research Turn"
+      }
+    },
+    "/api/projects/{project_id}/revision-plans": {
+      "post": {
+        "operationId": "createRevisionPlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRevisionPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RevisionPlan_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Create Revision Plan"
       }
     },
     "/api/projects/{project_id}/runs": {
@@ -20792,6 +21767,277 @@
           }
         },
         "summary": "Bind Research Input"
+      }
+    },
+    "/api/revision-plans/{plan_id}": {
+      "get": {
+        "operationId": "getRevisionPlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RevisionPlan_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get Revision Plan"
+      }
+    },
+    "/api/revision-plans/{plan_id}/confirm": {
+      "post": {
+        "operationId": "confirmRevisionPlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmRevisionPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ResearchRun_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Confirm Revision Plan"
       }
     },
     "/api/runs/{run_id}": {

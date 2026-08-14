@@ -1,0 +1,37 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "artifact_version_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Artifact Version Id"
+    },
+    "code": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Code",
+      "type": "string"
+    },
+    "detail": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Detail",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "detail"
+  ],
+  "title": "RevisionConflict",
+  "type": "object"
+}

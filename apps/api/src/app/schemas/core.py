@@ -559,6 +559,10 @@ class ResearchRun(BaseModel):
                     "derivation_kind": "original",
                     "retry_from_step": None,
                     "cache_policy": "disabled",
+                    "revision_plan_id": None,
+                    "feedback_ids": [],
+                    "recompute_steps": [],
+                    "reused_artifact_version_ids": [],
                     "created_at": "2026-07-21T08:00:00Z",
                     "updated_at": "2026-07-21T08:00:00Z",
                     "latest_event_sequence": 0,
@@ -577,6 +581,10 @@ class ResearchRun(BaseModel):
     derivation_kind: DerivationKind
     retry_from_step: Identifier | None = None
     cache_policy: CachePolicy
+    revision_plan_id: Identifier | None = None
+    feedback_ids: tuple[Identifier, ...] = ()
+    recompute_steps: tuple[Identifier, ...] = ()
+    reused_artifact_version_ids: tuple[Identifier, ...] = ()
     started_at: UtcDateTime | None = None
     finished_at: UtcDateTime | None = None
     created_at: UtcDateTime
@@ -602,6 +610,18 @@ class ResearchRun(BaseModel):
             and self.derivation_kind is not DerivationKind.retry
         ):
             raise ValueError("retry_from_step is only valid for retry runs")
+        has_revision_context = bool(
+            self.revision_plan_id and self.feedback_ids and self.recompute_steps
+        )
+        if self.derivation_kind is DerivationKind.revision and not has_revision_context:
+            raise ValueError("revision run requires its confirmed revision context")
+        if self.derivation_kind is not DerivationKind.revision and (
+            self.revision_plan_id is not None
+            or self.feedback_ids
+            or self.recompute_steps
+            or self.reused_artifact_version_ids
+        ):
+            raise ValueError("non-revision run must not expose revision context")
         if self.status is RunStatus.completed and self.progress != 100:
             raise ValueError("completed run must have progress 100")
         return self

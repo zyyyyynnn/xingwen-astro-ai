@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     SESSION_RETENTION_SECONDS: int = Field(default=2592000, ge=0)
     SHARE_CREATE_RATE_LIMIT: int = Field(default=20, gt=0)
     SHARE_RETENTION_SECONDS: int = Field(default=2592000, ge=0)
+    REVISION_WRITE_RATE_LIMIT: int = Field(default=30, gt=0)
     CURSOR_SIGNING_KEY: SecretStr = Field(
         default=SecretStr("development-only-cursor-signing-key"),
         min_length=32,

@@ -29,6 +29,11 @@ def test_workflow_tables_and_unique_invariants_are_declared() -> None:
         "research_artifacts",
         "artifact_versions",
         "producer_executions",
+        "user_feedback",
+        "revision_plans",
+        "revision_plan_feedback",
+        "revision_plan_versions",
+        "revision_plan_confirmations",
         "cache_records",
         "cache_selection_audits",
     } <= set(Base.metadata.tables)
@@ -38,6 +43,11 @@ def test_workflow_tables_and_unique_invariants_are_declared() -> None:
     assert ("run_step_id", "attempt_number") in _unique_columns("step_attempts")
     assert ("run_id", "sequence") in _unique_columns("run_events")
     assert ("artifact_id", "version_number") in _unique_columns("artifact_versions")
+    assert ("id", "artifact_id", "project_id") in _unique_columns("artifact_versions")
+    assert ("project_id", "idempotency_key") in _unique_columns("user_feedback")
+    assert ("project_id", "idempotency_key") in _unique_columns("revision_plans")
+    assert ("revision_plan_id", "position") in _unique_columns("revision_plan_feedback")
+    assert ("revision_plan_id", "position") in _unique_columns("revision_plan_versions")
     assert ("run_step_id", "idempotency_key") in _unique_columns("producer_executions")
     assert ("project_id", "record_hash") in _unique_columns("cache_records")
     assert ("run_step_id", "request_hash") in _unique_columns(

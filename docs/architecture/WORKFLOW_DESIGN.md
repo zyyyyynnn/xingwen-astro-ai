@@ -56,11 +56,12 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 
 ## 5. 派生 Run 与修订
 
-以下派生与修订条目定义稳定目标契约；当前 HTTP authoring 只创建 original、cache-disabled Run，未接入的 writer 不得伪造对应记录。
+派生关系是稳定运行时契约；当前 HTTP authoring 支持 original Run 与由已确认 RevisionPlan 创建的 revision Run，CacheSelector 是内部失败回退能力。尚未接入的 retry、fork、自动 cache fallback 与 cached publication writer 不得伪造对应记录。
 
 - `parent_run_id` 固定派生来源；`derivation_kind` 只允许 `original | retry | revision | fork`。
 - `retry_from_step` 只对 retry Run 有效；Executor 不能从该 Step 恢复时必须拒绝创建，不得从首 Step 静默重跑。
-- Revision Run 由 UserFeedback 与已确认 RevisionPlan 约束，只重算受影响闭包并发布新的 ArtifactVersion。
+- Revision Run 由 UserFeedback 与已确认 RevisionPlan 约束。确认事务锁定 Plan，重新校验 completed parent Run revision 和全部 frozen latest 指针，再通过唯一 Workflow Store writer 创建 Run、RunStep 与初始 Event；并发或重复确认只产生一个 Run。
+- revision Run 的冻结 Step 从 `planning` 开始；其余 Step 只能由 frozen recompute ArtifactVersion decisions 的 `step_key` 确定性投影，并保持全局相对顺序。不存在受影响发布目标、超出父 Contract canonical closure 或来自其他 Run 的 current ArtifactVersion 不得制造 Step。未受影响 ArtifactVersion 以 reuse identity 记录。后续执行仍复用既有 Executor、Pipeline 与原子 Publisher，新 ArtifactVersion 通过 `supersedes_version_id` 与 ProducerExecution 形成 lineage。
 - Fork Run 使用新的 Contract；复用父 Run 产物时必须重新验证 input hash、Contract 与 Evidence。
 
 ## 6. CacheSelector 与取消
@@ -85,4 +86,4 @@ Planner 的 capability catalog 必须同时声明全部可选成果与当前可�
 
 ## 8. HTTP authoring 边界
 
-`POST /api/projects/{project_id}/runs` 只接受 `contract_id` 与 `execution_mode`，从该 confirmed Contract 冻结确定性 RunStep Plan，并创建 `derivation_kind=original`、`cache_policy=disabled` 的 Run。派生、选择性 retry、反馈修订、缓存选择与取消没有对应公开命令；额外字段由请求 Schema 拒绝，防止调用者误以为能力已经执行。
+`POST /api/projects/{project_id}/runs` 只接受 `contract_id` 与 `execution_mode`，从该 confirmed Contract 冻结确定性 RunStep Plan，并创建 `derivation_kind=original`、`cache_policy=disabled` 的 Run。Feedback、RevisionPlan 与确认分别使用独立资源端点，不能把修订字段塞入 original Run 请求。选择性 retry、缓存选择与取消没有对应公开命令；额外字段由请求 Schema 拒绝。

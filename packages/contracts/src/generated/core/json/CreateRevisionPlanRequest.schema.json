@@ -1,0 +1,27 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "expected_parent_run_revision": {
+      "minimum": 1,
+      "title": "Expected Parent Run Revision",
+      "type": "integer"
+    },
+    "feedback_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Feedback Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "feedback_ids",
+    "expected_parent_run_revision"
+  ],
+  "title": "CreateRevisionPlanRequest",
+  "type": "object"
+}

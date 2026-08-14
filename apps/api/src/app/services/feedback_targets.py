@@ -1,0 +1,164 @@
+"""Version-pinned domain admission for immutable Feedback targets."""
+
+from __future__ import annotations
+
+from app.schemas.revision import CreateUserFeedbackRequest, FeedbackTargetType
+from app.security import SecurityProblem
+from app.services.artifacts import ArtifactReadService
+from app.services.data_artifacts import DataArtifactReadService
+from app.services.graph_artifacts import GraphArtifactReadService
+from app.services.literature_artifacts import LiteratureArtifactReadService
+from app.services.paper_collections import PaperCollectionReadService
+from app.services.paper_summaries import PaperSummaryReadService
+
+
+class FeedbackTargetAuthority:
+    """Resolve one Feedback target through its version-pinned read authority."""
+
+    def __init__(self, artifacts: ArtifactReadService) -> None:
+        self._data = DataArtifactReadService(artifacts)
+        self._papers = PaperCollectionReadService(artifacts)
+        self._summaries = PaperSummaryReadService(artifacts)
+        self._literature = LiteratureArtifactReadService(artifacts)
+        self._graph = GraphArtifactReadService(artifacts)
+
+    def validate(
+        self,
+        *,
+        version_id: str,
+        artifact_id: str,
+        artifact_kind: str,
+        session_id: str,
+        request: CreateUserFeedbackRequest,
+    ) -> None:
+        target_type = request.target_type
+        target_id = request.target_id
+
+        if target_type is FeedbackTargetType.artifact:
+            self._require_locator(request, {"artifact_id": artifact_id})
+            if target_id != artifact_id:
+                raise _invalid_target()
+            return
+        if target_type is FeedbackTargetType.artifact_version:
+            self._require_locator(
+                request,
+                {
+                    "artifact_id": artifact_id,
+                    "artifact_version_id": version_id,
+                },
+            )
+            if target_id != version_id:
+                raise _invalid_target()
+            return
+
+        locator_key = {
+            FeedbackTargetType.dataset_field: "field_id",
+            FeedbackTargetType.dataset_row: "row_id",
+            FeedbackTargetType.paper: "candidate_id",
+            FeedbackTargetType.paper_summary: "summary_id",
+            FeedbackTargetType.claim: "claim_id",
+            FeedbackTargetType.relation: "relation_id",
+            FeedbackTargetType.trace: "trace_id",
+            FeedbackTargetType.graph_node: "node_id",
+            FeedbackTargetType.graph_edge: "edge_id",
+        }[target_type]
+        self._require_locator(
+            request,
+            {"artifact_version_id": version_id, locator_key: target_id},
+        )
+
+        try:
+            if target_type in {
+                FeedbackTargetType.dataset_field,
+                FeedbackTargetType.dataset_row,
+            }:
+                self._require_kind(artifact_kind, "dataset")
+                dataset = self._data.get_dataset(
+                    version_id=version_id, session_id=session_id
+                ).dataset
+                resolved_ids = (
+                    {column.field.field_id for column in dataset.columns}
+                    if target_type is FeedbackTargetType.dataset_field
+                    else {item.row_id for item in dataset.rows}
+                )
+                if target_id not in resolved_ids:
+                    raise _invalid_target()
+            elif target_type is FeedbackTargetType.paper:
+                self._require_kind(artifact_kind, "paper_collection")
+                self._papers.get_candidate(
+                    version_id=version_id,
+                    candidate_id=target_id,
+                    session_id=session_id,
+                )
+            elif target_type is FeedbackTargetType.paper_summary:
+                self._require_kind(artifact_kind, "paper_summary")
+                summary = self._summaries.get_summary(
+                    version_id=version_id, session_id=session_id
+                ).summary
+                if summary.summary_id != target_id:
+                    raise _invalid_target()
+            elif target_type is FeedbackTargetType.claim:
+                self._require_kind(artifact_kind, "literature_claims")
+                self._literature.get_claim(
+                    version_id=version_id,
+                    claim_id=target_id,
+                    session_id=session_id,
+                )
+            elif target_type is FeedbackTargetType.relation:
+                self._require_kind(artifact_kind, "literature_relations")
+                self._literature.get_relation(
+                    version_id=version_id,
+                    relation_id=target_id,
+                    session_id=session_id,
+                )
+            elif target_type is FeedbackTargetType.trace:
+                self._require_kind(artifact_kind, "literature_relations")
+                self._literature.get_reasoning_trace(
+                    version_id=version_id,
+                    trace_id=target_id,
+                    session_id=session_id,
+                )
+            elif target_type is FeedbackTargetType.graph_node:
+                self._require_kind(artifact_kind, "graph")
+                self._graph.get_node(
+                    version_id=version_id,
+                    node_id=target_id,
+                    session_id=session_id,
+                )
+            else:
+                self._require_kind(artifact_kind, "graph")
+                self._graph.get_edge(
+                    version_id=version_id,
+                    edge_id=target_id,
+                    session_id=session_id,
+                )
+        except SecurityProblem as exc:
+            if exc.code == "FEEDBACK_TARGET_INVALID":
+                raise
+            raise _invalid_target() from exc
+
+    @staticmethod
+    def _require_locator(
+        request: CreateUserFeedbackRequest, expected: dict[str, str]
+    ) -> None:
+        if request.target_locator != expected:
+            raise _invalid_target()
+
+    @staticmethod
+    def _require_kind(actual: str, expected: str) -> None:
+        if actual != expected:
+            raise _invalid_target()
+
+
+def _invalid_target() -> SecurityProblem:
+    return SecurityProblem(
+        status=422,
+        code="FEEDBACK_TARGET_INVALID",
+        title="Feedback target is invalid",
+        detail=(
+            "The target does not resolve within the supplied baseline ArtifactVersion"
+        ),
+    )
+
+
+__all__ = ["FeedbackTargetAuthority"]

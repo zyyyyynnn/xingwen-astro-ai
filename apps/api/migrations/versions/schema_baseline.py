@@ -851,6 +851,12 @@ def upgrade() -> None:
         sa.UniqueConstraint("id", "project_id", name="uq_artifact_version_id_project"),
         sa.UniqueConstraint(
             "id",
+            "artifact_id",
+            "project_id",
+            name="uq_artifact_version_id_artifact_project",
+        ),
+        sa.UniqueConstraint(
+            "id",
             "created_by_run_id",
             "project_id",
             name="uq_artifact_version_id_run_project",
@@ -888,6 +894,265 @@ def upgrade() -> None:
         ["id", "artifact_id"],
         ondelete="RESTRICT",
     )
+
+    op.create_table(
+        "user_feedback",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("owner_session_id", sa.String(128), nullable=False),
+        sa.Column("artifact_id", _uuid(), nullable=False),
+        sa.Column("baseline_artifact_version_id", _uuid(), nullable=False),
+        sa.Column("baseline_version_number", sa.Integer(), nullable=False),
+        sa.Column("baseline_content_hash", sa.String(71), nullable=False),
+        sa.Column("target_type", sa.String(32), nullable=False),
+        sa.Column("target_id", sa.String(128), nullable=False),
+        sa.Column("target_locator", _jsonb(), nullable=False),
+        sa.Column("category", sa.String(32), nullable=False),
+        sa.Column("summary", sa.Text(), nullable=False),
+        sa.Column("requested_change", sa.Text(), nullable=False),
+        sa.Column("feedback_hash", sa.String(71), nullable=False),
+        sa.Column("idempotency_key", sa.String(200), nullable=False),
+        sa.Column("request_hash", sa.String(71), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "baseline_version_number >= 1",
+            name="ck_user_feedback_baseline_version_positive",
+        ),
+        sa.CheckConstraint(
+            "target_type IN ('artifact','artifact_version','dataset_field','dataset_row',"
+            "'paper','paper_summary','claim','relation','trace','graph_node','graph_edge')",
+            name="ck_user_feedback_target_type",
+        ),
+        sa.CheckConstraint(
+            "category IN ('correction','omission','evidence','quality','interpretation')",
+            name="ck_user_feedback_category",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id", "owner_session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_user_feedback_project_owner",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["baseline_artifact_version_id", "artifact_id", "project_id"],
+            ["artifact_versions.id", "artifact_versions.artifact_id", "artifact_versions.project_id"],
+            name="fk_user_feedback_baseline_version",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_user_feedback"),
+        sa.UniqueConstraint("id", "project_id", name="uq_user_feedback_id_project"),
+        sa.UniqueConstraint(
+            "project_id", "idempotency_key", name="uq_user_feedback_project_idempotency"
+        ),
+    )
+    op.create_index(
+        "ix_user_feedback_project_created",
+        "user_feedback",
+        ["project_id", "created_at", "id"],
+    )
+    op.create_index(
+        "ix_user_feedback_baseline", "user_feedback", ["baseline_artifact_version_id"]
+    )
+
+    op.create_table(
+        "revision_plans",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("owner_session_id", sa.String(128), nullable=False),
+        sa.Column("parent_run_id", _uuid(), nullable=False),
+        sa.Column("parent_run_revision", sa.Integer(), nullable=False),
+        sa.Column("contract_id", _uuid(), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False),
+        sa.Column("recompute_steps", _jsonb(), nullable=False),
+        sa.Column("plan_hash", sa.String(71), nullable=False),
+        sa.Column("idempotency_key", sa.String(200), nullable=False),
+        sa.Column("request_hash", sa.String(71), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "parent_run_revision >= 1",
+            name="ck_revision_plans_parent_run_revision_positive",
+        ),
+        sa.CheckConstraint("version >= 1", name="ck_revision_plans_version_positive"),
+        sa.CheckConstraint(
+            "jsonb_typeof(recompute_steps) = 'array' "
+            "AND jsonb_array_length(recompute_steps) >= 2",
+            name="ck_revision_plans_recompute_steps_nonempty",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id", "owner_session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_revision_plans_project_owner",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["parent_run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_revision_plans_parent_run",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["contract_id", "project_id"],
+            ["research_contracts.id", "research_contracts.project_id"],
+            name="fk_revision_plans_contract",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_revision_plans"),
+        sa.UniqueConstraint("id", "project_id", name="uq_revision_plan_id_project"),
+        sa.UniqueConstraint(
+            "project_id", "idempotency_key", name="uq_revision_plan_project_idempotency"
+        ),
+    )
+    op.create_index(
+        "ix_revision_plans_parent_run", "revision_plans", ["parent_run_id"]
+    )
+
+    op.create_table(
+        "revision_plan_feedback",
+        sa.Column("revision_plan_id", _uuid(), nullable=False),
+        sa.Column("feedback_id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("position", sa.Integer(), nullable=False),
+        sa.CheckConstraint(
+            "position >= 0", name="ck_revision_plan_feedback_position_nonnegative"
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_plan_id", "project_id"],
+            ["revision_plans.id", "revision_plans.project_id"],
+            name="fk_revision_plan_feedback_plan",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["feedback_id", "project_id"],
+            ["user_feedback.id", "user_feedback.project_id"],
+            name="fk_revision_plan_feedback_feedback",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint(
+            "revision_plan_id", "feedback_id", name="pk_revision_plan_feedback"
+        ),
+        sa.UniqueConstraint(
+            "revision_plan_id", "position", name="uq_revision_plan_feedback_position"
+        ),
+    )
+
+    op.create_table(
+        "revision_plan_versions",
+        sa.Column("revision_plan_id", _uuid(), nullable=False),
+        sa.Column("artifact_version_id", _uuid(), nullable=False),
+        sa.Column("artifact_id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("position", sa.Integer(), nullable=False),
+        sa.Column("artifact_kind", sa.String(64), nullable=False),
+        sa.Column("version_number", sa.Integer(), nullable=False),
+        sa.Column("decision", sa.String(16), nullable=False),
+        sa.Column("step_key", sa.String(128), nullable=True),
+        sa.CheckConstraint(
+            "position >= 0", name="ck_revision_plan_versions_position_nonnegative"
+        ),
+        sa.CheckConstraint(
+            "version_number >= 1", name="ck_revision_plan_versions_version_positive"
+        ),
+        sa.CheckConstraint(
+            "decision IN ('recompute','reuse')",
+            name="ck_revision_plan_versions_decision",
+        ),
+        sa.CheckConstraint(
+            "(decision = 'recompute' AND step_key IS NOT NULL) OR "
+            "(decision = 'reuse' AND step_key IS NULL)",
+            name="ck_revision_plan_versions_decision_shape",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_plan_id", "project_id"],
+            ["revision_plans.id", "revision_plans.project_id"],
+            name="fk_revision_plan_versions_plan",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["artifact_version_id", "artifact_id", "project_id"],
+            ["artifact_versions.id", "artifact_versions.artifact_id", "artifact_versions.project_id"],
+            name="fk_revision_plan_versions_artifact_version",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint(
+            "revision_plan_id", "artifact_version_id", name="pk_revision_plan_versions"
+        ),
+        sa.UniqueConstraint(
+            "revision_plan_id", "position", name="uq_revision_plan_version_position"
+        ),
+    )
+    op.create_index(
+        "ix_revision_plan_versions_version",
+        "revision_plan_versions",
+        ["artifact_version_id"],
+    )
+
+    op.create_table(
+        "revision_plan_confirmations",
+        sa.Column("revision_plan_id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("owner_session_id", sa.String(128), nullable=False),
+        sa.Column("run_id", _uuid(), nullable=False),
+        sa.Column("idempotency_key", sa.String(200), nullable=False),
+        sa.Column("request_hash", sa.String(71), nullable=False),
+        sa.Column("confirmed_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["project_id", "owner_session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_revision_confirmations_project_owner",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_plan_id", "project_id"],
+            ["revision_plans.id", "revision_plans.project_id"],
+            name="fk_revision_confirmations_plan",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_revision_confirmations_run",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("revision_plan_id", name="pk_revision_plan_confirmations"),
+        sa.UniqueConstraint("run_id", name="uq_revision_plan_confirmations_run_id"),
+        sa.UniqueConstraint(
+            "project_id",
+            "idempotency_key",
+            name="uq_revision_confirmation_project_idempotency",
+        ),
+    )
+
+    op.execute(
+        """
+        CREATE FUNCTION reject_revision_record_update() RETURNS trigger AS $$
+        BEGIN
+          RAISE EXCEPTION 'feedback and revision records are immutable';
+        END;
+        $$ LANGUAGE plpgsql
+        """
+    )
+    for table_name in (
+        "user_feedback",
+        "revision_plans",
+        "revision_plan_feedback",
+        "revision_plan_versions",
+        "revision_plan_confirmations",
+    ):
+        op.execute(
+            f"CREATE TRIGGER trg_{table_name}_immutable "
+            f"BEFORE UPDATE ON {table_name} FOR EACH ROW "
+            "EXECUTE FUNCTION reject_revision_record_update()"
+        )
 
     op.create_table(
         "dataset_row_projections",
@@ -1818,6 +2083,28 @@ def downgrade() -> None:
         table_name="dataset_row_projections",
     )
     op.drop_table("dataset_row_projections")
+    for table_name in (
+        "revision_plan_confirmations",
+        "revision_plan_versions",
+        "revision_plan_feedback",
+        "revision_plans",
+        "user_feedback",
+    ):
+        op.execute(
+            f"DROP TRIGGER IF EXISTS trg_{table_name}_immutable ON {table_name}"
+        )
+    op.execute("DROP FUNCTION IF EXISTS reject_revision_record_update()")
+    op.drop_table("revision_plan_confirmations")
+    op.drop_index(
+        "ix_revision_plan_versions_version", table_name="revision_plan_versions"
+    )
+    op.drop_table("revision_plan_versions")
+    op.drop_table("revision_plan_feedback")
+    op.drop_index("ix_revision_plans_parent_run", table_name="revision_plans")
+    op.drop_table("revision_plans")
+    op.drop_index("ix_user_feedback_baseline", table_name="user_feedback")
+    op.drop_index("ix_user_feedback_project_created", table_name="user_feedback")
+    op.drop_table("user_feedback")
     op.drop_constraint(
         "fk_research_artifacts_latest_version_same_artifact",
         "research_artifacts",

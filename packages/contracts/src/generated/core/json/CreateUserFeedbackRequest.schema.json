@@ -1,0 +1,82 @@
+{
+  "$defs": {
+    "FeedbackCategory": {
+      "enum": [
+        "correction",
+        "omission",
+        "evidence",
+        "quality",
+        "interpretation"
+      ],
+      "title": "FeedbackCategory",
+      "type": "string"
+    },
+    "FeedbackTargetType": {
+      "enum": [
+        "artifact",
+        "artifact_version",
+        "dataset_field",
+        "dataset_row",
+        "paper",
+        "paper_summary",
+        "claim",
+        "relation",
+        "trace",
+        "graph_node",
+        "graph_edge"
+      ],
+      "title": "FeedbackTargetType",
+      "type": "string"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "properties": {
+    "category": {
+      "$ref": "#/$defs/FeedbackCategory"
+    },
+    "expected_version_number": {
+      "minimum": 1,
+      "title": "Expected Version Number",
+      "type": "integer"
+    },
+    "requested_change": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Requested Change",
+      "type": "string"
+    },
+    "summary": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "target_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_locator": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Target Locator",
+      "type": "object"
+    },
+    "target_type": {
+      "$ref": "#/$defs/FeedbackTargetType"
+    }
+  },
+  "required": [
+    "expected_version_number",
+    "target_type",
+    "target_id",
+    "category",
+    "summary",
+    "requested_change"
+  ],
+  "title": "CreateUserFeedbackRequest",
+  "type": "object"
+}

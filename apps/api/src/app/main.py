@@ -27,6 +27,7 @@ from app.routers import (
     health,
     research,
     research_inputs,
+    revisions,
     sessions,
     snapshots,
 )
@@ -41,6 +42,7 @@ from app.security import (
 )
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
+from app.services.feedback_targets import FeedbackTargetAuthority
 from app.services.model_execution import (
     QwenModelExecutionAdapter,
     qwen_execution_lease_duration,
@@ -51,11 +53,11 @@ from app.services.resource_authority import (
     PersistentResourceAuthority,
     ResourceAuthority,
 )
+from app.services.revisions import RevisionApplicationService
 from app.services.snapshots import PersistentSnapshotStore, SnapshotService
 from app.workflow.cache import CacheRecordStore, CacheSelector
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.store import PersistentWorkflowStore
-
 
 SessionFactory = Callable[[], Session]
 
@@ -125,6 +127,11 @@ def _configure_database_runtime(
             grace_seconds=settings.MODEL_EXECUTION_LEASE_GRACE_SECONDS,
         ),
     )
+    app.state.revision_service = RevisionApplicationService(
+        factory=factory,
+        workflow_store=workflow_store,
+        target_authority=FeedbackTargetAuthority(artifact_read_service),
+    )
     app.router.add_event_handler("shutdown", engine.dispose)
     return engine, factory, resource_authority
 
@@ -143,6 +150,7 @@ def create_app() -> FastAPI:
     app.state.artifact_read_service = None
     app.state.data_artifact_read_service = None
     app.state.research_service = None
+    app.state.revision_service = None
     app.state.model_execution_port = None
     app.state.research_planner = None
     app.state.db_session_factory = None
@@ -165,6 +173,9 @@ def create_app() -> FastAPI:
     )
     app.state.share_rate_limiter = InMemoryRateLimiter(
         limit=settings.SHARE_CREATE_RATE_LIMIT
+    )
+    app.state.revision_rate_limiter = InMemoryRateLimiter(
+        limit=settings.REVISION_WRITE_RATE_LIMIT
     )
 
     app.state.snapshot_store = None
@@ -277,6 +288,7 @@ def create_app() -> FastAPI:
     app.include_router(sessions.router)
     app.include_router(artifacts.router)
     app.include_router(research.router)
+    app.include_router(revisions.router)
     app.include_router(snapshots.router)
     app.include_router(research_inputs.router)
 
