@@ -452,7 +452,6 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
         now: datetime,
     ) -> WorkspaceSnapshot:
         project_uuid = _uuid_or_not_found(project_id, "PROJECT_NOT_FOUND")
-        self._validate_workspace_references(project_id=project_id, payload=payload)
         payload_json = payload.model_dump(mode="json")
         with self._factory() as session, session.begin():
             self._require_project_row(
@@ -460,6 +459,9 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
                 project_id=project_uuid,
                 session_id=session_id,
                 lock=True,
+            )
+            self._validate_workspace_references(
+                project_id=project_id, payload=payload
             )
             row = session.get(
                 WorkspaceSnapshotModel, project_uuid, with_for_update=True
@@ -501,35 +503,39 @@ class PersistentSnapshotStore(InMemorySnapshotStore):
                 title="Invalid share expiry",
                 detail="Share expiry must be in the future",
             )
-        versions = self._share_versions(project_id, request.artifact_version_ids)
-        evidence = self._share_evidence(
-            project_id,
-            request.evidence_ids,
-            allowed_version_ids=set(request.artifact_version_ids),
-        )
         raw_token = secrets.token_urlsafe(SHARE_TOKEN_BYTES)
-        row = ShareSnapshotModel(
-            id=_new_id("share"),
-            project_id=project_uuid,
-            owner_session_id=session_id,
-            token_hash=_hash_token(raw_token),
-            title=request.title,
-            artifact_version_ids=list(request.artifact_version_ids),
-            evidence_ids=list(request.evidence_ids),
-            redaction_policy=request.redaction_policy.value,
-            status="active",
-            artifact_versions=[item.model_dump(mode="json") for item in versions],
-            evidence=[item.model_dump(mode="json") for item in evidence],
-            created_at=now,
-            expires_at=request.expires_at,
-            revoked_at=None,
-        )
         with self._factory() as session, session.begin():
             self._require_project_row(
                 session,
                 project_id=project_uuid,
                 session_id=session_id,
                 lock=True,
+            )
+            versions = self._share_versions(
+                project_id, request.artifact_version_ids
+            )
+            evidence = self._share_evidence(
+                project_id,
+                request.evidence_ids,
+                allowed_version_ids=set(request.artifact_version_ids),
+            )
+            row = ShareSnapshotModel(
+                id=_new_id("share"),
+                project_id=project_uuid,
+                owner_session_id=session_id,
+                token_hash=_hash_token(raw_token),
+                title=request.title,
+                artifact_version_ids=list(request.artifact_version_ids),
+                evidence_ids=list(request.evidence_ids),
+                redaction_policy=request.redaction_policy.value,
+                status="active",
+                artifact_versions=[
+                    item.model_dump(mode="json") for item in versions
+                ],
+                evidence=[item.model_dump(mode="json") for item in evidence],
+                created_at=now,
+                expires_at=request.expires_at,
+                revoked_at=None,
             )
             session.add(row)
             session.flush()
