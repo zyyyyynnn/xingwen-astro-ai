@@ -61,7 +61,7 @@ Planner 只有在持久化明确的输入请求后才能从 `planning` 进入 `w
 - `parent_run_id` 固定派生来源；`derivation_kind` 只允许 `original | retry | revision | fork`。
 - `retry_from_step` 只对 retry Run 有效；Executor 不能从该 Step 恢复时必须拒绝创建，不得从首 Step 静默重跑。
 - Revision Run 由 UserFeedback 与已确认 RevisionPlan 约束。确认事务锁定 Plan，重新校验 completed parent Run revision 和全部 frozen latest 指针，再通过唯一 Workflow Store writer 创建 Run、RunStep 与初始 Event；并发或重复确认只产生一个 Run。
-- revision Run 的冻结 Step 从 `planning` 开始，仅包含影响闭包中的 canonical steps 并保持全局相对顺序；未受影响 ArtifactVersion 以 reuse identity 记录。后续执行仍复用既有 Executor、Pipeline 与原子 Publisher，新 ArtifactVersion 通过 `supersedes_version_id` 与 ProducerExecution 形成 lineage。
+- revision Run 的冻结 Step 从 `planning` 开始；其余 Step 只能由 frozen recompute ArtifactVersion decisions 的 `step_key` 确定性投影，并保持全局相对顺序。不存在受影响发布目标、超出父 Contract canonical closure 或来自其他 Run 的 current ArtifactVersion 不得制造 Step。未受影响 ArtifactVersion 以 reuse identity 记录。后续执行仍复用既有 Executor、Pipeline 与原子 Publisher，新 ArtifactVersion 通过 `supersedes_version_id` 与 ProducerExecution 形成 lineage。
 - Fork Run 使用新的 Contract；复用父 Run 产物时必须重新验证 input hash、Contract 与 Evidence。
 
 ## 6. CacheSelector 与取消

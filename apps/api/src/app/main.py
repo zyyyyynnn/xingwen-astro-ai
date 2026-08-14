@@ -42,6 +42,7 @@ from app.security import (
 )
 from app.services.artifacts import ArtifactReadService
 from app.services.data_artifacts import DataArtifactReadService
+from app.services.feedback_targets import FeedbackTargetAuthority
 from app.services.model_execution import (
     QwenModelExecutionAdapter,
     qwen_execution_lease_duration,
@@ -56,7 +57,6 @@ from app.services.revisions import RevisionApplicationService
 from app.services.snapshots import PersistentSnapshotStore, SnapshotService
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.store import PersistentWorkflowStore
-
 
 SessionFactory = Callable[[], Session]
 
@@ -125,7 +125,9 @@ def _configure_database_runtime(
         ),
     )
     app.state.revision_service = RevisionApplicationService(
-        factory=factory, workflow_store=workflow_store
+        factory=factory,
+        workflow_store=workflow_store,
+        target_authority=FeedbackTargetAuthority(artifact_read_service),
     )
     app.router.add_event_handler("shutdown", engine.dispose)
     return engine, factory, resource_authority

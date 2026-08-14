@@ -60,6 +60,6 @@ ShareSnapshot 固定 `artifact_version_ids`、允许公开的 `evidence_ids` 以
 ## 7. 修订与缓存契约
 
 - RevisionPlan 将同一 completed parent Run 的 UserFeedback 映射为受影响产物闭包，并冻结 parent revision 与 Project 全部 current ArtifactVersion。确认计划时再次验证这些指针，在同一事务创建 Confirmation 与 `derivation_kind=revision` Run；历史 Run 和 ArtifactVersion 保持不可变。
-- 数据产物影响数据三类与 Graph；PaperCollection 影响 Summary、Claim、Relation、Trace 与 Graph；Summary、Claim、Relation、Trace、Graph 依次只影响自身及其下游。未受影响的 frozen ArtifactVersion 作为 reuse identity 暴露给既有 Workflow/Publisher 消费，不复制内容或直接发布新版本。
+- 数据产物影响数据三类与 Graph；PaperCollection 影响 Summary、Claim、Relation、Trace 与 Graph；Summary、Claim、Relation、Trace、Graph 依次只影响自身及其下游。抽象 kind 闭包只在父 Contract 的 canonical RunStep 闭包内生效；只有仍为 latest、确由 parent Run 发布且实际存在的 ArtifactVersion 才能标记 recompute，其他 frozen ArtifactVersion 均作为 reuse identity 暴露给既有 Workflow/Publisher，不复制内容或直接发布新版本。
 - CacheSelector 只能选择 Contract、input hash、producer identity 与 Evidence 仍匹配的 CacheRecord。选择失败时保持 Live 失败事实，不生成 cached ArtifactVersion。
 - original Run authoring 不接受 RevisionPlan、feedback、retry 或 cache 参数；revision Run 只能由确认端点创建。选择性 retry 与 cache 缺少对应执行路径时必须 fail closed。

@@ -126,6 +126,7 @@ ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
 ## 7. Feedback 与 RevisionPlan
 
 - `POST /api/artifact-versions/{version_id}/feedback` 创建绑定当前 latest ArtifactVersion 的不可变 UserFeedback；`GET /api/feedback/{feedback_id}` 读取 owner-scoped 记录。
+- Feedback target 必须先通过 baseline ArtifactVersion 对应的 typed read/domain authority 解析。`artifact` locator 只包含 `artifact_id`；`artifact_version` locator 包含 `artifact_id + artifact_version_id`；其他 target locator 包含 `artifact_version_id` 与对应的 `field_id | row_id | candidate_id | summary_id | claim_id | relation_id | trace_id | node_id | edge_id`。未知、跨版本、kind 不兼容或额外/缺失 locator 字段统一返回 `422 FEEDBACK_TARGET_INVALID`，且不创建记录。
 - `POST /api/projects/{project_id}/revision-plans` 要求 Feedback 属于同一 Project 与 completed parent Run，按 `expected_parent_run_revision` 冻结受影响版本、复用版本和 canonical recompute steps；`GET /api/revision-plans/{plan_id}` 返回冻结计划、当前冲突与确认结果。
 - `POST /api/revision-plans/{plan_id}/confirm` 在一个 PostgreSQL 事务中重新校验 plan version、parent Run revision/status 和全部 latest 指针，并创建唯一 `derivation_kind=revision` Run。重复同一幂等请求返回同一 Run；不同确认、过期 Plan 或指针变化返回稳定 `409`。
 - 三个写端点均要求 Session、CSRF、`Idempotency-Key` 并共享 revision write rate limit。跨 Session 与不存在的 Feedback/Plan/Version 使用不泄露存在性的 `404`。

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.db.models import (
     ArtifactVersionModel,
     ResearchArtifactModel,
+    ResearchContractModel,
     ResearchProjectModel,
     ResearchRunModel,
     RevisionPlanConfirmationModel,
@@ -20,7 +21,7 @@ from app.db.models import (
     RevisionPlanVersionModel,
     UserFeedbackModel,
 )
-from app.schemas.core import ArtifactKind
+from app.schemas.core import ArtifactKind, ResearchContractInput
 from app.schemas.revision import (
     ConfirmRevisionPlanRequest,
     CreateRevisionPlanRequest,
@@ -33,7 +34,9 @@ from app.schemas.revision import (
     UserFeedback,
 )
 from app.security import SecurityProblem, canonical_request_hash
-from app.workflow.run_plan import compile_revision_run_plan
+from app.services.artifacts import ArtifactReadService
+from app.services.feedback_targets import FeedbackTargetAuthority
+from app.workflow.run_plan import compile_revision_run_plan, compile_run_plan
 from app.workflow.store import RUN_STEP_STATUS_ORDER, PersistentWorkflowStore
 
 _DATA_KINDS = frozenset(
@@ -104,9 +107,13 @@ class RevisionApplicationService:
         *,
         factory: Callable[[], Session],
         workflow_store: PersistentWorkflowStore,
+        target_authority: FeedbackTargetAuthority | None = None,
     ) -> None:
         self._factory = factory
         self._workflow = workflow_store
+        self._targets = target_authority or FeedbackTargetAuthority(
+            ArtifactReadService(factory)
+        )
 
     def create_feedback(
         self,
@@ -160,6 +167,13 @@ class RevisionApplicationService:
                     "ARTIFACT_VERSION_CONFLICT",
                     "Feedback must target the current ArtifactVersion",
                 )
+            self._targets.validate(
+                version_id=str(version.id),
+                artifact_id=str(artifact.id),
+                artifact_kind=artifact.kind,
+                session_id=session_id,
+                request=request,
+            )
 
             frozen = {
                 "project_id": str(project.id),
@@ -293,6 +307,24 @@ class RevisionApplicationService:
                     "REVISION_PARENT_RUN_CONFLICT",
                     "The parent Run revision changed before the plan was created",
                 )
+            contract = session.get(ResearchContractModel, parent.contract_id)
+            if contract is None or contract.project_id != project.id:
+                raise _not_found("CONTRACT_NOT_FOUND")
+            try:
+                parent_step_keys = {
+                    item.key
+                    for item in compile_run_plan(
+                        ResearchContractInput.model_validate(contract.content)
+                    )
+                }
+            except ValueError as exc:
+                raise _conflict(
+                    "REVISION_CONTRACT_INVALID",
+                    "The parent Contract cannot define a revision Run",
+                ) from exc
+            governed_kinds = {
+                kind for kind, step in _KIND_STEP.items() if step in parent_step_keys
+            }
 
             latest_rows = tuple(
                 session.execute(
@@ -331,16 +363,6 @@ class RevisionApplicationService:
                         "The Feedback target has no revision impact mapping",
                     )
                 affected_kinds.update(closure)
-            affected_steps = {"planning"}
-            if affected_kinds & _DATA_KINDS:
-                affected_steps.update({"fetching_data", "cleaning_data"})
-            affected_steps.update(
-                _KIND_STEP[kind] for kind in affected_kinds if kind in _KIND_STEP
-            )
-            recompute_steps = tuple(
-                step for step in RUN_STEP_STATUS_ORDER if step in affected_steps
-            )
-
             plan_id = uuid4()
             decisions: list[RevisionPlanVersionModel] = []
             frozen_decisions: list[dict[str, object]] = []
@@ -348,7 +370,11 @@ class RevisionApplicationService:
                 kind = ArtifactKind(artifact.kind)
                 decision = (
                     RevisionDecision.recompute
-                    if kind in affected_kinds
+                    if (
+                        kind in affected_kinds
+                        and kind in governed_kinds
+                        and version.created_by_run_id == parent.id
+                    )
                     else RevisionDecision.reuse
                 )
                 step_key = (
@@ -379,6 +405,31 @@ class RevisionApplicationService:
                         "step_key": step_key,
                     }
                 )
+            recompute_version_ids = {
+                item.artifact_version_id
+                for item in decisions
+                if item.decision == RevisionDecision.recompute.value
+            }
+            if any(
+                row.baseline_artifact_version_id not in recompute_version_ids
+                for row in ordered_feedback
+            ):
+                raise _conflict(
+                    "REVISION_BASELINE_OUTSIDE_CONTRACT",
+                    "A Feedback baseline is outside the parent Contract output closure",
+                )
+            affected_steps = {
+                "planning",
+                *(
+                    item.step_key
+                    for item in decisions
+                    if item.decision == RevisionDecision.recompute.value
+                    and item.step_key is not None
+                ),
+            }
+            recompute_steps = tuple(
+                step for step in RUN_STEP_STATUS_ORDER if step in affected_steps
+            )
             plan_payload = {
                 "project_id": str(project.id),
                 "parent_run_id": str(parent.id),

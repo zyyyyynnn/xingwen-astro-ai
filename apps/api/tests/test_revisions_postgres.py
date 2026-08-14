@@ -24,7 +24,12 @@ from app.db.models import (
     UserFeedbackModel,
 )
 from app.main import create_app
+from app.schemas.core import (
+    ResearchContractInput,
+    compute_research_contract_content_hash,
+)
 from app.security import InMemoryRateLimiter
+from artifact_publication_test_support import publish_reference_dataset
 from authoring_test_support import (
     build_contract_draft,
     build_research_contract,
@@ -55,6 +60,21 @@ KINDS = (
     "reasoning_traces",
     "graph",
 )
+CONTRACT_INPUT = ResearchContractInput.model_validate(
+    {
+        "research_goal": "Validate immutable feedback revision orchestration",
+        "target_objects": ["exoplanet_candidate", "host_star"],
+        "data_requirements": {"unit_policy": "canonical"},
+        "requested_fields": ["planet.toi_id", "star.tic_id"],
+        "source_scope": {"allowed_sources": ["nasa_exoplanet_archive"]},
+        "paper_search_scope": {"year_from": 2015, "max_candidates": 20},
+        "output_requirements": list(KINDS),
+        "evidence_requirements": {"require_locator": True},
+        "quality_constraints": {"source_completeness_min": 1.0},
+    }
+)
+CONTRACT_CONTENT = CONTRACT_INPUT.model_dump(mode="json")
+CONTRACT_HASH = compute_research_contract_content_hash(CONTRACT_INPUT)
 
 
 def _alembic_config(url: str) -> Config:
@@ -97,12 +117,18 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
             created_at=NOW,
             updated_at=NOW,
         )
-        draft = build_contract_draft(project, created_at=NOW, updated_at=NOW)
+        draft = build_contract_draft(
+            project,
+            content=CONTRACT_CONTENT,
+            created_at=NOW,
+            updated_at=NOW,
+        )
         contract = build_research_contract(
             project,
             draft,
             contract_id=ids["contract"],
-            content_hash=HASH_A,
+            content_hash=CONTRACT_HASH,
+            content=CONTRACT_CONTENT,
             created_at=NOW,
         )
         persist_authoring_models(
@@ -196,7 +222,7 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
                 step_attempt_id=attempt.id,
                 producer_execution_id=producer.id,
                 version_number=1,
-                publication_key=f"revision-{kind}-v1",
+                publication_key=f"revision-{kind}-initial",
                 schema_version="2.0.0",
                 content={"kind": kind},
                 content_hash=HASH_C,
@@ -236,15 +262,194 @@ def runtime(monkeypatch: pytest.MonkeyPatch):
         command.upgrade(config, "head")
 
 
-def _feedback_body() -> dict[str, object]:
+def _feedback_body(runtime: dict[str, object], kind: str) -> dict[str, object]:
+    version_id = str(runtime["version_ids"][kind])  # type: ignore[index]
+    artifact_id = str(runtime["artifact_ids"][kind])  # type: ignore[index]
     return {
         "expected_version_number": 1,
         "target_type": "artifact_version",
-        "target_id": "target-1",
-        "target_locator": {"field": "value"},
+        "target_id": version_id,
+        "target_locator": {
+            "artifact_id": artifact_id,
+            "artifact_version_id": version_id,
+        },
         "category": "correction",
         "summary": "The published value needs correction",
         "requested_change": "Recompute this result from the frozen inputs",
+    }
+
+
+def _seed_partial_revision_parent(
+    runtime: dict[str, object],
+    *,
+    outputs: tuple[str, ...],
+    parent_kinds: tuple[str, ...],
+    unrelated_kinds: tuple[str, ...],
+) -> dict[str, object]:
+    contract_input = ResearchContractInput.model_validate(
+        {**CONTRACT_CONTENT, "output_requirements": list(outputs)}
+    )
+    content = contract_input.model_dump(mode="json")
+    ids = {
+        name: uuid4()
+        for name in (
+            "project",
+            "contract",
+            "parent_run",
+            "parent_step",
+            "parent_attempt",
+            "parent_producer",
+            "other_run",
+            "other_step",
+            "other_attempt",
+            "other_producer",
+        )
+    }
+    artifact_ids = {kind: uuid4() for kind in (*parent_kinds, *unrelated_kinds)}
+    version_ids = {kind: uuid4() for kind in (*parent_kinds, *unrelated_kinds)}
+    factory = runtime["factory"]
+    with factory() as session, session.begin():
+        project = build_research_project(
+            project_id=ids["project"],
+            session_id=str(runtime["owner_session_id"]),
+            name="Partial revision contract",
+            case_key="exoplanet_host_star",
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        draft = build_contract_draft(
+            project, content=content, created_at=NOW, updated_at=NOW
+        )
+        contract = build_research_contract(
+            project,
+            draft,
+            contract_id=ids["contract"],
+            content_hash=compute_research_contract_content_hash(contract_input),
+            content=content,
+            created_at=NOW,
+        )
+        persist_authoring_models(
+            session, project=project, draft=draft, contract=contract
+        )
+
+        def seed_run(prefix: str, *, revision: int) -> tuple[UUID, UUID, UUID, UUID]:
+            run_id = ids[f"{prefix}_run"]
+            step_id = ids[f"{prefix}_step"]
+            attempt_id = ids[f"{prefix}_attempt"]
+            producer_id = ids[f"{prefix}_producer"]
+            run = ResearchRunModel(
+                id=run_id,
+                project_id=project.id,
+                contract_id=contract.id,
+                execution_mode="live",
+                status="completed",
+                progress=100,
+                derivation_kind="original",
+                latest_event_sequence=0,
+                revision=revision,
+                idempotency_key=f"{prefix}-run-{run_id}",
+                request_hash=HASH_B,
+                created_at=NOW,
+                updated_at=NOW,
+            )
+            session.add(run)
+            session.flush()
+            step = RunStepModel(
+                id=step_id,
+                run_id=run_id,
+                position=0,
+                key="planning",
+                label="Planning",
+                enter_status="planning",
+                success_status="completed",
+                max_attempts=1,
+                status="completed",
+                progress=100,
+                public_message="Completed",
+                created_at=NOW,
+            )
+            session.add(step)
+            session.flush()
+            attempt = StepAttemptModel(
+                id=attempt_id,
+                run_step_id=step_id,
+                attempt_number=1,
+                idempotency_key=f"{prefix}-attempt-{attempt_id}",
+                status="completed",
+                retryable=False,
+                started_at=NOW,
+                finished_at=NOW,
+                created_at=NOW,
+            )
+            session.add(attempt)
+            session.flush()
+            producer = ProducerExecutionModel(
+                id=producer_id,
+                run_id=run_id,
+                run_step_id=step_id,
+                step_attempt_id=attempt_id,
+                step_key="planning",
+                idempotency_key=f"{prefix}-producer-{producer_id}",
+                lease_generation=0,
+                producer_type="pipeline",
+                producer_name="revision-partial-seed",
+                producer_version="1.0.0",
+                parameters={},
+                parameters_hash=HASH_A,
+                input_hash=HASH_B,
+                output_hash=HASH_C,
+                status="completed",
+                started_at=NOW,
+                finished_at=NOW,
+                created_at=NOW,
+            )
+            session.add(producer)
+            session.flush()
+            return run_id, step_id, attempt_id, producer_id
+
+        parent_execution = seed_run("parent", revision=7)
+        other_execution = seed_run("other", revision=1)
+        for kind in (*parent_kinds, *unrelated_kinds):
+            execution = parent_execution if kind in parent_kinds else other_execution
+            artifact = ResearchArtifactModel(
+                id=artifact_ids[kind],
+                project_id=project.id,
+                kind=kind,
+                title=kind,
+                logical_key=f"partial.{kind}",
+                created_at=NOW,
+            )
+            session.add(artifact)
+            session.flush()
+            version = ArtifactVersionModel(
+                id=version_ids[kind],
+                artifact_id=artifact.id,
+                project_id=project.id,
+                created_by_run_id=execution[0],
+                run_step_id=execution[1],
+                step_attempt_id=execution[2],
+                producer_execution_id=execution[3],
+                version_number=1,
+                publication_key=f"partial-{kind}-initial",
+                schema_version="2.0.0",
+                content={"kind": kind},
+                content_hash=HASH_C,
+                input_hash=HASH_B,
+                source_mode="live",
+                producer={"name": "revision-partial-seed"},
+                source_snapshot_ids=[],
+                evidence_ids=[],
+                created_at=NOW,
+            )
+            session.add(version)
+            session.flush()
+            artifact.latest_version_id = version.id
+    return {
+        **runtime,
+        "project_id": str(ids["project"]),
+        "parent_run_id": str(ids["parent_run"]),
+        "artifact_ids": artifact_ids,
+        "version_ids": version_ids,
     }
 
 
@@ -257,7 +462,7 @@ def _create_feedback(runtime: dict[str, object], kind: str, *, key: str):
             "X-CSRF-Token": str(runtime["owner_csrf"]),
             "Idempotency-Key": key,
         },
-        json=_feedback_body(),
+        json=_feedback_body(runtime, kind),
     )
 
 
@@ -316,6 +521,162 @@ def test_revision_plan_impact_closures(runtime: dict[str, object]) -> None:
         assert actual == affected_kinds
         assert data["recompute_steps"][0] == "planning"
         assert data["conflicts"] == []
+
+
+@pytest.mark.parametrize(
+    ("outputs", "parent_kinds", "unrelated_kinds", "feedback_kind", "steps"),
+    (
+        (
+            ("dataset", "field_dictionary", "source_collection"),
+            ("dataset", "field_dictionary", "source_collection"),
+            ("graph",),
+            "dataset",
+            ("planning", "fetching_data", "cleaning_data"),
+        ),
+        (
+            ("paper_collection", "paper_summary"),
+            ("paper_collection", "paper_summary"),
+            ("literature_relations", "graph"),
+            "paper_collection",
+            ("planning", "searching_papers", "summarizing_papers"),
+        ),
+    ),
+)
+def test_revision_steps_only_follow_actual_parent_contract_publications(
+    runtime: dict[str, object],
+    outputs: tuple[str, ...],
+    parent_kinds: tuple[str, ...],
+    unrelated_kinds: tuple[str, ...],
+    feedback_kind: str,
+    steps: tuple[str, ...],
+) -> None:
+    scoped = _seed_partial_revision_parent(
+        runtime,
+        outputs=outputs,
+        parent_kinds=parent_kinds,
+        unrelated_kinds=unrelated_kinds,
+    )
+    feedback = _create_feedback(scoped, feedback_kind, key="partial-feedback")
+    assert feedback.status_code == 201, feedback.text
+    plan = _create_plan(scoped, feedback.json()["data"]["id"], key="partial-plan")
+    assert plan.status_code == 201, plan.text
+    data = plan.json()["data"]
+    recompute = {
+        item["artifact_kind"]: item["step_key"]
+        for item in data["version_decisions"]
+        if item["decision"] == "recompute"
+    }
+    assert set(recompute) == set(parent_kinds)
+    assert tuple(data["recompute_steps"]) == steps
+    assert set(steps) - {"planning"} == set(recompute.values())
+    assert all(
+        item["decision"] == "reuse"
+        for item in data["version_decisions"]
+        if item["artifact_kind"] in unrelated_kinds
+    )
+
+
+def test_feedback_target_admission_fails_closed_without_side_effects(
+    runtime: dict[str, object],
+) -> None:
+    client = runtime["client"]
+    assert isinstance(client, TestClient)
+    graph_version_id = str(runtime["version_ids"]["graph"])  # type: ignore[index]
+    dataset_version_id = str(runtime["version_ids"]["dataset"])  # type: ignore[index]
+    dataset_artifact_id = str(runtime["artifact_ids"]["dataset"])  # type: ignore[index]
+    cases = (
+        {
+            **_feedback_body(runtime, "graph"),
+            "target_id": str(uuid4()),
+        },
+        {
+            **_feedback_body(runtime, "graph"),
+            "target_type": "dataset_field",
+            "target_id": "star.tic_id",
+            "target_locator": {
+                "artifact_version_id": graph_version_id,
+                "field_id": "star.tic_id",
+            },
+        },
+        {
+            **_feedback_body(runtime, "graph"),
+            "target_locator": {
+                **_feedback_body(runtime, "graph")["target_locator"],  # type: ignore[dict-item]
+                "unexpected": "value",
+            },
+        },
+        {
+            **_feedback_body(runtime, "graph"),
+            "target_id": dataset_version_id,
+            "target_locator": {
+                "artifact_id": dataset_artifact_id,
+                "artifact_version_id": dataset_version_id,
+            },
+        },
+    )
+    for position, body in enumerate(cases):
+        response = client.post(
+            f"/api/artifact-versions/{graph_version_id}/feedback",
+            headers={
+                "X-CSRF-Token": str(runtime["owner_csrf"]),
+                "Idempotency-Key": f"invalid-target-{position}",
+            },
+            json=body,
+        )
+        assert (response.status_code, response.json()["code"]) == (
+            422,
+            "FEEDBACK_TARGET_INVALID",
+        )
+
+    factory = runtime["factory"]
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(UserFeedbackModel)) == 0
+
+
+def test_feedback_accepts_version_pinned_dataset_field_and_row_targets(
+    runtime: dict[str, object],
+) -> None:
+    factory = runtime["factory"]
+    project = build_research_project(
+        project_id=uuid4(),
+        session_id=str(runtime["owner_session_id"]),
+        name="Typed feedback target authority",
+        case_key="exoplanet_host_star",
+    )
+    with factory() as session, session.begin():
+        persist_authoring_models(session, project=project)
+    version_id = publish_reference_dataset(factory=factory, project=project)
+    dataset = runtime["app"].state.data_artifact_read_service.get_dataset(
+        version_id=str(version_id),
+        session_id=str(runtime["owner_session_id"]),
+    )
+    targets = (
+        ("dataset_field", dataset.dataset.columns[0].field.field_id, "field_id"),
+        ("dataset_row", dataset.dataset.rows[0].row_id, "row_id"),
+    )
+    client = runtime["client"]
+    assert isinstance(client, TestClient)
+    for target_type, target_id, locator_key in targets:
+        response = client.post(
+            f"/api/artifact-versions/{version_id}/feedback",
+            headers={
+                "X-CSRF-Token": str(runtime["owner_csrf"]),
+                "Idempotency-Key": f"typed-target-{target_type}",
+            },
+            json={
+                "expected_version_number": 1,
+                "target_type": target_type,
+                "target_id": target_id,
+                "target_locator": {
+                    "artifact_version_id": str(version_id),
+                    locator_key: target_id,
+                },
+                "category": "correction",
+                "summary": "The published value needs correction",
+                "requested_change": "Recompute from the frozen inputs",
+            },
+        )
+        assert response.status_code == 201, response.text
 
 
 def test_confirm_is_idempotent_restart_safe_and_preserves_parent(
@@ -397,7 +758,10 @@ def test_security_validation_idempotency_and_rate_limit(
     client = runtime["client"]
     assert isinstance(client, TestClient)
     version_id = runtime["version_ids"]["graph"]  # type: ignore[index]
-    stale_body = {**_feedback_body(), "expected_version_number": 2}
+    stale_body = {
+        **_feedback_body(runtime, "graph"),
+        "expected_version_number": 2,
+    }
     stale = client.post(
         f"/api/artifact-versions/{version_id}/feedback",
         headers={
@@ -412,13 +776,13 @@ def test_security_validation_idempotency_and_rate_limit(
     missing_csrf = client.post(
         f"/api/artifact-versions/{version_id}/feedback",
         headers={"Idempotency-Key": "missing-csrf"},
-        json=_feedback_body(),
+        json=_feedback_body(runtime, "graph"),
     )
     assert missing_csrf.status_code == 403
     missing_key = client.post(
         f"/api/artifact-versions/{version_id}/feedback",
         headers={"X-CSRF-Token": str(runtime["owner_csrf"])},
-        json=_feedback_body(),
+        json=_feedback_body(runtime, "graph"),
     )
     assert missing_key.status_code == 422
 
@@ -432,7 +796,10 @@ def test_security_validation_idempotency_and_rate_limit(
             "X-CSRF-Token": str(runtime["owner_csrf"]),
             "Idempotency-Key": "feedback-idempotency",
         },
-        json={**_feedback_body(), "summary": "A different request"},
+        json={
+            **_feedback_body(runtime, "graph"),
+            "summary": "A different request",
+        },
     )
     assert divergent.status_code == 409
     assert divergent.json()["code"] == "IDEMPOTENCY_CONFLICT"
@@ -476,7 +843,7 @@ def test_stale_plan_fails_before_creating_revision_run(
             step_attempt_id=version_one.step_attempt_id,
             producer_execution_id=version_one.producer_execution_id,
             version_number=2,
-            publication_key="revision-graph-v2",
+            publication_key="revision-graph-followup",
             schema_version=version_one.schema_version,
             content={"kind": "graph", "revision": 2},
             content_hash=HASH_A,
