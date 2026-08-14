@@ -43,6 +43,11 @@ EXPECTED_TABLES = frozenset(
         "step_attempts",
         "share_snapshots",
         "workspace_snapshots",
+        "user_feedback",
+        "revision_plans",
+        "revision_plan_feedback",
+        "revision_plan_versions",
+        "revision_plan_confirmations",
     }
 )
 CURRENT_REQUIRED_COLUMNS = {
@@ -78,6 +83,27 @@ CURRENT_REQUIRED_COLUMNS = {
             "artifact_versions",
             "evidence",
         }
+    ),
+    "user_feedback": frozenset(
+        {
+            "owner_session_id",
+            "baseline_artifact_version_id",
+            "feedback_hash",
+            "idempotency_key",
+            "request_hash",
+        }
+    ),
+    "revision_plans": frozenset(
+        {
+            "owner_session_id",
+            "parent_run_id",
+            "parent_run_revision",
+            "recompute_steps",
+            "plan_hash",
+        }
+    ),
+    "revision_plan_confirmations": frozenset(
+        {"owner_session_id", "run_id", "idempotency_key", "request_hash"}
     ),
 }
 

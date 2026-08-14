@@ -34,6 +34,10 @@ from app.db.models import (
     ResearchProjectModel,
     ResearchRunModel,
     ResearchThreadEntryModel,
+    RevisionPlanConfirmationModel,
+    RevisionPlanFeedbackModel,
+    RevisionPlanModel,
+    RevisionPlanVersionModel,
     RunStepModel,
 )
 from app.schemas.core import (
@@ -514,7 +518,50 @@ class ResearchApplicationService:
         return _run(snapshot)
 
     def get_run(self, *, run_id: str, session_id: str) -> ResearchRun:
-        return _run(self._load_owned_run(run_id, session_id))
+        snapshot = self._load_owned_run(run_id, session_id)
+        if snapshot.derivation_kind != "revision":
+            return _run(snapshot)
+        with self._factory() as session:
+            confirmation = session.scalar(
+                select(RevisionPlanConfirmationModel).where(
+                    RevisionPlanConfirmationModel.run_id == snapshot.id
+                )
+            )
+            if confirmation is None:
+                raise RuntimeError("revision Run is missing its confirmed RevisionPlan")
+            plan = session.get(RevisionPlanModel, confirmation.revision_plan_id)
+            if plan is None:  # pragma: no cover - protected by foreign keys
+                raise RuntimeError("revision Run is missing its RevisionPlan")
+            feedback_ids = tuple(
+                str(row.feedback_id)
+                for row in session.scalars(
+                    select(RevisionPlanFeedbackModel)
+                    .where(
+                        RevisionPlanFeedbackModel.revision_plan_id
+                        == confirmation.revision_plan_id
+                    )
+                    .order_by(RevisionPlanFeedbackModel.position)
+                )
+            )
+            reused_version_ids = tuple(
+                str(row.artifact_version_id)
+                for row in session.scalars(
+                    select(RevisionPlanVersionModel)
+                    .where(
+                        RevisionPlanVersionModel.revision_plan_id
+                        == confirmation.revision_plan_id,
+                        RevisionPlanVersionModel.decision == "reuse",
+                    )
+                    .order_by(RevisionPlanVersionModel.position)
+                )
+            )
+            return _run(
+                snapshot,
+                revision_plan_id=str(plan.id),
+                feedback_ids=feedback_ids,
+                recompute_steps=tuple(plan.recompute_steps),
+                reused_artifact_version_ids=reused_version_ids,
+            )
 
     def list_run_events(
         self,
@@ -1460,7 +1507,14 @@ def _contract_input(payload: dict[str, object]) -> ResearchContractInput:
     return ResearchContractInput.model_validate(payload)
 
 
-def _run(snapshot: RunSnapshot) -> ResearchRun:
+def _run(
+    snapshot: RunSnapshot,
+    *,
+    revision_plan_id: str | None = None,
+    feedback_ids: tuple[str, ...] = (),
+    recompute_steps: tuple[str, ...] = (),
+    reused_artifact_version_ids: tuple[str, ...] = (),
+) -> ResearchRun:
     return ResearchRun(
         id=str(snapshot.id),
         project_id=str(snapshot.project_id),
@@ -1472,6 +1526,10 @@ def _run(snapshot: RunSnapshot) -> ResearchRun:
         derivation_kind=snapshot.derivation_kind,
         retry_from_step=snapshot.retry_from_step,
         cache_policy=snapshot.cache_policy,
+        revision_plan_id=revision_plan_id,
+        feedback_ids=feedback_ids,
+        recompute_steps=recompute_steps,
+        reused_artifact_version_ids=reused_artifact_version_ids,
         started_at=_utc(snapshot.started_at) if snapshot.started_at else None,
         finished_at=_utc(snapshot.finished_at) if snapshot.finished_at else None,
         created_at=_utc(snapshot.created_at),

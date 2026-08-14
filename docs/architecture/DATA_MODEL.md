@@ -30,9 +30,11 @@ SourceSnapshot (1) -- (*) DocumentParse
 ResearchProject (1) -- (0..1) WorkspaceSnapshot
 ResearchProject (1) -- (*) ShareSnapshot
 ShareSnapshot (*) -- (*) ArtifactVersion
+ArtifactVersion (1) -- (*) UserFeedback
+UserFeedback (*) -- (*) RevisionPlan -- (0..1) RevisionPlanConfirmation -- (1) ResearchRun
 ```
 
-`UserFeedback`、`RevisionPlan` 与 `CacheRecord` 的关系属于目标契约；当前运行时不创建这些对象。
+`UserFeedback`、`RevisionPlan` 与 `RevisionPlanConfirmation` 是当前 PostgreSQL 运行时对象；`CacheRecord` 仍属于目标契约，当前运行时不创建。
 
 ## 2. Project、Draft 与 Contract
 
@@ -50,9 +52,11 @@ ShareSnapshot (*) -- (*) ArtifactVersion
 - ResearchRun 绑定同一 Project 下的 Contract；派生 Run 通过同 Project 的 `parent_run_id` 与 `derivation_kind` 表达 retry、revision 或 fork。
 - RunStep 保存从 confirmed Contract 确定性投影并在 Run 创建时冻结的 canonical step、顺序、状态与进度；StepAttempt 保存真实尝试、错误与上游请求 identity。Executor 不维护第二份 Plan。
 - RunEvent 是单调序列的通知记录，Run 快照才是状态事实源。
-- HTTP Run authoring 只创建 original、cache-disabled Run；未暴露的派生字段不得被静默消费。
+- HTTP original Run authoring 只创建 original、cache-disabled Run；revision Run 只能由已确认 RevisionPlan 创建，其他未暴露派生字段不得被静默消费。
 
-目标修订与缓存契约：UserFeedback 固定目标 ArtifactVersion 与对象定位；RevisionPlan 固定受影响产物闭包，确认后才能创建 revision Run。CacheRecord 固定可复用的历史 Run、ArtifactVersion、SourceSnapshot 与匹配 identity；CacheSelector 只返回通过 Contract 与 Evidence 校验的记录。它们在对应执行闭环实现前不得被描述为当前数据库或运行时对象。
+UserFeedback 固定当前 ArtifactVersion 与对象定位；RevisionPlan 固定同一 completed parent Run、Feedback、parent revision、全部 latest ArtifactVersion、受影响产物闭包、复用版本与 canonical steps。不可变 Confirmation 一对一绑定 Plan 和 revision Run，二者在同一事务创建。
+
+目标缓存契约：CacheRecord 固定可复用的历史 Run、ArtifactVersion、SourceSnapshot 与匹配 identity；CacheSelector 只返回通过 Contract 与 Evidence 校验的记录。在对应执行闭环实现前不得被描述为当前数据库或运行时对象。
 
 ## 4. Artifact、Evidence 与来源
 
@@ -84,10 +88,11 @@ Session retention 只删除达到保留期且没有 ResearchProject 引用的记
 1. Project、Draft、Contract、Run、Artifact、Evidence、ResearchInput 与 Snapshot 的外键不得跨 Project 聚合。
 2. Contract confirmation、Run creation 与输入摄取的幂等 replay 必须返回已持久化资源的同一事实。
 3. ArtifactVersion 发布后内容与 hash 不可原地修改；latest 指针不替代具体 version 引用。
-4. `execution_mode` 与 `source_mode` 分离；Fixture、Live 与 Cached provenance 不得互相伪装。
-5. 公开 API 不返回凭据、受限全文、原始模型响应或私有 chain-of-thought。
-6. Evidence Graph 的 frozen input versions、Graph-owned Evidence 与 literature relation projection 必须在读取边界保持同 Project、同 Version、同 producer/hash closure；任何漂移 fail closed。
-7. Thread sequence 在同一 Project 内严格递增且刷新可重放；跨 Project 的 entry、Draft、Execution、Run 读取统一 fail closed。
-8. `ModelExecutionRecord` 的状态、错误、safe snapshots 与 timing 必须反映实际 provider 调用；失败前已获得的 output hash、token、latency 与 request identity 不得丢失；无 credentials 时不得生成 succeeded 记录。
-9. Provider 成功不等于 Turn 成功；最终 Draft/Thread 持久化必须与 ModelExecution 终态同一事务提交。该事务失败时必须释放 Project 的活跃执行槽，进程中断遗留的活跃记录必须经租约过期回收，不能永久阻塞后续 Turn。
-10. DocumentParse 与其 locator 创建后不可更新；相同 Project 与相同逻辑身份只能有一个权威 parse，读取时必须校验 payload 与冻结 metadata。
+4. UserFeedback、RevisionPlan、Plan 关系与 Confirmation 创建后不可更新；确认前必须重新闭合 parent revision 与全部 frozen latest 指针。
+5. `execution_mode` 与 `source_mode` 分离；Fixture、Live 与 Cached provenance 不得互相伪装。
+6. 公开 API 不返回凭据、受限全文、原始模型响应或私有 chain-of-thought。
+7. Evidence Graph 的 frozen input versions、Graph-owned Evidence 与 literature relation projection 必须在读取边界保持同 Project、同 Version、同 producer/hash closure；任何漂移 fail closed。
+8. Thread sequence 在同一 Project 内严格递增且刷新可重放；跨 Project 的 entry、Draft、Execution、Run 读取统一 fail closed。
+9. `ModelExecutionRecord` 的状态、错误、safe snapshots 与 timing 必须反映实际 provider 调用；失败前已获得的 output hash、token、latency 与 request identity 不得丢失；无 credentials 时不得生成 succeeded 记录。
+10. Provider 成功不等于 Turn 成功；最终 Draft/Thread 持久化必须与 ModelExecution 终态同一事务提交。该事务失败时必须释放 Project 的活跃执行槽，进程中断遗留的活跃记录必须经租约过期回收，不能永久阻塞后续 Turn。
+11. DocumentParse 与其 locator 创建后不可更新；相同 Project 与相同逻辑身份只能有一个权威 parse，读取时必须校验 payload 与冻结 metadata。

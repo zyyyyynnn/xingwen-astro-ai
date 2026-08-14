@@ -74,6 +74,7 @@
 - ArtifactVersion 采用追加写入，不原地覆盖或删除正常历史。
 - 达到保留期的撤销/过期 Share 可以清理；Session 仅在达到保留期且没有 Project 引用时删除，cleanup 不级联删除科研 Project、Run 或 Artifact 历史。
 - UserFeedback 与 RevisionPlan 只能生成新的派生 Run 和 ArtifactVersion，不得原地改写已发布内容或其 Evidence。
+- Feedback、RevisionPlan 与 Confirmation 写入要求 CSRF、幂等键和共享限流；Plan 确认必须在创建 revision Run 前重新校验 parent Run revision 与全部 frozen latest ArtifactVersion，防止过期计划覆盖新事实。
 - 涉及密钥泄露或法定要求时执行彻底清理。
 
 ## 10. 供应链与 CI 安全

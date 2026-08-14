@@ -96,3 +96,25 @@ def compile_run_plan(
         )
         for position, step in enumerate(ordered)
     )
+
+
+def compile_revision_run_plan(
+    step_keys: frozenset[str],
+) -> tuple[RunStepDefinition, ...]:
+    """Freeze an already-computed affected-step closure for a revision Run."""
+
+    unknown = step_keys - set(RUN_STEP_STATUS_ORDER)
+    if unknown or "planning" not in step_keys:
+        raise ValueError("revision Run steps must be canonical and include planning")
+    ordered = tuple(step for step in RUN_STEP_STATUS_ORDER if step in step_keys)
+    return tuple(
+        RunStepDefinition(
+            key=step,
+            label=_STEP_LABELS[step],
+            enter_status=step,
+            success_status=(
+                ordered[position + 1] if position + 1 < len(ordered) else "completed"
+            ),
+        )
+        for position, step in enumerate(ordered)
+    )

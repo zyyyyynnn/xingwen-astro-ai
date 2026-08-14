@@ -191,88 +191,116 @@ class PersistentWorkflowStore:
         request_hash: str,
         steps: Sequence[RunStepDefinition],
     ) -> RunSnapshot:
-        self._validate_step_definitions(steps)
-        run_id: UUID
         with self._factory() as session, session.begin():
-            candidate_run_id = uuid4()
-            inserted_run_id = session.scalar(
-                pg_insert(ResearchRunModel)
-                .values(
-                    id=candidate_run_id,
-                    project_id=project_id,
-                    contract_id=contract_id,
-                    execution_mode=execution_mode,
-                    status="queued",
-                    progress=0,
-                    parent_run_id=None,
-                    derivation_kind="original",
-                    retry_from_step=None,
-                    cache_policy="disabled",
-                    latest_event_sequence=1,
-                    revision=1,
-                    lease_generation=0,
-                    steps_frozen_at=None,
-                    idempotency_key=idempotency_key,
-                    request_hash=request_hash,
-                )
-                .on_conflict_do_nothing(constraint="uq_research_run_idempotency")
-                .returning(ResearchRunModel.id)
+            run_id = self.create_run_in_session(
+                session,
+                project_id=project_id,
+                contract_id=contract_id,
+                execution_mode=execution_mode,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                steps=steps,
             )
-            if inserted_run_id is None:
-                existing = session.scalar(
-                    select(ResearchRunModel).where(
-                        ResearchRunModel.project_id == project_id,
-                        ResearchRunModel.idempotency_key == idempotency_key,
-                    )
-                )
-                if existing is None:  # pragma: no cover - database invariant safeguard
-                    raise WorkflowConflictError("idempotent Run creation lost its winner")
-                if existing.request_hash != request_hash:
-                    raise WorkflowConflictError(
-                        "idempotency key was already used with a different request"
-                    )
-                run_id = existing.id
-            else:
-                run_id = inserted_run_id
-                session.add_all(
-                    [
-                        RunStepModel(
-                            run_id=run_id,
-                            position=position,
-                            key=definition.key,
-                            label=definition.label,
-                            enter_status=definition.enter_status,
-                            success_status=definition.success_status,
-                            max_attempts=definition.max_attempts,
-                            status="pending",
-                            progress=0,
-                            public_message="",
-                        )
-                        for position, definition in enumerate(steps)
-                    ]
-                )
-                session.add(
-                    RunEventModel(
-                        run_id=run_id,
-                        sequence=1,
-                        event_type="run.queued",
-                        progress=0,
-                        public_message="Run queued",
-                        artifact_version_ids=[],
-                    )
-                )
-                session.flush()
-                frozen = session.execute(
-                    update(ResearchRunModel)
-                    .where(
-                        ResearchRunModel.id == run_id,
-                        ResearchRunModel.steps_frozen_at.is_(None),
-                    )
-                    .values(steps_frozen_at=func.clock_timestamp())
-                )
-                if frozen.rowcount != 1:  # pragma: no cover - transaction invariant safeguard
-                    raise WorkflowConflictError("RunStep collection could not be frozen")
         return self.load_snapshot(run_id)
+
+    def create_run_in_session(
+        self,
+        session: Session,
+        *,
+        project_id: UUID,
+        contract_id: UUID,
+        execution_mode: str,
+        idempotency_key: str,
+        request_hash: str,
+        steps: Sequence[RunStepDefinition],
+        parent_run_id: UUID | None = None,
+        derivation_kind: str = "original",
+        retry_from_step: str | None = None,
+        cache_policy: str = "disabled",
+        queued_message: str = "Run queued",
+    ) -> UUID:
+        """Create one frozen Run aggregate inside an existing transaction."""
+
+        self._validate_step_definitions(steps)
+        candidate_run_id = uuid4()
+        inserted_run_id = session.scalar(
+            pg_insert(ResearchRunModel)
+            .values(
+                id=candidate_run_id,
+                project_id=project_id,
+                contract_id=contract_id,
+                execution_mode=execution_mode,
+                status="queued",
+                progress=0,
+                parent_run_id=parent_run_id,
+                derivation_kind=derivation_kind,
+                retry_from_step=retry_from_step,
+                cache_policy=cache_policy,
+                latest_event_sequence=1,
+                revision=1,
+                lease_generation=0,
+                steps_frozen_at=None,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+            )
+            .on_conflict_do_nothing(constraint="uq_research_run_idempotency")
+            .returning(ResearchRunModel.id)
+        )
+        if inserted_run_id is None:
+            existing = session.scalar(
+                select(ResearchRunModel).where(
+                    ResearchRunModel.project_id == project_id,
+                    ResearchRunModel.idempotency_key == idempotency_key,
+                )
+            )
+            if existing is None:  # pragma: no cover - database invariant safeguard
+                raise WorkflowConflictError("idempotent Run creation lost its winner")
+            if existing.request_hash != request_hash:
+                raise WorkflowConflictError(
+                    "idempotency key was already used with a different request"
+                )
+            return existing.id
+
+        run_id = inserted_run_id
+        session.add_all(
+            [
+                RunStepModel(
+                    run_id=run_id,
+                    position=position,
+                    key=definition.key,
+                    label=definition.label,
+                    enter_status=definition.enter_status,
+                    success_status=definition.success_status,
+                    max_attempts=definition.max_attempts,
+                    status="pending",
+                    progress=0,
+                    public_message="",
+                )
+                for position, definition in enumerate(steps)
+            ]
+        )
+        session.add(
+            RunEventModel(
+                run_id=run_id,
+                sequence=1,
+                event_type="run.queued",
+                progress=0,
+                public_message=queued_message,
+                artifact_version_ids=[],
+            )
+        )
+        session.flush()
+        frozen = session.execute(
+            update(ResearchRunModel)
+            .where(
+                ResearchRunModel.id == run_id,
+                ResearchRunModel.steps_frozen_at.is_(None),
+            )
+            .values(steps_frozen_at=func.clock_timestamp())
+        )
+        if frozen.rowcount != 1:  # pragma: no cover - transaction invariant safeguard
+            raise WorkflowConflictError("RunStep collection could not be frozen")
+        return run_id
 
     def acquire_lease(
         self,

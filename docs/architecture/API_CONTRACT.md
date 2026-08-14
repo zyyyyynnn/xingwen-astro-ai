@@ -26,7 +26,7 @@
 ## 3. 会话、安全与授权
 
 - **匿名 Session**：服务端自动签发高熵标识与 Cookie（`Secure`、`HttpOnly`、`SameSite`）；服务端持久化 hash、expiry、revocation 与 security version，resume 原子轮换有界 CSRF token 集并支持重启/多实例恢复。
-- **Ownership 校验**：所有 Project、Run、ArtifactVersion、WorkspaceSnapshot 与 ShareSnapshot 在服务端强制校验 Session ownership。
+- **Ownership 校验**：所有 Project、Run、ArtifactVersion、UserFeedback、RevisionPlan、WorkspaceSnapshot 与 ShareSnapshot 在服务端强制校验 Session ownership。
 - **只读分享**：
   - ShareSnapshot 锁定不可变 ArtifactVersion 与可公开 Evidence 范围。
   - Share token 服务端仅存 hash；公开读取不授予写权限或敏感调试信息。
@@ -77,6 +77,7 @@ Session -> Project -> ResearchThreadEntry -> ContractDraft / Contract -> Run -> 
 Project -> WorkspaceSnapshot
 Project -> ShareSnapshot -> ArtifactVersion
 Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
+ArtifactVersion -> UserFeedback -> RevisionPlan -> revision Run
 ```
 
 - **Project**：表示持续研究上下文，并通过 `active_draft_id` 指向当前待审 Draft；不得用 latest Draft 推断当前状态。
@@ -85,6 +86,8 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - **Contract**：固定研究目标、字段与质量约束（确认后不可变）。
 - **Run**：表示一次具体执行，管理进度与事件。
 - **ArtifactVersion**：不可变的科研产物快照，绑定 Evidence 与 SourceSnapshot。
+- **UserFeedback**：绑定当前 ArtifactVersion、目标对象定位与 requested change 的不可变记录。
+- **RevisionPlan**：冻结同一 completed parent Run 的 Feedback、parent revision、全部 latest ArtifactVersion 指针、受影响闭包与可复用版本；确认关系一对一绑定 revision Run。
 - **WorkspaceSnapshot**：持久化工作台私有恢复布局状态，使用 Project ownership 与 revision 乐观锁。
 - **ShareSnapshot**：持久化创建时冻结的公开只读投影；公开读取只依赖冻结内容与 token hash，不跟随动态 latest。
 - **ResearchInput**：受控输入边界（URL / PDF / CSV / JSON / 图片 / 文本）的不可变引用与溯源；二进制内容与全文永不进入公开 DTO。
@@ -120,7 +123,15 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - Project list/read 携带由服务端批量计算的最小 `thread_summary`（是否有消息、最新 actor、是否存在未回答澄清）；它只用于非当前 Project 导航状态，不能持久化或复制 workflow/presentation state。当前 Project 仍以完整 Research Thread 为事实源，并由唯一 presentation mapper 得出同一状态。
 - `POST /api/projects/{project_id}/runs` 从 confirmed Contract 的 requested outputs 确定性冻结最小依赖闭包；未映射产物返回 `409 RUN_PLAN_UNSUPPORTED_OUTPUT`，不得生成虚假 Step。
 
-## 6. Research Input 摄取契约
+## 7. Feedback 与 RevisionPlan
+
+- `POST /api/artifact-versions/{version_id}/feedback` 创建绑定当前 latest ArtifactVersion 的不可变 UserFeedback；`GET /api/feedback/{feedback_id}` 读取 owner-scoped 记录。
+- `POST /api/projects/{project_id}/revision-plans` 要求 Feedback 属于同一 Project 与 completed parent Run，按 `expected_parent_run_revision` 冻结受影响版本、复用版本和 canonical recompute steps；`GET /api/revision-plans/{plan_id}` 返回冻结计划、当前冲突与确认结果。
+- `POST /api/revision-plans/{plan_id}/confirm` 在一个 PostgreSQL 事务中重新校验 plan version、parent Run revision/status 和全部 latest 指针，并创建唯一 `derivation_kind=revision` Run。重复同一幂等请求返回同一 Run；不同确认、过期 Plan 或指针变化返回稳定 `409`。
+- 三个写端点均要求 Session、CSRF、`Idempotency-Key` 并共享 revision write rate limit。跨 Session 与不存在的 Feedback/Plan/Version 使用不泄露存在性的 `404`。
+- revision Run 只冻结 `planning` 与受影响 canonical steps，并在 Run 读取中暴露 `revision_plan_id`、`feedback_ids`、`recompute_steps` 和 `reused_artifact_version_ids`。HTTP Router 不执行数据、文献、推理或 Graph 修正算法，也不发布 ArtifactVersion。
+
+## 8. Research Input 摄取契约
 
 - **内容寻址**：摄取内容以 `sha256:<hex>` 内容哈希冻结，服务端按哈希校验写入且不覆盖既有 blob。
 - **MIME 不可信**：客户端声明不具效力；所有字节先经 magic bytes 嗅探，声明类型、客户端 MIME 与嗅探结果三方一致才接受，否则 `415`。
@@ -130,7 +141,7 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - **绑定语义**：`POST /api/research-inputs/{input_id}/bind` 只绑定引用，不产生所有权转移；输入删除后既有绑定不受影响。
 - **状态语义**：稳定生命周期为 `accepted | unsupported_processing | failed_ingestion`。摄取端点只在成功时创建 `accepted` 资源；失败使用 Problem Details 且不创建失败输入。其他状态只能由实际观察到对应结果的 writer 持久化。`accepted` 只证明内容已安全摄取并冻结，不表示内容已被理解。
 
-## 7. 文献 Claim、Relation 与 Trace 读取
+## 9. 文献 Claim、Relation 与 Trace 读取
 
 在不可变 ArtifactVersion 边界提供以下无版本端点：
 
@@ -147,7 +158,7 @@ Claim 读取必须先通过已验证的 PaperSummary 权威边界，再闭合 Pa
 
 Pipeline ID 与 PostgreSQL UUID 属于不同命名空间。文学 Artifact 发布必须在同一 fenced transaction 内创建 ArtifactVersion 与其 Evidence，并验证所引用 SourceSnapshot 的 Project、source identity、version 与 content hash；禁止发布后补写 provenance。ReasoningTrace 只作为 LiteratureRelations 内容的一部分读取，不允许独立发布。API 不返回私有 chain-of-thought、原始模型响应、凭据或受限全文。
 
-## 8. Evidence Graph 读取
+## 10. Evidence Graph 读取
 
 在不可变 ArtifactVersion 边界提供以下无版本端点：
 

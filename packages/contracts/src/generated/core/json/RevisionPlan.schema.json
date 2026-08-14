@@ -1,0 +1,267 @@
+{
+  "$defs": {
+    "ArtifactKind": {
+      "enum": [
+        "dataset",
+        "field_dictionary",
+        "source_collection",
+        "paper_collection",
+        "paper_summary",
+        "literature_claims",
+        "literature_relations",
+        "reasoning_traces",
+        "graph",
+        "export"
+      ],
+      "title": "ArtifactKind",
+      "type": "string"
+    },
+    "RevisionConflict": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_version_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Version Id"
+        },
+        "code": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "detail": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "detail"
+      ],
+      "title": "RevisionConflict",
+      "type": "object"
+    },
+    "RevisionDecision": {
+      "enum": [
+        "recompute",
+        "reuse"
+      ],
+      "title": "RevisionDecision",
+      "type": "string"
+    },
+    "RevisionPlanStatus": {
+      "enum": [
+        "proposed",
+        "confirmed"
+      ],
+      "title": "RevisionPlanStatus",
+      "type": "string"
+    },
+    "RevisionVersionDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "artifact_kind": {
+          "$ref": "#/$defs/ArtifactKind"
+        },
+        "artifact_version_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Artifact Version Id",
+          "type": "string"
+        },
+        "decision": {
+          "$ref": "#/$defs/RevisionDecision"
+        },
+        "step_key": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step Key"
+        },
+        "version_number": {
+          "minimum": 1,
+          "title": "Version Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_version_id",
+        "artifact_id",
+        "artifact_kind",
+        "version_number",
+        "decision"
+      ],
+      "title": "RevisionVersionDecision",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "affected_artifact_version_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Affected Artifact Version Ids",
+      "type": "array"
+    },
+    "baseline_artifact_version_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Baseline Artifact Version Ids",
+      "type": "array"
+    },
+    "confirmed_run_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confirmed Run Id"
+    },
+    "conflicts": {
+      "items": {
+        "$ref": "#/$defs/RevisionConflict"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "contract_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Contract Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "feedback_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Feedback Ids",
+      "type": "array"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "parent_run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Parent Run Id",
+      "type": "string"
+    },
+    "parent_run_revision": {
+      "minimum": 1,
+      "title": "Parent Run Revision",
+      "type": "integer"
+    },
+    "plan_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Plan Hash",
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "recompute_steps": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Recompute Steps",
+      "type": "array"
+    },
+    "reusable_artifact_version_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Reusable Artifact Version Ids",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/RevisionPlanStatus"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "version_decisions": {
+      "items": {
+        "$ref": "#/$defs/RevisionVersionDecision"
+      },
+      "title": "Version Decisions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "project_id",
+    "parent_run_id",
+    "parent_run_revision",
+    "contract_id",
+    "version",
+    "status",
+    "feedback_ids",
+    "baseline_artifact_version_ids",
+    "affected_artifact_version_ids",
+    "reusable_artifact_version_ids",
+    "recompute_steps",
+    "version_decisions",
+    "conflicts",
+    "plan_hash",
+    "created_at"
+  ],
+  "title": "RevisionPlan",
+  "type": "object"
+}

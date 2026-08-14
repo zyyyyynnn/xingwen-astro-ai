@@ -1,0 +1,129 @@
+{
+  "$defs": {
+    "FeedbackCategory": {
+      "enum": [
+        "correction",
+        "omission",
+        "evidence",
+        "quality",
+        "interpretation"
+      ],
+      "title": "FeedbackCategory",
+      "type": "string"
+    },
+    "FeedbackTargetType": {
+      "enum": [
+        "artifact",
+        "artifact_version",
+        "dataset_field",
+        "dataset_row",
+        "paper",
+        "paper_summary",
+        "claim",
+        "relation",
+        "trace",
+        "graph_node",
+        "graph_edge"
+      ],
+      "title": "FeedbackTargetType",
+      "type": "string"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Artifact Id",
+      "type": "string"
+    },
+    "baseline_artifact_version_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Baseline Artifact Version Id",
+      "type": "string"
+    },
+    "baseline_content_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Baseline Content Hash",
+      "type": "string"
+    },
+    "baseline_version_number": {
+      "minimum": 1,
+      "title": "Baseline Version Number",
+      "type": "integer"
+    },
+    "category": {
+      "$ref": "#/$defs/FeedbackCategory"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "feedback_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Feedback Hash",
+      "type": "string"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "project_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Project Id",
+      "type": "string"
+    },
+    "requested_change": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Requested Change",
+      "type": "string"
+    },
+    "summary": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "target_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_locator": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Target Locator",
+      "type": "object"
+    },
+    "target_type": {
+      "$ref": "#/$defs/FeedbackTargetType"
+    }
+  },
+  "required": [
+    "id",
+    "project_id",
+    "artifact_id",
+    "baseline_artifact_version_id",
+    "baseline_version_number",
+    "baseline_content_hash",
+    "target_type",
+    "target_id",
+    "target_locator",
+    "category",
+    "summary",
+    "requested_change",
+    "feedback_hash",
+    "created_at"
+  ],
+  "title": "UserFeedback",
+  "type": "object"
+}

@@ -754,6 +754,12 @@ class ArtifactVersionModel(TimestampMixin, Base):
         UniqueConstraint("id", "artifact_id", name="uq_artifact_version_id_artifact"),
         UniqueConstraint("id", "project_id", name="uq_artifact_version_id_project"),
         UniqueConstraint(
+            "id",
+            "artifact_id",
+            "project_id",
+            name="uq_artifact_version_id_artifact_project",
+        ),
+        UniqueConstraint(
             "artifact_id", "version_number", name="uq_artifact_version_number"
         ),
         UniqueConstraint(
@@ -802,6 +808,257 @@ class ArtifactVersionModel(TimestampMixin, Base):
         CheckConstraint("version_number >= 1", name="version_positive"),
         CheckConstraint(
             "source_mode IN ('fixture','live','cached')", name="source_mode"
+        ),
+    )
+
+
+class UserFeedbackModel(TimestampMixin, Base):
+    """Immutable, owner-scoped feedback bound to one baseline ArtifactVersion."""
+
+    __tablename__ = "user_feedback"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    owner_session_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    artifact_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    baseline_artifact_version_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
+    baseline_version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    baseline_content_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    target_locator: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    category: Mapped[str] = mapped_column(String(32), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    requested_change: Mapped[str] = mapped_column(Text, nullable=False)
+    feedback_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("id", "project_id", name="uq_user_feedback_id_project"),
+        UniqueConstraint(
+            "project_id",
+            "idempotency_key",
+            name="uq_user_feedback_project_idempotency",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "owner_session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_user_feedback_project_owner",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["baseline_artifact_version_id", "artifact_id", "project_id"],
+            [
+                "artifact_versions.id",
+                "artifact_versions.artifact_id",
+                "artifact_versions.project_id",
+            ],
+            name="fk_user_feedback_baseline_version",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "baseline_version_number >= 1", name="baseline_version_positive"
+        ),
+        CheckConstraint(
+            "target_type IN ('artifact','artifact_version','dataset_field','dataset_row',"
+            "'paper','paper_summary','claim','relation','trace','graph_node','graph_edge')",
+            name="target_type",
+        ),
+        CheckConstraint(
+            "category IN ('correction','omission','evidence','quality','interpretation')",
+            name="category",
+        ),
+        Index(
+            "ix_user_feedback_project_created",
+            "project_id",
+            "created_at",
+            "id",
+        ),
+        Index("ix_user_feedback_baseline", "baseline_artifact_version_id"),
+    )
+
+
+class RevisionPlanModel(TimestampMixin, Base):
+    """Immutable affected/reusable closure proposed for one parent Run."""
+
+    __tablename__ = "revision_plans"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    owner_session_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    parent_run_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    parent_run_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    contract_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    recompute_steps: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    plan_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("id", "project_id", name="uq_revision_plan_id_project"),
+        UniqueConstraint(
+            "project_id",
+            "idempotency_key",
+            name="uq_revision_plan_project_idempotency",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "owner_session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_revision_plans_project_owner",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["parent_run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_revision_plans_parent_run",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["contract_id", "project_id"],
+            ["research_contracts.id", "research_contracts.project_id"],
+            name="fk_revision_plans_contract",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "parent_run_revision >= 1", name="parent_run_revision_positive"
+        ),
+        CheckConstraint("version >= 1", name="version_positive"),
+        CheckConstraint(
+            "jsonb_typeof(recompute_steps) = 'array' "
+            "AND jsonb_array_length(recompute_steps) >= 2",
+            name="recompute_steps_nonempty",
+        ),
+        Index("ix_revision_plans_parent_run", "parent_run_id"),
+    )
+
+
+class RevisionPlanFeedbackModel(Base):
+    __tablename__ = "revision_plan_feedback"
+
+    revision_plan_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    feedback_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("revision_plan_id", "feedback_id"),
+        UniqueConstraint(
+            "revision_plan_id", "position", name="uq_revision_plan_feedback_position"
+        ),
+        ForeignKeyConstraint(
+            ["revision_plan_id", "project_id"],
+            ["revision_plans.id", "revision_plans.project_id"],
+            name="fk_revision_plan_feedback_plan",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["feedback_id", "project_id"],
+            ["user_feedback.id", "user_feedback.project_id"],
+            name="fk_revision_plan_feedback_feedback",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("position >= 0", name="position_nonnegative"),
+    )
+
+
+class RevisionPlanVersionModel(Base):
+    __tablename__ = "revision_plan_versions"
+
+    revision_plan_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    artifact_version_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False
+    )
+    artifact_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    artifact_kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    decision: Mapped[str] = mapped_column(String(16), nullable=False)
+    step_key: Mapped[str | None] = mapped_column(String(128))
+
+    __table_args__ = (
+        PrimaryKeyConstraint("revision_plan_id", "artifact_version_id"),
+        UniqueConstraint(
+            "revision_plan_id", "position", name="uq_revision_plan_version_position"
+        ),
+        ForeignKeyConstraint(
+            ["revision_plan_id", "project_id"],
+            ["revision_plans.id", "revision_plans.project_id"],
+            name="fk_revision_plan_versions_plan",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["artifact_version_id", "artifact_id", "project_id"],
+            [
+                "artifact_versions.id",
+                "artifact_versions.artifact_id",
+                "artifact_versions.project_id",
+            ],
+            name="fk_revision_plan_versions_artifact_version",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("position >= 0", name="position_nonnegative"),
+        CheckConstraint("version_number >= 1", name="version_positive"),
+        CheckConstraint("decision IN ('recompute','reuse')", name="decision"),
+        CheckConstraint(
+            "(decision = 'recompute' AND step_key IS NOT NULL) OR "
+            "(decision = 'reuse' AND step_key IS NULL)",
+            name="decision_shape",
+        ),
+        Index("ix_revision_plan_versions_version", "artifact_version_id"),
+    )
+
+
+class RevisionPlanConfirmationModel(Base):
+    """Immutable one-to-one binding from a confirmed plan to its revision Run."""
+
+    __tablename__ = "revision_plan_confirmations"
+
+    revision_plan_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True
+    )
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    owner_session_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    run_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), nullable=False, unique=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    confirmed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "idempotency_key",
+            name="uq_revision_confirmation_project_idempotency",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "owner_session_id"],
+            ["research_projects.id", "research_projects.session_id"],
+            name="fk_revision_confirmations_project_owner",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["revision_plan_id", "project_id"],
+            ["revision_plans.id", "revision_plans.project_id"],
+            name="fk_revision_confirmations_plan",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_revision_confirmations_run",
+            ondelete="CASCADE",
         ),
     )
 

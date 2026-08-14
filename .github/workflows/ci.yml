@@ -236,6 +236,13 @@ jobs:
             --include ResearchContractDraft \
             --include ResearchContract \
             --include ResearchRun \
+            --include CreateUserFeedbackRequest \
+            --include UserFeedback \
+            --include CreateRevisionPlanRequest \
+            --include RevisionVersionDecision \
+            --include RevisionConflict \
+            --include RevisionPlan \
+            --include ConfirmRevisionPlanRequest \
             --include RunEvent \
             --include RunStepRead \
             --include ResearchArtifact \

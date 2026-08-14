@@ -4,7 +4,7 @@
 | --- | --- |
 | Authority | ArtifactVersion、SourceSnapshot、ProducerExecution、修订、分享与哈希规则 |
 
-本文定义已落地科研产物与来源的真实身份，并单独约束尚未接入运行时的修订与缓存契约。运行编排见 [Workflow Design](WORKFLOW_DESIGN.md)。
+本文定义已落地科研产物、来源与修订身份，并单独约束尚未接入运行时的缓存契约。运行编排见 [Workflow Design](WORKFLOW_DESIGN.md)。
 
 ## 1. 已落地对象与目标契约
 
@@ -19,10 +19,11 @@
 | WorkspaceSnapshot | 当前运行时 | 乐观锁覆盖 | 保存私有 UI 恢复状态，不是科研产物 |
 | ShareSnapshot | 当前运行时 | 创建后不可变 | 冻结公开 ArtifactVersion 与 Evidence 范围 |
 | CacheRecord | 目标契约 | 不可变 | 绑定真实历史 Run、ArtifactVersion、SourceSnapshot 与复用匹配 identity |
-| UserFeedback | 目标契约 | 创建后不可变 | 固定具体 ArtifactVersion 与对象定位 |
-| RevisionPlan | 目标契约 | 确认后不可变 | 固定 UserFeedback 与受影响 Artifact 闭包 |
+| UserFeedback | 当前运行时 | 创建后不可变 | 固定具体 ArtifactVersion、基线 hash 与对象定位 |
+| RevisionPlan | 当前运行时 | 创建后不可变 | 固定 UserFeedback、parent Run revision、ArtifactVersion 决策与受影响 Step 闭包 |
+| RevisionPlanConfirmation | 当前运行时 | 创建后不可变 | 一对一固定 Plan、确认请求与 revision Run |
 
-目标契约描述稳定边界，不表示对应表、Repository 或 Workflow 已在当前运行时提供。
+标记为目标契约的 CacheRecord 描述稳定边界，不表示对应表、Repository 或 Workflow 已在当前运行时提供。
 
 ## 2. ArtifactVersion 不变量
 
@@ -56,8 +57,9 @@ SourceSnapshot 记录来源身份、查询与内容哈希、抓取时间、许�
 
 ShareSnapshot 固定 `artifact_version_ids`、允许公开的 `evidence_ids` 以及创建时已脱敏的 ArtifactVersion/Evidence/SourceSnapshot identity 投影。Artifact 的 latest 指针变化或 API 进程重启不会改变已创建分享；Share token 只保存 hash，公开读取不授予写权限。撤销或过期达到保留期后可清理分享记录，但不得修改被引用的 ArtifactVersion、Evidence 或 SourceSnapshot。
 
-## 7. 修订与缓存目标契约
+## 7. 修订与缓存契约
 
-- RevisionPlan 将 UserFeedback 映射为受影响产物闭包；确认计划后创建 `derivation_kind=revision` 的新 Run，历史 ArtifactVersion 保持不可变。
+- RevisionPlan 将同一 completed parent Run 的 UserFeedback 映射为受影响产物闭包，并冻结 parent revision 与 Project 全部 current ArtifactVersion。确认计划时再次验证这些指针，在同一事务创建 Confirmation 与 `derivation_kind=revision` Run；历史 Run 和 ArtifactVersion 保持不可变。
+- 数据产物影响数据三类与 Graph；PaperCollection 影响 Summary、Claim、Relation、Trace 与 Graph；Summary、Claim、Relation、Trace、Graph 依次只影响自身及其下游。未受影响的 frozen ArtifactVersion 作为 reuse identity 暴露给既有 Workflow/Publisher 消费，不复制内容或直接发布新版本。
 - CacheSelector 只能选择 Contract、input hash、producer identity 与 Evidence 仍匹配的 CacheRecord。选择失败时保持 Live 失败事实，不生成 cached ArtifactVersion。
-- 当前 HTTP Run authoring 不接受 RevisionPlan、feedback、retry 或 cache 参数；缺少对应执行路径时必须 fail closed。
+- original Run authoring 不接受 RevisionPlan、feedback、retry 或 cache 参数；revision Run 只能由确认端点创建。选择性 retry 与 cache 缺少对应执行路径时必须 fail closed。

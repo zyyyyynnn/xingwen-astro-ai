@@ -53,12 +53,16 @@
       "created_at": "2026-07-21T08:00:00Z",
       "derivation_kind": "original",
       "execution_mode": "live",
+      "feedback_ids": [],
       "id": "run_01JEXAMPLE",
       "latest_event_sequence": 0,
       "parent_run_id": null,
       "progress": 0,
       "project_id": "proj_01JEXAMPLE",
+      "recompute_steps": [],
       "retry_from_step": null,
+      "reused_artifact_version_ids": [],
+      "revision_plan_id": null,
       "status": "queued",
       "updated_at": "2026-07-21T08:00:00Z"
     }
@@ -107,6 +111,16 @@
       ],
       "default": null,
       "title": "Failure Summary"
+    },
+    "feedback_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Feedback Ids",
+      "type": "array"
     },
     "finished_at": {
       "anyOf": [
@@ -159,6 +173,16 @@
       "title": "Project Id",
       "type": "string"
     },
+    "recompute_steps": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Recompute Steps",
+      "type": "array"
+    },
     "retry_from_step": {
       "anyOf": [
         {
@@ -172,6 +196,30 @@
       ],
       "default": null,
       "title": "Retry From Step"
+    },
+    "reused_artifact_version_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Reused Artifact Version Ids",
+      "type": "array"
+    },
+    "revision_plan_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Revision Plan Id"
     },
     "started_at": {
       "anyOf": [

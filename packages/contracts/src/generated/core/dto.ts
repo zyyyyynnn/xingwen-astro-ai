@@ -309,6 +309,28 @@ export type UnitPolicy = "canonical";
 export type ExecutionMode = "demo_replay" | "live";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "FeedbackCategory".
+ */
+export type FeedbackCategory =
+  "correction" | "omission" | "evidence" | "quality" | "interpretation";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "FeedbackTargetType".
+ */
+export type FeedbackTargetType =
+  | "artifact"
+  | "artifact_version"
+  | "dataset_field"
+  | "dataset_row"
+  | "paper"
+  | "paper_summary"
+  | "claim"
+  | "relation"
+  | "trace"
+  | "graph_node"
+  | "graph_edge";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "MatchDecision".
  */
 export type MatchDecision =
@@ -559,6 +581,16 @@ export type SessionStatus = "active" | "expired" | "revoked";
  */
 export type PlannerOutcomeKind =
   "clarification_required" | "draft_ready" | "partial" | "unsupported" | "refused";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RevisionPlanStatus".
+ */
+export type RevisionPlanStatus = "proposed" | "confirmed";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RevisionDecision".
+ */
+export type RevisionDecision = "recompute" | "reuse";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "GraphEdgeType".
@@ -1733,6 +1765,13 @@ export interface ConfirmResearchContractRequest {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ConfirmRevisionPlanRequest".
+ */
+export interface ConfirmRevisionPlanRequest {
+  expected_plan_version: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CreateArtifactExportRequest".
  */
 export interface CreateArtifactExportRequest {
@@ -1851,6 +1890,18 @@ export interface CreateResearchProjectRequest {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CreateRevisionPlanRequest".
+ */
+export interface CreateRevisionPlanRequest {
+  expected_parent_run_revision: number;
+  /**
+   * @minItems 1
+   * @maxItems 100
+   */
+  feedback_ids: [string, ...string[]];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "CreateRunRequest".
  */
 export interface CreateRunRequest {
@@ -1874,6 +1925,21 @@ export interface CreateShareSnapshotRequest {
   expires_at: string;
   redaction_policy: "public_metadata_only";
   title: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CreateUserFeedbackRequest".
+ */
+export interface CreateUserFeedbackRequest {
+  category: FeedbackCategory;
+  expected_version_number: number;
+  requested_change: string;
+  summary: string;
+  target_id: string;
+  target_locator?: {
+    [k: string]: JsonValue;
+  };
+  target_type: FeedbackTargetType;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3473,13 +3539,17 @@ export interface ResearchRun {
   execution_mode: ExecutionMode;
   failure_code?: string | null;
   failure_summary?: string | null;
+  feedback_ids?: string[];
   finished_at?: string | null;
   id: string;
   latest_event_sequence?: number;
   parent_run_id?: string | null;
   progress: number;
   project_id: string;
+  recompute_steps?: string[];
   retry_from_step?: string | null;
+  reused_artifact_version_ids?: string[];
+  revision_plan_id?: string | null;
   started_at?: string | null;
   status: RunStatus;
   updated_at: string;
@@ -3531,6 +3601,59 @@ export interface ResearchTurnResult {
   entries: ResearchThreadEntry[];
   model_execution_id: string;
   outcome: PlannerOutcomeKind;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_RevisionPlan_".
+ */
+export interface Envelope_RevisionPlan_ {
+  data: RevisionPlan;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RevisionPlan".
+ */
+export interface RevisionPlan {
+  affected_artifact_version_ids: string[];
+  baseline_artifact_version_ids: string[];
+  confirmed_run_id?: string | null;
+  conflicts: RevisionConflict[];
+  contract_id: string;
+  created_at: string;
+  feedback_ids: string[];
+  id: string;
+  parent_run_id: string;
+  parent_run_revision: number;
+  plan_hash: string;
+  project_id: string;
+  recompute_steps: string[];
+  reusable_artifact_version_ids: string[];
+  status: RevisionPlanStatus;
+  version: number;
+  version_decisions: RevisionVersionDecision[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RevisionConflict".
+ */
+export interface RevisionConflict {
+  artifact_version_id?: string | null;
+  code: string;
+  detail: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RevisionVersionDecision".
+ */
+export interface RevisionVersionDecision {
+  artifact_id: string;
+  artifact_kind: ArtifactKind;
+  artifact_version_id: string;
+  decision: RevisionDecision;
+  step_key?: string | null;
+  version_number: number;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3681,6 +3804,37 @@ export interface Envelope_SourceSnapshotDetail_ {
   data: SourceSnapshotDetail;
   links: ResponseLinks;
   meta: ResponseMeta;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_UserFeedback_".
+ */
+export interface Envelope_UserFeedback_ {
+  data: UserFeedback;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "UserFeedback".
+ */
+export interface UserFeedback {
+  artifact_id: string;
+  baseline_artifact_version_id: string;
+  baseline_content_hash: string;
+  baseline_version_number: number;
+  category: FeedbackCategory;
+  created_at: string;
+  feedback_hash: string;
+  id: string;
+  project_id: string;
+  requested_change: string;
+  summary: string;
+  target_id: string;
+  target_locator: {
+    [k: string]: JsonValue;
+  };
+  target_type: FeedbackTargetType;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
