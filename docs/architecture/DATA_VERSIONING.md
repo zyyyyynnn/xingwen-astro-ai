@@ -60,7 +60,7 @@ ShareSnapshot 固定 `artifact_version_ids`、允许公开的 `evidence_ids` 以
 ## 7. 修订目标与缓存运行时
 
 - RevisionPlan 将 UserFeedback 映射为受影响产物闭包；确认计划后创建 `derivation_kind=revision` 的新 Run，历史 ArtifactVersion 保持不可变。
-- CacheRecord 注册重新验证 completed Live origin Run、`source_mode=live` ArtifactVersion、completed ProducerExecution、Contract hash、非空 SourceSnapshot/Evidence closure、SourceSnapshot identity hash 与数据产物质量投影；Fixture、recorded/cached version、失败 Run 或无来源 JSON 必须拒绝。
+- CacheRecord 注册与选择时重新验证 completed Live origin Run、`source_mode=live` ArtifactVersion、ArtifactVersion content canonical hash、completed ProducerExecution、Contract hash、非空 SourceSnapshot/Evidence closure、每个 SourceSnapshot query canonical hash、SourceSnapshot identity hash 与数据产物质量投影；Fixture、recorded/cached version、失败 Run、identity 不闭合或无来源 JSON 必须拒绝。
 - CacheSelector 只能在 `fallback_on_recoverable_failure` 的 failed Live Run 上，针对 failed/retryable Attempt 与调用方明确指定的 failed ProducerExecution，选择 Contract、input hash、producer/Prompt、来源范围、质量约束、Evidence 要求与有效期全部匹配且 provenance 仍闭合的 CacheRecord。
 - 命中与拒绝均保留原 `run.failed` 事实并追加单调 Event/不可变审计；选择不改变 failed Run 或 origin Run 的终态，不移动 Artifact latest，不生成或复制 cached ArtifactVersion。相同 RunStep/selector request 并发选择只产生一份审计与 Event。
 - 当前 HTTP Run authoring 不接受 RevisionPlan、feedback、retry 或 cache 参数；缺少对应执行路径时必须 fail closed。

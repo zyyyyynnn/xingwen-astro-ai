@@ -374,14 +374,15 @@ def _seed_case(
         content = {"kind": artifact_kind}
         content_hash = compute_canonical_payload_hash(content)
         origin_producer.output_hash = content_hash
+        snapshot_query = {"target": "host_star"}
         snapshot = SourceSnapshotModel(
             id=uuid4(),
             project_id=project.id,
             source_id="nasa_exoplanet_archive",
             source_type="api",
             retrieved_at=datetime.now(UTC),
-            query={"target": "host_star"},
-            query_hash=HASH_A,
+            query=snapshot_query,
+            query_hash=compute_canonical_payload_hash(snapshot_query),
             source_version_or_etag="test-etag",
             content_hash=HASH_B,
             license_note="public test source",
@@ -668,6 +669,30 @@ def test_cache_record_admission_rejects_quality_projection_not_bound_to_version(
         )
 
 
+@pytest.mark.parametrize("corruption", ("artifact_content", "source_query"))
+def test_cache_record_admission_rejects_noncanonical_origin_identity(
+    postgres_engine: Engine, corruption: str
+) -> None:
+    _, _, _, version_id, _ = _seed_case(postgres_engine, "paper_summary")
+    factory = session_factory(postgres_engine)
+    with factory() as session, session.begin():
+        version = session.get(ArtifactVersionModel, version_id)
+        assert version is not None
+        if corruption == "artifact_content":
+            version.content = {"kind": "paper_summary", "corrupted": True}
+        else:
+            snapshot = session.get(
+                SourceSnapshotModel, UUID(version.source_snapshot_ids[0])
+            )
+            assert snapshot is not None
+            snapshot.query = {"target": "different_host_star"}
+
+    with pytest.raises(CacheRecordAdmissionError, match="hash is invalid"):
+        CacheRecordStore(factory).register(
+            version_id, expires_at=datetime.now(UTC) + timedelta(days=1)
+        )
+
+
 def test_cache_policy_and_recoverability_fail_closed_without_audit(
     postgres_engine: Engine,
 ) -> None:
@@ -767,6 +792,40 @@ def test_selector_revalidates_origin_provenance_before_hit(
         snapshot = session.get(SourceSnapshotModel, UUID(version.source_snapshot_ids[0]))
         assert snapshot is not None
         snapshot.content_hash = HASH_C
+
+    result = CacheSelector(factory).select_for_failed_run(
+        failed_run_id,
+        step_key="planning",
+        artifact_kind="reasoning_traces",
+        failed_producer_execution_id=producer_id,
+    )
+
+    assert result.outcome == "rejected"
+    assert result.reason == "CACHE_PROVENANCE_INVALID"
+
+
+@pytest.mark.parametrize("corruption", ("artifact_content", "source_query"))
+def test_selector_rejects_noncanonical_origin_identity_after_registration(
+    postgres_engine: Engine, corruption: str
+) -> None:
+    _, failed_run_id, _, version_id, producer_id = _seed_case(
+        postgres_engine, "reasoning_traces"
+    )
+    factory = session_factory(postgres_engine)
+    CacheRecordStore(factory).register(
+        version_id, expires_at=datetime.now(UTC) + timedelta(days=1)
+    )
+    with factory() as session, session.begin():
+        version = session.get(ArtifactVersionModel, version_id)
+        assert version is not None
+        if corruption == "artifact_content":
+            version.content = {"kind": "reasoning_traces", "corrupted": True}
+        else:
+            snapshot = session.get(
+                SourceSnapshotModel, UUID(version.source_snapshot_ids[0])
+            )
+            assert snapshot is not None
+            snapshot.query = {"target": "different_host_star"}
 
     result = CacheSelector(factory).select_for_failed_run(
         failed_run_id,

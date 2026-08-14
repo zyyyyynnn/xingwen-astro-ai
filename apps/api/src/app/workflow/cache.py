@@ -662,6 +662,10 @@ def _validate_origin(
         raise CacheRecordAdmissionError(
             "CacheRecord origin ArtifactVersion must have source_mode=live"
         )
+    if version.content_hash != compute_canonical_payload_hash(version.content):
+        raise CacheRecordAdmissionError(
+            "CacheRecord origin ArtifactVersion content hash is invalid"
+        )
     if producer.status != "completed" or producer.output_hash != version.content_hash:
         raise CacheRecordAdmissionError(
             "CacheRecord origin ProducerExecution must be completed and output-bound"
@@ -713,6 +717,13 @@ def _validate_origin(
     if not source_ids or len(snapshots) != len(source_ids):
         raise CacheRecordAdmissionError(
             "CacheRecord requires a closed non-empty SourceSnapshot set"
+        )
+    if any(
+        snapshot.query_hash != compute_canonical_payload_hash(snapshot.query)
+        for snapshot in snapshots
+    ):
+        raise CacheRecordAdmissionError(
+            "CacheRecord SourceSnapshot query hash is invalid"
         )
     if not evidence_ids or len(evidence) != len(evidence_ids):
         raise CacheRecordAdmissionError(
