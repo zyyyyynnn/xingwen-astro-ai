@@ -52,6 +52,7 @@ from app.services.resource_authority import (
     ResourceAuthority,
 )
 from app.services.snapshots import PersistentSnapshotStore, SnapshotService
+from app.workflow.cache import CacheRecordStore, CacheSelector
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
 from app.workflow.store import PersistentWorkflowStore
 
@@ -92,6 +93,8 @@ def _configure_database_runtime(
     workflow_store = PersistentWorkflowStore(factory)
     app.state.workflow_store = workflow_store
     app.state.workflow_executor = PersistentWorkflowExecutor(workflow_store)
+    app.state.cache_record_store = CacheRecordStore(factory)
+    app.state.cache_selector = CacheSelector(factory)
     model_port = QwenModelExecutionAdapter(
         api_key=(
             settings.DASHSCOPE_API_KEY.get_secret_value()

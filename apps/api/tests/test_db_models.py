@@ -29,6 +29,8 @@ def test_workflow_tables_and_unique_invariants_are_declared() -> None:
         "research_artifacts",
         "artifact_versions",
         "producer_executions",
+        "cache_records",
+        "cache_selection_audits",
     } <= set(Base.metadata.tables)
     assert ("project_id", "idempotency_key") in _unique_columns("research_runs")
     assert ("run_id", "key") in _unique_columns("run_steps")
@@ -37,6 +39,10 @@ def test_workflow_tables_and_unique_invariants_are_declared() -> None:
     assert ("run_id", "sequence") in _unique_columns("run_events")
     assert ("artifact_id", "version_number") in _unique_columns("artifact_versions")
     assert ("run_step_id", "idempotency_key") in _unique_columns("producer_executions")
+    assert ("project_id", "record_hash") in _unique_columns("cache_records")
+    assert ("run_step_id", "request_hash") in _unique_columns(
+        "cache_selection_audits"
+    )
 
 
 def test_document_parse_internal_tables_and_identity_are_declared() -> None:
@@ -79,6 +85,7 @@ def test_every_stable_text_state_has_a_database_check_constraint() -> None:
         "step_attempts",
         "producer_executions",
         "artifact_versions",
+        "cache_selection_audits",
     ):
         constraints = Base.metadata.tables[table_name].constraints
         assert any(isinstance(item, CheckConstraint) for item in constraints), table_name
