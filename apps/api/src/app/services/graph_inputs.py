@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TypeVar
+from uuid import UUID
 
 from pydantic import ValidationError
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.db.models import EvidenceModel
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import (
     ArtifactVersionDetail,
@@ -48,6 +53,58 @@ _Candidate = TypeVar(
     FieldDictionaryArtifactCandidate,
     LiteratureRelationsCandidate,
 )
+
+
+class DatabaseEvidenceRestrictionReadAdapter:
+    """Resolve exact persisted restriction flags for graph publication gates."""
+
+    def __init__(self, factory: Callable[[], Session]) -> None:
+        self._factory = factory
+
+    def read_restrictions(
+        self,
+        *,
+        project_id: str,
+        evidence_ids: tuple[str, ...],
+    ) -> tuple[EvidenceRestrictionFact, ...]:
+        try:
+            project_uuid = UUID(project_id)
+            requested = tuple(UUID(value) for value in evidence_ids)
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise SecurityProblem(
+                status=404,
+                code="EVIDENCE_NOT_FOUND",
+                title="Evidence not found",
+                detail="The requested Evidence closure was not found",
+            ) from exc
+        if len(requested) != len(set(requested)):
+            raise SecurityProblem(
+                status=409,
+                code="EVIDENCE_CLOSURE_INVALID",
+                title="Evidence closure invalid",
+                detail="The graph Evidence selection contains duplicate identities",
+            )
+        with self._factory() as session:
+            rows = tuple(
+                session.execute(
+                    select(
+                        EvidenceModel.id,
+                        EvidenceModel.project_id,
+                        EvidenceModel.is_restricted,
+                    ).where(
+                        EvidenceModel.project_id == project_uuid,
+                        EvidenceModel.id.in_(requested),
+                    )
+                ).all()
+            )
+        return tuple(
+            EvidenceRestrictionFact(
+                evidence_id=str(row.id),
+                project_id=str(row.project_id),
+                is_restricted=row.is_restricted,
+            )
+            for row in sorted(rows, key=lambda value: value.id)
+        )
 
 
 def _schema_error(message: str, *, path: str) -> GraphInputIntegrityError:
@@ -312,25 +369,32 @@ class ArtifactVersionGraphInputReadAdapter:
                     reason=GraphRejectionReason.evidence_inconsistent,
                     path=f"input_versions.{version.id}.evidence.{evidence.id}",
                 )
+            pipeline_evidence = candidate_evidence[pipeline_id]
+            expected_locator = {
+                "summary_evidence_id": pipeline_id,
+                "source_record_id": pipeline_evidence.source_record_id,
+                "paper_summary_locator": pipeline_evidence.locator.model_dump(
+                    mode="json", exclude_none=True
+                ),
+            }
+            if evidence.locator != expected_locator:
+                raise _evidence_error(
+                    "Literature Evidence locator disagrees with the sealed candidate",
+                    reason=GraphRejectionReason.evidence_inconsistent,
+                    path=f"input_versions.{version.id}.evidence.{evidence.id}.locator",
+                )
             evidence_bindings.append(
                 PersistedEvidenceBinding(
                     pipeline_evidence_id=pipeline_id,
                     pipeline_evidence_content_hash=compute_canonical_payload_hash(
-                        candidate_evidence[pipeline_id].model_dump(
+                        pipeline_evidence.model_dump(
                             mode="json", exclude_none=True
                         )
                     ),
-                    pipeline_source_snapshot_id=(
-                        candidate_evidence[pipeline_id].source_snapshot_id
-                    ),
+                    pipeline_source_snapshot_id=pipeline_evidence.source_snapshot_id,
                     pipeline_target_type="relation",
                     pipeline_target_id=evidence.target_id,
-                    pipeline_locator={
-                        "summary_evidence_id": pipeline_id,
-                        "source_record_id": candidate_evidence[
-                            pipeline_id
-                        ].source_record_id,
-                    },
+                    pipeline_locator=expected_locator,
                     evidence=evidence,
                     is_restricted=restrictions[evidence.id].is_restricted,
                 )
@@ -762,4 +826,7 @@ def _evidence_detail(read: EvidenceRead) -> EvidenceDetail:
     return EvidenceDetail.model_validate(payload)
 
 
-__all__ = ["ArtifactVersionGraphInputReadAdapter"]
+__all__ = [
+    "ArtifactVersionGraphInputReadAdapter",
+    "DatabaseEvidenceRestrictionReadAdapter",
+]

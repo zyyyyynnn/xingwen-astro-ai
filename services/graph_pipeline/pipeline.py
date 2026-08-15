@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from app.schemas._graph_seal import _bind_graph_pipeline_authority
 from app.schemas._hashing import compute_canonical_payload_hash
-from app.schemas.enums import EvidenceType, GraphEdgeType, GraphNodeType
+from app.schemas.enums import EvidenceType, GraphEdgeType
 from app.schemas.graph_artifact import (
     GRAPH_TAXONOMY_EDGE_TYPES,
     GRAPH_TAXONOMY_NODE_TYPES,
@@ -31,7 +31,6 @@ from app.schemas.graph_artifact import (
     GraphIntegrityFinding,
     GraphIntegrityStage,
     GraphIntegrityStatus,
-    GraphLayoutHint,
     GraphLogicalReferencePart,
     GraphNodeVersionBinding,
     GraphPolicySet,
@@ -576,7 +575,6 @@ def _add_literature(assembly: _Assembly, scope: GraphBuildScope) -> None:
     candidate = published.candidate
     claims = {item.claim_id: item for item in candidate.claims}
     relations = {item.relation_id: item for item in candidate.relations}
-    traces = {item.trace_id: item for item in candidate.reasoning_traces}
     for relation_id in scope.accepted_relation_ids:
         failure = _selected_relation_failure(relation_id, relations)
         if failure is not None:
@@ -1035,7 +1033,6 @@ def _add_data(assembly: _Assembly) -> None:
         return
     published_dataset = assembly.inputs.data.dataset
     published_dictionary = assembly.inputs.data.field_dictionary
-    dataset = published_dataset.candidate
     dictionary = published_dictionary.candidate
     dataset_identity = dataset_node_identity(published_dataset.pins.artifact_id)
     dataset_node = _node(

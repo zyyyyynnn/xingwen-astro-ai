@@ -16,9 +16,7 @@ from app.schemas.data_artifacts import (
     DatasetArtifactCandidate,
     DatasetRow,
     DeclaredNullValue,
-    FieldConflictRecord,
     MappedCanonicalValue,
-    SourceValueCandidate,
     UnresolvedCanonicalValue,
 )
 from app.schemas.manifest import FieldDefinition, ManifestBundle

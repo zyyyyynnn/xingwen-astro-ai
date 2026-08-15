@@ -122,9 +122,9 @@ def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
         )
         persist_authoring_models(session, project=project, draft=draft)
 
-    with TestClient(app, base_url="https://testserver") as client:
-        client.cookies.set(settings.SESSION_COOKIE_NAME, owner_credential)
-        try:
+    try:
+        with TestClient(app, base_url="https://testserver") as client:
+            client.cookies.set(settings.SESSION_COOKIE_NAME, owner_credential)
             yield {
                 "app": app,
                 "client": client,
@@ -136,9 +136,9 @@ def runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, object]]:
                 "project_id": str(project_id),
                 "draft_id": str(draft_id),
             }
-        finally:
-            command.downgrade(config, "base")
-            command.upgrade(config, "head")
+    finally:
+        command.downgrade(config, "base")
+        command.upgrade(config, "head")
 
 
 def _confirm_and_run(runtime: dict[str, object], *, key_suffix: str) -> tuple[str, str]:

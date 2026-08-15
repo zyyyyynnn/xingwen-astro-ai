@@ -10,10 +10,13 @@ from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.artifact_publication import canonical_artifact_content_model
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
+    ModelArtifactContent,
     ModelEvaluationArtifactContent,
     VisualizationArtifactContent,
     scientific_artifact_output_hash,
 )
+from app.services.resource_authority import _scientific_binary_references
+from app.services.scientific_artifacts import _declared_content_media_type
 
 
 HASH_A = "sha256:" + "a" * 64
@@ -41,6 +44,7 @@ def _seal(payload: dict[str, object]) -> dict[str, object]:
         "analysis_report": AnalysisReportArtifactContent,
         "visualization": VisualizationArtifactContent,
         "model_evaluation": ModelEvaluationArtifactContent,
+        "model_artifact": ModelArtifactContent,
     }[str(sealed["kind"])]
     return model.model_validate(sealed).model_dump(mode="json")
 
@@ -103,10 +107,13 @@ def _wwt_payload() -> dict[str, object]:
             "description": "A reproducible WWT view of the selected field.",
             "spec": {
                 "mode": "wwt_scene",
-                "center": {"ra_hours": 0.712, "dec_degrees": 41.269},
-                "field_of_view_degrees": 2.0,
+                "view": {
+                    "kind": "coordinates",
+                    "center": {"ra_hours": 0.712, "dec_degrees": 41.269},
+                    "field_of_view_degrees": 2.0,
+                },
                 "background": "digitized_sky_survey",
-                "coordinate_grid": "equatorial",
+                "coordinate_grids": [{"system": "equatorial", "labels": True}],
                 "fits_layers": [
                     {
                         "layer_id": "layer.primary",
@@ -114,6 +121,22 @@ def _wwt_payload() -> dict[str, object]:
                         "content_ref": "content.fits.primary",
                         "content_hash": HASH_C,
                         "opacity": 0.9,
+                    }
+                ],
+                "table_layers": [
+                    {
+                        "layer_id": "layer.catalog",
+                        "source_snapshot_id": "snapshot.catalog",
+                        "content_ref": "content.catalog",
+                        "content_hash": HASH_B,
+                        "media_type": "text/csv",
+                        "coordinates": {
+                            "kind": "spherical",
+                            "frame": "sky",
+                            "longitude_field": "ra",
+                            "latitude_field": "dec",
+                            "longitude_unit": "hours",
+                        },
                     }
                 ],
                 "annotations": [
@@ -125,9 +148,12 @@ def _wwt_payload() -> dict[str, object]:
                         "radius_degrees": 0.1,
                     }
                 ],
+                "text_alternative": (
+                    "A two-degree WWT view of the target field with a FITS layer."
+                ),
             },
             "skill_executions": [_execution("wwt_scene")],
-            "source_snapshot_ids": ["snapshot.fits"],
+            "source_snapshot_ids": ["snapshot.fits", "snapshot.catalog"],
             "evidence_ids": [],
             "input_hash": HASH_A,
         }
@@ -144,7 +170,10 @@ def _model_payload() -> dict[str, object]:
             "task_kind": "classification",
             "algorithm": "random_forest",
             "algorithm_version": "scikit-learn:current",
-            "dataset_artifact_version_id": "version.dataset",
+            "training_input": {
+                "kind": "dataset_artifact_version",
+                "ref_id": "version.dataset",
+            },
             "feature_fields": ["star.mass", "star.radius"],
             "target_field": "star.class",
             "split": {
@@ -173,12 +202,55 @@ def _model_payload() -> dict[str, object]:
     )
 
 
+def _model_artifact_payload() -> dict[str, object]:
+    return _seal(
+        {
+            "kind": "model_artifact",
+            "schema_version": "1.0.0",
+            "model_id": "model.classifier",
+            "title": "Host-star classifier model",
+            "status": "active",
+            "task_kind": "classification",
+            "algorithm": "random_forest",
+            "algorithm_version": "scikit-learn:current",
+            "training_input": {
+                "kind": "dataset_artifact_version",
+                "ref_id": "version.dataset",
+            },
+            "evaluation_id": "evaluation.classifier",
+            "feature_fields": ["star.mass", "star.radius"],
+            "target_field": "star.class",
+            "model_binary": {
+                "content_ref": "models/classifier.onnx",
+                "content_hash": HASH_C,
+                "media_type": "application/onnx",
+            },
+            "input_name": "X",
+            "output_names": ["label", "probabilities"],
+            "input_shape": [None, 2],
+            "opset_imports": {"ai.onnx": 21, "ai.onnx.ml": 3},
+            "dependency_revisions": [
+                "onnx==1.22.0",
+                "onnxruntime==1.28.0",
+                "scikit-learn==1.9.1",
+                "skl2onnx==1.20.0",
+            ],
+            "skill_execution": _execution("tabular_machine_learning"),
+            "limitations": [],
+            "source_snapshot_ids": [],
+            "evidence_ids": [],
+            "input_hash": HASH_A,
+        }
+    )
+
+
 @pytest.mark.parametrize(
     ("kind", "model", "payload_factory"),
     [
         ("analysis_report", AnalysisReportArtifactContent, _analysis_payload),
         ("visualization", VisualizationArtifactContent, _wwt_payload),
         ("model_evaluation", ModelEvaluationArtifactContent, _model_payload),
+        ("model_artifact", ModelArtifactContent, _model_artifact_payload),
     ],
 )
 def test_scientific_artifacts_are_canonical_current_publication_models(
@@ -210,12 +282,36 @@ def test_wwt_scene_rejects_undeclared_fits_snapshot() -> None:
         VisualizationArtifactContent.model_validate(payload)
 
 
+def test_wwt_scene_declares_fits_and_table_content_resources() -> None:
+    payload = _wwt_payload()
+    content = VisualizationArtifactContent.model_validate(payload)
+
+    assert _scientific_binary_references("visualization", payload) == (
+        (HASH_C, "content.fits.primary"),
+        (HASH_B, "content.catalog"),
+    )
+    assert _declared_content_media_type(content, HASH_C) == "application/fits"
+    assert _declared_content_media_type(content, HASH_B) == "text/csv"
+
+
 def test_model_evaluation_rejects_non_training_skill() -> None:
     payload = _model_payload()
     payload["skill_execution"] = _execution("data_profile")
 
     with pytest.raises(ValidationError, match="model-training skill"):
         ModelEvaluationArtifactContent.model_validate(payload)
+
+
+def test_model_artifact_rejects_executable_python_serialization() -> None:
+    payload = _model_artifact_payload()
+    payload["model_binary"] = {
+        "content_ref": "models/classifier.pkl",
+        "content_hash": HASH_C,
+        "media_type": "application/vnd.sklearn",
+    }
+
+    with pytest.raises(ValidationError, match="accepts only ONNX"):
+        ModelArtifactContent.model_validate(payload)
 
 
 def test_scientific_artifact_rejects_output_hash_drift() -> None:

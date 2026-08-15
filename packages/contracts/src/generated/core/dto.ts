@@ -31,15 +31,25 @@ export type ScientificSkillId =
   | "data_profile"
   | "statistical_analysis"
   | "correlation_analysis"
+  | "clustering_analysis"
+  | "anomaly_detection"
   | "chart_visualization"
   | "simbad_lookup"
   | "skyview_fits"
   | "ephemeris"
   | "celestial_events"
+  | "gaia_cone_search"
+  | "vizier_tap"
   | "fits_image_analysis"
+  | "spectrum_analysis"
+  | "spectrum_acquisition"
+  | "light_curve_analysis"
+  | "light_curve_acquisition"
   | "tabular_machine_learning"
+  | "time_series_classification"
   | "time_series_forecast"
   | "image_classification"
+  | "model_inference"
   | "wwt_scene";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -56,7 +66,10 @@ export type ArtifactKind =
   | "source_collection"
   | "analysis_report"
   | "visualization"
+  | "spectrum"
+  | "light_curve"
   | "model_evaluation"
+  | "model_artifact"
   | "paper_collection"
   | "paper_summary"
   | "literature_claims"
@@ -261,7 +274,8 @@ export type ResearchInputStatus = "accepted" | "unsupported_processing" | "faile
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ResearchInputType".
  */
-export type ResearchInputType = "url" | "pdf" | "csv" | "json" | "image" | "text";
+export type ResearchInputType =
+  "url" | "pdf" | "csv" | "xlsx" | "parquet" | "json" | "image" | "image_dataset" | "fits" | "text";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "RunStatus".
@@ -608,9 +622,20 @@ export type PlannerOutcomeKind =
   "clarification_required" | "draft_ready" | "partial" | "unsupported" | "refused";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RunCheckpointStatus".
+ */
+export type RunCheckpointStatus = "open" | "resolved" | "cancelled";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "ModelTaskKind".
  */
-export type ModelTaskKind = "classification" | "regression" | "forecast" | "image_classification";
+export type ModelTaskKind =
+  | "classification"
+  | "regression"
+  | "time_series_classification"
+  | "forecast"
+  | "image_classification";
+export type ModelArtifactStatus = "active" | "deprecated" | "revoked";
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "GraphEdgeType".
@@ -628,6 +653,11 @@ export type GraphEdgeType =
   | "uses_same_dataset"
   | "compares_method"
   | "corrected_by_feedback";
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelArtifactStatus".
+ */
+export type ModelArtifactStatus1 = "active" | "deprecated" | "revoked";
 /**
  * Stable lifecycle states for a controlled research input.
  *
@@ -760,7 +790,14 @@ export interface ScientificEvidence {
   quote_or_value?: JsonValue | null;
   source_snapshot_id: string;
   target_id: string;
-  target_type: "result_block" | "metric" | "visualization" | "evaluation";
+  target_type:
+    | "result_block"
+    | "metric"
+    | "visualization"
+    | "spectrum"
+    | "light_curve"
+    | "evaluation"
+    | "model";
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -963,6 +1000,13 @@ export interface BindResearchInputToRunRequest {
   contract_draft_id?: null;
   project_id: string;
   run_id: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "CancelRunDecisionRequest".
+ */
+export interface CancelRunDecisionRequest {
+  decision: "cancel";
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -1887,17 +1931,21 @@ export interface CollectionEnvelope_RunStepRead_ {
  * via the `definition` "RunStepRead".
  */
 export interface RunStepRead {
+  depends_on_step_keys?: string[];
   failure_code?: string | null;
   finished_at?: string | null;
   id: string;
   key: string;
   label: string;
+  phase: string;
   position: number;
   progress: number;
   public_message: string;
   run_id: string;
+  skill_id?: ScientificSkillId | null;
   started_at?: string | null;
   status: RunStepStatus;
+  task_id?: string | null;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -2055,7 +2103,7 @@ export interface CreateResearchInputMultipartRequest {
   filename?: string | null;
   mime_type?: string | null;
   project_id: string;
-  type: "pdf" | "csv" | "json" | "image";
+  type: "pdf" | "csv" | "xlsx" | "parquet" | "json" | "image" | "image_dataset" | "fits";
 }
 /**
  * Minimal project creation payload; `case_key` stays frozen to the main case.
@@ -2563,6 +2611,67 @@ export interface DatasetArtifactRead {
   source_snapshots: SourceSnapshotDetail[];
 }
 /**
+ * Axis-aligned bounding box in absolute PDF points.
+ *
+ * Coordinate system (authoritative):
+ * - origin: top-left corner of the page, ``(0, 0)``.
+ * - x axis: increases left → right.
+ * - y axis: increases top → bottom.
+ * - units: PDF points (1 point = 1/72 inch).
+ * - page-relative: coordinates are expressed in the page's own width/height
+ *   space; a locator is only meaningful together with its ``page_index``.
+ * - normalized: **false** — these are absolute points, not 0..1 ratios.
+ * - valid range (enforced at the aggregate level, where page geometry is
+ *   known): ``0 <= x1 <= x2 <= page_width`` and
+ *   ``0 <= y1 <= y2 <= page_height``.
+ * - empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``
+ *   is ``None``). A zero-rect MUST NOT be used to mean "unknown".
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DocumentBBox".
+ */
+export interface DocumentBBox {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
+/**
+ * Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.
+ *
+ * A locator is only complete together with the owning ``DocumentParseCandidate``
+ * (which carries ``research_input_id`` / input ``content_hash``). It must be
+ * persistable and verifiable by DocumentParse Persistence without re-parsing the source.
+ *
+ * This is the ONLY locator representation in the contract. ``page_index``,
+ * ``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere
+ * else; the ``ScientificDataExtractionCandidate`` references a parse solely
+ * through this locator, so contradictory parallel locator fields are
+ * impossible by construction.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "DocumentLocator".
+ */
+export interface DocumentLocator {
+  bbox?: DocumentBBox | null;
+  block_id?: string | null;
+  cell_id?: string | null;
+  page_index: number;
+  reading_order?: number | null;
+  table_id?: string | null;
+  text_span?: TextSpan | null;
+}
+/**
+ * Character-offset span within a block's raw text (0-based, inclusive start).
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "TextSpan".
+ */
+export interface TextSpan {
+  end: number;
+  start: number;
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_ArtifactExportRead_".
  */
@@ -2978,7 +3087,7 @@ export interface PaperCollectionRead {
  */
 export interface PaperCollection {
   acquisition_run: PaperCollectionAcquisitionRun;
-  benchmark: PaperBenchmarkReference;
+  benchmark?: PaperBenchmarkReference | null;
   candidates?: PaperCollectionCandidate[];
   dedupe_rule: string;
   duplicate_groups?: PaperDuplicateGroup[];
@@ -2990,6 +3099,7 @@ export interface PaperCollection {
   producer: ProducerExecution;
   query: NormalizedPaperQuery;
   ranking_rule: string;
+  research_contract?: PaperSearchContractReference | null;
   rules: PaperCollectionRules;
   schema_version?: "2.0.0";
   selected_paper_ids?: string[];
@@ -3126,6 +3236,17 @@ export interface PaperQueryPagination {
   page_size: number;
 }
 /**
+ * Immutable production Contract identity used by Paper Search.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSearchContractReference".
+ */
+export interface PaperSearchContractReference {
+  content_hash: string;
+  contract_id: string;
+  contract_version: number;
+}
+/**
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PaperCollectionRules".
  */
@@ -3258,7 +3379,7 @@ export interface PaperSummaryCacheAudit {
   source_snapshot_id: string;
 }
 /**
- * Bibliographic identity projected from the pinned input PaperCollection.
+ * Bibliographic identity carried by the admitted summary input.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "PaperSummaryPaperMetadata".
@@ -3277,7 +3398,7 @@ export interface PaperSummaryPaperMetadata {
  */
 export interface PaperSummaryArtifactContent {
   background: PaperSummarySection;
-  benchmark: PaperBenchmarkReference;
+  benchmark?: PaperBenchmarkReference | null;
   dataset: PaperSummarySection;
   discussion: PaperSummarySection;
   evidence: PaperSummaryEvidence[];
@@ -3289,10 +3410,11 @@ export interface PaperSummaryArtifactContent {
   limitations: PaperSummarySection;
   methodology: PaperSummarySection;
   output_hash: string;
+  paper: PaperSummaryPaperMetadata;
   paper_id: string;
   producer: PaperSummaryProducerExecution;
   research_questions: PaperSummarySection;
-  schema_version: "2.0.0";
+  schema_version: "3.0.0";
   source_conflicts: PaperSummarySourceConflict[];
   summary_id: string;
 }
@@ -3340,12 +3462,15 @@ export interface PaperSummaryEvidence {
  * via the `definition` "PaperSummaryEvidenceLocator".
  */
 export interface PaperSummaryEvidenceLocator {
+  document_locator?: DocumentLocator | null;
+  document_parse_id?: string | null;
+  document_parse_output_hash?: string | null;
   kind: "paper_text" | "paper_metadata";
   metadata_field?:
     ("source_record_id" | "title" | "authors" | "year" | "doi" | "arxiv_id" | "url") | null;
   paragraph?: number | null;
   section?: string | null;
-  source_url: string;
+  source_url?: string | null;
   text_range?: string | null;
 }
 /**
@@ -3353,10 +3478,33 @@ export interface PaperSummaryEvidenceLocator {
  * via the `definition` "PaperSummaryInputVersions".
  */
 export interface PaperSummaryInputVersions {
-  paper_collection_output_hash: string;
-  paper_collection_schema_version: string;
-  paper_collection_version_id: string;
+  collection?: PaperSummaryCollectionReference | null;
+  document_parses?: PaperSummaryDocumentParseReference[];
   source_snapshots: PaperSummarySourceSnapshotReference[];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryCollectionReference".
+ */
+export interface PaperSummaryCollectionReference {
+  artifact_version_id: string;
+  output_hash: string;
+  schema_version: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryDocumentParseReference".
+ */
+export interface PaperSummaryDocumentParseReference {
+  candidate_parse_id: string;
+  canonical_output_hash: string;
+  config_hash: string;
+  document_parse_id: string;
+  input_content_hash: string;
+  parser_profile_id: string;
+  parser_profile_version: string;
+  research_input_id: string;
+  source_snapshot_id: string;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3381,6 +3529,7 @@ export interface PaperSummaryProducerExecution {
   latency_ms: number;
   model_name: string;
   model_response_hash: string;
+  model_revision?: string | null;
   output_hash?: string | null;
   parameters_hash: string;
   parameters_version: string;
@@ -3390,10 +3539,22 @@ export interface PaperSummaryProducerExecution {
   prompt_hash: string;
   prompt_name: string;
   prompt_version: string;
+  provider?: string | null;
+  provider_request_id?: string | null;
   run_id?: string | null;
   started_at: string;
   status: "completed" | "rejected";
   step_key?: "summarizing_papers";
+  usage?: PaperSummaryModelUsage | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PaperSummaryModelUsage".
+ */
+export interface PaperSummaryModelUsage {
+  completion_tokens: number;
+  prompt_tokens: number;
+  total_tokens: number;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3661,6 +3822,7 @@ export interface ResearchRun {
   progress: number;
   project_id: string;
   retry_from_step?: string | null;
+  revision: number;
   started_at?: string | null;
   status: RunStatus;
   updated_at: string;
@@ -3715,6 +3877,68 @@ export interface ResearchTurnResult {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_RunCheckpointRead_".
+ */
+export interface Envelope_RunCheckpointRead_ {
+  data: RunCheckpointRead;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * Auditable human-input boundary for one suspended RunStep.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RunCheckpointRead".
+ */
+export interface RunCheckpointRead {
+  code: string;
+  id: string;
+  opened_at: string;
+  public_message: string;
+  /**
+   * @minItems 1
+   */
+  required_input_types: ["pdf" | "text", ...("pdf" | "text")[]];
+  resolution_run_id?: string | null;
+  resolved_at?: string | null;
+  run_id: string;
+  status: RunCheckpointStatus;
+  step_key: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "Envelope_RunDecisionResult_".
+ */
+export interface Envelope_RunDecisionResult_ {
+  data: RunDecisionResult;
+  links: ResponseLinks;
+  meta: ResponseMeta;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RunDecisionResult".
+ */
+export interface RunDecisionResult {
+  decision: RunDecisionRead;
+  run: ResearchRun;
+}
+/**
+ * Immutable audit record for a checkpoint or failed-step decision.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RunDecisionRead".
+ */
+export interface RunDecisionRead {
+  child_run_id?: string | null;
+  created_at: string;
+  decision: "resume" | "retry" | "cancel";
+  id: string;
+  input_ids?: string[];
+  parent_run_id: string;
+  step_key: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "Envelope_ScientificArtifactRead_".
  */
 export interface Envelope_ScientificArtifactRead_ {
@@ -3732,7 +3956,12 @@ export interface ScientificArtifactRead {
   artifact_id: string;
   artifact_version_id: string;
   content:
-    AnalysisReportArtifactContent | VisualizationArtifactContent | ModelEvaluationArtifactContent;
+    | AnalysisReportArtifactContent
+    | VisualizationArtifactContent
+    | SpectrumArtifactContent
+    | LightCurveArtifactContent
+    | ModelEvaluationArtifactContent
+    | ModelArtifactContent;
   content_hash: string;
   created_at: string;
   evidence: EvidenceDetail[];
@@ -3788,14 +4017,64 @@ export interface FitsImageVisualizationSpec {
  * via the `definition` "WwtSceneVisualizationSpec".
  */
 export interface WwtSceneVisualizationSpec {
+  /**
+   * @maxItems 1000
+   */
   annotations?: WwtAnnotation[];
   background?: "digitized_sky_survey" | "gaia" | "wise" | "solar_system";
-  center: WwtCoordinate;
-  coordinate_grid?: "none" | "equatorial" | "galactic" | "ecliptic" | "altaz";
-  field_of_view_degrees: number;
+  constellations?: WwtConstellationOverlays;
+  /**
+   * @maxItems 4
+   */
+  coordinate_grids?:
+    | []
+    | [WwtCoordinateGrid]
+    | [WwtCoordinateGrid, WwtCoordinateGrid]
+    | [WwtCoordinateGrid, WwtCoordinateGrid, WwtCoordinateGrid]
+    | [WwtCoordinateGrid, WwtCoordinateGrid, WwtCoordinateGrid, WwtCoordinateGrid];
+  /**
+   * @maxItems 64
+   */
   fits_layers?: WwtFitsLayer[];
+  foreground?: WwtForeground | null;
   mode?: "wwt_scene";
-  observed_at?: string | null;
+  observer?: WwtObserver | null;
+  precession_chart?: boolean;
+  /**
+   * @maxItems 4
+   */
+  readbacks?:
+    | []
+    | ["center_coordinates" | "field_of_view" | "camera_roll" | "current_time"]
+    | [
+        "center_coordinates" | "field_of_view" | "camera_roll" | "current_time",
+        "center_coordinates" | "field_of_view" | "camera_roll" | "current_time",
+      ]
+    | [
+        "center_coordinates" | "field_of_view" | "camera_roll" | "current_time",
+        "center_coordinates" | "field_of_view" | "camera_roll" | "current_time",
+        "center_coordinates" | "field_of_view" | "camera_roll" | "current_time",
+      ]
+    | [
+        "center_coordinates" | "field_of_view" | "camera_roll" | "current_time",
+        "center_coordinates" | "field_of_view" | "camera_roll" | "current_time",
+        "center_coordinates" | "field_of_view" | "camera_roll" | "current_time",
+        "center_coordinates" | "field_of_view" | "camera_roll" | "current_time",
+      ];
+  solar_system?: WwtSolarSystemOptions | null;
+  /**
+   * @maxItems 64
+   */
+  table_layers?: WwtTableLayer[];
+  text_alternative: string;
+  time?: WwtTimeControl;
+  tour_autoplay?: boolean;
+  tour_loop?: boolean;
+  /**
+   * @maxItems 512
+   */
+  tour_steps?: WwtSceneStep[];
+  view: WwtCoordinateView | WwtTrackedObjectView;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3804,8 +4083,11 @@ export interface WwtSceneVisualizationSpec {
 export interface WwtAnnotation {
   annotation_id: string;
   color_token?: "brand" | "information" | "success" | "warning" | "error" | "neutral";
-  kind: "circle" | "line" | "label";
+  fill?: boolean;
+  fill_color_token?: "brand" | "information" | "success" | "warning" | "error" | "neutral";
+  kind: "circle" | "line" | "point" | "label";
   label?: string | null;
+  line_width?: number;
   /**
    * @minItems 1
    * @maxItems 1000
@@ -3823,14 +4105,197 @@ export interface WwtCoordinate {
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtConstellationOverlays".
+ */
+export interface WwtConstellationOverlays {
+  boundaries?: boolean;
+  figures?: boolean;
+  labels?: boolean;
+  pictures?: boolean;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtCoordinateGrid".
+ */
+export interface WwtCoordinateGrid {
+  labels?: boolean;
+  system: "equatorial" | "galactic" | "ecliptic" | "altaz";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
  * via the `definition` "WwtFitsLayer".
  */
 export interface WwtFitsLayer {
+  color_map?: "gray" | "viridis" | "magma" | "inferno";
   content_hash: string;
   content_ref: string;
   layer_id: string;
   opacity?: number;
   source_snapshot_id: string;
+  stretch?: "linear" | "sqrt" | "log" | "power" | "histogram_equalization";
+  vmax?: number | null;
+  vmin?: number | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtForeground".
+ */
+export interface WwtForeground {
+  image_set: "digitized_sky_survey" | "gaia" | "wise";
+  opacity?: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtObserver".
+ */
+export interface WwtObserver {
+  elevation_meters?: number;
+  latitude_degrees: number;
+  local_horizon_mode?: boolean;
+  longitude_degrees: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtSolarSystemOptions".
+ */
+export interface WwtSolarSystemOptions {
+  cosmos?: boolean;
+  lighting?: boolean;
+  milky_way?: boolean;
+  minor_orbits?: boolean;
+  minor_planets?: boolean;
+  orbits?: boolean;
+  planets?: boolean;
+  scale?: number;
+  stars?: boolean;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtTableLayer".
+ */
+export interface WwtTableLayer {
+  color_field?: string | null;
+  color_token?: "brand" | "information" | "success" | "warning" | "error" | "neutral";
+  content_hash: string;
+  content_ref: string;
+  coordinates: WwtSphericalTableCoordinates | WwtCartesianTableCoordinates;
+  layer_id: string;
+  marker_scale?: "screen" | "world";
+  media_type: "text/csv" | "text/tab-separated-values" | "application/vnd.ivoa.votable+xml";
+  opacity?: number;
+  size_field?: string | null;
+  size_scale?: number;
+  source_snapshot_id: string;
+  time_series?: WwtTableTimeSeries | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtSphericalTableCoordinates".
+ */
+export interface WwtSphericalTableCoordinates {
+  altitude_field?: string | null;
+  frame?:
+    | "sky"
+    | "ecliptic"
+    | "galactic"
+    | "sun"
+    | "mercury"
+    | "venus"
+    | "earth"
+    | "moon"
+    | "mars"
+    | "jupiter"
+    | "saturn"
+    | "uranus"
+    | "neptune"
+    | "pluto";
+  kind?: "spherical";
+  latitude_field: string;
+  longitude_field: string;
+  longitude_unit?: "degrees" | "hours";
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtCartesianTableCoordinates".
+ */
+export interface WwtCartesianTableCoordinates {
+  frame:
+    | "sun"
+    | "mercury"
+    | "venus"
+    | "earth"
+    | "moon"
+    | "mars"
+    | "jupiter"
+    | "saturn"
+    | "uranus"
+    | "neptune"
+    | "pluto";
+  kind?: "cartesian";
+  x_field: string;
+  xyz_unit: "m" | "km" | "au" | "pc" | "kpc" | "mpc";
+  y_field: string;
+  z_field: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtTableTimeSeries".
+ */
+export interface WwtTableTimeSeries {
+  decay_days: number;
+  time_field: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtTimeControl".
+ */
+export interface WwtTimeControl {
+  mode?: "system_clock" | "paused" | "playback";
+  observed_at?: string | null;
+  rate?: number | null;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtSceneStep".
+ */
+export interface WwtSceneStep {
+  hold_seconds?: number;
+  observed_at?: string | null;
+  step_id: string;
+  view: WwtCoordinateView | WwtTrackedObjectView;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtCoordinateView".
+ */
+export interface WwtCoordinateView {
+  center: WwtCoordinate;
+  field_of_view_degrees: number;
+  kind?: "coordinates";
+  roll_degrees?: number;
+  transition_seconds?: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "WwtTrackedObjectView".
+ */
+export interface WwtTrackedObjectView {
+  field_of_view_degrees?: number;
+  kind?: "tracked_object";
+  roll_degrees?: number;
+  target:
+    | "sun"
+    | "mercury"
+    | "venus"
+    | "earth"
+    | "moon"
+    | "mars"
+    | "jupiter"
+    | "saturn"
+    | "uranus"
+    | "neptune"
+    | "pluto";
+  transition_seconds?: number;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3848,6 +4313,206 @@ export interface ModelDiagnosticVisualizationSpec {
   model_evaluation_artifact_version_id: string;
 }
 /**
+ * Continuum-normalized spectrum with bounded samples and detected lines.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SpectrumArtifactContent".
+ */
+export interface SpectrumArtifactContent {
+  /**
+   * @maxItems 32
+   */
+  detected_lines: SpectrumLine[];
+  evidence_ids: string[];
+  flux_unit: string;
+  input_hash: string;
+  kind?: "spectrum";
+  object_name: string;
+  output_hash: string;
+  /**
+   * @minItems 8
+   * @maxItems 10000
+   */
+  points: [
+    SpectrumPoint,
+    SpectrumPoint,
+    SpectrumPoint,
+    SpectrumPoint,
+    SpectrumPoint,
+    SpectrumPoint,
+    SpectrumPoint,
+    SpectrumPoint,
+    ...SpectrumPoint[],
+  ];
+  radial_velocity_km_s?: number | null;
+  rest_wavelength?: number | null;
+  sample_count: number;
+  schema_version?: "1.0.0";
+  scientific_evidence?: ScientificEvidence[];
+  signal_to_noise: number;
+  /**
+   * @minItems 1
+   */
+  skill_executions: [ScientificSkillExecution, ...ScientificSkillExecution[]];
+  source_snapshot_ids: string[];
+  spectrum_id: string;
+  title: string;
+  wavelength_unit: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SpectrumLine".
+ */
+export interface SpectrumLine {
+  equivalent_width: number;
+  kind: "emission" | "absorption";
+  line_id: string;
+  normalized_flux: number;
+  observed_wavelength: number;
+  significance_sigma: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "SpectrumPoint".
+ */
+export interface SpectrumPoint {
+  continuum: number;
+  flux: number;
+  normalized_flux: number;
+  uncertainty?: number | null;
+  wavelength: number;
+}
+/**
+ * Quality-filtered light curve with a bounded Lomb-Scargle period result.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LightCurveArtifactContent".
+ */
+export interface LightCurveArtifactContent {
+  accepted_sample_count: number;
+  best_period: number;
+  best_power: number;
+  duration: number;
+  evidence_ids: string[];
+  false_alarm_probability?: number | null;
+  input_hash: string;
+  kind?: "light_curve";
+  light_curve_id: string;
+  median_cadence: number;
+  normalization: "median_division" | "median_subtraction";
+  object_name: string;
+  output_hash: string;
+  /**
+   * @minItems 1
+   * @maxItems 10
+   */
+  period_peaks:
+    | [PeriodogramPeak]
+    | [PeriodogramPeak, PeriodogramPeak]
+    | [PeriodogramPeak, PeriodogramPeak, PeriodogramPeak]
+    | [PeriodogramPeak, PeriodogramPeak, PeriodogramPeak, PeriodogramPeak]
+    | [PeriodogramPeak, PeriodogramPeak, PeriodogramPeak, PeriodogramPeak, PeriodogramPeak]
+    | [
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+      ]
+    | [
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+      ]
+    | [
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+      ]
+    | [
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+      ]
+    | [
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+        PeriodogramPeak,
+      ];
+  /**
+   * @minItems 8
+   * @maxItems 10000
+   */
+  points: [
+    LightCurvePoint,
+    LightCurvePoint,
+    LightCurvePoint,
+    LightCurvePoint,
+    LightCurvePoint,
+    LightCurvePoint,
+    LightCurvePoint,
+    LightCurvePoint,
+    ...LightCurvePoint[],
+  ];
+  rejected_sample_count: number;
+  sample_count: number;
+  schema_version?: "1.0.0";
+  scientific_evidence?: ScientificEvidence[];
+  /**
+   * @minItems 1
+   */
+  skill_executions: [ScientificSkillExecution, ...ScientificSkillExecution[]];
+  source_snapshot_ids: string[];
+  time_scale: "utc" | "tai" | "tt" | "tdb";
+  time_unit: string;
+  title: string;
+  value_kind: "relative_flux" | "flux" | "magnitude";
+  value_unit: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "PeriodogramPeak".
+ */
+export interface PeriodogramPeak {
+  period: number;
+  power: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "LightCurvePoint".
+ */
+export interface LightCurvePoint {
+  normalized_value: number;
+  phase: number;
+  quality: "good" | "rejected";
+  time: number;
+  uncertainty?: number | null;
+  value: number;
+}
+/**
  * Reproducible evaluation metadata for a bounded scientific model task.
  *
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3857,7 +4522,6 @@ export interface ModelEvaluationArtifactContent {
   algorithm: string;
   algorithm_version: string;
   baseline_metrics?: ScientificMetric[];
-  dataset_artifact_version_id: string;
   diagnostic_visualization_ids?: string[];
   evaluation_id: string;
   evidence_ids: string[];
@@ -3865,6 +4529,7 @@ export interface ModelEvaluationArtifactContent {
    * @minItems 1
    */
   feature_fields: [string, ...string[]];
+  image_training?: ImageTrainingSpecification | null;
   input_hash: string;
   kind?: "model_evaluation";
   limitations?: string[];
@@ -3882,6 +4547,53 @@ export interface ModelEvaluationArtifactContent {
   target_field: string;
   task_kind: ModelTaskKind;
   title: string;
+  training_input: ModelTrainingInputReference;
+}
+/**
+ * Reproducible label and tensor contract for an image training run.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ImageTrainingSpecification".
+ */
+export interface ImageTrainingSpecification {
+  image_count: number;
+  /**
+   * @minItems 3
+   * @maxItems 3
+   */
+  image_shape: [unknown, unknown, unknown];
+  /**
+   * @minItems 2
+   */
+  label_schema: [ImageLabelDefinition, ImageLabelDefinition, ...ImageLabelDefinition[]];
+  manifest_schema_version?: "1.0.0";
+  preprocessing: ImagePreprocessingSpecification;
+  source_total_pixels: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ImageLabelDefinition".
+ */
+export interface ImageLabelDefinition {
+  class_index: number;
+  label: string;
+  sample_count: number;
+}
+/**
+ * Fixed server-owned preprocessing applied to every training image.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ImagePreprocessingSpecification".
+ */
+export interface ImagePreprocessingSpecification {
+  color_mode?: "RGB";
+  exif_transpose?: true;
+  normalization?: "uint8_to_unit_interval";
+  resampling?: "bilinear";
+  resize_height?: 32;
+  resize_mode?: "contain_pad";
+  resize_width?: 32;
+  schema_version?: "1.0.0";
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -3902,6 +4614,62 @@ export interface ModelSplitReference {
   test_fraction: number;
   train_fraction: number;
   validation_fraction: number;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelTrainingInputReference".
+ */
+export interface ModelTrainingInputReference {
+  kind: "dataset_artifact_version" | "source_snapshot";
+  ref_id: string;
+}
+/**
+ * Safe, immutable ONNX model and its inference contract.
+ *
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ModelArtifactContent".
+ */
+export interface ModelArtifactContent {
+  algorithm: string;
+  algorithm_version: string;
+  /**
+   * @minItems 1
+   */
+  dependency_revisions: [string, ...string[]];
+  evaluation_id: string;
+  evidence_ids: string[];
+  /**
+   * @minItems 1
+   */
+  feature_fields: [string, ...string[]];
+  image_training?: ImageTrainingSpecification | null;
+  input_hash: string;
+  input_name: string;
+  /**
+   * @minItems 2
+   */
+  input_shape: [number | null, number | null, ...(number | null)[]];
+  kind?: "model_artifact";
+  limitations?: string[];
+  model_binary: ModelBinaryReference;
+  model_id: string;
+  opset_imports: {
+    [k: string]: number;
+  };
+  output_hash: string;
+  /**
+   * @minItems 1
+   */
+  output_names: [string, ...string[]];
+  schema_version?: "1.0.0";
+  scientific_evidence?: ScientificEvidence[];
+  skill_execution: ScientificSkillExecution;
+  source_snapshot_ids: string[];
+  status?: ModelArtifactStatus;
+  target_field: string;
+  task_kind: ModelTaskKind;
+  title: string;
+  training_input: ModelTrainingInputReference;
 }
 /**
  * This interface was referenced by `CoreContract`'s JSON-Schema
@@ -4141,6 +4909,26 @@ export interface ProblemFieldError {
 export interface ResearchTurnRequest {
   answer_to_question_id?: string | null;
   message: string;
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "ResumeRunDecisionRequest".
+ */
+export interface ResumeRunDecisionRequest {
+  decision: "resume";
+  /**
+   * @minItems 1
+   * @maxItems 32
+   */
+  input_ids: [string, ...string[]];
+}
+/**
+ * This interface was referenced by `CoreContract`'s JSON-Schema
+ * via the `definition` "RetryRunDecisionRequest".
+ */
+export interface RetryRunDecisionRequest {
+  decision: "retry";
+  step_key: string;
 }
 /**
  * JSON create for ``type=text``: the body carries the text itself.

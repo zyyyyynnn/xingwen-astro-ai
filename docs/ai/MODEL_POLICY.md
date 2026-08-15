@@ -23,6 +23,26 @@ Run 内模型 Pipeline 使用 ProducerExecution 保存：
 - `parameters_hash`、`input_hash`、`output_hash`；
 - 状态、错误码、token usage 与 latency。
 
+Run 内 bounded Function Calling 也必须使用同一 ProducerExecution 事实源，
+不建立第二 tool-call ledger。Worker 在 provider 调用前以当前
+StepAttempt、lease generation 与稳定 idempotency key 创建 `running` 记录，并固定：
+
+- 当次唯一授权 tool name、可用的 ScientificSkill ID 与由精确 tool schema/
+  skill revision 计算的 registry revision hash；
+- model/prompt identity、安全 parameters hash 与只保存 hash 的 Contract-scoped input；
+- 成功时的 provider request ID、tool call ID、已校验 arguments hash、
+  model result hash、token、latency 与已校验的公开分析投影；
+- provider 失败或 tool/arguments 校验拒绝时，失败前已获得的安全 result
+  hash、error hash、request ID、token 与 latency；校验拒绝若且仅若返回一个
+  非空、有界 call identity，还必须保存 tool call ID 与 rejected arguments hash。
+  原始 arguments 不进入 ProducerExecution 或 error hash。
+
+幂等 replay 必须返回同一 ProducerExecution；只有具备完整成功闭包的终态
+记录才能恢复公开 decision，`running`、`failed` 或 `rejected` 记录不得
+触发重复 provider 调用或伪造成功。持久化内容不包含完整 Contract、原始
+provider body、凭据或私有 chain-of-thought；唯一允许的文本结果是通过长度、
+字段与语言校验的用户可见 `public_analysis`。
+
 两类记录均不得包含 API key、认证头、受限全文、原始 provider body 或私有 chain-of-thought。ModelExecutionRecord 的 output snapshot 只能保存通过 Pydantic 与领域校验的公开 outcome；ReasoningTrace 只保存可审查的依据、假设、限制、Evidence 与 Claim/Relation 引用。失败记录必须保存失败发生前已经获得的安全 hash、token、latency 与 provider request id，不得因失败丢失调用证据。
 
 ## 3. 失败关闭

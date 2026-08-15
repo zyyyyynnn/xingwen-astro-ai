@@ -46,6 +46,22 @@ const SKIP_PATH_PREFIXES = ["apps/api/migrations"];
 const ALLOWLIST = new Set([
   "scripts/check-frontend-architecture.mjs",
   "scripts/check-versionless-api.mjs",
+  "scripts/check-versionless-api.test.mjs",
+]);
+
+/**
+ * Official provider routes whose upstream API version is part of the provider
+ * contract, not the Xingwen product API. Keep this exact and file-scoped so a
+ * new local `/api/vN` path in the same module still fails the gate.
+ */
+const EXTERNAL_PROVIDER_API_PATHS = new Map([
+  [
+    "services/scientific_skills/astro_acquisition.py",
+    new Set([
+      "https://mast.stsci.edu/api/v0.1/Download/file",
+      "/api/v0.1/Download/file",
+    ]),
+  ],
 ]);
 
 const VERSION_PATH_PATTERN = /\/api\/v[0-9]+(?=[/\W]|$)/u;
@@ -108,7 +124,11 @@ export function versionlessApiViolations(file, contents = null) {
   }
   const lines = contents.split(/\r?\n/u);
   for (let index = 0; index < lines.length; index += 1) {
-    if (VERSION_PATH_PATTERN.test(lines[index])) {
+    let inspectedLine = lines[index];
+    for (const providerPath of EXTERNAL_PROVIDER_API_PATHS.get(file) ?? []) {
+      inspectedLine = inspectedLine.replaceAll(providerPath, "");
+    }
+    if (VERSION_PATH_PATTERN.test(inspectedLine)) {
       failures.push(`${file}:${index + 1}: ${lines[index].trim()}`);
     }
   }

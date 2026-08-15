@@ -12,8 +12,6 @@ from ._hashing import compute_canonical_payload_hash
 from .enums import LiteratureRelationType
 from .literature_claim import (
     LiteratureClaimCandidate,
-    LiteratureClaimStatus,
-    LiteratureClaimsCandidate,
     PersistentResourceIdentifier,
 )
 from .manifest import ContentHash, Identifier, SemanticVersion
@@ -265,7 +263,7 @@ class LiteratureClaimArtifactVersionReference(BaseModel):
     project_id: PersistentResourceIdentifier | None = None
     claim_ids: tuple[Identifier, ...] = ()
     paper_summary_artifact_version_ids: tuple[PersistentResourceIdentifier, ...] = ()
-    source_snapshot_ids: tuple[Identifier, ...] = ()
+    source_snapshot_ids: tuple[PersistentResourceIdentifier, ...] = ()
 
     @model_validator(mode="after")
     def validate_stable_sets(self) -> Self:
@@ -330,7 +328,7 @@ class LiteratureRelationEvidenceReference(BaseModel):
     paper_summary_artifact_version_id: PersistentResourceIdentifier
     evidence_id: Identifier
     paper_id: Identifier
-    source_snapshot_id: Identifier
+    source_snapshot_id: PersistentResourceIdentifier
     source_snapshot_version: ShortString
     source_snapshot_content_hash: ContentHash
     status: Literal["supported", "unsupported", "unverifiable"]
@@ -392,7 +390,7 @@ class LiteratureRelationCandidate(BaseModel):
     condition_uncertainties: tuple[NonEmptyString, ...]
     comparability: LiteratureRelationComparabilityCandidate
     evidence_ids: tuple[Identifier, ...]
-    source_snapshot_ids: tuple[Identifier, ...]
+    source_snapshot_ids: tuple[PersistentResourceIdentifier, ...]
     reasoning_trace_id: Identifier | None = None
     confidence: LiteratureRelationConfidenceAssessment | None = None
     fingerprint: ContentHash
@@ -425,7 +423,6 @@ class LiteratureRelationCandidate(BaseModel):
                 self.source_paper_summary_artifact_version_id,
                 self.target_paper_summary_artifact_version_id,
                 self.reasoning_trace_id,
-                self.confidence,
             )
             if any(item is None for item in required):
                 raise ValueError("publishable Relation requires complete provenance")
@@ -434,9 +431,8 @@ class LiteratureRelationCandidate(BaseModel):
         if self.status is LiteratureRelationStatus.accepted:
             if self.review_reason is not None:
                 raise ValueError("accepted Relation cannot contain review_reason")
-            if (
-                self.confidence is None
-                or self.confidence.status
+            if self.confidence is not None and (
+                self.confidence.status
                 is not LiteratureRelationConfidenceStatus.assessed
                 or self.confidence.score is None
                 or self.confidence.score < self.confidence.acceptance_threshold
@@ -494,16 +490,6 @@ class LiteratureRelationProducerExecution(BaseModel):
     pairing_version: SemanticVersion
     comparison_policy_version: SemanticVersion
     trace_protocol_version: SemanticVersion
-    confidence_definition_id: Identifier
-    confidence_definition_version: SemanticVersion
-    confidence_calibration_id: Identifier
-    confidence_calibration_version: SemanticVersion
-    confidence_calibration_scientific_payload_hash: ContentHash
-    confidence_calibration_content_hash: ContentHash
-    confidence_calibration_sample_size: int = Field(ge=1)
-    confidence_calibration_method: Identifier
-    confidence_applicability_scope: Identifier
-    confidence_acceptance_threshold: float = Field(ge=0.0, le=1.0)
     input_versions: LiteratureRelationInputVersions
     input_hash: ContentHash
     model_response_hash: ContentHash
@@ -555,7 +541,7 @@ class LiteratureRelationsCandidate(BaseModel):
         min_length=1
     )
     evidence_ids: tuple[Identifier, ...] = Field(min_length=1)
-    source_snapshot_ids: tuple[Identifier, ...] = Field(min_length=1)
+    source_snapshot_ids: tuple[PersistentResourceIdentifier, ...] = Field(min_length=1)
     status_counts: LiteratureRelationStatusCounts
     producer: LiteratureRelationProducerExecution
     input_hash: ContentHash

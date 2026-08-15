@@ -11,16 +11,23 @@ dependencies = [
     "alembic>=1.16.1,<2",
     "astropy>=8.0.0,<9",
     "astroquery>=0.4.11,<0.5",
+    "docling-parse==7.11.0",
     "fastapi>=0.139.0",
     "httpx>=0.28.0",
+    "onnx>=1.22.0,<2",
+    "onnxruntime>=1.27.0,<2",
+    "openpyxl>=3.1.5,<4",
     "openai>=3.0.0",
     "photutils>=3.0.0,<4",
+    "pillow>=10.0.0,<14",
     "psycopg[binary]>=3.2.9,<4",
     "pydantic-settings>=2.14.2",
     "python-multipart>=0.0.20",
+    "pyarrow>=19.0.0,<24",
     "scikit-learn>=1.9.0,<2",
     "skyfield>=1.54,<2",
     "skyfield-data>=7,<8",
+    "skl2onnx>=1.20.0,<2",
     "sqlalchemy>=2.0.41,<3",
     "uvicorn[standard]>=0.51.0",
 ]
@@ -30,13 +37,10 @@ dev = [
     "httpx2>=0.28.1",
     "pytest>=9.0.2",
 ]
-# Scientific Document Parsing benchmark-only tooling. Kept OUT of core API
-# runtime dependencies so API startup never requires docling/pillow. The native
-# baseline (benchmark-only) and fixture generation need exactly these versions.
+# Scientific Document Parsing fixture generation tooling. The production native
+# parser is a lazy import, while the exact docling-parse version is runtime-pinned.
 benchmark = [
-    "docling-parse==7.11.0",
     "fpdf2>=2.7.0",
-    "pillow>=10.0.0",
 ]
 
 [build-system]
@@ -50,5 +54,5 @@ module-name = "app"
 pythonpath = ["../.."]
 markers = [
     "live: opt-in tests that call a real external source",
-    "scientific_document_native: Scientific Document Parsing Contract native baseline tests requiring the benchmark dependency group (docling-parse)",
+    "scientific_document_native: Scientific Document Parsing production native adapter tests",
 ]

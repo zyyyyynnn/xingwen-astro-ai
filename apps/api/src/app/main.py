@@ -52,6 +52,7 @@ from app.services.resource_authority import (
 )
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 from app.workflow.persistent_executor import PersistentWorkflowExecutor
+from app.workflow.capacity import WorkflowCapacityPolicy
 from app.workflow.store import PersistentWorkflowStore
 
 
@@ -88,7 +89,19 @@ def _configure_database_runtime(
     )
 
     resource_authority: ResourceAuthority = PersistentResourceAuthority(factory)
-    workflow_store = PersistentWorkflowStore(factory)
+    capacity_policy = WorkflowCapacityPolicy(
+        max_queued_global=settings.WORKFLOW_MAX_QUEUED_GLOBAL,
+        max_queued_per_project=settings.WORKFLOW_MAX_QUEUED_PER_PROJECT,
+        max_nonterminal_global=settings.WORKFLOW_MAX_NONTERMINAL_GLOBAL,
+        max_nonterminal_per_project=settings.WORKFLOW_MAX_NONTERMINAL_PER_PROJECT,
+        max_active_global=settings.WORKFLOW_MAX_ACTIVE_GLOBAL,
+        max_active_per_project=settings.WORKFLOW_MAX_ACTIVE_PER_PROJECT,
+        worker_capacity=settings.WORKFLOW_WORKER_CAPACITY,
+        queue_timeout=timedelta(seconds=settings.WORKFLOW_QUEUE_TIMEOUT_SECONDS),
+        retry_after_seconds=settings.WORKFLOW_QUEUE_RETRY_AFTER_SECONDS,
+    )
+    app.state.workflow_capacity_policy = capacity_policy
+    workflow_store = PersistentWorkflowStore(factory, capacity_policy=capacity_policy)
     app.state.workflow_store = workflow_store
     app.state.workflow_executor = PersistentWorkflowExecutor(workflow_store)
     model_port = QwenModelExecutionAdapter(
@@ -146,12 +159,14 @@ def create_app() -> FastAPI:
     )
 
     app.state.workflow_store = None
+    app.state.workflow_capacity_policy = None
     app.state.workflow_executor = None
     app.state.artifact_read_service = None
     app.state.data_artifact_read_service = None
     app.state.research_service = None
     app.state.model_execution_port = None
     app.state.research_planner = None
+    app.state.research_run_worker = None
     app.state.db_session_factory = None
     _, database_session_factory, resource_authority = _configure_database_runtime(app)
 
@@ -171,6 +186,7 @@ def create_app() -> FastAPI:
     )
 
     from app.services.content_storage import LocalContentStorage
+    from app.services.image_dataset import ImageDatasetPolicy
     from app.services.research_input_ingestion import ResearchInputIngestionService
     from app.services.research_input_memory_runtime import InMemoryResearchInputRuntime
     from app.services.research_input_policy import ResearchInputPolicy
@@ -181,6 +197,34 @@ def create_app() -> FastAPI:
     from app.services.url_fetcher import UrlFetchConfig
 
     app.state.content_storage = LocalContentStorage(settings.RESEARCH_INPUT_UPLOAD_DIR)
+    image_dataset_policy = ImageDatasetPolicy(
+        max_archive_members=settings.IMAGE_DATASET_MAX_ARCHIVE_MEMBERS,
+        max_uncompressed_bytes=settings.IMAGE_DATASET_MAX_UNCOMPRESSED_BYTES,
+        max_compression_ratio=settings.IMAGE_DATASET_MAX_COMPRESSION_RATIO,
+        max_image_bytes=settings.IMAGE_DATASET_MAX_IMAGE_BYTES,
+        max_image_dimension=settings.IMAGE_DATASET_MAX_IMAGE_DIMENSION,
+        max_total_pixels=settings.IMAGE_DATASET_MAX_TOTAL_PIXELS,
+        max_images=settings.IMAGE_DATASET_MAX_IMAGES,
+        max_classes=settings.IMAGE_DATASET_MAX_CLASSES,
+        min_samples_per_class=settings.IMAGE_DATASET_MIN_SAMPLES_PER_CLASS,
+    )
+    if database_session_factory is not None:
+        from app.workflow.research_run_worker import ResearchRunWorker
+
+        app.state.research_run_worker = ResearchRunWorker(
+            session_factory=database_session_factory,
+            store=app.state.workflow_store,
+            executor=app.state.workflow_executor,
+            content_storage=app.state.content_storage,
+            model_port=app.state.model_execution_port,
+            model_name=settings.DASHSCOPE_MODEL,
+            model_revision=settings.DASHSCOPE_MODEL_REVISION,
+            capacity_policy=app.state.workflow_capacity_policy,
+            worker_id=settings.WORKFLOW_WORKER_ID,
+            image_dataset_policy=image_dataset_policy,
+        )
+        app.router.add_event_handler("startup", app.state.research_run_worker.start)
+        app.router.add_event_handler("shutdown", app.state.research_run_worker.stop)
     lease_ttl = timedelta(seconds=settings.RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS)
     if database_session_factory is not None:
         app.state.research_input_store = PersistentResearchInputStore(
@@ -199,6 +243,7 @@ def create_app() -> FastAPI:
     app.state.research_input_policy = ResearchInputPolicy.from_values(
         allowed_mime_types=settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES,
         max_size_bytes=settings.RESEARCH_INPUT_MAX_SIZE_BYTES,
+        image_dataset=image_dataset_policy,
     )
     app.state.research_input_ingestion = ResearchInputIngestionService(
         repository=app.state.research_input_store,

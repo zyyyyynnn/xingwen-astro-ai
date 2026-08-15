@@ -1,10 +1,12 @@
 import type {
   AnalysisReportReviewContent,
   ContentHash,
+  ModelArtifactReviewContent,
   ModelEvaluationReviewContent,
   ScientificArtifactReview,
   ScientificMetricReview,
   ScientificResultBlockReview,
+  DomainEntityId,
   VisualizationReviewContent,
 } from "@xingwen/domain";
 import { Badge, Button } from "@xingwen/ui";
@@ -12,6 +14,8 @@ import { Download, TriangleAlert } from "@xingwen/ui/icons";
 
 import { ScientificChart } from "./scientific-chart";
 import { WwtViewport } from "./wwt-viewport";
+import { downloadBytes } from "../presentation/browser-download";
+import { EvidenceLinks } from "./evidence-links";
 
 function displayValue(value: unknown): string {
   if (value === null) return "null";
@@ -42,8 +46,10 @@ function recordRows(
 
 function ResultBlock({
   block,
+  onSelectEvidence,
 }: {
   readonly block: ScientificResultBlockReview;
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
   const rows = recordRows(block.payload);
   const visibleRows = rows?.slice(0, 50) ?? [];
@@ -87,6 +93,11 @@ function ResultBlock({
       ) : (
         <pre>{displayValue(block.payload)}</pre>
       )}
+      <EvidenceLinks
+        evidenceIds={block.evidenceIds}
+        label={`${block.label}的证据`}
+        onSelectEvidence={onSelectEvidence}
+      />
     </section>
   );
 }
@@ -94,9 +105,11 @@ function ResultBlock({
 function Metrics({
   metrics,
   baseline = [],
+  onSelectEvidence,
 }: {
   readonly metrics: readonly ScientificMetricReview[];
   readonly baseline?: readonly ScientificMetricReview[];
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
   if (metrics.length === 0) return null;
   const baselineByLabel = new Map(
@@ -115,6 +128,11 @@ function Metrics({
               {baselineByLabel.has(metric.label) ? (
                 <small>基线 {baselineByLabel.get(metric.label)?.value}</small>
               ) : null}
+              <EvidenceLinks
+                evidenceIds={metric.evidenceIds}
+                label={`${metric.label}的证据`}
+                onSelectEvidence={onSelectEvidence}
+              />
             </dd>
           </div>
         ))}
@@ -125,13 +143,15 @@ function Metrics({
 
 function AnalysisView({
   content,
+  onSelectEvidence,
 }: {
   readonly content: AnalysisReportReviewContent;
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
   return (
     <>
       <p className="artifact-view__lead">{content.summary}</p>
-      <Metrics metrics={content.metrics} />
+      <Metrics metrics={content.metrics} onSelectEvidence={onSelectEvidence} />
       {content.findings.length > 0 ? (
         <section className="scientific-findings">
           <h4>研究发现</h4>
@@ -142,12 +162,21 @@ function AnalysisView({
                 <Badge variant="outline">{finding.status}</Badge>
               </header>
               <p>{finding.statement}</p>
+              <EvidenceLinks
+                evidenceIds={finding.evidenceIds}
+                label={`${finding.title}的证据`}
+                onSelectEvidence={onSelectEvidence}
+              />
             </article>
           ))}
         </section>
       ) : null}
       {content.resultBlocks.map((block) => (
-        <ResultBlock key={block.blockId} block={block} />
+        <ResultBlock
+          key={block.blockId}
+          block={block}
+          onSelectEvidence={onSelectEvidence}
+        />
       ))}
       <Limitations items={content.limitations} />
       {content.humanRequired.length > 0 ? (
@@ -167,10 +196,12 @@ function AnalysisView({
   );
 }
 
-function ModelView({
+function ModelEvaluationView({
   content,
+  onSelectEvidence,
 }: {
   readonly content: ModelEvaluationReviewContent;
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
   return (
     <>
@@ -218,11 +249,96 @@ function ModelView({
             : ` · 随机种子 ${content.split.randomSeed}`}
         </p>
       </section>
-      <Metrics metrics={content.metrics} baseline={content.baselineMetrics} />
+      <Metrics
+        metrics={content.metrics}
+        baseline={content.baselineMetrics}
+        onSelectEvidence={onSelectEvidence}
+      />
       <section className="model-evaluation__features">
         <h4>特征字段</h4>
         <p>{content.featureFields.join("、")}</p>
       </section>
+      <Limitations items={content.limitations} />
+    </>
+  );
+}
+
+function ModelArtifactView({
+  content,
+  loadContent,
+}: {
+  readonly content: ModelArtifactReviewContent;
+  readonly loadContent: (contentHash: ContentHash) => Promise<ArrayBuffer>;
+}) {
+  return (
+    <>
+      <dl className="model-evaluation__identity">
+        <div>
+          <dt>状态</dt>
+          <dd>{content.status}</dd>
+        </div>
+        <div>
+          <dt>任务</dt>
+          <dd>{content.taskKind}</dd>
+        </div>
+        <div>
+          <dt>算法</dt>
+          <dd>{content.algorithm}</dd>
+        </div>
+        <div>
+          <dt>算法版本</dt>
+          <dd>{content.algorithmVersion}</dd>
+        </div>
+      </dl>
+      <section className="model-evaluation__features">
+        <h4>推理契约</h4>
+        <dl className="wwt-scene__metadata">
+          <div>
+            <dt>输入</dt>
+            <dd>{content.inputName}</dd>
+          </div>
+          <div>
+            <dt>形状</dt>
+            <dd>
+              {content.inputShape.map((value) => value ?? "batch").join(" × ")}
+            </dd>
+          </div>
+          <div>
+            <dt>输出</dt>
+            <dd>{content.outputNames.join("、")}</dd>
+          </div>
+          <div>
+            <dt>目标字段</dt>
+            <dd>{content.targetField}</dd>
+          </div>
+        </dl>
+        <p>{content.featureFields.join("、")}</p>
+      </section>
+      <section className="model-evaluation__features">
+        <h4>运行依赖</h4>
+        <p>{content.dependencyRevisions.join(" · ")}</p>
+      </section>
+      <div className="artifact-view__actions">
+        <Button
+          type="button"
+          variant="secondary"
+          size="small"
+          disabled={content.status !== "active"}
+          onClick={() =>
+            void loadContent(content.modelBinary.contentHash).then((binary) =>
+              downloadBytes({
+                bytes: binary,
+                fileName: `${content.modelId}.onnx`,
+                mediaType: content.modelBinary.mediaType,
+              }),
+            )
+          }
+        >
+          <Download data-icon="inline-start" aria-hidden="true" />
+          下载 ONNX 模型
+        </Button>
+        <span>{content.modelBinary.contentHash}</span>
+      </div>
       <Limitations items={content.limitations} />
     </>
   );
@@ -242,31 +358,43 @@ function Limitations({ items }: { readonly items: readonly string[] }) {
   );
 }
 
-function downloadBlob(content: ArrayBuffer, fileName: string) {
-  const blob = new Blob([content], { type: "application/fits" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 function VisualizationView({
   content,
+  versionNumber,
   loadContent,
+  onSelectEvidence,
 }: {
   readonly content: VisualizationReviewContent;
+  readonly versionNumber: number;
   readonly loadContent: (contentHash: ContentHash) => Promise<ArrayBuffer>;
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
   if (content.spec.mode === "chart") {
-    return <ScientificChart spec={content.spec} />;
+    return (
+      <>
+        <ScientificChart spec={content.spec} />
+        <EvidenceLinks
+          evidenceIds={content.evidenceIds}
+          label="图表证据"
+          onSelectEvidence={onSelectEvidence}
+        />
+      </>
+    );
   }
   if (content.spec.mode === "fits_image") {
     const fitsSpec = content.spec;
     return (
       <>
-        <WwtViewport spec={fitsSpec} loadContent={loadContent} />
+        <WwtViewport
+          spec={fitsSpec}
+          versionNumber={versionNumber}
+          loadContent={loadContent}
+        />
+        <EvidenceLinks
+          evidenceIds={content.evidenceIds}
+          label="FITS 图像证据"
+          onSelectEvidence={onSelectEvidence}
+        />
         <div className="artifact-view__actions">
           <Button
             type="button"
@@ -274,7 +402,11 @@ function VisualizationView({
             size="small"
             onClick={() =>
               void loadContent(fitsSpec.contentHash).then((binary) =>
-                downloadBlob(binary, `${content.visualizationId}.fits`),
+                downloadBytes({
+                  bytes: binary,
+                  fileName: `${content.visualizationId}.fits`,
+                  mediaType: "application/fits",
+                }),
               )
             }
           >
@@ -291,27 +423,44 @@ function VisualizationView({
   if (content.spec.mode === "wwt_scene") {
     return (
       <>
-        <WwtViewport spec={content.spec} loadContent={loadContent} />
+        <WwtViewport
+          spec={content.spec}
+          versionNumber={versionNumber}
+          loadContent={loadContent}
+        />
+        <EvidenceLinks
+          evidenceIds={content.evidenceIds}
+          label="WWT 场景证据"
+          onSelectEvidence={onSelectEvidence}
+        />
         <dl className="wwt-scene__metadata">
           <div>
-            <dt>中心</dt>
+            <dt>视图</dt>
             <dd>
-              RA {content.spec.center.raHours.toFixed(4)}h · Dec{" "}
-              {content.spec.center.decDegrees.toFixed(4)}°
+              {content.spec.view.kind === "coordinates"
+                ? `RA ${content.spec.view.center.raHours.toFixed(4)}h · Dec ${content.spec.view.center.decDegrees.toFixed(4)}°`
+                : `跟踪 ${content.spec.view.target}`}
             </dd>
           </div>
           <div>
             <dt>视场</dt>
-            <dd>{content.spec.fieldOfViewDegrees}°</dd>
+            <dd>{content.spec.view.fieldOfViewDegrees}°</dd>
           </div>
           <div>
             <dt>坐标网格</dt>
-            <dd>{content.spec.coordinateGrid}</dd>
+            <dd>
+              {content.spec.coordinateGrids.length > 0
+                ? content.spec.coordinateGrids
+                    .map((grid) => grid.system)
+                    .join("、")
+                : "未启用"}
+            </dd>
           </div>
           <div>
-            <dt>图层 / 标注</dt>
+            <dt>FITS / 表格 / 标注</dt>
             <dd>
               {content.spec.fitsLayers.length} /{" "}
+              {content.spec.tableLayers.length} /{" "}
               {content.spec.annotations.length}
             </dd>
           </div>
@@ -331,20 +480,22 @@ function VisualizationView({
 export function ScientificArtifactView({
   artifact,
   loadContent,
+  onSelectEvidence,
 }: {
   readonly artifact: ScientificArtifactReview;
   readonly loadContent: (contentHash: ContentHash) => Promise<ArrayBuffer>;
+  readonly onSelectEvidence?: (evidenceId: DomainEntityId) => void;
 }) {
   const { content } = artifact;
   return (
     <article className="scientific-artifact" aria-label={content.title}>
       <header className="artifact-view__header">
-        <p className="artifact-view__eyebrow">
-          {content.kind} · v{artifact.versionNumber}
-        </p>
         <h3>{content.title}</h3>
         {content.kind === "visualization" ? <p>{content.description}</p> : null}
         <div className="artifact-view__badges">
+          <Badge variant="outline">
+            {content.kind} · v{artifact.versionNumber}
+          </Badge>
           <Badge variant="outline">{artifact.sourceMode}</Badge>
           <Badge variant="outline">
             来源快照 {artifact.sourceSnapshots.length}
@@ -353,11 +504,25 @@ export function ScientificArtifactView({
         </div>
       </header>
       {content.kind === "analysis_report" ? (
-        <AnalysisView content={content} />
+        <AnalysisView content={content} onSelectEvidence={onSelectEvidence} />
       ) : content.kind === "model_evaluation" ? (
-        <ModelView content={content} />
+        <ModelEvaluationView
+          content={content}
+          onSelectEvidence={onSelectEvidence}
+        />
+      ) : content.kind === "model_artifact" ? (
+        <ModelArtifactView content={content} loadContent={loadContent} />
+      ) : content.kind === "visualization" ? (
+        <VisualizationView
+          content={content}
+          versionNumber={artifact.versionNumber}
+          loadContent={loadContent}
+          onSelectEvidence={onSelectEvidence}
+        />
       ) : (
-        <VisualizationView content={content} loadContent={loadContent} />
+        <p className="artifact-view__empty">
+          该科学产物由统一科学结果渲染器展示。
+        </p>
       )}
       <details className="artifact-view__provenance">
         <summary>复现与来源信息</summary>

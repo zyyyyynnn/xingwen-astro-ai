@@ -245,7 +245,10 @@
           "source_collection",
           "analysis_report",
           "visualization",
+          "spectrum",
+          "light_curve",
           "model_evaluation",
+          "model_artifact",
           "paper_collection",
           "paper_summary",
           "literature_claims",
@@ -590,6 +593,21 @@
         ],
         "title": "CachePolicy",
         "type": "string"
+      },
+      "CancelRunDecisionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "const": "cancel",
+            "title": "Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "CancelRunDecisionRequest",
+        "type": "object"
       },
       "CanonicalEntityIdentity": {
         "additionalProperties": false,
@@ -1471,8 +1489,12 @@
             "enum": [
               "pdf",
               "csv",
+              "xlsx",
+              "parquet",
               "json",
-              "image"
+              "image",
+              "image_dataset",
+              "fits"
             ],
             "title": "Type",
             "type": "string"
@@ -2712,6 +2734,127 @@
         "title": "DerivationKind",
         "type": "string"
       },
+      "DocumentBBox": {
+        "additionalProperties": false,
+        "description": "Axis-aligned bounding box in absolute PDF points.\n\nCoordinate system (authoritative):\n- origin: top-left corner of the page, ``(0, 0)``.\n- x axis: increases left → right.\n- y axis: increases top → bottom.\n- units: PDF points (1 point = 1/72 inch).\n- page-relative: coordinates are expressed in the page's own width/height\n  space; a locator is only meaningful together with its ``page_index``.\n- normalized: **false** — these are absolute points, not 0..1 ratios.\n- valid range (enforced at the aggregate level, where page geometry is\n  known): ``0 <= x1 <= x2 <= page_width`` and\n  ``0 <= y1 <= y2 <= page_height``.\n- empty/unknown semantics: ``None`` (the enclosing ``DocumentLocator.bbox``\n  is ``None``). A zero-rect MUST NOT be used to mean \"unknown\".",
+        "properties": {
+          "x1": {
+            "minimum": 0.0,
+            "title": "X1",
+            "type": "number"
+          },
+          "x2": {
+            "minimum": 0.0,
+            "title": "X2",
+            "type": "number"
+          },
+          "y1": {
+            "minimum": 0.0,
+            "title": "Y1",
+            "type": "number"
+          },
+          "y2": {
+            "minimum": 0.0,
+            "title": "Y2",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x1",
+          "y1",
+          "x2",
+          "y2"
+        ],
+        "title": "DocumentBBox",
+        "type": "object"
+      },
+      "DocumentLocator": {
+        "additionalProperties": false,
+        "description": "Canonical SINGLE SOURCE OF TRUTH locator back to a parsed element.\n\nA locator is only complete together with the owning ``DocumentParseCandidate``\n(which carries ``research_input_id`` / input ``content_hash``). It must be\npersistable and verifiable by DocumentParse Persistence without re-parsing the source.\n\nThis is the ONLY locator representation in the contract. ``page_index``,\n``block_id``, ``bbox``, ``table_id`` and ``cell_id`` live here and nowhere\nelse; the ``ScientificDataExtractionCandidate`` references a parse solely\nthrough this locator, so contradictory parallel locator fields are\nimpossible by construction.",
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentBBox"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "block_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Id"
+          },
+          "cell_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cell Id"
+          },
+          "page_index": {
+            "minimum": 0.0,
+            "title": "Page Index",
+            "type": "integer"
+          },
+          "reading_order": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reading Order"
+          },
+          "table_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Id"
+          },
+          "text_span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextSpan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "page_index"
+        ],
+        "title": "DocumentLocator",
+        "type": "object"
+      },
       "EntityLevel": {
         "enum": [
           "host_star",
@@ -3223,6 +3366,48 @@
           "links"
         ],
         "title": "Envelope[ResearchTurnResult]",
+        "type": "object"
+      },
+      "Envelope_RunCheckpointRead_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RunCheckpointRead"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[RunCheckpointRead]",
+        "type": "object"
+      },
+      "Envelope_RunDecisionResult_": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RunDecisionResult"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResponseLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "links"
+        ],
+        "title": "Envelope[RunDecisionResult]",
         "type": "object"
       },
       "Envelope_ScientificArtifactRead_": {
@@ -5800,7 +5985,416 @@
         "title": "GraphTaxonomy",
         "type": "object"
       },
+      "ImageLabelDefinition": {
+        "additionalProperties": false,
+        "properties": {
+          "class_index": {
+            "minimum": 0.0,
+            "title": "Class Index",
+            "type": "integer"
+          },
+          "label": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "sample_count": {
+            "minimum": 2.0,
+            "title": "Sample Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "class_index",
+          "label",
+          "sample_count"
+        ],
+        "title": "ImageLabelDefinition",
+        "type": "object"
+      },
+      "ImagePreprocessingSpecification": {
+        "additionalProperties": false,
+        "description": "Fixed server-owned preprocessing applied to every training image.",
+        "properties": {
+          "color_mode": {
+            "const": "RGB",
+            "default": "RGB",
+            "title": "Color Mode",
+            "type": "string"
+          },
+          "exif_transpose": {
+            "const": true,
+            "default": true,
+            "title": "Exif Transpose",
+            "type": "boolean"
+          },
+          "normalization": {
+            "const": "uint8_to_unit_interval",
+            "default": "uint8_to_unit_interval",
+            "title": "Normalization",
+            "type": "string"
+          },
+          "resampling": {
+            "const": "bilinear",
+            "default": "bilinear",
+            "title": "Resampling",
+            "type": "string"
+          },
+          "resize_height": {
+            "const": 32,
+            "default": 32,
+            "title": "Resize Height",
+            "type": "integer"
+          },
+          "resize_mode": {
+            "const": "contain_pad",
+            "default": "contain_pad",
+            "title": "Resize Mode",
+            "type": "string"
+          },
+          "resize_width": {
+            "const": 32,
+            "default": 32,
+            "title": "Resize Width",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "title": "ImagePreprocessingSpecification",
+        "type": "object"
+      },
+      "ImageTrainingSpecification": {
+        "additionalProperties": false,
+        "description": "Reproducible label and tensor contract for an image training run.",
+        "properties": {
+          "image_count": {
+            "minimum": 10.0,
+            "title": "Image Count",
+            "type": "integer"
+          },
+          "image_shape": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "const": 32,
+                "type": "integer"
+              },
+              {
+                "const": 32,
+                "type": "integer"
+              },
+              {
+                "const": 3,
+                "type": "integer"
+              }
+            ],
+            "title": "Image Shape",
+            "type": "array"
+          },
+          "label_schema": {
+            "items": {
+              "$ref": "#/components/schemas/ImageLabelDefinition"
+            },
+            "minItems": 2,
+            "title": "Label Schema",
+            "type": "array"
+          },
+          "manifest_schema_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Manifest Schema Version",
+            "type": "string"
+          },
+          "preprocessing": {
+            "$ref": "#/components/schemas/ImagePreprocessingSpecification"
+          },
+          "source_total_pixels": {
+            "exclusiveMinimum": 0.0,
+            "title": "Source Total Pixels",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "preprocessing",
+          "image_shape",
+          "image_count",
+          "source_total_pixels",
+          "label_schema"
+        ],
+        "title": "ImageTrainingSpecification",
+        "type": "object"
+      },
       "JsonValue": {},
+      "LightCurveArtifactContent": {
+        "additionalProperties": false,
+        "description": "Quality-filtered light curve with a bounded Lomb-Scargle period result.",
+        "properties": {
+          "accepted_sample_count": {
+            "minimum": 5.0,
+            "title": "Accepted Sample Count",
+            "type": "integer"
+          },
+          "best_period": {
+            "exclusiveMinimum": 0.0,
+            "title": "Best Period",
+            "type": "number"
+          },
+          "best_power": {
+            "minimum": 0.0,
+            "title": "Best Power",
+            "type": "number"
+          },
+          "duration": {
+            "exclusiveMinimum": 0.0,
+            "title": "Duration",
+            "type": "number"
+          },
+          "evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "false_alarm_probability": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "False Alarm Probability"
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "kind": {
+            "const": "light_curve",
+            "default": "light_curve",
+            "title": "Kind",
+            "type": "string"
+          },
+          "light_curve_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Light Curve Id",
+            "type": "string"
+          },
+          "median_cadence": {
+            "exclusiveMinimum": 0.0,
+            "title": "Median Cadence",
+            "type": "number"
+          },
+          "normalization": {
+            "enum": [
+              "median_division",
+              "median_subtraction"
+            ],
+            "title": "Normalization",
+            "type": "string"
+          },
+          "object_name": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Object Name",
+            "type": "string"
+          },
+          "output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Output Hash",
+            "type": "string"
+          },
+          "period_peaks": {
+            "items": {
+              "$ref": "#/components/schemas/PeriodogramPeak"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Period Peaks",
+            "type": "array"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/LightCurvePoint"
+            },
+            "maxItems": 10000,
+            "minItems": 8,
+            "title": "Points",
+            "type": "array"
+          },
+          "rejected_sample_count": {
+            "minimum": 0.0,
+            "title": "Rejected Sample Count",
+            "type": "integer"
+          },
+          "sample_count": {
+            "minimum": 8.0,
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scientific_evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificEvidence"
+            },
+            "title": "Scientific Evidence",
+            "type": "array"
+          },
+          "skill_executions": {
+            "items": {
+              "$ref": "#/components/schemas/ScientificSkillExecution"
+            },
+            "minItems": 1,
+            "title": "Skill Executions",
+            "type": "array"
+          },
+          "source_snapshot_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Source Snapshot Ids",
+            "type": "array"
+          },
+          "time_scale": {
+            "enum": [
+              "utc",
+              "tai",
+              "tt",
+              "tdb"
+            ],
+            "title": "Time Scale",
+            "type": "string"
+          },
+          "time_unit": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Time Unit",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "value_kind": {
+            "enum": [
+              "relative_flux",
+              "flux",
+              "magnitude"
+            ],
+            "title": "Value Kind",
+            "type": "string"
+          },
+          "value_unit": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Value Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "light_curve_id",
+          "title",
+          "object_name",
+          "time_scale",
+          "time_unit",
+          "value_unit",
+          "value_kind",
+          "normalization",
+          "sample_count",
+          "accepted_sample_count",
+          "rejected_sample_count",
+          "duration",
+          "median_cadence",
+          "best_period",
+          "best_power",
+          "period_peaks",
+          "points",
+          "skill_executions",
+          "source_snapshot_ids",
+          "evidence_ids",
+          "input_hash",
+          "output_hash"
+        ],
+        "title": "LightCurveArtifactContent",
+        "type": "object"
+      },
+      "LightCurvePoint": {
+        "additionalProperties": false,
+        "properties": {
+          "normalized_value": {
+            "title": "Normalized Value",
+            "type": "number"
+          },
+          "phase": {
+            "exclusiveMaximum": 1.0,
+            "minimum": 0.0,
+            "title": "Phase",
+            "type": "number"
+          },
+          "quality": {
+            "enum": [
+              "good",
+              "rejected"
+            ],
+            "title": "Quality",
+            "type": "string"
+          },
+          "time": {
+            "title": "Time",
+            "type": "number"
+          },
+          "uncertainty": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "time",
+          "value",
+          "normalized_value",
+          "quality",
+          "phase"
+        ],
+        "title": "LightCurvePoint",
+        "type": "object"
+      },
       "LimitFlagMapping": {
         "additionalProperties": false,
         "description": "Source flag meanings for a bounded value.",
@@ -6141,7 +6735,7 @@
           },
           "source_snapshot_ids": {
             "items": {
-              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
               "type": "string"
             },
             "title": "Source Snapshot Ids",
@@ -6758,7 +7352,7 @@
           },
           "source_snapshot_ids": {
             "items": {
-              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
               "type": "string"
             },
             "title": "Source Snapshot Ids",
@@ -7361,6 +7955,228 @@
         "title": "MatchDecision",
         "type": "string"
       },
+      "ModelArtifactContent": {
+        "additionalProperties": false,
+        "description": "Safe, immutable ONNX model and its inference contract.",
+        "properties": {
+          "algorithm": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Algorithm",
+            "type": "string"
+          },
+          "algorithm_version": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Algorithm Version",
+            "type": "string"
+          },
+          "dependency_revisions": {
+            "items": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Dependency Revisions",
+            "type": "array"
+          },
+          "evaluation_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Evaluation Id",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "feature_fields": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Feature Fields",
+            "type": "array"
+          },
+          "image_training": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImageTrainingSpecification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "input_name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Input Name",
+            "type": "string"
+          },
+          "input_shape": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "minItems": 2,
+            "title": "Input Shape",
+            "type": "array"
+          },
+          "kind": {
+            "const": "model_artifact",
+            "default": "model_artifact",
+            "title": "Kind",
+            "type": "string"
+          },
+          "limitations": {
+            "default": [],
+            "items": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "model_binary": {
+            "$ref": "#/components/schemas/ModelBinaryReference"
+          },
+          "model_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Model Id",
+            "type": "string"
+          },
+          "opset_imports": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 128,
+              "minLength": 1
+            },
+            "title": "Opset Imports",
+            "type": "object"
+          },
+          "output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Output Hash",
+            "type": "string"
+          },
+          "output_names": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Output Names",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scientific_evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificEvidence"
+            },
+            "title": "Scientific Evidence",
+            "type": "array"
+          },
+          "skill_execution": {
+            "$ref": "#/components/schemas/ScientificSkillExecution"
+          },
+          "source_snapshot_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Source Snapshot Ids",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ModelArtifactStatus",
+            "default": "active"
+          },
+          "target_field": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Target Field",
+            "type": "string"
+          },
+          "task_kind": {
+            "$ref": "#/components/schemas/ModelTaskKind"
+          },
+          "title": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "training_input": {
+            "$ref": "#/components/schemas/ModelTrainingInputReference"
+          }
+        },
+        "required": [
+          "model_id",
+          "title",
+          "task_kind",
+          "algorithm",
+          "algorithm_version",
+          "training_input",
+          "evaluation_id",
+          "feature_fields",
+          "target_field",
+          "model_binary",
+          "input_name",
+          "output_names",
+          "input_shape",
+          "opset_imports",
+          "dependency_revisions",
+          "skill_execution",
+          "source_snapshot_ids",
+          "evidence_ids",
+          "input_hash",
+          "output_hash"
+        ],
+        "title": "ModelArtifactContent",
+        "type": "object"
+      },
+      "ModelArtifactStatus": {
+        "enum": [
+          "active",
+          "deprecated",
+          "revoked"
+        ],
+        "title": "ModelArtifactStatus",
+        "type": "string"
+      },
       "ModelBinaryReference": {
         "additionalProperties": false,
         "properties": {
@@ -7452,12 +8268,6 @@
             "title": "Baseline Metrics",
             "type": "array"
           },
-          "dataset_artifact_version_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Dataset Artifact Version Id",
-            "type": "string"
-          },
           "diagnostic_visualization_ids": {
             "default": [],
             "items": {
@@ -7492,6 +8302,16 @@
             "minItems": 1,
             "title": "Feature Fields",
             "type": "array"
+          },
+          "image_training": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImageTrainingSpecification"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "input_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
@@ -7580,6 +8400,9 @@
             "minLength": 1,
             "title": "Title",
             "type": "string"
+          },
+          "training_input": {
+            "$ref": "#/components/schemas/ModelTrainingInputReference"
           }
         },
         "required": [
@@ -7588,7 +8411,7 @@
           "task_kind",
           "algorithm",
           "algorithm_version",
-          "dataset_artifact_version_id",
+          "training_input",
           "feature_fields",
           "target_field",
           "split",
@@ -7659,11 +8482,37 @@
         "enum": [
           "classification",
           "regression",
+          "time_series_classification",
           "forecast",
           "image_classification"
         ],
         "title": "ModelTaskKind",
         "type": "string"
+      },
+      "ModelTrainingInputReference": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "dataset_artifact_version",
+              "source_snapshot"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "ref_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Ref Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "ref_id"
+        ],
+        "title": "ModelTrainingInputReference",
+        "type": "object"
       },
       "NormalizedPaperQuery": {
         "additionalProperties": false,
@@ -7941,7 +8790,14 @@
             "$ref": "#/components/schemas/PaperCollectionAcquisitionRun"
           },
           "benchmark": {
-            "$ref": "#/components/schemas/PaperBenchmarkReference"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperBenchmarkReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "candidates": {
             "default": [],
@@ -8002,6 +8858,16 @@
             "title": "Ranking Rule",
             "type": "string"
           },
+          "research_contract": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperSearchContractReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rules": {
             "$ref": "#/components/schemas/PaperCollectionRules"
           },
@@ -8047,7 +8913,6 @@
           }
         },
         "required": [
-          "benchmark",
           "query",
           "acquisition_run",
           "source_executions",
@@ -8695,6 +9560,35 @@
         "title": "PaperQueryPagination",
         "type": "object"
       },
+      "PaperSearchContractReference": {
+        "additionalProperties": false,
+        "description": "Immutable production Contract identity used by Paper Search.",
+        "properties": {
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "contract_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "contract_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Contract Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "contract_id",
+          "contract_version",
+          "content_hash"
+        ],
+        "title": "PaperSearchContractReference",
+        "type": "object"
+      },
       "PaperSearchScope": {
         "additionalProperties": false,
         "properties": {
@@ -8715,7 +9609,9 @@
             "type": "integer"
           },
           "source_ids": {
-            "default": [],
+            "default": [
+              "crossref"
+            ],
             "items": {
               "maxLength": 128,
               "minLength": 1,
@@ -9006,7 +9902,14 @@
             "$ref": "#/components/schemas/PaperSummarySection"
           },
           "benchmark": {
-            "$ref": "#/components/schemas/PaperBenchmarkReference"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperBenchmarkReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "dataset": {
             "$ref": "#/components/schemas/PaperSummarySection"
@@ -9056,6 +9959,9 @@
             "title": "Output Hash",
             "type": "string"
           },
+          "paper": {
+            "$ref": "#/components/schemas/PaperSummaryPaperMetadata"
+          },
           "paper_id": {
             "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
             "title": "Paper Id",
@@ -9068,7 +9974,7 @@
             "$ref": "#/components/schemas/PaperSummarySection"
           },
           "schema_version": {
-            "const": "2.0.0",
+            "const": "3.0.0",
             "title": "Schema Version",
             "type": "string"
           },
@@ -9090,7 +9996,7 @@
           "schema_version",
           "summary_id",
           "paper_id",
-          "benchmark",
+          "paper",
           "input_versions",
           "background",
           "methodology",
@@ -9169,11 +10075,111 @@
         "title": "PaperSummaryCacheAudit",
         "type": "object"
       },
+      "PaperSummaryCollectionReference": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_version_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
+            "title": "Artifact Version Id",
+            "type": "string"
+          },
+          "output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Output Hash",
+            "type": "string"
+          },
+          "schema_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_version_id",
+          "schema_version",
+          "output_hash"
+        ],
+        "title": "PaperSummaryCollectionReference",
+        "type": "object"
+      },
+      "PaperSummaryDocumentParseReference": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_parse_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Candidate Parse Id",
+            "type": "string"
+          },
+          "canonical_output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Canonical Output Hash",
+            "type": "string"
+          },
+          "config_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Config Hash",
+            "type": "string"
+          },
+          "document_parse_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
+            "title": "Document Parse Id",
+            "type": "string"
+          },
+          "input_content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Content Hash",
+            "type": "string"
+          },
+          "parser_profile_id": {
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "title": "Parser Profile Id",
+            "type": "string"
+          },
+          "parser_profile_version": {
+            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
+            "title": "Parser Profile Version",
+            "type": "string"
+          },
+          "research_input_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
+            "title": "Research Input Id",
+            "type": "string"
+          },
+          "source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
+            "title": "Source Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_parse_id",
+          "candidate_parse_id",
+          "research_input_id",
+          "source_snapshot_id",
+          "input_content_hash",
+          "canonical_output_hash",
+          "parser_profile_id",
+          "parser_profile_version",
+          "config_hash"
+        ],
+        "title": "PaperSummaryDocumentParseReference",
+        "type": "object"
+      },
       "PaperSummaryEvidence": {
         "additionalProperties": false,
         "properties": {
           "candidate_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
             "title": "Candidate Id",
             "type": "string"
           },
@@ -9197,7 +10203,8 @@
             "type": "string"
           },
           "source_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 512,
+            "minLength": 1,
             "title": "Source Id",
             "type": "string"
           },
@@ -9213,7 +10220,9 @@
             "type": "string"
           },
           "source_snapshot_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
             "title": "Source Snapshot Id",
             "type": "string"
           },
@@ -9252,6 +10261,42 @@
       "PaperSummaryEvidenceLocator": {
         "additionalProperties": false,
         "properties": {
+          "document_locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentLocator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "document_parse_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Parse Id"
+          },
+          "document_parse_output_hash": {
+            "anyOf": [
+              {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Parse Output Hash"
+          },
           "kind": {
             "enum": [
               "paper_text",
@@ -9306,11 +10351,18 @@
             "title": "Section"
           },
           "source_url": {
-            "format": "uri",
-            "maxLength": 2083,
-            "minLength": 1,
-            "title": "Source Url",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uri",
+                "maxLength": 2083,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
           },
           "text_range": {
             "anyOf": [
@@ -9327,8 +10379,7 @@
           }
         },
         "required": [
-          "kind",
-          "source_url"
+          "kind"
         ],
         "title": "PaperSummaryEvidenceLocator",
         "type": "object"
@@ -9336,20 +10387,23 @@
       "PaperSummaryInputVersions": {
         "additionalProperties": false,
         "properties": {
-          "paper_collection_output_hash": {
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Paper Collection Output Hash",
-            "type": "string"
+          "collection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperSummaryCollectionReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "paper_collection_schema_version": {
-            "pattern": "^[1-9]\\d*\\.\\d+\\.\\d+$",
-            "title": "Paper Collection Schema Version",
-            "type": "string"
-          },
-          "paper_collection_version_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
-            "title": "Paper Collection Version Id",
-            "type": "string"
+          "document_parses": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PaperSummaryDocumentParseReference"
+            },
+            "title": "Document Parses",
+            "type": "array"
           },
           "source_snapshots": {
             "items": {
@@ -9360,9 +10414,6 @@
           }
         },
         "required": [
-          "paper_collection_version_id",
-          "paper_collection_schema_version",
-          "paper_collection_output_hash",
           "source_snapshots"
         ],
         "title": "PaperSummaryInputVersions",
@@ -9385,13 +10436,41 @@
         "title": "PaperSummaryItemKind",
         "type": "string"
       },
+      "PaperSummaryModelUsage": {
+        "additionalProperties": false,
+        "properties": {
+          "completion_tokens": {
+            "minimum": 0.0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "minimum": 0.0,
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "total_tokens": {
+            "minimum": 0.0,
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens"
+        ],
+        "title": "PaperSummaryModelUsage",
+        "type": "object"
+      },
       "PaperSummaryPaperMetadata": {
         "additionalProperties": false,
-        "description": "Bibliographic identity projected from the pinned input PaperCollection.",
+        "description": "Bibliographic identity carried by the admitted summary input.",
         "properties": {
           "authors": {
             "default": [],
             "items": {
+              "maxLength": 512,
               "minLength": 1,
               "type": "string"
             },
@@ -9399,12 +10478,12 @@
             "type": "array"
           },
           "paper_id": {
-            "maxLength": 128,
-            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
             "title": "Paper Id",
             "type": "string"
           },
           "title": {
+            "maxLength": 512,
             "minLength": 1,
             "title": "Title",
             "type": "string"
@@ -9446,7 +10525,9 @@
             "title": "Error Code"
           },
           "execution_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
             "title": "Execution Id",
             "type": "string"
           },
@@ -9478,6 +10559,19 @@
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Model Response Hash",
             "type": "string"
+          },
+          "model_revision": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Revision"
           },
           "output_hash": {
             "anyOf": [
@@ -9534,10 +10628,37 @@
             "title": "Prompt Version",
             "type": "string"
           },
-          "run_id": {
+          "provider": {
             "anyOf": [
               {
                 "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "provider_request_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Request Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
                 "type": "string"
               },
               {
@@ -9564,6 +10685,16 @@
             "default": "summarizing_papers",
             "title": "Step Key",
             "type": "string"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperSummaryModelUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -9767,7 +10898,9 @@
             "type": "string"
           },
           "source_snapshot_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
             "title": "Source Snapshot Id",
             "type": "string"
           },
@@ -9797,12 +10930,15 @@
             "type": "string"
           },
           "source_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 512,
+            "minLength": 1,
             "title": "Source Id",
             "type": "string"
           },
           "source_snapshot_id": {
-            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "(?:^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$)|(?:[0-9a-f-]{36})",
             "title": "Source Snapshot Id",
             "type": "string"
           },
@@ -9875,6 +11011,27 @@
         ],
         "title": "PaperSummarySupportStatus",
         "type": "string"
+      },
+      "PeriodogramPeak": {
+        "additionalProperties": false,
+        "properties": {
+          "period": {
+            "exclusiveMinimum": 0.0,
+            "title": "Period",
+            "type": "number"
+          },
+          "power": {
+            "minimum": 0.0,
+            "title": "Power",
+            "type": "number"
+          }
+        },
+        "required": [
+          "period",
+          "power"
+        ],
+        "title": "PeriodogramPeak",
+        "type": "object"
       },
       "PlannerOutcomeKind": {
         "enum": [
@@ -10078,7 +11235,8 @@
           "run_id": {
             "anyOf": [
               {
-                "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+                "maxLength": 128,
+                "minLength": 1,
                 "type": "string"
               },
               {
@@ -11451,8 +12609,12 @@
           "url",
           "pdf",
           "csv",
+          "xlsx",
+          "parquet",
           "json",
           "image",
+          "image_dataset",
+          "fits",
           "text"
         ],
         "title": "ResearchInputType",
@@ -11673,6 +12835,7 @@
             "latest_event_sequence": 0,
             "progress": 0,
             "project_id": "proj_01JEXAMPLE",
+            "revision": 1,
             "status": "queued",
             "updated_at": "2026-07-21T08:00:00Z"
           }
@@ -11782,6 +12945,11 @@
             ],
             "title": "Retry From Step"
           },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
           "started_at": {
             "anyOf": [
               {
@@ -11813,7 +12981,8 @@
           "derivation_kind",
           "cache_policy",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "revision"
         ],
         "title": "ResearchRun",
         "type": "object"
@@ -12084,6 +13253,243 @@
         "title": "ResponseMeta",
         "type": "object"
       },
+      "ResumeRunDecisionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "const": "resume",
+            "title": "Decision",
+            "type": "string"
+          },
+          "input_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Input Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "decision",
+          "input_ids"
+        ],
+        "title": "ResumeRunDecisionRequest",
+        "type": "object"
+      },
+      "RetryRunDecisionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "const": "retry",
+            "title": "Decision",
+            "type": "string"
+          },
+          "step_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Step Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "step_key"
+        ],
+        "title": "RetryRunDecisionRequest",
+        "type": "object"
+      },
+      "RunCheckpointRead": {
+        "additionalProperties": false,
+        "description": "Auditable human-input boundary for one suspended RunStep.",
+        "properties": {
+          "code": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "public_message": {
+            "minLength": 1,
+            "title": "Public Message",
+            "type": "string"
+          },
+          "required_input_types": {
+            "items": {
+              "enum": [
+                "pdf",
+                "text"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Required Input Types",
+            "type": "array"
+          },
+          "resolution_run_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Run Id"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "run_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunCheckpointStatus"
+          },
+          "step_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Step Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "step_key",
+          "status",
+          "code",
+          "public_message",
+          "required_input_types",
+          "opened_at"
+        ],
+        "title": "RunCheckpointRead",
+        "type": "object"
+      },
+      "RunCheckpointStatus": {
+        "enum": [
+          "open",
+          "resolved",
+          "cancelled"
+        ],
+        "title": "RunCheckpointStatus",
+        "type": "string"
+      },
+      "RunDecisionRead": {
+        "additionalProperties": false,
+        "description": "Immutable audit record for a checkpoint or failed-step decision.",
+        "properties": {
+          "child_run_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Child Run Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "resume",
+              "retry",
+              "cancel"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "input_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Input Ids",
+            "type": "array"
+          },
+          "parent_run_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Parent Run Id",
+            "type": "string"
+          },
+          "step_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Step Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "parent_run_id",
+          "decision",
+          "step_key",
+          "created_at"
+        ],
+        "title": "RunDecisionRead",
+        "type": "object"
+      },
+      "RunDecisionResult": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/RunDecisionRead"
+          },
+          "run": {
+            "$ref": "#/components/schemas/ResearchRun"
+          }
+        },
+        "required": [
+          "decision",
+          "run"
+        ],
+        "title": "RunDecisionResult",
+        "type": "object"
+      },
       "RunEvent": {
         "additionalProperties": false,
         "examples": [
@@ -12196,6 +13602,16 @@
       "RunStepRead": {
         "additionalProperties": false,
         "properties": {
+          "depends_on_step_keys": {
+            "default": [],
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Depends On Step Keys",
+            "type": "array"
+          },
           "failure_code": {
             "anyOf": [
               {
@@ -12236,6 +13652,12 @@
             "title": "Label",
             "type": "string"
           },
+          "phase": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Phase",
+            "type": "string"
+          },
           "position": {
             "minimum": 0.0,
             "title": "Position",
@@ -12257,6 +13679,16 @@
             "title": "Run Id",
             "type": "string"
           },
+          "skill_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScientificSkillId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "started_at": {
             "anyOf": [
               {
@@ -12271,6 +13703,19 @@
           },
           "status": {
             "$ref": "#/components/schemas/RunStepStatus"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
           }
         },
         "required": [
@@ -12279,6 +13724,7 @@
           "position",
           "key",
           "label",
+          "phase",
           "status",
           "progress",
           "public_message"
@@ -12319,7 +13765,10 @@
             "discriminator": {
               "mapping": {
                 "analysis_report": "#/components/schemas/AnalysisReportArtifactContent",
+                "light_curve": "#/components/schemas/LightCurveArtifactContent",
+                "model_artifact": "#/components/schemas/ModelArtifactContent",
                 "model_evaluation": "#/components/schemas/ModelEvaluationArtifactContent",
+                "spectrum": "#/components/schemas/SpectrumArtifactContent",
                 "visualization": "#/components/schemas/VisualizationArtifactContent"
               },
               "propertyName": "kind"
@@ -12332,7 +13781,16 @@
                 "$ref": "#/components/schemas/VisualizationArtifactContent"
               },
               {
+                "$ref": "#/components/schemas/SpectrumArtifactContent"
+              },
+              {
+                "$ref": "#/components/schemas/LightCurveArtifactContent"
+              },
+              {
                 "$ref": "#/components/schemas/ModelEvaluationArtifactContent"
+              },
+              {
+                "$ref": "#/components/schemas/ModelArtifactContent"
               }
             ],
             "title": "Content"
@@ -12481,7 +13939,10 @@
               "result_block",
               "metric",
               "visualization",
-              "evaluation"
+              "spectrum",
+              "light_curve",
+              "evaluation",
+              "model"
             ],
             "title": "Target Type",
             "type": "string"
@@ -12742,15 +14203,25 @@
           "data_profile",
           "statistical_analysis",
           "correlation_analysis",
+          "clustering_analysis",
+          "anomaly_detection",
           "chart_visualization",
           "simbad_lookup",
           "skyview_fits",
           "ephemeris",
           "celestial_events",
+          "gaia_cone_search",
+          "vizier_tap",
           "fits_image_analysis",
+          "spectrum_analysis",
+          "spectrum_acquisition",
+          "light_curve_analysis",
+          "light_curve_acquisition",
           "tabular_machine_learning",
+          "time_series_classification",
           "time_series_forecast",
           "image_classification",
+          "model_inference",
           "wwt_scene"
         ],
         "title": "ScientificSkillId",
@@ -14070,6 +15541,255 @@
         "title": "SourceValueCandidate",
         "type": "object"
       },
+      "SpectrumArtifactContent": {
+        "additionalProperties": false,
+        "description": "Continuum-normalized spectrum with bounded samples and detected lines.",
+        "properties": {
+          "detected_lines": {
+            "items": {
+              "$ref": "#/components/schemas/SpectrumLine"
+            },
+            "maxItems": 32,
+            "title": "Detected Lines",
+            "type": "array"
+          },
+          "evidence_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "flux_unit": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Flux Unit",
+            "type": "string"
+          },
+          "input_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "kind": {
+            "const": "spectrum",
+            "default": "spectrum",
+            "title": "Kind",
+            "type": "string"
+          },
+          "object_name": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Object Name",
+            "type": "string"
+          },
+          "output_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Output Hash",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/SpectrumPoint"
+            },
+            "maxItems": 10000,
+            "minItems": 8,
+            "title": "Points",
+            "type": "array"
+          },
+          "radial_velocity_km_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radial Velocity Km S"
+          },
+          "rest_wavelength": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rest Wavelength"
+          },
+          "sample_count": {
+            "minimum": 8.0,
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "1.0.0",
+            "default": "1.0.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scientific_evidence": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ScientificEvidence"
+            },
+            "title": "Scientific Evidence",
+            "type": "array"
+          },
+          "signal_to_noise": {
+            "minimum": 0.0,
+            "title": "Signal To Noise",
+            "type": "number"
+          },
+          "skill_executions": {
+            "items": {
+              "$ref": "#/components/schemas/ScientificSkillExecution"
+            },
+            "minItems": 1,
+            "title": "Skill Executions",
+            "type": "array"
+          },
+          "source_snapshot_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Source Snapshot Ids",
+            "type": "array"
+          },
+          "spectrum_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Spectrum Id",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "wavelength_unit": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Wavelength Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "spectrum_id",
+          "title",
+          "object_name",
+          "wavelength_unit",
+          "flux_unit",
+          "sample_count",
+          "points",
+          "signal_to_noise",
+          "detected_lines",
+          "skill_executions",
+          "source_snapshot_ids",
+          "evidence_ids",
+          "input_hash",
+          "output_hash"
+        ],
+        "title": "SpectrumArtifactContent",
+        "type": "object"
+      },
+      "SpectrumLine": {
+        "additionalProperties": false,
+        "properties": {
+          "equivalent_width": {
+            "title": "Equivalent Width",
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "emission",
+              "absorption"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "line_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Line Id",
+            "type": "string"
+          },
+          "normalized_flux": {
+            "title": "Normalized Flux",
+            "type": "number"
+          },
+          "observed_wavelength": {
+            "exclusiveMinimum": 0.0,
+            "title": "Observed Wavelength",
+            "type": "number"
+          },
+          "significance_sigma": {
+            "minimum": 0.0,
+            "title": "Significance Sigma",
+            "type": "number"
+          }
+        },
+        "required": [
+          "line_id",
+          "kind",
+          "observed_wavelength",
+          "normalized_flux",
+          "significance_sigma",
+          "equivalent_width"
+        ],
+        "title": "SpectrumLine",
+        "type": "object"
+      },
+      "SpectrumPoint": {
+        "additionalProperties": false,
+        "properties": {
+          "continuum": {
+            "title": "Continuum",
+            "type": "number"
+          },
+          "flux": {
+            "title": "Flux",
+            "type": "number"
+          },
+          "normalized_flux": {
+            "title": "Normalized Flux",
+            "type": "number"
+          },
+          "uncertainty": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty"
+          },
+          "wavelength": {
+            "exclusiveMinimum": 0.0,
+            "title": "Wavelength",
+            "type": "number"
+          }
+        },
+        "required": [
+          "wavelength",
+          "flux",
+          "continuum",
+          "normalized_flux"
+        ],
+        "title": "SpectrumPoint",
+        "type": "object"
+      },
       "SupplementalDataQueryCursor": {
         "additionalProperties": false,
         "properties": {
@@ -14144,6 +15864,28 @@
           "text_content"
         ],
         "title": "TextResearchInputRequest",
+        "type": "object"
+      },
+      "TextSpan": {
+        "additionalProperties": false,
+        "description": "Character-offset span within a block's raw text (0-based, inclusive start).",
+        "properties": {
+          "end": {
+            "minimum": 0.0,
+            "title": "End",
+            "type": "integer"
+          },
+          "start": {
+            "minimum": 0.0,
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "TextSpan",
         "type": "object"
       },
       "TransformationEvidence": {
@@ -15120,10 +16862,29 @@
             "title": "Color Token",
             "type": "string"
           },
+          "fill": {
+            "default": false,
+            "title": "Fill",
+            "type": "boolean"
+          },
+          "fill_color_token": {
+            "default": "brand",
+            "enum": [
+              "brand",
+              "information",
+              "success",
+              "warning",
+              "error",
+              "neutral"
+            ],
+            "title": "Fill Color Token",
+            "type": "string"
+          },
           "kind": {
             "enum": [
               "circle",
               "line",
+              "point",
               "label"
             ],
             "title": "Kind",
@@ -15141,6 +16902,13 @@
               }
             ],
             "title": "Label"
+          },
+          "line_width": {
+            "default": 2,
+            "exclusiveMinimum": 0.0,
+            "maximum": 20.0,
+            "title": "Line Width",
+            "type": "number"
           },
           "points": {
             "items": {
@@ -15173,6 +16941,100 @@
         "title": "WwtAnnotation",
         "type": "object"
       },
+      "WwtCartesianTableCoordinates": {
+        "additionalProperties": false,
+        "properties": {
+          "frame": {
+            "enum": [
+              "sun",
+              "mercury",
+              "venus",
+              "earth",
+              "moon",
+              "mars",
+              "jupiter",
+              "saturn",
+              "uranus",
+              "neptune",
+              "pluto"
+            ],
+            "title": "Frame",
+            "type": "string"
+          },
+          "kind": {
+            "const": "cartesian",
+            "default": "cartesian",
+            "title": "Kind",
+            "type": "string"
+          },
+          "x_field": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "X Field",
+            "type": "string"
+          },
+          "xyz_unit": {
+            "enum": [
+              "m",
+              "km",
+              "au",
+              "pc",
+              "kpc",
+              "mpc"
+            ],
+            "title": "Xyz Unit",
+            "type": "string"
+          },
+          "y_field": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Y Field",
+            "type": "string"
+          },
+          "z_field": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Z Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "frame",
+          "x_field",
+          "y_field",
+          "z_field",
+          "xyz_unit"
+        ],
+        "title": "WwtCartesianTableCoordinates",
+        "type": "object"
+      },
+      "WwtConstellationOverlays": {
+        "additionalProperties": false,
+        "properties": {
+          "boundaries": {
+            "default": false,
+            "title": "Boundaries",
+            "type": "boolean"
+          },
+          "figures": {
+            "default": false,
+            "title": "Figures",
+            "type": "boolean"
+          },
+          "labels": {
+            "default": false,
+            "title": "Labels",
+            "type": "boolean"
+          },
+          "pictures": {
+            "default": false,
+            "title": "Pictures",
+            "type": "boolean"
+          }
+        },
+        "title": "WwtConstellationOverlays",
+        "type": "object"
+      },
       "WwtCoordinate": {
         "additionalProperties": false,
         "properties": {
@@ -15196,9 +17058,85 @@
         "title": "WwtCoordinate",
         "type": "object"
       },
+      "WwtCoordinateGrid": {
+        "additionalProperties": false,
+        "properties": {
+          "labels": {
+            "default": true,
+            "title": "Labels",
+            "type": "boolean"
+          },
+          "system": {
+            "enum": [
+              "equatorial",
+              "galactic",
+              "ecliptic",
+              "altaz"
+            ],
+            "title": "System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "system"
+        ],
+        "title": "WwtCoordinateGrid",
+        "type": "object"
+      },
+      "WwtCoordinateView": {
+        "additionalProperties": false,
+        "properties": {
+          "center": {
+            "$ref": "#/components/schemas/WwtCoordinate"
+          },
+          "field_of_view_degrees": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 180.0,
+            "title": "Field Of View Degrees",
+            "type": "number"
+          },
+          "kind": {
+            "const": "coordinates",
+            "default": "coordinates",
+            "title": "Kind",
+            "type": "string"
+          },
+          "roll_degrees": {
+            "default": 0,
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Roll Degrees",
+            "type": "number"
+          },
+          "transition_seconds": {
+            "default": 0,
+            "maximum": 120.0,
+            "minimum": 0.0,
+            "title": "Transition Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "center",
+          "field_of_view_degrees"
+        ],
+        "title": "WwtCoordinateView",
+        "type": "object"
+      },
       "WwtFitsLayer": {
         "additionalProperties": false,
         "properties": {
+          "color_map": {
+            "default": "gray",
+            "enum": [
+              "gray",
+              "viridis",
+              "magma",
+              "inferno"
+            ],
+            "title": "Color Map",
+            "type": "string"
+          },
           "content_hash": {
             "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Content Hash",
@@ -15228,6 +17166,40 @@
             "minLength": 1,
             "title": "Source Snapshot Id",
             "type": "string"
+          },
+          "stretch": {
+            "default": "sqrt",
+            "enum": [
+              "linear",
+              "sqrt",
+              "log",
+              "power",
+              "histogram_equalization"
+            ],
+            "title": "Stretch",
+            "type": "string"
+          },
+          "vmax": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vmax"
+          },
+          "vmin": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vmin"
           }
         },
         "required": [
@@ -15239,6 +17211,121 @@
         "title": "WwtFitsLayer",
         "type": "object"
       },
+      "WwtForeground": {
+        "additionalProperties": false,
+        "properties": {
+          "image_set": {
+            "enum": [
+              "digitized_sky_survey",
+              "gaia",
+              "wise"
+            ],
+            "title": "Image Set",
+            "type": "string"
+          },
+          "opacity": {
+            "default": 1,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Opacity",
+            "type": "number"
+          }
+        },
+        "required": [
+          "image_set"
+        ],
+        "title": "WwtForeground",
+        "type": "object"
+      },
+      "WwtObserver": {
+        "additionalProperties": false,
+        "properties": {
+          "elevation_meters": {
+            "default": 0,
+            "maximum": 100000.0,
+            "minimum": -500.0,
+            "title": "Elevation Meters",
+            "type": "number"
+          },
+          "latitude_degrees": {
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude Degrees",
+            "type": "number"
+          },
+          "local_horizon_mode": {
+            "default": false,
+            "title": "Local Horizon Mode",
+            "type": "boolean"
+          },
+          "longitude_degrees": {
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude Degrees",
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude_degrees",
+          "longitude_degrees"
+        ],
+        "title": "WwtObserver",
+        "type": "object"
+      },
+      "WwtSceneStep": {
+        "additionalProperties": false,
+        "properties": {
+          "hold_seconds": {
+            "default": 0,
+            "maximum": 3600.0,
+            "minimum": 0.0,
+            "title": "Hold Seconds",
+            "type": "number"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "step_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Step Id",
+            "type": "string"
+          },
+          "view": {
+            "discriminator": {
+              "mapping": {
+                "coordinates": "#/components/schemas/WwtCoordinateView",
+                "tracked_object": "#/components/schemas/WwtTrackedObjectView"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WwtCoordinateView"
+              },
+              {
+                "$ref": "#/components/schemas/WwtTrackedObjectView"
+              }
+            ],
+            "title": "View"
+          }
+        },
+        "required": [
+          "step_id",
+          "view"
+        ],
+        "title": "WwtSceneStep",
+        "type": "object"
+      },
       "WwtSceneVisualizationSpec": {
         "additionalProperties": false,
         "properties": {
@@ -15247,6 +17334,7 @@
             "items": {
               "$ref": "#/components/schemas/WwtAnnotation"
             },
+            "maxItems": 1000,
             "title": "Annotations",
             "type": "array"
           },
@@ -15261,38 +17349,451 @@
             "title": "Background",
             "type": "string"
           },
-          "center": {
-            "$ref": "#/components/schemas/WwtCoordinate"
+          "constellations": {
+            "$ref": "#/components/schemas/WwtConstellationOverlays"
           },
-          "coordinate_grid": {
-            "default": "equatorial",
-            "enum": [
-              "none",
-              "equatorial",
-              "galactic",
-              "ecliptic",
-              "altaz"
+          "coordinate_grids": {
+            "default": [
+              {
+                "labels": true,
+                "system": "equatorial"
+              }
             ],
-            "title": "Coordinate Grid",
-            "type": "string"
-          },
-          "field_of_view_degrees": {
-            "exclusiveMinimum": 0.0,
-            "maximum": 180.0,
-            "title": "Field Of View Degrees",
-            "type": "number"
+            "items": {
+              "$ref": "#/components/schemas/WwtCoordinateGrid"
+            },
+            "maxItems": 4,
+            "title": "Coordinate Grids",
+            "type": "array"
           },
           "fits_layers": {
             "default": [],
             "items": {
               "$ref": "#/components/schemas/WwtFitsLayer"
             },
+            "maxItems": 64,
             "title": "Fits Layers",
             "type": "array"
+          },
+          "foreground": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WwtForeground"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "mode": {
             "const": "wwt_scene",
             "default": "wwt_scene",
+            "title": "Mode",
+            "type": "string"
+          },
+          "observer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WwtObserver"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "precession_chart": {
+            "default": false,
+            "title": "Precession Chart",
+            "type": "boolean"
+          },
+          "readbacks": {
+            "default": [
+              "center_coordinates",
+              "field_of_view",
+              "current_time"
+            ],
+            "items": {
+              "enum": [
+                "center_coordinates",
+                "field_of_view",
+                "camera_roll",
+                "current_time"
+              ],
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Readbacks",
+            "type": "array"
+          },
+          "solar_system": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WwtSolarSystemOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "table_layers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/WwtTableLayer"
+            },
+            "maxItems": 64,
+            "title": "Table Layers",
+            "type": "array"
+          },
+          "text_alternative": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text Alternative",
+            "type": "string"
+          },
+          "time": {
+            "$ref": "#/components/schemas/WwtTimeControl"
+          },
+          "tour_autoplay": {
+            "default": false,
+            "title": "Tour Autoplay",
+            "type": "boolean"
+          },
+          "tour_loop": {
+            "default": false,
+            "title": "Tour Loop",
+            "type": "boolean"
+          },
+          "tour_steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/WwtSceneStep"
+            },
+            "maxItems": 512,
+            "title": "Tour Steps",
+            "type": "array"
+          },
+          "view": {
+            "discriminator": {
+              "mapping": {
+                "coordinates": "#/components/schemas/WwtCoordinateView",
+                "tracked_object": "#/components/schemas/WwtTrackedObjectView"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WwtCoordinateView"
+              },
+              {
+                "$ref": "#/components/schemas/WwtTrackedObjectView"
+              }
+            ],
+            "title": "View"
+          }
+        },
+        "required": [
+          "view",
+          "text_alternative"
+        ],
+        "title": "WwtSceneVisualizationSpec",
+        "type": "object"
+      },
+      "WwtSolarSystemOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "cosmos": {
+            "default": false,
+            "title": "Cosmos",
+            "type": "boolean"
+          },
+          "lighting": {
+            "default": true,
+            "title": "Lighting",
+            "type": "boolean"
+          },
+          "milky_way": {
+            "default": true,
+            "title": "Milky Way",
+            "type": "boolean"
+          },
+          "minor_orbits": {
+            "default": false,
+            "title": "Minor Orbits",
+            "type": "boolean"
+          },
+          "minor_planets": {
+            "default": false,
+            "title": "Minor Planets",
+            "type": "boolean"
+          },
+          "orbits": {
+            "default": true,
+            "title": "Orbits",
+            "type": "boolean"
+          },
+          "planets": {
+            "default": true,
+            "title": "Planets",
+            "type": "boolean"
+          },
+          "scale": {
+            "default": 1,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Scale",
+            "type": "number"
+          },
+          "stars": {
+            "default": true,
+            "title": "Stars",
+            "type": "boolean"
+          }
+        },
+        "title": "WwtSolarSystemOptions",
+        "type": "object"
+      },
+      "WwtSphericalTableCoordinates": {
+        "additionalProperties": false,
+        "properties": {
+          "altitude_field": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altitude Field"
+          },
+          "frame": {
+            "default": "sky",
+            "enum": [
+              "sky",
+              "ecliptic",
+              "galactic",
+              "sun",
+              "mercury",
+              "venus",
+              "earth",
+              "moon",
+              "mars",
+              "jupiter",
+              "saturn",
+              "uranus",
+              "neptune",
+              "pluto"
+            ],
+            "title": "Frame",
+            "type": "string"
+          },
+          "kind": {
+            "const": "spherical",
+            "default": "spherical",
+            "title": "Kind",
+            "type": "string"
+          },
+          "latitude_field": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Latitude Field",
+            "type": "string"
+          },
+          "longitude_field": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Longitude Field",
+            "type": "string"
+          },
+          "longitude_unit": {
+            "default": "degrees",
+            "enum": [
+              "degrees",
+              "hours"
+            ],
+            "title": "Longitude Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "longitude_field",
+          "latitude_field"
+        ],
+        "title": "WwtSphericalTableCoordinates",
+        "type": "object"
+      },
+      "WwtTableLayer": {
+        "additionalProperties": false,
+        "properties": {
+          "color_field": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Field"
+          },
+          "color_token": {
+            "default": "brand",
+            "enum": [
+              "brand",
+              "information",
+              "success",
+              "warning",
+              "error",
+              "neutral"
+            ],
+            "title": "Color Token",
+            "type": "string"
+          },
+          "content_hash": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "content_ref": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Content Ref",
+            "type": "string"
+          },
+          "coordinates": {
+            "discriminator": {
+              "mapping": {
+                "cartesian": "#/components/schemas/WwtCartesianTableCoordinates",
+                "spherical": "#/components/schemas/WwtSphericalTableCoordinates"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WwtSphericalTableCoordinates"
+              },
+              {
+                "$ref": "#/components/schemas/WwtCartesianTableCoordinates"
+              }
+            ],
+            "title": "Coordinates"
+          },
+          "layer_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Layer Id",
+            "type": "string"
+          },
+          "marker_scale": {
+            "default": "screen",
+            "enum": [
+              "screen",
+              "world"
+            ],
+            "title": "Marker Scale",
+            "type": "string"
+          },
+          "media_type": {
+            "enum": [
+              "text/csv",
+              "text/tab-separated-values",
+              "application/vnd.ivoa.votable+xml"
+            ],
+            "title": "Media Type",
+            "type": "string"
+          },
+          "opacity": {
+            "default": 1,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Opacity",
+            "type": "number"
+          },
+          "size_field": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Field"
+          },
+          "size_scale": {
+            "default": 1,
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000.0,
+            "title": "Size Scale",
+            "type": "number"
+          },
+          "source_snapshot_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Snapshot Id",
+            "type": "string"
+          },
+          "time_series": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WwtTableTimeSeries"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "layer_id",
+          "source_snapshot_id",
+          "content_ref",
+          "content_hash",
+          "media_type",
+          "coordinates"
+        ],
+        "title": "WwtTableLayer",
+        "type": "object"
+      },
+      "WwtTableTimeSeries": {
+        "additionalProperties": false,
+        "properties": {
+          "decay_days": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 365250.0,
+            "title": "Decay Days",
+            "type": "number"
+          },
+          "time_field": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Time Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "time_field",
+          "decay_days"
+        ],
+        "title": "WwtTableTimeSeries",
+        "type": "object"
+      },
+      "WwtTimeControl": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "default": "system_clock",
+            "enum": [
+              "system_clock",
+              "paused",
+              "playback"
+            ],
             "title": "Mode",
             "type": "string"
           },
@@ -15307,13 +17808,76 @@
               }
             ],
             "title": "Observed At"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": -1000000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          }
+        },
+        "title": "WwtTimeControl",
+        "type": "object"
+      },
+      "WwtTrackedObjectView": {
+        "additionalProperties": false,
+        "properties": {
+          "field_of_view_degrees": {
+            "default": 10,
+            "exclusiveMinimum": 0.0,
+            "maximum": 180.0,
+            "title": "Field Of View Degrees",
+            "type": "number"
+          },
+          "kind": {
+            "const": "tracked_object",
+            "default": "tracked_object",
+            "title": "Kind",
+            "type": "string"
+          },
+          "roll_degrees": {
+            "default": 0,
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Roll Degrees",
+            "type": "number"
+          },
+          "target": {
+            "enum": [
+              "sun",
+              "mercury",
+              "venus",
+              "earth",
+              "moon",
+              "mars",
+              "jupiter",
+              "saturn",
+              "uranus",
+              "neptune",
+              "pluto"
+            ],
+            "title": "Target",
+            "type": "string"
+          },
+          "transition_seconds": {
+            "default": 0,
+            "maximum": 120.0,
+            "minimum": 0.0,
+            "title": "Transition Seconds",
+            "type": "number"
           }
         },
         "required": [
-          "center",
-          "field_of_view_degrees"
+          "target"
         ],
-        "title": "WwtSceneVisualizationSpec",
+        "title": "WwtTrackedObjectView",
         "type": "object"
       },
       "app__schemas__core__SourceMode": {
@@ -17692,6 +20256,145 @@
         "summary": "Get Paper Summary"
       }
     },
+    "/api/artifact-versions/{version_id}/paper-summary/export": {
+      "get": {
+        "operationId": "downloadPaperSummaryExport",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "enum": [
+                "json",
+                "markdown"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Download Paper Summary Export"
+      }
+    },
     "/api/artifact-versions/{version_id}/reasoning-traces": {
       "get": {
         "operationId": "listReasoningTraces",
@@ -18129,6 +20832,22 @@
               "title": "Content Hash",
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Range"
+            }
           }
         ],
         "responses": {
@@ -18142,6 +20861,17 @@
               }
             },
             "description": "Successful Response"
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Partial Content"
           },
           "400": {
             "content": {
@@ -18202,6 +20932,16 @@
               }
             },
             "description": "Content Too Large"
+          },
+          "416": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Range Not Satisfiable"
           },
           "422": {
             "content": {
@@ -22185,6 +24925,134 @@
       }
     },
     "/api/runs/{run_id}": {
+      "delete": {
+        "operationId": "cancelResearchRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "If-Match",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ResearchRun_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Cancel Research Run"
+      },
       "get": {
         "operationId": "getResearchRun",
         "parameters": [
@@ -22466,6 +25334,295 @@
           }
         },
         "summary": "List Run Artifacts"
+      }
+    },
+    "/api/runs/{run_id}/checkpoint": {
+      "get": {
+        "operationId": "getResearchRunCheckpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RunCheckpointRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get Research Run Checkpoint"
+      }
+    },
+    "/api/runs/{run_id}/decisions": {
+      "post": {
+        "operationId": "decideResearchRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "If-Match",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "cancel": "#/components/schemas/CancelRunDecisionRequest",
+                    "resume": "#/components/schemas/ResumeRunDecisionRequest",
+                    "retry": "#/components/schemas/RetryRunDecisionRequest"
+                  },
+                  "propertyName": "decision"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ResumeRunDecisionRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RetryRunDecisionRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CancelRunDecisionRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RunDecisionResult_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Decide Research Run"
       }
     },
     "/api/runs/{run_id}/events": {

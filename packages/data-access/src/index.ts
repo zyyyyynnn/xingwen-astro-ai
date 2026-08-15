@@ -15,14 +15,19 @@
  */
 
 export type {
+  ArtifactExportRepository,
   ArtifactReadRepository,
   ContractRepository,
   CreateResearchContractDraftInput,
   CreateResearchProjectInput,
   CreateResearchRunInput,
+  RunDecisionInput,
   PaperAcquisitionRepository,
   PaperSummaryRepository,
   ScientificArtifactRepository,
+  DataArtifactRepository,
+  GraphArtifactRepository,
+  LiteratureArtifactRepository,
   ProjectRepository,
   ResearchCatalogRepository,
   ResearchThreadRepository,
@@ -32,12 +37,32 @@ export type {
   ResearchProjectPage,
   RunEventRecovery,
   RunRepository,
+  ResearchInputRepository,
   SubmitResearchTurnInput,
   UpdateResearchProjectInput,
   ShareRepository,
   UpdateResearchContractDraftInput,
   WorkspaceSnapshotRepository,
 } from "./ports";
+
+export {
+  createArtifactExportRepository,
+  createFixtureArtifactExportRepository,
+} from "./artifact-export-repository";
+export {
+  createDataArtifactRepository,
+  createFixtureDataArtifactRepository,
+} from "./data-artifact-repository";
+export {
+  createFixtureGraphArtifactRepository,
+  createGraphArtifactRepository,
+} from "./graph-artifact-repository";
+export {
+  createFixtureLiteratureArtifactRepository,
+  createLiteratureArtifactRepository,
+  mapLiteratureClaimRead,
+  mapLiteratureRelationRead,
+} from "./literature-artifact-repository";
 
 export {
   createScientificArtifactRepository,
@@ -90,6 +115,7 @@ export {
   type HttpAdapterConfig,
   type HttpRepositorySet,
 } from "./http-adapter";
+export { createResearchInputRepository } from "./research-input-repository";
 export {
   createSessionManager,
   type SessionInfo,

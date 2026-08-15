@@ -88,13 +88,52 @@ function mapLocator(
   dto: PaperSummaryEvidenceLocatorDto,
 ): PaperSummaryEvidenceLocator {
   if (dto.kind === "paper_text") {
+    if (
+      !dto.text_range ||
+      (!dto.source_url && (!dto.document_parse_id || !dto.document_locator))
+    ) {
+      throw new ValidationError(
+        "paper text evidence locator is incomplete",
+        "PAPER_SUMMARY_PROVENANCE_INVALID",
+        [],
+      );
+    }
     return {
       kind: "paper_text",
-      sourceUrl: dto.source_url,
+      sourceUrl: dto.source_url ?? null,
       section: dto.section ?? "",
       paragraph: dto.paragraph ?? null,
       textRange: dto.text_range ?? "",
+      documentParseId: dto.document_parse_id
+        ? mapId(dto.document_parse_id)
+        : null,
+      documentParseOutputHash: (dto.document_parse_output_hash ??
+        null) as ContentHash | null,
+      documentLocator: dto.document_locator
+        ? {
+            pageIndex: dto.document_locator.page_index,
+            blockId: dto.document_locator.block_id
+              ? mapId(dto.document_locator.block_id)
+              : null,
+            readingOrder: dto.document_locator.reading_order ?? null,
+            textSpan: dto.document_locator.text_span ?? null,
+            tableId: dto.document_locator.table_id
+              ? mapId(dto.document_locator.table_id)
+              : null,
+            cellId: dto.document_locator.cell_id
+              ? mapId(dto.document_locator.cell_id)
+              : null,
+            bbox: dto.document_locator.bbox ?? null,
+          }
+        : null,
     };
+  }
+  if (!dto.source_url || !dto.metadata_field) {
+    throw new ValidationError(
+      "paper metadata evidence locator is incomplete",
+      "PAPER_SUMMARY_PROVENANCE_INVALID",
+      [],
+    );
   }
   return {
     kind: "paper_metadata",
@@ -140,9 +179,24 @@ function mapInputVersions(
   dto: PaperSummaryInputVersionsDto,
 ): PaperSummaryInputVersionsReview {
   return {
-    paperCollectionVersionId: mapId(dto.paper_collection_version_id),
-    paperCollectionSchemaVersion: dto.paper_collection_schema_version,
-    paperCollectionOutputHash: dto.paper_collection_output_hash as ContentHash,
+    collection: dto.collection
+      ? {
+          artifactVersionId: mapId(dto.collection.artifact_version_id),
+          schemaVersion: dto.collection.schema_version,
+          outputHash: dto.collection.output_hash as ContentHash,
+        }
+      : null,
+    documentParses: (dto.document_parses ?? []).map((item) => ({
+      documentParseId: mapId(item.document_parse_id),
+      candidateParseId: mapId(item.candidate_parse_id),
+      researchInputId: mapId(item.research_input_id),
+      sourceSnapshotId: mapId(item.source_snapshot_id),
+      inputContentHash: item.input_content_hash as ContentHash,
+      canonicalOutputHash: item.canonical_output_hash as ContentHash,
+      parserProfileId: mapId(item.parser_profile_id),
+      parserProfileVersion: item.parser_profile_version,
+      configHash: item.config_hash as ContentHash,
+    })),
     sourceSnapshots: dto.source_snapshots.map((snapshot) => ({
       sourceSnapshotId: mapId(snapshot.source_snapshot_id),
       sourceId: mapId(snapshot.source_id),
@@ -161,6 +215,16 @@ function mapProducer(
     producerName: dto.producer_name,
     producerVersion: dto.producer_version,
     modelName: dto.model_name,
+    modelRevision: dto.model_revision ?? null,
+    provider: dto.provider ? mapId(dto.provider) : null,
+    providerRequestId: dto.provider_request_id ?? null,
+    usage: dto.usage
+      ? {
+          promptTokens: dto.usage.prompt_tokens,
+          completionTokens: dto.usage.completion_tokens,
+          totalTokens: dto.usage.total_tokens,
+        }
+      : null,
     promptName: mapId(dto.prompt_name),
     promptVersion: dto.prompt_version,
     promptHash: dto.prompt_hash as ContentHash,
@@ -266,13 +330,15 @@ export function assemblePaperSummaryReview(
       year: read.paper.year ?? null,
     },
     schemaVersion: summary.schema_version,
-    benchmark: {
-      benchmarkId: mapId(summary.benchmark.benchmark_id),
-      benchmarkVersion: summary.benchmark.benchmark_version,
-      scenarioId: mapId(summary.benchmark.scenario_id),
-      schemaVersion: summary.benchmark.schema_version,
-      contentHash: summary.benchmark.content_hash as ContentHash,
-    },
+    benchmark: summary.benchmark
+      ? {
+          benchmarkId: mapId(summary.benchmark.benchmark_id),
+          benchmarkVersion: summary.benchmark.benchmark_version,
+          scenarioId: mapId(summary.benchmark.scenario_id),
+          schemaVersion: summary.benchmark.schema_version,
+          contentHash: summary.benchmark.content_hash as ContentHash,
+        }
+      : null,
     inputVersions: mapInputVersions(summary.input_versions),
     background: mapSection(summary.background),
     methodology: mapSection(summary.methodology),

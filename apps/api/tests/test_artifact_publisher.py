@@ -14,7 +14,9 @@ from app.workflow.publisher import (
     ProducerExecutionStore,
     PublicationAdmissionError,
     admit_artifact_candidate,
+    normalize_producer_parameters,
 )
+from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.core import ArtifactKind, ExportArtifactContent
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -325,3 +327,125 @@ def test_producer_parameters_do_not_reject_normal_token_count_settings() -> None
             expected_status="planning",
             expected_revision=3,
         )
+
+
+def test_function_call_execution_requires_authorization_identity_before_storage() -> (
+    None
+):
+    def unused_factory() -> Callable[[], None]:
+        raise AssertionError(
+            "invalid Function Calling identity must fail before database access"
+        )
+
+    ledger = ProducerExecutionStore(unused_factory)  # type: ignore[arg-type]
+    request = ProducerExecutionRequest(
+        run_id=uuid4(),
+        step_key="planning",
+        attempt_id=uuid4(),
+        idempotency_key="research-step-agent:1",
+        producer_type="model",
+        producer_name="research_step_agent",
+        producer_version="1.0.0",
+        input_hash="sha256:" + "a" * 64,
+        parameters={"temperature": 0.2},
+    )
+
+    with pytest.raises(ValueError, match="tool, and registry identity"):
+        ledger.start_producer_execution(
+            request,
+            token=uuid4(),
+            generation=1,
+            expected_status="planning",
+            expected_revision=3,
+        )
+
+
+def test_nested_producer_parameters_use_the_versioned_hash_envelope() -> None:
+    parameters = {
+        "temperature": 0,
+        "decoding": {"top_p": 0.95, "stop": ["END", "DONE"]},
+    }
+
+    normalized = normalize_producer_parameters(
+        parameters,
+        parameters_version="1.0.0",
+    )
+
+    assert normalized == {
+        "parameters_version": "1.0.0",
+        "parameters": parameters,
+    }
+    assert compute_canonical_payload_hash(normalized) == compute_canonical_payload_hash(
+        {"parameters_version": "1.0.0", "parameters": parameters}
+    )
+
+
+def test_nested_producer_parameters_reject_sensitive_keys_before_storage() -> None:
+    def unused_factory() -> Callable[[], None]:
+        raise AssertionError(
+            "invalid input must fail before opening a database session"
+        )
+
+    ledger = ProducerExecutionStore(unused_factory)  # type: ignore[arg-type]
+    request = ProducerExecutionRequest(
+        run_id=uuid4(),
+        step_key="planning",
+        attempt_id=uuid4(),
+        idempotency_key="producer-nested-secret",
+        producer_type="model",
+        producer_name="qwen",
+        producer_version="1.0.0",
+        input_hash="sha256:" + "a" * 64,
+        parameters={"decoding": {"api_key": "must-not-be-stored"}},
+    )
+
+    with pytest.raises(ValueError, match="forbidden"):
+        ledger.start_producer_execution(
+            request,
+            token=uuid4(),
+            generation=1,
+            expected_status="planning",
+            expected_revision=3,
+        )
+
+
+def test_nested_producer_parameters_reject_depth_and_size_overflow() -> None:
+    def unused_factory() -> Callable[[], None]:
+        raise AssertionError(
+            "invalid input must fail before opening a database session"
+        )
+
+    ledger = ProducerExecutionStore(unused_factory)  # type: ignore[arg-type]
+    base_request = dict(
+        run_id=uuid4(),
+        step_key="planning",
+        attempt_id=uuid4(),
+        producer_type="model",
+        producer_name="qwen",
+        producer_version="1.0.0",
+        input_hash="sha256:" + "a" * 64,
+    )
+    nested: object = 0
+    for _ in range(6):
+        nested = {"child": nested}
+
+    for index, parameters in enumerate(
+        (
+            {"nested": nested},
+            {"items": list(range(65))},
+            {"text": "x" * 257},
+        )
+    ):
+        request = ProducerExecutionRequest(
+            **base_request,
+            idempotency_key=f"producer-overflow-{index}",
+            parameters=parameters,
+        )
+        with pytest.raises(ValueError, match="parameters|nested|array|strings"):
+            ledger.start_producer_execution(
+                request,
+                token=uuid4(),
+                generation=1,
+                expected_status="planning",
+                expected_revision=3,
+            )

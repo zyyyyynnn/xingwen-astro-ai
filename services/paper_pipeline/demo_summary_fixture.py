@@ -453,7 +453,9 @@ def build_summary_fixture_document() -> dict[str, Any]:
             "benchmark_version": read.summary.benchmark.benchmark_version,
             "paper_id": read.summary.paper_id,
             "paper_collection_version_id": (
-                read.summary.input_versions.paper_collection_version_id
+                read.summary.input_versions.collection.artifact_version_id
+                if read.summary.input_versions.collection is not None
+                else None
             ),
             "provenance_note": SUMMARY_PROVENANCE_NOTE,
         },

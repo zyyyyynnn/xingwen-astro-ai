@@ -19,9 +19,14 @@ import { createArtifactRepository } from "./artifact-repository";
 import { createPaperAcquisitionRepository } from "./paper-acquisition-repository";
 import { createPaperSummaryRepository } from "./paper-summary-repository";
 import { createScientificArtifactRepository } from "./scientific-artifact-repository";
+import { createDataArtifactRepository } from "./data-artifact-repository";
+import { createGraphArtifactRepository } from "./graph-artifact-repository";
+import { createLiteratureArtifactRepository } from "./literature-artifact-repository";
 import type { RepositorySet } from "./ports";
 import { createResearchRepositories } from "./research-repositories";
 import { createSnapshotShareRepositories } from "./snapshot-share-repositories";
+import { createResearchInputRepository } from "./research-input-repository";
+import { createArtifactExportRepository } from "./artifact-export-repository";
 
 export type { HttpAdapterConfig };
 
@@ -46,17 +51,27 @@ export function createHttpRepositories(
   const paperAcquisition = createPaperAcquisitionRepository(http);
   const paperSummary = createPaperSummaryRepository(http);
   const scientificArtifacts = createScientificArtifactRepository(http);
+  const dataArtifacts = createDataArtifactRepository(http);
+  const literatureArtifacts = createLiteratureArtifactRepository(http);
+  const graphArtifacts = createGraphArtifactRepository(http);
   const { workspaces, shares } = createSnapshotShareRepositories(http);
+  const researchInputs = createResearchInputRepository(http);
+  const artifactExports = createArtifactExportRepository(http);
   return {
     projects,
     researchCatalog,
     researchThread,
     contracts,
     runs,
+    researchInputs,
     artifacts,
     paperAcquisition,
     paperSummary,
     scientificArtifacts,
+    dataArtifacts,
+    artifactExports,
+    literatureArtifacts,
+    graphArtifacts,
     workspaces,
     shares,
   };

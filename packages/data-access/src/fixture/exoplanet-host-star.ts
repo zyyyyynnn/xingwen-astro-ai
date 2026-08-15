@@ -2,10 +2,11 @@
  * Exoplanet host-star integration fixture — the frozen main-case Demo Replay
  * scenario.
  *
- * Every payload is a snake_case `/api` transport DTO that the fixture
- * adapter validates against the Core Domain and Transport Contract JSON Schemas before mapping into the
- * domain model. Timestamps, hashes and IDs are deterministic so Guided Tour
- * replays are reproducible.
+ * Contract-registered payloads are snake_case `/api` transport DTOs validated
+ * against the Core Domain and Transport Contract JSON Schemas; dedicated rich
+ * read ports are mapped by the same strict transport mappers as HTTP.
+ * Timestamps, hashes and IDs are deterministic so Guided Tour replays are
+ * reproducible.
  *
  * All artifact versions carry `source_mode: "fixture"` and the run carries
  * `execution_mode: "demo_replay"` — fixture data is never labelled live or
@@ -22,6 +23,8 @@ import type {
   ResearchProjectDto,
   ResearchRunDto,
   RunEventDto,
+  RunCheckpointRead as RunCheckpointReadDto,
+  ResearchInputRef as ResearchInputRefDto,
 } from "@xingwen/contracts";
 import type { Evidence } from "@xingwen/domain";
 
@@ -37,6 +40,17 @@ import {
   paperSummaryReadFixture,
 } from "./paper-summary";
 import { scientificArtifactFixtures } from "./scientific-artifacts";
+import {
+  dataArtifactReads,
+  fieldDictionaryArtifactReads,
+  graphArtifactReads,
+  graphEdgeReads,
+  graphNodeReads,
+  literatureClaimReads,
+  literatureReasoningTraceReads,
+  literatureRelationReads,
+  sourceCollectionArtifactReads,
+} from "./formal-artifacts";
 
 const T0 = "2026-07-21T08:00:00Z";
 const T1 = "2026-07-21T08:05:00Z";
@@ -180,6 +194,7 @@ const run: ResearchRunDto = {
   contract_id: "rc_01JEXAMPLE",
   execution_mode: "demo_replay",
   status: "completed",
+  revision: 1,
   progress: 100,
   parent_run_id: null,
   derivation_kind: "original",
@@ -192,6 +207,32 @@ const run: ResearchRunDto = {
   latest_event_sequence: 12,
   failure_code: null,
   failure_summary: null,
+};
+
+const runCheckpoint: RunCheckpointReadDto = {
+  code: "INPUT_REQUIRED",
+  id: "checkpoint_01JEXAMPLE",
+  opened_at: T8,
+  public_message: "请补充用于验证宿主星参数的 PDF 或文本来源。",
+  required_input_types: ["pdf", "text"],
+  resolution_run_id: "run_01JEXAMPLE",
+  resolved_at: T9,
+  run_id: "run_01JEXAMPLE",
+  status: "resolved",
+  step_key: "source_validation",
+};
+
+const researchInput: ResearchInputRefDto = {
+  content_hash: hash("i"),
+  created_at: T8,
+  filename: "host-star-notes.txt",
+  id: "input_01JEXAMPLE",
+  mime_type: "text/plain",
+  size_bytes: 128,
+  source_snapshot_id: "snap_input_01",
+  source_type: "fixture",
+  status: "accepted",
+  type: "text",
 };
 
 const runEvents: readonly RunEventDto[] = [
@@ -445,6 +486,24 @@ const artifacts: readonly ResearchArtifactDto[] = [
     created_at: T6,
     latest_version_id: "artv_scientific_wwt",
   },
+  {
+    id: "art_scientific_spectrum",
+    project_id: "proj_01JEXAMPLE",
+    kind: "spectrum",
+    title: "HD 123 optical spectrum",
+    logical_key: "spectrum.hd123",
+    created_at: T6,
+    latest_version_id: "artv_scientific_spectrum",
+  },
+  {
+    id: "art_scientific_light_curve",
+    project_id: "proj_01JEXAMPLE",
+    kind: "light_curve",
+    title: "HD 123 transit light curve",
+    logical_key: "light_curve.hd123",
+    created_at: T6,
+    latest_version_id: "artv_scientific_light_curve",
+  },
 ];
 
 const artifactVersions: readonly ArtifactVersionDto[] = [
@@ -457,8 +516,10 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     schema_version: "1.0.0",
     content: {
       kind: "dataset",
-      field_ids: ["planet.toi_id", "star.tic_id"],
-      rows: [{ "planet.toi_id": "TOI-1234", "star.tic_id": "TIC-5678" }],
+      read_model: "DatasetArtifactRead",
+      candidate_id: "dataset_candidate_01",
+      row_count: 1,
+      field_count: 2,
     },
     content_hash: hash("b"),
     input_hash: hash("c"),
@@ -478,7 +539,9 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     schema_version: "2.0.0",
     content: {
       kind: "field_dictionary",
-      field_ids: ["planet.toi_id", "star.tic_id"],
+      read_model: "FieldDictionaryArtifactRead",
+      candidate_id: "field_dictionary_candidate_01",
+      field_count: 2,
     },
     content_hash: hash("d"),
     input_hash: hash("e"),
@@ -496,7 +559,12 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     created_by_run_id: "run_01JEXAMPLE",
     version_number: 1,
     schema_version: "2.0.0",
-    content: { kind: "source_collection", source_snapshot_ids: ["snap_01"] },
+    content: {
+      kind: "source_collection",
+      read_model: "SourceCollectionArtifactRead",
+      candidate_id: "source_collection_candidate_01",
+      member_count: 1,
+    },
     content_hash: hash("f"),
     input_hash: hash("0"),
     source_mode: "fixture",
@@ -513,7 +581,11 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     created_by_run_id: "run_01JEXAMPLE",
     version_number: 1,
     schema_version: "2.0.0",
-    content: { kind: "literature_claims", claim_ids: ["claim_01", "claim_02"] },
+    content: {
+      kind: "literature_claims",
+      read_model: "LiteratureClaimRead",
+      item_count: 1,
+    },
     content_hash: hash("5"),
     input_hash: hash("6"),
     source_mode: "fixture",
@@ -530,7 +602,11 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     created_by_run_id: "run_01JEXAMPLE",
     version_number: 1,
     schema_version: "2.0.0",
-    content: { kind: "literature_relations", relation_ids: ["rel_01"] },
+    content: {
+      kind: "literature_relations",
+      read_model: "LiteratureRelationRead",
+      item_count: 1,
+    },
     content_hash: hash("7"),
     input_hash: hash("8"),
     source_mode: "fixture",
@@ -547,7 +623,11 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     created_by_run_id: "run_01JEXAMPLE",
     version_number: 1,
     schema_version: "2.0.0",
-    content: { kind: "reasoning_traces", reasoning_trace_ids: ["trace_01"] },
+    content: {
+      kind: "reasoning_traces",
+      read_model: "LiteratureReasoningTraceRead",
+      item_count: 1,
+    },
     content_hash: hash("9"),
     input_hash: hash("a"),
     source_mode: "fixture",
@@ -566,8 +646,9 @@ const artifactVersions: readonly ArtifactVersionDto[] = [
     schema_version: "2.0.0",
     content: {
       kind: "graph",
-      node_ids: ["node_01", "node_02"],
-      edge_ids: ["edge_01"],
+      read_model: "GraphArtifactRead",
+      node_count: 2,
+      edge_count: 1,
     },
     content_hash: hash("b"),
     input_hash: hash("c"),
@@ -686,6 +767,8 @@ export const exoplanetHostStarFixture: FixtureBundle = {
     contracts: [contract],
     runs: [run],
     runEvents,
+    runCheckpoints: [runCheckpoint],
+    researchInputs: [researchInput],
     artifacts,
     artifactVersions,
     paperAcquisitions: [
@@ -702,6 +785,15 @@ export const exoplanetHostStarFixture: FixtureBundle = {
       },
     ],
     scientificArtifacts: scientificArtifactFixtures,
+    dataArtifactReads,
+    fieldDictionaryArtifactReads,
+    sourceCollectionArtifactReads,
+    literatureClaimReads,
+    literatureRelationReads,
+    literatureReasoningTraceReads,
+    graphArtifactReads,
+    graphNodeReads,
+    graphEdgeReads,
     evidence,
   },
 };

@@ -1,7 +1,10 @@
 import type { ResearchThreadEntryViewModel } from "@xingwen/research-adapter";
 import { describe, expect, it } from "vitest";
 
-import { processProjectionInsertionIndex } from "./research-thread";
+import {
+  groupThreadProjections,
+  threadProjectionInsertionIndex,
+} from "./research-thread";
 
 function entry(id: string, createdAt: string): ResearchThreadEntryViewModel {
   return {
@@ -17,7 +20,7 @@ function entry(id: string, createdAt: string): ResearchThreadEntryViewModel {
   } as ResearchThreadEntryViewModel;
 }
 
-describe("processProjectionInsertionIndex", () => {
+describe("Thread projections", () => {
   it("keeps a run projection before later Thread messages", () => {
     const entries = [
       entry("entry-1", "2026-08-12T08:00:00Z"),
@@ -26,7 +29,31 @@ describe("processProjectionInsertionIndex", () => {
     ];
 
     expect(
-      processProjectionInsertionIndex(entries, "2026-08-12T08:20:00Z"),
+      threadProjectionInsertionIndex(entries, "2026-08-12T08:20:00Z"),
     ).toBe(2);
+  });
+
+  it("orders process and artifact projections on the same timeline", () => {
+    const entries = [
+      entry("entry-1", "2026-08-12T08:00:00Z"),
+      entry("entry-2", "2026-08-12T08:30:00Z"),
+    ];
+    const groups = groupThreadProjections(entries, [
+      {
+        id: "artifact",
+        occurredAt: "2026-08-12T08:20:00Z",
+        node: "artifact",
+      },
+      {
+        id: "process",
+        occurredAt: "2026-08-12T08:10:00Z",
+        node: "process",
+      },
+    ]);
+
+    expect(groups.get(1)?.map((projection) => projection.id)).toEqual([
+      "process",
+      "artifact",
+    ]);
   });
 });

@@ -18,7 +18,6 @@ from app.db.models import (
     ResearchInputContentModel,
     ResearchInputIdempotencyModel,
     ResearchInputModel,
-    ResearchProjectModel,
 )
 from app.db.session import create_engine_from_url, session_factory
 from authoring_test_support import build_research_project

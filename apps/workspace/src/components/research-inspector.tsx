@@ -24,13 +24,17 @@ interface ResearchInspectorProps {
   readonly presentation: ResearchPresentation;
   readonly artifactPanel: React.ReactNode;
   readonly artifactStatus: string;
+  readonly runInteractionPanel: React.ReactNode;
+  readonly researchInputPanel: React.ReactNode;
+  readonly researchInputStatus: string;
 }
 
 interface InspectorDisclosureProps {
   readonly title: string;
   readonly status?: string;
   readonly icon: LucideIcon;
-  readonly kind: "protocol" | "plan" | "artifacts";
+  readonly kind: "protocol" | "plan" | "run" | "inputs" | "artifacts";
+  readonly defaultOpen?: boolean;
   readonly children: React.ReactNode;
 }
 
@@ -40,11 +44,12 @@ function InspectorDisclosure({
   icon: Icon,
   kind,
   children,
+  defaultOpen = true,
 }: InspectorDisclosureProps) {
   return (
     <Collapsible
       className="research-inspector__section"
-      defaultOpen
+      defaultOpen={defaultOpen}
       data-kind={kind}
     >
       <CollapsibleTrigger asChild>
@@ -85,6 +90,9 @@ export function ResearchInspector({
   presentation,
   artifactPanel,
   artifactStatus,
+  runInteractionPanel,
+  researchInputPanel,
+  researchInputStatus,
 }: ResearchInspectorProps) {
   return (
     <section className="research-inspector" aria-label="研究概览">
@@ -99,6 +107,20 @@ export function ResearchInspector({
             draft?.intent ??
             "研究助手生成草案后，可在主对话中检查并确认。"}
         </p>
+      </InspectorDisclosure>
+      {runInteractionPanel ? (
+        <InspectorDisclosure title="运行处理" icon={ListChecks} kind="run">
+          {runInteractionPanel}
+        </InspectorDisclosure>
+      ) : null}
+      <InspectorDisclosure
+        title="研究输入"
+        status={researchInputStatus}
+        icon={FileSearch}
+        kind="inputs"
+        defaultOpen={false}
+      >
+        {researchInputPanel}
       </InspectorDisclosure>
       <InspectorDisclosure
         title="研究计划"

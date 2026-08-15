@@ -45,6 +45,45 @@ def test_dashscope_retry_budget_is_bounded() -> None:
         Settings(_env_file=None, DASHSCOPE_MAX_RETRIES=5)
 
 
+def test_image_dataset_resource_budgets_are_explicit_and_bounded() -> None:
+    settings = Settings(_env_file=None)
+
+    assert "application/zip" in settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES
+    assert settings.IMAGE_DATASET_MAX_IMAGES == 256
+    assert settings.IMAGE_DATASET_MAX_TOTAL_PIXELS == 16_000_000
+    assert settings.IMAGE_DATASET_MIN_SAMPLES_PER_CLASS == 2
+    with pytest.raises(ValidationError, match="IMAGE_DATASET_MAX_IMAGES"):
+        Settings(_env_file=None, IMAGE_DATASET_MAX_IMAGES=9)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    (
+        (
+            "WORKFLOW_MAX_QUEUED_PER_PROJECT",
+            65,
+            "WORKFLOW_MAX_QUEUED_PER_PROJECT",
+        ),
+        (
+            "WORKFLOW_MAX_ACTIVE_PER_PROJECT",
+            5,
+            "WORKFLOW_MAX_ACTIVE_PER_PROJECT",
+        ),
+        (
+            "WORKFLOW_MAX_NONTERMINAL_PER_PROJECT",
+            129,
+            "WORKFLOW_MAX_NONTERMINAL_PER_PROJECT",
+        ),
+        ("WORKFLOW_WORKER_CAPACITY", 5, "WORKFLOW_WORKER_CAPACITY"),
+    ),
+)
+def test_workflow_capacity_hierarchy_is_bounded(
+    field: str, value: int, message: str
+) -> None:
+    with pytest.raises(ValidationError, match=message):
+        Settings(_env_file=None, **{field: value})
+
+
 def test_production_accepts_managed_database_url_without_postgres_password() -> None:
     settings = Settings(
         _env_file=None,
@@ -130,6 +169,12 @@ def test_config_loads_from_env_example(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = Settings(_env_file=env_example)
     assert "application/pdf" in settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES
     assert "text/csv" in settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES
+    assert "application/fits" in settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES
+    assert (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        in settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES
+    )
+    assert "application/vnd.apache.parquet" in settings.RESEARCH_INPUT_ALLOWED_MIME_TYPES
     assert settings.URL_FETCH_ALLOWED_PROTOCOLS == ("https",)
     assert settings.URL_FETCH_ALLOWED_HOSTS is None
 

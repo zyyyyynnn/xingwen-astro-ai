@@ -13,6 +13,8 @@
 - 集合接口使用不透明 cursor 分页（默认 20，最大 100）。
 - 写操作通过 `Idempotency-Key` 或版本前置条件确保幂等。
 - `execution_mode`（demo_replay / live）与 `source_mode`（fixture / live / cached）分离。
+- `/api/health` 的 `research_assistant.status` 仅为 `configured | unconfigured`；
+  `configured` 只代表生产调用所需配置存在，不是对外部 Provider 的 readiness 探测。
 - 前端组件不直接依赖 Transport DTO，必须经由 Repository Adapter 校验与映射。
 - API 严禁返回模型私有思维过程；ReasoningTrace 仅包含可审查依据与引用。
 
@@ -68,6 +70,10 @@
 }
 ```
 
+模型 Provider 的额度耗尽稳定投影为 `MODEL_QUOTA_EXHAUSTED`；返回安全摘要，不透传
+账户、计费或原始 Provider body。该错误不等同于短时限流
+`MODEL_RATE_LIMITED`，也不得自动扩大费用权限。
+
 ## 5. 核心资源结构与流向
 
 ```text
@@ -87,7 +93,7 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - **ArtifactVersion**：不可变的科研产物快照，绑定 Evidence 与 SourceSnapshot。
 - **WorkspaceSnapshot**：工作台私有恢复布局状态。
 - **ShareSnapshot**：冻结的公开只读投影。
-- **ResearchInput**：受控输入边界（URL / PDF / CSV / JSON / 图片 / 文本）的不可变引用与溯源；二进制内容与全文永不进入公开 DTO。
+- **ResearchInput**：受控输入边界（URL / PDF / CSV / XLSX / Parquet / JSON / FITS / `image_dataset` / 单张图片 / Markdown / 纯文本）的不可变引用与溯源；二进制内容与全文永不进入公开 DTO。XLSX 仅接受无宏、无外链且成员数/解压体积/压缩比受限的单工作表 OOXML；Parquet 仅接受行数、字段数、解码体积和 scalar Arrow type 受限的文件。FITS 上传必须由 `SIMPLE`/`XTENSION` magic、`application/fits` 与 `.fits`/`.fit`/`.fts` 文件名一致性共同准入，并仅以内容寻址引用进入受限科学计算。`image_dataset` 只接受 `application/zip`，根级 `labels.json` 固定 `schema_version: 1.0.0` 与 `images[{path,label}]`；成员必须与 manifest 完全闭合并通过路径、格式、ZIP bomb、图像解码及训练预算门禁。普通 `image` 不得作为图像分类训练集。
 
 ## 6. Research Turn
 
@@ -101,16 +107,61 @@ Project -> ResearchInput -> ContractDraft / Run (仅引用绑定)
 - `GET /api/runs/{run_id}/steps` 只读取 RunStep 权威状态；前端不得根据事件数量或百分比合成进度。
 - Project list/read 携带由服务端批量计算的最小 `thread_summary`（是否有消息、最新 actor、是否存在未回答澄清）；它只用于非当前 Project 导航状态，不能持久化或复制 workflow/presentation state。当前 Project 仍以完整 Research Thread 为事实源，并由唯一 presentation mapper 得出同一状态。
 - `POST /api/projects/{project_id}/runs` 从 confirmed Contract 的 requested outputs 确定性冻结最小依赖闭包；未映射产物返回 `409 RUN_PLAN_UNSUPPORTED_OUTPUT`，不得生成虚假 Step。
+- Live Run queue admission 同时受 global 与 Project 级 PostgreSQL 容量门禁约束；达到上限返回 `429 RUN_QUEUE_CAPACITY_EXCEEDED`、`Retry-After` 与标准 Problem Details，不创建资源。相同 Idempotency-Key + payload 的 replay 优先返回既有 Run，不受后来队列满载影响。
+- `GET /api/runs/{run_id}/checkpoint` 返回服务端错误分类冻结的输入请求、精确 Step、状态、所需输入类型与 resolution Run；没有 Checkpoint 或跨 ownership 均返回不泄露存在性的 `404`。
+- `POST /api/runs/{run_id}/decisions` 必须同时携带 `If-Match` 与 `Idempotency-Key`。`resume` 只接受非空、唯一、owned、accepted、未过期且满足 Checkpoint 类型的 `input_ids`；`retry` 只接受明确 `step_key` 且最后 Attempt 可修复；`cancel` 只关闭 open Checkpoint。resume/retry 返回不可变 Decision 和新建的 retry 派生 Run，绝不原地改写已完成 lineage。
+- Decision 同 key 同 payload 返回相同结果；同 key 不同 payload 返回 `409 RUN_DECISION_CONFLICT`，stale revision 返回 `409 VERSION_CONFLICT`，状态、Step、输入或修复分类不满足返回 `409 RUN_CHECKPOINT_UNAVAILABLE`。派生 Run 的 `Location` 与当前 revision `ETag` 由响应头返回。
 
 ## 6. Research Input 摄取契约
 
 - **内容寻址**：摄取内容以 `sha256:<hex>` 内容哈希冻结，服务端按哈希校验写入且不覆盖既有 blob。
-- **MIME 不可信**：客户端声明不具效力；所有字节先经 magic bytes 嗅探，声明类型、客户端 MIME 与嗅探结果三方一致才接受，否则 `415`。
+- **MIME 不可信**：客户端声明不具效力；所有字节先经 magic bytes 嗅探，声明类型、客户端 MIME 与嗅探结果三方一致才接受，否则 `415`。Markdown 没有可靠 magic，唯一例外是字节已严格通过 UTF-8 文本嗅探、输入类型为 `text`、声明为 `text/markdown` 或 `text/x-markdown` 且扩展名一致时保留其语义 MIME；非文本字节不能被声明重标为 Markdown。
 - **文件名净化**：路径穿越与分隔符在服务端剥离，仅保留显示用 basename；扩展名与内容类型不一致返回 `415`。
 - **URL 抓取失败关闭**：协议与主机 allowlist、SSRF 拒绝内网地址、每次重定向重新校验、流式大小上限、超时、不转发凭据。
 - **错误码**：`RESEARCH_INPUT_INVALID`（400，载荷组合非法）、`RESEARCH_INPUT_TOO_LARGE`（413）、`RESEARCH_INPUT_MIME_REJECTED`（415）、`RESEARCH_INPUT_FILENAME_INVALID`（400）、`RESEARCH_INPUT_NOT_FOUND`（404）、`URL_FETCH_BLOCKED`（422，策略拒绝）、`URL_FETCH_TOO_LARGE` / `URL_FETCH_FAILED`（502，上游失败）。
 - **绑定语义**：`POST /api/research-inputs/{input_id}/bind` 只绑定引用，不产生所有权转移；输入删除后既有绑定不受影响。
 - **状态语义**：稳定生命周期为 `accepted | unsupported_processing | failed_ingestion`。摄取端点只在成功时创建 `accepted` 资源；失败使用 Problem Details 且不创建失败输入。其他状态只能由实际观察到对应结果的 writer 持久化。`accepted` 只证明内容已安全摄取并冻结，不表示内容已被理解。
+
+## 6.1 科研 Artifact 二进制内容读取
+
+`GET /api/artifact-versions/{version_id}/scientific/content/{content_hash}` 只
+服务该 ArtifactVersion 的已声明二进制内容。服务端先完成当前 Session 的
+ArtifactVersion ownership、科研 Artifact publication 与 content-hash 声明校验，
+再打开内容寻址存储；未授权资源仍返回 `404`，不得通过 Range、hash 或文件大小
+探测资源存在性。
+
+- 未带 `Range` 时返回 `200`，并带 `Accept-Ranges: bytes`、准确的
+  `Content-Length` 与声明的 `Content-Type`。响应使用有界异步 chunk iterator，
+  不将全文件 `retrieve`、拼接或复制进响应对象。
+- 只接受一个 `bytes` range：`bytes=start-end`、`bytes=start-` 或
+  `bytes=-suffix-length`。满足请求时返回 `206`，带
+  `Content-Range: bytes start-end/total`、`Accept-Ranges: bytes` 与该段的
+  `Content-Length`；越界的显式 end 按文件末尾截断。
+- malformed、multi-range、空 suffix、逆序或超出文件大小的请求返回 `416`，
+  带 `Accept-Ranges: bytes` 与 `Content-Range: bytes */total`。Range 错误不得
+  绕过 ownership 或已声明 hash 校验。
+- 内容寻址 blob 缺失或完整性不一致仍是服务端完整性故障，不以空响应或 fixture
+  内容代替；二进制内容和全文不进入公共 Artifact DTO。
+- 完整性巡检与 orphan impact report 是 operator-only、read-only 命令，不新增
+  `/api/*` 管理面，也不接受 Session、hash、path 或 Range 作为删除授权。当前没有
+  公共或内部 HTTP blob 删除端点。
+
+## 6.2 PaperSummary 版本固定导出
+
+`GET /api/artifact-versions/{version_id}/paper-summary/export?format=json|markdown`
+只导出路径中指定的不可变 PaperSummary ArtifactVersion，不解析
+`latest_version_id`。读取必须复用 PaperSummary 权威边界的 Session ownership、
+Artifact kind、content hash、ProducerExecution、Evidence 与 SourceSnapshot 闭合校验。
+
+- `format=json` 返回完整、已验证的 `PaperSummaryRead`；`format=markdown`
+  返回同一版本的论文身份、七段摘要、statement support、Evidence
+  identity 与 provenance identity。两种格式都不包含受限全文、私有推理、
+  本地路径或原始模型响应。
+- 成功响应带 `X-Artifact-Version-Id`、`X-Artifact-Content-Hash`、以版本
+  content hash 为值的 `ETag` 以及 `Cache-Control: no-store`；文件名由已验证的
+  version ID 确定性生成。
+- 会话缺失、跨 Project 访问、kind 不匹配与 provenance 不闭合继续使用
+  PaperSummary 读取边界的 Problem Details，导出层不降级为文件猜测或 fixture。
 
 ## 7. 文献 Claim、Relation 与 Trace 读取
 

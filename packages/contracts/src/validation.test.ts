@@ -76,6 +76,7 @@ describe("contract validation — ResearchRun", () => {
     project_id: "proj_test",
     contract_id: "rc_test",
     execution_mode: "demo_replay",
+    revision: 1,
     status: "completed",
     progress: 100,
     derivation_kind: "original",
@@ -97,6 +98,32 @@ describe("contract validation — ResearchRun", () => {
   it("rejects an invalid status enum", () => {
     expect(
       validateDto("ResearchRun", { ...validRun, status: "unknown" }).ok,
+    ).toBe(false);
+  });
+});
+
+describe("contract validation — ArtifactExportRead", () => {
+  const validExport = {
+    id: "export_test",
+    artifact_version_id: "version_test",
+    project_id: "project_test",
+    format: "json",
+    status: "completed",
+    content_hash: `sha256:${"a".repeat(64)}`,
+    generated_at: "2026-08-14T08:00:00Z",
+    expires_at: "2026-08-14T09:00:00Z",
+  };
+
+  it("accepts a version-pinned completed export", () => {
+    expect(validateDto("ArtifactExportRead", validExport).ok).toBe(true);
+  });
+
+  it("rejects an unregistered format", () => {
+    expect(
+      validateDto("ArtifactExportRead", {
+        ...validExport,
+        format: "markdown",
+      }).ok,
     ).toBe(false);
   });
 });
@@ -130,13 +157,14 @@ describe("contract validation — isDto type guard", () => {
 
 describe("contract — schema metadata", () => {
   it("exposes core and generic provenance read model names", () => {
-    expect(CORE_MODEL_NAMES).toHaveLength(28);
+    expect(CORE_MODEL_NAMES).toHaveLength(29);
     expect(CORE_MODEL_NAMES).toContain("ResearchProject");
     expect(CORE_MODEL_NAMES).toContain("ResearchThreadEntry");
     expect(CORE_MODEL_NAMES).toContain("ResearchTurnResult");
     expect(CORE_MODEL_NAMES).toContain("RunStepRead");
     expect(CORE_MODEL_NAMES).toContain("ModelExecutionRecord");
     expect(CORE_MODEL_NAMES).toContain("ResearchPlanningCatalog");
+    expect(CORE_MODEL_NAMES).toContain("ArtifactExportRead");
     expect(CORE_MODEL_NAMES).toContain("ArtifactVersion");
     expect(CORE_MODEL_NAMES).toContain("EvidenceRead");
     expect(CORE_MODEL_NAMES).toContain("SourceSnapshotDetail");

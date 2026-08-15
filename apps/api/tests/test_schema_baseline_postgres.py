@@ -34,10 +34,14 @@ EXPECTED_TABLES = frozenset(
         "research_projects",
         "research_runs",
         "research_thread_entries",
+        "run_checkpoints",
+        "run_decisions",
         "run_events",
         "run_steps",
         "source_snapshots",
         "step_attempts",
+        "workflow_project_dispatches",
+        "workflow_workers",
     }
 )
 CURRENT_REQUIRED_COLUMNS = {
@@ -58,6 +62,21 @@ CURRENT_REQUIRED_COLUMNS = {
             "parameters_snapshot",
         }
     ),
+}
+CURRENT_OPTIONAL_COLUMNS = {
+    "producer_executions": frozenset(
+        {
+            "authorized_skill_id",
+            "authorized_tool_name",
+            "error_hash",
+            "provider_request_id",
+            "public_message",
+            "rejected_arguments_hash",
+            "registry_revision",
+            "tool_call_id",
+            "validated_arguments_hash",
+        }
+    )
 }
 
 
@@ -88,5 +107,15 @@ def test_fresh_postgres_matches_current_schema_contract() -> None:
             }
             assert required_columns <= columns.keys()
             assert all(columns[name]["nullable"] is False for name in required_columns)
+        for table, optional_columns in CURRENT_OPTIONAL_COLUMNS.items():
+            columns = {
+                column["name"]: column for column in inspector.get_columns(table)
+            }
+            assert optional_columns <= columns.keys()
+            assert all(columns[name]["nullable"] is True for name in optional_columns)
+        run_columns = {
+            column["name"]: column for column in inspector.get_columns("research_runs")
+        }
+        assert run_columns["queue_expires_at"]["nullable"] is True
     finally:
         engine.dispose()

@@ -16,11 +16,16 @@ import type {
   ResearchThreadUserPayload,
   RunStatus,
   SemanticVersion,
+  ScientificSkillId,
   SourceMode,
   UnitPolicy,
   UtcIsoTimestamp,
   EvidenceTargetType,
   EvidenceType,
+  DataArtifactReview,
+  GraphArtifactReview,
+  LiteratureArtifactReview,
+  PaperAcquisitionReview,
 } from "@xingwen/domain";
 
 export interface ProjectViewModel {
@@ -98,6 +103,10 @@ export interface RunStepViewModel {
   readonly position: number;
   readonly key: DomainEntityId;
   readonly label: string;
+  readonly phase: RunStatus;
+  readonly taskId: DomainEntityId | null;
+  readonly skillId: ScientificSkillId | null;
+  readonly dependsOnStepKeys: readonly DomainEntityId[];
   readonly status:
     | "pending"
     | "running"
@@ -172,6 +181,7 @@ export interface ResearchRunViewModel {
   readonly contractId: DomainEntityId;
   readonly executionMode: ExecutionMode;
   readonly status: RunStatus;
+  readonly revision: number;
   readonly progress: number;
   readonly latestEventSequence: number;
   readonly parentRunId: DomainEntityId | null;
@@ -289,3 +299,38 @@ export interface EvidenceViewModel {
   readonly confidence: number;
   readonly createdAt: UtcIsoTimestamp;
 }
+
+/** UI-safe projection of typed data artifact reads. */
+export type DataArtifactReviewViewModel = DataArtifactReview;
+export type PaperAcquisitionReviewViewModel = PaperAcquisitionReview;
+export type LiteratureArtifactReviewViewModel = LiteratureArtifactReview;
+export type LiteratureClaimsArtifactReviewViewModel = Extract<
+  LiteratureArtifactReview,
+  { readonly kind: "literature_claims" }
+>;
+export type LiteratureRelationsArtifactReviewViewModel = Extract<
+  LiteratureArtifactReview,
+  { readonly kind: "literature_relations" }
+>;
+export type ReasoningTracesArtifactReviewViewModel = Extract<
+  LiteratureArtifactReview,
+  { readonly kind: "reasoning_traces" }
+>;
+export type GraphArtifactReviewViewModel = GraphArtifactReview;
+export type DatasetArtifactReviewViewModel = Extract<
+  DataArtifactReview,
+  { readonly kind: "dataset" }
+>;
+export type FieldDictionaryArtifactReviewViewModel = Extract<
+  DataArtifactReview,
+  { readonly kind: "field_dictionary" }
+>;
+export type SourceCollectionArtifactReviewViewModel = Extract<
+  DataArtifactReview,
+  { readonly kind: "source_collection" }
+>;
+export type DataArtifactFieldDefinitionViewModel =
+  | DatasetArtifactReviewViewModel["columns"][number]
+  | FieldDictionaryArtifactReviewViewModel["fieldDefinitions"][number];
+export type DatasetCellReviewViewModel =
+  DatasetArtifactReviewViewModel["rows"][number]["cells"][number];

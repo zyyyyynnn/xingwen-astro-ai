@@ -51,6 +51,10 @@ from app.schemas.core import (
     ResearchCatalogOption,
     ScientificSkillId,
     ResearchRun,
+    RunCheckpointRead,
+    RunDecisionRead,
+    RunDecisionRequest,
+    RunDecisionResult,
     ResearchThreadEntry,
     ResearchThreadEntryKind,
     ResearchThreadSummary,
@@ -71,10 +75,15 @@ from app.services.model_execution import ModelExecutionError, ModelExecutionResp
 from app.services.research_planner import PlannerResult, ResearchContractPlanner
 from app.workflow.run_plan import UnsupportedRunPlanError, compile_run_plan
 from app.workflow.store import (
+    CheckpointSnapshot,
+    CheckpointUnavailableError,
+    DecisionSnapshot,
     EventSnapshot,
     PersistentWorkflowStore,
     RunNotFoundError,
+    RunQueueCapacityError,
     RunSnapshot,
+    StaleWorkflowWriteError,
     WorkflowConflictError,
 )
 
@@ -510,12 +519,110 @@ class ResearchApplicationService:
                 request_hash=request_hash,
                 steps=run_steps,
             )
+        except RunQueueCapacityError as exc:
+            raise _queue_capacity_problem(exc) from exc
         except WorkflowConflictError as exc:
             raise _idempotency_conflict() from exc
         return _run(snapshot)
 
     def get_run(self, *, run_id: str, session_id: str) -> ResearchRun:
         return _run(self._load_owned_run(run_id, session_id))
+
+    def cancel_run(
+        self,
+        *,
+        run_id: str,
+        session_id: str,
+        if_match: str,
+    ) -> ResearchRun:
+        expected_revision = _parse_if_match(if_match)
+        snapshot = self._load_owned_run(run_id, session_id)
+        try:
+            self._workflow.cancel_run(
+                snapshot.id,
+                expected_status=snapshot.status,
+                expected_revision=expected_revision,
+                public_message="Run cancelled by user",
+            )
+        except StaleWorkflowWriteError as exc:
+            self._load_owned_run(run_id, session_id)
+            raise SecurityProblem(
+                status=409,
+                code="VERSION_CONFLICT",
+                title="Version conflict",
+                detail="The Run changed since it was read",
+            ) from exc
+        return _run(self._workflow.load_snapshot(snapshot.id))
+
+    def get_run_checkpoint(self, *, run_id: str, session_id: str) -> RunCheckpointRead:
+        snapshot = self._load_owned_run(run_id, session_id)
+        try:
+            return _checkpoint(self._workflow.load_checkpoint(snapshot.id))
+        except CheckpointUnavailableError as exc:
+            raise _not_found("RUN_CHECKPOINT_NOT_FOUND") from exc
+
+    def decide_run(
+        self,
+        *,
+        run_id: str,
+        session_id: str,
+        if_match: str,
+        idempotency_key: str,
+        request: RunDecisionRequest,
+    ) -> RunDecisionResult:
+        expected_revision = _parse_if_match(if_match)
+        snapshot = self._load_owned_run(run_id, session_id)
+        payload = request.model_dump(mode="json")
+        raw_input_ids = tuple(payload.get("input_ids", ()))
+        try:
+            input_ids = tuple(UUID(value) for value in raw_input_ids)
+        except ValueError as exc:
+            raise SecurityProblem(
+                status=422,
+                code="RUN_DECISION_INVALID",
+                title="Run decision invalid",
+                detail="input_ids must identify persisted Research Inputs",
+            ) from exc
+        try:
+            decision, result_run_id = self._workflow.decide_run(
+                snapshot.id,
+                session_id=session_id,
+                decision=request.decision,
+                step_key=payload.get("step_key"),
+                input_ids=input_ids,
+                idempotency_key=idempotency_key,
+                request_hash=canonical_request_hash(payload),
+                expected_status=snapshot.status,
+                expected_revision=expected_revision,
+            )
+        except StaleWorkflowWriteError as exc:
+            self._load_owned_run(run_id, session_id)
+            raise SecurityProblem(
+                status=409,
+                code="VERSION_CONFLICT",
+                title="Version conflict",
+                detail="The Run changed since it was read",
+            ) from exc
+        except CheckpointUnavailableError as exc:
+            raise SecurityProblem(
+                status=409,
+                code=exc.code,
+                title="Run decision unavailable",
+                detail=str(exc),
+            ) from exc
+        except RunQueueCapacityError as exc:
+            raise _queue_capacity_problem(exc) from exc
+        except WorkflowConflictError as exc:
+            raise SecurityProblem(
+                status=409,
+                code="RUN_DECISION_CONFLICT",
+                title="Run decision conflict",
+                detail=str(exc),
+            ) from exc
+        return RunDecisionResult(
+            decision=_decision(decision),
+            run=_run(self._workflow.load_snapshot(result_run_id)),
+        )
 
     def list_run_events(
         self,
@@ -1217,6 +1324,17 @@ def _idempotency_conflict() -> SecurityProblem:
     )
 
 
+def _queue_capacity_problem(exc: RunQueueCapacityError) -> SecurityProblem:
+    scope = "this project" if exc.scope.startswith("project") else "the service"
+    return SecurityProblem(
+        status=429,
+        code=exc.code,
+        title="Research Run queue capacity exceeded",
+        detail=f"The live Research Run queue is temporarily full for {scope}",
+        headers={"Retry-After": str(exc.retry_after_seconds)},
+    )
+
+
 def _encode_project_cursor(project_id: UUID, *, session_id: str) -> str:
     return _encode_signed_cursor(
         {
@@ -1477,9 +1595,39 @@ def _run(snapshot: RunSnapshot) -> ResearchRun:
         finished_at=_utc(snapshot.finished_at) if snapshot.finished_at else None,
         created_at=_utc(snapshot.created_at),
         updated_at=_utc(snapshot.updated_at),
+        revision=snapshot.revision,
         latest_event_sequence=snapshot.latest_event_sequence,
         failure_code=snapshot.failure_code,
         failure_summary=snapshot.failure_summary,
+    )
+
+
+def _checkpoint(snapshot: CheckpointSnapshot) -> RunCheckpointRead:
+    return RunCheckpointRead(
+        id=str(snapshot.id),
+        run_id=str(snapshot.run_id),
+        step_key=snapshot.step_key,
+        status=snapshot.status,
+        code=snapshot.code,
+        public_message=snapshot.public_message,
+        required_input_types=snapshot.required_input_types,
+        opened_at=_utc(snapshot.opened_at),
+        resolved_at=(_utc(snapshot.resolved_at) if snapshot.resolved_at else None),
+        resolution_run_id=(
+            str(snapshot.resolution_run_id) if snapshot.resolution_run_id else None
+        ),
+    )
+
+
+def _decision(snapshot: DecisionSnapshot) -> RunDecisionRead:
+    return RunDecisionRead(
+        id=str(snapshot.id),
+        parent_run_id=str(snapshot.parent_run_id),
+        child_run_id=(str(snapshot.child_run_id) if snapshot.child_run_id else None),
+        decision=snapshot.decision,
+        step_key=snapshot.step_key,
+        input_ids=snapshot.input_ids,
+        created_at=_utc(snapshot.created_at),
     )
 
 
@@ -1503,6 +1651,10 @@ def _run_step(row: RunStepModel, *, run_id: str) -> RunStepRead:
         position=row.position,
         key=row.key,
         label=row.label,
+        phase=row.enter_status,
+        task_id=row.task_id,
+        skill_id=row.skill_id,
+        depends_on_step_keys=tuple(row.depends_on_step_keys),
         status=row.status,
         progress=row.progress,
         public_message=row.public_message,
@@ -1548,9 +1700,24 @@ _OUTPUT_PRESENTATION = {
         "生成可复现图表、FITS 图像、模型诊断或 WWT 天图。",
         "common",
     ),
+    ArtifactKind.spectrum: (
+        "光谱分析",
+        "展示连续谱归一化、谱线检测、信噪比与可选径向速度结果。",
+        "advanced",
+    ),
+    ArtifactKind.light_curve: (
+        "光变曲线",
+        "展示质量筛选后的时序观测、相位折叠与周期分析。",
+        "advanced",
+    ),
     ArtifactKind.model_evaluation: (
         "模型评估",
         "保存机器学习、时间序列或图像分类的可复现评估。",
+        "advanced",
+    ),
+    ArtifactKind.model_artifact: (
+        "模型制品",
+        "保存经过验证、可复现并可用于受控推理的 ONNX 模型。",
         "advanced",
     ),
     ArtifactKind.paper_collection: ("文献候选", "保存候选文献与检索范围。", "common"),
@@ -1605,6 +1772,16 @@ _SCIENTIFIC_SKILL_PRESENTATION = {
         "计算变量关系并生成可核验的关系结果。",
         "common",
     ),
+    ScientificSkillId.clustering_analysis: (
+        "聚类与主成分分析",
+        "执行 K-Means 或 DBSCAN，并输出可解释的 PCA 投影与质量指标。",
+        "advanced",
+    ),
+    ScientificSkillId.anomaly_detection: (
+        "异常检测",
+        "使用维护中的 Isolation Forest 或稳健 Z 分数识别异常观测。",
+        "advanced",
+    ),
     ScientificSkillId.chart_visualization: (
         "科学图表",
         "将批准字段投影为声明式图表，不执行生成代码。",
@@ -1630,14 +1807,49 @@ _SCIENTIFIC_SKILL_PRESENTATION = {
         "计算合、冲、食与最大距角等受支持天象。",
         "advanced",
     ),
+    ScientificSkillId.gaia_cone_search: (
+        "Gaia DR3 锥形查询",
+        "通过受控 ESA Gaia TAP 锥形查询获取版本化星表观测。",
+        "common",
+    ),
+    ScientificSkillId.vizier_tap: (
+        "VizieR 目录锥形查询",
+        "通过 CDS TAPVizieR 的受控目录/字段清单获取版本化星表观测。",
+        "common",
+    ),
     ScientificSkillId.fits_image_analysis: (
         "FITS 图像分析",
         "对受控 FITS 图像执行背景估计、质心、源检测、分割或孔径测光。",
         "advanced",
     ),
+    ScientificSkillId.spectrum_analysis: (
+        "恒星光谱分析",
+        "拟合连续谱、检测吸收/发射线并计算信噪比与可选径向速度。",
+        "advanced",
+    ),
+    ScientificSkillId.spectrum_acquisition: (
+        "SDSS 光谱获取与分析",
+        "获取受控 SDSS DR17 光谱产品并复用光谱分析能力形成可审计产物。",
+        "advanced",
+    ),
+    ScientificSkillId.light_curve_analysis: (
+        "光变曲线分析",
+        "执行质量筛选、Lomb-Scargle 周期搜索和相位折叠。",
+        "advanced",
+    ),
+    ScientificSkillId.light_curve_acquisition: (
+        "TESS 光变获取与分析",
+        "获取受控 MAST TESS 任务光变产品并执行质量筛选与周期分析。",
+        "advanced",
+    ),
     ScientificSkillId.tabular_machine_learning: (
         "表格机器学习",
         "执行受限分类或回归并生成模型评估。",
+        "advanced",
+    ),
+    ScientificSkillId.time_series_classification: (
+        "时间序列分类",
+        "按冻结的观测顺序分类等长序列，并生成可复现评估与 ONNX 模型。",
         "advanced",
     ),
     ScientificSkillId.time_series_forecast: (
@@ -1650,9 +1862,14 @@ _SCIENTIFIC_SKILL_PRESENTATION = {
         "使用批准的模型配置训练或评估图像分类任务。",
         "advanced",
     ),
+    ScientificSkillId.model_inference: (
+        "已发布模型推理",
+        "仅使用同项目、active 且哈希验证通过的 ONNX ModelArtifact 执行受限推理。",
+        "advanced",
+    ),
     ScientificSkillId.wwt_scene: (
         "WWT 交互天图",
-        "生成受控中心、视场、时间、FITS 图层与标注场景。",
+        "生成受控视角、时间、observer、覆盖层、内容寻址图层、标注与有界 tour 场景。",
         "common",
     ),
 }
@@ -1874,7 +2091,7 @@ def _parse_if_match(if_match: str) -> int:
             status=400,
             code="INVALID_REQUEST",
             title="Invalid If-Match",
-            detail="If-Match must be the integer draft version",
+            detail="If-Match must be an integer resource revision",
         ) from exc
 
 

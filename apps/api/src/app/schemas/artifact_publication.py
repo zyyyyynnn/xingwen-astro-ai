@@ -34,7 +34,10 @@ def canonical_artifact_content_model(kind: object) -> type[BaseModel] | None:
     from app.schemas.paper_summary import PaperSummaryArtifactContent
     from app.schemas.scientific_skills import (
         AnalysisReportArtifactContent,
+        LightCurveArtifactContent,
+        ModelArtifactContent,
         ModelEvaluationArtifactContent,
+        SpectrumArtifactContent,
         VisualizationArtifactContent,
     )
 
@@ -44,7 +47,10 @@ def canonical_artifact_content_model(kind: object) -> type[BaseModel] | None:
         "source_collection": SourceCollectionArtifactCandidate,
         "analysis_report": AnalysisReportArtifactContent,
         "visualization": VisualizationArtifactContent,
+        "spectrum": SpectrumArtifactContent,
+        "light_curve": LightCurveArtifactContent,
         "model_evaluation": ModelEvaluationArtifactContent,
+        "model_artifact": ModelArtifactContent,
         "paper_collection": PaperCollection,
         "paper_summary": PaperSummaryArtifactContent,
         "literature_claims": LiteratureClaimsCandidate,

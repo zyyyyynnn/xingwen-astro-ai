@@ -1,6 +1,6 @@
 """Reproducible Scientific Document Parsing benchmark runner.
 
-Runs the benchmark-only native baseline (docling-parse) over the committed
+Runs the production native PDF adapter (docling-parse) over the committed
 Golden Set fixtures and emits a hashed ``BenchmarkReport``. The report contract
 also carries hybrid provenance; this runner never claims a hybrid execution.
 
@@ -39,9 +39,10 @@ from app.schemas.scientific_document_benchmark import (
     GoldenSetManifest,
     compute_benchmark_report_hash,
 )
-from app.services.scientific_document.native_baseline import (
+from app.services.scientific_document.parser import (
     native_engine_identity,
-    parse_native_baseline,
+    parse_pdf,
+    parser_configuration_hash,
 )
 
 HERE = Path(__file__).resolve().parent
@@ -53,13 +54,7 @@ _NATIVE_ENGINE, _NATIVE_VERSION = native_engine_identity()
 
 
 def _config_hash() -> ContentHash:
-    payload = {
-        "schema_version": SCIENTIFIC_DOCUMENT_SCHEMA_VERSION,
-        "schema_hash": compute_scientific_document_schema_hash(),
-        "native_engine": _NATIVE_ENGINE,
-        "native_version": _NATIVE_VERSION,
-    }
-    return compute_canonical_payload_hash(payload)
+    return parser_configuration_hash(native_engine=_NATIVE_ENGINE)
 
 
 def _load_golden_manifest() -> GoldenSetManifest:
@@ -189,7 +184,7 @@ def run_native_only() -> BenchmarkReport:
             filename=pdf.name,
             input_bytes=content,
         )
-        candidate = parse_native_baseline(request, config_hash=config_hash)
+        candidate = parse_pdf(request)
 
         quality = candidate.overall_quality.value
         case_accepted = sum(

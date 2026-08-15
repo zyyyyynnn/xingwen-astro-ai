@@ -12,6 +12,7 @@ import asyncio
 from base64 import b64decode
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
+from importlib.metadata import version
 from time import monotonic
 from typing import Literal, Protocol
 from uuid import NAMESPACE_URL, uuid5
@@ -26,18 +27,24 @@ from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
     ChartVisualizationSpec,
     FitsImageVisualizationSpec,
+    ImageTrainingSpecification,
+    LightCurveArtifactContent,
+    ModelArtifactContent,
+    ModelBinaryReference,
     ModelEvaluationArtifactContent,
     ModelSplitReference,
     ScientificMetric,
     ScientificEvidence,
     ScientificResultBlock,
     ScientificSkillExecution,
+    SpectrumArtifactContent,
     VisualizationArtifactContent,
     WwtSceneVisualizationSpec,
     scientific_artifact_output_hash,
 )
 from app.services.content_storage import ContentStorage
 
+from .planning import scientific_skill_phase
 from .registry import ScientificSkillRegistry
 from .types import (
     ScientificSkillBudget,
@@ -75,11 +82,15 @@ class ScientificTaskExecutionOutcome:
 
 @dataclass(frozen=True, slots=True)
 class ScientificStepOutput:
-    outcomes: tuple[ScientificTaskExecutionOutcome, ...]
+    task_id: str
+    skill_id: ScientificSkillId
     artifact_candidates: tuple[
         AnalysisReportArtifactContent
         | VisualizationArtifactContent
-        | ModelEvaluationArtifactContent,
+        | SpectrumArtifactContent
+        | LightCurveArtifactContent
+        | ModelEvaluationArtifactContent
+        | ModelArtifactContent,
         ...,
     ]
 
@@ -93,8 +104,8 @@ class ScientificProducedSourceRecorder(Protocol):
         task: ScientificTaskInput,
         request: ScientificSkillRequest,
         result: ScientificSkillResult,
-    ) -> ScientificSourceReference:
-        """Persist one remote-service response and return its snapshot identity."""
+    ) -> tuple[ScientificSourceReference, ...]:
+        """Persist each physical source response and return its snapshot identities."""
 
 
 ScientificInputResolver = Callable[
@@ -102,28 +113,31 @@ ScientificInputResolver = Callable[
 ]
 
 
-_STEP_BY_SKILL: dict[ScientificSkillId, str] = {
-    ScientificSkillId.simbad_lookup: "acquiring_observations",
-    ScientificSkillId.skyview_fits: "acquiring_observations",
-    ScientificSkillId.ephemeris: "acquiring_observations",
-    ScientificSkillId.celestial_events: "acquiring_observations",
-    ScientificSkillId.catalog_crossmatch: "analyzing_data",
-    ScientificSkillId.data_profile: "analyzing_data",
-    ScientificSkillId.statistical_analysis: "analyzing_data",
-    ScientificSkillId.correlation_analysis: "analyzing_data",
-    ScientificSkillId.fits_image_analysis: "analyzing_data",
-    ScientificSkillId.tabular_machine_learning: "training_models",
-    ScientificSkillId.time_series_forecast: "training_models",
-    ScientificSkillId.image_classification: "training_models",
-    ScientificSkillId.chart_visualization: "building_visualizations",
-    ScientificSkillId.wwt_scene: "building_visualizations",
-}
+class ScientificSkillExecutor(Protocol):
+    async def execute(self, request: ScientificSkillRequest) -> ScientificSkillResult:
+        """Execute one validated request and return its bounded result."""
+
+
+class InProcessScientificSkillExecutor:
+    """Injectable executor for deterministic unit tests and local composition."""
+
+    def __init__(self, registry: ScientificSkillRegistry) -> None:
+        self._registry = registry
+
+    async def execute(self, request: ScientificSkillRequest) -> ScientificSkillResult:
+        return await asyncio.to_thread(self._registry.execute, request)
+
+
 _SNAPSHOT_PRODUCING_SKILLS = frozenset(
     {
         ScientificSkillId.simbad_lookup,
         ScientificSkillId.skyview_fits,
         ScientificSkillId.ephemeris,
         ScientificSkillId.celestial_events,
+        ScientificSkillId.gaia_cone_search,
+        ScientificSkillId.vizier_tap,
+        ScientificSkillId.spectrum_acquisition,
+        ScientificSkillId.light_curve_acquisition,
     }
 )
 _ANALYSIS_SKILLS = frozenset(
@@ -132,15 +146,23 @@ _ANALYSIS_SKILLS = frozenset(
         ScientificSkillId.data_profile,
         ScientificSkillId.statistical_analysis,
         ScientificSkillId.correlation_analysis,
+        ScientificSkillId.clustering_analysis,
+        ScientificSkillId.anomaly_detection,
         ScientificSkillId.simbad_lookup,
         ScientificSkillId.ephemeris,
         ScientificSkillId.celestial_events,
         ScientificSkillId.fits_image_analysis,
+        ScientificSkillId.spectrum_analysis,
+        ScientificSkillId.light_curve_analysis,
+        ScientificSkillId.gaia_cone_search,
+        ScientificSkillId.vizier_tap,
+        ScientificSkillId.model_inference,
     }
 )
 _MODEL_SKILLS = frozenset(
     {
         ScientificSkillId.tabular_machine_learning,
+        ScientificSkillId.time_series_classification,
         ScientificSkillId.time_series_forecast,
         ScientificSkillId.image_classification,
     }
@@ -148,17 +170,22 @@ _MODEL_SKILLS = frozenset(
 
 
 class ScientificStepAdapter:
-    """Execute all contract tasks owned by one frozen Workflow step."""
+    """Execute exactly one task-owned frozen Workflow step."""
 
     def __init__(
         self,
-        registry: ScientificSkillRegistry,
+        registry: ScientificSkillRegistry | None = None,
         *,
+        executor: ScientificSkillExecutor | None = None,
         content_storage: ContentStorage,
         source_recorder: ScientificProducedSourceRecorder,
         budget: ScientificSkillBudget | None = None,
     ) -> None:
-        self._registry = registry
+        if (registry is None) == (executor is None):
+            raise ValueError(
+                "provide exactly one scientific skill executor or registry"
+            )
+        self._executor = executor or InProcessScientificSkillExecutor(registry)
         self._content_storage = content_storage
         self._source_recorder = source_recorder
         self._budget = budget or ScientificSkillBudget()
@@ -166,37 +193,39 @@ class ScientificStepAdapter:
     async def execute(
         self,
         *,
-        step_key: str,
+        task_id: str,
         project_id: str,
         run_id: str,
         contract: ResearchContractInput,
         resolve_inputs: ScientificInputResolver,
     ) -> ScientificStepOutput:
         tasks = tuple(
-            task
-            for task in contract.scientific_tasks
-            if _STEP_BY_SKILL[task.skill_id] == step_key
+            task for task in contract.scientific_tasks if task.task_id == task_id
         )
-        outcomes = tuple(
-            [
-                await self._execute_task(
-                    task=task,
-                    project_id=project_id,
-                    run_id=run_id,
-                    resolve_inputs=resolve_inputs,
-                )
-                for task in tasks
-            ]
+        if len(tasks) != 1:
+            raise ValueError(
+                f"scientific Workflow step must resolve exactly one task: {task_id!r}"
+            )
+        task = tasks[0]
+        scientific_skill_phase(task.skill_id)
+        outcome = await self._execute_task(
+            task=task,
+            project_id=project_id,
+            run_id=run_id,
+            resolve_inputs=resolve_inputs,
         )
         candidates = tuple(
             candidate
-            for outcome in outcomes
             for candidate in _assemble_candidates(
                 outcome,
                 requested_outputs=frozenset(contract.output_requirements),
             )
         )
-        return ScientificStepOutput(outcomes=outcomes, artifact_candidates=candidates)
+        return ScientificStepOutput(
+            task_id=task.task_id,
+            skill_id=task.skill_id,
+            artifact_candidates=candidates,
+        )
 
     async def _execute_task(
         self,
@@ -230,21 +259,16 @@ class ScientificStepAdapter:
             budget=self._budget,
         )
         started = monotonic()
-        result = await asyncio.wait_for(
-            asyncio.to_thread(self._registry.execute, request),
-            timeout=self._budget.timeout_seconds,
-        )
+        result = await self._executor.execute(request)
         duration_ms = max(0, round((monotonic() - started) * 1000))
         produced_sources: tuple[ScientificSourceReference, ...] = ()
         if task.skill_id in _SNAPSHOT_PRODUCING_SKILLS:
-            produced_sources = (
-                await self._source_recorder.record(
-                    project_id=project_id,
-                    run_id=run_id,
-                    task=task,
-                    request=request,
-                    result=result,
-                ),
+            produced_sources = await self._source_recorder.record(
+                project_id=project_id,
+                run_id=run_id,
+                task=task,
+                request=request,
+                result=result,
             )
         materialized = await _materialize_output(
             task.skill_id,
@@ -285,6 +309,25 @@ async def _materialize_output(
     output: Mapping[str, object],
     content_storage: ContentStorage,
 ) -> Mapping[str, object]:
+    if skill_id in _MODEL_SKILLS:
+        raw_binary = output.get("model_binary")
+        if not isinstance(raw_binary, dict):
+            raise ValueError("model skill output has no model binary")
+        encoded = raw_binary.get("content_base64")
+        content_hash = raw_binary.get("content_hash")
+        media_type = raw_binary.get("media_type")
+        if (
+            not isinstance(encoded, str)
+            or not isinstance(content_hash, str)
+            or media_type != "application/onnx"
+        ):
+            raise ValueError("model binary identity or media type is invalid")
+        content = b64decode(encoded, validate=True)
+        content_ref = await content_storage.store(content, content_hash)
+        materialized_binary = {
+            key: value for key, value in raw_binary.items() if key != "content_base64"
+        } | {"content_ref": content_ref}
+        return {**output, "model_binary": materialized_binary}
     if skill_id is not ScientificSkillId.skyview_fits:
         return dict(output)
     raw_documents = output.get("documents")
@@ -314,17 +357,49 @@ def _assemble_candidates(
 ) -> tuple[
     AnalysisReportArtifactContent
     | VisualizationArtifactContent
-    | ModelEvaluationArtifactContent,
+    | SpectrumArtifactContent
+    | LightCurveArtifactContent
+    | ModelEvaluationArtifactContent
+    | ModelArtifactContent,
     ...,
 ]:
     skill_id = outcome.task.skill_id
+    if skill_id in {
+        ScientificSkillId.spectrum_analysis,
+        ScientificSkillId.spectrum_acquisition,
+    }:
+        spectrum_candidates: list[
+            AnalysisReportArtifactContent | SpectrumArtifactContent
+        ] = []
+        if ArtifactKind.spectrum in requested_outputs:
+            spectrum_candidates.append(_spectrum(outcome))
+        if ArtifactKind.analysis_report in requested_outputs:
+            spectrum_candidates.append(_analysis_report(outcome))
+        return tuple(spectrum_candidates)
+    if skill_id in {
+        ScientificSkillId.light_curve_analysis,
+        ScientificSkillId.light_curve_acquisition,
+    }:
+        light_curve_candidates: list[
+            AnalysisReportArtifactContent | LightCurveArtifactContent
+        ] = []
+        if ArtifactKind.light_curve in requested_outputs:
+            light_curve_candidates.append(_light_curve(outcome))
+        if ArtifactKind.analysis_report in requested_outputs:
+            light_curve_candidates.append(_analysis_report(outcome))
+        return tuple(light_curve_candidates)
     if (
         skill_id in _ANALYSIS_SKILLS
         and ArtifactKind.analysis_report in requested_outputs
     ):
         return (_analysis_report(outcome),)
-    if skill_id in _MODEL_SKILLS and ArtifactKind.model_evaluation in requested_outputs:
-        return (_model_evaluation(outcome),)
+    if skill_id in _MODEL_SKILLS:
+        candidates: list[ModelEvaluationArtifactContent | ModelArtifactContent] = []
+        if ArtifactKind.model_evaluation in requested_outputs:
+            candidates.append(_model_evaluation(outcome))
+        if ArtifactKind.model_artifact in requested_outputs:
+            candidates.append(_model_artifact(outcome))
+        return tuple(candidates)
     if ArtifactKind.visualization not in requested_outputs:
         return ()
     if skill_id is ScientificSkillId.chart_visualization:
@@ -334,6 +409,83 @@ def _assemble_candidates(
     if skill_id is ScientificSkillId.skyview_fits:
         return _fits_visualizations(outcome)
     return ()
+
+
+def _spectrum(outcome: ScientificTaskExecutionOutcome) -> SpectrumArtifactContent:
+    spectrum_id = _stable_id("spectrum", outcome.task.task_id)
+    scientific_evidence, evidence_ids = _evidence_for_target(
+        outcome,
+        target_type="spectrum",
+        target_id=spectrum_id,
+    )
+    raw = outcome.materialized_output
+    payload = {
+        "kind": "spectrum",
+        "schema_version": "1.0.0",
+        "spectrum_id": spectrum_id,
+        "title": f"Spectrum of {raw['object_name']}",
+        "object_name": raw["object_name"],
+        "wavelength_unit": raw["wavelength_unit"],
+        "flux_unit": raw["flux_unit"],
+        "sample_count": raw["sample_count"],
+        "points": raw["points"],
+        "signal_to_noise": raw["signal_to_noise"],
+        "detected_lines": raw["detected_lines"],
+        "rest_wavelength": raw["rest_wavelength"],
+        "radial_velocity_km_s": raw["radial_velocity_km_s"],
+        "skill_executions": [_skill_execution(outcome).model_dump(mode="json")],
+        "scientific_evidence": [
+            item.model_dump(mode="json") for item in scientific_evidence
+        ],
+        "source_snapshot_ids": list(outcome.source_snapshot_ids),
+        "evidence_ids": list(evidence_ids),
+        "input_hash": outcome.result.input_hash,
+        "output_hash": "sha256:" + "0" * 64,
+    }
+    return _seal(SpectrumArtifactContent, payload)
+
+
+def _light_curve(
+    outcome: ScientificTaskExecutionOutcome,
+) -> LightCurveArtifactContent:
+    light_curve_id = _stable_id("light_curve", outcome.task.task_id)
+    scientific_evidence, evidence_ids = _evidence_for_target(
+        outcome,
+        target_type="light_curve",
+        target_id=light_curve_id,
+    )
+    raw = outcome.materialized_output
+    payload = {
+        "kind": "light_curve",
+        "schema_version": "1.0.0",
+        "light_curve_id": light_curve_id,
+        "title": f"Light curve of {raw['object_name']}",
+        "object_name": raw["object_name"],
+        "time_scale": raw["time_scale"],
+        "time_unit": raw["time_unit"],
+        "value_unit": raw["value_unit"],
+        "value_kind": raw["value_kind"],
+        "normalization": raw["normalization"],
+        "sample_count": raw["sample_count"],
+        "accepted_sample_count": raw["accepted_sample_count"],
+        "rejected_sample_count": raw["rejected_sample_count"],
+        "duration": raw["duration"],
+        "median_cadence": raw["median_cadence"],
+        "best_period": raw["best_period"],
+        "best_power": raw["best_power"],
+        "false_alarm_probability": raw["false_alarm_probability"],
+        "period_peaks": raw["period_peaks"],
+        "points": raw["points"],
+        "skill_executions": [_skill_execution(outcome).model_dump(mode="json")],
+        "scientific_evidence": [
+            item.model_dump(mode="json") for item in scientific_evidence
+        ],
+        "source_snapshot_ids": list(outcome.source_snapshot_ids),
+        "evidence_ids": list(evidence_ids),
+        "input_hash": outcome.result.input_hash,
+        "output_hash": "sha256:" + "0" * 64,
+    }
+    return _seal(LightCurveArtifactContent, payload)
 
 
 def _analysis_report(
@@ -495,7 +647,7 @@ def _model_evaluation(
     outcome: ScientificTaskExecutionOutcome,
 ) -> ModelEvaluationArtifactContent:
     output = outcome.materialized_output
-    dataset_id = _require_dataset_version(outcome)
+    training_input = _model_training_input(outcome)
     raw_split = output.get("split")
     if not isinstance(raw_split, dict):
         raise ValueError("model task produced no split metadata")
@@ -530,11 +682,18 @@ def _model_evaluation(
         prefix="baseline",
         evidence_ids=evidence_ids,
     )
-    feature_fields = output.get("feature_fields")
-    if outcome.task.skill_id is ScientificSkillId.time_series_forecast:
-        feature_fields = [str(outcome.task.parameters.get("time_field", "time"))]
-    if not isinstance(feature_fields, list) or not feature_fields:
-        raise ValueError("model task produced no feature field registry")
+    feature_fields = _model_feature_fields(outcome)
+    image_training = _model_image_training(outcome)
+    raw_model_binary = output.get("model_binary")
+    if not isinstance(raw_model_binary, dict):
+        raise ValueError("model task produced no materialized model binary")
+    model_binary = ModelBinaryReference.model_validate(
+        {
+            "content_ref": raw_model_binary.get("content_ref"),
+            "content_hash": raw_model_binary.get("content_hash"),
+            "media_type": raw_model_binary.get("media_type"),
+        }
+    )
     payload: dict[str, object] = {
         "kind": "model_evaluation",
         "schema_version": "1.0.0",
@@ -543,14 +702,19 @@ def _model_evaluation(
         "task_kind": _text(output, "task_kind"),
         "algorithm": _text(output, "algorithm"),
         "algorithm_version": _text(output, "algorithm_version"),
-        "dataset_artifact_version_id": dataset_id,
+        "training_input": training_input,
+        "image_training": (
+            image_training.model_dump(mode="json")
+            if image_training is not None
+            else None
+        ),
         "feature_fields": feature_fields,
         "target_field": _text(output, "target_field", fallback=outcome.task.parameters),
         "split": split.model_dump(mode="json"),
         "metrics": [item.model_dump(mode="json") for item in metrics],
         "baseline_metrics": [item.model_dump(mode="json") for item in baseline],
         "skill_execution": _skill_execution(outcome).model_dump(mode="json"),
-        "model_binary": None,
+        "model_binary": model_binary.model_dump(mode="json"),
         "diagnostic_visualization_ids": [],
         "limitations": list(outcome.result.warnings),
         "scientific_evidence": [
@@ -562,6 +726,175 @@ def _model_evaluation(
         "output_hash": "sha256:" + "0" * 64,
     }
     return _seal(ModelEvaluationArtifactContent, payload)
+
+
+def _model_artifact(
+    outcome: ScientificTaskExecutionOutcome,
+) -> ModelArtifactContent:
+    output = outcome.materialized_output
+    training_input = _model_training_input(outcome)
+    feature_fields = _model_feature_fields(outcome)
+    image_training = _model_image_training(outcome)
+    raw_model_binary = output.get("model_binary")
+    if not isinstance(raw_model_binary, dict):
+        raise ValueError("model task produced no materialized model binary")
+    model_binary = ModelBinaryReference.model_validate(
+        {
+            "content_ref": raw_model_binary.get("content_ref"),
+            "content_hash": raw_model_binary.get("content_hash"),
+            "media_type": raw_model_binary.get("media_type"),
+        }
+    )
+    model_id = _stable_id("model", outcome.task.task_id)
+    scientific_evidence, evidence_ids = _evidence_for_target(
+        outcome,
+        target_type="model",
+        target_id=model_id,
+    )
+    payload: dict[str, object] = {
+        "kind": "model_artifact",
+        "schema_version": "1.0.0",
+        "model_id": model_id,
+        "title": f"{_text(output, 'algorithm').replace('_', ' ').title()} model",
+        "status": "active",
+        "task_kind": _text(output, "task_kind"),
+        "algorithm": _text(output, "algorithm"),
+        "algorithm_version": _text(output, "algorithm_version"),
+        "training_input": training_input,
+        "image_training": (
+            image_training.model_dump(mode="json")
+            if image_training is not None
+            else None
+        ),
+        "evaluation_id": _stable_id("evaluation", outcome.task.task_id),
+        "feature_fields": feature_fields,
+        "target_field": _text(output, "target_field", fallback=outcome.task.parameters),
+        "model_binary": model_binary.model_dump(mode="json"),
+        "input_name": _text(raw_model_binary, "input_name"),
+        "output_names": _string_list(raw_model_binary, "output_names"),
+        "input_shape": _input_shape(raw_model_binary),
+        "opset_imports": _opset_imports(raw_model_binary),
+        "dependency_revisions": _model_dependency_revisions(outcome),
+        "skill_execution": _skill_execution(outcome).model_dump(mode="json"),
+        "limitations": list(outcome.result.warnings),
+        "scientific_evidence": [
+            item.model_dump(mode="json") for item in scientific_evidence
+        ],
+        "source_snapshot_ids": list(outcome.source_snapshot_ids),
+        "evidence_ids": list(evidence_ids),
+        "input_hash": outcome.result.input_hash,
+        "output_hash": "sha256:" + "0" * 64,
+    }
+    return _seal(ModelArtifactContent, payload)
+
+
+def _model_feature_fields(outcome: ScientificTaskExecutionOutcome) -> list[str]:
+    raw_binary = outcome.materialized_output.get("model_binary")
+    if outcome.task.skill_id is ScientificSkillId.image_classification:
+        if isinstance(raw_binary, dict):
+            shape = raw_binary.get("input_shape")
+            if (
+                isinstance(shape, list)
+                and len(shape) == 2
+                and isinstance(shape[1], int)
+                and not isinstance(shape[1], bool)
+                and shape[1] > 0
+            ):
+                return [f"pixel_{index}" for index in range(shape[1])]
+    raw = outcome.materialized_output.get("feature_fields")
+    if isinstance(raw, list) and raw and all(isinstance(item, str) for item in raw):
+        return list(raw)
+    if outcome.task.skill_id is ScientificSkillId.time_series_forecast:
+        raw_lags = outcome.materialized_output.get("split")
+        if isinstance(raw_lags, dict):
+            lags = raw_lags.get("lags")
+            if isinstance(lags, int) and lags > 0:
+                return [f"lag_{offset}" for offset in range(lags, 0, -1)]
+    raise ValueError("model task produced no feature field registry")
+
+
+def _model_image_training(
+    outcome: ScientificTaskExecutionOutcome,
+) -> ImageTrainingSpecification | None:
+    if outcome.task.skill_id is not ScientificSkillId.image_classification:
+        return None
+    output = outcome.materialized_output
+    return ImageTrainingSpecification.model_validate(
+        {
+            "manifest_schema_version": "1.0.0",
+            "preprocessing": output.get("preprocessing"),
+            "image_shape": output.get("image_shape"),
+            "image_count": output.get("image_count"),
+            "source_total_pixels": output.get("source_total_pixels"),
+            "label_schema": output.get("label_schema"),
+        }
+    )
+
+
+def _model_training_input(outcome: ScientificTaskExecutionOutcome) -> dict[str, str]:
+    if len(outcome.artifact_version_ids) == 1:
+        return {
+            "kind": "dataset_artifact_version",
+            "ref_id": outcome.artifact_version_ids[0],
+        }
+    if not outcome.artifact_version_ids and len(outcome.source_snapshot_ids) == 1:
+        return {
+            "kind": "source_snapshot",
+            "ref_id": outcome.source_snapshot_ids[0],
+        }
+    raise ValueError(
+        "model task requires exactly one Dataset ArtifactVersion or SourceSnapshot input"
+    )
+
+
+def _string_list(value: Mapping[str, object], key: str) -> list[str]:
+    raw = value.get(key)
+    if (
+        not isinstance(raw, list)
+        or not raw
+        or not all(isinstance(item, str) for item in raw)
+    ):
+        raise ValueError(f"model binary {key} must be a non-empty string list")
+    return list(raw)
+
+
+def _input_shape(value: Mapping[str, object]) -> list[int | None]:
+    raw = value.get("input_shape")
+    if (
+        not isinstance(raw, list)
+        or len(raw) < 2
+        or raw[0] is not None
+        or any(isinstance(item, bool) or not isinstance(item, int) for item in raw[1:])
+    ):
+        raise ValueError("model binary input_shape is invalid")
+    return list(raw)
+
+
+def _opset_imports(value: Mapping[str, object]) -> dict[str, int]:
+    raw = value.get("opset_imports")
+    if not isinstance(raw, dict) or not raw:
+        raise ValueError("model binary has no ONNX opset registry")
+    if any(
+        not isinstance(domain, str)
+        or not domain
+        or isinstance(revision, bool)
+        or not isinstance(revision, int)
+        for domain, revision in raw.items()
+    ):
+        raise ValueError("model binary ONNX opset registry is invalid")
+    return dict(raw)
+
+
+def _model_dependency_revisions(
+    outcome: ScientificTaskExecutionOutcome,
+) -> list[str]:
+    distributions = ["scikit-learn", "onnx", "onnxruntime", "skl2onnx"]
+    if outcome.task.skill_id is ScientificSkillId.image_classification:
+        distributions.append("pillow")
+    return [
+        f"{distribution}=={version(distribution)}"
+        for distribution in distributions
+    ]
 
 
 def _skill_execution(
@@ -640,7 +973,15 @@ def _collect_scalars(
 def _evidence_for_target(
     outcome: ScientificTaskExecutionOutcome,
     *,
-    target_type: Literal["result_block", "metric", "visualization", "evaluation"],
+    target_type: Literal[
+        "result_block",
+        "metric",
+        "visualization",
+        "spectrum",
+        "light_curve",
+        "evaluation",
+        "model",
+    ],
     target_id: str,
 ) -> tuple[tuple[ScientificEvidence, ...], tuple[str, ...]]:
     sources = outcome.produced_source_snapshot_ids or outcome.source_snapshot_ids
@@ -671,7 +1012,9 @@ def _evidence_for_target(
         )
         for source_id in sources
     )
-    return evidence, tuple(sorted(item.evidence_id for item in evidence))
+    return evidence, tuple(
+        sorted({*outcome.evidence_ids, *(item.evidence_id for item in evidence)})
+    )
 
 
 def _result_representation(value: Mapping[str, object]) -> str:

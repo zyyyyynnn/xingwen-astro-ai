@@ -39,10 +39,9 @@ from .base import (
 )
 from .nasa_tap import (
     NASA_TAP_SYNC_URL,
-    SAFE_RESPONSE_HEADERS,
+    SAFE_RESPONSE_HEADERS as SAFE_RESPONSE_HEADERS,
     NasaTapRequester,
-    TransportPolicyError,
-    UrllibTransport,
+    TransportPolicyError as TransportPolicyError,
     availability_status,
     build_source_snapshot,
     classify_bounded_completion,

@@ -15,10 +15,12 @@ from app.schemas.paper_collection import (
 )
 from app.schemas.paper_summary import (
     PaperSummaryArtifactContent,
+    PaperSummaryCollectionReference,
     PaperSummaryEvidence,
     PaperSummaryEvidenceLocator,
     PaperSummaryInputVersions,
     PaperSummaryItemKind,
+    PaperSummaryPaperMetadata,
     PaperSummaryProducerExecution,
     PaperSummarySection,
     PaperSummarySectionKind,
@@ -109,9 +111,11 @@ def _input_versions(
         else ()
     )
     return PaperSummaryInputVersions(
-        paper_collection_version_id=COLLECTION_VERSION_ID,
-        paper_collection_schema_version=collection.schema_version,
-        paper_collection_output_hash=collection.output_hash,
+        collection=PaperSummaryCollectionReference(
+            artifact_version_id=COLLECTION_VERSION_ID,
+            schema_version=collection.schema_version,
+            output_hash=collection.output_hash,
+        ),
         source_snapshots=snapshots,
     )
 
@@ -140,7 +144,7 @@ def _summary(
         producer_version="1.0.0",
         model_name="fixture-model",
         prompt_name="paper_summary",
-        prompt_version="3.0.0",
+        prompt_version="4.0.0",
         prompt_hash=HASH_A,
         parameters_version="1.0.0",
         parameters_hash=HASH_B,
@@ -192,9 +196,15 @@ def _summary(
         )
     normalized = PaperSummaryArtifactContent.model_construct(
         kind="paper_summary",
-        schema_version="2.0.0",
+        schema_version="3.0.0",
         summary_id="summary-1",
         paper_id=TEST_CANDIDATE.canonical_paper_id,
+        paper=PaperSummaryPaperMetadata(
+            paper_id=TEST_CANDIDATE.canonical_paper_id,
+            title=TEST_CANDIDATE.title,
+            authors=TEST_CANDIDATE.authors,
+            year=TEST_CANDIDATE.year,
+        ),
         benchmark=PaperBenchmarkReference.model_validate(
             collection.benchmark.model_dump(mode="json")
         ),
@@ -274,7 +284,7 @@ def _version(
         ),
         model_name="fixture-model" if kind == "paper_summary" else None,
         prompt_name="paper_summary" if kind == "paper_summary" else None,
-        prompt_version="3.0.0" if kind == "paper_summary" else None,
+        prompt_version="4.0.0" if kind == "paper_summary" else None,
         prompt_hash=HASH_A if kind == "paper_summary" else None,
         parameters_hash=(
             HASH_B if kind == "paper_summary" else collection.producer.parameters_hash
@@ -367,7 +377,7 @@ def _version(
         created_by_run_id="run-1",
         version_number=1,
         schema_version=(
-            collection.schema_version if kind == "paper_collection" else "2.0.0"
+            collection.schema_version if kind == "paper_collection" else "3.0.0"
         ),
         content=content,
         content_hash=content_hash,
@@ -499,6 +509,87 @@ def test_paper_summary_read_returns_typed_summary_and_provenance() -> None:
     assert data["evidence"][0]["artifact_version_id"] == SUMMARY_VERSION_ID
     assert data["source_snapshots"][0]["id"] == "snapshot-db"
     assert response.headers["cache-control"] == "no-store"
+
+
+@pytest.mark.parametrize(
+    ("export_format", "media_type", "extension"),
+    [
+        ("json", "application/json", "json"),
+        ("markdown", "text/markdown", "md"),
+    ],
+)
+def test_paper_summary_export_is_pinned_to_the_requested_immutable_version(
+    export_format: str,
+    media_type: str,
+    extension: str,
+) -> None:
+    version = _version(summary=_summary())
+    response = _client(_Artifacts(version)).get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/export",
+        params={"format": export_format},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(media_type)
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["etag"] == f'"{version.content_hash}"'
+    assert response.headers["x-artifact-version-id"] == SUMMARY_VERSION_ID
+    assert response.headers["x-artifact-content-hash"] == version.content_hash
+    assert response.headers["content-disposition"] == (
+        f'attachment; filename="paper-summary-{SUMMARY_VERSION_ID}.{extension}"'
+    )
+
+    if export_format == "json":
+        payload = response.json()
+        assert payload["artifact_version_id"] == SUMMARY_VERSION_ID
+        assert payload["version_number"] == 1
+        assert payload["content_hash"] == version.content_hash
+        assert payload["summary"]["paper_id"] == TEST_CANDIDATE.canonical_paper_id
+    else:
+        assert f"ArtifactVersion: `{SUMMARY_VERSION_ID}`" in response.text
+        assert f"Content hash: `{version.content_hash}`" in response.text
+        assert "## Research Background" in response.text
+        assert "## Experiments and Results" in response.text
+        assert "## Research Questions" in response.text
+        assert "`pipeline-evidence`" in response.text
+
+
+def test_paper_summary_export_reuses_the_read_boundary_security() -> None:
+    wrong_kind = _version(summary=_summary(), kind="dataset")
+    response = _client(_Artifacts(wrong_kind)).get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/export",
+        params={"format": "json"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "ARTIFACT_KIND_MISMATCH"
+
+
+def test_paper_summary_export_requires_session_and_hides_other_projects() -> None:
+    app = create_app()
+    artifacts = _Artifacts(_version(summary=_summary()))
+    app.state.artifact_read_service = artifacts  # type: ignore[assignment]
+    path = f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/export"
+
+    assert TestClient(app).get(path).status_code == 401
+
+    other, other_credential, _ = app.state.session_service.create(now=datetime.now(UTC))
+    app.state.session_service.store.put(replace(other, id="other"))
+    client = TestClient(app)
+    client.cookies.set(settings.SESSION_COOKIE_NAME, other_credential, path="/api")
+    response = client.get(path)
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "ARTIFACT_VERSION_NOT_FOUND"
+
+
+def test_paper_summary_export_rejects_unknown_format_before_reading() -> None:
+    response = _client(_Artifacts(_version(summary=_summary()))).get(
+        f"/api/artifact-versions/{SUMMARY_VERSION_ID}/paper-summary/export",
+        params={"format": "docx"},
+    )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.parametrize(

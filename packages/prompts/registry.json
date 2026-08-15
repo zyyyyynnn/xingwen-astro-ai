@@ -8,15 +8,15 @@
       "output_models": ["LiteratureClaimExtractionOutput"]
     },
     "literature_relation": {
-      "version": "2.0.1",
+      "version": "3.0.0",
       "path": "literature_relation/prompt.md",
-      "content_hash": "sha256:4d1f4dfb5763a28d4f13fe87af9c6e03e3bff17eea0d3722d33258b15ce5e997",
+      "content_hash": "sha256:e59752c66b5922a84e418eed95f9a8737e647badbd7b768df7501aa81bae9589",
       "output_models": ["LiteratureRelationExtractionOutput"]
     },
     "paper_summary": {
-      "version": "3.0.0",
+      "version": "4.0.0",
       "path": "paper_summary/prompt.md",
-      "content_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
+      "content_hash": "sha256:f5dcc7ba26f1eb1525720bbd332bc73d9bd1ab59d4ad066ff7f37df43d498872",
       "output_models": ["PaperSummaryModelOutput"]
     },
     "research_contract_planner": {
@@ -24,6 +24,12 @@
       "path": "research_contract_planner/prompt.md",
       "content_hash": "sha256:48c0a1bf63b4c9ff030ae077be17472925e46aac6bbd77446d006422d8b3c6ef",
       "output_models": ["PlannerOutcome"]
+    },
+    "research_step_agent": {
+      "version": "1.3.0",
+      "path": "research_step_agent/prompt.md",
+      "content_hash": "sha256:803871de9416ec4e70c6f8aa7757fa2ddae6c13b2005640fc6051fe05bf3cb02",
+      "output_models": ["AgentToolCall"]
     }
   }
 }

@@ -203,6 +203,7 @@ it("run create forwards the caller action key", async () => {
             project_id: "proj_01JEXAMPLE",
             contract_id: "rc_01JEXAMPLE",
             execution_mode: "live",
+            revision: 1,
             status: "queued",
             progress: 0,
             parent_run_id: null,

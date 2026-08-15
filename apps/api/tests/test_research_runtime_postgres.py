@@ -30,6 +30,8 @@ from sqlalchemy import Engine, func, select
 from app.config import settings
 from app.db.models import (
     ResearchContractDraftModel,
+    ResearchInputContentModel,
+    ResearchInputModel,
     ModelExecutionModel,
     ResearchProjectModel,
     RunStepModel,
@@ -59,6 +61,8 @@ from app.services.resource_authority import PersistentResourceAuthority
 from app.services.snapshots import InMemorySnapshotStore, SnapshotService
 from app.test_support.bootstrap import bootstrap_fixture_artifacts
 from app.workflow.store import PersistentWorkflowStore
+from app.workflow.store import RunStepDefinition
+from app.workflow.document_pipeline_runtime import DocumentPipelineRuntime
 
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
@@ -454,6 +458,189 @@ def test_full_research_chain_over_real_runtime(runtime: dict[str, object]) -> No
     assert saved.json()["data"]["revision"] == 1
     reloaded = client.get(f"/api/projects/{project_id}/workspace-snapshot")
     assert reloaded.json()["data"] == saved.json()["data"]
+
+    stale_cancel = client.delete(
+        f"/api/runs/{run_id}",
+        headers={**csrf, "If-Match": str(run.json()["data"]["revision"] + 1)},
+    )
+    assert stale_cancel.status_code == 409
+    assert stale_cancel.json()["code"] == "VERSION_CONFLICT"
+
+    cancelled = client.delete(
+        f"/api/runs/{run_id}",
+        headers={**csrf, "If-Match": str(run.json()["data"]["revision"])},
+    )
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json()["data"]["status"] == "cancelled"
+    assert cancelled.headers["ETag"] == str(cancelled.json()["data"]["revision"])
+    cancelled_revision = cancelled.json()["data"]["revision"]
+
+    replayed_cancel = client.delete(
+        f"/api/runs/{run_id}",
+        headers={**csrf, "If-Match": str(run.json()["data"]["revision"])},
+    )
+    assert replayed_cancel.status_code == 200
+    assert replayed_cancel.json()["data"]["revision"] == cancelled_revision
+    assert replayed_cancel.json()["data"]["status"] == "cancelled"
+
+
+def test_checkpoint_resume_api_creates_owned_idempotent_derived_run(
+    runtime: dict[str, object],
+) -> None:
+    client: TestClient = runtime["client"]  # type: ignore[assignment]
+    csrf = {"X-CSRF-Token": runtime["owner_csrf"]}
+    project_id = runtime["project_id"]
+    draft_id = runtime["draft_id"]
+    confirmed = client.post(
+        f"/api/projects/{project_id}/contracts",
+        headers={**csrf, "Idempotency-Key": "checkpoint-contract"},
+        json={"draft_id": draft_id, "expected_draft_version": 1},
+    )
+    assert confirmed.status_code == 201
+    contract_id = confirmed.json()["data"]["id"]
+    store: PersistentWorkflowStore = runtime["workflow_store"]  # type: ignore[assignment]
+    snapshot = store.create_run(
+        project_id=UUID(project_id),
+        contract_id=UUID(contract_id),
+        execution_mode="live",
+        idempotency_key="checkpoint-run",
+        request_hash="sha256:" + "7" * 64,
+        steps=(
+            RunStepDefinition(
+                key="planning",
+                label="Planning",
+                enter_status="planning",
+                success_status="completed",
+            ),
+        ),
+    )
+    lease = store.acquire_lease(
+        snapshot.id,
+        owner="checkpoint-api-test",
+        lease_duration=timedelta(seconds=30),
+        expected_status="queued",
+        expected_revision=snapshot.revision,
+    )
+    attempt = store.begin_step(
+        snapshot.id,
+        step_key="planning",
+        attempt_idempotency_key="checkpoint-api-attempt",
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="queued",
+        expected_revision=lease.revision,
+        public_message="Planning",
+    )
+    store.request_human_input(
+        snapshot.id,
+        step_key="planning",
+        attempt_id=attempt.attempt_id,
+        token=lease.token,
+        generation=lease.generation,
+        expected_status="planning",
+        expected_revision=attempt.run_revision,
+        error_class="DocumentPipelineInputError",
+        error_code="DOCUMENT_INPUT_REQUIRED",
+        public_message="请补充 PDF、Markdown 或纯文本文档后继续研究。",
+        required_input_types=("pdf", "text"),
+    )
+    waiting = store.load_snapshot(snapshot.id)
+    factory = runtime["factory"]
+    input_id = uuid4()
+    content_hash = "sha256:" + "8" * 64
+    with factory() as session, session.begin():  # type: ignore[operator]
+        session.add(
+            ResearchInputContentModel(
+                project_id=UUID(project_id),
+                content_hash=content_hash,
+                storage_ref=f"research-inputs/{content_hash}",
+                mime_type="application/pdf",
+                size_bytes=4,
+            )
+        )
+        session.add(
+            ResearchInputModel(
+                id=input_id,
+                session_id=runtime["owner_session_id"],
+                project_id=UUID(project_id),
+                type="pdf",
+                source_type="upload",
+                content_hash=content_hash,
+                filename="repair.pdf",
+                status="accepted",
+            )
+        )
+
+    checkpoint = client.get(f"/api/runs/{snapshot.id}/checkpoint")
+    assert checkpoint.status_code == 200
+    assert checkpoint.json()["data"]["status"] == "open"
+    other = TestClient(client.app, base_url="https://testserver")
+    other.cookies.set(settings.SESSION_COOKIE_NAME, runtime["other_credential"])
+    assert other.get(f"/api/runs/{snapshot.id}/checkpoint").status_code == 404
+    hidden_decision = other.post(
+        f"/api/runs/{snapshot.id}/decisions",
+        headers={
+            "X-CSRF-Token": runtime["other_csrf"],
+            "If-Match": str(waiting.revision),
+            "Idempotency-Key": "cross-owner-resume",
+        },
+        json={"decision": "resume", "input_ids": [str(input_id)]},
+    )
+    assert hidden_decision.status_code == 404
+
+    stale = client.post(
+        f"/api/runs/{snapshot.id}/decisions",
+        headers={
+            **csrf,
+            "If-Match": str(waiting.revision + 1),
+            "Idempotency-Key": "stale-resume",
+        },
+        json={"decision": "resume", "input_ids": [str(input_id)]},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "VERSION_CONFLICT"
+
+    headers = {
+        **csrf,
+        "If-Match": str(waiting.revision),
+        "Idempotency-Key": "resume-checkpoint-once",
+    }
+    resumed = client.post(
+        f"/api/runs/{snapshot.id}/decisions",
+        headers=headers,
+        json={"decision": "resume", "input_ids": [str(input_id)]},
+    )
+    assert resumed.status_code == 201
+    payload = resumed.json()["data"]
+    child_id = payload["run"]["id"]
+    assert payload["decision"]["parent_run_id"] == str(snapshot.id)
+    assert payload["decision"]["child_run_id"] == child_id
+    assert payload["run"]["parent_run_id"] == str(snapshot.id)
+    assert payload["run"]["retry_from_step"] == "planning"
+    documents = object.__new__(DocumentPipelineRuntime)
+    documents._session_factory = factory
+    resolved = documents.require_bound_documents(
+        run_id=UUID(child_id), project_id=UUID(project_id)
+    )
+    assert tuple(item.id for item in resolved) == (input_id,)
+    assert client.get(f"/api/runs/{snapshot.id}").json()["data"]["status"] == (
+        "cancelled"
+    )
+
+    replay = client.post(
+        f"/api/runs/{snapshot.id}/decisions",
+        headers=headers,
+        json={"decision": "resume", "input_ids": [str(input_id)]},
+    )
+    assert replay.status_code == 201
+    assert replay.json()["data"]["run"]["id"] == child_id
+    conflicting = client.post(
+        f"/api/runs/{snapshot.id}/decisions",
+        headers=headers,
+        json={"decision": "cancel"},
+    )
+    assert conflicting.status_code == 409
+    assert conflicting.json()["code"] == "RUN_DECISION_CONFLICT"
 
 
 def test_research_turn_persists_public_thread_and_idempotent_model_execution(

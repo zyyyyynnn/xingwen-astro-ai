@@ -63,6 +63,7 @@
       "progress": 0,
       "project_id": "proj_01JEXAMPLE",
       "retry_from_step": null,
+      "revision": 1,
       "status": "queued",
       "updated_at": "2026-07-21T08:00:00Z"
     }
@@ -177,6 +178,11 @@
       "default": null,
       "title": "Retry From Step"
     },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
     "started_at": {
       "anyOf": [
         {
@@ -209,7 +215,8 @@
     "derivation_kind",
     "cache_policy",
     "created_at",
-    "updated_at"
+    "updated_at",
+    "revision"
   ],
   "title": "ResearchRun",
   "type": "object"

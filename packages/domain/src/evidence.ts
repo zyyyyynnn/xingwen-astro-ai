@@ -51,6 +51,7 @@ export const EVIDENCE_TARGET_TYPES = [
   "metric",
   "visualization",
   "evaluation",
+  "model",
 ] as const;
 export type EvidenceTargetType = (typeof EVIDENCE_TARGET_TYPES)[number];
 

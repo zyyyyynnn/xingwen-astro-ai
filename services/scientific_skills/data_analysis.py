@@ -43,9 +43,16 @@ def build_data_profile(request: ScientificSkillRequest) -> dict[str, object]:
 
 
 def analyze_statistics(request: ScientificSkillRequest) -> dict[str, object]:
-    reject_unknown(request.parameters, {"rows", "fields"})
+    reject_unknown(
+        request.parameters,
+        {"rows", "fields", "hypothesis_tests", "alpha"},
+    )
     rows = require_rows(request.parameters, max_rows=request.budget.max_input_rows)
-    fields = require_string_list(request.parameters, "fields", max_items=128)
+    fields = (
+        require_string_list(request.parameters, "fields", max_items=128)
+        if "fields" in request.parameters
+        else ()
+    )
     results = []
     for field in fields:
         values = _numeric_column(rows, field)
@@ -62,7 +69,26 @@ def analyze_statistics(request: ScientificSkillRequest) -> dict[str, object]:
                 "population_stddev": pstdev(values),
             }
         )
-    return {"statistics": results}
+    alpha = request.parameters.get("alpha", 0.05)
+    if (
+        isinstance(alpha, bool)
+        or not isinstance(alpha, int | float)
+        or not isfinite(float(alpha))
+        or not 0 < float(alpha) < 1
+    ):
+        raise ValueError("alpha must be a finite number within (0, 1)")
+    tests = _hypothesis_tests(
+        rows,
+        request.parameters.get("hypothesis_tests", []),
+        alpha=float(alpha),
+    )
+    if not results and not tests:
+        raise ValueError("statistical_analysis requires fields or hypothesis_tests")
+    return {
+        "statistics": results,
+        "hypothesis_tests": tests,
+        "alpha": float(alpha),
+    }
 
 
 def analyze_correlations(request: ScientificSkillRequest) -> dict[str, object]:
@@ -175,6 +201,226 @@ def _is_number(value: object) -> bool:
 
 def _numeric_column(rows: tuple[dict[str, Any], ...], field: str) -> list[float]:
     return [float(row[field]) for row in rows if _is_number(row.get(field))]
+
+
+def _hypothesis_tests(
+    rows: tuple[dict[str, Any], ...],
+    raw_tests: object,
+    *,
+    alpha: float,
+) -> list[dict[str, object]]:
+    if not isinstance(raw_tests, list):
+        raise ValueError("hypothesis_tests must be an array")
+    if len(raw_tests) > 32:
+        raise ValueError("hypothesis_tests exceeds the bounded test count")
+    return [
+        _hypothesis_test(rows, raw, test_index=index, alpha=alpha)
+        for index, raw in enumerate(raw_tests, start=1)
+    ]
+
+
+def _hypothesis_test(
+    rows: tuple[dict[str, Any], ...],
+    raw: object,
+    *,
+    test_index: int,
+    alpha: float,
+) -> dict[str, object]:
+    if not isinstance(raw, dict):
+        raise ValueError("each hypothesis test must be an object")
+    kind = raw.get("kind")
+    if not isinstance(kind, str):
+        raise ValueError("hypothesis test kind must be text")
+    from scipy import stats
+
+    sample_counts: list[int]
+    assumptions: list[str]
+    if kind == "one_sample_t":
+        _require_test_keys(raw, {"kind", "field", "expected_mean"})
+        field = _test_field(raw, "field")
+        values = _require_numeric_sample(rows, field, minimum=2)
+        expected = _finite_test_number(raw, "expected_mean")
+        result = stats.ttest_1samp(values, popmean=expected)
+        sample_counts = [len(values)]
+        assumptions = ["independent observations", "approximately normal sample mean"]
+    elif kind in {"independent_t", "paired_t", "mann_whitney_u"}:
+        _require_test_keys(raw, {"kind", "left_field", "right_field"})
+        left_field = _test_field(raw, "left_field")
+        right_field = _test_field(raw, "right_field")
+        if left_field == right_field:
+            raise ValueError("hypothesis test fields must be distinct")
+        if kind == "paired_t":
+            pairs = [
+                (float(row[left_field]), float(row[right_field]))
+                for row in rows
+                if _is_number(row.get(left_field)) and _is_number(row.get(right_field))
+            ]
+            if len(pairs) < 2:
+                raise ValueError("paired_t requires at least two complete pairs")
+            left = [item[0] for item in pairs]
+            right = [item[1] for item in pairs]
+            result = stats.ttest_rel(left, right)
+            sample_counts = [len(pairs), len(pairs)]
+            assumptions = ["paired observations", "approximately normal differences"]
+        else:
+            left = _require_numeric_sample(rows, left_field, minimum=2)
+            right = _require_numeric_sample(rows, right_field, minimum=2)
+            if kind == "independent_t":
+                result = stats.ttest_ind(left, right, equal_var=False)
+                assumptions = ["independent observations", "Welch unequal variances"]
+            else:
+                result = stats.mannwhitneyu(left, right, alternative="two-sided")
+                assumptions = [
+                    "independent observations",
+                    "ordinal or continuous values",
+                ]
+            sample_counts = [len(left), len(right)]
+    elif kind == "one_way_anova":
+        _require_test_keys(raw, {"kind", "fields"})
+        raw_fields = raw.get("fields")
+        if (
+            not isinstance(raw_fields, list)
+            or not 2 <= len(raw_fields) <= 32
+            or not all(isinstance(item, str) and item.strip() for item in raw_fields)
+            or len(set(raw_fields)) != len(raw_fields)
+        ):
+            raise ValueError("one_way_anova fields must contain 2-32 unique names")
+        samples = [
+            _require_numeric_sample(rows, field.strip(), minimum=2)
+            for field in raw_fields
+        ]
+        result = stats.f_oneway(*samples)
+        sample_counts = [len(sample) for sample in samples]
+        assumptions = ["independent groups", "approximately normal residuals"]
+    elif kind == "chi_square_independence":
+        _require_test_keys(raw, {"kind", "left_field", "right_field"})
+        left_field = _test_field(raw, "left_field")
+        right_field = _test_field(raw, "right_field")
+        table = _contingency_table(rows, left_field, right_field)
+        statistic, p_value, _dof, expected = stats.chi2_contingency(table)
+        if any(float(value) < 5 for row in expected for value in row):
+            assumptions = ["some expected cell counts are below five"]
+        else:
+            assumptions = ["all expected cell counts are at least five"]
+        sample_counts = [sum(sum(row) for row in table)]
+        return _test_result(
+            test_index=test_index,
+            kind=kind,
+            statistic=float(statistic),
+            p_value=float(p_value),
+            alpha=alpha,
+            sample_counts=sample_counts,
+            assumptions=assumptions,
+        )
+    elif kind == "shapiro_wilk":
+        _require_test_keys(raw, {"kind", "field"})
+        field = _test_field(raw, "field")
+        values = _require_numeric_sample(rows, field, minimum=3)
+        if len(values) > 5000:
+            raise ValueError("shapiro_wilk accepts at most 5000 observations")
+        result = stats.shapiro(values)
+        sample_counts = [len(values)]
+        assumptions = ["continuous observations", "independent observations"]
+    else:
+        raise ValueError(f"unsupported hypothesis test kind: {kind}")
+    return _test_result(
+        test_index=test_index,
+        kind=kind,
+        statistic=float(result.statistic),
+        p_value=float(result.pvalue),
+        alpha=alpha,
+        sample_counts=sample_counts,
+        assumptions=assumptions,
+    )
+
+
+def _require_test_keys(raw: dict[str, Any], allowed: set[str]) -> None:
+    unknown = set(raw) - allowed
+    if unknown:
+        raise ValueError(
+            "hypothesis test contains unsupported keys: " + ", ".join(sorted(unknown))
+        )
+
+
+def _test_field(raw: dict[str, Any], key: str) -> str:
+    value = raw.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"hypothesis test {key} must be non-empty text")
+    return value.strip()
+
+
+def _finite_test_number(raw: dict[str, Any], key: str) -> float:
+    value = raw.get(key)
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not isfinite(float(value))
+    ):
+        raise ValueError(f"hypothesis test {key} must be a finite number")
+    return float(value)
+
+
+def _require_numeric_sample(
+    rows: tuple[dict[str, Any], ...], field: str, *, minimum: int
+) -> list[float]:
+    sample = _numeric_column(rows, field)
+    if len(sample) < minimum:
+        raise ValueError(
+            f"hypothesis test field {field} requires at least {minimum} finite values"
+        )
+    return sample
+
+
+def _contingency_table(
+    rows: tuple[dict[str, Any], ...], left_field: str, right_field: str
+) -> list[list[int]]:
+    pairs = [
+        (row.get(left_field), row.get(right_field))
+        for row in rows
+        if row.get(left_field) is not None and row.get(right_field) is not None
+    ]
+    left_values = sorted({_stable_scalar(left) for left, _right in pairs})
+    right_values = sorted({_stable_scalar(right) for _left, right in pairs})
+    if not 2 <= len(left_values) <= 64 or not 2 <= len(right_values) <= 64:
+        raise ValueError("chi_square_independence requires 2-64 categories per field")
+    counts = Counter(
+        (_stable_scalar(left), _stable_scalar(right)) for left, right in pairs
+    )
+    table = [[counts[(left, right)] for right in right_values] for left in left_values]
+    if any(sum(row) == 0 for row in table):
+        raise ValueError("chi-square contingency table has an empty row")
+    return table
+
+
+def _test_result(
+    *,
+    test_index: int,
+    kind: str,
+    statistic: float,
+    p_value: float,
+    alpha: float,
+    sample_counts: list[int],
+    assumptions: list[str],
+) -> dict[str, object]:
+    if not isfinite(statistic) or not isfinite(p_value) or not 0 <= p_value <= 1:
+        raise ValueError(f"{kind} produced a non-finite statistic or p-value")
+    return {
+        "test_id": f"hypothesis.{test_index}",
+        "kind": kind,
+        "statistic": statistic,
+        "p_value": p_value,
+        "alpha": alpha,
+        "reject_null": p_value < alpha,
+        "sample_counts": sample_counts,
+        "assumptions": assumptions,
+        "library_revision": _scipy_version(),
+    }
+
+
+def _scipy_version() -> str:
+    import scipy
+
+    return f"scipy:{scipy.__version__}"
 
 
 def _pearson(pairs: list[tuple[float, float]]) -> float:

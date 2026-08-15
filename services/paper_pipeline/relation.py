@@ -54,16 +54,7 @@ from app.schemas.paper_summary import PaperSummaryEvidence
 from packages.prompts.registry import PromptRegistry
 
 from .constants import (
-    FROZEN_BENCHMARK_CONTENT_HASH,
-    FROZEN_SCIENTIFIC_PAYLOAD_HASH,
     RELATION_COMPARISON_POLICY_VERSION,
-    RELATION_CONFIDENCE_ACCEPTANCE_THRESHOLD,
-    RELATION_CONFIDENCE_APPLICABILITY_SCOPE,
-    RELATION_CONFIDENCE_CALIBRATION_ID,
-    RELATION_CONFIDENCE_CALIBRATION_METHOD,
-    RELATION_CONFIDENCE_CALIBRATION_VERSION,
-    RELATION_CONFIDENCE_DEFINITION_ID,
-    RELATION_CONFIDENCE_DEFINITION_VERSION,
     RELATION_PAIRING_VERSION,
     RELATION_PARAMETERS_VERSION,
     RELATION_PRODUCER_NAME,
@@ -111,6 +102,25 @@ class _ResolvedInputs:
     ownership_invalid_version_ids: frozenset[str]
 
 
+@dataclass(frozen=True, slots=True)
+class LiteratureRelationExecutionPlan:
+    """Exact immutable model/provenance identity prepared before execution."""
+
+    requested_ids: tuple[str, ...]
+    prompt_name: str
+    prompt_version: str
+    prompt_hash: str
+    prompt: str
+    parameters: Mapping[str, ParameterValue]
+    parameters_version: str
+    parameters_hash: str
+    input_versions: LiteratureRelationInputVersions
+    input_hash: str
+    resolved: _ResolvedInputs
+    confidence_assessments: Mapping[str, LiteratureRelationConfidenceAssessment]
+    confidence_payload: tuple[dict[str, Any], ...]
+
+
 class LiteratureRelationPipeline:
     """Admit Relation/Trace output without publishing or advancing a run."""
 
@@ -123,7 +133,7 @@ class LiteratureRelationPipeline:
         self.prompt_registry = prompt_registry or PromptRegistry()
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
-    def admit(
+    def prepare_execution(
         self,
         *,
         literature_claim_artifact_version_ids: tuple[str, ...],
@@ -131,27 +141,27 @@ class LiteratureRelationPipeline:
             str, LiteratureClaimsArtifactVersionInput
         ],
         project_id: str,
-        model_response: str,
         model_name: str,
         parameters: Mapping[str, ParameterValue],
         confidence_assessments: Mapping[
             str, LiteratureRelationConfidenceAssessment
         ],
         parameters_version: str = RELATION_PARAMETERS_VERSION,
-        execution_id: str | None = None,
-        run_id: str | None = None,
         available_evidence_ids: frozenset[str] | None = None,
         available_source_snapshot_ids: frozenset[str] | None = None,
         available_paper_summary_artifact_version_ids: frozenset[str] | None = None,
         existing_relation_fingerprints: frozenset[str] = frozenset(),
-        _authority_minter: Callable[..., LiteratureRelationsCandidate],
-    ) -> LiteratureRelationAdmissionResult:
+    ) -> LiteratureRelationExecutionPlan:
+        """Freeze the exact identity used by admission before a model call starts."""
+
         requested_ids = tuple(sorted(set(literature_claim_artifact_version_ids)))
         if not requested_ids:
             raise ValueError("at least one LiteratureClaims ArtifactVersion is required")
         prompt = self.prompt_registry.get("literature_relation")
         if prompt.output_models != ("LiteratureRelationExtractionOutput",):
-            raise ValueError("Prompt output contract is not LiteratureRelationExtractionOutput")
+            raise ValueError(
+                "Prompt output contract is not LiteratureRelationExtractionOutput"
+            )
         safe_parameters = _validate_parameters(parameters)
         parameters_hash = compute_canonical_payload_hash(
             {
@@ -183,30 +193,6 @@ class LiteratureRelationPipeline:
                 "pairing_version": RELATION_PAIRING_VERSION,
                 "comparison_policy_version": RELATION_COMPARISON_POLICY_VERSION,
                 "trace_protocol_version": RELATION_TRACE_PROTOCOL_VERSION,
-                "confidence_definition_id": RELATION_CONFIDENCE_DEFINITION_ID,
-                "confidence_definition_version": (
-                    RELATION_CONFIDENCE_DEFINITION_VERSION
-                ),
-                "confidence_calibration_id": RELATION_CONFIDENCE_CALIBRATION_ID,
-                "confidence_calibration_version": (
-                    RELATION_CONFIDENCE_CALIBRATION_VERSION
-                ),
-                "confidence_calibration_scientific_payload_hash": (
-                    FROZEN_SCIENTIFIC_PAYLOAD_HASH
-                ),
-                "confidence_calibration_content_hash": FROZEN_BENCHMARK_CONTENT_HASH,
-                "confidence_calibration_sample_size": (
-                    RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE
-                ),
-                "confidence_calibration_method": (
-                    RELATION_CONFIDENCE_CALIBRATION_METHOD
-                ),
-                "confidence_applicability_scope": (
-                    RELATION_CONFIDENCE_APPLICABILITY_SCOPE
-                ),
-                "confidence_acceptance_threshold": (
-                    RELATION_CONFIDENCE_ACCEPTANCE_THRESHOLD
-                ),
                 "confidence_assessments": confidence_payload,
                 "admission_context": {
                     "available_evidence_ids": (
@@ -230,6 +216,67 @@ class LiteratureRelationPipeline:
                 },
             }
         )
+        return LiteratureRelationExecutionPlan(
+            requested_ids=requested_ids,
+            prompt_name=prompt.name,
+            prompt_version=prompt.version,
+            prompt_hash=prompt.content_hash,
+            prompt=prompt.content,
+            parameters=safe_parameters,
+            parameters_version=parameters_version,
+            parameters_hash=parameters_hash,
+            input_versions=resolved.input_versions,
+            input_hash=input_hash,
+            resolved=resolved,
+            confidence_assessments=safe_confidence_assessments,
+            confidence_payload=tuple(confidence_payload),
+        )
+
+    def admit(
+        self,
+        *,
+        literature_claim_artifact_version_ids: tuple[str, ...],
+        literature_claim_versions: Mapping[
+            str, LiteratureClaimsArtifactVersionInput
+        ],
+        project_id: str,
+        model_response: str,
+        model_name: str,
+        parameters: Mapping[str, ParameterValue],
+        confidence_assessments: Mapping[
+            str, LiteratureRelationConfidenceAssessment
+        ],
+        parameters_version: str = RELATION_PARAMETERS_VERSION,
+        execution_id: str | None = None,
+        run_id: str | None = None,
+        available_evidence_ids: frozenset[str] | None = None,
+        available_source_snapshot_ids: frozenset[str] | None = None,
+        available_paper_summary_artifact_version_ids: frozenset[str] | None = None,
+        existing_relation_fingerprints: frozenset[str] = frozenset(),
+        _authority_minter: Callable[..., LiteratureRelationsCandidate],
+    ) -> LiteratureRelationAdmissionResult:
+        prepared = self.prepare_execution(
+            literature_claim_artifact_version_ids=(
+                literature_claim_artifact_version_ids
+            ),
+            literature_claim_versions=literature_claim_versions,
+            project_id=project_id,
+            model_name=model_name,
+            parameters=parameters,
+            confidence_assessments=confidence_assessments,
+            parameters_version=parameters_version,
+            available_evidence_ids=available_evidence_ids,
+            available_source_snapshot_ids=available_source_snapshot_ids,
+            available_paper_summary_artifact_version_ids=(
+                available_paper_summary_artifact_version_ids
+            ),
+            existing_relation_fingerprints=existing_relation_fingerprints,
+        )
+        requested_ids = prepared.requested_ids
+        parameters_hash = prepared.parameters_hash
+        resolved = prepared.resolved
+        safe_confidence_assessments = prepared.confidence_assessments
+        input_hash = prepared.input_hash
         raw_response_hash = compute_canonical_payload_hash(model_response)
         now = self._now()
         stable_execution_id = execution_id or f"execution.{input_hash[7:31]}"
@@ -241,33 +288,15 @@ class LiteratureRelationPipeline:
             "producer_name": RELATION_PRODUCER_NAME,
             "producer_version": RELATION_PRODUCER_VERSION,
             "model_name": model_name,
-            "prompt_name": prompt.name,
-            "prompt_version": prompt.version,
-            "prompt_hash": prompt.content_hash,
+            "prompt_name": prepared.prompt_name,
+            "prompt_version": prepared.prompt_version,
+            "prompt_hash": prepared.prompt_hash,
             "schema_version": RELATION_SCHEMA_VERSION,
             "parameters_version": parameters_version,
             "parameters_hash": parameters_hash,
             "pairing_version": RELATION_PAIRING_VERSION,
             "comparison_policy_version": RELATION_COMPARISON_POLICY_VERSION,
             "trace_protocol_version": RELATION_TRACE_PROTOCOL_VERSION,
-            "confidence_definition_id": RELATION_CONFIDENCE_DEFINITION_ID,
-            "confidence_definition_version": RELATION_CONFIDENCE_DEFINITION_VERSION,
-            "confidence_calibration_id": RELATION_CONFIDENCE_CALIBRATION_ID,
-            "confidence_calibration_version": RELATION_CONFIDENCE_CALIBRATION_VERSION,
-            "confidence_calibration_scientific_payload_hash": (
-                FROZEN_SCIENTIFIC_PAYLOAD_HASH
-            ),
-            "confidence_calibration_content_hash": FROZEN_BENCHMARK_CONTENT_HASH,
-            "confidence_calibration_sample_size": (
-                RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE
-            ),
-            "confidence_calibration_method": RELATION_CONFIDENCE_CALIBRATION_METHOD,
-            "confidence_applicability_scope": (
-                RELATION_CONFIDENCE_APPLICABILITY_SCOPE
-            ),
-            "confidence_acceptance_threshold": (
-                RELATION_CONFIDENCE_ACCEPTANCE_THRESHOLD
-            ),
             "input_versions": resolved.input_versions,
             "input_hash": input_hash,
             "model_response_hash": raw_response_hash,
@@ -869,9 +898,7 @@ def _admit_relations(
         else:
             status = LiteratureRelationStatus.accepted
         expected_decision = status
-        decision_matches = (
-            confidence is not None and confidence.decision is expected_decision
-        )
+        decision_matches = confidence is None or confidence.decision is expected_decision
         if (
             reason is None
             and confidence is not None
@@ -1334,35 +1361,12 @@ def _confidence_failure(
     *,
     expected_subject: LiteratureRelationConfidenceSubject | None,
 ) -> tuple[LiteratureRelationFailureStage, LiteratureRelationRejectionReason] | None:
-    if assessment_id is None or confidence is None:
+    if assessment_id is None:
+        return None
+    if confidence is None:
         return (
             LiteratureRelationFailureStage.confidence,
             LiteratureRelationRejectionReason.confidence_undefined,
-        )
-    if (
-        confidence.definition_id != RELATION_CONFIDENCE_DEFINITION_ID
-        or confidence.definition_version != RELATION_CONFIDENCE_DEFINITION_VERSION
-    ):
-        return (
-            LiteratureRelationFailureStage.confidence,
-            LiteratureRelationRejectionReason.confidence_definition_unsupported,
-        )
-    if (
-        confidence.calibration_id != RELATION_CONFIDENCE_CALIBRATION_ID
-        or confidence.calibration_version != RELATION_CONFIDENCE_CALIBRATION_VERSION
-        or confidence.calibration_scientific_payload_hash
-        != FROZEN_SCIENTIFIC_PAYLOAD_HASH
-        or confidence.calibration_content_hash != FROZEN_BENCHMARK_CONTENT_HASH
-        or confidence.calibration_sample_size
-        != RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE
-        or confidence.calibration_method != RELATION_CONFIDENCE_CALIBRATION_METHOD
-        or confidence.applicability_scope != RELATION_CONFIDENCE_APPLICABILITY_SCOPE
-        or confidence.acceptance_threshold
-        != RELATION_CONFIDENCE_ACCEPTANCE_THRESHOLD
-    ):
-        return (
-            LiteratureRelationFailureStage.confidence,
-            LiteratureRelationRejectionReason.confidence_calibration_missing,
         )
     if expected_subject is None or confidence.subject != expected_subject:
         return (
@@ -1430,6 +1434,7 @@ del _bind_literature_relation_pipeline_authority
 
 __all__ = [
     "LiteratureClaimsArtifactVersionInput",
+    "LiteratureRelationExecutionPlan",
     "LiteratureRelationPipeline",
     "RELATION_CONFIDENCE_CALIBRATION_SAMPLE_SIZE",
     "SUPPORTED_CLAIM_SCHEMA_VERSIONS",

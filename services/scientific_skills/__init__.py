@@ -12,6 +12,10 @@ from .registry import (
     ScientificSkillRegistry,
     build_scientific_skill_registry,
 )
+from .process_execution import (
+    ScientificSkillProcessError,
+    ScientificSkillProcessExecutor,
+)
 from .types import (
     ScientificSkillBudget,
     ScientificSkillRequest,
@@ -24,6 +28,8 @@ __all__ = [
     "ScientificInputBinding",
     "ScientificProducedSourceRecorder",
     "ScientificSkillDefinition",
+    "ScientificSkillProcessError",
+    "ScientificSkillProcessExecutor",
     "ScientificSkillRegistry",
     "ScientificStepAdapter",
     "ScientificStepOutput",

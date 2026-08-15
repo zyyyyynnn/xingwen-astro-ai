@@ -8,6 +8,7 @@ an ArtifactVersion or advance a successful Step outside the Publisher's atomic b
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Generic, TypeVar
@@ -18,10 +19,20 @@ from .store import (
     LeaseGrant,
     PersistentWorkflowStore,
     RetryBudgetExhaustedError,
+    WorkflowStoreError,
 )
 
 StepResultT = TypeVar("StepResultT")
 CommitResultT = TypeVar("CommitResultT")
+
+
+@dataclass(frozen=True, slots=True)
+class HumanCheckpointRequirement:
+    """Server-owned repair contract produced only by audited error classification."""
+
+    error_code: str
+    public_message: str
+    required_input_types: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +41,7 @@ class FailureDecision:
     public_message: str
     retryable: bool
     upstream_request_id: str | None = None
+    checkpoint: HumanCheckpointRequirement | None = None
 
 
 class PersistentWorkflowExecutionError(RuntimeError):
@@ -77,6 +89,14 @@ class PersistentWorkflowExecutor(Generic[StepResultT, CommitResultT]):
 
         try:
             result = await runner(attempt)
+        except asyncio.CancelledError:
+            self._record_cancellation(
+                run_id=run_id,
+                step_key=step_key,
+                attempt=attempt,
+                lease=lease,
+            )
+            raise
         except Exception as cause:
             self._record_failure(
                 cause=cause,
@@ -93,6 +113,49 @@ class PersistentWorkflowExecutor(Generic[StepResultT, CommitResultT]):
         # reconciliation before the Attempt can safely be marked failed.
         return await commit_success(attempt, lease, result)
 
+    def _record_cancellation(
+        self,
+        *,
+        run_id: UUID,
+        step_key: str,
+        attempt: AttemptHandle,
+        lease: LeaseGrant,
+    ) -> None:
+        try:
+            self.store.record_retryable_failure(
+                run_id,
+                step_key=step_key,
+                attempt_id=attempt.attempt_id,
+                token=lease.token,
+                generation=lease.generation,
+                expected_status=attempt.run_status,
+                expected_revision=attempt.run_revision,
+                error_class="CancelledError",
+                error_code="WORKER_EXECUTION_INTERRUPTED",
+                public_message="Worker execution interrupted; retry scheduled",
+            )
+        except RetryBudgetExhaustedError:
+            try:
+                self.store.fail_run(
+                    run_id,
+                    step_key=step_key,
+                    attempt_id=attempt.attempt_id,
+                    token=lease.token,
+                    generation=lease.generation,
+                    expected_status=attempt.run_status,
+                    expected_revision=attempt.run_revision,
+                    error_class="CancelledError",
+                    error_code="WORKER_EXECUTION_INTERRUPTED",
+                    public_message="Worker execution interrupted after retry exhaustion",
+                    retryable=True,
+                )
+            except WorkflowStoreError:
+                pass
+        except WorkflowStoreError:
+            # A user cancellation has already atomically cancelled the Attempt
+            # and released its lease; the late execution task has nothing to write.
+            pass
+
     def _record_failure(
         self,
         *,
@@ -106,6 +169,22 @@ class PersistentWorkflowExecutor(Generic[StepResultT, CommitResultT]):
         decision = classify_failure(cause)
         error_class = type(cause).__name__
         try:
+            if decision.checkpoint is not None:
+                requirement = decision.checkpoint
+                self.store.request_human_input(
+                    run_id,
+                    step_key=step_key,
+                    attempt_id=attempt.attempt_id,
+                    token=lease.token,
+                    generation=lease.generation,
+                    expected_status=attempt.run_status,
+                    expected_revision=attempt.run_revision,
+                    error_class=error_class,
+                    error_code=requirement.error_code,
+                    public_message=requirement.public_message,
+                    required_input_types=requirement.required_input_types,
+                )
+                return
             if decision.retryable:
                 try:
                     self.store.record_retryable_failure(

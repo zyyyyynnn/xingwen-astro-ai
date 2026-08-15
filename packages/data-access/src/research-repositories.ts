@@ -10,6 +10,11 @@ import type {
   CreateResearchContractDraftRequest,
   CreateResearchProjectRequest,
   CreateRunRequest,
+  CancelRunDecisionRequest,
+  ResumeRunDecisionRequest,
+  RetryRunDecisionRequest,
+  RunDecisionResult as RunDecisionResultDto,
+  RunCheckpointRead as RunCheckpointReadDto,
   ResearchTurnRequest,
   UpdateResearchProjectRequest,
   UpdateResearchContractDraftRequest,
@@ -21,6 +26,8 @@ import type {
   ResearchTurn,
   RunStepSnapshot,
   RunEvent,
+  RunCheckpoint,
+  RunDecisionResult,
 } from "@xingwen/domain";
 
 import {
@@ -41,6 +48,8 @@ import {
   mapResearchTurn,
   mapRunStep,
   mapRunEvent,
+  mapRunCheckpoint,
+  mapRunDecisionResult,
 } from "./mapping";
 import type {
   ContractRepository,
@@ -57,6 +66,7 @@ import type {
   SubmitResearchTurnInput,
   UpdateResearchProjectInput,
   UpdateResearchContractDraftInput,
+  RunDecisionInput,
 } from "./ports";
 
 const EVENT_PAGE_LIMIT = 100;
@@ -279,6 +289,46 @@ export function createResearchRepositories(
         { "Idempotency-Key": input.idempotencyKey },
       );
       return validateAndMap("ResearchRun", payload, mapResearchRun);
+    },
+    async getCheckpoint(id): Promise<RunCheckpoint | null> {
+      const payload = await http.get<RunCheckpointReadDto>(
+        `/api/runs/${seg(id)}/checkpoint`,
+      );
+      return payload ? mapRunCheckpoint(payload) : null;
+    },
+    async decide(
+      id,
+      input: RunDecisionInput,
+      expectedRevision,
+      idempotencyKey,
+    ): Promise<RunDecisionResult> {
+      const body:
+        | ResumeRunDecisionRequest
+        | RetryRunDecisionRequest
+        | CancelRunDecisionRequest =
+        input.decision === "resume"
+          ? (() => {
+              const [first, ...rest] = input.inputIds;
+              if (!first) {
+                throw new TypeError("Resume decisions require an input id");
+              }
+              return {
+                decision: "resume",
+                input_ids: [first, ...rest],
+              } satisfies ResumeRunDecisionRequest;
+            })()
+          : input.decision === "retry"
+            ? { decision: "retry", step_key: input.stepKey }
+            : { decision: "cancel" };
+      const payload = await http.post<RunDecisionResultDto>(
+        `/api/runs/${seg(id)}/decisions`,
+        body,
+        {
+          "If-Match": String(expectedRevision),
+          "Idempotency-Key": idempotencyKey,
+        },
+      );
+      return mapRunDecisionResult(payload);
     },
     async listEvents(runId): Promise<readonly RunEvent[]> {
       const payloads = await http.list<unknown>(

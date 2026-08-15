@@ -59,6 +59,7 @@ from app.schemas.core import (
     ArtifactKind,
     ExportArtifactContent,
     ResearchContractInput,
+    ScientificSkillId,
     compute_research_contract_content_hash,
 )
 from app.schemas.scientific_skills import VisualizationArtifactContent
@@ -121,8 +122,9 @@ def _steps() -> tuple[RunStepDefinition, ...]:
             enter_status=enter,
             success_status=success,
             max_attempts=2,
+            depends_on_step_keys=(transitions[position - 1][0],) if position else (),
         )
-        for enter, success in transitions
+        for position, (enter, success) in enumerate(transitions)
     )
 
 
@@ -393,6 +395,145 @@ def test_producer_execution_is_idempotent_auditable_and_secret_free(
         )
 
 
+def test_function_call_execution_replays_one_safe_audit_record(
+    postgres_engine: Engine,
+) -> None:
+    active = _active_publication(postgres_engine)
+    request = ProducerExecutionRequest(
+        run_id=active.run_id,
+        step_key="planning",
+        attempt_id=active.attempt_id,
+        idempotency_key="research-step-agent:1",
+        producer_type="model",
+        producer_name="research_step_agent",
+        producer_version="1.0.0",
+        model_provider="qwen",
+        model_name="qwen-plus-test",
+        prompt_name="research_step_agent",
+        prompt_version="1.0.0",
+        prompt_hash="sha256:" + "d" * 64,
+        input_hash="sha256:" + "e" * 64,
+        parameters={"temperature": 0.2, "top_p": 0.8},
+        authorized_tool_name="confirm_research_plan",
+        authorized_skill_id=None,
+        registry_revision="sha256:" + "f" * 64,
+    )
+    started = active.ledger.start_producer_execution(
+        request,
+        token=active.token,
+        generation=active.generation,
+        expected_status=active.run_status,
+        expected_revision=active.run_revision,
+    )
+    assert started.replayed is False
+
+    completed = active.ledger.finish_producer_execution(
+        started.id,
+        status="completed",
+        output_hash="sha256:" + "1" * 64,
+        token_usage={"prompt_tokens": 10, "completion_tokens": 3},
+        latency_ms=9,
+        provider_request_id="provider-request-1",
+        tool_call_id="tool-call-1",
+        validated_arguments_hash="sha256:" + "2" * 64,
+        public_message="已核对冻结研究协议并确认当前唯一受控工具。",
+    )
+    terminal_replay = active.ledger.finish_producer_execution(
+        started.id,
+        status="completed",
+        output_hash="sha256:" + "1" * 64,
+        token_usage={"prompt_tokens": 10, "completion_tokens": 3},
+        latency_ms=9,
+        provider_request_id="provider-request-1",
+        tool_call_id="tool-call-1",
+        validated_arguments_hash="sha256:" + "2" * 64,
+        public_message="已核对冻结研究协议并确认当前唯一受控工具。",
+    )
+    replay = active.ledger.start_producer_execution(
+        request,
+        token=active.token,
+        generation=active.generation,
+        expected_status=active.run_status,
+        expected_revision=active.run_revision,
+    )
+
+    assert completed.status == "completed"
+    assert terminal_replay.id == started.id
+    assert terminal_replay.replayed is True
+    assert replay.id == started.id
+    assert replay.replayed is True
+    assert replay.provider_request_id == "provider-request-1"
+    assert replay.tool_call_id == "tool-call-1"
+    assert replay.authorized_tool_name == "confirm_research_plan"
+    assert replay.authorized_skill_id is None
+    assert replay.registry_revision == "sha256:" + "f" * 64
+    assert replay.validated_arguments_hash == "sha256:" + "2" * 64
+    assert replay.rejected_arguments_hash is None
+    assert replay.public_message.startswith("已核对")
+    assert replay.error_hash is None
+    with pytest.raises(ProducerExecutionConflictError):
+        active.ledger.finish_producer_execution(
+            started.id,
+            status="completed",
+            output_hash="sha256:" + "1" * 64,
+            token_usage={"prompt_tokens": 10, "completion_tokens": 3},
+            latency_ms=9,
+            provider_request_id="different-provider-request",
+            tool_call_id="tool-call-1",
+            validated_arguments_hash="sha256:" + "2" * 64,
+            public_message="已核对冻结研究协议并确认当前唯一受控工具。",
+        )
+
+    rejected_started = active.ledger.start_producer_execution(
+        replace(request, idempotency_key="research-step-agent:2"),
+        token=active.token,
+        generation=active.generation,
+        expected_status=active.run_status,
+        expected_revision=active.run_revision,
+    )
+    rejected = active.ledger.finish_producer_execution(
+        rejected_started.id,
+        status="rejected",
+        output_hash="sha256:" + "3" * 64,
+        token_usage={"prompt_tokens": 8, "completion_tokens": 2},
+        latency_ms=11,
+        error_code="AGENT_ARGUMENTS_INVALID",
+        provider_request_id="provider-request-2",
+        tool_call_id="tool-call-2",
+        rejected_arguments_hash="sha256:" + "4" * 64,
+        error_hash="sha256:" + "5" * 64,
+    )
+    rejected_replay = active.ledger.finish_producer_execution(
+        rejected_started.id,
+        status="rejected",
+        output_hash="sha256:" + "3" * 64,
+        token_usage={"prompt_tokens": 8, "completion_tokens": 2},
+        latency_ms=11,
+        error_code="AGENT_ARGUMENTS_INVALID",
+        provider_request_id="provider-request-2",
+        tool_call_id="tool-call-2",
+        rejected_arguments_hash="sha256:" + "4" * 64,
+        error_hash="sha256:" + "5" * 64,
+    )
+    assert rejected.replayed is False
+    assert rejected_replay.replayed is True
+    assert rejected_replay.rejected_arguments_hash == "sha256:" + "4" * 64
+    assert rejected_replay.validated_arguments_hash is None
+    with pytest.raises(ProducerExecutionConflictError):
+        active.ledger.finish_producer_execution(
+            rejected_started.id,
+            status="rejected",
+            output_hash="sha256:" + "3" * 64,
+            token_usage={"prompt_tokens": 8, "completion_tokens": 2},
+            latency_ms=11,
+            error_code="AGENT_ARGUMENTS_INVALID",
+            provider_request_id="provider-request-2",
+            tool_call_id="tool-call-2",
+            rejected_arguments_hash="sha256:" + "6" * 64,
+            error_hash="sha256:" + "5" * 64,
+        )
+
+
 def _assert_publication_not_started(active: ActivePublication) -> None:
     with active.factory() as session:
         artifact = session.get(ResearchArtifactModel, active.artifact.id)
@@ -503,6 +644,249 @@ def test_publication_is_atomic_and_idempotent_with_a_stable_conflict(
             expected_revision=active.run_revision,
             publications=(changed,),
             public_message="Conflicting replay",
+        )
+
+
+def test_intermediate_publication_is_replayable_then_final_publish_completes_attempt(
+    postgres_engine: Engine,
+) -> None:
+    active = _active_publication(postgres_engine)
+    with active.factory() as session:
+        event_count_before = session.scalar(
+            select(func.count())
+            .select_from(RunEventModel)
+            .where(RunEventModel.run_id == active.run_id)
+        )
+    intermediate = active.publisher.publish_intermediate_outputs(
+        active.run_id,
+        step_key="planning",
+        attempt_id=active.attempt_id,
+        token=active.token,
+        generation=active.generation,
+        expected_status=active.run_status,
+        expected_revision=active.run_revision,
+        publications=(active.publication,),
+    )
+    assert intermediate.replayed is False
+    assert intermediate.status == active.run_status
+    assert intermediate.revision == active.run_revision
+
+    with active.factory() as session:
+        version = session.get(ArtifactVersionModel, intermediate.versions[0].id)
+        artifact = session.get(ResearchArtifactModel, active.artifact.id)
+        run = session.get(ResearchRunModel, active.run_id)
+        step = session.scalar(
+            select(RunStepModel).where(
+                RunStepModel.run_id == active.run_id,
+                RunStepModel.key == "planning",
+            )
+        )
+        attempt = session.get(StepAttemptModel, active.attempt_id)
+        assert version is not None and version.version_number == 1
+        assert artifact is not None and artifact.latest_version_id == version.id
+        assert run is not None and run.status == active.run_status
+        assert run.revision == active.run_revision
+        assert step is not None and step.status == "running"
+        assert attempt is not None and attempt.status == "running"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(RunEventModel)
+                .where(RunEventModel.run_id == active.run_id)
+            )
+            == event_count_before
+        )
+
+    replay = active.publisher.publish_intermediate_outputs(
+        active.run_id,
+        step_key="planning",
+        attempt_id=active.attempt_id,
+        token=active.token,
+        generation=active.generation,
+        expected_status=active.run_status,
+        expected_revision=active.run_revision,
+        publications=(active.publication,),
+    )
+    assert replay.replayed is True
+    assert replay.versions == intermediate.versions
+    assert replay.status == intermediate.status
+    assert replay.revision == intermediate.revision
+
+    final_request = ProducerExecutionRequest(
+        run_id=active.run_id,
+        step_key="planning",
+        attempt_id=active.attempt_id,
+        idempotency_key=f"final-producer-{uuid4()}",
+        producer_type="pipeline",
+        producer_name="fixture-data-port",
+        producer_version="1.0.0",
+        input_hash="sha256:" + "d" * 64,
+        parameters={"page_size": 20, "strict": True},
+    )
+    final_execution = active.ledger.start_producer_execution(
+        final_request,
+        token=active.token,
+        generation=active.generation,
+        expected_status=active.run_status,
+        expected_revision=active.run_revision,
+    )
+    active.ledger.finish_producer_execution(
+        final_execution.id,
+        status="completed",
+        output_hash=active.publication.candidate.content_hash,
+        token_usage={"records": 1},
+        latency_ms=12,
+    )
+    final_publication = replace(
+        active.publication,
+        publication_key=f"final-{uuid4()}",
+        producer_execution_id=final_execution.id,
+        supersedes_version_id=intermediate.versions[0].id,
+    )
+    final = active.publisher.publish_step_outputs(
+        active.run_id,
+        step_key="planning",
+        attempt_id=active.attempt_id,
+        token=active.token,
+        generation=active.generation,
+        expected_status=active.run_status,
+        expected_revision=active.run_revision,
+        publications=(final_publication,),
+        public_message="Planning artifacts published",
+    )
+    assert final.replayed is False
+    assert final.status == "fetching_data"
+    assert final.revision == active.run_revision + 1
+
+    with active.factory() as session:
+        final_version = session.get(ArtifactVersionModel, final.versions[0].id)
+        artifact = session.get(ResearchArtifactModel, active.artifact.id)
+        run = session.get(ResearchRunModel, active.run_id)
+        step = session.scalar(
+            select(RunStepModel).where(
+                RunStepModel.run_id == active.run_id,
+                RunStepModel.key == "planning",
+            )
+        )
+        attempt = session.get(StepAttemptModel, active.attempt_id)
+        step_events = session.scalar(
+            select(func.count())
+            .select_from(RunEventModel)
+            .where(
+                RunEventModel.run_id == active.run_id,
+                RunEventModel.event_type == "step.completed",
+            )
+        )
+        run_events = session.scalar(
+            select(func.count())
+            .select_from(RunEventModel)
+            .where(
+                RunEventModel.run_id == active.run_id,
+                RunEventModel.event_type == "run.completed",
+            )
+        )
+        assert final_version is not None and final_version.version_number == 2
+        assert final_version.supersedes_version_id == intermediate.versions[0].id
+        assert artifact is not None and artifact.latest_version_id == final_version.id
+        assert run is not None and run.status == "fetching_data"
+        assert run.revision == active.run_revision + 1
+        assert step is not None and step.status == "completed"
+        assert attempt is not None and attempt.status == "completed"
+        assert step_events == 1
+        assert run_events == 0
+
+
+def test_intermediate_publication_requires_active_fence(
+    postgres_engine: Engine,
+) -> None:
+    active = _active_publication(postgres_engine)
+    with pytest.raises(StalePublicationError):
+        active.publisher.publish_intermediate_outputs(
+            active.run_id,
+            step_key="planning",
+            attempt_id=active.attempt_id,
+            token=active.token,
+            generation=active.generation,
+            expected_status=active.run_status,
+            expected_revision=active.run_revision - 1,
+            publications=(active.publication,),
+        )
+
+    with active.factory() as session, session.begin():
+        session.execute(
+            update(ResearchRunModel)
+            .where(ResearchRunModel.id == active.run_id)
+            .values(
+                lease_expires_at=func.clock_timestamp() - text("INTERVAL '1 second'")
+            )
+        )
+    with pytest.raises(StalePublicationError):
+        active.publisher.publish_intermediate_outputs(
+            active.run_id,
+            step_key="planning",
+            attempt_id=active.attempt_id,
+            token=active.token,
+            generation=active.generation,
+            expected_status=active.run_status,
+            expected_revision=active.run_revision,
+            publications=(active.publication,),
+        )
+    _assert_publication_not_started(active)
+
+
+def test_intermediate_publication_rolls_back_without_completion_or_events(
+    postgres_engine: Engine,
+) -> None:
+    active = _active_publication(postgres_engine)
+    with active.factory() as session:
+        event_count_before = session.scalar(
+            select(func.count())
+            .select_from(RunEventModel)
+            .where(RunEventModel.run_id == active.run_id)
+        )
+    publisher = _FailingPublisher(active.factory)
+    with pytest.raises(RuntimeError, match="injected"):
+        publisher.publish_intermediate_outputs(
+            active.run_id,
+            step_key="planning",
+            attempt_id=active.attempt_id,
+            token=active.token,
+            generation=active.generation,
+            expected_status=active.run_status,
+            expected_revision=active.run_revision,
+            publications=(active.publication,),
+        )
+
+    with active.factory() as session:
+        artifact = session.get(ResearchArtifactModel, active.artifact.id)
+        run = session.get(ResearchRunModel, active.run_id)
+        step = session.scalar(
+            select(RunStepModel).where(
+                RunStepModel.run_id == active.run_id,
+                RunStepModel.key == "planning",
+            )
+        )
+        attempt = session.get(StepAttemptModel, active.attempt_id)
+        assert artifact is not None and artifact.latest_version_id is None
+        assert run is not None and run.status == active.run_status
+        assert run.revision == active.run_revision
+        assert step is not None and step.status == "running"
+        assert attempt is not None and attempt.status == "running"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ArtifactVersionModel)
+                .where(ArtifactVersionModel.artifact_id == active.artifact.id)
+            )
+            == 0
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(RunEventModel)
+                .where(RunEventModel.run_id == active.run_id)
+            )
+            == event_count_before
         )
 
 
@@ -1125,7 +1509,16 @@ def test_scientific_step_publishes_and_reads_one_current_artifact_closure(
                 {
                     "task_id": "task.wwt",
                     "skill_id": "wwt_scene",
-                    "parameters": {"ra_hours": 10.25, "dec_degrees": -12.4},
+                    "parameters": {
+                        "view": {
+                            "kind": "coordinates",
+                            "center": {"ra_hours": 10.25, "dec_degrees": -12.4},
+                            "field_of_view_degrees": 4,
+                        },
+                        "text_alternative": (
+                            "A four-degree WWT field centered on the target star."
+                        ),
+                    },
                     "input_refs": [],
                 }
             ],
@@ -1151,11 +1544,14 @@ def test_scientific_step_publishes_and_reads_one_current_artifact_closure(
                 max_attempts=2,
             ),
             RunStepDefinition(
-                key="building_visualizations",
+                key="scientific.wwt",
                 label="Building scientific visualizations",
                 enter_status="building_visualizations",
                 success_status="completed",
                 max_attempts=2,
+                task_id="task.wwt",
+                skill_id="wwt_scene",
+                depends_on_step_keys=("planning",),
             ),
         ),
     )
@@ -1228,7 +1624,7 @@ def test_scientific_step_publishes_and_reads_one_current_artifact_closure(
     )
     attempt = workflow.begin_step(
         snapshot.id,
-        step_key="building_visualizations",
+        step_key="scientific.wwt",
         attempt_idempotency_key=f"scientific-attempt-{uuid4()}",
         token=lease.token,
         generation=lease.generation,
@@ -1247,9 +1643,13 @@ def test_scientific_step_publishes_and_reads_one_current_artifact_closure(
     published = ScientificStepPublisher(factory).publish(
         attempt=attempt,
         lease=lease,
-        step_key="building_visualizations",
+        step_key="scientific.wwt",
         contract=contract,
-        output=ScientificStepOutput(outcomes=(), artifact_candidates=(candidate,)),
+        output=ScientificStepOutput(
+            task_id="task.wwt",
+            skill_id=ScientificSkillId.wwt_scene,
+            artifact_candidates=(candidate,),
+        ),
         source_mode="fixture",
         public_message="Scientific visualization published",
     )

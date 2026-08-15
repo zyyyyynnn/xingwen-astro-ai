@@ -8,7 +8,9 @@ ArtifactVersion envelope without translating it into a second domain model.
 from __future__ import annotations
 
 from copy import deepcopy
+import re
 from typing import Annotated, Any, Literal, Self
+from uuid import UUID
 
 from pydantic import (
     AfterValidator,
@@ -16,6 +18,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StringConstraints,
     model_validator,
 )
 
@@ -28,7 +31,12 @@ from .enums import (
     UpstreamFailureClass,
 )
 from .evidence import SourceSnapshotRecord
-from .manifest import ContentHash, Identifier, SemanticVersion
+from .manifest import (
+    IDENTIFIER_PATTERN,
+    ContentHash,
+    Identifier,
+    SemanticVersion,
+)
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -49,6 +57,26 @@ NonBlankString = Annotated[
 Score = Annotated[float, Field(ge=0.0, le=1.0)]
 
 
+def _validate_persisted_resource_reference(value: str) -> str:
+    """Accept a persisted UUID or a stable offline domain identifier."""
+
+    try:
+        UUID(value)
+    except ValueError:
+        if re.fullmatch(IDENTIFIER_PATTERN, value) is None:
+            raise ValueError(
+                "resource reference must be a UUID or stable domain identifier"
+            ) from None
+    return value
+
+
+PersistedResourceReference = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=128),
+    AfterValidator(_validate_persisted_resource_reference),
+]
+
+
 class PaperBenchmarkReference(BaseModel):
     model_config = MODEL_CONFIG
 
@@ -58,6 +86,16 @@ class PaperBenchmarkReference(BaseModel):
     scientific_payload_hash: ContentHash
     content_hash: ContentHash
     scenario_id: Identifier
+
+
+class PaperSearchContractReference(BaseModel):
+    """Immutable production Contract identity used by Paper Search."""
+
+    model_config = MODEL_CONFIG
+
+    contract_id: PersistedResourceReference
+    contract_version: int = Field(gt=0)
+    content_hash: ContentHash
 
 
 class PaperQueryPagination(BaseModel):
@@ -352,7 +390,7 @@ class ProducerExecution(BaseModel):
     model_config = MODEL_CONFIG
 
     execution_id: Identifier
-    run_id: Identifier | None = None
+    run_id: PersistedResourceReference | None = None
     step_key: Literal["searching_papers"] = "searching_papers"
     producer_type: Literal["algorithm"] = "algorithm"
     producer_name: NonEmptyString
@@ -383,7 +421,8 @@ class PaperCollectionPayload(BaseModel):
 
     kind: Literal["paper_collection"] = "paper_collection"
     schema_version: Literal["2.0.0"] = "2.0.0"
-    benchmark: PaperBenchmarkReference
+    benchmark: PaperBenchmarkReference | None = None
+    research_contract: PaperSearchContractReference | None = None
     query: NormalizedPaperQuery
     acquisition_run: PaperCollectionAcquisitionRun
     source_executions: tuple[PaperSourceExecution, ...] = Field(min_length=1)
@@ -402,6 +441,10 @@ class PaperCollectionPayload(BaseModel):
 
     @model_validator(mode="after")
     def validate_collection_integrity(self) -> Self:
+        if (self.benchmark is None) == (self.research_contract is None):
+            raise ValueError(
+                "PaperCollection requires exactly one benchmark or research_contract reference"
+            )
         candidate_by_id = _unique_by(self.candidates, "candidate_id", "candidate")
         group_by_id = _unique_by(
             self.duplicate_groups, "duplicate_group_id", "duplicate group"
@@ -475,8 +518,13 @@ class PaperCollectionPayload(BaseModel):
                 if not snapshot.cache_version or not snapshot.cache_version.strip():
                     raise ValueError("cached source snapshot requires cache_version")
 
+        reference = (
+            self.benchmark if self.benchmark is not None else self.research_contract
+        )
+        if reference is None:
+            raise ValueError("PaperCollection input reference is required")
         expected_input_hash = compute_paper_collection_input_hash(
-            self.benchmark, self.query, self.rules
+            reference, self.query, self.rules
         )
         if (
             self.input_hash != expected_input_hash
@@ -543,13 +591,19 @@ def compute_normalized_query_hash(value: NormalizedPaperQuery | dict[str, Any]) 
 
 
 def compute_paper_collection_input_hash(
-    benchmark: PaperBenchmarkReference,
+    reference: PaperBenchmarkReference | PaperSearchContractReference,
     query: NormalizedPaperQuery,
     rules: PaperCollectionRules,
 ) -> str:
+    if isinstance(reference, PaperBenchmarkReference):
+        reference_field = "benchmark"
+    elif isinstance(reference, PaperSearchContractReference):
+        reference_field = "research_contract"
+    else:
+        raise TypeError("PaperCollection input reference must be a typed identity")
     return compute_canonical_payload_hash(
         {
-            "benchmark": benchmark.model_dump(mode="json", exclude_none=True),
+            reference_field: reference.model_dump(mode="json", exclude_none=True),
             "query_hash": query.query_hash,
             "rules": rules.model_dump(mode="json", exclude_none=True),
         }

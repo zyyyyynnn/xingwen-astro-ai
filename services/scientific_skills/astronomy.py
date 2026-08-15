@@ -7,6 +7,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from hashlib import sha256
 from io import BytesIO
+import json
+from math import asin, degrees, isfinite
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Iterator
@@ -36,6 +38,40 @@ _SOLAR_SYSTEM_TARGETS = frozenset(
         "pluto",
     }
 )
+
+_CELESTIAL_BODY_RADII_KM = {
+    "sun": 696_340.0,
+    "moon": 1_737.4,
+    "mercury": 2_439.7,
+    "venus": 6_051.8,
+    "earth": 6_378.137,
+    "mars": 3_396.2,
+    "jupiter": 71_492.0,
+    "saturn": 60_268.0,
+    "uranus": 25_559.0,
+    "neptune": 24_764.0,
+    "pluto": 1_188.3,
+}
+
+_NOMINATIM_HOST = "nominatim.openstreetmap.org"
+_NOMINATIM_URL = f"https://{_NOMINATIM_HOST}/search"
+_MAX_LOCATION_NAME_LENGTH = 200
+_MAX_GEOCODING_RESPONSE_BYTES = 256 * 1024
+
+
+def get_celestial_body_radius(body_name: str) -> float:
+    """Return the controlled mean radius of a supported body in kilometres."""
+
+    if not isinstance(body_name, str) or not body_name.strip():
+        raise ValueError("body_name must be non-empty text")
+    normalized = body_name.strip().casefold()
+    try:
+        return float(_CELESTIAL_BODY_RADII_KM[normalized])
+    except KeyError as error:
+        supported = ", ".join(sorted(_CELESTIAL_BODY_RADII_KM))
+        raise ValueError(
+            f"unsupported celestial body {normalized!r}; supported bodies: {supported}"
+        ) from error
 
 
 def query_simbad(request: ScientificSkillRequest) -> dict[str, object]:
@@ -133,16 +169,13 @@ def calculate_ephemeris(request: ScientificSkillRequest) -> dict[str, object]:
             "latitude_degrees",
             "longitude_degrees",
             "elevation_meters",
+            "location_name",
         },
     )
     target_name = require_string(request.parameters, "target").casefold()
     _require_solar_system_target(target_name)
     observed_at = _parse_utc(require_string(request.parameters, "observed_at"))
-    latitude = require_number(request.parameters, "latitude_degrees")
-    longitude = require_number(request.parameters, "longitude_degrees")
-    elevation = optional_number(request.parameters, "elevation_meters", default=0)
-    if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
-        raise ValueError("observer coordinates are outside their valid range")
+    latitude, longitude, elevation, resolved_location = _observer_coordinates(request)
 
     reference_name = optional_string(request.parameters, "reference_target")
     if reference_name is not None:
@@ -192,6 +225,8 @@ def calculate_ephemeris(request: ScientificSkillRequest) -> dict[str, object]:
     if reference_name is not None and separation is not None:
         output["reference_target"] = reference_name
         output["angular_separation_degrees"] = separation
+    if resolved_location is not None:
+        output["resolved_location"] = resolved_location
     return output
 
 
@@ -207,6 +242,7 @@ def find_celestial_events(request: ScientificSkillRequest) -> dict[str, object]:
             "latitude_degrees",
             "longitude_degrees",
             "elevation_meters",
+            "location_name",
         },
     )
     event_type = optional_string(
@@ -218,13 +254,31 @@ def find_celestial_events(request: ScientificSkillRequest) -> dict[str, object]:
         "seasons",
         "twilight",
         "lunar_eclipses",
+        "solar_eclipses",
+        "venus_elongations",
+        "transits",
+        "occultations",
         "conjunctions_oppositions",
     }:
         raise ValueError("celestial event type is not supported")
     start_at = _parse_utc(require_string(request.parameters, "start_at"))
     end_at = _parse_utc(require_string(request.parameters, "end_at"))
-    if end_at <= start_at or (end_at - start_at).days > 3660:
+    if end_at <= start_at or (end_at - start_at).total_seconds() > 3660 * 86400:
         raise ValueError("event interval must be positive and no longer than 10 years")
+
+    observer_coordinates = None
+    resolved_location = None
+    if any(
+        key in request.parameters
+        for key in (
+            "location_name",
+            "latitude_degrees",
+            "longitude_degrees",
+            "elevation_meters",
+        )
+    ):
+        observer_coordinates = _observer_coordinates(request)
+        resolved_location = observer_coordinates[3]
 
     from skyfield import almanac
 
@@ -234,7 +288,13 @@ def find_celestial_events(request: ScientificSkillRequest) -> dict[str, object]:
         if event_type == "rise_set_transit":
             target_name = require_string(request.parameters, "target").casefold()
             _require_solar_system_target(target_name)
-            observer = _observer(planets, request)
+            if observer_coordinates is None:
+                observer_coordinates = _observer_coordinates(request)
+                resolved_location = observer_coordinates[3]
+            observer = _observer(
+                planets,
+                coordinates=observer_coordinates[:3],
+            )
             target = _planet(planets, target_name)
             risings, rising_states = almanac.find_risings(observer, target, start, end)
             settings, setting_states = almanac.find_settings(
@@ -274,7 +334,10 @@ def find_celestial_events(request: ScientificSkillRequest) -> dict[str, object]:
         elif event_type == "twilight":
             from skyfield.api import wgs84
 
-            latitude, longitude, elevation = _observer_coordinates(request)
+            if observer_coordinates is None:
+                observer_coordinates = _observer_coordinates(request)
+                resolved_location = observer_coordinates[3]
+            latitude, longitude, elevation = observer_coordinates[:3]
             topos = wgs84.latlon(latitude, longitude, elevation_m=elevation)
             times, states = almanac.find_discrete(
                 start, end, almanac.dark_twilight_day(planets, topos)
@@ -301,6 +364,18 @@ def find_celestial_events(request: ScientificSkillRequest) -> dict[str, object]:
 
             times, states, _details = lunar_eclipses(start, end, planets)
             events = _labeled_events(times, states, LUNAR_ECLIPSES)
+        elif event_type == "solar_eclipses":
+            events = _solar_eclipse_events(planets, start, end)
+        elif event_type == "venus_elongations":
+            if request.parameters.get("target") is not None:
+                raise ValueError("venus_elongations fixes target to venus")
+            events = _venus_elongation_events(planets, start, end)
+        elif event_type == "transits":
+            target_name = require_string(request.parameters, "target").casefold()
+            events = _strict_transit_events(planets, start, end, target_name)
+        elif event_type == "occultations":
+            target_name = require_string(request.parameters, "target").casefold()
+            events = _strict_occultation_events(planets, start, end, target_name)
         else:
             target_name = require_string(request.parameters, "target").casefold()
             if target_name in {"sun", "earth"}:
@@ -319,12 +394,249 @@ def find_celestial_events(request: ScientificSkillRequest) -> dict[str, object]:
             )
             events = _labeled_events(times, states, labels)
     events.sort(key=lambda item: str(item["occurred_at"]))
-    return {
+    response: dict[str, object] = {
         "event_type": event_type,
         "target": request.parameters.get("target"),
         "events": events[: request.budget.max_output_rows],
         "truncated": len(events) > request.budget.max_output_rows,
     }
+    if resolved_location is not None:
+        response["resolved_location"] = resolved_location
+    return response
+
+
+def _solar_eclipse_events(
+    planets: Any, start: Any, end: Any
+) -> list[dict[str, object]]:
+    """Project new-moon ephemerides through the adopted MAVIS shadow geometry."""
+
+    from skyfield import almanac
+    from skyfield.framelib import itrs
+
+    from .eclipse_geometry import (
+        EclipseKind,
+        compute_solar_eclipse,
+        sample_shadow_boundary,
+    )
+
+    times, states = almanac.find_discrete(start, end, almanac.moon_phases(planets))
+    earth = planets["earth"]
+    sun = planets["sun"]
+    moon = planets["moon"]
+    events: list[dict[str, object]] = []
+    for time, state in zip(times, states, strict=True):
+        if int(state) != 0:
+            continue
+        earth_at_time = earth.at(time)
+        sun_position = tuple(
+            float(value)
+            for value in earth_at_time.observe(sun).apparent().frame_xyz(itrs).m
+        )
+        moon_position = tuple(
+            float(value)
+            for value in earth_at_time.observe(moon).apparent().frame_xyz(itrs).m
+        )
+        geometry = compute_solar_eclipse(sun_position, moon_position)
+        if geometry.kind is EclipseKind.NONE:
+            continue
+        penumbra = sample_shadow_boundary(geometry.cone, "penumbra", samples=72)
+        umbra = sample_shadow_boundary(geometry.cone, "umbra", samples=72)
+        events.append(
+            {
+                "event": f"solar_eclipse_{geometry.kind.value}",
+                "occurred_at": time.utc_iso(),
+                "eclipse_kind": geometry.kind.value,
+                "angular_separation_degrees": float(
+                    geometry.angular_separation_rad * 180 / 3.141592653589793
+                ),
+                "sun_angular_radius_degrees": float(
+                    geometry.sun_angular_radius_rad * 180 / 3.141592653589793
+                ),
+                "moon_angular_radius_degrees": float(
+                    geometry.moon_angular_radius_rad * 180 / 3.141592653589793
+                ),
+                "central_latitude_degrees": geometry.central_latitude_degrees,
+                "central_longitude_degrees": geometry.central_longitude_degrees,
+                "penumbra_radius_at_surface_m": (geometry.penumbra_radius_at_surface_m),
+                "umbra_radius_at_surface_m": geometry.umbra_radius_at_surface_m,
+                "umbra_apex_inside_earth": geometry.umbra_apex_inside_earth,
+                "penumbra_boundary": [
+                    {
+                        "latitude_degrees": point.latitude_degrees,
+                        "longitude_degrees": point.longitude_degrees,
+                    }
+                    for point in penumbra
+                ],
+                "umbra_boundary": [
+                    {
+                        "latitude_degrees": point.latitude_degrees,
+                        "longitude_degrees": point.longitude_degrees,
+                    }
+                    for point in umbra
+                ],
+            }
+        )
+    return events
+
+
+def _venus_elongation_events(
+    planets: Any, start: Any, end: Any
+) -> list[dict[str, object]]:
+    """Find Venus greatest elongations with Skyfield's bounded maxima search."""
+
+    from skyfield.framelib import ecliptic_frame
+    from skyfield.searchlib import find_maxima
+
+    earth = planets["earth"]
+    sun = planets["sun"]
+    venus = _planet(planets, "venus")
+
+    def elongation_at(time: Any) -> Any:
+        observer = earth.at(time)
+        sun_apparent = observer.observe(sun).apparent()
+        venus_apparent = observer.observe(venus).apparent()
+        return sun_apparent.separation_from(venus_apparent).degrees
+
+    elongation_at.step_days = 15.0
+    times, elongations = find_maxima(start, end, elongation_at)
+    results: list[dict[str, object]] = []
+    for time, elongation in zip(times, elongations, strict=True):
+        observer = earth.at(time)
+        _, sun_longitude, _ = (
+            observer.observe(sun).apparent().frame_latlon(ecliptic_frame)
+        )
+        _, venus_longitude, _ = (
+            observer.observe(venus).apparent().frame_latlon(ecliptic_frame)
+        )
+        delta = (venus_longitude.degrees - sun_longitude.degrees) % 360.0
+        elongation_degrees = float(elongation)
+        if not isfinite(elongation_degrees) or not 0.0 <= elongation_degrees <= 180.0:
+            raise ValueError("Skyfield returned an invalid Venus elongation")
+        direction = "east" if delta < 180.0 else "west"
+        results.append(
+            {
+                "event": "venus_greatest_elongation",
+                "occurred_at": time.utc_iso(),
+                "target": "venus",
+                "direction": direction,
+                "direction_code": 0 if direction == "east" else 1,
+                "elongation_degrees": round(elongation_degrees, 1),
+            }
+        )
+    return results
+
+
+def _strict_transit_events(
+    planets: Any, start: Any, end: Any, target_name: str
+) -> list[dict[str, object]]:
+    if target_name not in {"mercury", "venus"}:
+        raise ValueError("transits target must be mercury or venus")
+    return _strict_overlap_events(
+        planets,
+        start,
+        end,
+        foreground_name=target_name,
+        background_name="sun",
+        event_name=f"{target_name}_transit",
+    )
+
+
+def _strict_occultation_events(
+    planets: Any, start: Any, end: Any, target_name: str
+) -> list[dict[str, object]]:
+    if target_name in {"sun", "earth", "moon"}:
+        raise ValueError("occultations target must be a planet")
+    _require_solar_system_target(target_name)
+    return _strict_overlap_events(
+        planets,
+        start,
+        end,
+        foreground_name="moon",
+        background_name=target_name,
+        event_name=f"moon_occultation_{target_name}",
+    )
+
+
+def _strict_overlap_events(
+    planets: Any,
+    start: Any,
+    end: Any,
+    *,
+    foreground_name: str,
+    background_name: str,
+    event_name: str,
+) -> list[dict[str, object]]:
+    """Return conjunctions whose apparent disks genuinely overlap.
+
+    This is the controlled replacement for MAVIS' strict conjunction helpers.
+    It retains the angular-radius and foreground-distance test, but removes
+    NumPy and implicit global state.  The reference sampled a longitude
+    conjunction and tested overlap at that instant; that can miss a transit
+    because the minimum apparent separation is offset by orbital latitude.
+    Skyfield's bounded ``find_minima`` is therefore used on the apparent
+    separation itself.
+    """
+
+    foreground = _planet(planets, foreground_name)
+    background = _planet(planets, background_name)
+    from skyfield.searchlib import find_minima
+
+    earth = planets["earth"]
+    foreground_radius = get_celestial_body_radius(foreground_name)
+    background_radius = get_celestial_body_radius(background_name)
+    results: list[dict[str, object]] = []
+
+    def separation_at(time: Any) -> Any:
+        observer = earth.at(time)
+        return (
+            observer.observe(foreground)
+            .apparent()
+            .separation_from(observer.observe(background).apparent())
+            .degrees
+        )
+
+    separation_at.step_days = (
+        7.0 if "moon" in {foreground_name, background_name} else 40.0
+    )
+    times, separations = find_minima(start, end, separation_at)
+    for time, separation_value in zip(times, separations, strict=True):
+        observer = earth.at(time)
+        foreground_apparent = observer.observe(foreground).apparent()
+        background_apparent = observer.observe(background).apparent()
+        separation = float(separation_value)
+        foreground_distance_km = float(foreground_apparent.distance().au * 149597870.7)
+        background_distance_km = float(background_apparent.distance().au * 149597870.7)
+        foreground_radius_degrees = _apparent_radius_degrees(
+            foreground_radius, foreground_distance_km
+        )
+        background_radius_degrees = _apparent_radius_degrees(
+            background_radius, background_distance_km
+        )
+        if (
+            separation < foreground_radius_degrees + background_radius_degrees
+            and foreground_distance_km < background_distance_km
+        ):
+            results.append(
+                {
+                    "event": event_name,
+                    "occurred_at": time.utc_iso(),
+                    "foreground": foreground_name,
+                    "background": background_name,
+                    "angular_separation_degrees": separation,
+                    "foreground_angular_radius_degrees": foreground_radius_degrees,
+                    "background_angular_radius_degrees": background_radius_degrees,
+                }
+            )
+    return results
+
+
+def _apparent_radius_degrees(radius_km: float, distance_km: float) -> float:
+    if not isfinite(distance_km) or distance_km <= 0:
+        raise ValueError("apparent body distance must be positive and finite")
+    ratio = radius_km / distance_km
+    if not isfinite(ratio) or ratio <= 0 or ratio > 1:
+        raise ValueError("body radius is outside the apparent-distance bound")
+    return degrees(asin(ratio))
 
 
 def analyze_fits_image(request: ScientificSkillRequest) -> dict[str, object]:
@@ -493,37 +805,29 @@ def build_wwt_scene(request: ScientificSkillRequest) -> dict[str, object]:
     reject_unknown(
         request.parameters,
         {
-            "ra_hours",
-            "dec_degrees",
-            "field_of_view_degrees",
-            "observed_at",
+            "view",
+            "time",
+            "observer",
             "background",
-            "coordinate_grid",
+            "foreground",
+            "solar_system",
+            "coordinate_grids",
+            "constellations",
+            "precession_chart",
             "fits_layers",
+            "table_layers",
             "annotations",
+            "tour_steps",
+            "tour_autoplay",
+            "tour_loop",
+            "readbacks",
+            "text_alternative",
         },
     )
     from app.schemas.scientific_skills import WwtSceneVisualizationSpec
 
-    payload = {
-        "mode": "wwt_scene",
-        "center": {
-            "ra_hours": require_number(request.parameters, "ra_hours"),
-            "dec_degrees": require_number(request.parameters, "dec_degrees"),
-        },
-        "field_of_view_degrees": optional_number(
-            request.parameters, "field_of_view_degrees", default=2
-        ),
-        "observed_at": optional_string(request.parameters, "observed_at"),
-        "background": optional_string(
-            request.parameters, "background", default="digitized_sky_survey"
-        ),
-        "coordinate_grid": optional_string(
-            request.parameters, "coordinate_grid", default="equatorial"
-        ),
-        "fits_layers": request.parameters.get("fits_layers", []),
-        "annotations": request.parameters.get("annotations", []),
-    }
+    payload = dict(request.parameters)
+    payload["mode"] = "wwt_scene"
     return WwtSceneVisualizationSpec.model_validate(payload).model_dump(mode="json")
 
 
@@ -583,22 +887,165 @@ def _require_solar_system_target(target_name: str) -> None:
         raise ValueError(f"unsupported solar-system target: {target_name}")
 
 
-def _observer(planets: Any, request: ScientificSkillRequest) -> Any:
+def _observer(
+    planets: Any,
+    request: ScientificSkillRequest | None = None,
+    *,
+    coordinates: tuple[float, float, float] | None = None,
+) -> Any:
     from skyfield.api import wgs84
 
-    latitude, longitude, elevation = _observer_coordinates(request)
+    if coordinates is None:
+        if request is None:
+            raise ValueError("observer request or coordinates are required")
+        coordinates = _observer_coordinates(request)[:3]
+    latitude, longitude, elevation = coordinates
     return planets["earth"] + wgs84.latlon(latitude, longitude, elevation_m=elevation)
 
 
 def _observer_coordinates(
     request: ScientificSkillRequest,
-) -> tuple[float, float, float]:
-    latitude = require_number(request.parameters, "latitude_degrees")
-    longitude = require_number(request.parameters, "longitude_degrees")
+) -> tuple[float, float, float, dict[str, object] | None]:
+    has_latitude = "latitude_degrees" in request.parameters
+    has_longitude = "longitude_degrees" in request.parameters
+    location_name = request.parameters.get("location_name")
+    has_location_name = location_name is not None
+    if has_latitude != has_longitude:
+        raise ValueError(
+            "latitude_degrees and longitude_degrees must be provided together"
+        )
+    if has_location_name == (has_latitude or has_longitude):
+        raise ValueError(
+            "provide exactly one observer location: location_name or latitude/longitude"
+        )
+    resolved_location: dict[str, object] | None = None
+    if has_location_name:
+        if not isinstance(location_name, str) or not location_name.strip():
+            raise ValueError("location_name must be non-empty text")
+        resolved_location = _geocode_location(
+            location_name,
+            timeout_seconds=request.budget.timeout_seconds,
+            max_bytes=min(
+                request.budget.max_input_bytes,
+                _MAX_GEOCODING_RESPONSE_BYTES,
+            ),
+        )
+        latitude = float(resolved_location["latitude_degrees"])
+        longitude = float(resolved_location["longitude_degrees"])
+    else:
+        latitude = require_number(request.parameters, "latitude_degrees")
+        longitude = require_number(request.parameters, "longitude_degrees")
     elevation = optional_number(request.parameters, "elevation_meters", default=0)
     if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
         raise ValueError("observer coordinates are outside their valid range")
-    return latitude, longitude, elevation
+    return latitude, longitude, elevation, resolved_location
+
+
+def _geocode_location(
+    location_name: str,
+    *,
+    timeout_seconds: int = 30,
+    max_bytes: int = _MAX_GEOCODING_RESPONSE_BYTES,
+    transport: Any | None = None,
+) -> dict[str, object]:
+    """Resolve one location through the HTTPS Nominatim allowlist.
+
+    ``transport`` is an internal recorded-test seam.  Production callers do
+    not provide it; no user-controlled URL or redirect is ever followed.
+    """
+
+    if not isinstance(location_name, str) or not location_name.strip():
+        raise ValueError("location_name must be non-empty text")
+    normalized = location_name.strip()
+    if len(normalized) > _MAX_LOCATION_NAME_LENGTH:
+        raise ValueError("location_name exceeds the bounded length")
+    if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, int):
+        raise ValueError("timeout_seconds must be an integer")
+    if not 1 <= timeout_seconds <= 120:
+        raise ValueError("timeout_seconds must be within [1, 120]")
+    if isinstance(max_bytes, bool) or not isinstance(max_bytes, int):
+        raise ValueError("max_bytes must be an integer")
+    if not 1 <= max_bytes <= _MAX_GEOCODING_RESPONSE_BYTES:
+        raise ValueError(
+            f"max_bytes must be within [1, {_MAX_GEOCODING_RESPONSE_BYTES}]"
+        )
+
+    import httpx
+
+    client_options: dict[str, object] = {
+        "follow_redirects": False,
+        "trust_env": False,
+        "timeout": httpx.Timeout(timeout_seconds),
+    }
+    if transport is not None:
+        client_options["transport"] = transport
+    try:
+        with httpx.Client(**client_options) as client:
+            response = client.get(
+                _NOMINATIM_URL,
+                params={"q": normalized, "format": "jsonv2", "limit": "1"},
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": "xingwen-astro-ai/0.1 (scientific location resolution)",
+                },
+            )
+            request_url = response.request.url
+            if request_url.scheme != "https" or request_url.host != _NOMINATIM_HOST:
+                raise ValueError("geocoding request escaped the HTTPS allowlist")
+            if response.is_redirect or response.is_error:
+                raise ValueError(
+                    "Nominatim geocoding response was not a bounded success"
+                )
+            payload = _bounded_response_bytes(response, max_bytes)
+    except httpx.HTTPError as error:
+        raise ValueError("Nominatim geocoding request failed") from error
+
+    try:
+        rows = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as error:
+        raise ValueError("Nominatim returned invalid JSON") from error
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("Nominatim returned no location result")
+    candidate = rows[0]
+    if not isinstance(candidate, dict):
+        raise ValueError("Nominatim returned an invalid location result")
+    try:
+        latitude = float(candidate["lat"])
+        longitude = float(candidate["lon"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("Nominatim location result has invalid coordinates") from error
+    if (
+        not isfinite(latitude)
+        or not isfinite(longitude)
+        or not -90 <= latitude <= 90
+        or not -180 <= longitude <= 180
+    ):
+        raise ValueError("Nominatim location coordinates are outside valid bounds")
+    display_name = candidate.get("display_name", normalized)
+    if not isinstance(display_name, str) or not display_name.strip():
+        raise ValueError("Nominatim location result has no display name")
+    if len(display_name) > 1000:
+        raise ValueError("Nominatim display name exceeds the bounded length")
+    return {
+        "query": normalized,
+        "display_name": display_name.strip(),
+        "latitude_degrees": latitude,
+        "longitude_degrees": longitude,
+        "source": "nominatim",
+        "source_host": _NOMINATIM_HOST,
+        "response_uri": _NOMINATIM_URL,
+        "response_content_hash": f"sha256:{sha256(payload).hexdigest()}",
+        "source_version_or_etag": response.headers.get("etag"),
+    }
+
+
+def _bounded_response_bytes(response: Any, max_bytes: int) -> bytes:
+    content = bytearray()
+    for chunk in response.iter_bytes():
+        if len(content) + len(chunk) > max_bytes:
+            raise ValueError("Nominatim response exceeds the byte budget")
+        content.extend(chunk)
+    return bytes(content)
 
 
 def _labeled_events(times: Any, states: Any, labels: Any) -> list[dict[str, object]]:
@@ -708,6 +1155,7 @@ __all__ = [
     "build_wwt_scene",
     "calculate_ephemeris",
     "find_celestial_events",
+    "get_celestial_body_radius",
     "query_simbad",
     "retrieve_skyview_fits",
 ]

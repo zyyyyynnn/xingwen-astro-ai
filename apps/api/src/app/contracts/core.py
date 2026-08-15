@@ -8,7 +8,7 @@ single generated operation and transport-schema document.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Annotated, Any, NoReturn, cast
+from typing import Annotated, Any, Literal, NoReturn, cast
 
 from fastapi import Body, FastAPI, Header, Path, Query, Response
 from pydantic import TypeAdapter
@@ -33,6 +33,9 @@ from app.schemas.core import (
     ResearchProject,
     ResearchPlanningCatalog,
     ResearchRun,
+    RunCheckpointRead,
+    RunDecisionRequest,
+    RunDecisionResult,
     ResearchSession,
     ResearchThreadEntry,
     ResearchTurnRequest,
@@ -332,6 +335,49 @@ def create_contract_app() -> FastAPI:
         _ = run_id
         return _contract_only()
 
+    @app.delete(
+        "/api/runs/{run_id}",
+        operation_id="cancelResearchRun",
+        response_model=Envelope[ResearchRun],
+        responses=PROBLEM_RESPONSES,
+    )
+    def cancel_research_run(
+        run_id: Annotated[str, Path(min_length=1)],
+        if_match: Annotated[str, Header(alias="If-Match", min_length=1)],
+    ) -> NoReturn:
+        _ = (run_id, if_match)
+        return _contract_only()
+
+    @app.get(
+        "/api/runs/{run_id}/checkpoint",
+        operation_id="getResearchRunCheckpoint",
+        response_model=Envelope[RunCheckpointRead],
+        responses=PROBLEM_RESPONSES,
+    )
+    def get_research_run_checkpoint(
+        run_id: Annotated[str, Path(min_length=1)],
+    ) -> NoReturn:
+        _ = run_id
+        return _contract_only()
+
+    @app.post(
+        "/api/runs/{run_id}/decisions",
+        operation_id="decideResearchRun",
+        response_model=Envelope[RunDecisionResult],
+        status_code=201,
+        responses=PROBLEM_RESPONSES,
+    )
+    def decide_research_run(
+        run_id: Annotated[str, Path(min_length=1)],
+        request: RunDecisionRequest,
+        if_match: Annotated[str, Header(alias="If-Match", min_length=1)],
+        idempotency_key: Annotated[
+            str, Header(alias="Idempotency-Key", min_length=1)
+        ],
+    ) -> NoReturn:
+        _ = (run_id, request, if_match, idempotency_key)
+        return _contract_only()
+
     @app.get(
         "/api/runs/{run_id}/steps",
         operation_id="listRunSteps",
@@ -433,6 +479,28 @@ def create_contract_app() -> FastAPI:
         return _contract_only()
 
     @app.get(
+        "/api/artifact-versions/{version_id}/paper-summary/export",
+        operation_id="downloadPaperSummaryExport",
+        response_class=Response,
+        response_model=None,
+        responses={
+            **PROBLEM_RESPONSES,
+            200: {
+                "content": {
+                    "application/json": {"schema": {"type": "string"}},
+                    "text/markdown": {"schema": {"type": "string"}},
+                }
+            },
+        },
+    )
+    def download_paper_summary_export(
+        version_id: Annotated[str, Path(min_length=1)],
+        format: Annotated[Literal["json", "markdown"], Query()] = "json",
+    ) -> NoReturn:
+        _ = (version_id, format)
+        return _contract_only()
+
+    @app.get(
         "/api/artifact-versions/{version_id}/scientific",
         operation_id="getScientificArtifact",
         response_model=Envelope[ScientificArtifactRead],
@@ -458,13 +526,22 @@ def create_contract_app() -> FastAPI:
                     }
                 }
             },
+            206: {
+                "content": {
+                    "application/octet-stream": {
+                        "schema": {"type": "string", "format": "binary"}
+                    }
+                }
+            },
+            416: {"model": ProblemDetails},
         },
     )
     def get_scientific_artifact_content(
         version_id: Annotated[str, Path(min_length=1)],
         content_hash: Annotated[str, Path(pattern=r"^sha256:[0-9a-f]{64}$")],
+        range_header: Annotated[str | None, Header(alias="Range")] = None,
     ) -> Response:
-        _ = (version_id, content_hash)
+        _ = (version_id, content_hash, range_header)
         return _contract_only()
 
     @app.get(

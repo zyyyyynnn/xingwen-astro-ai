@@ -1,6 +1,6 @@
 ---
 name: literature_relation
-version: 2.0.1
+version: 3.0.0
 output_model: LiteratureRelationExtractionOutput
 input_schema_version: 1.0.0
 output_schema_version: 1.0.0
@@ -21,7 +21,7 @@ evidence_required: true
 - 每个候选必须引用输入中 source/target Claim 的现有 Evidence 和 SourceSnapshot，不得发明、补写或改写引用。
 - 显式保留双方 conditions、scope、limitations、qualifiers、uncertainty 和 comparison basis；冲突或不可比信息不得省略。
 - 只提供可公开审查的结构化比较步骤：premise Claim、比较字段、条件、Evidence 引用、限制、冲突和结构化结论。不得输出私有 chain-of-thought、隐藏 Prompt、逐 token 推理或原始模型长响应。
-- 不生成任意 confidence 浮点数，不以 confidence 替代 Evidence 或可比性。只能引用输入中已经提供的外部、版本化 confidence assessment；引用缺失或未知、定义未版本化、校准缺失时必须硬拒绝。只有已经验证的 assessment 显式为 `not_evaluable` 时才能保留为 candidate。
+- 不生成任意 confidence 浮点数，不以 confidence 替代 Evidence 或可比性。若输入提供了外部、版本化 confidence assessment，只能原样引用；未提供时将 `confidence_assessment_id` 设为 `null`，由 Pipeline 基于 Evidence、方向、条件、可比性与可审查 trace 准入，并保持 `pending_scientific_review`。
 - 对调用方固定的 LiteratureClaim ArtifactVersion 全集执行稳定配对；不接收或推断未版本化的独立研究目标，也不因输入排列改变候选集合、方向或输出顺序。
 - 不决定 ArtifactVersion、ResearchRun、GraphEdge、HTTP DTO 或最终发布状态。
 

@@ -30,7 +30,7 @@ from app.schemas.paper_collection import (
 from .benchmark import load_frozen_benchmark
 from .canonicalize import (
     CandidateDraft,
-    canonicalize_record,
+    canonicalize_records,
     normalize_arxiv_id,
     normalize_doi,
     normalize_title,
@@ -344,29 +344,7 @@ class PaperCollectionBenchmarkRunner:
 def _canonicalize_records(
     records: list[RawSourceRecord], snapshots: list[SourceSnapshotRecord]
 ) -> tuple[CandidateDraft, ...]:
-    if not records:
-        return ()
-    snapshot_id_by_source = {
-        snapshot.source_id: snapshot.snapshot_id for snapshot in snapshots
-    }
-    ordered = sorted(
-        records,
-        key=lambda record: compute_canonical_payload_hash(record.hash_payload()),
-    )
-    occurrences: dict[str, int] = {}
-    drafts: list[CandidateDraft] = []
-    for record in ordered:
-        record_key = compute_canonical_payload_hash(record.hash_payload())
-        occurrence = occurrences.get(record_key, 0)
-        occurrences[record_key] = occurrence + 1
-        drafts.append(
-            canonicalize_record(
-                record,
-                snapshot_id=snapshot_id_by_source[record.source_id],
-                occurrence_index=occurrence,
-            )
-        )
-    return tuple(drafts)
+    return canonicalize_records(records, snapshots)
 
 
 def _recalled_expected_count(

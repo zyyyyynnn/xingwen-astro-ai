@@ -363,7 +363,10 @@
             "result_block",
             "metric",
             "visualization",
-            "evaluation"
+            "spectrum",
+            "light_curve",
+            "evaluation",
+            "model"
           ],
           "title": "Target Type",
           "type": "string"
@@ -451,15 +454,25 @@
         "data_profile",
         "statistical_analysis",
         "correlation_analysis",
+        "clustering_analysis",
+        "anomaly_detection",
         "chart_visualization",
         "simbad_lookup",
         "skyview_fits",
         "ephemeris",
         "celestial_events",
+        "gaia_cone_search",
+        "vizier_tap",
         "fits_image_analysis",
+        "spectrum_analysis",
+        "spectrum_acquisition",
+        "light_curve_analysis",
+        "light_curve_acquisition",
         "tabular_machine_learning",
+        "time_series_classification",
         "time_series_forecast",
         "image_classification",
+        "model_inference",
         "wwt_scene"
       ],
       "title": "ScientificSkillId",
@@ -497,10 +510,29 @@
           "title": "Color Token",
           "type": "string"
         },
+        "fill": {
+          "default": false,
+          "title": "Fill",
+          "type": "boolean"
+        },
+        "fill_color_token": {
+          "default": "brand",
+          "enum": [
+            "brand",
+            "information",
+            "success",
+            "warning",
+            "error",
+            "neutral"
+          ],
+          "title": "Fill Color Token",
+          "type": "string"
+        },
         "kind": {
           "enum": [
             "circle",
             "line",
+            "point",
             "label"
           ],
           "title": "Kind",
@@ -519,6 +551,13 @@
           ],
           "default": null,
           "title": "Label"
+        },
+        "line_width": {
+          "default": 2,
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "title": "Line Width",
+          "type": "number"
         },
         "points": {
           "items": {
@@ -552,6 +591,100 @@
       "title": "WwtAnnotation",
       "type": "object"
     },
+    "WwtCartesianTableCoordinates": {
+      "additionalProperties": false,
+      "properties": {
+        "frame": {
+          "enum": [
+            "sun",
+            "mercury",
+            "venus",
+            "earth",
+            "moon",
+            "mars",
+            "jupiter",
+            "saturn",
+            "uranus",
+            "neptune",
+            "pluto"
+          ],
+          "title": "Frame",
+          "type": "string"
+        },
+        "kind": {
+          "const": "cartesian",
+          "default": "cartesian",
+          "title": "Kind",
+          "type": "string"
+        },
+        "x_field": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "X Field",
+          "type": "string"
+        },
+        "xyz_unit": {
+          "enum": [
+            "m",
+            "km",
+            "au",
+            "pc",
+            "kpc",
+            "mpc"
+          ],
+          "title": "Xyz Unit",
+          "type": "string"
+        },
+        "y_field": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Y Field",
+          "type": "string"
+        },
+        "z_field": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Z Field",
+          "type": "string"
+        }
+      },
+      "required": [
+        "frame",
+        "x_field",
+        "y_field",
+        "z_field",
+        "xyz_unit"
+      ],
+      "title": "WwtCartesianTableCoordinates",
+      "type": "object"
+    },
+    "WwtConstellationOverlays": {
+      "additionalProperties": false,
+      "properties": {
+        "boundaries": {
+          "default": false,
+          "title": "Boundaries",
+          "type": "boolean"
+        },
+        "figures": {
+          "default": false,
+          "title": "Figures",
+          "type": "boolean"
+        },
+        "labels": {
+          "default": false,
+          "title": "Labels",
+          "type": "boolean"
+        },
+        "pictures": {
+          "default": false,
+          "title": "Pictures",
+          "type": "boolean"
+        }
+      },
+      "title": "WwtConstellationOverlays",
+      "type": "object"
+    },
     "WwtCoordinate": {
       "additionalProperties": false,
       "properties": {
@@ -575,9 +708,85 @@
       "title": "WwtCoordinate",
       "type": "object"
     },
+    "WwtCoordinateGrid": {
+      "additionalProperties": false,
+      "properties": {
+        "labels": {
+          "default": true,
+          "title": "Labels",
+          "type": "boolean"
+        },
+        "system": {
+          "enum": [
+            "equatorial",
+            "galactic",
+            "ecliptic",
+            "altaz"
+          ],
+          "title": "System",
+          "type": "string"
+        }
+      },
+      "required": [
+        "system"
+      ],
+      "title": "WwtCoordinateGrid",
+      "type": "object"
+    },
+    "WwtCoordinateView": {
+      "additionalProperties": false,
+      "properties": {
+        "center": {
+          "$ref": "#/$defs/WwtCoordinate"
+        },
+        "field_of_view_degrees": {
+          "exclusiveMinimum": 0,
+          "maximum": 180,
+          "title": "Field Of View Degrees",
+          "type": "number"
+        },
+        "kind": {
+          "const": "coordinates",
+          "default": "coordinates",
+          "title": "Kind",
+          "type": "string"
+        },
+        "roll_degrees": {
+          "default": 0,
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Roll Degrees",
+          "type": "number"
+        },
+        "transition_seconds": {
+          "default": 0,
+          "maximum": 120,
+          "minimum": 0,
+          "title": "Transition Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "center",
+        "field_of_view_degrees"
+      ],
+      "title": "WwtCoordinateView",
+      "type": "object"
+    },
     "WwtFitsLayer": {
       "additionalProperties": false,
       "properties": {
+        "color_map": {
+          "default": "gray",
+          "enum": [
+            "gray",
+            "viridis",
+            "magma",
+            "inferno"
+          ],
+          "title": "Color Map",
+          "type": "string"
+        },
         "content_hash": {
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Content Hash",
@@ -607,6 +816,42 @@
           "minLength": 1,
           "title": "Source Snapshot Id",
           "type": "string"
+        },
+        "stretch": {
+          "default": "sqrt",
+          "enum": [
+            "linear",
+            "sqrt",
+            "log",
+            "power",
+            "histogram_equalization"
+          ],
+          "title": "Stretch",
+          "type": "string"
+        },
+        "vmax": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vmax"
+        },
+        "vmin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vmin"
         }
       },
       "required": [
@@ -618,6 +863,122 @@
       "title": "WwtFitsLayer",
       "type": "object"
     },
+    "WwtForeground": {
+      "additionalProperties": false,
+      "properties": {
+        "image_set": {
+          "enum": [
+            "digitized_sky_survey",
+            "gaia",
+            "wise"
+          ],
+          "title": "Image Set",
+          "type": "string"
+        },
+        "opacity": {
+          "default": 1,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Opacity",
+          "type": "number"
+        }
+      },
+      "required": [
+        "image_set"
+      ],
+      "title": "WwtForeground",
+      "type": "object"
+    },
+    "WwtObserver": {
+      "additionalProperties": false,
+      "properties": {
+        "elevation_meters": {
+          "default": 0,
+          "maximum": 100000,
+          "minimum": -500,
+          "title": "Elevation Meters",
+          "type": "number"
+        },
+        "latitude_degrees": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Latitude Degrees",
+          "type": "number"
+        },
+        "local_horizon_mode": {
+          "default": false,
+          "title": "Local Horizon Mode",
+          "type": "boolean"
+        },
+        "longitude_degrees": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Longitude Degrees",
+          "type": "number"
+        }
+      },
+      "required": [
+        "latitude_degrees",
+        "longitude_degrees"
+      ],
+      "title": "WwtObserver",
+      "type": "object"
+    },
+    "WwtSceneStep": {
+      "additionalProperties": false,
+      "properties": {
+        "hold_seconds": {
+          "default": 0,
+          "maximum": 3600,
+          "minimum": 0,
+          "title": "Hold Seconds",
+          "type": "number"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed At"
+        },
+        "step_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Step Id",
+          "type": "string"
+        },
+        "view": {
+          "discriminator": {
+            "mapping": {
+              "coordinates": "#/$defs/WwtCoordinateView",
+              "tracked_object": "#/$defs/WwtTrackedObjectView"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/WwtCoordinateView"
+            },
+            {
+              "$ref": "#/$defs/WwtTrackedObjectView"
+            }
+          ],
+          "title": "View"
+        }
+      },
+      "required": [
+        "step_id",
+        "view"
+      ],
+      "title": "WwtSceneStep",
+      "type": "object"
+    },
     "WwtSceneVisualizationSpec": {
       "additionalProperties": false,
       "properties": {
@@ -626,6 +987,7 @@
           "items": {
             "$ref": "#/$defs/WwtAnnotation"
           },
+          "maxItems": 1000,
           "title": "Annotations",
           "type": "array"
         },
@@ -640,38 +1002,458 @@
           "title": "Background",
           "type": "string"
         },
-        "center": {
-          "$ref": "#/$defs/WwtCoordinate"
+        "constellations": {
+          "$ref": "#/$defs/WwtConstellationOverlays"
         },
-        "coordinate_grid": {
-          "default": "equatorial",
-          "enum": [
-            "none",
-            "equatorial",
-            "galactic",
-            "ecliptic",
-            "altaz"
+        "coordinate_grids": {
+          "default": [
+            {
+              "labels": true,
+              "system": "equatorial"
+            }
           ],
-          "title": "Coordinate Grid",
-          "type": "string"
-        },
-        "field_of_view_degrees": {
-          "exclusiveMinimum": 0,
-          "maximum": 180,
-          "title": "Field Of View Degrees",
-          "type": "number"
+          "items": {
+            "$ref": "#/$defs/WwtCoordinateGrid"
+          },
+          "maxItems": 4,
+          "title": "Coordinate Grids",
+          "type": "array"
         },
         "fits_layers": {
           "default": [],
           "items": {
             "$ref": "#/$defs/WwtFitsLayer"
           },
+          "maxItems": 64,
           "title": "Fits Layers",
           "type": "array"
+        },
+        "foreground": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WwtForeground"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "mode": {
           "const": "wwt_scene",
           "default": "wwt_scene",
+          "title": "Mode",
+          "type": "string"
+        },
+        "observer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WwtObserver"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "precession_chart": {
+          "default": false,
+          "title": "Precession Chart",
+          "type": "boolean"
+        },
+        "readbacks": {
+          "default": [
+            "center_coordinates",
+            "field_of_view",
+            "current_time"
+          ],
+          "items": {
+            "enum": [
+              "center_coordinates",
+              "field_of_view",
+              "camera_roll",
+              "current_time"
+            ],
+            "type": "string"
+          },
+          "maxItems": 4,
+          "title": "Readbacks",
+          "type": "array"
+        },
+        "solar_system": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WwtSolarSystemOptions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "table_layers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WwtTableLayer"
+          },
+          "maxItems": 64,
+          "title": "Table Layers",
+          "type": "array"
+        },
+        "text_alternative": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Text Alternative",
+          "type": "string"
+        },
+        "time": {
+          "$ref": "#/$defs/WwtTimeControl"
+        },
+        "tour_autoplay": {
+          "default": false,
+          "title": "Tour Autoplay",
+          "type": "boolean"
+        },
+        "tour_loop": {
+          "default": false,
+          "title": "Tour Loop",
+          "type": "boolean"
+        },
+        "tour_steps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WwtSceneStep"
+          },
+          "maxItems": 512,
+          "title": "Tour Steps",
+          "type": "array"
+        },
+        "view": {
+          "discriminator": {
+            "mapping": {
+              "coordinates": "#/$defs/WwtCoordinateView",
+              "tracked_object": "#/$defs/WwtTrackedObjectView"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/WwtCoordinateView"
+            },
+            {
+              "$ref": "#/$defs/WwtTrackedObjectView"
+            }
+          ],
+          "title": "View"
+        }
+      },
+      "required": [
+        "view",
+        "text_alternative"
+      ],
+      "title": "WwtSceneVisualizationSpec",
+      "type": "object"
+    },
+    "WwtSolarSystemOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "cosmos": {
+          "default": false,
+          "title": "Cosmos",
+          "type": "boolean"
+        },
+        "lighting": {
+          "default": true,
+          "title": "Lighting",
+          "type": "boolean"
+        },
+        "milky_way": {
+          "default": true,
+          "title": "Milky Way",
+          "type": "boolean"
+        },
+        "minor_orbits": {
+          "default": false,
+          "title": "Minor Orbits",
+          "type": "boolean"
+        },
+        "minor_planets": {
+          "default": false,
+          "title": "Minor Planets",
+          "type": "boolean"
+        },
+        "orbits": {
+          "default": true,
+          "title": "Orbits",
+          "type": "boolean"
+        },
+        "planets": {
+          "default": true,
+          "title": "Planets",
+          "type": "boolean"
+        },
+        "scale": {
+          "default": 1,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Scale",
+          "type": "number"
+        },
+        "stars": {
+          "default": true,
+          "title": "Stars",
+          "type": "boolean"
+        }
+      },
+      "title": "WwtSolarSystemOptions",
+      "type": "object"
+    },
+    "WwtSphericalTableCoordinates": {
+      "additionalProperties": false,
+      "properties": {
+        "altitude_field": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Altitude Field"
+        },
+        "frame": {
+          "default": "sky",
+          "enum": [
+            "sky",
+            "ecliptic",
+            "galactic",
+            "sun",
+            "mercury",
+            "venus",
+            "earth",
+            "moon",
+            "mars",
+            "jupiter",
+            "saturn",
+            "uranus",
+            "neptune",
+            "pluto"
+          ],
+          "title": "Frame",
+          "type": "string"
+        },
+        "kind": {
+          "const": "spherical",
+          "default": "spherical",
+          "title": "Kind",
+          "type": "string"
+        },
+        "latitude_field": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Latitude Field",
+          "type": "string"
+        },
+        "longitude_field": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Longitude Field",
+          "type": "string"
+        },
+        "longitude_unit": {
+          "default": "degrees",
+          "enum": [
+            "degrees",
+            "hours"
+          ],
+          "title": "Longitude Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "longitude_field",
+        "latitude_field"
+      ],
+      "title": "WwtSphericalTableCoordinates",
+      "type": "object"
+    },
+    "WwtTableLayer": {
+      "additionalProperties": false,
+      "properties": {
+        "color_field": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Color Field"
+        },
+        "color_token": {
+          "default": "brand",
+          "enum": [
+            "brand",
+            "information",
+            "success",
+            "warning",
+            "error",
+            "neutral"
+          ],
+          "title": "Color Token",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "content_ref": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Content Ref",
+          "type": "string"
+        },
+        "coordinates": {
+          "discriminator": {
+            "mapping": {
+              "cartesian": "#/$defs/WwtCartesianTableCoordinates",
+              "spherical": "#/$defs/WwtSphericalTableCoordinates"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/WwtSphericalTableCoordinates"
+            },
+            {
+              "$ref": "#/$defs/WwtCartesianTableCoordinates"
+            }
+          ],
+          "title": "Coordinates"
+        },
+        "layer_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "marker_scale": {
+          "default": "screen",
+          "enum": [
+            "screen",
+            "world"
+          ],
+          "title": "Marker Scale",
+          "type": "string"
+        },
+        "media_type": {
+          "enum": [
+            "text/csv",
+            "text/tab-separated-values",
+            "application/vnd.ivoa.votable+xml"
+          ],
+          "title": "Media Type",
+          "type": "string"
+        },
+        "opacity": {
+          "default": 1,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "size_field": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Field"
+        },
+        "size_scale": {
+          "default": 1,
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "title": "Size Scale",
+          "type": "number"
+        },
+        "source_snapshot_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Source Snapshot Id",
+          "type": "string"
+        },
+        "time_series": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WwtTableTimeSeries"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "layer_id",
+        "source_snapshot_id",
+        "content_ref",
+        "content_hash",
+        "media_type",
+        "coordinates"
+      ],
+      "title": "WwtTableLayer",
+      "type": "object"
+    },
+    "WwtTableTimeSeries": {
+      "additionalProperties": false,
+      "properties": {
+        "decay_days": {
+          "exclusiveMinimum": 0,
+          "maximum": 365250,
+          "title": "Decay Days",
+          "type": "number"
+        },
+        "time_field": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Time Field",
+          "type": "string"
+        }
+      },
+      "required": [
+        "time_field",
+        "decay_days"
+      ],
+      "title": "WwtTableTimeSeries",
+      "type": "object"
+    },
+    "WwtTimeControl": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "default": "system_clock",
+          "enum": [
+            "system_clock",
+            "paused",
+            "playback"
+          ],
           "title": "Mode",
           "type": "string"
         },
@@ -687,13 +1469,77 @@
           ],
           "default": null,
           "title": "Observed At"
+        },
+        "rate": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": -1000000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rate"
+        }
+      },
+      "title": "WwtTimeControl",
+      "type": "object"
+    },
+    "WwtTrackedObjectView": {
+      "additionalProperties": false,
+      "properties": {
+        "field_of_view_degrees": {
+          "default": 10,
+          "exclusiveMinimum": 0,
+          "maximum": 180,
+          "title": "Field Of View Degrees",
+          "type": "number"
+        },
+        "kind": {
+          "const": "tracked_object",
+          "default": "tracked_object",
+          "title": "Kind",
+          "type": "string"
+        },
+        "roll_degrees": {
+          "default": 0,
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Roll Degrees",
+          "type": "number"
+        },
+        "target": {
+          "enum": [
+            "sun",
+            "mercury",
+            "venus",
+            "earth",
+            "moon",
+            "mars",
+            "jupiter",
+            "saturn",
+            "uranus",
+            "neptune",
+            "pluto"
+          ],
+          "title": "Target",
+          "type": "string"
+        },
+        "transition_seconds": {
+          "default": 0,
+          "maximum": 120,
+          "minimum": 0,
+          "title": "Transition Seconds",
+          "type": "number"
         }
       },
       "required": [
-        "center",
-        "field_of_view_degrees"
+        "target"
       ],
-      "title": "WwtSceneVisualizationSpec",
+      "title": "WwtTrackedObjectView",
       "type": "object"
     }
   },

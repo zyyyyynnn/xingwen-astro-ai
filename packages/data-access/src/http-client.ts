@@ -63,9 +63,19 @@ export class HttpClient {
     return `${this.config.baseUrl}${path}`;
   }
 
-  private prepareHeaders(method: string, extra?: HeadersInit): Headers {
+  private prepareHeaders(
+    method: string,
+    extra?: HeadersInit,
+    body?: unknown,
+  ): Headers {
     const headers = new Headers(extra);
-    if (method.toUpperCase() !== "GET" && !headers.has("Content-Type")) {
+    const isMultipart =
+      typeof FormData !== "undefined" && body instanceof FormData;
+    if (
+      method.toUpperCase() !== "GET" &&
+      !headers.has("Content-Type") &&
+      !isMultipart
+    ) {
       headers.set("Content-Type", "application/json");
     }
     if (!SAFE_METHODS.has(method.toUpperCase())) {
@@ -188,6 +198,28 @@ export class HttpClient {
     return response.body.data;
   }
 
+  /** POST multipart form data without overriding the browser boundary header. */
+  async postMultipart<T>(
+    path: string,
+    body: FormData,
+    headers?: HeadersInit,
+  ): Promise<T> {
+    const response = await this.request<Envelope<T>>(
+      "POST",
+      path,
+      body,
+      headers,
+    );
+    if (!response.body) {
+      throw new UnexpectedHttpError(
+        "Empty response body on multipart POST",
+        response.status,
+        null,
+      );
+    }
+    return response.body.data;
+  }
+
   /** PATCH updating a resource; returns parsed `data`. */
   async patch<T>(
     path: string,
@@ -244,13 +276,18 @@ export class HttpClient {
     body?: unknown,
     extraHeaders?: HeadersInit,
   ): Promise<Response> {
-    const headers = this.prepareHeaders(method, extraHeaders);
+    const headers = this.prepareHeaders(method, extraHeaders, body);
     let response: Response;
     try {
       response = await this.fetchImpl(this.buildUrl(path), {
         method,
         headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body:
+          body instanceof FormData
+            ? body
+            : body !== undefined
+              ? JSON.stringify(body)
+              : undefined,
         credentials: "include",
       });
     } catch (err) {

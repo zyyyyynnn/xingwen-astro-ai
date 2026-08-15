@@ -78,6 +78,19 @@ class Settings(BaseSettings):
     DASHSCOPE_MAX_RETRIES: int = Field(default=2, ge=0, le=4)
     MODEL_EXECUTION_LEASE_GRACE_SECONDS: float = Field(default=30.0, gt=0)
 
+    # PostgreSQL-backed ResearchRun admission and worker capacity. These limits
+    # are enforced transactionally across all API and worker processes.
+    WORKFLOW_MAX_QUEUED_GLOBAL: int = Field(default=64, ge=1)
+    WORKFLOW_MAX_QUEUED_PER_PROJECT: int = Field(default=8, ge=1)
+    WORKFLOW_MAX_NONTERMINAL_GLOBAL: int = Field(default=128, ge=1)
+    WORKFLOW_MAX_NONTERMINAL_PER_PROJECT: int = Field(default=16, ge=1)
+    WORKFLOW_MAX_ACTIVE_GLOBAL: int = Field(default=4, ge=1)
+    WORKFLOW_MAX_ACTIVE_PER_PROJECT: int = Field(default=2, ge=1)
+    WORKFLOW_WORKER_CAPACITY: int = Field(default=2, ge=1)
+    WORKFLOW_QUEUE_TIMEOUT_SECONDS: int = Field(default=900, ge=1)
+    WORKFLOW_QUEUE_RETRY_AFTER_SECONDS: int = Field(default=5, ge=1)
+    WORKFLOW_WORKER_ID: str | None = Field(default=None, min_length=1, max_length=128)
+
     # Research Input ingestion. The content-addressed local store is the
     # reference boundary; uploads are capped, MIME-sniffed and never executed.
     RESEARCH_INPUT_MAX_SIZE_BYTES: int = Field(default=26214400, gt=0)
@@ -85,18 +98,39 @@ class Settings(BaseSettings):
         default=[
             "application/pdf",
             "text/csv",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.apache.parquet",
             "application/json",
+            "application/fits",
+            "application/zip",
             "image/png",
             "image/jpeg",
             "image/gif",
             "image/webp",
             "text/plain",
+            "text/markdown",
+            "text/x-markdown",
         ],
         description="Allowed MIME types for research input ingestion.",
     )
     RESEARCH_INPUT_UPLOAD_DIR: Path = Path(".data/research-inputs")
     RESEARCH_INPUT_RATE_LIMIT: int = Field(default=30, gt=0)
     RESEARCH_INPUT_IDEMPOTENCY_LEASE_SECONDS: int = Field(default=300, gt=0)
+    IMAGE_DATASET_MAX_ARCHIVE_MEMBERS: int = Field(default=512, ge=11, le=4096)
+    IMAGE_DATASET_MAX_UNCOMPRESSED_BYTES: int = Field(
+        default=64 * 1024 * 1024, ge=1, le=256 * 1024 * 1024
+    )
+    IMAGE_DATASET_MAX_COMPRESSION_RATIO: int = Field(default=100, ge=1, le=1000)
+    IMAGE_DATASET_MAX_IMAGE_BYTES: int = Field(
+        default=8 * 1024 * 1024, ge=1, le=64 * 1024 * 1024
+    )
+    IMAGE_DATASET_MAX_IMAGE_DIMENSION: int = Field(default=4096, ge=1, le=16384)
+    IMAGE_DATASET_MAX_TOTAL_PIXELS: int = Field(
+        default=16_000_000, ge=1, le=128_000_000
+    )
+    IMAGE_DATASET_MAX_IMAGES: int = Field(default=256, ge=10, le=2048)
+    IMAGE_DATASET_MAX_CLASSES: int = Field(default=32, ge=2, le=256)
+    IMAGE_DATASET_MIN_SAMPLES_PER_CLASS: int = Field(default=2, ge=2, le=1000)
 
     # URL fetch is part of Research Input ingestion. Defaults are fail-closed:
     # HTTPS only and no external host until an allowlist is configured.
@@ -174,6 +208,55 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> Settings:
+        if self.WORKFLOW_MAX_QUEUED_PER_PROJECT > self.WORKFLOW_MAX_QUEUED_GLOBAL:
+            raise ValueError(
+                "WORKFLOW_MAX_QUEUED_PER_PROJECT must not exceed "
+                "WORKFLOW_MAX_QUEUED_GLOBAL"
+            )
+        if (
+            self.WORKFLOW_MAX_NONTERMINAL_PER_PROJECT
+            > self.WORKFLOW_MAX_NONTERMINAL_GLOBAL
+        ):
+            raise ValueError(
+                "WORKFLOW_MAX_NONTERMINAL_PER_PROJECT must not exceed "
+                "WORKFLOW_MAX_NONTERMINAL_GLOBAL"
+            )
+        if self.WORKFLOW_MAX_QUEUED_GLOBAL > self.WORKFLOW_MAX_NONTERMINAL_GLOBAL:
+            raise ValueError(
+                "WORKFLOW_MAX_QUEUED_GLOBAL must not exceed "
+                "WORKFLOW_MAX_NONTERMINAL_GLOBAL"
+            )
+        if (
+            self.WORKFLOW_MAX_QUEUED_PER_PROJECT
+            > self.WORKFLOW_MAX_NONTERMINAL_PER_PROJECT
+        ):
+            raise ValueError(
+                "WORKFLOW_MAX_QUEUED_PER_PROJECT must not exceed "
+                "WORKFLOW_MAX_NONTERMINAL_PER_PROJECT"
+            )
+        if self.WORKFLOW_MAX_ACTIVE_GLOBAL > self.WORKFLOW_MAX_NONTERMINAL_GLOBAL:
+            raise ValueError(
+                "WORKFLOW_MAX_ACTIVE_GLOBAL must not exceed "
+                "WORKFLOW_MAX_NONTERMINAL_GLOBAL"
+            )
+        if (
+            self.WORKFLOW_MAX_ACTIVE_PER_PROJECT
+            > self.WORKFLOW_MAX_NONTERMINAL_PER_PROJECT
+        ):
+            raise ValueError(
+                "WORKFLOW_MAX_ACTIVE_PER_PROJECT must not exceed "
+                "WORKFLOW_MAX_NONTERMINAL_PER_PROJECT"
+            )
+        if self.WORKFLOW_MAX_ACTIVE_PER_PROJECT > self.WORKFLOW_MAX_ACTIVE_GLOBAL:
+            raise ValueError(
+                "WORKFLOW_MAX_ACTIVE_PER_PROJECT must not exceed "
+                "WORKFLOW_MAX_ACTIVE_GLOBAL"
+            )
+        if self.WORKFLOW_WORKER_CAPACITY > self.WORKFLOW_MAX_ACTIVE_GLOBAL:
+            raise ValueError(
+                "WORKFLOW_WORKER_CAPACITY must not exceed "
+                "WORKFLOW_MAX_ACTIVE_GLOBAL"
+            )
         if (
             self._secret_value(self.DASHSCOPE_API_KEY)
             and not self.DASHSCOPE_MODEL_REVISION.strip()

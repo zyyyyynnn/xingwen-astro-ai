@@ -470,19 +470,27 @@ def test_happy_path_builds_sealed_relation_and_trace_candidate() -> None:
     assert trace.scientific_review_status == "pending_scientific_review"
     assert result.publisher_candidate is not None
     assert result.publisher_candidate.__artifact_publication_is_admitted__()
-    assert (
-        result.producer.confidence_calibration_id == RELATION_CONFIDENCE_CALIBRATION_ID
-    )
-    assert result.producer.confidence_calibration_content_hash == (
-        FROZEN_BENCHMARK_CONTENT_HASH
-    )
-    assert result.producer.confidence_calibration_sample_size == 4
     published = _publish(result.publisher_candidate)
     assert published.content["kind"] == "literature_relations"
     assert (
         published.source_snapshot_ids != result.publisher_candidate.source_snapshot_ids
     )
     assert published.evidence_ids != result.publisher_candidate.evidence_ids
+
+
+def test_evidence_closed_relation_does_not_require_benchmark_confidence() -> None:
+    relation = _relation()
+    relation["confidence_assessment_id"] = None
+
+    result = _admit(
+        _response(relation),
+        confidence_assessments={},
+    )
+
+    assert result.admission_status is LiteratureRelationStatus.accepted
+    assert result.records[0].status is LiteratureRelationStatus.accepted
+    assert result.records[0].confidence is None
+    assert result.records[0].scientific_review_status == "pending_scientific_review"
 
 
 def test_complete_relation_taxonomy_is_admitted() -> None:
@@ -985,16 +993,6 @@ def test_invalid_json_and_schema_are_fatal_and_stable() -> None:
             LiteratureRelationFailureStage.confidence,
             LiteratureRelationRejectionReason.confidence_undefined,
         ),
-        (
-            "confidence_definition",
-            LiteratureRelationFailureStage.confidence,
-            LiteratureRelationRejectionReason.confidence_definition_unsupported,
-        ),
-        (
-            "confidence_calibration",
-            LiteratureRelationFailureStage.confidence,
-            LiteratureRelationRejectionReason.confidence_calibration_missing,
-        ),
     ),
 )
 def test_record_level_gates_use_stable_stage_and_reason(
@@ -1094,14 +1092,6 @@ def test_record_level_gates_use_stable_stage_and_reason(
             step["evidence_ids"] = ["evidence.source"]
     elif case == "confidence_undefined":
         relation["confidence_assessment_id"] = "confidence.unknown"
-    elif case == "confidence_definition":
-        assessments["confidence.relation.fixture"] = _confidence().model_copy(
-            update={"definition_id": "other_definition"}
-        )
-    elif case == "confidence_calibration":
-        assessments["confidence.relation.fixture"] = _confidence().model_copy(
-            update={"calibration_content_hash": compute_canonical_payload_hash("wrong")}
-        )
 
     response_relations = (relation, relation) if case == "duplicate" else (relation,)
     result = _admit(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
 import weakref
@@ -40,6 +41,12 @@ from app.workflow.store import TERMINAL_RUN_STATUSES
 
 _HASH_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 _PARAMETER_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+_MAX_PARAMETER_ENTRIES = 32
+_MAX_PARAMETER_DEPTH = 5
+_MAX_PARAMETER_NODES = 512
+_MAX_PARAMETER_ARRAY_ITEMS = 64
+_MAX_PARAMETER_STRING_LENGTH = 256
+_MAX_PARAMETER_JSON_BYTES = 16_384
 _SENSITIVE_PARAMETER_KEY_FRAGMENTS = frozenset(
     {
         "api_key",
@@ -89,7 +96,15 @@ _ADMISSION_SEAL = object()
 _QUALITY_ATTESTATION_SEAL = object()
 _SEMANTIC_VERSION_PATTERN = re.compile(r"^[1-9]\d*\.\d+\.\d+$")
 
-ProducerParameter: TypeAlias = str | int | float | bool | None
+ProducerParameter: TypeAlias = (
+    str
+    | int
+    | float
+    | bool
+    | None
+    | list["ProducerParameter"]
+    | dict[str, "ProducerParameter"]
+)
 AdmissionValidator: TypeAlias = Callable[["ArtifactAdmissionContext"], None]
 _CanonicalMaterialization: TypeAlias = tuple[tuple[str, str | bool], ...]
 _MaterializationT = TypeVar("_MaterializationT")
@@ -141,6 +156,9 @@ class ProducerExecutionRequest:
     prompt_name: str | None = None
     prompt_version: str | None = None
     prompt_hash: str | None = None
+    authorized_tool_name: str | None = None
+    authorized_skill_id: str | None = None
+    registry_revision: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +188,16 @@ class ProducerExecutionSnapshot:
     token_usage: Mapping[str, int] | None
     latency_ms: int | None
     error_code: str | None
+    provider_request_id: str | None
+    tool_call_id: str | None
+    authorized_tool_name: str | None
+    authorized_skill_id: str | None
+    registry_revision: str | None
+    validated_arguments_hash: str | None
+    rejected_arguments_hash: str | None
+    error_hash: str | None
+    public_message: str | None
+    replayed: bool = False
 
 
 @dataclass(frozen=True, slots=True, init=False, weakref_slot=True)
@@ -480,6 +508,8 @@ class _LiteratureEvidenceMaterialization:
     persisted_source_snapshot_id: str
     paper_id: str
     source_record_id: str
+    paper_summary_locator_json: str
+    extraction_method: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -573,8 +603,18 @@ def admit_artifact_candidate(
     quality_validator: AdmissionValidator,
     source_snapshot_bindings: Sequence[ArtifactSourceSnapshotBinding] | None = None,
     evidence_bindings: Sequence[ArtifactEvidenceBinding] | None = None,
+    data_provenance_candidate: BaseModel | None = None,
 ) -> AdmittedArtifactCandidate:
-    """Run the caller-owned Evidence, domain, and quality gates on typed content."""
+    """Run the caller-owned Evidence, domain, and quality gates on typed content.
+
+    Data Artifact dependents such as ``FieldDictionary`` and
+    ``SourceCollection`` carry the shared reference ids but do not repeat the
+    Dataset's source-value and transformation registries.  Their admission
+    caller must therefore provide the exact sealed Dataset candidate as
+    ``data_provenance_candidate``.  The bridge is intentionally explicit so a
+    dependent can never silently invent a second SourceSnapshot/Evidence
+    authority.
+    """
 
     if not isinstance(candidate, BaseModel) or candidate.__class__ is BaseModel:
         raise PublicationAdmissionError("A validated Pydantic model is required")
@@ -609,6 +649,7 @@ def admit_artifact_candidate(
         evidence_ids=evidence,
         source_snapshot_bindings=source_snapshot_bindings,
         evidence_bindings=evidence_bindings,
+        data_provenance_candidate=data_provenance_candidate,
     )
     context = ArtifactAdmissionContext(
         candidate=candidate,
@@ -856,7 +897,7 @@ class ProducerExecutionStore:
                     parameters_hash=parameters_hash,
                     generation=generation,
                 )
-                return _execution_snapshot(existing)
+                return _execution_snapshot(existing, replayed=True)
             row = ProducerExecutionModel(
                 id=uuid4(),
                 run_id=request.run_id,
@@ -873,6 +914,9 @@ class ProducerExecutionStore:
                 prompt_name=_optional_text(request.prompt_name),
                 prompt_version=_optional_text(request.prompt_version),
                 prompt_hash=request.prompt_hash,
+                authorized_tool_name=_optional_text(request.authorized_tool_name),
+                authorized_skill_id=_optional_text(request.authorized_skill_id),
+                registry_revision=request.registry_revision,
                 parameters=parameters,
                 parameters_hash=parameters_hash,
                 input_hash=request.input_hash,
@@ -892,16 +936,37 @@ class ProducerExecutionStore:
         token_usage: Mapping[str, int] | None = None,
         latency_ms: int | None = None,
         error_code: str | None = None,
+        provider_request_id: str | None = None,
+        tool_call_id: str | None = None,
+        validated_arguments_hash: str | None = None,
+        rejected_arguments_hash: str | None = None,
+        error_hash: str | None = None,
+        public_message: str | None = None,
     ) -> ProducerExecutionSnapshot:
+        usage = _validated_usage(token_usage)
+        normalized_error = _optional_text(error_code)
+        normalized_provider_request_id = _optional_audit_text(
+            provider_request_id, "provider_request_id", maximum=256
+        )
+        normalized_tool_call_id = _optional_audit_text(
+            tool_call_id, "tool_call_id", maximum=256
+        )
+        normalized_public_message = _optional_audit_text(
+            public_message, "public_message", maximum=500
+        )
         _validate_execution_outcome(
             status=status,
             output_hash=output_hash,
-            token_usage=token_usage,
+            token_usage=usage,
             latency_ms=latency_ms,
-            error_code=error_code,
+            error_code=normalized_error,
+            provider_request_id=normalized_provider_request_id,
+            tool_call_id=normalized_tool_call_id,
+            validated_arguments_hash=validated_arguments_hash,
+            rejected_arguments_hash=rejected_arguments_hash,
+            error_hash=error_hash,
+            public_message=normalized_public_message,
         )
-        usage = _validated_usage(token_usage)
-        normalized_error = _optional_text(error_code)
         with self._factory() as session, session.begin():
             row = session.scalar(
                 select(ProducerExecutionModel)
@@ -912,6 +977,15 @@ class ProducerExecutionStore:
                 raise ProducerExecutionNotFoundError(
                     f"ProducerExecution {execution_id} was not found"
                 )
+            _validate_function_call_outcome(
+                row,
+                status=status,
+                tool_call_id=normalized_tool_call_id,
+                validated_arguments_hash=validated_arguments_hash,
+                rejected_arguments_hash=rejected_arguments_hash,
+                error_hash=error_hash,
+                public_message=normalized_public_message,
+            )
             if row.status != "running":
                 if (
                     row.status == status
@@ -919,8 +993,14 @@ class ProducerExecutionStore:
                     and row.token_usage == usage
                     and row.latency_ms == latency_ms
                     and row.error_code == normalized_error
+                    and row.provider_request_id == normalized_provider_request_id
+                    and row.tool_call_id == normalized_tool_call_id
+                    and row.validated_arguments_hash == validated_arguments_hash
+                    and row.rejected_arguments_hash == rejected_arguments_hash
+                    and row.error_hash == error_hash
+                    and row.public_message == normalized_public_message
                 ):
-                    return _execution_snapshot(row)
+                    return _execution_snapshot(row, replayed=True)
                 raise ProducerExecutionConflictError(
                     "ProducerExecution already finished with a different outcome"
                 )
@@ -929,6 +1009,12 @@ class ProducerExecutionStore:
             row.token_usage = usage
             row.latency_ms = latency_ms
             row.error_code = normalized_error
+            row.provider_request_id = normalized_provider_request_id
+            row.tool_call_id = normalized_tool_call_id
+            row.validated_arguments_hash = validated_arguments_hash
+            row.rejected_arguments_hash = rejected_arguments_hash
+            row.error_hash = error_hash
+            row.public_message = normalized_public_message
             row.finished_at = session.scalar(select(func.clock_timestamp()))
             session.flush()
             return _execution_snapshot(row)
@@ -953,7 +1039,70 @@ class ArtifactPublisher:
         publications: Sequence[ArtifactPublication],
         public_message: str,
     ) -> PublicationResult:
+        """Atomically persist outputs and complete the active StepAttempt."""
+
+        return self._publish_outputs(
+            run_id,
+            step_key=step_key,
+            attempt_id=attempt_id,
+            token=token,
+            generation=generation,
+            expected_status=expected_status,
+            expected_revision=expected_revision,
+            publications=publications,
+            finalize_step=True,
+            public_message=public_message,
+        )
+
+    def publish_intermediate_outputs(
+        self,
+        run_id: UUID,
+        *,
+        step_key: str,
+        attempt_id: UUID,
+        token: UUID,
+        generation: int,
+        expected_status: str,
+        expected_revision: int,
+        publications: Sequence[ArtifactPublication],
+    ) -> PublicationResult:
+        """Persist upstream ArtifactVersions without completing the Step.
+
+        This uses the same fenced version/provenance transaction as final
+        publication.  It deliberately leaves the active Attempt, RunStep, Run
+        status/revision, lease, and event stream untouched so a later call to
+        ``publish_step_outputs`` can supersede and complete the same attempt.
+        """
+
+        return self._publish_outputs(
+            run_id,
+            step_key=step_key,
+            attempt_id=attempt_id,
+            token=token,
+            generation=generation,
+            expected_status=expected_status,
+            expected_revision=expected_revision,
+            publications=publications,
+            finalize_step=False,
+            public_message=None,
+        )
+
+    def _publish_outputs(
+        self,
+        run_id: UUID,
+        *,
+        step_key: str,
+        attempt_id: UUID,
+        token: UUID,
+        generation: int,
+        expected_status: str,
+        expected_revision: int,
+        publications: Sequence[ArtifactPublication],
+        finalize_step: bool,
+        public_message: str | None,
+    ) -> PublicationResult:
         outputs = _validated_publications(publications)
+        _validate_shared_data_publication_provenance(outputs)
         with self._factory() as session, session.begin():
             run = _lock_run(session, run_id)
             step = _lock_step(session, run_id, step_key)
@@ -985,6 +1134,19 @@ class ArtifactPublisher:
                     output.candidate,
                     project_id=run.project_id,
                 )
+
+            if not finalize_step:
+                _require_active_lease(
+                    session,
+                    run,
+                    token=token,
+                    generation=generation,
+                    expected_status=expected_status,
+                    expected_revision=expected_revision,
+                )
+                _require_running_step(step, run)
+                attempt = _lock_running_attempt(session, step, attempt_id)
+
             existing = _existing_publications(session, outputs)
             if existing:
                 return self._replay_existing(
@@ -994,204 +1156,173 @@ class ArtifactPublisher:
                     attempt_id=attempt_id,
                     outputs=outputs,
                     existing=existing,
+                    require_completed_step=finalize_step,
                 )
-            _require_active_lease(
+            if finalize_step:
+                _require_active_lease(
+                    session,
+                    run,
+                    token=token,
+                    generation=generation,
+                    expected_status=expected_status,
+                    expected_revision=expected_revision,
+                )
+                _require_running_step(step, run)
+                attempt = _lock_running_attempt(session, step, attempt_id)
+
+            versions = self._publish_versions(
                 session,
-                run,
-                token=token,
-                generation=generation,
-                expected_status=expected_status,
-                expected_revision=expected_revision,
+                run=run,
+                step=step,
+                attempt=attempt,
+                artifacts_by_id=artifacts_by_id,
+                outputs=outputs,
             )
-            if step.status != "running" or run.status != step.enter_status:
-                raise StalePublicationError(
-                    "Only the active running RunStep may publish outputs"
-                )
-            attempt = session.scalar(
-                select(StepAttemptModel)
-                .where(
-                    StepAttemptModel.id == attempt_id,
-                    StepAttemptModel.run_step_id == step.id,
-                )
-                .with_for_update()
-            )
-            if attempt is None or attempt.status != "running":
-                raise StalePublicationError(
-                    "Only the active running StepAttempt may publish outputs"
-                )
-            producers = _lock_producers(session, outputs)
-            producer_by_id = {producer.id: producer for producer in producers}
-            versions: list[ArtifactVersionModel] = []
-            for output in outputs:
-                artifact = artifacts_by_id[output.artifact_id]
-                producer = producer_by_id.get(output.producer_execution_id)
-                _validate_publishable_producer(
-                    producer,
-                    run_id=run.id,
-                    step_id=step.id,
-                    attempt_id=attempt.id,
-                    output=output,
-                )
-                _validate_supersedes(
-                    session,
-                    artifact=artifact,
-                    supersedes_version_id=output.supersedes_version_id,
-                )
-                version_number = (
-                    session.scalar(
-                        select(
-                            func.coalesce(
-                                func.max(ArtifactVersionModel.version_number), 0
-                            )
-                        ).where(ArtifactVersionModel.artifact_id == artifact.id)
-                    )
-                    + 1
-                )
-                _validate_literature_source_snapshots(
-                    session,
-                    output.candidate,
-                    project_id=run.project_id,
-                )
-                _require_unused_literature_evidence_ids(session, output.candidate)
-                _validate_graph_source_snapshots(
-                    session,
-                    output.candidate,
-                    project_id=run.project_id,
-                )
-                _validate_graph_upstream_evidence(
-                    session,
-                    output.candidate,
-                    project_id=run.project_id,
-                )
-                _require_unused_graph_evidence_ids(session, output.candidate)
-                _validate_data_source_snapshots(
-                    session,
-                    output.candidate,
-                    project_id=run.project_id,
-                )
-                _require_unused_data_evidence_ids(session, output.candidate)
-                _validate_scientific_provenance_inputs(
-                    session,
-                    output.candidate,
-                    project_id=run.project_id,
-                )
-                _require_unused_scientific_evidence_ids(session, output.candidate)
-                version_id = uuid4()
-                version = ArtifactVersionModel(
-                    id=version_id,
-                    artifact_id=artifact.id,
-                    project_id=run.project_id,
-                    created_by_run_id=run.id,
-                    run_step_id=step.id,
-                    step_attempt_id=attempt.id,
-                    producer_execution_id=producer.id,
-                    version_number=version_number,
-                    publication_key=output.publication_key,
-                    schema_version=output.candidate.schema_version,
-                    content=output.candidate.content,
-                    content_hash=output.candidate.content_hash,
-                    input_hash=producer.input_hash,
-                    source_mode=output.source_mode,
-                    producer=_public_producer_metadata(producer),
-                    source_snapshot_ids=list(output.candidate.source_snapshot_ids),
-                    evidence_ids=list(output.candidate.evidence_ids),
-                    quality_projection=(
-                        output.candidate.quality_projection.model_dump(mode="json")
-                        if output.candidate.quality_projection is not None
-                        else None
-                    ),
-                    quality_projection_hash=output.candidate.quality_projection_hash,
-                    supersedes_version_id=output.supersedes_version_id,
-                )
-                session.add(version)
-                session.flush()
-                _materialize_literature_evidence(session, version, output.candidate)
-                _materialize_graph_evidence(session, version, output.candidate)
-                _materialize_data_evidence(session, version, output.candidate)
-                _materialize_scientific_evidence(session, version, output.candidate)
-                if output.candidate.content.get("kind") == "dataset":
-                    for row in output.candidate.content.get("rows", []):
-                        if isinstance(row, dict) and isinstance(row.get("row_id"), str):
-                            session.add(
-                                DatasetRowProjectionModel(
-                                    artifact_version_id=version.id,
-                                    project_id=version.project_id,
-                                    row_id=row["row_id"],
-                                    row=row,
-                                )
-                            )
-                versions.append(version)
             session.flush()
             for version in versions:
                 artifacts_by_id[version.artifact_id].latest_version_id = version.id
 
-            now = session.scalar(select(func.clock_timestamp()))
-            attempt.status = "completed"
-            attempt.finished_at = now
-            attempt.error_class = None
-            attempt.error_code = None
-            attempt.retryable = False
-            step.status = "completed"
-            step.progress = 100
-            step.finished_at = now
-            step.failure_code = None
-            step.public_message = public_message
-            total_steps = session.scalar(
-                select(func.count())
-                .select_from(RunStepModel)
-                .where(RunStepModel.run_id == run.id)
-            )
-            is_final = step.success_status == "completed"
-            progress = (
-                100
-                if is_final
-                else max(run.progress, int(((step.position + 1) / total_steps) * 100))
-            )
-            artifact_version_ids = [str(version.id) for version in versions]
-            sequence = run.latest_event_sequence + 1
-            session.add(
-                RunEventModel(
+            if not finalize_step:
+                self._before_commit(session)
+                session.flush()
+                return PublicationResult(
                     run_id=run.id,
-                    sequence=sequence,
-                    event_type="step.completed",
-                    step_key=step.key,
-                    progress=progress,
-                    public_message=public_message,
-                    artifact_version_ids=artifact_version_ids,
+                    status=run.status,
+                    revision=run.revision,
+                    latest_event_sequence=run.latest_event_sequence,
+                    versions=tuple(_published_version(version) for version in versions),
+                    replayed=False,
                 )
+
+            status, revision, latest_event_sequence = _complete_step(
+                session,
+                run=run,
+                step=step,
+                attempt=attempt,
+                public_message=public_message or "Step completed",
+                versions=versions,
             )
-            if is_final:
-                sequence += 1
-                session.add(
-                    RunEventModel(
-                        run_id=run.id,
-                        sequence=sequence,
-                        event_type="run.completed",
-                        step_key=step.key,
-                        progress=100,
-                        public_message="Run completed",
-                        artifact_version_ids=artifact_version_ids,
-                    )
-                )
-                run.finished_at = now
-                run.lease_token = None
-                run.lease_owner = None
-                run.lease_expires_at = None
-            run.status = step.success_status
-            run.progress = progress
-            run.revision += 1
-            run.latest_event_sequence = sequence
-            run.updated_at = now
             self._before_commit(session)
             session.flush()
             return PublicationResult(
                 run_id=run.id,
-                status=run.status,
-                revision=run.revision,
-                latest_event_sequence=sequence,
+                status=status,
+                revision=revision,
+                latest_event_sequence=latest_event_sequence,
                 versions=tuple(_published_version(version) for version in versions),
                 replayed=False,
             )
+
+    def _publish_versions(
+        self,
+        session: Session,
+        *,
+        run: ResearchRunModel,
+        step: RunStepModel,
+        attempt: StepAttemptModel,
+        artifacts_by_id: Mapping[UUID, ResearchArtifactModel],
+        outputs: tuple[ArtifactPublication, ...],
+    ) -> list[ArtifactVersionModel]:
+        producers = _lock_producers(session, outputs)
+        producer_by_id = {producer.id: producer for producer in producers}
+        versions: list[ArtifactVersionModel] = []
+        for output in outputs:
+            artifact = artifacts_by_id[output.artifact_id]
+            producer = producer_by_id.get(output.producer_execution_id)
+            _validate_publishable_producer(
+                producer,
+                run_id=run.id,
+                step_id=step.id,
+                attempt_id=attempt.id,
+                output=output,
+            )
+            _validate_supersedes(
+                session,
+                artifact=artifact,
+                supersedes_version_id=output.supersedes_version_id,
+            )
+            version_number = (
+                session.scalar(
+                    select(
+                        func.coalesce(func.max(ArtifactVersionModel.version_number), 0)
+                    ).where(ArtifactVersionModel.artifact_id == artifact.id)
+                )
+                + 1
+            )
+            _validate_literature_source_snapshots(
+                session,
+                output.candidate,
+                project_id=run.project_id,
+            )
+            _require_unused_literature_evidence_ids(session, output.candidate)
+            _validate_graph_source_snapshots(
+                session,
+                output.candidate,
+                project_id=run.project_id,
+            )
+            _validate_graph_upstream_evidence(
+                session,
+                output.candidate,
+                project_id=run.project_id,
+            )
+            _require_unused_graph_evidence_ids(session, output.candidate)
+            _validate_data_source_snapshots(
+                session,
+                output.candidate,
+                project_id=run.project_id,
+            )
+            _require_unused_data_evidence_ids(session, output.candidate)
+            _validate_scientific_provenance_inputs(
+                session,
+                output.candidate,
+                project_id=run.project_id,
+            )
+            _require_unused_scientific_evidence_ids(session, output.candidate)
+            version = ArtifactVersionModel(
+                id=uuid4(),
+                artifact_id=artifact.id,
+                project_id=run.project_id,
+                created_by_run_id=run.id,
+                run_step_id=step.id,
+                step_attempt_id=attempt.id,
+                producer_execution_id=producer.id,
+                version_number=version_number,
+                publication_key=output.publication_key,
+                schema_version=output.candidate.schema_version,
+                content=output.candidate.content,
+                content_hash=output.candidate.content_hash,
+                input_hash=producer.input_hash,
+                source_mode=output.source_mode,
+                producer=_public_producer_metadata(producer),
+                source_snapshot_ids=list(output.candidate.source_snapshot_ids),
+                evidence_ids=list(output.candidate.evidence_ids),
+                quality_projection=(
+                    output.candidate.quality_projection.model_dump(mode="json")
+                    if output.candidate.quality_projection is not None
+                    else None
+                ),
+                quality_projection_hash=output.candidate.quality_projection_hash,
+                supersedes_version_id=output.supersedes_version_id,
+            )
+            session.add(version)
+            session.flush()
+            _materialize_literature_evidence(session, version, output.candidate)
+            _materialize_graph_evidence(session, version, output.candidate)
+            _materialize_data_evidence(session, version, output.candidate)
+            _materialize_scientific_evidence(session, version, output.candidate)
+            if output.candidate.content.get("kind") == "dataset":
+                for row in output.candidate.content.get("rows", []):
+                    if isinstance(row, dict) and isinstance(row.get("row_id"), str):
+                        session.add(
+                            DatasetRowProjectionModel(
+                                artifact_version_id=version.id,
+                                project_id=version.project_id,
+                                row_id=row["row_id"],
+                                row=row,
+                            )
+                        )
+            versions.append(version)
+        return versions
 
     def _replay_existing(
         self,
@@ -1202,10 +1333,21 @@ class ArtifactPublisher:
         attempt_id: UUID,
         outputs: tuple[ArtifactPublication, ...],
         existing: Mapping[tuple[UUID, str], ArtifactVersionModel],
+        require_completed_step: bool,
     ) -> PublicationResult:
-        if len(existing) != len(outputs) or step.status != "completed":
+        if len(existing) != len(outputs):
             raise PublicationConflictError(
                 "A publication key exists outside a completed atomic output set"
+            )
+        if require_completed_step and step.status != "completed":
+            raise PublicationConflictError(
+                "A publication key exists outside a completed atomic output set"
+            )
+        if not require_completed_step and (
+            step.status != "running" or run.status != step.enter_status
+        ):
+            raise StalePublicationError(
+                "Only the active running RunStep may replay intermediate outputs"
             )
         versions: list[ArtifactVersionModel] = []
         for output in outputs:
@@ -1243,23 +1385,24 @@ class ArtifactPublisher:
                 session, version, output.candidate
             )
             versions.append(version)
-        completed_event = session.scalar(
-            select(RunEventModel)
-            .where(
-                RunEventModel.run_id == run.id,
-                RunEventModel.step_key == step.key,
-                RunEventModel.event_type == "step.completed",
+        if require_completed_step:
+            completed_event = session.scalar(
+                select(RunEventModel)
+                .where(
+                    RunEventModel.run_id == run.id,
+                    RunEventModel.step_key == step.key,
+                    RunEventModel.event_type == "step.completed",
+                )
+                .order_by(RunEventModel.sequence.desc())
             )
-            .order_by(RunEventModel.sequence.desc())
-        )
-        expected_ids = {str(version.id) for version in versions}
-        if (
-            completed_event is None
-            or set(completed_event.artifact_version_ids) != expected_ids
-        ):
-            raise PublicationConflictError(
-                "The idempotent publication set differs from the completed Step event"
-            )
+            expected_ids = {str(version.id) for version in versions}
+            if (
+                completed_event is None
+                or set(completed_event.artifact_version_ids) != expected_ids
+            ):
+                raise PublicationConflictError(
+                    "The idempotent publication set differs from the completed Step event"
+                )
         return PublicationResult(
             run_id=run.id,
             status=run.status,
@@ -1271,6 +1414,102 @@ class ArtifactPublisher:
 
     def _before_commit(self, session: Session) -> None:
         """Test seam used to prove the surrounding transaction rolls back."""
+
+
+def _require_running_step(step: RunStepModel, run: ResearchRunModel) -> None:
+    if step.status != "running" or run.status != step.enter_status:
+        raise StalePublicationError(
+            "Only the active running RunStep may publish outputs"
+        )
+
+
+def _lock_running_attempt(
+    session: Session,
+    step: RunStepModel,
+    attempt_id: UUID,
+) -> StepAttemptModel:
+    attempt = session.scalar(
+        select(StepAttemptModel)
+        .where(
+            StepAttemptModel.id == attempt_id,
+            StepAttemptModel.run_step_id == step.id,
+        )
+        .with_for_update()
+    )
+    if attempt is None or attempt.status != "running":
+        raise StalePublicationError(
+            "Only the active running StepAttempt may publish outputs"
+        )
+    return attempt
+
+
+def _complete_step(
+    session: Session,
+    *,
+    run: ResearchRunModel,
+    step: RunStepModel,
+    attempt: StepAttemptModel,
+    public_message: str,
+    versions: Sequence[ArtifactVersionModel],
+) -> tuple[str, int, int]:
+    now = session.scalar(select(func.clock_timestamp()))
+    attempt.status = "completed"
+    attempt.finished_at = now
+    attempt.error_class = None
+    attempt.error_code = None
+    attempt.retryable = False
+    step.status = "completed"
+    step.progress = 100
+    step.finished_at = now
+    step.failure_code = None
+    step.public_message = public_message
+    total_steps = session.scalar(
+        select(func.count())
+        .select_from(RunStepModel)
+        .where(RunStepModel.run_id == run.id)
+    )
+    is_final = step.success_status == "completed"
+    progress = (
+        100
+        if is_final
+        else max(run.progress, int(((step.position + 1) / total_steps) * 100))
+    )
+    artifact_version_ids = [str(version.id) for version in versions]
+    sequence = run.latest_event_sequence + 1
+    session.add(
+        RunEventModel(
+            run_id=run.id,
+            sequence=sequence,
+            event_type="step.completed",
+            step_key=step.key,
+            progress=progress,
+            public_message=public_message,
+            artifact_version_ids=artifact_version_ids,
+        )
+    )
+    if is_final:
+        sequence += 1
+        session.add(
+            RunEventModel(
+                run_id=run.id,
+                sequence=sequence,
+                event_type="run.completed",
+                step_key=step.key,
+                progress=100,
+                public_message="Run completed",
+                artifact_version_ids=artifact_version_ids,
+            )
+        )
+        run.finished_at = now
+        run.lease_token = None
+        run.lease_owner = None
+        run.lease_expires_at = None
+    run.status = step.success_status
+    run.progress = progress
+    run.revision += 1
+    run.latest_event_sequence = sequence
+    run.updated_at = now
+    return run.status, run.revision, sequence
 
 
 def _lock_run(session: Session, run_id: UUID) -> ResearchRunModel:
@@ -1320,40 +1559,149 @@ def _require_active_lease(
 
 
 def _validate_execution_request(request: ProducerExecutionRequest) -> None:
-    for name, value in (
-        ("step_key", request.step_key),
-        ("idempotency_key", request.idempotency_key),
-        ("producer_name", request.producer_name),
-        ("producer_version", request.producer_version),
+    for name, value, maximum in (
+        ("step_key", request.step_key, 128),
+        ("idempotency_key", request.idempotency_key, 200),
+        ("producer_name", request.producer_name, 128),
+        ("producer_version", request.producer_version, 64),
     ):
-        if not value.strip():
+        normalized = value.strip()
+        if not normalized:
             raise ValueError(f"{name} is required")
+        if len(normalized) > maximum:
+            raise ValueError(f"{name} exceeds the maximum length of {maximum}")
     if request.producer_type not in _PRODUCER_TYPES:
         raise ValueError("producer_type must be pipeline, model, or algorithm")
     _require_hash(request.input_hash, "input_hash")
     if request.prompt_hash is not None:
         _require_hash(request.prompt_hash, "prompt_hash")
+    authorized_tool_name = _optional_audit_text(
+        request.authorized_tool_name, "authorized_tool_name", maximum=128
+    )
+    _optional_audit_text(
+        request.authorized_skill_id, "authorized_skill_id", maximum=128
+    )
+    if request.registry_revision is not None:
+        _require_hash(request.registry_revision, "registry_revision")
+    authorization_fields = (
+        authorized_tool_name,
+        request.registry_revision,
+    )
+    if any(value is not None for value in authorization_fields) and not all(
+        value is not None for value in authorization_fields
+    ):
+        raise ValueError(
+            "authorized_tool_name and registry_revision must be present together"
+        )
+    if request.producer_name.strip() == "research_step_agent" and (
+        request.producer_type != "model"
+        or authorized_tool_name is None
+        or request.registry_revision is None
+        or _optional_text(request.prompt_name) is None
+        or _optional_text(request.prompt_version) is None
+        or request.prompt_hash is None
+    ):
+        raise ValueError(
+            "research_step_agent requires model, Prompt, tool, and registry identity"
+        )
 
 
 def _validated_parameters(
     parameters: Mapping[str, ProducerParameter],
 ) -> dict[str, ProducerParameter]:
-    if not isinstance(parameters, Mapping) or len(parameters) > 32:
-        raise ValueError("parameters must be a mapping with at most 32 entries")
-    safe: dict[str, ProducerParameter] = {}
-    for key, value in parameters.items():
-        if (
-            not isinstance(key, str)
-            or not _PARAMETER_KEY_PATTERN.fullmatch(key)
-            or producer_parameter_key_is_sensitive(key)
-        ):
-            raise ValueError("parameters contain a forbidden or invalid key")
-        if not isinstance(value, (str, int, float, bool, type(None))):
-            raise ValueError("parameters may contain only scalar JSON values")
-        if isinstance(value, str) and len(value) > 256:
-            raise ValueError("parameter strings must not contain long raw content")
-        safe[key] = value
-    return safe
+    nodes = 0
+
+    def visit(value: object, *, depth: int) -> ProducerParameter:
+        nonlocal nodes
+        nodes += 1
+        if nodes > _MAX_PARAMETER_NODES:
+            raise ValueError(
+                "parameters exceed the maximum number of nested JSON values"
+            )
+        if depth > _MAX_PARAMETER_DEPTH:
+            raise ValueError("parameters exceed the maximum JSON nesting depth")
+        if value is None or type(value) in {bool, int, float, str}:
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError("parameters may not contain non-finite numbers")
+            if isinstance(value, str) and len(value) > _MAX_PARAMETER_STRING_LENGTH:
+                raise ValueError("parameter strings must not contain long raw content")
+            return value  # type: ignore[return-value]
+        if isinstance(value, Mapping):
+            if len(value) > _MAX_PARAMETER_ENTRIES:
+                raise ValueError(
+                    "nested parameter objects must contain at most "
+                    f"{_MAX_PARAMETER_ENTRIES} entries"
+                )
+            normalized: dict[str, ProducerParameter] = {}
+            for key, nested in value.items():
+                if (
+                    type(key) is not str
+                    or not _PARAMETER_KEY_PATTERN.fullmatch(key)
+                    or producer_parameter_key_is_sensitive(key)
+                ):
+                    raise ValueError("parameters contain a forbidden or invalid key")
+                normalized[key] = visit(nested, depth=depth + 1)
+            return normalized
+        if type(value) is list:
+            if len(value) > _MAX_PARAMETER_ARRAY_ITEMS:
+                raise ValueError(
+                    "nested parameter arrays must contain at most "
+                    f"{_MAX_PARAMETER_ARRAY_ITEMS} items"
+                )
+            return [visit(item, depth=depth + 1) for item in value]
+        raise ValueError(
+            "parameters may contain only JSON scalar, object, and array values"
+        )
+
+    if not isinstance(parameters, Mapping):
+        raise ValueError("parameters must be a JSON object")
+    normalized = visit(parameters, depth=0)
+    if not isinstance(normalized, dict):
+        raise ValueError("parameters must be a JSON object")
+    try:
+        encoded = json.dumps(
+            normalized,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("parameters must remain valid canonical JSON") from exc
+    if len(encoded) > _MAX_PARAMETER_JSON_BYTES:
+        raise ValueError(
+            "parameters exceed the maximum canonical JSON size of "
+            f"{_MAX_PARAMETER_JSON_BYTES} bytes"
+        )
+    return normalized
+
+
+def normalize_producer_parameters(
+    parameters: Mapping[str, ProducerParameter],
+    *,
+    parameters_version: str | None = None,
+) -> dict[str, ProducerParameter]:
+    """Normalize the exact JSON payload hashed into ProducerExecution.
+
+    Model-backed literature pipelines include ``parameters_version`` in their
+    candidate hash contract.  The ledger stores that same envelope when the
+    caller supplies a version; algorithm/pipeline producers can continue to
+    use the unwrapped scalar/object payload.
+    """
+
+    normalized = _validated_parameters(parameters)
+    if parameters_version is None:
+        return normalized
+    if type(parameters_version) is not str or not _SEMANTIC_VERSION_PATTERN.fullmatch(
+        parameters_version
+    ):
+        raise ValueError("parameters_version must be semantic version text")
+    return _validated_parameters(
+        {
+            "parameters_version": parameters_version,
+            "parameters": normalized,
+        }
+    )
 
 
 def producer_parameter_key_is_sensitive(key: str) -> bool:
@@ -1400,6 +1748,12 @@ def _validate_execution_outcome(
     token_usage: Mapping[str, int] | None,
     latency_ms: int | None,
     error_code: str | None,
+    provider_request_id: str | None,
+    tool_call_id: str | None,
+    validated_arguments_hash: str | None,
+    rejected_arguments_hash: str | None,
+    error_hash: str | None,
+    public_message: str | None,
 ) -> None:
     if status not in _PRODUCER_TERMINAL_STATUSES:
         raise ValueError("ProducerExecution must finish in a terminal status")
@@ -1411,6 +1765,30 @@ def _validate_execution_outcome(
         raise ValueError("failed or rejected ProducerExecution requires error_code")
     if latency_ms is not None and latency_ms < 0:
         raise ValueError("latency_ms must be nonnegative")
+    for value, name in (
+        (validated_arguments_hash, "validated_arguments_hash"),
+        (rejected_arguments_hash, "rejected_arguments_hash"),
+        (error_hash, "error_hash"),
+    ):
+        if value is not None:
+            _require_hash(value, name)
+    _optional_audit_text(provider_request_id, "provider_request_id", maximum=256)
+    _optional_audit_text(tool_call_id, "tool_call_id", maximum=256)
+    _optional_audit_text(public_message, "public_message", maximum=500)
+    if status == "completed" and error_hash is not None:
+        raise ValueError("completed ProducerExecution cannot have error_hash")
+    if validated_arguments_hash is not None and (
+        status != "completed" or tool_call_id is None or public_message is None
+    ):
+        raise ValueError(
+            "validated arguments require a completed tool call and public message"
+        )
+    if rejected_arguments_hash is not None and (
+        status != "rejected" or tool_call_id is None
+    ):
+        raise ValueError(
+            "rejected arguments require a rejected execution and tool call identity"
+        )
     _validated_usage(token_usage)
 
 
@@ -1437,6 +1815,9 @@ def _require_same_execution(
         _optional_text(request.prompt_name),
         _optional_text(request.prompt_version),
         request.prompt_hash,
+        _optional_text(request.authorized_tool_name),
+        _optional_text(request.authorized_skill_id),
+        request.registry_revision,
         dict(parameters),
         parameters_hash,
         request.input_hash,
@@ -1455,6 +1836,9 @@ def _require_same_execution(
         row.prompt_name,
         row.prompt_version,
         row.prompt_hash,
+        row.authorized_tool_name,
+        row.authorized_skill_id,
+        row.registry_revision,
         row.parameters,
         row.parameters_hash,
         row.input_hash,
@@ -1465,7 +1849,51 @@ def _require_same_execution(
         )
 
 
-def _execution_snapshot(row: ProducerExecutionModel) -> ProducerExecutionSnapshot:
+def _validate_function_call_outcome(
+    row: ProducerExecutionModel,
+    *,
+    status: str,
+    tool_call_id: str | None,
+    validated_arguments_hash: str | None,
+    rejected_arguments_hash: str | None,
+    error_hash: str | None,
+    public_message: str | None,
+) -> None:
+    if row.producer_name != "research_step_agent":
+        return
+    if status == "completed" and (
+        tool_call_id is None
+        or validated_arguments_hash is None
+        or rejected_arguments_hash is not None
+        or public_message is None
+        or error_hash is not None
+    ):
+        raise ValueError(
+            "completed Function Calling execution requires its validated public closure"
+        )
+    if status in {"failed", "rejected", "cancelled"} and error_hash is None:
+        raise ValueError("failed Function Calling execution requires error_hash")
+    if status in {"failed", "cancelled"} and (
+        tool_call_id is not None
+        or rejected_arguments_hash is not None
+        or public_message is not None
+    ):
+        raise ValueError(
+            "provider failure without a validated response cannot claim a tool call"
+        )
+    if status == "rejected" and (
+        validated_arguments_hash is not None
+        or public_message is not None
+        or ((tool_call_id is None) != (rejected_arguments_hash is None))
+    ):
+        raise ValueError(
+            "rejected Function Calling requires a complete hash-only call audit"
+        )
+
+
+def _execution_snapshot(
+    row: ProducerExecutionModel, *, replayed: bool = False
+) -> ProducerExecutionSnapshot:
     return ProducerExecutionSnapshot(
         id=row.id,
         run_id=row.run_id,
@@ -1492,6 +1920,16 @@ def _execution_snapshot(row: ProducerExecutionModel) -> ProducerExecutionSnapsho
         token_usage=dict(row.token_usage) if row.token_usage is not None else None,
         latency_ms=row.latency_ms,
         error_code=row.error_code,
+        provider_request_id=row.provider_request_id,
+        tool_call_id=row.tool_call_id,
+        authorized_tool_name=row.authorized_tool_name,
+        authorized_skill_id=row.authorized_skill_id,
+        registry_revision=row.registry_revision,
+        validated_arguments_hash=row.validated_arguments_hash,
+        rejected_arguments_hash=row.rejected_arguments_hash,
+        error_hash=row.error_hash,
+        public_message=row.public_message,
+        replayed=replayed,
     )
 
 
@@ -1591,6 +2029,7 @@ def _publication_references(
     evidence_ids: tuple[str, ...],
     source_snapshot_bindings: Sequence[ArtifactSourceSnapshotBinding] | None,
     evidence_bindings: Sequence[ArtifactEvidenceBinding] | None,
+    data_provenance_candidate: BaseModel | None,
 ) -> tuple[
     tuple[str, ...],
     tuple[str, ...],
@@ -1619,10 +2058,23 @@ def _publication_references(
             evidence_ids=evidence_ids,
             source_snapshot_bindings=source_snapshot_bindings,
             evidence_bindings=evidence_bindings,
+            data_provenance_candidate=data_provenance_candidate,
         )
-    if candidate_kind in {"paper_collection", "paper_summary"}:
-        raise PublicationAdmissionError(
-            f"{candidate_kind} publication is unavailable until its persisted provenance bridge is configured"
+    if candidate_kind == "paper_summary":
+        return _paper_summary_publication_references(
+            candidate,
+            source_snapshot_ids=source_snapshot_ids,
+            evidence_ids=evidence_ids,
+            source_snapshot_bindings=source_snapshot_bindings,
+            evidence_bindings=evidence_bindings,
+        )
+    if candidate_kind == "paper_collection":
+        return _paper_collection_publication_references(
+            candidate,
+            source_snapshot_ids=source_snapshot_ids,
+            evidence_ids=evidence_ids,
+            source_snapshot_bindings=source_snapshot_bindings,
+            evidence_bindings=evidence_bindings,
         )
     if candidate_kind not in {"literature_claims", "literature_relations"}:
         if source_snapshot_bindings is not None or evidence_bindings is not None:
@@ -1693,12 +2145,10 @@ def _publication_references(
             reference.evidence_id,
             reference.source_snapshot_id,
         )
-        existing = expected_evidence.get(key)
-        if existing is not None and existing != reference:
-            raise PublicationAdmissionError(
-                "Literature Evidence references are not uniquely materializable"
-            )
-        expected_evidence[key] = reference
+        # One relation-level Evidence row can close matching source- and
+        # target-side references. Side/claim provenance remains in the sealed
+        # candidate; persisted Evidence identity is relation scoped.
+        expected_evidence.setdefault(key, reference)
 
     bindings = tuple(evidence_bindings)
     actual_evidence = {
@@ -1734,6 +2184,7 @@ def _publication_references(
         reference = expected_evidence[key]
         evidence = pipeline_evidence.get(binding.pipeline_evidence_id)
         source_record_id = getattr(evidence, "source_record_id", None)
+        evidence_locator = getattr(evidence, "locator", None)
         paper_id = getattr(reference, "paper_id", None)
         if (
             evidence is None
@@ -1744,6 +2195,8 @@ def _publication_references(
             or not source_record_id
             or not isinstance(paper_id, str)
             or not paper_id
+            or evidence_locator is None
+            or not callable(getattr(evidence_locator, "model_dump", None))
         ):
             raise PublicationAdmissionError(
                 "Evidence bindings must exactly close the literature provenance graph"
@@ -1758,6 +2211,13 @@ def _publication_references(
                 persisted_source_snapshot_id=binding.persisted_source_snapshot_id,
                 paper_id=paper_id,
                 source_record_id=source_record_id,
+                paper_summary_locator_json=json.dumps(
+                    evidence_locator.model_dump(mode="json", exclude_none=True),
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                extraction_method="literature_admission",
             )
         )
 
@@ -1771,6 +2231,322 @@ def _publication_references(
         ordered_snapshots,
         ordered_evidence,
         source_materializations,
+        tuple(evidence_materializations),
+        (),
+        (),
+        (),
+        (),
+    )
+
+
+def _paper_summary_publication_references(
+    candidate: BaseModel,
+    *,
+    source_snapshot_ids: tuple[str, ...],
+    evidence_ids: tuple[str, ...],
+    source_snapshot_bindings: Sequence[ArtifactSourceSnapshotBinding] | None,
+    evidence_bindings: Sequence[ArtifactEvidenceBinding] | None,
+) -> tuple[
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[_LiteratureSourceSnapshotMaterialization, ...],
+    tuple[_LiteratureEvidenceMaterialization, ...],
+    tuple[_GraphSourceSnapshotMaterialization, ...],
+    tuple[_GraphEvidenceMaterialization, ...],
+    tuple[_DataSourceSnapshotMaterialization, ...],
+    tuple[_DataEvidenceMaterialization, ...],
+]:
+    """Bind an admitted summary to persisted snapshots and generic Evidence."""
+
+    if source_snapshot_bindings is None or evidence_bindings is None:
+        raise PublicationAdmissionError(
+            "PaperSummary publication requires explicit persisted provenance bindings"
+        )
+    input_versions = getattr(candidate, "input_versions", None)
+    snapshots_by_id = {
+        item.source_snapshot_id: item
+        for item in getattr(input_versions, "source_snapshots", ())
+    }
+    if set(snapshots_by_id) != set(source_snapshot_ids):
+        raise PublicationAdmissionError(
+            "PaperSummary SourceSnapshot registry is not self-consistent"
+        )
+    snapshot_bindings = tuple(source_snapshot_bindings)
+    if {item.pipeline_source_snapshot_id for item in snapshot_bindings} != set(
+        source_snapshot_ids
+    ) or len(snapshot_bindings) != len(source_snapshot_ids):
+        raise PublicationAdmissionError(
+            "SourceSnapshot bindings must exactly cover the PaperSummary"
+        )
+    try:
+        persisted_snapshot_ids = tuple(
+            str(UUID(item.persisted_source_snapshot_id)) for item in snapshot_bindings
+        )
+    except ValueError as exc:
+        raise PublicationAdmissionError(
+            "Persisted SourceSnapshot bindings must use UUID identifiers"
+        ) from exc
+    if len(persisted_snapshot_ids) != len(set(persisted_snapshot_ids)):
+        raise PublicationAdmissionError(
+            "Persisted SourceSnapshot bindings must be unique"
+        )
+    persisted_snapshot_by_pipeline = {
+        item.pipeline_source_snapshot_id: str(UUID(item.persisted_source_snapshot_id))
+        for item in snapshot_bindings
+    }
+    snapshot_materializations = tuple(
+        _LiteratureSourceSnapshotMaterialization(
+            pipeline_source_snapshot_id=pipeline_id,
+            persisted_source_snapshot_id=persisted_snapshot_by_pipeline[pipeline_id],
+            source_id=snapshots_by_id[pipeline_id].source_id,
+            source_version=snapshots_by_id[pipeline_id].source_version,
+            content_hash=snapshots_by_id[pipeline_id].content_hash,
+        )
+        for pipeline_id in sorted(source_snapshot_ids)
+    )
+
+    evidence_by_id = {
+        item.evidence_id: item for item in getattr(candidate, "evidence", ())
+    }
+    if set(evidence_by_id) != set(evidence_ids):
+        raise PublicationAdmissionError(
+            "PaperSummary Evidence registry is not self-consistent"
+        )
+    summary_id = getattr(candidate, "summary_id", None)
+    expected_keys = {
+        ("paper_summary", summary_id, evidence_id, evidence.source_snapshot_id)
+        for evidence_id, evidence in evidence_by_id.items()
+    }
+    bindings = tuple(evidence_bindings)
+    actual_by_key = {
+        (
+            item.target_type,
+            item.target_id,
+            item.pipeline_evidence_id,
+            item.pipeline_source_snapshot_id,
+        ): item
+        for item in bindings
+    }
+    if len(actual_by_key) != len(bindings) or set(actual_by_key) != expected_keys:
+        raise PublicationAdmissionError(
+            "Evidence bindings must exactly close the PaperSummary provenance graph"
+        )
+    try:
+        persisted_evidence_ids = tuple(
+            str(UUID(item.persisted_evidence_id)) for item in bindings
+        )
+    except ValueError as exc:
+        raise PublicationAdmissionError(
+            "Persisted Evidence bindings must use UUID identifiers"
+        ) from exc
+    if len(persisted_evidence_ids) != len(set(persisted_evidence_ids)):
+        raise PublicationAdmissionError("Persisted Evidence bindings must be unique")
+    evidence_materializations: list[_LiteratureEvidenceMaterialization] = []
+    for key, binding in sorted(actual_by_key.items()):
+        evidence = evidence_by_id[binding.pipeline_evidence_id]
+        expected_snapshot_id = persisted_snapshot_by_pipeline.get(
+            binding.pipeline_source_snapshot_id
+        )
+        actual_snapshot_id = str(UUID(binding.persisted_source_snapshot_id))
+        if actual_snapshot_id != expected_snapshot_id:
+            raise PublicationAdmissionError(
+                "PaperSummary Evidence must use its bound persisted SourceSnapshot"
+            )
+        evidence_materializations.append(
+            _LiteratureEvidenceMaterialization(
+                target_type=key[0],
+                target_id=key[1],
+                pipeline_evidence_id=evidence.evidence_id,
+                pipeline_source_snapshot_id=evidence.source_snapshot_id,
+                persisted_evidence_id=str(UUID(binding.persisted_evidence_id)),
+                persisted_source_snapshot_id=actual_snapshot_id,
+                paper_id=evidence.paper_id,
+                source_record_id=evidence.source_record_id,
+                paper_summary_locator_json=json.dumps(
+                    evidence.locator.model_dump(mode="json", exclude_none=True),
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                extraction_method="paper_summary_admission",
+            )
+        )
+    return (
+        tuple(item.persisted_source_snapshot_id for item in snapshot_materializations),
+        tuple(item.persisted_evidence_id for item in evidence_materializations),
+        snapshot_materializations,
+        tuple(evidence_materializations),
+        (),
+        (),
+        (),
+        (),
+    )
+
+
+def _paper_collection_publication_references(
+    candidate: BaseModel,
+    *,
+    source_snapshot_ids: tuple[str, ...],
+    evidence_ids: tuple[str, ...],
+    source_snapshot_bindings: Sequence[ArtifactSourceSnapshotBinding] | None,
+    evidence_bindings: Sequence[ArtifactEvidenceBinding] | None,
+) -> tuple[
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[_LiteratureSourceSnapshotMaterialization, ...],
+    tuple[_LiteratureEvidenceMaterialization, ...],
+    tuple[_GraphSourceSnapshotMaterialization, ...],
+    tuple[_GraphEvidenceMaterialization, ...],
+    tuple[_DataSourceSnapshotMaterialization, ...],
+    tuple[_DataEvidenceMaterialization, ...],
+]:
+    """Close PaperCollection candidates to persisted SourceSnapshot/Evidence.
+
+    PaperCollection has no separate pipeline Evidence model.  Each acquired
+    candidate is therefore represented by one deterministic metadata Evidence
+    use, while the exact bibliographic payload remains sealed in the
+    PaperCollection content.  The existing literature materialization plan is
+    reused so final publication and replay keep one provenance transaction.
+    """
+
+    if source_snapshot_bindings is None or evidence_bindings is None:
+        raise PublicationAdmissionError(
+            "PaperCollection publication requires explicit persisted provenance bindings"
+        )
+    snapshots_by_id = {
+        item.snapshot_id: item for item in getattr(candidate, "source_snapshots", ())
+    }
+    if set(snapshots_by_id) != set(source_snapshot_ids):
+        raise PublicationAdmissionError(
+            "PaperCollection SourceSnapshot registry is not self-consistent"
+        )
+    snapshot_bindings = tuple(source_snapshot_bindings)
+    if tuple(
+        sorted(item.pipeline_source_snapshot_id for item in snapshot_bindings)
+    ) != tuple(sorted(source_snapshot_ids)) or len(snapshot_bindings) != len(
+        source_snapshot_ids
+    ):
+        raise PublicationAdmissionError(
+            "SourceSnapshot bindings must exactly cover the PaperCollection"
+        )
+    persisted_snapshot_by_pipeline: dict[str, str] = {}
+    persisted_snapshot_ids: list[str] = []
+    for binding in snapshot_bindings:
+        try:
+            persisted_id = str(UUID(binding.persisted_source_snapshot_id))
+        except ValueError as exc:
+            raise PublicationAdmissionError(
+                "Persisted SourceSnapshot bindings must use UUID identifiers"
+            ) from exc
+        if binding.pipeline_source_snapshot_id in persisted_snapshot_by_pipeline:
+            raise PublicationAdmissionError("SourceSnapshot bindings must be unique")
+        persisted_snapshot_by_pipeline[binding.pipeline_source_snapshot_id] = (
+            persisted_id
+        )
+        persisted_snapshot_ids.append(persisted_id)
+    if len(persisted_snapshot_ids) != len(set(persisted_snapshot_ids)):
+        raise PublicationAdmissionError(
+            "Persisted SourceSnapshot bindings must be unique"
+        )
+
+    snapshot_materializations = tuple(
+        _LiteratureSourceSnapshotMaterialization(
+            pipeline_source_snapshot_id=pipeline_id,
+            persisted_source_snapshot_id=persisted_snapshot_by_pipeline[pipeline_id],
+            source_id=snapshots_by_id[pipeline_id].source_id,
+            source_version=(
+                snapshots_by_id[pipeline_id].source_version_or_etag
+                or snapshots_by_id[pipeline_id].content_hash
+            ),
+            content_hash=snapshots_by_id[pipeline_id].content_hash,
+        )
+        for pipeline_id in sorted(source_snapshot_ids)
+    )
+
+    expected_keys = {
+        (
+            "paper_candidate",
+            item.candidate_id,
+            f"paper_metadata.{item.candidate_id}",
+            item.raw.source_snapshot_id,
+        )
+        for item in getattr(candidate, "candidates", ())
+    }
+    if {key[2] for key in expected_keys} != set(evidence_ids):
+        raise PublicationAdmissionError(
+            "PaperCollection Evidence registry must exactly close candidate metadata"
+        )
+    bindings = tuple(evidence_bindings)
+    actual_by_key = {
+        (
+            item.target_type,
+            item.target_id,
+            item.pipeline_evidence_id,
+            item.pipeline_source_snapshot_id,
+        ): item
+        for item in bindings
+    }
+    if len(actual_by_key) != len(bindings) or set(actual_by_key) != expected_keys:
+        raise PublicationAdmissionError(
+            "Evidence bindings must exactly close the PaperCollection candidates"
+        )
+    persisted_evidence_ids: list[str] = []
+    for binding in bindings:
+        try:
+            persisted_id = str(UUID(binding.persisted_evidence_id))
+        except ValueError as exc:
+            raise PublicationAdmissionError(
+                "Persisted Evidence bindings must use UUID identifiers"
+            ) from exc
+        if binding.persisted_source_snapshot_id != persisted_snapshot_by_pipeline.get(
+            binding.pipeline_source_snapshot_id
+        ):
+            raise PublicationAdmissionError(
+                "PaperCollection Evidence must use its bound SourceSnapshot"
+            )
+        persisted_evidence_ids.append(persisted_id)
+    if len(persisted_evidence_ids) != len(set(persisted_evidence_ids)):
+        raise PublicationAdmissionError("Persisted Evidence bindings must be unique")
+
+    candidates_by_id = {
+        item.candidate_id: item for item in getattr(candidate, "candidates", ())
+    }
+    evidence_materializations: list[_LiteratureEvidenceMaterialization] = []
+    for key, binding in sorted(actual_by_key.items()):
+        paper_candidate = candidates_by_id.get(binding.target_id)
+        if paper_candidate is None:
+            raise PublicationAdmissionError(
+                "PaperCollection Evidence targets an unknown candidate"
+            )
+        evidence_materializations.append(
+            _LiteratureEvidenceMaterialization(
+                target_type=binding.target_type,
+                target_id=binding.target_id,
+                pipeline_evidence_id=binding.pipeline_evidence_id,
+                pipeline_source_snapshot_id=binding.pipeline_source_snapshot_id,
+                persisted_evidence_id=str(UUID(binding.persisted_evidence_id)),
+                persisted_source_snapshot_id=persisted_snapshot_by_pipeline[
+                    binding.pipeline_source_snapshot_id
+                ],
+                paper_id=paper_candidate.canonical_paper_id,
+                source_record_id=paper_candidate.raw.source_record_id,
+                paper_summary_locator_json=json.dumps(
+                    {
+                        "candidate_id": paper_candidate.candidate_id,
+                        "canonical_paper_id": paper_candidate.canonical_paper_id,
+                        "source_record_id": paper_candidate.raw.source_record_id,
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                extraction_method="paper_collection_admission",
+            )
+        )
+    return (
+        tuple(item.persisted_source_snapshot_id for item in snapshot_materializations),
+        tuple(item.persisted_evidence_id for item in evidence_materializations),
+        snapshot_materializations,
         tuple(evidence_materializations),
         (),
         (),
@@ -1807,6 +2583,72 @@ def _data_snapshot_references(
     return references
 
 
+def _validate_data_provenance_dependency(
+    candidate: BaseModel,
+    dataset: BaseModel,
+) -> None:
+    """Keep dependent Data Artifacts bound to one Dataset fact registry."""
+
+    _require_pipeline_admission(dataset)
+    if normalize_artifact_kind(getattr(dataset, "kind", None)) != "dataset":
+        raise PublicationAdmissionError(
+            "Data Artifact provenance bridge requires a Dataset candidate"
+        )
+    candidate_kind = normalize_artifact_kind(getattr(candidate, "kind", None))
+    if candidate_kind == "dataset":
+        if candidate is not dataset:
+            raise PublicationAdmissionError(
+                "Dataset publication cannot use a detached provenance candidate"
+            )
+        return
+    if candidate_kind not in {"field_dictionary", "source_collection"}:
+        raise PublicationAdmissionError(
+            "Unsupported Data Artifact provenance dependency"
+        )
+
+    common_fields = (
+        "manifest_pins",
+        "source_snapshot_ids",
+        "evidence_ids",
+        "mapping_rule_set_id",
+        "mapping_rule_set_version",
+        "mapping_rule_set_content_hash",
+        "conversion_catalog_id",
+        "conversion_catalog_version",
+        "conversion_catalog_content_hash",
+        "quality_evaluation_status",
+        "producer",
+        "input_hash",
+    )
+    for field_name in common_fields:
+        candidate_value = getattr(candidate, field_name, None)
+        dataset_value = getattr(dataset, field_name, None)
+        if hasattr(candidate_value, "model_dump"):
+            candidate_value = candidate_value.model_dump(mode="json")
+        if hasattr(dataset_value, "model_dump"):
+            dataset_value = dataset_value.model_dump(mode="json")
+        if candidate_value != dataset_value:
+            raise PublicationAdmissionError(
+                f"Data Artifact {candidate_kind} is detached from the Dataset {field_name}"
+            )
+
+    if candidate_kind == "field_dictionary":
+        if getattr(candidate, "requested_fields", None) != getattr(
+            dataset, "requested_fields", None
+        ):
+            raise PublicationAdmissionError(
+                "FieldDictionary requested fields are detached from the Dataset"
+            )
+    else:
+        for field_name in ("crossmatch_result_id", "crossmatch_content_hash"):
+            if getattr(candidate, field_name, None) != getattr(
+                dataset, field_name, None
+            ):
+                raise PublicationAdmissionError(
+                    "SourceCollection crossmatch identity is detached from the Dataset"
+                )
+
+
 def _data_publication_references(
     candidate: BaseModel,
     *,
@@ -1814,6 +2656,7 @@ def _data_publication_references(
     evidence_ids: tuple[str, ...],
     source_snapshot_bindings: Sequence[ArtifactSourceSnapshotBinding] | None,
     evidence_bindings: Sequence[ArtifactEvidenceBinding] | None,
+    data_provenance_candidate: BaseModel | None,
 ) -> tuple[
     tuple[str, ...],
     tuple[str, ...],
@@ -1825,10 +2668,12 @@ def _data_publication_references(
     tuple[_DataEvidenceMaterialization, ...],
 ]:
     candidate_kind = normalize_artifact_kind(getattr(candidate, "kind", None))
-    if candidate_kind != "dataset":
+    provenance_candidate = data_provenance_candidate or candidate
+    if candidate_kind != "dataset" and data_provenance_candidate is None:
         raise PublicationAdmissionError(
-            f"{candidate_kind} publication is unavailable until its persisted provenance bridge is configured"
+            f"{candidate_kind} publication requires its sealed Dataset provenance bridge candidate"
         )
+    _validate_data_provenance_dependency(candidate, provenance_candidate)
     if source_snapshot_bindings is None or evidence_bindings is None:
         raise PublicationAdmissionError(
             "Data Artifact publication requires explicit persisted provenance bindings"
@@ -1882,7 +2727,7 @@ def _data_publication_references(
             "Persisted Data Artifact Evidence bindings must be unique"
         )
 
-    snapshot_references = _data_snapshot_references(candidate)
+    snapshot_references = _data_snapshot_references(provenance_candidate)
     if set(snapshot_references) != set(source_snapshot_ids):
         raise PublicationAdmissionError(
             "Data Artifact SourceSnapshot registry must exactly cover the candidate"
@@ -1907,7 +2752,7 @@ def _data_publication_references(
 
     transformations = {
         item.evidence_id: item
-        for item in getattr(candidate, "transformation_evidence", ())
+        for item in getattr(provenance_candidate, "transformation_evidence", ())
     }
     crossmatch_identity: dict[str, tuple[str, str]] = {}
     for item in transformations.values():
@@ -1923,7 +2768,8 @@ def _data_publication_references(
                 )
             crossmatch_identity[evidence_id] = identity
     crossmatch_evidence = {
-        item.evidence_id: item for item in getattr(candidate, "crossmatch_evidence", ())
+        item.evidence_id: item
+        for item in getattr(provenance_candidate, "crossmatch_evidence", ())
     }
 
     candidate_evidence_ids = set(transformations) | set(crossmatch_evidence)
@@ -2445,7 +3291,14 @@ def _validate_materialized_data_provenance(
 
 
 _SCIENTIFIC_ARTIFACT_KINDS = frozenset(
-    {"analysis_report", "visualization", "model_evaluation"}
+    {
+        "analysis_report",
+        "visualization",
+        "spectrum",
+        "light_curve",
+        "model_evaluation",
+        "model_artifact",
+    }
 )
 
 
@@ -2639,7 +3492,14 @@ def _materialize_literature_evidence(
     version: ArtifactVersionModel,
     candidate: AdmittedArtifactCandidate,
 ) -> None:
+    is_paper_collection = candidate.content.get("kind") == "paper_collection"
     for item in candidate.literature_evidence_materializations:
+        locator = json.loads(item.paper_summary_locator_json)
+        if is_paper_collection:
+            locator = {
+                "paper_metadata_locator": locator,
+                "source_record_id": item.source_record_id,
+            }
         session.add(
             EvidenceModel(
                 id=UUID(item.persisted_evidence_id),
@@ -2647,15 +3507,22 @@ def _materialize_literature_evidence(
                 artifact_version_id=version.id,
                 target_type=item.target_type,
                 target_id=item.target_id,
-                evidence_type="paper_text",
+                evidence_type=(
+                    "paper_metadata" if is_paper_collection else "paper_text"
+                ),
                 source_snapshot_id=UUID(item.persisted_source_snapshot_id),
                 paper_id=item.paper_id,
-                locator={
-                    "summary_evidence_id": item.pipeline_evidence_id,
-                    "source_record_id": item.source_record_id,
-                },
+                locator=(
+                    locator
+                    if is_paper_collection
+                    else {
+                        "summary_evidence_id": item.pipeline_evidence_id,
+                        "source_record_id": item.source_record_id,
+                        "paper_summary_locator": locator,
+                    }
+                ),
                 quote_or_value=None,
-                extraction_method="literature_admission",
+                extraction_method=item.extraction_method,
                 confidence=1.0,
                 is_restricted=False,
             )
@@ -2690,17 +3557,32 @@ def _validate_materialized_literature_provenance(
         raise PublicationConflictError(
             "The idempotent literature publication has incomplete persisted Evidence"
         )
+    is_paper_collection = candidate.content.get("kind") == "paper_collection"
     for item in materializations:
+        expected_locator = json.loads(item.paper_summary_locator_json)
+        if is_paper_collection:
+            expected_locator = {
+                "paper_metadata_locator": expected_locator,
+                "source_record_id": item.source_record_id,
+            }
         row = by_id[UUID(item.persisted_evidence_id)]
         if (
             row.target_type != item.target_type
             or row.target_id != item.target_id
             or row.source_snapshot_id != UUID(item.persisted_source_snapshot_id)
             or row.paper_id != item.paper_id
-            or row.evidence_type != "paper_text"
-            or row.extraction_method != "literature_admission"
-            or row.locator.get("summary_evidence_id") != item.pipeline_evidence_id
-            or row.locator.get("source_record_id") != item.source_record_id
+            or row.evidence_type
+            != ("paper_metadata" if is_paper_collection else "paper_text")
+            or row.extraction_method != item.extraction_method
+            or (
+                row.locator != expected_locator
+                if is_paper_collection
+                else (
+                    row.locator.get("summary_evidence_id") != item.pipeline_evidence_id
+                    or row.locator.get("source_record_id") != item.source_record_id
+                    or row.locator.get("paper_summary_locator") != expected_locator
+                )
+            )
             or row.is_restricted
         ):
             raise PublicationConflictError(
@@ -2925,8 +3807,6 @@ def _validated_publications(
     publications: Sequence[ArtifactPublication],
 ) -> tuple[ArtifactPublication, ...]:
     outputs = tuple(publications)
-    if not outputs:
-        raise PublicationAdmissionError("At least one admitted output is required")
     artifact_ids = [output.artifact_id for output in outputs]
     if len(artifact_ids) != len(set(artifact_ids)):
         raise PublicationAdmissionError(
@@ -2948,6 +3828,88 @@ def _validated_publications(
                 "source_mode must be fixture, live, or cached"
             )
     return tuple(sorted(outputs, key=lambda output: output.artifact_id))
+
+
+def _validate_shared_data_publication_provenance(
+    outputs: Sequence[ArtifactPublication],
+) -> None:
+    """Ensure one atomic Data Artifact set shares the same live facts.
+
+    Persisted Evidence ids are intentionally version-local because the schema
+    binds each Evidence row to one ArtifactVersion.  The pipeline identities,
+    SourceSnapshot identities, and materialized Evidence payloads must still be
+    byte-for-byte the same across Dataset, FieldDictionary, and SourceCollection.
+    This preflight keeps a dependent publication from drifting away from the
+    Dataset before the surrounding transaction can advance any latest pointer.
+    """
+
+    data_outputs = tuple(
+        output
+        for output in outputs
+        if output.candidate.content.get("kind")
+        in {"dataset", "field_dictionary", "source_collection"}
+    )
+    if len(data_outputs) < 2:
+        return
+
+    base_candidate = data_outputs[0].candidate
+    base_snapshots = {
+        item.pipeline_source_snapshot_id: (
+            item.persisted_source_snapshot_id,
+            item.source_id,
+            item.query_hash,
+            item.content_hash,
+        )
+        for item in base_candidate.data_source_snapshot_materializations
+    }
+    base_evidence = {
+        item.pipeline_evidence_id: (
+            item.pipeline_source_snapshot_id,
+            item.target_type,
+            item.target_id,
+            item.evidence_type,
+            item.locator_json,
+            item.quote_or_value_json,
+            item.extraction_method,
+            item.confidence,
+        )
+        for item in base_candidate.data_evidence_materializations
+    }
+    persisted_evidence_ids: set[str] = set()
+    for output in data_outputs:
+        candidate = output.candidate
+        snapshots = {
+            item.pipeline_source_snapshot_id: (
+                item.persisted_source_snapshot_id,
+                item.source_id,
+                item.query_hash,
+                item.content_hash,
+            )
+            for item in candidate.data_source_snapshot_materializations
+        }
+        evidence = {
+            item.pipeline_evidence_id: (
+                item.pipeline_source_snapshot_id,
+                item.target_type,
+                item.target_id,
+                item.evidence_type,
+                item.locator_json,
+                item.quote_or_value_json,
+                item.extraction_method,
+                item.confidence,
+            )
+            for item in candidate.data_evidence_materializations
+        }
+        if snapshots != base_snapshots or evidence != base_evidence:
+            raise PublicationAdmissionError(
+                "Data Artifact publication set must share one SourceSnapshot/Evidence fact registry"
+            )
+        for item in candidate.data_evidence_materializations:
+            if item.persisted_evidence_id in persisted_evidence_ids:
+                raise PublicationAdmissionError(
+                    "Data Artifact publication Evidence ids must be unique per ArtifactVersion"
+                )
+            persisted_evidence_ids.add(item.persisted_evidence_id)
 
 
 def _validate_candidate_artifact_kind(
@@ -3077,6 +4039,12 @@ def _validate_publishable_producer(
         raise PublicationAdmissionError(
             "ProducerExecution input_hash must match the admitted candidate"
         )
+    if not _producer_matches_literature_candidate_parameters(
+        producer, output.candidate
+    ):
+        raise PublicationAdmissionError(
+            "ProducerExecution parameters_hash must match the admitted candidate"
+        )
     if not _producer_matches_graph_candidate(producer, output.candidate):
         raise PublicationAdmissionError(
             "Publication requires a completed matching ProducerExecution"
@@ -3095,6 +4063,23 @@ def _producer_matches_candidate_input_hash(
     declared_input_hash = content.get("input_hash")
     return isinstance(declared_input_hash, str) and (
         producer.input_hash == declared_input_hash
+    )
+
+
+def _producer_matches_literature_candidate_parameters(
+    producer: ProducerExecutionModel,
+    candidate: AdmittedArtifactCandidate,
+) -> bool:
+    candidate_kind = candidate.content.get("kind")
+    if candidate_kind not in {
+        "paper_summary",
+        "literature_claims",
+        "literature_relations",
+    }:
+        return True
+    expected = candidate.content.get("producer")
+    return isinstance(expected, dict) and (
+        producer.parameters_hash == expected.get("parameters_hash")
     )
 
 
@@ -3246,6 +4231,13 @@ def _optional_text(value: str | None) -> str | None:
         return None
     normalized = value.strip()
     return normalized or None
+
+
+def _optional_audit_text(value: str | None, name: str, *, maximum: int) -> str | None:
+    normalized = _optional_text(value)
+    if normalized is not None and len(normalized) > maximum:
+        raise ValueError(f"{name} exceeds the maximum length of {maximum}")
+    return normalized
 
 
 def _require_hash(value: str, name: str) -> None:

@@ -83,11 +83,14 @@ class _DocumentParseMetadata:
     candidate_parse_id: str
     candidate_created_at: datetime
     research_input_id: UUID
+    source_snapshot_id: UUID
     schema_version: str
     schema_hash: str
     input_content_hash: str
     canonical_output_hash: str
     config_hash: str
+    parser_profile_id: str
+    parser_profile_version: str
     payload_content_hash: str
     payload_semantic_hash: str
 
@@ -194,7 +197,7 @@ class DocumentParseService:
         candidate = await self.get_candidate(
             project_id=project_id, document_parse_id=document_parse_id
         )
-        _validate_locator(candidate, locator)
+        validate_document_locator(candidate, locator)
         return self._repository.persist_locator(
             project_id=project_id,
             document_parse_id=document_parse_id,
@@ -305,6 +308,37 @@ class DocumentParseRepository:
             if row is None:
                 raise DocumentParseNotFoundError("DocumentParse was not found")
             return _metadata(row)
+
+    def verify_reference(
+        self,
+        *,
+        project_id: UUID,
+        document_parse_id: UUID,
+        candidate_parse_id: str,
+        research_input_id: UUID,
+        source_snapshot_id: UUID,
+        input_content_hash: str,
+        canonical_output_hash: str,
+        parser_profile_id: str,
+        parser_profile_version: str,
+        config_hash: str,
+    ) -> None:
+        metadata = self.metadata(
+            project_id=project_id, document_parse_id=document_parse_id
+        )
+        if (
+            metadata.candidate_parse_id != candidate_parse_id
+            or metadata.research_input_id != research_input_id
+            or metadata.source_snapshot_id != source_snapshot_id
+            or metadata.input_content_hash != input_content_hash
+            or metadata.canonical_output_hash != canonical_output_hash
+            or metadata.parser_profile_id != parser_profile_id
+            or metadata.parser_profile_version != parser_profile_version
+            or metadata.config_hash != config_hash
+        ):
+            raise DocumentParseIntegrityError(
+                "DocumentParse reference does not match immutable metadata"
+            )
 
     def persist_locator(
         self,
@@ -615,7 +649,7 @@ def _source_snapshot_for_input(
     return snapshot, snapshot.id
 
 
-def _validate_locator(
+def validate_document_locator(
     candidate: DocumentParseCandidate, locator: DocumentLocator
 ) -> None:
     pages = {page.page_index: page for page in candidate.pages}
@@ -756,11 +790,14 @@ def _metadata(row: DocumentParseModel) -> _DocumentParseMetadata:
         candidate_parse_id=row.candidate_parse_id,
         candidate_created_at=row.candidate_created_at.astimezone(UTC),
         research_input_id=row.research_input_id,
+        source_snapshot_id=row.source_snapshot_id,
         schema_version=row.schema_version,
         schema_hash=row.schema_hash,
         input_content_hash=row.input_content_hash,
         canonical_output_hash=row.canonical_output_hash,
         config_hash=row.config_hash,
+        parser_profile_id=row.parser_profile_id,
+        parser_profile_version=row.parser_profile_version,
         payload_content_hash=row.payload_content_hash,
         payload_semantic_hash=row.payload_semantic_hash,
     )
@@ -786,4 +823,5 @@ __all__ = [
     "PersistedDocumentLocator",
     "document_parse_identity_hash",
     "document_parse_payload_semantic_hash",
+    "validate_document_locator",
 ]

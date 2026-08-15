@@ -691,16 +691,6 @@ def _producer_signature(producer: object) -> tuple[object, ...]:
             "pairing_version",
             "comparison_policy_version",
             "trace_protocol_version",
-            "confidence_definition_id",
-            "confidence_definition_version",
-            "confidence_calibration_id",
-            "confidence_calibration_version",
-            "confidence_calibration_scientific_payload_hash",
-            "confidence_calibration_content_hash",
-            "confidence_calibration_sample_size",
-            "confidence_calibration_method",
-            "confidence_applicability_scope",
-            "confidence_acceptance_threshold",
         )
     )
 

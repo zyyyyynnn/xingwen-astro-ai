@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, Path, Query, Request, Response
 from fastapi.responses import Response as RawResponse
+from fastapi.responses import StreamingResponse
 
 from app.schemas.core import (
     ArtifactKind,
@@ -15,6 +16,7 @@ from app.schemas.core import (
     CursorPage,
     Envelope,
     EvidenceRead,
+    ProblemDetails,
     ResearchArtifact,
     ResearchArtifactDetail,
     ResponseLinks,
@@ -50,11 +52,14 @@ from app.schemas.paper_summary_api import PaperSummaryRead
 from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
+from app.services.content_storage import ContentRangeNotSatisfiable
 from app.services.data_artifacts import DataArtifactReadService
+from app.services.document_parse_store import DocumentParseRepository
 from app.services.graph_artifacts import GraphArtifactReadService
 from app.services.literature_artifacts import LiteratureArtifactReadService
 from app.services.paper_collections import PaperCollectionReadService
 from app.services.paper_summaries import PaperSummaryReadService
+from app.services.paper_summary_exports import PaperSummaryExportService
 from app.services.scientific_artifacts import ScientificArtifactReadService
 
 router = APIRouter(prefix="/api", tags=["artifacts"])
@@ -81,7 +86,9 @@ def _paper_service(request: Request) -> PaperCollectionReadService:
 
 
 def _summary_service(request: Request) -> PaperSummaryReadService:
-    return PaperSummaryReadService(_service(request))
+    factory = request.app.state.db_session_factory
+    document_parses = DocumentParseRepository(factory) if factory is not None else None
+    return PaperSummaryReadService(_service(request), document_parses)
 
 
 def _scientific_service(request: Request) -> ScientificArtifactReadService:
@@ -226,6 +233,43 @@ def get_paper_summary(
 
 
 @router.get(
+    "/artifact-versions/{version_id}/paper-summary/export",
+    operation_id="downloadPaperSummaryExport",
+    response_class=RawResponse,
+    response_model=None,
+    responses={
+        200: {
+            "content": {
+                "application/json": {"schema": {"type": "string"}},
+                "text/markdown": {"schema": {"type": "string"}},
+            }
+        }
+    },
+)
+def download_paper_summary_export(
+    version_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    format: Annotated[Literal["json", "markdown"], Query()] = "json",
+) -> RawResponse:
+    export = PaperSummaryExportService(_summary_service(request)).export(
+        version_id=version_id,
+        session_id=_session_id(request),
+        export_format=format,
+    )
+    return RawResponse(
+        content=export.content,
+        media_type=export.media_type,
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": f'attachment; filename="{export.filename}"',
+            "ETag": f'"{export.content_hash}"',
+            "X-Artifact-Version-Id": export.artifact_version_id,
+            "X-Artifact-Content-Hash": export.content_hash,
+        },
+    )
+
+
+@router.get(
     "/artifact-versions/{version_id}/scientific",
     operation_id="getScientificArtifact",
     response_model=Envelope[ScientificArtifactRead],
@@ -247,7 +291,7 @@ def get_scientific_artifact(
 @router.get(
     "/artifact-versions/{version_id}/scientific/content/{content_hash}",
     operation_id="getScientificArtifactContent",
-    response_class=RawResponse,
+    response_class=StreamingResponse,
     responses={
         200: {
             "content": {
@@ -255,23 +299,58 @@ def get_scientific_artifact(
                     "schema": {"type": "string", "format": "binary"}
                 }
             }
-        }
+        },
+        206: {
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            }
+        },
+        416: {"model": ProblemDetails},
     },
 )
 async def get_scientific_artifact_content(
     version_id: Annotated[str, Path(min_length=1)],
     content_hash: Annotated[str, Path(pattern=r"^sha256:[0-9a-f]{64}$")],
     request: Request,
-) -> RawResponse:
-    content, media_type = await _scientific_service(request).get_content(
-        version_id=version_id,
-        content_hash=content_hash,
-        session_id=_session_id(request),
-    )
-    return RawResponse(
-        content=content,
+    range_header: Annotated[str | None, Header(alias="Range")] = None,
+) -> StreamingResponse:
+    try:
+        content, media_type = await _scientific_service(request).get_content(
+            version_id=version_id,
+            content_hash=content_hash,
+            session_id=_session_id(request),
+            range_header=range_header,
+        )
+    except ContentRangeNotSatisfiable as exc:
+        raise SecurityProblem(
+            status=416,
+            code="SCIENTIFIC_CONTENT_RANGE_NOT_SATISFIABLE",
+            title="Content range not satisfiable",
+            detail="The requested byte range cannot be served for this content",
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Range": f"bytes */{exc.total_size}",
+            },
+        ) from exc
+
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "private, immutable, max-age=31536000",
+        "Content-Length": str(content.content_length),
+    }
+    status_code = 200
+    if range_header is not None:
+        status_code = 206
+        headers["Content-Range"] = (
+            f"bytes {content.start}-{content.end}/{content.total_size}"
+        )
+    return StreamingResponse(
+        content=content.chunks,
+        status_code=status_code,
         media_type=media_type,
-        headers={"Cache-Control": "private, immutable, max-age=31536000"},
+        headers=headers,
     )
 
 

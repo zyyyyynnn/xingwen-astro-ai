@@ -22,7 +22,6 @@ from app.db.models import (
     EvidenceModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
-    ResearchContractModel,
     ResearchProjectModel,
     ResearchRunModel,
     RunStepModel,
@@ -61,7 +60,7 @@ from graph_pipeline_test_support import (
     build_literature_graph_fixture,
     stable_uuid,
 )
-from test_artifact_publisher_postgres import _steps, postgres_engine
+from test_artifact_publisher_postgres import _steps, postgres_engine  # noqa: F401
 
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
@@ -76,7 +75,7 @@ def _accept(_: ArtifactAdmissionContext) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _clean_graph_project(postgres_engine: Engine):
+def _clean_graph_project(postgres_engine: Engine):  # noqa: F811
     """Keep this module repeatable without truncating another test's project."""
 
     factory = session_factory(postgres_engine)
@@ -466,7 +465,7 @@ def _publish(active: ActiveGraphPublication) -> PublicationResult:
 
 
 def test_graph_publish_materializes_new_edge_owned_evidence_and_replays_once(
-    postgres_engine: Engine,
+    postgres_engine: Engine,  # noqa: F811
 ) -> None:
     active = _active_graph_publication(postgres_engine)
     first = _publish(active)
@@ -525,7 +524,7 @@ def test_graph_publish_materializes_new_edge_owned_evidence_and_replays_once(
 
 @pytest.mark.parametrize("mutation", ("input_hash", "producer"))
 def test_graph_replay_rejects_persisted_version_producer_drift(
-    postgres_engine: Engine,
+    postgres_engine: Engine,  # noqa: F811
     mutation: str,
 ) -> None:
     active = _active_graph_publication(postgres_engine)
@@ -544,7 +543,7 @@ def test_graph_replay_rejects_persisted_version_producer_drift(
 
 @pytest.mark.parametrize("mutation", ("missing", "extra", "tampered"))
 def test_graph_replay_rejects_non_exact_materialized_evidence_registry(
-    postgres_engine: Engine,
+    postgres_engine: Engine,  # noqa: F811
     mutation: str,
 ) -> None:
     active = _active_graph_publication(postgres_engine)
@@ -587,7 +586,7 @@ def test_graph_replay_rejects_non_exact_materialized_evidence_registry(
 
 
 def test_graph_target_kind_is_checked_before_idempotent_replay(
-    postgres_engine: Engine,
+    postgres_engine: Engine,  # noqa: F811
 ) -> None:
     active = _active_graph_publication(postgres_engine)
     _publish(active)
@@ -615,7 +614,7 @@ def test_graph_target_kind_is_checked_before_idempotent_replay(
     ),
 )
 def test_graph_publish_rejects_non_exact_producer_execution(
-    postgres_engine: Engine,
+    postgres_engine: Engine,  # noqa: F811
     producer_mutation: str,
 ) -> None:
     active = _active_graph_publication(
@@ -639,7 +638,7 @@ def test_graph_publish_rejects_non_exact_producer_execution(
 
 
 def test_graph_publish_rejects_mismatched_producer_input_hash(
-    postgres_engine: Engine,
+    postgres_engine: Engine,  # noqa: F811
 ) -> None:
     active = _active_graph_publication(
         postgres_engine,
@@ -670,7 +669,7 @@ class _FailingGraphPublisher(ArtifactPublisher):
 
 
 def test_graph_evidence_write_failure_rolls_back_entire_publication(
-    postgres_engine: Engine,
+    postgres_engine: Engine,  # noqa: F811
 ) -> None:
     active = _active_graph_publication(
         postgres_engine,

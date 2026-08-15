@@ -16,8 +16,8 @@
     "version_number": 1,
     "supersedes_version_id": null,
     "source_mode": "fixture",
-    "content_hash": "sha256:440dd5c7bf83eb0e52d8e635a7069c424cedb9e5ed6597a40ce056ece439c659",
-    "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
+    "content_hash": "sha256:b2070301f2e75524c7f11484a822ba4422dce00c66bcff45517e148e0ad9222a",
+    "input_hash": "sha256:f8b82618b65b7cec3e6d6e7afe6ba3507b0d2ffea8dbf871a8fdf50e4e59c5e3",
     "created_at": "2026-07-21T08:25:00Z",
     "paper": {
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
@@ -27,9 +27,15 @@
     },
     "summary": {
       "kind": "paper_summary",
-      "schema_version": "2.0.0",
-      "summary_id": "summary.904df946d294bf1e92f5e687",
+      "schema_version": "3.0.0",
+      "summary_id": "summary.f02b9ca179eeb742aaa2c9fc",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "paper": {
+        "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+        "title": "The Revised TESS Input Catalog and Candidate Target List",
+        "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Martin Paegert"],
+        "year": 2019
+      },
       "benchmark": {
         "benchmark_id": "exoplanet_host_star.paper_reasoning",
         "schema_version": "2.0.0",
@@ -39,9 +45,12 @@
         "scenario_id": "search.tess_mission_and_catalogs"
       },
       "input_versions": {
-        "paper_collection_version_id": "artv_papcol_01",
-        "paper_collection_schema_version": "2.0.0",
-        "paper_collection_output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89",
+        "collection": {
+          "artifact_version_id": "artv_papcol_01",
+          "schema_version": "2.0.0",
+          "output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89"
+        },
+        "document_parses": [],
         "source_snapshots": [
           {
             "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
@@ -151,7 +160,10 @@
             "section": null,
             "paragraph": null,
             "text_range": null,
-            "metadata_field": "year"
+            "metadata_field": "year",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null
           },
           "quote_or_value": "2019",
           "status": "supported",
@@ -172,7 +184,10 @@
             "section": null,
             "paragraph": null,
             "text_range": null,
-            "metadata_field": "doi"
+            "metadata_field": "doi",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null
           },
           "quote_or_value": "10.3847/1538-3881/ab3467",
           "status": "supported",
@@ -193,7 +208,10 @@
             "section": null,
             "paragraph": null,
             "text_range": null,
-            "metadata_field": "title"
+            "metadata_field": "title",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null
           },
           "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
           "status": "supported",
@@ -214,7 +232,10 @@
             "section": "Methods",
             "paragraph": null,
             "text_range": "paragraph 2, sentences 1-3",
-            "metadata_field": null
+            "metadata_field": null,
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null
           },
           "quote_or_value": "Stellar parameters are compiled from all-sky photometric catalogs and parallax measurements.",
           "status": "unverifiable",
@@ -223,22 +244,29 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.2b9e110e9cd0405121a4d742",
+        "execution_id": "execution.f8b82618b65b7cec3e6d6e7a",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
         "producer_name": "xingwen.paper_summary",
         "producer_version": "1.0.0",
         "model_name": "fixture-model",
+        "model_revision": null,
+        "provider": null,
+        "provider_request_id": null,
+        "usage": null,
         "prompt_name": "paper_summary",
-        "prompt_version": "3.0.0",
-        "prompt_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
+        "prompt_version": "4.0.0",
+        "prompt_hash": "sha256:f5dcc7ba26f1eb1525720bbd332bc73d9bd1ab59d4ad066ff7f37df43d498872",
         "parameters_version": "1.0.0",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
-          "paper_collection_version_id": "artv_papcol_01",
-          "paper_collection_schema_version": "2.0.0",
-          "paper_collection_output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89",
+          "collection": {
+            "artifact_version_id": "artv_papcol_01",
+            "schema_version": "2.0.0",
+            "output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89"
+          },
+          "document_parses": [],
           "source_snapshots": [
             {
               "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
@@ -248,17 +276,17 @@
             }
           ]
         },
-        "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
+        "input_hash": "sha256:f8b82618b65b7cec3e6d6e7afe6ba3507b0d2ffea8dbf871a8fdf50e4e59c5e3",
         "model_response_hash": "sha256:361efa12caa5cff7c11418eec7724ed8530a9d0c5151da7002009afef39f04b7",
-        "output_hash": "sha256:1ba7c9f0b95051294f2676a7bb94e6dc44a13061a89d738f29fb2bf3551844c3",
+        "output_hash": "sha256:bb68e6acbc4a605dbd85592ecb586eb633d745d3bb969b9b6b9d27b19ba4a86d",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
-      "output_hash": "sha256:1ba7c9f0b95051294f2676a7bb94e6dc44a13061a89d738f29fb2bf3551844c3"
+      "input_hash": "sha256:f8b82618b65b7cec3e6d6e7afe6ba3507b0d2ffea8dbf871a8fdf50e4e59c5e3",
+      "output_hash": "sha256:bb68e6acbc4a605dbd85592ecb586eb633d745d3bb969b9b6b9d27b19ba4a86d"
     },
     "cache_audits": [],
     "producer_execution": {
@@ -273,8 +301,8 @@
         "model_provider": null,
         "model_name": "fixture-model",
         "prompt_name": "paper_summary",
-        "prompt_version": "3.0.0",
-        "prompt_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
+        "prompt_version": "4.0.0",
+        "prompt_hash": "sha256:f5dcc7ba26f1eb1525720bbd332bc73d9bd1ab59d4ad066ff7f37df43d498872",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
       },
       "parameters": {
@@ -282,8 +310,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
-      "output_hash": "sha256:440dd5c7bf83eb0e52d8e635a7069c424cedb9e5ed6597a40ce056ece439c659",
+      "input_hash": "sha256:f8b82618b65b7cec3e6d6e7afe6ba3507b0d2ffea8dbf871a8fdf50e4e59c5e3",
+      "output_hash": "sha256:b2070301f2e75524c7f11484a822ba4422dce00c66bcff45517e148e0ad9222a",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",
@@ -400,12 +428,18 @@
     "project_id": "proj_01JEXAMPLE",
     "created_by_run_id": "run_01JEXAMPLE",
     "version_number": 1,
-    "schema_version": "2.0.0",
+    "schema_version": "3.0.0",
     "content": {
       "kind": "paper_summary",
-      "schema_version": "2.0.0",
-      "summary_id": "summary.904df946d294bf1e92f5e687",
+      "schema_version": "3.0.0",
+      "summary_id": "summary.f02b9ca179eeb742aaa2c9fc",
       "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+      "paper": {
+        "paper_id": "paper.59538ac1f089c0ee50cf4bc52b3bf0258293b01f91e4a0df18f204cbd60c79ad",
+        "title": "The Revised TESS Input Catalog and Candidate Target List",
+        "authors": ["Keivan G. Stassun", "Ryan J. Oelkers", "Martin Paegert"],
+        "year": 2019
+      },
       "benchmark": {
         "benchmark_id": "exoplanet_host_star.paper_reasoning",
         "schema_version": "2.0.0",
@@ -415,9 +449,12 @@
         "scenario_id": "search.tess_mission_and_catalogs"
       },
       "input_versions": {
-        "paper_collection_version_id": "artv_papcol_01",
-        "paper_collection_schema_version": "2.0.0",
-        "paper_collection_output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89",
+        "collection": {
+          "artifact_version_id": "artv_papcol_01",
+          "schema_version": "2.0.0",
+          "output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89"
+        },
+        "document_parses": [],
         "source_snapshots": [
           {
             "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
@@ -527,7 +564,10 @@
             "section": null,
             "paragraph": null,
             "text_range": null,
-            "metadata_field": "year"
+            "metadata_field": "year",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null
           },
           "quote_or_value": "2019",
           "status": "supported",
@@ -548,7 +588,10 @@
             "section": null,
             "paragraph": null,
             "text_range": null,
-            "metadata_field": "doi"
+            "metadata_field": "doi",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null
           },
           "quote_or_value": "10.3847/1538-3881/ab3467",
           "status": "supported",
@@ -569,7 +612,10 @@
             "section": null,
             "paragraph": null,
             "text_range": null,
-            "metadata_field": "title"
+            "metadata_field": "title",
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null
           },
           "quote_or_value": "The Revised TESS Input Catalog and Candidate Target List",
           "status": "supported",
@@ -590,7 +636,10 @@
             "section": "Methods",
             "paragraph": null,
             "text_range": "paragraph 2, sentences 1-3",
-            "metadata_field": null
+            "metadata_field": null,
+            "document_parse_id": null,
+            "document_parse_output_hash": null,
+            "document_locator": null
           },
           "quote_or_value": "Stellar parameters are compiled from all-sky photometric catalogs and parallax measurements.",
           "status": "unverifiable",
@@ -599,22 +648,29 @@
       ],
       "source_conflicts": [],
       "producer": {
-        "execution_id": "execution.2b9e110e9cd0405121a4d742",
+        "execution_id": "execution.f8b82618b65b7cec3e6d6e7a",
         "run_id": null,
         "step_key": "summarizing_papers",
         "producer_type": "model",
         "producer_name": "xingwen.paper_summary",
         "producer_version": "1.0.0",
         "model_name": "fixture-model",
+        "model_revision": null,
+        "provider": null,
+        "provider_request_id": null,
+        "usage": null,
         "prompt_name": "paper_summary",
-        "prompt_version": "3.0.0",
-        "prompt_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
+        "prompt_version": "4.0.0",
+        "prompt_hash": "sha256:f5dcc7ba26f1eb1525720bbd332bc73d9bd1ab59d4ad066ff7f37df43d498872",
         "parameters_version": "1.0.0",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
         "input_versions": {
-          "paper_collection_version_id": "artv_papcol_01",
-          "paper_collection_schema_version": "2.0.0",
-          "paper_collection_output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89",
+          "collection": {
+            "artifact_version_id": "artv_papcol_01",
+            "schema_version": "2.0.0",
+            "output_hash": "sha256:a6f552b9594b916af6d791132e2ffb5850112f582a930c7a8081efab78667e89"
+          },
+          "document_parses": [],
           "source_snapshots": [
             {
               "source_snapshot_id": "snapshot.crossref.68fe9f1b242e5c96da0ba707",
@@ -624,20 +680,20 @@
             }
           ]
         },
-        "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
+        "input_hash": "sha256:f8b82618b65b7cec3e6d6e7afe6ba3507b0d2ffea8dbf871a8fdf50e4e59c5e3",
         "model_response_hash": "sha256:361efa12caa5cff7c11418eec7724ed8530a9d0c5151da7002009afef39f04b7",
-        "output_hash": "sha256:1ba7c9f0b95051294f2676a7bb94e6dc44a13061a89d738f29fb2bf3551844c3",
+        "output_hash": "sha256:bb68e6acbc4a605dbd85592ecb586eb633d745d3bb969b9b6b9d27b19ba4a86d",
         "status": "completed",
         "started_at": "2026-07-21T08:25:00Z",
         "finished_at": "2026-07-21T08:25:00Z",
         "latency_ms": 0,
         "error_code": null
       },
-      "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
-      "output_hash": "sha256:1ba7c9f0b95051294f2676a7bb94e6dc44a13061a89d738f29fb2bf3551844c3"
+      "input_hash": "sha256:f8b82618b65b7cec3e6d6e7afe6ba3507b0d2ffea8dbf871a8fdf50e4e59c5e3",
+      "output_hash": "sha256:bb68e6acbc4a605dbd85592ecb586eb633d745d3bb969b9b6b9d27b19ba4a86d"
     },
-    "content_hash": "sha256:440dd5c7bf83eb0e52d8e635a7069c424cedb9e5ed6597a40ce056ece439c659",
-    "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
+    "content_hash": "sha256:b2070301f2e75524c7f11484a822ba4422dce00c66bcff45517e148e0ad9222a",
+    "input_hash": "sha256:f8b82618b65b7cec3e6d6e7afe6ba3507b0d2ffea8dbf871a8fdf50e4e59c5e3",
     "source_mode": "fixture",
     "producer": {
       "type": "model",
@@ -646,8 +702,8 @@
       "model_provider": null,
       "model_name": "fixture-model",
       "prompt_name": "paper_summary",
-      "prompt_version": "3.0.0",
-      "prompt_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
+      "prompt_version": "4.0.0",
+      "prompt_hash": "sha256:f5dcc7ba26f1eb1525720bbd332bc73d9bd1ab59d4ad066ff7f37df43d498872",
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
     },
     "source_snapshot_ids": ["snap_papsum_crossref_01"],
@@ -671,8 +727,8 @@
         "model_provider": null,
         "model_name": "fixture-model",
         "prompt_name": "paper_summary",
-        "prompt_version": "3.0.0",
-        "prompt_hash": "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e",
+        "prompt_version": "4.0.0",
+        "prompt_hash": "sha256:f5dcc7ba26f1eb1525720bbd332bc73d9bd1ab59d4ad066ff7f37df43d498872",
         "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2"
       },
       "parameters": {
@@ -680,8 +736,8 @@
         "top_p": 1
       },
       "parameters_hash": "sha256:7ef57bd04ae4dd24824d6c00b8a4b41db61491896fced22cd948aad36a46e5b2",
-      "input_hash": "sha256:2b9e110e9cd0405121a4d7426964f513e20096ad44f1cb10bbc1962d4b18d0b1",
-      "output_hash": "sha256:440dd5c7bf83eb0e52d8e635a7069c424cedb9e5ed6597a40ce056ece439c659",
+      "input_hash": "sha256:f8b82618b65b7cec3e6d6e7afe6ba3507b0d2ffea8dbf871a8fdf50e4e59c5e3",
+      "output_hash": "sha256:b2070301f2e75524c7f11484a822ba4422dce00c66bcff45517e148e0ad9222a",
       "status": "completed",
       "started_at": "2026-07-21T08:25:00Z",
       "finished_at": "2026-07-21T08:25:00Z",

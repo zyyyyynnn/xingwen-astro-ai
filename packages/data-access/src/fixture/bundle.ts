@@ -10,18 +10,34 @@
 import type {
   ArtifactVersionDetail as ArtifactVersionDetailDto,
   ArtifactVersionDto,
+  DatasetArtifactRead,
+  FieldDictionaryArtifactRead,
+  GraphArtifactRead,
+  GraphEdgeRead,
+  GraphNodeRead,
+  LiteratureClaimRead,
+  LiteratureReasoningTraceRead,
+  LiteratureRelationRead,
   PaperCollectionCandidateRead as PaperCollectionCandidateReadDto,
   PaperCollectionRead as PaperCollectionReadDto,
   PaperSummaryRead as PaperSummaryReadDto,
   ScientificArtifactRead as ScientificArtifactReadDto,
+  SourceCollectionArtifactRead,
   ResearchArtifactDto,
   ResearchContractDto,
   ResearchContractDraftDto,
   ResearchProjectDto,
   ResearchRunDto,
   RunEventDto,
+  ResearchInputRef as ResearchInputRefDto,
+  RunCheckpointRead as RunCheckpointReadDto,
 } from "@xingwen/contracts";
 import type { Evidence } from "@xingwen/domain";
+
+type DataArtifactRead =
+  | DatasetArtifactRead
+  | FieldDictionaryArtifactRead
+  | SourceCollectionArtifactRead;
 
 /**
  * One PaperCollection API paper acquisition read model pinned to an ArtifactVersion id,
@@ -59,6 +75,10 @@ export interface FixtureBundleData {
   readonly contracts: readonly ResearchContractDto[];
   readonly runs: readonly ResearchRunDto[];
   readonly runEvents: readonly RunEventDto[];
+  /** Optional current checkpoint reads for interactive fixture scenarios. */
+  readonly runCheckpoints?: readonly RunCheckpointReadDto[];
+  /** Optional accepted input references for interactive fixture scenarios. */
+  readonly researchInputs?: readonly ResearchInputRefDto[];
   readonly artifacts: readonly ResearchArtifactDto[];
   readonly artifactVersions: readonly ArtifactVersionDto[];
   /** Rich paper acquisition reads keyed by their artifact_version_id. */
@@ -67,6 +87,18 @@ export interface FixtureBundleData {
   readonly paperSummaries: readonly FixturePaperSummary[];
   /** Scientific analysis, visualization, and model reads for Demo Replay. */
   readonly scientificArtifacts: readonly FixtureScientificArtifact[];
+  /** Formal typed data Artifact reads shared by fixture and HTTP mappers. */
+  readonly dataArtifactReads: readonly DataArtifactRead[];
+  readonly fieldDictionaryArtifactReads: readonly FieldDictionaryArtifactRead[];
+  readonly sourceCollectionArtifactReads: readonly SourceCollectionArtifactRead[];
+  /** Formal typed Literature reads shared by fixture and HTTP mappers. */
+  readonly literatureClaimReads: readonly LiteratureClaimRead[];
+  readonly literatureRelationReads: readonly LiteratureRelationRead[];
+  readonly literatureReasoningTraceReads: readonly LiteratureReasoningTraceRead[];
+  /** Formal typed Graph reads shared by fixture and HTTP mappers. */
+  readonly graphArtifactReads: readonly GraphArtifactRead[];
+  readonly graphNodeReads: readonly GraphNodeRead[];
+  readonly graphEdgeReads: readonly GraphEdgeRead[];
   /**
    * Evidence is a frontend domain entity without a standalone transport
    * schema, so fixture evidence is provided directly in domain (camelCase)

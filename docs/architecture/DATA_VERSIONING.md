@@ -29,16 +29,25 @@
 - `(artifact_id, version_number)` 与 `(artifact_id, publication_key)` 唯一。
 - 内容、`content_hash`、`input_hash`、ProducerExecution 与 Evidence 绑定发布后不可修改。
 - `latest_version_id` 只是可变读取指针；Evidence、分享与导出必须引用具体 version ID。
+- PaperSummary JSON/Markdown 导出必须在读取边界重新闭合对应版本的
+  ownership、kind、content hash 与 provenance；导出内容和文件名仅由该已验证的
+  immutable ArtifactVersion 决定，不跟随 latest 指针。
 - `source_mode` 的 `fixture | live | cached` 是 provenance 事实。只有目标 CacheSelector 选择到绑定真实 origin Run/ArtifactVersion 的 CacheRecord 时才能标记 `cached`；当前运行时不会伪造 cached 结果。
 - `supersedes_version_id` 仅在真实发布关系存在时记录，并必须保持同一 Artifact 内的无环 lineage。
 
 ## 3. ProducerExecution 与 SourceSnapshot
 
-ProducerExecution 记录 `producer_type`、name/version、可用的 model/prompt identity、parameters/input/output hash、token usage、latency 与执行状态。不得保存密钥、认证头、受限全文或私有 chain-of-thought。
+ProducerExecution 记录 `producer_type`、name/version、可用的 model/prompt identity、parameters/input/output hash、token usage、latency 与执行状态。bounded Function Calling 在同一记录中另固定 provider/tool call identity、授权 tool/skill、registry revision、成功时已校验的 arguments hash、拒绝时仅保存的 rejected arguments hash、error hash 与唯一允许重放的公开 analysis 投影。拒绝记录仅在 provider 返回唯一、非空且有界的 call identity 时保存 tool call ID 与 rejected arguments hash，绝不保存原始 arguments。记录必须绑定 StepAttempt、lease generation 与 idempotency key；完成、失败或拒绝后不可改写为另一结果。不得保存密钥、认证头、完整 Contract、受限全文、原始 provider body 或私有 chain-of-thought。
 
 SourceSnapshot 记录来源身份、查询与内容哈希、抓取时间、许可说明和脱敏 request metadata。同一查询的不同抓取分别形成独立 Snapshot；不得用本地时间或随机值伪造上游版本。
 
 - Upload ResearchInput 可在首次正式解析时按需物化一个固定该 ResearchInput/content hash 的 SourceSnapshot；Snapshot 不复制二进制或全文。
+- `image_dataset` 训练固定其 ResearchInput-backed SourceSnapshot；每个 ModelEvaluation 与 ModelArtifact 还必须保存 labels manifest schema、服务器预处理契约、image shape 与 canonical label schema。读取与重放不得重新解释动态目录或未固定预处理参数。
+- Upload ResearchInput 派生的 PaperSummary 必须复用 PaperCollection canonicalization
+  的唯一 Paper identity authority。在没有可信 DOI、arXiv ID 或完整书目特征时，
+  identity basis 为 `source_record`，固定 `research_input:{input_id}` 与完整 ResearchInput
+  UUID；禁止从 content hash 截断值、文件名或临时路径生成第二 Paper identity。
+  该身份只表示一篇 canonical Paper，不自动宣称已观测到 PaperCollection 成员关系。
 
 ## 4. DocumentParse 版本化
 

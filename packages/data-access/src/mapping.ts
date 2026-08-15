@@ -27,6 +27,9 @@ import type {
   ResearchProject,
   ResearchPlanningCatalog,
   ResearchRun,
+  RunCheckpoint,
+  RunDecisionResult,
+  ResearchInputRef,
   ScientificSkillId,
   ResearchThreadEntry,
   ResearchThreadAssistantPayload,
@@ -54,6 +57,7 @@ import {
 import type {
   ArtifactVersion as ArtifactVersionDto,
   ArtifactVersionDetail as ArtifactVersionDetailDto,
+  ArtifactKind as ArtifactKindDto,
   DataRequirements as DataRequirementsDto,
   EvidenceDetail as EvidenceDetailDto,
   EvidenceRead as EvidenceReadDto,
@@ -67,6 +71,9 @@ import type {
   ResearchProject as ResearchProjectDto,
   ResearchPlanningCatalog as ResearchPlanningCatalogDto,
   ResearchRun as ResearchRunDto,
+  RunCheckpointRead as RunCheckpointReadDto,
+  RunDecisionResult as RunDecisionResultDto,
+  ResearchInputRef as ResearchInputRefDto,
   ResearchThreadEntry as ResearchThreadEntryDto,
   ResearchTurnResult as ResearchTurnResultDto,
   RunStepRead as RunStepReadDto,
@@ -346,6 +353,10 @@ export function mapRunStep(dto: RunStepReadDto): RunStepSnapshot {
     position: dto.position,
     key: mapId(dto.key),
     label: dto.label,
+    phase: dto.phase as RunStepSnapshot["phase"],
+    taskId: dto.task_id == null ? null : mapId(dto.task_id),
+    skillId: dto.skill_id ?? null,
+    dependsOnStepKeys: mapIds(dto.depends_on_step_keys),
     status: dto.status as RunStepSnapshot["status"],
     progress: dto.progress,
     publicMessage: dto.public_message,
@@ -393,6 +404,7 @@ export function mapResearchRun(dto: ResearchRunDto): ResearchRun {
     contractId: mapId(dto.contract_id),
     executionMode: dto.execution_mode as ExecutionMode,
     status: dto.status as RunStatus,
+    revision: dto.revision,
     progress: dto.progress,
     parentRunId: (dto.parent_run_id ?? null) as DomainEntityId | null,
     derivationKind: dto.derivation_kind,
@@ -405,6 +417,55 @@ export function mapResearchRun(dto: ResearchRunDto): ResearchRun {
     latestEventSequence: dto.latest_event_sequence ?? 0,
     failureCode: dto.failure_code ?? null,
     failureSummary: dto.failure_summary ?? null,
+  };
+}
+
+export function mapRunCheckpoint(dto: RunCheckpointReadDto): RunCheckpoint {
+  return {
+    code: dto.code,
+    id: mapId(dto.id),
+    openedAt: dto.opened_at as UtcIsoTimestamp,
+    publicMessage: dto.public_message,
+    requiredInputTypes: [...dto.required_input_types],
+    resolutionRunId: (dto.resolution_run_id ?? null) as DomainEntityId | null,
+    resolvedAt: (dto.resolved_at ?? null) as UtcIsoTimestamp | null,
+    runId: mapId(dto.run_id),
+    status: dto.status,
+    stepKey: dto.step_key,
+  };
+}
+
+export function mapRunDecisionResult(
+  dto: RunDecisionResultDto,
+): RunDecisionResult {
+  return {
+    decision: {
+      childRunId: (dto.decision.child_run_id ?? null) as DomainEntityId | null,
+      createdAt: dto.decision.created_at as UtcIsoTimestamp,
+      decision: dto.decision.decision,
+      id: mapId(dto.decision.id),
+      inputIds: mapIds(dto.decision.input_ids),
+      parentRunId: mapId(dto.decision.parent_run_id),
+      stepKey: dto.decision.step_key,
+    },
+    run: mapResearchRun(dto.run),
+  };
+}
+
+export function mapResearchInputRef(
+  dto: ResearchInputRefDto,
+): ResearchInputRef {
+  return {
+    contentHash: dto.content_hash,
+    createdAt: dto.created_at as UtcIsoTimestamp,
+    filename: dto.filename ?? null,
+    id: mapId(dto.id),
+    mimeType: dto.mime_type ?? null,
+    sizeBytes: dto.size_bytes,
+    sourceSnapshotId: (dto.source_snapshot_id ?? null) as DomainEntityId | null,
+    sourceType: dto.source_type,
+    status: dto.status ?? null,
+    type: dto.type,
   };
 }
 
@@ -850,8 +911,8 @@ export function mapDomainContractInputToDto(
       input_refs: [...task.inputRefs],
     })),
     output_requirements: [...input.outputRequirements] as unknown as [
-      ArtifactKind,
-      ...ArtifactKind[],
+      ArtifactKindDto,
+      ...ArtifactKindDto[],
     ],
     evidence_requirements: {
       require_locator: input.evidenceRequirements.requireLocator,

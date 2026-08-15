@@ -7,7 +7,10 @@
         "source_collection",
         "analysis_report",
         "visualization",
+        "spectrum",
+        "light_curve",
         "model_evaluation",
+        "model_artifact",
         "paper_collection",
         "paper_summary",
         "literature_claims",
@@ -84,7 +87,9 @@
           "type": "integer"
         },
         "source_ids": {
-          "default": [],
+          "default": [
+            "crossref"
+          ],
           "items": {
             "maxLength": 128,
             "minLength": 1,
@@ -228,15 +233,25 @@
         "data_profile",
         "statistical_analysis",
         "correlation_analysis",
+        "clustering_analysis",
+        "anomaly_detection",
         "chart_visualization",
         "simbad_lookup",
         "skyview_fits",
         "ephemeris",
         "celestial_events",
+        "gaia_cone_search",
+        "vizier_tap",
         "fits_image_analysis",
+        "spectrum_analysis",
+        "spectrum_acquisition",
+        "light_curve_analysis",
+        "light_curve_acquisition",
         "tabular_machine_learning",
+        "time_series_classification",
         "time_series_forecast",
         "image_classification",
+        "model_inference",
         "wwt_scene"
       ],
       "title": "ScientificSkillId",

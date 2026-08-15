@@ -13,13 +13,17 @@ from app.db.models import (
     ArtifactVersionModel,
     ResearchArtifactModel,
     ResearchRunModel,
+    RunStepModel,
 )
 from app.schemas.core import ResearchContractInput
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
     ChartVisualizationSpec,
+    LightCurveArtifactContent,
+    ModelArtifactContent,
     ModelDiagnosticVisualizationSpec,
     ModelEvaluationArtifactContent,
+    SpectrumArtifactContent,
     VisualizationArtifactContent,
 )
 from app.workflow.publisher import (
@@ -39,7 +43,10 @@ from services.scientific_skills.execution import ScientificStepOutput
 ScientificCandidate = (
     AnalysisReportArtifactContent
     | VisualizationArtifactContent
+    | SpectrumArtifactContent
+    | LightCurveArtifactContent
     | ModelEvaluationArtifactContent
+    | ModelArtifactContent
 )
 
 
@@ -69,6 +76,24 @@ class ScientificStepPublisher:
         source_mode: str,
         public_message: str,
     ) -> PublicationResult:
+        self._require_task_binding(
+            attempt=attempt,
+            step_key=step_key,
+            task_id=output.task_id,
+            skill_id=output.skill_id.value,
+        )
+        task = next(
+            (
+                item
+                for item in contract.scientific_tasks
+                if item.task_id == output.task_id
+            ),
+            None,
+        )
+        if task is None or task.skill_id != output.skill_id:
+            raise PublicationAdmissionError(
+                "Scientific task output is not bound to the frozen contract"
+            )
         if not output.artifact_candidates:
             raise PublicationAdmissionError(
                 "A scientific Workflow step must publish its complete output set"
@@ -138,6 +163,27 @@ class ScientificStepPublisher:
             public_message=public_message,
         )
 
+    def _require_task_binding(
+        self,
+        *,
+        attempt: AttemptHandle,
+        step_key: str,
+        task_id: str,
+        skill_id: str,
+    ) -> None:
+        with self._session_factory() as session:
+            step = session.get(RunStepModel, attempt.run_step_id)
+            if (
+                step is None
+                or step.run_id != attempt.run_id
+                or step.key != step_key
+                or step.task_id != task_id
+                or step.skill_id != skill_id
+            ):
+                raise PublicationAdmissionError(
+                    "Scientific task output is not bound to the active RunStep"
+                )
+
     def _project_id(self, run_id: UUID) -> UUID:
         with self._session_factory() as session:
             project_id = session.scalar(
@@ -205,6 +251,12 @@ def _candidate_id(candidate: ScientificCandidate) -> str:
         return candidate.report_id
     if isinstance(candidate, VisualizationArtifactContent):
         return candidate.visualization_id
+    if isinstance(candidate, SpectrumArtifactContent):
+        return candidate.spectrum_id
+    if isinstance(candidate, LightCurveArtifactContent):
+        return candidate.light_curve_id
+    if isinstance(candidate, ModelArtifactContent):
+        return candidate.model_id
     return candidate.evaluation_id
 
 
@@ -252,16 +304,17 @@ def _domain_validator(
             raise ValueError(
                 "scientific ArtifactVersion references must resolve in the Run Project"
             )
-        if isinstance(candidate, ModelEvaluationArtifactContent):
+        if (
+            isinstance(candidate, ModelEvaluationArtifactContent | ModelArtifactContent)
+            and candidate.training_input.kind == "dataset_artifact_version"
+        ):
             row = next(
                 item
                 for item in rows
-                if str(item.id) == candidate.dataset_artifact_version_id
+                if str(item.id) == candidate.training_input.ref_id
             )
             if row.content.get("kind") != "dataset":
-                raise ValueError(
-                    "model evaluation input must be a Dataset ArtifactVersion"
-                )
+                raise ValueError("model input must be a Dataset ArtifactVersion")
 
     return validate
 
@@ -282,7 +335,9 @@ def _quality_validator(
             )
         executions = (
             candidate.skill_executions
-            if not isinstance(candidate, ModelEvaluationArtifactContent)
+            if not isinstance(
+                candidate, ModelEvaluationArtifactContent | ModelArtifactContent
+            )
             else (candidate.skill_execution,)
         )
         if any(item.status not in {"completed", "partial"} for item in executions):
@@ -295,12 +350,17 @@ def _referenced_artifact_versions(candidate: ScientificCandidate) -> Iterable[st
     if isinstance(candidate, AnalysisReportArtifactContent):
         yield from candidate.related_artifact_version_ids
     elif isinstance(candidate, ModelEvaluationArtifactContent):
-        yield candidate.dataset_artifact_version_id
+        if candidate.training_input.kind == "dataset_artifact_version":
+            yield candidate.training_input.ref_id
         yield from candidate.diagnostic_visualization_ids
-    elif isinstance(candidate.spec, ChartVisualizationSpec):
-        yield candidate.spec.dataset_artifact_version_id
-    elif isinstance(candidate.spec, ModelDiagnosticVisualizationSpec):
-        yield candidate.spec.model_evaluation_artifact_version_id
+    elif isinstance(candidate, ModelArtifactContent):
+        if candidate.training_input.kind == "dataset_artifact_version":
+            yield candidate.training_input.ref_id
+    elif isinstance(candidate, VisualizationArtifactContent):
+        if isinstance(candidate.spec, ChartVisualizationSpec):
+            yield candidate.spec.dataset_artifact_version_id
+        elif isinstance(candidate.spec, ModelDiagnosticVisualizationSpec):
+            yield candidate.spec.model_evaluation_artifact_version_id
 
 
 def _evidence_coverage(candidate: ScientificCandidate) -> tuple[int, int]:
@@ -310,6 +370,8 @@ def _evidence_coverage(candidate: ScientificCandidate) -> tuple[int, int]:
     if isinstance(candidate, ModelEvaluationArtifactContent):
         items = (*candidate.metrics, *candidate.baseline_metrics)
         return sum(bool(item.evidence_ids) for item in items), len(items)
+    if isinstance(candidate, ModelArtifactContent):
+        return (1 if candidate.evidence_ids else 0), 1
     if candidate.source_snapshot_ids:
         return (1 if candidate.evidence_ids else 0), 1
     return 0, 0

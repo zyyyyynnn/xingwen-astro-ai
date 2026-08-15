@@ -41,6 +41,8 @@ from app.schemas.scientific_skills import (
     VisualizationArtifactContent,
     WwtAnnotation,
     WwtCoordinate,
+    WwtCoordinateGrid,
+    WwtCoordinateView,
     WwtSceneVisualizationSpec,
     scientific_artifact_output_hash,
 )
@@ -211,7 +213,10 @@ def _model() -> ModelEvaluationArtifactContent:
             "task_kind": "classification",
             "algorithm": "random_forest",
             "algorithm_version": "scikit-learn:1.9",
-            "dataset_artifact_version_id": "artv_dataset_01",
+            "training_input": {
+                "kind": "dataset_artifact_version",
+                "ref_id": "artv_dataset_01",
+            },
             "feature_fields": [
                 "star.effective_temperature",
                 "star.radius",
@@ -269,10 +274,12 @@ def _wwt() -> VisualizationArtifactContent:
             "title": "TOI 候选目标天区",
             "description": "WWT 数字巡天背景上的目标位置与比较路径。",
             "spec": WwtSceneVisualizationSpec(
-                center=WwtCoordinate(ra_hours=10.25, dec_degrees=-12.4),
-                field_of_view_degrees=4,
+                view=WwtCoordinateView(
+                    center=WwtCoordinate(ra_hours=10.25, dec_degrees=-12.4),
+                    field_of_view_degrees=4,
+                ),
                 background="digitized_sky_survey",
-                coordinate_grid="equatorial",
+                coordinate_grids=(WwtCoordinateGrid(system="equatorial"),),
                 fits_layers=(),
                 annotations=(
                     WwtAnnotation(
@@ -294,6 +301,9 @@ def _wwt() -> VisualizationArtifactContent:
                         label="比较星路径",
                         color_token="information",
                     ),
+                ),
+                text_alternative=(
+                    "以 TOI-1234.01 为中心的四度数字巡天天区，包含目标圆圈和比较星路径。"
                 ),
             ),
             "skill_executions": [_execution("wwt_scene", "wwt")],

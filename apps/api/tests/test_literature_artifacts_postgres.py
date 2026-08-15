@@ -18,8 +18,6 @@ from app.db.models import (
     EvidenceModel,
     ProducerExecutionModel,
     ResearchArtifactModel,
-    ResearchContractModel,
-    ResearchProjectModel,
     ResearchRunModel,
     RunStepModel,
     SourceSnapshotModel,

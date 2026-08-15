@@ -37,6 +37,12 @@ class ScientificSkillRegistry:
     def skill_ids(self) -> tuple[ScientificSkillId, ...]:
         return tuple(sorted(self._definitions, key=str))
 
+    def revision_for(self, skill_id: ScientificSkillId) -> str:
+        definition = self._definitions.get(skill_id)
+        if definition is None:
+            raise ValueError(f"unregistered scientific skill: {skill_id}")
+        return definition.revision
+
     def execute(self, request: ScientificSkillRequest) -> ScientificSkillResult:
         definition = self._definitions.get(request.skill_id)
         if definition is None:
@@ -82,26 +88,46 @@ def build_scientific_skill_registry() -> ScientificSkillRegistry:
         build_visualization,
         run_catalog_crossmatch,
     )
+    from .astro_series import analyze_light_curve, analyze_spectrum
+    from .astro_acquisition import (
+        acquire_and_analyze_mast_light_curve,
+        acquire_and_analyze_sdss_spectrum,
+        query_gaia_dr3,
+        query_vizier_tap,
+    )
     from .modeling import (
         classify_images,
+        classify_time_series,
         evaluate_tabular_model,
         forecast_time_series,
     )
+    from .inference import run_model_inference
+    from .unsupervised import detect_anomalies, run_clustering
 
     handlers: dict[ScientificSkillId, ScientificSkillHandler] = {
         ScientificSkillId.catalog_crossmatch: run_catalog_crossmatch,
         ScientificSkillId.data_profile: build_data_profile,
         ScientificSkillId.statistical_analysis: analyze_statistics,
         ScientificSkillId.correlation_analysis: analyze_correlations,
+        ScientificSkillId.clustering_analysis: run_clustering,
+        ScientificSkillId.anomaly_detection: detect_anomalies,
         ScientificSkillId.chart_visualization: build_visualization,
         ScientificSkillId.simbad_lookup: query_simbad,
         ScientificSkillId.skyview_fits: retrieve_skyview_fits,
         ScientificSkillId.ephemeris: calculate_ephemeris,
         ScientificSkillId.celestial_events: find_celestial_events,
+        ScientificSkillId.gaia_cone_search: query_gaia_dr3,
+        ScientificSkillId.vizier_tap: query_vizier_tap,
         ScientificSkillId.fits_image_analysis: analyze_fits_image,
+        ScientificSkillId.spectrum_analysis: analyze_spectrum,
+        ScientificSkillId.spectrum_acquisition: acquire_and_analyze_sdss_spectrum,
+        ScientificSkillId.light_curve_analysis: analyze_light_curve,
+        ScientificSkillId.light_curve_acquisition: acquire_and_analyze_mast_light_curve,
         ScientificSkillId.tabular_machine_learning: evaluate_tabular_model,
+        ScientificSkillId.time_series_classification: classify_time_series,
         ScientificSkillId.time_series_forecast: forecast_time_series,
         ScientificSkillId.image_classification: classify_images,
+        ScientificSkillId.model_inference: run_model_inference,
         ScientificSkillId.wwt_scene: build_wwt_scene,
     }
     return ScientificSkillRegistry(

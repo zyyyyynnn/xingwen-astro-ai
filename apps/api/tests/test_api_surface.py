@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from app import api_surface
 from app.main import create_app
+import app.routers.health as health_module
 
 
 ROOT = Path(__file__).parents[3]
@@ -44,6 +46,7 @@ PROTECTED_REQUESTS = [
     ("PATCH", "/api/contracts/drafts/draft-1"),
     ("GET", "/api/contracts/contract-1"),
     ("GET", "/api/runs/run-1"),
+    ("DELETE", "/api/runs/run-1"),
     ("GET", "/api/runs/run-1/events"),
     ("GET", "/api/artifacts/art-1"),
     ("GET", "/api/artifact-versions/ver-1"),
@@ -123,3 +126,28 @@ def test_runtime_api_routes_match_generated_current_contract() -> None:
     }
 
     assert runtime_operations == contract_operations | SYSTEM_ONLY_OPERATIONS
+
+
+def test_health_reports_model_configuration_without_claiming_provider_readiness(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        health_module,
+        "settings",
+        SimpleNamespace(
+            APP_ENV="test",
+            research_assistant_ready=True,
+            DASHSCOPE_MODEL="qwen-test",
+            DASHSCOPE_MODEL_REVISION="qwen-test-revision",
+        ),
+    )
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace()))
+
+    response = health_module.health(request)  # type: ignore[arg-type]
+
+    assert response["research_assistant"] == {
+        "status": "configured",
+        "provider": "qwen",
+        "model": "qwen-test",
+        "model_revision": "qwen-test-revision",
+    }

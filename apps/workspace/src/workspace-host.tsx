@@ -1,10 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import {
-  CASE_KEY,
-  parseEntityId,
-  type ContentHash,
-  type DomainEntityId,
-} from "@xingwen/domain";
+import { CASE_KEY, parseEntityId, type DomainEntityId } from "@xingwen/domain";
 import type { ProjectViewModel } from "@xingwen/research-adapter";
 import {
   Alert,
@@ -14,20 +9,22 @@ import {
   Toaster,
   toast,
 } from "@xingwen/ui";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   OpenHandsWorkspaceRoot,
   type ResearchWorkspaceRuntime,
 } from "../upstream/openhands/src/root";
 import type { WorkspaceRuntimeBoundaries } from "./boundaries";
+import { useArtifactPresentation } from "./components/artifact-presentation";
 import { ProjectCreateDialog } from "./components/project-create-dialog";
 import { ProjectActionDialogs } from "./components/project-action-dialogs";
-import { ScientificArtifactPanel } from "./components/scientific-artifact-panel";
 import { ResearchContractReviewDialog } from "./components/research-contract-review-dialog";
 import { ResearchInspector } from "./components/research-inspector";
+import { ResearchInputPanel } from "./components/research-input-panel";
 import { ResearchThread } from "./components/research-thread";
 import { ResearchProcessProjection } from "./components/research-process-projection";
+import { RunDecisionPanel } from "./components/run-decision-panel";
 import {
   deriveResearchPresentation,
   type ResearchPresentation,
@@ -310,8 +307,6 @@ export function WorkspaceHost({
   onProjectDeleted,
 }: WorkspaceHostProps) {
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [explicitArtifactVersionId, setExplicitArtifactVersionId] =
-    useState<DomainEntityId | null>(null);
   const [planFocusRequest, setPlanFocusRequest] = useState(0);
   const [message, setMessage] = useState("");
   const [answerToQuestionId, setAnswerToQuestionId] = useState<string | null>(
@@ -361,60 +356,25 @@ export function WorkspaceHost({
     ...runtime.application.queries.runSteps(projectId, runId as DomainEntityId),
     enabled: runId !== null,
   });
-  const artifacts = useQuery({
-    ...runtime.application.queries.runArtifacts(
+  const checkpoint = useQuery({
+    ...runtime.application.queries.runCheckpoint(
       projectId,
       runId as DomainEntityId,
     ),
-    enabled: runId !== null,
-  });
-  const availableArtifactVersionIds = [...(artifacts.data ?? [])]
-    .filter((artifact) =>
-      ["analysis_report", "visualization", "model_evaluation"].includes(
-        artifact.kind,
-      ),
-    )
-    .filter(
-      (
-        artifact,
-      ): artifact is typeof artifact & {
-        readonly latestVersionId: DomainEntityId;
-      } => artifact.latestVersionId !== null,
-    )
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-    .map((artifact) => artifact.latestVersionId);
-  const selectedArtifactVersionId =
-    explicitArtifactVersionId !== null &&
-    availableArtifactVersionIds.includes(explicitArtifactVersionId)
-      ? explicitArtifactVersionId
-      : (availableArtifactVersionIds[0] ?? null);
-  const selectedArtifact = artifacts.data?.find(
-    (artifact) => artifact.latestVersionId === selectedArtifactVersionId,
-  );
-  const scientificArtifact = useQuery({
-    ...runtime.application.queries.scientificArtifact(
-      projectId,
-      selectedArtifactVersionId as DomainEntityId,
-    ),
     enabled:
-      selectedArtifactVersionId !== null &&
-      selectedArtifact !== undefined &&
-      ["analysis_report", "visualization", "model_evaluation"].includes(
-        selectedArtifact.kind,
-      ),
+      runId !== null &&
+      (run.data?.status === "waiting_for_input" ||
+        run.data?.status === "failed"),
   });
-  const loadScientificContent = useCallback(
-    (contentHash: ContentHash) => {
-      if (selectedArtifactVersionId === null) {
-        return Promise.reject(new Error("尚未选择科学制品版本。"));
-      }
-      return runtime.repositories.scientificArtifacts.getContent(
-        selectedArtifactVersionId,
-        contentHash,
-      );
-    },
-    [runtime.repositories.scientificArtifacts, selectedArtifactVersionId],
+  const researchInputs = useQuery(
+    runtime.application.queries.researchInputs(projectId),
   );
+  const artifactPresentation = useArtifactPresentation({
+    runtime,
+    projectId,
+    runId,
+    runCompleted: run.data?.status === "completed",
+  });
   const events = useQuery({
     ...runtime.application.queries.runEvents(
       projectId,
@@ -437,6 +397,13 @@ export function WorkspaceHost({
   );
   const updateDraft = useMutation(runtime.application.mutations.draftUpdate());
   const createRun = useMutation(runtime.application.mutations.runCreate());
+  const runDecision = useMutation(runtime.application.mutations.runDecision());
+  const createResearchInput = useMutation(
+    runtime.application.mutations.researchInputCreate(),
+  );
+  const bindResearchInput = useMutation(
+    runtime.application.mutations.researchInputBind(),
+  );
 
   if (project.isError) {
     return (
@@ -478,11 +445,61 @@ export function WorkspaceHost({
   const currentRun = run.data ?? null;
   const stepsData = steps.data ?? [];
   const threadEntries = thread.data ?? [];
+  const retryStepKey =
+    currentRun?.status === "failed"
+      ? (stepsData.find((step) => step.status === "failed")?.key ?? null)
+      : null;
+  const interactionError =
+    checkpoint.error ??
+    researchInputs.error ??
+    runDecision.error ??
+    createResearchInput.error ??
+    bindResearchInput.error;
+  const interactionPanel =
+    currentRun?.status === "waiting_for_input" ||
+    currentRun?.status === "failed" ? (
+      <RunDecisionPanel
+        run={currentRun}
+        checkpoint={checkpoint.data ?? null}
+        checkpointLoading={checkpoint.isPending}
+        inputs={researchInputs.data ?? []}
+        inputsLoading={researchInputs.isPending}
+        pending={runDecision.isPending || bindResearchInput.isPending}
+        inputPending={createResearchInput.isPending}
+        retryStepKey={retryStepKey === null ? null : String(retryStepKey)}
+        errorMessage={
+          interactionError ? safeError(runtime, interactionError) : null
+        }
+        onDecision={(input) => {
+          if (!currentRun) return Promise.resolve();
+          return runDecision.mutateAsync({
+            projectId,
+            runId: currentRun.id,
+            expectedRevision: currentRun.revision,
+            input,
+          });
+        }}
+        onUpload={(input) =>
+          createResearchInput.mutateAsync({ input }).then((created) => created)
+        }
+        onBind={(inputId) =>
+          currentRun
+            ? bindResearchInput.mutateAsync({
+                inputId,
+                projectId,
+                runId: currentRun.id,
+              })
+            : Promise.resolve()
+        }
+      />
+    ) : null;
   const threadUnavailable = thread.isError && thread.data === undefined;
   const threadReady = thread.data !== undefined;
   const hasPersistedConversation = threadEntries.length > 0;
   const hasStartedConversation =
-    hasPersistedConversation || pendingTurn !== null;
+    hasPersistedConversation ||
+    artifactPresentation.hasArtifacts ||
+    pendingTurn !== null;
   const researchPresentation = deriveResearchPresentation({
     project: project.data,
     entries: threadEntries,
@@ -528,35 +545,48 @@ export function WorkspaceHost({
       loadError={threadUnavailable ? safeError(runtime, thread.error) : null}
       submitting={submitTurn.isPending}
       pendingMessage={pendingTurn?.message ?? null}
-      processProjection={
-        hasPersistedConversation ||
+      projections={[
+        ...(hasPersistedConversation ||
         currentDraft !== null ||
         currentContract !== null ||
         currentRun !== null
-          ? {
-              occurredAt:
-                currentRun?.createdAt ??
-                currentContract?.createdAt ??
-                currentDraft?.createdAt ??
-                threadEntries.at(-1)?.createdAt ??
-                project.data.createdAt,
-              node: (
-                <ResearchProcessProjection
-                  visible
-                  run={currentRun}
-                  planItems={researchPresentation.planItems}
-                  events={events.data.events}
-                  eventError={
-                    events.data.error
-                      ? safeError(runtime, events.data.error)
-                      : null
-                  }
-                  focusPlanRequest={planFocusRequest}
-                />
-              ),
-            }
-          : null
-      }
+          ? [
+              {
+                id: "research-process",
+                occurredAt:
+                  currentRun?.createdAt ??
+                  currentContract?.createdAt ??
+                  currentDraft?.createdAt ??
+                  threadEntries.at(-1)?.createdAt ??
+                  project.data.createdAt,
+                node: (
+                  <ResearchProcessProjection
+                    visible
+                    run={currentRun}
+                    planItems={researchPresentation.planItems}
+                    events={events.data.events}
+                    eventError={
+                      events.data.error
+                        ? safeError(runtime, events.data.error)
+                        : null
+                    }
+                    focusPlanRequest={planFocusRequest}
+                  />
+                ),
+              },
+            ]
+          : []),
+        ...artifactPresentation.threadProjections,
+        ...(interactionPanel
+          ? [
+              {
+                id: `run-decision:${runId}:${currentRun?.revision ?? 0}`,
+                occurredAt: currentRun?.updatedAt ?? project.data.updatedAt,
+                node: interactionPanel,
+              },
+            ]
+          : []),
+      ]}
       onAnswer={(questionId, suggestedAnswer) => {
         setAnswerToQuestionId(questionId);
         if (suggestedAnswer) setMessage(suggestedAnswer);
@@ -577,41 +607,13 @@ export function WorkspaceHost({
       draft={currentDraft}
       contract={currentContract}
       presentation={researchPresentation}
-      artifactStatus={
-        artifacts.isPending
-          ? "载入中"
-          : `${
-              artifacts.data?.filter((artifact) =>
-                [
-                  "analysis_report",
-                  "visualization",
-                  "model_evaluation",
-                ].includes(artifact.kind),
-              ).length ?? 0
-            } 项`
+      artifactStatus={artifactPresentation.artifactStatus}
+      artifactPanel={artifactPresentation.artifactPanel}
+      runInteractionPanel={interactionPanel}
+      researchInputPanel={
+        <ResearchInputPanel runtime={runtime} projectId={projectId} />
       }
-      artifactPanel={
-        <ScientificArtifactPanel
-          artifacts={artifacts.data ?? []}
-          selectedVersionId={selectedArtifactVersionId}
-          loading={artifacts.isPending}
-          loadError={
-            artifacts.isError ? safeError(runtime, artifacts.error) : null
-          }
-          detailLoading={
-            scientificArtifact.isPending &&
-            scientificArtifact.fetchStatus !== "idle"
-          }
-          detailError={
-            scientificArtifact.isError
-              ? safeError(runtime, scientificArtifact.error)
-              : null
-          }
-          scientificArtifact={scientificArtifact.data ?? null}
-          onSelect={setExplicitArtifactVersionId}
-          loadContent={loadScientificContent}
-        />
-      }
+      researchInputStatus={`${researchInputs.data?.length ?? 0} 项`}
     />
   );
   const presentationRuntime: ResearchWorkspaceRuntime = {
@@ -676,12 +678,13 @@ export function WorkspaceHost({
       : null,
     activation: null,
     threadPanel,
-    inspectorPanel: hasPersistedConversation ? inspector : null,
+    inspectorPanel: inspector,
   };
 
   return (
     <>
       <WorkspaceShell runtime={presentationRuntime} />
+      {artifactPresentation.fullscreenDialog}
       <ResearchContractReviewDialog
         open={reviewOpen}
         onOpenChange={setReviewOpen}

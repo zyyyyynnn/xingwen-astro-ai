@@ -15,8 +15,12 @@
         "url",
         "pdf",
         "csv",
+        "xlsx",
+        "parquet",
         "json",
         "image",
+        "image_dataset",
+        "fits",
         "text"
       ],
       "title": "ResearchInputType",

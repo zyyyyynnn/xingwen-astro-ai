@@ -8,9 +8,11 @@ error mapping, ownership isolation and the metadata-only public DTOs.
 from __future__ import annotations
 
 import asyncio
+from io import BytesIO
 import json
 import secrets
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 from fastapi import FastAPI
@@ -21,13 +23,33 @@ from app.main import create_app
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.research_input import ResearchInputStatus
 from app.security import InMemoryRateLimiter
-from app.services import url_fetcher as url_fetcher_module
 from app.services.content_storage import sha256_content_hash
 from app.services.research_input_store import InMemoryResearchInputStore
 from app.services.url_fetcher import UrlFetchConfig, UrlFetchError, UrlFetchResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FIXTURES_BYTES = {name: (FIXTURES / name).read_bytes() for name in ("sample.pdf", "sample.csv", "sample.json", "sample.png", "sample.txt")}
+
+
+def _image_dataset_zip(*, include_unlisted: bool = False) -> bytes:
+    images = [
+        {
+            "path": f"images/sample-{index:02d}.png",
+            "label": "galaxy" if index < 5 else "star",
+        }
+        for index in range(10)
+    ]
+    output = BytesIO()
+    with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "labels.json",
+            json.dumps({"schema_version": "1.0.0", "images": images}).encode(),
+        )
+        for item in images:
+            archive.writestr(item["path"], FIXTURES_BYTES["sample.png"])
+        if include_unlisted:
+            archive.writestr("unlisted.png", FIXTURES_BYTES["sample.png"])
+    return output.getvalue()
 
 
 def test_research_input_status_preserves_lifecycle_without_fabricating_failures() -> None:
@@ -141,6 +163,31 @@ def test_text_input_returns_metadata_only_reference(
     assert detail["url"] is None
 
 
+def test_markdown_text_input_preserves_parser_media_type(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+
+    response = client.post(
+        "/api/research-inputs",
+        json={
+            "project_id": "proj_01",
+            "type": "text",
+            "text_content": "# Methods\n\nMeasured from the immutable input.\n",
+            "filename": "paper.md",
+            "mime_type": "text/markdown",
+        },
+        headers=_headers(csrf_token),
+    )
+
+    assert response.status_code == 201
+    body = response.json()["data"]
+    assert body["type"] == "text"
+    assert body["filename"] == "paper.md"
+    assert body["mime_type"] == "text/markdown"
+
+
 def test_missing_csrf_and_idempotency_are_rejected(
     app_and_client: tuple[FastAPI, TestClient, str, str],
 ) -> None:
@@ -202,6 +249,76 @@ def test_pdf_upload_is_accepted_and_sniffed(
     assert data["mime_type"] == "application/pdf"
     assert data["filename"] == "report.pdf"
     assert data["content_hash"] == sha256_content_hash(FIXTURES_BYTES["sample.pdf"])
+
+
+def test_fits_upload_is_accepted_only_as_fits(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    content = b"SIMPLE  =                    T" + b" " * 2850
+
+    response = client.post(
+        "/api/research-inputs",
+        data={
+            "project_id": "proj_01",
+            "type": "fits",
+            "filename": "science.fits",
+            "mime_type": "application/fits",
+        },
+        files={"file": ("science.fits", content, "application/fits")},
+        headers=_headers(csrf_token),
+    )
+
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["type"] == "fits"
+    assert data["mime_type"] == "application/fits"
+    assert data["filename"] == "science.fits"
+    assert data["content_hash"] == sha256_content_hash(content)
+
+
+def test_image_dataset_upload_requires_the_bounded_label_manifest(
+    app_and_client: tuple[FastAPI, TestClient, str, str],
+) -> None:
+    app, client, session_id, csrf_token = app_and_client
+    _seed_project(app, session_id)
+    content = _image_dataset_zip()
+
+    accepted = client.post(
+        "/api/research-inputs",
+        data={
+            "project_id": "proj_01",
+            "type": "image_dataset",
+            "filename": "training.zip",
+            "mime_type": "application/zip",
+        },
+        files={"file": ("training.zip", content, "application/zip")},
+        headers=_headers(csrf_token),
+    )
+    rejected = client.post(
+        "/api/research-inputs",
+        data={
+            "project_id": "proj_01",
+            "type": "image_dataset",
+            "filename": "unlisted.zip",
+            "mime_type": "application/zip",
+        },
+        files={
+            "file": (
+                "unlisted.zip",
+                _image_dataset_zip(include_unlisted=True),
+                "application/zip",
+            )
+        },
+        headers=_headers(csrf_token),
+    )
+
+    assert accepted.status_code == 201
+    assert accepted.json()["data"]["type"] == "image_dataset"
+    assert accepted.json()["data"]["mime_type"] == "application/zip"
+    assert rejected.status_code == 400
+    assert rejected.json()["code"] == "RESEARCH_INPUT_INVALID"
 
 
 def test_lying_client_mime_and_unknown_binary_are_rejected_415(

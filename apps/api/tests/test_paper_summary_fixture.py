@@ -68,7 +68,8 @@ def test_committed_read_passes_pydantic(committed_document: dict[str, Any]) -> N
     )
     assert read.source_mode.value == "fixture"
     assert read.summary.summary_id == summary.summary_id
-    assert summary.input_versions.paper_collection_version_id == "artv_papcol_01"
+    assert summary.input_versions.collection is not None
+    assert summary.input_versions.collection.artifact_version_id == "artv_papcol_01"
     assert summary.evidence_ids == tuple(
         sorted(item.evidence_id for item in summary.evidence)
     )

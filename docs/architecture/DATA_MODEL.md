@@ -20,6 +20,10 @@ ResearchContract (1) -- (*) ResearchRun
 ResearchRun (0..1) -- (*) derived ResearchRun
 ResearchRun (1) -- (*) RunStep -- (*) StepAttempt
 ResearchRun (1) -- (*) RunEvent
+ResearchRun (1) -- (0..1) RunCheckpoint -- (0..1) resolution ResearchRun
+ResearchRun (1) -- (*) RunDecision -- (0..1) derived ResearchRun
+ResearchProject (1) -- (0..1) WorkflowProjectDispatch
+WorkflowWorker (*) -- (*) leased ResearchRun
 ResearchProject (1) -- (*) ResearchArtifact -- (*) ArtifactVersion
 ResearchRun (1) -- (*) ArtifactVersion
 ArtifactVersion (1) -- (*) Evidence
@@ -50,7 +54,9 @@ ShareSnapshot (*) -- (*) ArtifactVersion
 - ResearchRun 绑定同一 Project 下的 Contract；派生 Run 通过同 Project 的 `parent_run_id` 与 `derivation_kind` 表达 retry、revision 或 fork。
 - RunStep 保存从 confirmed Contract 确定性投影并在 Run 创建时冻结的 canonical step、顺序、状态与进度；StepAttempt 保存真实尝试、错误与上游请求 identity。Executor 不维护第二份 Plan。
 - RunEvent 是单调序列的通知记录，Run 快照才是状态事实源。
-- HTTP Run authoring 只创建 original、cache-disabled Run；未暴露的派生字段不得被静默消费。
+- RunCheckpoint 固定服务端受审计错误分类产生的 Step、Attempt、公开输入请求与受控输入类型；RunDecision 固定用户 decision、parent/child、补充 ResearchInput ids、幂等 identity 与请求 hash。两者都不保存输入二进制内容。
+- HTTP 初始 Run authoring 只创建 original、cache-disabled Run；受控 Decision writer 只创建 retry 派生 Run，并保留 parent 的 Step、Attempt、Event 与 Artifact lineage。未暴露的 revision/fork/cache 派生字段不得被静默消费。
+- Live ResearchRun 的 `queue_expires_at` 是持久化 admission deadline；只有原子 timeout writer 能以 `RUN_QUEUE_TIMEOUT` 终结尚未领取的 queued Run。WorkflowWorker 保存 accepting/draining/stopped lifecycle、容量与心跳审计；WorkflowProjectDispatch 保存 Project 级上次成功派发时间和计数，用于跨进程公平选择。两者都是 PostgreSQL 调度事实，不承载科研内容，也不建立第二套 Run 状态机。
 
 目标修订与缓存契约：UserFeedback 固定目标 ArtifactVersion 与对象定位；RevisionPlan 固定受影响产物闭包，确认后才能创建 revision Run。CacheRecord 固定可复用的历史 Run、ArtifactVersion、SourceSnapshot 与匹配 identity；CacheSelector 只返回通过 Contract 与 Evidence 校验的记录。它们在对应执行闭环实现前不得被描述为当前数据库或运行时对象。
 
@@ -60,8 +66,13 @@ ShareSnapshot (*) -- (*) ArtifactVersion
 - Evidence 必须绑定具体 ArtifactVersion 与 SourceSnapshot，并提供 target、locator、值或短引文、extraction method 与 confidence。
 - SourceSnapshot 保存一次真实或录制来源读取的查询、内容哈希、抓取时间、许可与脱敏元数据。
 - ResearchInput 是受控摄取后的不可变内容引用；稳定生命周期区分 `accepted`、`unsupported_processing` 与 `failed_ingestion`。摄取写入只在成功时创建 `accepted` 资源，失败通过 Problem Details 返回，不伪造失败资源。
+- `image_dataset` ResearchInput 是 Project-owned、content-addressed 的图像分类训练输入，固定为 ZIP + 根级 `labels.json`；`image` 仍表示单张展示或未来推理输入，两者不得互换。训练解析按需物化一个 ResearchInput-backed SourceSnapshot，不伪造 Dataset 或 SourceCollection。
 - DocumentParse 是 Project-owned、ResearchInput-backed 的内部不可变预处理 derivative，不是公开 ResearchArtifact 或 ArtifactVersion kind。其逻辑身份固定输入内容、parser/profile/model/config revision 与 Canonical output hash；完整 Canonical payload 使用原子 content-addressed storage，PostgreSQL 只保存身份、ownership、SourceSnapshot、ProducerExecution 与安全内容引用。
+- 二进制内容只有一个 content-addressed storage。权威引用闭包由 `research_input_contents`、`document_parses.payload_*` 以及通过当前科研 Schema 验证的 ArtifactVersion binary declaration（FITS layer、ModelEvaluation/ModelArtifact ONNX）共同形成；相同 hash 可被不同 Project 和不同资源安全共享。SourceSnapshot 的来源响应 hash、ArtifactVersion 的 canonical JSON hash 与未声明 `content_ref` 的普通字段不等于本地 blob 引用，维护任务不得据此猜测。
 - Upload ResearchInput 在首次正式解析持久化时按需生成只含 ResearchInput identity、content hash 与安全 provenance 的 SourceSnapshot，不复制 PDF、图片或全文。
+- Upload ResearchInput 派生的 PaperSummary 与 PaperCollection 复用同一 canonical
+  Paper identity function；无可信书目身份时用 ResearchInput source-record identity 固定
+  Paper，不使用截断 content hash，也不因身份相同而猜测 PaperCollection 成员关系。
 - DocumentParseLocator 固定同 Project 的一个 DocumentParse 与 SourceSnapshot；page、block、bbox、text span、table 与 cell 必须在该 Parse 内闭合，dangling、cross-parse 与 cross-project 引用均拒绝。
 
 ## 5. Evidence Graph
@@ -89,3 +100,4 @@ WorkspaceSnapshot 保存私有布局与选中对象，使用乐观锁更新。Sh
 8. `ModelExecutionRecord` 的状态、错误、safe snapshots 与 timing 必须反映实际 provider 调用；失败前已获得的 output hash、token、latency 与 request identity 不得丢失；无 credentials 时不得生成 succeeded 记录。
 9. Provider 成功不等于 Turn 成功；最终 Draft/Thread 持久化必须与 ModelExecution 终态同一事务提交。该事务失败时必须释放 Project 的活跃执行槽，进程中断遗留的活跃记录必须经租约过期回收，不能永久阻塞后续 Turn。
 10. DocumentParse 与其 locator 创建后不可更新；相同 Project 与相同逻辑身份只能有一个权威 parse，读取时必须校验 payload 与冻结 metadata。
+11. 内容巡检必须从 PostgreSQL 权威引用闭包出发核对 canonical storage ref、SHA-256 与已声明 size；任一引用无法解析、blob 缺失、hash/size 漂移或未知存储条目均 fail closed。orphan 只表示巡检时无权威引用，不自动授权删除。

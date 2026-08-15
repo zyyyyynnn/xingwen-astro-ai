@@ -315,6 +315,7 @@ class ResearchRunModel(TimestampMixin, Base):
     lease_owner: Mapped[str | None] = mapped_column(String(128))
     lease_generation: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    queue_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     steps_frozen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
@@ -374,6 +375,75 @@ class ResearchRunModel(TimestampMixin, Base):
             "cache_policy IN ('disabled','fallback_on_recoverable_failure')",
             name="cache_policy",
         ),
+        CheckConstraint(
+            "execution_mode = 'live' OR queue_expires_at IS NULL",
+            name="queue_deadline_live_only",
+        ),
+        Index(
+            "ix_research_runs_live_queue",
+            "execution_mode",
+            "status",
+            "queue_expires_at",
+            "created_at",
+        ),
+        Index(
+            "ix_research_runs_active_leases",
+            "execution_mode",
+            "lease_expires_at",
+            "project_id",
+        ),
+    )
+
+
+class WorkflowWorkerModel(Base):
+    __tablename__ = "workflow_workers"
+
+    worker_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    configured_capacity: Mapped[int] = mapped_column(Integer, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    heartbeat_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    drain_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint("state IN ('accepting','draining','stopped')", name="state"),
+        CheckConstraint(
+            "configured_capacity >= 1", name="configured_capacity_positive"
+        ),
+        CheckConstraint(
+            "(state = 'accepting' AND drain_requested_at IS NULL AND stopped_at IS NULL) OR "
+            "(state = 'draining' AND drain_requested_at IS NOT NULL AND stopped_at IS NULL) OR "
+            "(state = 'stopped' AND stopped_at IS NOT NULL)",
+            name="lifecycle_timestamps",
+        ),
+    )
+
+
+class WorkflowProjectDispatchModel(Base):
+    __tablename__ = "workflow_project_dispatches"
+
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    last_dispatched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    dispatch_count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+
+    __table_args__ = (
+        CheckConstraint("dispatch_count >= 0", name="dispatch_count_nonnegative"),
+        Index(
+            "ix_workflow_project_dispatches_last_dispatched",
+            "last_dispatched_at",
+            "project_id",
+        ),
     )
 
 
@@ -394,6 +464,11 @@ class RunStepModel(TimestampMixin, Base):
     enter_status: Mapped[str] = mapped_column(String(32), nullable=False)
     success_status: Mapped[str] = mapped_column(String(32), nullable=False)
     max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    task_id: Mapped[str | None] = mapped_column(String(128))
+    skill_id: Mapped[str | None] = mapped_column(String(128))
+    depends_on_step_keys: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -406,8 +481,13 @@ class RunStepModel(TimestampMixin, Base):
         UniqueConstraint("id", "run_id", name="uq_run_step_id_run"),
         UniqueConstraint("run_id", "position", name="uq_run_step_position"),
         UniqueConstraint("run_id", "key", name="uq_run_step_run_key"),
+        UniqueConstraint("run_id", "task_id", name="uq_run_step_run_task"),
         CheckConstraint("position >= 0", name="position_nonnegative"),
         CheckConstraint("max_attempts >= 1", name="max_attempts_positive"),
+        CheckConstraint(
+            "(task_id IS NULL) = (skill_id IS NULL)",
+            name="task_skill_binding",
+        ),
         CheckConstraint(
             "enter_status IN ('planning','fetching_data','cleaning_data','acquiring_observations',"
             "'analyzing_data','training_models','building_visualizations','searching_papers',"
@@ -504,6 +584,122 @@ class RunEventModel(Base):
     )
 
 
+class RunCheckpointModel(Base):
+    """One immutable input request and its controlled resolution."""
+
+    __tablename__ = "run_checkpoints"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    run_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    step_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    attempt_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("step_attempts.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
+    code: Mapped[str] = mapped_column(String(128), nullable=False)
+    public_message: Mapped[str] = mapped_column(Text, nullable=False)
+    required_input_types: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
+    opened_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolution_run_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("research_runs.id", ondelete="RESTRICT")
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_run_checkpoint_run_project",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("status IN ('open','resolved','cancelled')", name="status"),
+        CheckConstraint(
+            "jsonb_typeof(required_input_types) = 'array' AND "
+            "jsonb_array_length(required_input_types) > 0",
+            name="required_input_types_nonempty",
+        ),
+        CheckConstraint(
+            "(status = 'open' AND resolved_at IS NULL AND resolution_run_id IS NULL) OR "
+            "(status = 'resolved' AND resolved_at IS NOT NULL AND resolution_run_id IS NOT NULL) OR "
+            "(status = 'cancelled' AND resolved_at IS NOT NULL AND resolution_run_id IS NULL)",
+            name="resolution_state",
+        ),
+    )
+
+
+class RunDecisionModel(Base):
+    """Immutable idempotent user decision over one parent ResearchRun."""
+
+    __tablename__ = "run_decisions"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    project_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("research_projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    parent_run_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    child_run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    decision: Mapped[str] = mapped_column(String(32), nullable=False)
+    step_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    input_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "parent_run_id", "idempotency_key", name="uq_run_decision_idempotency"
+        ),
+        ForeignKeyConstraint(
+            ["parent_run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_run_decision_parent_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["child_run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_run_decision_child_project",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("decision IN ('resume','retry','cancel')", name="decision"),
+        CheckConstraint(
+            "(decision = 'cancel' AND child_run_id IS NULL) OR "
+            "(decision IN ('resume','retry') AND child_run_id IS NOT NULL)",
+            name="decision_child",
+        ),
+        CheckConstraint("jsonb_typeof(input_ids) = 'array'", name="input_ids_array"),
+    )
+
+
 class ResearchArtifactModel(TimestampMixin, Base):
     __tablename__ = "research_artifacts"
 
@@ -559,6 +755,9 @@ class ProducerExecutionModel(TimestampMixin, Base):
     prompt_name: Mapped[str | None] = mapped_column(String(128))
     prompt_version: Mapped[str | None] = mapped_column(String(64))
     prompt_hash: Mapped[str | None] = mapped_column(String(71))
+    authorized_tool_name: Mapped[str | None] = mapped_column(String(128))
+    authorized_skill_id: Mapped[str | None] = mapped_column(String(128))
+    registry_revision: Mapped[str | None] = mapped_column(String(71))
     parameters: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict
     )
@@ -573,6 +772,12 @@ class ProducerExecutionModel(TimestampMixin, Base):
     token_usage: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     error_code: Mapped[str | None] = mapped_column(String(128))
+    provider_request_id: Mapped[str | None] = mapped_column(String(256))
+    tool_call_id: Mapped[str | None] = mapped_column(String(256))
+    validated_arguments_hash: Mapped[str | None] = mapped_column(String(71))
+    rejected_arguments_hash: Mapped[str | None] = mapped_column(String(71))
+    error_hash: Mapped[str | None] = mapped_column(String(71))
+    public_message: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
         UniqueConstraint("id", "run_step_id", name="uq_producer_execution_id_step"),
@@ -602,6 +807,47 @@ class ProducerExecutionModel(TimestampMixin, Base):
         CheckConstraint("lease_generation >= 0", name="lease_generation_nonnegative"),
         CheckConstraint(
             "latency_ms IS NULL OR latency_ms >= 0", name="latency_nonnegative"
+        ),
+        CheckConstraint(
+            "(authorized_tool_name IS NULL) = (registry_revision IS NULL)",
+            name="function_call_authorization_pair",
+        ),
+        CheckConstraint(
+            "validated_arguments_hash IS NULL OR "
+            "(status = 'completed' AND tool_call_id IS NOT NULL "
+            "AND public_message IS NOT NULL)",
+            name="validated_arguments_terminal",
+        ),
+        CheckConstraint(
+            "rejected_arguments_hash IS NULL OR "
+            "(status = 'rejected' AND tool_call_id IS NOT NULL)",
+            name="rejected_arguments_terminal",
+        ),
+        CheckConstraint(
+            "error_hash IS NULL OR status IN ('failed','rejected','cancelled')",
+            name="error_hash_terminal",
+        ),
+        CheckConstraint(
+            "producer_name <> 'research_step_agent' OR ("
+            "authorized_tool_name IS NOT NULL AND registry_revision IS NOT NULL AND ("
+            "(status = 'running' AND tool_call_id IS NULL "
+            "AND validated_arguments_hash IS NULL "
+            "AND rejected_arguments_hash IS NULL AND error_hash IS NULL "
+            "AND public_message IS NULL) OR "
+            "(status = 'completed' AND tool_call_id IS NOT NULL "
+            "AND validated_arguments_hash IS NOT NULL "
+            "AND rejected_arguments_hash IS NULL AND error_hash IS NULL "
+            "AND public_message IS NOT NULL) OR "
+            "(status = 'rejected' AND validated_arguments_hash IS NULL "
+            "AND error_hash IS NOT NULL AND public_message IS NULL "
+            "AND ((tool_call_id IS NULL AND rejected_arguments_hash IS NULL) OR "
+            "(tool_call_id IS NOT NULL AND rejected_arguments_hash IS NOT NULL))) OR "
+            "(status IN ('failed','cancelled') AND tool_call_id IS NULL "
+            "AND validated_arguments_hash IS NULL "
+            "AND rejected_arguments_hash IS NULL AND error_hash IS NOT NULL "
+            "AND public_message IS NULL)"
+            "))",
+            name="research_step_agent_audit_closure",
         ),
     )
 
@@ -865,7 +1111,9 @@ class ResearchInputModel(Base):
         Index("ix_research_inputs_session_project", "session_id", "project_id"),
         Index("ix_research_inputs_session_content", "session_id", "content_hash"),
         CheckConstraint(
-            "type IN ('url','pdf','csv','json','image','text')", name="input_type"
+            "type IN ('url','pdf','csv','xlsx','parquet','json','image',"
+            "'image_dataset','fits','text')",
+            name="input_type",
         ),
         CheckConstraint(
             "source_type IN ('upload','url_fetch','text')", name="source_type"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
+from uuid import UUID
 
 from pydantic import ValidationError
 
@@ -19,13 +20,22 @@ from app.schemas.paper_summary_api import (
 from app.schemas.core import ArtifactVersionDetail, SourceMode, SourceSnapshotDetail
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
+from app.services.document_parse_store import (
+    DocumentParseError,
+    DocumentParseRepository,
+)
 
 
 class PaperSummaryReadService:
     """Validate and project PaperSummary Pipeline content without repeating pipeline logic."""
 
-    def __init__(self, artifacts: ArtifactReadService) -> None:
+    def __init__(
+        self,
+        artifacts: ArtifactReadService,
+        document_parses: DocumentParseRepository | None = None,
+    ) -> None:
         self._artifacts = artifacts
+        self._document_parses = document_parses
 
     def get_summary(self, *, version_id: str, session_id: str) -> PaperSummaryRead:
         version = self._artifacts.get_version(
@@ -44,17 +54,25 @@ class PaperSummaryReadService:
 
         summary = self._validated_summary(version)
         collection = self._validate_input_collection(version, summary, session_id)
-        snapshot_ids = self._validate_snapshots_and_evidence(
-            version,
-            summary,
-            collection,
-        )
-        cache_audits = _cache_audits(
-            collection,
-            snapshot_ids,
-            version.source_snapshots,
-            source_mode=version.source_mode,
-        )
+        if collection is None:
+            self._validate_document_inputs(version, summary)
+            paper = summary.paper
+            cache_audits = ()
+        else:
+            snapshot_ids = self._validate_snapshots_and_evidence(
+                version,
+                summary,
+                collection,
+            )
+            paper = _paper_metadata(collection, summary.paper_id)
+            if paper != summary.paper:
+                raise _provenance_problem()
+            cache_audits = _cache_audits(
+                collection,
+                snapshot_ids,
+                version.source_snapshots,
+                source_mode=version.source_mode,
+            )
         return PaperSummaryRead(
             artifact_version_id=version.id,
             artifact_id=version.artifact_id,
@@ -65,7 +83,7 @@ class PaperSummaryReadService:
             content_hash=version.content_hash,
             input_hash=version.input_hash,
             created_at=version.created_at,
-            paper=_paper_metadata(collection, summary.paper_id),
+            paper=paper,
             summary=summary,
             cache_audits=cache_audits,
             producer_execution=version.producer_execution,
@@ -113,10 +131,13 @@ class PaperSummaryReadService:
         version: ArtifactVersionDetail,
         summary: PaperSummaryArtifactContent,
         session_id: str,
-    ) -> PaperCollection:
+    ) -> PaperCollection | None:
+        if summary.input_versions.collection is None:
+            return None
+        reference = summary.input_versions.collection
         try:
             collection_version = self._artifacts.get_version(
-                version_id=summary.input_versions.paper_collection_version_id,
+                version_id=reference.artifact_version_id,
                 session_id=session_id,
             )
             collection_artifact = self._artifacts.get_artifact(
@@ -126,23 +147,47 @@ class PaperSummaryReadService:
             raise _provenance_problem() from exc
         if collection_artifact.kind.value != "paper_collection":
             raise _provenance_problem()
-        reference = summary.input_versions
         if (
             collection_version.project_id != version.project_id
-            or collection_version.schema_version
-            != reference.paper_collection_schema_version
+            or collection_version.schema_version != reference.schema_version
             or collection_version.content_hash
             != compute_canonical_payload_hash(collection_version.content)
             or collection_version.content.get("schema_version")
-            != reference.paper_collection_schema_version
+            != reference.schema_version
             or collection_version.content.get("output_hash")
-            != reference.paper_collection_output_hash
+            != reference.output_hash
         ):
             raise _provenance_problem()
         try:
             return PaperCollection.model_validate(collection_version.content)
         except ValidationError as exc:
             raise _provenance_problem() from exc
+
+    def _validate_document_inputs(
+        self,
+        version: ArtifactVersionDetail,
+        summary: PaperSummaryArtifactContent,
+    ) -> None:
+        if self._document_parses is None or not summary.input_versions.document_parses:
+            raise _provenance_problem()
+        try:
+            project_id = UUID(version.project_id)
+            for reference in summary.input_versions.document_parses:
+                self._document_parses.verify_reference(
+                    project_id=project_id,
+                    document_parse_id=UUID(reference.document_parse_id),
+                    candidate_parse_id=reference.candidate_parse_id,
+                    research_input_id=UUID(reference.research_input_id),
+                    source_snapshot_id=UUID(reference.source_snapshot_id),
+                    input_content_hash=reference.input_content_hash,
+                    canonical_output_hash=reference.canonical_output_hash,
+                    parser_profile_id=reference.parser_profile_id,
+                    parser_profile_version=reference.parser_profile_version,
+                    config_hash=reference.config_hash,
+                )
+        except (ValueError, DocumentParseError) as exc:
+            raise _provenance_problem() from exc
+        _validate_document_snapshots_and_evidence(version, summary)
 
     @staticmethod
     def _validate_snapshots_and_evidence(
@@ -247,6 +292,78 @@ def _collection_snapshot_keys(
             reference.content_hash,
         )
     return result
+
+
+def _validate_document_snapshots_and_evidence(
+    version: ArtifactVersionDetail,
+    summary: PaperSummaryArtifactContent,
+) -> None:
+    references = summary.input_versions.source_snapshots
+    persisted_snapshots = _snapshot_map(version.source_snapshots)
+    if set(version.source_snapshot_ids) != {
+        item.id for item in version.source_snapshots
+    }:
+        raise _provenance_problem()
+    snapshot_ids: dict[str, str] = {}
+    for reference in references:
+        key = (
+            reference.source_id,
+            reference.source_version,
+            reference.content_hash,
+        )
+        persisted = persisted_snapshots.get(key)
+        if persisted is None:
+            raise _provenance_problem()
+        snapshot_ids[reference.source_snapshot_id] = persisted.id
+    if set(snapshot_ids.values()) != set(version.source_snapshot_ids):
+        raise _provenance_problem()
+
+    parse_hashes = {
+        item.document_parse_id: item.canonical_output_hash
+        for item in summary.input_versions.document_parses
+    }
+    evidence_by_id = {item.evidence_id: item for item in summary.evidence}
+    if set(summary.evidence_ids) != set(evidence_by_id):
+        raise _schema_problem()
+    generic_evidence = tuple(version.evidence)
+    if (
+        len(generic_evidence) != len(summary.evidence)
+        or len({item.id for item in generic_evidence}) != len(generic_evidence)
+    ):
+        raise _provenance_problem()
+    statement_targets = {
+        item.evidence_id: {
+            statement.statement_id
+            for statement in summary.statements()
+            if item.evidence_id in statement.evidence_ids
+        }
+        for item in summary.evidence
+    }
+    for item in summary.evidence:
+        locator = item.locator
+        if (
+            locator.document_parse_id is None
+            or locator.document_parse_output_hash
+            != parse_hashes.get(locator.document_parse_id)
+        ):
+            raise _provenance_problem()
+        persisted_snapshot_id = snapshot_ids.get(item.source_snapshot_id)
+        expected_locator = locator.model_dump(mode="json", exclude_none=True)
+        matches = tuple(
+            evidence.paper_id == item.paper_id
+            and _locator_summary_evidence_id(evidence.locator) == item.evidence_id
+            and evidence.artifact_version_id == version.id
+            and evidence.target_type == "paper_summary"
+            and evidence.target_id in statement_targets[item.evidence_id]
+            and evidence.source_snapshot_id == persisted_snapshot_id
+            and _locator_source_record_id(evidence.locator) == item.source_record_id
+            and evidence.locator.get("paper_summary_locator") == expected_locator
+            for evidence in generic_evidence
+        )
+        if sum(matches) != 1:
+            raise _provenance_problem()
+    if set(version.evidence_ids) != {item.id for item in generic_evidence}:
+        raise _provenance_problem()
 
 
 def _snapshot_map(

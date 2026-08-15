@@ -71,7 +71,7 @@ describe("Fixture adapter — reads map DTO to domain", () => {
 
   it("lists artifacts produced by a run and reads detail projections", async () => {
     const artifacts = await repos.artifacts.listByRun(RUN_ID);
-    expect(artifacts).toHaveLength(13);
+    expect(artifacts).toHaveLength(15);
     const artifact = await repos.artifacts.getArtifact("art_graph_01" as never);
     expect(artifact!.kind).toBe("graph");
     const version = await repos.artifacts.getVersion(
@@ -118,6 +118,86 @@ describe("Fixture adapter — reads map DTO to domain", () => {
     if (review.content.spec.mode !== "chart") return;
     expect(review.content.spec.series).toHaveLength(2);
     expect(review.content.spec.series[0]?.points).toHaveLength(3);
+  });
+
+  it("reads formal Spectrum and LightCurve fixtures through strict content mappers", async () => {
+    const spectrum = await repos.scientificArtifacts.getReview(
+      "artv_scientific_spectrum" as never,
+    );
+    const lightCurve = await repos.scientificArtifacts.getReview(
+      "artv_scientific_light_curve" as never,
+    );
+    expect(spectrum.content.kind).toBe("spectrum");
+    expect(lightCurve.content.kind).toBe("light_curve");
+    if (spectrum.content.kind === "spectrum") {
+      expect(spectrum.content.points).toHaveLength(8);
+      expect(spectrum.content.sourceSnapshotIds).toEqual(["snap_spectrum_01"]);
+    }
+    if (lightCurve.content.kind === "light_curve") {
+      expect(lightCurve.content.points).toHaveLength(8);
+      expect(lightCurve.content.bestPeriod).toBe(3);
+    }
+  });
+
+  it("exposes checkpoint and accepted project inputs with replay-safe decisions", async () => {
+    const fresh = createFixtureRepositories(exoplanetHostStarFixture);
+    const checkpoint = await fresh.runs.getCheckpoint(RUN_ID);
+    expect(checkpoint?.status).toBe("resolved");
+    const inputs = await fresh.researchInputs.listByProject(PROJECT_ID);
+    expect(inputs[0]?.status).toBe("accepted");
+    const created = await fresh.researchInputs.create({
+      type: "text",
+      projectId: PROJECT_ID,
+      textContent: "additional source note",
+      filename: "additional.txt",
+      mimeType: "text/plain",
+      idempotencyKey: "input-fixture-replay",
+    });
+    expect(
+      await fresh.researchInputs.create({
+        type: "text",
+        projectId: PROJECT_ID,
+        textContent: "additional source note",
+        filename: "additional.txt",
+        mimeType: "text/plain",
+        idempotencyKey: "input-fixture-replay",
+      }),
+    ).toEqual(created);
+  });
+
+  it("maps formal data, literature and graph reads through their strict ports", async () => {
+    const dataset = await repos.dataArtifacts.getDataset(
+      "artv_dataset_01" as never,
+    );
+    const fields = await repos.dataArtifacts.getFieldDictionary(
+      "artv_fdict_01" as never,
+    );
+    const sources = await repos.dataArtifacts.getSourceCollection(
+      "artv_srccol_01" as never,
+    );
+    const claims = await repos.literatureArtifacts.getClaims(
+      "artv_claims_01" as never,
+    );
+    const relations = await repos.literatureArtifacts.getRelations(
+      "artv_rels_01" as never,
+    );
+    const traces = await repos.literatureArtifacts.getReasoningTraces(
+      "artv_traces_01" as never,
+    );
+    const graph = await repos.graphArtifacts.getReview(
+      "artv_graph_01" as never,
+    );
+
+    expect(dataset.rows[0]?.cells[0]?.value).toBe("TOI-1234");
+    expect(fields.fieldDefinitions[0]?.description).toContain("TESS Object");
+    expect(sources.members[0]?.sourceId).toBe("nasa_exoplanet_archive");
+    expect(claims.claims[0]?.text).toContain("5800 K");
+    expect(relations.relations[0]?.reasoningTrace?.traceId).toBe("trace_01");
+    expect(traces.traces[0]?.steps[0]?.statement).toContain(
+      "host-star identity",
+    );
+    expect(graph.nodes[0]?.label).toBe("Exoplanet candidate dataset");
+    expect(graph.edges[0]?.edgeId).toBe("edge_01");
   });
 
   it("classifies a missing paper collection version like the HTTP adapter", async () => {

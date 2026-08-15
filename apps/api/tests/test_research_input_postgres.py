@@ -7,22 +7,27 @@ module run.
 
 from __future__ import annotations
 
+import asyncio
+from base64 import b64decode
+from collections.abc import Callable
 from datetime import UTC, datetime
+from io import BytesIO
+import json
 import os
 import threading
 from pathlib import Path
 from uuid import UUID, uuid4
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from alembic import command
 from alembic.config import Config
 import pytest
+from PIL import Image
 from sqlalchemy import Engine
 from sqlalchemy.exc import IntegrityError
 
 from app.db.models import (
-    ResearchContractDraftModel,
     ResearchInputBindingModel,
-    ResearchContractModel,
     ResearchInputModel,
     ResearchProjectModel,
     ResearchRunModel,
@@ -36,6 +41,7 @@ from authoring_test_support import (
     persist_authoring_models,
 )
 from app.main import create_app
+from app.schemas.core import ScientificSkillId, ScientificTaskInput
 from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.research_input import ResearchInputCreate
 from app.security import SecurityProblem
@@ -45,13 +51,68 @@ from app.services.research_input_store import (
     PersistentResearchInputStore,
     PreparedInput,
 )
-from app.services.content_storage import sha256_content_hash
+from app.services.content_storage import LocalContentStorage, sha256_content_hash
+from app.workflow.scientific_inputs import DatabaseScientificInputResolver
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL, reason="TEST_DATABASE_URL is not configured"
 )
 NOW = datetime(2026, 8, 6, 8, 0, tzinfo=UTC)
+
+
+def _xlsx_content() -> bytes:
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.append(("row_id", "temperature", "detected"))
+    worksheet.append(("star-a", 5100, True))
+    worksheet.append(("star-b", None, False))
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    return output.getvalue()
+
+
+def _parquet_content() -> bytes:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    output = BytesIO()
+    pq.write_table(
+        pa.table(
+            {
+                "row_id": ["star-a", "star-b"],
+                "temperature": [5100, None],
+                "detected": [True, False],
+            }
+        ),
+        output,
+    )
+    return output.getvalue()
+
+
+def _image_dataset_content() -> bytes:
+    images: list[dict[str, str]] = []
+    content: dict[str, bytes] = {}
+    for index in range(10):
+        path = f"images/sample-{index:02d}.png"
+        images.append({"path": path, "label": "galaxy" if index < 5 else "star"})
+        raw = BytesIO()
+        Image.new("RGB", (8, 6), color=(index * 10, 20, 30)).save(
+            raw, format="PNG"
+        )
+        content[path] = raw.getvalue()
+    output = BytesIO()
+    with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "labels.json",
+            json.dumps({"schema_version": "1.0.0", "images": images}).encode(),
+        )
+        for path, value in content.items():
+            archive.writestr(path, value)
+    return output.getvalue()
 
 
 def _alembic_config(url: str) -> Config:
@@ -258,6 +319,302 @@ def test_persistent_store_round_trips_and_scopes_to_session(
     assert persisted is not None
     assert persisted.project_id == row
     assert persisted.session_id == ctx["owner"].id
+
+
+def test_persisted_csv_input_resolves_to_typed_scientific_rows(
+    store_context: dict[str, object], tmp_path: Path
+) -> None:
+    ctx = store_context
+    content = b"row_id,temperature,detected\r\nstar-a,5100,true\r\nstar-b,,false\r\n"
+    content_hash = sha256_content_hash(content)
+    storage = LocalContentStorage(tmp_path / "scientific-input-content")
+    storage_ref = asyncio.run(storage.store(content, content_hash))
+    idempotency_key = f"pg-scientific-csv-{uuid4().hex}"
+    request_hash = sha256_content_hash(content + b":request")
+    reservation = PersistentIdempotencyRepository(ctx["factory"]).resolve(
+        session_id=ctx["owner"].id,
+        project_id=str(ctx["ids"]["project"]),
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+    )
+    assert reservation.lease_token is not None
+    created = _store(ctx).commit_ingestion(
+        session_id=ctx["owner"].id,
+        project_id=str(ctx["ids"]["project"]),
+        payload=ResearchInputCreate(
+            type="csv",
+            filename="stellar-sample.csv",
+            mime_type="text/csv",
+        ),
+        prepared=PreparedInput(
+            content_hash=content_hash,
+            storage_ref=storage_ref,
+            size_bytes=len(content),
+            mime_type="text/csv",
+            filename="stellar-sample.csv",
+            source_snapshot=None,
+        ),
+        idempotency_key=idempotency_key,
+        lease_token=reservation.lease_token,
+        request_hash=request_hash,
+    )
+
+    resolver = DatabaseScientificInputResolver(
+        ctx["factory"],
+        storage,
+        project_id=str(ctx["ids"]["project"]),
+    )
+    bindings = asyncio.run(
+        resolver.resolve(
+            ScientificTaskInput(
+                task_id="cluster.stellar-sample",
+                skill_id=ScientificSkillId.clustering_analysis,
+                input_refs=(created.id,),
+            )
+        )
+    )
+
+    assert len(bindings) == 1
+    assert bindings[0].kind == "content_blob"
+    assert bindings[0].parameters == {
+        "rows": [
+            {"row_id": "star-a", "temperature": 5100, "detected": "true"},
+            {"row_id": "star-b", "temperature": None, "detected": "false"},
+        ]
+    }
+
+
+def test_persisted_fits_input_resolves_to_bounded_scientific_payload(
+    store_context: dict[str, object], tmp_path: Path
+) -> None:
+    ctx = store_context
+    content = b"SIMPLE  =                    T" + b" " * 2850
+    content_hash = sha256_content_hash(content)
+    storage = LocalContentStorage(tmp_path / "scientific-fits-content")
+    storage_ref = asyncio.run(storage.store(content, content_hash))
+    idempotency_key = f"pg-scientific-fits-{uuid4().hex}"
+    request_hash = sha256_content_hash(content + b":request")
+    reservation = PersistentIdempotencyRepository(ctx["factory"]).resolve(
+        session_id=ctx["owner"].id,
+        project_id=str(ctx["ids"]["project"]),
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+    )
+    assert reservation.lease_token is not None
+    created = _store(ctx).commit_ingestion(
+        session_id=ctx["owner"].id,
+        project_id=str(ctx["ids"]["project"]),
+        payload=ResearchInputCreate(
+            type="fits",
+            filename="science-image.fits",
+            mime_type="application/fits",
+        ),
+        prepared=PreparedInput(
+            content_hash=content_hash,
+            storage_ref=storage_ref,
+            size_bytes=len(content),
+            mime_type="application/fits",
+            filename="science-image.fits",
+            source_snapshot=None,
+        ),
+        idempotency_key=idempotency_key,
+        lease_token=reservation.lease_token,
+        request_hash=request_hash,
+    )
+
+    resolver = DatabaseScientificInputResolver(
+        ctx["factory"],
+        storage,
+        project_id=str(ctx["ids"]["project"]),
+    )
+    (binding,) = asyncio.run(
+        resolver.resolve(
+            ScientificTaskInput(
+                task_id="fits.photometry",
+                skill_id=ScientificSkillId.fits_image_analysis,
+                input_refs=(created.id,),
+            )
+        )
+    )
+
+    assert binding.kind == "content_blob"
+    assert b64decode(binding.parameters["fits_base64"], validate=True) == content
+
+
+def test_project_owned_image_dataset_materializes_one_training_source_snapshot(
+    store_context: dict[str, object], tmp_path: Path
+) -> None:
+    ctx = store_context
+    content = _image_dataset_content()
+    content_hash = sha256_content_hash(content)
+    storage = LocalContentStorage(tmp_path / "scientific-image-dataset-content")
+    storage_ref = asyncio.run(storage.store(content, content_hash))
+    idempotency_key = f"pg-image-dataset-{uuid4().hex}"
+    request_hash = sha256_content_hash(content + b":request")
+    reservation = PersistentIdempotencyRepository(ctx["factory"]).resolve(
+        session_id=ctx["owner"].id,
+        project_id=str(ctx["ids"]["project"]),
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+    )
+    assert reservation.lease_token is not None
+    created = _store(ctx).commit_ingestion(
+        session_id=ctx["owner"].id,
+        project_id=str(ctx["ids"]["project"]),
+        payload=ResearchInputCreate(
+            type="image_dataset",
+            filename="training-images.zip",
+            mime_type="application/zip",
+        ),
+        prepared=PreparedInput(
+            content_hash=content_hash,
+            storage_ref=storage_ref,
+            size_bytes=len(content),
+            mime_type="application/zip",
+            filename="training-images.zip",
+            source_snapshot=None,
+        ),
+        idempotency_key=idempotency_key,
+        lease_token=reservation.lease_token,
+        request_hash=request_hash,
+    )
+    resolver = DatabaseScientificInputResolver(
+        ctx["factory"],
+        storage,
+        project_id=str(ctx["ids"]["project"]),
+    )
+
+    (binding,) = asyncio.run(
+        resolver.resolve(
+            ScientificTaskInput(
+                task_id="image.training",
+                skill_id=ScientificSkillId.image_classification,
+                input_refs=(created.id,),
+            )
+        )
+    )
+    replayed = asyncio.run(
+        resolver.resolve(
+            ScientificTaskInput(
+                task_id="image.training",
+                skill_id=ScientificSkillId.image_classification,
+                input_refs=(created.id,),
+            )
+        )
+    )[0]
+
+    assert binding.parameters["image_shape"] == [32, 32, 3]
+    assert binding.parameters["image_count"] == 10
+    assert len(binding.source_references) == 1
+    assert replayed.source_references == binding.source_references
+    with ctx["factory"]() as session:
+        row = session.get(ResearchInputModel, UUID(created.id))
+        assert row is not None and row.source_snapshot_id is not None
+        snapshots = session.query(SourceSnapshotModel).filter_by(
+            project_id=ctx["ids"]["project"],
+            source_id=f"research_input:{created.id}",
+        )
+        assert snapshots.count() == 1
+        assert snapshots.one().content_hash == content_hash
+
+    foreign_resolver = DatabaseScientificInputResolver(
+        ctx["factory"],
+        storage,
+        project_id=str(ctx["ids"]["other_project"]),
+    )
+    with pytest.raises(ValueError, match="not found in the Run Project"):
+        asyncio.run(
+            foreign_resolver.resolve(
+                ScientificTaskInput(
+                    task_id="image.training",
+                    skill_id=ScientificSkillId.image_classification,
+                    input_refs=(created.id,),
+                )
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    ("input_type", "filename", "mime_type", "content_factory"),
+    [
+        (
+            "xlsx",
+            "stellar-sample.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            _xlsx_content,
+        ),
+        (
+            "parquet",
+            "stellar-sample.parquet",
+            "application/vnd.apache.parquet",
+            _parquet_content,
+        ),
+    ],
+)
+def test_persisted_structured_input_resolves_to_typed_scientific_rows(
+    store_context: dict[str, object],
+    tmp_path: Path,
+    input_type: str,
+    filename: str,
+    mime_type: str,
+    content_factory: Callable[[], bytes],
+) -> None:
+    ctx = store_context
+    content = content_factory()
+    content_hash = sha256_content_hash(content)
+    storage = LocalContentStorage(tmp_path / f"scientific-{input_type}-content")
+    storage_ref = asyncio.run(storage.store(content, content_hash))
+    idempotency_key = f"pg-scientific-{input_type}-{uuid4().hex}"
+    request_hash = sha256_content_hash(content + b":request")
+    reservation = PersistentIdempotencyRepository(ctx["factory"]).resolve(
+        session_id=ctx["owner"].id,
+        project_id=str(ctx["ids"]["project"]),
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+    )
+    assert reservation.lease_token is not None
+    created = _store(ctx).commit_ingestion(
+        session_id=ctx["owner"].id,
+        project_id=str(ctx["ids"]["project"]),
+        payload=ResearchInputCreate(
+            type=input_type,
+            filename=filename,
+            mime_type=mime_type,
+        ),
+        prepared=PreparedInput(
+            content_hash=content_hash,
+            storage_ref=storage_ref,
+            size_bytes=len(content),
+            mime_type=mime_type,
+            filename=filename,
+            source_snapshot=None,
+        ),
+        idempotency_key=idempotency_key,
+        lease_token=reservation.lease_token,
+        request_hash=request_hash,
+    )
+
+    resolver = DatabaseScientificInputResolver(
+        ctx["factory"],
+        storage,
+        project_id=str(ctx["ids"]["project"]),
+    )
+    (binding,) = asyncio.run(
+        resolver.resolve(
+            ScientificTaskInput(
+                task_id=f"profile.{input_type}",
+                skill_id=ScientificSkillId.data_profile,
+                input_refs=(created.id,),
+            )
+        )
+    )
+
+    assert binding.parameters == {
+        "rows": [
+            {"row_id": "star-a", "temperature": 5100, "detected": True},
+            {"row_id": "star-b", "temperature": None, "detected": False},
+        ]
+    }
 
 
 def test_persistent_store_replays_identical_content_within_session(

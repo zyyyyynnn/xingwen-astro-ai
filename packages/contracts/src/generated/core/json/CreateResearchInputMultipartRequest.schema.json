@@ -44,8 +44,12 @@
       "enum": [
         "pdf",
         "csv",
+        "xlsx",
+        "parquet",
         "json",
-        "image"
+        "image",
+        "image_dataset",
+        "fits"
       ],
       "title": "Type",
       "type": "string"

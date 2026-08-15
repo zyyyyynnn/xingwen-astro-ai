@@ -5,9 +5,11 @@ from __future__ import annotations
 import re
 import unicodedata
 import urllib.parse
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from app.schemas._hashing import compute_canonical_payload_hash
+from app.schemas.evidence import SourceSnapshotRecord
 from app.schemas.paper_collection import RawPaperCandidate
 
 from .sources.base import RawSourceRecord
@@ -78,7 +80,7 @@ def canonicalize_record(
         }
     )
     candidate_id = f"candidate.{candidate_hash.removeprefix('sha256:')}"
-    identity_basis, identity = canonical_identity(
+    identity_basis, _ = canonical_identity(
         doi=doi,
         arxiv_id=arxiv_id,
         normalized_title=normalized_title,
@@ -87,13 +89,18 @@ def canonicalize_record(
         source_id=record.source_id,
         source_record_id=record.source_record_id,
     )
-    canonical_hash = compute_canonical_payload_hash(
-        {"identity_basis": identity_basis, "identity": identity}
-    )
     return CandidateDraft(
         candidate_id=candidate_id,
         raw=raw,
-        canonical_paper_id=f"paper.{canonical_hash.removeprefix('sha256:')}",
+        canonical_paper_id=canonical_paper_id(
+            doi=doi,
+            arxiv_id=arxiv_id,
+            normalized_title=normalized_title,
+            year=record.year,
+            normalized_authors=normalized_authors,
+            source_id=record.source_id,
+            source_record_id=record.source_record_id,
+        ),
         canonical_identity_basis=identity_basis,
         title=title,
         normalized_title=normalized_title,
@@ -104,6 +111,50 @@ def canonicalize_record(
         arxiv_id=arxiv_id,
         url=url,
     )
+
+
+def canonicalize_records(
+    records: Sequence[RawSourceRecord],
+    snapshots: Sequence[SourceSnapshotRecord],
+) -> tuple[CandidateDraft, ...]:
+    """Canonicalize an acquired record set with deterministic occurrence ids.
+
+    Acquisition adapters may return the same source record more than once.  A
+    stable hash order and per-record occurrence counter keep candidate ids
+    reproducible without making a source adapter responsible for deduping.
+    """
+
+    if not records:
+        return ()
+    snapshot_id_by_source = {
+        snapshot.source_id: snapshot.snapshot_id for snapshot in snapshots
+    }
+    missing_sources = {
+        record.source_id for record in records if record.source_id not in snapshot_id_by_source
+    }
+    if missing_sources:
+        raise ValueError(
+            "acquired records have no matching SourceSnapshot: "
+            + ", ".join(sorted(missing_sources))
+        )
+    ordered = sorted(
+        records,
+        key=lambda record: compute_canonical_payload_hash(record.hash_payload()),
+    )
+    occurrences: dict[str, int] = {}
+    drafts: list[CandidateDraft] = []
+    for record in ordered:
+        record_key = compute_canonical_payload_hash(record.hash_payload())
+        occurrence = occurrences.get(record_key, 0)
+        occurrences[record_key] = occurrence + 1
+        drafts.append(
+            canonicalize_record(
+                record,
+                snapshot_id=snapshot_id_by_source[record.source_id],
+                occurrence_index=occurrence,
+            )
+        )
+    return tuple(drafts)
 
 
 def canonical_identity(
@@ -130,6 +181,39 @@ def canonical_identity(
             },
         )
     return "source_record", {"source_id": source_id, "source_record_id": source_record_id}
+
+
+def canonical_paper_id(
+    *,
+    doi: str | None,
+    arxiv_id: str | None,
+    normalized_title: str,
+    year: int | None,
+    normalized_authors: tuple[str, ...],
+    source_id: str,
+    source_record_id: str,
+) -> str:
+    """Return the one Paper identity used by every acquisition path.
+
+    Upload-backed documents deliberately fall through to the authoritative
+    source-record basis when no trustworthy bibliographic identifier exists.
+    This preserves the ResearchInput provenance event without pretending that
+    a matching PaperCollection candidate was observed.
+    """
+
+    identity_basis, identity = canonical_identity(
+        doi=doi,
+        arxiv_id=arxiv_id,
+        normalized_title=normalized_title,
+        year=year,
+        normalized_authors=normalized_authors,
+        source_id=source_id,
+        source_record_id=source_record_id,
+    )
+    canonical_hash = compute_canonical_payload_hash(
+        {"identity_basis": identity_basis, "identity": identity}
+    )
+    return f"paper.{canonical_hash.removeprefix('sha256:')}"
 
 
 def normalize_doi(value: str | None) -> str | None:

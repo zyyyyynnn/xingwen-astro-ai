@@ -11,6 +11,11 @@
  */
 
 export type {
+  ArtifactExport,
+  ArtifactExportDownload,
+  ArtifactExportFormat,
+} from "./artifact-export";
+export type {
   CaseKey,
   ContentHash,
   NonEmptyString,
@@ -98,6 +103,20 @@ export type {
 export type { RunEvent, ResearchRun } from "./run";
 export { validateRunInvariants } from "./run";
 export type { RunStepSnapshot, RunStepStatus } from "./run-step";
+export type {
+  RunCheckpoint,
+  RunCheckpointInputType,
+  RunDecision,
+  RunDecisionKind,
+  RunDecisionResult,
+} from "./run-interaction";
+export type {
+  CreateResearchInput,
+  CreateResearchInputDraft,
+  ResearchInputRef,
+  ResearchInputStatus,
+  ResearchInputType,
+} from "./research-input";
 
 export type {
   ArtifactVersion,
@@ -107,6 +126,23 @@ export type {
   ProducerType,
   ResearchArtifact,
 } from "./artifact";
+
+export type {
+  DataArtifactFieldDefinition,
+  DataArtifactFieldSourceAlias,
+  DataArtifactKind,
+  DataArtifactQualityProjection,
+  DataArtifactReview,
+  DataArtifactReviewBase,
+  DataArtifactSourceSnapshot,
+  DataArtifactCellStatus,
+  DatasetArtifactReview,
+  DatasetCellReview,
+  DatasetRowReview,
+  FieldDictionaryArtifactReview,
+  SourceCollectionArtifactReview,
+  SourceCollectionMemberReview,
+} from "./data-artifact";
 
 export type {
   DatabaseCellLocator,
@@ -159,6 +195,7 @@ export { safeExternalUrl } from "./paper-acquisition";
 
 export type {
   PaperSummaryEvidenceLocator,
+  PaperSummaryDocumentLocator,
   PaperSummaryEvidenceReview,
   PaperSummaryCacheAuditReview,
   PaperSummaryInputVersionsReview,
@@ -183,13 +220,21 @@ export type {
   ChartSeriesReview,
   ChartVisualizationReview,
   FitsImageVisualizationReview,
+  LightCurveArtifactReviewContent,
+  LightCurvePointReview,
+  ModelArtifactReviewContent,
+  ModelBinaryReview,
   ModelDiagnosticVisualizationReview,
   ModelEvaluationReviewContent,
   ModelSplitReview,
+  ModelTrainingInputReview,
   ScientificArtifactReview,
   ScientificArtifactReviewContent,
   ScientificFindingReview,
   ScientificMetricReview,
+  SpectrumArtifactReviewContent,
+  SpectrumLineReview,
+  SpectrumPointReview,
   ScientificResultBlockReview,
   ScientificSkillExecutionReview,
   ScientificSkillStatus,
@@ -197,10 +242,50 @@ export type {
   ScientificVisualizationSpecReview,
   VisualizationReviewContent,
   WwtAnnotationReview,
+  WwtCartesianTableCoordinatesReview,
+  WwtConstellationOverlaysReview,
   WwtCoordinateReview,
+  WwtCoordinateGridReview,
+  WwtCoordinateViewReview,
   WwtFitsLayerReview,
+  WwtForegroundReview,
+  WwtObserverReview,
+  WwtReadbackRequest,
   WwtSceneVisualizationReview,
+  WwtSceneStepReview,
+  WwtSolarSystemOptionsReview,
+  WwtSphericalTableCoordinatesReview,
+  WwtTableCoordinatesReview,
+  WwtTableLayerReview,
+  WwtTableTimeSeriesReview,
+  WwtTimeControlReview,
+  WwtTrackedObjectViewReview,
+  WwtViewReview,
 } from "./scientific-artifact";
+export type {
+  LiteratureArtifactReview,
+  LiteratureArtifactVersionReview,
+  LiteratureClaimReferenceReview,
+  LiteratureClaimReview,
+  LiteratureClaimsArtifactReview,
+  LiteratureRelationComparabilityReview,
+  LiteratureRelationConfidenceReview,
+  LiteratureRelationDirectionReview,
+  LiteratureRelationReview,
+  LiteratureRelationsArtifactReview,
+  LiteratureReasoningTraceReview,
+  LiteratureReasoningTraceStepReview,
+  ReasoningTracesArtifactReview,
+} from "./literature-artifact";
+export type {
+  GraphArtifactReview,
+  GraphDataAggregationReview,
+  GraphEdgeReview,
+  GraphIntegrityReview,
+  GraphNodeReview,
+  GraphRelationTraceBindingReview,
+  GraphVersionReferenceReview,
+} from "./graph-artifact";
 export {
   PAPER_SUMMARY_ITEM_KINDS,
   PAPER_SUMMARY_SECTION_KINDS,

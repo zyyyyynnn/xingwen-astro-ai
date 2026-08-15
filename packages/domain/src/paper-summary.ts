@@ -66,10 +66,28 @@ export type PaperSummaryItemKind = (typeof PAPER_SUMMARY_ITEM_KINDS)[number];
 /** Evidence locator for a short in-text quote inside a paper. */
 export interface PaperSummaryTextLocator {
   readonly kind: "paper_text";
-  readonly sourceUrl: string;
+  readonly sourceUrl: string | null;
   readonly section: string;
   readonly paragraph: number | null;
   readonly textRange: string;
+  readonly documentParseId: DomainEntityId | null;
+  readonly documentParseOutputHash: ContentHash | null;
+  readonly documentLocator: PaperSummaryDocumentLocator | null;
+}
+
+export interface PaperSummaryDocumentLocator {
+  readonly pageIndex: number;
+  readonly blockId: DomainEntityId | null;
+  readonly readingOrder: number | null;
+  readonly textSpan: { readonly start: number; readonly end: number } | null;
+  readonly tableId: DomainEntityId | null;
+  readonly cellId: DomainEntityId | null;
+  readonly bbox: {
+    readonly x1: number;
+    readonly y1: number;
+    readonly x2: number;
+    readonly y2: number;
+  } | null;
 }
 
 /** Evidence locator for a bibliographic metadata field value. */
@@ -134,9 +152,22 @@ export interface PaperSummarySnapshotVersionReview {
 }
 
 export interface PaperSummaryInputVersionsReview {
-  readonly paperCollectionVersionId: DomainEntityId;
-  readonly paperCollectionSchemaVersion: SemanticVersion;
-  readonly paperCollectionOutputHash: ContentHash;
+  readonly collection: {
+    readonly artifactVersionId: DomainEntityId;
+    readonly schemaVersion: SemanticVersion;
+    readonly outputHash: ContentHash;
+  } | null;
+  readonly documentParses: readonly {
+    readonly documentParseId: DomainEntityId;
+    readonly candidateParseId: DomainEntityId;
+    readonly researchInputId: DomainEntityId;
+    readonly sourceSnapshotId: DomainEntityId;
+    readonly inputContentHash: ContentHash;
+    readonly canonicalOutputHash: ContentHash;
+    readonly parserProfileId: DomainEntityId;
+    readonly parserProfileVersion: SemanticVersion;
+    readonly configHash: ContentHash;
+  }[];
   readonly sourceSnapshots: readonly PaperSummarySnapshotVersionReview[];
 }
 
@@ -147,6 +178,14 @@ export interface PaperSummaryProducerReview {
   readonly producerName: string;
   readonly producerVersion: SemanticVersion;
   readonly modelName: string;
+  readonly modelRevision: string | null;
+  readonly provider: DomainEntityId | null;
+  readonly providerRequestId: string | null;
+  readonly usage: {
+    readonly promptTokens: number;
+    readonly completionTokens: number;
+    readonly totalTokens: number;
+  } | null;
   readonly promptName: DomainEntityId;
   readonly promptVersion: string;
   readonly promptHash: ContentHash;
@@ -199,7 +238,7 @@ export interface PaperSummaryReview {
   readonly paperId: DomainEntityId;
   readonly paper: PaperSummaryPaperReview;
   readonly schemaVersion: SemanticVersion;
-  readonly benchmark: PaperBenchmarkReview;
+  readonly benchmark: PaperBenchmarkReview | null;
   readonly inputVersions: PaperSummaryInputVersionsReview;
   readonly background: PaperSummarySectionReview;
   readonly methodology: PaperSummarySectionReview;

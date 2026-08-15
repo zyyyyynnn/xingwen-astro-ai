@@ -25,6 +25,18 @@ export {
 
 export type {
   ArtifactVersionMetadataViewModel,
+  DataArtifactReviewViewModel,
+  GraphArtifactReviewViewModel,
+  LiteratureArtifactReviewViewModel,
+  LiteratureClaimsArtifactReviewViewModel,
+  LiteratureRelationsArtifactReviewViewModel,
+  PaperAcquisitionReviewViewModel,
+  ReasoningTracesArtifactReviewViewModel,
+  DatasetArtifactReviewViewModel,
+  FieldDictionaryArtifactReviewViewModel,
+  SourceCollectionArtifactReviewViewModel,
+  DataArtifactFieldDefinitionViewModel,
+  DatasetCellReviewViewModel,
   ArtifactVersionProvenanceViewModel,
   ContractInputViewModel,
   DatabaseCellLocatorViewModel,

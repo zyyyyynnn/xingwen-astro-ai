@@ -20,8 +20,12 @@ from app.schemas.paper_summary import (
     PaperSummaryEvidenceCandidate,
     PaperSummaryEvidenceLocator,
     PaperSummaryModelOutput,
+    PaperSummaryPaperMetadata,
+    PaperSummarySourceSnapshotReference,
     PaperSummarySupportStatus,
 )
+from app.schemas.scientific_document import DocumentParseInput
+from app.services.scientific_document.parser import ScientificDocumentParser
 from app.schemas.core import ArtifactVersion
 from app.workflow.publisher import PublicationAdmissionError, admit_artifact_candidate
 from packages.prompts.registry import (
@@ -40,7 +44,10 @@ from services.paper_pipeline.sources.base import (
     RawSourceRecord,
     SourceSearchResult,
 )
-from services.paper_pipeline.summary import PaperSummaryPipeline
+from services.paper_pipeline.summary import (
+    PaperSummaryPipeline,
+    build_document_evidence_candidates,
+)
 from services.paper_pipeline.summary_benchmark import evaluate_paper_summaries
 
 
@@ -233,15 +240,120 @@ def _admit(
     )
 
 
+def _document_summary_fixture():  # type: ignore[no-untyped-def]
+    content = (
+        "# Transit Search\n\n"
+        "We remove flagged cadences before fitting the transit.\n\n"
+        "## References\n\n"
+        "Reference text must not become summary Evidence.\n"
+    ).encode()
+    content_hash = "sha256:" + sha256(content).hexdigest()
+    parsed = ScientificDocumentParser().parse_document(
+        DocumentParseInput(
+            research_input_id="research-input.paper-1",
+            content_hash=content_hash,
+            source_type="upload",
+            mime_type="text/markdown",
+            filename="transit-search.md",
+            input_bytes=content,
+        )
+    )
+    snapshot = PaperSummarySourceSnapshotReference(
+        source_snapshot_id="source-snapshot.paper-1",
+        source_id="research-input",
+        source_version=content_hash,
+        content_hash=content_hash,
+    )
+    paper = PaperSummaryPaperMetadata(
+        paper_id="paper.uploaded-transit-search",
+        title="Transit Search",
+    )
+    evidence = build_document_evidence_candidates(
+        document_parse=parsed,
+        document_parse_id="document-parse.paper-1",
+        paper_id=paper.paper_id,
+        source_id=snapshot.source_id,
+        source_record_id="transit-search.md",
+        source_snapshot_id=snapshot.source_snapshot_id,
+    )
+    return parsed, snapshot, paper, evidence
+
+
+def test_document_parse_enters_seven_section_summary_with_block_evidence() -> None:
+    parsed, snapshot, paper, evidence = _document_summary_fixture()
+    paragraph = next(
+        item
+        for item in evidence
+        if item.quote_or_value.startswith("We remove flagged")
+    )
+
+    result = PaperSummaryPipeline(clock=lambda: FIXED_TIME).admit_document(
+        document_parse=parsed,
+        document_parse_id="document-parse.paper-1",
+        source_snapshot=snapshot,
+        paper=paper,
+        model_response=_model_output(evidence_id=paragraph.evidence_id),
+        model_name="qwen.fixture.1",
+        parameters=SAFE_PARAMETERS,
+        evidence_candidates=evidence,
+        run_id="run.document-summary",
+    )
+
+    assert result.summary is not None
+    summary = result.summary
+    assert summary.schema_version == "3.0.0"
+    assert summary.benchmark is None
+    assert summary.input_versions.collection is None
+    assert summary.input_versions.document_parses[0].canonical_output_hash == (
+        parsed.canonical_output_hash
+    )
+    admitted = next(
+        item for item in summary.evidence if item.evidence_id == paragraph.evidence_id
+    )
+    assert admitted.status is PaperSummarySupportStatus.supported
+    assert admitted.locator.document_locator is not None
+    assert admitted.locator.document_locator.block_id is not None
+    assert all("Reference text" not in item.quote_or_value for item in evidence)
+
+
+def test_document_summary_rejects_unpinned_document_locator_as_evidence() -> None:
+    parsed, snapshot, paper, evidence = _document_summary_fixture()
+    paragraph = evidence[0]
+    tampered = paragraph.model_copy(
+        update={
+            "locator": paragraph.locator.model_copy(
+                update={"document_parse_id": "document-parse.other"}
+            )
+        }
+    )
+    result = PaperSummaryPipeline(clock=lambda: FIXED_TIME).admit_document(
+        document_parse=parsed,
+        document_parse_id="document-parse.paper-1",
+        source_snapshot=snapshot,
+        paper=paper,
+        model_response=_model_output(evidence_id=tampered.evidence_id),
+        model_name="qwen.fixture.1",
+        parameters=SAFE_PARAMETERS,
+        evidence_candidates=(tampered,),
+    )
+
+    assert result.summary is not None
+    assert result.summary.background.overview is not None
+    assert result.summary.background.overview.status is (
+        PaperSummarySupportStatus.unverifiable
+    )
+    assert result.summary.evidence == ()
+
+
 def test_prompt_registry_resolves_one_hash_pinned_current_definition() -> None:
     registry = PromptRegistry()
 
     current = registry.get("paper_summary")
 
-    assert current.version == "3.0.0"
+    assert current.version == "4.0.0"
     assert current.output_models == ("PaperSummaryModelOutput",)
     assert current.content_hash == (
-        "sha256:934b82e428f3a03095daeae0f9c0fe738d94d0d790131c03933380c70585d80e"
+        "sha256:f5dcc7ba26f1eb1525720bbd332bc73d9bd1ab59d4ad066ff7f37df43d498872"
     )
 
 
@@ -261,7 +373,7 @@ def test_prompt_registry_rejects_in_place_version_mutation(tmp_path: Path) -> No
 @pytest.mark.parametrize(
     ("field", "replacement", "error"),
     [
-        ("input_schema_version: 1.0.0\n", "", "front matter fields"),
+        ("input_schema_version: 2.0.0\n", "", "front matter fields"),
         (
             "evidence_required: true\n",
             "evidence_required: required\n",
@@ -326,7 +438,8 @@ def test_valid_output_becomes_publisher_ready_summary_with_per_item_evidence() -
     summary = result.summary
     assert summary.kind == "paper_summary"
     assert summary.paper_id == collection.selected_paper_ids[0]
-    assert summary.input_versions.paper_collection_output_hash == collection.output_hash
+    assert summary.input_versions.collection is not None
+    assert summary.input_versions.collection.output_hash == collection.output_hash
     assert summary.input_versions.source_snapshots[0].source_snapshot_id == (
         collection.source_snapshots[0].snapshot_id
     )
@@ -771,7 +884,7 @@ def test_summary_canonical_persisted_payload_preserves_required_nulls() -> None:
     assert payload["dataset"]["overview"] is None
     assert PaperSummaryArtifactContent.model_validate(payload) == result.summary
 
-    with pytest.raises(PublicationAdmissionError, match="persisted provenance bridge"):
+    with pytest.raises(PublicationAdmissionError, match="explicit persisted provenance"):
         admit_artifact_candidate(
             result.summary,
             schema_version=result.summary.schema_version,
@@ -834,7 +947,7 @@ def test_paper_summary_artifact_version_round_trips_through_json() -> None:
         project_id="project.paper_summary.fixture",
         created_by_run_id="run.paper_summary.fixture",
         version_number=1,
-        schema_version="2.0.0",
+        schema_version="3.0.0",
         content=result.summary.model_dump(mode="json"),
         content_hash=result.summary.output_hash,
         input_hash=result.summary.input_hash,

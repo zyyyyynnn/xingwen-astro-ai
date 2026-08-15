@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from hashlib import sha256
+
 from app.schemas.core import ArtifactKind, ResearchContractInput, ScientificSkillId
 from app.workflow.store import RUN_STEP_STATUS_ORDER, RunStepDefinition
+from services.scientific_skills.planning import scientific_skill_phase
 
 
 class UnsupportedRunPlanError(ValueError):
@@ -51,9 +54,13 @@ _DATA_ANALYSIS_SKILLS = frozenset(
         ScientificSkillId.data_profile,
         ScientificSkillId.statistical_analysis,
         ScientificSkillId.correlation_analysis,
+        ScientificSkillId.spectrum_analysis,
+        ScientificSkillId.light_curve_analysis,
         ScientificSkillId.tabular_machine_learning,
+        ScientificSkillId.time_series_classification,
         ScientificSkillId.time_series_forecast,
         ScientificSkillId.image_classification,
+        ScientificSkillId.model_inference,
     }
 )
 _OBSERVATION_SKILLS = frozenset(
@@ -62,6 +69,10 @@ _OBSERVATION_SKILLS = frozenset(
         ScientificSkillId.skyview_fits,
         ScientificSkillId.ephemeris,
         ScientificSkillId.celestial_events,
+        ScientificSkillId.gaia_cone_search,
+        ScientificSkillId.vizier_tap,
+        ScientificSkillId.spectrum_acquisition,
+        ScientificSkillId.light_curve_acquisition,
     }
 )
 _ANALYSIS_SKILLS = frozenset(
@@ -71,11 +82,16 @@ _ANALYSIS_SKILLS = frozenset(
         ScientificSkillId.statistical_analysis,
         ScientificSkillId.correlation_analysis,
         ScientificSkillId.fits_image_analysis,
+        ScientificSkillId.spectrum_analysis,
+        ScientificSkillId.light_curve_analysis,
+        ScientificSkillId.vizier_tap,
+        ScientificSkillId.model_inference,
     }
 )
 _MODEL_SKILLS = frozenset(
     {
         ScientificSkillId.tabular_machine_learning,
+        ScientificSkillId.time_series_classification,
         ScientificSkillId.time_series_forecast,
         ScientificSkillId.image_classification,
     }
@@ -86,6 +102,14 @@ _VISUALIZATION_SKILLS = frozenset(
         ScientificSkillId.wwt_scene,
     }
 )
+_SCIENTIFIC_PHASES = frozenset(
+    {
+        "acquiring_observations",
+        "analyzing_data",
+        "training_models",
+        "building_visualizations",
+    }
+)
 SUPPORTED_RUN_OUTPUTS = frozenset(
     {
         ArtifactKind.dataset,
@@ -93,7 +117,10 @@ SUPPORTED_RUN_OUTPUTS = frozenset(
         ArtifactKind.source_collection,
         ArtifactKind.analysis_report,
         ArtifactKind.visualization,
+        ArtifactKind.spectrum,
+        ArtifactKind.light_curve,
         ArtifactKind.model_evaluation,
+        ArtifactKind.model_artifact,
         ArtifactKind.paper_collection,
         ArtifactKind.paper_summary,
         ArtifactKind.literature_claims,
@@ -122,7 +149,10 @@ def compile_run_plan(
         required.add("acquiring_observations")
     if skills & _ANALYSIS_SKILLS:
         required.add("analyzing_data")
-    if ArtifactKind.model_evaluation in outputs or skills & _MODEL_SKILLS:
+    if (
+        outputs & {ArtifactKind.model_evaluation, ArtifactKind.model_artifact}
+        or skills & _MODEL_SKILLS
+    ):
         required.add("training_models")
     if skills & _VISUALIZATION_SKILLS:
         required.add("building_visualizations")
@@ -139,15 +169,60 @@ def compile_run_plan(
     if ArtifactKind.graph in outputs:
         required.add("building_graph")
 
-    ordered = tuple(step for step in RUN_STEP_STATUS_ORDER if step in required)
+    tasks_by_phase = {
+        phase: tuple(
+            task
+            for task in contract.scientific_tasks
+            if scientific_skill_phase(task.skill_id) == phase
+        )
+        for phase in _SCIENTIFIC_PHASES
+    }
+    planned: list[RunStepDefinition] = []
+    for phase in RUN_STEP_STATUS_ORDER:
+        if phase not in required:
+            continue
+        phase_tasks = tasks_by_phase.get(phase, ())
+        if phase_tasks:
+            planned.extend(
+                RunStepDefinition(
+                    key=_scientific_task_step_key(task.task_id),
+                    label=f"{task.skill_id.value.replace('_', ' ').title()} · {task.task_id}",
+                    enter_status=phase,
+                    success_status="completed",
+                    task_id=task.task_id,
+                    skill_id=task.skill_id.value,
+                )
+                for task in phase_tasks
+            )
+            continue
+        planned.append(
+            RunStepDefinition(
+                key=phase,
+                label=_STEP_LABELS[phase],
+                enter_status=phase,
+                success_status="completed",
+            )
+        )
+
     return tuple(
         RunStepDefinition(
-            key=step,
-            label=_STEP_LABELS[step],
-            enter_status=step,
+            key=step.key,
+            label=step.label,
+            enter_status=step.enter_status,
             success_status=(
-                ordered[position + 1] if position + 1 < len(ordered) else "completed"
+                planned[position + 1].enter_status
+                if position + 1 < len(planned)
+                else "completed"
             ),
+            max_attempts=step.max_attempts,
+            task_id=step.task_id,
+            skill_id=step.skill_id,
+            depends_on_step_keys=(planned[position - 1].key,) if position else (),
         )
-        for position, step in enumerate(ordered)
+        for position, step in enumerate(planned)
     )
+
+
+def _scientific_task_step_key(task_id: str) -> str:
+    digest = sha256(task_id.encode("utf-8")).hexdigest()[:24]
+    return f"scientific.{digest}"

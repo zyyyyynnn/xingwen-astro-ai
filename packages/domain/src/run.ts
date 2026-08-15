@@ -20,6 +20,7 @@ export interface ResearchRun {
   readonly contractId: DomainEntityId;
   readonly executionMode: ExecutionMode;
   readonly status: RunStatus;
+  readonly revision: number;
   readonly progress: number;
   readonly parentRunId: DomainEntityId | null;
   readonly derivationKind: DerivationKind;

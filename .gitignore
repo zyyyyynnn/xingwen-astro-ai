@@ -25,6 +25,7 @@ dist/
 coverage/
 playwright-report/
 test-results/
+.playwright-cli/
 
 # IDE
 .idea/

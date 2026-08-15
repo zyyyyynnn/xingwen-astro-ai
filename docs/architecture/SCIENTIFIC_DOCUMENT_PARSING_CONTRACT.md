@@ -170,14 +170,19 @@ Manifest authority:
 - distribution: `docling-parse==7.11.0`;
 - approved Python import root: `docling_parse`;
 - license: MIT; no model weights;
-- official interface used by the benchmark probe:
+- official interface used by the production native adapter and benchmark:
   `DoclingPdfParser.load(...)`, `iterate_pages()`,
   `page.iterate_cells(unit_type="word")`;
 - CPU-capable, no parse-time network/model download;
 - intended scope: born-digital text layer + word geometry;
 - excluded: scanned OCR, semantic layout/table/formula/figure recognition.
 
-`native_baseline.py` is benchmark-only and does not enter API startup.
+`app.services.scientific_document.parser` is the production native-first adapter.
+It lazily imports the exact pinned PDF engine, validates immutable input bytes
+against their content hash, applies bounded input limits, and is reused unchanged
+by the Golden Set runner. UTF-8 Markdown/plain text is mapped deterministically
+without fabricating missing headings or duplicating a whole document into absent
+summary sections. The parser has no persistence or publication responsibility.
 
 The same manifest records the accepted visual adapter boundary:
 

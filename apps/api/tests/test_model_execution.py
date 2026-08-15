@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -155,6 +156,53 @@ def test_qwen_adapter_uses_the_sdk_route_and_exact_snapshot(
     assert response.provider_request_id == "provider-123"
 
 
+def test_qwen_adapter_maps_semantic_output_limit_to_transport_parameter() -> None:
+    client = FakeClient(successful_response())
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+    semantic_request = replace(
+        request(), parameters={"temperature": 0, "max_output_tokens": 2048}
+    )
+
+    adapter.execute(semantic_request)
+
+    assert client.calls[0]["max_tokens"] == 2048
+    assert "max_output_tokens" not in client.calls[0]
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    (
+        {"response_format": "json_schema"},
+        {"extra_body": {"enable_thinking": True}},
+        {"tools": []},
+        {"unknown_provider_switch": True},
+        {"max_tokens": 1024, "max_output_tokens": 2048},
+    ),
+)
+def test_qwen_adapter_rejects_transport_owned_or_unknown_parameters(
+    parameters: dict[str, Any],
+) -> None:
+    client = FakeClient(successful_response())
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+    unsafe_request = replace(request(), parameters=parameters)
+
+    with pytest.raises(ModelExecutionError) as captured:
+        adapter.execute(unsafe_request)
+
+    assert captured.value.code == "MODEL_REQUEST_INVALID"
+    assert client.calls == []
+
+
 def test_qwen_execution_lease_covers_all_attempts_and_retry_after_waits() -> None:
     assert qwen_execution_lease_duration(
         timeout_seconds=45,
@@ -199,6 +247,38 @@ def test_qwen_adapter_maps_provider_failures_without_leaking_body(
     assert captured.value.code == code
     assert "do-not-return" not in captured.value.public_message
     assert captured.value.latency_ms is not None
+
+
+def test_qwen_adapter_distinguishes_exhausted_provider_quota() -> None:
+    provider_request = httpx2.Request(
+        "POST", "https://dashscope.example/compatible-mode/v1/chat/completions"
+    )
+    provider_response = httpx2.Response(403, request=provider_request)
+    client = FakeClient(
+        error=APIStatusError(
+            "provider rejected request",
+            response=provider_response,
+            body={
+                "code": "AllocationQuota.FreeTierOnly",
+                "message": "provider account details must remain private",
+            },
+        )
+    )
+    adapter = QwenModelExecutionAdapter(
+        api_key="test-secret",
+        base_url="https://dashscope.example/v1",
+        timeout_seconds=3,
+        client=cast(OpenAI, client),
+    )
+
+    with pytest.raises(ModelExecutionError) as captured:
+        adapter.execute(request())
+
+    assert captured.value.code == "MODEL_QUOTA_EXHAUSTED"
+    assert captured.value.public_message == (
+        "研究助手调用额度已用尽，请联系管理员检查模型配额。"
+    )
+    assert "provider account details" not in captured.value.public_message
 
 
 def test_qwen_adapter_keeps_safe_execution_metadata_for_invalid_content() -> None:

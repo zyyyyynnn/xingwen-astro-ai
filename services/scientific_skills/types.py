@@ -23,6 +23,7 @@ class ScientificSkillBudget(BaseModel):
     max_input_rows: int = Field(default=10_000, ge=1, le=100_000)
     max_output_rows: int = Field(default=2_000, ge=1, le=10_000)
     max_input_bytes: int = Field(default=32 * 1024 * 1024, ge=1, le=128 * 1024 * 1024)
+    max_output_bytes: int = Field(default=16 * 1024 * 1024, ge=1, le=64 * 1024 * 1024)
 
 
 class ScientificSourceReference(BaseModel):

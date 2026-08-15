@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from base64 import b64encode
+from base64 import b64decode, b64encode
 from collections.abc import Sequence
 from math import exp
 from uuid import UUID, uuid4
@@ -15,6 +15,8 @@ from app.schemas.core import (
 )
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
+    ModelArtifactContent,
+    ModelEvaluationArtifactContent,
     VisualizationArtifactContent,
 )
 from app.services.content_storage import sha256_content_hash
@@ -33,9 +35,12 @@ from services.scientific_skills import (
 PROJECT_ID = str(uuid4())
 RUN_ID = str(uuid4())
 SNAPSHOT_ID = str(uuid4())
+SECOND_SNAPSHOT_ID = str(uuid4())
 EVIDENCE_ID = str(uuid4())
 DATASET_VERSION_ID = str(uuid4())
+MODEL_VERSION_ID = str(uuid4())
 HASH = "sha256:" + "a" * 64
+SECOND_HASH = "sha256:" + "b" * 64
 
 
 @pytest.fixture
@@ -68,6 +73,36 @@ def _rows(count: int = 30) -> list[dict[str, object]]:
         }
         for index in range(count)
     ]
+
+
+def _image_training_parameters(count: int = 20) -> dict[str, object]:
+    return {
+        "images": [
+            {
+                "image_id": f"images/sample-{index:02d}.png",
+                "label": "bright" if index >= count / 2 else "dim",
+                "pixels": [index / count] * (32 * 32 * 3),
+            }
+            for index in range(count)
+        ],
+        "image_count": count,
+        "source_total_pixels": count * 12 * 8,
+        "image_shape": [32, 32, 3],
+        "preprocessing": {
+            "schema_version": "1.0.0",
+            "color_mode": "RGB",
+            "exif_transpose": True,
+            "resize_height": 32,
+            "resize_width": 32,
+            "resize_mode": "contain_pad",
+            "resampling": "bilinear",
+            "normalization": "uint8_to_unit_interval",
+        },
+        "label_schema": [
+            {"class_index": 0, "label": "bright", "sample_count": count // 2},
+            {"class_index": 1, "label": "dim", "sample_count": count // 2},
+        ],
+    }
 
 
 def _synthetic_star_field(size: int = 49) -> list[list[float]]:
@@ -121,8 +156,15 @@ def test_production_registry_is_an_exact_fail_closed_skill_catalog() -> None:
         ),
         (
             ScientificSkillId.wwt_scene,
-            {"ra_hours": 0.7, "dec_degrees": 41.2},
-            "center",
+            {
+                "view": {
+                    "kind": "coordinates",
+                    "center": {"ra_hours": 0.7, "dec_degrees": 41.2},
+                    "field_of_view_degrees": 2,
+                },
+                "text_alternative": "A narrow WWT field centered on Andromeda Galaxy.",
+            },
+            "view",
         ),
     ],
 )
@@ -168,6 +210,26 @@ def test_registered_analysis_and_visualization_skills_return_hashed_typed_result
             "regression",
         ),
         (
+            ScientificSkillId.time_series_classification,
+            {
+                "rows": [
+                    {
+                        "row_id": f"series.{index}",
+                        "t0": float(index % 2),
+                        "t1": float(index % 2) + 0.1,
+                        "t2": float(index % 2) + 0.2,
+                        "t3": float(index % 2) + 0.3,
+                        "label": "variable" if index % 2 else "stable",
+                    }
+                    for index in range(40)
+                ],
+                "series_fields": ["t0", "t1", "t2", "t3"],
+                "target_field": "label",
+                "algorithm": "random_forest",
+            },
+            "time_series_classification",
+        ),
+        (
             ScientificSkillId.time_series_forecast,
             {
                 "rows": _rows(50),
@@ -180,18 +242,7 @@ def test_registered_analysis_and_visualization_skills_return_hashed_typed_result
         ),
         (
             ScientificSkillId.image_classification,
-            {
-                "images": [
-                    {
-                        "label": "bright" if index >= 10 else "dim",
-                        "pixels": [
-                            [float(index), float(index + 1)],
-                            [float(index + 2), float(index + 3)],
-                        ],
-                    }
-                    for index in range(20)
-                ]
-            },
+            _image_training_parameters(),
             "image_classification",
         ),
     ],
@@ -208,8 +259,21 @@ def test_registered_modeling_skills_are_deterministic_and_report_a_baseline(
     assert first.output == second.output
     assert first.output["task_kind"] == task_kind
     assert "metrics" in first.output
-    if skill_id is ScientificSkillId.tabular_machine_learning:
+    model_binary = first.output["model_binary"]
+    assert model_binary["media_type"] == "application/onnx"
+    content = b64decode(model_binary["content_base64"], validate=True)
+    assert sha256_content_hash(content) == model_binary["content_hash"]
+    import onnx
+
+    onnx.checker.check_model(onnx.load_model_from_string(content))
+    if skill_id in {
+        ScientificSkillId.tabular_machine_learning,
+        ScientificSkillId.time_series_classification,
+    }:
         assert "baseline_metrics" in first.output
+    if skill_id is ScientificSkillId.image_classification:
+        assert first.output["image_shape"] == [32, 32, 3]
+        assert first.output["label_schema"][0]["label"] == "bright"
 
 
 def test_bundled_jpl_ephemeris_executes_without_runtime_download() -> None:
@@ -274,6 +338,7 @@ def test_fits_image_analysis_exposes_bounded_photutils_operations(
         ("moon_phases", {}),
         ("seasons", {}),
         ("lunar_eclipses", {}),
+        ("solar_eclipses", {}),
         (
             "twilight",
             {"latitude_degrees": 31.2, "longitude_degrees": 121.5},
@@ -311,6 +376,72 @@ def test_modeling_rejects_a_split_that_cannot_represent_every_class() -> None:
                     "rows": rows,
                     "feature_fields": ["x"],
                     "target_field": "label",
+                },
+            )
+        )
+
+
+def _inference_model_parameters() -> dict[str, object]:
+    trained = build_scientific_skill_registry().execute(
+        _request(
+            ScientificSkillId.tabular_machine_learning,
+            {
+                "rows": _rows(40),
+                "feature_fields": ["x", "y"],
+                "target_field": "label",
+                "task_kind": "classification",
+                "algorithm": "random_forest",
+            },
+        )
+    )
+    binary = trained.output["model_binary"]
+    assert isinstance(binary, dict)
+    return {
+        "model_artifact_version_id": MODEL_VERSION_ID,
+        "model_id": "model.primary",
+        "task_kind": "classification",
+        "feature_fields": ["x", "y"],
+        "target_field": "label",
+        "content_base64": binary["content_base64"],
+        "content_hash": binary["content_hash"],
+        "media_type": binary["media_type"],
+        "input_name": binary["input_name"],
+        "output_names": binary["output_names"],
+        "input_shape": binary["input_shape"],
+        "opset_imports": binary["opset_imports"],
+    }
+
+
+def test_model_inference_runs_only_the_frozen_onnx_contract_on_cpu() -> None:
+    result = build_scientific_skill_registry().execute(
+        _request(
+            ScientificSkillId.model_inference,
+            {
+                "model": _inference_model_parameters(),
+                "rows": _rows(5),
+                "dataset_artifact_version_id": DATASET_VERSION_ID,
+            },
+        )
+    )
+
+    assert result.output["model_artifact_version_id"] == MODEL_VERSION_ID
+    assert result.output["dataset_artifact_version_id"] == DATASET_VERSION_ID
+    assert result.output["prediction_count"] == 5
+    assert len(result.output["predictions"]) == 5
+
+
+def test_model_inference_rejects_python_object_serialization() -> None:
+    model = _inference_model_parameters()
+    model["media_type"] = "application/vnd.sklearn"
+
+    with pytest.raises(ValueError, match="only ONNX"):
+        build_scientific_skill_registry().execute(
+            _request(
+                ScientificSkillId.model_inference,
+                {
+                    "model": model,
+                    "rows": _rows(2),
+                    "dataset_artifact_version_id": DATASET_VERSION_ID,
                 },
             )
         )
@@ -380,17 +511,33 @@ class _MemoryStorage:
 
 
 class _SourceRecorder:
-    async def record(self, **_: object) -> ScientificSourceReference:
-        return ScientificSourceReference(
-            source_snapshot_id=SNAPSHOT_ID,
-            content_hash=HASH,
+    async def record(self, **_: object) -> tuple[ScientificSourceReference, ...]:
+        return (
+            ScientificSourceReference(
+                source_snapshot_id=SNAPSHOT_ID,
+                content_hash=HASH,
+            ),
+        )
+
+
+class _TwoSourceRecorder:
+    async def record(self, **_: object) -> tuple[ScientificSourceReference, ...]:
+        return (
+            ScientificSourceReference(
+                source_snapshot_id=SNAPSHOT_ID,
+                content_hash=HASH,
+            ),
+            ScientificSourceReference(
+                source_snapshot_id=SECOND_SNAPSHOT_ID,
+                content_hash=SECOND_HASH,
+            ),
         )
 
 
 def _contract(
     *,
     skill_id: ScientificSkillId,
-    output: str,
+    output: str | Sequence[str],
     input_refs: Sequence[str] = (),
     parameters: dict[str, object] | None = None,
 ) -> ResearchContractInput:
@@ -410,7 +557,9 @@ def _contract(
                     "input_refs": list(input_refs),
                 }
             ],
-            "output_requirements": [output],
+            "output_requirements": [output]
+            if isinstance(output, str)
+            else list(output),
             "evidence_requirements": {},
             "quality_constraints": {},
         }
@@ -449,22 +598,186 @@ async def test_step_adapter_resolves_dataset_input_and_builds_analysis_artifact(
         )
 
     output = await adapter.execute(
-        step_key="analyzing_data",
+        task_id="task.primary",
         project_id=PROJECT_ID,
         run_id=RUN_ID,
         contract=contract,
         resolve_inputs=resolve,
     )
 
-    assert len(output.outcomes) == 1
+    assert output.task_id == "task.primary"
+    assert output.skill_id is ScientificSkillId.data_profile
     candidate = output.artifact_candidates[0]
     assert isinstance(candidate, AnalysisReportArtifactContent)
     assert candidate.related_artifact_version_ids == (DATASET_VERSION_ID,)
     assert candidate.result_blocks[0].payload["row_count"] == 30
-    assert len(candidate.evidence_ids) == 1
+    assert set(candidate.evidence_ids) == {
+        EVIDENCE_ID,
+        candidate.scientific_evidence[0].evidence_id,
+    }
     assert candidate.scientific_evidence[0].locator["upstream_evidence_ids"] == [
         EVIDENCE_ID
     ]
+
+
+@pytest.mark.anyio
+async def test_step_adapter_materializes_an_onnx_model_binary() -> None:
+    storage = _MemoryStorage()
+    adapter = ScientificStepAdapter(
+        build_scientific_skill_registry(),
+        content_storage=storage,
+        source_recorder=_SourceRecorder(),
+    )
+    contract = _contract(
+        skill_id=ScientificSkillId.tabular_machine_learning,
+        output=("model_evaluation", "model_artifact"),
+        input_refs=[DATASET_VERSION_ID],
+        parameters={
+            "feature_fields": ["x", "y"],
+            "target_field": "label",
+            "task_kind": "classification",
+            "algorithm": "random_forest",
+        },
+    )
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        return (
+            ScientificInputBinding(
+                ref_id=DATASET_VERSION_ID,
+                kind="artifact_version",
+                parameters={"rows": _rows(40)},
+                source_references=(
+                    ScientificSourceReference(
+                        source_snapshot_id=SNAPSHOT_ID,
+                        content_hash=HASH,
+                    ),
+                ),
+                evidence_ids=(EVIDENCE_ID,),
+            ),
+        )
+
+    output = await adapter.execute(
+        task_id="task.primary",
+        project_id=PROJECT_ID,
+        run_id=RUN_ID,
+        contract=contract,
+        resolve_inputs=resolve,
+    )
+
+    evaluation, model = output.artifact_candidates
+    assert isinstance(evaluation, ModelEvaluationArtifactContent)
+    assert isinstance(model, ModelArtifactContent)
+    assert evaluation.model_binary is not None
+    assert evaluation.model_binary == model.model_binary
+    assert model.model_binary.media_type == "application/onnx"
+    assert model.status == "active"
+    assert model.input_shape[0] is None
+    assert model.opset_imports
+    assert storage.content[model.model_binary.content_hash]
+
+
+@pytest.mark.anyio
+async def test_image_dataset_publishes_source_pinned_training_specification() -> None:
+    storage = _MemoryStorage()
+    adapter = ScientificStepAdapter(
+        build_scientific_skill_registry(),
+        content_storage=storage,
+        source_recorder=_SourceRecorder(),
+    )
+    contract = _contract(
+        skill_id=ScientificSkillId.image_classification,
+        output=("model_evaluation", "model_artifact"),
+        input_refs=[SNAPSHOT_ID],
+    )
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        return (
+            ScientificInputBinding(
+                ref_id=SNAPSHOT_ID,
+                kind="content_blob",
+                parameters=_image_training_parameters(),
+                source_references=(
+                    ScientificSourceReference(
+                        source_snapshot_id=SNAPSHOT_ID,
+                        content_hash=HASH,
+                    ),
+                ),
+            ),
+        )
+
+    output = await adapter.execute(
+        task_id="task.primary",
+        project_id=PROJECT_ID,
+        run_id=RUN_ID,
+        contract=contract,
+        resolve_inputs=resolve,
+    )
+
+    evaluation, model = output.artifact_candidates
+    assert isinstance(evaluation, ModelEvaluationArtifactContent)
+    assert isinstance(model, ModelArtifactContent)
+    assert evaluation.training_input.kind == "source_snapshot"
+    assert evaluation.training_input.ref_id == SNAPSHOT_ID
+    assert evaluation.image_training is not None
+    assert model.image_training == evaluation.image_training
+    assert model.image_training.image_shape == (32, 32, 3)
+    assert model.image_training.label_schema[0].label == "bright"
+    assert any(item.startswith("pillow==") for item in model.dependency_revisions)
+
+
+@pytest.mark.anyio
+async def test_step_adapter_publishes_version_pinned_model_predictions() -> None:
+    adapter = ScientificStepAdapter(
+        build_scientific_skill_registry(),
+        content_storage=_MemoryStorage(),
+        source_recorder=_SourceRecorder(),
+    )
+    contract = _contract(
+        skill_id=ScientificSkillId.model_inference,
+        output="analysis_report",
+        input_refs=[MODEL_VERSION_ID, DATASET_VERSION_ID],
+    )
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        source = ScientificSourceReference(
+            source_snapshot_id=SNAPSHOT_ID,
+            content_hash=HASH,
+        )
+        return (
+            ScientificInputBinding(
+                ref_id=MODEL_VERSION_ID,
+                kind="artifact_version",
+                parameters={"model": _inference_model_parameters()},
+                source_references=(source,),
+                evidence_ids=(EVIDENCE_ID,),
+            ),
+            ScientificInputBinding(
+                ref_id=DATASET_VERSION_ID,
+                kind="artifact_version",
+                parameters={
+                    "rows": _rows(5),
+                    "dataset_artifact_version_id": DATASET_VERSION_ID,
+                },
+                source_references=(source,),
+                evidence_ids=(EVIDENCE_ID,),
+            ),
+        )
+
+    output = await adapter.execute(
+        task_id="task.primary",
+        project_id=PROJECT_ID,
+        run_id=RUN_ID,
+        contract=contract,
+        resolve_inputs=resolve,
+    )
+
+    candidate = output.artifact_candidates[0]
+    assert isinstance(candidate, AnalysisReportArtifactContent)
+    assert candidate.related_artifact_version_ids == (
+        MODEL_VERSION_ID,
+        DATASET_VERSION_ID,
+    )
+    assert candidate.result_blocks[0].payload["prediction_count"] == 5
 
 
 @pytest.mark.anyio
@@ -517,7 +830,7 @@ async def test_step_adapter_materializes_skyview_fits_and_builds_visualization()
         return ()
 
     output = await adapter.execute(
-        step_key="acquiring_observations",
+        task_id="task.primary",
         project_id=PROJECT_ID,
         run_id=RUN_ID,
         contract=contract,
@@ -530,6 +843,73 @@ async def test_step_adapter_materializes_skyview_fits_and_builds_visualization()
     assert candidate.spec.content_hash == content_hash
     assert storage.content[content_hash] == content
     assert len(candidate.scientific_evidence) == 1
+
+
+@pytest.mark.anyio
+async def test_step_adapter_preserves_each_produced_physical_source_snapshot() -> None:
+    def fake_ephemeris(_: ScientificSkillRequest) -> dict[str, object]:
+        return {"target": "mars", "distance_au": 1.2}
+
+    registry = ScientificSkillRegistry(
+        [
+            ScientificSkillDefinition(
+                skill_id=ScientificSkillId.ephemeris,
+                revision="1.0.0",
+                handler=fake_ephemeris,
+            )
+        ]
+    )
+    adapter = ScientificStepAdapter(
+        registry,
+        content_storage=_MemoryStorage(),
+        source_recorder=_TwoSourceRecorder(),
+    )
+    contract = _contract(
+        skill_id=ScientificSkillId.ephemeris,
+        output="analysis_report",
+        parameters={"target": "mars", "observed_at": "2026-01-01T00:00:00Z"},
+    )
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        return ()
+
+    output = await adapter.execute(
+        task_id="task.primary",
+        project_id=PROJECT_ID,
+        run_id=RUN_ID,
+        contract=contract,
+        resolve_inputs=resolve,
+    )
+
+    candidate = output.artifact_candidates[0]
+    assert candidate.source_snapshot_ids == tuple(
+        sorted((SNAPSHOT_ID, SECOND_SNAPSHOT_ID))
+    )
+
+
+@pytest.mark.anyio
+async def test_step_adapter_rejects_a_task_not_frozen_in_the_contract() -> None:
+    adapter = ScientificStepAdapter(
+        build_scientific_skill_registry(),
+        content_storage=_MemoryStorage(),
+        source_recorder=_SourceRecorder(),
+    )
+    contract = _contract(
+        skill_id=ScientificSkillId.data_profile,
+        output="analysis_report",
+    )
+
+    async def resolve(_: ScientificTaskInput) -> Sequence[ScientificInputBinding]:
+        return ()
+
+    with pytest.raises(ValueError, match="exactly one task"):
+        await adapter.execute(
+            task_id="task.not_authorized",
+            project_id=PROJECT_ID,
+            run_id=RUN_ID,
+            contract=contract,
+            resolve_inputs=resolve,
+        )
 
 
 def test_input_binding_order_is_part_of_the_frozen_contract() -> None:

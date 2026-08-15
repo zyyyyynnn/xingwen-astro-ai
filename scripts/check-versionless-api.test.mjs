@@ -26,6 +26,29 @@ test("allows an unversioned tracked path with neutral content", () => {
   );
 });
 
+test("rejects a version-prefixed Xingwen API path in source content", () => {
+  const path = "apps/api/src/app/router.py";
+  const contents = 'route = "/api/v2/runs"';
+
+  assert.deepEqual(versionlessApiViolations(path, contents), [
+    `${path}:1: ${contents}`,
+  ]);
+});
+
+test("allows only the exact file-scoped MAST provider version paths", () => {
+  const path = "services/scientific_skills/astro_acquisition.py";
+  const contents = [
+    'endpoint = "https://mast.stsci.edu/api/v0.1/Download/file"',
+    'provider_path = "/api/v0.1/Download/file"',
+  ].join("\n");
+
+  assert.deepEqual(versionlessApiViolations(path, contents), []);
+  assert.deepEqual(
+    versionlessApiViolations(path, `${contents}\nlocal = "/api/v2/runs"`),
+    [`${path}:3: local = "/api/v2/runs"`],
+  );
+});
+
 test("checks versioned paths even when their contents are not scannable", () => {
   const path = ["apps", "api", `v${12}`, "NOTICE"].join("/");
   let contentRead = false;

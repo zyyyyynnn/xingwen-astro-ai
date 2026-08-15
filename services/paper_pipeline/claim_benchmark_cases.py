@@ -26,10 +26,12 @@ from app.schemas.paper_benchmark import (
 from app.schemas.paper_collection import PaperBenchmarkReference
 from app.schemas.paper_summary import (
     PaperSummaryArtifactContent,
+    PaperSummaryCollectionReference,
     PaperSummaryEvidence,
     PaperSummaryEvidenceLocator,
     PaperSummaryInputVersions,
     PaperSummaryItemKind,
+    PaperSummaryPaperMetadata,
     PaperSummaryProducerExecution,
     PaperSummarySourceSnapshotReference,
     PaperSummaryStatement,
@@ -276,17 +278,19 @@ def _build_summary(
     )
     ordered_evidence = tuple(sorted(evidence, key=lambda item: item.evidence_id))
     input_versions = PaperSummaryInputVersions(
-        paper_collection_version_id=(
-            "artifact_version.paper_benchmark.paper_collection."
-            f"{claim.paper_id.removeprefix('paper.')}"
-        ),
-        paper_collection_schema_version="2.0.0",
-        paper_collection_output_hash=compute_canonical_payload_hash(
-            {
-                "benchmark_id": benchmark.benchmark_id,
-                "benchmark_version": benchmark.benchmark_version,
-                "paper_id": claim.paper_id,
-            }
+        collection=PaperSummaryCollectionReference(
+            artifact_version_id=(
+                "artifact_version.paper_benchmark.paper_collection."
+                f"{claim.paper_id.removeprefix('paper.')}"
+            ),
+            schema_version="2.0.0",
+            output_hash=compute_canonical_payload_hash(
+                {
+                    "benchmark_id": benchmark.benchmark_id,
+                    "benchmark_version": benchmark.benchmark_version,
+                    "paper_id": claim.paper_id,
+                }
+            ),
         ),
         source_snapshots=ordered_snapshots,
     )
@@ -335,9 +339,13 @@ def _build_summary(
     statement_fields = _statement_fields(claim.claim_type, statement)
     payload = {
         "kind": "paper_summary",
-        "schema_version": "2.0.0",
+        "schema_version": "3.0.0",
         "summary_id": claim.summary_id,
         "paper_id": claim.paper_id,
+        "paper": PaperSummaryPaperMetadata(
+            paper_id=claim.paper_id,
+            title=claim.paper_id,
+        ).model_dump(mode="json"),
         "benchmark": PaperBenchmarkReference(
             benchmark_id=benchmark.benchmark_id,
             schema_version=benchmark.schema_version,

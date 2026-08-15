@@ -1,6 +1,8 @@
 import {
   isTerminalRunStatus,
   type ArtifactVersionMetadata,
+  type DataArtifactReview,
+  type GraphArtifactReview,
   type Evidence,
   type EvidenceLocator,
   type ResearchArtifact,
@@ -12,6 +14,11 @@ import {
   type ResearchThreadEntry,
   type ResearchTurn,
   type RunStepSnapshot,
+  type LiteratureArtifactReview,
+  type LiteratureClaimReferenceReview,
+  type LiteratureRelationReview,
+  type LiteratureReasoningTraceReview,
+  type PaperAcquisitionReview,
 } from "@xingwen/domain";
 
 import type {
@@ -33,6 +40,10 @@ import type {
   ResearchThreadEntryViewModel,
   ResearchTurnViewModel,
   RunStepViewModel,
+  DataArtifactReviewViewModel,
+  GraphArtifactReviewViewModel,
+  LiteratureArtifactReviewViewModel,
+  PaperAcquisitionReviewViewModel,
 } from "./view-model";
 
 function toContractInputViewModel(
@@ -143,6 +154,10 @@ export function toRunStepViewModel(step: RunStepSnapshot): RunStepViewModel {
     position: step.position,
     key: step.key,
     label: step.label,
+    phase: step.phase,
+    taskId: step.taskId,
+    skillId: step.skillId,
+    dependsOnStepKeys: step.dependsOnStepKeys,
     status: step.status,
     progress: step.progress,
     publicMessage: step.publicMessage,
@@ -191,6 +206,7 @@ export function toRunViewModel(run: ResearchRun): ResearchRunViewModel {
     contractId: run.contractId,
     executionMode: run.executionMode,
     status: run.status,
+    revision: run.revision,
     progress: run.progress,
     latestEventSequence: run.latestEventSequence,
     parentRunId: run.parentRunId,
@@ -341,5 +357,273 @@ export function toEvidenceViewModel(evidence: Evidence): EvidenceViewModel {
     extractionMethod: evidence.extractionMethod,
     confidence: evidence.confidence,
     createdAt: evidence.createdAt,
+  };
+}
+
+export function toDataArtifactViewModel(
+  review: DataArtifactReview,
+): DataArtifactReviewViewModel {
+  const base = {
+    artifactVersionId: review.artifactVersionId,
+    artifactId: review.artifactId,
+    projectId: review.projectId,
+    schemaVersion: review.schemaVersion,
+    sourceMode: review.sourceMode,
+    contentHash: review.contentHash,
+    inputHash: review.inputHash,
+    createdAt: review.createdAt,
+    sourceSnapshots: review.sourceSnapshots.map((snapshot) => ({
+      ...snapshot,
+    })),
+    evidenceIds: [...review.evidenceIds],
+    quality: { ...review.quality },
+  };
+  if (review.kind === "dataset") {
+    return {
+      ...base,
+      kind: review.kind,
+      candidateId: review.candidateId,
+      requestedFields: [...review.requestedFields],
+      columns: review.columns.map((column) => ({
+        ...column,
+        sourceAliases: column.sourceAliases.map((alias) => ({ ...alias })),
+        sourcePriority: [...column.sourcePriority],
+      })),
+      rows: review.rows.map((row) => ({
+        ...row,
+        cells: row.cells.map((cell) => ({
+          ...cell,
+          conflictIds: [...cell.conflictIds],
+          evidenceIds: [...cell.evidenceIds],
+        })),
+        sourceSnapshotIds: [...row.sourceSnapshotIds],
+        evidenceIds: [...row.evidenceIds],
+      })),
+      rowCount: review.rowCount,
+      fieldCount: review.fieldCount,
+      conflictCount: review.conflictCount,
+    };
+  }
+  if (review.kind === "field_dictionary") {
+    return {
+      ...base,
+      kind: review.kind,
+      candidateId: review.candidateId,
+      requestedFields: [...review.requestedFields],
+      fieldDefinitions: review.fieldDefinitions.map((field) => ({
+        ...field,
+        sourceAliases: field.sourceAliases.map((alias) => ({ ...alias })),
+        sourcePriority: [...field.sourcePriority],
+      })),
+    };
+  }
+  return {
+    ...base,
+    kind: review.kind,
+    candidateId: review.candidateId,
+    members: review.members.map((member) => ({ ...member })),
+    alignedRecordCount: review.alignedRecordCount,
+    conflictRecordCount: review.conflictRecordCount,
+    inconclusiveRecordCount: review.inconclusiveRecordCount,
+    reviewRequiredRecordCount: review.reviewRequiredRecordCount,
+  };
+}
+
+export function toPaperAcquisitionViewModel(
+  review: PaperAcquisitionReview,
+): PaperAcquisitionReviewViewModel {
+  return {
+    ...review,
+    query: {
+      ...review.query,
+      originalKeywords: [...review.query.originalKeywords],
+      normalizedKeywords: [...review.query.normalizedKeywords],
+      sourceIds: [...review.query.sourceIds],
+      sourceParameters: review.query.sourceParameters.map((source) => ({
+        ...source,
+        parameters: source.parameters.map((entry) => ({ ...entry })),
+      })),
+    },
+    acquisition: { ...review.acquisition },
+    benchmark: review.benchmark ? { ...review.benchmark } : null,
+    metrics: { ...review.metrics },
+    rules: { ...review.rules },
+    sourceExecutions: review.sourceExecutions.map((execution) => ({
+      ...execution,
+      pagination: { ...execution.pagination },
+      pages: execution.pages.map((page) => ({
+        ...page,
+        rateLimitMetadata: page.rateLimitMetadata.map((entry) => ({
+          ...entry,
+        })),
+      })),
+      cache: execution.cache ? { ...execution.cache } : null,
+    })),
+    sourceSnapshots: review.sourceSnapshots.map((snapshot) => ({
+      ...snapshot,
+      requestMetadata: snapshot.requestMetadata.map((entry) => ({ ...entry })),
+    })),
+    producerExecution: { ...review.producerExecution },
+    candidates: review.candidates.map((candidate) => ({
+      ...candidate,
+      authors: [...candidate.authors],
+      rawRecord: {
+        ...candidate.rawRecord,
+        authors: [...candidate.rawRecord.authors],
+      },
+      conflicts: candidate.conflicts.map((conflict) => ({ ...conflict })),
+      selection: { ...candidate.selection },
+      duplicateGroup: {
+        ...candidate.duplicateGroup,
+        candidateIds: [...candidate.duplicateGroup.candidateIds],
+        matchBasis: [...candidate.duplicateGroup.matchBasis],
+        conflicts: candidate.duplicateGroup.conflicts.map((conflict) => ({
+          ...conflict,
+        })),
+      },
+      sourceSnapshot: {
+        ...candidate.sourceSnapshot,
+        requestMetadata: candidate.sourceSnapshot.requestMetadata.map(
+          (entry) => ({
+            ...entry,
+          }),
+        ),
+      },
+      evidence: candidate.evidence.map((item) => ({ ...item })),
+    })),
+  };
+}
+
+function toClaimReferenceViewModel(
+  reference: LiteratureClaimReferenceReview | null,
+) {
+  return reference
+    ? {
+        ...reference,
+      }
+    : null;
+}
+
+function toTraceViewModel(trace: LiteratureReasoningTraceReview | null) {
+  return trace
+    ? {
+        ...trace,
+        premiseClaimIds: [...trace.premiseClaimIds],
+        conditions: [...trace.conditions],
+        conflicts: [...trace.conflicts],
+        limitations: [...trace.limitations],
+        steps: trace.steps.map((step) => ({
+          ...step,
+          claimIds: [...step.claimIds],
+          evidenceIds: [...step.evidenceIds],
+        })),
+        evidenceIds: [...trace.evidenceIds],
+      }
+    : null;
+}
+
+function toRelationViewModel(relation: LiteratureRelationReview) {
+  return {
+    ...relation,
+    direction: { ...relation.direction },
+    comparability: { ...relation.comparability },
+    conditions: [...relation.conditions],
+    conditionConflicts: [...relation.conditionConflicts],
+    conditionUncertainties: [...relation.conditionUncertainties],
+    confidence: relation.confidence ? { ...relation.confidence } : null,
+    evidenceIds: [...relation.evidenceIds],
+    sourceSnapshotIds: [...relation.sourceSnapshotIds],
+    sourceClaim: toClaimReferenceViewModel(relation.sourceClaim),
+    targetClaim: toClaimReferenceViewModel(relation.targetClaim),
+    reasoningTrace: toTraceViewModel(relation.reasoningTrace),
+  };
+}
+
+export function toLiteratureArtifactViewModel(
+  review: LiteratureArtifactReview,
+): LiteratureArtifactReviewViewModel {
+  const base = {
+    artifactVersionId: review.artifactVersionId,
+    artifactId: review.artifactId,
+    projectId: review.projectId,
+    versionNumber: review.versionNumber,
+    schemaVersion: review.schemaVersion,
+    sourceMode: review.sourceMode,
+    contentHash: review.contentHash,
+    inputHash: review.inputHash,
+    outputHash: review.outputHash,
+    createdAt: review.createdAt,
+    sourceSnapshots: review.sourceSnapshots.map((snapshot) => ({
+      ...snapshot,
+    })),
+    evidenceIds: [...review.evidenceIds],
+  };
+  if (review.kind === "literature_claims") {
+    return {
+      ...base,
+      kind: review.kind,
+      claims: review.claims.map((claim) => ({
+        ...claim,
+        objects: [...claim.objects],
+        scope: [...claim.scope],
+        conditions: [...claim.conditions],
+        qualifiers: [...claim.qualifiers],
+        limitations: [...claim.limitations],
+        sourceSnapshotIds: [...claim.sourceSnapshotIds],
+        evidenceIds: [...claim.evidenceIds],
+      })),
+    };
+  }
+  if (review.kind === "reasoning_traces") {
+    return {
+      ...base,
+      kind: review.kind,
+      traces: review.traces
+        .map(toTraceViewModel)
+        .filter((trace): trace is NonNullable<typeof trace> => trace !== null),
+    };
+  }
+  return {
+    ...base,
+    kind: review.kind,
+    relations: review.relations.map(toRelationViewModel),
+  };
+}
+
+export function toGraphArtifactViewModel(
+  review: GraphArtifactReview,
+): GraphArtifactReviewViewModel {
+  return {
+    ...review,
+    inputVersions: review.inputVersions.map((version) => ({ ...version })),
+    integrity: {
+      ...review.integrity,
+      counts: { ...review.integrity.counts },
+      findings: review.integrity.findings.map((finding) => ({ ...finding })),
+    },
+    scopeSummary: [...review.scopeSummary],
+    taxonomyNodeTypes: [...review.taxonomyNodeTypes],
+    taxonomyEdgeTypes: [...review.taxonomyEdgeTypes],
+    progressive: { ...review.progressive },
+    nodes: review.nodes.map((node) => ({
+      ...node,
+      logicalReference: node.logicalReference.map((part) => ({ ...part })),
+      versionBindings: node.versionBindings.map((binding) => ({ ...binding })),
+    })),
+    edges: review.edges.map((edge) => ({
+      ...edge,
+      evidenceUseIds: [...edge.evidenceUseIds],
+      dataAggregation: edge.dataAggregation
+        ? { ...edge.dataAggregation }
+        : null,
+      relationTrace: edge.relationTrace
+        ? {
+            ...edge.relationTrace,
+            premiseClaimIds: [...edge.relationTrace.premiseClaimIds],
+            traceEvidenceIds: [...edge.relationTrace.traceEvidenceIds],
+          }
+        : null,
+      relation: edge.relation ? toRelationViewModel(edge.relation) : null,
+    })),
   };
 }

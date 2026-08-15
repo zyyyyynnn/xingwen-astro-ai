@@ -86,7 +86,10 @@ class ArtifactKind(StrEnum):
     source_collection = "source_collection"
     analysis_report = "analysis_report"
     visualization = "visualization"
+    spectrum = "spectrum"
+    light_curve = "light_curve"
     model_evaluation = "model_evaluation"
+    model_artifact = "model_artifact"
     paper_collection = "paper_collection"
     paper_summary = "paper_summary"
     literature_claims = "literature_claims"
@@ -101,15 +104,25 @@ class ScientificSkillId(StrEnum):
     data_profile = "data_profile"
     statistical_analysis = "statistical_analysis"
     correlation_analysis = "correlation_analysis"
+    clustering_analysis = "clustering_analysis"
+    anomaly_detection = "anomaly_detection"
     chart_visualization = "chart_visualization"
     simbad_lookup = "simbad_lookup"
     skyview_fits = "skyview_fits"
     ephemeris = "ephemeris"
     celestial_events = "celestial_events"
+    gaia_cone_search = "gaia_cone_search"
+    vizier_tap = "vizier_tap"
     fits_image_analysis = "fits_image_analysis"
+    spectrum_analysis = "spectrum_analysis"
+    spectrum_acquisition = "spectrum_acquisition"
+    light_curve_analysis = "light_curve_analysis"
+    light_curve_acquisition = "light_curve_acquisition"
     tabular_machine_learning = "tabular_machine_learning"
+    time_series_classification = "time_series_classification"
     time_series_forecast = "time_series_forecast"
     image_classification = "image_classification"
+    model_inference = "model_inference"
     wwt_scene = "wwt_scene"
 
 
@@ -119,10 +132,28 @@ _ANALYSIS_SKILLS = frozenset(
         ScientificSkillId.data_profile,
         ScientificSkillId.statistical_analysis,
         ScientificSkillId.correlation_analysis,
+        ScientificSkillId.clustering_analysis,
+        ScientificSkillId.anomaly_detection,
         ScientificSkillId.simbad_lookup,
         ScientificSkillId.ephemeris,
         ScientificSkillId.celestial_events,
+        ScientificSkillId.gaia_cone_search,
+        ScientificSkillId.vizier_tap,
         ScientificSkillId.fits_image_analysis,
+        ScientificSkillId.spectrum_analysis,
+        ScientificSkillId.spectrum_acquisition,
+        ScientificSkillId.light_curve_analysis,
+        ScientificSkillId.light_curve_acquisition,
+        ScientificSkillId.model_inference,
+    }
+)
+_SPECTRUM_SKILLS = frozenset(
+    {ScientificSkillId.spectrum_analysis, ScientificSkillId.spectrum_acquisition}
+)
+_LIGHT_CURVE_SKILLS = frozenset(
+    {
+        ScientificSkillId.light_curve_analysis,
+        ScientificSkillId.light_curve_acquisition,
     }
 )
 _VISUALIZATION_SKILLS = frozenset(
@@ -135,6 +166,7 @@ _VISUALIZATION_SKILLS = frozenset(
 _MODEL_EVALUATION_SKILLS = frozenset(
     {
         ScientificSkillId.tabular_machine_learning,
+        ScientificSkillId.time_series_classification,
         ScientificSkillId.time_series_forecast,
         ScientificSkillId.image_classification,
     }
@@ -203,11 +235,15 @@ class PaperSearchScope(BaseModel):
     keywords: tuple[NonEmptyString, ...] = ()
     year_from: int | None = Field(default=None, ge=1900, le=9999)
     year_to: int | None = Field(default=None, ge=1900, le=9999)
-    source_ids: tuple[Identifier, ...] = ()
+    source_ids: tuple[Identifier, ...] = ("crossref",)
     max_candidates: int = Field(default=20, ge=1, le=100)
 
     @model_validator(mode="after")
-    def validate_year_range(self) -> PaperSearchScope:
+    def validate_search_scope(self) -> PaperSearchScope:
+        if not self.source_ids:
+            raise ValueError("paper search requires at least one source_id")
+        if len(self.source_ids) != len(set(self.source_ids)):
+            raise ValueError("paper search source_ids must not contain duplicates")
         if self.year_from is not None and self.year_to is not None:
             if self.year_from > self.year_to:
                 raise ValueError("year_from must not exceed year_to")
@@ -282,7 +318,13 @@ class ResearchContractInput(BaseModel):
         required_capabilities = (
             (ArtifactKind.analysis_report, _ANALYSIS_SKILLS),
             (ArtifactKind.visualization, _VISUALIZATION_SKILLS),
+            (ArtifactKind.spectrum, _SPECTRUM_SKILLS),
+            (
+                ArtifactKind.light_curve,
+                _LIGHT_CURVE_SKILLS,
+            ),
             (ArtifactKind.model_evaluation, _MODEL_EVALUATION_SKILLS),
+            (ArtifactKind.model_artifact, _MODEL_EVALUATION_SKILLS),
         )
         for artifact_kind, capable_skills in required_capabilities:
             if (
@@ -293,18 +335,28 @@ class ResearchContractInput(BaseModel):
                     f"{artifact_kind.value} requires an explicitly authorized scientific skill"
                 )
         for task in self.scientific_tasks:
-            produced_kind = (
-                ArtifactKind.model_evaluation
+            produced_kinds = (
+                frozenset({ArtifactKind.model_evaluation, ArtifactKind.model_artifact})
                 if task.skill_id in _MODEL_EVALUATION_SKILLS
                 else (
-                    ArtifactKind.visualization
-                    if task.skill_id in _VISUALIZATION_SKILLS
-                    else ArtifactKind.analysis_report
+                    frozenset({ArtifactKind.spectrum, ArtifactKind.analysis_report})
+                    if task.skill_id in _SPECTRUM_SKILLS
+                    else (
+                        frozenset(
+                            {ArtifactKind.light_curve, ArtifactKind.analysis_report}
+                        )
+                        if task.skill_id in _LIGHT_CURVE_SKILLS
+                        else (
+                            frozenset({ArtifactKind.visualization})
+                            if task.skill_id in _VISUALIZATION_SKILLS
+                            else frozenset({ArtifactKind.analysis_report})
+                        )
+                    )
                 )
             )
-            if produced_kind not in selected_outputs:
+            if not produced_kinds & selected_outputs:
                 raise ValueError(
-                    f"scientific task {task.task_id} requires {produced_kind.value} output"
+                    f"scientific task {task.task_id} has no requested output"
                 )
         return self
 
@@ -607,12 +659,85 @@ class RunStepRead(BaseModel):
     position: int = Field(ge=0)
     key: Identifier
     label: NonEmptyString
+    phase: Identifier
+    task_id: Identifier | None = None
+    skill_id: ScientificSkillId | None = None
+    depends_on_step_keys: tuple[Identifier, ...] = ()
     status: RunStepStatus
     progress: int = Field(ge=0, le=100)
     public_message: str
     started_at: UtcDateTime | None = None
     finished_at: UtcDateTime | None = None
     failure_code: str | None = None
+
+
+class RunCheckpointStatus(StrEnum):
+    open = "open"
+    resolved = "resolved"
+    cancelled = "cancelled"
+
+
+class RunCheckpointRead(BaseModel):
+    """Auditable human-input boundary for one suspended RunStep."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    id: Identifier
+    run_id: Identifier
+    step_key: Identifier
+    status: RunCheckpointStatus
+    code: Identifier
+    public_message: NonEmptyString
+    required_input_types: tuple[Literal["pdf", "text"], ...] = Field(min_length=1)
+    opened_at: UtcDateTime
+    resolved_at: UtcDateTime | None = None
+    resolution_run_id: Identifier | None = None
+
+
+class ResumeRunDecisionRequest(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    decision: Literal["resume"]
+    input_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=32)
+
+    @model_validator(mode="after")
+    def validate_unique_inputs(self) -> ResumeRunDecisionRequest:
+        if len(self.input_ids) != len(set(self.input_ids)):
+            raise ValueError("resume input_ids must be unique")
+        return self
+
+
+class RetryRunDecisionRequest(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    decision: Literal["retry"]
+    step_key: Identifier
+
+
+class CancelRunDecisionRequest(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    decision: Literal["cancel"]
+
+
+RunDecisionRequest = Annotated[
+    ResumeRunDecisionRequest | RetryRunDecisionRequest | CancelRunDecisionRequest,
+    Field(discriminator="decision"),
+]
+
+
+class RunDecisionRead(BaseModel):
+    """Immutable audit record for a checkpoint or failed-step decision."""
+
+    model_config = CORE_MODEL_CONFIG
+
+    id: Identifier
+    parent_run_id: Identifier
+    child_run_id: Identifier | None = None
+    decision: Literal["resume", "retry", "cancel"]
+    step_key: Identifier
+    input_ids: tuple[Identifier, ...] = ()
+    created_at: UtcDateTime
 
 
 def project_research_contract_input(
@@ -671,6 +796,7 @@ class ResearchRun(BaseModel):
                     "cache_policy": "disabled",
                     "created_at": "2026-07-21T08:00:00Z",
                     "updated_at": "2026-07-21T08:00:00Z",
+                    "revision": 1,
                     "latest_event_sequence": 0,
                 }
             ]
@@ -691,6 +817,7 @@ class ResearchRun(BaseModel):
     finished_at: UtcDateTime | None = None
     created_at: UtcDateTime
     updated_at: UtcDateTime
+    revision: int = Field(ge=1)
     latest_event_sequence: int = Field(default=0, ge=0)
     failure_code: str | None = None
     failure_summary: str | None = None
@@ -715,6 +842,13 @@ class ResearchRun(BaseModel):
         if self.status is RunStatus.completed and self.progress != 100:
             raise ValueError("completed run must have progress 100")
         return self
+
+
+class RunDecisionResult(BaseModel):
+    model_config = CORE_MODEL_CONFIG
+
+    decision: RunDecisionRead
+    run: ResearchRun
 
 
 class RunEvent(BaseModel):

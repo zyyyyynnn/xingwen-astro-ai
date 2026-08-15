@@ -58,6 +58,10 @@
 - 生产环境启用严格 CSP、HSTS、`X-Content-Type-Options`、Referrer Policy 与 Permissions Policy。
 - 外链使用安全协议与 `rel="noopener noreferrer"` 属性。
 - 文件名、MIME、大小与导出格式必须校验。
+- 当前 ResearchInput 不接收 ZIP/TAR 等压缩包，也不存在服务端通用解包入口；压缩包
+  MIME/扩展名按不支持输入拒绝。未来若新增解包，必须先提供 entry 数、展开后总大小、
+  压缩比、嵌套深度与逐项 canonical path containment 门禁，禁止绝对路径、`..`、
+  symlink/hardlink 与 device entry。
 
 ## 8. 日志、错误与数据最小化
 
@@ -72,6 +76,10 @@
 - ArtifactVersion 采用追加写入，不原地覆盖或删除正常历史。
 - UserFeedback 与 RevisionPlan 只能生成新的派生 Run 和 ArtifactVersion，不得原地改写已发布内容或其 Evidence。
 - 涉及密钥泄露或法定要求时执行彻底清理。
+- blob 维护必须先核对 PostgreSQL 权威引用闭包与实际 SHA-256/size；未知引用或存储
+  条目一律阻断删除。由于 writer 在数据库提交前发布 immutable blob，collector 在与
+  writer 共享原子协调机制前只允许生成 dry-run impact report，不得删除看似 orphan
+  的文件。
 
 ## 10. 供应链与 CI 安全
 

@@ -222,7 +222,7 @@
     },
     "source_snapshot_ids": {
       "items": {
-        "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+        "pattern": "^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
         "type": "string"
       },
       "title": "Source Snapshot Ids",

@@ -288,7 +288,7 @@ export interface PaperAcquisitionReview {
   readonly createdAt: UtcIsoTimestamp;
   readonly query: PaperSearchReview;
   readonly acquisition: PaperAcquisitionRunReview;
-  readonly benchmark: PaperBenchmarkReview;
+  readonly benchmark: PaperBenchmarkReview | null;
   readonly metrics: PaperAcquisitionMetrics;
   readonly rules: PaperAcquisitionRules;
   readonly sourceExecutions: readonly PaperSourceExecutionReview[];

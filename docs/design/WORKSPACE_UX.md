@@ -31,13 +31,13 @@ Workspace 支持用户在同一研究上下文中完成：
 
 选定上游产品必须提供以下工作面；具体排列、折叠和响应式行为继承其成熟实现。
 
-| 工作面              | 职责                                                   |
-| ------------------- | ------------------------------------------------------ |
-| Research Navigation | 新建、选择、固定、分组和恢复 Project / Research Thread |
-| Research Thread     | 展示用户消息、公开分析、澄清、Contract、Plan 与 Run Record |
-| Artifact Workspace  | 阅读、比较和审查科研产物                               |
+| 工作面              | 职责                                                                |
+| ------------------- | ------------------------------------------------------------------- |
+| Research Navigation | 新建、选择、固定、分组和恢复 Project / Research Thread              |
+| Research Thread     | 展示用户消息、公开分析、澄清、Contract、Plan 与 Run Record          |
+| Artifact Workspace  | 阅读、比较和审查科研产物                                            |
 | Research Inspector  | 以浮动或停靠方式核验当前对象的 Evidence、Source、Version 与执行详情 |
-| Research Composer   | 提交研究消息、澄清回答、Contract 确认和人类决策        |
+| Research Composer   | 提交研究消息、澄清回答、Contract 确认和人类决策                     |
 
 任一正式 Workspace 状态不得退化为只含静态内容的页面。
 
@@ -137,6 +137,18 @@ Artifact Workspace 承载：
 | Source Review | 完整来源阅读与定位         |
 
 每个 Artifact Kind 使用专属 Renderer。未知类型显示明确不支持状态，不以 Hash 或内部 Metadata 充当内容。
+Renderer 在 Thread、Docked / Focus 与文本替代视图中保持同一固定 ArtifactVersion；
+统计量、图表、谱线与光变结果中的“核验证据”动作打开独立 Evidence Inspector，
+不得从 Artifact 内容复制或猜测 Evidence 明细。
+
+WWT / FITS 交互视图提供用户触发的本地 PNG 下载，并以当前安全场景类型与版本号命名；
+生成中禁用重复操作，成功或浏览器拒绝读取 WebGL 画布时都显示文字状态。该动作不上传、
+不自动轮询，也不替代版本化 Artifact、原始 FITS 下载或 Live 证据。
+
+固定版本的 Dataset 提供 CSV、JSON 与 provenance 导出，其他数据 Artifact 只展示服务端
+允许的 JSON 与 provenance；导出界面必须显示生成状态、到期时间和失败原因，下载前再次
+确认返回记录仍指向当前 ArtifactVersion。Paper Summary 的固定版本 JSON / Markdown
+原始下载是独立读取能力，不混入数据 Artifact 导出格式。
 
 ## 6. Context Inspector
 
@@ -148,10 +160,16 @@ Inspector 由当前选中对象驱动。
 | Evidence                 | SourceSnapshot、locator、quote / value、版本 |
 | Artifact                 | Metadata、Evidence Coverage、Review          |
 | ArtifactVersion          | 版本关系与 Scientific Diff                   |
+| Project                  | Project-owned ResearchInput 列表与新增入口   |
 | Human Checkpoint         | 决策上下文                                   |
 | Tool Execution           | 执行详情                                     |
 
 Inspector 支持返回、固定和关闭，并保持最小访问历史。
+
+ResearchInput 管理面位于 Inspector 辅助区域，不改变通用 Composer 或导航。它支持 text、
+URL 以及 PDF、CSV、XLSX、Parquet、JSON、图像、含根级 `labels.json` 的图像数据集 ZIP、FITS 和文本 / Markdown 文件，并明确显示
+accepted、unsupported processing、failed ingestion、大小与 MIME；Markdown 使用
+`type=text` 加语义 MIME，不建立历史别名。创建输入不会自动绑定 Run，也不得宣称已执行。
 
 ## 7. Research Composer
 
@@ -269,7 +287,7 @@ Scientific Version Diff 至少展示：
 - Overlay 关闭后恢复焦点；
 - Resize 提供键盘替代。
 
-Workspace 当前仅支持宽度不低于 1024px 的桌面窗口；`<1024px` 只显示明确的桌面边界提示，不挂载 Workspace、移动导航、抽屉、触控分支或移动断点。桌面实现需在 1440×900、1280×800 与 200% 字体下保持核心机械结构可操作。
+Workspace 当前仅支持宽度不低于 1024px 的桌面窗口；`<1024px` 只显示明确的桌面边界提示，不挂载 Workspace、移动导航、抽屉、触控分支或移动断点。桌面实现需在 1440×900、1280×800、1024px 边界与 200% 字体下保持核心机械结构可操作。Inspector 内的 ResearchInput、Evidence 与 Artifact 辅助内容不得建立第三个独立滚动所有者；窄桌面和放大字体下改为单列换行并由既有 Inspector 滚动面承载。
 
 ## 13. 产品语言
 

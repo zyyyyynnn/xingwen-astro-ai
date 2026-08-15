@@ -25,6 +25,9 @@ from app.schemas.core import (
     ResearchProject,
     ResearchPlanningCatalog,
     ResearchRun,
+    RunCheckpointRead,
+    RunDecisionRequest,
+    RunDecisionResult,
     ResearchThreadEntry,
     ResearchTurnRequest,
     ResearchTurnResult,
@@ -370,6 +373,74 @@ def get_research_run(
     data = _service(request).get_run(run_id=run_id, session_id=_session_id(request))
     _no_store(response)
     path = f"/api/runs/{run_id}"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.delete(
+    "/runs/{run_id}",
+    operation_id="cancelResearchRun",
+    response_model=Envelope[ResearchRun],
+)
+def cancel_research_run(
+    run_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1)],
+) -> Envelope[ResearchRun]:
+    data = _service(request).cancel_run(
+        run_id=run_id,
+        session_id=_session_id(request),
+        if_match=if_match,
+    )
+    _no_store(response)
+    response.headers["ETag"] = str(data.revision)
+    path = f"/api/runs/{run_id}"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.get(
+    "/runs/{run_id}/checkpoint",
+    operation_id="getResearchRunCheckpoint",
+    response_model=Envelope[RunCheckpointRead],
+)
+def get_research_run_checkpoint(
+    run_id: Annotated[str, Path(min_length=1)],
+    request: Request,
+    response: Response,
+) -> Envelope[RunCheckpointRead]:
+    data = _service(request).get_run_checkpoint(
+        run_id=run_id, session_id=_session_id(request)
+    )
+    _no_store(response)
+    path = f"/api/runs/{run_id}/checkpoint"
+    return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
+
+
+@router.post(
+    "/runs/{run_id}/decisions",
+    operation_id="decideResearchRun",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Envelope[RunDecisionResult],
+)
+def decide_research_run(
+    run_id: Annotated[str, Path(min_length=1)],
+    payload: RunDecisionRequest,
+    request: Request,
+    response: Response,
+    if_match: Annotated[str, Header(alias="If-Match", min_length=1)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1)],
+) -> Envelope[RunDecisionResult]:
+    data = _service(request).decide_run(
+        run_id=run_id,
+        session_id=_session_id(request),
+        if_match=if_match,
+        idempotency_key=idempotency_key,
+        request=payload,
+    )
+    _no_store(response)
+    response.headers["ETag"] = str(data.run.revision)
+    response.headers["Location"] = f"/api/runs/{data.run.id}"
+    path = f"/api/runs/{run_id}/decisions"
     return Envelope(data=data, meta=_meta(request), links=ResponseLinks(self=path))
 
 

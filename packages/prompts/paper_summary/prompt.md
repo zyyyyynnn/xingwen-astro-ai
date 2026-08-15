@@ -1,9 +1,9 @@
 ---
 name: paper_summary
-version: 3.0.0
+version: 4.0.0
 output_model: PaperSummaryModelOutput
-input_schema_version: 1.0.0
-output_schema_version: 2.0.0
+input_schema_version: 2.0.0
+output_schema_version: 3.0.0
 evidence_required: true
 ---
 
@@ -28,16 +28,13 @@ evidence_required: true
 
 ## 输入边界
 
-研究目标：
+用户消息是一个 JSON 对象，只允许包含：
 
-```text
-{{ research_goal }}
-```
+- `research_goal`：本次研究目标；
+- `paper_payload`：论文元数据、PaperCollection 或 DocumentParse 输入版本，
+  以及带稳定 `evidence_id` 和页/块定位的可访问原文片段。
 
-论文、PaperCollection 版本和可访问 Evidence：
-
-```json
-{{ paper_payload }}
-```
+只引用 `paper_payload.evidence` 中实际存在的 `evidence_id`。不得把定位元数据、
+文件名或研究目标本身当作论文结论。
 
 只对输入中明确提供且版本可定位的内容做结构化归纳。来源版本冲突时保留对应 Evidence id，不自行选择或合并来源结论。

@@ -8,16 +8,19 @@ import {
   CollapsibleRationale,
 } from "../../upstream/openhands/src/root";
 
+export interface ResearchThreadProjection {
+  readonly id: string;
+  readonly occurredAt: string;
+  readonly node: ReactNode;
+}
+
 interface ResearchThreadProps {
   readonly entries: readonly ResearchThreadEntryViewModel[];
   readonly loading: boolean;
   readonly loadError: string | null;
   readonly submitting: boolean;
   readonly pendingMessage: string | null;
-  readonly processProjection: {
-    readonly occurredAt: string;
-    readonly node: ReactNode;
-  } | null;
+  readonly projections: readonly ResearchThreadProjection[];
   readonly onAnswer: (questionId: string, suggestedAnswer?: string) => void;
   readonly onOpenDraft: (draftId: string) => void;
   readonly onRetryLoad: () => void;
@@ -137,21 +140,20 @@ export function ResearchThread({
   loadError,
   submitting,
   pendingMessage,
-  processProjection,
+  projections,
   onAnswer,
   onOpenDraft,
   onRetryLoad,
 }: ResearchThreadProps) {
-  const hasConversationContent = entries.length > 0 || pendingMessage !== null;
+  const hasConversationContent =
+    entries.length > 0 || projections.length > 0 || pendingMessage !== null;
   const answeredQuestionIds = new Set(
     entries
       .filter((entry) => entry.kind === "clarification_answer")
       .map((entry) => entry.structuredPayload.answerToQuestionId)
       .filter((value) => value !== null),
   );
-  const projectionIndex = processProjection
-    ? processProjectionInsertionIndex(entries, processProjection.occurredAt)
-    : -1;
+  const projectionsByIndex = groupThreadProjections(entries, projections);
 
   return (
     <section
@@ -193,9 +195,11 @@ export function ResearchThread({
         ) : null}
         {entries.map((entry, index) => (
           <div className="contents" key={entry.id}>
-            {processProjection && projectionIndex === index
-              ? processProjection.node
-              : null}
+            {projectionsByIndex.get(index)?.map((projection) => (
+              <div className="contents" key={projection.id}>
+                {projection.node}
+              </div>
+            ))}
             <ThreadEntry
               entry={entry}
               answered={
@@ -207,9 +211,11 @@ export function ResearchThread({
             />
           </div>
         ))}
-        {processProjection && projectionIndex === entries.length
-          ? processProjection.node
-          : null}
+        {projectionsByIndex.get(entries.length)?.map((projection) => (
+          <div className="contents" key={projection.id}>
+            {projection.node}
+          </div>
+        ))}
         {pendingMessage ? (
           <ChatMessage
             type="user"
@@ -227,7 +233,7 @@ export function ResearchThread({
   );
 }
 
-export function processProjectionInsertionIndex(
+export function threadProjectionInsertionIndex(
   entries: readonly ResearchThreadEntryViewModel[],
   occurredAt: string,
 ): number {
@@ -238,4 +244,29 @@ export function processProjectionInsertionIndex(
     return Number.isFinite(entryTime) && entryTime > projectionTime;
   });
   return index < 0 ? entries.length : index;
+}
+
+export function groupThreadProjections(
+  entries: readonly ResearchThreadEntryViewModel[],
+  projections: readonly ResearchThreadProjection[],
+): ReadonlyMap<number, readonly ResearchThreadProjection[]> {
+  const groups = new Map<number, ResearchThreadProjection[]>();
+  const ordered = [...projections].sort((left, right) => {
+    const leftTime = Date.parse(left.occurredAt);
+    const rightTime = Date.parse(right.occurredAt);
+    const timestampOrder =
+      (Number.isFinite(leftTime) ? leftTime : Number.POSITIVE_INFINITY) -
+      (Number.isFinite(rightTime) ? rightTime : Number.POSITIVE_INFINITY);
+    return timestampOrder || left.id.localeCompare(right.id);
+  });
+  for (const projection of ordered) {
+    const index = threadProjectionInsertionIndex(
+      entries,
+      projection.occurredAt,
+    );
+    const group = groups.get(index) ?? [];
+    group.push(projection);
+    groups.set(index, group);
+  }
+  return groups;
 }

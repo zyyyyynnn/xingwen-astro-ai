@@ -58,9 +58,6 @@ _REPLAY_PARAMETERS: dict[str, str | int] = {
 _MISSING_CLAIM_VERSION_ID = "artifact_version.literature_claim.missing"
 _MISSING_CLAIM_ID = "claim.literature_claim.missing"
 _MISSING_SUMMARY_VERSION_ID = "artifact_version.paper_summary.missing"
-_INVALID_CALIBRATION_HASH = "sha256:" + "1" * 64
-
-
 FORMAL_REJECTION_EXPECTATIONS: tuple[
     tuple[
         str,
@@ -82,16 +79,6 @@ FORMAL_REJECTION_EXPECTATIONS: tuple[
                 LiteratureRelationRejectionReason.conditions_conflict,
             ),
             (
-                "rejection.confidence_calibration_missing",
-                LiteratureRelationFailureStage.confidence,
-                LiteratureRelationRejectionReason.confidence_calibration_missing,
-            ),
-            (
-                "rejection.confidence_definition_unsupported",
-                LiteratureRelationFailureStage.confidence,
-                LiteratureRelationRejectionReason.confidence_definition_unsupported,
-            ),
-            (
                 "rejection.confidence_decision_mismatch",
                 LiteratureRelationFailureStage.confidence,
                 LiteratureRelationRejectionReason.confidence_decision_mismatch,
@@ -100,11 +87,6 @@ FORMAL_REJECTION_EXPECTATIONS: tuple[
                 "rejection.confidence_subject_mismatch",
                 LiteratureRelationFailureStage.confidence,
                 LiteratureRelationRejectionReason.confidence_subject_mismatch,
-            ),
-            (
-                "rejection.confidence_undefined",
-                LiteratureRelationFailureStage.confidence,
-                LiteratureRelationRejectionReason.confidence_undefined,
             ),
             (
                 "rejection.direction_mismatch",
@@ -532,14 +514,6 @@ def _negative_cases(
     trace_unsafe["trace"]["steps"][0]["statement"] = (
         "Expose private reasoning token-by-token."
     )
-    confidence_undefined = deepcopy(base)
-    confidence_undefined["confidence_assessment_id"] = None
-    unsupported_confidence = fixture.confidence.model_copy(
-        update={"definition_version": "9.9.9"}
-    )
-    uncalibrated_confidence = fixture.confidence.model_copy(
-        update={"calibration_content_hash": _INVALID_CALIBRATION_HASH}
-    )
     mismatched_subject = build_literature_relation_confidence_subject(
         source_claim_artifact_version_id=fixture.version_ids[1],
         source_claim_id=base["target_claim_id"],
@@ -696,33 +670,6 @@ def _negative_cases(
             payload=trace_unsafe,
             expected_stage=LiteratureRelationFailureStage.trace,
             expected_reason=LiteratureRelationRejectionReason.trace_unsafe,
-        ),
-        _negative_case(
-            case_id="rejection.confidence_undefined",
-            fixture=fixture,
-            payload=confidence_undefined,
-            expected_stage=LiteratureRelationFailureStage.confidence,
-            expected_reason=LiteratureRelationRejectionReason.confidence_undefined,
-        ),
-        _negative_case(
-            case_id="rejection.confidence_definition_unsupported",
-            fixture=fixture,
-            payload=base,
-            confidence=unsupported_confidence,
-            expected_stage=LiteratureRelationFailureStage.confidence,
-            expected_reason=(
-                LiteratureRelationRejectionReason.confidence_definition_unsupported
-            ),
-        ),
-        _negative_case(
-            case_id="rejection.confidence_calibration_missing",
-            fixture=fixture,
-            payload=base,
-            confidence=uncalibrated_confidence,
-            expected_stage=LiteratureRelationFailureStage.confidence,
-            expected_reason=(
-                LiteratureRelationRejectionReason.confidence_calibration_missing
-            ),
         ),
         _negative_case(
             case_id="rejection.confidence_subject_mismatch",

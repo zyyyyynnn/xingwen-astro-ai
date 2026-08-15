@@ -28,7 +28,6 @@ from .data_artifacts import (
     DataArtifactBuildInput,
     DatasetArtifactCandidate,
     FieldDictionaryArtifactCandidate,
-    ManifestPins,
     SourceCollectionArtifactCandidate,
 )
 from .crossmatch import EntityLevel

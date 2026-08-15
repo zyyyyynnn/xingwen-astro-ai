@@ -28,10 +28,12 @@ from app.schemas.paper_benchmark import BenchmarkReviewStatus
 from app.schemas.paper_collection import PaperBenchmarkReference
 from app.schemas.paper_summary import (
     PaperSummaryArtifactContent,
+    PaperSummaryCollectionReference,
     PaperSummaryEvidence,
     PaperSummaryEvidenceLocator,
     PaperSummaryInputVersions,
     PaperSummaryItemKind,
+    PaperSummaryPaperMetadata,
     PaperSummaryProducerExecution,
     PaperSummarySourceSnapshotReference,
     PaperSummaryStatement,
@@ -125,10 +127,12 @@ def _summary(
         ),
     )
     input_versions = PaperSummaryInputVersions(
-        paper_collection_version_id="artifact_version.paper_collection.fixture",
-        paper_collection_schema_version="2.0.0",
-        paper_collection_output_hash=compute_canonical_payload_hash(
-            {"paper_collection": "fixture"}
+        collection=PaperSummaryCollectionReference(
+            artifact_version_id="artifact_version.paper_collection.fixture",
+            schema_version="2.0.0",
+            output_hash=compute_canonical_payload_hash(
+                {"paper_collection": "fixture"}
+            ),
         ),
         source_snapshots=(snapshot,),
     )
@@ -176,7 +180,7 @@ def _summary(
         producer_version="1.0.0",
         model_name="qwen.fixture.1",
         prompt_name="paper_summary",
-        prompt_version="3.0.0",
+        prompt_version="4.0.0",
         prompt_hash=PromptRegistry().get("paper_summary").content_hash,
         parameters_version="1.0.0",
         parameters_hash=compute_canonical_payload_hash(SAFE_PARAMETERS),
@@ -191,9 +195,13 @@ def _summary(
     )
     payload = {
         "kind": "paper_summary",
-        "schema_version": "2.0.0",
+        "schema_version": "3.0.0",
         "summary_id": summary_id,
         "paper_id": paper_id,
+        "paper": PaperSummaryPaperMetadata(
+            paper_id=paper_id,
+            title=paper_id,
+        ).model_dump(mode="json"),
         "benchmark": PaperBenchmarkReference(
             benchmark_id="benchmark.paper_reasoning.exoplanet_host_star",
             schema_version=FROZEN_BENCHMARK_SCHEMA_VERSION,
@@ -256,7 +264,7 @@ def _summary(
 def _versions(
     summary: PaperSummaryArtifactContent | None = None,
     *,
-    schema_version: str = "2.0.0",
+    schema_version: str = "3.0.0",
 ) -> dict[str, PaperSummaryArtifactVersionInput]:
     content = summary or _summary()
     return {
@@ -605,7 +613,7 @@ def test_summary_version_repository_ownership_mismatch_is_rejected() -> None:
     versions = {
         SUMMARY_VERSION_ID: PaperSummaryArtifactVersionInput(
             artifact_version_id="artifact_version.paper_summary.other",
-            schema_version="2.0.0",
+            schema_version="3.0.0",
             content=summary,
         )
     }
@@ -967,7 +975,7 @@ def test_intermediate_model_output_cannot_bypass_publisher() -> None:
         with pytest.raises(PublicationAdmissionError, match="cannot bypass"):
             admit_artifact_candidate(
                 candidate,
-                schema_version="2.0.0",
+                schema_version="3.0.0",
                 source_snapshot_ids=(SNAPSHOT_ID,),
                 evidence_ids=(EVIDENCE_ID,),
                 evidence_validator=lambda _: None,

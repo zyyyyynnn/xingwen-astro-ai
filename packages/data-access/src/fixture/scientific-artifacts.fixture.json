@@ -546,7 +546,11 @@
           "task_kind": "classification",
           "algorithm": "random_forest",
           "algorithm_version": "scikit-learn:1.9",
-          "dataset_artifact_version_id": "artv_dataset_01",
+          "training_input": {
+            "kind": "dataset_artifact_version",
+            "ref_id": "artv_dataset_01"
+          },
+          "image_training": null,
           "feature_fields": [
             "star.effective_temperature",
             "star.radius",
@@ -602,9 +606,9 @@
           "source_snapshot_ids": [],
           "evidence_ids": [],
           "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-          "output_hash": "sha256:9d488787f6f11dde70533e368f1376694608ab4de1edd97309c82f8a166601dd"
+          "output_hash": "sha256:9435ba8296b932b94a0c2f6986896730c1baff588845ef35ab57bc82a14c0491"
         },
-        "content_hash": "sha256:a3ad0c8c32912b8f591dbf2fb6b274ac94264e705ff84cbd6cf685eb299236a1",
+        "content_hash": "sha256:fb88fb1a2ce15b3e2671cb34c1ec2b5865ad92f7243c2de1f76d8385969b9717",
         "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
         "source_mode": "fixture",
         "producer": {
@@ -641,7 +645,7 @@
           "parameters": {},
           "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
           "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-          "output_hash": "sha256:a3ad0c8c32912b8f591dbf2fb6b274ac94264e705ff84cbd6cf685eb299236a1",
+          "output_hash": "sha256:fb88fb1a2ce15b3e2671cb34c1ec2b5865ad92f7243c2de1f76d8385969b9717",
           "status": "completed",
           "started_at": "2026-07-21T08:23:00Z",
           "finished_at": "2026-07-21T08:23:00Z",
@@ -659,7 +663,7 @@
         "version_number": 1,
         "supersedes_version_id": null,
         "source_mode": "fixture",
-        "content_hash": "sha256:a3ad0c8c32912b8f591dbf2fb6b274ac94264e705ff84cbd6cf685eb299236a1",
+        "content_hash": "sha256:fb88fb1a2ce15b3e2671cb34c1ec2b5865ad92f7243c2de1f76d8385969b9717",
         "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
         "created_at": "2026-07-21T08:23:00Z",
         "content": {
@@ -670,7 +674,11 @@
           "task_kind": "classification",
           "algorithm": "random_forest",
           "algorithm_version": "scikit-learn:1.9",
-          "dataset_artifact_version_id": "artv_dataset_01",
+          "training_input": {
+            "kind": "dataset_artifact_version",
+            "ref_id": "artv_dataset_01"
+          },
+          "image_training": null,
           "feature_fields": [
             "star.effective_temperature",
             "star.radius",
@@ -726,7 +734,7 @@
           "source_snapshot_ids": [],
           "evidence_ids": [],
           "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-          "output_hash": "sha256:9d488787f6f11dde70533e368f1376694608ab4de1edd97309c82f8a166601dd"
+          "output_hash": "sha256:9435ba8296b932b94a0c2f6986896730c1baff588845ef35ab57bc82a14c0491"
         },
         "producer_execution": {
           "id": "pexec_scientific_model",
@@ -747,7 +755,7 @@
           "parameters": {},
           "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
           "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-          "output_hash": "sha256:a3ad0c8c32912b8f591dbf2fb6b274ac94264e705ff84cbd6cf685eb299236a1",
+          "output_hash": "sha256:fb88fb1a2ce15b3e2671cb34c1ec2b5865ad92f7243c2de1f76d8385969b9717",
           "status": "completed",
           "started_at": "2026-07-21T08:23:00Z",
           "finished_at": "2026-07-21T08:23:00Z",
@@ -776,15 +784,40 @@
           "description": "WWT 数字巡天背景上的目标位置与比较路径。",
           "spec": {
             "mode": "wwt_scene",
-            "center": {
-              "ra_hours": 10.25,
-              "dec_degrees": -12.4
+            "view": {
+              "kind": "coordinates",
+              "center": {
+                "ra_hours": 10.25,
+                "dec_degrees": -12.4
+              },
+              "field_of_view_degrees": 4.0,
+              "roll_degrees": 0.0,
+              "transition_seconds": 0.0
             },
-            "field_of_view_degrees": 4.0,
-            "observed_at": null,
+            "time": {
+              "mode": "system_clock",
+              "observed_at": null,
+              "rate": null
+            },
+            "observer": null,
             "background": "digitized_sky_survey",
-            "coordinate_grid": "equatorial",
+            "foreground": null,
+            "solar_system": null,
+            "coordinate_grids": [
+              {
+                "system": "equatorial",
+                "labels": true
+              }
+            ],
+            "constellations": {
+              "boundaries": false,
+              "figures": false,
+              "pictures": false,
+              "labels": false
+            },
+            "precession_chart": false,
             "fits_layers": [],
+            "table_layers": [],
             "annotations": [
               {
                 "annotation_id": "annotation.target",
@@ -797,7 +830,10 @@
                 ],
                 "label": "TOI-1234.01",
                 "color_token": "brand",
-                "radius_degrees": 0.08
+                "radius_degrees": 0.08,
+                "line_width": 2.0,
+                "fill": false,
+                "fill_color_token": "brand"
               },
               {
                 "annotation_id": "annotation.comparison_path",
@@ -818,9 +854,21 @@
                 ],
                 "label": "比较星路径",
                 "color_token": "information",
-                "radius_degrees": null
+                "radius_degrees": null,
+                "line_width": 2.0,
+                "fill": false,
+                "fill_color_token": "brand"
               }
-            ]
+            ],
+            "tour_steps": [],
+            "tour_autoplay": false,
+            "tour_loop": false,
+            "readbacks": [
+              "center_coordinates",
+              "field_of_view",
+              "current_time"
+            ],
+            "text_alternative": "以 TOI-1234.01 为中心的四度数字巡天天区，包含目标圆圈和比较星路径。"
           },
           "skill_executions": [
             {
@@ -838,9 +886,9 @@
           "source_snapshot_ids": [],
           "evidence_ids": [],
           "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-          "output_hash": "sha256:1e50d8a6430a274d5c85da89e6ba51af8a5288b275806eaf393170a947fa4a01"
+          "output_hash": "sha256:fda2ba5128924675394e074ff67f49eff594292615686349a4001c4bcf5d592c"
         },
-        "content_hash": "sha256:bc5fecdd60c0fef6cacb95fd3ae8f3fb2bc6254608bd3c3803ab4a717af29d12",
+        "content_hash": "sha256:64aa655d87bdc78031fb53b8ca51d53b28ac110d6a65341cf67dca2faf1f829c",
         "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
         "source_mode": "fixture",
         "producer": {
@@ -877,7 +925,7 @@
           "parameters": {},
           "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
           "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-          "output_hash": "sha256:bc5fecdd60c0fef6cacb95fd3ae8f3fb2bc6254608bd3c3803ab4a717af29d12",
+          "output_hash": "sha256:64aa655d87bdc78031fb53b8ca51d53b28ac110d6a65341cf67dca2faf1f829c",
           "status": "completed",
           "started_at": "2026-07-21T08:23:00Z",
           "finished_at": "2026-07-21T08:23:00Z",
@@ -895,7 +943,7 @@
         "version_number": 1,
         "supersedes_version_id": null,
         "source_mode": "fixture",
-        "content_hash": "sha256:bc5fecdd60c0fef6cacb95fd3ae8f3fb2bc6254608bd3c3803ab4a717af29d12",
+        "content_hash": "sha256:64aa655d87bdc78031fb53b8ca51d53b28ac110d6a65341cf67dca2faf1f829c",
         "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
         "created_at": "2026-07-21T08:23:00Z",
         "content": {
@@ -906,15 +954,40 @@
           "description": "WWT 数字巡天背景上的目标位置与比较路径。",
           "spec": {
             "mode": "wwt_scene",
-            "center": {
-              "ra_hours": 10.25,
-              "dec_degrees": -12.4
+            "view": {
+              "kind": "coordinates",
+              "center": {
+                "ra_hours": 10.25,
+                "dec_degrees": -12.4
+              },
+              "field_of_view_degrees": 4.0,
+              "roll_degrees": 0.0,
+              "transition_seconds": 0.0
             },
-            "field_of_view_degrees": 4.0,
-            "observed_at": null,
+            "time": {
+              "mode": "system_clock",
+              "observed_at": null,
+              "rate": null
+            },
+            "observer": null,
             "background": "digitized_sky_survey",
-            "coordinate_grid": "equatorial",
+            "foreground": null,
+            "solar_system": null,
+            "coordinate_grids": [
+              {
+                "system": "equatorial",
+                "labels": true
+              }
+            ],
+            "constellations": {
+              "boundaries": false,
+              "figures": false,
+              "pictures": false,
+              "labels": false
+            },
+            "precession_chart": false,
             "fits_layers": [],
+            "table_layers": [],
             "annotations": [
               {
                 "annotation_id": "annotation.target",
@@ -927,7 +1000,10 @@
                 ],
                 "label": "TOI-1234.01",
                 "color_token": "brand",
-                "radius_degrees": 0.08
+                "radius_degrees": 0.08,
+                "line_width": 2.0,
+                "fill": false,
+                "fill_color_token": "brand"
               },
               {
                 "annotation_id": "annotation.comparison_path",
@@ -948,9 +1024,21 @@
                 ],
                 "label": "比较星路径",
                 "color_token": "information",
-                "radius_degrees": null
+                "radius_degrees": null,
+                "line_width": 2.0,
+                "fill": false,
+                "fill_color_token": "brand"
               }
-            ]
+            ],
+            "tour_steps": [],
+            "tour_autoplay": false,
+            "tour_loop": false,
+            "readbacks": [
+              "center_coordinates",
+              "field_of_view",
+              "current_time"
+            ],
+            "text_alternative": "以 TOI-1234.01 为中心的四度数字巡天天区，包含目标圆圈和比较星路径。"
           },
           "skill_executions": [
             {
@@ -968,7 +1056,7 @@
           "source_snapshot_ids": [],
           "evidence_ids": [],
           "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-          "output_hash": "sha256:1e50d8a6430a274d5c85da89e6ba51af8a5288b275806eaf393170a947fa4a01"
+          "output_hash": "sha256:fda2ba5128924675394e074ff67f49eff594292615686349a4001c4bcf5d592c"
         },
         "producer_execution": {
           "id": "pexec_scientific_wwt",
@@ -989,7 +1077,7 @@
           "parameters": {},
           "parameters_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
           "input_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-          "output_hash": "sha256:bc5fecdd60c0fef6cacb95fd3ae8f3fb2bc6254608bd3c3803ab4a717af29d12",
+          "output_hash": "sha256:64aa655d87bdc78031fb53b8ca51d53b28ac110d6a65341cf67dca2faf1f829c",
           "status": "completed",
           "started_at": "2026-07-21T08:23:00Z",
           "finished_at": "2026-07-21T08:23:00Z",

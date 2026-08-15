@@ -24,6 +24,7 @@ function runSnapshot(
     projectId,
     contractId: asEntityId("contract-feed-test"),
     executionMode: "live",
+    revision: 1,
     status,
     progress: status === "completed" ? 100 : 10,
     parentRunId: null,
@@ -64,6 +65,8 @@ function runRepository(): RunRepository {
       latestSequence: 3,
     })),
     listSteps: vi.fn(async () => []),
+    getCheckpoint: vi.fn(async () => null),
+    decide: vi.fn(),
   };
 }
 

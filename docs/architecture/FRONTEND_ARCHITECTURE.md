@@ -139,6 +139,24 @@ Artifact / Evidence Renderer
 - 禁止 `any`、不安全类型断言和以类型逃逸掩盖 DTO 校验；Runtime DTO 必须先验证再映射。
 - Artifact Renderer Registry 必须对每个受支持 `ArtifactKind` 穷举注册；未知/不支持类型
   必须进入明确的 unsupported/error renderer，不得静默当作通用文本。
+- 每项 Renderer registration 自有类型化 Query loader、ViewModel、Thread / Detail
+  renderer 与文本替代能力；Artifact Workspace 宿主只解析 registration，不按内容族复制
+  Query、loading、error 或渲染分支。Renderer 暴露的 Evidence 跳转只传递受控 ID，
+  Evidence Inspector 通过独立 Query 路径重新读取并验证所属 Project。
+- WWT / FITS 可视化在交互画布之外必须提供键盘可达的文本与表格替代视图，并分别
+  表达 loading、empty 与 error/retry 状态；WebGL 成功不是唯一可读路径。
+- WWT 场景只复用一个受租约管理的官方 Engine 实例。每次 render / close 必须恢复时间
+  同步与速率、观察者与本地地平、坐标网格及标签、前景透明度、太阳系、星座、岁差、
+  标注和数据层，防止场景状态跨 Artifact 泄漏。FITS 与表格层只能按经过 Contract
+  验证的 `contentHash` 经 Repository 读取，不得把 `contentRef` 当成浏览器 URL。
+  截图仅允许用户在已加载场景中显式触发本地 `canvas.toBlob("image/png")` 下载；不得
+  自动轮询、上传截图或新增截图事实。跨域污染、WebGL 上下文或空 Blob 失败必须可见。
+- Project-owned ResearchInput 管理面只读取和创建输入；文本、URL 与文件入站继续经
+  Repository Mutation 和服务端策略验证。Markdown 的领域类型仍为 `text`，语义由
+  `text/markdown` 或 `text/x-markdown` 表达。输入创建不得隐式绑定 Run 或伪造执行态。
+- Artifact 导出必须固定当前 `ArtifactVersion`，并经 `ArtifactExportRead` runtime
+  validation、状态确认和正式下载端点完成；页面不得直接拼接下载 URL 或解析 raw JSON。
+  CSV 仅对 Dataset 开放，JSON 与 provenance 按服务端格式契约开放。
 
 ## 5. 状态所有权
 
@@ -151,7 +169,7 @@ Artifact / Evidence Renderer
 | 交互机械与输入草稿                                 | Workspace Controller / Presentation Boundary |
 | Workspace 布局与恢复                               | Workspace Controller                         |
 | 组件内部交互状态 (Hover / Active)                  | Local Component State                        |
-| Share / Export 版本                                | Server / ShareSnapshot                       |
+| Share / Export 版本                                | Server / ArtifactExport / ShareSnapshot      |
 
 同一事实在前端不得由多个全局 Store 重复持有。
 

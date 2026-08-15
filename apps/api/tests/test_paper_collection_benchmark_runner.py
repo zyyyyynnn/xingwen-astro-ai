@@ -26,6 +26,7 @@ from app.schemas.paper_collection import (
 )
 from services.paper_pipeline.benchmark import load_frozen_benchmark
 from services.paper_pipeline.canonicalize import (
+    canonical_paper_id,
     canonicalize_record,
     normalize_arxiv_id,
     normalize_doi,
@@ -448,6 +449,34 @@ def test_title_and_url_normalization_are_stable() -> None:
         == "https://example.com/paper?a=1&b=2"
     )
     assert normalize_url("https://user:secret@example.com/paper") is None
+
+
+def test_uploaded_document_reuses_the_canonical_paper_identity_authority() -> None:
+    record = _record("upload-1", "Uploaded Transit Study", None)
+    candidate = canonicalize_record(
+        record,
+        snapshot_id="snapshot.research_input.upload-1",
+    )
+
+    assert candidate.canonical_paper_id == canonical_paper_id(
+        doi=None,
+        arxiv_id=None,
+        normalized_title=normalize_title(record.title),
+        year=None,
+        normalized_authors=(),
+        source_id=record.source_id,
+        source_record_id=record.source_record_id,
+    )
+    assert candidate.canonical_identity_basis == "source_record"
+    assert candidate.canonical_paper_id != canonical_paper_id(
+        doi=None,
+        arxiv_id=None,
+        normalized_title=normalize_title(record.title),
+        year=None,
+        normalized_authors=(),
+        source_id=record.source_id,
+        source_record_id="upload-2",
+    )
 
 
 def test_title_year_duplicate_group_is_stable_across_input_order() -> None:

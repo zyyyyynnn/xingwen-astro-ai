@@ -4,17 +4,24 @@ import type {
   ChartSeries as ChartSeriesDto,
   ChartVisualizationSpec as ChartSpecDto,
   FitsImageVisualizationSpec as FitsSpecDto,
+  LightCurveArtifactContent as LightCurveDto,
+  ModelArtifactContent as ModelArtifactDto,
+  ModelBinaryReference as ModelBinaryDto,
   ModelDiagnosticVisualizationSpec as DiagnosticSpecDto,
   ModelEvaluationArtifactContent as ModelEvaluationDto,
   ScientificArtifactRead as ScientificArtifactReadDto,
   ScientificMetric as ScientificMetricDto,
   ScientificResultBlock as ScientificResultBlockDto,
   ScientificSkillExecution as ScientificSkillExecutionDto,
+  SpectrumArtifactContent as SpectrumDto,
   VisualizationArtifactContent as VisualizationDto,
   WwtAnnotation as WwtAnnotationDto,
   WwtCoordinate as WwtCoordinateDto,
   WwtFitsLayer as WwtFitsLayerDto,
   WwtSceneVisualizationSpec as WwtSpecDto,
+  WwtTableLayer as WwtTableLayerDto,
+  WwtTrackedObjectView as WwtTrackedObjectViewDto,
+  WwtCoordinateView as WwtCoordinateViewDto,
 } from "@xingwen/contracts";
 import type {
   AnalysisReportReviewContent,
@@ -22,18 +29,25 @@ import type {
   ChartSeriesReview,
   ContentHash,
   DomainEntityId,
+  ModelArtifactReviewContent,
+  ModelBinaryReview,
   ModelEvaluationReviewContent,
+  LightCurveArtifactReviewContent,
   ScientificArtifactReview,
   ScientificMetricReview,
   ScientificResultBlockReview,
   ScientificSkillExecutionReview,
   ScientificVisualizationSpecReview,
   SemanticVersion,
+  SpectrumArtifactReviewContent,
   UtcIsoTimestamp,
   VisualizationReviewContent,
   WwtAnnotationReview,
   WwtCoordinateReview,
   WwtFitsLayerReview,
+  WwtSceneVisualizationReview,
+  WwtTableLayerReview,
+  WwtViewReview,
 } from "@xingwen/domain";
 import { asEntityId } from "@xingwen/domain";
 
@@ -58,7 +72,7 @@ function mapExecution(
     executionId: id(dto.execution_id),
     skillId: dto.skill_id,
     skillRevision: dto.skill_revision as SemanticVersion,
-    status: dto.status,
+    status: dto.status as ScientificSkillExecutionReview["status"],
     inputHash: dto.input_hash as ContentHash,
     outputHash: (dto.output_hash ?? null) as ContentHash | null,
     durationMs: dto.duration_ms,
@@ -153,6 +167,9 @@ function mapAnnotation(dto: WwtAnnotationDto): WwtAnnotationReview {
     label: dto.label ?? null,
     colorToken: dto.color_token ?? "brand",
     radiusDegrees: dto.radius_degrees ?? null,
+    lineWidth: dto.line_width ?? 2,
+    fill: dto.fill ?? false,
+    fillColorToken: dto.fill_color_token ?? "brand",
   };
 }
 
@@ -163,6 +180,148 @@ function mapFitsLayer(dto: WwtFitsLayerDto): WwtFitsLayerReview {
     contentRef: dto.content_ref,
     contentHash: dto.content_hash as ContentHash,
     opacity: dto.opacity ?? 1,
+    stretch: dto.stretch ?? "sqrt",
+    colorMap: dto.color_map ?? "gray",
+    vmin: dto.vmin ?? null,
+    vmax: dto.vmax ?? null,
+  };
+}
+
+function mapWwtView(
+  dto: WwtCoordinateViewDto | WwtTrackedObjectViewDto,
+): WwtViewReview {
+  if ("target" in dto) {
+    return {
+      kind: "tracked_object",
+      target: dto.target,
+      fieldOfViewDegrees: dto.field_of_view_degrees ?? 10,
+      rollDegrees: dto.roll_degrees ?? 0,
+      transitionSeconds: dto.transition_seconds ?? 0,
+    };
+  }
+  return {
+    kind: "coordinates",
+    center: mapCoordinate(dto.center),
+    fieldOfViewDegrees: dto.field_of_view_degrees,
+    rollDegrees: dto.roll_degrees ?? 0,
+    transitionSeconds: dto.transition_seconds ?? 0,
+  };
+}
+
+function mapTableLayer(dto: WwtTableLayerDto): WwtTableLayerReview {
+  const coordinates =
+    "x_field" in dto.coordinates
+      ? {
+          kind: "cartesian" as const,
+          frame: dto.coordinates.frame,
+          xField: dto.coordinates.x_field,
+          yField: dto.coordinates.y_field,
+          zField: dto.coordinates.z_field,
+          xyzUnit: dto.coordinates.xyz_unit,
+        }
+      : {
+          kind: "spherical" as const,
+          frame: dto.coordinates.frame ?? "sky",
+          longitudeField: dto.coordinates.longitude_field,
+          latitudeField: dto.coordinates.latitude_field,
+          longitudeUnit: dto.coordinates.longitude_unit ?? "degrees",
+          altitudeField: dto.coordinates.altitude_field ?? null,
+        };
+  return {
+    layerId: id(dto.layer_id),
+    sourceSnapshotId: id(dto.source_snapshot_id),
+    contentRef: dto.content_ref,
+    contentHash: dto.content_hash as ContentHash,
+    mediaType: dto.media_type,
+    coordinates,
+    timeSeries:
+      dto.time_series === null || dto.time_series === undefined
+        ? null
+        : {
+            timeField: dto.time_series.time_field,
+            decayDays: dto.time_series.decay_days,
+          },
+    sizeField: dto.size_field ?? null,
+    sizeScale: dto.size_scale ?? 1,
+    colorToken: dto.color_token ?? "brand",
+    colorField: dto.color_field ?? null,
+    markerScale: dto.marker_scale ?? "screen",
+    opacity: dto.opacity ?? 1,
+  };
+}
+
+function mapWwtScene(scene: WwtSpecDto): WwtSceneVisualizationReview {
+  return {
+    mode: "wwt_scene",
+    view: mapWwtView(scene.view),
+    time: {
+      mode: scene.time?.mode ?? "system_clock",
+      observedAt: (scene.time?.observed_at ?? null) as UtcIsoTimestamp | null,
+      rate: scene.time?.rate ?? null,
+    },
+    observer:
+      scene.observer === null || scene.observer === undefined
+        ? null
+        : {
+            latitudeDegrees: scene.observer.latitude_degrees,
+            longitudeDegrees: scene.observer.longitude_degrees,
+            elevationMeters: scene.observer.elevation_meters ?? 0,
+            localHorizonMode: scene.observer.local_horizon_mode ?? false,
+          },
+    background: scene.background ?? "digitized_sky_survey",
+    foreground:
+      scene.foreground === null || scene.foreground === undefined
+        ? null
+        : {
+            imageSet: scene.foreground.image_set,
+            opacity: scene.foreground.opacity ?? 1,
+          },
+    solarSystem:
+      scene.solar_system === null || scene.solar_system === undefined
+        ? null
+        : {
+            cosmos: scene.solar_system.cosmos ?? false,
+            lighting: scene.solar_system.lighting ?? true,
+            milkyWay: scene.solar_system.milky_way ?? true,
+            minorPlanets: scene.solar_system.minor_planets ?? false,
+            minorOrbits: scene.solar_system.minor_orbits ?? false,
+            orbits: scene.solar_system.orbits ?? true,
+            planets: scene.solar_system.planets ?? true,
+            scale: scene.solar_system.scale ?? 1,
+            stars: scene.solar_system.stars ?? true,
+          },
+    coordinateGrids: (
+      scene.coordinate_grids ?? [{ system: "equatorial", labels: true }]
+    ).map((grid) => ({
+      system: grid.system,
+      labels: grid.labels ?? true,
+    })),
+    constellations: {
+      boundaries: scene.constellations?.boundaries ?? false,
+      figures: scene.constellations?.figures ?? false,
+      pictures: scene.constellations?.pictures ?? false,
+      labels: scene.constellations?.labels ?? false,
+    },
+    precessionChart: scene.precession_chart ?? false,
+    fitsLayers: (scene.fits_layers ?? []).map(mapFitsLayer),
+    tableLayers: (scene.table_layers ?? []).map(mapTableLayer),
+    annotations: (scene.annotations ?? []).map(mapAnnotation),
+    tourSteps: (scene.tour_steps ?? []).map((step) => ({
+      stepId: id(step.step_id),
+      view: mapWwtView(step.view),
+      observedAt: (step.observed_at ?? null) as UtcIsoTimestamp | null,
+      holdSeconds: step.hold_seconds ?? 0,
+    })),
+    tourAutoplay: scene.tour_autoplay ?? false,
+    tourLoop: scene.tour_loop ?? false,
+    readbacks: [
+      ...(scene.readbacks ?? [
+        "center_coordinates",
+        "field_of_view",
+        "current_time",
+      ]),
+    ],
+    textAlternative: scene.text_alternative,
   };
 }
 
@@ -191,17 +350,7 @@ function mapSpec(
     };
   }
   if (dto.mode === "wwt_scene") {
-    const scene = dto as WwtSpecDto;
-    return {
-      mode: "wwt_scene",
-      center: mapCoordinate(scene.center),
-      fieldOfViewDegrees: scene.field_of_view_degrees,
-      observedAt: (scene.observed_at ?? null) as UtcIsoTimestamp | null,
-      background: scene.background ?? "digitized_sky_survey",
-      coordinateGrid: scene.coordinate_grid ?? "equatorial",
-      fitsLayers: (scene.fits_layers ?? []).map(mapFitsLayer),
-      annotations: (scene.annotations ?? []).map(mapAnnotation),
-    };
+    return mapWwtScene(dto as WwtSpecDto);
   }
   if (dto.mode === "model_diagnostic") {
     const diagnostic = dto as DiagnosticSpecDto;
@@ -247,7 +396,10 @@ function mapModel(dto: ModelEvaluationDto): ModelEvaluationReviewContent {
     taskKind: dto.task_kind,
     algorithm: dto.algorithm,
     algorithmVersion: dto.algorithm_version,
-    datasetArtifactVersionId: id(dto.dataset_artifact_version_id),
+    trainingInput: {
+      kind: dto.training_input.kind,
+      refId: id(dto.training_input.ref_id),
+    },
     featureFields: dto.feature_fields.map(id),
     targetField: id(dto.target_field),
     split: {
@@ -260,10 +412,143 @@ function mapModel(dto: ModelEvaluationDto): ModelEvaluationReviewContent {
     metrics: dto.metrics.map(mapMetric),
     baselineMetrics: (dto.baseline_metrics ?? []).map(mapMetric),
     skillExecution: mapExecution(dto.skill_execution),
+    modelBinary: dto.model_binary ? mapModelBinary(dto.model_binary) : null,
     diagnosticVisualizationIds: (dto.diagnostic_visualization_ids ?? []).map(
       id,
     ),
     limitations: [...(dto.limitations ?? [])],
+    sourceSnapshotIds: dto.source_snapshot_ids.map(id),
+    evidenceIds: dto.evidence_ids.map(id),
+    inputHash: dto.input_hash as ContentHash,
+    outputHash: dto.output_hash as ContentHash,
+  };
+}
+
+function mapModelBinary(dto: ModelBinaryDto): ModelBinaryReview {
+  return {
+    contentRef: dto.content_ref,
+    contentHash: dto.content_hash as ContentHash,
+    mediaType: dto.media_type,
+  };
+}
+
+function mapModelArtifact(dto: ModelArtifactDto): ModelArtifactReviewContent {
+  if (
+    dto.kind !== "model_artifact" ||
+    dto.schema_version !== "1.0.0" ||
+    dto.model_binary.media_type !== "application/onnx"
+  ) {
+    throw invalidScientificContent();
+  }
+  return {
+    kind: "model_artifact",
+    schemaVersion: dto.schema_version,
+    modelId: id(dto.model_id),
+    title: dto.title,
+    status: dto.status ?? "active",
+    taskKind: dto.task_kind,
+    algorithm: dto.algorithm,
+    algorithmVersion: dto.algorithm_version,
+    trainingInput: {
+      kind: dto.training_input.kind,
+      refId: id(dto.training_input.ref_id),
+    },
+    evaluationId: id(dto.evaluation_id),
+    featureFields: dto.feature_fields.map(id),
+    targetField: id(dto.target_field),
+    modelBinary: {
+      ...mapModelBinary(dto.model_binary),
+      mediaType: "application/onnx",
+    },
+    inputName: id(dto.input_name),
+    outputNames: dto.output_names.map(id),
+    inputShape: [...dto.input_shape],
+    opsetImports: { ...dto.opset_imports },
+    dependencyRevisions: [...dto.dependency_revisions],
+    skillExecution: mapExecution(dto.skill_execution),
+    limitations: [...(dto.limitations ?? [])],
+    sourceSnapshotIds: dto.source_snapshot_ids.map(id),
+    evidenceIds: dto.evidence_ids.map(id),
+    inputHash: dto.input_hash as ContentHash,
+    outputHash: dto.output_hash as ContentHash,
+  };
+}
+
+function mapSpectrum(dto: SpectrumDto): SpectrumArtifactReviewContent {
+  if (dto.kind !== "spectrum" || dto.schema_version !== "1.0.0") {
+    throw invalidScientificContent();
+  }
+  return {
+    kind: "spectrum",
+    schemaVersion: dto.schema_version,
+    spectrumId: id(dto.spectrum_id),
+    title: dto.title,
+    objectName: dto.object_name,
+    wavelengthUnit: dto.wavelength_unit,
+    fluxUnit: dto.flux_unit,
+    sampleCount: dto.sample_count,
+    points: dto.points.map((point) => ({
+      wavelength: point.wavelength,
+      flux: point.flux,
+      continuum: point.continuum,
+      normalizedFlux: point.normalized_flux,
+      uncertainty: point.uncertainty ?? null,
+    })),
+    signalToNoise: dto.signal_to_noise,
+    detectedLines: dto.detected_lines.map((line) => ({
+      lineId: id(line.line_id),
+      kind: line.kind,
+      observedWavelength: line.observed_wavelength,
+      normalizedFlux: line.normalized_flux,
+      significanceSigma: line.significance_sigma,
+      equivalentWidth: line.equivalent_width,
+    })),
+    restWavelength: dto.rest_wavelength ?? null,
+    radialVelocityKmS: dto.radial_velocity_km_s ?? null,
+    skillExecutions: dto.skill_executions.map(mapExecution),
+    sourceSnapshotIds: dto.source_snapshot_ids.map(id),
+    evidenceIds: dto.evidence_ids.map(id),
+    inputHash: dto.input_hash as ContentHash,
+    outputHash: dto.output_hash as ContentHash,
+  };
+}
+
+function mapLightCurve(dto: LightCurveDto): LightCurveArtifactReviewContent {
+  if (dto.kind !== "light_curve" || dto.schema_version !== "1.0.0") {
+    throw invalidScientificContent();
+  }
+  return {
+    kind: "light_curve",
+    schemaVersion: dto.schema_version,
+    lightCurveId: id(dto.light_curve_id),
+    title: dto.title,
+    objectName: dto.object_name,
+    timeScale: dto.time_scale,
+    timeUnit: dto.time_unit,
+    valueUnit: dto.value_unit,
+    valueKind: dto.value_kind,
+    normalization: dto.normalization,
+    sampleCount: dto.sample_count,
+    acceptedSampleCount: dto.accepted_sample_count,
+    rejectedSampleCount: dto.rejected_sample_count,
+    duration: dto.duration,
+    medianCadence: dto.median_cadence,
+    bestPeriod: dto.best_period,
+    bestPower: dto.best_power,
+    falseAlarmProbability: dto.false_alarm_probability ?? null,
+    periodPeaks: dto.period_peaks.map((peak) => ({
+      period: peak.period,
+      power: peak.power,
+    })),
+    points: dto.points.map((point) => ({
+      time: point.time,
+      value: point.value,
+      normalizedValue: point.normalized_value,
+      uncertainty: point.uncertainty ?? null,
+      quality: point.quality,
+      phase: point.phase,
+    })),
+    skillExecutions: dto.skill_executions.map(mapExecution),
     sourceSnapshotIds: dto.source_snapshot_ids.map(id),
     evidenceIds: dto.evidence_ids.map(id),
     inputHash: dto.input_hash as ContentHash,
@@ -281,7 +566,13 @@ export function mapScientificArtifactRead(
         ? mapVisualization(dto.content)
         : dto.content.kind === "model_evaluation"
           ? mapModel(dto.content)
-          : null;
+          : dto.content.kind === "model_artifact"
+            ? mapModelArtifact(dto.content)
+            : dto.content.kind === "spectrum"
+              ? mapSpectrum(dto.content)
+              : dto.content.kind === "light_curve"
+                ? mapLightCurve(dto.content)
+                : null;
   if (content === null) throw invalidScientificContent();
   return {
     artifactVersionId: id(dto.artifact_version_id),

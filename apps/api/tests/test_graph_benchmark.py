@@ -15,7 +15,6 @@ from app.schemas.graph_artifact import (
     GraphBenchmarkDenominatorScope,
     GraphBenchmarkEvaluationCase,
     GraphBenchmarkReport,
-    GraphIntegrityStage,
     GraphIntegrityStatus,
     GraphRejectionReason,
     compute_graph_benchmark_output_hash,

@@ -115,6 +115,7 @@ it("recoverEvents excludes events beyond the snapshot sequence", async () => {
           project_id: "proj_01JEXAMPLE",
           contract_id: "rc_01JEXAMPLE",
           execution_mode: "demo_replay",
+          revision: 1,
           status: "cleaning_data",
           progress: 25,
           parent_run_id: null,

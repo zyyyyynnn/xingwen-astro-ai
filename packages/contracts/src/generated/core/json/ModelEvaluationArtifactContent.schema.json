@@ -1,5 +1,151 @@
 {
   "$defs": {
+    "ImageLabelDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "class_index": {
+          "minimum": 0,
+          "title": "Class Index",
+          "type": "integer"
+        },
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "sample_count": {
+          "minimum": 2,
+          "title": "Sample Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "class_index",
+        "label",
+        "sample_count"
+      ],
+      "title": "ImageLabelDefinition",
+      "type": "object"
+    },
+    "ImagePreprocessingSpecification": {
+      "additionalProperties": false,
+      "description": "Fixed server-owned preprocessing applied to every training image.",
+      "properties": {
+        "color_mode": {
+          "const": "RGB",
+          "default": "RGB",
+          "title": "Color Mode",
+          "type": "string"
+        },
+        "exif_transpose": {
+          "const": true,
+          "default": true,
+          "title": "Exif Transpose",
+          "type": "boolean"
+        },
+        "normalization": {
+          "const": "uint8_to_unit_interval",
+          "default": "uint8_to_unit_interval",
+          "title": "Normalization",
+          "type": "string"
+        },
+        "resampling": {
+          "const": "bilinear",
+          "default": "bilinear",
+          "title": "Resampling",
+          "type": "string"
+        },
+        "resize_height": {
+          "const": 32,
+          "default": 32,
+          "title": "Resize Height",
+          "type": "integer"
+        },
+        "resize_mode": {
+          "const": "contain_pad",
+          "default": "contain_pad",
+          "title": "Resize Mode",
+          "type": "string"
+        },
+        "resize_width": {
+          "const": 32,
+          "default": 32,
+          "title": "Resize Width",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "ImagePreprocessingSpecification",
+      "type": "object"
+    },
+    "ImageTrainingSpecification": {
+      "additionalProperties": false,
+      "description": "Reproducible label and tensor contract for an image training run.",
+      "properties": {
+        "image_count": {
+          "minimum": 10,
+          "title": "Image Count",
+          "type": "integer"
+        },
+        "image_shape": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "const": 32,
+              "type": "integer"
+            },
+            {
+              "const": 32,
+              "type": "integer"
+            },
+            {
+              "const": 3,
+              "type": "integer"
+            }
+          ],
+          "title": "Image Shape",
+          "type": "array"
+        },
+        "label_schema": {
+          "items": {
+            "$ref": "#/$defs/ImageLabelDefinition"
+          },
+          "minItems": 2,
+          "title": "Label Schema",
+          "type": "array"
+        },
+        "manifest_schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Manifest Schema Version",
+          "type": "string"
+        },
+        "preprocessing": {
+          "$ref": "#/$defs/ImagePreprocessingSpecification"
+        },
+        "source_total_pixels": {
+          "exclusiveMinimum": 0,
+          "title": "Source Total Pixels",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "preprocessing",
+        "image_shape",
+        "image_count",
+        "source_total_pixels",
+        "label_schema"
+      ],
+      "title": "ImageTrainingSpecification",
+      "type": "object"
+    },
     "JsonValue": {},
     "ModelBinaryReference": {
       "additionalProperties": false,
@@ -91,11 +237,37 @@
       "enum": [
         "classification",
         "regression",
+        "time_series_classification",
         "forecast",
         "image_classification"
       ],
       "title": "ModelTaskKind",
       "type": "string"
+    },
+    "ModelTrainingInputReference": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "dataset_artifact_version",
+            "source_snapshot"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Ref Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref_id"
+      ],
+      "title": "ModelTrainingInputReference",
+      "type": "object"
     },
     "ScientificEvidence": {
       "additionalProperties": false,
@@ -164,7 +336,10 @@
             "result_block",
             "metric",
             "visualization",
-            "evaluation"
+            "spectrum",
+            "light_curve",
+            "evaluation",
+            "model"
           ],
           "title": "Target Type",
           "type": "string"
@@ -316,15 +491,25 @@
         "data_profile",
         "statistical_analysis",
         "correlation_analysis",
+        "clustering_analysis",
+        "anomaly_detection",
         "chart_visualization",
         "simbad_lookup",
         "skyview_fits",
         "ephemeris",
         "celestial_events",
+        "gaia_cone_search",
+        "vizier_tap",
         "fits_image_analysis",
+        "spectrum_analysis",
+        "spectrum_acquisition",
+        "light_curve_analysis",
+        "light_curve_acquisition",
         "tabular_machine_learning",
+        "time_series_classification",
         "time_series_forecast",
         "image_classification",
+        "model_inference",
         "wwt_scene"
       ],
       "title": "ScientificSkillId",
@@ -364,12 +549,6 @@
       "title": "Baseline Metrics",
       "type": "array"
     },
-    "dataset_artifact_version_id": {
-      "maxLength": 128,
-      "minLength": 1,
-      "title": "Dataset Artifact Version Id",
-      "type": "string"
-    },
     "diagnostic_visualization_ids": {
       "default": [],
       "items": {
@@ -404,6 +583,17 @@
       "minItems": 1,
       "title": "Feature Fields",
       "type": "array"
+    },
+    "image_training": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ImageTrainingSpecification"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "input_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
@@ -493,6 +683,9 @@
       "minLength": 1,
       "title": "Title",
       "type": "string"
+    },
+    "training_input": {
+      "$ref": "#/$defs/ModelTrainingInputReference"
     }
   },
   "required": [
@@ -501,7 +694,7 @@
     "task_kind",
     "algorithm",
     "algorithm_version",
-    "dataset_artifact_version_id",
+    "training_input",
     "feature_fields",
     "target_field",
     "split",

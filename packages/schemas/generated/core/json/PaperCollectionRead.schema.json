@@ -304,7 +304,15 @@
           "$ref": "#/$defs/PaperCollectionAcquisitionRun"
         },
         "benchmark": {
-          "$ref": "#/$defs/PaperBenchmarkReference"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaperBenchmarkReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "candidates": {
           "default": [],
@@ -365,6 +373,17 @@
           "title": "Ranking Rule",
           "type": "string"
         },
+        "research_contract": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaperSearchContractReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "rules": {
           "$ref": "#/$defs/PaperCollectionRules"
         },
@@ -410,7 +429,6 @@
         }
       },
       "required": [
-        "benchmark",
         "query",
         "acquisition_run",
         "source_executions",
@@ -957,6 +975,35 @@
       "title": "PaperQueryPagination",
       "type": "object"
     },
+    "PaperSearchContractReference": {
+      "additionalProperties": false,
+      "description": "Immutable production Contract identity used by Paper Search.",
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "contract_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Contract Id",
+          "type": "string"
+        },
+        "contract_version": {
+          "exclusiveMinimum": 0,
+          "title": "Contract Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "contract_id",
+        "contract_version",
+        "content_hash"
+      ],
+      "title": "PaperSearchContractReference",
+      "type": "object"
+    },
     "PaperSourceExecution": {
       "additionalProperties": false,
       "properties": {
@@ -1316,7 +1363,8 @@
         "run_id": {
           "anyOf": [
             {
-              "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$",
+              "maxLength": 128,
+              "minLength": 1,
               "type": "string"
             },
             {

@@ -20,6 +20,16 @@ export type {
   ButtonVariant,
 } from "./button";
 export {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "./card";
+export type { CardSize } from "./card";
+export {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -38,6 +48,13 @@ export {
   FieldSet,
 } from "./field";
 export { Input } from "./input";
+export {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./select";
 export { Skeleton } from "./skeleton";
 export { ScrollArea } from "./scroll-area";
 export { Link } from "./link";

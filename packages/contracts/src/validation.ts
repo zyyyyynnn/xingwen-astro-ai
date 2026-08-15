@@ -11,6 +11,7 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
 import analysisReportArtifactContentSchema from "./generated/core/json/AnalysisReportArtifactContent.schema.json";
+import artifactExportReadSchema from "./generated/core/json/ArtifactExportRead.schema.json";
 import artifactVersionSchema from "./generated/core/json/ArtifactVersion.schema.json";
 import artifactVersionDetailSchema from "./generated/core/json/ArtifactVersionDetail.schema.json";
 import evidenceReadSchema from "./generated/core/json/EvidenceRead.schema.json";
@@ -58,6 +59,7 @@ export const CORE_MODEL_NAMES = [
   "RunStepRead",
   "ModelExecutionRecord",
   "ResearchPlanningCatalog",
+  "ArtifactExportRead",
   "ArtifactVersion",
   "ResearchArtifact",
   "ResearchArtifactDetail",
@@ -111,6 +113,7 @@ const schemas: SchemaMap = {
   RunStepRead: runStepReadSchema,
   ModelExecutionRecord: modelExecutionRecordSchema,
   ResearchPlanningCatalog: researchPlanningCatalogSchema,
+  ArtifactExportRead: artifactExportReadSchema,
   ArtifactVersion: artifactVersionSchema,
   ResearchArtifact: researchArtifactSchema,
   ResearchArtifactDetail: researchArtifactDetailSchema,

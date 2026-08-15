@@ -20,7 +20,12 @@ from app.schemas.scientific_skills import (
     scientific_artifact_output_hash,
 )
 from app.security import SecurityProblem
-from app.services.content_storage import sha256_content_hash
+from app.services.content_storage import (
+    ContentRangeNotSatisfiable,
+    ContentRead,
+    ContentStorageError,
+    sha256_content_hash,
+)
 from services.scientific_skills.demo_fixture import build_scientific_fixture_document
 
 
@@ -87,6 +92,49 @@ class _ContentStorage:
 
     async def retrieve(self, content_hash: str) -> bytes | None:
         return self.content.get(content_hash)
+
+    async def open_read(
+        self, content_hash: str, *, range_header: str | None = None
+    ) -> ContentRead | None:
+        content = self.content.get(content_hash)
+        if content is None:
+            return None
+        start, end = _range_bounds(range_header, len(content))
+
+        async def chunks():
+            for offset in range(start, end + 1, 3):
+                yield content[offset : min(offset + 3, end + 1)]
+
+        return ContentRead(
+            start=start,
+            end=end,
+            total_size=len(content),
+            chunks=chunks(),
+        )
+
+
+class _FailingContentStorage(_ContentStorage):
+    async def open_read(
+        self, content_hash: str, *, range_header: str | None = None
+    ) -> ContentRead | None:
+        raise ContentStorageError("storage unavailable")
+
+
+def _range_bounds(range_header: str | None, total_size: int) -> tuple[int, int]:
+    if range_header is None:
+        return (0, total_size - 1) if total_size else (0, -1)
+    value = range_header.removeprefix("bytes=")
+    first, last = value.split("-", maxsplit=1)
+    if not first:
+        length = min(int(last), total_size)
+        if length <= 0 or total_size == 0:
+            raise ContentRangeNotSatisfiable(total_size=total_size)
+        return total_size - length, total_size - 1
+    start = int(first)
+    end = min(int(last), total_size - 1) if last else total_size - 1
+    if start >= total_size or end < start:
+        raise ContentRangeNotSatisfiable(total_size=total_size)
+    return start, end
 
 
 def _client(
@@ -222,6 +270,8 @@ def test_scientific_content_endpoint_serves_only_declared_content_hash() -> None
     assert response.status_code == 200
     assert response.content == content
     assert response.headers["content-type"].startswith("application/fits")
+    assert response.headers["accept-ranges"] == "bytes"
+    assert response.headers["content-length"] == str(len(content))
     assert response.headers["cache-control"] == ("private, immutable, max-age=31536000")
 
     undeclared = "sha256:" + "f" * 64
@@ -230,3 +280,94 @@ def test_scientific_content_endpoint_serves_only_declared_content_hash() -> None
     )
     assert response.status_code == 404
     assert response.json()["code"] == "SCIENTIFIC_CONTENT_NOT_FOUND"
+
+
+def test_scientific_content_endpoint_streams_single_byte_ranges() -> None:
+    content = b"0123456789"
+    version = _fits_version(content)
+    content_hash = sha256_content_hash(content)
+    client = _client(
+        _Artifacts(version),
+        storage=_ContentStorage({content_hash: content}),
+    )
+
+    response = client.get(
+        f"/api/artifact-versions/{version.id}/scientific/content/{content_hash}",
+        headers={"Range": "bytes=2-5"},
+    )
+    assert response.status_code == 206
+    assert response.content == b"2345"
+    assert response.headers["accept-ranges"] == "bytes"
+    assert response.headers["content-range"] == "bytes 2-5/10"
+    assert response.headers["content-length"] == "4"
+
+    response = client.get(
+        f"/api/artifact-versions/{version.id}/scientific/content/{content_hash}",
+        headers={"Range": "bytes=-3"},
+    )
+    assert response.status_code == 206
+    assert response.content == b"789"
+    assert response.headers["content-range"] == "bytes 7-9/10"
+
+    response = client.get(
+        f"/api/artifact-versions/{version.id}/scientific/content/{content_hash}",
+        headers={"Range": "bytes=8-999"},
+    )
+    assert response.status_code == 206
+    assert response.content == b"89"
+    assert response.headers["content-range"] == "bytes 8-9/10"
+
+
+def test_scientific_content_endpoint_rejects_unsatisfiable_range() -> None:
+    content = b"0123456789"
+    version = _fits_version(content)
+    content_hash = sha256_content_hash(content)
+    client = _client(
+        _Artifacts(version),
+        storage=_ContentStorage({content_hash: content}),
+    )
+
+    response = client.get(
+        f"/api/artifact-versions/{version.id}/scientific/content/{content_hash}",
+        headers={"Range": "bytes=99-"},
+    )
+    assert response.status_code == 416
+    assert response.headers["accept-ranges"] == "bytes"
+    assert response.headers["content-range"] == "bytes */10"
+    assert response.json()["code"] == "SCIENTIFIC_CONTENT_RANGE_NOT_SATISFIABLE"
+
+
+def test_scientific_content_endpoint_fails_closed_on_storage_error() -> None:
+    content = b"0123456789"
+    version = _fits_version(content)
+    content_hash = sha256_content_hash(content)
+    client = _client(
+        _Artifacts(version),
+        storage=_FailingContentStorage({content_hash: content}),
+    )
+
+    response = client.get(
+        f"/api/artifact-versions/{version.id}/scientific/content/{content_hash}"
+    )
+    assert response.status_code == 409
+    assert response.json()["code"] == "SCIENTIFIC_ARTIFACT_INTEGRITY"
+
+
+def test_scientific_content_endpoint_checks_ownership_before_opening_range() -> None:
+    content = b"0123456789"
+    version = _fits_version(content)
+    content_hash = sha256_content_hash(content)
+    app = create_app()
+    app.state.artifact_read_service = _Artifacts(version)  # type: ignore[assignment]
+    app.state.content_storage = _ContentStorage({content_hash: content})
+    other, credential, _ = app.state.session_service.create(now=datetime.now(UTC))
+    app.state.session_service.store.put(replace(other, id="other"))
+    client = TestClient(app)
+    client.cookies.set(settings.SESSION_COOKIE_NAME, credential, path="/api")
+
+    response = client.get(
+        f"/api/artifact-versions/{version.id}/scientific/content/{content_hash}",
+        headers={"Range": "bytes=0-1"},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "ARTIFACT_VERSION_NOT_FOUND"

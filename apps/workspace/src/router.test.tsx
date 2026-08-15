@@ -94,15 +94,34 @@ describe("Workspace routes", () => {
     expect(
       await screen.findByRole("textbox", { name: "输入研究消息" }),
     ).toHaveAttribute("contenteditable", "true");
-    expect(screen.queryByLabelText("悬浮研究概览")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "展示悬浮概览" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "展开右侧栏" })).toBeDisabled();
+    expect(await screen.findByLabelText("悬浮研究概览")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "收起悬浮概览" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "展开右侧栏" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "新建研究" })).toBeEnabled();
     expect(screen.queryByText("运行服务未连接")).not.toBeInTheDocument();
   });
 
   it("enters the Thread layout as soon as the first message is submitted", async () => {
     const runtime = createTestRuntime();
+    const source = await runtime.repositories.projects.getById(TEST_PROJECT_ID);
+    if (!source) throw new Error("Fixture project is missing.");
+    const emptyProject = {
+      ...source,
+      activeContractId: null,
+      latestRunId: null,
+      threadSummary: {
+        hasThreadEntries: false,
+        latestThreadActor: null,
+        hasUnansweredClarification: false,
+      },
+    };
+    vi.spyOn(runtime.repositories.projects, "getById").mockResolvedValue(
+      emptyProject,
+    );
+    vi.spyOn(runtime.repositories.projects, "list").mockResolvedValue({
+      items: [emptyProject],
+      nextCursor: null,
+    });
     vi.spyOn(runtime.repositories.researchThread, "list").mockResolvedValue({
       items: [],
       nextCursor: null,
@@ -415,6 +434,7 @@ describe("Workspace routes", () => {
       projectId,
       contractId: source.activeContractId ?? asEntityId("missing-contract"),
       executionMode: "live",
+      revision: 1,
       status: "queued",
       progress: 0,
       parentRunId: null,

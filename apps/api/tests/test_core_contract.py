@@ -102,6 +102,7 @@ def core_examples() -> dict[type[object], dict[str, object]]:
             "cache_policy": "disabled",
             "created_at": NOW,
             "updated_at": NOW,
+            "revision": 1,
         },
         RunEvent: {
             "run_id": "run_01J",
@@ -211,7 +212,7 @@ def test_fixture_contract_hash_matches_pydantic_canonical_payload() -> None:
             "keywords": ["exoplanet", "host star parameters"],
             "year_from": 2018,
             "year_to": 2026,
-            "source_ids": ["nasa_exoplanet_archive"],
+            "source_ids": ["crossref"],
             "max_candidates": 5,
         },
         "output_requirements": ["dataset", "graph"],
@@ -229,7 +230,7 @@ def test_fixture_contract_hash_matches_pydantic_canonical_payload() -> None:
 
     assert normalized["evidence_requirements"]["minimum_coverage"] == 1.0
     assert canonical_request_hash(normalized) == (
-        "sha256:7b810e492de26672a8f2cc4c70179a754e4a82ed3bd72461bcc9e9c2abbd983f"
+        "sha256:4831d8e21cae133dfe2e6b9006be3afefbf77ae923d1a229332b06ee1e869a7e"
     )
     assert compute_research_contract_content_hash(
         ResearchContractInput.model_validate(payload)
@@ -359,6 +360,9 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "getResearchContract",
         "confirmResearchContract",
         "getResearchRun",
+        "cancelResearchRun",
+        "getResearchRunCheckpoint",
+        "decideResearchRun",
         "listRunSteps",
         "createResearchRun",
         "listRunEvents",
@@ -367,6 +371,7 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "getArtifactVersion",
         "getPaperCollection",
         "getPaperSummary",
+        "downloadPaperSummaryExport",
         "getScientificArtifact",
         "getScientificArtifactContent",
         "getGraphArtifact",
@@ -433,6 +438,11 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
         "limit",
     }
     assert "409" in create_run["responses"]
+    cancel_run = document["paths"]["/api/runs/{run_id}"]["delete"]
+    cancel_parameters = {
+        parameter["name"]: parameter for parameter in cancel_run["parameters"]
+    }
+    assert cancel_parameters["If-Match"]["required"] is True
     assert set(create_run["responses"]["409"]["content"]) == {
         "application/problem+json"
     }
@@ -452,6 +462,14 @@ def test_openapi_31_has_stable_unique_operation_ids_and_transport_primitives() -
     ]["get"]
     assert paper_summary["operationId"] == "getPaperSummary"
     assert "PaperSummaryRead" in json.dumps(paper_summary)
+    scientific_content = document["paths"][
+        "/api/artifact-versions/{version_id}/scientific/content/{content_hash}"
+    ]["get"]
+    content_parameters = {
+        parameter["name"]: parameter for parameter in scientific_content["parameters"]
+    }
+    assert content_parameters["Range"]["required"] is False
+    assert {"200", "206", "416"} <= set(scientific_content["responses"])
     literature_relations = document["paths"][
         "/api/artifact-versions/{version_id}/literature-relations"
     ]["get"]

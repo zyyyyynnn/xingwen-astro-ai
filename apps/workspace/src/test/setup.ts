@@ -35,6 +35,11 @@ Object.defineProperty(window, "scrollTo", {
   value: vi.fn(),
 });
 
+Object.defineProperty(Element.prototype, "scrollIntoView", {
+  configurable: true,
+  value: vi.fn(),
+});
+
 Object.defineProperty(window, "matchMedia", {
   configurable: true,
   value: vi.fn((query: string) => ({
@@ -48,3 +53,12 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: vi.fn(() => false),
   })),
 });
+
+class ObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+vi.stubGlobal("IntersectionObserver", ObserverStub);
+vi.stubGlobal("ResizeObserver", ObserverStub);

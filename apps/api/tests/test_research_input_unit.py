@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
+from io import BytesIO
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -40,6 +42,44 @@ from app.services.research_input_store import (
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def _xlsx_bytes() -> bytes:
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.append(("row_id", "temperature"))
+    worksheet.append(("star-a", 5100))
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    return output.getvalue()
+
+
+def _parquet_bytes() -> bytes:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    output = BytesIO()
+    pq.write_table(pa.table({"row_id": ["star-a"], "temperature": [5100]}), output)
+    return output.getvalue()
+
+
+def _xlsx_archive(*, extra_name: str, extra_content: bytes) -> bytes:
+    output = BytesIO()
+    with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("[Content_Types].xml", "<Types />")
+        archive.writestr("xl/workbook.xml", "<workbook />")
+        archive.writestr(extra_name, extra_content)
+    return output.getvalue()
+
+
+def _zip_bytes() -> bytes:
+    output = BytesIO()
+    with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("labels.json", b'{"schema_version":"1.0.0","images":[]}')
+    return output.getvalue()
 
 
 def _text_payload(**overrides: object) -> dict[str, object]:
@@ -95,7 +135,16 @@ def test_text_input_forbids_url() -> None:
 
 
 def test_file_types_forbid_url_and_text_content() -> None:
-    for value in ("pdf", "csv", "json", "image"):
+    for value in (
+        "pdf",
+        "csv",
+        "xlsx",
+        "parquet",
+        "json",
+        "image",
+        "image_dataset",
+        "fits",
+    ):
         with pytest.raises(ValidationError, match="union_tag_invalid"):
             _CREATE_ADAPTER.validate_python(
                 {
@@ -106,7 +155,16 @@ def test_file_types_forbid_url_and_text_content() -> None:
             )
     assert all(
         ResearchInputType(value) in FILE_INPUT_TYPES
-        for value in ("pdf", "csv", "json", "image")
+        for value in (
+            "pdf",
+            "csv",
+            "xlsx",
+            "parquet",
+            "json",
+            "image",
+            "image_dataset",
+            "fits",
+        )
     )
 
 
@@ -155,12 +213,58 @@ def test_sniff_mime_recognizes_magic_bytes() -> None:
     assert sniff_mime_type(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == "image/webp"
     assert sniff_mime_type((FIXTURES / "sample.json").read_bytes()) == "application/json"
     assert sniff_mime_type((FIXTURES / "sample.csv").read_bytes()) == "text/csv"
+    assert (
+        sniff_mime_type(b"SIMPLE  =                    T" + b" " * 80)
+        == "application/fits"
+    )
+    assert sniff_mime_type(_xlsx_bytes()) == (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert sniff_mime_type(_parquet_bytes()) == "application/vnd.apache.parquet"
+    assert sniff_mime_type(_zip_bytes()) == "application/zip"
     assert sniff_mime_type(b"just some plain words\n") == "text/plain"
 
 
 def test_sniff_mime_rejects_binary_and_unknown() -> None:
     assert sniff_mime_type(b"\x00\x01\x02\x03\x04binary") is None
     assert sniff_mime_type(b"") is None
+
+
+@pytest.mark.parametrize(
+    "archive",
+    [
+        b"PK\x03\x04" + b"../../outside.csv" + b"A" * 128,
+        b"\x1f\x8b" + b"A" * 128,
+        b"BZh91AY&SY" + b"A" * 128,
+        b"7z\xbc\xaf\x27\x1c" + b"A" * 128,
+        b"Rar!\x1a\x07\x01\x00" + b"A" * 128,
+        b"!<arch>\n" + b"A" * 128,
+        b"archive.txt".ljust(257, b"\x00") + b"ustar" + b"A" * 128,
+    ],
+)
+def test_archive_magic_is_rejected_before_any_extraction(archive: bytes) -> None:
+    # ResearchInput has no archive type or extraction path. A ZIP-shaped body,
+    # including a traversal-like member name, must fail MIME admission instead
+    # of reaching any path normalization or decompression behavior.
+    assert sniff_mime_type(archive) is None
+
+
+@pytest.mark.parametrize("case", ["macro", "external", "traversal", "bomb"])
+def test_xlsx_admission_rejects_active_external_or_bomb_content(
+    case: str,
+) -> None:
+    member_name, content = {
+        "macro": ("xl/vbaProject.bin", b"macro"),
+        "external": ("xl/externalLinks/externalLink1.xml", b"external"),
+        "traversal": ("../outside.xml", b"traversal"),
+        "bomb": ("xl/worksheets/sheet1.xml", b"A" * 1_000_000),
+    }[case]
+    assert (
+        sniff_mime_type(
+            _xlsx_archive(extra_name=member_name, extra_content=content)
+        )
+        is None
+    )
 
 
 def test_validate_declared_mime_requires_type_and_client_agreement() -> None:
@@ -203,6 +307,34 @@ def test_validate_declared_mime_requires_type_and_client_agreement() -> None:
     )
 
 
+@pytest.mark.parametrize("markdown_mime", ["text/markdown", "text/x-markdown"])
+def test_markdown_uses_declared_semantic_mime_after_utf8_text_sniff(
+    markdown_mime: str,
+) -> None:
+    content = b"# Observations\n\nA bounded Markdown document.\n"
+    sniffed = sniff_mime_type(content)
+    assert sniffed == "text/plain"
+    assert validate_declared_mime(
+        declared_type=ResearchInputType.text,
+        sniffed_mime=sniffed,
+        client_mime=markdown_mime,
+        allowed_mimes=frozenset({"text/plain", markdown_mime}),
+    ) == markdown_mime
+    assert filename_extension_matches("paper.md", markdown_mime)
+
+
+def test_markdown_declaration_cannot_relabel_non_text_bytes() -> None:
+    assert (
+        validate_declared_mime(
+            declared_type=ResearchInputType.text,
+            sniffed_mime="application/pdf",
+            client_mime="text/markdown",
+            allowed_mimes=frozenset({"text/markdown"}),
+        )
+        is None
+    )
+
+
 # ---- filename sanitization -------------------------------------------------
 
 
@@ -228,6 +360,17 @@ def test_filename_extension_matches_mime() -> None:
     assert filename_extension_matches("planets.csv", "application/pdf") is False
     assert filename_extension_matches("notes", "text/csv") is True
     assert filename_extension_matches("photo.jpg", "image/jpeg") is True
+    assert filename_extension_matches("training.zip", "application/zip") is True
+    assert filename_extension_matches("image.fits", "application/fits") is True
+    assert filename_extension_matches("image.fit", "application/fits") is True
+    assert filename_extension_matches("image.fits", "application/pdf") is False
+    assert filename_extension_matches(
+        "measurements.xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    assert filename_extension_matches(
+        "measurements.parquet", "application/vnd.apache.parquet"
+    )
 
 
 # ---- in-memory store -------------------------------------------------------
@@ -628,10 +771,10 @@ def test_storage_read_failure_never_deletes_the_blob(
     ref = asyncio.run(storage.store(content, content_hash))
     blob = tmp_path / ref
 
-    def deny(self: Path) -> bytes:
+    def deny(self: Path, *args, **kwargs):  # noqa: ANN002, ANN003
         raise PermissionError("read denied")
 
-    monkeypatch.setattr(Path, "read_bytes", deny)
+    monkeypatch.setattr(Path, "open", deny)
     with pytest.raises(ContentStorageError, match="unable to read existing blob"):
         asyncio.run(storage.store(content, content_hash))
 

@@ -6,6 +6,7 @@ from copy import deepcopy
 from enum import StrEnum
 import re
 from typing import Annotated, Any, ClassVar, Literal, Self
+from uuid import UUID
 
 from pydantic import (
     AfterValidator,
@@ -19,8 +20,9 @@ from pydantic import (
 )
 
 from ._hashing import compute_canonical_payload_hash
-from .manifest import ContentHash, Identifier, SemanticVersion
+from .manifest import ContentHash, IDENTIFIER_PATTERN, Identifier, SemanticVersion
 from .paper_collection import PaperBenchmarkReference
+from .scientific_document import DocumentLocator
 
 
 MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
@@ -42,6 +44,35 @@ NonEmptyString = Annotated[
 ShortString = Annotated[
     str, Field(min_length=1, max_length=512), AfterValidator(_validate_safe_text)
 ]
+
+
+def _validate_reference_id(value: str) -> str:
+    """Accept a domain identifier or one canonical persisted UUID."""
+
+    if re.fullmatch(IDENTIFIER_PATTERN, value):
+        return value
+    try:
+        parsed = UUID(value)
+    except ValueError as exc:
+        raise ValueError(
+            "reference id must be a domain identifier or canonical UUID"
+        ) from exc
+    if value != str(parsed):
+        raise ValueError("persisted reference UUID must use canonical lowercase form")
+    return value
+
+
+ReferenceId = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=128,
+        json_schema_extra={
+            "pattern": f"(?:{IDENTIFIER_PATTERN})|(?:[0-9a-f-]{{36}})"
+        },
+    ),
+    AfterValidator(_validate_reference_id),
+]
 PaperMetadataField = Literal[
     "source_record_id",
     "title",
@@ -51,6 +82,17 @@ PaperMetadataField = Literal[
     "arxiv_id",
     "url",
 ]
+
+
+class PaperSummaryPaperMetadata(BaseModel):
+    """Bibliographic identity carried by the admitted summary input."""
+
+    model_config = MODEL_CONFIG
+
+    paper_id: Identifier
+    title: ShortString
+    authors: tuple[ShortString, ...] = ()
+    year: int | None = Field(default=None, ge=1900, le=2100)
 
 
 class PaperSummarySupportStatus(StrEnum):
@@ -231,22 +273,46 @@ class PaperSummaryEvidenceLocator(BaseModel):
     model_config = MODEL_CONFIG
 
     kind: Literal["paper_text", "paper_metadata"]
-    source_url: HttpUrl
+    source_url: HttpUrl | None = None
     section: ShortString | None = None
     paragraph: int | None = Field(default=None, ge=1)
     text_range: ShortString | None = None
     metadata_field: PaperMetadataField | None = None
+    document_parse_id: ReferenceId | None = None
+    document_parse_output_hash: ContentHash | None = None
+    document_locator: DocumentLocator | None = None
 
     @model_validator(mode="after")
     def validate_locator_shape(self) -> Self:
         if self.kind == "paper_text":
-            if not self.section or not self.text_range or self.metadata_field:
-                raise ValueError("paper_text locator requires section and text_range")
-        elif not self.metadata_field or any(
+            document_fields = (
+                self.document_parse_id,
+                self.document_parse_output_hash,
+                self.document_locator,
+            )
+            has_document_locator = all(value is not None for value in document_fields)
+            if any(value is not None for value in document_fields) and not has_document_locator:
+                raise ValueError("DocumentParse locator fields must be present together")
+            if self.metadata_field or not self.text_range or (
+                self.source_url is None and not has_document_locator
+            ):
+                raise ValueError(
+                    "paper_text locator requires text_range and a source URL or DocumentParse locator"
+                )
+        elif not self.metadata_field or self.source_url is None or any(
             value is not None
-            for value in (self.section, self.paragraph, self.text_range)
+            for value in (
+                self.section,
+                self.paragraph,
+                self.text_range,
+                self.document_parse_id,
+                self.document_parse_output_hash,
+                self.document_locator,
+            )
         ):
-            raise ValueError("paper_metadata locator requires only metadata_field")
+            raise ValueError(
+                "paper_metadata locator requires source_url and metadata_field only"
+            )
         return self
 
 
@@ -257,10 +323,10 @@ class PaperSummaryEvidenceCandidate(BaseModel):
 
     evidence_id: Identifier
     paper_id: Identifier
-    candidate_id: Identifier
-    source_id: Identifier
+    candidate_id: ReferenceId
+    source_id: ShortString
     source_record_id: ShortString
-    source_snapshot_id: Identifier
+    source_snapshot_id: ReferenceId
     claimed_source_version: ShortString | None = None
     locator: PaperSummaryEvidenceLocator
     quote_or_value: NonEmptyString
@@ -272,26 +338,60 @@ class PaperSummaryEvidenceCandidate(BaseModel):
 class PaperSummarySourceSnapshotReference(BaseModel):
     model_config = MODEL_CONFIG
 
-    source_snapshot_id: Identifier
-    source_id: Identifier
+    source_snapshot_id: ReferenceId
+    source_id: ShortString
     source_version: ShortString
     content_hash: ContentHash
+
+
+class PaperSummaryCollectionReference(BaseModel):
+    model_config = MODEL_CONFIG
+
+    artifact_version_id: ReferenceId
+    schema_version: SemanticVersion
+    output_hash: ContentHash
+
+
+class PaperSummaryDocumentParseReference(BaseModel):
+    model_config = MODEL_CONFIG
+
+    document_parse_id: ReferenceId
+    candidate_parse_id: Identifier
+    research_input_id: ReferenceId
+    source_snapshot_id: ReferenceId
+    input_content_hash: ContentHash
+    canonical_output_hash: ContentHash
+    parser_profile_id: Identifier
+    parser_profile_version: SemanticVersion
+    config_hash: ContentHash
 
 
 class PaperSummaryInputVersions(BaseModel):
     model_config = MODEL_CONFIG
 
-    paper_collection_version_id: Identifier
-    paper_collection_schema_version: SemanticVersion
-    paper_collection_output_hash: ContentHash
+    collection: PaperSummaryCollectionReference | None = None
+    document_parses: tuple[PaperSummaryDocumentParseReference, ...] = ()
     source_snapshots: tuple[PaperSummarySourceSnapshotReference, ...]
 
     @model_validator(mode="after")
     def validate_snapshot_versions(self) -> Self:
+        if self.collection is None and not self.document_parses:
+            raise ValueError(
+                "PaperSummary requires a PaperCollection or DocumentParse input"
+            )
         _require_unique(
             tuple(item.source_snapshot_id for item in self.source_snapshots),
             "input SourceSnapshot version",
         )
+        _require_unique(
+            tuple(item.document_parse_id for item in self.document_parses),
+            "input DocumentParse version",
+        )
+        snapshot_ids = {item.source_snapshot_id for item in self.source_snapshots}
+        if any(
+            item.source_snapshot_id not in snapshot_ids for item in self.document_parses
+        ):
+            raise ValueError("DocumentParse input must reference an input SourceSnapshot")
         return self
 
 
@@ -300,10 +400,10 @@ class PaperSummaryEvidence(BaseModel):
 
     evidence_id: Identifier
     paper_id: Identifier
-    candidate_id: Identifier
-    source_id: Identifier
+    candidate_id: ReferenceId
+    source_id: ShortString
     source_record_id: ShortString
-    source_snapshot_id: Identifier
+    source_snapshot_id: ReferenceId
     source_snapshot_version: ShortString
     source_snapshot_content_hash: ContentHash
     locator: PaperSummaryEvidenceLocator
@@ -317,7 +417,7 @@ class PaperSummarySourceConflict(BaseModel):
 
     conflict_id: Identifier
     evidence_id: Identifier
-    source_snapshot_id: Identifier
+    source_snapshot_id: ReferenceId
     claimed_source_version: ShortString
     source_snapshot_version: ShortString
     resolution: Literal["source_snapshot_version_retained"] = (
@@ -368,16 +468,34 @@ class PaperSummarySection(BaseModel):
         return (() if self.overview is None else (self.overview,)) + self.items
 
 
+class PaperSummaryModelUsage(BaseModel):
+    model_config = MODEL_CONFIG
+
+    prompt_tokens: int = Field(ge=0)
+    completion_tokens: int = Field(ge=0)
+    total_tokens: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_total(self) -> Self:
+        if self.total_tokens < self.prompt_tokens + self.completion_tokens:
+            raise ValueError("total_tokens cannot be below prompt plus completion tokens")
+        return self
+
+
 class PaperSummaryProducerExecution(BaseModel):
     model_config = MODEL_CONFIG
 
-    execution_id: Identifier
-    run_id: Identifier | None = None
+    execution_id: ReferenceId
+    run_id: ReferenceId | None = None
     step_key: Literal["summarizing_papers"] = "summarizing_papers"
     producer_type: Literal["model"] = "model"
     producer_name: NonEmptyString
     producer_version: SemanticVersion
     model_name: ShortString
+    model_revision: ShortString | None = None
+    provider: Identifier | None = None
+    provider_request_id: ShortString | None = None
+    usage: PaperSummaryModelUsage | None = None
     prompt_name: Identifier
     prompt_version: ShortString
     prompt_hash: ContentHash
@@ -413,10 +531,11 @@ class PaperSummaryArtifactContent(BaseModel):
     _artifact_publication_seal: object | None = PrivateAttr(default=None)
 
     kind: Literal["paper_summary"]
-    schema_version: Literal["2.0.0"]
+    schema_version: Literal["3.0.0"]
     summary_id: Identifier
     paper_id: Identifier
-    benchmark: PaperBenchmarkReference
+    paper: PaperSummaryPaperMetadata
+    benchmark: PaperBenchmarkReference | None = None
     input_versions: PaperSummaryInputVersions
     background: PaperSummarySection
     methodology: PaperSummarySection
@@ -435,6 +554,10 @@ class PaperSummaryArtifactContent(BaseModel):
     @model_validator(mode="after")
     def validate_summary_integrity(self) -> Self:
         _validate_section_fields(self)
+        if self.paper.paper_id != self.paper_id:
+            raise ValueError("PaperSummary paper metadata identity does not match paper_id")
+        if self.input_versions.collection is None and self.paper.title.strip() == "":
+            raise ValueError("DocumentParse summary requires paper metadata")
         statements = self.statements()
         _require_unique(
             tuple(statement.statement_id for statement in statements),

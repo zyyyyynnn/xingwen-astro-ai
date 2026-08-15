@@ -50,7 +50,7 @@ from .summary import ParameterValue, _validate_parameters
 
 
 Clock = Callable[[], datetime]
-SUPPORTED_SUMMARY_SCHEMA_VERSIONS = frozenset({"2.0.0"})
+SUPPORTED_SUMMARY_SCHEMA_VERSIONS = frozenset({"3.0.0"})
 _WHITESPACE = re.compile(r"\s+")
 _NEGATION = re.compile(
     r"(?:\b(?:cannot|never|neither|no|nor|not|without)\b|不|无|未|否)",
@@ -80,6 +80,21 @@ class PaperSummaryArtifactVersionInput:
     content: PaperSummaryArtifactContent
 
 
+@dataclass(frozen=True, slots=True)
+class LiteratureClaimExecutionPlan:
+    """Exact immutable model/provenance identity prepared before execution."""
+
+    prompt_name: str
+    prompt_version: str
+    prompt_hash: str
+    prompt: str
+    parameters: Mapping[str, ParameterValue]
+    parameters_version: str
+    parameters_hash: str
+    input_versions: LiteratureClaimInputVersions
+    input_hash: str
+
+
 class LiteratureClaimPipeline:
     """Admit Claim model output without publishing or advancing ResearchRun."""
 
@@ -92,22 +107,18 @@ class LiteratureClaimPipeline:
         self.prompt_registry = prompt_registry or PromptRegistry()
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
-    def admit(
+    def prepare_execution(
         self,
         *,
         paper_summary_artifact_version_id: str,
         paper_id: str,
         paper_summary_versions: Mapping[str, PaperSummaryArtifactVersionInput],
-        model_response: str,
         model_name: str,
         parameters: Mapping[str, ParameterValue],
         parameters_version: str = CLAIM_PARAMETERS_VERSION,
-        execution_id: str | None = None,
-        run_id: str | None = None,
-        available_evidence_ids: frozenset[str] | None = None,
-        available_source_snapshot_ids: frozenset[str] | None = None,
-        existing_claim_fingerprints: frozenset[str] = frozenset(),
-    ) -> LiteratureClaimAdmissionResult:
+    ) -> LiteratureClaimExecutionPlan:
+        """Freeze the exact identity used by admission before a model call starts."""
+
         prompt = self.prompt_registry.get("literature_claim")
         safe_parameters = _validate_parameters(parameters)
         parameters_hash = compute_canonical_payload_hash(
@@ -138,6 +149,46 @@ class LiteratureClaimPipeline:
                 "normalization_version": CLAIM_NORMALIZATION_VERSION,
             }
         )
+        return LiteratureClaimExecutionPlan(
+            prompt_name=prompt.name,
+            prompt_version=prompt.version,
+            prompt_hash=prompt.content_hash,
+            prompt=prompt.content,
+            parameters=safe_parameters,
+            parameters_version=parameters_version,
+            parameters_hash=parameters_hash,
+            input_versions=input_versions,
+            input_hash=input_hash,
+        )
+
+    def admit(
+        self,
+        *,
+        paper_summary_artifact_version_id: str,
+        paper_id: str,
+        paper_summary_versions: Mapping[str, PaperSummaryArtifactVersionInput],
+        model_response: str,
+        model_name: str,
+        parameters: Mapping[str, ParameterValue],
+        parameters_version: str = CLAIM_PARAMETERS_VERSION,
+        execution_id: str | None = None,
+        run_id: str | None = None,
+        available_evidence_ids: frozenset[str] | None = None,
+        available_source_snapshot_ids: frozenset[str] | None = None,
+        existing_claim_fingerprints: frozenset[str] = frozenset(),
+    ) -> LiteratureClaimAdmissionResult:
+        prepared = self.prepare_execution(
+            paper_summary_artifact_version_id=paper_summary_artifact_version_id,
+            paper_id=paper_id,
+            paper_summary_versions=paper_summary_versions,
+            model_name=model_name,
+            parameters=parameters,
+            parameters_version=parameters_version,
+        )
+        parameters_hash = prepared.parameters_hash
+        summary_version = paper_summary_versions.get(paper_summary_artifact_version_id)
+        input_versions = prepared.input_versions
+        input_hash = prepared.input_hash
         raw_response_hash = compute_canonical_payload_hash(model_response)
         now = self._now()
         stable_execution_id = execution_id or f"execution.{input_hash[7:31]}"
@@ -149,9 +200,9 @@ class LiteratureClaimPipeline:
             "producer_name": CLAIM_PRODUCER_NAME,
             "producer_version": CLAIM_PRODUCER_VERSION,
             "model_name": model_name,
-            "prompt_name": prompt.name,
-            "prompt_version": prompt.version,
-            "prompt_hash": prompt.content_hash,
+            "prompt_name": prepared.prompt_name,
+            "prompt_version": prepared.prompt_version,
+            "prompt_hash": prepared.prompt_hash,
             "schema_version": CLAIM_SCHEMA_VERSION,
             "parameters_version": parameters_version,
             "parameters_hash": parameters_hash,

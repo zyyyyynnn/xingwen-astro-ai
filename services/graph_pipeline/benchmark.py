@@ -21,15 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapte
 from app.schemas._hashing import compute_canonical_payload_hash
 from app.schemas.enums import GraphEdgeType, GraphNodeType
 from app.schemas.graph_artifact import (
-    GRAPH_AGGREGATION_POLICY_VERSION,
-    GRAPH_CAPACITY_POLICY_VERSION,
-    GRAPH_FILTER_POLICY_VERSION,
-    GRAPH_IDENTITY_POLICY_VERSION,
     GRAPH_INTEGRITY_POLICY_VERSION,
-    GRAPH_PRODUCER_VERSION,
-    GRAPH_PROGRESSIVE_POLICY_VERSION,
-    GRAPH_SCHEMA_VERSION,
-    GRAPH_TAXONOMY_VERSION,
     GRAPH_BENCHMARK_DISCLAIMER,
     GraphBenchmarkCaseKind,
     GraphBenchmarkCaseResult,

@@ -320,6 +320,7 @@ def upgrade() -> None:
         sa.Column("lease_owner", sa.String(128), nullable=True),
         sa.Column("lease_generation", sa.BigInteger(), nullable=False),
         sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("queue_expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("steps_frozen_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("idempotency_key", sa.String(200), nullable=False),
         sa.Column("request_hash", sa.String(71), nullable=False),
@@ -374,6 +375,10 @@ def upgrade() -> None:
             "cache_policy IN ('disabled','fallback_on_recoverable_failure')",
             name="ck_research_runs_cache_policy",
         ),
+        sa.CheckConstraint(
+            "execution_mode = 'live' OR queue_expires_at IS NULL",
+            name="ck_research_runs_queue_deadline_live_only",
+        ),
         sa.ForeignKeyConstraint(
             ["contract_id", "project_id"],
             ["research_contracts.id", "research_contracts.project_id"],
@@ -398,6 +403,68 @@ def upgrade() -> None:
             "project_id", "idempotency_key", name="uq_research_run_idempotency"
         ),
     )
+    op.create_index(
+        "ix_research_runs_live_queue",
+        "research_runs",
+        ["execution_mode", "status", "queue_expires_at", "created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_research_runs_active_leases",
+        "research_runs",
+        ["execution_mode", "lease_expires_at", "project_id"],
+        unique=False,
+    )
+
+    op.create_table(
+        "workflow_workers",
+        sa.Column("worker_id", sa.String(128), nullable=False),
+        sa.Column("state", sa.String(16), nullable=False),
+        sa.Column("configured_capacity", sa.Integer(), nullable=False),
+        sa.Column("started_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("heartbeat_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("drain_requested_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("stopped_at", sa.DateTime(timezone=True), nullable=True),
+        sa.CheckConstraint(
+            "state IN ('accepting','draining','stopped')",
+            name="ck_workflow_workers_state",
+        ),
+        sa.CheckConstraint(
+            "configured_capacity >= 1",
+            name="ck_workflow_workers_configured_capacity_positive",
+        ),
+        sa.CheckConstraint(
+            "(state = 'accepting' AND drain_requested_at IS NULL AND stopped_at IS NULL) OR "
+            "(state = 'draining' AND drain_requested_at IS NOT NULL AND stopped_at IS NULL) OR "
+            "(state = 'stopped' AND stopped_at IS NOT NULL)",
+            name="ck_workflow_workers_lifecycle_timestamps",
+        ),
+        sa.PrimaryKeyConstraint("worker_id", name="pk_workflow_workers"),
+    )
+
+    op.create_table(
+        "workflow_project_dispatches",
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("last_dispatched_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("dispatch_count", sa.BigInteger(), nullable=False),
+        sa.CheckConstraint(
+            "dispatch_count >= 0",
+            name="ck_workflow_project_dispatches_dispatch_count_nonnegative",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"],
+            ["research_projects.id"],
+            name="fk_workflow_project_dispatches_project_id_research_projects",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("project_id", name="pk_workflow_project_dispatches"),
+    )
+    op.create_index(
+        "ix_workflow_project_dispatches_last_dispatched",
+        "workflow_project_dispatches",
+        ["last_dispatched_at", "project_id"],
+        unique=False,
+    )
 
     op.create_table(
         "run_steps",
@@ -409,6 +476,14 @@ def upgrade() -> None:
         sa.Column("enter_status", sa.String(32), nullable=False),
         sa.Column("success_status", sa.String(32), nullable=False),
         sa.Column("max_attempts", sa.Integer(), nullable=False),
+        sa.Column("task_id", sa.String(128), nullable=True),
+        sa.Column("skill_id", sa.String(128), nullable=True),
+        sa.Column(
+            "depends_on_step_keys",
+            _jsonb(),
+            server_default=sa.text("'[]'::jsonb"),
+            nullable=False,
+        ),
         sa.Column("status", sa.String(32), nullable=False),
         sa.Column("progress", sa.Integer(), nullable=False),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
@@ -425,6 +500,10 @@ def upgrade() -> None:
         sa.CheckConstraint("position >= 0", name="ck_run_steps_position_nonnegative"),
         sa.CheckConstraint(
             "max_attempts >= 1", name="ck_run_steps_max_attempts_positive"
+        ),
+        sa.CheckConstraint(
+            "(task_id IS NULL) = (skill_id IS NULL)",
+            name="ck_run_steps_task_skill_binding",
         ),
         sa.CheckConstraint(
             "enter_status IN ('planning','fetching_data','cleaning_data','acquiring_observations',"
@@ -456,6 +535,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("id", "run_id", name="uq_run_step_id_run"),
         sa.UniqueConstraint("run_id", "position", name="uq_run_step_position"),
         sa.UniqueConstraint("run_id", "key", name="uq_run_step_run_key"),
+        sa.UniqueConstraint("run_id", "task_id", name="uq_run_step_run_task"),
     )
 
     op.create_table(
@@ -540,6 +620,131 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "run_checkpoints",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("run_id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("step_key", sa.String(128), nullable=False),
+        sa.Column("attempt_id", _uuid(), nullable=False),
+        sa.Column("status", sa.String(32), nullable=False),
+        sa.Column("code", sa.String(128), nullable=False),
+        sa.Column("public_message", sa.Text(), nullable=False),
+        sa.Column("required_input_types", _jsonb(), nullable=False),
+        sa.Column(
+            "opened_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("resolution_run_id", _uuid(), nullable=True),
+        sa.CheckConstraint(
+            "status IN ('open','resolved','cancelled')",
+            name="ck_run_checkpoints_status",
+        ),
+        sa.CheckConstraint(
+            "jsonb_typeof(required_input_types) = 'array' AND "
+            "jsonb_array_length(required_input_types) > 0",
+            name="ck_run_checkpoints_required_input_types_nonempty",
+        ),
+        sa.CheckConstraint(
+            "(status = 'open' AND resolved_at IS NULL AND resolution_run_id IS NULL) OR "
+            "(status = 'resolved' AND resolved_at IS NOT NULL AND resolution_run_id IS NOT NULL) OR "
+            "(status = 'cancelled' AND resolved_at IS NOT NULL AND resolution_run_id IS NULL)",
+            name="ck_run_checkpoints_resolution_state",
+        ),
+        sa.ForeignKeyConstraint(
+            ["attempt_id"],
+            ["step_attempts.id"],
+            name="fk_run_checkpoints_attempt_id_step_attempts",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"],
+            ["research_projects.id"],
+            name="fk_run_checkpoints_project_id_research_projects",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["resolution_run_id"],
+            ["research_runs.id"],
+            name="fk_run_checkpoints_resolution_run_id_research_runs",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["run_id"],
+            ["research_runs.id"],
+            name="fk_run_checkpoints_run_id_research_runs",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_run_checkpoint_run_project",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_run_checkpoints"),
+        sa.UniqueConstraint("attempt_id", name="uq_run_checkpoints_attempt_id"),
+        sa.UniqueConstraint("run_id", name="uq_run_checkpoints_run_id"),
+    )
+
+    op.create_table(
+        "run_decisions",
+        sa.Column("id", _uuid(), nullable=False),
+        sa.Column("project_id", _uuid(), nullable=False),
+        sa.Column("parent_run_id", _uuid(), nullable=False),
+        sa.Column("child_run_id", _uuid(), nullable=True),
+        sa.Column("decision", sa.String(32), nullable=False),
+        sa.Column("step_key", sa.String(128), nullable=False),
+        sa.Column("input_ids", _jsonb(), nullable=False),
+        sa.Column("idempotency_key", sa.String(200), nullable=False),
+        sa.Column("request_hash", sa.String(71), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "decision IN ('resume','retry','cancel')",
+            name="ck_run_decisions_decision",
+        ),
+        sa.CheckConstraint(
+            "(decision = 'cancel' AND child_run_id IS NULL) OR "
+            "(decision IN ('resume','retry') AND child_run_id IS NOT NULL)",
+            name="ck_run_decisions_decision_child",
+        ),
+        sa.CheckConstraint(
+            "jsonb_typeof(input_ids) = 'array'",
+            name="ck_run_decisions_input_ids_array",
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"],
+            ["research_projects.id"],
+            name="fk_run_decisions_project_id_research_projects",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["parent_run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_run_decision_parent_project",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["child_run_id", "project_id"],
+            ["research_runs.id", "research_runs.project_id"],
+            name="fk_run_decision_child_project",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_run_decisions"),
+        sa.UniqueConstraint(
+            "parent_run_id",
+            "idempotency_key",
+            name="uq_run_decision_idempotency",
+        ),
+    )
+
+    op.create_table(
         "research_artifacts",
         sa.Column("id", _uuid(), nullable=False),
         sa.Column("project_id", _uuid(), nullable=False),
@@ -583,6 +788,9 @@ def upgrade() -> None:
         sa.Column("prompt_name", sa.String(128), nullable=True),
         sa.Column("prompt_version", sa.String(64), nullable=True),
         sa.Column("prompt_hash", sa.String(71), nullable=True),
+        sa.Column("authorized_tool_name", sa.String(128), nullable=True),
+        sa.Column("authorized_skill_id", sa.String(128), nullable=True),
+        sa.Column("registry_revision", sa.String(71), nullable=True),
         sa.Column("parameters", _jsonb(), nullable=False),
         sa.Column("parameters_hash", sa.String(71), nullable=False),
         sa.Column("input_hash", sa.String(71), nullable=False),
@@ -593,6 +801,12 @@ def upgrade() -> None:
         sa.Column("token_usage", _jsonb(), nullable=True),
         sa.Column("latency_ms", sa.Integer(), nullable=True),
         sa.Column("error_code", sa.String(128), nullable=True),
+        sa.Column("provider_request_id", sa.String(256), nullable=True),
+        sa.Column("tool_call_id", sa.String(256), nullable=True),
+        sa.Column("validated_arguments_hash", sa.String(71), nullable=True),
+        sa.Column("rejected_arguments_hash", sa.String(71), nullable=True),
+        sa.Column("error_hash", sa.String(71), nullable=True),
+        sa.Column("public_message", sa.Text(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -614,6 +828,47 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "latency_ms IS NULL OR latency_ms >= 0",
             name="ck_producer_executions_latency_nonnegative",
+        ),
+        sa.CheckConstraint(
+            "(authorized_tool_name IS NULL) = (registry_revision IS NULL)",
+            name="ck_producer_executions_function_call_authorization_pair",
+        ),
+        sa.CheckConstraint(
+            "validated_arguments_hash IS NULL OR "
+            "(status = 'completed' AND tool_call_id IS NOT NULL "
+            "AND public_message IS NOT NULL)",
+            name="ck_producer_executions_validated_arguments_terminal",
+        ),
+        sa.CheckConstraint(
+            "rejected_arguments_hash IS NULL OR "
+            "(status = 'rejected' AND tool_call_id IS NOT NULL)",
+            name="ck_producer_executions_rejected_arguments_terminal",
+        ),
+        sa.CheckConstraint(
+            "error_hash IS NULL OR status IN ('failed','rejected','cancelled')",
+            name="ck_producer_executions_error_hash_terminal",
+        ),
+        sa.CheckConstraint(
+            "producer_name <> 'research_step_agent' OR ("
+            "authorized_tool_name IS NOT NULL AND registry_revision IS NOT NULL AND ("
+            "(status = 'running' AND tool_call_id IS NULL "
+            "AND validated_arguments_hash IS NULL "
+            "AND rejected_arguments_hash IS NULL AND error_hash IS NULL "
+            "AND public_message IS NULL) OR "
+            "(status = 'completed' AND tool_call_id IS NOT NULL "
+            "AND validated_arguments_hash IS NOT NULL "
+            "AND rejected_arguments_hash IS NULL AND error_hash IS NULL "
+            "AND public_message IS NOT NULL) OR "
+            "(status = 'rejected' AND validated_arguments_hash IS NULL "
+            "AND error_hash IS NOT NULL AND public_message IS NULL "
+            "AND ((tool_call_id IS NULL AND rejected_arguments_hash IS NULL) OR "
+            "(tool_call_id IS NOT NULL AND rejected_arguments_hash IS NOT NULL))) OR "
+            "(status IN ('failed','cancelled') AND tool_call_id IS NULL "
+            "AND validated_arguments_hash IS NULL "
+            "AND rejected_arguments_hash IS NULL AND error_hash IS NOT NULL "
+            "AND public_message IS NULL)"
+            "))",
+            name="ck_producer_executions_research_step_agent_audit_closure",
         ),
         sa.ForeignKeyConstraint(
             ["run_id"],
@@ -921,7 +1176,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("id", "project_id", name="uq_research_input_id_project"),
         sa.CheckConstraint(
-            "type IN ('url','pdf','csv','json','image','text')",
+            "type IN ('url','pdf','csv','xlsx','parquet','json','image',"
+            "'image_dataset','fits','text')",
             name="ck_research_inputs_input_type",
         ),
         sa.CheckConstraint(
@@ -1246,10 +1502,12 @@ def upgrade() -> None:
 
             IF ROW(
                 NEW.run_id, NEW.position, NEW.key, NEW.label,
-                NEW.enter_status, NEW.success_status, NEW.max_attempts
+                NEW.enter_status, NEW.success_status, NEW.max_attempts,
+                NEW.task_id, NEW.skill_id, NEW.depends_on_step_keys
             ) IS DISTINCT FROM ROW(
                 OLD.run_id, OLD.position, OLD.key, OLD.label,
-                OLD.enter_status, OLD.success_status, OLD.max_attempts
+                OLD.enter_status, OLD.success_status, OLD.max_attempts,
+                OLD.task_id, OLD.skill_id, OLD.depends_on_step_keys
             ) THEN
                 RAISE EXCEPTION 'RunStep definition is frozen for run %', target_run_id
                     USING ERRCODE = '23514';
@@ -1332,10 +1590,16 @@ def downgrade() -> None:
     )
     op.drop_table("producer_executions")
     op.drop_table("research_artifacts")
+    op.execute("DROP TABLE IF EXISTS run_decisions")
+    op.execute("DROP TABLE IF EXISTS run_checkpoints")
     op.drop_index("ix_run_events_run_occurred", table_name="run_events")
     op.drop_table("run_events")
     op.drop_table("step_attempts")
     op.drop_table("run_steps")
+    op.execute("DROP TABLE IF EXISTS workflow_project_dispatches")
+    op.execute("DROP TABLE IF EXISTS workflow_workers")
+    op.execute("DROP INDEX IF EXISTS ix_research_runs_active_leases")
+    op.execute("DROP INDEX IF EXISTS ix_research_runs_live_queue")
     op.drop_table("research_runs")
     op.drop_index(
         "ix_research_thread_entries_project_sequence",

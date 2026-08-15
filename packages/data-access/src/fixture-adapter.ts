@@ -1,9 +1,11 @@
 /**
  * Fixture adapter — the Demo Replay `RepositorySet` implementation.
  *
- * Validates every fixture DTO against the Core Domain and Transport Contract JSON Schemas, enforces Demo
- * Replay semantics (no `live`/`cached` data), maps payloads into the domain
- * model, and serves reads from in-memory stores. It implements the same
+ * Validates contract-registered fixture DTOs against the Core Domain and
+ * Transport Contract JSON Schemas, enforces Demo Replay semantics (no
+ * `live`/`cached` data), maps payloads into the domain model, and serves reads
+ * from in-memory stores. Dedicated rich read ports use the same strict
+ * transport mappers as the HTTP adapter. It implements the same
  * narrowed ports as the HTTP adapter so the two are structurally
  * interchangeable. Writes (draft update, contract confirm, run create,
  * workspace save, share create/revoke) mutate the stores deterministically via
@@ -22,6 +24,10 @@ import type {
   ResearchContractDraft,
   ResearchProject,
   ResearchRun,
+  RunCheckpoint,
+  RunDecisionResult,
+  ResearchInputRef,
+  CreateResearchInput,
   ResearchThreadEntry,
   RunEvent,
   RunStepSnapshot,
@@ -30,6 +36,7 @@ import type {
   ContentHash,
   UtcIsoTimestamp,
 } from "@xingwen/domain";
+import { asEntityId } from "@xingwen/domain";
 
 import { FixtureSemanticError, FixtureValidationError } from "./errors";
 import { ConflictError, NotFoundError, UnexpectedHttpError } from "./errors";
@@ -44,12 +51,19 @@ import {
   mapResearchProject,
   mapResearchRun,
   mapRunEvent,
+  mapRunCheckpoint,
+  mapResearchInputRef,
 } from "./mapping";
 import { mapScientificArtifactRead } from "./scientific-artifact-repository";
+import { createFixtureDataArtifactRepository } from "./data-artifact-repository";
+import { createFixtureArtifactExportRepository } from "./artifact-export-repository";
+import { createFixtureGraphArtifactRepository } from "./graph-artifact-repository";
+import { createFixtureLiteratureArtifactRepository } from "./literature-artifact-repository";
 import { computeContractContentHash } from "./contract-hash";
 import { assemblePaperAcquisitionReview } from "./paper-acquisition-repository";
 import { assemblePaperSummaryReview } from "./paper-summary-repository";
 import type {
+  ArtifactExportRepository,
   ArtifactReadRepository,
   ContractRepository,
   CreateResearchRunInput,
@@ -61,7 +75,12 @@ import type {
   RepositoryProvenance,
   RunEventRecovery,
   RunRepository,
+  ResearchInputRepository,
+  RunDecisionInput,
   ScientificArtifactRepository,
+  DataArtifactRepository,
+  GraphArtifactRepository,
+  LiteratureArtifactRepository,
   UpdateResearchProjectInput,
   ShareRepository,
   UpdateResearchContractDraftInput,
@@ -110,6 +129,47 @@ function validateBundleSemantics(bundle: FixtureBundle): void {
     if (version.source_mode !== "fixture") {
       throw new FixtureSemanticError(
         `Fixture artifact version ${version.id} must have source_mode "fixture"; got "${version.source_mode}".`,
+      );
+    }
+  }
+  const formalDataReads = [
+    ...bundle.data.dataArtifactReads,
+    ...bundle.data.fieldDictionaryArtifactReads,
+    ...bundle.data.sourceCollectionArtifactReads,
+  ];
+  for (const read of formalDataReads) {
+    if (read.source_mode !== "fixture") {
+      throw new FixtureSemanticError(
+        `Fixture data read ${read.artifact_version_id} must have source_mode "fixture"; got "${read.source_mode}".`,
+      );
+    }
+  }
+  const formalLiteratureReads = [
+    ...bundle.data.literatureClaimReads,
+    ...bundle.data.literatureRelationReads,
+    ...bundle.data.literatureReasoningTraceReads,
+  ];
+  for (const read of formalLiteratureReads) {
+    if (read.version.source_mode !== "fixture") {
+      throw new FixtureSemanticError(
+        `Fixture literature read ${read.version.artifact_version_id} must have source_mode "fixture"; got "${read.version.source_mode}".`,
+      );
+    }
+  }
+  for (const read of bundle.data.graphArtifactReads) {
+    if (read.version.source_mode !== "fixture") {
+      throw new FixtureSemanticError(
+        `Fixture graph read ${read.version.artifact_version_id} must have source_mode "fixture"; got "${read.version.source_mode}".`,
+      );
+    }
+  }
+  for (const read of [
+    ...bundle.data.graphNodeReads,
+    ...bundle.data.graphEdgeReads,
+  ]) {
+    if (read.version.source_mode !== "fixture") {
+      throw new FixtureSemanticError(
+        `Fixture graph row ${read.version.artifact_version_id} must have source_mode "fixture"; got "${read.version.source_mode}".`,
       );
     }
   }
@@ -321,11 +381,16 @@ export interface FixtureRepositorySet {
   readonly researchCatalog: ResearchCatalogRepository;
   readonly contracts: ContractRepository;
   readonly runs: RunRepository;
+  readonly researchInputs: ResearchInputRepository;
   readonly researchThread: ResearchThreadRepository;
   readonly artifacts: ArtifactReadRepository;
   readonly paperAcquisition: PaperAcquisitionRepository;
   readonly paperSummary: PaperSummaryRepository;
   readonly scientificArtifacts: ScientificArtifactRepository;
+  readonly dataArtifacts: DataArtifactRepository;
+  readonly artifactExports: ArtifactExportRepository;
+  readonly literatureArtifacts: LiteratureArtifactRepository;
+  readonly graphArtifacts: GraphArtifactRepository;
   readonly workspaces: WorkspaceSnapshotRepository;
   readonly shares: ShareRepository;
   readonly provenance: RepositoryProvenance;
@@ -382,6 +447,12 @@ export function createFixtureRepositories(
 ): FixtureRepositorySet {
   validateBundleSemantics(bundle);
   validateBundlePayloads(bundle);
+  const exportProject = bundle.data.projects[0];
+  if (!exportProject) {
+    throw new FixtureSemanticError(
+      "Fixture bundle must carry a Project for version-pinned exports.",
+    );
+  }
 
   const clock = options.clock ?? defaultClock();
   const nextId = options.idFactory ?? defaultIdFactory();
@@ -420,6 +491,23 @@ export function createFixtureRepositories(
     bundle.data.evidence.map((entity) => mapEvidence(entity)),
   );
   const workspaces = new MemoryStore<WorkspaceSnapshot>([]);
+  const checkpoints = new Map<DomainEntityId, RunCheckpoint>(
+    (bundle.data.runCheckpoints ?? []).map((dto) => {
+      const checkpoint = mapRunCheckpoint(dto);
+      return [checkpoint.id, checkpoint] as const;
+    }),
+  );
+  const researchInputs = new MemoryStore<ResearchInputRef>(
+    (bundle.data.researchInputs ?? []).map((dto) => mapResearchInputRef(dto)),
+  );
+  const inputProjectIds = new Map<DomainEntityId, DomainEntityId>(
+    (bundle.data.researchInputs ?? []).map((dto) => [
+      asEntityId(dto.id),
+      bundle.data.projects[0]?.id
+        ? asEntityId(bundle.data.projects[0].id)
+        : asEntityId("project_fixture"),
+    ]),
+  );
 
   const runEvents = new Map<DomainEntityId, RunEvent[]>();
   for (const dto of bundle.data.runEvents) {
@@ -443,6 +531,14 @@ export function createFixtureRepositories(
   const draftsByIdempotencyKey = new Map<
     string,
     { readonly request: string; readonly draft: ResearchContractDraft }
+  >();
+  const decisionsByIdempotencyKey = new Map<
+    string,
+    { readonly request: string; readonly result: RunDecisionResult }
+  >();
+  const inputByIdempotencyKey = new Map<
+    string,
+    { readonly request: string; readonly input: ResearchInputRef }
   >();
 
   function toPublicVersion(
@@ -897,6 +993,7 @@ export function createFixtureRepositories(
           contractId: input.contractId,
           executionMode: input.executionMode,
           status: "queued",
+          revision: 1,
           progress: 0,
           parentRunId: null,
           derivationKind: "original",
@@ -929,6 +1026,105 @@ export function createFixtureRepositories(
         ]);
         runsByIdempotencyKey.set(input.idempotencyKey, { request, run });
         return run;
+      },
+      getCheckpoint: async (runId) => {
+        for (const checkpoint of checkpoints.values()) {
+          if (checkpoint.runId === runId) return checkpoint;
+        }
+        return null;
+      },
+      decide: async (
+        runId,
+        input: RunDecisionInput,
+        expectedRevision,
+        idempotencyKey,
+      ): Promise<RunDecisionResult> => {
+        const parent = runs.get(runId);
+        if (parent === null) {
+          throw new NotFoundError(`Run ${runId} not found`, "RUN_NOT_FOUND");
+        }
+        if (parent.revision !== expectedRevision) {
+          throw new ConflictError("Run revision conflict", "VERSION_CONFLICT");
+        }
+        const request = JSON.stringify({ runId, input });
+        const replay = decisionsByIdempotencyKey.get(idempotencyKey);
+        if (replay) {
+          if (replay.request !== request) {
+            throw new ConflictError(
+              "Idempotency key was already used for a different decision",
+              "IDEMPOTENCY_CONFLICT",
+            );
+          }
+          return replay.result;
+        }
+        const now = clock();
+        let resultRun: ResearchRun = {
+          ...parent,
+          status: input.decision === "cancel" ? "cancelled" : "queued",
+          revision: parent.revision + 1,
+          updatedAt: now,
+        };
+        let childRunId: DomainEntityId | null = null;
+        if (input.decision === "retry") {
+          childRunId = nextId("run");
+          resultRun = {
+            ...parent,
+            id: childRunId,
+            status: "queued",
+            revision: 1,
+            parentRunId: parent.id,
+            derivationKind: "retry",
+            retryFromStep: asEntityId(input.stepKey),
+            startedAt: null,
+            finishedAt: null,
+            createdAt: now,
+            updatedAt: now,
+            latestEventSequence: 1,
+            failureCode: null,
+            failureSummary: null,
+          };
+          runs.upsert(resultRun);
+          runEvents.set(childRunId, [
+            {
+              runId: childRunId,
+              sequence: 1,
+              eventType: asEntityId("run.queued"),
+              stepKey: null,
+              progress: 0,
+              publicMessage: "Retry queued",
+              artifactVersionIds: [],
+              occurredAt: now,
+            },
+          ]);
+        } else {
+          runs.upsert(resultRun);
+        }
+        const checkpoint = [...checkpoints.values()].find(
+          (item) => item.runId === runId && item.status === "open",
+        );
+        if (checkpoint) {
+          checkpoints.set(checkpoint.id, {
+            ...checkpoint,
+            status: input.decision === "cancel" ? "cancelled" : "resolved",
+            resolvedAt: now,
+            resolutionRunId: resultRun.id,
+          });
+        }
+        const decision: RunDecisionResult["decision"] = {
+          childRunId,
+          createdAt: now,
+          decision: input.decision,
+          id: nextId("decision"),
+          inputIds: input.decision === "resume" ? [...input.inputIds] : [],
+          parentRunId: parent.id,
+          stepKey:
+            input.decision === "retry"
+              ? input.stepKey
+              : (checkpoint?.stepKey ?? "checkpoint"),
+        };
+        const result = { decision, run: resultRun };
+        decisionsByIdempotencyKey.set(idempotencyKey, { request, result });
+        return result;
       },
       listEvents: async (runId) => {
         if (runs.get(runId) === null) {
@@ -972,6 +1168,79 @@ export function createFixtureRepositories(
       // provenance metadata only; rich content stays behind its dedicated port.
       getVersion: async (id) => versions.get(id),
       getEvidence: async (id) => evidenceStore.get(id),
+    },
+    researchInputs: {
+      listByProject: async (projectId) =>
+        researchInputs.filter(
+          (input) => inputProjectIds.get(input.id) === projectId,
+        ),
+      create: async (input: CreateResearchInput) => {
+        const request = JSON.stringify({
+          projectId: input.projectId,
+          type: input.type,
+          filename: input.filename ?? null,
+          mimeType: input.mimeType ?? null,
+          textContent: input.type === "text" ? input.textContent : undefined,
+          url: input.type === "url" ? input.url : undefined,
+          size: input.type === "text" ? input.textContent.length : 0,
+        });
+        const replay = inputByIdempotencyKey.get(input.idempotencyKey);
+        if (replay) {
+          if (replay.request !== request) {
+            throw new ConflictError(
+              "Idempotency key was already used for a different input",
+              "IDEMPOTENCY_CONFLICT",
+            );
+          }
+          return replay.input;
+        }
+        if (projects.get(input.projectId) === null) {
+          throw new NotFoundError(
+            `Project ${input.projectId} not found`,
+            "PROJECT_NOT_FOUND",
+          );
+        }
+        const id = nextId("input");
+        const sizeBytes =
+          input.type === "text"
+            ? new TextEncoder().encode(input.textContent).byteLength
+            : input.type === "url"
+              ? 0
+              : input.content.byteLength;
+        const record: ResearchInputRef = {
+          contentHash: `sha256:${"0".repeat(64)}`,
+          createdAt: clock(),
+          filename: input.filename ?? null,
+          id,
+          mimeType: input.mimeType ?? null,
+          sizeBytes,
+          sourceSnapshotId: null,
+          sourceType: input.type === "url" ? "url" : "fixture",
+          status: "accepted",
+          type: input.type,
+        };
+        researchInputs.upsert(record);
+        inputProjectIds.set(id, input.projectId);
+        inputByIdempotencyKey.set(input.idempotencyKey, {
+          request,
+          input: record,
+        });
+        return record;
+      },
+      bindToRun: async (inputId, projectId, runId) => {
+        const input = researchInputs.get(inputId);
+        const run = runs.get(runId);
+        if (input === null || inputProjectIds.get(inputId) !== projectId) {
+          throw new NotFoundError(
+            `Research input ${inputId} not found`,
+            "RESEARCH_INPUT_NOT_FOUND",
+          );
+        }
+        if (run === null || run.projectId !== projectId) {
+          throw new NotFoundError(`Run ${runId} not found`, "RUN_NOT_FOUND");
+        }
+        return input;
+      },
     },
     paperAcquisition: {
       getReview: async (artifactVersionId) => {
@@ -1041,6 +1310,24 @@ export function createFixtureRepositories(
         return bytes.buffer;
       },
     },
+    dataArtifacts: createFixtureDataArtifactRepository([
+      ...bundle.data.dataArtifactReads,
+      ...bundle.data.fieldDictionaryArtifactReads,
+      ...bundle.data.sourceCollectionArtifactReads,
+    ]),
+    artifactExports: createFixtureArtifactExportRepository(
+      asEntityId(exportProject.id),
+    ),
+    literatureArtifacts: createFixtureLiteratureArtifactRepository(
+      bundle.data.literatureClaimReads,
+      bundle.data.literatureRelationReads,
+      bundle.data.literatureReasoningTraceReads,
+    ),
+    graphArtifacts: createFixtureGraphArtifactRepository(
+      bundle.data.graphArtifactReads,
+      bundle.data.graphNodeReads,
+      bundle.data.graphEdgeReads,
+    ),
     workspaces: {
       getByProjectId: async (projectId) =>
         workspaces.filter((w) => w.projectId === projectId)[0] ?? null,

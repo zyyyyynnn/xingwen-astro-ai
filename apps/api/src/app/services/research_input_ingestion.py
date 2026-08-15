@@ -27,6 +27,7 @@ from dataclasses import dataclass
 
 from app.schemas.research_input import (
     RESEARCH_INPUT_FILENAME_INVALID,
+    RESEARCH_INPUT_INVALID,
     RESEARCH_INPUT_MIME_REJECTED,
     URL_FETCH_BLOCKED,
     ResearchInputCreate,
@@ -34,10 +35,12 @@ from app.schemas.research_input import (
 )
 from app.security import SecurityProblem
 from app.services.content_storage import ContentStorage, sha256_content_hash
+from app.services.image_dataset import validate_image_dataset_archive
 from app.services.research_input_policy import (
     ResearchInputPolicy,
     canonical_research_input_request_hash,
     filename_extension_matches,
+    normalize_mime,
     sanitize_filename,
     sniff_mime_type,
     validate_declared_mime,
@@ -252,6 +255,19 @@ class ResearchInputIngestionService:
         sniffed = sniff_mime_type(content)
         mime_type = self._resolve_mime(payload, sniffed, mime_hint)
         filename = self._clean_filename(filename_hint, mime_type)
+        if payload.type is ResearchInputType.image_dataset:
+            try:
+                validate_image_dataset_archive(
+                    content,
+                    policy=self._policy.image_dataset,
+                )
+            except ValueError as exc:
+                raise SecurityProblem(
+                    status=400,
+                    code=RESEARCH_INPUT_INVALID,
+                    title="Invalid image dataset",
+                    detail="The ZIP or labels.json does not satisfy the image dataset contract",
+                ) from exc
         return PreparedInput(
             content_hash=content_hash,
             storage_ref=storage_ref,
@@ -324,10 +340,22 @@ class ResearchInputIngestionService:
         sniffed_mime: str | None,
         client_mime: str | None,
     ) -> str | None:
+        declared_mime = payload.mime_type
+        if (
+            declared_mime is not None
+            and client_mime is not None
+            and normalize_mime(declared_mime) != normalize_mime(client_mime)
+        ):
+            raise SecurityProblem(
+                status=415,
+                code=RESEARCH_INPUT_MIME_REJECTED,
+                title="Conflicting content types",
+                detail="The declared and observed content types do not match",
+            )
         resolved = validate_declared_mime(
             declared_type=payload.type,
             sniffed_mime=sniffed_mime,
-            client_mime=client_mime,
+            client_mime=declared_mime or client_mime,
             allowed_mimes=self._policy.allowed_mimes,
         )
         if resolved is None:

@@ -5,8 +5,16 @@ import type {
   SubmitResearchTurnInput,
   UpdateResearchProjectInput,
   UpdateResearchContractDraftInput,
+  RunDecisionInput,
 } from "@xingwen/data-access/ports";
-import type { DomainEntityId, ExecutionMode } from "@xingwen/domain";
+import type {
+  CreateResearchInput,
+  CreateResearchInputDraft,
+  DomainEntityId,
+  ExecutionMode,
+  ResearchInputRef,
+  RunDecisionResult,
+} from "@xingwen/domain";
 import type {
   ProjectViewModel,
   ResearchAdapter,
@@ -22,7 +30,7 @@ import { workspaceQueryKeys } from "./query-keys";
 interface WorkspaceMutationDependencies {
   readonly repositories: Pick<
     RepositorySet,
-    "projects" | "contracts" | "runs" | "researchThread"
+    "projects" | "contracts" | "runs" | "researchInputs" | "researchThread"
   >;
   readonly researchAdapter: ResearchAdapter;
   readonly queryClient: QueryClient;
@@ -117,6 +125,23 @@ export interface CreateRunVariables {
   readonly projectId: DomainEntityId;
   readonly contractId: DomainEntityId;
   readonly executionMode: ExecutionMode;
+}
+
+export interface RunDecisionVariables {
+  readonly projectId: DomainEntityId;
+  readonly runId: DomainEntityId;
+  readonly expectedRevision: number;
+  readonly input: RunDecisionInput;
+}
+
+export interface CreateResearchInputVariables {
+  readonly input: CreateResearchInputDraft;
+}
+
+export interface BindResearchInputVariables {
+  readonly inputId: DomainEntityId;
+  readonly projectId: DomainEntityId;
+  readonly runId: DomainEntityId;
 }
 
 export function createWorkspaceMutations({
@@ -369,6 +394,98 @@ export function createWorkspaceMutations({
           void queryClient.invalidateQueries({
             queryKey: workspaceQueryKeys.projects(),
             exact: true,
+          });
+        },
+      }),
+    runDecision: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "run", "decision"],
+        retry: false,
+        mutationFn: async (
+          variables: RunDecisionVariables,
+        ): Promise<RunDecisionResult> =>
+          repositories.runs.decide(
+            variables.runId,
+            variables.input,
+            variables.expectedRevision,
+            idempotency.keyFor("run.decision", variables),
+          ),
+        onSuccess: (result, variables) => {
+          idempotency.complete("run.decision", variables);
+          queryClient.setQueryData(
+            workspaceQueryKeys.run(variables.projectId, result.run.id),
+            researchAdapter.toRunViewModel(result.run),
+          );
+          queryClient.setQueryData(
+            workspaceQueryKeys.project(variables.projectId),
+            (current: ProjectViewModel | undefined) =>
+              current
+                ? {
+                    ...current,
+                    latestRunId: result.run.id,
+                    latestRunStatus: result.run.status,
+                    latestRunFailureSummary: result.run.failureSummary ?? null,
+                  }
+                : current,
+          );
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.run(
+              variables.projectId,
+              variables.runId,
+            ),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.runCheckpoint(
+              variables.projectId,
+              variables.runId,
+            ),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.project(variables.projectId),
+            exact: true,
+          });
+        },
+      }),
+    researchInputCreate: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "research-input", "create"],
+        retry: false,
+        mutationFn: async (
+          variables: CreateResearchInputVariables,
+        ): Promise<ResearchInputRef> => {
+          const input = {
+            ...variables.input,
+            idempotencyKey: idempotency.keyFor(
+              "research-input.create",
+              variables.input,
+            ),
+          } as CreateResearchInput;
+          return repositories.researchInputs.create(input);
+        },
+        onSuccess: (_input, variables) => {
+          idempotency.complete("research-input.create", variables.input);
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.researchInputs(
+              variables.input.projectId,
+            ),
+          });
+        },
+      }),
+    researchInputBind: () =>
+      mutationOptions({
+        mutationKey: ["workspace", "research-input", "bind"],
+        retry: false,
+        mutationFn: async (
+          variables: BindResearchInputVariables,
+        ): Promise<ResearchInputRef> =>
+          repositories.researchInputs.bindToRun(
+            variables.inputId,
+            variables.projectId,
+            variables.runId,
+          ),
+        onSuccess: (_input, variables) => {
+          void queryClient.invalidateQueries({
+            queryKey: workspaceQueryKeys.researchInputs(variables.projectId),
           });
         },
       }),

@@ -19,6 +19,10 @@ import {
   toResearchThreadEntryViewModel,
   toResearchTurnViewModel,
   toRunStepViewModel,
+  toDataArtifactViewModel,
+  toGraphArtifactViewModel,
+  toLiteratureArtifactViewModel,
+  toPaperAcquisitionViewModel,
 } from "./view-model-mappers";
 import type { ActivityPresentationEvent } from "./activity";
 import type { PublicApplicationError } from "./public-error";
@@ -33,9 +37,17 @@ import type {
   ResearchThreadEntryViewModel,
   ResearchTurnViewModel,
   RunStepViewModel,
+  DataArtifactReviewViewModel,
+  GraphArtifactReviewViewModel,
+  LiteratureArtifactReviewViewModel,
+  PaperAcquisitionReviewViewModel,
 } from "./view-model";
 import type {
   ArtifactVersionMetadata,
+  DataArtifactReview,
+  GraphArtifactReview,
+  LiteratureArtifactReview,
+  PaperAcquisitionReview,
   Evidence,
   ResearchArtifact,
   ResearchContract,
@@ -64,6 +76,18 @@ export interface ResearchAdapter {
     version: ArtifactVersionMetadata,
   ): ArtifactVersionMetadataViewModel;
   toEvidenceViewModel(evidence: Evidence): EvidenceViewModel;
+  toDataArtifactViewModel(
+    review: DataArtifactReview,
+  ): DataArtifactReviewViewModel;
+  toPaperAcquisitionViewModel(
+    review: PaperAcquisitionReview,
+  ): PaperAcquisitionReviewViewModel;
+  toLiteratureArtifactViewModel(
+    review: LiteratureArtifactReview,
+  ): LiteratureArtifactReviewViewModel;
+  toGraphArtifactViewModel(
+    review: GraphArtifactReview,
+  ): GraphArtifactReviewViewModel;
   toActivityPresentationEvent(event: RunEvent): ActivityPresentationEvent;
   toApplicationCommand(
     intent: ApplicationIntent,
@@ -83,6 +107,10 @@ export const researchAdapter: ResearchAdapter = Object.freeze({
   toArtifactViewModel,
   toArtifactVersionViewModel,
   toEvidenceViewModel,
+  toDataArtifactViewModel,
+  toPaperAcquisitionViewModel,
+  toLiteratureArtifactViewModel,
+  toGraphArtifactViewModel,
   toActivityPresentationEvent,
   toApplicationCommand,
   toPublicApplicationError,

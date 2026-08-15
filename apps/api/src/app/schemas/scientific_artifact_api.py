@@ -17,7 +17,10 @@ from .core import (
 )
 from .scientific_skills import (
     AnalysisReportArtifactContent,
+    LightCurveArtifactContent,
+    ModelArtifactContent,
     ModelEvaluationArtifactContent,
+    SpectrumArtifactContent,
     VisualizationArtifactContent,
 )
 
@@ -26,7 +29,10 @@ MODEL_CONFIG = ConfigDict(extra="forbid", frozen=True)
 ScientificReadContent = Annotated[
     AnalysisReportArtifactContent
     | VisualizationArtifactContent
-    | ModelEvaluationArtifactContent,
+    | SpectrumArtifactContent
+    | LightCurveArtifactContent
+    | ModelEvaluationArtifactContent
+    | ModelArtifactContent,
     Field(discriminator="kind"),
 ]
 

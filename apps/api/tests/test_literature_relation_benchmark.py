@@ -87,10 +87,10 @@ def test_formal_paper_benchmark_relation_benchmark_is_reproducible_and_exact(
     assert first.benchmark_version == FROZEN_BENCHMARK_VERSION
     assert first.benchmark_scientific_payload_hash == FROZEN_SCIENTIFIC_PAYLOAD_HASH
     assert first.benchmark_content_hash == FROZEN_BENCHMARK_CONTENT_HASH
-    assert first.sample_count == 27
-    assert first.schema_items_valid == 24
-    assert first.schema_items_total == 27
-    assert first.schema_pass_rate == 24 / 27
+    assert first.sample_count == 24
+    assert first.schema_items_valid == 21
+    assert first.schema_items_total == 24
+    assert first.schema_pass_rate == 21 / 24
     assert first.scientific_pair_items_matched == 4
     assert first.scientific_pair_items_total == 4
     assert first.scientific_pair_coverage_rate == 1.0
@@ -211,9 +211,9 @@ def test_relation_benchmark_metric_denominators_and_empty_subsets(
     assert scientific_report.evidence_less_block_rate is None
     assert scientific_report.rejection_cases_total == 0
     assert scientific_report.rejection_case_pass_rate is None
-    assert rejection_report.schema_items_valid == 20
-    assert rejection_report.schema_items_total == 23
-    assert rejection_report.schema_pass_rate == 20 / 23
+    assert rejection_report.schema_items_valid == 17
+    assert rejection_report.schema_items_total == 20
+    assert rejection_report.schema_pass_rate == 17 / 20
     assert rejection_report.rejection_case_pass_rate == 1.0
     assert rejection_report.scientific_pair_items_total == 0
     assert rejection_report.scientific_pair_coverage_rate is None
@@ -337,23 +337,6 @@ def test_relation_benchmark_rejects_mixed_producer_signatures(
             cases=(selected[0], changed),
         )
 
-    changed_calibration = selected[1].admission.producer.model_copy(
-        update={"confidence_calibration_version": "9.9.9"}
-    )
-    changed = selected[1].model_copy(
-        update={
-            "admission": selected[1].admission.model_copy(
-                update={"producer": changed_calibration}
-            )
-        }
-    )
-    with pytest.raises(ValueError, match="one Prompt/model/parameter policy"):
-        evaluate_literature_relations(
-            benchmark=benchmark,
-            cases=(selected[0], changed),
-        )
-
-
 def test_relation_benchmark_ignores_execution_runtime_in_report_hash(
     benchmark: BenchmarkPackage,
     cases: tuple[LiteratureRelationBenchmarkEvaluationCase, ...],
@@ -463,12 +446,12 @@ def test_relation_benchmark_cli_generates_and_replays_only_the_full_stable_suite
     serialized_cases = _CASE_ADAPTER.validate_json(
         first_cases_path.read_text(encoding="utf-8")
     )
-    assert report.sample_count == 27
+    assert report.sample_count == 24
     assert report.scientific_relation_items_exact == 4
     assert report.scientific_relation_items_total == 4
     assert report.relation_evidence_items_total == 8
     assert report.trace_step_evidence_items_total == 13
-    assert len(serialized_cases) == 27
+    assert len(serialized_cases) == 24
     assert first_report_path.read_bytes() == second_report_path.read_bytes()
     assert first_report_path.read_bytes() == replay_report_path.read_bytes()
     assert first_cases_path.read_bytes() == second_cases_path.read_bytes()

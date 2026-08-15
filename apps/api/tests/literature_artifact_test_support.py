@@ -245,6 +245,9 @@ def _claim_version(
                 target_id=reference.claim_id,
                 pipeline_evidence_id=reference.evidence_id,
                 source_record_id=item.source_record_id,
+                paper_summary_locator=item.locator.model_dump(
+                    mode="json", exclude_none=True
+                ),
                 snapshot_id=persisted_by_pipeline_id[reference.source_snapshot_id].id,
                 paper_id=reference.paper_id,
             )
@@ -291,6 +294,9 @@ def _relation_version(
                 target_id=reference.relation_id,
                 pipeline_evidence_id=reference.evidence_id,
                 source_record_id=item.source_record_id,
+                paper_summary_locator=item.locator.model_dump(
+                    mode="json", exclude_none=True
+                ),
                 snapshot_id=persisted_by_pipeline_id[reference.source_snapshot_id].id,
                 paper_id=reference.paper_id,
             )
@@ -400,6 +406,7 @@ def _evidence(
     target_id: str,
     pipeline_evidence_id: str,
     source_record_id: str,
+    paper_summary_locator: dict[str, object],
     snapshot_id: str,
     paper_id: str,
 ) -> EvidenceDetail:
@@ -415,6 +422,7 @@ def _evidence(
         locator={
             "summary_evidence_id": pipeline_evidence_id,
             "source_record_id": source_record_id,
+            "paper_summary_locator": paper_summary_locator,
         },
         quote_or_value="Benchmark evidence",
         extraction_method="literature_admission",

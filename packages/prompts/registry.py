@@ -43,7 +43,7 @@ class PromptRegistry:
         try:
             return self._records[name]
         except KeyError as exc:
-            raise KeyError(f"unknown prompt: {name}")
+            raise KeyError(f"unknown prompt: {name}") from exc
 
     def _load(self) -> dict[str, PromptRecord]:
         registry_path = self.root / "registry.json"

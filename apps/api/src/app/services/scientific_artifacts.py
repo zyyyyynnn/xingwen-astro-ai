@@ -9,21 +9,32 @@ from app.schemas.core import ArtifactVersionDetail
 from app.schemas.scientific_artifact_api import ScientificArtifactRead
 from app.schemas.scientific_skills import (
     AnalysisReportArtifactContent,
+    LightCurveArtifactContent,
+    ModelArtifactContent,
     ModelEvaluationArtifactContent,
     ScientificArtifactContent,
+    SpectrumArtifactContent,
     VisualizationArtifactContent,
     FitsImageVisualizationSpec,
     WwtSceneVisualizationSpec,
 )
 from app.security import SecurityProblem
 from app.services.artifacts import ArtifactReadService
-from app.services.content_storage import ContentStorage
+from app.services.content_storage import (
+    ContentRangeNotSatisfiable,
+    ContentRead,
+    ContentStorage,
+    ContentStorageError,
+)
 
 
 _MODELS = {
     "analysis_report": AnalysisReportArtifactContent,
     "visualization": VisualizationArtifactContent,
+    "spectrum": SpectrumArtifactContent,
+    "light_curve": LightCurveArtifactContent,
     "model_evaluation": ModelEvaluationArtifactContent,
+    "model_artifact": ModelArtifactContent,
 }
 
 
@@ -83,7 +94,8 @@ class ScientificArtifactReadService:
         version_id: str,
         content_hash: str,
         session_id: str,
-    ) -> tuple[bytes, str]:
+        range_header: str | None = None,
+    ) -> tuple[ContentRead, str]:
         read = self.get_scientific_artifact(
             version_id=version_id,
             session_id=session_id,
@@ -103,7 +115,14 @@ class ScientificArtifactReadService:
                 "Scientific content unavailable",
                 "The immutable content store is not configured",
             )
-        content = await self._content_storage.retrieve(content_hash)
+        try:
+            content = await self._content_storage.open_read(
+                content_hash, range_header=range_header
+            )
+        except ContentRangeNotSatisfiable:
+            raise
+        except ContentStorageError as exc:
+            raise _integrity_problem() from exc
         if content is None:
             raise _integrity_problem()
         return content, media_type
@@ -168,8 +187,12 @@ def _declared_content_media_type(
             layer.content_hash == content_hash for layer in content.spec.fits_layers
         ):
             return "application/fits"
+        if isinstance(content.spec, WwtSceneVisualizationSpec):
+            for layer in content.spec.table_layers:
+                if layer.content_hash == content_hash:
+                    return layer.media_type
     if (
-        isinstance(content, ModelEvaluationArtifactContent)
+        isinstance(content, ModelEvaluationArtifactContent | ModelArtifactContent)
         and content.model_binary is not None
         and content.model_binary.content_hash == content_hash
     ):

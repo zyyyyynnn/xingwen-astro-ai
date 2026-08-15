@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from base64 import b64encode
 from collections import Counter
 from datetime import UTC, datetime
+from hashlib import sha256
 from math import ceil, isfinite
 from typing import Any
 
@@ -30,6 +32,7 @@ def evaluate_tabular_model(request: ScientificSkillRequest) -> dict[str, object]
             "algorithm",
             "test_fraction",
             "random_seed",
+            "cv_folds",
         },
     )
     rows = require_rows(request.parameters, max_rows=request.budget.max_input_rows)
@@ -48,6 +51,13 @@ def evaluate_tabular_model(request: ScientificSkillRequest) -> dict[str, object]
         default=42,
         lower=0,
         upper=2**32 - 1,
+    )
+    cv_folds = optional_integer(
+        request.parameters,
+        "cv_folds",
+        default=5,
+        lower=2,
+        upper=10,
     )
     if task not in {"classification", "regression"}:
         raise ValueError("task_kind must be classification or regression")
@@ -69,7 +79,84 @@ def evaluate_tabular_model(request: ScientificSkillRequest) -> dict[str, object]
         algorithm=algorithm,
         test_fraction=test_fraction,
         seed=seed,
+        cv_folds=cv_folds,
+        max_output_bytes=request.budget.max_output_bytes,
     )
+
+
+def classify_time_series(request: ScientificSkillRequest) -> dict[str, object]:
+    """Classify independent fixed-length series without reference-side code execution.
+
+    Each row is one sample and ``series_fields`` defines the ordered observation
+    axis.  This preserves AutoAstro's user-visible time-series classification
+    task while using the same bounded, reproducible estimator and ONNX boundary
+    as the canonical tabular modeling skill.
+    """
+
+    reject_unknown(
+        request.parameters,
+        {
+            "rows",
+            "series_fields",
+            "target_field",
+            "algorithm",
+            "test_fraction",
+            "random_seed",
+            "cv_folds",
+        },
+    )
+    rows = require_rows(request.parameters, max_rows=request.budget.max_input_rows)
+    series_fields = require_string_list(
+        request.parameters, "series_fields", max_items=256
+    )
+    if len(series_fields) < 4:
+        raise ValueError("time-series classification requires at least four samples")
+    target = require_string(request.parameters, "target_field")
+    if target in series_fields:
+        raise ValueError("target_field cannot also be a series field")
+    algorithm = optional_string(
+        request.parameters, "algorithm", default="random_forest"
+    )
+    test_fraction = optional_number(request.parameters, "test_fraction", default=0.2)
+    seed = optional_integer(
+        request.parameters,
+        "random_seed",
+        default=42,
+        lower=0,
+        upper=2**32 - 1,
+    )
+    cv_folds = optional_integer(
+        request.parameters,
+        "cv_folds",
+        default=5,
+        lower=2,
+        upper=10,
+    )
+    if not 0.1 <= test_fraction <= 0.5:
+        raise ValueError("test_fraction must be within [0.1, 0.5]")
+
+    matrix, labels, admitted_row_ids = _tabular_matrix(
+        rows, series_fields, target, task="classification"
+    )
+    if len(matrix) < 10:
+        raise ValueError("time-series classification requires at least 10 complete rows")
+    result = _fit_tabular(
+        matrix=matrix,
+        labels=labels,
+        row_ids=admitted_row_ids,
+        features=series_fields,
+        target=target,
+        task="classification",
+        algorithm=algorithm,
+        test_fraction=test_fraction,
+        seed=seed,
+        cv_folds=cv_folds,
+        max_output_bytes=request.budget.max_output_bytes,
+    )
+    result["task_kind"] = "time_series_classification"
+    result["series_layout"] = "ordered_fields"
+    result["sequence_length"] = len(series_fields)
+    return result
 
 
 def forecast_time_series(request: ScientificSkillRequest) -> dict[str, object]:
@@ -125,6 +212,11 @@ def forecast_time_series(request: ScientificSkillRequest) -> dict[str, object]:
         n_jobs=1,
     )
     model.fit(samples[:split_index], labels[:split_index])
+    model_binary = _serialize_onnx_model(
+        model,
+        samples[:split_index],
+        max_output_bytes=request.budget.max_output_bytes,
+    )
     predictions = model.predict(samples[split_index:])
     rolling = list(series[-lags:])
     future: list[float] = []
@@ -155,14 +247,40 @@ def forecast_time_series(request: ScientificSkillRequest) -> dict[str, object]:
                 mean_squared_error(actual, predictions) ** 0.5
             ),
         },
+        "model_binary": model_binary,
     }
 
 
 def classify_images(request: ScientificSkillRequest) -> dict[str, object]:
     reject_unknown(
         request.parameters,
-        {"images", "test_fraction", "random_seed"},
+        {
+            "images",
+            "image_count",
+            "source_total_pixels",
+            "image_shape",
+            "preprocessing",
+            "label_schema",
+            "test_fraction",
+            "random_seed",
+        },
     )
+    image_shape = request.parameters.get("image_shape")
+    if image_shape != [32, 32, 3]:
+        raise ValueError("image classification requires the fixed RGB image shape")
+    preprocessing = request.parameters.get("preprocessing")
+    expected_preprocessing = {
+        "schema_version": "1.0.0",
+        "color_mode": "RGB",
+        "exif_transpose": True,
+        "resize_height": 32,
+        "resize_width": 32,
+        "resize_mode": "contain_pad",
+        "resampling": "bilinear",
+        "normalization": "uint8_to_unit_interval",
+    }
+    if preprocessing != expected_preprocessing:
+        raise ValueError("image classification preprocessing registry is invalid")
     raw_images = request.parameters.get("images")
     if not isinstance(raw_images, list) or len(raw_images) < 10:
         raise ValueError("image classification requires at least 10 labeled images")
@@ -170,44 +288,54 @@ def classify_images(request: ScientificSkillRequest) -> dict[str, object]:
         raise ValueError("image count exceeds the row budget")
     matrix: list[list[float]] = []
     labels: list[str] = []
-    shape: tuple[int, int] | None = None
+    image_ids: list[str] = []
+    feature_count = 32 * 32 * 3
     for item in raw_images:
-        if not isinstance(item, dict) or not isinstance(item.get("label"), str):
-            raise ValueError("each image requires a string label")
+        if (
+            not isinstance(item, dict)
+            or set(item) != {"image_id", "label", "pixels"}
+            or not isinstance(item.get("image_id"), str)
+            or not item["image_id"].strip()
+            or not isinstance(item.get("label"), str)
+        ):
+            raise ValueError("each resolved image requires identity, label and pixels")
         pixels = item.get("pixels")
         if (
             not isinstance(pixels, list)
-            or not pixels
-            or not all(isinstance(row, list) and row for row in pixels)
+            or len(pixels) != feature_count
         ):
-            raise ValueError("each image requires a non-empty 2D pixels array")
-        current_shape = (len(pixels), len(pixels[0]))
-        if any(len(row) != current_shape[1] for row in pixels):
-            raise ValueError("image rows must have an equal width")
-        if shape is None:
-            shape = current_shape
-        elif shape != current_shape:
-            raise ValueError("all images must have the same shape")
-        if current_shape[0] * current_shape[1] * len(raw_images) * 8 > (
-            request.budget.max_input_bytes
-        ):
-            raise ValueError("image tensor exceeds the byte budget")
+            raise ValueError("each resolved image must match the fixed image shape")
         flat: list[float] = []
-        for row in pixels:
-            for value in row:
-                if (
-                    isinstance(value, bool)
-                    or not isinstance(value, int | float)
-                    or not isfinite(float(value))
-                ):
-                    raise ValueError("image pixels must be finite numbers")
-                flat.append(float(value))
+        for value in pixels:
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, int | float)
+                or not isfinite(float(value))
+                or not 0 <= float(value) <= 1
+            ):
+                raise ValueError("image pixels must be finite normalized numbers")
+            flat.append(float(value))
         matrix.append(flat)
         labels.append(item["label"].strip())
+        image_ids.append(item["image_id"].strip())
     if not labels or any(not item for item in labels):
         raise ValueError("image labels must not be blank")
+    if len(image_ids) != len(set(image_ids)):
+        raise ValueError("image identities must be unique")
     if len(matrix) * len(matrix[0]) * 8 > request.budget.max_input_bytes:
         raise ValueError("image tensor exceeds the byte budget")
+    if request.parameters.get("image_count") != len(matrix):
+        raise ValueError("image count does not match the resolved tensor")
+    source_total_pixels = request.parameters.get("source_total_pixels")
+    if (
+        isinstance(source_total_pixels, bool)
+        or not isinstance(source_total_pixels, int)
+        or source_total_pixels <= 0
+    ):
+        raise ValueError("source total pixels metadata is invalid")
+    label_schema = _validated_label_schema(
+        request.parameters.get("label_schema"), labels=labels
+    )
     test_fraction = optional_number(request.parameters, "test_fraction", default=0.2)
     if not 0.1 <= test_fraction <= 0.5:
         raise ValueError("test_fraction must be within [0.1, 0.5]")
@@ -221,17 +349,42 @@ def classify_images(request: ScientificSkillRequest) -> dict[str, object]:
     result = _fit_tabular(
         matrix=matrix,
         labels=labels,
-        row_ids=[f"image.{index + 1}" for index in range(len(matrix))],
+        row_ids=image_ids,
         features=("flattened_pixels",),
         target="label",
         task="classification",
         algorithm="random_forest",
         test_fraction=test_fraction,
         seed=seed,
+        cv_folds=min(5, min(Counter(labels).values())),
+        max_output_bytes=request.budget.max_output_bytes,
     )
     result["task_kind"] = "image_classification"
-    result["image_shape"] = list(shape or ())
+    result["image_count"] = len(matrix)
+    result["source_total_pixels"] = source_total_pixels
+    result["image_shape"] = list(image_shape)
+    result["preprocessing"] = dict(expected_preprocessing)
+    result["label_schema"] = label_schema
     return result
+
+
+def _validated_label_schema(
+    value: object,
+    *,
+    labels: list[str],
+) -> list[dict[str, object]]:
+    if not isinstance(value, list) or len(value) < 2:
+        raise ValueError("image classification label schema is invalid")
+    counts = Counter(labels)
+    expected = [
+        {"class_index": index, "label": label, "sample_count": counts[label]}
+        for index, label in enumerate(
+            sorted(counts, key=lambda item: (item.casefold(), item))
+        )
+    ]
+    if value != expected:
+        raise ValueError("image classification label schema does not match the images")
+    return expected
 
 
 def _fit_tabular(
@@ -245,13 +398,17 @@ def _fit_tabular(
     algorithm: str,
     test_fraction: float,
     seed: int,
+    cv_folds: int,
+    max_output_bytes: int,
 ) -> dict[str, object]:
     from sklearn.dummy import DummyClassifier, DummyRegressor
     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
     from sklearn.linear_model import LinearRegression, LogisticRegression
     from sklearn.metrics import (
         accuracy_score,
+        brier_score_loss,
         f1_score,
+        log_loss,
         mean_absolute_error,
         mean_squared_error,
         r2_score,
@@ -270,6 +427,12 @@ def _fit_tabular(
         raise ValueError(
             "classification split cannot represent every class in both partitions"
         )
+    if task == "classification" and min(label_counts.values()) < cv_folds:
+        raise ValueError(
+            "classification cross-validation folds exceed the smallest class"
+        )
+    if task == "regression" and len(matrix) < cv_folds * 2:
+        raise ValueError("regression cross-validation requires two rows per fold")
     stratify = labels if task == "classification" else None
     indices = list(range(len(matrix)))
     train_indices, test_indices = train_test_split(
@@ -307,6 +470,16 @@ def _fit_tabular(
             "accuracy": float(accuracy_score(test_y, predicted)),
             "macro_f1": float(f1_score(test_y, predicted, average="macro")),
         }
+        probabilities = model.predict_proba(test_x)
+        metrics["log_loss"] = float(
+            log_loss(test_y, probabilities, labels=model.classes_)
+        )
+        if len(model.classes_) == 2:
+            positive = model.classes_[1]
+            binary_actual = [1 if item == positive else 0 for item in test_y]
+            metrics["brier_score"] = float(
+                brier_score_loss(binary_actual, probabilities[:, 1])
+            )
         baseline_metrics = {
             "accuracy": float(accuracy_score(test_y, baseline_predicted)),
             "macro_f1": float(f1_score(test_y, baseline_predicted, average="macro")),
@@ -347,6 +520,22 @@ def _fit_tabular(
                 mean_squared_error(test_y, baseline_predicted) ** 0.5
             ),
         }
+    metrics.update(
+        _cross_validation_metrics(
+            model,
+            matrix,
+            labels,
+            task=task,
+            folds=cv_folds,
+            seed=seed,
+        )
+    )
+    metrics.update(_feature_importance_metrics(model, features))
+    model_binary = _serialize_onnx_model(
+        model,
+        train_x,
+        max_output_bytes=max_output_bytes,
+    )
     return {
         "task_kind": task,
         "algorithm": algorithm,
@@ -358,6 +547,7 @@ def _fit_tabular(
             "random_seed": seed,
             "train_count": len(train_indices),
             "test_count": len(test_indices),
+            "cross_validation_folds": cv_folds,
         },
         "metrics": metrics,
         "baseline_metrics": baseline_metrics,
@@ -369,6 +559,120 @@ def _fit_tabular(
             }
             for position, index in enumerate(test_indices)
         ],
+        "model_binary": model_binary,
+    }
+
+
+def _cross_validation_metrics(
+    model: object,
+    matrix: list[list[float]],
+    labels: list[Any],
+    *,
+    task: str,
+    folds: int,
+    seed: int,
+) -> dict[str, float]:
+    import numpy as np
+    from sklearn.model_selection import KFold, StratifiedKFold, cross_validate
+
+    if task == "classification":
+        splitter = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
+        scoring = {"accuracy": "accuracy", "macro_f1": "f1_macro"}
+        target: list[Any] = labels
+    else:
+        splitter = KFold(n_splits=folds, shuffle=True, random_state=seed)
+        scoring = {
+            "r2": "r2",
+            "mean_absolute_error": "neg_mean_absolute_error",
+            "root_mean_squared_error": "neg_root_mean_squared_error",
+        }
+        target = [float(item) for item in labels]
+    scores = cross_validate(
+        model,
+        matrix,
+        target,
+        cv=splitter,
+        scoring=scoring,
+        n_jobs=1,
+        error_score="raise",
+    )
+    metrics: dict[str, float] = {}
+    for name in scoring:
+        values = np.asarray(scores[f"test_{name}"], dtype=float)
+        if name in {"mean_absolute_error", "root_mean_squared_error"}:
+            values = -values
+        mean_value = float(values.mean())
+        std_value = float(values.std(ddof=0))
+        if not isfinite(mean_value) or not isfinite(std_value):
+            raise ValueError("cross-validation produced a non-finite metric")
+        metrics[f"cv_{name}_mean"] = mean_value
+        metrics[f"cv_{name}_stddev"] = std_value
+    return metrics
+
+
+def _feature_importance_metrics(
+    model: object,
+    features: tuple[str, ...],
+) -> dict[str, float]:
+    import numpy as np
+
+    estimator = model.steps[-1][1] if hasattr(model, "steps") else model
+    raw = getattr(estimator, "feature_importances_", None)
+    if raw is None:
+        coefficients = getattr(estimator, "coef_", None)
+        if coefficients is None:
+            return {}
+        coefficient_array = np.asarray(coefficients, dtype=float)
+        raw = (
+            np.abs(coefficient_array)
+            if coefficient_array.ndim == 1
+            else np.mean(np.abs(coefficient_array), axis=0)
+        )
+    values = np.asarray(raw, dtype=float).reshape(-1)
+    if not len(values) or not np.all(np.isfinite(values)):
+        raise ValueError("model produced invalid feature importance values")
+    values = np.abs(values)
+    total = float(values.sum())
+    normalized = values / total if total > 0 else np.zeros_like(values)
+    if len(normalized) != len(features):
+        if features == ("flattened_pixels",):
+            return {"feature_importance_flattened_pixels": float(normalized.sum())}
+        raise ValueError("model feature importance shape does not match feature fields")
+    return {
+        f"feature_importance_{field}": float(value)
+        for field, value in zip(features, normalized, strict=True)
+    }
+
+
+def _serialize_onnx_model(
+    model: object,
+    samples: list[list[float]],
+    *,
+    max_output_bytes: int,
+) -> dict[str, object]:
+    import numpy as np
+    import onnx
+    from skl2onnx import to_onnx
+
+    if not samples or not samples[0]:
+        raise ValueError("ONNX export requires a non-empty numeric input shape")
+    input_sample = np.asarray(samples[:1], dtype=np.float32)
+    exported = to_onnx(model, input_sample)
+    content = exported.SerializeToString()
+    if not content or len(content) > max_output_bytes:
+        raise ValueError("ONNX model exceeds the output byte budget")
+    onnx.checker.check_model(onnx.load_model_from_string(content))
+    content_hash = "sha256:" + sha256(content).hexdigest()
+    return {
+        "media_type": "application/onnx",
+        "content_base64": b64encode(content).decode("ascii"),
+        "content_hash": content_hash,
+        "input_name": exported.graph.input[0].name,
+        "output_names": [item.name for item in exported.graph.output],
+        "input_shape": [None, len(samples[0])],
+        "opset_imports": {
+            item.domain or "ai.onnx": item.version for item in exported.opset_import
+        },
     }
 
 
