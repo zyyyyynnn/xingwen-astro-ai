@@ -1,7 +1,6 @@
 {
   "manifest_id": "scientific_document-upstream-adoption",
-  "schema_version": "1.1.0",
-  "reviewed_at": "2026-08-07",
+  "schema_version": "4.0.0",
   "case_key": "exoplanet_host_star",
   "allowed_statuses": [
     "approved",
@@ -31,8 +30,7 @@
       "offline_behavior": "fully offline once installed",
       "known_risks": "only born-digital/programmatic PDFs; scanned pages get weak/no text layer and require a visual adapter",
       "upgrade_strategy": "pin exact version in benchmark/optional dependency; re-run native baseline + hash on bump",
-      "evidence_source": "https://pypi.org/project/docling-parse/7.11.0/ (MIT, requires-python >=3.10, classifiers include 3.13)",
-      "reviewed_by": "Scientific Document Parsing Contract"
+      "evidence_source": "https://pypi.org/project/docling-parse/7.11.0/ (MIT, requires-python >=3.10, classifiers include 3.13)"
     },
     {
       "capability": "visual_ocr_layout_table_formula",
@@ -41,30 +39,73 @@
       "package": "paddleocr",
       "package_extra": "doc-parser",
       "package_version": "3.6.0",
-      "import_roots": ["paddleocr", "paddle"],
+      "import_roots": ["paddleocr", "paddlex", "paddle"],
       "release_tag": "paddleocr 3.6.0",
       "release_date": "2026-05-28",
-      "model_repository": "https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6",
-      "model_id": "PaddlePaddle/PaddleOCR-VL-1.6",
-      "model_resolved_id": "PaddleOCR-VL-1.6-0.9B",
-      "model_revision": "cdc88f5feff0e4079e75863205053a68358e52f7",
       "pipeline_version": "v1.6",
-      "paddlepaddle_package": "paddlepaddle-gpu",
-      "paddlepaddle_version": "3.2.1",
+      "paddlex_package": "paddlex",
+      "paddlex_extras": ["genai-client", "ocr"],
+      "paddlex_version": "3.6.0",
+      "runtime_backend": "native",
+      "component_execution_policy": {
+        "use_layout_detection": true,
+        "use_doc_orientation_classify": false,
+        "use_doc_unwarping": false,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false
+      },
+      "component_directory_bindings": {
+        "layout_detection": "layout_detection_model_dir",
+        "vlm_recognition": "vl_rec_model_dir"
+      },
+      "model_asset_manifest": "visual_model_assets.json",
+      "model_asset_bundle_digest": "sha256:148cac3e8bd8464618ac9e6fc95c4b2a53ee10f4d7fd7505a53ab709ffd73484",
+      "runtime_directory_binding": "explicit",
+      "runtime_network_policy": "disabled",
+      "runtime_download_policy": "disabled",
+      "provisioning_package": "huggingface-hub",
+      "provisioning_version": "1.27.0",
+      "runtime_profiles": [
+        {
+          "profile_id": "cpu",
+          "distribution": "paddlepaddle",
+          "version": "3.2.1",
+          "device": "cpu",
+          "status": "approved",
+          "probe_evidence": "live",
+          "configuration_hash": "sha256:479f5c5e286b0564c5e9f0f7b8850e379ea280c504fde8dfb1861e82f6ecf6ae",
+          "python_version": "3.13.15",
+          "fixture_id": "gs-formula",
+          "fixture_sha256": "sha256:252613f4b998757e63ebf1d1a980bc8cfa6c3109d6e741c33a0027e887db48c3",
+          "initialization_completed": true,
+          "predict_executed": true,
+          "result_boundary": "PaddleOCRVLResult.str[res]"
+        },
+        {
+          "profile_id": "gpu",
+          "distribution": "paddlepaddle-gpu",
+          "version": "3.2.1",
+          "device": "gpu",
+          "status": "deferred",
+          "probe_evidence": "not_run",
+          "configuration_hash": "sha256:c605f98e53a27ccca84f8f8da9338e36468f5e3f74b94369a6960f0e70216a5f",
+          "initialization_completed": false,
+          "predict_executed": false
+        }
+      ],
       "license": "Apache-2.0",
-      "model_weight_license": "Apache-2.0",
-      "official_interface_used": "from paddleocr import PaddleOCRVL; pipeline = PaddleOCRVL(pipeline_version='v1.6'); pipeline.predict(image); res.save_to_json()/save_to_markdown()",
+      "official_interface_used": "PaddleOCRVL(pipeline_version='v1.6', layout_detection_model_name='PP-DocLayoutV3', layout_detection_model_dir=verified_layout_dir, vl_rec_model_name='PaddleOCR-VL-1.6-0.9B', vl_rec_model_dir=verified_vlm_dir, use_doc_orientation_classify=False, use_doc_unwarping=False, use_layout_detection=True, use_chart_recognition=False, use_seal_recognition=False, use_ocr_for_image_block=False); pipeline.predict(image)",
       "explicitly_unused_scope": "chart recognition, plot digitization, curve recovery, scatter-point recovery, human parse revision",
-      "cpu_behavior": "CPU fallback supported (DEVICE = cuda if available else cpu)",
-      "gpu_behavior": "paddlepaddle-gpu==3.2.1 (CUDA 12.6) recommended",
-      "network_behavior": "downloads model weights from BCE Bos or Hugging Face on first use",
-      "model_download_behavior": "downloads PaddleOCR-VL-1.6-0.9B weights on first inference; caches under the PaddleOCR model cache directory",
-      "cache_behavior": "caches weights under PaddleOCR model cache; offline execution requires a populated cache",
-      "offline_behavior": "offline only when weights are already present",
-      "known_risks": "heavyweight runtime and model download; not a core startup dependency; chart recognition must remain disabled; use requires a DocumentParserPort adapter that records complete visual provenance",
-      "upgrade_strategy": "pin exact package, resolved model identity and immutable model revision; verify license attribution and rerun the scientific-document benchmark on any change",
-      "evidence_source": "https://pypi.org/project/paddleocr/3.6.0/ (Apache-2.0); https://huggingface.co/api/models/PaddlePaddle/PaddleOCR-VL-1.6 (sha cdc88f5feff0e4079e75863205053a68358e52f7, license apache-2.0); https://www.paddleocr.ai/latest/version3.x/algorithm/PaddleOCR-VL/PaddleOCR-VL.html",
-      "reviewed_by": "Scientific Document Parsing Contract"
+      "cpu_behavior": "paddlepaddle==3.2.1 is approved only for device=cpu after an isolated local-bundle Live predict probe",
+      "gpu_behavior": "paddlepaddle-gpu==3.2.1 remains deferred with probe_evidence=not_run and is not approved by CPU evidence",
+      "network_behavior": "runtime network access is disabled; provisioning uses only the pinned Hugging Face snapshot and PaddleX 3.6.0 official BOS source",
+      "model_download_behavior": "implicit runtime download is forbidden; both verified local model directories are required before PaddleOCRVL construction",
+      "cache_behavior": "unknown or name-matching cache directories are rejected; only directories matching every committed file size/hash are accepted",
+      "offline_behavior": "runtime is fully offline after the separately provisioned content-addressed bundle is verified",
+      "known_risks": "heavyweight optional runtime; CPU fallback is slow; any package, pipeline policy, component or asset digest change requires a new adoption review",
+      "upgrade_strategy": "re-resolve exact PaddleX package config, provision every enabled component, regenerate file and bundle digests, then rerun local-load and predict probes",
+      "evidence_source": "paddleocr[doc-parser]==3.6.0 requires_dist pins paddlex[genai-client,ocr]==3.6.0 package metadata/config; PaddleX official BOS PP-DocLayoutV3_infer.tar; Hugging Face PaddlePaddle/PaddleOCR-VL-1.6 snapshot cdc88f5feff0e4079e75863205053a68358e52f7"
     }
   ]
 }

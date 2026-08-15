@@ -16,6 +16,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ADOPTION_MANIFEST = ROOT / "services" / "scientific_document" / "upstream_adoption.json"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 PRODUCTION_PARSER_AREA = (
     "apps/api/src/app/services/scientific_document",
@@ -43,6 +45,7 @@ MODEL_WEIGHT_SUFFIXES = (
 VENDOR_IMPORT_ROOTS = {
     "docling_parse",
     "paddleocr",
+    "paddlex",
     "paddle",
     "mineru",
     "grobid",
@@ -197,7 +200,7 @@ def check_floating_versions(tracked: list[str]) -> list[str]:
 def check_exact_pinned_versions(tracked: list[str]) -> list[str]:
     errors: list[str] = []
     pattern = re.compile(
-        r"(package_version|model_revision|pipeline_version|release_tag|paddlepaddle_version)"
+        r"(package_version|model_revision|pipeline_version|release_tag|paddlex_version|provisioning_version)"
         r"\"?\s*[:=]\s*[\"']([^\"']+)[\"']"
     )
     for relative in tracked:
@@ -231,6 +234,10 @@ def check_adoption_manifest_integrity() -> list[str]:
     except RuntimeError as exc:
         return [str(exc)]
 
+    if data.get("manifest_id") != "scientific_document-upstream-adoption":
+        errors.append("adoption manifest_id must match the frozen manifest identity")
+    if data.get("schema_version") != "4.0.0":
+        errors.append("adoption schema_version must match the frozen manifest schema")
     if data.get("consumable_statuses") != ["approved"]:
         errors.append("upstream adoption manifest must allow only approved as consumable")
 
@@ -289,6 +296,133 @@ def check_adoption_manifest_integrity() -> list[str]:
         ):
             if not entry.get(field):
                 errors.append(f"approved capability {capability} missing {field}")
+
+        if capability == "visual_ocr_layout_table_formula":
+            required = {
+                "paddlex_package": "paddlex",
+                "paddlex_extras": ["genai-client", "ocr"],
+                "runtime_backend": "native",
+                "component_execution_policy": {
+                    "use_layout_detection": True,
+                    "use_doc_orientation_classify": False,
+                    "use_doc_unwarping": False,
+                    "use_chart_recognition": False,
+                    "use_seal_recognition": False,
+                    "use_ocr_for_image_block": False,
+                },
+                "runtime_directory_binding": "explicit",
+                "runtime_network_policy": "disabled",
+                "runtime_download_policy": "disabled",
+            }
+            for field, expected in required.items():
+                if entry.get(field) != expected:
+                    errors.append(
+                        f"approved visual capability requires {field}={expected!r}"
+                    )
+            for field in (
+                "paddlex_version",
+                "provisioning_version",
+                "model_asset_manifest",
+                "model_asset_bundle_digest",
+            ):
+                if not entry.get(field):
+                    errors.append(f"approved visual capability missing {field}")
+            bindings = entry.get("component_directory_bindings")
+            if not isinstance(bindings, dict) or not bindings:
+                errors.append(
+                    "approved visual capability requires non-empty "
+                    "component_directory_bindings object"
+                )
+            else:
+                for role, parameter in bindings.items():
+                    if not isinstance(role, str) or not role.strip():
+                        errors.append("component_directory_bindings key must be non-empty text")
+                    if not isinstance(parameter, str) or not parameter.strip():
+                        errors.append(
+                            f"component_directory_bindings value for {role!r} must be "
+                            "non-empty text"
+                        )
+                values = [
+                    value for value in bindings.values() if isinstance(value, str)
+                ]
+                if len(set(values)) != len(values):
+                    errors.append(
+                        "component_directory_bindings must map each component to a "
+                        "distinct vendor constructor parameter"
+                    )
+            if entry.get("model_revision") is not None:
+                errors.append(
+                    "visual pipeline identity must come from the asset manifest, "
+                    "not a top-level model_revision"
+                )
+            profiles = entry.get("runtime_profiles")
+            if not isinstance(profiles, list):
+                errors.append("approved visual capability missing runtime_profiles")
+            else:
+                profile_ids = [
+                    profile.get("profile_id")
+                    for profile in profiles
+                    if isinstance(profile, dict)
+                ]
+                if len(profile_ids) != len(set(profile_ids)):
+                    errors.append("visual runtime profile ids must be unique")
+                by_id = {
+                    profile.get("profile_id"): profile
+                    for profile in profiles
+                    if isinstance(profile, dict)
+                }
+                cpu = by_id.get("cpu", {})
+                gpu = by_id.get("gpu", {})
+                if set(by_id) != {"cpu", "gpu"}:
+                    errors.append("visual runtime profiles must be exactly cpu and gpu")
+                if (
+                    cpu.get("distribution") != "paddlepaddle"
+                    or cpu.get("device") != "cpu"
+                    or cpu.get("status") != "approved"
+                    or cpu.get("probe_evidence") != "live"
+                    or cpu.get("initialization_completed") is not True
+                    or cpu.get("predict_executed") is not True
+                ):
+                    errors.append("visual CPU profile lacks approved Live predict evidence")
+                if (
+                    gpu.get("distribution") != "paddlepaddle-gpu"
+                    or gpu.get("device") != "gpu"
+                    or gpu.get("status") != "deferred"
+                    or gpu.get("probe_evidence") != "not_run"
+                    or gpu.get("initialization_completed") is not False
+                    or gpu.get("predict_executed") is not False
+                ):
+                    errors.append("visual GPU profile must remain deferred/not_run")
+                if cpu.get("version") != gpu.get("version"):
+                    errors.append("visual CPU and GPU profiles must pin the same base version")
+    return errors
+
+
+_LOCAL_PATH_PATTERN = re.compile(
+    r"(?:\b[A-Za-z]:[\\/]"
+    r"|(?:^|[\s\"'(:=])/home/[a-z0-9_-]+/"
+    r"|(?:^|[\s\"'(:=])/Users/[a-z0-9_-]+/"
+    r"|(?:^|[\s\"'(:=])/mnt/[a-z0-9_-]+/)",
+    re.IGNORECASE,
+)
+
+
+def check_local_path_leakage(tracked: list[str]) -> list[str]:
+    """Reject absolute machine paths from scientific-document contracts/evidence."""
+    errors: list[str] = []
+    for relative in tracked:
+        normalized = _normalized(relative)
+        if "scientific_document" not in normalized and "adoption" not in normalized:
+            continue
+        if not normalized.lower().endswith((".py", ".json", ".md")):
+            continue
+        try:
+            text = (ROOT / normalized).read_text(encoding="utf-8", errors="strict")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for match in _LOCAL_PATH_PATTERN.finditer(text):
+            errors.append(f"machine-local path in scientific-document contract: {normalized}")
+            break
     return errors
 
 
@@ -299,6 +433,85 @@ def check_model_weights(tracked: list[str]) -> list[str]:
         if normalized.endswith(MODEL_WEIGHT_SUFFIXES):
             errors.append(f"model weight file tracked in git: {relative}")
     return errors
+
+
+def check_visual_asset_contract() -> list[str]:
+    """Verify asset and runtime-profile identities using only stdlib code."""
+    try:
+        from services.scientific_document.model_asset_contract import load_asset_manifest
+        from services.scientific_document.runtime_provenance import (
+            compute_runtime_configuration_hash,
+        )
+
+        assets = load_asset_manifest()
+        adoption = _load_adoption_json()
+        visual = next(
+            entry
+            for entry in adoption["entries"]
+            if entry.get("capability") == "visual_ocr_layout_table_formula"
+        )
+        if visual.get("model_asset_bundle_digest") != assets["bundle_digest"]:
+            return ["visual adoption bundle digest does not match asset contract"]
+        asset_roles = {component["role"] for component in assets["components"]}
+        bindings = visual.get("component_directory_bindings") or {}
+        if set(bindings) != asset_roles:
+            return [
+                "visual component_directory_bindings must cover exactly the asset "
+                "component roles"
+            ]
+        for profile in visual.get("runtime_profiles", []):
+            expected = compute_runtime_configuration_hash(
+                assets,
+                pipeline_version=str(visual.get("pipeline_version", "")),
+                runtime_backend=str(visual.get("runtime_backend", "")),
+                component_execution_policy=visual.get("component_execution_policy") or {},
+                component_directory_bindings=bindings,
+                directory_binding_policy=str(visual.get("runtime_directory_binding", "")),
+                network_policy=str(visual.get("runtime_network_policy", "")),
+                implicit_download_policy=str(visual.get("runtime_download_policy", "")),
+                paddleocr_package=str(visual.get("package", "")),
+                paddleocr_extra=str(visual.get("package_extra", "")),
+                paddleocr_version=str(visual.get("package_version", "")),
+                paddlex_package=str(visual.get("paddlex_package", "")),
+                paddlex_extras=list(visual.get("paddlex_extras") or []),
+                paddlex_version=str(visual.get("paddlex_version", "")),
+                distribution=str(profile.get("distribution", "")),
+                version=str(profile.get("version", "")),
+                device=str(profile.get("device", "")),
+            )
+            if profile.get("configuration_hash") != expected:
+                return [
+                    f"visual {profile.get('profile_id')} configuration hash mismatch"
+                ]
+        golden_path = ADOPTION_MANIFEST.parent / "golden_set.json"
+        try:
+            golden = json.loads(golden_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            return [f"cannot load golden set manifest: {exc}"]
+        golden_hashes = {
+            str(item.get("entry_id")): item.get("content_hash")
+            for item in golden.get("entries", [])
+            if isinstance(item, dict)
+        }
+        for profile in visual.get("runtime_profiles", []):
+            if not isinstance(profile, dict) or profile.get("status") != "approved":
+                continue
+            fixture_id = str(profile.get("fixture_id") or "")
+            if not fixture_id:
+                return [f"visual {profile.get('profile_id')} approved profile missing fixture_id"]
+            if fixture_id not in golden_hashes:
+                return [
+                    f"visual {profile.get('profile_id')} live probe fixture must reference "
+                    "a golden set entry"
+                ]
+            if golden_hashes[fixture_id] != profile.get("fixture_sha256"):
+                return [
+                    f"visual {profile.get('profile_id')} fixture_sha256 must equal the "
+                    "golden set content hash of the committed fixture bytes"
+                ]
+    except (RuntimeError, StopIteration, ValueError) as exc:
+        return [f"visual model asset contract invalid: {exc}"]
+    return []
 
 
 def check_canonical_vendor_leakage(tracked: list[str]) -> list[str]:
@@ -334,7 +547,9 @@ def main() -> int:
     errors += check_floating_versions(tracked)
     errors += check_exact_pinned_versions(tracked)
     errors += check_adoption_manifest_integrity()
+    errors += check_local_path_leakage(tracked)
     errors += check_model_weights(tracked)
+    errors += check_visual_asset_contract()
     errors += check_canonical_vendor_leakage(tracked)
     errors += check_unmanifested_vendored_source(tracked)
     if errors:

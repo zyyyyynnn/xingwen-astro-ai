@@ -50,6 +50,7 @@ function withoutAllowedDomainIdentifiers(value) {
     .replace(/碳(?:同位素)?\s*C-14/gu, "")
     .replace(/\bA4\b(?=\s*(?:paper|@))/giu, "")
     .replace(/\bPydantic\s+v\d+\b/giu, "")
+    .replace(/\bPP-[A-Za-z]+[Vv]\d+(?:\.\d+)*\b/giu, "")
     .replace(/\b(?:actions|astral-sh)\/[A-Za-z0-9_.-]+@v\d+(?:\.\d+)*\b/giu, "")
     .replace(/\b[A-Za-z0-9_.-]+@v\d+(?:\.\d+)+\b/giu, "")
     .replace(/\bv\d+\.\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?\b/giu, "")

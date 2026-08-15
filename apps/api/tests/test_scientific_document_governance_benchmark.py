@@ -8,10 +8,98 @@ import sys
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 ROOT = Path(__file__).resolve().parents[3]
 ADOPTION = ROOT / "services" / "scientific_document" / "upstream_adoption.json"
 GOLDEN = ROOT / "services" / "scientific_document" / "golden_set.json"
+
+
+def test_local_only_unhashed_entry_cannot_claim_pdf_page_ground_truth() -> None:
+    from app.schemas.scientific_document_benchmark import (
+        GoldenExpectedAnnotation,
+        GoldenSetEntry,
+    )
+
+    with pytest.raises(ValidationError):
+        GoldenSetEntry(
+            entry_id="gs-local",
+            case_key="exoplanet_host_star",
+            title="Local paper",
+            data_type="golden",
+            source="restricted-publication",
+            doi_or_identifier="arXiv:0000.00000",
+            license_note="local-only exact bytes not verified",
+            content_hash=None,
+            availability="local-only",
+            local_only=True,
+            expected=GoldenExpectedAnnotation(expected_page_count=7),
+        )
+
+
+def test_committed_golden_manifest_has_no_unverified_page_counts() -> None:
+    from app.schemas.scientific_document_benchmark import GoldenSetManifest
+
+    manifest = GoldenSetManifest.model_validate_json(GOLDEN.read_text(encoding="utf-8"))
+    for entry in manifest.entries:
+        if entry.local_only and entry.content_hash is None and entry.expected is not None:
+            assert entry.expected.expected_page_count is None
+
+
+def test_golden_builder_and_committed_manifest_are_semantically_aligned() -> None:
+    from app.schemas.scientific_document_benchmark import GoldenSetManifest
+    from services.scientific_document.build_golden_manifest import build_manifest
+
+    committed = GoldenSetManifest.model_validate_json(GOLDEN.read_text(encoding="utf-8"))
+    rebuilt = build_manifest()
+    assert rebuilt.manifest_id == committed.manifest_id
+    assert rebuilt.version == committed.version
+    assert rebuilt.sample_count == committed.sample_count
+    assert rebuilt.entries == committed.entries
+
+
+def test_metric_rate_must_match_numerator_denominator() -> None:
+    from app.schemas.scientific_document_benchmark import (
+        BenchmarkMetricStatus,
+        BenchmarkMetricValue,
+    )
+
+    with pytest.raises(ValidationError):
+        BenchmarkMetricValue(
+            name="accepted_rate",
+            status=BenchmarkMetricStatus.measured,
+            numerator=1,
+            denominator=2,
+            rate=0.9,
+            version="1.1.0",
+        )
+
+    metric = BenchmarkMetricValue(
+        name="accepted_rate",
+        status=BenchmarkMetricStatus.measured,
+        numerator=1,
+        denominator=2,
+        rate=0.5,
+        version="1.1.0",
+    )
+    assert metric.rate == 0.5
+
+
+def test_unmeasured_metric_cannot_smuggle_numeric_result() -> None:
+    from app.schemas.scientific_document_benchmark import (
+        BenchmarkMetricStatus,
+        BenchmarkMetricValue,
+    )
+
+    with pytest.raises(ValidationError):
+        BenchmarkMetricValue(
+            name="formula_recovery",
+            status=BenchmarkMetricStatus.unsupported,
+            numerator=1,
+            denominator=1,
+            rate=1.0,
+            version="1.1.0",
+        )
 
 
 def test_adoption_manifest_exact_versions_no_latest() -> None:
@@ -21,7 +109,8 @@ def test_adoption_manifest_exact_versions_no_latest() -> None:
         "model_revision",
         "pipeline_version",
         "release_tag",
-        "paddlepaddle_version",
+        "paddlex_version",
+        "provisioning_version",
     )
     range_chars = (">", "<", "~", "^", "!", "|")
     for entry in data["entries"]:
@@ -54,8 +143,18 @@ def test_adoption_manifest_paddle_exact_revision() -> None:
         if entry["capability"] == "visual_ocr_layout_table_formula"
     )
     assert paddle["package_version"] == "3.6.0"
-    assert paddle["model_revision"] == "cdc88f5feff0e4079e75863205053a68358e52f7"
-    assert paddle["model_resolved_id"] == "PaddleOCR-VL-1.6-0.9B"
+    assert paddle.get("model_revision") is None
+    assets = json.loads(
+        (ADOPTION.parent / paddle["model_asset_manifest"]).read_text(encoding="utf-8")
+    )
+    components = {component["role"]: component for component in assets["components"]}
+    assert components["vlm_recognition"]["revision"] == (
+        "cdc88f5feff0e4079e75863205053a68358e52f7"
+    )
+    assert components["vlm_recognition"]["resolved_model_id"] == (
+        "PaddleOCR-VL-1.6-0.9B"
+    )
+    assert components["layout_detection"]["resolved_model_id"] == "PP-DocLayoutV3"
 
 
 def test_benchmark_contract_preserves_hybrid_shape_without_claiming_execution() -> None:

@@ -181,13 +181,60 @@ Manifest authority:
 
 The same manifest records the accepted visual adapter boundary:
 
-- `paddleocr==3.6.0` with explicit `paddleocr` and `paddle` import roots;
-- `PaddlePaddle/PaddleOCR-VL-1.6` pinned to immutable model revision
-  `cdc88f5feff0e4079e75863205053a68358e52f7`;
-- Apache-2.0 code and model-weight licenses recorded separately;
-- chart recognition and plot digitization excluded;
-- model download, cache, offline, CPU/GPU and attribution requirements fixed in
-  the manifest.
+- `paddleocr[doc-parser]==3.6.0` and `paddlex[genai-client,ocr]==3.6.0`
+  (the exact extras pinned by the `paddleocr[doc-parser]` requirement), with
+  explicit `paddleocr`, `paddlex` and `paddle` import roots;
+- the pipeline component graph contains `PP-DocLayoutV3` and
+  `PaddleOCR-VL-1.6-0.9B`; every required file is size/SHA-256 pinned in
+  `visual_model_assets.json`, including the immutable Hugging Face revision;
+- `upstream_adoption.json` owns package identity and every pipeline/runtime
+  semantic: pipeline version, runtime backend, component execution policy,
+  the component-role to vendor-constructor-parameter directory bindings,
+  directory binding, network and implicit-download policy, and runtime
+  profiles;
+- `visual_model_assets.json` owns only the immutable model asset identity:
+  the component role, model identity, official source, immutable revision,
+  license provenance, exact file inventory, per-component asset digests and
+  the bundle digest; the adoption manifest references it through the bundle
+  digest;
+- the bundle digest binds only the component graph, model/source/revision
+  identity and asset digests; it never binds manifest_id, manifest
+  schema_version, runtime directory parameters, runtime policy, parser
+  packages, device, Python probe version or local paths;
+- the adoption `component_directory_bindings` must cover exactly the asset
+  component roles with distinct vendor parameters; the component graph has
+  one owner (the asset manifest) and the runtime mapping has one owner (the
+  adoption manifest);
+- model directories are operator-provided and must pass full verification
+  before any Paddle import or initialization; a cache name or local path is not
+  model identity;
+- `paddlepaddle==3.2.1`, `device=cpu` is approved by a network-isolated Live
+  initialization and real `predict` over the committed `gs-formula` fixture;
+  the profile `fixture_id` references the golden set entry and its
+  `fixture_sha256` must equal that entry's `content_hash`, which is computed
+  from the committed fixture bytes, so live evidence is machine-bound to the
+  golden set;
+- `paddlepaddle-gpu==3.2.1` remains deferred with `probe_evidence=not_run`;
+  CPU evidence cannot approve the GPU profile;
+- chart, seal, document orientation, unwarping, image-block OCR and plot
+  digitization remain disabled or excluded;
+- license provenance has one owner per fact: the adoption manifest records
+  the code/package adoption license, and the asset manifest records each
+  component/model license.
+
+Each runtime profile has a deterministic `configuration_hash` composed at the
+single composition point `runtime_provenance.py` over the asset bundle
+digest, the adoption-owned pipeline version, runtime backend, component
+execution policy, component directory bindings and
+directory/network/implicit-download policies, the exact adopted parser
+package identity (`paddleocr` package/extra/version and `paddlex`
+package/extras/version), and the exact Paddle distribution/version/device.
+The configuration hash covers the frozen execution configuration only; the
+Python version is live probe evidence on the runtime profile and is excluded
+until it becomes a frozen runtime contract. Local model/cache paths,
+usernames, hostnames, timestamps and review metadata are excluded. A
+production hybrid-parser consumer may select only an approved profile; the
+current approved profile is CPU.
 
 Adoption approval authorizes an adapter to consume the pinned upstream; it is
 not execution evidence. A visual result exists only when a DocumentParserPort
@@ -247,11 +294,22 @@ Pydantic report contract and therefore verifies its hash and non-empty execution
   `adoption_status=approved` manifest entry;
 - rejects floating/range adoption versions;
 - validates critical manifest fields before runtime adapters can rely on them;
+- distinguishes independently admitted CPU/GPU profiles and rejects CPU
+  evidence presented as GPU approval;
+- rejects machine-local absolute paths in tracked Scientific Document
+  contracts/evidence;
 - rejects model weight files and unapproved vendored parser source;
 - rejects vendor imports from the Canonical schema.
 
-Machine detection is necessary but not sufficient. The human checklist in
-`docs/quality/SCIENTIFIC_DOCUMENT_PARSING_REVIEW.md` remains mandatory.
+Machine detection is necessary but not sufficient. Formal review must
+additionally confirm the reference-after-rewrite red line by judgment, because
+no machine gate can determine whether a developer read an upstream
+implementation and hand-rewrote the same engine: no hand-written OCR,
+layout/reading-order, table recognition, formula recognition or PDF glyph
+parser, and no copied/renamed third-party prompt, schema or orchestration.
+`docs/references/**` is used only for understanding, benchmark design and risk
+identification, never as production source Authority. Any violation is a merge
+blocker regardless of CI status.
 
 ## 14. Runtime boundary
 
